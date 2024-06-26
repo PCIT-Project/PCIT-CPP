@@ -1,0 +1,3 @@
+[submodule "extern/Evo"]
+	path = extern/Evo
+	url = https://github.com/12Thanjo/Evo

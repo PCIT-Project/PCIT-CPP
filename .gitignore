@@ -1,0 +1,23 @@
+# directories
+.vs/
+build/
+
+# outputs
+*.o
+*.exe
+*.pdb
+*.ll
+
+# sublime
+*.sublime-project
+*.sublime-workspace
+
+# visual studio
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+*.sln
+
+# misc
+*.ini
+*.ico
