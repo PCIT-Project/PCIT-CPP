@@ -1,29 +1,29 @@
-# Panthera-Project-CPP
+# PCIT-CPP
 
-Open-source compiler toolchain. At the start will rely heavily on the LLVM-project, but the plan is to be a completely separate toolchain. It is written entirely in C++, but a self-hosted version is planned.
+Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. PCIT relies heavily on the [LLVM-Project](https://github.com/llvm/llvm-project), but that is not guaranteed forever. It is written entirely in C++, but a self-hosted version (written entirely in Panther) is planned.
 
 > [!NOTE]
 > This is in the very early stages and as such is not usable yet.
 
+
 ## Tools
+All tools can be used as stand-alone programs or as libraries.
 
-All tools can be used as standalone programs or as libraries.
-
-### Panther
+### Panther / pthr
 Statically typed, compiled, high-performance, general-purpose programming language.
 
-### Tiger
-Low level compiler IR (intermediate representation) and optimizer.
+### IR
+[Unnamed for now]. Compiler IR / optimizing back-end.
 
-### Lion
-Linker.
+### Linker
+[Unnamed for now]. Linker that aims to make use between platforms as seamless as possible.
 
 ### Other compilers
-Will also be able to compile C and hopefully C++ code. The main intent is for this to allow seamless interoperability with Panther, but these frontends will be able to be used standalone.
+Will also be able to compile C and hopefully C++ code. The main intent is for this to allow seamless interoperability with Panther, but these frontends will be able to be used stand-alone.
 
 
 ## Downloading:
-`git clone https://github.com/Panthera-Project/Panthera-Project.git --recursive`
+`git clone https://github.com/PCIT-Project/PCIT-CPP.git --recursive`
 
 ## Updates:
 List of changes for each version can be found [here](CHANGELOG.md).

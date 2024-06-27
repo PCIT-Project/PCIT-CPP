@@ -1,6 +1,6 @@
 -- premake5
 
-workspace "Panthera-Project-CPP"
+workspace "PCIT-CPP"
 	architecture "x64"
 
 	configurations{
@@ -158,9 +158,9 @@ filter "configurations:Debug"
 	-- debugdir(config.location .. "/testing")
 
 	defines{
-		"PANTHERA_BUILD_DEBUG",
-		"PANTHERA_CONFIG_DEBUG",
-		"PANTHERA_CONFIG_TRACE",
+		"PCIT_BUILD_DEBUG",
+		"PCIT_CONFIG_DEBUG",
+		"PCIT_CONFIG_TRACE",
 	}
 
 filter {}
@@ -171,8 +171,8 @@ filter "configurations:Dev"
 	-- debugdir (config.location .. "/testing")
 
 	defines{
-		"PANTHERA_BUILD_DEV",
-		"PANTHERA_CONFIG_DEBUG",
+		"PCIT_BUILD_DEV",
+		"PCIT_CONFIG_DEBUG",
 	}
 
 filter {}
@@ -182,8 +182,8 @@ filter "configurations:Optimize"
 	-- debugdir (config.location .. "/testing")
 
 	defines{
-		"PANTHERA_BUILD_OPTIMIZE",
-		"PANTHERA_CONFIG_DEBUG",
+		"PCIT_BUILD_OPTIMIZE",
+		"PCIT_CONFIG_DEBUG",
 	}
 
 filter {}
@@ -193,16 +193,16 @@ filter "configurations:Release"
 	-- debugdir (config.location .. "/testing")
 
 	defines{
-		"PANTHERA_BUILD_RELEASE",
-		"PANTHERA_CONFIG_RELEASE",
+		"PCIT_BUILD_RELEASE",
+		"PCIT_CONFIG_RELEASE",
 	}
 filter {}
 
 
 filter "configurations:ReleaseDist"
 	defines{
-		"PANTHERA_BUILD_DIST",
-		"PANTHERA_CONFIG_RELEASE",
+		"PCIT_BUILD_DIST",
+		"PCIT_CONFIG_RELEASE",
 	}
 filter {}
 
@@ -212,6 +212,7 @@ filter {}
 ------------------------------------------------------------------------------
 -- projects
 
+include "./PCIT_core/premake5_PCIT_core.lua"
 include "./Panther/premake5_panther.lua"
 
 
@@ -220,6 +221,7 @@ include "./Panther/premake5_panther.lua"
 
 project("Evo").group = "External Libs"
 
+project("PCIT_core").group = "Libs"
 project("Panther").group = "Libs"
 
 project("pthr").group = "Executables"

@@ -14,11 +14,13 @@ project "Panther"
 
 	
 	includedirs{
+		(config.location .. "/PCIT_core/include"),
 		(config.location .. "/libs"),
 	}
 
 	links{
 		"Evo",
+		"PCIT_core",
 	}
 
 
@@ -43,12 +45,15 @@ project "pthr"
 
 	includedirs{
 		(config.location .. "/libs"),
+		(config.location .. "/PCIT_core/include"),
+		
 
 		"./include/",
 	}
 
 	links{
 		"Evo",
+		"PCIT_core",
 		"Panther",
 	}
 
