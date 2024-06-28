@@ -118,47 +118,57 @@ namespace pcit::core{
 
 
 	auto Printer::print(std::string_view str) const noexcept -> void {
-		evo::printStdout(str);
+		evo::print(str);
 	};
 	
 
 	auto Printer::printFatal(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::fatal();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printError(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::error();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printWarning(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::warning();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printInfo(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::info();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
+		}
+	};
+
+	auto Printer::printSuccess(std::string_view str) const noexcept -> void {
+		if(this->isPrintingColor()){
+			evo::styleConsole::success();
+			evo::print(str);
+			evo::styleConsole::reset();
+		}else{
+			evo::print(str);
 		}
 	};
 	
@@ -166,70 +176,70 @@ namespace pcit::core{
 	auto Printer::printRed(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::red();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printYellow(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::yellow();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printGreen(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::green();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printBlue(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::blue();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printCyan(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::cyan();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printMagenta(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::magenta();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	
 	auto Printer::printGray(std::string_view str) const noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::gray();
-			evo::printStdout(str);
+			evo::print(str);
 			evo::styleConsole::reset();
 		}else{
-			evo::printStdout(str);
+			evo::print(str);
 		}
 	};
 	

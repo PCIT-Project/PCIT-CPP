@@ -155,7 +155,7 @@ allmodulespublic "Off"
 
 filter "configurations:Debug"
 	warnings "High"
-	-- debugdir(config.location .. "/testing")
+	debugdir(config.location .. "/testing")
 
 	defines{
 		"PCIT_BUILD_DEBUG",
@@ -168,7 +168,7 @@ filter {}
 
 filter "configurations:Dev"
 	warnings "High"
-	-- debugdir (config.location .. "/testing")
+	debugdir (config.location .. "/testing")
 
 	defines{
 		"PCIT_BUILD_DEV",
@@ -179,7 +179,7 @@ filter {}
 
 
 filter "configurations:Optimize"
-	-- debugdir (config.location .. "/testing")
+	debugdir (config.location .. "/testing")
 
 	defines{
 		"PCIT_BUILD_OPTIMIZE",
@@ -190,7 +190,7 @@ filter {}
 
 
 filter "configurations:Release"
-	-- debugdir (config.location .. "/testing")
+	debugdir (config.location .. "/testing")
 
 	defines{
 		"PCIT_BUILD_RELEASE",

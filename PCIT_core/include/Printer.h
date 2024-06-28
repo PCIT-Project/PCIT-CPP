@@ -43,6 +43,7 @@ namespace pcit::core{
 			auto printError(std::string_view str) const noexcept -> void;
 			auto printWarning(std::string_view str) const noexcept -> void;
 			auto printInfo(std::string_view str) const noexcept -> void;
+			auto printSuccess(std::string_view str) const noexcept -> void;
 
 			auto printRed(std::string_view str) const noexcept -> void;
 			auto printYellow(std::string_view str) const noexcept -> void;

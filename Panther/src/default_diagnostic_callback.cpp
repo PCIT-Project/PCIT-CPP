@@ -26,16 +26,20 @@ namespace pcit::panther{
 			};
 
 
-			const Source& source = context.getSourceManager().getSource(diagnostic.location.sourceID);
+			if(diagnostic.location.has_value()){
+				const Source::Location& location = *diagnostic.location;
+				const Source& source = context.getSourceManager().getSource(location.sourceID);
 
-			printer.printGray(
-				std::format(
-					"\t{}:{}:{}\n",
-					source.getLocationAsString(),
-					diagnostic.location.lineStart,
-					diagnostic.location.collumnStart
-				)
-			);
+				printer.printGray(
+					std::format(
+						"\t{}:{}:{}\n",
+						source.getLocationAsString(),
+						location.lineStart,
+						location.collumnStart
+					)
+				);
+			}
+
 		};
 	};
 

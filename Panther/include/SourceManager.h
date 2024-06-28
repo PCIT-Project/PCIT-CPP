@@ -32,15 +32,15 @@ namespace pcit::panther{
 			// make sure enough space for `num_source` source is allocated
 			auto reserveSources(size_t num_source) noexcept -> void;
 
-			EVO_NODISCARD auto addSource(const std::string& location, const std::string& data) noexcept -> Source::ID;
-			EVO_NODISCARD auto addSource(const std::string& location, std::string&& data) noexcept -> Source::ID;
-			EVO_NODISCARD auto addSource(std::string&& location, const std::string& data) noexcept -> Source::ID;
-			EVO_NODISCARD auto addSource(std::string&& location, std::string&& data) noexcept -> Source::ID;
+			auto addSource(const std::string& location, const std::string& data) noexcept -> Source::ID;
+			auto addSource(const std::string& location, std::string&& data) noexcept -> Source::ID;
+			auto addSource(std::string&& location, const std::string& data) noexcept -> Source::ID;
+			auto addSource(std::string&& location, std::string&& data) noexcept -> Source::ID;
 
-			EVO_NODISCARD auto addSource(const fs::path& location, const std::string& data) noexcept -> Source::ID;
-			EVO_NODISCARD auto addSource(const fs::path& location, std::string&& data) noexcept -> Source::ID;
-			EVO_NODISCARD auto addSource(fs::path&& location, const std::string& data) noexcept -> Source::ID;
-			EVO_NODISCARD auto addSource(fs::path&& location, std::string&& data) noexcept -> Source::ID;
+			auto addSource(const fs::path& location, const std::string& data) noexcept -> Source::ID;
+			auto addSource(const fs::path& location, std::string&& data) noexcept -> Source::ID;
+			auto addSource(fs::path&& location, const std::string& data) noexcept -> Source::ID;
+			auto addSource(fs::path&& location, std::string&& data) noexcept -> Source::ID;
 
 
 			EVO_NODISCARD auto getSource(Source::ID id)       noexcept ->       Source&;

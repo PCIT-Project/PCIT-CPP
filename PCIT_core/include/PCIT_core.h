@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include "./version.h"
 #include "./UniqueID.h"
 #include "./Diagnostic.h"
 #include "./Printer.h"

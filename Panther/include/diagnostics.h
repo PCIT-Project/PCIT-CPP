@@ -20,14 +20,20 @@ namespace pcit::panther{
 
 	enum class DiagnosticCode{
 		SemaUnknownIdentifier, // S1
+
+		MiscFileDoesNotExist, // M1
+		MiscLoadFileFailed, // M2
 	};
 
-	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, Source::Location>;
+	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, std::optional<Source::Location>>;
 
 
 	EVO_NODISCARD inline auto printDiagnosticCode(DiagnosticCode code) noexcept -> std::string_view {
 		switch(code){
 			break; case DiagnosticCode::SemaUnknownIdentifier: return "S1";
+
+			break; case DiagnosticCode::MiscFileDoesNotExist: return "M1";
+			break; case DiagnosticCode::MiscLoadFileFailed: return "M2";
 		};
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");
