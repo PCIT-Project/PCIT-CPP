@@ -18,6 +18,7 @@ namespace pcit::core{
 		Fatal,
 		Error,
 		Warning,
+		Info,
 	};
 
 
@@ -34,7 +35,7 @@ namespace pcit::core{
 
 		DiagnosticLevel level;
 		CodeEnum code;
-		Location location;
+		std::optional<Location> location;
 		std::string message;
 		std::vector<Info> infos;
 	};

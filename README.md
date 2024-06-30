@@ -13,10 +13,10 @@ All tools can be used as stand-alone programs or as libraries.
 Statically typed, compiled, high-performance, general-purpose programming language.
 
 ### IR
-[Unnamed for now]. Compiler IR / optimizing back-end.
+*[Unnamed for now]*. Compiler IR / optimizing back-end.
 
 ### Linker
-[Unnamed for now]. Linker that aims to make use between platforms as seamless as possible.
+*[Unnamed for now]*. Linker that aims to make use between platforms as seamless as possible.
 
 ### Other compilers
 Will also be able to compile C and hopefully C++ code. The main intent is for this to allow seamless interoperability with Panther, but these frontends will be able to be used stand-alone.
@@ -27,20 +27,20 @@ Will also be able to compile C and hopefully C++ code. The main intent is for th
 
 
 ## Versioning:
-The versioning scheme is as follows: 
-`[major].[release].[minor].[patch]`
-A "release" is the number of the release within the major version. This is zero-indexed if major is >= 1, otherwise it is one-indexed. Any versions within releases is not expected to necessarily be bug-free and stable.
+The versioning scheme is as follows: `[major].[release].[minor].[patch]`. A "release" is the number of the release within the major version. This is zero-indexed if major is >= 1, otherwise it is one-indexed. Any versions within releases is not expected to necessarily be bug-free and stable.
+For brevity, the minor and patch may be left off (making it just `[major].[release]`)
+
 
 ### Expected Timeline:
-- 0.1.0.0: (the first release) 
+- 0.1: (the first release) 
 	- `Panther`/`pthr` working enough to give to testers. Some major features will be missing. Some documentation will exist
 	- Bare-bones version of the Linker library will also be working
-- 0.2.0.0:
+- 0.2:
 	- Bare-bones version of the IR library
 	- Some missing features of Panther added
 - *in-between*:
 	- TBD
-- 1.0.0.0:
+- 1.0:
 	- The project is "released" and is production ready
 
 

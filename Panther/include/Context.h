@@ -30,7 +30,7 @@ namespace pcit::panther{
 
 			struct Config{
 				evo::uint numThreads   = 0;
-				evo::uint maxNumErrors = 0;
+				evo::uint maxNumErrors = 1;
 			};
 
 		public:
@@ -52,20 +52,19 @@ namespace pcit::panther{
 
 
 			// Loads a number of files in a multithreaded. 
+			// TODO: Make sure the following comment is actually true
 			// No other files should be loaded before or after calling this function. If you want more granular control,
 			// 		load files through the Source Manager directly, (Call this->getSourceManager())
 			auto loadFiles(evo::ArrayProxy<fs::path> file_paths) noexcept -> void;
 
+			auto tokenizeLoadedFiles() noexcept -> void;
 			
 
-			auto emitDiagnostic(auto&&... args) noexcept -> void {
-				auto diagnostic = Diagnostic(std::forward<decltype(args)>(args)...);
-				this->emit_diagnostic_impl(diagnostic);
-			};
+
 
 
 			EVO_NODISCARD auto errored() const noexcept -> bool { return this->num_errors != 0; };
-			EVO_NODISCARD auto hitFailCondition() const noexcept -> bool { return this->hit_fail_condition; };
+			EVO_NODISCARD auto hasHitFailCondition() const noexcept -> bool { return this->hit_fail_condition; };
 
 			EVO_NODISCARD auto getSourceManager()       noexcept ->       SourceManager& { return this->src_manager; };
 			EVO_NODISCARD auto getSourceManager() const noexcept -> const SourceManager& { return this->src_manager; };
@@ -77,7 +76,28 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// internal use only
 
-			auto debug([[maybe_unused]] std::string_view message) noexcept -> void {
+			auto emitFatal(auto&&... args) noexcept -> void {
+				this->num_errors += 1;
+				if(this->num_errors <= this->config.maxNumErrors){
+					this->emit_diagnostic_internal(Diagnostic::Level::Fatal, std::forward<decltype(args)>(args)...);
+				}
+				this->notify_task_errored();
+			};
+
+			auto emitError(auto&&... args) noexcept -> void {
+				this->num_errors += 1;
+				if(this->num_errors <= this->config.maxNumErrors){
+					this->emit_diagnostic_internal(Diagnostic::Level::Error, std::forward<decltype(args)>(args)...);
+				}
+				this->notify_task_errored();
+			};
+
+			auto emitWarning(auto&&... args) noexcept -> void {
+				this->emit_diagnostic_internal(Diagnostic::Level::Warning, std::forward<decltype(args)>(args)...);
+			};
+
+
+			auto emitDebug([[maybe_unused]] std::string_view message) noexcept -> void {
 				#if defined(PCIT_BUILD_DEBUG)
 					const auto lock_guard = std::lock_guard(this->callback_mutex);
 					evo::log::debug(message);
@@ -85,7 +105,7 @@ namespace pcit::panther{
 			};
 
 			template<class... Args>
-			auto debug([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) noexcept
+			auto emitDebug([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) noexcept
 			-> void {
 				#if defined(PCIT_BUILD_DEBUG)
 					const auto lock_guard = std::lock_guard(this->callback_mutex);
@@ -93,7 +113,7 @@ namespace pcit::panther{
 				#endif
 			};
 
-			auto trace([[maybe_unused]] std::string_view message) noexcept -> void {
+			auto emitTrace([[maybe_unused]] std::string_view message) noexcept -> void {
 				#if defined(PCIT_BUILD_DEBUG)
 					const auto lock_guard = std::lock_guard(this->callback_mutex);
 					evo::log::trace(message);
@@ -101,7 +121,7 @@ namespace pcit::panther{
 			};
 
 			template<class... Args>
-			auto trace([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) noexcept
+			auto emitTrace([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) noexcept
 			-> void {
 				#if defined(PCIT_BUILD_DEBUG)
 					const auto lock_guard = std::lock_guard(this->callback_mutex);
@@ -109,8 +129,13 @@ namespace pcit::panther{
 				#endif
 			};
 		private:
+			auto emit_diagnostic_internal(auto&&... args) noexcept -> void {
+				auto diagnostic = Diagnostic(std::forward<decltype(args)>(args)...);
+				this->emit_diagnostic_impl(diagnostic);
+			};
+
 			auto emit_diagnostic_impl(const Diagnostic& diagnostic) noexcept -> void;
-			auto notify_task_failed() noexcept -> void;
+			auto notify_task_errored() noexcept -> void;
 			auto consume_tasks_single_threaded() noexcept -> void;
 	
 		private:
@@ -127,17 +152,22 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// threading
 
+			bool task_group_running = false;
 			std::atomic<evo::uint> num_errors = 0;
 			std::atomic<evo::uint> num_threads_running = 0;
 			std::atomic<bool> hit_fail_condition = false;
-			std::atomic<bool> shutting_down_threads = false;
+			std::atomic_flag shutting_down_threads{};
 
 			struct LoadFileTask{
 				fs::path path;
 				int num;
 			};
 
-			using Task = evo::Variant<LoadFileTask>;
+			struct TokenizeFileTask{
+				Source::ID source_id;
+			};
+
+			using Task = evo::Variant<LoadFileTask, TokenizeFileTask>;
 
 			std::queue<std::unique_ptr<Task>> tasks{};
 			std::mutex tasks_mutex{};
@@ -169,6 +199,7 @@ namespace pcit::panther{
 				private:
 					auto run_task(const Task& task) noexcept -> void;
 					auto run_load_file(const LoadFileTask& task) noexcept -> bool;
+					auto run_tokenize_file(const TokenizeFileTask& task) noexcept -> bool;
 
 				private:
 					Context* context;

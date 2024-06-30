@@ -72,12 +72,10 @@ namespace pcit::panther{
 
 	
 	auto SourceManager::getSource(Source::ID id) noexcept -> Source& {
-		evo::debugAssert(this->isLocked() == false, "Cannot get a mutable source when the Source Manager is locked");
 		return this->sources[id.get()];
 	};
 
 	auto SourceManager::getSource(Source::ID id) const noexcept -> const Source& {
-		evo::debugAssert(this->isLocked() == false, "Cannot get a mutable source when the Source Manager is locked");
 		return this->sources[id.get()];
 	};
 

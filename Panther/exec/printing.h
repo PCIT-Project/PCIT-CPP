@@ -10,14 +10,16 @@
 #pragma once
 
 
-#include <PCIT_core.h>
+#include <Evo.h>
+
+#include <Panther.h>
+namespace panther = pcit::panther;
 
 
-#include "./diagnostics.h"
-#include "./Source.h"
-#include "./SourceManager.h"
-#include "./Context.h"
-#include "./Token.h"
-#include "./TokenBuffer.h"
+namespace pthr{
 
-#include "./default_diagnostic_callback.h"
+
+	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) noexcept -> void;
+
+
+};

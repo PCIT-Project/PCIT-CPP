@@ -16,22 +16,16 @@
 #include <filesystem>
 namespace fs = std::filesystem;
 
+#include "./source_data.h"
+#include "./TokenBuffer.h"
+
 namespace pcit::panther{
 
 
 	class Source{
 		public:
-			class ID : public core::UniqueComparableID<uint32_t, class ID> {
-				using core::UniqueComparableID<uint32_t, class ID>::UniqueComparableID;
-			};
-
-			struct Location{
-				ID sourceID;
-				uint32_t lineStart;
-				uint32_t lineEnd;
-				uint32_t collumnStart;
-				uint32_t collumnEnd;
-			};
+			using ID = SourceID;
+			using Location = SourceLocation;
 
 		public:
 			Source(Source&& rhs) noexcept : id(rhs.id), location(std::move(rhs.location)), data(std::move(rhs.data)) {};
@@ -49,6 +43,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getLocationPath() const noexcept -> const fs::path&;
 			EVO_NODISCARD auto getLocationString() const noexcept -> const std::string&;
 			EVO_NODISCARD auto getLocationAsString() const noexcept -> std::string;
+
+			EVO_NODISCARD auto getTokenBuffer() const noexcept -> const TokenBuffer& { return this->token_buffer; };
+			
 
 		private:
 			Source(ID src_id, const std::string& loc, const std::string& data_str) noexcept
@@ -81,7 +78,10 @@ namespace pcit::panther{
 			evo::Variant<fs::path, std::string> location;
 			std::string data;
 
+			TokenBuffer token_buffer{};
+
 			friend class SourceManager;
+			friend class Context;
 	};
 
 };

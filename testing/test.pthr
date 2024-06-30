@@ -1,1 +1,5 @@
-var test: Int = 12;
+// this is a comment
+
+func test = <T: Type> () -> Void {
+	
+}

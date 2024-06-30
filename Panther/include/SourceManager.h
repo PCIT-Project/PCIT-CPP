@@ -25,10 +25,6 @@ namespace pcit::panther{
 			SourceManager() = default;
 			~SourceManager() = default;
 
-
-			auto lock() noexcept -> void { this->locked = true; };
-			EVO_NODISCARD auto isLocked() const noexcept -> bool { return this->locked; };
-
 			// make sure enough space for `num_source` source is allocated
 			auto reserveSources(size_t num_source) noexcept -> void;
 
@@ -46,11 +42,21 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getSource(Source::ID id)       noexcept ->       Source&;
 			EVO_NODISCARD auto getSource(Source::ID id) const noexcept -> const Source&;
 
+			EVO_NODISCARD auto numSources() const noexcept -> size_t { return this->sources.size(); };
+
+			EVO_NODISCARD auto begin() const noexcept -> Source::ID::Iterator {
+				return Source::ID::Iterator(Source::ID(0));
+			};
+
+			EVO_NODISCARD auto end() const noexcept -> Source::ID::Iterator {
+				return Source::ID::Iterator(Source::ID(uint32_t(this->sources.size())));
+			};
+
 	
 		private:
 			std::vector<Source> sources{};
 
-			bool locked = false;
+			friend class Context;
 	};
 
 
