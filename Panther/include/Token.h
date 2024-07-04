@@ -44,13 +44,17 @@ namespace pcit::panther{
 				// types
 				TypeVoid,
 				TypeType,
+				TypeInt,
 
 				// keywords
+				KeywordVar,
 				KeywordFunc,
 
 				// operators
-				RightArrow, // ->
 				Equal, // =
+				RightArrow, // ->
+				LessThan, // <
+				GreaterThan, // >
 
 				// punctuation
 				OpenParen, // (
@@ -132,13 +136,25 @@ namespace pcit::panther{
 			
 
 
-
+			// TODO: hash-map optimization?
 			EVO_NODISCARD static constexpr auto lookupKind(std::string_view op_str) noexcept -> Kind {
 				// length 2
 				if(op_str == "->"){ return Kind::RightArrow; }
 
 				// length 1
 				if(op_str == "="){ return Kind::Equal; }
+				if(op_str == "<"){ return Kind::LessThan; }
+				if(op_str == ">"){ return Kind::GreaterThan; }
+				if(op_str == "("){ return Kind::OpenParen; }
+				if(op_str == ")"){ return Kind::CloseParen; }
+				if(op_str == "["){ return Kind::OpenBracket; }
+				if(op_str == "]"){ return Kind::CloseBracket; }
+				if(op_str == "{"){ return Kind::OpenBrace; }
+				if(op_str == "}"){ return Kind::CloseBrace; }
+				if(op_str == ","){ return Kind::Comma; }
+				if(op_str == ";"){ return Kind::SemiColon; }
+				if(op_str == ":"){ return Kind::Colon; }
+				if(op_str == "|"){ return Kind::Pipe; }
 
 				evo::debugFatalBreak("Uknown or unsupported kind ({})", op_str);
 			};
@@ -160,13 +176,18 @@ namespace pcit::panther{
 
 					// types
 					break; case Kind::TypeVoid:      return "Void";
+					break; case Kind::TypeType:      return "Type";
+					break; case Kind::TypeInt:       return "Int";
 
 					// keywords
+					break; case Kind::KeywordVar:    return "var";
 					break; case Kind::KeywordFunc:   return "func";
 
 					// operators
-					break; case Kind::RightArrow:    return "->";
 					break; case Kind::Equal:         return "=";
+					break; case Kind::RightArrow:    return "->";
+					break; case Kind::LessThan:      return "<";
+					break; case Kind::GreaterThan:   return ">";
 
 					// punctuation
 					break; case Kind::OpenParen:     return "(";
@@ -181,7 +202,7 @@ namespace pcit::panther{
 					break; case Kind::Pipe:          return "|";
 				};
 
-				evo::debugFatalBreak("Unknown or unsupported token kind");
+				evo::debugFatalBreak("Unknown or unsupported token kind ({})", evo::to_underlying(kind));
 			};
 
 

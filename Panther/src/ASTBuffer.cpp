@@ -7,19 +7,11 @@
 //////////////////////////////////////////////////////////////////////
 
 
-#pragma once
-
-
-#include <Evo.h>
-#include <PCIT_core.h>
-
-#include "./Context.h"
+#include "../include/ASTBuffer.h"
 
 namespace pcit::panther{
 
-
-	auto createDefaultDiagnosticCallback(pcit::core::Printer& printer_ref) noexcept 
-		-> Context::DiagnosticCallback;
-
+	
+	
 
 };

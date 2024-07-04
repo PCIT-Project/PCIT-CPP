@@ -1,5 +1,7 @@
 // this is a comment
 
-func test = <T: Type> () -> Void {
-	
-}
+var var1: Void;
+var var2: Int = 12;
+var var3 = asdf;
+var var4;
+

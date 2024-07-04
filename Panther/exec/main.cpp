@@ -39,6 +39,7 @@ namespace panther = pcit::panther;
 struct Config{
 	enum class Target{
 		PrintTokens,
+		PrintAST,
 	} target;
 
 	bool verbose;
@@ -52,12 +53,12 @@ auto main(int argc, const char* argv[]) -> int {
 	auto args = std::vector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::PrintTokens,
+		.target      = Config::Target::PrintAST,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
-		.max_threads = panther::Context::optimalNumThreads(),
-		// .max_threads = 0,
+		// .max_threads = panther::Context::optimalNumThreads(),
+		.max_threads = 0,
 	};
 
 
@@ -74,12 +75,18 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	if(config.verbose){
-		printer.printCyan("pthr (Panther Compiler)\n");
-		printer.printGray("-----------------------\n");
-		printer.printMagenta(std::format("v{}\n", pcit::core::version));
+		printer.printlnCyan("pthr (Panther Compiler)");
+		printer.printlnGray("-----------------------");
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			printer.printlnMagenta(std::format("v{} (debug)", pcit::core::version));
+		#else
+			printer.printlnMagenta(std::format("v{}", pcit::core::version));
+		#endif
 
 		switch(config.target){
-			break; case Config::Target::PrintTokens: printer.printMagenta("Target: PrintTokens\n");
+			break; case Config::Target::PrintTokens: printer.printlnMagenta("Target: PrintTokens");
+			break; case Config::Target::PrintAST:    printer.printlnMagenta("Target: PrintAST");
 			break; default: evo::debugFatalBreak("Unknown or unsupported config target");
 		};
 	}
@@ -108,16 +115,16 @@ auto main(int argc, const char* argv[]) -> int {
 	if(context.isMultiThreaded()){
 		if(config.verbose){
 			if(num_threads > 1){
-				printer.printMagenta(std::format("Running multi-threaded ({} worker threads)\n", num_threads));
+				printer.printlnMagenta(std::format("Running multi-threaded ({} worker threads)", num_threads));
 			}else{
-				printer.printMagenta("Running multi-threaded (1 worker thread)\n");				
+				printer.printlnMagenta("Running multi-threaded (1 worker thread)");				
 			}
 		}
 
 		context.startupThreads();
 	}else{
 		if(config.verbose){
-			printer.printMagenta("Running single-threaded\n");
+			printer.printlnMagenta("Running single-threaded");
 		}
 	}
 
@@ -135,14 +142,14 @@ auto main(int argc, const char* argv[]) -> int {
 	}
 
 	if(context.errored()){
-		if(config.verbose){ printer.printError("Encountered an error loading files\n"); }
+		if(config.verbose){ printer.printlnError("Encountered an error loading files"); }
 
 		exit();
 		return EXIT_FAILURE;
 	}
 
 
-	if(config.verbose){ printer.printSuccess("Successfully loaded all files\n"); }
+	if(config.verbose){ printer.printlnSuccess("Successfully loaded all files"); }
 
 
 
@@ -156,14 +163,14 @@ auto main(int argc, const char* argv[]) -> int {
 	}
 
 	if(context.errored()){
-		if(config.verbose){ printer.printError("Encountered an error tokenizing files\n"); }
+		if(config.verbose){ printer.printlnError("Encountered an error tokenizing files"); }
 
 		exit();
 		return EXIT_FAILURE;
 	}
 
 
-	if(config.verbose){ printer.printSuccess("Successfully tokenized all files\n"); }
+	if(config.verbose){ printer.printlnSuccess("Successfully tokenized all files"); }
 
 	if(config.target == Config::Target::PrintTokens){
 		const panther::SourceManager& source_manager = context.getSourceManager();
@@ -172,6 +179,39 @@ auto main(int argc, const char* argv[]) -> int {
 			const panther::Source& source = source_manager.getSource(source_id);
 
 			pthr::printTokens(printer, source);
+		}
+
+		exit();
+		return EXIT_SUCCESS;
+	}
+
+
+	///////////////////////////////////
+	// parse
+
+	context.parseLoadedFiles();
+
+	if(context.isMultiThreaded()){
+		context.waitForAllTasks();
+	}
+
+	if(context.errored()){
+		if(config.verbose){ printer.printlnError("Encountered an error parsing files"); }
+
+		exit();
+		return EXIT_FAILURE;
+	}
+
+
+	if(config.verbose){ printer.printlnSuccess("Successfully parsed all files"); }
+
+	if(config.target == Config::Target::PrintAST){
+		const panther::SourceManager& source_manager = context.getSourceManager();
+
+		for(panther::Source::ID source_id : source_manager){
+			const panther::Source& source = source_manager.getSource(source_id);
+
+			pthr::printAST(printer, source);
 		}
 
 		exit();

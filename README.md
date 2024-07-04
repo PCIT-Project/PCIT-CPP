@@ -1,6 +1,6 @@
 # PCIT-CPP
 
-Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. PCIT relies on the [LLVM-Project](https://github.com/llvm/llvm-project), but that is not guaranteed forever. It is written entirely in C++, but a self-hosted version (written entirely in Panther) is planned.
+Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. PCIT (pronounced "P-Kit") relies on the [LLVM-Project](https://github.com/llvm/llvm-project), but that is not guaranteed forever. It is written entirely in C++, but a self-hosted version (written entirely in Panther) is planned.
 
 > [!NOTE]
 > This is in the very early stages and as such is not usable yet.

@@ -14,6 +14,7 @@
 #include <PCIT_core.h>
 
 #include "../include/Context.h"
+#include "../include/source_data.h"
 #include "../include/TokenBuffer.h"
 #include "./CharStream.h"
 

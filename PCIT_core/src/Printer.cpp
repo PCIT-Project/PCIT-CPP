@@ -117,12 +117,12 @@ namespace pcit::core{
 
 
 
-	auto Printer::print(std::string_view str) const noexcept -> void {
+	auto Printer::print(std::string_view str) noexcept -> void {
 		evo::print(str);
 	};
 	
 
-	auto Printer::printFatal(std::string_view str) const noexcept -> void {
+	auto Printer::printFatal(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::fatal();
 			evo::print(str);
@@ -132,7 +132,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printError(std::string_view str) const noexcept -> void {
+	auto Printer::printError(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::error();
 			evo::print(str);
@@ -142,7 +142,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printWarning(std::string_view str) const noexcept -> void {
+	auto Printer::printWarning(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::warning();
 			evo::print(str);
@@ -152,7 +152,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printInfo(std::string_view str) const noexcept -> void {
+	auto Printer::printInfo(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::info();
 			evo::print(str);
@@ -162,7 +162,7 @@ namespace pcit::core{
 		}
 	};
 
-	auto Printer::printSuccess(std::string_view str) const noexcept -> void {
+	auto Printer::printSuccess(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::success();
 			evo::print(str);
@@ -173,7 +173,7 @@ namespace pcit::core{
 	};
 	
 
-	auto Printer::printRed(std::string_view str) const noexcept -> void {
+	auto Printer::printRed(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::red();
 			evo::print(str);
@@ -183,7 +183,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printYellow(std::string_view str) const noexcept -> void {
+	auto Printer::printYellow(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::yellow();
 			evo::print(str);
@@ -193,7 +193,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printGreen(std::string_view str) const noexcept -> void {
+	auto Printer::printGreen(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::green();
 			evo::print(str);
@@ -203,7 +203,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printBlue(std::string_view str) const noexcept -> void {
+	auto Printer::printBlue(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::blue();
 			evo::print(str);
@@ -213,7 +213,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printCyan(std::string_view str) const noexcept -> void {
+	auto Printer::printCyan(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::cyan();
 			evo::print(str);
@@ -223,7 +223,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printMagenta(std::string_view str) const noexcept -> void {
+	auto Printer::printMagenta(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::magenta();
 			evo::print(str);
@@ -233,7 +233,7 @@ namespace pcit::core{
 		}
 	};
 	
-	auto Printer::printGray(std::string_view str) const noexcept -> void {
+	auto Printer::printGray(std::string_view str) noexcept -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::gray();
 			evo::print(str);

@@ -10,6 +10,7 @@
 #include "../include/Context.h"
 
 #include "./Tokenizer.h"
+#include "./Parser.h"
 
 namespace pcit::panther{
 
@@ -177,6 +178,25 @@ namespace pcit::panther{
 	};
 
 
+	auto Context::parseLoadedFiles() noexcept -> void {
+		evo::debugAssert(this->task_group_running == false, "Task group already running");
+
+		{
+			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
+			
+			this->task_group_running = true;
+
+			for(Source& source : this->src_manager.sources){
+				this->tasks.emplace(std::make_unique<Task>(ParseFileTask(source.getID())));
+			}
+		}
+
+		if(this->isSingleThreaded()){
+			this->consume_tasks_single_threaded();
+		}
+	};
+
+
 
 
 	auto Context::emit_diagnostic_impl(const Diagnostic& diagnostic) noexcept -> void {
@@ -267,28 +287,26 @@ namespace pcit::panther{
 
 
 	auto Context::Worker::run_task(const Task& task) noexcept -> void {
-		const bool run_task_res = task.visit([&](auto& value) noexcept -> bool {
+		task.visit([&](auto& value) noexcept -> void {
 			using ValueT = std::decay_t<decltype(value)>;
 
-			     if constexpr(std::is_same_v<ValueT, LoadFileTask>){     return this->run_load_file(value);     }
-			else if constexpr(std::is_same_v<ValueT, TokenizeFileTask>){ return this->run_tokenize_file(value); }
+			     if constexpr(std::is_same_v<ValueT, LoadFileTask>){     this->run_load_file(value);     }
+			else if constexpr(std::is_same_v<ValueT, TokenizeFileTask>){ this->run_tokenize_file(value); }
+			else if constexpr(std::is_same_v<ValueT, ParseFileTask>){    this->run_parse_file(value);    }
 		});
 
-		if(run_task_res == false){
-			this->context->notify_task_errored();
-		}	
 	};
 
 
 
-	auto Context::Worker::run_load_file(const LoadFileTask& task) noexcept -> bool {
+	auto Context::Worker::run_load_file(const LoadFileTask& task) noexcept -> void {
 		if(evo::fs::exists(task.path.string()) == false){
 			this->context->num_errors += 1;
 			this->context->emit_diagnostic_internal(
 				Diagnostic::Level::Error, Diagnostic::Code::MiscFileDoesNotExist, std::nullopt,
 				std::format("File \"{}\" does not exist", task.path.string())
 			);
-			return false;
+			return;
 		}
 
 		auto file = evo::fs::File();
@@ -301,7 +319,7 @@ namespace pcit::panther{
 				Diagnostic::Level::Error, Diagnostic::Code::MiscLoadFileFailed, std::nullopt,
 				std::format("Failed to load file: \"{}\"", task.path.string())
 			);
-			return false;
+			return;
 		}
 
 		const evo::Result<std::string> data_res = file.read();
@@ -312,30 +330,40 @@ namespace pcit::panther{
 				Diagnostic::Level::Error, Diagnostic::Code::MiscLoadFileFailed, std::nullopt,
 				std::format("Failed to load file: \"{}\"", task.path.string())
 			);
-			return false;
+			return;
 		}
 
 		this->context->emitTrace("Loaded file: \"{}\"", task.path.string());
 
 		const auto lock_guard = std::lock_guard(this->context->src_manager_mutex);
 		this->context->getSourceManager().addSource(std::move(task.path), std::move(data_res.value()));
-		return true;
 	};
 
 
 
-	auto Context::Worker::run_tokenize_file(const TokenizeFileTask& task) noexcept -> bool {
+	auto Context::Worker::run_tokenize_file(const TokenizeFileTask& task) noexcept -> void {
 		auto tokenizer = Tokenizer(*this->context, task.source_id);
 
 		evo::Result<TokenBuffer> result = tokenizer.tokenize();
-		if(result.isError()){ return false; }
+		if(result.isError()){ return; }
 
 		const SourceManager& source_manager = this->context->getSourceManager();
 		const Source& source = source_manager.getSource(task.source_id);
 		std::construct_at(&source.token_buffer, std::move(result.value()));
 
 		this->context->emitTrace("Tokenized file: \"{}\"", source.getLocationAsString());
-		return true;
+	};
+
+
+
+	auto Context::Worker::run_parse_file(const ParseFileTask& task) noexcept -> void {
+		auto parser = Parser(*this->context, task.source_id);
+
+		parser.parse();
+
+		const SourceManager& source_manager = this->context->getSourceManager();
+		const Source& source = source_manager.getSource(task.source_id);
+		this->context->emitTrace("Parsed file: \"{}\"", source.getLocationAsString());
 	};
 
 

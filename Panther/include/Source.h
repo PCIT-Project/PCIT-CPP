@@ -18,6 +18,7 @@ namespace fs = std::filesystem;
 
 #include "./source_data.h"
 #include "./TokenBuffer.h"
+#include "./ASTBuffer.h"
 
 namespace pcit::panther{
 
@@ -45,6 +46,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getLocationAsString() const noexcept -> std::string;
 
 			EVO_NODISCARD auto getTokenBuffer() const noexcept -> const TokenBuffer& { return this->token_buffer; };
+			EVO_NODISCARD auto getASTBuffer() const noexcept -> const ASTBuffer& { return this->ast_buffer; };
 			
 
 		private:
@@ -79,9 +81,11 @@ namespace pcit::panther{
 			std::string data;
 
 			TokenBuffer token_buffer{};
+			ASTBuffer ast_buffer{};
 
 			friend class SourceManager;
 			friend class Context;
+			friend class Parser;
 	};
 
 };

@@ -13,7 +13,7 @@ namespace pcit::panther{
 
 
 	static auto print_location(
-		const core::Printer& printer, const Source& source, Diagnostic::Level level, const Source::Location& location
+		core::Printer& printer, const Source& source, Diagnostic::Level level, const Source::Location& location
 	) noexcept -> void {
 
 		///////////////////////////////////
@@ -125,7 +125,7 @@ namespace pcit::panther{
 
 	
 
-	auto createDefaultDiagnosticCallback(const core::Printer& printer_ref) noexcept -> Context::DiagnosticCallback {
+	auto createDefaultDiagnosticCallback(core::Printer& printer_ref) noexcept -> Context::DiagnosticCallback {
 		return [&printer = printer_ref](const Context& context, const Diagnostic& diagnostic) noexcept -> void {
 
 			const std::string diagnostic_message = std::format(
@@ -151,6 +151,16 @@ namespace pcit::panther{
 					const Source& source = context.getSourceManager().getSource(info.location->sourceID);
 					print_location(printer, source, Diagnostic::Level::Info, *info.location);
 				}
+			}
+
+
+			if(diagnostic.level == Diagnostic::Level::Fatal){
+				printer.printFatal(
+					"\tThis is a bug in the compiler.\n"
+					"\tPlease report it on Github: \"https://github.com/PCIT-Project/PCIT-CPP/issues\"\n"
+					"\tGuidelines for creating issues: "
+						"\"https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md#Issues\"\n"
+				);
 			}
 		};
 	};

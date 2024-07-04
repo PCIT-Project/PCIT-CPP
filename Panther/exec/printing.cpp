@@ -11,6 +11,8 @@
 
 namespace pthr{
 	
+	//////////////////////////////////////////////////////////////////////
+	// tokens
 
 	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) noexcept -> void {
 		const panther::TokenBuffer& token_buffer = source.getTokenBuffer();
@@ -20,7 +22,7 @@ namespace pthr{
 
 		printer.printGray("------------------------------\n");
 
-		printer.printCyan( std::format("Tokens: {}\n", source.getLocationAsString()) );
+		printer.printCyan("Tokens: {}\n", source.getLocationAsString());
 
 		if(token_buffer.size() == 0){
 			printer.printGray("(NONE)\n");
@@ -29,7 +31,7 @@ namespace pthr{
 			printer.printGray("(1 token)\n");
 
 		}else{
-			printer.printGray( std::format("({} tokens)\n", token_buffer.size()) );
+			printer.printGray("({} tokens)\n", token_buffer.size());
 		}
 
 
@@ -68,7 +70,7 @@ namespace pthr{
 			const panther::Token& token = token_buffer[token_id];
 			
 			printer.printGray(location_strings[i]);
-			printer.printInfo(std::format("[{}]", token.getKind()));
+			printer.printInfo("[{}]", token.getKind());
 
 
 			const std::string data_str = [&]() noexcept {
@@ -92,6 +94,265 @@ namespace pthr{
 			i += 1;
 		}
 		
+	};
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// ast
+
+
+	class Indenter{
+		public:
+			Indenter(pcit::core::Printer& _printer) noexcept : printer(_printer) {};
+			~Indenter() = default;
+
+			auto push() noexcept -> void {
+				this->indents.emplace_back(IndenterType::EndArrow);
+			};
+
+
+			auto pop() noexcept -> void {
+				this->indents.pop_back();
+			};
+
+			auto set_arrow() noexcept -> void {
+				this->indents.back() = IndenterType::Arrow;
+			};
+
+			auto set_end() noexcept -> void {
+				this->indents.back() = IndenterType::EndArrow;		
+			};
+
+
+			auto print() noexcept -> void {
+				auto print_string = std::string{};
+
+				for(const IndenterType& indent : this->indents){
+					switch(indent){
+						break; case IndenterType::Line:     print_string += "|   ";
+						break; case IndenterType::Arrow:    print_string += "|-> ";
+						break; case IndenterType::EndArrow: print_string += "\\-> ";
+						break; case IndenterType::None:     print_string += "    ";
+					};
+				}
+
+				this->printer.printGray(print_string);
+
+				if(this->indents.empty() == false){
+					if(this->indents.back() == IndenterType::Arrow){
+					    this->indents.back() = IndenterType::Line; 
+
+					}else if(this->indents.back() == IndenterType::EndArrow){
+						this->indents.back() = IndenterType::None;
+					}
+				}
+			};
+
+
+			auto print_arrow() noexcept -> void {
+				this->set_arrow();
+				this->print();
+			};
+
+			auto print_end() noexcept -> void {
+				this->set_end();
+				this->print();
+			};
+
+	
+		private:
+			pcit::core::Printer& printer;
+
+			enum class IndenterType{
+				Line,
+				Arrow,
+				EndArrow,
+				None,
+			};
+			std::vector<IndenterType> indents{};
+	};
+
+
+
+
+	class ASTPrinter{
+		public:
+			ASTPrinter(pcit::core::Printer& _printer, const panther::Source& _source) noexcept 
+				: printer(_printer), source(_source), ast_buffer(this->source.getASTBuffer()), indenter(_printer) {};
+			~ASTPrinter() = default;
+
+
+			auto print_header() noexcept -> void {
+				this->printer.printGray("------------------------------\n");
+
+				this->printer.printCyan("AST: {}\n", source.getLocationAsString());
+
+				if(ast_buffer.numGlobalStmts() == 0){
+					this->printer.printGray("(NONE)\n");
+
+				}else if(ast_buffer.numGlobalStmts() == 1){
+					this->printer.printGray("(1 global statement)\n");
+
+				}else{
+					this->printer.printGray("({} global statements)\n", ast_buffer.numGlobalStmts());
+				}
+			};
+
+			auto print_globals() noexcept -> void {
+				for(const panther::AST::Node& global_stmt : ast_buffer.getGlobalStmts()){
+					this->print_stmt(global_stmt);
+				}
+			};
+
+
+		private:
+			auto print_stmt(const panther::AST::Node& stmt) noexcept -> void {
+				switch(stmt.getKind()){
+					break; case panther::AST::Kind::VarDecl:
+						this->print_var_decl(this->ast_buffer.getVarDecl(stmt));
+				};
+			};
+
+			auto print_var_decl(const panther::AST::VarDecl& var_decl) noexcept -> void {
+				this->indenter.print();
+				this->print_major_header("VarDecl");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Ident");
+					this->print_ident(var_decl.ident);
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Type");
+					if(var_decl.type.hasValue()){
+						this->print_type(var_decl.type.getValue());
+					}else{
+						this->printer.printGray(" [INFERRED]\n");
+					}
+
+					this->indenter.print_end();
+					this->print_minor_header("Value");
+					if(var_decl.value.hasValue()){
+						this->printer.print("\n");
+						this->indenter.push();
+						this->print_expr(var_decl.value.getValue());
+						this->indenter.pop();
+					}else{
+						this->printer.printGray(" [NONE]\n");
+					}
+					
+					this->indenter.pop();
+				}
+			};
+
+
+			
+			auto print_type(const panther::AST::Node& node) const noexcept -> void {
+				if(node.getKind() == panther::AST::Kind::Type){
+					const panther::AST::Type& type = this->ast_buffer.getType(node);
+
+					const panther::Token::ID type_token_id = this->ast_buffer.getBuiltinType(type.base);
+					this->printer.printMagenta(" {}", this->source.getTokenBuffer()[type_token_id].getKind());
+					this->printer.printGray(" [BUILTIN]\n");
+
+				}else{
+					evo::debugFatalBreak("Invalid type kind");
+				}
+			};
+
+
+			auto print_expr(const panther::AST::Node& node) noexcept -> void {
+				this->indenter.print();
+
+				switch(node.getKind()){
+					case panther::AST::Kind::Literal: {
+						const panther::Token::ID token_id = this->ast_buffer.getLiteral(node);
+						const panther::Token& token = this->source.getTokenBuffer()[token_id];
+
+						switch(token.getKind()){
+							case panther::Token::LiteralInt: {
+								this->printer.printMagenta(std::to_string(token.getInt()));
+								this->printer.printGray(" [LiteralInt]");
+							} break;
+
+							case panther::Token::LiteralFloat: {
+								this->printer.printMagenta(std::to_string(token.getFloat()));
+								this->printer.printGray(" [LiteralFloat]");
+							} break;
+
+							case panther::Token::LiteralBool: {
+								this->printer.printMagenta(evo::boolStr(token.getBool()));
+								this->printer.printGray(" [LiteralBool]");
+							} break;
+
+							case panther::Token::LiteralString: {
+								this->printer.printMagenta("\"{}\"", token.getString());
+								this->printer.printGray(" [LiteralString]");
+							} break;
+
+							case panther::Token::LiteralChar: {
+								this->printer.printMagenta("'{}'", token.getString());
+								this->printer.printGray(" [LiteralChar]");
+							} break;
+
+							break; default: evo::debugFatalBreak("Unknown token kind");
+						};
+
+						this->printer.print("\n");
+					} break;
+
+
+					case panther::AST::Kind::Ident: {
+						this->print_ident(node);
+					} break;
+
+
+					default: evo::debugFatalBreak("Unknown or unsupported expr type");
+				};
+			};
+
+
+
+			auto print_ident(const panther::AST::Node& ident) const noexcept -> void {
+				const panther::Token::ID ident_tok_id = this->ast_buffer.getIdent(ident);
+				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
+				this->printer.printMagenta(" {}\n", ident_tok.getString());
+			};
+
+
+
+			auto print_major_header(std::string_view title) noexcept -> void {
+				this->printer.printCyan("{}", title);
+				this->printer.printGray(":\n");
+			};
+
+			auto print_minor_header(std::string_view title) noexcept -> void {
+				this->printer.printBlue("{}", title);
+				this->printer.printGray(":");
+			};
+
+
+	
+		private:
+			pcit::core::Printer& printer;
+			const panther::Source& source;
+			const panther::ASTBuffer& ast_buffer;
+
+			Indenter indenter;
+	};
+
+
+
+
+
+	auto printAST(pcit::core::Printer& printer, const panther::Source& source) noexcept -> void {
+		auto ast_printer = ASTPrinter(printer, source);
+
+		ast_printer.print_header();
+		ast_printer.print_globals();
 	};
 
 

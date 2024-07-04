@@ -30,7 +30,8 @@ namespace pcit::panther{
 		TokLiteralNumTooBig,                // T9
 		TokUnknownFailureToTokenizeNum,     // T10
 
-		SemaUnknownIdentifier, // S1
+		ParserUnknownStmtStart,          // P1
+		ParserIncorrectStmtContinuation, // P2
 
 		MiscFileDoesNotExist, // M1
 		MiscLoadFileFailed,   // M2
@@ -52,10 +53,11 @@ namespace pcit::panther{
 			break; case DiagnosticCode::TokLiteralNumTooBig:                return "T9";
 			break; case DiagnosticCode::TokUnknownFailureToTokenizeNum:     return "T10";
 
-			break; case DiagnosticCode::SemaUnknownIdentifier: return "S1";
+			break; case DiagnosticCode::ParserUnknownStmtStart:          return "P1";
+			break; case DiagnosticCode::ParserIncorrectStmtContinuation: return "P2";
 
 			break; case DiagnosticCode::MiscFileDoesNotExist: return "M1";
-			break; case DiagnosticCode::MiscLoadFileFailed: return "M2";
+			break; case DiagnosticCode::MiscLoadFileFailed:   return "M2";
 		};
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");

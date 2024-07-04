@@ -38,6 +38,30 @@ namespace pcit::core{
 		std::optional<Location> location;
 		std::string message;
 		std::vector<Info> infos;
+
+
+		// TODO: create the rest of the overloads
+		DiagnosticImpl(
+			DiagnosticLevel _level,
+			CodeEnum _code,
+			const std::optional<Location>& _location,
+			const std::string& _message,
+			const std::vector<Info>& _infos = {}
+		) noexcept : level(_level), code(_code), location(_location), message(_message), infos(_infos) {};
+
+		DiagnosticImpl(
+			DiagnosticLevel _level,
+			CodeEnum _code,
+			std::optional<Location>&& _location,
+			std::string&& _message,
+			std::vector<Info>&& _infos = {}
+		) noexcept :
+			level(_level),
+			code(_code),
+			location(std::move(_location)),
+			message(std::move(_message)),
+			infos(std::move(_infos)) 
+		{};
 	};
 
 

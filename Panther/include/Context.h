@@ -58,6 +58,9 @@ namespace pcit::panther{
 			auto loadFiles(evo::ArrayProxy<fs::path> file_paths) noexcept -> void;
 
 			auto tokenizeLoadedFiles() noexcept -> void;
+
+			auto parseLoadedFiles() noexcept -> void;
+
 			
 
 
@@ -167,7 +170,11 @@ namespace pcit::panther{
 				Source::ID source_id;
 			};
 
-			using Task = evo::Variant<LoadFileTask, TokenizeFileTask>;
+			struct ParseFileTask{
+				Source::ID source_id;
+			};
+
+			using Task = evo::Variant<LoadFileTask, TokenizeFileTask, ParseFileTask>;
 
 			std::queue<std::unique_ptr<Task>> tasks{};
 			std::mutex tasks_mutex{};
@@ -198,8 +205,9 @@ namespace pcit::panther{
 
 				private:
 					auto run_task(const Task& task) noexcept -> void;
-					auto run_load_file(const LoadFileTask& task) noexcept -> bool;
-					auto run_tokenize_file(const TokenizeFileTask& task) noexcept -> bool;
+					auto run_load_file(const LoadFileTask& task) noexcept -> void;
+					auto run_tokenize_file(const TokenizeFileTask& task) noexcept -> void;
+					auto run_parse_file(const ParseFileTask& task) noexcept -> void;
 
 				private:
 					Context* context;

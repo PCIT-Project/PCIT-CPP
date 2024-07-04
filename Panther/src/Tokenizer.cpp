@@ -108,8 +108,10 @@ namespace pcit::panther{
 		// types
 		{"Void", Token::Kind::TypeVoid},
 		{"Type", Token::Kind::TypeType},
+		{"Int",  Token::Kind::TypeInt},
 
 		// keywords
+		{"var",  Token::Kind::KeywordVar},
 		{"func", Token::Kind::KeywordFunc},
 	};
 
@@ -230,6 +232,8 @@ namespace pcit::panther{
 
 		// length 1
 		if(is_op("=")){ set_op("="); return true; }
+		if(is_op("<")){ set_op("<"); return true; }
+		if(is_op(">")){ set_op(">"); return true; }
 
 
 		return false;
@@ -336,7 +340,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
-							this->source_id, this->current_token_line_start, this->current_token_collumn_start
+							this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()
 						),
 						"Base-2 numbers should only have digits 0 and 1"
 					);
@@ -354,7 +358,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
-							this->source_id, this->current_token_line_start, this->current_token_collumn_start
+							this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()
 						),
 						"Base-8 numbers should only have digits 0-7"
 					);
@@ -375,9 +379,12 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
-							this->source_id, this->current_token_line_start, this->current_token_collumn_start
+							this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()
 						),
-						"Base-10 numbers should only have digits 0-9"
+						"Base-10 numbers should only have digits 0-9",
+						std::vector<Diagnostic::Info>{
+							Diagnostic::Info("Note: The prefix for hexidecimal numbers (base-16) is \"0x\"")
+						}
 					);
 					return true;
 
@@ -725,7 +732,7 @@ namespace pcit::panther{
 				this->current_token_line_start,
 				this->char_stream.get_line(),
 				this->current_token_collumn_start,
-				this->char_stream.get_collumn()
+				this->char_stream.get_collumn() - 1
 			)
 		);
 	};
@@ -738,7 +745,7 @@ namespace pcit::panther{
 				this->current_token_line_start,
 				this->char_stream.get_line(),
 				this->current_token_collumn_start,
-				this->char_stream.get_collumn()
+				this->char_stream.get_collumn() - 1
 			),
 			std::forward<decltype(val)>(val)
 		);
