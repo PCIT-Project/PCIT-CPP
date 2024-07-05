@@ -23,17 +23,64 @@ namespace pcit::panther{
 
 	class Parser{
 		public:
-			Parser(Context& _context, Source::ID _source_id) noexcept
-				: context(_context),
-				  source_id(_source_id),
-				  reader(this->context.getSourceManager().getSource(this->source_id).getTokenBuffer())
+			Parser(Context& _context, Source::ID _source_id) noexcept :
+				context(_context),
+				source_id(_source_id),
+				reader(this->context.getSourceManager().getSource(this->source_id).getTokenBuffer())
 				{};
 
 			~Parser() = default;
 
+
 			EVO_NODISCARD auto parse() noexcept -> void;
 
+
 		public:
+			struct StackFrame{
+				struct VarDecl{
+					AST::Node ident;
+					bool has_type = false;
+					AST::NodeOptional type{};
+					bool has_expr = false;
+				};
+
+				struct FuncDecl{
+					AST::Node ident;
+					AST::NodeOptional return_type{};
+				};
+
+				struct Block{
+					evo::SmallVector<AST::Node> stmts{};
+				};
+
+				using Context = evo::Variant<std::monostate, VarDecl, FuncDecl, Block>;
+
+				using Call = void(*)(Parser&);
+				Call call;
+			};
+
+			// these functions may not be called directly
+			auto _parse_stmt_selector() noexcept -> void;
+			auto _parse_stmt_add_global() noexcept -> void;
+
+			auto _parse_var_decl_type() noexcept -> void;
+			auto _parse_var_decl_value() noexcept -> void;
+			auto _parse_var_decl_end() noexcept -> void;
+
+			auto _parse_func_decl_type() noexcept -> void;
+			auto _parse_func_decl_end() noexcept -> void;
+
+			auto _parse_block_stmt() noexcept -> void;
+
+
+			auto _pop_stack_context() noexcept -> void;
+			auto _add_pop_stack_context() noexcept -> void;
+
+
+		private:
+			auto execute_stack() noexcept -> void;
+
+
 			///////////////////////////////////
 			// result 
 
@@ -46,14 +93,12 @@ namespace pcit::panther{
 						Error,
 					};
 
-					using enum class Code;
-
 				public:
 					Result() noexcept : result_code(Code::None) {};
 					Result(Code res_code) noexcept : result_code(res_code) {};
 					Result(AST::Node val) noexcept : result_code(Code::Success), node(val) {};
 
-					Result(const Result& rhs) noexcept : result_code(rhs.result_code), node(rhs.node) {};
+					Result(const Result& rhs) noexcept = default;
 
 					~Result() = default;
 
@@ -75,42 +120,7 @@ namespace pcit::panther{
 					};
 			};
 
-
-			///////////////////////////////////
-			// stack
-
-			struct StackFrame{
-				struct VarDecl{
-					AST::Node ident;
-					bool has_type = false;
-					AST::NodeOptional type{};
-					bool has_expr = false;
-				};
-
-				union Context{
-					evo::byte dummy[1];
-
-					VarDecl var_decl;
-
-					Context() noexcept {};
-					Context(VarDecl&& _var_decl) noexcept : var_decl(_var_decl) {};
-				};
-
-				using Call = void(*)(Parser&);
-				Call call; // nullptr means that it should remove a context
-			};
-
-			// these functions may not be called directly
-			auto _parse_stmt_selector() noexcept -> void;
-			auto _parse_stmt_add_global() noexcept -> void;
-
-			auto _parse_var_decl_type() noexcept -> void;
-			auto _parse_var_decl_value() noexcept -> void;
-			auto _parse_var_decl_end() noexcept -> void;
-
-
-		private:
-			auto execute_stack() noexcept -> void;
+			static_assert(std::is_trivially_copyable_v<Result>, "Result is not trivially copyable");
 
 
 			///////////////////////////////////
@@ -122,13 +132,35 @@ namespace pcit::panther{
 			auto parse_global_stmt_dispatch() noexcept -> void;
 
 			auto parse_var_decl_dispatch() noexcept -> void;
+			auto parse_func_decl_dispatch() noexcept -> void;
+
+			auto parse_block_dispatch() noexcept -> void;
 			auto parse_type_dispatch() noexcept -> void;
 
 			auto parse_expr_dispatch() noexcept -> void;
-
 			auto parse_atom() noexcept -> Result;
 			auto parse_literal() noexcept -> Result;
 			auto parse_ident() noexcept -> Result;
+
+
+			///////////////////////////////////
+			// stack
+
+			template<class T>
+			EVO_NODISCARD auto get_frame_context() noexcept -> T& {
+				evo::debugAssert(this->frame_contexts.top().is<T>(), "Current frame context is not of this type");
+				return this->frame_contexts.top().as<T>();
+			};
+
+			template<class T>
+			auto add_frame_context(auto&&... args) noexcept -> void {
+				StackFrame::Context& new_context = this->frame_contexts.emplace();
+				new_context.template emplace<T>(std::forward<decltype(args)>(args)...);
+				this->_add_pop_stack_context();
+			};
+
+			// adds to the stack in the proper order (put the calls in the order that they should be called)
+			auto add_to_stack(evo::ArrayProxy<StackFrame::Call> calls) noexcept -> void;
 
 
 			///////////////////////////////////

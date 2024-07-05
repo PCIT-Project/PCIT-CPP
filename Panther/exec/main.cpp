@@ -45,6 +45,8 @@ struct Config{
 	bool verbose;
 	bool print_color;
 	evo::uint max_threads;
+
+	evo::uint max_num_errors = 1;
 };
 
 
@@ -59,6 +61,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 		// .max_threads = panther::Context::optimalNumThreads(),
 		.max_threads = 0,
+
+		.max_num_errors = 1,
 	};
 
 
@@ -96,7 +100,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), panther::Context::Config{
 		.numThreads   = num_threads,
-		.maxNumErrors = 1,
+		.maxNumErrors = config.max_num_errors,
 	});
 
 

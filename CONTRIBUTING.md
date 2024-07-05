@@ -7,7 +7,7 @@ At this time, PCIT is not accepting any pull requests. The intension is to open 
 
 ## Issues
 Issues are welcomed. However, since this project is in its infancy, expect that things may change soon. When creating an issue, please:
-- Tag the issue appropriately ([more below](#Tagging))
+- Tag the issue appropriately ([more below](#tagging))
 - Make sure there isn't already an issue that exists that is on the same topic
 - Give detailed information
 - Follow the [code of conduct](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CODE_OF_CONDUCT.md)

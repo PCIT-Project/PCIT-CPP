@@ -32,6 +32,7 @@ namespace pcit::panther{
 
 		ParserUnknownStmtStart,          // P1
 		ParserIncorrectStmtContinuation, // P2
+		ParserAssumedTokenNotPreset,     // P3          
 
 		MiscFileDoesNotExist, // M1
 		MiscLoadFileFailed,   // M2
@@ -55,6 +56,7 @@ namespace pcit::panther{
 
 			break; case DiagnosticCode::ParserUnknownStmtStart:          return "P1";
 			break; case DiagnosticCode::ParserIncorrectStmtContinuation: return "P2";
+			break; case DiagnosticCode::ParserAssumedTokenNotPreset:     return "P3";
 
 			break; case DiagnosticCode::MiscFileDoesNotExist: return "M1";
 			break; case DiagnosticCode::MiscLoadFileFailed:   return "M2";

@@ -75,15 +75,15 @@ namespace pthr{
 
 			const std::string data_str = [&]() noexcept {
 				switch(token.getKind()){
-					break; case panther::Token::Ident:         return std::format(" {}", token.getString());
-					break; case panther::Token::Intrinsic:     return std::format(" @{}", token.getString());
-					break; case panther::Token::Attribute:     return std::format(" #{}", token.getString());
+					break; case panther::Token::Kind::Ident:         return std::format(" {}", token.getString());
+					break; case panther::Token::Kind::Intrinsic:     return std::format(" @{}", token.getString());
+					break; case panther::Token::Kind::Attribute:     return std::format(" #{}", token.getString());
 
-					break; case panther::Token::LiteralBool:   return std::format(" {}", token.getBool());
-					break; case panther::Token::LiteralInt:    return std::format(" {}", token.getInt());
-					break; case panther::Token::LiteralFloat:  return std::format(" {}", token.getFloat());
-					break; case panther::Token::LiteralChar:   return std::format(" \'{}\'", token.getString());
-					break; case panther::Token::LiteralString: return std::format(" \"{}\"", token.getString());
+					break; case panther::Token::Kind::LiteralBool:   return std::format(" {}", token.getBool());
+					break; case panther::Token::Kind::LiteralInt:    return std::format(" {}", token.getInt());
+					break; case panther::Token::Kind::LiteralFloat:  return std::format(" {}", token.getFloat());
+					break; case panther::Token::Kind::LiteralChar:   return std::format(" \'{}\'", token.getString());
+					break; case panther::Token::Kind::LiteralString: return std::format(" \"{}\"", token.getString());
 
 					break; default: return std::string();
 				};
@@ -209,20 +209,31 @@ namespace pthr{
 		private:
 			auto print_stmt(const panther::AST::Node& stmt) noexcept -> void {
 				switch(stmt.getKind()){
-					break; case panther::AST::Kind::VarDecl:
+					case panther::AST::Kind::VarDecl: {
 						this->print_var_decl(this->ast_buffer.getVarDecl(stmt));
+					} break;
+
+					case panther::AST::Kind::FuncDecl: {
+						this->print_func_decl(this->ast_buffer.getFuncDecl(stmt));
+					} break;
+
+					default: {
+						evo::debugFatalBreak(
+							"Unknown or unsupported statement kind ({})", evo::to_underlying(stmt.getKind())
+						);
+					} break;
 				};
 			};
 
 			auto print_var_decl(const panther::AST::VarDecl& var_decl) noexcept -> void {
 				this->indenter.print();
-				this->print_major_header("VarDecl");
+				this->print_major_header("Variable Declaration");
 
 				{
 					this->indenter.push();
 
 					this->indenter.print_arrow();
-					this->print_minor_header("Ident");
+					this->print_minor_header("Identifier");
 					this->print_ident(var_decl.ident);
 
 					this->indenter.print_arrow();
@@ -249,6 +260,57 @@ namespace pthr{
 			};
 
 
+			auto print_func_decl(const panther::AST::FuncDecl& func_decl) noexcept -> void {
+				this->indenter.print();
+				this->print_major_header("Function Declaration");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->print_ident(func_decl.ident);
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Return Type");
+					this->print_type(func_decl.returnType);
+
+					this->indenter.set_end();
+					this->print_block(this->ast_buffer.getBlock(func_decl.block));
+
+					this->indenter.pop();
+				}
+			};
+
+
+			auto print_block(const panther::AST::Block& block) noexcept -> void {
+				this->indenter.print();
+				this->print_minor_header("Statement Block");
+
+				if(block.stmts.empty()){
+					this->printer.printGray(" [EMPTY]\n");
+
+				}else{
+					this->printer.print("\n");
+
+					this->indenter.push();
+
+					for(size_t i = 0; const panther::AST::Node& stmt : block.stmts){
+						if(i + 1 < block.stmts.size()){
+							this->indenter.set_arrow();
+						}else{
+							this->indenter.set_end();
+						}
+
+						this->print_stmt(stmt);
+
+						i += 1;
+					}
+
+					this->indenter.pop();
+				}
+			};
+
 			
 			auto print_type(const panther::AST::Node& node) const noexcept -> void {
 				if(node.getKind() == panther::AST::Kind::Type){
@@ -273,27 +335,27 @@ namespace pthr{
 						const panther::Token& token = this->source.getTokenBuffer()[token_id];
 
 						switch(token.getKind()){
-							case panther::Token::LiteralInt: {
+							case panther::Token::Kind::LiteralInt: {
 								this->printer.printMagenta(std::to_string(token.getInt()));
 								this->printer.printGray(" [LiteralInt]");
 							} break;
 
-							case panther::Token::LiteralFloat: {
+							case panther::Token::Kind::LiteralFloat: {
 								this->printer.printMagenta(std::to_string(token.getFloat()));
 								this->printer.printGray(" [LiteralFloat]");
 							} break;
 
-							case panther::Token::LiteralBool: {
+							case panther::Token::Kind::LiteralBool: {
 								this->printer.printMagenta(evo::boolStr(token.getBool()));
 								this->printer.printGray(" [LiteralBool]");
 							} break;
 
-							case panther::Token::LiteralString: {
+							case panther::Token::Kind::LiteralString: {
 								this->printer.printMagenta("\"{}\"", token.getString());
 								this->printer.printGray(" [LiteralString]");
 							} break;
 
-							case panther::Token::LiteralChar: {
+							case panther::Token::Kind::LiteralChar: {
 								this->printer.printMagenta("'{}'", token.getString());
 								this->printer.printGray(" [LiteralChar]");
 							} break;

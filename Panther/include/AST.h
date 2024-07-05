@@ -30,6 +30,8 @@ namespace pcit::panther::AST{
 		FuncDecl,
 
 		Type,
+		Block,
+
 		BuiltinType,
 		Ident,
 		Literal,
@@ -42,7 +44,11 @@ namespace pcit::panther::AST{
 			NodeImpl(Kind _kind, Token::ID token_id) noexcept : kind(_kind), value{.token_id = token_id} {};
 			NodeImpl(Kind _kind, uint32_t node_index) noexcept : kind(_kind), value{.node_index = node_index} {};
 
-			NodeImpl(const NodeImpl<false>& rhs) noexcept : kind(rhs.kind), value{.node_index = rhs.value.node_index}{};
+			NodeImpl(const NodeImpl<false>& rhs) noexcept requires(IsOptional)
+				: kind(rhs.kind), value{.node_index = rhs.value.node_index}{};
+
+			NodeImpl(const NodeImpl<IsOptional>&) = default;
+
 
 			NodeImpl() noexcept requires(IsOptional) : kind(Kind::None), value{} {};
 			NodeImpl(std::nullopt_t) noexcept requires(IsOptional) : kind(Kind::None), value{} {};
@@ -83,8 +89,10 @@ namespace pcit::panther::AST{
 	using Node = NodeImpl<false>;
 	using NodeOptional = NodeImpl<true>;
 
-	static_assert(sizeof(Node) == 8, "sizeof AST::Node is bigger than expected");
-	static_assert(sizeof(NodeOptional) == 8, "sizeof AST::NodeOptional is bigger than expected");
+	static_assert(sizeof(Node) == 8, "sizeof AST::Node is different than expected");
+	static_assert(sizeof(NodeOptional) == 8, "sizeof AST::NodeOptional is different than expected");
+	static_assert(std::is_trivially_copyable_v<Node>, "AST::Node is not trivially copyable");
+	static_assert(std::is_trivially_copyable_v<NodeOptional>, "AST::NodeOptional is not trivially copyable");
 
 
 };
@@ -99,6 +107,17 @@ namespace pcit::panther::AST{
 		NodeOptional value;
 	};
 
+	struct FuncDecl{
+		Node ident;
+		Node returnType;
+		Node block;
+	};
+
+
+	struct Block{
+		evo::SmallVector<Node> stmts;
+	};
+
 
 	struct Type{
 		// struct Qualifier{
@@ -110,7 +129,6 @@ namespace pcit::panther::AST{
 		Node base;
 		// evo::SmallVector<Qualifier> qualifiers;
 	};
-
 
 };
 

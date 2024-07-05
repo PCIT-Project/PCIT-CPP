@@ -165,7 +165,7 @@ namespace pcit::panther{
 			const auto keyword_map_iter = keyword_map.find(ident_name);
 
 			if(keyword_map_iter == keyword_map.end()){
-				this->create_token(Token::Ident, std::string(ident_name));
+				this->create_token(Token::Kind::Ident, std::string(ident_name));
 			}else{
 				this->create_token(keyword_map_iter->second);
 			}
@@ -180,24 +180,24 @@ namespace pcit::panther{
 
 	auto Tokenizer::tokenize_punctuation() noexcept -> bool {
 		const char peeked_char = this->char_stream.peek();
-		Token::Kind tok_kind = Token::None;
+		Token::Kind tok_kind = Token::Kind::None;
 
 		switch(peeked_char){
-			break; case '(': tok_kind = Token::OpenParen;
-			break; case ')': tok_kind = Token::CloseParen;
-			break; case '[': tok_kind = Token::OpenBracket;
-			break; case ']': tok_kind = Token::CloseBracket;
-			break; case '{': tok_kind = Token::OpenBrace;
-			break; case '}': tok_kind = Token::CloseBrace;
+			break; case '(': tok_kind = Token::Kind::OpenParen;
+			break; case ')': tok_kind = Token::Kind::CloseParen;
+			break; case '[': tok_kind = Token::Kind::OpenBracket;
+			break; case ']': tok_kind = Token::Kind::CloseBracket;
+			break; case '{': tok_kind = Token::Kind::OpenBrace;
+			break; case '}': tok_kind = Token::Kind::CloseBrace;
 
-			break; case ',': tok_kind = Token::Comma;
-			break; case ';': tok_kind = Token::SemiColon;
-			break; case ':': tok_kind = Token::Colon;
+			break; case ',': tok_kind = Token::Kind::Comma;
+			break; case ';': tok_kind = Token::Kind::SemiColon;
+			break; case ':': tok_kind = Token::Kind::Colon;
 
-			break; case '|': tok_kind = Token::Pipe;
+			break; case '|': tok_kind = Token::Kind::Pipe;
 		};
 
-		if(tok_kind == Token::None){ return false; }
+		if(tok_kind == Token::Kind::None){ return false; }
 
 		this->char_stream.skip(1);
 
@@ -712,9 +712,9 @@ namespace pcit::panther{
 		this->char_stream.skip(1);
 
 		if(delimiter == '\''){
-			this->create_token(Token::LiteralChar, std::move(literal_value));
+			this->create_token(Token::Kind::LiteralChar, std::move(literal_value));
 		}else{
-			this->create_token(Token::LiteralString, std::move(literal_value));
+			this->create_token(Token::Kind::LiteralString, std::move(literal_value));
 		}
 
 

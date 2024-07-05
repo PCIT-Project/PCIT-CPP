@@ -1,7 +1,13 @@
 // this is a comment
 
-var var1: Void;
-var var2: Int = 12;
-var var3 = asdf;
-var var4;
+
+var foo: Int = 12;
+
+func test = () -> Void {
+	
+	var var_1: Int = 1;
+	var var_2: Int = 2;
+}
+
+var bar: Int = 12;
 

@@ -62,13 +62,35 @@ namespace pcit::panther{
 				return this->var_decls[node.value.node_index];
 			};
 
+			EVO_NODISCARD auto createFuncDecl(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->func_decls.size());
+				this->func_decls.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::FuncDecl, node_index);
+			};
+			EVO_NODISCARD auto getFuncDecl(const AST::Node& node) const noexcept -> const AST::FuncDecl& {
+				evo::debugAssert(node.getKind() == AST::Kind::FuncDecl, "Node is not a FuncDecl");
+				return this->func_decls[node.value.node_index];
+			};
+
+
+
+			EVO_NODISCARD auto createBlock(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->blocks.size());
+				this->blocks.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::Block, node_index);
+			};
+			EVO_NODISCARD auto getBlock(const AST::Node& node) const noexcept -> const AST::Block& {
+				evo::debugAssert(node.getKind() == AST::Kind::Block, "Node is not a VarDecl");
+				return this->blocks[node.value.node_index];
+			};
+
 			EVO_NODISCARD auto createType(auto&&... args) noexcept -> AST::Node {
 				const uint32_t node_index = uint32_t(this->types.size());
 				this->types.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Type, node_index);
 			};
 			EVO_NODISCARD auto getType(const AST::Node& node) const noexcept -> const AST::Type& {
-				evo::debugAssert(node.getKind() == AST::Kind::Type, "Node is not a VarDecl");
+				evo::debugAssert(node.getKind() == AST::Kind::Type, "Node is not a Type");
 				return this->types[node.value.node_index];
 			};
 
@@ -80,6 +102,9 @@ namespace pcit::panther{
 			std::vector<AST::Node> global_stmts{};
 
 			std::vector<AST::VarDecl> var_decls{};
+			std::vector<AST::FuncDecl> func_decls{};
+
+			std::vector<AST::Block> blocks{};
 			std::vector<AST::Type> types{};
 
 

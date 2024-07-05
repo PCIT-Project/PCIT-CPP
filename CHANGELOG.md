@@ -1,7 +1,21 @@
 # Change Log
 
 <!---------------------------------->
-# v0.0.4.0
+## v0.0.5.0
+
+### Panther
+- Added basic parsing of function declarations
+- Made `AST::Node` and `AST::NodeOptional` trivially copyable
+
+### pthr
+- Added `max_num_errros` to config
+
+### misc
+- Fixed links in [contributing policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md)) and [security policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/SECURITY.md)) to point to the correct headings
+
+
+<!---------------------------------->
+## v0.0.4.0
 
 ### Panther
 - Added parsing
@@ -16,6 +30,7 @@
 ### Misc
 - Added [contributing policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md)), [code of conduct](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CODE_OF_CONDUCT.md), and [security policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/SECURITY.md)).
 
+
 <!---------------------------------->
 ## v0.0.3.0
 Added Tokenization and improved diagnostics
@@ -28,6 +43,7 @@ Added Tokenization and improved diagnostics
 - Added tokenization
 - Fixed fatal error when multiple worker threads reported an error at the same time
 - Added pointing to source code in diagnostics
+
 
 <!---------------------------------->
 ## v0.0.2.0
@@ -43,6 +59,7 @@ Setup the threading system for Panther `Context`. Allows for both single-threadi
 ### Misc
 - Added the testing directory
 
+
 <!---------------------------------->
 ## v0.0.1.0
 Setting up basic frameworks
@@ -57,6 +74,7 @@ Setting up basic frameworks
 - Added `DiagnosticImpl`
 - Added `Printer`
 - Added `UniqueID` and `UniqueComparableID`
+
 
 <!---------------------------------->
 ## v0.0.0.0

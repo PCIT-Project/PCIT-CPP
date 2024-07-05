@@ -15,22 +15,36 @@ namespace pcit::panther{
 	
 
 	auto Parser::parse() noexcept -> void {
-		while(this->reader.at_end() == false &&  this->context.hasHitFailCondition() == false){
+		bool should_continue = true;
+
+		while(this->reader.at_end() == false && should_continue){
 			this->parse_global_stmt_dispatch();
 
-			while(this->stack.empty() == false && this->context.hasHitFailCondition() == false){
+			while(this->stack.empty() == false){
+				if(this->context.hasHitFailCondition() || this->last_result.code() == Result::Code::Error){
+					should_continue = false;
+					break;
+				}
+
 				const StackFrame::Call call = this->stack.top().call;
 				this->stack.pop();
 
-				if(call == nullptr){
-					this->frame_contexts.pop();
-				}else{
-					call(*this);
-				}
+				call(*this);
 			};
 		};
 	};
 
+
+	static auto _pop_stack_context_caller(Parser& parser) noexcept -> void {
+		parser._pop_stack_context();
+	};
+	auto Parser::_pop_stack_context() noexcept -> void {
+		this->frame_contexts.pop();
+	};
+
+	auto Parser::_add_pop_stack_context() noexcept -> void {
+		this->add_to_stack(&_pop_stack_context_caller);
+	};
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -39,37 +53,40 @@ namespace pcit::panther{
 	/*
 		Stmt:
 			VarDecl
+			FuncDecl
 	*/
 
-	static auto _parse_stmt_selector_caller(Parser& parser) noexcept -> void {
-		parser._parse_stmt_selector();
-	};
+	static auto _parse_stmt_selector_caller(Parser& parser) noexcept -> void { parser._parse_stmt_selector(); };
 	auto Parser::_parse_stmt_selector() noexcept -> void {
 		const Token& peeked_token = this->reader[this->reader.peek()];
 
 		switch(peeked_token.getKind()){
-			case Token::KeywordVar: this->parse_var_decl_dispatch(); return;
+			case Token::Kind::KeywordVar: this->parse_var_decl_dispatch(); return;
+			case Token::Kind::KeywordFunc: this->parse_func_decl_dispatch(); return;
 		};
+
+		this->context.emitError(
+			Diagnostic::Code::ParserUnknownStmtStart,
+			this->reader[this->reader.peek()].getSourceLocation(this->source_id),
+			"Unknown start to statement"
+		);
 	};
 
 
-	static auto _parse_stmt_add_global_caller(Parser& parser) noexcept -> void {
-		parser._parse_stmt_add_global();
-	};
+	static auto _parse_stmt_add_global_caller(Parser& parser) noexcept -> void { parser._parse_stmt_add_global(); };
 	auto Parser::_parse_stmt_add_global() noexcept -> void {
-		if(this->last_result.code() == Result::Success){
+		if(this->last_result.code() == Result::Code::Success){
 			this->getASTBuffer().global_stmts.emplace_back(this->last_result.value());
 		}
 	};
 
 
 	auto Parser::parse_stmt_dispatch() noexcept -> void {
-		this->stack.emplace(&_parse_stmt_selector_caller);
+		this->add_to_stack(&_parse_stmt_selector_caller);
 	};
 
 	auto Parser::parse_global_stmt_dispatch() noexcept -> void {
-		this->stack.emplace(&_parse_stmt_add_global_caller);
-		this->stack.emplace(&_parse_stmt_selector_caller);
+		this->add_to_stack({&_parse_stmt_selector_caller, &_parse_stmt_add_global_caller});
 	};
 
 
@@ -81,11 +98,9 @@ namespace pcit::panther{
 			'var' Ident ?(':' Type) ?('=' Expr) ';'
 	*/
 
-	static auto _parse_var_decl_type_caller(Parser& parser) noexcept -> void {
-		parser._parse_var_decl_type();
-	};
+	static auto _parse_var_decl_type_caller(Parser& parser) noexcept -> void { parser._parse_var_decl_type();	};
 	auto Parser::_parse_var_decl_type() noexcept -> void {
-		StackFrame::VarDecl& var_decl_context = this->frame_contexts.top().var_decl;
+		StackFrame::VarDecl& var_decl_context = this->get_frame_context<StackFrame::VarDecl>();
 
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind(":")){
 			return;
@@ -97,11 +112,9 @@ namespace pcit::panther{
 	};
 
 
-	static auto _parse_var_decl_value_caller(Parser& parser) noexcept -> void {
-		parser._parse_var_decl_value();
-	};
+	static auto _parse_var_decl_value_caller(Parser& parser) noexcept -> void { parser._parse_var_decl_value();	};
 	auto Parser::_parse_var_decl_value() noexcept -> void {
-		StackFrame::VarDecl& var_decl_context = this->frame_contexts.top().var_decl;
+		StackFrame::VarDecl& var_decl_context = this->get_frame_context<StackFrame::VarDecl>();
 
 		if(var_decl_context.has_type){
 			if(this->check_result(this->last_result, "type after [:] in variable declaration")){ return; }
@@ -117,11 +130,9 @@ namespace pcit::panther{
 		this->parse_expr_dispatch();
 	};
 
-	static auto _parse_var_decl_end_caller(Parser& parser) noexcept -> void {
-		parser._parse_var_decl_end();
-	};
+	static auto _parse_var_decl_end_caller(Parser& parser) noexcept -> void { parser._parse_var_decl_end();	};
 	auto Parser::_parse_var_decl_end() noexcept -> void {
-		StackFrame::VarDecl& var_decl_context = this->frame_contexts.top().var_decl;
+		StackFrame::VarDecl& var_decl_context = this->get_frame_context<StackFrame::VarDecl>();
 
 		auto expr = AST::NodeOptional();
 
@@ -139,19 +150,110 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_var_decl_dispatch() noexcept -> void {
-		if(this->assert_token(Token::KeywordVar, "in variable declaration")){ return; };
+		if(this->assert_token(Token::Kind::KeywordVar, "in variable declaration")){ return; };
 
 		// ident
 		const Result ident = this->parse_ident();
 		if(this->check_result(ident, "identifier in variable declaration")){ return; }
 
-
-		this->frame_contexts.emplace(StackFrame::VarDecl(ident.value()));
-		this->stack.emplace(nullptr);
-		this->stack.emplace(&_parse_var_decl_end_caller);
-		this->stack.emplace(&_parse_var_decl_value_caller);
-		this->stack.emplace(&_parse_var_decl_type_caller);
+		this->add_frame_context<StackFrame::VarDecl>(ident.value());
+		this->add_to_stack({&_parse_var_decl_type_caller, &_parse_var_decl_value_caller, &_parse_var_decl_end_caller});
 	};
+
+
+	//////////////////////////////////////////////////////////////////////
+	// parse func decl
+
+	/*
+		VarDecl:
+			'func' Ident '(' ')' `->` Type Block
+	*/
+	
+	static auto _parse_func_decl_type_caller(Parser& parser) noexcept -> void { parser._parse_func_decl_type();	};
+	auto Parser::_parse_func_decl_type() noexcept -> void {
+		StackFrame::FuncDecl& func_decl_context = this->get_frame_context<StackFrame::FuncDecl>();
+
+		if(this->check_result(this->last_result, "return type in function declaration")){ return; }
+
+		func_decl_context.return_type = this->last_result.value();
+
+		this->parse_block_dispatch();
+	};
+
+
+	static auto _parse_func_decl_end_caller(Parser& parser) noexcept -> void { parser._parse_func_decl_end(); };
+	auto Parser::_parse_func_decl_end() noexcept -> void {
+		StackFrame::FuncDecl& func_decl_context = this->get_frame_context<StackFrame::FuncDecl>();
+
+		if(this->check_result(this->last_result, "statement block in function declaration")){ return; }
+		this->last_result = this->getASTBuffer().createFuncDecl(
+			func_decl_context.ident,
+			func_decl_context.return_type.getValue(),
+			this->last_result.value()
+		);
+	};
+
+
+
+	auto Parser::parse_func_decl_dispatch() noexcept -> void {
+		if(this->assert_token(Token::Kind::KeywordFunc, "in function declaration")){ return; };
+
+		// ident
+		const Result ident = this->parse_ident();
+		if(this->check_result(ident, "identifier in function declaration")){ return; }
+
+		if(this->expect_token(Token::lookupKind("="), "in function declaration")){ return; }
+		if(this->expect_token(Token::lookupKind("("), "in function declaration")){ return; }
+		if(this->expect_token(Token::lookupKind(")"), "in function declaration")){ return; }
+		if(this->expect_token(Token::lookupKind("->"), "in function declaration")){ return; }
+
+		this->add_frame_context<StackFrame::FuncDecl>(ident.value());
+		this->add_to_stack({&_parse_func_decl_type_caller, &_parse_func_decl_end_caller});
+		this->parse_type_dispatch();
+	};
+
+	//////////////////////////////////////////////////////////////////////
+	// parse block
+
+	/*
+		Block:
+			'{' (Stmt)* '}'
+	*/
+
+
+	static auto _parse_block_stmt_caller(Parser& parser) noexcept -> void { parser._parse_block_stmt(); };
+	auto Parser::_parse_block_stmt() noexcept -> void {
+		StackFrame::Block& block_context = this->get_frame_context<StackFrame::Block>();
+
+		if(this->check_result(this->last_result, "statement in statement block")){ return; }
+		block_context.stmts.emplace_back(this->last_result.value());
+
+		if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("}")){
+			this->reader.skip();
+			last_result = this->getASTBuffer().createBlock(std::move(block_context.stmts));
+			return;
+		}
+
+		this->add_to_stack(&_parse_block_stmt_caller);
+		this->parse_stmt_dispatch();
+	};
+
+
+	auto Parser::parse_block_dispatch() noexcept -> void {
+		if(this->expect_token(Token::lookupKind("{"), "at beginning of statement block")){ return; }
+
+		if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("}")){
+			this->reader.skip();
+			last_result = this->getASTBuffer().createBlock();
+			return;
+		}
+
+		this->add_frame_context<StackFrame::Block>();
+
+		this->add_to_stack(&_parse_block_stmt_caller);
+		this->parse_stmt_dispatch();
+	};
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -160,12 +262,12 @@ namespace pcit::panther{
 
 	auto Parser::parse_type_dispatch() noexcept -> void {
 		switch(this->reader[this->reader.peek()].getKind()){
-			case Token::TypeVoid:
-			case Token::TypeInt:
+			case Token::Kind::TypeVoid:
+			case Token::Kind::TypeInt:
 				break;
 
 			default:
-				this->last_result = Result::WrongType;
+				this->last_result = Result::Code::WrongType;
 				return;
 		};
 
@@ -173,7 +275,6 @@ namespace pcit::panther{
 
 		this->last_result = this->getASTBuffer().createType(base);
 	};
-
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -184,36 +285,33 @@ namespace pcit::panther{
 	};
 
 
-
-
-
 	//////////////////////////////////////////////////////////////////////
 	// other parsing
 
 
 	auto Parser::parse_atom() noexcept -> Result {
 		Result result = this->parse_literal();
-		if(result.code() == Result::Success || result.code() == Result::Error){ return result; }
+		if(result.code() == Result::Code::Success || result.code() == Result::Code::Error){ return result; }
 
 		result = this->parse_ident();
-		if(result.code() == Result::Success || result.code() == Result::Error){ return result; }
+		if(result.code() == Result::Code::Success || result.code() == Result::Code::Error){ return result; }
 
 
-		return Result::WrongType;
+		return Result::Code::WrongType;
 	};
 
 
 	auto Parser::parse_literal() noexcept -> Result {
 		switch(this->reader[this->reader.peek()].getKind()){
-			case Token::LiteralBool:
-			case Token::LiteralInt:
-			case Token::LiteralFloat:
-			case Token::LiteralString:
-			case Token::LiteralChar:
+			case Token::Kind::LiteralBool:
+			case Token::Kind::LiteralInt:
+			case Token::Kind::LiteralFloat:
+			case Token::Kind::LiteralString:
+			case Token::Kind::LiteralChar:
 				break;
 
 			default:
-				return Result::WrongType;
+				return Result::Code::WrongType;
 		};
 
 		return AST::Node(AST::Kind::Literal, this->reader.next());
@@ -223,8 +321,8 @@ namespace pcit::panther{
 	auto Parser::parse_ident() noexcept -> Result {
 		const Token::ID next_token = this->reader.peek();
 
-		if(this->reader[next_token].getKind() != Token::Ident){
-			return Result::WrongType;
+		if(this->reader[next_token].getKind() != Token::Kind::Ident){
+			return Result::Code::WrongType;
 		}
 
 		this->reader.skip();
@@ -232,6 +330,16 @@ namespace pcit::panther{
 		return AST::Node(AST::Kind::Ident, next_token);
 	};
 
+
+
+	//////////////////////////////////////////////////////////////////////
+	// stack
+
+	auto Parser::add_to_stack(evo::ArrayProxy<StackFrame::Call> calls) noexcept -> void {
+		for(auto i = calls.rbegin(); i != calls.rend(); ++i){
+			this->stack.emplace(*i);
+		}
+	};
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -244,20 +352,20 @@ namespace pcit::panther{
 			std::format("Expected {}, got [{}] instead", expected, token.getKind())
 		);
 
-		this->last_result = Result::Error;
+		this->last_result = Result::Code::Error;
 
 		return this->context.hasHitFailCondition();
 	};
 
 
 	auto Parser::check_result(const Result& result, std::string_view expected) noexcept -> bool {
-		if(result.code() == Result::Error){
-			this->last_result = Result::Error;
+		if(result.code() == Result::Code::Error){
+			this->last_result = Result::Code::Error;
 			return this->context.hasHitFailCondition();
 		}
 
-		if(result.code() == Result::WrongType){ 
-			this->last_result = Result::WrongType;			
+		if(result.code() == Result::Code::WrongType){ 
+			this->last_result = Result::Code::WrongType;			
 			return this->expected_but_got(expected, this->reader[this->reader.peek()]);
 		}
 
@@ -275,7 +383,7 @@ namespace pcit::panther{
 			std::format("Expected [{}] {}, got [{}] instead", kind, location_str, next_token.getKind())
 		);
 
-		this->last_result = Result::Error;
+		this->last_result = Result::Code::Error;
 
 		return this->context.hasHitFailCondition();
 	};
@@ -286,11 +394,11 @@ namespace pcit::panther{
 		if(next_token.getKind() == kind){ return false; }
 
 		this->context.emitFatal(
-			Diagnostic::Code::ParserIncorrectStmtContinuation, next_token.getSourceLocation(this->source_id),
+			Diagnostic::Code::ParserAssumedTokenNotPreset, next_token.getSourceLocation(this->source_id),
 			std::format("Expected [{}] {}, got [{}] instead", kind, location_str, next_token.getKind())
 		);
 
-		this->last_result = Result::Error;
+		this->last_result = Result::Code::Error;
 
 		return true;
 	};

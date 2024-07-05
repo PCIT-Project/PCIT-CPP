@@ -68,7 +68,6 @@ namespace pcit::panther{
 				Colon, // :
 				Pipe, // |
 			};
-			using enum class Kind;
 
 			struct Location{
 				uint32_t lineStart;
