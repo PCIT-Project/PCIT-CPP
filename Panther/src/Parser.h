@@ -23,78 +23,28 @@ namespace pcit::panther{
 
 	class Parser{
 		public:
-			Parser(Context& _context, Source::ID _source_id) noexcept :
+			Parser(Context& _context, Source::ID source_id) noexcept :
 				context(_context),
-				source_id(_source_id),
-				reader(this->context.getSourceManager().getSource(this->source_id).getTokenBuffer())
+				source(this->context.getSourceManager().getSource(source_id)),
+				reader(this->source.getTokenBuffer())
 				{};
 
 			~Parser() = default;
 
 
-			EVO_NODISCARD auto parse() noexcept -> void;
-
-
-		public:
-			struct StackFrame{
-				struct VarDecl{
-					AST::Node ident;
-					bool has_type = false;
-					AST::NodeOptional type{};
-					bool has_expr = false;
-				};
-
-				struct FuncDecl{
-					AST::Node ident;
-					AST::NodeOptional return_type{};
-				};
-
-				struct Block{
-					evo::SmallVector<AST::Node> stmts{};
-				};
-
-				using Context = evo::Variant<std::monostate, VarDecl, FuncDecl, Block>;
-
-				using Call = void(*)(Parser&);
-				Call call;
-			};
-
-			// these functions may not be called directly
-			auto _parse_stmt_selector() noexcept -> void;
-			auto _parse_stmt_add_global() noexcept -> void;
-
-			auto _parse_var_decl_type() noexcept -> void;
-			auto _parse_var_decl_value() noexcept -> void;
-			auto _parse_var_decl_end() noexcept -> void;
-
-			auto _parse_func_decl_type() noexcept -> void;
-			auto _parse_func_decl_end() noexcept -> void;
-
-			auto _parse_block_stmt() noexcept -> void;
-
-
-			auto _pop_stack_context() noexcept -> void;
-			auto _add_pop_stack_context() noexcept -> void;
+			EVO_NODISCARD auto parse() noexcept -> bool;
 
 
 		private:
-			auto execute_stack() noexcept -> void;
-
-
-			///////////////////////////////////
-			// result 
-
 			class Result{
 				public:
 					enum class Code{
-						None,
 						Success,
 						WrongType,
 						Error,
 					};
 
 				public:
-					Result() noexcept : result_code(Code::None) {};
 					Result(Code res_code) noexcept : result_code(res_code) {};
 					Result(AST::Node val) noexcept : result_code(Code::Success), node(val) {};
 
@@ -102,8 +52,8 @@ namespace pcit::panther{
 
 					~Result() = default;
 
-					EVO_NODISCARD inline auto code() const noexcept -> Code { return this->result_code; };
-					EVO_NODISCARD inline auto value() const noexcept -> const AST::Node& {
+					EVO_NODISCARD auto code() const noexcept -> Code { return this->result_code; };
+					EVO_NODISCARD auto value() const noexcept -> const AST::Node& {
 						evo::debugAssert(
 							this->result_code == Code::Success,
 							"Attempted to get value from result that has no value"
@@ -119,74 +69,47 @@ namespace pcit::panther{
 						AST::Node node;
 					};
 			};
-
 			static_assert(std::is_trivially_copyable_v<Result>, "Result is not trivially copyable");
 
 
-			///////////////////////////////////
-			// parsing
+			EVO_NODISCARD auto parse_stmt() noexcept -> Result;
 
-			// these functions return through this->last_result and only one can be used per function as it requires
-			// 	use of the dynamic stack
-			auto parse_stmt_dispatch() noexcept -> void;
-			auto parse_global_stmt_dispatch() noexcept -> void;
+			EVO_NODISCARD auto parse_var_decl() noexcept -> Result;
+			EVO_NODISCARD auto parse_func_decl() noexcept -> Result;
 
-			auto parse_var_decl_dispatch() noexcept -> void;
-			auto parse_func_decl_dispatch() noexcept -> void;
+			EVO_NODISCARD auto parse_block() noexcept -> Result;
+			EVO_NODISCARD auto parse_type() noexcept -> Result;
 
-			auto parse_block_dispatch() noexcept -> void;
-			auto parse_type_dispatch() noexcept -> void;
+			EVO_NODISCARD auto parse_expr() noexcept -> Result;
+			EVO_NODISCARD auto parse_sub_expr() noexcept -> Result;
+			EVO_NODISCARD auto parse_infix_expr() noexcept -> Result;
+			EVO_NODISCARD auto parse_infix_expr_impl(AST::Node lhs, int prec_level) noexcept -> Result;
+			EVO_NODISCARD auto parse_prefix_expr() noexcept -> Result;
 
-			auto parse_expr_dispatch() noexcept -> void;
-			auto parse_atom() noexcept -> Result;
-			auto parse_literal() noexcept -> Result;
-			auto parse_ident() noexcept -> Result;
+			EVO_NODISCARD auto parse_term() noexcept -> Result;
+			EVO_NODISCARD auto parse_paren_expr() noexcept -> Result;
+			EVO_NODISCARD auto parse_atom() noexcept -> Result;
 
-
-			///////////////////////////////////
-			// stack
-
-			template<class T>
-			EVO_NODISCARD auto get_frame_context() noexcept -> T& {
-				evo::debugAssert(this->frame_contexts.top().is<T>(), "Current frame context is not of this type");
-				return this->frame_contexts.top().as<T>();
-			};
-
-			template<class T>
-			auto add_frame_context(auto&&... args) noexcept -> void {
-				StackFrame::Context& new_context = this->frame_contexts.emplace();
-				new_context.template emplace<T>(std::forward<decltype(args)>(args)...);
-				this->_add_pop_stack_context();
-			};
-
-			// adds to the stack in the proper order (put the calls in the order that they should be called)
-			auto add_to_stack(evo::ArrayProxy<StackFrame::Call> calls) noexcept -> void;
-
+			EVO_NODISCARD auto parse_ident() noexcept -> Result;
+			EVO_NODISCARD auto parse_literal() noexcept -> Result;
+			EVO_NODISCARD auto parse_uninit() noexcept -> Result;
 
 			///////////////////////////////////
-			// checking and messaging
+			// checking
 
-			// returns true if caller should return
-			EVO_NODISCARD auto expected_but_got(std::string_view expected, const Token& token) noexcept -> bool;
-			EVO_NODISCARD auto check_result(const Result& result, std::string_view expected) noexcept -> bool;
-			EVO_NODISCARD auto expect_token(Token::Kind kind, std::string_view location_str) noexcept -> bool;
-			EVO_NODISCARD auto assert_token(Token::Kind kind, std::string_view location_str) noexcept -> bool;
+			auto expected_but_got(
+				std::string_view location_str, const Token& token, evo::SmallVector<Diagnostic::Info>&& infos = {}
+			) noexcept -> void;
 
+			EVO_NODISCARD auto check_result_fail(const Result& result, std::string_view location_str) noexcept -> bool;
 
-			///////////////////////////////////
-			// misc helpers
-			
-			EVO_NODISCARD auto getASTBuffer() noexcept -> ASTBuffer&;
+			EVO_NODISCARD auto assert_token_fail(Token::Kind kind) noexcept -> bool;
+			EVO_NODISCARD auto expect_token_fail(Token::Kind kind, std::string_view location_str) noexcept -> bool;
 
 
 		private:
 			Context& context;
-			Source::ID source_id;
-
-			std::stack<StackFrame> stack{};
-			std::stack<StackFrame::Context> frame_contexts{};
-
-			Result last_result{};
+			Source& source;
 
 
 			///////////////////////////////////
@@ -201,10 +124,15 @@ namespace pcit::panther{
 						return this->cursor >= this->buffer.size();
 					};
 
-					EVO_NODISCARD auto peek() const noexcept -> Token::ID {
-						evo::debugAssert(this->at_end() == false, "already at end");
+					EVO_NODISCARD auto peek(ptrdiff_t offset = 0) const noexcept -> Token::ID {
+						const ptrdiff_t peek_location = ptrdiff_t(this->cursor) + offset;
 
-						return Token::ID(this->cursor);
+						evo::debugAssert(peek_location >= 0, "cannot peek past beginning of buffer");
+						evo::debugAssert(
+							size_t(peek_location) < this->buffer.size(), "cannot peek past beginning of buffer"
+						);
+
+						return Token::ID(uint32_t(peek_location));
 					};
 
 					auto skip() noexcept -> void {

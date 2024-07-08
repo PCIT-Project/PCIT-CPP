@@ -13,8 +13,10 @@
 namespace pcit::panther{
 	
 
-	auto Tokenizer::tokenize() noexcept -> evo::Result<TokenBuffer> {
-		while(this->char_stream.at_end() == false && this->context.hasHitFailCondition() == false){
+	auto Tokenizer::tokenize() noexcept -> bool {
+		while(
+			this->char_stream.at_end() == false && this->context.hasHitFailCondition() == false && this->can_continue
+		){
 			this->current_token_line_start = this->char_stream.get_line();
 			this->current_token_collumn_start = this->char_stream.get_collumn();
 
@@ -27,12 +29,11 @@ namespace pcit::panther{
 			if(this->tokenize_string_literal()){ continue; }
 			
 			this->error_unrecognized_character();
-			return evo::resultError;
+			return false;
 		};
 
-		return std::move(this->token_buffer);
+		return this->can_continue;
 	};
-
 
 
 	auto Tokenizer::tokenize_whitespace() noexcept -> bool {
@@ -69,12 +70,12 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokUnterminatedMultilineComment,
 						Source::Location(
-							this->source_id,
+							this->source.getID(),
 							this->current_token_line_start, this->char_stream.get_line(),
 							this->current_token_collumn_start, this->char_stream.get_collumn()
 						),
 						"Unterminated multi-line comment",
-						std::vector<Diagnostic::Info>{
+						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Expected a \"*/\" before the end of the file"),
 						}
 					);
@@ -109,10 +110,16 @@ namespace pcit::panther{
 		{"Void", Token::Kind::TypeVoid},
 		{"Type", Token::Kind::TypeType},
 		{"Int",  Token::Kind::TypeInt},
+		{"Bool", Token::Kind::TypeBool},
 
 		// keywords
-		{"var",  Token::Kind::KeywordVar},
-		{"func", Token::Kind::KeywordFunc},
+		{"var",    Token::Kind::KeywordVar},
+		{"func",   Token::Kind::KeywordFunc},
+		{"uninit", Token::Kind::KeywordUninit},
+		{"addr",   Token::Kind::KeywordAddr},
+		{"copy",   Token::Kind::KeywordCopy},
+		{"move",   Token::Kind::KeywordMove},
+		{"as",     Token::Kind::KeywordAs},
 	};
 
 
@@ -159,15 +166,20 @@ namespace pcit::panther{
 		auto ident_name = std::string_view(string_start_ptr, token_length);
 
 		if(kind == Token::Kind::Ident){
-			if(ident_name == "true"){  this->create_token(Token::Kind::LiteralBool, true);  }
-			if(ident_name == "false"){ this->create_token(Token::Kind::LiteralBool, false); }
+			if(ident_name == "true"){
+				this->create_token(Token::Kind::LiteralBool, true);
 
-			const auto keyword_map_iter = keyword_map.find(ident_name);
+			}else if(ident_name == "false"){
+				this->create_token(Token::Kind::LiteralBool, false);
 
-			if(keyword_map_iter == keyword_map.end()){
-				this->create_token(Token::Kind::Ident, std::string(ident_name));
 			}else{
-				this->create_token(keyword_map_iter->second);
+				const auto keyword_map_iter = keyword_map.find(ident_name);
+
+				if(keyword_map_iter == keyword_map.end()){
+					this->create_token(Token::Kind::Ident, std::string(ident_name));
+				}else{
+					this->create_token(keyword_map_iter->second);
+				}
 			}
 
 		}else{
@@ -193,8 +205,6 @@ namespace pcit::panther{
 			break; case ',': tok_kind = Token::Kind::Comma;
 			break; case ';': tok_kind = Token::Kind::SemiColon;
 			break; case ':': tok_kind = Token::Kind::Colon;
-
-			break; case '|': tok_kind = Token::Kind::Pipe;
 		};
 
 		if(tok_kind == Token::Kind::None){ return false; }
@@ -226,15 +236,60 @@ namespace pcit::panther{
 			this->create_token(Token::lookupKind(op.data()));
 		};
 
+		// length 3
+		if(is_op("<<|")){ set_op("<<|"); return true; }
+
+
 		// length 2
 		if(is_op("->")){ set_op("->"); return true; }
+
+		if(is_op("+@")){ set_op("+@"); return true; }
+		if(is_op("+|")){ set_op("+|"); return true; }
+		if(is_op("-@")){ set_op("-@"); return true; }
+		if(is_op("-|")){ set_op("-|"); return true; }
+		if(is_op("*@")){ set_op("*@"); return true; }
+		if(is_op("*|")){ set_op("*|"); return true; }
+
+		if(is_op("==")){ set_op("=="); return true; }
+		if(is_op("!=")){ set_op("!="); return true; }
+		if(is_op("<=")){ set_op("<="); return true; }
+		if(is_op(">=")){ set_op(">="); return true; }
+
+		if(is_op("&&")){ set_op("&&"); return true; }
+		if(is_op("||")){ set_op("||"); return true; }
+
+		if(is_op("<<")){ set_op("<<"); return true; }
+		if(is_op(">>")){ set_op(">>"); return true; }
 
 
 		// length 1
 		if(is_op("=")){ set_op("="); return true; }
+
+		if(is_op("+")){ set_op("+"); return true; }
+		if(is_op("-")){ set_op("-"); return true; }
+		if(is_op("*")){ set_op("*"); return true; }
+		if(is_op("/")){ set_op("/"); return true; }
+		if(is_op("%")){ set_op("%"); return true; }
+
 		if(is_op("<")){ set_op("<"); return true; }
 		if(is_op(">")){ set_op(">"); return true; }
 
+		if(is_op("!")){ set_op("!"); return true; }
+
+		if(is_op("&")){ set_op("&"); return true; }
+		if(is_op("|")){ set_op("|"); return true; }
+		if(is_op("^")){ set_op("^"); return true; }
+		if(is_op("~")){ set_op("~"); return true; }
+
+		if(is_op("(")){ set_op("("); return true; }
+		if(is_op(")")){ set_op(")"); return true; }
+		if(is_op("[")){ set_op("["); return true; }
+		if(is_op("]")){ set_op("]"); return true; }
+		if(is_op("{")){ set_op("{"); return true; }
+		if(is_op("}")){ set_op("}"); return true; }
+		if(is_op(",")){ set_op(","); return true; }
+		if(is_op(";")){ set_op(";"); return true; }
+		if(is_op(":")){ set_op(":"); return true; }
 
 		return false;
 	};
@@ -265,9 +320,9 @@ namespace pcit::panther{
 			}else if(evo::isNumber(second_peek)){
 				this->context.emitError(
 					Diagnostic::Code::TokLiteralLeadingZero,
-					Source::Location(this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()),
+					Source::Location(this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()),
 					"Leading zeros in literal numbers are not supported",
-					std::vector<Diagnostic::Info>{
+					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info("Note: the literal integer prefix for base-8 is \"0o\""),
 					}
 				);
@@ -296,7 +351,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokLiteralNumMultipleDecimalPoints,
 						Source::Location(
-							this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()
+							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
 						),
 						"Cannot have multiple decimal points in a floating-point literal"
 					);
@@ -307,7 +362,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidFPBase,
 						Source::Location(
-							this->source_id, this->current_token_line_start, this->current_token_collumn_start
+							this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
 						),
 						"Base-2 floating-point literals are not supported"
 					);
@@ -317,7 +372,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidFPBase,
 						Source::Location(
-							this->source_id, this->current_token_line_start, this->current_token_collumn_start
+							this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
 						),
 						"Base-8 floating-point literals are not supported"
 					);
@@ -340,7 +395,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
-							this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()
+							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
 						),
 						"Base-2 numbers should only have digits 0 and 1"
 					);
@@ -358,7 +413,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
-							this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()
+							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
 						),
 						"Base-8 numbers should only have digits 0-7"
 					);
@@ -379,10 +434,10 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
-							this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()
+							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
 						),
 						"Base-10 numbers should only have digits 0-9",
-						std::vector<Diagnostic::Info>{
+						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Note: The prefix for hexidecimal numbers (base-16) is \"0x\"")
 						}
 					);
@@ -429,7 +484,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
-							this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()
+							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
 						),
 						"Literal number exponents should only have digits 0-9"
 					);
@@ -455,7 +510,7 @@ namespace pcit::panther{
 				this->context.emitError(
 					Diagnostic::Code::TokLiteralNumTooBig,
 					Source::Location(
-						this->source_id,
+						this->source.getID(),
 						this->current_token_line_start, this->char_stream.get_line(),
 						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 					),
@@ -470,7 +525,7 @@ namespace pcit::panther{
 						this->context.emitFatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 							Source::Location(
-								this->source_id,
+								this->source.getID(),
 								this->current_token_line_start, this->char_stream.get_line(),
 								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 							),
@@ -496,7 +551,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokLiteralNumTooBig,
 						Source::Location(
-							this->source_id,
+							this->source.getID(),
 							this->current_token_line_start, this->char_stream.get_line(),
 							this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 						),
@@ -512,7 +567,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::TokLiteralNumTooBig,
 						Source::Location(
-							this->source_id,
+							this->source.getID(),
 							this->current_token_line_start, this->char_stream.get_line(),
 							this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 						),
@@ -541,7 +596,7 @@ namespace pcit::panther{
 				this->context.emitError(
 					Diagnostic::Code::TokLiteralNumTooBig,
 					Source::Location(
-						this->source_id,
+						this->source.getID(),
 						this->current_token_line_start, this->char_stream.get_line(),
 						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 					),
@@ -553,7 +608,7 @@ namespace pcit::panther{
 				this->context.emitFatal(
 					Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 					Source::Location(
-						this->source_id,
+						this->source.getID(),
 						this->current_token_line_start, this->char_stream.get_line(),
 						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 					),
@@ -569,7 +624,7 @@ namespace pcit::panther{
 				this->context.emitError(
 					Diagnostic::Code::TokLiteralNumTooBig,
 					Source::Location(
-						this->source_id,
+						this->source.getID(),
 						this->current_token_line_start, this->char_stream.get_line(),
 						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 					),
@@ -593,7 +648,7 @@ namespace pcit::panther{
 				this->context.emitError(
 					Diagnostic::Code::TokLiteralNumTooBig,
 					Source::Location(
-						this->source_id,
+						this->source.getID(),
 						this->current_token_line_start, this->char_stream.get_line(),
 						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 					),
@@ -608,7 +663,7 @@ namespace pcit::panther{
 						this->context.emitFatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 							Source::Location(
-								this->source_id,
+								this->source.getID(),
 								this->current_token_line_start, this->char_stream.get_line(),
 								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
 							),
@@ -663,7 +718,7 @@ namespace pcit::panther{
 						this->context.emitError(
 							Diagnostic::Code::TokUnterminatedTextEscapeSequence,
 							Source::Location(
-								this->source_id,
+								this->source.getID(),
 								this->char_stream.get_line(), this->char_stream.get_line(),
 								this->char_stream.get_collumn(), this->char_stream.get_collumn() + 1
 							),
@@ -694,12 +749,12 @@ namespace pcit::panther{
 				this->context.emitError(
 					Diagnostic::Code::TokUnterminatedMultilineComment,
 					Source::Location(
-						this->source_id,
+						this->source.getID(),
 						this->current_token_line_start, this->char_stream.get_line(),
 						this->current_token_collumn_start, this->char_stream.get_collumn()
 					),
 					std::format("Unterminated {} literal", string_type_name),
-					std::vector<Diagnostic::Info>{
+					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info(std::format("Expected a {} before the end of the file", delimiter)),
 					}
 				);
@@ -725,8 +780,11 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// create tokens
 
+
 	auto Tokenizer::create_token(Token::Kind kind) noexcept -> void {
-		this->token_buffer.createToken(
+		if(this->file_too_big()){ return; }
+
+		this->source.token_buffer.createToken(
 			kind,
 			Token::Location(
 				this->current_token_line_start,
@@ -739,7 +797,9 @@ namespace pcit::panther{
 
 
 	auto Tokenizer::create_token(Token::Kind kind, auto&& val) noexcept -> void {
-		this->token_buffer.createToken(
+		if(this->file_too_big()){ return; }
+
+		this->source.token_buffer.createToken(
 			kind,
 			Token::Location(
 				this->current_token_line_start,
@@ -753,9 +813,35 @@ namespace pcit::panther{
 
 
 
-
 	//////////////////////////////////////////////////////////////////////
-	// unrecognized character
+	// errors
+
+	auto Tokenizer::file_too_big() noexcept -> bool {
+		constexpr static size_t MAX_TOKENS = std::numeric_limits<uint32_t>::max();
+
+		if(this->source.token_buffer.size() >= MAX_TOKENS){
+			this->context.emitError(
+				Diagnostic::Code::TokFileTooLarge,
+				Source::Location(
+					this->source.getID(),
+					this->current_token_line_start, this->char_stream.get_line(),
+					this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+				),
+				"File too large",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(std::format("Source files can have a maximum of {} tokens", MAX_TOKENS)),
+				}
+			);
+
+			this->can_continue = false;
+
+			return true;
+		}
+
+		return false;
+	};
+
+
 
 	EVO_NODISCARD static constexpr auto hex_from_4_bits(char num) noexcept -> char {
 		switch(num){
@@ -787,7 +873,7 @@ namespace pcit::panther{
 			this->context.emitError(
 				Diagnostic::Code::TokUnrecognizedCharacter,
 				Source::Location(
-					this->source_id,
+					this->source.getID(),
 					this->char_stream.get_line(), this->char_stream.get_line(),
 					this->char_stream.get_collumn(), this->char_stream.get_collumn()
 				),
@@ -812,7 +898,7 @@ namespace pcit::panther{
 			this->context.emitError(
 				Diagnostic::Code::TokUnrecognizedCharacter,
 				Source::Location(
-					this->source_id,
+					this->source.getID(),
 					this->char_stream.get_line(), this->char_stream.get_line(),
 					this->char_stream.get_collumn(), this->char_stream.get_collumn()
 				),
@@ -895,7 +981,7 @@ namespace pcit::panther{
 
 		this->context.emitError(
 			Diagnostic::Code::TokUnrecognizedCharacter,
-			Source::Location(this->source_id, this->char_stream.get_line(), this->char_stream.get_collumn()),
+			Source::Location(this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()),
 			std::format("Unrecognized character \"{}\" (UTF-8 code: {})", utf8_str, utf8_charcodes_str)
 		);
 	};

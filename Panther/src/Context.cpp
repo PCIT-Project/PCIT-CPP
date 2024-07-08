@@ -167,8 +167,8 @@ namespace pcit::panther{
 			
 			this->task_group_running = true;
 
-			for(Source& source : this->src_manager.sources){
-				this->tasks.emplace(std::make_unique<Task>(TokenizeFileTask(source.getID())));
+			for(Source* source : this->src_manager.sources){
+				this->tasks.emplace(std::make_unique<Task>(TokenizeFileTask(source->getID())));
 			}
 		}
 
@@ -186,8 +186,8 @@ namespace pcit::panther{
 			
 			this->task_group_running = true;
 
-			for(Source& source : this->src_manager.sources){
-				this->tasks.emplace(std::make_unique<Task>(ParseFileTask(source.getID())));
+			for(Source* source : this->src_manager.sources){
+				this->tasks.emplace(std::make_unique<Task>(ParseFileTask(source->getID())));
 			}
 		}
 
@@ -344,13 +344,11 @@ namespace pcit::panther{
 	auto Context::Worker::run_tokenize_file(const TokenizeFileTask& task) noexcept -> void {
 		auto tokenizer = Tokenizer(*this->context, task.source_id);
 
-		evo::Result<TokenBuffer> result = tokenizer.tokenize();
-		if(result.isError()){ return; }
+		const bool tokenize_result = tokenizer.tokenize();
+		if(tokenize_result == false){ return; }
 
 		const SourceManager& source_manager = this->context->getSourceManager();
 		const Source& source = source_manager.getSource(task.source_id);
-		std::construct_at(&source.token_buffer, std::move(result.value()));
-
 		this->context->emitTrace("Tokenized file: \"{}\"", source.getLocationAsString());
 	};
 
@@ -359,7 +357,8 @@ namespace pcit::panther{
 	auto Context::Worker::run_parse_file(const ParseFileTask& task) noexcept -> void {
 		auto parser = Parser(*this->context, task.source_id);
 
-		parser.parse();
+		const bool parse_result = parser.parse();
+		if(parse_result == false){ return; }
 
 		const SourceManager& source_manager = this->context->getSourceManager();
 		const Source& source = source_manager.getSource(task.source_id);

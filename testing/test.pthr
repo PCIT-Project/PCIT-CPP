@@ -1,13 +1,8 @@
 // this is a comment
 
-
 var foo: Int = 12;
 
 func test = () -> Void {
-	
-	var var_1: Int = 1;
-	var var_2: Int = 2;
+	var bar: Int = (1 + 2) * 3;
+	var same_type: Bool = (Int == Void);
 }
-
-var bar: Int = 12;
-

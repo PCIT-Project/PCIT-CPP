@@ -62,7 +62,7 @@ auto main(int argc, const char* argv[]) -> int {
 		// .max_threads = panther::Context::optimalNumThreads(),
 		.max_threads = 0,
 
-		.max_num_errors = 1,
+		.max_num_errors = 2,
 	};
 
 
@@ -82,10 +82,18 @@ auto main(int argc, const char* argv[]) -> int {
 		printer.printlnCyan("pthr (Panther Compiler)");
 		printer.printlnGray("-----------------------");
 
-		#if defined(PCIT_CONFIG_DEBUG)
+		#if defined(PCIT_BUILD_DEBUG)
 			printer.printlnMagenta(std::format("v{} (debug)", pcit::core::version));
-		#else
+		#elif defined(PCIT_BUILD_DEV)
+			printer.printlnMagenta(std::format("v{} (dev)", pcit::core::version));
+		#elif defined(PCIT_BUILD_OPTIMIZE)
+			printer.printlnMagenta(std::format("v{} (optimize)", pcit::core::version));
+		#elif defined(PCIT_BUILD_RELEASE)
+			printer.printlnMagenta(std::format("v{} (release)", pcit::core::version));
+		#elif defined(PCIT_BUILD_RELEASE_DIST)
 			printer.printlnMagenta(std::format("v{}", pcit::core::version));
+		#else
+			#error Unknown or unsupported build
 		#endif
 
 		switch(config.target){

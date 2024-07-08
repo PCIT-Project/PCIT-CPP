@@ -34,29 +34,84 @@ namespace pcit::panther{
 				Intrinsic,
 				Attribute,
 
+				
+				///////////////////////////////////
 				// literals
+
 				LiteralInt,
 				LiteralFloat,
 				LiteralBool,
 				LiteralString,
 				LiteralChar,
 
+				
+				///////////////////////////////////
 				// types
+
 				TypeVoid,
 				TypeType,
 				TypeInt,
+				TypeBool,
 
+				
+				///////////////////////////////////
 				// keywords
+
 				KeywordVar,
 				KeywordFunc,
 
-				// operators
-				Equal, // =
-				RightArrow, // ->
-				LessThan, // <
-				GreaterThan, // >
+				KeywordUninit,
+				KeywordAddr,
+				KeywordCopy,
+				KeywordMove,
+				KeywordAs,
 
+
+				///////////////////////////////////
+				// operators
+
+				Assign, // =
+				RightArrow, // ->
+
+				// arithmetic
+				Plus, // +
+				AddWrap, // +@
+				AddSat, // +|
+				Minus, // -
+				SubWrap, // -@
+				SubSat, // -|
+				Asterisk, // *
+				MulWrap, // *@
+				MulSat, // *|
+				ForwardSlash, // /
+				Mod, // %
+
+				// comparative
+				Equal, // ==
+				NotEqual, // !=
+				LessThan, // <
+				LessThanEqual, // <=
+				GreaterThan, // >
+				GreaterThanEqual, // >=
+
+				// logical
+				Not, // !
+				And, // &&
+				Or, // ||
+
+				// bitwise
+				ShiftLeft, // <<
+				SatShiftLeft, // <<|
+				ShiftRight, // >>
+				BitwiseAnd, // &
+				BitwiseOr, // |
+				BitwiseXOr, // ^
+				BitwiseNot, // ~
+
+				
+				///////////////////////////////////
 				// punctuation
+
 				OpenParen, // (
 				CloseParen, // )
 				OpenBracket, // [
@@ -66,7 +121,6 @@ namespace pcit::panther{
 				Comma, // ,
 				SemiColon, // ;
 				Colon, // :
-				Pipe, // |
 			};
 
 			struct Location{
@@ -137,13 +191,50 @@ namespace pcit::panther{
 
 			// TODO: hash-map optimization?
 			EVO_NODISCARD static constexpr auto lookupKind(std::string_view op_str) noexcept -> Kind {
+				// length 3
+				if(op_str == "<<|"){ return Kind::SatShiftLeft; }
+
 				// length 2
 				if(op_str == "->"){ return Kind::RightArrow; }
 
+				if(op_str == "+@"){ return Kind::AddWrap; }
+				if(op_str == "+|"){ return Kind::AddSat; }
+				if(op_str == "-@"){ return Kind::SubWrap; }
+				if(op_str == "-|"){ return Kind::SubSat; }
+				if(op_str == "*@"){ return Kind::MulWrap; }
+				if(op_str == "*|"){ return Kind::MulSat; }
+
+				if(op_str == "=="){ return Kind::Equal; }
+				if(op_str == "!="){ return Kind::NotEqual; }
+				if(op_str == "<="){ return Kind::LessThanEqual; }
+				if(op_str == ">="){ return Kind::GreaterThanEqual; }
+
+				if(op_str == "&&"){ return Kind::And; }
+				if(op_str == "||"){ return Kind::Or; }
+
+				if(op_str == "<<"){ return Kind::ShiftLeft; }
+				if(op_str == ">>"){ return Kind::ShiftRight; }
+
+
 				// length 1
-				if(op_str == "="){ return Kind::Equal; }
+				if(op_str == "="){ return Kind::Assign; }
+
+				if(op_str == "+"){ return Kind::Plus; }
+				if(op_str == "-"){ return Kind::Minus; }
+				if(op_str == "*"){ return Kind::Asterisk; }
+				if(op_str == "/"){ return Kind::ForwardSlash; }
+				if(op_str == "%"){ return Kind::Mod; }
+
 				if(op_str == "<"){ return Kind::LessThan; }
 				if(op_str == ">"){ return Kind::GreaterThan; }
+
+				if(op_str == "!"){ return Kind::Not; }
+
+				if(op_str == "&"){ return Kind::BitwiseAnd; }
+				if(op_str == "|"){ return Kind::BitwiseOr; }
+				if(op_str == "^"){ return Kind::BitwiseXOr; }
+				if(op_str == "~"){ return Kind::BitwiseNot; }
+
 				if(op_str == "("){ return Kind::OpenParen; }
 				if(op_str == ")"){ return Kind::CloseParen; }
 				if(op_str == "["){ return Kind::OpenBracket; }
@@ -153,52 +244,105 @@ namespace pcit::panther{
 				if(op_str == ","){ return Kind::Comma; }
 				if(op_str == ";"){ return Kind::SemiColon; }
 				if(op_str == ":"){ return Kind::Colon; }
-				if(op_str == "|"){ return Kind::Pipe; }
 
-				evo::debugFatalBreak("Uknown or unsupported kind ({})", op_str);
+				evo::debugFatalBreak("Unknown or unsupported kind ({})", op_str);
 			};
 
 
 			EVO_NODISCARD static auto printKind(Kind kind) noexcept -> std::string_view {
 				switch(kind){
-					break; case Kind::None:          return "None";
-					break; case Kind::Ident:         return "Ident";
-					break; case Kind::Intrinsic:     return "Intrinsic";
-					break; case Kind::Attribute:     return "Attribute";
+					break; case Kind::None:             return "None";
 
+					break; case Kind::Ident:            return "Ident";
+					break; case Kind::Intrinsic:        return "Intrinsic";
+					break; case Kind::Attribute:        return "Attribute";
+
+
+					///////////////////////////////////
 					// literals
-					break; case Kind::LiteralInt:    return "LiteralInt";
-					break; case Kind::LiteralFloat:  return "LiteralFloat";
-					break; case Kind::LiteralBool:   return "LiteralBool";
-					break; case Kind::LiteralString: return "LiteralString";
-					break; case Kind::LiteralChar:   return "LiteralChar";
 
+					break; case Kind::LiteralInt:       return "LiteralInt";
+					break; case Kind::LiteralFloat:     return "LiteralFloat";
+					break; case Kind::LiteralBool:      return "LiteralBool";
+					break; case Kind::LiteralString:    return "LiteralString";
+					break; case Kind::LiteralChar:      return "LiteralChar";
+
+
+					///////////////////////////////////
 					// types
-					break; case Kind::TypeVoid:      return "Void";
-					break; case Kind::TypeType:      return "Type";
-					break; case Kind::TypeInt:       return "Int";
 
+					break; case Kind::TypeVoid:         return "Void";
+					break; case Kind::TypeType:         return "Type";
+					break; case Kind::TypeInt:          return "Int";
+					break; case Kind::TypeBool:         return "Bool";
+
+
+					///////////////////////////////////
 					// keywords
-					break; case Kind::KeywordVar:    return "var";
-					break; case Kind::KeywordFunc:   return "func";
 
+					break; case Kind::KeywordVar:       return "var";
+					break; case Kind::KeywordFunc:      return "func";
+
+					break; case Kind::KeywordUninit:    return "uninit";
+					break; case Kind::KeywordAddr:      return "addr";
+					break; case Kind::KeywordCopy:      return "copy";
+					break; case Kind::KeywordMove:      return "move";
+					break; case Kind::KeywordAs:        return "as";
+
+
+					///////////////////////////////////
 					// operators
-					break; case Kind::Equal:         return "=";
-					break; case Kind::RightArrow:    return "->";
-					break; case Kind::LessThan:      return "<";
-					break; case Kind::GreaterThan:   return ">";
 
+					break; case Kind::Assign:           return "=";
+					break; case Kind::RightArrow:       return "->";
+
+					// arithmetic
+					break; case Kind::Plus:             return "+";
+					break; case Kind::AddWrap:          return "+@";
+					break; case Kind::AddSat:           return "+|";
+					break; case Kind::Minus:            return "-";
+					break; case Kind::SubWrap:          return "-@";
+					break; case Kind::SubSat:           return "-|";
+					break; case Kind::Asterisk:         return "*";
+					break; case Kind::MulWrap:          return "*@";
+					break; case Kind::MulSat:           return "*|";
+					break; case Kind::ForwardSlash:     return "/";
+					break; case Kind::Mod:              return "%";
+
+					// logical
+					break; case Kind::Equal:            return "==";
+					break; case Kind::NotEqual:         return "!=";
+					break; case Kind::LessThan:         return "<";
+					break; case Kind::LessThanEqual:    return "<=";
+					break; case Kind::GreaterThan:      return ">";
+					break; case Kind::GreaterThanEqual: return ">=";
+
+					// logical
+					break; case Kind::Not:              return "!";
+					break; case Kind::And:              return "&&";
+					break; case Kind::Or:               return "||";
+					
+					// bitwise
+					break; case Kind::ShiftLeft:        return "<<";
+					break; case Kind::SatShiftLeft:     return "<<|";
+					break; case Kind::ShiftRight:       return ">>";
+					break; case Kind::BitwiseAnd:       return "&";
+					break; case Kind::BitwiseOr:        return "|";
+					break; case Kind::BitwiseXOr:       return "^";
+					break; case Kind::BitwiseNot:       return "~";
+
+					///////////////////////////////////
 					// punctuation
-					break; case Kind::OpenParen:     return "(";
-					break; case Kind::CloseParen:    return ")";
-					break; case Kind::OpenBracket:   return "[";
-					break; case Kind::CloseBracket:  return "]";
-					break; case Kind::OpenBrace:     return "{";
-					break; case Kind::CloseBrace:    return "}";
-					break; case Kind::Comma:         return ",";
-					break; case Kind::SemiColon:     return ";";
-					break; case Kind::Colon:         return ":";
-					break; case Kind::Pipe:          return "|";
+
+					break; case Kind::OpenParen:        return "(";
+					break; case Kind::CloseParen:       return ")";
+					break; case Kind::OpenBracket:      return "[";
+					break; case Kind::CloseBracket:     return "]";
+					break; case Kind::OpenBrace:        return "{";
+					break; case Kind::CloseBrace:       return "}";
+					break; case Kind::Comma:            return ",";
+					break; case Kind::SemiColon:        return ";";
+					break; case Kind::Colon:            return ":";
 				};
 
 				evo::debugFatalBreak("Unknown or unsupported token kind ({})", evo::to_underlying(kind));

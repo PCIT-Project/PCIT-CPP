@@ -1,6 +1,57 @@
 # Change Log
 
 <!---------------------------------->
+### v0.0.6.0
+
+### Panther
+- Added keyword `uninit`
+- Added builtin-types:
+	- `Type`
+	- `Bool`
+- Added prefix operators:
+	- `copy`
+	- `addr`
+	- `move`
+	- `-`
+	- `!`
+	- `~`
+- Added arithmetic infix operators:
+	- `+`
+	- `+@` (wrapping addition)
+	- `+|` (saturating addition)
+	- `-`
+	- `-@` (wrapping subtraction)
+	- `-|` (saturating subtraction)
+	- `*`
+	- `*@` (wrapping multiplication)
+	- `*|` (saturating multiplication)
+	- `/`
+	- `%`
+- Added comparative infix operators:
+	- `==`
+	- `!=`
+	- `<`
+	- `<=`
+	- `>`
+	- `>=`
+- Added logical infix operators:
+	- `&&`
+	- `||`
+- Added bitwise infix operators:
+	- `<<`
+	- `<<|` (saturating shift left)
+	- `>>`
+	- `&`
+	- `|`
+	- `^`
+- Added the `as` infix operator
+- Fixed tokenizing of boolean literals
+- Added guarantee that memory addresses of `Source`s remain stable
+- Added checking that file doesn't have too many tokens
+- Improved printing of version in verbose mode to include the build config if not in `ReleaseDist`
+
+
+<!---------------------------------->
 ## v0.0.5.0
 
 ### Panther
@@ -8,10 +59,10 @@
 - Made `AST::Node` and `AST::NodeOptional` trivially copyable
 
 ### pthr
-- Added `max_num_errros` to config
+- Added `max_num_errors` to config
 
 ### misc
-- Fixed links in [contributing policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md)) and [security policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/SECURITY.md)) to point to the correct headings
+- Fixed links in [contributing policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md) and [security policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/SECURITY.md) to point to the correct headings
 
 
 <!---------------------------------->
@@ -28,7 +79,7 @@
 - Added `PrintAST` build target
 
 ### Misc
-- Added [contributing policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md)), [code of conduct](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CODE_OF_CONDUCT.md), and [security policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/SECURITY.md)).
+- Added [contributing policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md), [code of conduct](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CODE_OF_CONDUCT.md), and [security policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/SECURITY.md).
 
 
 <!---------------------------------->

@@ -26,10 +26,10 @@ namespace pcit::panther{
 
 			TokenBuffer(const TokenBuffer& rhs) = delete;
 			
-			TokenBuffer(TokenBuffer&& rhs) noexcept 
-				: tokens(std::move(rhs.tokens)),
-				  string_literals(std::move(rhs.string_literals)),
-				  is_locked(rhs.is_locked)
+			TokenBuffer(TokenBuffer&& rhs) noexcept :
+				tokens(std::move(rhs.tokens)),
+				string_literals(std::move(rhs.string_literals)),
+				is_locked(rhs.is_locked)
 				{};
 
 

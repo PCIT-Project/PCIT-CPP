@@ -7,6 +7,15 @@
 //////////////////////////////////////////////////////////////////////
 
 
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// Source Manager													//
+// 		manages the sources, and guarantees that references to		//
+// 		sources are stable											//
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+
 #pragma once
 
 #include <filesystem>
@@ -22,8 +31,11 @@ namespace pcit::panther{
 
 	class SourceManager{
 		public:
-			SourceManager() = default;
-			~SourceManager() = default;
+			SourceManager() noexcept = default;
+			~SourceManager() noexcept;
+
+			SourceManager(const SourceManager&) = delete;
+			auto operator=(const SourceManager&) = delete;
 
 			// make sure enough space for `num_source` source is allocated
 			auto reserveSources(size_t num_source) noexcept -> void;
@@ -42,6 +54,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getSource(Source::ID id)       noexcept ->       Source&;
 			EVO_NODISCARD auto getSource(Source::ID id) const noexcept -> const Source&;
 
+			EVO_NODISCARD auto operator[](Source::ID id)       noexcept ->       Source& {return this->getSource(id);};
+			EVO_NODISCARD auto operator[](Source::ID id) const noexcept -> const Source& {return this->getSource(id);};
+
 			EVO_NODISCARD auto numSources() const noexcept -> size_t { return this->sources.size(); };
 
 			EVO_NODISCARD auto begin() const noexcept -> Source::ID::Iterator {
@@ -52,9 +67,13 @@ namespace pcit::panther{
 				return Source::ID::Iterator(Source::ID(uint32_t(this->sources.size())));
 			};
 
+		private:
+			auto alloc_source(auto&&... args) noexcept -> Source*;
+			auto free_source(Source* source) noexcept -> void;
+
 	
 		private:
-			std::vector<Source> sources{};
+			std::vector<Source*> sources{};
 
 			friend class Context;
 	};

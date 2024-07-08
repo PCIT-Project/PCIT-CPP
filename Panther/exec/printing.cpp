@@ -234,11 +234,13 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
+					this->printer.print(" ");
 					this->print_ident(var_decl.ident);
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Type");
 					if(var_decl.type.hasValue()){
+						this->printer.print(" ");
 						this->print_type(var_decl.type.getValue());
 					}else{
 						this->printer.printGray(" [INFERRED]\n");
@@ -269,10 +271,12 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
+					this->printer.print(" ");
 					this->print_ident(func_decl.ident);
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Return Type");
+					this->printer.print(" ");
 					this->print_type(func_decl.returnType);
 
 					this->indenter.set_end();
@@ -317,7 +321,7 @@ namespace pthr{
 					const panther::AST::Type& type = this->ast_buffer.getType(node);
 
 					const panther::Token::ID type_token_id = this->ast_buffer.getBuiltinType(type.base);
-					this->printer.printMagenta(" {}", this->source.getTokenBuffer()[type_token_id].getKind());
+					this->printer.printMagenta("{}", this->source.getTokenBuffer()[type_token_id].getKind());
 					this->printer.printGray(" [BUILTIN]\n");
 
 				}else{
@@ -330,6 +334,19 @@ namespace pthr{
 				this->indenter.print();
 
 				switch(node.getKind()){
+					case panther::AST::Kind::Prefix: {
+						this->print_prefix(this->ast_buffer.getPrefix(node));
+					} break;
+
+					case panther::AST::Kind::Infix: {
+						this->print_infix(this->ast_buffer.getInfix(node));
+					} break;
+
+					case panther::AST::Kind::Type: {
+						this->print_type(node);
+					} break;
+
+
 					case panther::AST::Kind::Literal: {
 						const panther::Token::ID token_id = this->ast_buffer.getLiteral(node);
 						const panther::Token& token = this->source.getTokenBuffer()[token_id];
@@ -371,9 +388,69 @@ namespace pthr{
 						this->print_ident(node);
 					} break;
 
+					case panther::AST::Kind::Uninit: {
+						this->printer.printMagenta("[UNINIT]\n");
+					} break;
 
 					default: evo::debugFatalBreak("Unknown or unsupported expr type");
 				};
+			};
+
+
+			auto print_prefix(const panther::AST::Prefix& prefix) noexcept -> void {
+				this->print_major_header("Prefix");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Operator");
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[prefix.opTokenID].getKind());
+
+					this->indenter.print_end();
+					this->print_minor_header("RHS");
+					{
+						this->printer.print("\n");
+						this->indenter.push();
+						this->print_expr(prefix.rhs);
+						this->indenter.pop();
+					}
+
+					this->indenter.pop();
+				}
+			};
+
+
+			auto print_infix(const panther::AST::Infix& infix) noexcept -> void {
+				this->print_major_header("Infix");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Operator");
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[infix.opTokenID].getKind());
+
+					this->indenter.print_arrow();
+					this->print_minor_header("LHS");
+					{
+						this->printer.print("\n");
+						this->indenter.push();
+						this->print_expr(infix.lhs);
+						this->indenter.pop();
+					}
+
+					this->indenter.print_end();
+					this->print_minor_header("RHS");
+					{
+						this->printer.print("\n");
+						this->indenter.push();
+						this->print_expr(infix.rhs);
+						this->indenter.pop();
+					}
+
+					this->indenter.pop();
+				}
 			};
 
 
@@ -381,7 +458,7 @@ namespace pthr{
 			auto print_ident(const panther::AST::Node& ident) const noexcept -> void {
 				const panther::Token::ID ident_tok_id = this->ast_buffer.getIdent(ident);
 				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
-				this->printer.printMagenta(" {}\n", ident_tok.getString());
+				this->printer.printMagenta("{}\n", ident_tok.getString());
 			};
 
 

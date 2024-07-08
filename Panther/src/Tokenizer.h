@@ -23,18 +23,15 @@ namespace pcit::panther{
 
 	class Tokenizer{
 		public:
-			Tokenizer(Context& _context, Source::ID _source_id) noexcept
-				: context(_context),
-				  source_id(_source_id),
-				  char_stream(this->context.getSourceManager().getSource(this->source_id).getData()) 
+			Tokenizer(Context& _context, Source::ID source_id) noexcept :
+				context(_context),
+				source(this->context.getSourceManager().getSource(source_id)),
+				char_stream(this->source.getData())
 				{};
 
 			~Tokenizer() = default;
 
-			EVO_NODISCARD auto tokenize() noexcept -> evo::Result<TokenBuffer>;
-
-
-			EVO_NODISCARD auto getTokenBuffer() const noexcept -> const TokenBuffer& { return this->token_buffer; };
+			EVO_NODISCARD auto tokenize() noexcept -> bool;
 
 			
 		private:
@@ -52,16 +49,20 @@ namespace pcit::panther{
 
 			
 			auto error_unrecognized_character() noexcept -> void;
+
+			auto file_too_big() noexcept -> bool;
+
 	
 		private:
 			Context& context;
-			Source::ID source_id;
+			Source& source;
 
 			CharStream char_stream;
-			TokenBuffer token_buffer{};
 
 			uint32_t current_token_line_start;
 			uint32_t current_token_collumn_start;
+
+			bool can_continue = true;
 	};
 
 

@@ -34,19 +34,21 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getLiteral(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Literal, "Node is not a Literal");
-
 				return node.value.token_id;
 			};
 
 			EVO_NODISCARD auto getIdent(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Ident, "Node is not a Ident");
-
 				return node.value.token_id;
 			};
 
 			EVO_NODISCARD auto getBuiltinType(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::BuiltinType, "Node is not a BuiltinType");
+				return node.value.token_id;
+			};
 
+			EVO_NODISCARD auto getUninit(const AST::Node& node) const noexcept -> Token::ID {
+				evo::debugAssert(node.getKind() == AST::Kind::Uninit, "Node is not a Uninit");
 				return node.value.token_id;
 			};
 
@@ -73,7 +75,6 @@ namespace pcit::panther{
 			};
 
 
-
 			EVO_NODISCARD auto createBlock(auto&&... args) noexcept -> AST::Node {
 				const uint32_t node_index = uint32_t(this->blocks.size());
 				this->blocks.emplace_back(std::forward<decltype(args)>(args)...);
@@ -83,6 +84,29 @@ namespace pcit::panther{
 				evo::debugAssert(node.getKind() == AST::Kind::Block, "Node is not a VarDecl");
 				return this->blocks[node.value.node_index];
 			};
+
+
+
+			EVO_NODISCARD auto createPrefix(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->prefixes.size());
+				this->prefixes.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::Prefix, node_index);
+			};
+			EVO_NODISCARD auto getPrefix(const AST::Node& node) const noexcept -> const AST::Prefix& {
+				evo::debugAssert(node.getKind() == AST::Kind::Prefix, "Node is not a Prefix");
+				return this->prefixes[node.value.node_index];
+			};
+
+			EVO_NODISCARD auto createInfix(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->infixes.size());
+				this->infixes.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::Infix, node_index);
+			};
+			EVO_NODISCARD auto getInfix(const AST::Node& node) const noexcept -> const AST::Infix& {
+				evo::debugAssert(node.getKind() == AST::Kind::Infix, "Node is not a Infix");
+				return this->infixes[node.value.node_index];
+			};
+
 
 			EVO_NODISCARD auto createType(auto&&... args) noexcept -> AST::Node {
 				const uint32_t node_index = uint32_t(this->types.size());
@@ -97,15 +121,18 @@ namespace pcit::panther{
 
 	
 		private:
-			// TODO: change these vectors to deques? to evo::SmallVectors? some combination?
+			// TODO: change these vectors to deques? some combination?
 
-			std::vector<AST::Node> global_stmts{};
+			evo::SmallVector<AST::Node> global_stmts{};
 
-			std::vector<AST::VarDecl> var_decls{};
-			std::vector<AST::FuncDecl> func_decls{};
+			evo::SmallVector<AST::VarDecl> var_decls{};
+			evo::SmallVector<AST::FuncDecl> func_decls{};
 
-			std::vector<AST::Block> blocks{};
-			std::vector<AST::Type> types{};
+			evo::SmallVector<AST::Block> blocks{};
+
+			evo::SmallVector<AST::Prefix> prefixes{};
+			evo::SmallVector<AST::Infix> infixes{};
+			evo::SmallVector<AST::Type> types{};
 
 
 

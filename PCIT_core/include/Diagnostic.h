@@ -37,7 +37,7 @@ namespace pcit::core{
 		CodeEnum code;
 		std::optional<Location> location;
 		std::string message;
-		std::vector<Info> infos;
+		evo::SmallVector<Info> infos;
 
 
 		// TODO: create the rest of the overloads
@@ -46,7 +46,7 @@ namespace pcit::core{
 			CodeEnum _code,
 			const std::optional<Location>& _location,
 			const std::string& _message,
-			const std::vector<Info>& _infos = {}
+			const evo::SmallVector<Info>& _infos = {}
 		) noexcept : level(_level), code(_code), location(_location), message(_message), infos(_infos) {};
 
 		DiagnosticImpl(
@@ -54,7 +54,7 @@ namespace pcit::core{
 			CodeEnum _code,
 			std::optional<Location>&& _location,
 			std::string&& _message,
-			std::vector<Info>&& _infos = {}
+			evo::SmallVector<Info>&& _infos = {}
 		) noexcept :
 			level(_level),
 			code(_code),

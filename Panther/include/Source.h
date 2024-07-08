@@ -30,7 +30,9 @@ namespace pcit::panther{
 
 		public:
 			Source(Source&& rhs) noexcept : id(rhs.id), location(std::move(rhs.location)), data(std::move(rhs.data)) {};
+
 			Source(const Source&) = delete;
+			auto operator=(const Source&) = delete;
 
 			~Source() = default;
 
@@ -85,6 +87,7 @@ namespace pcit::panther{
 
 			friend class SourceManager;
 			friend class Context;
+			friend class Tokenizer;
 			friend class Parser;
 	};
 

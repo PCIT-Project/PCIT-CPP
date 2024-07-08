@@ -38,6 +38,9 @@ namespace pcit::panther{
 			Context(DiagnosticCallback diagnostic_callback, const Config& _config) noexcept;
 			~Context() noexcept;
 
+			Context(const Context&) = delete;
+			auto operator=(const Context&) = delete;
+
 			// Returns 0 if number is unknown
 			EVO_NODISCARD static auto optimalNumThreads() noexcept -> evo::uint;
 

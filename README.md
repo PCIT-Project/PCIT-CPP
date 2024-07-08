@@ -45,4 +45,4 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 
 
 ## Updates:
-List of changes for each version can be found [here](CHANGELOG.md).
+List of changes for each version can be found [here](CHANGELOG.md). Note: very small changes may not be listed.

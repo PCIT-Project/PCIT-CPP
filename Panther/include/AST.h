@@ -29,12 +29,17 @@ namespace pcit::panther::AST{
 		VarDecl,
 		FuncDecl,
 
-		Type,
 		Block,
+		
+		Prefix,
+		Infix,
+
+		Type,
 
 		BuiltinType,
 		Ident,
 		Literal,
+		Uninit,
 	};
 
 
@@ -94,7 +99,6 @@ namespace pcit::panther::AST{
 	static_assert(std::is_trivially_copyable_v<Node>, "AST::Node is not trivially copyable");
 	static_assert(std::is_trivially_copyable_v<NodeOptional>, "AST::NodeOptional is not trivially copyable");
 
-
 };
 
 
@@ -113,9 +117,19 @@ namespace pcit::panther::AST{
 		Node block;
 	};
 
-
 	struct Block{
 		evo::SmallVector<Node> stmts;
+	};
+
+	struct Prefix{
+		Token::ID opTokenID;
+		Node rhs;
+	};
+
+	struct Infix{
+		Node lhs;
+		Token::ID opTokenID;
+		Node rhs;	
 	};
 
 

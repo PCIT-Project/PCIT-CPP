@@ -37,7 +37,7 @@ project "pthr"
 	targetdir(target.bin)
 	objdir(target.obj)
 
-	files {
+	files{
 		"./exec/**.cpp",
 	}
 
