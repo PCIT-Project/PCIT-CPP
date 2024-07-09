@@ -50,7 +50,7 @@ namespace pcit::panther{
 			case Token::Kind::KeywordFunc: return this->parse_func_decl();
 		};
 
-		return Result::Code::WrongType;
+		return this->parse_assignment();
 	};
 
 
@@ -124,6 +124,42 @@ namespace pcit::panther{
 		return this->source.ast_buffer.createFuncDecl(ident.value(), return_type.value(), block.value());
 	};
 
+
+	// TODO: check EOF
+	auto Parser::parse_assignment() noexcept -> Result {
+		const Token::ID start_location = this->reader.peek();
+
+		const Result lhs = this->parse_term();
+		if(lhs.code() != Result::Code::Success){ return lhs; }
+
+		const Token::ID op_token_id = this->reader.next();
+		switch(this->reader[op_token_id].getKind()){
+			case Token::lookupKind("="):
+			case Token::lookupKind("+="):  case Token::lookupKind("+@="):  case Token::lookupKind("+|="):
+			case Token::lookupKind("-="):  case Token::lookupKind("-@="):  case Token::lookupKind("-|="):
+			case Token::lookupKind("*="):  case Token::lookupKind("*@="):  case Token::lookupKind("*|="):
+			case Token::lookupKind("/="):  case Token::lookupKind("%="):
+			case Token::lookupKind("<<="): case Token::lookupKind("<<|="): case Token::lookupKind(">>="):
+			case Token::lookupKind("&="):  case Token::lookupKind("|="):   case Token::lookupKind("^="):
+				break;
+
+			default: {
+				this->reader.go_back(start_location);
+				return Result::Code::WrongType;
+			} break;
+		};
+
+		const Result rhs = this->parse_expr();
+		if(this->check_result_fail(rhs, "expression value in assignment")){ return Result::Code::Error; }
+
+		if(this->expect_token_fail(Token::lookupKind(";"), "at end of assignment")){ return Result::Code::Error; }
+
+		return this->source.ast_buffer.createInfix(lhs.value(), op_token_id, rhs.value());
+	};
+
+
+
+
 	// TODO: check EOF
 	auto Parser::parse_block() noexcept -> Result {
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("{")){ return Result::Code::WrongType; }
@@ -147,20 +183,114 @@ namespace pcit::panther{
 	};
 
 
+	// TODO: check EOF
+	auto Parser::parse_type(bool is_expr) noexcept -> Result {
+		const Token::ID start_location = this->reader.peek();
+		bool is_builtin = true;
+		switch(this->reader[start_location].getKind()){
+			case Token::Kind::TypeVoid: case Token::Kind::TypeInt: case Token::Kind::TypeBool: break;
 
-	auto Parser::parse_type() noexcept -> Result {
-		switch(this->reader[this->reader.peek()].getKind()){
-			case Token::Kind::TypeVoid:
-			case Token::Kind::TypeInt:
-			case Token::Kind::TypeBool:
-				break;
+			case Token::Kind::Ident: case Token::Kind::Intrinsic: {
+				is_builtin = false;
+			} break;
 
 			default: return Result::Code::WrongType;
 		};
 
-		const AST::Node base_type = AST::Node(AST::Kind::BuiltinType, this->reader.next());
+		const Result base_type = [&]() noexcept {
+			if(is_builtin){
+				return Result(AST::Node(AST::Kind::BuiltinType, this->reader.next()));
+			}else{
+				if(is_expr){
+					return this->parse_term(IsTypeTerm::Maybe);
+				}else{
+					return this->parse_term(IsTypeTerm::Yes);
+				}
+			}
+		}();
 
-		return this->source.ast_buffer.createType(base_type);
+		if(base_type.code() == Result::Code::Error){
+			return Result::Code::Error;
+		}else if(base_type.code() == Result::Code::WrongType){
+			this->reader.go_back(start_location);
+			return Result::Code::WrongType;
+		}
+
+
+		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		Token::ID potential_backup_location = this->reader.peek();
+		bool continue_looking_for_qualifiers = true;
+		while(continue_looking_for_qualifiers){
+			continue_looking_for_qualifiers = false;
+			bool is_ptr = false;
+			bool is_read_only = false;
+			bool is_optional = false;
+
+			if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("*")){
+				continue_looking_for_qualifiers = true;
+				is_ptr = true;
+				potential_backup_location = this->reader.peek();
+				if(this->assert_token_fail(Token::lookupKind("*"))){ return Result::Code::Error; }
+				
+				if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("|")){
+					is_read_only = true;
+					potential_backup_location = this->reader.peek();
+					if(this->assert_token_fail(Token::lookupKind("|"))){ return Result::Code::Error; }
+				}
+
+			}else if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("*|")){
+				continue_looking_for_qualifiers = true;
+				is_ptr = true;
+				is_read_only = true;
+				potential_backup_location = this->reader.peek();
+				if(this->assert_token_fail(Token::lookupKind("*|"))){ return Result::Code::Error; }
+			}
+
+			if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("?")){
+				continue_looking_for_qualifiers = true;
+				is_optional = true;
+				if(this->assert_token_fail(Token::lookupKind("?"))){ return Result::Code::Error; }
+			}
+
+			if(continue_looking_for_qualifiers){
+				qualifiers.emplace_back(is_ptr, is_read_only, is_optional);
+			}
+		};
+
+
+		if(is_expr){
+			// make sure exprs like `a as Int * b` gets parsed like `(a as Int) * b`
+			if(qualifiers.empty() == false && qualifiers.back().isOptional == false){
+				switch(this->reader[this->reader.peek()].getKind()){
+					case Token::Kind::Ident:
+					case Token::lookupKind("("):
+					case Token::Kind::LiteralBool:
+					case Token::Kind::LiteralInt:
+					case Token::Kind::LiteralFloat:
+					case Token::Kind::LiteralString:
+					case Token::Kind::LiteralChar: {
+						if(
+							qualifiers.back().isReadOnly && 
+							this->reader.peek().get() - potential_backup_location.get() == 1
+						){ // prevent issue with `a as Int* | b`
+							qualifiers.back().isReadOnly = false;
+						}else{
+							qualifiers.pop_back();
+						}
+
+						this->reader.go_back(potential_backup_location);
+					} break;
+				};
+			}
+
+			// just an ident
+			if(is_builtin == false && qualifiers.empty()){
+				this->reader.go_back(start_location);
+				return Result::Code::WrongType;
+			}
+		}
+
+		return this->source.ast_buffer.createType(base_type.value(), std::move(qualifiers));
 	};
 
 
@@ -267,7 +397,7 @@ namespace pcit::panther{
 		const Token::Kind op_token_kind = this->reader[op_token_id].getKind();
 
 		switch(op_token_kind){
-			case Token::Kind::KeywordAddr:
+			case Token::lookupKind("&"):
 			case Token::Kind::KeywordCopy:
 			case Token::Kind::KeywordMove:
 			case Token::lookupKind("-"):
@@ -292,11 +422,82 @@ namespace pcit::panther{
 	};
 
 	// TODO: check EOF
-	auto Parser::parse_term() noexcept -> Result {
-		const Result type = this->parse_type();
-		if(type.code() != Result::Code::WrongType){ return type; }
+	auto Parser::parse_term(IsTypeTerm is_type_term) noexcept -> Result {
+		if(is_type_term == IsTypeTerm::No){
+			const Result type = this->parse_type(true);
+			if(type.code() != Result::Code::WrongType){ return type; }
+		}
 
-		return this->parse_paren_expr();
+		Result output = this->parse_paren_expr();
+		if(output.code() != Result::Code::Success){ return output; }
+
+		bool should_continue = true;
+		while(should_continue){
+			switch(this->reader[this->reader.peek()].getKind()){
+				case Token::lookupKind("."): {
+					const Token::ID accessor_op_token_id = this->reader.next();	
+
+					Result rhs_result = this->parse_ident();
+					if(rhs_result.code() == Result::Code::Error){
+						return Result::Code::Error;
+
+					}else if(rhs_result.code() == Result::Code::WrongType){
+						rhs_result = this->parse_intrinsic();
+						if(this->check_result_fail(rhs_result, "identifier or intrinsic after [.] accessor")){
+							return Result::Code::Error;
+						}
+					}
+
+					output = this->source.ast_buffer.createInfix(
+						output.value(), accessor_op_token_id, rhs_result.value()
+					);
+				} break;
+
+				case Token::lookupKind(".*"): {
+					if(is_type_term == IsTypeTerm::Yes){
+						this->context.emitError(
+							Diagnostic::Code::ParserIncorrectStmtContinuation,
+							this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+							"A dereference operator ([.*]) should not follow a type",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Did you mean pointer ([*]) instead?"),
+							}
+						);
+						return Result::Code::Error;
+
+					}else if(is_type_term == IsTypeTerm::Maybe){
+						return Result::Code::WrongType;
+					}
+
+					output = this->source.ast_buffer.createPostfix(output.value(), this->reader.next());
+				} break;
+
+				case Token::lookupKind(".?"): {
+					if(is_type_term == IsTypeTerm::Yes){
+						this->context.emitError(
+							Diagnostic::Code::ParserIncorrectStmtContinuation,
+							this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+							"An unwrap operator ([.?]) should not follow a type",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Did you mean optional ([?]) instead?"),
+							}
+						);
+						return Result::Code::Error;
+
+					}else if(is_type_term == IsTypeTerm::Maybe){
+						return Result::Code::WrongType;
+					}
+
+					output = this->source.ast_buffer.createPostfix(output.value(), this->reader.next());
+				} break;
+
+				default: {
+					should_continue = false;
+				} break;
+			};
+		};
+
+		return output;
 	};
 
 	// TODO: check EOF
@@ -336,6 +537,9 @@ namespace pcit::panther{
 		result = this->parse_literal();
 		if(result.code() != Result::Code::WrongType){ return result; }
 
+		result = this->parse_intrinsic();
+		if(result.code() != Result::Code::WrongType){ return result; }
+
 		return Result::Code::WrongType;
 	};
 
@@ -348,6 +552,14 @@ namespace pcit::panther{
 		return AST::Node(AST::Kind::Ident, this->reader.next());
 	};
 
+	auto Parser::parse_intrinsic() noexcept -> Result {
+		if(this->reader[this->reader.peek()].getKind() != Token::Kind::Intrinsic){
+			return Result::Code::WrongType;
+		}
+
+		return AST::Node(AST::Kind::Intrinsic, this->reader.next());
+	};
+
 	auto Parser::parse_literal() noexcept -> Result {
 		switch(this->reader[this->reader.peek()].getKind()){
 			case Token::Kind::LiteralBool:
@@ -355,6 +567,7 @@ namespace pcit::panther{
 			case Token::Kind::LiteralFloat:
 			case Token::Kind::LiteralString:
 			case Token::Kind::LiteralChar:
+			case Token::Kind::KeywordNull:
 				break;
 
 			default:

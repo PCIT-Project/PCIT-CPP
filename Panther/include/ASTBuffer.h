@@ -42,6 +42,11 @@ namespace pcit::panther{
 				return node.value.token_id;
 			};
 
+			EVO_NODISCARD auto getIntrinsic(const AST::Node& node) const noexcept -> Token::ID {
+				evo::debugAssert(node.getKind() == AST::Kind::Intrinsic, "Node is not a Intrinsic");
+				return node.value.token_id;
+			};
+
 			EVO_NODISCARD auto getBuiltinType(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::BuiltinType, "Node is not a BuiltinType");
 				return node.value.token_id;
@@ -107,6 +112,16 @@ namespace pcit::panther{
 				return this->infixes[node.value.node_index];
 			};
 
+			EVO_NODISCARD auto createPostfix(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->postfixes.size());
+				this->postfixes.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::Postfix, node_index);
+			};
+			EVO_NODISCARD auto getPostfix(const AST::Node& node) const noexcept -> const AST::Postfix& {
+				evo::debugAssert(node.getKind() == AST::Kind::Postfix, "Node is not a Postfix");
+				return this->postfixes[node.value.node_index];
+			};
+
 
 			EVO_NODISCARD auto createType(auto&&... args) noexcept -> AST::Node {
 				const uint32_t node_index = uint32_t(this->types.size());
@@ -132,6 +147,8 @@ namespace pcit::panther{
 
 			evo::SmallVector<AST::Prefix> prefixes{};
 			evo::SmallVector<AST::Infix> infixes{};
+			evo::SmallVector<AST::Postfix> postfixes{};
+
 			evo::SmallVector<AST::Type> types{};
 
 

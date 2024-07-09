@@ -115,8 +115,11 @@ namespace pcit::panther{
 		// keywords
 		{"var",    Token::Kind::KeywordVar},
 		{"func",   Token::Kind::KeywordFunc},
+
+		{"null", Token::Kind::KeywordNull},
 		{"uninit", Token::Kind::KeywordUninit},
-		{"addr",   Token::Kind::KeywordAddr},
+
+		// {"addr",   Token::Kind::KeywordAddr},
 		{"copy",   Token::Kind::KeywordCopy},
 		{"move",   Token::Kind::KeywordMove},
 		{"as",     Token::Kind::KeywordAs},
@@ -205,6 +208,7 @@ namespace pcit::panther{
 			break; case ',': tok_kind = Token::Kind::Comma;
 			break; case ';': tok_kind = Token::Kind::SemiColon;
 			break; case ':': tok_kind = Token::Kind::Colon;
+			break; case '?': tok_kind = Token::Kind::QuestionMark;
 		};
 
 		if(tok_kind == Token::Kind::None){ return false; }
@@ -230,19 +234,39 @@ namespace pcit::panther{
 		};
 
 
-
 		auto set_op = [&](std::string_view op){
 			this->char_stream.skip(ptrdiff_t(op.size()));
 			this->create_token(Token::lookupKind(op.data()));
 		};
 
+
+		// length 4
+		if(is_op("<<|=")){ set_op("<<|="); return true; }
+
 		// length 3
 		if(is_op("<<|")){ set_op("<<|"); return true; }
+		if(is_op("+@=")){ set_op("+@="); return true; }
+		if(is_op("+|=")){ set_op("+|="); return true; }
+		if(is_op("-@=")){ set_op("-@="); return true; }
+		if(is_op("-|=")){ set_op("-|="); return true; }
+		if(is_op("*@=")){ set_op("*@="); return true; }
+		if(is_op("*|=")){ set_op("*|="); return true; }
+		if(is_op("<<=")){ set_op("<<="); return true; }
+		if(is_op(">>=")){ set_op(">>="); return true; }
 
 
 		// length 2
 		if(is_op("->")){ set_op("->"); return true; }
 
+		if(is_op("+=")){ set_op("+="); return true; }
+		if(is_op("-=")){ set_op("-="); return true; }
+		if(is_op("*=")){ set_op("*="); return true; }
+		if(is_op("/=")){ set_op("/="); return true; }
+		if(is_op("%=")){ set_op("%="); return true; }
+		if(is_op("&=")){ set_op("&="); return true; }
+		if(is_op("|=")){ set_op("|="); return true; }
+		if(is_op("^=")){ set_op("^="); return true; }
+		
 		if(is_op("+@")){ set_op("+@"); return true; }
 		if(is_op("+|")){ set_op("+|"); return true; }
 		if(is_op("-@")){ set_op("-@"); return true; }
@@ -260,6 +284,9 @@ namespace pcit::panther{
 
 		if(is_op("<<")){ set_op("<<"); return true; }
 		if(is_op(">>")){ set_op(">>"); return true; }
+
+		if(is_op(".*")){ set_op(".*"); return true; }
+		if(is_op(".?")){ set_op(".?"); return true; }
 
 
 		// length 1
@@ -281,15 +308,7 @@ namespace pcit::panther{
 		if(is_op("^")){ set_op("^"); return true; }
 		if(is_op("~")){ set_op("~"); return true; }
 
-		if(is_op("(")){ set_op("("); return true; }
-		if(is_op(")")){ set_op(")"); return true; }
-		if(is_op("[")){ set_op("["); return true; }
-		if(is_op("]")){ set_op("]"); return true; }
-		if(is_op("{")){ set_op("{"); return true; }
-		if(is_op("}")){ set_op("}"); return true; }
-		if(is_op(",")){ set_op(","); return true; }
-		if(is_op(";")){ set_op(";"); return true; }
-		if(is_op(":")){ set_op(":"); return true; }
+		if(is_op(".")){ set_op("."); return true; }
 
 		return false;
 	};
@@ -878,7 +897,7 @@ namespace pcit::panther{
 					this->char_stream.get_collumn(), this->char_stream.get_collumn()
 				),
 				std::format(
-					"Unrecognized character \"{}\" (charcode: {})",
+					"Unrecognized or unexpected character \"{}\" (charcode: {})",
 					evo::printCharName(peeked_char),
 					int(peeked_char)
 				)

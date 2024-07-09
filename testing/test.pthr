@@ -1,8 +1,9 @@
 // this is a comment
 
-var foo: Int = 12;
+var foo: Int*? = uninit;
+
 
 func test = () -> Void {
-	var bar: Int = (1 + 2) * 3;
-	var same_type: Bool = (Int == Void);
+	foo.* +|= 12;
+	var bar: Int = (foo as @config.SomeType*).?.* +@ 12e4 * 12;
 }

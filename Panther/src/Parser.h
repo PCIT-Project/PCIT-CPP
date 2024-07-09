@@ -76,9 +76,10 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto parse_var_decl() noexcept -> Result;
 			EVO_NODISCARD auto parse_func_decl() noexcept -> Result;
+			EVO_NODISCARD auto parse_assignment() noexcept -> Result;
 
 			EVO_NODISCARD auto parse_block() noexcept -> Result;
-			EVO_NODISCARD auto parse_type() noexcept -> Result;
+			EVO_NODISCARD auto parse_type(bool is_expr = false) noexcept -> Result;
 
 			EVO_NODISCARD auto parse_expr() noexcept -> Result;
 			EVO_NODISCARD auto parse_sub_expr() noexcept -> Result;
@@ -86,11 +87,17 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_infix_expr_impl(AST::Node lhs, int prec_level) noexcept -> Result;
 			EVO_NODISCARD auto parse_prefix_expr() noexcept -> Result;
 
-			EVO_NODISCARD auto parse_term() noexcept -> Result;
+			enum class IsTypeTerm{
+				Yes,
+				No,
+				Maybe,
+			};
+			EVO_NODISCARD auto parse_term(IsTypeTerm is_type_term = IsTypeTerm::No) noexcept -> Result;
 			EVO_NODISCARD auto parse_paren_expr() noexcept -> Result;
 			EVO_NODISCARD auto parse_atom() noexcept -> Result;
 
 			EVO_NODISCARD auto parse_ident() noexcept -> Result;
+			EVO_NODISCARD auto parse_intrinsic() noexcept -> Result;
 			EVO_NODISCARD auto parse_literal() noexcept -> Result;
 			EVO_NODISCARD auto parse_uninit() noexcept -> Result;
 
@@ -153,6 +160,11 @@ namespace pcit::panther{
 
 					EVO_NODISCARD auto operator[](Token::ID id) const noexcept -> const Token& {
 						return this->get(id);
+					};
+
+					EVO_NODISCARD auto go_back(Token::ID id) noexcept -> void {
+						evo::debugAssert(id.get() < this->cursor, "id is not before current location");
+						this->cursor = id.get();
 					};
 
 			

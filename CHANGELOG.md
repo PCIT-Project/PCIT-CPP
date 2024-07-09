@@ -1,7 +1,44 @@
 # Change Log
 
 <!---------------------------------->
-### v0.0.6.0
+## v0.0.7.0
+
+### Panther
+- Added type qualifiers:
+	- `*`
+	- `*|` (read-only pointer)
+	- `?` (optional)
+	- `*?` (optional pointer)
+	- `*|?` (optional read-only pointer)
+- Added accessor operators:
+	- `.`
+	- `.*` (dereference)
+	- `.?` (unwrap)
+- Added assignment statements
+- Added assignment operators:
+	- `+=`
+	- `+@=`
+	- `+|=`
+	- `-=`
+	- `-@=`
+	- `-|=`
+	- `*=`
+	- `*@=`
+	- `*|=`
+	- `/=`
+	- `%=`
+	- `<<=`
+	- `<<|=`
+	- `>>=`
+	- `&=`
+	- `|=`
+	- `^=`
+- Added parsing of intrinsics
+- Changed prefix operator `addr` to prefix operator `&`
+
+
+<!---------------------------------->
+## v0.0.6.0
 
 ### Panther
 - Added keyword `uninit`

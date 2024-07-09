@@ -33,11 +33,13 @@ namespace pcit::panther::AST{
 		
 		Prefix,
 		Infix,
+		Postfix,
 
 		Type,
 
 		BuiltinType,
 		Ident,
+		Intrinsic,
 		Literal,
 		Uninit,
 	};
@@ -132,16 +134,21 @@ namespace pcit::panther::AST{
 		Node rhs;	
 	};
 
+	struct Postfix{
+		Node lhs;
+		Token::ID opTokenID;
+	};
+
 
 	struct Type{
-		// struct Qualifier{
-			// bool isPtr;
-			// bool isReadOnly;
-			// bool isOptional;
-		// };
+		struct Qualifier{
+			bool isPtr;
+			bool isReadOnly;
+			bool isOptional;
+		};
 
 		Node base;
-		// evo::SmallVector<Qualifier> qualifiers;
+		evo::SmallVector<Qualifier> qualifiers;
 	};
 
 };

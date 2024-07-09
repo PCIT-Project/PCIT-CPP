@@ -217,6 +217,10 @@ namespace pthr{
 						this->print_func_decl(this->ast_buffer.getFuncDecl(stmt));
 					} break;
 
+					case panther::AST::Kind::Infix: {
+						this->print_assignment(this->ast_buffer.getInfix(stmt));
+					} break;
+
 					default: {
 						evo::debugFatalBreak(
 							"Unknown or unsupported statement kind ({})", evo::to_underlying(stmt.getKind())
@@ -315,14 +319,66 @@ namespace pthr{
 				}
 			};
 
+
+
+			auto print_base_type(const panther::AST::Node& base_type) noexcept -> void {
+				switch(base_type.getKind()){
+					case panther::AST::Kind::BuiltinType: {
+						const panther::Token::ID type_token_id = this->ast_buffer.getBuiltinType(base_type);
+						this->printer.printMagenta("{}", this->source.getTokenBuffer()[type_token_id].getKind());
+					} break;
+
+					case panther::AST::Kind::Ident: {
+						const panther::Token::ID type_token_id = this->ast_buffer.getIdent(base_type);
+						this->printer.printMagenta("{}", this->source.getTokenBuffer()[type_token_id].getString());
+					} break;
+
+					case panther::AST::Kind::Intrinsic: {
+						const panther::Token::ID type_token_id = this->ast_buffer.getIntrinsic(base_type);
+						this->printer.printMagenta("@{}", this->source.getTokenBuffer()[type_token_id].getString());
+					} break;
+
+					case panther::AST::Kind::Infix: {
+						const panther::AST::Infix& infix = this->ast_buffer.getInfix(base_type);
+						print_base_type(infix.lhs);
+						this->printer.printMagenta(".");
+						print_base_type(infix.rhs);
+					} break;
+
+					default: evo::debugFatalBreak("Unknown or unsupported base type");
+				};
+			};
+
 			
-			auto print_type(const panther::AST::Node& node) const noexcept -> void {
+			auto print_type(const panther::AST::Node& node) noexcept -> void {
 				if(node.getKind() == panther::AST::Kind::Type){
 					const panther::AST::Type& type = this->ast_buffer.getType(node);
 
-					const panther::Token::ID type_token_id = this->ast_buffer.getBuiltinType(type.base);
-					this->printer.printMagenta("{}", this->source.getTokenBuffer()[type_token_id].getKind());
-					this->printer.printGray(" [BUILTIN]\n");
+					this->print_base_type(type.base);
+
+					if(type.qualifiers.empty() == false){
+						auto qualifier_str = std::string();
+						bool not_first_qualifier = false;
+						for(const panther::AST::Type::Qualifier& qualifier : type.qualifiers){
+							if(not_first_qualifier){
+								qualifier_str += ' ';
+							}else{
+								not_first_qualifier = true;
+							}
+
+							if(qualifier.isPtr){ qualifier_str += '*'; }
+							if(qualifier.isReadOnly){ qualifier_str += '|'; }
+							if(qualifier.isOptional){ qualifier_str += '?'; }
+						}
+
+						this->printer.printMagenta(qualifier_str);
+					}
+
+					if(type.base.getKind() == panther::AST::Kind::BuiltinType){
+						this->printer.printGray(" [BUILTIN]\n");
+					}else{
+						this->printer.print("\n");
+					}
 
 				}else{
 					evo::debugFatalBreak("Invalid type kind");
@@ -340,6 +396,10 @@ namespace pthr{
 
 					case panther::AST::Kind::Infix: {
 						this->print_infix(this->ast_buffer.getInfix(node));
+					} break;
+
+					case panther::AST::Kind::Postfix: {
+						this->print_postfix(this->ast_buffer.getPostfix(node));
 					} break;
 
 					case panther::AST::Kind::Type: {
@@ -377,6 +437,10 @@ namespace pthr{
 								this->printer.printGray(" [LiteralChar]");
 							} break;
 
+							case panther::Token::Kind::KeywordNull: {
+								this->printer.printMagenta("[NULL]");
+							} break;
+
 							break; default: evo::debugFatalBreak("Unknown token kind");
 						};
 
@@ -388,9 +452,15 @@ namespace pthr{
 						this->print_ident(node);
 					} break;
 
+					case panther::AST::Kind::Intrinsic: {
+						this->print_intrinsic(node);
+					} break;
+
 					case panther::AST::Kind::Uninit: {
 						this->printer.printMagenta("[UNINIT]\n");
 					} break;
+
+
 
 					default: evo::debugFatalBreak("Unknown or unsupported expr type");
 				};
@@ -413,6 +483,40 @@ namespace pthr{
 						this->printer.print("\n");
 						this->indenter.push();
 						this->print_expr(prefix.rhs);
+						this->indenter.pop();
+					}
+
+					this->indenter.pop();
+				}
+			};
+
+
+			auto print_assignment(const panther::AST::Infix& infix) noexcept -> void {
+				this->indenter.print();
+				this->print_major_header("Assignment");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Operator");
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[infix.opTokenID].getKind());
+
+					this->indenter.print_arrow();
+					this->print_minor_header("LHS");
+					{
+						this->printer.print("\n");
+						this->indenter.push();
+						this->print_expr(infix.lhs);
+						this->indenter.pop();
+					}
+
+					this->indenter.print_end();
+					this->print_minor_header("RHS");
+					{
+						this->printer.print("\n");
+						this->indenter.push();
+						this->print_expr(infix.rhs);
 						this->indenter.pop();
 					}
 
@@ -453,6 +557,29 @@ namespace pthr{
 				}
 			};
 
+			auto print_postfix(const panther::AST::Postfix& postfix) noexcept -> void {
+				this->print_major_header("Postfix");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Operator");
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[postfix.opTokenID].getKind());
+
+					this->indenter.print_end();
+					this->print_minor_header("LHS");
+					{
+						this->printer.print("\n");
+						this->indenter.push();
+						this->print_expr(postfix.lhs);
+						this->indenter.pop();
+					}
+
+					this->indenter.pop();
+				}
+			};
+
 
 
 			auto print_ident(const panther::AST::Node& ident) const noexcept -> void {
@@ -461,6 +588,11 @@ namespace pthr{
 				this->printer.printMagenta("{}\n", ident_tok.getString());
 			};
 
+			auto print_intrinsic(const panther::AST::Node& ident) const noexcept -> void {
+				const panther::Token::ID ident_tok_id = this->ast_buffer.getIntrinsic(ident);
+				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
+				this->printer.printMagenta("@{}\n", ident_tok.getString());
+			};
 
 
 			auto print_major_header(std::string_view title) noexcept -> void {
