@@ -32,7 +32,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto ammount_left() const noexcept -> size_t { return this->data.size() - this->cursor; };
 
 			EVO_NODISCARD auto get_line() const noexcept -> uint32_t { return this->line; };
-			EVO_NODISCARD auto get_collumn() const noexcept -> uint32_t { return this->collumn; };
+			EVO_NODISCARD auto get_collumn() const noexcept -> uint16_t { return this->collumn; };
 
 		private:
 			EVO_NODISCARD auto skip_single() noexcept -> void;
@@ -42,7 +42,7 @@ namespace pcit::panther{
 			size_t cursor = 0;
 
 			uint32_t line = 1;
-			uint32_t collumn = 1;
+			uint16_t collumn = 1;
 	};
 
 

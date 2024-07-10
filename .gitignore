@@ -1,6 +1,7 @@
 # directories
 .vs/
 build/
+testing/local
 
 # outputs
 *.o

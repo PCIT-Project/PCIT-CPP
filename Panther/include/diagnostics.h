@@ -28,13 +28,16 @@ namespace pcit::panther{
 		TokInvalidFPBase,                   // T7
 		TokInvalidNumDigit,                 // T8
 		TokLiteralNumTooBig,                // T9
-		TokUnknownFailureToTokenizeNum,     // T10
-		TokFileTooLarge,                    // T11
+		TokInvalidIntegerWidth,				// T10
+		TokUnknownFailureToTokenizeNum,     // T11
+		TokFileTooLarge,                    // T12
 
 		ParserUnknownStmtStart,          // P1
 		ParserIncorrectStmtContinuation, // P2
 		ParserUnexpectedEOF,             // P3
-		ParserAssumedTokenNotPreset,     // P4
+		ParserInvalidKindForAThisParam,  // P4
+		ParserDereferenceOrUnwrapOnType, // P5
+		ParserAssumedTokenNotPreset,     // P6
 
 		MiscFileDoesNotExist, // M1
 		MiscLoadFileFailed,   // M2
@@ -54,13 +57,16 @@ namespace pcit::panther{
 			break; case DiagnosticCode::TokInvalidFPBase:                   return "T7";
 			break; case DiagnosticCode::TokInvalidNumDigit:                 return "T8";
 			break; case DiagnosticCode::TokLiteralNumTooBig:                return "T9";
-			break; case DiagnosticCode::TokUnknownFailureToTokenizeNum:     return "T10";
-			break; case DiagnosticCode::TokFileTooLarge:                    return "T11";
+			break; case DiagnosticCode::TokInvalidIntegerWidth:             return "T10";
+			break; case DiagnosticCode::TokUnknownFailureToTokenizeNum:     return "T11";
+			break; case DiagnosticCode::TokFileTooLarge:                    return "T12";
 
 			break; case DiagnosticCode::ParserUnknownStmtStart:          return "P1";
 			break; case DiagnosticCode::ParserIncorrectStmtContinuation: return "P2";
 			break; case DiagnosticCode::ParserUnexpectedEOF:             return "P3";
-			break; case DiagnosticCode::ParserAssumedTokenNotPreset:     return "P4";
+			break; case DiagnosticCode::ParserInvalidKindForAThisParam:  return "P4";
+			break; case DiagnosticCode::ParserDereferenceOrUnwrapOnType: return "P5";
+			break; case DiagnosticCode::ParserAssumedTokenNotPreset:     return "P6";
 
 			break; case DiagnosticCode::MiscFileDoesNotExist: return "M1";
 			break; case DiagnosticCode::MiscLoadFileFailed:   return "M2";

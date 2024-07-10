@@ -93,6 +93,7 @@ namespace pcit::panther{
 				Maybe,
 			};
 			EVO_NODISCARD auto parse_term(IsTypeTerm is_type_term = IsTypeTerm::No) noexcept -> Result;
+			EVO_NODISCARD auto parse_term_stmt() noexcept -> Result;
 			EVO_NODISCARD auto parse_paren_expr() noexcept -> Result;
 			EVO_NODISCARD auto parse_atom() noexcept -> Result;
 
@@ -100,6 +101,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_intrinsic() noexcept -> Result;
 			EVO_NODISCARD auto parse_literal() noexcept -> Result;
 			EVO_NODISCARD auto parse_uninit() noexcept -> Result;
+			EVO_NODISCARD auto parse_this() noexcept -> Result;
 
 			///////////////////////////////////
 			// checking

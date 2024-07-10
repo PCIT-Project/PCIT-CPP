@@ -219,7 +219,7 @@ namespace pcit::panther{
 			};
 
 
-			std::vector<Worker> workers{};
+			evo::SmallVector<Worker> workers{};
 	};
 
 

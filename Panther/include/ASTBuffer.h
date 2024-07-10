@@ -34,27 +34,32 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getLiteral(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Literal, "Node is not a Literal");
-				return node.value.token_id;
+				return node._value.token_id;
 			};
 
 			EVO_NODISCARD auto getIdent(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Ident, "Node is not a Ident");
-				return node.value.token_id;
+				return node._value.token_id;
 			};
 
 			EVO_NODISCARD auto getIntrinsic(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Intrinsic, "Node is not a Intrinsic");
-				return node.value.token_id;
+				return node._value.token_id;
 			};
 
 			EVO_NODISCARD auto getBuiltinType(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::BuiltinType, "Node is not a BuiltinType");
-				return node.value.token_id;
+				return node._value.token_id;
 			};
 
 			EVO_NODISCARD auto getUninit(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Uninit, "Node is not a Uninit");
-				return node.value.token_id;
+				return node._value.token_id;
+			};
+
+			EVO_NODISCARD auto getThis(const AST::Node& node) const noexcept -> Token::ID {
+				evo::debugAssert(node.getKind() == AST::Kind::This, "Node is not a This");
+				return node._value.token_id;
 			};
 
 
@@ -66,7 +71,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto getVarDecl(const AST::Node& node) const noexcept -> const AST::VarDecl& {
 				evo::debugAssert(node.getKind() == AST::Kind::VarDecl, "Node is not a VarDecl");
-				return this->var_decls[node.value.node_index];
+				return this->var_decls[node._value.node_index];
 			};
 
 			EVO_NODISCARD auto createFuncDecl(auto&&... args) noexcept -> AST::Node {
@@ -76,7 +81,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto getFuncDecl(const AST::Node& node) const noexcept -> const AST::FuncDecl& {
 				evo::debugAssert(node.getKind() == AST::Kind::FuncDecl, "Node is not a FuncDecl");
-				return this->func_decls[node.value.node_index];
+				return this->func_decls[node._value.node_index];
 			};
 
 
@@ -87,7 +92,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto getBlock(const AST::Node& node) const noexcept -> const AST::Block& {
 				evo::debugAssert(node.getKind() == AST::Kind::Block, "Node is not a VarDecl");
-				return this->blocks[node.value.node_index];
+				return this->blocks[node._value.node_index];
 			};
 
 
@@ -99,7 +104,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto getPrefix(const AST::Node& node) const noexcept -> const AST::Prefix& {
 				evo::debugAssert(node.getKind() == AST::Kind::Prefix, "Node is not a Prefix");
-				return this->prefixes[node.value.node_index];
+				return this->prefixes[node._value.node_index];
 			};
 
 			EVO_NODISCARD auto createInfix(auto&&... args) noexcept -> AST::Node {
@@ -109,7 +114,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto getInfix(const AST::Node& node) const noexcept -> const AST::Infix& {
 				evo::debugAssert(node.getKind() == AST::Kind::Infix, "Node is not a Infix");
-				return this->infixes[node.value.node_index];
+				return this->infixes[node._value.node_index];
 			};
 
 			EVO_NODISCARD auto createPostfix(auto&&... args) noexcept -> AST::Node {
@@ -119,7 +124,18 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto getPostfix(const AST::Node& node) const noexcept -> const AST::Postfix& {
 				evo::debugAssert(node.getKind() == AST::Kind::Postfix, "Node is not a Postfix");
-				return this->postfixes[node.value.node_index];
+				return this->postfixes[node._value.node_index];
+			};
+
+
+			EVO_NODISCARD auto createFuncCall(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->func_calls.size());
+				this->func_calls.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::FuncCall, node_index);
+			};
+			EVO_NODISCARD auto getFuncCall(const AST::Node& node) const noexcept -> const AST::FuncCall& {
+				evo::debugAssert(node.getKind() == AST::Kind::FuncCall, "Node is not a FuncCall");
+				return this->func_calls[node._value.node_index];
 			};
 
 
@@ -130,7 +146,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto getType(const AST::Node& node) const noexcept -> const AST::Type& {
 				evo::debugAssert(node.getKind() == AST::Kind::Type, "Node is not a Type");
-				return this->types[node.value.node_index];
+				return this->types[node._value.node_index];
 			};
 
 
@@ -149,8 +165,9 @@ namespace pcit::panther{
 			evo::SmallVector<AST::Infix> infixes{};
 			evo::SmallVector<AST::Postfix> postfixes{};
 
-			evo::SmallVector<AST::Type> types{};
+			evo::SmallVector<AST::FuncCall> func_calls{};
 
+			evo::SmallVector<AST::Type> types{};
 
 
 			friend class Parser;

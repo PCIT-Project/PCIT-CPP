@@ -11,6 +11,49 @@
 
 
 namespace pcit::panther{
+
+
+	enum class StrToNumError{
+		OutOfRange,
+		Invalid,
+	};
+
+	template<class NumericType>
+	EVO_NODISCARD auto str_to_num(std::string_view str, int base) noexcept 
+	-> evo::Expected<NumericType, StrToNumError> requires(std::is_integral_v<NumericType>) {
+		NumericType result;
+		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result, base);
+
+		if(ptr != str.data() + str.size()){ return evo::Unexpected(StrToNumError::Invalid); }
+
+		if(ec == std::errc())                         { return result; }
+		else if(ec == std::errc::result_out_of_range) { return evo::Unexpected(StrToNumError::OutOfRange); }
+		else if(ec == std::errc::invalid_argument)    { return evo::Unexpected(StrToNumError::Invalid);    }
+		else                                          { evo::debugFatalBreak("Unknown error"); }
+	};
+
+	template<class NumericType>
+	EVO_NODISCARD auto str_to_num(std::string_view str, int base) noexcept 
+	-> evo::Expected<NumericType, StrToNumError> requires(std::is_floating_point_v<NumericType>) {
+		const std::chars_format fmt = [&]() noexcept {
+			switch(base){
+				case 10: return std::chars_format::general;
+				case 16: return std::chars_format::hex;
+				default: evo::debugFatalBreak("Unsupported floating-point base");
+			};
+		}();
+
+		NumericType result;
+		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result, fmt);
+
+		if(ptr != str.data() + str.size()){ return evo::Unexpected(StrToNumError::Invalid); }
+
+		if(ec == std::errc())                         { return result; }
+		else if(ec == std::errc::result_out_of_range) { return evo::Unexpected(StrToNumError::OutOfRange); }
+		else if(ec == std::errc::invalid_argument)    { return evo::Unexpected(StrToNumError::Invalid);    }
+		else                                          { evo::debugFatalBreak("Unknown error"); }
+	};
+
 	
 
 	auto Tokenizer::tokenize() noexcept -> bool {
@@ -67,7 +110,7 @@ namespace pcit::panther{
 			unsigned num_closes_needed = 1;
 			while(num_closes_needed > 0){
 				if(this->char_stream.ammount_left() < 2){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokUnterminatedMultilineComment,
 						Source::Location(
 							this->source.getID(),
@@ -107,23 +150,56 @@ namespace pcit::panther{
 
 	const static auto keyword_map = std::unordered_map<std::string_view, Token::Kind>{
 		// types
-		{"Void", Token::Kind::TypeVoid},
-		{"Type", Token::Kind::TypeType},
-		{"Int",  Token::Kind::TypeInt},
-		{"Bool", Token::Kind::TypeBool},
+		{"Void",        Token::Kind::TypeVoid},
+		{"Type",        Token::Kind::TypeType},
+		{"This",        Token::Kind::TypeThis},
+
+		{"Int",         Token::Kind::TypeInt},
+		{"ISize",       Token::Kind::TypeISize},
+
+		{"UInt",        Token::Kind::TypeUInt},
+		{"USize",       Token::Kind::TypeUSize},
+
+		{"F16",         Token::Kind::TypeF16},
+		{"F32",         Token::Kind::TypeF32},
+		{"F64",         Token::Kind::TypeF64},
+		{"F80",         Token::Kind::TypeF80},
+		{"F128",        Token::Kind::TypeF128},
+
+		{"Byte",        Token::Kind::TypeByte},
+		{"Bool",        Token::Kind::TypeBool},
+		{"Char",        Token::Kind::TypeChar},
+		{"RawPtr",      Token::Kind::TypeRawPtr},
+
+		{"CShort",      Token::Kind::TypeCShort},
+		{"CUShort",     Token::Kind::TypeCUShort},
+		{"CInt",        Token::Kind::TypeCInt},
+		{"CUInt",       Token::Kind::TypeCUInt},
+		{"CLong",       Token::Kind::TypeCLong},
+		{"CULong",      Token::Kind::TypeCULong},
+		{"CLongLong",   Token::Kind::TypeCLongLong},
+		{"CULongLong",  Token::Kind::TypeCULongLong},
+		{"CLongDouble", Token::Kind::TypeCLongDouble},
+
 
 		// keywords
 		{"var",    Token::Kind::KeywordVar},
 		{"func",   Token::Kind::KeywordFunc},
 
-		{"null", Token::Kind::KeywordNull},
+		{"null",   Token::Kind::KeywordNull},
 		{"uninit", Token::Kind::KeywordUninit},
+		{"this",   Token::Kind::KeywordThis},
 
-		// {"addr",   Token::Kind::KeywordAddr},
+		{"read",   Token::Kind::KeywordRead},
+		{"mut",    Token::Kind::KeywordMut},
+		{"in",     Token::Kind::KeywordIn},
+
 		{"copy",   Token::Kind::KeywordCopy},
 		{"move",   Token::Kind::KeywordMove},
 		{"as",     Token::Kind::KeywordAs},
 	};
+
+	const static auto keyword_end = keyword_map.end();
 
 
 	auto Tokenizer::tokenize_identifier() noexcept -> bool {
@@ -155,18 +231,16 @@ namespace pcit::panther{
 
 		const char* string_start_ptr = this->char_stream.peek_raw_ptr();
 
-		std::string_view::size_type token_length = 0;
 
 		do{
 			this->char_stream.skip(1);
-			token_length += 1;
 
 			if(this->char_stream.at_end()){ break; }
 
 			peeked_char = this->char_stream.peek();
 		}while( (evo::isAlphaNumeric(peeked_char) || peeked_char == '_'));
 
-		auto ident_name = std::string_view(string_start_ptr, token_length);
+		auto ident_name = std::string_view(string_start_ptr, this->char_stream.peek_raw_ptr() - string_start_ptr);
 
 		if(kind == Token::Kind::Ident){
 			if(ident_name == "true"){
@@ -176,17 +250,101 @@ namespace pcit::panther{
 				this->create_token(Token::Kind::LiteralBool, false);
 
 			}else{
-				const auto keyword_map_iter = keyword_map.find(ident_name);
+				bool is_integer = false;
 
-				if(keyword_map_iter == keyword_map.end()){
-					this->create_token(Token::Kind::Ident, std::string(ident_name));
-				}else{
-					this->create_token(keyword_map_iter->second);
+				auto parse_integer = [&](Token::Kind kind, size_t bitwidth_start_index) noexcept -> void {
+					const std::string_view bitwidth_str = ident_name.substr(bitwidth_start_index);
+					
+					for(char character : bitwidth_str){
+						if(evo::isNumber(character) == false){
+							return;
+						}
+					}
+
+					is_integer = true;
+
+					const evo::Expected<uint32_t, StrToNumError> bitwidth = str_to_num<uint32_t>(bitwidth_str, 10);
+
+					if(bitwidth.has_value()){
+						if(bitwidth.value() > std::pow(2, 23)){
+							this->emit_error(
+								Diagnostic::Code::TokInvalidIntegerWidth,
+								Source::Location(
+									this->source.getID(),
+									this->current_token_line_start, this->char_stream.get_line(),
+									this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+								),
+								"Integer bit-width is too large",
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
+								}
+							);
+
+						}else if(bitwidth.value() == 0){
+							this->emit_error(
+								Diagnostic::Code::TokInvalidIntegerWidth,
+								Source::Location(
+									this->source.getID(),
+									this->current_token_line_start, this->char_stream.get_line(),
+									this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+								),
+								"Integer bit-width cannot be 0"
+							);
+						}
+
+						this->create_token(kind, uint64_t(bitwidth.value()));
+						return;
+					}
+
+					switch(bitwidth.error()){
+						case StrToNumError::OutOfRange: {
+							this->emit_error(
+								Diagnostic::Code::TokInvalidIntegerWidth,
+								Source::Location(
+									this->source.getID(),
+									this->current_token_line_start, this->char_stream.get_line(),
+									this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+								),
+								"Integer bit-width is too large",
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
+								}
+							);
+						} break;
+
+						case StrToNumError::Invalid: {
+							this->emit_fatal(
+								Diagnostic::Code::TokUnknownFailureToTokenizeNum,
+								Source::Location(
+									this->source.getID(),
+									this->current_token_line_start, this->char_stream.get_line(),
+									this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+								),
+								"Attempted to tokenize invalid integer bit-width"
+							);
+						} break;
+					};
+				};
+
+				if(ident_name[0] == 'I'){
+					parse_integer(Token::Kind::TypeI_N, 1);
+				}else if(ident_name[0] == 'U' && ident_name[1] == 'I'){
+					parse_integer(Token::Kind::TypeUI_N, 2);
+				}
+
+				if(is_integer == false){
+					const auto keyword_map_iter = keyword_map.find(ident_name);
+
+					if(keyword_map_iter == keyword_end){
+						this->create_token(Token::Kind::Ident, this->source, ident_name);
+					}else{
+						this->create_token(keyword_map_iter->second);
+					}
 				}
 			}
 
 		}else{
-			this->create_token(kind, std::string(ident_name));
+			this->create_token(kind, this->source, ident_name);
 		}
 		
 
@@ -220,96 +378,343 @@ namespace pcit::panther{
 		return true;
 	};
 
+
 	auto Tokenizer::tokenize_operators() noexcept -> bool {
-		auto is_op = [&](std::string_view op) noexcept -> bool {
-			if(this->char_stream.ammount_left() < op.size()){ return false; }
-
-			for(int i = 0; i < op.size(); i+=1){
-				if(this->char_stream.peek(i) != op[i]){
-					return false;
+		switch(this->char_stream.peek()){
+			case '=': {
+				if(this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("=="));
+					this->create_token(Token::lookupKind("=="));
+					return true;
+				}else{
+					this->char_stream.skip(evo::stringSize("="));
+					this->create_token(Token::lookupKind("="));
+					return true;
 				}
-			}
+			} break;
 
-			return true;
+			case '+': {
+				switch(this->char_stream.peek(1)){
+					case '=': {
+						this->char_stream.skip(evo::stringSize("+="));
+						this->create_token(Token::lookupKind("+="));
+						return true;
+					} break;
+
+					case '@': {
+						if(this->char_stream.peek(2) == '='){
+							this->char_stream.skip(evo::stringSize("+@="));
+							this->create_token(Token::lookupKind("+@="));
+							return true;
+						}else{
+							this->char_stream.skip(evo::stringSize("+@"));
+							this->create_token(Token::lookupKind("+@"));
+							return true;
+						}
+					} break;
+
+					case '|': {
+						if(this->char_stream.peek(2) == '='){
+							this->char_stream.skip(evo::stringSize("+|="));
+							this->create_token(Token::lookupKind("+|="));
+							return true;
+						}else{
+							this->char_stream.skip(evo::stringSize("+|"));
+							this->create_token(Token::lookupKind("+|"));
+							return true;
+						}
+					} break;
+
+					default: {
+						this->char_stream.skip(evo::stringSize("+"));
+						this->create_token(Token::lookupKind("+"));
+						return true;
+					} break;
+				}
+			} break;
+
+			case '-': {
+				switch(this->char_stream.peek(1)){
+					case '>': {
+						this->char_stream.skip(evo::stringSize("->"));
+						this->create_token(Token::lookupKind("->"));
+						return true;
+					} break;
+
+					case '=': {
+						this->char_stream.skip(evo::stringSize("-="));
+						this->create_token(Token::lookupKind("-="));
+						return true;
+					} break;
+
+					case '@': {
+						if(this->char_stream.peek(2) == '='){
+							this->char_stream.skip(evo::stringSize("-@="));
+							this->create_token(Token::lookupKind("-@="));
+							return true;
+						}else{
+							this->char_stream.skip(evo::stringSize("-@"));
+							this->create_token(Token::lookupKind("-@"));
+							return true;
+						}
+					} break;
+
+					case '|': {
+						if(this->char_stream.peek(2) == '='){
+							this->char_stream.skip(evo::stringSize("-|="));
+							this->create_token(Token::lookupKind("-|="));
+							return true;
+						}else{
+							this->char_stream.skip(evo::stringSize("-|"));
+							this->create_token(Token::lookupKind("-|"));
+							return true;
+						}
+					} break;
+
+					default: {
+						this->char_stream.skip(evo::stringSize("-"));
+						this->create_token(Token::lookupKind("-"));
+						return true;
+					} break;
+				}
+			} break;
+
+			case '*': {
+				switch(this->char_stream.peek(1)){
+					case '=': {
+						this->char_stream.skip(evo::stringSize("*="));
+						this->create_token(Token::lookupKind("*="));
+						return true;
+					} break;
+
+					case '@': {
+						if(this->char_stream.peek(2) == '='){
+							this->char_stream.skip(evo::stringSize("*@="));
+							this->create_token(Token::lookupKind("*@="));
+							return true;
+						}else{
+							this->char_stream.skip(evo::stringSize("*@"));
+							this->create_token(Token::lookupKind("*@"));
+							return true;
+						}
+					} break;
+
+					case '|': {
+						if(this->char_stream.peek(2) == '='){
+							this->char_stream.skip(evo::stringSize("*|="));
+							this->create_token(Token::lookupKind("*|="));
+							return true;
+						}else{
+							this->char_stream.skip(evo::stringSize("*|"));
+							this->create_token(Token::lookupKind("*|"));
+							return true;
+						}
+					} break;
+
+					default: {
+						this->char_stream.skip(evo::stringSize("*"));
+						this->create_token(Token::lookupKind("*"));
+						return true;
+					} break;
+				}
+			} break;
+
+
+			case '/': {
+				if(this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("/="));
+					this->create_token(Token::lookupKind("/="));
+					return true;
+				}else{
+					this->char_stream.skip(evo::stringSize("/"));
+					this->create_token(Token::lookupKind("/"));
+					return true;
+				}
+			} break;
+
+			case '%': {
+				if(this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("%="));
+					this->create_token(Token::lookupKind("%="));
+					return true;
+				}else{
+					this->char_stream.skip(evo::stringSize("%"));
+					this->create_token(Token::lookupKind("%"));
+					return true;
+				}
+			} break;
+
+			case '<': {
+				switch(this->char_stream.peek(1)){
+					case '<': {
+						switch(this->char_stream.peek(2)){
+							case '=': {
+								this->char_stream.skip(evo::stringSize("<<="));
+								this->create_token(Token::lookupKind("<<="));
+								return true;
+							} break;
+
+							case '|': {
+								if(this->char_stream.peek(3) == '='){
+									this->char_stream.skip(evo::stringSize("<<|="));
+									this->create_token(Token::lookupKind("<<|="));
+									return true;
+								}else{
+									this->char_stream.skip(evo::stringSize("<<|"));
+									this->create_token(Token::lookupKind("<<|"));
+									return true;
+								}
+							} break;
+
+							default: {
+								this->char_stream.skip(evo::stringSize("<<"));
+								this->create_token(Token::lookupKind("<<"));
+								return true;
+							} break;
+						}
+					} break;
+
+					case '=': {
+						this->char_stream.skip(evo::stringSize("<="));
+						this->create_token(Token::lookupKind("<="));
+						return true;
+					} break;
+
+					default: {
+						this->char_stream.skip(evo::stringSize("<"));
+						this->create_token(Token::lookupKind("<"));
+						return true;
+					} break;
+				}
+			} break;
+
+			case '>': {
+				switch(this->char_stream.peek(1)){
+					case '>': {
+						if(this->char_stream.peek(2) == '='){
+							this->char_stream.skip(evo::stringSize(">>="));
+							this->create_token(Token::lookupKind(">>="));
+							return true;
+						}else{
+							this->char_stream.skip(evo::stringSize(">>"));
+							this->create_token(Token::lookupKind(">>"));
+							return true;
+						}
+					} break;
+
+					case '=': {
+						this->char_stream.skip(evo::stringSize(">="));
+						this->create_token(Token::lookupKind(">="));
+						return true;
+					} break;
+
+					default: {
+						this->char_stream.skip(evo::stringSize(">"));
+						this->create_token(Token::lookupKind(">"));
+						return true;
+					} break;
+				}
+			} break;
+
+			case '&': {
+				switch(this->char_stream.peek(2)){
+					case '=': {
+						this->char_stream.skip(evo::stringSize("&="));
+						this->create_token(Token::lookupKind("&="));
+						return true;
+					} break;
+
+					case '&': {
+						this->char_stream.skip(evo::stringSize("&&"));
+						this->create_token(Token::lookupKind("&&"));
+						return true;
+					} break;
+
+					default: {
+						this->char_stream.skip(evo::stringSize("&"));
+						this->create_token(Token::lookupKind("&"));
+						return true;
+					} break;
+				}
+
+			} break;
+
+			case '|': {
+				switch(this->char_stream.peek(2)){
+					case '=': {
+						this->char_stream.skip(evo::stringSize("|="));
+						this->create_token(Token::lookupKind("|="));
+						return true;
+					} break;
+
+					case '|': {
+						this->char_stream.skip(evo::stringSize("||"));
+						this->create_token(Token::lookupKind("||"));
+						return true;
+					} break;
+
+					default: {
+						this->char_stream.skip(evo::stringSize("|"));
+						this->create_token(Token::lookupKind("|"));
+						return true;
+					} break;
+				}
+
+			} break;
+
+			case '^': {
+				if(this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("^="));
+					this->create_token(Token::lookupKind("^="));
+					return true;
+				}else{
+					this->char_stream.skip(evo::stringSize("^"));
+					this->create_token(Token::lookupKind("^"));
+					return true;
+				}
+			} break;
+
+			case '!': {
+				if(this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("!="));
+					this->create_token(Token::lookupKind("!="));
+					return true;
+				}else{
+					this->char_stream.skip(evo::stringSize("!"));
+					this->create_token(Token::lookupKind("!"));
+					return true;
+				}
+			} break;
+
+			case '.': {
+				switch(this->char_stream.peek(1)){
+					case '*': {
+						this->char_stream.skip(evo::stringSize(".*"));
+						this->create_token(Token::lookupKind(".*"));
+						return true;
+					} break;
+
+					case '?': {
+						this->char_stream.skip(evo::stringSize(".?"));
+						this->create_token(Token::lookupKind(".?"));
+						return true;
+					} break;
+
+					default: {
+						this->char_stream.skip(evo::stringSize("."));
+						this->create_token(Token::lookupKind("."));
+						return true;
+					} break;
+				}
+			} break;
+
+			case '~': {
+				this->char_stream.skip(evo::stringSize("~"));
+				this->create_token(Token::lookupKind("~"));
+				return true;
+			} break;
 		};
-
-
-		auto set_op = [&](std::string_view op){
-			this->char_stream.skip(ptrdiff_t(op.size()));
-			this->create_token(Token::lookupKind(op.data()));
-		};
-
-
-		// length 4
-		if(is_op("<<|=")){ set_op("<<|="); return true; }
-
-		// length 3
-		if(is_op("<<|")){ set_op("<<|"); return true; }
-		if(is_op("+@=")){ set_op("+@="); return true; }
-		if(is_op("+|=")){ set_op("+|="); return true; }
-		if(is_op("-@=")){ set_op("-@="); return true; }
-		if(is_op("-|=")){ set_op("-|="); return true; }
-		if(is_op("*@=")){ set_op("*@="); return true; }
-		if(is_op("*|=")){ set_op("*|="); return true; }
-		if(is_op("<<=")){ set_op("<<="); return true; }
-		if(is_op(">>=")){ set_op(">>="); return true; }
-
-
-		// length 2
-		if(is_op("->")){ set_op("->"); return true; }
-
-		if(is_op("+=")){ set_op("+="); return true; }
-		if(is_op("-=")){ set_op("-="); return true; }
-		if(is_op("*=")){ set_op("*="); return true; }
-		if(is_op("/=")){ set_op("/="); return true; }
-		if(is_op("%=")){ set_op("%="); return true; }
-		if(is_op("&=")){ set_op("&="); return true; }
-		if(is_op("|=")){ set_op("|="); return true; }
-		if(is_op("^=")){ set_op("^="); return true; }
 		
-		if(is_op("+@")){ set_op("+@"); return true; }
-		if(is_op("+|")){ set_op("+|"); return true; }
-		if(is_op("-@")){ set_op("-@"); return true; }
-		if(is_op("-|")){ set_op("-|"); return true; }
-		if(is_op("*@")){ set_op("*@"); return true; }
-		if(is_op("*|")){ set_op("*|"); return true; }
-
-		if(is_op("==")){ set_op("=="); return true; }
-		if(is_op("!=")){ set_op("!="); return true; }
-		if(is_op("<=")){ set_op("<="); return true; }
-		if(is_op(">=")){ set_op(">="); return true; }
-
-		if(is_op("&&")){ set_op("&&"); return true; }
-		if(is_op("||")){ set_op("||"); return true; }
-
-		if(is_op("<<")){ set_op("<<"); return true; }
-		if(is_op(">>")){ set_op(">>"); return true; }
-
-		if(is_op(".*")){ set_op(".*"); return true; }
-		if(is_op(".?")){ set_op(".?"); return true; }
-
-
-		// length 1
-		if(is_op("=")){ set_op("="); return true; }
-
-		if(is_op("+")){ set_op("+"); return true; }
-		if(is_op("-")){ set_op("-"); return true; }
-		if(is_op("*")){ set_op("*"); return true; }
-		if(is_op("/")){ set_op("/"); return true; }
-		if(is_op("%")){ set_op("%"); return true; }
-
-		if(is_op("<")){ set_op("<"); return true; }
-		if(is_op(">")){ set_op(">"); return true; }
-
-		if(is_op("!")){ set_op("!"); return true; }
-
-		if(is_op("&")){ set_op("&"); return true; }
-		if(is_op("|")){ set_op("|"); return true; }
-		if(is_op("^")){ set_op("^"); return true; }
-		if(is_op("~")){ set_op("~"); return true; }
-
-		if(is_op(".")){ set_op("."); return true; }
-
 		return false;
 	};
 
@@ -337,9 +742,11 @@ namespace pcit::panther{
 				this->char_stream.skip(2);
 
 			}else if(evo::isNumber(second_peek)){
-				this->context.emitError(
+				this->emit_error(
 					Diagnostic::Code::TokLiteralLeadingZero,
-					Source::Location(this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()),
+					Source::Location(
+						this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
+					),
 					"Leading zeros in literal numbers are not supported",
 					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info("Note: the literal integer prefix for base-8 is \"0o\""),
@@ -354,7 +761,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// get number
 
-		auto number_string = std::string{};
+		auto number_string = std::string();
 
 		bool has_decimal_point = false;
 
@@ -367,7 +774,7 @@ namespace pcit::panther{
 
 			}else if(peeked_char == '.'){
 				if(has_decimal_point){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokLiteralNumMultipleDecimalPoints,
 						Source::Location(
 							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
@@ -378,7 +785,7 @@ namespace pcit::panther{
 				}
 
 				if(base == 2){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokInvalidFPBase,
 						Source::Location(
 							this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
@@ -388,7 +795,7 @@ namespace pcit::panther{
 					return true;
 
 				}else if(base == 8){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokInvalidFPBase,
 						Source::Location(
 							this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
@@ -411,7 +818,7 @@ namespace pcit::panther{
 					number_string += this->char_stream.next();
 
 				}else if(evo::isHexNumber(peeked_char)){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
 							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
@@ -429,7 +836,7 @@ namespace pcit::panther{
 					number_string += this->char_stream.next();
 
 				}else if(evo::isHexNumber(peeked_char)){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
 							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
@@ -450,7 +857,7 @@ namespace pcit::panther{
 					break;
 
 				}else if(evo::isHexNumber(peeked_char)){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
 							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
@@ -482,7 +889,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// get exponent (if it exsits)
 
-		auto exponent_string = std::string{};
+		auto exponent_string = std::string();
 		if(
 			this->char_stream.ammount_left() >= 2 && 
 			(this->char_stream.peek() == 'e' || this->char_stream.peek() == 'E')
@@ -500,7 +907,7 @@ namespace pcit::panther{
 					exponent_string += this->char_stream.next();
 
 				}else if(evo::isHexNumber(peeked_char)){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokInvalidNumDigit,
 						Source::Location(
 							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
@@ -523,25 +930,29 @@ namespace pcit::panther{
 		int64_t exponent_number = 1;
 
 		if(exponent_string.size() != 0){
-			exponent_number = std::strtoll(exponent_string.data(), nullptr, base);
+			const evo::Expected<int64_t, StrToNumError> converted_exponent_number = 
+				str_to_num<int64_t>(exponent_string, base);
 
-			if(exponent_number == ULLONG_MAX && errno == ERANGE){
-				this->context.emitError(
-					Diagnostic::Code::TokLiteralNumTooBig,
-					Source::Location(
-						this->source.getID(),
-						this->current_token_line_start, this->char_stream.get_line(),
-						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-					),
-					"Literal number exponent too large to fit into a I64."
-					"This limitation will be removed when the compiler is self hosted."
-				);
-				return true;
+			if(converted_exponent_number.has_value()){
+				exponent_number = converted_exponent_number.value();	
+			}else{
+				switch(converted_exponent_number.error()){
+					case StrToNumError::OutOfRange: {
+						this->emit_error(
+							Diagnostic::Code::TokLiteralNumTooBig,
+							Source::Location(
+								this->source.getID(),
+								this->current_token_line_start, this->char_stream.get_line(),
+								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+							),
+							"Literal number exponent too large to fit into a I64."
+							"This limitation will be removed when the compiler is self hosted."
+						);
+						return true;
+					} break;
 
-			}else if(exponent_number == 0){
-				for(const char& character : exponent_string){
-					if(character != '0'){
-						this->context.emitFatal(
+					case StrToNumError::Invalid: {
+						this->emit_fatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 							Source::Location(
 								this->source.getID(),
@@ -550,9 +961,8 @@ namespace pcit::panther{
 							),
 							"Tried to convert invalid integer string for exponent"
 						);
-						return true;
-					}
-				}
+					} break;
+				};
 			}
 		}
 
@@ -567,7 +977,7 @@ namespace pcit::panther{
 				const static float64_t max_float_exp = std::log10(std::numeric_limits<float64_t>::max()) + 1;
 
 				if(floating_point_exponent_number > max_float_exp){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokLiteralNumTooBig,
 						Source::Location(
 							this->source.getID(),
@@ -583,7 +993,7 @@ namespace pcit::panther{
 				const static float64_t max_int_exp = std::log10(std::numeric_limits<uint64_t>::max()) + 1;
 
 				if(floating_point_exponent_number > max_int_exp){
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::TokLiteralNumTooBig,
 						Source::Location(
 							this->source.getID(),
@@ -604,43 +1014,46 @@ namespace pcit::panther{
 		// parse / save number (with some checking)
 
 		if(has_decimal_point){
-			if(base == 16){
-				number_string = "0x" + number_string;
+			const evo::Expected<float64_t, StrToNumError> converted_parsed_number = 
+				str_to_num<float64_t>(number_string, base);
+
+			if(converted_parsed_number.has_value() == false){
+				switch(converted_parsed_number.error()){
+					case StrToNumError::OutOfRange: {
+						this->emit_error(
+							Diagnostic::Code::TokLiteralNumTooBig,
+							Source::Location(
+								this->source.getID(),
+								this->current_token_line_start, this->char_stream.get_line(),
+								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+							),
+							"Literal floating-point too large to fit into an F64"
+						);
+						return true;
+					} break;
+
+					case StrToNumError::Invalid: {
+						this->emit_fatal(
+							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
+							Source::Location(
+								this->source.getID(),
+								this->current_token_line_start, this->char_stream.get_line(),
+								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+							),
+							"Tried to convert invalid literal floating-point number"
+						);
+					} break;
+				};
 			}
 
-			char* str_end;
-			const float64_t parsed_number = std::strtod(number_string.data(), &str_end);
+			const float64_t parsed_number = converted_parsed_number.value();
 
-			if(parsed_number == HUGE_VALL){
-				this->context.emitError(
-					Diagnostic::Code::TokLiteralNumTooBig,
-					Source::Location(
-						this->source.getID(),
-						this->current_token_line_start, this->char_stream.get_line(),
-						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-					),
-					"Literal floating-point too large to fit into an F64"
-				);
-				return true;
-
-			}else if(parsed_number == 0.0L && str_end == number_string.data()){
-				this->context.emitFatal(
-					Diagnostic::Code::TokUnknownFailureToTokenizeNum,
-					Source::Location(
-						this->source.getID(),
-						this->current_token_line_start, this->char_stream.get_line(),
-						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-					),
-					"Tried to convert invalid literal floating-point number"
-				);
-				return true;
-			}
 
 			if(
 				parsed_number == 0.0 && 
 				std::numeric_limits<float64_t>::max() / parsed_number < std::pow(10, exponent_number)
 			){
-				this->context.emitError(
+				this->emit_error(
 					Diagnostic::Code::TokLiteralNumTooBig,
 					Source::Location(
 						this->source.getID(),
@@ -661,25 +1074,27 @@ namespace pcit::panther{
 
 
 		}else{
-			const uint64_t parsed_number = std::strtoull(number_string.data(), nullptr, base);
+			const evo::Expected<uint64_t, StrToNumError> converted_parsed_number = 
+				str_to_num<uint64_t>(number_string, base);
 
-			if(parsed_number == ULLONG_MAX && errno == ERANGE){
-				this->context.emitError(
-					Diagnostic::Code::TokLiteralNumTooBig,
-					Source::Location(
-						this->source.getID(),
-						this->current_token_line_start, this->char_stream.get_line(),
-						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-					),
-					"Literal integer too large to fit into a UI64. "
-					"This limitation will be removed when the compiler is self hosted."
-				);
-				return true;
+			if(converted_parsed_number.has_value() == false){
+				switch(converted_parsed_number.error()){
+					case StrToNumError::OutOfRange: {
+						this->emit_error(
+							Diagnostic::Code::TokLiteralNumTooBig,
+							Source::Location(
+								this->source.getID(),
+								this->current_token_line_start, this->char_stream.get_line(),
+								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+							),
+							"Literal integer too large to fit into a UI64. "
+							"This limitation will be removed when the compiler is self hosted."
+						);
+						return true;
+					} break;
 
-			}else if(parsed_number == 0){
-				for(const char& character : number_string){
-					if(character != '0'){
-						this->context.emitFatal(
+					case StrToNumError::Invalid: {
+						this->emit_fatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 							Source::Location(
 								this->source.getID(),
@@ -689,12 +1104,12 @@ namespace pcit::panther{
 							"Tried to convert invalid literal integer"
 						);
 						return true;
-					}
-				}
+					} break;
+				};
 			}
 
 
-			uint64_t output_number = parsed_number;
+			uint64_t output_number = converted_parsed_number.value();
 			     if(exponent_number == 0){ output_number = 0; }
 			else if(exponent_number != 1){ output_number *= uint64_t(std::pow(10, exponent_number)); }
 
@@ -734,7 +1149,7 @@ namespace pcit::panther{
 					break; case '\\': literal_value += '\\';
 
 					break; default: {
-						this->context.emitError(
+						this->emit_error(
 							Diagnostic::Code::TokUnterminatedTextEscapeSequence,
 							Source::Location(
 								this->source.getID(),
@@ -765,7 +1180,7 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Unknown delimiter");
 				}();
 
-				this->context.emitError(
+				this->emit_error(
 					Diagnostic::Code::TokUnterminatedMultilineComment,
 					Source::Location(
 						this->source.getID(),
@@ -786,9 +1201,9 @@ namespace pcit::panther{
 		this->char_stream.skip(1);
 
 		if(delimiter == '\''){
-			this->create_token(Token::Kind::LiteralChar, std::move(literal_value));
+			this->create_token(Token::Kind::LiteralChar, this->source, std::move(literal_value));
 		}else{
-			this->create_token(Token::Kind::LiteralString, std::move(literal_value));
+			this->create_token(Token::Kind::LiteralString, this->source, std::move(literal_value));
 		}
 
 
@@ -800,22 +1215,7 @@ namespace pcit::panther{
 	// create tokens
 
 
-	auto Tokenizer::create_token(Token::Kind kind) noexcept -> void {
-		if(this->file_too_big()){ return; }
-
-		this->source.token_buffer.createToken(
-			kind,
-			Token::Location(
-				this->current_token_line_start,
-				this->char_stream.get_line(),
-				this->current_token_collumn_start,
-				this->char_stream.get_collumn() - 1
-			)
-		);
-	};
-
-
-	auto Tokenizer::create_token(Token::Kind kind, auto&& val) noexcept -> void {
+	auto Tokenizer::create_token(Token::Kind kind, auto&&... val) noexcept -> void {
 		if(this->file_too_big()){ return; }
 
 		this->source.token_buffer.createToken(
@@ -826,7 +1226,7 @@ namespace pcit::panther{
 				this->current_token_collumn_start,
 				this->char_stream.get_collumn() - 1
 			),
-			std::forward<decltype(val)>(val)
+			std::forward<decltype(val)>(val)...
 		);
 	};
 
@@ -839,7 +1239,7 @@ namespace pcit::panther{
 		constexpr static size_t MAX_TOKENS = std::numeric_limits<uint32_t>::max();
 
 		if(this->source.token_buffer.size() >= MAX_TOKENS){
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::TokFileTooLarge,
 				Source::Location(
 					this->source.getID(),
@@ -858,6 +1258,21 @@ namespace pcit::panther{
 		}
 
 		return false;
+	};
+
+
+	auto Tokenizer::emit_warning(auto&&... args) noexcept -> void {
+		this->context.emitWarning(std::forward<decltype(args)>(args)...);
+	};
+
+	auto Tokenizer::emit_error(auto&&... args) noexcept -> void {
+		this->context.emitError(std::forward<decltype(args)>(args)...);
+		this->can_continue = false;
+	};
+
+	auto Tokenizer::emit_fatal(auto&&... args) noexcept -> void {
+		this->context.emitFatal(std::forward<decltype(args)>(args)...);
+		this->can_continue = false;
 	};
 
 
@@ -889,7 +1304,7 @@ namespace pcit::panther{
 		const char peeked_char = this->char_stream.peek();
 
 		if(peeked_char >= 0){
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::TokUnrecognizedCharacter,
 				Source::Location(
 					this->source.getID(),
@@ -914,7 +1329,7 @@ namespace pcit::panther{
 		const size_t num_chars_of_utf8 = std::countl_one(static_cast<unsigned char>(this->char_stream.peek()));
 
 		if(num_chars_of_utf8 > 4 || this->char_stream.ammount_left() < num_chars_of_utf8){
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::TokUnrecognizedCharacter,
 				Source::Location(
 					this->source.getID(),
@@ -998,7 +1413,7 @@ namespace pcit::panther{
 			} break;
 		};
 
-		this->context.emitError(
+		this->emit_error(
 			Diagnostic::Code::TokUnrecognizedCharacter,
 			Source::Location(this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()),
 			std::format("Unrecognized character \"{}\" (UTF-8 code: {})", utf8_str, utf8_charcodes_str)

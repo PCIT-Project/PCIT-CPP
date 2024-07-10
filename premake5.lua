@@ -70,7 +70,7 @@ workspace "PCIT-CPP"
 	filter "configurations:Optimize"
 		runtime "Debug" -- TODO: figure out how to have LLVM build with release runtime
 		symbols "On"
-		optimize "On"
+		optimize "Full"
 
 		defines{
 			"NDEBUG",
@@ -183,7 +183,7 @@ filter "configurations:Optimize"
 
 	defines{
 		"PCIT_BUILD_OPTIMIZE",
-		"PCIT_CONFIG_DEBUG",
+		"PCIT_CONFIG_RELEASE",
 	}
 
 filter {}

@@ -35,6 +35,8 @@ namespace pcit::panther::AST{
 		Infix,
 		Postfix,
 
+		FuncCall,
+
 		Type,
 
 		BuiltinType,
@@ -42,23 +44,24 @@ namespace pcit::panther::AST{
 		Intrinsic,
 		Literal,
 		Uninit,
+		This,
 	};
 
 
 	template<bool IsOptional>
 	class NodeImpl{
 		public:
-			NodeImpl(Kind _kind, Token::ID token_id) noexcept : kind(_kind), value{.token_id = token_id} {};
-			NodeImpl(Kind _kind, uint32_t node_index) noexcept : kind(_kind), value{.node_index = node_index} {};
+			NodeImpl(Kind _kind, Token::ID token_id) noexcept : kind(_kind), _value{.token_id = token_id} {};
+			NodeImpl(Kind _kind, uint32_t node_index) noexcept : kind(_kind), _value{.node_index = node_index} {};
 
 			NodeImpl(const NodeImpl<false>& rhs) noexcept requires(IsOptional)
-				: kind(rhs.kind), value{.node_index = rhs.value.node_index}{};
+				: kind(rhs.kind), _value{.node_index = rhs._value.node_index}{};
 
 			NodeImpl(const NodeImpl<IsOptional>&) = default;
 
 
-			NodeImpl() noexcept requires(IsOptional) : kind(Kind::None), value{} {};
-			NodeImpl(std::nullopt_t) noexcept requires(IsOptional) : kind(Kind::None), value{} {};
+			NodeImpl() noexcept requires(IsOptional) : kind(Kind::None), _value{} {};
+			NodeImpl(std::nullopt_t) noexcept requires(IsOptional) : kind(Kind::None), _value{} {};
 
 
 
@@ -69,7 +72,7 @@ namespace pcit::panther::AST{
 				return this->kind != Kind::None;
 			};
 
-			EVO_NODISCARD auto getValue() const noexcept -> NodeImpl<false> requires(IsOptional) {
+			EVO_NODISCARD auto value() const noexcept -> NodeImpl<false> requires(IsOptional) {
 				evo::debugAssert(this->hasValue(), "optional node does not have value");
 				return *(NodeImpl<false>*)this;
 			};
@@ -83,7 +86,7 @@ namespace pcit::panther::AST{
 
 				Token::ID token_id;
 				uint32_t node_index; // used by ASTBuffer to get the data
-			} value;
+			} _value;
 
 			static_assert(sizeof(Value) == 4);
 
@@ -114,7 +117,20 @@ namespace pcit::panther::AST{
 	};
 
 	struct FuncDecl{
+		struct Param{
+			enum class Kind{
+				Read,
+				Mut,
+				In,
+			};
+
+			Node ident;
+			NodeOptional type;
+			Kind kind;
+		};
+
 		Node ident;
+		evo::SmallVector<Param> params;
 		Node returnType;
 		Node block;
 	};
@@ -137,6 +153,16 @@ namespace pcit::panther::AST{
 	struct Postfix{
 		Node lhs;
 		Token::ID opTokenID;
+	};
+
+	struct FuncCall{
+		struct Arg{
+			NodeOptional explicitIdent;
+			Node value;
+		};
+
+		Node target;
+		evo::SmallVector<Arg> args;
 	};
 
 

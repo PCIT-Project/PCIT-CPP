@@ -44,13 +44,17 @@ namespace pcit::panther{
 			EVO_NODISCARD auto tokenize_number_literal() noexcept -> bool;
 			EVO_NODISCARD auto tokenize_string_literal() noexcept -> bool;
 
-			auto create_token(Token::Kind kind) noexcept -> void;
-			auto create_token(Token::Kind kind, auto&& value) noexcept -> void;
+			auto create_token(Token::Kind kind, auto&&... value) noexcept -> void;
 
-			
-			auto error_unrecognized_character() noexcept -> void;
 
 			auto file_too_big() noexcept -> bool;
+
+			auto emit_warning(auto&&... args) noexcept -> void;
+			auto emit_error(auto&&... args) noexcept -> void;
+			auto emit_fatal(auto&&... args) noexcept -> void;
+
+
+			auto error_unrecognized_character() noexcept -> void;
 
 	
 		private:
@@ -60,7 +64,7 @@ namespace pcit::panther{
 			CharStream char_stream;
 
 			uint32_t current_token_line_start;
-			uint32_t current_token_collumn_start;
+			uint16_t current_token_collumn_start;
 
 			bool can_continue = true;
 	};

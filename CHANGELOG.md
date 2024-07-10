@@ -1,6 +1,43 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.8.0
+
+### Panther
+- Improved performance and greatly reduced memory utilization of tokenization
+- Added function calls
+- Added types: 
+	`This`
+	- `Int`
+	- `ISize`
+	- arbitrary bitwidth integers (example: `I12`)
+	- `UInt`
+	- `USize`
+	- arbitrary bitwidth unsigned integers (example: `UI12`)
+	- `F16`
+	- `F32`
+	- `F64`
+	- `F80`
+	- `F128`
+	- `Byte`
+	- `Bool`
+	- `Char`
+	- `RawPtr`
+	- `CShort`
+	- `CUShort`
+	- `CInt`
+	- `CUInt`
+	- `CLong`
+	- `CULong`
+	- `CLongLong`
+	- `CULongLong`
+	- `CLongDouble`
+- Added keyword `this`
+- Fixed tokenizer continuing even if an error occured in the file
+- Fixed fatal error when using non-base-10 floating-point literals
+
+
+<!---------------------------------->
 ## v0.0.7.0
 
 ### Panther

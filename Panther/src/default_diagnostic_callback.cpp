@@ -99,7 +99,7 @@ namespace pcit::panther{
 		}
 
 		if(location.lineStart == location.lineEnd){
-			for(uint32_t i = location.collumnStart; i < location.collumnEnd + 1; i+=1){
+			for(uint16_t i = location.collumnStart; i < location.collumnEnd + 1; i+=1){
 				pointer_str += '^';
 			}
 		}else{
@@ -162,6 +162,12 @@ namespace pcit::panther{
 						"\"https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md#Issues\"\n"
 				);
 			}
+
+			#if defined(PCIT_BUILD_DEBUG)
+				if(diagnostic.level == Diagnostic::Level::Error || diagnostic.level == Diagnostic::Level::Fatal){
+					evo::breakpoint();
+				}
+			#endif
 		};
 	};
 

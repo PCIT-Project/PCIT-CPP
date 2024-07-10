@@ -40,6 +40,7 @@ struct Config{
 	enum class Target{
 		PrintTokens,
 		PrintAST,
+		Parse,
 	} target;
 
 	bool verbose;
@@ -52,10 +53,10 @@ struct Config{
 
 
 auto main(int argc, const char* argv[]) -> int {
-	auto args = std::vector<std::string_view>(argv, argv + argc);
+	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::PrintAST,
+		.target      = Config::Target::Parse,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
@@ -90,7 +91,7 @@ auto main(int argc, const char* argv[]) -> int {
 			printer.printlnMagenta(std::format("v{} (optimize)", pcit::core::version));
 		#elif defined(PCIT_BUILD_RELEASE)
 			printer.printlnMagenta(std::format("v{} (release)", pcit::core::version));
-		#elif defined(PCIT_BUILD_RELEASE_DIST)
+		#elif defined(PCIT_BUILD_DIST)
 			printer.printlnMagenta(std::format("v{}", pcit::core::version));
 		#else
 			#error Unknown or unsupported build
@@ -99,7 +100,8 @@ auto main(int argc, const char* argv[]) -> int {
 		switch(config.target){
 			break; case Config::Target::PrintTokens: printer.printlnMagenta("Target: PrintTokens");
 			break; case Config::Target::PrintAST:    printer.printlnMagenta("Target: PrintAST");
-			break; default: evo::debugFatalBreak("Unknown or unsupported config target");
+			break; case Config::Target::Parse:    printer.printlnMagenta("Target: Parse");
+			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
 		};
 	}
 
@@ -117,7 +119,7 @@ auto main(int argc, const char* argv[]) -> int {
 			context.shutdownThreads();
 		}
 
-		#if !defined(PCIT_BUILD_RELEASE_DIST) && defined(EVO_COMPILER_MSVC)
+		#if !defined(PCIT_BUILD_DIST) && defined(EVO_COMPILER_MSVC)
 			printer.printGray("Press Enter to close...");
 			std::cin.get();
 		#endif
@@ -146,7 +148,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 	context.loadFiles({
 		"test.pthr",
-		"test2.pthr",
+		// "test2.pthr",
+		// "./local/big_test.pthr",
 	});
 
 	if(context.isMultiThreaded()){
@@ -167,6 +170,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 	///////////////////////////////////
 	// tokenize
+
+	const auto tokenize_start = evo::time::now();
 
 	context.tokenizeLoadedFiles();
 
@@ -228,7 +233,17 @@ auto main(int argc, const char* argv[]) -> int {
 
 		exit();
 		return EXIT_SUCCESS;
+
+	}else if(config.target == Config::Target::Parse){
+		printer.printlnInfo(
+			"Completed tokenizing and parsing in {}ms",
+			static_cast<evo::time::Milliseconds>(evo::time::now() - tokenize_start)
+		);
+
+		exit();
+		return EXIT_SUCCESS;
 	}
+
 
 
 	///////////////////////////////////

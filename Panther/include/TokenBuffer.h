@@ -25,19 +25,23 @@ namespace pcit::panther{
 			~TokenBuffer() = default;
 
 			TokenBuffer(const TokenBuffer& rhs) = delete;
+			auto operator=(const TokenBuffer& rhs) = delete;
 			
-			TokenBuffer(TokenBuffer&& rhs) noexcept :
-				tokens(std::move(rhs.tokens)),
-				string_literals(std::move(rhs.string_literals)),
-				is_locked(rhs.is_locked)
-				{};
+			TokenBuffer(TokenBuffer&& rhs) = delete;
+			auto operator=(TokenBuffer&& rhs) = delete;
 
 
 			auto createToken(Token::Kind kind, Token::Location location) noexcept -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, bool value) noexcept -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, uint64_t value) noexcept -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, float64_t value) noexcept -> Token::ID;
-			auto createToken(Token::Kind kind, Token::Location location, std::string&& value) noexcept -> Token::ID;
+			auto createToken(
+				Token::Kind kind, Token::Location location, const class Source& source, std::string_view value
+			) noexcept -> Token::ID;
+			auto createToken(
+				Token::Kind kind, Token::Location location, const class Source& source, std::string&& value
+			) noexcept -> Token::ID;
+
 
 			EVO_NODISCARD auto get(Token::ID id) const noexcept -> const Token&;
 			EVO_NODISCARD auto get(Token::ID id)       noexcept ->       Token&;
@@ -61,8 +65,8 @@ namespace pcit::panther{
 
 		
 		private:
-			std::vector<Token> tokens{};
-			std::vector<std::unique_ptr<std::string>> string_literals{};
+			evo::SmallVector<Token> tokens{};
+			evo::SmallVector<std::unique_ptr<std::string>> string_literals{};
 			bool is_locked = false;
 	};
 

@@ -50,9 +50,37 @@ namespace pcit::panther{
 
 				TypeVoid,
 				TypeType,
-				TypeInt,
-				TypeBool,
+				TypeThis,
 
+				TypeInt,
+				TypeISize,
+				TypeI_N,
+
+				TypeUInt,
+				TypeUSize,
+				TypeUI_N,
+
+				TypeF16,
+				TypeF32,
+				TypeF64,
+				TypeF80,
+				TypeF128,
+
+				TypeByte,
+				TypeBool,
+				TypeChar,
+				TypeRawPtr,
+
+				// C compatibility
+				TypeCShort,
+				TypeCUShort,
+				TypeCInt,
+				TypeCUInt,
+				TypeCLong,
+				TypeCULong,
+				TypeCLongLong,
+				TypeCULongLong,
+				TypeCLongDouble,
 				
 				///////////////////////////////////
 				// keywords
@@ -62,6 +90,11 @@ namespace pcit::panther{
 
 				KeywordNull,
 				KeywordUninit,
+				KeywordThis,
+
+				KeywordRead,
+				KeywordMut,
+				KeywordIn,
 				
 				// KeywordAddr,
 				KeywordCopy,
@@ -153,8 +186,8 @@ namespace pcit::panther{
 			struct Location{
 				uint32_t lineStart;
 				uint32_t lineEnd;
-				uint32_t collumnStart;
-				uint32_t collumnEnd;
+				uint16_t collumnStart;
+				uint16_t collumnEnd;
 			};
 
 		public:
@@ -169,8 +202,7 @@ namespace pcit::panther{
 			Token(Kind _kind, Location _location, float64_t val) noexcept
 				: kind(_kind), location(_location), value{.floating_point = val} {};
 
-			Token(Kind _kind, Location _location, std::string_view val) noexcept
-				: kind(_kind), location(_location), value{.string = val} {};
+			Token(Kind _kind, Location _location, const class Source& data, std::string_view val) noexcept;
 
 			~Token() = default;
 
@@ -200,24 +232,26 @@ namespace pcit::panther{
 				return this->value.integer;
 			};
 
+			EVO_NODISCARD auto getBitWidth() const noexcept -> uint64_t {
+				evo::debugAssert(
+					this->kind == Kind::TypeI_N || this->kind == Kind::TypeUI_N,
+					"Token does not have a bit-width value"
+				);
+				return this->value.integer;
+			};
+
 			EVO_NODISCARD auto getFloat() const noexcept -> float64_t {
 				evo::debugAssert(this->kind == Kind::LiteralFloat, "Token does not have a float value");
 				return this->value.floating_point;
 			};
 
-			EVO_NODISCARD auto getString() const noexcept -> std::string_view {
-				evo::debugAssert(
-					this->kind == Kind::LiteralString || this->kind == Kind::LiteralChar ||
-					this->kind == Kind::Ident || this->kind == Kind::Intrinsic || this->kind == Kind::Attribute,
-					"Token does not have a string value"
-				);
-				return this->value.string;
-			};
+			EVO_NODISCARD auto getString(const class Source& source) const noexcept -> std::string_view;
 			
 
 
+
 			// TODO: hash-map optimization?
-			EVO_NODISCARD static constexpr auto lookupKind(std::string_view op_str) noexcept -> Kind {
+			EVO_NODISCARD static consteval auto lookupKind(std::string_view op_str) noexcept -> Kind {
 				// length 4
 				if(op_str == "<<|="){ return Kind::AssignShiftLeftSat; }
 
@@ -326,10 +360,39 @@ namespace pcit::panther{
 					///////////////////////////////////
 					// types
 
-					break; case Kind::TypeVoid:           return "Void";
-					break; case Kind::TypeType:           return "Type";
-					break; case Kind::TypeInt:            return "Int";
-					break; case Kind::TypeBool:           return "Bool";
+					break; case Kind::TypeVoid: return "Void";
+					break; case Kind::TypeType: return "Type";
+					break; case Kind::TypeThis: return "This";
+
+					break; case Kind::TypeInt: return "Int";
+					break; case Kind::TypeISize: return "ISize";
+					break; case Kind::TypeI_N: return "I_n";
+
+					break; case Kind::TypeUInt: return "UInt";
+					break; case Kind::TypeUSize: return "USize";
+					break; case Kind::TypeUI_N: return "UI_n";
+
+					break; case Kind::TypeF16: return "F16";
+					break; case Kind::TypeF32: return "F32";
+					break; case Kind::TypeF64: return "F64";
+					break; case Kind::TypeF80: return "F80";
+					break; case Kind::TypeF128: return "F128";
+
+					break; case Kind::TypeByte: return "Byte";
+					break; case Kind::TypeBool: return "Bool";
+					break; case Kind::TypeChar: return "Char";
+					break; case Kind::TypeRawPtr: return "RawPtr";
+
+					// C compatibility
+					break; case Kind::TypeCShort: return "CShort";
+					break; case Kind::TypeCUShort: return "CUShort";
+					break; case Kind::TypeCInt: return "CInt";
+					break; case Kind::TypeCUInt: return "CUInt";
+					break; case Kind::TypeCLong: return "CLong";
+					break; case Kind::TypeCULong: return "CULong";
+					break; case Kind::TypeCLongLong: return "CLongLong";
+					break; case Kind::TypeCULongLong: return "CULongLong";
+					break; case Kind::TypeCLongDouble: return "CLongDouble";
 
 
 					///////////////////////////////////
@@ -340,6 +403,11 @@ namespace pcit::panther{
 
 					break; case Kind::KeywordNull:        return "null";
 					break; case Kind::KeywordUninit:      return "uninit";
+					break; case Kind::KeywordThis:        return "this";
+
+					break; case Kind::KeywordRead:        return "read";
+					break; case Kind::KeywordMut:         return "mut";
+					break; case Kind::KeywordIn:          return "in";
 
 					// break; case Kind::KeywordAddr:     return "addr";
 					break; case Kind::KeywordCopy:        return "copy";
@@ -440,11 +508,17 @@ namespace pcit::panther{
 				bool boolean;
 				uint64_t integer;
 				float64_t floating_point;
-				std::string_view string;
+
+				struct /* string */ {
+					uint32_t index;
+					uint32_t length;
+				} string;
 			} value;
-			
 	};
 
+
+
+	static_assert(sizeof(Token) == 24);
 
 };
 

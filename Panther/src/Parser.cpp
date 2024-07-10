@@ -50,7 +50,10 @@ namespace pcit::panther{
 			case Token::Kind::KeywordFunc: return this->parse_func_decl();
 		};
 
-		return this->parse_assignment();
+		Result result = this->parse_assignment();
+		if(result.code() != Result::Code::WrongType){ return result; }
+
+		return this->parse_term_stmt();
 	};
 
 
@@ -108,9 +111,124 @@ namespace pcit::panther{
 			return Result::Code::Error;
 		}
 
-		// TODO: function parameters
-		if(this->expect_token_fail(Token::lookupKind("("), "in FuncDecl")){ return Result::Code::Error; }
-		if(this->expect_token_fail(Token::lookupKind(")"), "in FuncDecl")){ return Result::Code::Error; }
+
+		///////////////////////////////////
+		// function parameters
+
+		auto params = evo::SmallVector<AST::FuncDecl::Param>();
+		if(this->expect_token_fail(Token::lookupKind("("), "to open parameter block in FuncDecl")){
+			return Result::Code::Error;
+		}
+
+		while(true){
+			if(this->reader[this->reader.peek()].getKind() == Token::lookupKind(")")){
+				if(this->assert_token_fail(Token::lookupKind(")"))){ return Result::Code::Error; }
+				break;
+			}
+
+			
+			auto param_ident = AST::NodeOptional();
+			auto param_type = AST::NodeOptional();
+			using ParamKind = AST::FuncDecl::Param::Kind;
+			auto param_kind = std::optional<ParamKind>();
+
+			if(this->reader[this->reader.peek()].getKind() == Token::Kind::KeywordThis){
+				const Token::ID this_token_id = this->reader.next();
+				param_ident = AST::Node(AST::Kind::This, this_token_id);
+
+				switch(this->reader[this->reader.peek()].getKind()){
+					case Token::Kind::KeywordRead: {
+						this->reader.skip();
+						param_kind = ParamKind::Read;
+					} break;
+
+					case Token::Kind::KeywordMut: {
+						this->reader.skip();
+						param_kind = ParamKind::Mut;
+					} break;
+
+					case Token::Kind::KeywordIn: {
+						this->context.emitError(
+							Diagnostic::Code::ParserInvalidKindForAThisParam,
+							this->reader[this->reader.peek(-1)].getSourceLocation(this->source.getID()),
+							"[this] parameters cannot have the kind [in]",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Note: valid kinds are [read] and [mut]"),
+							}
+						);
+						return Result::Code::Error;
+					} break;
+
+					default: {
+						this->context.emitError(
+							Diagnostic::Code::ParserInvalidKindForAThisParam,
+							this->reader[this->reader.peek(-1)].getSourceLocation(this->source.getID()),
+							"[this] parameters cannot have a default kind",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Note: valid kinds are [read] and [mut]"),
+							}
+						);
+						return Result::Code::Error;
+					} break;
+				};
+
+			}else{
+				const Result param_ident_result = this->parse_ident();
+				if(this->check_result_fail(param_ident_result, "identifier or [this] in function parameter")){
+					return Result::Code::Error;
+				}
+				param_ident = param_ident_result.value();
+
+				if(this->expect_token_fail(Token::lookupKind(":"), "after function parameter identifier")){
+					return Result::Code::Error;
+				}
+
+				const Result type = this->parse_type();
+				if(this->check_result_fail(type, "type after [:] in function parameter declaration")){
+					return Result::Code::Error;
+				}
+				param_type = type.value();
+
+				switch(this->reader[this->reader.peek()].getKind()){
+					case Token::Kind::KeywordRead: {
+						this->reader.skip();
+						param_kind = ParamKind::Read;
+					} break;
+
+					case Token::Kind::KeywordMut: {
+						this->reader.skip();
+						param_kind = ParamKind::Mut;
+					} break;
+
+					case Token::Kind::KeywordIn: {
+						this->reader.skip();
+						param_kind = ParamKind::In;
+					} break;
+
+					default: {
+						param_kind = ParamKind::Read;
+					} break;
+				};
+			}
+
+
+			params.emplace_back(param_ident.value(), param_type, param_kind.value());
+
+			// check if ending or should continue
+			const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].getKind();
+			if(after_param_next_token_kind != Token::lookupKind(",")){
+				if(after_param_next_token_kind != Token::lookupKind(")")){
+					this->expected_but_got(
+						"[,] at end of function parameter or [)] at end of function parameters block",
+						this->reader[this->reader.peek(-1)]
+					);
+					return Result::Code::Error;
+				}
+
+				break;
+			}
+		};
+
 		if(this->expect_token_fail(Token::lookupKind("->"), "in FuncDecl")){ return Result::Code::Error; }
 
 		const Result return_type = this->parse_type();
@@ -121,7 +239,9 @@ namespace pcit::panther{
 		const Result block = this->parse_block();
 		if(this->check_result_fail(block, "statement block in function declaration")){ return Result::Code::Error; }
 
-		return this->source.ast_buffer.createFuncDecl(ident.value(), return_type.value(), block.value());
+		return this->source.ast_buffer.createFuncDecl(
+			ident.value(), std::move(params), return_type.value(), block.value()
+		);
 	};
 
 
@@ -188,7 +308,34 @@ namespace pcit::panther{
 		const Token::ID start_location = this->reader.peek();
 		bool is_builtin = true;
 		switch(this->reader[start_location].getKind()){
-			case Token::Kind::TypeVoid: case Token::Kind::TypeInt: case Token::Kind::TypeBool: break;
+			case Token::Kind::TypeVoid:
+			case Token::Kind::TypeType:
+			case Token::Kind::TypeThis:
+			case Token::Kind::TypeInt:
+			case Token::Kind::TypeISize:
+			case Token::Kind::TypeI_N:
+			case Token::Kind::TypeUInt:
+			case Token::Kind::TypeUSize:
+			case Token::Kind::TypeUI_N:
+			case Token::Kind::TypeF16:
+			case Token::Kind::TypeF32:
+			case Token::Kind::TypeF64:
+			case Token::Kind::TypeF80:
+			case Token::Kind::TypeF128:
+			case Token::Kind::TypeByte:
+			case Token::Kind::TypeBool:
+			case Token::Kind::TypeChar:
+			case Token::Kind::TypeRawPtr:
+			case Token::Kind::TypeCShort:
+			case Token::Kind::TypeCUShort:
+			case Token::Kind::TypeCInt:
+			case Token::Kind::TypeCUInt:
+			case Token::Kind::TypeCLong:
+			case Token::Kind::TypeCULong:
+			case Token::Kind::TypeCLongLong:
+			case Token::Kind::TypeCULongLong:
+			case Token::Kind::TypeCLongDouble:
+				break;
 
 			case Token::Kind::Ident: case Token::Kind::Intrinsic: {
 				is_builtin = false;
@@ -199,7 +346,34 @@ namespace pcit::panther{
 
 		const Result base_type = [&]() noexcept {
 			if(is_builtin){
-				return Result(AST::Node(AST::Kind::BuiltinType, this->reader.next()));
+				const Token::ID base_type_token_id = this->reader.next();
+
+				const Token& peeked_token = this->reader[this->reader.peek()];
+				if(peeked_token.getKind() == Token::lookupKind(".*")){
+					this->context.emitError(
+						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
+						peeked_token.getSourceLocation(this->source.getID()),
+						"A dereference operator ([.*]) should not follow a type",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Did you mean pointer ([*]) instead?"),
+						}
+					);
+					return Result(Result::Code::Error);
+
+				}else if(peeked_token.getKind() == Token::lookupKind(".?")){
+					this->context.emitError(
+						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
+						peeked_token.getSourceLocation(this->source.getID()),
+						"A unwrap operator ([.?]) should not follow a type",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Did you mean optional ([?]) instead?"),
+						}
+					);
+					return Result(Result::Code::Error);
+				}
+
+				return Result(AST::Node(AST::Kind::BuiltinType, base_type_token_id));
+
 			}else{
 				if(is_expr){
 					return this->parse_term(IsTypeTerm::Maybe);
@@ -288,6 +462,7 @@ namespace pcit::panther{
 				this->reader.go_back(start_location);
 				return Result::Code::WrongType;
 			}
+
 		}
 
 		return this->source.ast_buffer.createType(base_type.value(), std::move(qualifiers));
@@ -456,7 +631,7 @@ namespace pcit::panther{
 				case Token::lookupKind(".*"): {
 					if(is_type_term == IsTypeTerm::Yes){
 						this->context.emitError(
-							Diagnostic::Code::ParserIncorrectStmtContinuation,
+							Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
 							this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
 							"A dereference operator ([.*]) should not follow a type",
 							evo::SmallVector<Diagnostic::Info>{
@@ -475,7 +650,7 @@ namespace pcit::panther{
 				case Token::lookupKind(".?"): {
 					if(is_type_term == IsTypeTerm::Yes){
 						this->context.emitError(
-							Diagnostic::Code::ParserIncorrectStmtContinuation,
+							Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
 							this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
 							"An unwrap operator ([.?]) should not follow a type",
 							evo::SmallVector<Diagnostic::Info>{
@@ -491,6 +666,53 @@ namespace pcit::panther{
 					output = this->source.ast_buffer.createPostfix(output.value(), this->reader.next());
 				} break;
 
+				case Token::lookupKind("("): {
+					if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::Error; }
+					
+					auto args = evo::SmallVector<AST::FuncCall::Arg>();
+
+					while(true){
+						if(this->reader[this->reader.peek()].getKind() == Token::lookupKind(")")){
+							if(this->assert_token_fail(Token::lookupKind(")"))){ return Result::Code::Error; }
+							break;
+						}
+
+						auto arg_ident = AST::NodeOptional();
+
+						if(
+							this->reader[this->reader.peek()].getKind() == Token::Kind::Ident &&
+							this->reader[this->reader.peek(1)].getKind() == Token::lookupKind(":")
+						){
+							arg_ident = AST::Node(AST::Kind::Ident, this->reader.next());
+							if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::Error; }
+						}
+
+						const Result expr_result = this->parse_expr();
+						if(this->check_result_fail(expr_result, "expression argument inside function call")){
+							return Result::Code::Error;
+						}
+
+						args.emplace_back(arg_ident, expr_result.value());
+
+						// check if ending or should continue
+						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].getKind();
+						if(after_arg_next_token_kind != Token::lookupKind(",")){
+							if(after_arg_next_token_kind != Token::lookupKind(")")){
+								this->expected_but_got(
+									"[,] at end of function call argument"
+									" or [)] at end of function call argument block",
+									this->reader[this->reader.peek(-1)]
+								);
+								return Result::Code::Error;
+							}
+
+							break;
+						}
+					};
+
+					output = this->source.ast_buffer.createFuncCall(output.value(), std::move(args));
+				} break;
+
 				default: {
 					should_continue = false;
 				} break;
@@ -499,6 +721,17 @@ namespace pcit::panther{
 
 		return output;
 	};
+
+
+	auto Parser::parse_term_stmt() noexcept -> Result {
+		const Result term = this->parse_term();
+		if(term.code() != Result::Code::Success){ return term; }
+
+		if(this->expect_token_fail(Token::lookupKind(";"), "after term statement")){ return Result::Code::Error; }
+
+		return term;
+	};
+
 
 	// TODO: check EOF
 	auto Parser::parse_paren_expr() noexcept -> Result {
@@ -538,6 +771,9 @@ namespace pcit::panther{
 		if(result.code() != Result::Code::WrongType){ return result; }
 
 		result = this->parse_intrinsic();
+		if(result.code() != Result::Code::WrongType){ return result; }
+
+		result = this->parse_this();
 		if(result.code() != Result::Code::WrongType){ return result; }
 
 		return Result::Code::WrongType;
@@ -584,6 +820,14 @@ namespace pcit::panther{
 		}
 
 		return AST::Node(AST::Kind::Uninit, this->reader.next());
+	};
+
+	auto Parser::parse_this() noexcept -> Result {
+		if(this->reader[this->reader.peek()].getKind() != Token::Kind::KeywordThis){
+			return Result::Code::WrongType;
+		}
+
+		return AST::Node(AST::Kind::This, this->reader.next());
 	};
 
 

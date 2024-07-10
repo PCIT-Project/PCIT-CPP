@@ -1,9 +1,12 @@
 // this is a comment
 
-var foo: Int*? = uninit;
 
 
-func test = () -> Void {
-	foo.* +|= 12;
-	var bar: Int = (foo as @config.SomeType*).?.* +@ 12e4 * 12;
+func test = (this read, x: Int mut, y: Int,) -> Void {
+	this.foo = 12;
+
+	asdf = this.test();
+	this.test();
+
+	var foo: I17 = 10;
 }
