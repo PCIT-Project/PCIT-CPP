@@ -186,6 +186,8 @@ namespace pcit::panther{
 		{"var",    Token::Kind::KeywordVar},
 		{"func",   Token::Kind::KeywordFunc},
 
+		{"return", Token::Kind::KeywordReturn},
+
 		{"null",   Token::Kind::KeywordNull},
 		{"uninit", Token::Kind::KeywordUninit},
 		{"this",   Token::Kind::KeywordThis},
@@ -197,6 +199,11 @@ namespace pcit::panther{
 		{"copy",   Token::Kind::KeywordCopy},
 		{"move",   Token::Kind::KeywordMove},
 		{"as",     Token::Kind::KeywordAs},
+
+		// discards
+		{"_",      Token::lookupKind("_")},
+		{"__",     Token::lookupKind("__")},
+		{"___",    Token::lookupKind("___")},
 	};
 
 	const static auto keyword_end = keyword_map.end();
@@ -220,17 +227,15 @@ namespace pcit::panther{
 			}else if(this->char_stream.peek() == '#'){
 				kind = Token::Kind::Attribute;
 				this->char_stream.skip(1);
+			}else{
+				return false;
 			}
+		}else{
+			return false;	
 		}
-
-		if(kind == Token::Kind::None){
-			return false;
-		}
-
 
 
 		const char* string_start_ptr = this->char_stream.peek_raw_ptr();
-
 
 		do{
 			this->char_stream.skip(1);
@@ -337,6 +342,19 @@ namespace pcit::panther{
 
 					if(keyword_map_iter == keyword_end){
 						this->create_token(Token::Kind::Ident, this->source, ident_name);
+
+					}else if(keyword_map_iter->second == Token::lookupKind("__")){
+						this->emit_error(
+							Diagnostic::Code::TokDoubleUnderscoreNotAllowed,
+							Source::Location(
+								this->source.getID(),
+								this->current_token_line_start, this->char_stream.get_line(),
+								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+							),
+							"Identifier \"__\" is not allowed to prevent confusion with [_] and [___]"
+						);
+						return true;
+
 					}else{
 						this->create_token(keyword_map_iter->second);
 					}

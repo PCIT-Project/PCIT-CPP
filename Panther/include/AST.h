@@ -29,15 +29,21 @@ namespace pcit::panther::AST{
 		VarDecl,
 		FuncDecl,
 
+		Return,
+
 		Block,
+		FuncCall,
 		
 		Prefix,
 		Infix,
 		Postfix,
 
-		FuncCall,
+		MultiAssign,
 
 		Type,
+
+		AttributeBlock,
+		Attribute,
 
 		BuiltinType,
 		Ident,
@@ -45,6 +51,9 @@ namespace pcit::panther::AST{
 		Literal,
 		Uninit,
 		This,
+		
+		Discard,
+		Unnamed,
 	};
 
 
@@ -113,6 +122,7 @@ namespace pcit::panther::AST{
 	struct VarDecl{
 		Node ident;
 		NodeOptional type;
+		Node attributeBlock;
 		NodeOptional value;
 	};
 
@@ -127,16 +137,39 @@ namespace pcit::panther::AST{
 			Node ident;
 			NodeOptional type;
 			Kind kind;
+			Node attributeBlock;
+		};
+
+		struct Return{
+			NodeOptional ident;
+			Node type;
 		};
 
 		Node ident;
 		evo::SmallVector<Param> params;
-		Node returnType;
+		Node attributeBlock;
+		evo::SmallVector<Return> returns;
 		Node block;
 	};
 
+	struct Return{
+		NodeOptional label;
+		NodeOptional value;
+	};
+
 	struct Block{
+		NodeOptional label;
 		evo::SmallVector<Node> stmts;
+	};
+
+	struct FuncCall{
+		struct Arg{
+			NodeOptional explicitIdent;
+			Node value;
+		};
+
+		Node target;
+		evo::SmallVector<Arg> args;
 	};
 
 	struct Prefix{
@@ -155,14 +188,9 @@ namespace pcit::panther::AST{
 		Token::ID opTokenID;
 	};
 
-	struct FuncCall{
-		struct Arg{
-			NodeOptional explicitIdent;
-			Node value;
-		};
-
-		Node target;
-		evo::SmallVector<Arg> args;
+	struct MultiAssign{
+		evo::SmallVector<Node> assigns;
+		Node value;
 	};
 
 
@@ -177,8 +205,15 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Qualifier> qualifiers;
 	};
 
+
+	struct AttributeBlock{
+		struct Attribute{
+			Node name;
+			NodeOptional arg;
+		};
+
+		evo::SmallVector<Attribute> attributes;
+	};
+
 };
-
-
-
 

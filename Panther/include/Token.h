@@ -88,6 +88,8 @@ namespace pcit::panther{
 				KeywordVar,
 				KeywordFunc,
 
+				KeywordReturn,
+
 				KeywordNull,
 				KeywordUninit,
 				KeywordThis,
@@ -167,6 +169,11 @@ namespace pcit::panther{
 				Accessor, // .
 				Dereference, // .*
 				Unwrap, // .?
+
+				// discards
+				Underscore, // _
+				DoubleUnderscore, // __ - just here to make detecting easier
+				TripleUnderscore, // ___
 				
 				///////////////////////////////////
 				// punctuation
@@ -266,6 +273,8 @@ namespace pcit::panther{
 				if(op_str == "<<="){ return Kind::AssignShiftLeft; }
 				if(op_str == ">>="){ return Kind::AssignShiftRight; }
 
+				if(op_str == "___"){ return Kind::TripleUnderscore; }
+
 
 				// length 2
 				if(op_str == "->"){ return Kind::RightArrow; }
@@ -300,6 +309,8 @@ namespace pcit::panther{
 				if(op_str == ".*"){ return Kind::Dereference; }
 				if(op_str == ".?"){ return Kind::Unwrap; }
 
+				if(op_str == "__"){ return Kind::DoubleUnderscore; }
+
 
 				// length 1
 				if(op_str == "="){ return Kind::Assign; }
@@ -321,6 +332,8 @@ namespace pcit::panther{
 				if(op_str == "~"){ return Kind::BitwiseNot; }
 
 				if(op_str == "."){ return Kind::Accessor; }
+
+				if(op_str == "_"){ return Kind::Underscore; }
 
 				if(op_str == "("){ return Kind::OpenParen; }
 				if(op_str == ")"){ return Kind::CloseParen; }
@@ -401,6 +414,8 @@ namespace pcit::panther{
 					break; case Kind::KeywordVar:         return "var";
 					break; case Kind::KeywordFunc:        return "func";
 
+					break; case Kind::KeywordReturn:      return "return";
+
 					break; case Kind::KeywordNull:        return "null";
 					break; case Kind::KeywordUninit:      return "uninit";
 					break; case Kind::KeywordThis:        return "this";
@@ -479,6 +494,10 @@ namespace pcit::panther{
 					break; case Kind::Accessor:           return ".";
 					break; case Kind::Dereference:        return ".*";
 					break; case Kind::Unwrap:             return ".?";
+
+					// discards
+					break; case Kind::Underscore:         return "_";
+					break; case Kind::TripleUnderscore:   return "___";
 
 
 					///////////////////////////////////

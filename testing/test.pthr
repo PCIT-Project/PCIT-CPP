@@ -2,11 +2,7 @@
 
 
 
-func test = (this read, x: Int mut, y: Int,) -> Void {
-	this.foo = 12;
-
-	asdf = this.test();
-	this.test();
-
-	var foo: I17 = 10;
+func test = () -> (int: Int, bool: Bool, asdf: SomeRAIIType) {
+	var foo: Int = uninit;
+	[foo, _, ___] = test();
 }

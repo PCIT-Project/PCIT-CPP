@@ -56,7 +56,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::Parse,
+		.target      = Config::Target::PrintAST,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
@@ -149,7 +149,9 @@ auto main(int argc, const char* argv[]) -> int {
 	context.loadFiles({
 		"test.pthr",
 		// "test2.pthr",
+		
 		// "./local/big_test.pthr",
+		// "./local/big_test_with_params.pthr",
 	});
 
 	if(context.isMultiThreaded()){

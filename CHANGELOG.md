@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+### v0.0.9.0
+
+### Panther
+- Added scoped statement blocks
+- Added statement block labels
+- Added block statements (essentially imediately invoked lambda expressions)
+- Added attributes (for variables, functions, and function parameters)
+- Added function multiple / named returns
+- Added discard and unnamed assignment
+- Added multiple assignment
+
+
+<!---------------------------------->
 ## v0.0.8.0
 
 ### Panther

@@ -76,6 +76,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto parse_var_decl() noexcept -> Result;
 			EVO_NODISCARD auto parse_func_decl() noexcept -> Result;
+			EVO_NODISCARD auto parse_return() noexcept -> Result;
 			EVO_NODISCARD auto parse_assignment() noexcept -> Result;
 
 			EVO_NODISCARD auto parse_block() noexcept -> Result;
@@ -94,14 +95,21 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto parse_term(IsTypeTerm is_type_term = IsTypeTerm::No) noexcept -> Result;
 			EVO_NODISCARD auto parse_term_stmt() noexcept -> Result;
-			EVO_NODISCARD auto parse_paren_expr() noexcept -> Result;
+			EVO_NODISCARD auto parse_encapsulated_expr() noexcept -> Result;
 			EVO_NODISCARD auto parse_atom() noexcept -> Result;
 
+			EVO_NODISCARD auto parse_attribute_block() noexcept -> Result;
 			EVO_NODISCARD auto parse_ident() noexcept -> Result;
 			EVO_NODISCARD auto parse_intrinsic() noexcept -> Result;
 			EVO_NODISCARD auto parse_literal() noexcept -> Result;
 			EVO_NODISCARD auto parse_uninit() noexcept -> Result;
 			EVO_NODISCARD auto parse_this() noexcept -> Result;
+
+
+
+			EVO_NODISCARD auto parse_func_params() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>>;
+			EVO_NODISCARD auto parse_func_returns() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;
+
 
 			///////////////////////////////////
 			// checking

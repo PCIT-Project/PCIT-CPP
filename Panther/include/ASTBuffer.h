@@ -47,6 +47,11 @@ namespace pcit::panther{
 				return node._value.token_id;
 			};
 
+			EVO_NODISCARD auto getAttribute(const AST::Node& node) const noexcept -> Token::ID {
+				evo::debugAssert(node.getKind() == AST::Kind::Attribute, "Node is not a Attribute");
+				return node._value.token_id;
+			};
+
 			EVO_NODISCARD auto getBuiltinType(const AST::Node& node) const noexcept -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::BuiltinType, "Node is not a BuiltinType");
 				return node._value.token_id;
@@ -85,6 +90,17 @@ namespace pcit::panther{
 			};
 
 
+			EVO_NODISCARD auto createReturn(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->returns.size());
+				this->returns.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::Return, node_index);
+			};
+			EVO_NODISCARD auto getReturn(const AST::Node& node) const noexcept -> const AST::Return& {
+				evo::debugAssert(node.getKind() == AST::Kind::Return, "Node is not a Return");
+				return this->returns[node._value.node_index];
+			};
+
+
 			EVO_NODISCARD auto createBlock(auto&&... args) noexcept -> AST::Node {
 				const uint32_t node_index = uint32_t(this->blocks.size());
 				this->blocks.emplace_back(std::forward<decltype(args)>(args)...);
@@ -95,6 +111,15 @@ namespace pcit::panther{
 				return this->blocks[node._value.node_index];
 			};
 
+			EVO_NODISCARD auto createFuncCall(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->func_calls.size());
+				this->func_calls.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::FuncCall, node_index);
+			};
+			EVO_NODISCARD auto getFuncCall(const AST::Node& node) const noexcept -> const AST::FuncCall& {
+				evo::debugAssert(node.getKind() == AST::Kind::FuncCall, "Node is not a FuncCall");
+				return this->func_calls[node._value.node_index];
+			};
 
 
 			EVO_NODISCARD auto createPrefix(auto&&... args) noexcept -> AST::Node {
@@ -128,15 +153,16 @@ namespace pcit::panther{
 			};
 
 
-			EVO_NODISCARD auto createFuncCall(auto&&... args) noexcept -> AST::Node {
-				const uint32_t node_index = uint32_t(this->func_calls.size());
-				this->func_calls.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::FuncCall, node_index);
+			EVO_NODISCARD auto createMultiAssign(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->multi_assigns.size());
+				this->multi_assigns.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::MultiAssign, node_index);
 			};
-			EVO_NODISCARD auto getFuncCall(const AST::Node& node) const noexcept -> const AST::FuncCall& {
-				evo::debugAssert(node.getKind() == AST::Kind::FuncCall, "Node is not a FuncCall");
-				return this->func_calls[node._value.node_index];
+			EVO_NODISCARD auto getMultiAssign(const AST::Node& node) const noexcept -> const AST::MultiAssign& {
+				evo::debugAssert(node.getKind() == AST::Kind::MultiAssign, "Node is not a MultiAssign");
+				return this->multi_assigns[node._value.node_index];
 			};
+
 
 
 			EVO_NODISCARD auto createType(auto&&... args) noexcept -> AST::Node {
@@ -150,6 +176,17 @@ namespace pcit::panther{
 			};
 
 
+			EVO_NODISCARD auto createAttributeBlock(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->attribute_blocks.size());
+				this->attribute_blocks.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::AttributeBlock, node_index);
+			};
+			EVO_NODISCARD auto getAttributeBlock(const AST::Node& node) const noexcept -> const AST::AttributeBlock& {
+				evo::debugAssert(node.getKind() == AST::Kind::AttributeBlock, "Node is not a AttributeBlock");
+				return this->attribute_blocks[node._value.node_index];
+			};
+
+
 	
 		private:
 			// TODO: change these vectors to deques? some combination?
@@ -159,15 +196,20 @@ namespace pcit::panther{
 			evo::SmallVector<AST::VarDecl> var_decls{};
 			evo::SmallVector<AST::FuncDecl> func_decls{};
 
+			evo::SmallVector<AST::Return> returns{};
+
 			evo::SmallVector<AST::Block> blocks{};
+			evo::SmallVector<AST::FuncCall> func_calls{};
 
 			evo::SmallVector<AST::Prefix> prefixes{};
 			evo::SmallVector<AST::Infix> infixes{};
 			evo::SmallVector<AST::Postfix> postfixes{};
 
-			evo::SmallVector<AST::FuncCall> func_calls{};
+			evo::SmallVector<AST::MultiAssign> multi_assigns{};
 
 			evo::SmallVector<AST::Type> types{};
+
+			evo::SmallVector<AST::AttributeBlock> attribute_blocks{};
 
 
 			friend class Parser;

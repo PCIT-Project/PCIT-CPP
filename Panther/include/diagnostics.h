@@ -31,6 +31,7 @@ namespace pcit::panther{
 		TokInvalidIntegerWidth,				// T10
 		TokUnknownFailureToTokenizeNum,     // T11
 		TokFileTooLarge,                    // T12
+		TokDoubleUnderscoreNotAllowed,      // T13
 
 		ParserUnknownStmtStart,          // P1
 		ParserIncorrectStmtContinuation, // P2
@@ -60,6 +61,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::TokInvalidIntegerWidth:             return "T10";
 			break; case DiagnosticCode::TokUnknownFailureToTokenizeNum:     return "T11";
 			break; case DiagnosticCode::TokFileTooLarge:                    return "T12";
+			break; case DiagnosticCode::TokDoubleUnderscoreNotAllowed:      return "T13";
 
 			break; case DiagnosticCode::ParserUnknownStmtStart:          return "P1";
 			break; case DiagnosticCode::ParserIncorrectStmtContinuation: return "P2";

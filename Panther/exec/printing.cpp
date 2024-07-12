@@ -219,8 +219,16 @@ namespace pthr{
 						this->print_func_decl(this->ast_buffer.getFuncDecl(stmt));
 					} break;
 
+					case panther::AST::Kind::Return: {
+						this->print_return(this->ast_buffer.getReturn(stmt));
+					} break;
+
 					case panther::AST::Kind::Infix: {
 						this->print_assignment(this->ast_buffer.getInfix(stmt));
+					} break;
+
+					case panther::AST::Kind::MultiAssign: {
+						this->print_multi_assign(this->ast_buffer.getMultiAssign(stmt));
 					} break;
 
 					case panther::AST::Kind::FuncCall: {
@@ -228,6 +236,11 @@ namespace pthr{
 						this->print_func_call(this->ast_buffer.getFuncCall(stmt));
 					} break;
 
+					case panther::AST::Kind::Block: {
+						this->indenter.print();
+						this->print_major_header("Statement Block");
+						this->print_block(this->ast_buffer.getBlock(stmt));
+					} break;
 
 					default: {
 						evo::debugFatalBreak(
@@ -257,6 +270,9 @@ namespace pthr{
 					}else{
 						this->printer.printGray(" {INFERRED}\n");
 					}
+
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(var_decl.attributeBlock));
 
 					this->indenter.print_end();
 					this->print_minor_header("Value");
@@ -322,7 +338,7 @@ namespace pthr{
 									this->printer.printMagenta(" {this}\n");
 								}
 
-								this->indenter.print_end();
+								this->indenter.print_arrow();
 								this->print_minor_header("Kind");
 								using ParamKind = panther::AST::FuncDecl::Param::Kind;
 								switch(param.kind){
@@ -331,21 +347,61 @@ namespace pthr{
 									break; case ParamKind::In: this->printer.printMagenta(" {in}\n");
 								};
 
+								this->indenter.set_end();
+								this->print_attribute_block(this->ast_buffer.getAttributeBlock(param.attributeBlock));
+
 								this->indenter.pop();
 							}
-
 
 							i += 1;
 						}
 						this->indenter.pop();
 					}
 
-					this->indenter.print_arrow();
-					this->print_minor_header("Return Type");
-					this->printer.print(" ");
-					this->print_type(func_decl.returnType);
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(func_decl.attributeBlock));
 
-					this->indenter.set_end();
+					this->indenter.print_arrow();
+					this->print_minor_header("Returns");
+					this->printer.print("\n");
+					{
+						this->indenter.push();
+						for(size_t i = 0; const panther::AST::FuncDecl::Return& return_param : func_decl.returns){
+							if(i + 1 < func_decl.returns.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+							this->print_major_header(std::format("Return Parameter {}", i));
+
+							{
+								this->indenter.push();
+
+								this->indenter.print_arrow();
+								this->print_minor_header("Identifier");
+								this->printer.print(" ");
+								if(return_param.ident.hasValue()){
+									this->print_ident(return_param.ident.value());
+								}else{
+									this->printer.printGray(" {NONE}\n");
+								}
+
+								this->indenter.print_end();
+								this->print_minor_header("Type");
+								this->printer.print(" ");
+								this->print_type(return_param.type);
+
+								this->indenter.pop();
+							}
+
+							i += 1;
+						}
+						this->indenter.pop();
+					}
+
+					this->indenter.print_end();
+					this->print_minor_header("Statement Block");
 					this->print_block(this->ast_buffer.getBlock(func_decl.block));
 
 					this->indenter.pop();
@@ -353,31 +409,81 @@ namespace pthr{
 			};
 
 
-			auto print_block(const panther::AST::Block& block) noexcept -> void {
+			auto print_return(const panther::AST::Return& ret) noexcept -> void {
 				this->indenter.print();
-				this->print_minor_header("Statement Block");
+				this->print_major_header("Return");
 
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Label");
+					if(ret.label.hasValue()){
+						this->printer.print(" ");
+						this->print_ident(ret.label.value());
+					}else{
+						this->printer.printGray(" {NONE}\n");
+					}
+
+					this->indenter.print_end();
+					this->print_minor_header("Value");
+					if(ret.value.hasValue()){
+						this->indenter.push();
+						this->printer.print("\n");
+						this->print_expr(ret.value.value());
+						this->indenter.pop();
+					}else{
+						this->printer.printGray(" {NONE}\n");
+					}
+
+					this->indenter.pop();
+				}
+			};
+
+
+			auto print_block(const panther::AST::Block& block) noexcept -> void {
 				if(block.stmts.empty()){
 					this->printer.printGray(" {EMPTY}\n");
 
 				}else{
 					this->printer.print("\n");
 
-					this->indenter.push();
+					{
+						this->indenter.push();
 
-					for(size_t i = 0; const panther::AST::Node& stmt : block.stmts){
-						if(i + 1 < block.stmts.size()){
-							this->indenter.set_arrow();
+						this->indenter.print_arrow();
+						this->print_minor_header("Label");
+						if(block.label.hasValue()){
+							this->printer.print(" ");
+							this->print_ident(block.label.value());
 						}else{
-							this->indenter.set_end();
+							this->printer.printGray(" {NONE}\n");
 						}
 
-						this->print_stmt(stmt);
 
-						i += 1;
+						this->indenter.print_end();
+						this->print_minor_header("Statements");
+						this->printer.print("\n");
+						{
+							this->indenter.push();
+
+							for(size_t i = 0; const panther::AST::Node& stmt : block.stmts){
+								if(i + 1 < block.stmts.size()){
+									this->indenter.set_arrow();
+								}else{
+									this->indenter.set_end();
+								}
+
+								this->print_stmt(stmt);
+
+								i += 1;
+							}
+
+							this->indenter.pop();
+						}
+
+						this->indenter.pop();
 					}
-
-					this->indenter.pop();
 				}
 			};
 
@@ -481,6 +587,11 @@ namespace pthr{
 						this->print_func_call(this->ast_buffer.getFuncCall(node));
 					} break;
 
+					case panther::AST::Kind::Block: {
+						this->print_major_header("Statement Block");
+						this->print_block(this->ast_buffer.getBlock(node));
+					} break;
+
 					case panther::AST::Kind::Type: {
 						this->print_type(node);
 					} break;
@@ -543,6 +654,14 @@ namespace pthr{
 						this->printer.printMagenta("[this]\n");
 					} break;
 
+					case panther::AST::Kind::Discard: {
+						this->printer.printMagenta("[_]\n");
+					} break;
+
+					case panther::AST::Kind::Unnamed: {
+						this->printer.printMagenta("[___]\n");
+					} break;
+
 
 					default: evo::debugFatalBreak("Unknown or unsupported expr type");
 				};
@@ -575,7 +694,7 @@ namespace pthr{
 
 			auto print_assignment(const panther::AST::Infix& infix) noexcept -> void {
 				this->indenter.print();
-				this->print_major_header("Assignment");
+				this->print_major_header("Assign");
 
 				{
 					this->indenter.push();
@@ -601,6 +720,64 @@ namespace pthr{
 						this->print_expr(infix.rhs);
 						this->indenter.pop();
 					}
+
+					this->indenter.pop();
+				}
+			};
+
+
+			auto print_multi_assign(const panther::AST::MultiAssign& multi_assign) noexcept -> void {
+				this->indenter.print();
+				this->print_major_header("Multiple Assignment");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Assignments");
+					this->printer.print("\n");
+					{
+						this->indenter.push();
+						for(size_t i = 0; const panther::AST::Node& assign : multi_assign.assigns){
+							if(i + 1 < multi_assign.assigns.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+							this->print_minor_header(std::format("Assignment {}", i));
+
+							switch(assign.getKind()){
+								case panther::AST::Kind::Ident: {
+									this->printer.print(" ");
+									this->print_ident(assign);
+								} break;
+
+								case panther::AST::Kind::Discard: {
+									this->printer.printMagenta(" [_]\n");
+								} break;
+
+								case panther::AST::Kind::Unnamed: {
+									this->printer.printMagenta(" [___]\n");
+								} break;
+
+								default:{
+									evo::debugFatalBreak("Unknown or unsupported multi-assignment kind");
+								} break;
+							}
+
+							i += 1;
+						}
+						this->indenter.pop();
+					}
+
+
+					this->indenter.print_end();
+					this->print_minor_header("Value");
+					this->printer.print("\n");
+					this->indenter.push();
+					this->print_expr(multi_assign.value);
+					this->indenter.pop();
 
 					this->indenter.pop();
 				}
@@ -732,6 +909,53 @@ namespace pthr{
 				}
 			};
 
+
+			auto print_attribute_block(const panther::AST::AttributeBlock& attr_block) noexcept -> void {
+				this->indenter.print();
+				this->print_minor_header("Attribute Block");
+
+				if(attr_block.attributes.empty()){
+					this->printer.printGray(" {NONE}\n");
+				}else{
+					this->printer.print("\n");
+
+					this->indenter.push();
+					for(size_t i = 0; const panther::AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
+						if(i + 1 < attr_block.attributes.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
+						}
+
+						this->print_major_header(std::format("Attribute {}", i));
+						{
+							this->indenter.push();
+
+							this->indenter.print_arrow();
+							this->print_minor_header("Attribute");
+							const panther::Token::ID attr_token_id = this->ast_buffer.getAttribute(attribute.name);
+							const panther::Token& attr_token = this->source.getTokenBuffer()[attr_token_id];
+							this->printer.printMagenta(" #{}\n", attr_token.getString(this->source));
+
+							this->indenter.print_end();
+							this->print_minor_header("Argument");
+							if(attribute.arg.hasValue()){
+								this->printer.print("\n");
+								this->indenter.push();
+								this->print_expr(attribute.arg.value());
+								this->indenter.pop();
+							}else{
+								this->printer.printGray(" {NONE}\n");
+							}
+
+							this->indenter.pop();
+						}
+					
+						i += 1;
+					}
+					this->indenter.pop();
+				}
+			};
 
 
 			auto print_ident(const panther::AST::Node& ident) const noexcept -> void {
