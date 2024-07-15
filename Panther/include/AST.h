@@ -53,7 +53,6 @@ namespace pcit::panther::AST{
 		This,
 		
 		Discard,
-		Unnamed,
 	};
 
 

@@ -108,6 +108,7 @@ namespace pcit::panther{
 				// operators
 
 				RightArrow, // ->
+				Underscore, // _
 
 				// assignment
 				Assign, // =
@@ -169,11 +170,6 @@ namespace pcit::panther{
 				Accessor, // .
 				Dereference, // .*
 				Unwrap, // .?
-
-				// discards
-				Underscore, // _
-				DoubleUnderscore, // __ - just here to make detecting easier
-				TripleUnderscore, // ___
 				
 				///////////////////////////////////
 				// punctuation
@@ -273,8 +269,6 @@ namespace pcit::panther{
 				if(op_str == "<<="){ return Kind::AssignShiftLeft; }
 				if(op_str == ">>="){ return Kind::AssignShiftRight; }
 
-				if(op_str == "___"){ return Kind::TripleUnderscore; }
-
 
 				// length 2
 				if(op_str == "->"){ return Kind::RightArrow; }
@@ -308,8 +302,6 @@ namespace pcit::panther{
 
 				if(op_str == ".*"){ return Kind::Dereference; }
 				if(op_str == ".?"){ return Kind::Unwrap; }
-
-				if(op_str == "__"){ return Kind::DoubleUnderscore; }
 
 
 				// length 1
@@ -434,6 +426,8 @@ namespace pcit::panther{
 					// operators
 
 					break; case Kind::RightArrow:         return "->";
+					break; case Kind::Underscore:         return "_";
+
 
 					// assignment
 					break; case Kind::Assign:             return "=";
@@ -494,10 +488,6 @@ namespace pcit::panther{
 					break; case Kind::Accessor:           return ".";
 					break; case Kind::Dereference:        return ".*";
 					break; case Kind::Unwrap:             return ".?";
-
-					// discards
-					break; case Kind::Underscore:         return "_";
-					break; case Kind::TripleUnderscore:   return "___";
 
 
 					///////////////////////////////////

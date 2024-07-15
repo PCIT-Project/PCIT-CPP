@@ -1,7 +1,15 @@
 # Change Log
 
 <!---------------------------------->
-### v0.0.9.0
+## v0.0.9.1
+
+### Panther
+- Rmoved unnamed (`___`)
+	- It may come back at some point, but it's being considered if it would lead to bad practices
+
+
+<!---------------------------------->
+## v0.0.9.0
 
 ### Panther
 - Added scoped statement blocks

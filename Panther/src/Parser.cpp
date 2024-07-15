@@ -182,7 +182,7 @@ namespace pcit::panther{
 		{ // special assignments
 			const Token::Kind peeked_kind = this->reader[this->reader.peek()].getKind();
 
-			if(peeked_kind == Token::lookupKind("_") || peeked_kind == Token::lookupKind("___")){
+			if(peeked_kind == Token::lookupKind("_")){
 				const Token::ID discard_token_id = this->reader.next();
 				
 				const Token::ID op_token_id = this->reader.peek();
@@ -200,12 +200,7 @@ namespace pcit::panther{
 				}
 
 				return this->source.ast_buffer.createInfix(
-					AST::Node(
-						(peeked_kind == Token::lookupKind("_")) ? AST::Kind::Discard : AST::Kind::Unnamed,
-						discard_token_id
-					),
-					op_token_id,
-					value.value()
+					AST::Node(AST::Kind::Discard, discard_token_id), op_token_id, value.value()
 				);
 
 			}else if(peeked_kind == Token::lookupKind("[")){ // multi assign
@@ -226,8 +221,6 @@ namespace pcit::panther{
 						const Token::Kind peeked_kind = this->reader[peeked_token_id].getKind();
 						if(peeked_kind == Token::lookupKind("_")){
 							return Result(AST::Node(AST::Kind::Discard, peeked_token_id));
-						}else if(peeked_kind == Token::lookupKind("___")){
-							return Result(AST::Node(AST::Kind::Unnamed, peeked_token_id));
 						}else{
 							return Result(Result::Code::WrongType);
 						}

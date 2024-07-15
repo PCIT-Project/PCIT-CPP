@@ -658,10 +658,6 @@ namespace pthr{
 						this->printer.printMagenta("[_]\n");
 					} break;
 
-					case panther::AST::Kind::Unnamed: {
-						this->printer.printMagenta("[___]\n");
-					} break;
-
 
 					default: evo::debugFatalBreak("Unknown or unsupported expr type");
 				};
@@ -757,11 +753,7 @@ namespace pthr{
 									this->printer.printMagenta(" [_]\n");
 								} break;
 
-								case panther::AST::Kind::Unnamed: {
-									this->printer.printMagenta(" [___]\n");
-								} break;
-
-								default:{
+								default: {
 									evo::debugFatalBreak("Unknown or unsupported multi-assignment kind");
 								} break;
 							}
