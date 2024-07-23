@@ -33,6 +33,8 @@ namespace pcit::panther::AST{
 
 		Block,
 		FuncCall,
+		TemplatePack,
+		TemplatedExpr,
 		
 		Prefix,
 		Infix,
@@ -145,6 +147,7 @@ namespace pcit::panther::AST{
 		};
 
 		Node ident;
+		NodeOptional templatePack;
 		evo::SmallVector<Param> params;
 		Node attributeBlock;
 		evo::SmallVector<Return> returns;
@@ -169,6 +172,20 @@ namespace pcit::panther::AST{
 
 		Node target;
 		evo::SmallVector<Arg> args;
+	};
+
+	struct TemplatePack{
+		struct Param{
+			Node ident;
+			Node type;
+		};
+
+		evo::SmallVector<Param> params;
+	};
+
+	struct TemplatedExpr{
+		Node base;
+		evo::SmallVector<Node> exprs;
 	};
 
 	struct Prefix{

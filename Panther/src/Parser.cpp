@@ -57,7 +57,7 @@ namespace pcit::panther{
 		result = this->parse_term_stmt();
 		if(result.code() != Result::Code::WrongType){ return result; }
 
-		return this->parse_block();
+		return this->parse_block(BlockLabelRequirement::NotAllowed);
 	};
 
 
@@ -119,9 +119,13 @@ namespace pcit::panther{
 			return Result::Code::Error;
 		}
 
-
-		///////////////////////////////////
-		// function parameters
+		auto template_pack_node = AST::NodeOptional();
+		const Result template_pack_result = this->parse_template_pack();
+		switch(template_pack_result.code()){
+			case Result::Code::Success:   template_pack_node = template_pack_result.value(); break;
+			case Result::Code::WrongType: break;
+			case Result::Code::Error:     return Result::Code::Error;	
+		}
 
 		evo::Result<evo::SmallVector<AST::FuncDecl::Param>> params = this->parse_func_params();
 		if(params.isError()){ return Result::Code::Error; }
@@ -136,11 +140,18 @@ namespace pcit::panther{
 		evo::Result<evo::SmallVector<AST::FuncDecl::Return>> returns = this->parse_func_returns();
 		if(returns.isError()){ return Result::Code::Error; }
 
-		const Result block = this->parse_block();
-		if(this->check_result_fail(block, "statement block in function declaration")){ return Result::Code::Error; }
+		const Result block = this->parse_block(BlockLabelRequirement::NotAllowed);
+		if(this->check_result_fail(block, "statement block in function declaration")){
+			return Result::Code::Error;
+		}
 
 		return this->source.ast_buffer.createFuncDecl(
-			ident.value(), std::move(params.value()), attribute_block.value(), std::move(returns.value()), block.value()
+			ident.value(),
+			template_pack_node,
+			std::move(params.value()),
+			attribute_block.value(),
+			std::move(returns.value()),
+			block.value()
 		);
 	};
 
@@ -296,18 +307,29 @@ namespace pcit::panther{
 
 
 	// TODO: check EOF
-	auto Parser::parse_block() noexcept -> Result {
+	auto Parser::parse_block(BlockLabelRequirement label_requirement) noexcept -> Result {
+		const Token::ID start_location = this->reader.peek();
+
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("{")){ return Result::Code::WrongType; }
 		if(this->assert_token_fail(Token::lookupKind("{"))){ return Result::Code::Error; }
 
 		auto label = AST::NodeOptional();
 
 		if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("->")){
+			if(label_requirement == BlockLabelRequirement::NotAllowed){
+				this->reader.go_back(start_location);
+				return Result::Code::WrongType;
+			}
+
 			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::Error; }
 
 			const Result label_result = this->parse_ident();
 			if(this->check_result_fail(label_result, "identifier in block label")){ return Result::Code::Error; }
 			label = label_result.value();
+
+		}else if(label_requirement == BlockLabelRequirement::Required){
+			this->reader.go_back(start_location);
+			return Result::Code::WrongType;
 		}
 
 		auto statements = evo::SmallVector<AST::Node>();
@@ -691,6 +713,47 @@ namespace pcit::panther{
 					output = this->source.ast_buffer.createPostfix(output.value(), this->reader.next());
 				} break;
 
+
+				case Token::lookupKind("<{"): {
+					if(this->assert_token_fail(Token::lookupKind("<{"))){ return Result::Code::Error; }
+					
+					auto exprs = evo::SmallVector<AST::Node>();
+
+					bool is_first_expr = true;
+
+					while(true){
+						if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("}>")){
+							if(this->assert_token_fail(Token::lookupKind("}>"))){ return Result::Code::Error; }
+							break;
+						}
+						
+						auto expr = this->parse_expr();
+						if(this->check_result_fail(expr, "expression argument inside template pack")){
+							return Result::Code::Error;
+						}
+
+						exprs.emplace_back(expr.value());
+
+						// check if ending or should continue
+						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].getKind();
+						if(after_arg_next_token_kind != Token::lookupKind(",")){
+							if(after_arg_next_token_kind != Token::lookupKind("}>")){
+								this->expected_but_got(
+									"[,] at end of template argument or [}>] at end of template argument block",
+									this->reader[this->reader.peek(-1)]
+								);
+								return Result::Code::Error;
+							}
+
+							is_first_expr = false;
+							break;
+						}
+					};
+
+					output = this->source.ast_buffer.createTemplatedExpr(output.value(), std::move(exprs));
+				} break;
+
+
 				case Token::lookupKind("("): {
 					if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::Error; }
 					
@@ -760,7 +823,7 @@ namespace pcit::panther{
 
 	// TODO: check EOF
 	auto Parser::parse_encapsulated_expr() noexcept -> Result {
-		const Result block_expr = this->parse_block();
+		const Result block_expr = this->parse_block(BlockLabelRequirement::Required);
 		if(block_expr.code() != Result::Code::WrongType){ return block_expr; }
 
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("(")){
@@ -888,9 +951,66 @@ namespace pcit::panther{
 	};
 
 
+
+
+	auto Parser::parse_template_pack() noexcept -> Result {
+		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("<{")){
+			return Result::Code::WrongType;
+		}
+
+		auto params = evo::SmallVector<AST::TemplatePack::Param>();
+
+		if(this->assert_token_fail(Token::lookupKind("<{"))){ return Result::Code::Error; }
+
+		while(true){
+			if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("}>")){
+				if(this->assert_token_fail(Token::lookupKind("}>"))){ return Result::Code::Error; }
+				break;
+			}
+
+			const Result ident = this->parse_ident();
+			if(ident.code() == Result::Code::Error){
+				return Result::Code::Error;
+			}else if(ident.code() == Result::Code::WrongType){
+				this->expected_but_got("identifier in template parameter", this->reader[this->reader.peek()]);
+				return Result::Code::Error;
+			}
+
+			if(this->expect_token_fail(Token::lookupKind(":"), "after template parameter identifier")){
+				return Result::Code::Error;
+			}
+			
+			const Result type = this->parse_type();
+			if(this->check_result_fail(type, "type in template parameter declaration")){
+				return Result::Code::Error;
+			}
+
+			params.emplace_back(ident.value(), type.value());
+
+
+			// check if ending or should continue
+			const Token::Kind after_return_next_token_kind = this->reader[this->reader.next()].getKind();
+			if(after_return_next_token_kind != Token::lookupKind(",")){
+				if(after_return_next_token_kind != Token::lookupKind("}>")){
+					this->expected_but_got(
+						"[,] at end of template parameter or [}>] at end of template pack",
+						this->reader[this->reader.peek(-1)]
+					);
+					return Result::Code::Error;
+				}
+
+				break;
+			}
+		};
+
+
+		return this->source.ast_buffer.createTemplatePack(std::move(params));
+	};
+
+
 	auto Parser::parse_func_params() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>> {
 		auto params = evo::SmallVector<AST::FuncDecl::Param>();
-		if(this->expect_token_fail(Token::lookupKind("("), "to open parameter block in FuncDecl")){
+		if(this->expect_token_fail(Token::lookupKind("("), "to open parameter block in function declaration")){
 			return evo::resultError;
 		}
 

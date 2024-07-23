@@ -1,10 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.10.0
+
+### Panther
+- Added templated functions
+- Added templated expressions
+- Added requirement that expression blocks must have labels
+- Added requirement that statement scope blocks must not have labels
+- Fixed parser incorrectly detecting statement scope blocks as statement expressions
+
+### pthr
+- Fixed some AST printing formatting mistakes
+
+
+<!---------------------------------->
 ## v0.0.9.1
 
 ### Panther
-- Rmoved unnamed (`___`)
+- Removed unnamed (`___`)
 	- It may come back at some point, but it's being considered if it would lead to bad practices
 
 
@@ -14,7 +28,7 @@
 ### Panther
 - Added scoped statement blocks
 - Added statement block labels
-- Added block statements (essentially imediately invoked lambda expressions)
+- Added block statements (essentially immediately invoked lambda expressions)
 - Added attributes (for variables, functions, and function parameters)
 - Added function multiple / named returns
 - Added discard and unnamed assignment
@@ -31,10 +45,10 @@
 	`This`
 	- `Int`
 	- `ISize`
-	- arbitrary bitwidth integers (example: `I12`)
+	- arbitrary bit-width integers (example: `I12`)
 	- `UInt`
 	- `USize`
-	- arbitrary bitwidth unsigned integers (example: `UI12`)
+	- arbitrary bit-width unsigned integers (example: `UI12`)
 	- `F16`
 	- `F32`
 	- `F64`
@@ -54,7 +68,7 @@
 	- `CULongLong`
 	- `CLongDouble`
 - Added keyword `this`
-- Fixed tokenizer continuing even if an error occured in the file
+- Fixed tokenizer continuing even if an error occurred in the file
 - Fixed fatal error when using non-base-10 floating-point literals
 
 
@@ -100,7 +114,7 @@
 
 ### Panther
 - Added keyword `uninit`
-- Added builtin-types:
+- Added built-in-types:
 	- `Type`
 	- `Bool`
 - Added prefix operators:

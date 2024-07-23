@@ -121,6 +121,26 @@ namespace pcit::panther{
 				return this->func_calls[node._value.node_index];
 			};
 
+			EVO_NODISCARD auto createTemplatePack(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->template_packs.size());
+				this->template_packs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::TemplatePack, node_index);
+			};
+			EVO_NODISCARD auto getTemplatePack(const AST::Node& node) const noexcept -> const AST::TemplatePack& {
+				evo::debugAssert(node.getKind() == AST::Kind::TemplatePack, "Node is not a TemplatePack");
+				return this->template_packs[node._value.node_index];
+			};
+
+			EVO_NODISCARD auto createTemplatedExpr(auto&&... args) noexcept -> AST::Node {
+				const uint32_t node_index = uint32_t(this->templated_expr.size());
+				this->templated_expr.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::TemplatedExpr, node_index);
+			};
+			EVO_NODISCARD auto getTemplatedExpr(const AST::Node& node) const noexcept -> const AST::TemplatedExpr& {
+				evo::debugAssert(node.getKind() == AST::Kind::TemplatedExpr, "Node is not a TemplatedExpr");
+				return this->templated_expr[node._value.node_index];
+			};
+
 
 			EVO_NODISCARD auto createPrefix(auto&&... args) noexcept -> AST::Node {
 				const uint32_t node_index = uint32_t(this->prefixes.size());
@@ -200,6 +220,8 @@ namespace pcit::panther{
 
 			evo::SmallVector<AST::Block> blocks{};
 			evo::SmallVector<AST::FuncCall> func_calls{};
+			evo::SmallVector<AST::TemplatePack> template_packs{};
+			evo::SmallVector<AST::TemplatedExpr> templated_expr{};
 
 			evo::SmallVector<AST::Prefix> prefixes{};
 			evo::SmallVector<AST::Infix> infixes{};

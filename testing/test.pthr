@@ -2,7 +2,13 @@
 
 
 
-func test = () -> (int: Int, bool: Bool, asdf: SomeRAIIType) {
-	var foo: Int = uninit;
-	[foo, _, ___] = test();
+
+func test = <{T: Type, SIZE: USize}> () -> std.DArray<{Int}> {
+	return test<{Int, 12}>();
 }
+
+
+func entry = () #entry -> Int {
+	return 0;
+}
+

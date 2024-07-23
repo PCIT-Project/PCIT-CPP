@@ -79,7 +79,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_return() noexcept -> Result;
 			EVO_NODISCARD auto parse_assignment() noexcept -> Result;
 
-			EVO_NODISCARD auto parse_block() noexcept -> Result;
+			enum class BlockLabelRequirement{
+				Required,
+				NotAllowed,
+				Optional,
+			};
+			// TODO: make label_requirement template?
+			EVO_NODISCARD auto parse_block(BlockLabelRequirement label_requirement) noexcept -> Result;
 			EVO_NODISCARD auto parse_type(bool is_expr = false) noexcept -> Result;
 
 			EVO_NODISCARD auto parse_expr() noexcept -> Result;
@@ -93,7 +99,8 @@ namespace pcit::panther{
 				No,
 				Maybe,
 			};
-			EVO_NODISCARD auto parse_term(IsTypeTerm is_type_term = IsTypeTerm::No) noexcept -> Result;
+			// TODO: make is_type_term template?
+			EVO_NODISCARD auto parse_term(IsTypeTerm is_type_term = IsTypeTerm::No) noexcept -> Result; 
 			EVO_NODISCARD auto parse_term_stmt() noexcept -> Result;
 			EVO_NODISCARD auto parse_encapsulated_expr() noexcept -> Result;
 			EVO_NODISCARD auto parse_atom() noexcept -> Result;
@@ -106,6 +113,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_this() noexcept -> Result;
 
 
+			EVO_NODISCARD auto parse_template_pack() noexcept -> Result;
 
 			EVO_NODISCARD auto parse_func_params() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>>;
 			EVO_NODISCARD auto parse_func_returns() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;

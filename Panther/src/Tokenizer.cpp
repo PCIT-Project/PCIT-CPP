@@ -584,6 +584,12 @@ namespace pcit::panther{
 						return true;
 					} break;
 
+					case '{': {
+						this->char_stream.skip(evo::stringSize("<{"));
+						this->create_token(Token::lookupKind("<{"));
+						return true;
+					} break;
+
 					default: {
 						this->char_stream.skip(evo::stringSize("<"));
 						this->create_token(Token::lookupKind("<"));
@@ -716,6 +722,14 @@ namespace pcit::panther{
 				this->char_stream.skip(evo::stringSize("~"));
 				this->create_token(Token::lookupKind("~"));
 				return true;
+			} break;
+
+			case '}': {
+				if(this->char_stream.peek(1) == '>'){
+					this->char_stream.skip(evo::stringSize("}>"));
+					this->create_token(Token::lookupKind("}>"));
+					return true;
+				}
 			} break;
 		};
 		

@@ -170,6 +170,10 @@ namespace pcit::panther{
 				Accessor, // .
 				Dereference, // .*
 				Unwrap, // .?
+
+				// Templates
+				OpenTemplate, // <{
+				CloseTemplate, // }>
 				
 				///////////////////////////////////
 				// punctuation
@@ -302,6 +306,10 @@ namespace pcit::panther{
 
 				if(op_str == ".*"){ return Kind::Dereference; }
 				if(op_str == ".?"){ return Kind::Unwrap; }
+
+				if(op_str == "<{"){ return Kind::OpenTemplate; }
+				if(op_str == "}>"){ return Kind::CloseTemplate; }
+
 
 
 				// length 1
@@ -488,6 +496,11 @@ namespace pcit::panther{
 					break; case Kind::Accessor:           return ".";
 					break; case Kind::Dereference:        return ".*";
 					break; case Kind::Unwrap:             return ".?";
+
+					// templates
+					break; case Kind::OpenTemplate:       return "<{";
+					break; case Kind::CloseTemplate:      return "}>";
+
 
 
 					///////////////////////////////////

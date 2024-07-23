@@ -239,7 +239,7 @@ namespace pthr{
 					case panther::AST::Kind::Block: {
 						this->indenter.print();
 						this->print_major_header("Statement Block");
-						this->print_block(this->ast_buffer.getBlock(stmt));
+						this->print_block(this->ast_buffer.getBlock(stmt), false);
 					} break;
 
 					default: {
@@ -301,6 +301,48 @@ namespace pthr{
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
 					this->print_ident(func_decl.ident);
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Template Pack");
+					if(func_decl.templatePack.hasValue()){
+						const panther::AST::TemplatePack& template_pack = 
+							this->ast_buffer.getTemplatePack(func_decl.templatePack.value());
+
+						this->printer.print("\n");
+						this->indenter.push();
+						for(size_t i = 0; const panther::AST::TemplatePack::Param& param : template_pack.params){
+							if(i + 1 < template_pack.params.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+							this->print_major_header(std::format("Parameter {}", i));
+
+							{
+								this->indenter.push();
+
+								this->indenter.print_arrow();
+								this->print_minor_header("Identifier");
+								this->printer.print(" ");
+								this->print_ident(param.ident);
+
+								this->indenter.print_end();
+								this->print_minor_header("Type");
+								this->printer.print(" ");
+								this->print_type(param.type);
+
+								this->indenter.pop();
+							}
+
+							i += 1;
+						}
+						this->indenter.pop();
+						
+					}else{
+						this->printer.printGray(" {NONE}\n");
+					}
+
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Parameters");
@@ -384,7 +426,7 @@ namespace pthr{
 								if(return_param.ident.hasValue()){
 									this->print_ident(return_param.ident.value());
 								}else{
-									this->printer.printGray(" {NONE}\n");
+									this->printer.printGray("{NONE}\n");
 								}
 
 								this->indenter.print_end();
@@ -441,12 +483,14 @@ namespace pthr{
 			};
 
 
-			auto print_block(const panther::AST::Block& block) noexcept -> void {
+			auto print_block(const panther::AST::Block& block, bool is_not_on_newline = true) noexcept -> void {
 				if(block.stmts.empty()){
 					this->printer.printGray(" {EMPTY}\n");
 
 				}else{
-					this->printer.print("\n");
+					if(is_not_on_newline){
+						this->printer.print("\n");
+					}
 
 					{
 						this->indenter.push();
@@ -526,6 +570,17 @@ namespace pthr{
 						print_base_type(infix.rhs);
 					} break;
 
+
+					// TODO: print this properly
+					case panther::AST::Kind::TemplatedExpr: {
+						const panther::AST::TemplatedExpr& templated_expr = 
+							this->ast_buffer.getTemplatedExpr(base_type);
+						print_base_type(templated_expr.base);
+						this->printer.printMagenta("<{");
+						this->printer.printGray("...{} args...", templated_expr.exprs.size());
+						this->printer.printMagenta("}>");
+					} break;
+
 					default: evo::debugFatalBreak("Unknown or unsupported base type");
 				};
 			};
@@ -587,9 +642,13 @@ namespace pthr{
 						this->print_func_call(this->ast_buffer.getFuncCall(node));
 					} break;
 
+					case panther::AST::Kind::TemplatedExpr: {
+						this->print_templated_expr(this->ast_buffer.getTemplatedExpr(node));
+					} break;
+
 					case panther::AST::Kind::Block: {
 						this->print_major_header("Statement Block");
-						this->print_block(this->ast_buffer.getBlock(node));
+						this->print_block(this->ast_buffer.getBlock(node), false);
 					} break;
 
 					case panther::AST::Kind::Type: {
@@ -895,6 +954,54 @@ namespace pthr{
 						this->indenter.pop();
 					}
 
+
+
+					this->indenter.pop();
+				}
+			};
+
+
+			auto print_templated_expr(const panther::AST::TemplatedExpr& templated_expr) noexcept -> void {
+				this->print_major_header("Templated Expressions");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Base");
+					{
+						this->printer.print("\n");
+						this->indenter.push();
+						this->print_expr(templated_expr.base);
+						this->indenter.pop();
+					}
+
+					this->indenter.print_end();
+					this->print_minor_header("Arguments");
+					if(templated_expr.exprs.empty()){
+						this->printer.printGray(" {EMPTY}\n");
+					}else{
+						this->printer.print("\n");
+						this->indenter.push();
+
+						for(size_t i = 0; const panther::AST::Node& expr : templated_expr.exprs){
+							if(i + 1 < templated_expr.exprs.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+							this->print_major_header(std::format("Argument {}", i));
+							this->indenter.push();
+							this->print_expr(expr);
+							this->indenter.pop();
+						
+							i += 1;
+						}
+
+
+						this->indenter.pop();
+					}
 
 
 					this->indenter.pop();
