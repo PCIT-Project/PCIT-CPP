@@ -47,7 +47,7 @@ namespace pcit::core{
 			const std::optional<Location>& _location,
 			const std::string& _message,
 			const evo::SmallVector<Info>& _infos = {}
-		) noexcept : level(_level), code(_code), location(_location), message(_message), infos(_infos) {};
+		) : level(_level), code(_code), location(_location), message(_message), infos(_infos) {}
 
 		DiagnosticImpl(
 			DiagnosticLevel _level,
@@ -55,32 +55,33 @@ namespace pcit::core{
 			std::optional<Location>&& _location,
 			std::string&& _message,
 			evo::SmallVector<Info>&& _infos = {}
-		) noexcept :
+		) :
 			level(_level),
 			code(_code),
 			location(std::move(_location)),
 			message(std::move(_message)),
 			infos(std::move(_infos)) 
-		{};
+		{}
 	};
 
 
-	EVO_NODISCARD inline auto printDiagnosticLevel(DiagnosticLevel level) noexcept -> std::string_view {
+	EVO_NODISCARD inline auto printDiagnosticLevel(DiagnosticLevel level) -> std::string_view {
 		switch(level){
 			break; case DiagnosticLevel::Fatal:   return "Fatal";
 			break; case DiagnosticLevel::Error:   return "Error";
 			break; case DiagnosticLevel::Warning: return "Warning";
-		};
+		}
 
 		evo::debugFatalBreak("Unknown or unsupported pcit::core::DiagnosticLevel");
-	};
+	}
 
-};
+}
 
 
 template<>
 struct std::formatter<pcit::core::DiagnosticLevel> : std::formatter<std::string_view> {
-    auto format(const pcit::core::DiagnosticLevel& level, std::format_context& ctx) {
-        return std::formatter<std::string_view>::format(printDiagnosticLevel(level), ctx);
-    };
+    auto format(const pcit::core::DiagnosticLevel& level, std::format_context& ctx) const
+    -> std::format_context::iterator {
+        return std::formatter<std::string_view>::format(pcit::core::printDiagnosticLevel(level), ctx);
+    }
 };

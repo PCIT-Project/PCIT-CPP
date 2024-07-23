@@ -1,6 +1,12 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.10.1
+- Fixed various compile errors caused by update to MSVC
+- Minor tweaks to coding style
+
+
+<!---------------------------------->
 ## v0.0.10.0
 
 ### Panther

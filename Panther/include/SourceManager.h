@@ -31,45 +31,45 @@ namespace pcit::panther{
 
 	class SourceManager{
 		public:
-			SourceManager() noexcept = default;
-			~SourceManager() noexcept;
+			SourceManager() = default;
+			~SourceManager();
 
 			SourceManager(const SourceManager&) = delete;
 			auto operator=(const SourceManager&) = delete;
 
 			// make sure enough space for `num_source` source is allocated
-			auto reserveSources(size_t num_source) noexcept -> void;
+			auto reserveSources(size_t num_source) -> void;
 
-			auto addSource(const std::string& location, const std::string& data) noexcept -> Source::ID;
-			auto addSource(const std::string& location, std::string&& data) noexcept -> Source::ID;
-			auto addSource(std::string&& location, const std::string& data) noexcept -> Source::ID;
-			auto addSource(std::string&& location, std::string&& data) noexcept -> Source::ID;
+			auto addSource(const std::string& location, const std::string& data) -> Source::ID;
+			auto addSource(const std::string& location, std::string&& data) -> Source::ID;
+			auto addSource(std::string&& location, const std::string& data) -> Source::ID;
+			auto addSource(std::string&& location, std::string&& data) -> Source::ID;
 
-			auto addSource(const fs::path& location, const std::string& data) noexcept -> Source::ID;
-			auto addSource(const fs::path& location, std::string&& data) noexcept -> Source::ID;
-			auto addSource(fs::path&& location, const std::string& data) noexcept -> Source::ID;
-			auto addSource(fs::path&& location, std::string&& data) noexcept -> Source::ID;
+			auto addSource(const fs::path& location, const std::string& data) -> Source::ID;
+			auto addSource(const fs::path& location, std::string&& data) -> Source::ID;
+			auto addSource(fs::path&& location, const std::string& data) -> Source::ID;
+			auto addSource(fs::path&& location, std::string&& data) -> Source::ID;
 
 
-			EVO_NODISCARD auto getSource(Source::ID id)       noexcept ->       Source&;
-			EVO_NODISCARD auto getSource(Source::ID id) const noexcept -> const Source&;
+			EVO_NODISCARD auto getSource(Source::ID id)       ->       Source&;
+			EVO_NODISCARD auto getSource(Source::ID id) const -> const Source&;
 
-			EVO_NODISCARD auto operator[](Source::ID id)       noexcept ->       Source& {return this->getSource(id);};
-			EVO_NODISCARD auto operator[](Source::ID id) const noexcept -> const Source& {return this->getSource(id);};
+			EVO_NODISCARD auto operator[](Source::ID id)       ->       Source& {return this->getSource(id);}
+			EVO_NODISCARD auto operator[](Source::ID id) const -> const Source& {return this->getSource(id);}
 
-			EVO_NODISCARD auto numSources() const noexcept -> size_t { return this->sources.size(); };
+			EVO_NODISCARD auto numSources() const -> size_t { return this->sources.size(); }
 
-			EVO_NODISCARD auto begin() const noexcept -> Source::ID::Iterator {
+			EVO_NODISCARD auto begin() const -> Source::ID::Iterator {
 				return Source::ID::Iterator(Source::ID(0));
-			};
+			}
 
-			EVO_NODISCARD auto end() const noexcept -> Source::ID::Iterator {
+			EVO_NODISCARD auto end() const -> Source::ID::Iterator {
 				return Source::ID::Iterator(Source::ID(uint32_t(this->sources.size())));
-			};
+			}
 
 		private:
-			auto alloc_source(auto&&... args) noexcept -> Source*;
-			auto free_source(Source* source) noexcept -> void;
+			auto alloc_source(auto&&... args) -> Source*;
+			auto free_source(Source* source) -> void;
 
 	
 		private:
@@ -79,4 +79,4 @@ namespace pcit::panther{
 	};
 
 
-};
+}

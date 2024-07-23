@@ -12,33 +12,33 @@
 namespace pcit::panther{
 	
 
-	auto Source::locationIsPath() const noexcept -> bool {
+	auto Source::locationIsPath() const -> bool {
 		return this->location.is<fs::path>();
-	};
+	}
 
-	auto Source::locationIsString() const noexcept -> bool {
+	auto Source::locationIsString() const -> bool {
 		return this->location.is<std::string>();
-	};
+	}
 
 
 
-	auto Source::getLocationPath() const noexcept -> const fs::path& {
+	auto Source::getLocationPath() const -> const fs::path& {
 		evo::debugAssert(this->locationIsPath(), "Path location is not a path");
 		return this->location.as<fs::path>();
-	};
+	}
 
-	auto Source::getLocationString() const noexcept -> const std::string& {
+	auto Source::getLocationString() const -> const std::string& {
 		evo::debugAssert(this->locationIsString(), "Path location is not a string");
 		return this->location.as<std::string>();
-	};
+	}
 
-	auto Source::getLocationAsString() const noexcept -> std::string {
+	auto Source::getLocationAsString() const -> std::string {
 		if(this->location.is<std::string>()){
 			return this->location.as<std::string>();
 		}else{
 			return this->location.as<fs::path>().string();
 		}
-	};
+	}
 
 
-};
+}

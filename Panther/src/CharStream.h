@@ -20,22 +20,22 @@ namespace pcit::panther{
 
 	class CharStream{
 		public:
-			CharStream(std::string_view src_data) noexcept : data(src_data) {};
+			CharStream(std::string_view src_data) : data(src_data) {}
 			~CharStream() = default;
 
-			EVO_NODISCARD auto peek(size_t ammount_forward = 0) const noexcept -> char;
-			EVO_NODISCARD auto peek_raw_ptr() const noexcept -> const char*;
-			EVO_NODISCARD auto next() noexcept -> char;
-			auto skip(size_t ammount) noexcept -> void;
+			EVO_NODISCARD auto peek(size_t ammount_forward = 0) const -> char;
+			EVO_NODISCARD auto peek_raw_ptr() const -> const char*;
+			EVO_NODISCARD auto next() -> char;
+			auto skip(size_t ammount) -> void;
 
-			EVO_NODISCARD auto at_end() const noexcept -> bool { return this->cursor == this->data.size(); };
-			EVO_NODISCARD auto ammount_left() const noexcept -> size_t { return this->data.size() - this->cursor; };
+			EVO_NODISCARD auto at_end() const -> bool { return this->cursor == this->data.size(); }
+			EVO_NODISCARD auto ammount_left() const -> size_t { return this->data.size() - this->cursor; }
 
-			EVO_NODISCARD auto get_line() const noexcept -> uint32_t { return this->line; };
-			EVO_NODISCARD auto get_collumn() const noexcept -> uint16_t { return this->collumn; };
+			EVO_NODISCARD auto get_line() const -> uint32_t { return this->line; }
+			EVO_NODISCARD auto get_collumn() const -> uint16_t { return this->collumn; }
 
 		private:
-			EVO_NODISCARD auto skip_single() noexcept -> void;
+			EVO_NODISCARD auto skip_single() -> void;
 	
 		private:
 			std::string_view data;
@@ -46,4 +46,4 @@ namespace pcit::panther{
 	};
 
 
-};
+}

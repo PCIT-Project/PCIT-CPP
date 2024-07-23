@@ -14,7 +14,7 @@ namespace pcit::panther{
 
 	static auto print_location(
 		core::Printer& printer, const Source& source, Diagnostic::Level level, const Source::Location& location
-	) noexcept -> void {
+	) -> void {
 
 		///////////////////////////////////
 		// print file location
@@ -53,7 +53,7 @@ namespace pcit::panther{
 			}
 
 			cursor += 1;
-		};
+		}
 
 
 		///////////////////////////////////
@@ -74,7 +74,7 @@ namespace pcit::panther{
 			}
 
 			cursor += 1;
-		};
+		}
 
 		printer.printGray(std::format("\t{} | {}\n", line_number_str, line_str));
 
@@ -119,14 +119,14 @@ namespace pcit::panther{
 			break; case Diagnostic::Level::Error:   printer.printError(pointer_str);
 			break; case Diagnostic::Level::Warning: printer.printWarning(pointer_str);
 			break; case Diagnostic::Level::Info:    printer.printInfo(pointer_str);
-		};
-	};
+		}
+	}
 
 
 	
 
-	auto createDefaultDiagnosticCallback(core::Printer& printer_ref) noexcept -> Context::DiagnosticCallback {
-		return [&printer = printer_ref](const Context& context, const Diagnostic& diagnostic) noexcept -> void {
+	auto createDefaultDiagnosticCallback(core::Printer& printer_ref) -> Context::DiagnosticCallback {
+		return [&printer = printer_ref](const Context& context, const Diagnostic& diagnostic) -> void {
 
 			const std::string diagnostic_message = std::format(
 				"<{}|{}> {}\n", diagnostic.level, diagnostic.code, diagnostic.message
@@ -136,7 +136,7 @@ namespace pcit::panther{
 				break; case Diagnostic::Level::Fatal:   printer.printFatal(diagnostic_message);
 				break; case Diagnostic::Level::Error:   printer.printError(diagnostic_message);
 				break; case Diagnostic::Level::Warning: printer.printWarning(diagnostic_message);
-			};
+			}
 
 			if(diagnostic.location.has_value()){
 				const Source::Location& location = *diagnostic.location;
@@ -169,7 +169,7 @@ namespace pcit::panther{
 				}
 			#endif
 		};
-	};
+	}
 
 
-};
+}

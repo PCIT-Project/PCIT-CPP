@@ -18,8 +18,7 @@
 namespace pcit::panther{
 
 
-	auto createDefaultDiagnosticCallback(pcit::core::Printer& printer_ref) noexcept 
-		-> Context::DiagnosticCallback;
+	auto createDefaultDiagnosticCallback(pcit::core::Printer& printer_ref) -> Context::DiagnosticCallback;
 
 
-};
+}

@@ -19,7 +19,7 @@ namespace pcit::panther{
 	};
 
 	template<class NumericType>
-	EVO_NODISCARD auto str_to_num(std::string_view str, int base) noexcept 
+	EVO_NODISCARD auto str_to_num(std::string_view str, int base) 
 	-> evo::Expected<NumericType, StrToNumError> requires(std::is_integral_v<NumericType>) {
 		NumericType result;
 		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result, base);
@@ -30,17 +30,17 @@ namespace pcit::panther{
 		else if(ec == std::errc::result_out_of_range) { return evo::Unexpected(StrToNumError::OutOfRange); }
 		else if(ec == std::errc::invalid_argument)    { return evo::Unexpected(StrToNumError::Invalid);    }
 		else                                          { evo::debugFatalBreak("Unknown error"); }
-	};
+	}
 
 	template<class NumericType>
-	EVO_NODISCARD auto str_to_num(std::string_view str, int base) noexcept 
+	EVO_NODISCARD auto str_to_num(std::string_view str, int base) 
 	-> evo::Expected<NumericType, StrToNumError> requires(std::is_floating_point_v<NumericType>) {
-		const std::chars_format fmt = [&]() noexcept {
+		const std::chars_format fmt = [&]() {
 			switch(base){
 				case 10: return std::chars_format::general;
 				case 16: return std::chars_format::hex;
 				default: evo::debugFatalBreak("Unsupported floating-point base");
-			};
+			}
 		}();
 
 		NumericType result;
@@ -52,11 +52,11 @@ namespace pcit::panther{
 		else if(ec == std::errc::result_out_of_range) { return evo::Unexpected(StrToNumError::OutOfRange); }
 		else if(ec == std::errc::invalid_argument)    { return evo::Unexpected(StrToNumError::Invalid);    }
 		else                                          { evo::debugFatalBreak("Unknown error"); }
-	};
+	}
 
 	
 
-	auto Tokenizer::tokenize() noexcept -> bool {
+	auto Tokenizer::tokenize() -> bool {
 		while(
 			this->char_stream.at_end() == false && this->context.hasHitFailCondition() == false && this->can_continue
 		){
@@ -73,21 +73,21 @@ namespace pcit::panther{
 			
 			this->error_unrecognized_character();
 			return false;
-		};
+		}
 
 		return this->can_continue;
-	};
+	}
 
 
-	auto Tokenizer::tokenize_whitespace() noexcept -> bool {
+	auto Tokenizer::tokenize_whitespace() -> bool {
 		if(evo::isWhitespace(this->char_stream.peek())){
 			this->char_stream.skip(1);
 			return true;
 		}
 		return false;
-	};
+	}
 
-	auto Tokenizer::tokenize_comment() noexcept -> bool {
+	auto Tokenizer::tokenize_comment() -> bool {
 		if(this->char_stream.ammount_left() < 2 || this->char_stream.peek() != '/'){
 			return false;
 		}
@@ -100,7 +100,7 @@ namespace pcit::panther{
 				this->char_stream.peek() != '\n' && this->char_stream.peek() != '\r'
 			){
 				this->char_stream.skip(1);
-			};
+			}
 
 			return true;
 
@@ -138,13 +138,13 @@ namespace pcit::panther{
 				}else{
 					this->char_stream.skip(1);
 				}
-			};
+			}
 
 			return true;
 		}
 
 		return false;
-	};
+	}
 
 
 
@@ -207,7 +207,7 @@ namespace pcit::panther{
 	const static auto keyword_end = keyword_map.end();
 
 
-	auto Tokenizer::tokenize_identifier() noexcept -> bool {
+	auto Tokenizer::tokenize_identifier() -> bool {
 		auto kind = Token::Kind::None;
 
 		char peeked_char = this->char_stream.peek();
@@ -255,7 +255,7 @@ namespace pcit::panther{
 			}else{
 				bool is_integer = false;
 
-				auto parse_integer = [&](Token::Kind kind, size_t bitwidth_start_index) noexcept -> void {
+				auto parse_integer = [&](Token::Kind kind, size_t bitwidth_start_index) -> void {
 					const std::string_view bitwidth_str = ident_name.substr(bitwidth_start_index);
 					
 					for(char character : bitwidth_str){
@@ -326,7 +326,7 @@ namespace pcit::panther{
 								"Attempted to tokenize invalid integer bit-width"
 							);
 						} break;
-					};
+					}
 				};
 
 				if(ident_name[0] == 'I'){
@@ -353,9 +353,9 @@ namespace pcit::panther{
 		
 
 		return true;
-	};
+	}
 
-	auto Tokenizer::tokenize_punctuation() noexcept -> bool {
+	auto Tokenizer::tokenize_punctuation() -> bool {
 		const char peeked_char = this->char_stream.peek();
 		Token::Kind tok_kind = Token::Kind::None;
 
@@ -371,7 +371,7 @@ namespace pcit::panther{
 			break; case ';': tok_kind = Token::Kind::SemiColon;
 			break; case ':': tok_kind = Token::Kind::Colon;
 			break; case '?': tok_kind = Token::Kind::QuestionMark;
-		};
+		}
 
 		if(tok_kind == Token::Kind::None){ return false; }
 
@@ -380,10 +380,10 @@ namespace pcit::panther{
 		this->create_token(tok_kind);
 
 		return true;
-	};
+	}
 
 
-	auto Tokenizer::tokenize_operators() noexcept -> bool {
+	auto Tokenizer::tokenize_operators() -> bool {
 		switch(this->char_stream.peek()){
 			case '=': {
 				if(this->char_stream.peek(1) == '='){
@@ -731,13 +731,13 @@ namespace pcit::panther{
 					return true;
 				}
 			} break;
-		};
+		}
 		
 		return false;
-	};
+	}
 
 
-	auto Tokenizer::tokenize_number_literal() noexcept -> bool {
+	auto Tokenizer::tokenize_number_literal() -> bool {
 		if(evo::isNumber(this->char_stream.peek()) == false){ return false; }
 
 		int base = 10;
@@ -901,7 +901,7 @@ namespace pcit::panther{
 				}
 			}
 
-		};
+		}
 
 
 		///////////////////////////////////
@@ -937,7 +937,7 @@ namespace pcit::panther{
 				}else{
 					break;
 				}
-			};
+			}
 		}
 
 
@@ -980,7 +980,7 @@ namespace pcit::panther{
 							"Tried to convert invalid integer string for exponent"
 						);
 					} break;
-				};
+				}
 			}
 		}
 
@@ -1061,7 +1061,7 @@ namespace pcit::panther{
 							"Tried to convert invalid literal floating-point number"
 						);
 					} break;
-				};
+				}
 			}
 
 			const float64_t parsed_number = converted_parsed_number.value();
@@ -1123,7 +1123,7 @@ namespace pcit::panther{
 						);
 						return true;
 					} break;
-				};
+				}
 			}
 
 
@@ -1135,10 +1135,10 @@ namespace pcit::panther{
 		}
 
 		return true;
-	};
+	}
 
 
-	auto Tokenizer::tokenize_string_literal() noexcept -> bool {
+	auto Tokenizer::tokenize_string_literal() -> bool {
 		if(this->char_stream.peek() != '"' && this->char_stream.peek() != '\''){ return false; }
 
 		const char delimiter = this->char_stream.next();
@@ -1178,7 +1178,7 @@ namespace pcit::panther{
 						);
 						return true;
 					}
-				};
+				}
 
 				this->char_stream.skip(2);
 
@@ -1192,7 +1192,7 @@ namespace pcit::panther{
 			}
 
 			if(unexpected_at_end){
-				const char* string_type_name = [&]() noexcept {
+				const char* string_type_name = [&]() {
 					if(delimiter == '"'){ return "string"; }
 					if(delimiter == '\''){ return "character"; }
 					evo::debugFatalBreak("Unknown delimiter");
@@ -1213,7 +1213,7 @@ namespace pcit::panther{
 				return true;	
 			}
 
-		};
+		}
 
 
 		this->char_stream.skip(1);
@@ -1226,14 +1226,14 @@ namespace pcit::panther{
 
 
 		return true;
-	};
+	}
 
 
 	//////////////////////////////////////////////////////////////////////
 	// create tokens
 
 
-	auto Tokenizer::create_token(Token::Kind kind, auto&&... val) noexcept -> void {
+	auto Tokenizer::create_token(Token::Kind kind, auto&&... val) -> void {
 		if(this->file_too_big()){ return; }
 
 		this->source.token_buffer.createToken(
@@ -1246,14 +1246,14 @@ namespace pcit::panther{
 			),
 			std::forward<decltype(val)>(val)...
 		);
-	};
+	}
 
 
 
 	//////////////////////////////////////////////////////////////////////
 	// errors
 
-	auto Tokenizer::file_too_big() noexcept -> bool {
+	auto Tokenizer::file_too_big() -> bool {
 		constexpr static size_t MAX_TOKENS = std::numeric_limits<uint32_t>::max();
 
 		if(this->source.token_buffer.size() >= MAX_TOKENS){
@@ -1276,26 +1276,26 @@ namespace pcit::panther{
 		}
 
 		return false;
-	};
+	}
 
 
-	auto Tokenizer::emit_warning(auto&&... args) noexcept -> void {
+	auto Tokenizer::emit_warning(auto&&... args) -> void {
 		this->context.emitWarning(std::forward<decltype(args)>(args)...);
-	};
+	}
 
-	auto Tokenizer::emit_error(auto&&... args) noexcept -> void {
+	auto Tokenizer::emit_error(auto&&... args) -> void {
 		this->context.emitError(std::forward<decltype(args)>(args)...);
 		this->can_continue = false;
-	};
+	}
 
-	auto Tokenizer::emit_fatal(auto&&... args) noexcept -> void {
+	auto Tokenizer::emit_fatal(auto&&... args) -> void {
 		this->context.emitFatal(std::forward<decltype(args)>(args)...);
 		this->can_continue = false;
-	};
+	}
 
 
 
-	EVO_NODISCARD static constexpr auto hex_from_4_bits(char num) noexcept -> char {
+	EVO_NODISCARD static constexpr auto hex_from_4_bits(char num) -> char {
 		switch(num){
 			case 0: return '0';
 			case 1: return '1';
@@ -1314,11 +1314,11 @@ namespace pcit::panther{
 			case 14: return 'E';
 			case 15: return 'F';
 			default: evo::debugFatalBreak("Not valid num (must be 4 bits)");
-		};
-	};
+		}
+	}
 
 
-	auto Tokenizer::error_unrecognized_character() noexcept -> void {
+	auto Tokenizer::error_unrecognized_character() -> void {
 		const char peeked_char = this->char_stream.peek();
 
 		if(peeked_char >= 0){
@@ -1429,14 +1429,14 @@ namespace pcit::panther{
 				charcode = utf8_str[3] & 0b1111;
 				utf8_charcodes_str.push_back(hex_from_4_bits(charcode));
 			} break;
-		};
+		}
 
 		this->emit_error(
 			Diagnostic::Code::TokUnrecognizedCharacter,
 			Source::Location(this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()),
 			std::format("Unrecognized character \"{}\" (UTF-8 code: {})", utf8_str, utf8_charcodes_str)
 		);
-	};
+	}
 
 
-};
+}

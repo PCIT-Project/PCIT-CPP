@@ -14,14 +14,14 @@
 namespace pcit::panther{
 	
 
-	Token::Token(Kind _kind, Location _location, const Source& source, std::string_view val) noexcept :
+	Token::Token(Kind _kind, Location _location, const Source& source, std::string_view val) :
 		kind(_kind),
 		location(_location), 
 		value{.string = {uint32_t(val.data() - source.getData().data()), uint32_t(val.size())}}
-		{};
+		{}
 
 
-	auto Token::getString(const Source& source) const noexcept -> std::string_view {
+	auto Token::getString(const Source& source) const -> std::string_view {
 		evo::debugAssert(
 			this->kind == Kind::LiteralString || this->kind == Kind::LiteralChar ||
 			this->kind == Kind::Ident || this->kind == Kind::Intrinsic || this->kind == Kind::Attribute,
@@ -32,7 +32,7 @@ namespace pcit::panther{
 		return std::string_view(
 			data + this->value.string.index, data + this->value.string.index + this->value.string.length
 		);
-	};
+	}
 
 
-};
+}

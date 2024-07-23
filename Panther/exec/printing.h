@@ -19,9 +19,9 @@ namespace panther = pcit::panther;
 namespace pthr{
 
 
-	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) noexcept -> void;
+	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) -> void;
 
-	auto printAST(pcit::core::Printer& printer, const panther::Source& source) noexcept -> void;
+	auto printAST(pcit::core::Printer& printer, const panther::Source& source) -> void;
 
 
-};
+}

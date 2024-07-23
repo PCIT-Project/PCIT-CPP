@@ -15,54 +15,54 @@
 namespace pcit::panther{
 	
 
-	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location) noexcept -> Token::ID {
+	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location) -> Token::ID {
 		this->tokens.emplace_back(kind, location);
 		return Token::ID(uint32_t(this->tokens.size()));
-	};
+	}
 
 
-	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, bool value) noexcept -> Token::ID {
+	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, bool value) -> Token::ID {
 		this->tokens.emplace_back(kind, location, value);
 		return Token::ID(uint32_t(this->tokens.size()));
-	};
+	}
 
-	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, uint64_t value) noexcept -> Token::ID {
+	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, uint64_t value) -> Token::ID {
 		this->tokens.emplace_back(kind, location, value);
 		return Token::ID(uint32_t(this->tokens.size()));
-	};
+	}
 
-	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, float64_t value) noexcept -> Token::ID {
+	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, float64_t value) -> Token::ID {
 		this->tokens.emplace_back(kind, location, value);
 		return Token::ID(uint32_t(this->tokens.size()));
-	};
+	}
 
 	auto TokenBuffer::createToken(
 		Token::Kind kind, Token::Location location, const Source& source, std::string_view value
-	) noexcept -> Token::ID {
+	) -> Token::ID {
 		this->tokens.emplace_back(kind, location, source, value);
 		return Token::ID(uint32_t(this->tokens.size()));
-	};
+	}
 
 	auto TokenBuffer::createToken(
 		Token::Kind kind, Token::Location location, const Source& source, std::string&& value
-	) noexcept -> Token::ID {
+	) -> Token::ID {
 		const std::unique_ptr<std::string>& saved_str = 
 			this->string_literals.emplace_back(std::make_unique<std::string>(value));
 
 		return this->createToken(kind, location, source, *saved_str);
-	};
+	}
 
 
 
-	auto TokenBuffer::get(Token::ID id) const noexcept -> const Token& {
+	auto TokenBuffer::get(Token::ID id) const -> const Token& {
 		return this->tokens[id.get()];
-	};
+	}
 
-	auto TokenBuffer::get(Token::ID id) noexcept -> Token& {
+	auto TokenBuffer::get(Token::ID id) -> Token& {
 		evo::debugAssert(this->isLocked() == false, "Cannot get mutable token when TokenBuffer is locked");
 		return this->tokens[id.get()];
-	};
+	}
 
 
 
-};
+}

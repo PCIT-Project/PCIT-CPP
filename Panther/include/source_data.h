@@ -41,18 +41,18 @@ namespace pcit::panther{
 		uint16_t collumnEnd;
 
 
-		SourceLocation(SourceID source_id, uint32_t line, uint16_t collumn) noexcept
-			: sourceID(source_id), lineStart(line), lineEnd(line), collumnStart(collumn), collumnEnd(collumn) {};
+		SourceLocation(SourceID source_id, uint32_t line, uint16_t collumn)
+			: sourceID(source_id), lineStart(line), lineEnd(line), collumnStart(collumn), collumnEnd(collumn) {}
 
 		SourceLocation(
 			SourceID source_id, uint32_t line_start, uint32_t line_end, uint16_t collumn_start, uint16_t collumn_end
-		) noexcept 
+		) 
 			: sourceID(source_id),
 			  lineStart(line_start),
 			  lineEnd(line_end),
 			  collumnStart(collumn_start),
 			  collumnEnd(collumn_end)
-			{};
+			{}
 	};
 
-};
+}

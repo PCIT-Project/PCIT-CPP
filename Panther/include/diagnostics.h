@@ -47,7 +47,7 @@ namespace pcit::panther{
 	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, Source::Location>;
 
 
-	EVO_NODISCARD inline auto printDiagnosticCode(DiagnosticCode code) noexcept -> std::string_view {
+	EVO_NODISCARD inline auto printDiagnosticCode(DiagnosticCode code) -> std::string_view {
 		switch(code){
 			break; case DiagnosticCode::TokUnrecognizedCharacter:           return "T1";
 			break; case DiagnosticCode::TokUnterminatedMultilineComment:    return "T2";
@@ -72,18 +72,18 @@ namespace pcit::panther{
 
 			break; case DiagnosticCode::MiscFileDoesNotExist: return "M1";
 			break; case DiagnosticCode::MiscLoadFileFailed:   return "M2";
-		};
+		}
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");
-	};
+	}
 
-};
+}
 
 
 
 template<>
 struct std::formatter<pcit::panther::DiagnosticCode> : std::formatter<std::string_view> {
-    auto format(const pcit::panther::DiagnosticCode& code, std::format_context& ctx) {
-        return std::formatter<std::string_view>::format(printDiagnosticCode(code), ctx);
-    };
+    auto format(const pcit::panther::DiagnosticCode& code, std::format_context& ctx) const {
+        return std::formatter<std::string_view>::format(pcit::panther::printDiagnosticCode(code), ctx);
+    }
 };

@@ -23,16 +23,16 @@ namespace pcit::panther{
 
 	class Parser{
 		public:
-			Parser(Context& _context, Source::ID source_id) noexcept :
+			Parser(Context& _context, Source::ID source_id) :
 				context(_context),
 				source(this->context.getSourceManager().getSource(source_id)),
 				reader(this->source.getTokenBuffer())
-				{};
+				{}
 
 			~Parser() = default;
 
 
-			EVO_NODISCARD auto parse() noexcept -> bool;
+			EVO_NODISCARD auto parse() -> bool;
 
 
 		private:
@@ -45,21 +45,21 @@ namespace pcit::panther{
 					};
 
 				public:
-					Result(Code res_code) noexcept : result_code(res_code) {};
-					Result(AST::Node val) noexcept : result_code(Code::Success), node(val) {};
+					Result(Code res_code) : result_code(res_code) {}
+					Result(AST::Node val) : result_code(Code::Success), node(val) {}
 
-					Result(const Result& rhs) noexcept = default;
+					Result(const Result& rhs) = default;
 
 					~Result() = default;
 
-					EVO_NODISCARD auto code() const noexcept -> Code { return this->result_code; };
-					EVO_NODISCARD auto value() const noexcept -> const AST::Node& {
+					EVO_NODISCARD auto code() const -> Code { return this->result_code; }
+					EVO_NODISCARD auto value() const -> const AST::Node& {
 						evo::debugAssert(
 							this->result_code == Code::Success,
 							"Attempted to get value from result that has no value"
 						);
 						return this->node;
-					};
+					}
 			
 				private:
 					Code result_code;
@@ -72,12 +72,12 @@ namespace pcit::panther{
 			static_assert(std::is_trivially_copyable_v<Result>, "Result is not trivially copyable");
 
 
-			EVO_NODISCARD auto parse_stmt() noexcept -> Result;
+			EVO_NODISCARD auto parse_stmt() -> Result;
 
-			EVO_NODISCARD auto parse_var_decl() noexcept -> Result;
-			EVO_NODISCARD auto parse_func_decl() noexcept -> Result;
-			EVO_NODISCARD auto parse_return() noexcept -> Result;
-			EVO_NODISCARD auto parse_assignment() noexcept -> Result;
+			EVO_NODISCARD auto parse_var_decl() -> Result;
+			EVO_NODISCARD auto parse_func_decl() -> Result;
+			EVO_NODISCARD auto parse_return() -> Result;
+			EVO_NODISCARD auto parse_assignment() -> Result;
 
 			enum class BlockLabelRequirement{
 				Required,
@@ -85,14 +85,14 @@ namespace pcit::panther{
 				Optional,
 			};
 			// TODO: make label_requirement template?
-			EVO_NODISCARD auto parse_block(BlockLabelRequirement label_requirement) noexcept -> Result;
-			EVO_NODISCARD auto parse_type(bool is_expr = false) noexcept -> Result;
+			EVO_NODISCARD auto parse_block(BlockLabelRequirement label_requirement) -> Result;
+			EVO_NODISCARD auto parse_type(bool is_expr = false) -> Result;
 
-			EVO_NODISCARD auto parse_expr() noexcept -> Result;
-			EVO_NODISCARD auto parse_sub_expr() noexcept -> Result;
-			EVO_NODISCARD auto parse_infix_expr() noexcept -> Result;
-			EVO_NODISCARD auto parse_infix_expr_impl(AST::Node lhs, int prec_level) noexcept -> Result;
-			EVO_NODISCARD auto parse_prefix_expr() noexcept -> Result;
+			EVO_NODISCARD auto parse_expr() -> Result;
+			EVO_NODISCARD auto parse_sub_expr() -> Result;
+			EVO_NODISCARD auto parse_infix_expr() -> Result;
+			EVO_NODISCARD auto parse_infix_expr_impl(AST::Node lhs, int prec_level) -> Result;
+			EVO_NODISCARD auto parse_prefix_expr() -> Result;
 
 			enum class IsTypeTerm{
 				Yes,
@@ -100,23 +100,23 @@ namespace pcit::panther{
 				Maybe,
 			};
 			// TODO: make is_type_term template?
-			EVO_NODISCARD auto parse_term(IsTypeTerm is_type_term = IsTypeTerm::No) noexcept -> Result; 
-			EVO_NODISCARD auto parse_term_stmt() noexcept -> Result;
-			EVO_NODISCARD auto parse_encapsulated_expr() noexcept -> Result;
-			EVO_NODISCARD auto parse_atom() noexcept -> Result;
+			EVO_NODISCARD auto parse_term(IsTypeTerm is_type_term = IsTypeTerm::No) -> Result; 
+			EVO_NODISCARD auto parse_term_stmt() -> Result;
+			EVO_NODISCARD auto parse_encapsulated_expr() -> Result;
+			EVO_NODISCARD auto parse_atom() -> Result;
 
-			EVO_NODISCARD auto parse_attribute_block() noexcept -> Result;
-			EVO_NODISCARD auto parse_ident() noexcept -> Result;
-			EVO_NODISCARD auto parse_intrinsic() noexcept -> Result;
-			EVO_NODISCARD auto parse_literal() noexcept -> Result;
-			EVO_NODISCARD auto parse_uninit() noexcept -> Result;
-			EVO_NODISCARD auto parse_this() noexcept -> Result;
+			EVO_NODISCARD auto parse_attribute_block() -> Result;
+			EVO_NODISCARD auto parse_ident() -> Result;
+			EVO_NODISCARD auto parse_intrinsic() -> Result;
+			EVO_NODISCARD auto parse_literal() -> Result;
+			EVO_NODISCARD auto parse_uninit() -> Result;
+			EVO_NODISCARD auto parse_this() -> Result;
 
 
-			EVO_NODISCARD auto parse_template_pack() noexcept -> Result;
+			EVO_NODISCARD auto parse_template_pack() -> Result;
 
-			EVO_NODISCARD auto parse_func_params() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>>;
-			EVO_NODISCARD auto parse_func_returns() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;
+			EVO_NODISCARD auto parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>>;
+			EVO_NODISCARD auto parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;
 
 
 			///////////////////////////////////
@@ -124,12 +124,12 @@ namespace pcit::panther{
 
 			auto expected_but_got(
 				std::string_view location_str, const Token& token, evo::SmallVector<Diagnostic::Info>&& infos = {}
-			) noexcept -> void;
+			) -> void;
 
-			EVO_NODISCARD auto check_result_fail(const Result& result, std::string_view location_str) noexcept -> bool;
+			EVO_NODISCARD auto check_result_fail(const Result& result, std::string_view location_str) -> bool;
 
-			EVO_NODISCARD auto assert_token_fail(Token::Kind kind) noexcept -> bool;
-			EVO_NODISCARD auto expect_token_fail(Token::Kind kind, std::string_view location_str) noexcept -> bool;
+			EVO_NODISCARD auto assert_token_fail(Token::Kind kind) -> bool;
+			EVO_NODISCARD auto expect_token_fail(Token::Kind kind, std::string_view location_str) -> bool;
 
 
 		private:
@@ -142,14 +142,14 @@ namespace pcit::panther{
 
 			class TokenReader{
 				public:
-					TokenReader(const TokenBuffer& token_buffer) noexcept : buffer(token_buffer) {};
+					TokenReader(const TokenBuffer& token_buffer) : buffer(token_buffer) {}
 					~TokenReader() = default;
 
-					EVO_NODISCARD auto at_end() const noexcept -> uint32_t {
+					EVO_NODISCARD auto at_end() const -> uint32_t {
 						return this->cursor >= this->buffer.size();
-					};
+					}
 
-					EVO_NODISCARD auto peek(ptrdiff_t offset = 0) const noexcept -> Token::ID {
+					EVO_NODISCARD auto peek(ptrdiff_t offset = 0) const -> Token::ID {
 						const ptrdiff_t peek_location = ptrdiff_t(this->cursor) + offset;
 
 						evo::debugAssert(peek_location >= 0, "cannot peek past beginning of buffer");
@@ -158,32 +158,32 @@ namespace pcit::panther{
 						);
 
 						return Token::ID(uint32_t(peek_location));
-					};
+					}
 
-					auto skip() noexcept -> void {
+					auto skip() -> void {
 						evo::debugAssert(this->at_end() == false, "already at end");
 
 						this->cursor += 1;
-					};
+					}
 
-					EVO_NODISCARD auto next() noexcept -> Token::ID {
+					EVO_NODISCARD auto next() -> Token::ID {
 						EVO_DEFER([&](){ this->skip(); });
 						return this->peek();
-					};
+					}
 
 
-					EVO_NODISCARD auto get(Token::ID id) const noexcept -> const Token& {
+					EVO_NODISCARD auto get(Token::ID id) const -> const Token& {
 						return this->buffer[id];
-					};
+					}
 
-					EVO_NODISCARD auto operator[](Token::ID id) const noexcept -> const Token& {
+					EVO_NODISCARD auto operator[](Token::ID id) const -> const Token& {
 						return this->get(id);
-					};
+					}
 
-					EVO_NODISCARD auto go_back(Token::ID id) noexcept -> void {
+					EVO_NODISCARD auto go_back(Token::ID id) -> void {
 						evo::debugAssert(id.get() < this->cursor, "id is not before current location");
 						this->cursor = id.get();
-					};
+					}
 
 			
 				private:
@@ -197,4 +197,4 @@ namespace pcit::panther{
 	};
 
 
-};
+}

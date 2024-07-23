@@ -15,46 +15,44 @@
 namespace pcit::panther{
 
 
-	Context::Context(DiagnosticCallback diagnostic_callback, const Config& _config) noexcept 
+	Context::Context(DiagnosticCallback diagnostic_callback, const Config& _config) 
 		: callback(diagnostic_callback), config(_config) {
 		evo::debugAssert(this->config.maxNumErrors > 0, "Max num errors cannot be 0");
-	};
+	}
 
 
-	Context::~Context() noexcept {
+	Context::~Context() {
 		if(this->isMultiThreaded() && this->threadsRunning()){
 			this->shutdownThreads();
 		}
-	};
+	}
 	
 
-	auto Context::optimalNumThreads() noexcept -> evo::uint {
+	auto Context::optimalNumThreads() -> evo::uint {
 		return std::thread::hardware_concurrency() - 1;
-	};
+	}
 
 
 
-	auto Context::threadsRunning() const noexcept -> bool {
+	auto Context::threadsRunning() const -> bool {
 		evo::debugAssert(this->isMultiThreaded(), "Context is not set to be multi-threaded");
 
 		if(this->workers.empty()){ return false; }
 
 		return this->shutting_down_threads.test() == false;
-	};
+	}
 
 
-	auto Context::startupThreads() noexcept -> void {
+	auto Context::startupThreads() -> void {
 		evo::debugAssert(this->isMultiThreaded(), "Context is not set to be multi-threaded");
 		evo::debugAssert(this->threadsRunning() == false, "Threads already running");
 
 		this->workers.reserve(this->config.numThreads);
 
-		static constexpr auto worker_controller_impl = [](
-			std::stop_token stop_token, Worker& worker
-		) noexcept -> void {
+		static constexpr auto worker_controller_impl = [](std::stop_token stop_token, Worker& worker) -> void {
 			while(stop_token.stop_requested() == false){
 				worker.get_task();
-			};
+			}
 
 			worker.done();
 		};
@@ -63,7 +61,7 @@ namespace pcit::panther{
 		for(size_t i = 0; i < this->config.numThreads; i+=1){
 			Worker& new_worker = this->workers.emplace_back(this);
 
-			auto worker_controller = [context = this, &new_worker](std::stop_token stop_token) noexcept -> void {
+			auto worker_controller = [&new_worker](std::stop_token stop_token) -> void {
 				worker_controller_impl(stop_token, new_worker);
 			};
 
@@ -73,15 +71,15 @@ namespace pcit::panther{
 		}
 
 		this->emitDebug("pcit::panther::Context started up threads");
-	};
+	}
 
-	auto Context::shutdownThreads() noexcept -> void {
+	auto Context::shutdownThreads() -> void {
 		evo::debugAssert(this->isMultiThreaded(), "Context is not set to be multi-threaded");
 		evo::debugAssert(this->workers.empty() == false, "Threads are not running");
 
 		const bool already_shutting_down = this->shutting_down_threads.test_and_set();
 		if(already_shutting_down){ return; }
-		EVO_DEFER([&]() noexcept -> void { this->shutting_down_threads.clear(); } );
+		EVO_DEFER([&]() -> void { this->shutting_down_threads.clear(); } );
 
 		if(this->workers.empty()){ return; }
 
@@ -89,17 +87,17 @@ namespace pcit::panther{
 			worker.getThread().request_stop();
 		}
 
-		while(this->num_threads_running != 0){};
+		while(this->num_threads_running != 0){}
 
 		this->workers.clear();
 
 		this->task_group_running = false;
 
 		this->emitDebug("pcit::panther::Context shutdown threads");
-	};
+	}
 
 
-	auto Context::waitForAllTasks() noexcept -> void {
+	auto Context::waitForAllTasks() -> void {
 		evo::debugAssert(this->isMultiThreaded(), "Context is not set to be multi-threaded");
 		evo::debugAssert(this->threadsRunning(), "Threads are not running");
 		evo::debugAssert(
@@ -110,7 +108,7 @@ namespace pcit::panther{
 
 		while(this->tasks.empty() == false){
 			std::this_thread::sleep_for(std::chrono::milliseconds(32));
-		};
+		}
 
 		while(true){
 			bool all_done = true;
@@ -127,15 +125,15 @@ namespace pcit::panther{
 			}
 
 			std::this_thread::sleep_for(std::chrono::milliseconds(32));
-		};
+		}
 
 		this->task_group_running = false;
-	};
+	}
 
 
 
 
-	auto Context::loadFiles(evo::ArrayProxy<fs::path> file_paths) noexcept -> void {
+	auto Context::loadFiles(evo::ArrayProxy<fs::path> file_paths) -> void {
 		evo::debugAssert(
 			this->isSingleThreaded() || this->threadsRunning(),
 			"Context is set to be multi-threaded, but threads are not running"
@@ -156,10 +154,10 @@ namespace pcit::panther{
 		if(this->isSingleThreaded()){
 			this->consume_tasks_single_threaded();
 		}
-	};
+	}
 
 
-	auto Context::tokenizeLoadedFiles() noexcept -> void {
+	auto Context::tokenizeLoadedFiles() -> void {
 		evo::debugAssert(this->task_group_running == false, "Task group already running");
 
 		{
@@ -175,10 +173,10 @@ namespace pcit::panther{
 		if(this->isSingleThreaded()){
 			this->consume_tasks_single_threaded();
 		}
-	};
+	}
 
 
-	auto Context::parseLoadedFiles() noexcept -> void {
+	auto Context::parseLoadedFiles() -> void {
 		evo::debugAssert(this->task_group_running == false, "Task group already running");
 
 		{
@@ -194,19 +192,19 @@ namespace pcit::panther{
 		if(this->isSingleThreaded()){
 			this->consume_tasks_single_threaded();
 		}
-	};
+	}
 
 
 
 
-	auto Context::emit_diagnostic_impl(const Diagnostic& diagnostic) noexcept -> void {
+	auto Context::emit_diagnostic_impl(const Diagnostic& diagnostic) -> void {
 		const auto lock_guard = std::lock_guard(this->callback_mutex);
 
 		this->callback(*this, diagnostic);
-	};
+	}
 
 
-	auto Context::notify_task_errored() noexcept -> void {
+	auto Context::notify_task_errored() -> void {
 		if(this->num_errors >= this->config.maxNumErrors){
 			this->hit_fail_condition = true;
 		}
@@ -214,37 +212,37 @@ namespace pcit::panther{
 		if(this->hasHitFailCondition() && this->isMultiThreaded()){
 			// in a separate thread to prevent process from dead-locking when waiting for threads
 			//  	(the worker thread that calls this function is never able to call its `done` function)
-			std::thread([&]() noexcept -> void {
+			std::thread([&]() -> void {
 				this->shutdownThreads();
 			}).detach();
 		}
-	};
+	}
 
 
-	auto Context::consume_tasks_single_threaded() noexcept -> void {
+	auto Context::consume_tasks_single_threaded() -> void {
 		evo::debugAssert(this->isSingleThreaded(), "Context is not set to be single threaded");
 
 		auto worker = Worker(this);
 
 		while(this->tasks.empty() == false && this->hasHitFailCondition() == false){
 			worker.get_task_single_threaded();
-		};
+		}
 
 		this->task_group_running = false;
-	};
+	}
 
 
 	//////////////////////////////////////////////////////////////////////
 	// Worker
 
 
-	auto Context::Worker::done() noexcept -> void {
+	auto Context::Worker::done() -> void {
 		this->is_working = false;
 		this->context->num_threads_running -= 1;
-	};
+	}
 
 
-	auto Context::Worker::get_task() noexcept -> void {
+	auto Context::Worker::get_task() -> void {
 		evo::debugAssert(this->context->isMultiThreaded(), "Context is not set to be multi-threaded");
 
 		auto task = std::unique_ptr<Task>();
@@ -268,10 +266,10 @@ namespace pcit::panther{
 			this->is_working = true;
 			this->run_task(*task);
 		}
-	};
+	}
 
 
-	auto Context::Worker::get_task_single_threaded() noexcept -> void {
+	auto Context::Worker::get_task_single_threaded() -> void {
 		evo::debugAssert(this->context->isSingleThreaded(), "Context is not set to be single-threaded");
 
 		this->is_working = true;
@@ -283,11 +281,11 @@ namespace pcit::panther{
 		}
 
 		this->is_working = false;
-	};
+	}
 
 
-	auto Context::Worker::run_task(const Task& task) noexcept -> void {
-		task.visit([&](auto& value) noexcept -> void {
+	auto Context::Worker::run_task(const Task& task) -> void {
+		task.visit([&](auto& value) -> void {
 			using ValueT = std::decay_t<decltype(value)>;
 
 			     if constexpr(std::is_same_v<ValueT, LoadFileTask>){     this->run_load_file(value);     }
@@ -295,11 +293,11 @@ namespace pcit::panther{
 			else if constexpr(std::is_same_v<ValueT, ParseFileTask>){    this->run_parse_file(value);    }
 		});
 
-	};
+	}
 
 
 
-	auto Context::Worker::run_load_file(const LoadFileTask& task) noexcept -> void {
+	auto Context::Worker::run_load_file(const LoadFileTask& task) -> void {
 		if(evo::fs::exists(task.path.string()) == false){
 			this->context->num_errors += 1;
 			this->context->emit_diagnostic_internal(
@@ -337,11 +335,11 @@ namespace pcit::panther{
 
 		const auto lock_guard = std::lock_guard(this->context->src_manager_mutex);
 		this->context->getSourceManager().addSource(std::move(task.path), std::move(data_res.value()));
-	};
+	}
 
 
 
-	auto Context::Worker::run_tokenize_file(const TokenizeFileTask& task) noexcept -> void {
+	auto Context::Worker::run_tokenize_file(const TokenizeFileTask& task) -> void {
 		auto tokenizer = Tokenizer(*this->context, task.source_id);
 
 		const bool tokenize_result = tokenizer.tokenize();
@@ -350,11 +348,11 @@ namespace pcit::panther{
 		const SourceManager& source_manager = this->context->getSourceManager();
 		const Source& source = source_manager.getSource(task.source_id);
 		this->context->emitTrace("Tokenized file: \"{}\"", source.getLocationAsString());
-	};
+	}
 
 
 
-	auto Context::Worker::run_parse_file(const ParseFileTask& task) noexcept -> void {
+	auto Context::Worker::run_parse_file(const ParseFileTask& task) -> void {
 		auto parser = Parser(*this->context, task.source_id);
 
 		const bool parse_result = parser.parse();
@@ -363,8 +361,8 @@ namespace pcit::panther{
 		const SourceManager& source_manager = this->context->getSourceManager();
 		const Source& source = source_manager.getSource(task.source_id);
 		this->context->emitTrace("Parsed file: \"{}\"", source.getLocationAsString());
-	};
+	}
 
 
 
-};
+}

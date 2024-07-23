@@ -11,6 +11,7 @@
 
 #include <queue>
 #include <memory>
+#include <mutex>
 #include <filesystem>
 namespace fs = std::filesystem;
 
@@ -35,114 +36,114 @@ namespace pcit::panther{
 
 		public:
 			// pass 0 for _num_threads for single threaded
-			Context(DiagnosticCallback diagnostic_callback, const Config& _config) noexcept;
-			~Context() noexcept;
+			Context(DiagnosticCallback diagnostic_callback, const Config& _config);
+			~Context();
 
 			Context(const Context&) = delete;
 			auto operator=(const Context&) = delete;
 
 			// Returns 0 if number is unknown
-			EVO_NODISCARD static auto optimalNumThreads() noexcept -> evo::uint;
+			EVO_NODISCARD static auto optimalNumThreads() -> evo::uint;
 
-			EVO_NODISCARD auto isSingleThreaded() const noexcept -> bool { return this->config.numThreads == 0; };
-			EVO_NODISCARD auto isMultiThreaded() const noexcept -> bool { return this->config.numThreads != 0; };
+			EVO_NODISCARD auto isSingleThreaded() const -> bool { return this->config.numThreads == 0; }
+			EVO_NODISCARD auto isMultiThreaded() const -> bool { return this->config.numThreads != 0; }
 
 
-			EVO_NODISCARD auto threadsRunning() const noexcept -> bool;
-			auto startupThreads() noexcept -> void;
-			auto shutdownThreads() noexcept -> void;
-			auto waitForAllTasks() noexcept -> void;
+			EVO_NODISCARD auto threadsRunning() const -> bool;
+			auto startupThreads() -> void;
+			auto shutdownThreads() -> void;
+			auto waitForAllTasks() -> void;
 
 
 			// Loads a number of files in a multithreaded. 
 			// TODO: Make sure the following comment is actually true
 			// No other files should be loaded before or after calling this function. If you want more granular control,
 			// 		load files through the Source Manager directly, (Call this->getSourceManager())
-			auto loadFiles(evo::ArrayProxy<fs::path> file_paths) noexcept -> void;
+			auto loadFiles(evo::ArrayProxy<fs::path> file_paths) -> void;
 
-			auto tokenizeLoadedFiles() noexcept -> void;
+			auto tokenizeLoadedFiles() -> void;
 
-			auto parseLoadedFiles() noexcept -> void;
+			auto parseLoadedFiles() -> void;
 
 			
 
 
 
 
-			EVO_NODISCARD auto errored() const noexcept -> bool { return this->num_errors != 0; };
-			EVO_NODISCARD auto hasHitFailCondition() const noexcept -> bool { return this->hit_fail_condition; };
+			EVO_NODISCARD auto errored() const -> bool { return this->num_errors != 0; }
+			EVO_NODISCARD auto hasHitFailCondition() const -> bool { return this->hit_fail_condition; }
 
-			EVO_NODISCARD auto getSourceManager()       noexcept ->       SourceManager& { return this->src_manager; };
-			EVO_NODISCARD auto getSourceManager() const noexcept -> const SourceManager& { return this->src_manager; };
+			EVO_NODISCARD auto getSourceManager()       ->       SourceManager& { return this->src_manager; }
+			EVO_NODISCARD auto getSourceManager() const -> const SourceManager& { return this->src_manager; }
 
-			EVO_NODISCARD auto getConfig() const noexcept -> const Config& { return this->config; };
+			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
 
 
 
 			///////////////////////////////////
 			// internal use only
 
-			auto emitFatal(auto&&... args) noexcept -> void {
+			auto emitFatal(auto&&... args) -> void {
 				this->num_errors += 1;
 				if(this->num_errors <= this->config.maxNumErrors){
 					this->emit_diagnostic_internal(Diagnostic::Level::Fatal, std::forward<decltype(args)>(args)...);
 				}
 				this->notify_task_errored();
-			};
+			}
 
-			auto emitError(auto&&... args) noexcept -> void {
+			auto emitError(auto&&... args) -> void {
 				this->num_errors += 1;
 				if(this->num_errors <= this->config.maxNumErrors){
 					this->emit_diagnostic_internal(Diagnostic::Level::Error, std::forward<decltype(args)>(args)...);
 				}
 				this->notify_task_errored();
-			};
+			}
 
-			auto emitWarning(auto&&... args) noexcept -> void {
+			auto emitWarning(auto&&... args) -> void {
 				this->emit_diagnostic_internal(Diagnostic::Level::Warning, std::forward<decltype(args)>(args)...);
-			};
+			}
 
 
-			auto emitDebug([[maybe_unused]] std::string_view message) noexcept -> void {
+			auto emitDebug([[maybe_unused]] std::string_view message) -> void {
 				#if defined(PCIT_BUILD_DEBUG)
 					const auto lock_guard = std::lock_guard(this->callback_mutex);
 					evo::log::debug(message);
 				#endif
-			};
+			}
 
 			template<class... Args>
-			auto emitDebug([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) noexcept
+			auto emitDebug([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args)
 			-> void {
 				#if defined(PCIT_BUILD_DEBUG)
 					const auto lock_guard = std::lock_guard(this->callback_mutex);
 					evo::log::debug(fmt, std::forward<decltype(args)>(args)...);
 				#endif
-			};
+			}
 
-			auto emitTrace([[maybe_unused]] std::string_view message) noexcept -> void {
+			auto emitTrace([[maybe_unused]] std::string_view message) -> void {
 				#if defined(PCIT_BUILD_DEBUG)
 					const auto lock_guard = std::lock_guard(this->callback_mutex);
 					evo::log::trace(message);
 				#endif
-			};
+			}
 
 			template<class... Args>
-			auto emitTrace([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args) noexcept
+			auto emitTrace([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args)
 			-> void {
 				#if defined(PCIT_BUILD_DEBUG)
 					const auto lock_guard = std::lock_guard(this->callback_mutex);
 					evo::log::trace(fmt, std::forward<decltype(args)>(args)...);
 				#endif
-			};
+			}
 		private:
-			auto emit_diagnostic_internal(auto&&... args) noexcept -> void {
+			auto emit_diagnostic_internal(auto&&... args) -> void {
 				auto diagnostic = Diagnostic(std::forward<decltype(args)>(args)...);
 				this->emit_diagnostic_impl(diagnostic);
-			};
+			}
 
-			auto emit_diagnostic_impl(const Diagnostic& diagnostic) noexcept -> void;
-			auto notify_task_errored() noexcept -> void;
-			auto consume_tasks_single_threaded() noexcept -> void;
+			auto emit_diagnostic_impl(const Diagnostic& diagnostic) -> void;
+			auto notify_task_errored() -> void;
+			auto consume_tasks_single_threaded() -> void;
 	
 		private:
 			Config config;
@@ -185,32 +186,32 @@ namespace pcit::panther{
 
 			class Worker{
 				public:
-					Worker() noexcept : context(nullptr) {};
+					Worker() : context(nullptr) {}
 
-					Worker(Context* _context) noexcept : context(_context) {};
+					Worker(Context* _context) : context(_context) {}
 					~Worker() = default;
 
 					Worker(const Worker&) = delete;
-					Worker(Worker&& rhs) noexcept 
+					Worker(Worker&& rhs) 
 						: context(std::exchange(rhs.context, nullptr)),
 						  is_working(rhs.is_working),
-						  thread(std::move(rhs.thread)) {};
+						  thread(std::move(rhs.thread)) {}
 
 
-					auto done() noexcept -> void;
-					auto get_task() noexcept -> void;
-					auto get_task_single_threaded() noexcept -> void;
+					auto done() -> void;
+					auto get_task() -> void;
+					auto get_task_single_threaded() -> void;
 
-					EVO_NODISCARD auto isWorking() const noexcept -> bool { return this->is_working; };
+					EVO_NODISCARD auto isWorking() const -> bool { return this->is_working; }
 
-					EVO_NODISCARD auto getThread()       noexcept ->       std::jthread& { return this->thread; };
-					EVO_NODISCARD auto getThread() const noexcept -> const std::jthread& { return this->thread; };
+					EVO_NODISCARD auto getThread()       ->       std::jthread& { return this->thread; }
+					EVO_NODISCARD auto getThread() const -> const std::jthread& { return this->thread; }
 
 				private:
-					auto run_task(const Task& task) noexcept -> void;
-					auto run_load_file(const LoadFileTask& task) noexcept -> void;
-					auto run_tokenize_file(const TokenizeFileTask& task) noexcept -> void;
-					auto run_parse_file(const ParseFileTask& task) noexcept -> void;
+					auto run_task(const Task& task) -> void;
+					auto run_load_file(const LoadFileTask& task) -> void;
+					auto run_tokenize_file(const TokenizeFileTask& task) -> void;
+					auto run_parse_file(const ParseFileTask& task) -> void;
 
 				private:
 					Context* context;
@@ -223,4 +224,4 @@ namespace pcit::panther{
 	};
 
 
-};
+}

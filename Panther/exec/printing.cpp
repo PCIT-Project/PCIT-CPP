@@ -14,7 +14,7 @@ namespace pthr{
 	//////////////////////////////////////////////////////////////////////
 	// tokens
 
-	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) noexcept -> void {
+	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) -> void {
 		const panther::TokenBuffer& token_buffer = source.getTokenBuffer();
 
 		///////////////////////////////////
@@ -49,7 +49,7 @@ namespace pthr{
 
 		const size_t longest_location_string_length = std::max_element(
 			location_strings.begin(), location_strings.end(),
-			[](const std::string& lhs, const std::string& rhs) noexcept -> bool {
+			[](const std::string& lhs, const std::string& rhs) -> bool {
 				return lhs.size() < rhs.size();
 			}
 		)->size();
@@ -57,7 +57,7 @@ namespace pthr{
 		for(std::string& str : location_strings){
 			while(str.size() < longest_location_string_length){
 				str += ' ';
-			};
+			}
 
 			str += ' ';
 		}
@@ -73,7 +73,7 @@ namespace pthr{
 			printer.printInfo("[{}]", token.getKind());
 
 
-			const std::string data_str = [&]() noexcept {
+			const std::string data_str = [&]() {
 				switch(token.getKind()){
 					break; case panther::Token::Kind::Ident:     return std::format(" {}", token.getString(source));
 					break; case panther::Token::Kind::Intrinsic: return std::format(" @{}", token.getString(source));
@@ -88,7 +88,7 @@ namespace pthr{
 						return std::format(" \"{}\"", token.getString(source));
 
 					break; default: return std::string();
-				};
+				}
 			}();
 
 			printer.printMagenta(data_str + '\n');
@@ -96,7 +96,7 @@ namespace pthr{
 			i += 1;
 		}
 		
-	};
+	}
 
 
 
@@ -106,28 +106,28 @@ namespace pthr{
 
 	class Indenter{
 		public:
-			Indenter(pcit::core::Printer& _printer) noexcept : printer(_printer) {};
+			Indenter(pcit::core::Printer& _printer) : printer(_printer) {}
 			~Indenter() = default;
 
-			auto push() noexcept -> void {
+			auto push() -> void {
 				this->indents.emplace_back(IndenterType::EndArrow);
-			};
+			}
 
 
-			auto pop() noexcept -> void {
+			auto pop() -> void {
 				this->indents.pop_back();
-			};
+			}
 
-			auto set_arrow() noexcept -> void {
+			auto set_arrow() -> void {
 				this->indents.back() = IndenterType::Arrow;
-			};
+			}
 
-			auto set_end() noexcept -> void {
+			auto set_end() -> void {
 				this->indents.back() = IndenterType::EndArrow;		
-			};
+			}
 
 
-			auto print() noexcept -> void {
+			auto print() -> void {
 				auto print_string = std::string{};
 
 				for(const IndenterType& indent : this->indents){
@@ -136,7 +136,7 @@ namespace pthr{
 						break; case IndenterType::Arrow:    print_string += "|-> ";
 						break; case IndenterType::EndArrow: print_string += "\\-> ";
 						break; case IndenterType::None:     print_string += "    ";
-					};
+					}
 				}
 
 				this->printer.printGray(print_string);
@@ -149,18 +149,18 @@ namespace pthr{
 						this->indents.back() = IndenterType::None;
 					}
 				}
-			};
+			}
 
 
-			auto print_arrow() noexcept -> void {
+			auto print_arrow() -> void {
 				this->set_arrow();
 				this->print();
-			};
+			}
 
-			auto print_end() noexcept -> void {
+			auto print_end() -> void {
 				this->set_end();
 				this->print();
-			};
+			}
 
 	
 		private:
@@ -180,12 +180,12 @@ namespace pthr{
 
 	class ASTPrinter{
 		public:
-			ASTPrinter(pcit::core::Printer& _printer, const panther::Source& _source) noexcept 
-				: printer(_printer), source(_source), ast_buffer(this->source.getASTBuffer()), indenter(_printer) {};
+			ASTPrinter(pcit::core::Printer& _printer, const panther::Source& _source) 
+				: printer(_printer), source(_source), ast_buffer(this->source.getASTBuffer()), indenter(_printer) {}
 			~ASTPrinter() = default;
 
 
-			auto print_header() noexcept -> void {
+			auto print_header() -> void {
 				this->printer.printGray("------------------------------\n");
 
 				this->printer.printCyan("AST: {}\n", source.getLocationAsString());
@@ -199,17 +199,17 @@ namespace pthr{
 				}else{
 					this->printer.printGray("({} global statements)\n", ast_buffer.numGlobalStmts());
 				}
-			};
+			}
 
-			auto print_globals() noexcept -> void {
+			auto print_globals() -> void {
 				for(const panther::AST::Node& global_stmt : ast_buffer.getGlobalStmts()){
 					this->print_stmt(global_stmt);
 				}
-			};
+			}
 
 
 		private:
-			auto print_stmt(const panther::AST::Node& stmt) noexcept -> void {
+			auto print_stmt(const panther::AST::Node& stmt) -> void {
 				switch(stmt.getKind()){
 					case panther::AST::Kind::VarDecl: {
 						this->print_var_decl(this->ast_buffer.getVarDecl(stmt));
@@ -247,10 +247,10 @@ namespace pthr{
 							"Unknown or unsupported statement kind ({})", evo::to_underlying(stmt.getKind())
 						);
 					} break;
-				};
-			};
+				}
+			}
 
-			auto print_var_decl(const panther::AST::VarDecl& var_decl) noexcept -> void {
+			auto print_var_decl(const panther::AST::VarDecl& var_decl) -> void {
 				this->indenter.print();
 				this->print_major_header("Variable Declaration");
 
@@ -287,10 +287,10 @@ namespace pthr{
 					
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_func_decl(const panther::AST::FuncDecl& func_decl) noexcept -> void {
+			auto print_func_decl(const panther::AST::FuncDecl& func_decl) -> void {
 				this->indenter.print();
 				this->print_major_header("Function Declaration");
 
@@ -387,7 +387,7 @@ namespace pthr{
 									break; case ParamKind::Read: this->printer.printMagenta(" {read}\n");
 									break; case ParamKind::Mut: this->printer.printMagenta(" {mut}\n");
 									break; case ParamKind::In: this->printer.printMagenta(" {in}\n");
-								};
+								}
 
 								this->indenter.set_end();
 								this->print_attribute_block(this->ast_buffer.getAttributeBlock(param.attributeBlock));
@@ -448,10 +448,10 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_return(const panther::AST::Return& ret) noexcept -> void {
+			auto print_return(const panther::AST::Return& ret) -> void {
 				this->indenter.print();
 				this->print_major_header("Return");
 
@@ -480,10 +480,10 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_block(const panther::AST::Block& block, bool is_not_on_newline = true) noexcept -> void {
+			auto print_block(const panther::AST::Block& block, bool is_not_on_newline = true) -> void {
 				if(block.stmts.empty()){
 					this->printer.printGray(" {EMPTY}\n");
 
@@ -529,11 +529,11 @@ namespace pthr{
 						this->indenter.pop();
 					}
 				}
-			};
+			}
 
 
 
-			auto print_base_type(const panther::AST::Node& base_type) noexcept -> void {
+			auto print_base_type(const panther::AST::Node& base_type) -> void {
 				switch(base_type.getKind()){
 					case panther::AST::Kind::BuiltinType: {
 						const panther::Token::ID type_token_id = this->ast_buffer.getBuiltinType(base_type);
@@ -582,11 +582,11 @@ namespace pthr{
 					} break;
 
 					default: evo::debugFatalBreak("Unknown or unsupported base type");
-				};
-			};
+				}
+			}
 
 			
-			auto print_type(const panther::AST::Node& node) noexcept -> void {
+			auto print_type(const panther::AST::Node& node) -> void {
 				if(node.getKind() == panther::AST::Kind::Type){
 					const panther::AST::Type& type = this->ast_buffer.getType(node);
 
@@ -619,10 +619,10 @@ namespace pthr{
 				}else{
 					evo::debugFatalBreak("Invalid type kind");
 				}
-			};
+			}
 
 
-			auto print_expr(const panther::AST::Node& node) noexcept -> void {
+			auto print_expr(const panther::AST::Node& node) -> void {
 				this->indenter.print();
 
 				switch(node.getKind()){
@@ -691,7 +691,7 @@ namespace pthr{
 							} break;
 
 							break; default: evo::debugFatalBreak("Unknown token kind");
-						};
+						}
 
 						this->printer.print("\n");
 					} break;
@@ -719,11 +719,11 @@ namespace pthr{
 
 
 					default: evo::debugFatalBreak("Unknown or unsupported expr type");
-				};
-			};
+				}
+			}
 
 
-			auto print_prefix(const panther::AST::Prefix& prefix) noexcept -> void {
+			auto print_prefix(const panther::AST::Prefix& prefix) -> void {
 				this->print_major_header("Prefix");
 
 				{
@@ -744,10 +744,10 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_assignment(const panther::AST::Infix& infix) noexcept -> void {
+			auto print_assignment(const panther::AST::Infix& infix) -> void {
 				this->indenter.print();
 				this->print_major_header("Assign");
 
@@ -778,10 +778,10 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_multi_assign(const panther::AST::MultiAssign& multi_assign) noexcept -> void {
+			auto print_multi_assign(const panther::AST::MultiAssign& multi_assign) -> void {
 				this->indenter.print();
 				this->print_major_header("Multiple Assignment");
 
@@ -832,10 +832,10 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_infix(const panther::AST::Infix& infix) noexcept -> void {
+			auto print_infix(const panther::AST::Infix& infix) -> void {
 				this->print_major_header("Infix");
 
 				{
@@ -865,9 +865,9 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
-			auto print_postfix(const panther::AST::Postfix& postfix) noexcept -> void {
+			auto print_postfix(const panther::AST::Postfix& postfix) -> void {
 				this->print_major_header("Postfix");
 
 				{
@@ -888,10 +888,10 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_func_call(const panther::AST::FuncCall& func_call) noexcept -> void {
+			auto print_func_call(const panther::AST::FuncCall& func_call) -> void {
 				this->print_major_header("Function Call");
 
 				{
@@ -958,10 +958,10 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_templated_expr(const panther::AST::TemplatedExpr& templated_expr) noexcept -> void {
+			auto print_templated_expr(const panther::AST::TemplatedExpr& templated_expr) -> void {
 				this->print_major_header("Templated Expressions");
 
 				{
@@ -1006,10 +1006,10 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_attribute_block(const panther::AST::AttributeBlock& attr_block) noexcept -> void {
+			auto print_attribute_block(const panther::AST::AttributeBlock& attr_block) -> void {
 				this->indenter.print();
 				this->print_minor_header("Attribute Block");
 
@@ -1054,31 +1054,31 @@ namespace pthr{
 					}
 					this->indenter.pop();
 				}
-			};
+			}
 
 
-			auto print_ident(const panther::AST::Node& ident) const noexcept -> void {
+			auto print_ident(const panther::AST::Node& ident) const -> void {
 				const panther::Token::ID ident_tok_id = this->ast_buffer.getIdent(ident);
 				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
 				this->printer.printMagenta("{}\n", ident_tok.getString(this->source));
-			};
+			}
 
-			auto print_intrinsic(const panther::AST::Node& ident) const noexcept -> void {
+			auto print_intrinsic(const panther::AST::Node& ident) const -> void {
 				const panther::Token::ID ident_tok_id = this->ast_buffer.getIntrinsic(ident);
 				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
 				this->printer.printMagenta("@{}\n", ident_tok.getString(this->source));
-			};
+			}
 
 
-			auto print_major_header(std::string_view title) noexcept -> void {
+			auto print_major_header(std::string_view title) -> void {
 				this->printer.printCyan("{}", title);
 				this->printer.printGray(":\n");
-			};
+			}
 
-			auto print_minor_header(std::string_view title) noexcept -> void {
+			auto print_minor_header(std::string_view title) -> void {
 				this->printer.printBlue("{}", title);
 				this->printer.printGray(":");
-			};
+			}
 
 
 	
@@ -1094,12 +1094,12 @@ namespace pthr{
 
 
 
-	auto printAST(pcit::core::Printer& printer, const panther::Source& source) noexcept -> void {
+	auto printAST(pcit::core::Printer& printer, const panther::Source& source) -> void {
 		auto ast_printer = ASTPrinter(printer, source);
 
 		ast_printer.print_header();
 		ast_printer.print_globals();
-	};
+	}
 
 
-};
+}

@@ -14,7 +14,7 @@
 namespace pcit::panther{
 	
 
-	auto Parser::parse() noexcept -> bool {
+	auto Parser::parse() -> bool {
 		while(this->reader.at_end() == false){
 			const Result stmt_result = this->parse_stmt();
 
@@ -35,21 +35,21 @@ namespace pcit::panther{
 				case Result::Code::Error: {
 					return false;
 				} break;
-			};
-		};
+			}
+		}
 
 		return true;
-	};
+	}
 
 
-	auto Parser::parse_stmt() noexcept -> Result {
+	auto Parser::parse_stmt() -> Result {
 		const Token& peeked_token = this->reader[this->reader.peek()];
 		
 		switch(peeked_token.getKind()){
 			case Token::Kind::KeywordVar: return this->parse_var_decl();
 			case Token::Kind::KeywordFunc: return this->parse_func_decl();
 			case Token::Kind::KeywordReturn: return this->parse_return();
-		};
+		}
 
 		Result result = this->parse_assignment();
 		if(result.code() != Result::Code::WrongType){ return result; }
@@ -58,11 +58,11 @@ namespace pcit::panther{
 		if(result.code() != Result::Code::WrongType){ return result; }
 
 		return this->parse_block(BlockLabelRequirement::NotAllowed);
-	};
+	}
 
 
 	// TODO: check EOF
-	auto Parser::parse_var_decl() noexcept -> Result {
+	auto Parser::parse_var_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KeywordVar)){ return Result::Code::Error; }
 
 		const Result ident = this->parse_ident();
@@ -103,11 +103,11 @@ namespace pcit::panther{
 
 
 		return this->source.ast_buffer.createVarDecl(ident.value(), type, attributes.value(), value);
-	};
+	}
 
 
 	// TODO: check EOF
-	auto Parser::parse_func_decl() noexcept -> Result {
+	auto Parser::parse_func_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KeywordFunc)){ return Result::Code::Error; }
 
 		const Result ident = this->parse_ident();
@@ -153,11 +153,11 @@ namespace pcit::panther{
 			std::move(returns.value()),
 			block.value()
 		);
-	};
+	}
 
 
 	// TODO: check EOF
-	auto Parser::parse_return() noexcept -> Result {
+	auto Parser::parse_return() -> Result {
 		if(this->assert_token_fail(Token::Kind::KeywordReturn)){ return Result::Code::Error; }
 
 		auto label = AST::NodeOptional();
@@ -183,11 +183,11 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createReturn(label, expr);
-	};
+	}
 
 
 	// TODO: check EOF
-	auto Parser::parse_assignment() noexcept -> Result {
+	auto Parser::parse_assignment() -> Result {
 		const Token::ID start_location = this->reader.peek();
 
 		{ // special assignments
@@ -224,7 +224,7 @@ namespace pcit::panther{
 						break;
 					}
 
-					const Result assignment = [&]() noexcept {
+					const Result assignment = [&]() {
 						const Result ident_result = this->parse_ident();
 						if(ident_result.code() != Result::Code::WrongType){ return ident_result; }
 
@@ -254,7 +254,7 @@ namespace pcit::panther{
 
 						break;
 					}
-				};
+				}
 
 				if(this->expect_token_fail(Token::lookupKind("="), "in multiple-assignment")){
 					return Result::Code::Error;
@@ -293,7 +293,7 @@ namespace pcit::panther{
 				this->reader.go_back(start_location);
 				return Result::Code::WrongType;
 			} break;
-		};
+		}
 
 		const Result rhs = this->parse_expr();
 		if(this->check_result_fail(rhs, "expression value in assignment")){ return Result::Code::Error; }
@@ -301,13 +301,13 @@ namespace pcit::panther{
 		if(this->expect_token_fail(Token::lookupKind(";"), "at end of assignment")){ return Result::Code::Error; }
 
 		return this->source.ast_buffer.createInfix(lhs.value(), op_token_id, rhs.value());
-	};
+	}
 
 
 
 
 	// TODO: check EOF
-	auto Parser::parse_block(BlockLabelRequirement label_requirement) noexcept -> Result {
+	auto Parser::parse_block(BlockLabelRequirement label_requirement) -> Result {
 		const Token::ID start_location = this->reader.peek();
 
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("{")){ return Result::Code::WrongType; }
@@ -344,14 +344,14 @@ namespace pcit::panther{
 			if(this->check_result_fail(stmt, "statement in statement block")){ return Result::Code::Error; }
 
 			statements.emplace_back(stmt.value());
-		};
+		}
 
 		return this->source.ast_buffer.createBlock(label, std::move(statements));
-	};
+	}
 
 
 	// TODO: check EOF
-	auto Parser::parse_type(bool is_expr) noexcept -> Result {
+	auto Parser::parse_type(bool is_expr) -> Result {
 		const Token::ID start_location = this->reader.peek();
 		bool is_builtin = true;
 		switch(this->reader[start_location].getKind()){
@@ -389,9 +389,9 @@ namespace pcit::panther{
 			} break;
 
 			default: return Result::Code::WrongType;
-		};
+		}
 
-		const Result base_type = [&]() noexcept {
+		const Result base_type = [&]() {
 			if(is_builtin){
 				const Token::ID base_type_token_id = this->reader.next();
 
@@ -476,7 +476,7 @@ namespace pcit::panther{
 			if(continue_looking_for_qualifiers){
 				qualifiers.emplace_back(is_ptr, is_read_only, is_optional);
 			}
-		};
+		}
 
 
 		if(is_expr){
@@ -501,7 +501,7 @@ namespace pcit::panther{
 
 						this->reader.go_back(potential_backup_location);
 					} break;
-				};
+				}
 			}
 
 			// just an ident
@@ -513,26 +513,26 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createType(base_type.value(), std::move(qualifiers));
-	};
+	}
 
 
 
 	// TODO: check EOF
-	auto Parser::parse_expr() noexcept -> Result {
+	auto Parser::parse_expr() -> Result {
 		const Result uninit_result = this->parse_uninit();
 		if(uninit_result.code() != Result::Code::WrongType){ return uninit_result; }
 
 		return this->parse_sub_expr();
-	};
+	}
 
 	// TODO: check EOF
-	auto Parser::parse_sub_expr() noexcept -> Result {
+	auto Parser::parse_sub_expr() -> Result {
 		return this->parse_infix_expr();
-	};
+	}
 
 
 
-	EVO_NODISCARD static constexpr auto get_infix_op_precedence(Token::Kind kind) noexcept -> int {
+	EVO_NODISCARD static constexpr auto get_infix_op_precedence(Token::Kind kind) -> int {
 		switch(kind){
 			case Token::lookupKind("||"):  return 1;
 
@@ -567,21 +567,21 @@ namespace pcit::panther{
 			case Token::lookupKind("%"):   return 7;
 
 			case Token::Kind::KeywordAs:   return 8;
-		};
+		}
 
 		return -1;
-	};
+	}
 
 	// TODO: check EOF
-	auto Parser::parse_infix_expr() noexcept -> Result {
+	auto Parser::parse_infix_expr() -> Result {
 		const Result lhs_result = this->parse_prefix_expr();
 		if(lhs_result.code() != Result::Code::Success){ return lhs_result; }
 
 		return this->parse_infix_expr_impl(lhs_result.value(), 0);
-	};
+	}
 
 
-	auto Parser::parse_infix_expr_impl(AST::Node lhs, int prec_level) noexcept -> Result {
+	auto Parser::parse_infix_expr_impl(AST::Node lhs, int prec_level) -> Result {
 		const Token::ID peeked_op_token_id = this->reader.peek();
 		const Token::Kind peeked_op_kind = this->reader[peeked_op_token_id].getKind();
 
@@ -595,7 +595,7 @@ namespace pcit::panther{
 
 		if(this->assert_token_fail(peeked_op_kind)){ return Result::Code::Error; }
 
-		const Result rhs_result = [&]() noexcept {
+		const Result rhs_result = [&]() {
 			
 			const Result next_part_of_expr = this->parse_prefix_expr();
 			if(next_part_of_expr.code() != Result::Code::Success){ return next_part_of_expr; }
@@ -609,12 +609,12 @@ namespace pcit::panther{
 			this->source.ast_buffer.createInfix(lhs, peeked_op_token_id, rhs_result.value());
 
 		return this->parse_infix_expr_impl(created_infix_expr, prec_level);
-	};
+	}
 
 
 
 	// TODO: check EOF
-	auto Parser::parse_prefix_expr() noexcept -> Result {
+	auto Parser::parse_prefix_expr() -> Result {
 		const Token::ID op_token_id = this->reader.peek();
 		const Token::Kind op_token_kind = this->reader[op_token_id].getKind();
 
@@ -629,7 +629,7 @@ namespace pcit::panther{
 
 			default:
 				return this->parse_term();
-		};
+		}
 
 		if(this->assert_token_fail(op_token_kind)){ return Result::Code::Error; }
 
@@ -641,10 +641,10 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createPrefix(op_token_id, rhs.value());
-	};
+	}
 
 	// TODO: check EOF
-	auto Parser::parse_term(IsTypeTerm is_type_term) noexcept -> Result {
+	auto Parser::parse_term(IsTypeTerm is_type_term) -> Result {
 		if(is_type_term == IsTypeTerm::No){
 			const Result type = this->parse_type(true);
 			if(type.code() != Result::Code::WrongType){ return type; }
@@ -748,7 +748,7 @@ namespace pcit::panther{
 							is_first_expr = false;
 							break;
 						}
-					};
+					}
 
 					output = this->source.ast_buffer.createTemplatedExpr(output.value(), std::move(exprs));
 				} break;
@@ -796,7 +796,7 @@ namespace pcit::panther{
 
 							break;
 						}
-					};
+					}
 
 					output = this->source.ast_buffer.createFuncCall(output.value(), std::move(args));
 				} break;
@@ -804,25 +804,25 @@ namespace pcit::panther{
 				default: {
 					should_continue = false;
 				} break;
-			};
-		};
+			}
+		}
 
 		return output;
-	};
+	}
 
 
-	auto Parser::parse_term_stmt() noexcept -> Result {
+	auto Parser::parse_term_stmt() -> Result {
 		const Result term = this->parse_term();
 		if(term.code() != Result::Code::Success){ return term; }
 
 		if(this->expect_token_fail(Token::lookupKind(";"), "after term statement")){ return Result::Code::Error; }
 
 		return term;
-	};
+	}
 
 
 	// TODO: check EOF
-	auto Parser::parse_encapsulated_expr() noexcept -> Result {
+	auto Parser::parse_encapsulated_expr() -> Result {
 		const Result block_expr = this->parse_block(BlockLabelRequirement::Required);
 		if(block_expr.code() != Result::Code::WrongType){ return block_expr; }
 
@@ -851,10 +851,10 @@ namespace pcit::panther{
 		if(this->assert_token_fail(Token::lookupKind(")"))){ return Result::Code::Error; }
 
 		return inner_expr;
-	};
+	}
 
 	// TODO: check EOF
-	auto Parser::parse_atom() noexcept -> Result {
+	auto Parser::parse_atom() -> Result {
 		Result result = this->parse_ident();
 		if(result.code() != Result::Code::WrongType){ return result; }
 
@@ -868,10 +868,10 @@ namespace pcit::panther{
 		if(result.code() != Result::Code::WrongType){ return result; }
 
 		return Result::Code::WrongType;
-	};
+	}
 
 
-	auto Parser::parse_attribute_block() noexcept -> Result {
+	auto Parser::parse_attribute_block() -> Result {
 		auto attributes = evo::SmallVector<AST::AttributeBlock::Attribute>();
 
 		while(this->reader[this->reader.peek()].getKind() == Token::Kind::Attribute){
@@ -897,26 +897,26 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createAttributeBlock(std::move(attributes));
-	};
+	}
 
 
-	auto Parser::parse_ident() noexcept -> Result {
+	auto Parser::parse_ident() -> Result {
 		if(this->reader[this->reader.peek()].getKind() != Token::Kind::Ident){
 			return Result::Code::WrongType;
 		}
 
 		return AST::Node(AST::Kind::Ident, this->reader.next());
-	};
+	}
 
-	auto Parser::parse_intrinsic() noexcept -> Result {
+	auto Parser::parse_intrinsic() -> Result {
 		if(this->reader[this->reader.peek()].getKind() != Token::Kind::Intrinsic){
 			return Result::Code::WrongType;
 		}
 
 		return AST::Node(AST::Kind::Intrinsic, this->reader.next());
-	};
+	}
 
-	auto Parser::parse_literal() noexcept -> Result {
+	auto Parser::parse_literal() -> Result {
 		switch(this->reader[this->reader.peek()].getKind()){
 			case Token::Kind::LiteralBool:
 			case Token::Kind::LiteralInt:
@@ -928,32 +928,32 @@ namespace pcit::panther{
 
 			default:
 				return Result::Code::WrongType;
-		};
+		}
 
 		return AST::Node(AST::Kind::Literal, this->reader.next());
-	};
+	}
 
 
-	auto Parser::parse_uninit() noexcept -> Result {
+	auto Parser::parse_uninit() -> Result {
 		if(this->reader[this->reader.peek()].getKind() != Token::Kind::KeywordUninit){
 			return Result::Code::WrongType;
 		}
 
 		return AST::Node(AST::Kind::Uninit, this->reader.next());
-	};
+	}
 
-	auto Parser::parse_this() noexcept -> Result {
+	auto Parser::parse_this() -> Result {
 		if(this->reader[this->reader.peek()].getKind() != Token::Kind::KeywordThis){
 			return Result::Code::WrongType;
 		}
 
 		return AST::Node(AST::Kind::This, this->reader.next());
-	};
+	}
 
 
 
 
-	auto Parser::parse_template_pack() noexcept -> Result {
+	auto Parser::parse_template_pack() -> Result {
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("<{")){
 			return Result::Code::WrongType;
 		}
@@ -1001,14 +1001,14 @@ namespace pcit::panther{
 
 				break;
 			}
-		};
+		}
 
 
 		return this->source.ast_buffer.createTemplatePack(std::move(params));
-	};
+	}
 
 
-	auto Parser::parse_func_params() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>> {
+	auto Parser::parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>> {
 		auto params = evo::SmallVector<AST::FuncDecl::Param>();
 		if(this->expect_token_fail(Token::lookupKind("("), "to open parameter block in function declaration")){
 			return evo::resultError;
@@ -1064,7 +1064,7 @@ namespace pcit::panther{
 						);
 						return evo::resultError;
 					} break;
-				};
+				}
 
 			}else{
 				const Result param_ident_result = this->parse_ident();
@@ -1102,7 +1102,7 @@ namespace pcit::panther{
 					default: {
 						param_kind = ParamKind::Read;
 					} break;
-				};
+				}
 			}
 
 			const Result attributes = this->parse_attribute_block();
@@ -1124,15 +1124,15 @@ namespace pcit::panther{
 
 				break;
 			}
-		};
+		}
 
 
 		return params;
-	};
+	}
 
 
 
-	auto Parser::parse_func_returns() noexcept -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>> {
+	auto Parser::parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>> {
 		auto returns = evo::SmallVector<AST::FuncDecl::Return>();
 
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("(")){
@@ -1192,11 +1192,11 @@ namespace pcit::panther{
 
 				break;
 			}
-		};
+		}
 
 
 		return returns;
-	};
+	}
 
 
 	
@@ -1209,16 +1209,16 @@ namespace pcit::panther{
 
 	auto Parser::expected_but_got(
 		std::string_view location_str, const Token& token, evo::SmallVector<Diagnostic::Info>&& infos
-	) noexcept -> void {
+	) -> void {
 		this->context.emitError(
 			Diagnostic::Code::ParserIncorrectStmtContinuation, token.getSourceLocation(this->source.getID()),
 			std::format("Expected {}, got [{}] instead", location_str, token.getKind()), 
 			std::move(infos)
 		);
-	};
+	}
 
 
-	auto Parser::check_result_fail(const Result& result, std::string_view location_str) noexcept -> bool {
+	auto Parser::check_result_fail(const Result& result, std::string_view location_str) -> bool {
 		switch(result.code()){
 			case Result::Code::Success: {
 				return false;
@@ -1232,13 +1232,13 @@ namespace pcit::panther{
 			case Result::Code::Error: {
 				return true;
 			} break;
-		};
+		}
 
 		evo::debugFatalBreak("Unknown or unsupported result code ({})", evo::to_underlying(result.code()));
-	};
+	}
 
 
-	auto Parser::assert_token_fail(Token::Kind kind) noexcept -> bool {
+	auto Parser::assert_token_fail(Token::Kind kind) -> bool {
 		#if defined(PCIT_CONFIG_DEBUG)
 			const Token& next_token = this->reader[this->reader.next()];
 
@@ -1255,16 +1255,16 @@ namespace pcit::panther{
 			this->reader.skip();
 			return false;
 		#endif
-	};
+	}
 
-	auto Parser::expect_token_fail(Token::Kind kind, std::string_view location_str) noexcept -> bool {
+	auto Parser::expect_token_fail(Token::Kind kind, std::string_view location_str) -> bool {
 		const Token& next_token = this->reader[this->reader.next()];
 
 		if(next_token.getKind() == kind){ return false; }
 
 		this->expected_but_got(std::format("[{}] {}", kind, location_str), next_token);
 		return true;
-	};
+	}
 
 
-};
+}

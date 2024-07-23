@@ -12,29 +12,29 @@
 namespace pcit::panther{
 	
 
-	auto CharStream::peek(size_t ammount_forward) const noexcept -> char {
+	auto CharStream::peek(size_t ammount_forward) const -> char {
 		evo::debugAssert(this->at_end() == false, "Cannot peek at end");
 		evo::debugAssert(this->cursor + ammount_forward <= this->data.size(), "Skipping past the end of the data");
 		
 		return this->data[this->cursor + ammount_forward];
-	};
+	}
 
-	auto CharStream::peek_raw_ptr() const noexcept -> const char* {
+	auto CharStream::peek_raw_ptr() const -> const char* {
 		evo::debugAssert(this->at_end() == false, "Cannot peek at end");
 
 		return &this->data[this->cursor];
-	};
+	}
 
 
-	auto CharStream::next() noexcept -> char {
+	auto CharStream::next() -> char {
 		evo::debugAssert(this->at_end() == false, "Already at end");
 
 		const char current_char = this->peek();
 		this->skip_single();
 		return current_char;
-	};
+	}
 
-	auto CharStream::skip(size_t ammount) noexcept -> void {
+	auto CharStream::skip(size_t ammount) -> void {
 		evo::debugAssert(this->at_end() == false, "Already at end");
 		evo::debugAssert(this->cursor + ammount <= this->data.size(), "Skipping past the end of the data");
 		evo::debugAssert(ammount != 0, "Cannot skip 0 forward");
@@ -42,10 +42,10 @@ namespace pcit::panther{
 		for(size_t i = 0; i < ammount; i+=1){
 			this->skip_single();
 		}
-	};
+	}
 
 
-	auto CharStream::skip_single() noexcept -> void {
+	auto CharStream::skip_single() -> void {
 		evo::debugAssert(this->at_end() == false, "Already at end");
 
 		const char current_char = this->peek();
@@ -67,7 +67,7 @@ namespace pcit::panther{
 		}
 
 		this->cursor += 1;
-	};
+	}
 
 
-};
+}

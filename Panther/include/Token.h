@@ -198,27 +198,27 @@ namespace pcit::panther{
 			};
 
 		public:
-			Token(Kind _kind, Location _location) noexcept : kind(_kind), location(_location), value(false) {};
+			Token(Kind _kind, Location _location) : kind(_kind), location(_location), value(false) {}
 
-			Token(Kind _kind, Location _location, bool val) noexcept
-				: kind(_kind), location(_location), value{.boolean = val} {};
+			Token(Kind _kind, Location _location, bool val)
+				: kind(_kind), location(_location), value{.boolean = val} {}
 
-			Token(Kind _kind, Location _location, uint64_t val) noexcept
-				: kind(_kind), location(_location), value{.integer = val} {};
+			Token(Kind _kind, Location _location, uint64_t val)
+				: kind(_kind), location(_location), value{.integer = val} {}
 
-			Token(Kind _kind, Location _location, float64_t val) noexcept
-				: kind(_kind), location(_location), value{.floating_point = val} {};
+			Token(Kind _kind, Location _location, float64_t val)
+				: kind(_kind), location(_location), value{.floating_point = val} {}
 
-			Token(Kind _kind, Location _location, const class Source& data, std::string_view val) noexcept;
+			Token(Kind _kind, Location _location, const class Source& data, std::string_view val);
 
 			~Token() = default;
 
 
-			EVO_NODISCARD auto getKind() const noexcept -> const Kind& { return this->kind; };
+			EVO_NODISCARD auto getKind() const -> const Kind& { return this->kind; }
 
-			EVO_NODISCARD auto getLocation() const noexcept -> const Location& { return this->location; };
+			EVO_NODISCARD auto getLocation() const -> const Location& { return this->location; }
 
-			EVO_NODISCARD auto getSourceLocation(SourceID source_id) const noexcept -> SourceLocation {
+			EVO_NODISCARD auto getSourceLocation(SourceID source_id) const -> SourceLocation {
 				return SourceLocation(
 					source_id,
 					this->location.lineStart,
@@ -226,39 +226,39 @@ namespace pcit::panther{
 					this->location.collumnStart,
 					this->location.collumnEnd
 				);
-			};
+			}
 
 
-			EVO_NODISCARD auto getBool() const noexcept -> bool {
+			EVO_NODISCARD auto getBool() const -> bool {
 				evo::debugAssert(this->kind == Kind::LiteralBool, "Token does not have a bool value");
 				return this->value.boolean;
-			};
+			}
 
-			EVO_NODISCARD auto getInt() const noexcept -> uint64_t {
+			EVO_NODISCARD auto getInt() const -> uint64_t {
 				evo::debugAssert(this->kind == Kind::LiteralInt, "Token does not have a integer value");
 				return this->value.integer;
-			};
+			}
 
-			EVO_NODISCARD auto getBitWidth() const noexcept -> uint64_t {
+			EVO_NODISCARD auto getBitWidth() const -> uint64_t {
 				evo::debugAssert(
 					this->kind == Kind::TypeI_N || this->kind == Kind::TypeUI_N,
 					"Token does not have a bit-width value"
 				);
 				return this->value.integer;
-			};
+			}
 
-			EVO_NODISCARD auto getFloat() const noexcept -> float64_t {
+			EVO_NODISCARD auto getFloat() const -> float64_t {
 				evo::debugAssert(this->kind == Kind::LiteralFloat, "Token does not have a float value");
 				return this->value.floating_point;
-			};
+			}
 
-			EVO_NODISCARD auto getString(const class Source& source) const noexcept -> std::string_view;
+			EVO_NODISCARD auto getString(const class Source& source) const -> std::string_view;
 			
 
 
 
 			// TODO: hash-map optimization?
-			EVO_NODISCARD static consteval auto lookupKind(std::string_view op_str) noexcept -> Kind {
+			EVO_NODISCARD static consteval auto lookupKind(std::string_view op_str) -> Kind {
 				// length 4
 				if(op_str == "<<|="){ return Kind::AssignShiftLeftSat; }
 
@@ -347,10 +347,10 @@ namespace pcit::panther{
 				if(op_str == "?"){ return Kind::QuestionMark; }
 
 				evo::debugFatalBreak("Unknown or unsupported kind ({})", op_str);
-			};
+			}
 
 
-			EVO_NODISCARD static auto printKind(Kind kind) noexcept -> std::string_view {
+			EVO_NODISCARD static auto printKind(Kind kind) -> std::string_view {
 				switch(kind){
 					break; case Kind::None:               return "None";
 
@@ -516,10 +516,10 @@ namespace pcit::panther{
 					break; case Kind::SemiColon:          return ";";
 					break; case Kind::Colon:              return ":";
 					break; case Kind::QuestionMark:       return "?";
-				};
+				}
 
 				evo::debugFatalBreak("Unknown or unsupported token kind ({})", evo::to_underlying(kind));
-			};
+			}
 
 
 		private:
@@ -542,14 +542,16 @@ namespace pcit::panther{
 
 	static_assert(sizeof(Token) == 24);
 
-};
+}
 
 
 template<>
 struct std::formatter<pcit::panther::Token::Kind> : std::formatter<std::string_view> {
-    auto format(const pcit::panther::Token::Kind& kind, std::format_context& ctx) {
-        return std::formatter<std::string_view>::format(pcit::panther::Token::printKind(kind), ctx);
-    };
+	using Token = pcit::panther::Token;
+
+    auto format(const Token::Kind& kind, std::format_context& ctx) const -> std::format_context::iterator {
+        return std::formatter<std::string_view>::format(Token::printKind(kind), ctx);
+    }
 };
 
 

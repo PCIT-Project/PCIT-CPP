@@ -29,7 +29,7 @@ namespace pcit::panther{
 			using Location = SourceLocation;
 
 		public:
-			Source(Source&& rhs) noexcept : id(rhs.id), location(std::move(rhs.location)), data(std::move(rhs.data)) {};
+			Source(Source&& rhs) : id(rhs.id), location(std::move(rhs.location)), data(std::move(rhs.data)) {}
 
 			Source(const Source&) = delete;
 			auto operator=(const Source&) = delete;
@@ -37,45 +37,45 @@ namespace pcit::panther{
 			~Source() = default;
 
 			
-			EVO_NODISCARD auto getID() const noexcept -> ID { return this->id; };
-			EVO_NODISCARD auto getData() const noexcept -> const std::string& { return this->data; };
+			EVO_NODISCARD auto getID() const -> ID { return this->id; }
+			EVO_NODISCARD auto getData() const -> const std::string& { return this->data; }
 
-			EVO_NODISCARD auto locationIsPath() const noexcept -> bool;
-			EVO_NODISCARD auto locationIsString() const noexcept -> bool;
+			EVO_NODISCARD auto locationIsPath() const -> bool;
+			EVO_NODISCARD auto locationIsString() const -> bool;
 
-			EVO_NODISCARD auto getLocationPath() const noexcept -> const fs::path&;
-			EVO_NODISCARD auto getLocationString() const noexcept -> const std::string&;
-			EVO_NODISCARD auto getLocationAsString() const noexcept -> std::string;
+			EVO_NODISCARD auto getLocationPath() const -> const fs::path&;
+			EVO_NODISCARD auto getLocationString() const -> const std::string&;
+			EVO_NODISCARD auto getLocationAsString() const -> std::string;
 
-			EVO_NODISCARD auto getTokenBuffer() const noexcept -> const TokenBuffer& { return this->token_buffer; };
-			EVO_NODISCARD auto getASTBuffer() const noexcept -> const ASTBuffer& { return this->ast_buffer; };
+			EVO_NODISCARD auto getTokenBuffer() const -> const TokenBuffer& { return this->token_buffer; }
+			EVO_NODISCARD auto getASTBuffer() const -> const ASTBuffer& { return this->ast_buffer; }
 			
 
 		private:
-			Source(ID src_id, const std::string& loc, const std::string& data_str) noexcept
-				: id(src_id), location(loc), data(data_str) {};
+			Source(ID src_id, const std::string& loc, const std::string& data_str)
+				: id(src_id), location(loc), data(data_str) {}
 
-			Source(ID src_id, const std::string& loc, std::string&& data_str) noexcept
-				: id(src_id), location(loc), data(std::move(data_str)) {};
+			Source(ID src_id, const std::string& loc, std::string&& data_str)
+				: id(src_id), location(loc), data(std::move(data_str)) {}
 
-			Source(ID src_id, std::string&& loc, const std::string& data_str) noexcept
-				: id(src_id), location(std::move(loc)), data(data_str) {};
+			Source(ID src_id, std::string&& loc, const std::string& data_str)
+				: id(src_id), location(std::move(loc)), data(data_str) {}
 
-			Source(ID src_id, std::string&& loc, std::string&& data_str) noexcept
-				: id(src_id), location(std::move(loc)), data(std::move(data_str)) {};
+			Source(ID src_id, std::string&& loc, std::string&& data_str)
+				: id(src_id), location(std::move(loc)), data(std::move(data_str)) {}
 
 
-			Source(ID src_id, const fs::path& loc, const std::string& data_str) noexcept
-				: id(src_id), location(loc), data(data_str) {};
+			Source(ID src_id, const fs::path& loc, const std::string& data_str)
+				: id(src_id), location(loc), data(data_str) {}
 
-			Source(ID src_id, const fs::path& loc, std::string&& data_str) noexcept
-				: id(src_id), location(loc), data(std::move(data_str)) {};
+			Source(ID src_id, const fs::path& loc, std::string&& data_str)
+				: id(src_id), location(loc), data(std::move(data_str)) {}
 
-			Source(ID src_id, fs::path&& loc, const std::string& data_str) noexcept
-				: id(src_id), location(std::move(loc)), data(data_str) {};
+			Source(ID src_id, fs::path&& loc, const std::string& data_str)
+				: id(src_id), location(std::move(loc)), data(data_str) {}
 
-			Source(ID src_id, fs::path&& loc, std::string&& data_str) noexcept
-				: id(src_id), location(std::move(loc)), data(std::move(data_str)) {};
+			Source(ID src_id, fs::path&& loc, std::string&& data_str)
+				: id(src_id), location(std::move(loc)), data(std::move(data_str)) {}
 	
 		private:
 			ID id;
@@ -91,4 +91,4 @@ namespace pcit::panther{
 			friend class Parser;
 	};
 
-};
+}

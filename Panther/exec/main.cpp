@@ -102,7 +102,7 @@ auto main(int argc, const char* argv[]) -> int {
 			break; case Config::Target::PrintAST:    printer.printlnMagenta("Target: PrintAST");
 			break; case Config::Target::Parse:    printer.printlnMagenta("Target: Parse");
 			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
-		};
+		}
 	}
 
 
@@ -114,7 +114,7 @@ auto main(int argc, const char* argv[]) -> int {
 	});
 
 
-	auto exit = [&]() noexcept -> void {
+	auto exit = [&]() -> void {
 		if(context.isMultiThreaded() && context.threadsRunning()){
 			context.shutdownThreads();
 		}

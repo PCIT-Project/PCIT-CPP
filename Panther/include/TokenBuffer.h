@@ -31,37 +31,37 @@ namespace pcit::panther{
 			auto operator=(TokenBuffer&& rhs) = delete;
 
 
-			auto createToken(Token::Kind kind, Token::Location location) noexcept -> Token::ID;
-			auto createToken(Token::Kind kind, Token::Location location, bool value) noexcept -> Token::ID;
-			auto createToken(Token::Kind kind, Token::Location location, uint64_t value) noexcept -> Token::ID;
-			auto createToken(Token::Kind kind, Token::Location location, float64_t value) noexcept -> Token::ID;
+			auto createToken(Token::Kind kind, Token::Location location) -> Token::ID;
+			auto createToken(Token::Kind kind, Token::Location location, bool value) -> Token::ID;
+			auto createToken(Token::Kind kind, Token::Location location, uint64_t value) -> Token::ID;
+			auto createToken(Token::Kind kind, Token::Location location, float64_t value) -> Token::ID;
 			auto createToken(
 				Token::Kind kind, Token::Location location, const class Source& source, std::string_view value
-			) noexcept -> Token::ID;
+			) -> Token::ID;
 			auto createToken(
 				Token::Kind kind, Token::Location location, const class Source& source, std::string&& value
-			) noexcept -> Token::ID;
+			) -> Token::ID;
 
 
-			EVO_NODISCARD auto get(Token::ID id) const noexcept -> const Token&;
-			EVO_NODISCARD auto get(Token::ID id)       noexcept ->       Token&;
+			EVO_NODISCARD auto get(Token::ID id) const -> const Token&;
+			EVO_NODISCARD auto get(Token::ID id)       ->       Token&;
 
-			EVO_NODISCARD auto operator[](Token::ID id) const noexcept -> const Token& { return this->get(id); };
-			EVO_NODISCARD auto operator[](Token::ID id)       noexcept ->       Token& { return this->get(id); };
+			EVO_NODISCARD auto operator[](Token::ID id) const -> const Token& { return this->get(id); }
+			EVO_NODISCARD auto operator[](Token::ID id)       ->       Token& { return this->get(id); }
 
-			EVO_NODISCARD auto size() const noexcept -> size_t { return this->tokens.size(); };
+			EVO_NODISCARD auto size() const -> size_t { return this->tokens.size(); }
 
-			EVO_NODISCARD auto begin() const noexcept -> Token::ID::Iterator {
+			EVO_NODISCARD auto begin() const -> Token::ID::Iterator {
 				return Token::ID::Iterator(Token::ID(0));
-			};
+			}
 
-			EVO_NODISCARD auto end() const noexcept -> Token::ID::Iterator {
+			EVO_NODISCARD auto end() const -> Token::ID::Iterator {
 				return Token::ID::Iterator(Token::ID(uint32_t(this->tokens.size())));
-			};
+			}
 
 
-			auto lock() noexcept -> void { this->is_locked = true; };
-			EVO_NODISCARD auto isLocked() const noexcept -> bool { return this->is_locked; };
+			auto lock() -> void { this->is_locked = true; }
+			EVO_NODISCARD auto isLocked() const -> bool { return this->is_locked; }
 
 		
 		private:
@@ -71,4 +71,4 @@ namespace pcit::panther{
 	};
 
 
-};
+}

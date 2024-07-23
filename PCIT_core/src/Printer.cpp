@@ -37,11 +37,11 @@
 namespace pcit::core{
 
 
-	Printer::Printer() noexcept {
+	Printer::Printer() {
 		std::construct_at(this, Printer::platformSupportsColor() == DetectResult::Yes);
-	};
+	}
 
-	Printer::Printer(bool should_print_color) noexcept : print_color(should_print_color) {
+	Printer::Printer(bool should_print_color) : print_color(should_print_color) {
 		#if defined(EVO_PLATFORM_WINDOWS)
 			if(this->isPrintingColor() && std::atomic_fetch_add(&win_color_console.num_color_created, 1) == 0){
 				const auto win_console_handle = ::GetStdHandle(STD_OUTPUT_HANDLE);
@@ -64,10 +64,10 @@ namespace pcit::core{
 				}
 			}
 		#endif
-	};
+	}
 
 
-	Printer::~Printer() noexcept {
+	Printer::~Printer() {
 		#if defined(EVO_PLATFORM_WINDOWS)
 			if(
 				this->isPrintingColor() && 
@@ -82,24 +82,24 @@ namespace pcit::core{
 
 
 
-	Printer::Printer(const Printer& rhs) noexcept : print_color(rhs.print_color) {
+	Printer::Printer(const Printer& rhs) : print_color(rhs.print_color) {
 		#if defined(EVO_PLATFORM_WINDOWS)
 			if(this->isPrintingColor()){
 				win_color_console.num_color_created += 1;
 			}
 		#endif
-	};
+	}
 
-	Printer::Printer(Printer&& rhs) noexcept : print_color(rhs.print_color) {
+	Printer::Printer(Printer&& rhs) : print_color(rhs.print_color) {
 		#if defined(EVO_PLATFORM_WINDOWS)
 			rhs.print_color = false;
 		#endif
-	};
+	}
 
 
 
 
-	auto Printer::platformSupportsColor() noexcept -> DetectResult {
+	auto Printer::platformSupportsColor() -> DetectResult {
 		#if defined(EVO_PLATFORM_WINDOWS)
 			return DetectResult::Yes;
 
@@ -113,16 +113,16 @@ namespace pcit::core{
 		#else
 			return DetectResult::Unknown;
 		#endif
-	};
+	}
 
 
 
-	auto Printer::print(std::string_view str) noexcept -> void {
+	auto Printer::print(std::string_view str) -> void {
 		evo::print(str);
-	};
+	}
 	
 
-	auto Printer::printFatal(std::string_view str) noexcept -> void {
+	auto Printer::printFatal(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::fatal();
 			evo::print(str);
@@ -130,9 +130,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printError(std::string_view str) noexcept -> void {
+	auto Printer::printError(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::error();
 			evo::print(str);
@@ -140,9 +140,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printWarning(std::string_view str) noexcept -> void {
+	auto Printer::printWarning(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::warning();
 			evo::print(str);
@@ -150,9 +150,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printInfo(std::string_view str) noexcept -> void {
+	auto Printer::printInfo(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::info();
 			evo::print(str);
@@ -160,9 +160,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 
-	auto Printer::printSuccess(std::string_view str) noexcept -> void {
+	auto Printer::printSuccess(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::success();
 			evo::print(str);
@@ -170,10 +170,10 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
 
-	auto Printer::printRed(std::string_view str) noexcept -> void {
+	auto Printer::printRed(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::red();
 			evo::print(str);
@@ -181,9 +181,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printYellow(std::string_view str) noexcept -> void {
+	auto Printer::printYellow(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::yellow();
 			evo::print(str);
@@ -191,9 +191,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printGreen(std::string_view str) noexcept -> void {
+	auto Printer::printGreen(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::green();
 			evo::print(str);
@@ -201,9 +201,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printBlue(std::string_view str) noexcept -> void {
+	auto Printer::printBlue(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::blue();
 			evo::print(str);
@@ -211,9 +211,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printCyan(std::string_view str) noexcept -> void {
+	auto Printer::printCyan(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::cyan();
 			evo::print(str);
@@ -221,9 +221,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printMagenta(std::string_view str) noexcept -> void {
+	auto Printer::printMagenta(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::magenta();
 			evo::print(str);
@@ -231,9 +231,9 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
-	auto Printer::printGray(std::string_view str) noexcept -> void {
+	auto Printer::printGray(std::string_view str) -> void {
 		if(this->isPrintingColor()){
 			evo::styleConsole::text::gray();
 			evo::print(str);
@@ -241,7 +241,7 @@ namespace pcit::core{
 		}else{
 			evo::print(str);
 		}
-	};
+	}
 	
 
 
@@ -249,4 +249,4 @@ namespace pcit::core{
 
 
 	
-};
+}

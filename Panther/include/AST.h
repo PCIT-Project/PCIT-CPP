@@ -19,7 +19,7 @@
 // forward declaration
 namespace pcit::panther{
 	class ASTBuffer;
-};
+}
 
 namespace pcit::panther::AST{
 
@@ -61,31 +61,31 @@ namespace pcit::panther::AST{
 	template<bool IsOptional>
 	class NodeImpl{
 		public:
-			NodeImpl(Kind _kind, Token::ID token_id) noexcept : kind(_kind), _value{.token_id = token_id} {};
-			NodeImpl(Kind _kind, uint32_t node_index) noexcept : kind(_kind), _value{.node_index = node_index} {};
+			NodeImpl(Kind _kind, Token::ID token_id) : kind(_kind), _value{.token_id = token_id} {}
+			NodeImpl(Kind _kind, uint32_t node_index) : kind(_kind), _value{.node_index = node_index} {}
 
-			NodeImpl(const NodeImpl<false>& rhs) noexcept requires(IsOptional)
-				: kind(rhs.kind), _value{.node_index = rhs._value.node_index}{};
+			NodeImpl(const NodeImpl<false>& rhs) requires(IsOptional)
+				: kind(rhs.kind), _value{.node_index = rhs._value.node_index}{}
 
 			NodeImpl(const NodeImpl<IsOptional>&) = default;
 
 
-			NodeImpl() noexcept requires(IsOptional) : kind(Kind::None), _value{} {};
-			NodeImpl(std::nullopt_t) noexcept requires(IsOptional) : kind(Kind::None), _value{} {};
+			NodeImpl() requires(IsOptional) : kind(Kind::None), _value{} {}
+			NodeImpl(std::nullopt_t) requires(IsOptional) : kind(Kind::None), _value{} {}
 
 
 
-			EVO_NODISCARD auto getKind() const noexcept -> Kind { return this->kind; };
+			EVO_NODISCARD auto getKind() const -> Kind { return this->kind; }
 
 
-			EVO_NODISCARD auto hasValue() const noexcept -> bool {
+			EVO_NODISCARD auto hasValue() const -> bool {
 				return this->kind != Kind::None;
-			};
+			}
 
-			EVO_NODISCARD auto value() const noexcept -> NodeImpl<false> requires(IsOptional) {
+			EVO_NODISCARD auto value() const -> NodeImpl<false> requires(IsOptional) {
 				evo::debugAssert(this->hasValue(), "optional node does not have value");
 				return *(NodeImpl<false>*)this;
-			};
+			}
 
 		
 		private:
@@ -114,7 +114,7 @@ namespace pcit::panther::AST{
 	static_assert(std::is_trivially_copyable_v<Node>, "AST::Node is not trivially copyable");
 	static_assert(std::is_trivially_copyable_v<NodeOptional>, "AST::NodeOptional is not trivially copyable");
 
-};
+}
 
 
 
@@ -231,5 +231,5 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Attribute> attributes;
 	};
 
-};
+}
 

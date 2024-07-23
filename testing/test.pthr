@@ -2,13 +2,16 @@
 
 
 
+// func list = (arr: [Int: ?]) -> Void {
+// 	iter(arr) [i: USize, int: Int*|] {
 
-func test = <{T: Type, SIZE: USize}> () -> std.DArray<{Int}> {
-	return test<{Int, 12}>();
-}
+// 	}
+// }
 
 
-func entry = () #entry -> Int {
-	return 0;
+func test = () -> Void {
+	// var foo: [Int: 3] = [1, 2, 3];
+	// var bar: [Int: _] = [4, 6, 5,];
+	var foo = Int;
 }
 

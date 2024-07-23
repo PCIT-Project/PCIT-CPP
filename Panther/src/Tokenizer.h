@@ -23,38 +23,38 @@ namespace pcit::panther{
 
 	class Tokenizer{
 		public:
-			Tokenizer(Context& _context, Source::ID source_id) noexcept :
+			Tokenizer(Context& _context, Source::ID source_id) :
 				context(_context),
 				source(this->context.getSourceManager().getSource(source_id)),
 				char_stream(this->source.getData())
-				{};
+				{}
 
 			~Tokenizer() = default;
 
-			EVO_NODISCARD auto tokenize() noexcept -> bool;
+			EVO_NODISCARD auto tokenize() -> bool;
 
 			
 		private:
 			// these functions return true if they consumed any of the source file
-			EVO_NODISCARD auto tokenize_whitespace() noexcept -> bool;
-			EVO_NODISCARD auto tokenize_comment() noexcept -> bool;
-			EVO_NODISCARD auto tokenize_identifier() noexcept -> bool;
-			EVO_NODISCARD auto tokenize_punctuation() noexcept -> bool;
-			EVO_NODISCARD auto tokenize_operators() noexcept -> bool;
-			EVO_NODISCARD auto tokenize_number_literal() noexcept -> bool;
-			EVO_NODISCARD auto tokenize_string_literal() noexcept -> bool;
+			EVO_NODISCARD auto tokenize_whitespace() -> bool;
+			EVO_NODISCARD auto tokenize_comment() -> bool;
+			EVO_NODISCARD auto tokenize_identifier() -> bool;
+			EVO_NODISCARD auto tokenize_punctuation() -> bool;
+			EVO_NODISCARD auto tokenize_operators() -> bool;
+			EVO_NODISCARD auto tokenize_number_literal() -> bool;
+			EVO_NODISCARD auto tokenize_string_literal() -> bool;
 
-			auto create_token(Token::Kind kind, auto&&... value) noexcept -> void;
-
-
-			auto file_too_big() noexcept -> bool;
-
-			auto emit_warning(auto&&... args) noexcept -> void;
-			auto emit_error(auto&&... args) noexcept -> void;
-			auto emit_fatal(auto&&... args) noexcept -> void;
+			auto create_token(Token::Kind kind, auto&&... value) -> void;
 
 
-			auto error_unrecognized_character() noexcept -> void;
+			EVO_NODISCARD auto file_too_big() -> bool;
+
+			auto emit_warning(auto&&... args) -> void;
+			auto emit_error(auto&&... args) -> void;
+			auto emit_fatal(auto&&... args) -> void;
+
+
+			auto error_unrecognized_character() -> void;
 
 	
 		private:
@@ -70,4 +70,4 @@ namespace pcit::panther{
 	};
 
 
-};
+}
