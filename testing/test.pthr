@@ -14,6 +14,8 @@ func test = () -> std.Array<{Int, 3}> {
 	// var bar: [Int: _] = [4, 6, 5,];
 	var foo = asdf<{asdf.?}>();
 
-	var foo: Int = (foo as Asdf?).?;
+	var bar: Int = (foo as Asdf?).?;
+
+	var test_char: Char = '0';
 }
 

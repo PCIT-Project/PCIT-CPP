@@ -68,6 +68,8 @@ namespace pcit::panther{
 			evo::SmallVector<Token> tokens{};
 			evo::SmallVector<std::unique_ptr<std::string>> string_literals{};
 			bool is_locked = false;
+
+			friend Token;
 	};
 
 

@@ -523,6 +523,7 @@ namespace pcit::panther{
 
 
 		private:
+			// TODO: should location be split off into a different array in TokenBuffer?
 			Kind kind;
 			Location location;
 

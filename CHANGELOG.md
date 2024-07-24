@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.10.3
+
+### Panther
+- Added checking for valid characters
+
+
+<!---------------------------------->
 ## v0.0.10.2
 
 ### Panther

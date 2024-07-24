@@ -1219,6 +1219,31 @@ namespace pcit::panther{
 		this->char_stream.skip(1);
 
 		if(delimiter == '\''){
+			if(literal_value.empty()){
+				this->emit_error(
+					Diagnostic::Code::TokInvalidChar,
+					Source::Location(
+						this->source.getID(),
+						this->current_token_line_start, this->char_stream.get_line(),
+						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+					),
+					"Literal character cannot be empty"
+				);
+				return true;
+
+			}else if(literal_value.size() > 1){
+				this->emit_error(
+					Diagnostic::Code::TokInvalidChar,
+					Source::Location(
+						this->source.getID(),
+						this->current_token_line_start, this->char_stream.get_line(),
+						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
+					),
+					"Literal character must be only 1 character"
+				);
+				return true;
+			}
+
 			this->create_token(Token::Kind::LiteralChar, this->source, std::move(literal_value));
 		}else{
 			this->create_token(Token::Kind::LiteralString, this->source, std::move(literal_value));

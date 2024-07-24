@@ -682,6 +682,7 @@ namespace pthr{
 							} break;
 
 							case panther::Token::Kind::LiteralChar: {
+								const std::string_view str = token.getString(this->source);
 								this->printer.printMagenta("'{}'", token.getString(this->source));
 								this->printer.printGray(" {LiteralChar}");
 							} break;
