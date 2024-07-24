@@ -9,9 +9,11 @@
 // }
 
 
-func test = () -> Void {
+func test = () -> std.Array<{Int, 3}> {
 	// var foo: [Int: 3] = [1, 2, 3];
 	// var bar: [Int: _] = [4, 6, 5,];
-	var foo = Int;
+	var foo = asdf<{asdf.?}>();
+
+	var foo: Int = (foo as Asdf?).?;
 }
 

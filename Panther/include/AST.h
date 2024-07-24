@@ -185,7 +185,7 @@ namespace pcit::panther::AST{
 
 	struct TemplatedExpr{
 		Node base;
-		evo::SmallVector<Node> exprs;
+		evo::SmallVector<Node> args;
 	};
 
 	struct Prefix{

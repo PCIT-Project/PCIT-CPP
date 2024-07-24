@@ -86,7 +86,15 @@ namespace pcit::panther{
 			};
 			// TODO: make label_requirement template?
 			EVO_NODISCARD auto parse_block(BlockLabelRequirement label_requirement) -> Result;
-			EVO_NODISCARD auto parse_type(bool is_expr = false) -> Result;
+
+			
+			enum class TypeKind{
+				Explicit,
+				Expr,
+				TemplateArg,
+			};
+			template<TypeKind KIND>
+			EVO_NODISCARD auto parse_type() -> Result;
 
 			EVO_NODISCARD auto parse_expr() -> Result;
 			EVO_NODISCARD auto parse_sub_expr() -> Result;
@@ -96,11 +104,12 @@ namespace pcit::panther{
 
 			enum class IsTypeTerm{
 				Yes,
+				YesAs, // for the [as] operator
 				No,
 				Maybe,
 			};
-			// TODO: make is_type_term template?
-			EVO_NODISCARD auto parse_term(IsTypeTerm is_type_term = IsTypeTerm::No) -> Result; 
+			template<IsTypeTerm IS_TYPE_TERM>
+			EVO_NODISCARD auto parse_term() -> Result; 
 			EVO_NODISCARD auto parse_term_stmt() -> Result;
 			EVO_NODISCARD auto parse_encapsulated_expr() -> Result;
 			EVO_NODISCARD auto parse_atom() -> Result;

@@ -73,7 +73,7 @@ namespace pcit::panther{
 		if(this->reader[this->reader.peek()].getKind() == Token::lookupKind(":")){
 			if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::Error; }
 
-			const Result type_result = this->parse_type();
+			const Result type_result = this->parse_type<TypeKind::Explicit>();
 			if(this->check_result_fail(type_result, "type after [:] in variable declaration")){
 				return Result::Code::Error;
 			}
@@ -91,7 +91,7 @@ namespace pcit::panther{
 			if(this->assert_token_fail(Token::lookupKind("="))){ return Result::Code::Error; }
 				
 			const Result value_result = this->parse_expr();
-			if(this->check_result_fail(value_result, "value after [:] in variable declaration")){
+			if(this->check_result_fail(value_result, "value after [=] in variable declaration")){
 				return Result::Code::Error;
 			}
 
@@ -275,7 +275,7 @@ namespace pcit::panther{
 
 
 
-		const Result lhs = this->parse_term();
+		const Result lhs = this->parse_term<IsTypeTerm::No>();
 		if(lhs.code() != Result::Code::Success){ return lhs; }
 
 		const Token::ID op_token_id = this->reader.next();
@@ -351,7 +351,8 @@ namespace pcit::panther{
 
 
 	// TODO: check EOF
-	auto Parser::parse_type(bool is_expr) -> Result {
+	template<Parser::TypeKind KIND>
+	auto Parser::parse_type() -> Result {
 		const Token::ID start_location = this->reader.peek();
 		bool is_builtin = true;
 		switch(this->reader[start_location].getKind()){
@@ -397,24 +398,40 @@ namespace pcit::panther{
 
 				const Token& peeked_token = this->reader[this->reader.peek()];
 				if(peeked_token.getKind() == Token::lookupKind(".*")){
+					const Diagnostic::Info diagnostics_info = [](){
+						if constexpr(KIND == TypeKind::Expr || KIND == TypeKind::TemplateArg){
+							return Diagnostic::Info(
+								"Did you mean to put parentheses around the preceding [as] operation?"
+							);
+						}else{
+							return Diagnostic::Info("Did you mean pointer ([*]) instead?");
+						}
+					}();
+
 					this->context.emitError(
 						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
 						peeked_token.getSourceLocation(this->source.getID()),
 						"A dereference operator ([.*]) should not follow a type",
-						evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info("Did you mean pointer ([*]) instead?"),
-						}
+						evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 					);
 					return Result(Result::Code::Error);
 
 				}else if(peeked_token.getKind() == Token::lookupKind(".?")){
+					const Diagnostic::Info diagnostics_info = [](){
+						if constexpr(KIND == TypeKind::Expr || KIND == TypeKind::TemplateArg){
+							return Diagnostic::Info(
+								"Did you mean to put parentheses around the preceding [as] operation?"
+							);
+						}else{
+							return Diagnostic::Info("Did you mean optional ([?]) instead?");
+						}
+					}();
+
 					this->context.emitError(
 						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
 						peeked_token.getSourceLocation(this->source.getID()),
 						"A unwrap operator ([.?]) should not follow a type",
-						evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info("Did you mean optional ([?]) instead?"),
-						}
+						evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 					);
 					return Result(Result::Code::Error);
 				}
@@ -422,10 +439,10 @@ namespace pcit::panther{
 				return Result(AST::Node(AST::Kind::BuiltinType, base_type_token_id));
 
 			}else{
-				if(is_expr){
-					return this->parse_term(IsTypeTerm::Maybe);
+				if constexpr(KIND == TypeKind::TemplateArg){
+					return this->parse_term<IsTypeTerm::Maybe>();
 				}else{
-					return this->parse_term(IsTypeTerm::Yes);
+					return this->parse_term<IsTypeTerm::YesAs>();
 				}
 			}
 		}();
@@ -479,7 +496,7 @@ namespace pcit::panther{
 		}
 
 
-		if(is_expr){
+		if constexpr(KIND == TypeKind::Expr || KIND == TypeKind::TemplateArg){
 			// make sure exprs like `a as Int * b` gets parsed like `(a as Int) * b`
 			if(qualifiers.empty() == false && qualifiers.back().isOptional == false){
 				switch(this->reader[this->reader.peek()].getKind()){
@@ -505,11 +522,12 @@ namespace pcit::panther{
 			}
 
 			// just an ident
-			if(is_builtin == false && qualifiers.empty()){
-				this->reader.go_back(start_location);
-				return Result::Code::WrongType;
+			if constexpr(KIND == TypeKind::TemplateArg){
+				if(is_builtin == false && qualifiers.empty()){
+					this->reader.go_back(start_location);
+					return Result::Code::WrongType;
+				}
 			}
-
 		}
 
 		return this->source.ast_buffer.createType(base_type.value(), std::move(qualifiers));
@@ -595,7 +613,38 @@ namespace pcit::panther{
 
 		if(this->assert_token_fail(peeked_op_kind)){ return Result::Code::Error; }
 
-		const Result rhs_result = [&]() {
+		const Result rhs_result = [&](){
+			if(peeked_op_kind == Token::Kind::KeywordAs){
+				const Result type_result = this->parse_type<TypeKind::Expr>();
+				if(this->check_result_fail(type_result, "type after [as] operator")){
+					return Result(Result::Code::Error);
+				}
+
+				if(this->reader[this->reader.peek()].getKind() == Token::lookupKind(".*")){
+					this->context.emitError(
+						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
+						this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+						"A dereference operator ([.*]) should not follow a type",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Did you mean to put parentheses around the preceding [as] operation?")
+						}
+					);
+					return Result(Result::Code::Error);
+
+				}else if(this->reader[this->reader.peek()].getKind() == Token::lookupKind(".?")){
+					this->context.emitError(
+						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
+						this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+						"A dereference operator ([.?]) should not follow a type",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Did you mean to put parentheses around the preceding [as] operation?")
+						}
+					);
+					return Result(Result::Code::Error);
+				}
+
+				return type_result;
+			}
 			
 			const Result next_part_of_expr = this->parse_prefix_expr();
 			if(next_part_of_expr.code() != Result::Code::Success){ return next_part_of_expr; }
@@ -628,12 +677,12 @@ namespace pcit::panther{
 				break;
 
 			default:
-				return this->parse_term();
+				return this->parse_term<IsTypeTerm::No>();
 		}
 
 		if(this->assert_token_fail(op_token_kind)){ return Result::Code::Error; }
 
-		const Result rhs = this->parse_term();
+		const Result rhs = this->parse_term<IsTypeTerm::No>();
 		if(this->check_result_fail(
 			rhs, std::format("valid sub-expression on right-hand side of prefix [{}] operator", op_token_kind)
 		)){
@@ -644,13 +693,15 @@ namespace pcit::panther{
 	}
 
 	// TODO: check EOF
-	auto Parser::parse_term(IsTypeTerm is_type_term) -> Result {
-		if(is_type_term == IsTypeTerm::No){
-			const Result type = this->parse_type(true);
-			if(type.code() != Result::Code::WrongType){ return type; }
-		}
-
-		Result output = this->parse_encapsulated_expr();
+	template<Parser::IsTypeTerm IS_TYPE_TERM>
+	auto Parser::parse_term() -> Result {
+		Result output = [&](){
+			if constexpr(IS_TYPE_TERM == IsTypeTerm::Yes || IS_TYPE_TERM == IsTypeTerm::YesAs){
+				return this->parse_ident();
+			}else{
+				return this->parse_encapsulated_expr();
+			}
+		}();
 		if(output.code() != Result::Code::Success){ return output; }
 
 		bool should_continue = true;
@@ -676,48 +727,68 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind(".*"): {
-					if(is_type_term == IsTypeTerm::Yes){
+					if constexpr(IS_TYPE_TERM == IsTypeTerm::Yes || IS_TYPE_TERM == IsTypeTerm::YesAs){
+						Diagnostic::Info diagnostics_info = [](){
+							if constexpr(IS_TYPE_TERM == IsTypeTerm::YesAs){
+								return Diagnostic::Info(
+									"Did you mean to put parentheses around the preceding [as] operation?"
+								);
+							}else{
+								return Diagnostic::Info("Did you mean pointer ([*]) instead?");
+							}
+						}();
+
 						this->context.emitError(
 							Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
 							this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
 							"A dereference operator ([.*]) should not follow a type",
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Did you mean pointer ([*]) instead?"),
-							}
+							evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 						);
 						return Result::Code::Error;
 
-					}else if(is_type_term == IsTypeTerm::Maybe){
+					}else if constexpr(IS_TYPE_TERM == IsTypeTerm::Maybe){
 						return Result::Code::WrongType;
+
+					}else{
+						output = this->source.ast_buffer.createPostfix(output.value(), this->reader.next());
 					}
 
-					output = this->source.ast_buffer.createPostfix(output.value(), this->reader.next());
 				} break;
 
 				case Token::lookupKind(".?"): {
-					if(is_type_term == IsTypeTerm::Yes){
+					if constexpr(IS_TYPE_TERM == IsTypeTerm::Yes || IS_TYPE_TERM == IsTypeTerm::YesAs){
+						Diagnostic::Info diagnostics_info = [](){
+							if constexpr(IS_TYPE_TERM == IsTypeTerm::YesAs){
+								return Diagnostic::Info(
+									"Did you mean to put parentheses around the preceding [as] operation?"
+								);
+							}else{
+								return Diagnostic::Info("Did you mean optional ([?]) instead?");
+							}
+						}();
+
 						this->context.emitError(
 							Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
 							this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
 							"An unwrap operator ([.?]) should not follow a type",
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Did you mean optional ([?]) instead?"),
-							}
+							evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 						);
 						return Result::Code::Error;
 
-					}else if(is_type_term == IsTypeTerm::Maybe){
+					}else if constexpr(IS_TYPE_TERM == IsTypeTerm::Maybe){
 						return Result::Code::WrongType;
+
+					}else{
+						output = this->source.ast_buffer.createPostfix(output.value(), this->reader.next());
 					}
 
-					output = this->source.ast_buffer.createPostfix(output.value(), this->reader.next());
 				} break;
 
 
 				case Token::lookupKind("<{"): {
 					if(this->assert_token_fail(Token::lookupKind("<{"))){ return Result::Code::Error; }
 					
-					auto exprs = evo::SmallVector<AST::Node>();
+					auto args = evo::SmallVector<AST::Node>();
 
 					bool is_first_expr = true;
 
@@ -727,12 +798,18 @@ namespace pcit::panther{
 							break;
 						}
 						
-						auto expr = this->parse_expr();
-						if(this->check_result_fail(expr, "expression argument inside template pack")){
+						Result arg = this->parse_type<TypeKind::TemplateArg>();
+						if(arg.code() == Result::Code::Error){
 							return Result::Code::Error;
+
+						}else if(arg.code() == Result::Code::WrongType){
+							arg = this->parse_expr();
+							if(this->check_result_fail(arg, "argument inside template pack")){
+								return Result::Code::Error;
+							}
 						}
 
-						exprs.emplace_back(expr.value());
+						args.emplace_back(arg.value());
 
 						// check if ending or should continue
 						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].getKind();
@@ -750,7 +827,7 @@ namespace pcit::panther{
 						}
 					}
 
-					output = this->source.ast_buffer.createTemplatedExpr(output.value(), std::move(exprs));
+					output = this->source.ast_buffer.createTemplatedExpr(output.value(), std::move(args));
 				} break;
 
 
@@ -812,7 +889,7 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_term_stmt() -> Result {
-		const Result term = this->parse_term();
+		const Result term = this->parse_term<IsTypeTerm::No>();
 		if(term.code() != Result::Code::Success){ return term; }
 
 		if(this->expect_token_fail(Token::lookupKind(";"), "after term statement")){ return Result::Code::Error; }
@@ -980,7 +1057,7 @@ namespace pcit::panther{
 				return Result::Code::Error;
 			}
 			
-			const Result type = this->parse_type();
+			const Result type = this->parse_type<TypeKind::Explicit>();
 			if(this->check_result_fail(type, "type in template parameter declaration")){
 				return Result::Code::Error;
 			}
@@ -1077,7 +1154,7 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				const Result type = this->parse_type();
+				const Result type = this->parse_type<TypeKind::Explicit>();
 				if(this->check_result_fail(type, "type after [:] in function parameter declaration")){
 					return evo::resultError;
 				}
@@ -1136,7 +1213,7 @@ namespace pcit::panther{
 		auto returns = evo::SmallVector<AST::FuncDecl::Return>();
 
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("(")){
-			const Result type = this->parse_type();
+			const Result type = this->parse_type<TypeKind::Explicit>();
 			if(this->check_result_fail(type, "Return type in function declaration")){ return evo::resultError; }	
 
 			returns.emplace_back(std::nullopt, type.value());
@@ -1171,7 +1248,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 			
-			const Result type = this->parse_type();
+			const Result type = this->parse_type<TypeKind::Explicit>();
 			if(this->check_result_fail(type, "type in function return parameter declaration")){
 				return evo::resultError;
 			}

@@ -577,7 +577,7 @@ namespace pthr{
 							this->ast_buffer.getTemplatedExpr(base_type);
 						print_base_type(templated_expr.base);
 						this->printer.printMagenta("<{");
-						this->printer.printGray("...{} args...", templated_expr.exprs.size());
+						this->printer.printGray("...{} args...", templated_expr.args.size());
 						this->printer.printMagenta("}>");
 					} break;
 
@@ -978,14 +978,14 @@ namespace pthr{
 
 					this->indenter.print_end();
 					this->print_minor_header("Arguments");
-					if(templated_expr.exprs.empty()){
+					if(templated_expr.args.empty()){
 						this->printer.printGray(" {EMPTY}\n");
 					}else{
 						this->printer.print("\n");
 						this->indenter.push();
 
-						for(size_t i = 0; const panther::AST::Node& expr : templated_expr.exprs){
-							if(i + 1 < templated_expr.exprs.size()){
+						for(size_t i = 0; const panther::AST::Node& arg : templated_expr.args){
+							if(i + 1 < templated_expr.args.size()){
 								this->indenter.print_arrow();
 							}else{
 								this->indenter.print_end();
@@ -993,7 +993,7 @@ namespace pthr{
 
 							this->print_major_header(std::format("Argument {}", i));
 							this->indenter.push();
-							this->print_expr(expr);
+							this->print_expr(arg);
 							this->indenter.pop();
 						
 							i += 1;

@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.10.2
+
+### Panther
+- Removed type expressions (except after an `as` operator)
+- Improved diagnostic for cases like `foo as SomeOptionalAlias.?`
+- Improved diagnostic for cases like `foo as Int?.?`
+- Improved the performance of the Parser
+
+
+<!---------------------------------->
+## v0.0.10.1
+
+### Panther
+- Fixed typo in Parser diagnostic "Expected value after [=] in variable declaration, ..."
+
+
+<!---------------------------------->
 ## v0.0.10.1
 - Fixed various compile errors caused by update to MSVC
 - Minor tweaks to coding style
