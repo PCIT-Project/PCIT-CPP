@@ -41,8 +41,7 @@ namespace pthr{
 		auto location_strings = evo::SmallVector<std::string>();
 
 		for(panther::Token::ID token_id : token_buffer){
-			const panther::Token& token = token_buffer[token_id];
-			const panther::Token::Location& location = token.getLocation();
+			const panther::Token::Location& location = token_buffer.getLocation(token_id);
 
 			location_strings.emplace_back(std::format("<{}:{}>", location.lineStart, location.collumnStart));
 		}
@@ -75,17 +74,15 @@ namespace pthr{
 
 			const std::string data_str = [&]() {
 				switch(token.getKind()){
-					break; case panther::Token::Kind::Ident:     return std::format(" {}", token.getString(source));
-					break; case panther::Token::Kind::Intrinsic: return std::format(" @{}", token.getString(source));
-					break; case panther::Token::Kind::Attribute: return std::format(" #{}", token.getString(source));
+					break; case panther::Token::Kind::Ident:     return std::format(" {}", token.getString());
+					break; case panther::Token::Kind::Intrinsic: return std::format(" @{}", token.getString());
+					break; case panther::Token::Kind::Attribute: return std::format(" #{}", token.getString());
 
 					break; case panther::Token::Kind::LiteralBool:   return std::format(" {}", token.getBool());
 					break; case panther::Token::Kind::LiteralInt:    return std::format(" {}", token.getInt());
 					break; case panther::Token::Kind::LiteralFloat:  return std::format(" {}", token.getFloat());
-					break; case panther::Token::Kind::LiteralChar:
-						return std::format(" \'{}\'", token.getString(source));
-					break; case panther::Token::Kind::LiteralString:
-						return std::format(" \"{}\"", token.getString(source));
+					break; case panther::Token::Kind::LiteralChar:   return std::format(" \'{}\'", token.getString());
+					break; case panther::Token::Kind::LiteralString: return std::format(" \"{}\"", token.getString());
 
 					break; default: return std::string();
 				}
@@ -551,16 +548,12 @@ namespace pthr{
 
 					case panther::AST::Kind::Ident: {
 						const panther::Token::ID type_token_id = this->ast_buffer.getIdent(base_type);
-						this->printer.printMagenta(
-							"{}", this->source.getTokenBuffer()[type_token_id].getString(this->source)
-						);
+						this->printer.printMagenta("{}", this->source.getTokenBuffer()[type_token_id].getString());
 					} break;
 
 					case panther::AST::Kind::Intrinsic: {
 						const panther::Token::ID type_token_id = this->ast_buffer.getIntrinsic(base_type);
-						this->printer.printMagenta(
-							"@{}", this->source.getTokenBuffer()[type_token_id].getString(this->source)
-						);
+						this->printer.printMagenta("@{}", this->source.getTokenBuffer()[type_token_id].getString());
 					} break;
 
 					case panther::AST::Kind::Infix: {
@@ -677,13 +670,13 @@ namespace pthr{
 							} break;
 
 							case panther::Token::Kind::LiteralString: {
-								this->printer.printMagenta("\"{}\"", token.getString(this->source));
+								this->printer.printMagenta("\"{}\"", token.getString());
 								this->printer.printGray(" {LiteralString}");
 							} break;
 
 							case panther::Token::Kind::LiteralChar: {
-								const std::string_view str = token.getString(this->source);
-								this->printer.printMagenta("'{}'", token.getString(this->source));
+								const std::string_view str = token.getString();
+								this->printer.printMagenta("'{}'", token.getString());
 								this->printer.printGray(" {LiteralChar}");
 							} break;
 
@@ -1035,7 +1028,7 @@ namespace pthr{
 							this->print_minor_header("Attribute");
 							const panther::Token::ID attr_token_id = this->ast_buffer.getAttribute(attribute.name);
 							const panther::Token& attr_token = this->source.getTokenBuffer()[attr_token_id];
-							this->printer.printMagenta(" #{}\n", attr_token.getString(this->source));
+							this->printer.printMagenta(" #{}\n", attr_token.getString());
 
 							this->indenter.print_end();
 							this->print_minor_header("Argument");
@@ -1061,13 +1054,13 @@ namespace pthr{
 			auto print_ident(const panther::AST::Node& ident) const -> void {
 				const panther::Token::ID ident_tok_id = this->ast_buffer.getIdent(ident);
 				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
-				this->printer.printMagenta("{}\n", ident_tok.getString(this->source));
+				this->printer.printMagenta("{}\n", ident_tok.getString());
 			}
 
 			auto print_intrinsic(const panther::AST::Node& ident) const -> void {
 				const panther::Token::ID ident_tok_id = this->ast_buffer.getIntrinsic(ident);
 				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
-				this->printer.printMagenta("@{}\n", ident_tok.getString(this->source));
+				this->printer.printMagenta("@{}\n", ident_tok.getString());
 			}
 
 

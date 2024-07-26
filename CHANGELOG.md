@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.11.0
+
+### Panther
+- Separated Tokens and Token locations (more data-oriented)
+- Fixed string and character literal tokens pointing to garbage/invalid strings
+- Added checking if a source location is too big (max lines / collumn number is 2^32-1)
+
+
+<!---------------------------------->
 ## v0.0.10.3
 
 ### Panther
@@ -15,12 +24,6 @@
 - Improved diagnostic for cases like `foo as SomeOptionalAlias.?`
 - Improved diagnostic for cases like `foo as Int?.?`
 - Improved the performance of the Parser
-
-
-<!---------------------------------->
-## v0.0.10.1
-
-### Panther
 - Fixed typo in Parser diagnostic "Expected value after [=] in variable declaration, ..."
 
 

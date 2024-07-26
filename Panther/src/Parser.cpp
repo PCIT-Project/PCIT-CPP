@@ -26,7 +26,7 @@ namespace pcit::panther{
 				case Result::Code::WrongType: {
 					this->context.emitError(
 						Diagnostic::Code::ParserUnknownStmtStart,
-						this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 						"Unknown start to statement"
 					);
 					return false;
@@ -247,7 +247,7 @@ namespace pcit::panther{
 						if(after_ident_next_token_kind != Token::lookupKind("]")){
 							this->expected_but_got(
 								"[,] after identifier or []] at end of multiple assignemt identifier block",
-								this->reader[this->reader.peek(-1)]
+								this->reader.peek(-1)
 							);
 							return Result::Code::Error;
 						}
@@ -410,7 +410,7 @@ namespace pcit::panther{
 
 					this->context.emitError(
 						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
-						peeked_token.getSourceLocation(this->source.getID()),
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 						"A dereference operator ([.*]) should not follow a type",
 						evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 					);
@@ -429,7 +429,7 @@ namespace pcit::panther{
 
 					this->context.emitError(
 						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
-						peeked_token.getSourceLocation(this->source.getID()),
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 						"A unwrap operator ([.?]) should not follow a type",
 						evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 					);
@@ -623,7 +623,7 @@ namespace pcit::panther{
 				if(this->reader[this->reader.peek()].getKind() == Token::lookupKind(".*")){
 					this->context.emitError(
 						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
-						this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 						"A dereference operator ([.*]) should not follow a type",
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Did you mean to put parentheses around the preceding [as] operation?")
@@ -634,7 +634,7 @@ namespace pcit::panther{
 				}else if(this->reader[this->reader.peek()].getKind() == Token::lookupKind(".?")){
 					this->context.emitError(
 						Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
-						this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 						"A dereference operator ([.?]) should not follow a type",
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Did you mean to put parentheses around the preceding [as] operation?")
@@ -740,7 +740,7 @@ namespace pcit::panther{
 
 						this->context.emitError(
 							Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
-							this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+							this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 							"A dereference operator ([.*]) should not follow a type",
 							evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 						);
@@ -769,7 +769,7 @@ namespace pcit::panther{
 
 						this->context.emitError(
 							Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
-							this->reader[this->reader.peek()].getSourceLocation(this->source.getID()),
+							this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 							"An unwrap operator ([.?]) should not follow a type",
 							evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 						);
@@ -817,7 +817,7 @@ namespace pcit::panther{
 							if(after_arg_next_token_kind != Token::lookupKind("}>")){
 								this->expected_but_got(
 									"[,] at end of template argument or [}>] at end of template argument block",
-									this->reader[this->reader.peek(-1)]
+									this->reader.peek(-1)
 								);
 								return Result::Code::Error;
 							}
@@ -866,7 +866,7 @@ namespace pcit::panther{
 								this->expected_but_got(
 									"[,] at end of function call argument"
 									" or [)] at end of function call argument block",
-									this->reader[this->reader.peek(-1)]
+									this->reader.peek(-1)
 								);
 								return Result::Code::Error;
 							}
@@ -913,12 +913,12 @@ namespace pcit::panther{
 		if(inner_expr.code() != Result::Code::Success){ return inner_expr; }
 
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind(")")){
-			const Token& open_token = this->reader[open_token_id];
-			const Source::Location open_location = open_token.getSourceLocation(this->source.getID());
+			const Source::Location open_location = 
+				this->source.getTokenBuffer().getSourceLocation(open_token_id, this->source.getID());
 
 			this->expected_but_got(
 				"either closing [)] around expression or continuation of sub-expression",
-				this->reader[this->reader.peek()],
+				this->reader.peek(),
 				evo::SmallVector<Diagnostic::Info>{ Diagnostic::Info("parenthesis opened here", open_location), }
 			);
 
@@ -1049,7 +1049,7 @@ namespace pcit::panther{
 			if(ident.code() == Result::Code::Error){
 				return Result::Code::Error;
 			}else if(ident.code() == Result::Code::WrongType){
-				this->expected_but_got("identifier in template parameter", this->reader[this->reader.peek()]);
+				this->expected_but_got("identifier in template parameter", this->reader.peek());
 				return Result::Code::Error;
 			}
 
@@ -1071,7 +1071,7 @@ namespace pcit::panther{
 				if(after_return_next_token_kind != Token::lookupKind("}>")){
 					this->expected_but_got(
 						"[,] at end of template parameter or [}>] at end of template pack",
-						this->reader[this->reader.peek(-1)]
+						this->reader.peek(-1)
 					);
 					return Result::Code::Error;
 				}
@@ -1121,7 +1121,9 @@ namespace pcit::panther{
 					case Token::Kind::KeywordIn: {
 						this->context.emitError(
 							Diagnostic::Code::ParserInvalidKindForAThisParam,
-							this->reader[this->reader.peek(-1)].getSourceLocation(this->source.getID()),
+							this->source.getTokenBuffer().getSourceLocation(
+								this->reader.peek(-1), this->source.getID()
+							),
 							"[this] parameters cannot have the kind [in]",
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info("Note: valid kinds are [read] and [mut]"),
@@ -1133,7 +1135,9 @@ namespace pcit::panther{
 					default: {
 						this->context.emitError(
 							Diagnostic::Code::ParserInvalidKindForAThisParam,
-							this->reader[this->reader.peek(-1)].getSourceLocation(this->source.getID()),
+							this->source.getTokenBuffer().getSourceLocation(
+								this->reader.peek(-1), this->source.getID()
+							),
 							"[this] parameters cannot have a default kind",
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info("Note: valid kinds are [read] and [mut]"),
@@ -1194,7 +1198,7 @@ namespace pcit::panther{
 				if(after_param_next_token_kind != Token::lookupKind(")")){
 					this->expected_but_got(
 						"[,] at end of function parameter or [)] at end of function parameters block",
-						this->reader[this->reader.peek(-1)]
+						this->reader.peek(-1)
 					);
 					return evo::resultError;
 				}
@@ -1234,7 +1238,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}else if(ident.code() == Result::Code::WrongType){
 				this->expected_but_got(
-					"identifier in function return parameter", this->reader[this->reader.peek()],
+					"identifier in function return parameter", this->reader.peek(),
 					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info("If a function has multiple return parameters, all must be named"),
 						Diagnostic::Info("If you want a single return value that's unnamed,"
@@ -1262,7 +1266,7 @@ namespace pcit::panther{
 				if(after_return_next_token_kind != Token::lookupKind(")")){
 					this->expected_but_got(
 						"[,] at end of function return parameter or [)] at end of function returns parameters block",
-						this->reader[this->reader.peek(-1)]
+						this->reader.peek(-1)
 					);
 					return evo::resultError;
 				}
@@ -1285,11 +1289,12 @@ namespace pcit::panther{
 	// checking
 
 	auto Parser::expected_but_got(
-		std::string_view location_str, const Token& token, evo::SmallVector<Diagnostic::Info>&& infos
+		std::string_view location_str, Token::ID token_id, evo::SmallVector<Diagnostic::Info>&& infos
 	) -> void {
 		this->context.emitError(
-			Diagnostic::Code::ParserIncorrectStmtContinuation, token.getSourceLocation(this->source.getID()),
-			std::format("Expected {}, got [{}] instead", location_str, token.getKind()), 
+			Diagnostic::Code::ParserIncorrectStmtContinuation,
+			this->source.getTokenBuffer().getSourceLocation(token_id, this->source.getID()),
+			std::format("Expected {}, got [{}] instead", location_str, this->reader[token_id].getKind()), 
 			std::move(infos)
 		);
 	}
@@ -1302,7 +1307,7 @@ namespace pcit::panther{
 			} break;
 
 			case Result::Code::WrongType: {
-				this->expected_but_got(location_str, this->reader[this->reader.peek()]);
+				this->expected_but_got(location_str, this->reader.peek());
 				return true;
 			} break;
 
@@ -1317,13 +1322,14 @@ namespace pcit::panther{
 
 	auto Parser::assert_token_fail(Token::Kind kind) -> bool {
 		#if defined(PCIT_CONFIG_DEBUG)
-			const Token& next_token = this->reader[this->reader.next()];
+			const Token::ID next_token_id = this->reader.next();
 
-			if(next_token.getKind() == kind){ return false; }
+			if(this->reader[next_token_id].getKind() == kind){ return false; }
 
 			this->context.emitFatal(
-				Diagnostic::Code::ParserAssumedTokenNotPreset, next_token.getSourceLocation(this->source.getID()),
-				std::format("Expected [{}], got [{}] instead", kind, next_token.getKind())
+				Diagnostic::Code::ParserAssumedTokenNotPreset,
+				this->source.getTokenBuffer().getSourceLocation(next_token_id, this->source.getID()),
+				std::format("Expected [{}], got [{}] instead", kind, this->reader[next_token_id].getKind())
 			);
 
 			return true;
@@ -1335,11 +1341,11 @@ namespace pcit::panther{
 	}
 
 	auto Parser::expect_token_fail(Token::Kind kind, std::string_view location_str) -> bool {
-		const Token& next_token = this->reader[this->reader.next()];
+		const Token::ID next_token_id = this->reader.next();
 
-		if(next_token.getKind() == kind){ return false; }
+		if(this->reader[next_token_id].getKind() == kind){ return false; }
 
-		this->expected_but_got(std::format("[{}] {}", kind, location_str), next_token);
+		this->expected_but_got(std::format("[{}] {}", kind, location_str), next_token_id);
 		return true;
 	}
 

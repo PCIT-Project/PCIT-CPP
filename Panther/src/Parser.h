@@ -132,7 +132,7 @@ namespace pcit::panther{
 			// checking
 
 			auto expected_but_got(
-				std::string_view location_str, const Token& token, evo::SmallVector<Diagnostic::Info>&& infos = {}
+				std::string_view location_str, Token::ID token, evo::SmallVector<Diagnostic::Info>&& infos = {}
 			) -> void;
 
 			EVO_NODISCARD auto check_result_fail(const Result& result, std::string_view location_str) -> bool;

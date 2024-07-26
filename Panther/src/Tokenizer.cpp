@@ -60,8 +60,15 @@ namespace pcit::panther{
 		while(
 			this->char_stream.at_end() == false && this->context.hasHitFailCondition() == false && this->can_continue
 		){
-			this->current_token_line_start = this->char_stream.get_line();
-			this->current_token_collumn_start = this->char_stream.get_collumn();
+			const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+			if(line_result.isError()){ this->error_line_too_big(); return false; }
+
+			const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+			if(collumn_result.isError()){ this->error_collumn_too_big(); return false; }
+
+			this->current_token_line_start = line_result.value();
+			this->current_token_collumn_start = collumn_result.value();
+
 
 			if(this->tokenize_whitespace()    ){ continue; }
 			if(this->tokenize_comment()       ){ continue; }
@@ -110,13 +117,12 @@ namespace pcit::panther{
 			unsigned num_closes_needed = 1;
 			while(num_closes_needed > 0){
 				if(this->char_stream.ammount_left() < 2){
+					const evo::Result<Source::Location> current_location = this->get_current_location_token();
+					if(current_location.isError()){ return true; }
+
 					this->emit_error(
 						Diagnostic::Code::TokUnterminatedMultilineComment,
-						Source::Location(
-							this->source.getID(),
-							this->current_token_line_start, this->char_stream.get_line(),
-							this->current_token_collumn_start, this->char_stream.get_collumn()
-						),
+						current_location.value(),
 						"Unterminated multi-line comment",
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Expected a \"*/\" before the end of the file"),
@@ -246,10 +252,10 @@ namespace pcit::panther{
 		auto ident_name = std::string_view(string_start_ptr, this->char_stream.peek_raw_ptr() - string_start_ptr);
 
 		if(kind == Token::Kind::Ident){
-			if(ident_name == "true"){
+			if(ident_name == "true") [[unlikely]] {
 				this->create_token(Token::Kind::LiteralBool, true);
 
-			}else if(ident_name == "false"){
+			}else if(ident_name == "false") [[unlikely]] {
 				this->create_token(Token::Kind::LiteralBool, false);
 
 			}else{
@@ -270,13 +276,12 @@ namespace pcit::panther{
 
 					if(bitwidth.has_value()){
 						if(bitwidth.value() > std::pow(2, 23)){
+							const evo::Result<Source::Location> current_location = this->get_current_location_token();
+							if(current_location.isError()){ return; }
+
 							this->emit_error(
 								Diagnostic::Code::TokInvalidIntegerWidth,
-								Source::Location(
-									this->source.getID(),
-									this->current_token_line_start, this->char_stream.get_line(),
-									this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-								),
+								current_location.value(),
 								"Integer bit-width is too large",
 								evo::SmallVector<Diagnostic::Info>{
 									Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
@@ -284,13 +289,12 @@ namespace pcit::panther{
 							);
 
 						}else if(bitwidth.value() == 0){
+							const evo::Result<Source::Location> current_location = this->get_current_location_token();
+							if(current_location.isError()){ return; }
+
 							this->emit_error(
 								Diagnostic::Code::TokInvalidIntegerWidth,
-								Source::Location(
-									this->source.getID(),
-									this->current_token_line_start, this->char_stream.get_line(),
-									this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-								),
+								current_location.value(),
 								"Integer bit-width cannot be 0"
 							);
 						}
@@ -301,13 +305,12 @@ namespace pcit::panther{
 
 					switch(bitwidth.error()){
 						case StrToNumError::OutOfRange: {
+							const evo::Result<Source::Location> current_location = this->get_current_location_token();
+							if(current_location.isError()){ return; }
+
 							this->emit_error(
 								Diagnostic::Code::TokInvalidIntegerWidth,
-								Source::Location(
-									this->source.getID(),
-									this->current_token_line_start, this->char_stream.get_line(),
-									this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-								),
+								current_location.value(),
 								"Integer bit-width is too large",
 								evo::SmallVector<Diagnostic::Info>{
 									Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
@@ -316,13 +319,12 @@ namespace pcit::panther{
 						} break;
 
 						case StrToNumError::Invalid: {
+							const evo::Result<Source::Location> current_location = this->get_current_location_token();
+							if(current_location.isError()){ return; }
+
 							this->emit_fatal(
 								Diagnostic::Code::TokUnknownFailureToTokenizeNum,
-								Source::Location(
-									this->source.getID(),
-									this->current_token_line_start, this->char_stream.get_line(),
-									this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-								),
+								current_location.value(),
 								"Attempted to tokenize invalid integer bit-width"
 							);
 						} break;
@@ -335,11 +337,13 @@ namespace pcit::panther{
 					parse_integer(Token::Kind::TypeUI_N, 2);
 				}
 
+				if(this->can_continue == false){ return false; }
+
 				if(is_integer == false){
 					const auto keyword_map_iter = keyword_map.find(ident_name);
 
 					if(keyword_map_iter == keyword_end){
-						this->create_token(Token::Kind::Ident, this->source, ident_name);
+						this->create_token(Token::Kind::Ident, ident_name);
 
 					}else{
 						this->create_token(keyword_map_iter->second);
@@ -348,7 +352,7 @@ namespace pcit::panther{
 			}
 
 		}else{
-			this->create_token(kind, this->source, ident_name);
+			this->create_token(kind, ident_name);
 		}
 		
 
@@ -760,11 +764,12 @@ namespace pcit::panther{
 				this->char_stream.skip(2);
 
 			}else if(evo::isNumber(second_peek)){
+				const evo::Result<Source::Location> current_location = this->get_current_location_point();
+				if(current_location.isError()){ return true; }
+
 				this->emit_error(
 					Diagnostic::Code::TokLiteralLeadingZero,
-					Source::Location(
-						this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
-					),
+					current_location.value(),
 					"Leading zeros in literal numbers are not supported",
 					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info("Note: the literal integer prefix for base-8 is \"0o\""),
@@ -792,11 +797,12 @@ namespace pcit::panther{
 
 			}else if(peeked_char == '.'){
 				if(has_decimal_point){
+					const evo::Result<Source::Location> current_location = this->get_current_location_point();
+					if(current_location.isError()){ return true; }
+
 					this->emit_error(
 						Diagnostic::Code::TokLiteralNumMultipleDecimalPoints,
-						Source::Location(
-							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
-						),
+						current_location.value(),
 						"Cannot have multiple decimal points in a floating-point literal"
 					);
 					return true;
@@ -836,11 +842,12 @@ namespace pcit::panther{
 					number_string += this->char_stream.next();
 
 				}else if(evo::isHexNumber(peeked_char)){
+					const evo::Result<Source::Location> current_location = this->get_current_location_point();
+					if(current_location.isError()){ return true; }
+
 					this->emit_error(
 						Diagnostic::Code::TokInvalidNumDigit,
-						Source::Location(
-							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
-						),
+						current_location.value(),
 						"Base-2 numbers should only have digits 0 and 1"
 					);
 					return true;
@@ -854,11 +861,12 @@ namespace pcit::panther{
 					number_string += this->char_stream.next();
 
 				}else if(evo::isHexNumber(peeked_char)){
+					const evo::Result<Source::Location> current_location = this->get_current_location_point();
+					if(current_location.isError()){ return true; }
+
 					this->emit_error(
 						Diagnostic::Code::TokInvalidNumDigit,
-						Source::Location(
-							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
-						),
+						current_location.value(),
 						"Base-8 numbers should only have digits 0-7"
 					);
 					return true;
@@ -875,11 +883,12 @@ namespace pcit::panther{
 					break;
 
 				}else if(evo::isHexNumber(peeked_char)){
+					const evo::Result<Source::Location> current_location = this->get_current_location_point();
+					if(current_location.isError()){ return true; }
+
 					this->emit_error(
 						Diagnostic::Code::TokInvalidNumDigit,
-						Source::Location(
-							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
-						),
+						current_location.value(),
 						"Base-10 numbers should only have digits 0-9",
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Note: The prefix for hexidecimal numbers (base-16) is \"0x\"")
@@ -925,11 +934,12 @@ namespace pcit::panther{
 					exponent_string += this->char_stream.next();
 
 				}else if(evo::isHexNumber(peeked_char)){
+					const evo::Result<Source::Location> current_location = this->get_current_location_token();
+					if(current_location.isError()){ return true; }
+
 					this->emit_error(
 						Diagnostic::Code::TokInvalidNumDigit,
-						Source::Location(
-							this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()
-						),
+						current_location.value(),
 						"Literal number exponents should only have digits 0-9"
 					);
 					return true;
@@ -956,13 +966,12 @@ namespace pcit::panther{
 			}else{
 				switch(converted_exponent_number.error()){
 					case StrToNumError::OutOfRange: {
+						const evo::Result<Source::Location> current_location = this->get_current_location_token();
+						if(current_location.isError()){ return true; }
+
 						this->emit_error(
 							Diagnostic::Code::TokLiteralNumTooBig,
-							Source::Location(
-								this->source.getID(),
-								this->current_token_line_start, this->char_stream.get_line(),
-								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-							),
+							current_location.value(),
 							"Literal number exponent too large to fit into a I64."
 							"This limitation will be removed when the compiler is self hosted."
 						);
@@ -970,13 +979,12 @@ namespace pcit::panther{
 					} break;
 
 					case StrToNumError::Invalid: {
+						const evo::Result<Source::Location> current_location = this->get_current_location_token();
+						if(current_location.isError()){ return true; }
+
 						this->emit_fatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
-							Source::Location(
-								this->source.getID(),
-								this->current_token_line_start, this->char_stream.get_line(),
-								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-							),
+							current_location.value(),
 							"Tried to convert invalid integer string for exponent"
 						);
 					} break;
@@ -995,13 +1003,12 @@ namespace pcit::panther{
 				const static float64_t max_float_exp = std::log10(std::numeric_limits<float64_t>::max()) + 1;
 
 				if(floating_point_exponent_number > max_float_exp){
+					const evo::Result<Source::Location> current_location = this->get_current_location_token();
+					if(current_location.isError()){ return true; }
+
 					this->emit_error(
 						Diagnostic::Code::TokLiteralNumTooBig,
-						Source::Location(
-							this->source.getID(),
-							this->current_token_line_start, this->char_stream.get_line(),
-							this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-						),
+						current_location.value(),
 						"Literal floating-point number too large to fit into an F64"
 					);
 					return true;
@@ -1011,13 +1018,12 @@ namespace pcit::panther{
 				const static float64_t max_int_exp = std::log10(std::numeric_limits<uint64_t>::max()) + 1;
 
 				if(floating_point_exponent_number > max_int_exp){
+					const evo::Result<Source::Location> current_location = this->get_current_location_token();
+					if(current_location.isError()){ return true; }
+
 					this->emit_error(
 						Diagnostic::Code::TokLiteralNumTooBig,
-						Source::Location(
-							this->source.getID(),
-							this->current_token_line_start, this->char_stream.get_line(),
-							this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-						),
+						current_location.value(),
 						"Literal number integer too large to fit into a UI64. "
 						"This limitation will be removed when the compiler is self hosted."
 					);
@@ -1038,26 +1044,24 @@ namespace pcit::panther{
 			if(converted_parsed_number.has_value() == false){
 				switch(converted_parsed_number.error()){
 					case StrToNumError::OutOfRange: {
+						const evo::Result<Source::Location> current_location = this->get_current_location_token();
+						if(current_location.isError()){ return true; }
+
 						this->emit_error(
 							Diagnostic::Code::TokLiteralNumTooBig,
-							Source::Location(
-								this->source.getID(),
-								this->current_token_line_start, this->char_stream.get_line(),
-								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-							),
+							current_location.value(),
 							"Literal floating-point too large to fit into an F64"
 						);
 						return true;
 					} break;
 
 					case StrToNumError::Invalid: {
+						const evo::Result<Source::Location> current_location = this->get_current_location_token();
+						if(current_location.isError()){ return true; }
+
 						this->emit_fatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
-							Source::Location(
-								this->source.getID(),
-								this->current_token_line_start, this->char_stream.get_line(),
-								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-							),
+							current_location.value(),
 							"Tried to convert invalid literal floating-point number"
 						);
 					} break;
@@ -1071,13 +1075,12 @@ namespace pcit::panther{
 				parsed_number == 0.0 && 
 				std::numeric_limits<float64_t>::max() / parsed_number < std::pow(10, exponent_number)
 			){
+				const evo::Result<Source::Location> current_location = this->get_current_location_token();
+				if(current_location.isError()){ return true; }
+
 				this->emit_error(
 					Diagnostic::Code::TokLiteralNumTooBig,
-					Source::Location(
-						this->source.getID(),
-						this->current_token_line_start, this->char_stream.get_line(),
-						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-					),
+					current_location.value(),
 					"Literal number integer too large to fit into an F64."
 				);
 				return true;
@@ -1098,13 +1101,12 @@ namespace pcit::panther{
 			if(converted_parsed_number.has_value() == false){
 				switch(converted_parsed_number.error()){
 					case StrToNumError::OutOfRange: {
+						const evo::Result<Source::Location> current_location = this->get_current_location_token();
+						if(current_location.isError()){ return true; }
+
 						this->emit_error(
 							Diagnostic::Code::TokLiteralNumTooBig,
-							Source::Location(
-								this->source.getID(),
-								this->current_token_line_start, this->char_stream.get_line(),
-								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-							),
+							current_location.value(),
 							"Literal integer too large to fit into a UI64. "
 							"This limitation will be removed when the compiler is self hosted."
 						);
@@ -1112,13 +1114,12 @@ namespace pcit::panther{
 					} break;
 
 					case StrToNumError::Invalid: {
+						const evo::Result<Source::Location> current_location = this->get_current_location_token();
+						if(current_location.isError()){ return true; }
+
 						this->emit_fatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
-							Source::Location(
-								this->source.getID(),
-								this->current_token_line_start, this->char_stream.get_line(),
-								this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-							),
+							current_location.value(),
 							"Tried to convert invalid literal integer"
 						);
 						return true;
@@ -1167,13 +1168,12 @@ namespace pcit::panther{
 					break; case '\\': literal_value += '\\';
 
 					break; default: {
+						const evo::Result<Source::Location> current_location = this->get_current_location_token();
+						if(current_location.isError()){ return true; }
+
 						this->emit_error(
 							Diagnostic::Code::TokUnterminatedTextEscapeSequence,
-							Source::Location(
-								this->source.getID(),
-								this->char_stream.get_line(), this->char_stream.get_line(),
-								this->char_stream.get_collumn(), this->char_stream.get_collumn() + 1
-							),
+							current_location.value(),
 							std::format("Unknown string escape code '\\{}'", this->char_stream.peek(1))
 						);
 						return true;
@@ -1198,12 +1198,18 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Unknown delimiter");
 				}();
 
+				const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+				if(line_result.isError()){ this->error_line_too_big(); return true; }
+
+				const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+				if(collumn_result.isError()){ this->error_collumn_too_big(); return true; }
+
 				this->emit_error(
 					Diagnostic::Code::TokUnterminatedMultilineComment,
 					Source::Location(
 						this->source.getID(),
-						this->current_token_line_start, this->char_stream.get_line(),
-						this->current_token_collumn_start, this->char_stream.get_collumn()
+						this->current_token_line_start, line_result.value(),
+						this->current_token_collumn_start, collumn_result.value()
 					),
 					std::format("Unterminated {} literal", string_type_name),
 					evo::SmallVector<Diagnostic::Info>{
@@ -1220,33 +1226,31 @@ namespace pcit::panther{
 
 		if(delimiter == '\''){
 			if(literal_value.empty()){
+				const evo::Result<Source::Location> current_location = this->get_current_location_token();
+				if(current_location.isError()){ return true; }
+
 				this->emit_error(
 					Diagnostic::Code::TokInvalidChar,
-					Source::Location(
-						this->source.getID(),
-						this->current_token_line_start, this->char_stream.get_line(),
-						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-					),
+					current_location.value(),
 					"Literal character cannot be empty"
 				);
 				return true;
 
 			}else if(literal_value.size() > 1){
+				const evo::Result<Source::Location> current_location = this->get_current_location_token();
+				if(current_location.isError()){ return true; }
+
 				this->emit_error(
 					Diagnostic::Code::TokInvalidChar,
-					Source::Location(
-						this->source.getID(),
-						this->current_token_line_start, this->char_stream.get_line(),
-						this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-					),
+					current_location.value(),
 					"Literal character must be only 1 character"
 				);
 				return true;
 			}
 
-			this->create_token(Token::Kind::LiteralChar, this->source, std::move(literal_value));
+			this->create_token(Token::Kind::LiteralChar, std::move(literal_value));
 		}else{
-			this->create_token(Token::Kind::LiteralString, this->source, std::move(literal_value));
+			this->create_token(Token::Kind::LiteralString, std::move(literal_value));
 		}
 
 
@@ -1261,13 +1265,19 @@ namespace pcit::panther{
 	auto Tokenizer::create_token(Token::Kind kind, auto&&... val) -> void {
 		if(this->file_too_big()){ return; }
 
+		const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+		if(line_result.isError()){ this->error_line_too_big(); return; }
+
+		const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+		if(collumn_result.isError()){ this->error_collumn_too_big(); return; }
+
 		this->source.token_buffer.createToken(
 			kind,
 			Token::Location(
 				this->current_token_line_start,
-				this->char_stream.get_line(),
+				line_result.value(),
 				this->current_token_collumn_start,
-				this->char_stream.get_collumn() - 1
+				collumn_result.value() - 1
 			),
 			std::forward<decltype(val)>(val)...
 		);
@@ -1281,14 +1291,13 @@ namespace pcit::panther{
 	auto Tokenizer::file_too_big() -> bool {
 		constexpr static size_t MAX_TOKENS = std::numeric_limits<uint32_t>::max();
 
-		if(this->source.token_buffer.size() >= MAX_TOKENS){
+		if(this->source.token_buffer.size() >= MAX_TOKENS) [[unlikely]] {
+			const evo::Result<Source::Location> current_location = this->get_current_location_token();
+			if(current_location.isError()){ return true; }
+
 			this->emit_error(
 				Diagnostic::Code::TokFileTooLarge,
-				Source::Location(
-					this->source.getID(),
-					this->current_token_line_start, this->char_stream.get_line(),
-					this->current_token_collumn_start, this->char_stream.get_collumn() - 1
-				),
+				current_location.value(),
 				"File too large",
 				evo::SmallVector<Diagnostic::Info>{
 					Diagnostic::Info(std::format("Source files can have a maximum of {} tokens", MAX_TOKENS)),
@@ -1347,13 +1356,12 @@ namespace pcit::panther{
 		const char peeked_char = this->char_stream.peek();
 
 		if(peeked_char >= 0){
+			const evo::Result<Source::Location> current_location = this->get_current_location_point();
+			if(current_location.isError()){ return; }
+
 			this->emit_error(
 				Diagnostic::Code::TokUnrecognizedCharacter,
-				Source::Location(
-					this->source.getID(),
-					this->char_stream.get_line(), this->char_stream.get_line(),
-					this->char_stream.get_collumn(), this->char_stream.get_collumn()
-				),
+				current_location.value(),
 				std::format(
 					"Unrecognized or unexpected character \"{}\" (charcode: {})",
 					evo::printCharName(peeked_char),
@@ -1372,13 +1380,12 @@ namespace pcit::panther{
 		const size_t num_chars_of_utf8 = std::countl_one(static_cast<unsigned char>(this->char_stream.peek()));
 
 		if(num_chars_of_utf8 > 4 || this->char_stream.ammount_left() < num_chars_of_utf8){
+			const evo::Result<Source::Location> current_location = this->get_current_location_point();
+			if(current_location.isError()){ return; }
+
 			this->emit_error(
 				Diagnostic::Code::TokUnrecognizedCharacter,
-				Source::Location(
-					this->source.getID(),
-					this->char_stream.get_line(), this->char_stream.get_line(),
-					this->char_stream.get_collumn(), this->char_stream.get_collumn()
-				),
+				current_location.value(),
 				std::format(
 					"Unrecognized character (non-standard utf-8 character)",
 					evo::printCharName(peeked_char),
@@ -1456,10 +1463,74 @@ namespace pcit::panther{
 			} break;
 		}
 
+		const evo::Result<Source::Location> current_location = this->get_current_location_point();
+		if(current_location.isError()){ return; }
+
 		this->emit_error(
 			Diagnostic::Code::TokUnrecognizedCharacter,
-			Source::Location(this->source.getID(), this->char_stream.get_line(), this->char_stream.get_collumn()),
+			current_location.value(),
 			std::format("Unrecognized character \"{}\" (UTF-8 code: {})", utf8_str, utf8_charcodes_str)
+		);
+	}
+
+
+
+	auto Tokenizer::error_line_too_big() -> void {
+		this->emit_error(
+			Diagnostic::Code::TokFileLocationLimitOOB,
+			Source::Location(
+				this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
+			),
+			"Line number is too large",
+			evo::SmallVector<Diagnostic::Info>{
+				Diagnostic::Info(
+					std::format("Maximum line number is: {}", std::numeric_limits<uint32_t>::max())
+				),
+				Diagnostic::Info("Note: given source location pointing to the beginning of the previous token")
+			}
+		);
+	}
+
+
+	auto Tokenizer::error_collumn_too_big() -> void {
+		this->emit_error(
+			Diagnostic::Code::TokFileLocationLimitOOB,
+			Source::Location(
+				this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
+			),
+			"Collumn number is too large",
+			evo::SmallVector<Diagnostic::Info>{
+				Diagnostic::Info(
+					std::format("Maximum collumn number is: {}", std::numeric_limits<uint32_t>::max())
+				),
+				Diagnostic::Info("Note: given source location pointing to the beginning of the previous token")
+			}
+		);
+	}
+
+
+
+	auto Tokenizer::get_current_location_point() -> evo::Result<Source::Location> {
+		const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+		if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
+
+		const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+		if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
+
+		return Source::Location(this->source.getID(), line_result.value(), collumn_result.value());
+	}
+
+	auto Tokenizer::get_current_location_token() -> evo::Result<Source::Location> {
+		const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+		if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
+
+		const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+		if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
+
+		return Source::Location(
+			this->source.getID(),
+			this->current_token_line_start, line_result.value(),
+			this->current_token_collumn_start, collumn_result.value() - 1
 		);
 	}
 

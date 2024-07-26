@@ -13,8 +13,6 @@
 #include <Evo.h>
 #include <PCIT_core.h>
 
-#include "./source_data.h"
-
 
 namespace pcit::panther{
 
@@ -193,50 +191,51 @@ namespace pcit::panther{
 			struct Location{
 				uint32_t lineStart;
 				uint32_t lineEnd;
-				uint16_t collumnStart;
-				uint16_t collumnEnd;
+				uint32_t collumnStart;
+				uint32_t collumnEnd;
+			};
+
+
+			struct SmallStringView{
+				const char* ptr;
+				uint32_t size;
 			};
 
 		public:
-			Token(Kind _kind, Location _location) : kind(_kind), location(_location), value(false) {}
+			Token(Kind _kind) : kind(_kind) {}
 
-			Token(Kind _kind, Location _location, bool val)
-				: kind(_kind), location(_location), value{.boolean = val} {}
+			Token(Kind _kind, bool val) : kind(_kind) {
+				this->get_value<bool>() = val;
+			}
 
-			Token(Kind _kind, Location _location, uint64_t val)
-				: kind(_kind), location(_location), value{.integer = val} {}
+			Token(Kind _kind, uint64_t val) : kind(_kind) {
+				this->get_value<uint64_t>() = val;
+			}
 
-			Token(Kind _kind, Location _location, float64_t val)
-				: kind(_kind), location(_location), value{.floating_point = val} {}
+			Token(Kind _kind, float64_t val) : kind(_kind) {
+				this->get_value<float64_t>() = val;
+			}
 
-			Token(Kind _kind, Location _location, const class Source& data, std::string_view val);
+			Token(Kind _kind, std::string_view val) : kind(_kind) {
+				SmallStringView& value_str = this->get_value<SmallStringView>();
+				value_str.ptr = val.data();
+				value_str.size = uint32_t(val.size());
+			}
 
 			~Token() = default;
 
 
 			EVO_NODISCARD auto getKind() const -> const Kind& { return this->kind; }
 
-			EVO_NODISCARD auto getLocation() const -> const Location& { return this->location; }
-
-			EVO_NODISCARD auto getSourceLocation(SourceID source_id) const -> SourceLocation {
-				return SourceLocation(
-					source_id,
-					this->location.lineStart,
-					this->location.lineEnd,
-					this->location.collumnStart,
-					this->location.collumnEnd
-				);
-			}
-
 
 			EVO_NODISCARD auto getBool() const -> bool {
 				evo::debugAssert(this->kind == Kind::LiteralBool, "Token does not have a bool value");
-				return this->value.boolean;
+				return this->get_value<bool>();
 			}
 
 			EVO_NODISCARD auto getInt() const -> uint64_t {
 				evo::debugAssert(this->kind == Kind::LiteralInt, "Token does not have a integer value");
-				return this->value.integer;
+				return this->get_value<uint64_t>();
 			}
 
 			EVO_NODISCARD auto getBitWidth() const -> uint64_t {
@@ -244,15 +243,24 @@ namespace pcit::panther{
 					this->kind == Kind::TypeI_N || this->kind == Kind::TypeUI_N,
 					"Token does not have a bit-width value"
 				);
-				return this->value.integer;
+				return this->get_value<uint64_t>();
 			}
 
 			EVO_NODISCARD auto getFloat() const -> float64_t {
 				evo::debugAssert(this->kind == Kind::LiteralFloat, "Token does not have a float value");
-				return this->value.floating_point;
+				return this->get_value<float64_t>();
 			}
 
-			EVO_NODISCARD auto getString(const class Source& source) const -> std::string_view;
+			EVO_NODISCARD auto getString() const -> std::string_view {
+				evo::debugAssert(
+					this->kind == Kind::LiteralString || this->kind == Kind::LiteralChar ||
+					this->kind == Kind::Ident || this->kind == Kind::Intrinsic || this->kind == Kind::Attribute,
+					"Token does not have a string value"
+				);
+
+				const SmallStringView& value_str = this->get_value<SmallStringView>();
+				return std::string_view(value_str.ptr, value_str.size);
+			};
 			
 
 
@@ -523,25 +531,41 @@ namespace pcit::panther{
 
 
 		private:
-			// TODO: should location be split off into a different array in TokenBuffer?
+			template<class T> EVO_NODISCARD auto get_value() const -> const T&;
+			template<class T> EVO_NODISCARD auto get_value()       ->       T&;
+
+			template<> EVO_NODISCARD auto get_value<bool>() const -> const bool& { return *(bool*)&this->value; }
+			template<> EVO_NODISCARD auto get_value<bool>()       ->       bool& { return *(bool*)&this->value; }
+
+			template<> EVO_NODISCARD auto get_value<uint64_t>() const -> const uint64_t& {
+				return *(uint64_t*)&this->value;
+			}
+			template<> EVO_NODISCARD auto get_value<uint64_t>()       ->       uint64_t& {
+				return *(uint64_t*)&this->value;
+			}
+
+			template<> EVO_NODISCARD auto get_value<float64_t>() const -> const float64_t& {
+				return *(float64_t*)&this->value;
+			}
+			template<> EVO_NODISCARD auto get_value<float64_t>()       ->       float64_t& {
+				return *(float64_t*)&this->value;
+			}
+
+			template<> EVO_NODISCARD auto get_value<SmallStringView>() const -> const SmallStringView& {
+				return *(SmallStringView*)&this->value;
+			}
+			template<> EVO_NODISCARD auto get_value<SmallStringView>()       ->       SmallStringView& {
+				return *(SmallStringView*)&this->value;
+			}
+
+
+		private:
 			Kind kind;
-			Location location;
-
-			union {
-				bool boolean;
-				uint64_t integer;
-				float64_t floating_point;
-
-				struct /* string */ {
-					uint32_t index;
-					uint32_t length;
-				} string;
-			} value;
+			evo::byte value[12];
 	};
 
-
-
-	static_assert(sizeof(Token) == 24);
+	static_assert(sizeof(Token) == 16, "sizeof pcit::panther::Token is different than expected");
+	static_assert(sizeof(Token::Location) == 16, "sizeof pcit::panther::Token::Location is different than expected");
 
 }
 

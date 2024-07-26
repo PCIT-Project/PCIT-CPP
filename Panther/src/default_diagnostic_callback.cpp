@@ -99,7 +99,7 @@ namespace pcit::panther{
 		}
 
 		if(location.lineStart == location.lineEnd){
-			for(uint16_t i = location.collumnStart; i < location.collumnEnd + 1; i+=1){
+			for(uint32_t i = location.collumnStart; i < location.collumnEnd + 1; i+=1){
 				pointer_str += '^';
 			}
 		}else{

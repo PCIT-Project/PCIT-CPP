@@ -56,6 +56,13 @@ namespace pcit::panther{
 
 			auto error_unrecognized_character() -> void;
 
+			auto error_line_too_big() -> void;
+			auto error_collumn_too_big() -> void;
+
+			auto get_current_location_point() -> evo::Result<Source::Location>;
+			auto get_current_location_token() -> evo::Result<Source::Location>;
+
+
 	
 		private:
 			Context& context;
@@ -64,7 +71,7 @@ namespace pcit::panther{
 			CharStream char_stream;
 
 			uint32_t current_token_line_start;
-			uint16_t current_token_collumn_start;
+			uint32_t current_token_collumn_start;
 
 			bool can_continue = true;
 	};
