@@ -28,6 +28,7 @@ namespace pcit::panther::AST{
 
 		VarDecl,
 		FuncDecl,
+		AliasDecl,
 
 		Return,
 
@@ -121,6 +122,7 @@ namespace pcit::panther::AST{
 namespace pcit::panther::AST{
 
 	struct VarDecl{
+		bool isDef;
 		Node ident;
 		NodeOptional type;
 		Node attributeBlock;
@@ -153,6 +155,12 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Return> returns;
 		Node block;
 	};
+
+	struct AliasDecl{
+		Node ident;
+		Node type;
+	};
+
 
 	struct Return{
 		NodeOptional label;

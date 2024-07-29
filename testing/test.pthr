@@ -8,6 +8,7 @@
 // 	}
 // }
 
+alias IntOptPtr = Int*?;
 
 func test = () -> std.Array<{Int, 3}> {
 	// var foo: [Int: 3] = [1, 2, 3];
@@ -16,7 +17,7 @@ func test = () -> std.Array<{Int, 3}> {
 
 	var bar: Int = (foo as Asdf).?;
 
-	var test_char = 'q';
+	def test_char = 'q';
 }
 
 

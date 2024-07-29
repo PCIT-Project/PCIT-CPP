@@ -216,6 +216,10 @@ namespace pthr{
 						this->print_func_decl(this->ast_buffer.getFuncDecl(stmt));
 					} break;
 
+					case panther::AST::Kind::AliasDecl: {
+						this->print_alias_decl(this->ast_buffer.getAliasDecl(stmt));
+					} break;
+
 					case panther::AST::Kind::Return: {
 						this->print_return(this->ast_buffer.getReturn(stmt));
 					} break;
@@ -253,6 +257,14 @@ namespace pthr{
 
 				{
 					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Kind");
+					if(var_decl.isDef){
+						this->printer.printMagenta(" def\n");
+					}else{
+						this->printer.printMagenta(" var\n");
+					}
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
@@ -442,6 +454,28 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("Statement Block");
 					this->print_block(this->ast_buffer.getBlock(func_decl.block));
+
+					this->indenter.pop();
+				}
+			}
+
+
+			auto print_alias_decl(const panther::AST::AliasDecl& alias_decl) -> void {
+				this->indenter.print();
+				this->print_major_header("Alias Declaration");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.print(" ");
+					this->print_ident(alias_decl.ident);
+
+					this->indenter.print_end();
+					this->print_minor_header("Type");
+					this->printer.print(" ");
+					this->print_type(alias_decl.type);
 
 					this->indenter.pop();
 				}

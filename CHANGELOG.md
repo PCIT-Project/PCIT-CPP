@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.12.0
+
+### Panther
+- Added `def` variable decalration
+- Added `alias` declarations
+
+
+<!---------------------------------->
 ## v0.0.11.0
 
 ### Panther

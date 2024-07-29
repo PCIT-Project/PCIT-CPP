@@ -84,7 +84,9 @@ namespace pcit::panther{
 				// keywords
 
 				KeywordVar,
+				KeywordDef,
 				KeywordFunc,
+				KeywordAlias,
 
 				KeywordReturn,
 
@@ -420,7 +422,9 @@ namespace pcit::panther{
 					// keywords
 
 					break; case Kind::KeywordVar:         return "var";
+					break; case Kind::KeywordDef:         return "def";
 					break; case Kind::KeywordFunc:        return "func";
+					break; case Kind::KeywordAlias:       return "alias";
 
 					break; case Kind::KeywordReturn:      return "return";
 

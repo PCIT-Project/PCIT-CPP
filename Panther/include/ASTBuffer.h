@@ -89,6 +89,16 @@ namespace pcit::panther{
 				return this->func_decls[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createAliasDecl(auto&&... args) -> AST::Node {
+				const uint32_t node_index = uint32_t(this->alias_decls.size());
+				this->alias_decls.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::AliasDecl, node_index);
+			}
+			EVO_NODISCARD auto getAliasDecl(const AST::Node& node) const -> const AST::AliasDecl& {
+				evo::debugAssert(node.getKind() == AST::Kind::AliasDecl, "Node is not a AliasDecl");
+				return this->alias_decls[node._value.node_index];
+			}
+
 
 			EVO_NODISCARD auto createReturn(auto&&... args) -> AST::Node {
 				const uint32_t node_index = uint32_t(this->returns.size());
@@ -215,6 +225,7 @@ namespace pcit::panther{
 
 			evo::SmallVector<AST::VarDecl> var_decls{};
 			evo::SmallVector<AST::FuncDecl> func_decls{};
+			evo::SmallVector<AST::AliasDecl> alias_decls{};
 
 			evo::SmallVector<AST::Return> returns{};
 

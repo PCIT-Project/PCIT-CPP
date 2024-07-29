@@ -46,8 +46,10 @@ namespace pcit::panther{
 		const Token& peeked_token = this->reader[this->reader.peek()];
 		
 		switch(peeked_token.getKind()){
-			case Token::Kind::KeywordVar: return this->parse_var_decl();
+			case Token::Kind::KeywordVar: return this->parse_var_decl<false>();
+			case Token::Kind::KeywordDef: return this->parse_var_decl<true>();
 			case Token::Kind::KeywordFunc: return this->parse_func_decl();
+			case Token::Kind::KeywordAlias: return this->parse_alias_decl();
 			case Token::Kind::KeywordReturn: return this->parse_return();
 		}
 
@@ -62,8 +64,13 @@ namespace pcit::panther{
 
 
 	// TODO: check EOF
+	template<bool IS_DEF>
 	auto Parser::parse_var_decl() -> Result {
-		if(this->assert_token_fail(Token::Kind::KeywordVar)){ return Result::Code::Error; }
+		if constexpr(IS_DEF){
+			if(this->assert_token_fail(Token::Kind::KeywordDef)){ return Result::Code::Error; }
+		}else{
+			if(this->assert_token_fail(Token::Kind::KeywordVar)){ return Result::Code::Error; }
+		}
 
 		const Result ident = this->parse_ident();
 		if(this->check_result_fail(ident, "identifier in variable declaration")){ return Result::Code::Error; }
@@ -102,7 +109,7 @@ namespace pcit::panther{
 		if(this->expect_token_fail(Token::lookupKind(";"), "after variable declaration")){ return Result::Code::Error; }
 
 
-		return this->source.ast_buffer.createVarDecl(ident.value(), type, attributes.value(), value);
+		return this->source.ast_buffer.createVarDecl(IS_DEF, ident.value(), type, attributes.value(), value);
 	}
 
 
@@ -135,7 +142,7 @@ namespace pcit::panther{
 		if(attribute_block.code() == Result::Code::Error){ return Result::Code::Error; }
 
 
-		if(this->expect_token_fail(Token::lookupKind("->"), "in FuncDecl")){ return Result::Code::Error; }
+		if(this->expect_token_fail(Token::lookupKind("->"), "in function declaration")){ return Result::Code::Error; }
 
 		evo::Result<evo::SmallVector<AST::FuncDecl::Return>> returns = this->parse_func_returns();
 		if(returns.isError()){ return Result::Code::Error; }
@@ -153,6 +160,24 @@ namespace pcit::panther{
 			std::move(returns.value()),
 			block.value()
 		);
+	}
+
+
+	// TODO: check EOF
+	auto Parser::parse_alias_decl() -> Result {
+		if(this->assert_token_fail(Token::Kind::KeywordAlias)){ return Result::Code::Error; }
+
+		const Result ident = this->parse_ident();
+		if(this->check_result_fail(ident, "identifier in alias declaration")){ return Result::Code::Error; }
+
+		if(this->expect_token_fail(Token::lookupKind("="), "in alias declaration")){ return Result::Code::Error; }
+
+		const Result type = this->parse_type<TypeKind::Explicit>();
+		if(this->check_result_fail(type, "type in alias declaration")){ return Result::Code::Error; }
+
+		if(this->expect_token_fail(Token::lookupKind(";"), "at end of alias declaration")){ return Result::Code::Error; }
+
+		return this->source.ast_buffer.createAliasDecl(ident.value(), type.value());
 	}
 
 
