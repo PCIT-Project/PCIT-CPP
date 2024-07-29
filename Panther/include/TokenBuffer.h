@@ -23,7 +23,7 @@ namespace pcit::panther{
 	class TokenBuffer{
 		public:
 			TokenBuffer() = default;
-			~TokenBuffer() = default;
+			~TokenBuffer();
 
 			TokenBuffer(const TokenBuffer& rhs) = delete;
 			auto operator=(const TokenBuffer& rhs) = delete;
@@ -37,7 +37,7 @@ namespace pcit::panther{
 			auto createToken(Token::Kind kind, Token::Location location, uint64_t value) -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, float64_t value) -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, std::string_view value) -> Token::ID;
-			auto createToken(Token::Kind kind, Token::Location location, std::string&& value) -> Token::ID;
+			auto createToken(Token::Kind kind, Token::Location location, const std::string& value) -> Token::ID;
 
 
 			EVO_NODISCARD auto get(Token::ID id) const -> const Token&;
@@ -68,7 +68,7 @@ namespace pcit::panther{
 		private:
 			std::vector<Token> tokens{};
 			std::vector<Token::Location> token_locations{};
-			std::vector<std::string> string_literals{};
+			std::vector<char*> string_literals{};
 			bool is_locked = false;
 
 			friend Token;

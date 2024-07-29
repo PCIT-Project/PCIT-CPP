@@ -1250,9 +1250,9 @@ namespace pcit::panther{
 				return true;
 			}
 
-			this->create_token(Token::Kind::LiteralChar, std::move(literal_value));
+			this->create_token(Token::Kind::LiteralChar, literal_value);
 		}else{
-			this->create_token(Token::Kind::LiteralString, std::move(literal_value));
+			this->create_token(Token::Kind::LiteralString, literal_value);
 		}
 
 

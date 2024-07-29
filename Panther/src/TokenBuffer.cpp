@@ -13,6 +13,13 @@
 #include "../include/Source.h"
 
 namespace pcit::panther{
+
+	TokenBuffer::~TokenBuffer(){
+		for(char* string_literal : this->string_literals){
+			delete string_literal;
+		}
+	}
+
 	
 
 	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location) -> Token::ID {
@@ -46,10 +53,10 @@ namespace pcit::panther{
 		return Token::ID(uint32_t(this->tokens.size()));
 	}
 
-	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, std::string&& value) -> Token::ID {
-		const std::string& saved_str = this->string_literals.emplace_back(std::move(value));
-
-		return this->createToken(kind, location, saved_str);
+	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, const std::string& value) -> Token::ID {
+		char* new_string = this->string_literals.emplace_back(new char[value.size() + 1]);
+		std::memcpy(new_string, value.data(), value.size() + 1);
+		return this->createToken(kind, location, std::string_view(new_string, value.size()));
 	}
 
 

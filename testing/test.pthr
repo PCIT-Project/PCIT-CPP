@@ -1,23 +1,5 @@
-// this is a comment
 
 
-
-// func list = (arr: [Int: ?]) -> Void {
-// 	iter(arr) [i: USize, int: Int*|] {
-
-// 	}
-// }
-
-alias IntOptPtr = Int*?;
-
-func test = () -> std.Array<{Int, 3}> {
-	// var foo: [Int: 3] = [1, 2, 3];
-	// var bar: [Int: _] = [4, 6, 5,];
-	// var foo = asdf<{asdf.?}>();
-
-	var bar: Int = (foo as Asdf).?;
-
-	def test_char = 'q';
-}
-
-
+def foo = @import("asdfasdf");
+def foo = @import("edaa").thing;
+def foo = @import("asdf").thing + 12;

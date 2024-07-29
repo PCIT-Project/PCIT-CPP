@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.12.1
+
+### Panther
+- Fixed string and character literal tokens sometimes pointing to garbage/invalid strings
+
+
+<!---------------------------------->
 ## v0.0.12.0
 
 ### Panther
