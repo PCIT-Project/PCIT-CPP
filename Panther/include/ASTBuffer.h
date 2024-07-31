@@ -26,10 +26,8 @@ namespace pcit::panther{
 			~ASTBuffer() = default;
 
 
+			EVO_NODISCARD auto getGlobalStmts() const -> evo::ArrayProxy<AST::Node> { return this->global_stmts; }
 			EVO_NODISCARD auto numGlobalStmts() const -> size_t { return this->global_stmts.size(); }
-			EVO_NODISCARD auto getGlobalStmts() const -> evo::ArrayProxy<AST::Node> {
-				return this->global_stmts;
-			}
 
 
 			EVO_NODISCARD auto getLiteral(const AST::Node& node) const -> Token::ID {
@@ -64,6 +62,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getThis(const AST::Node& node) const -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::This, "Node is not a This");
+				return node._value.token_id;
+			}
+
+			EVO_NODISCARD auto getDiscard(const AST::Node& node) const -> Token::ID {
+				evo::debugAssert(node.getKind() == AST::Kind::Discard, "Node is not a Discard");
 				return node._value.token_id;
 			}
 
@@ -219,8 +222,6 @@ namespace pcit::panther{
 
 	
 		private:
-			// TODO: change these vectors to deques? some combination?
-
 			evo::SmallVector<AST::Node> global_stmts{};
 
 			evo::SmallVector<AST::VarDecl> var_decls{};

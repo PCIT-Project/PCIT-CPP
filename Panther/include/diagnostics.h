@@ -28,22 +28,26 @@ namespace pcit::panther{
 		TokInvalidFPBase,                   // T7
 		TokInvalidNumDigit,                 // T8
 		TokLiteralNumTooBig,                // T9
-		TokInvalidIntegerWidth,				// T10
+		TokInvalidIntegerWidth,             // T10
 		TokUnknownFailureToTokenizeNum,     // T11
-		TokInvalidChar,						// T12
+		TokInvalidChar,                     // T12
 		TokFileTooLarge,                    // T13
 		TokFileLocationLimitOOB,            // T14
 		TokDoubleUnderscoreNotAllowed,      // T15
 
-		ParserUnknownStmtStart,          // P1
-		ParserIncorrectStmtContinuation, // P2
-		ParserUnexpectedEOF,             // P3
-		ParserInvalidKindForAThisParam,  // P4
-		ParserDereferenceOrUnwrapOnType, // P5
-		ParserAssumedTokenNotPreset,     // P6
+		ParserUnknownStmtStart,             // P1
+		ParserIncorrectStmtContinuation,    // P2
+		ParserUnexpectedEOF,                // P3
+		ParserInvalidKindForAThisParam,     // P4
+		ParserDereferenceOrUnwrapOnType,    // P5
+		ParserAssumedTokenNotPreset,        // P6
+		ParserEmptyMultiAssign,             // P7
 
-		MiscFileDoesNotExist, // M1
-		MiscLoadFileFailed,   // M2
+		SemaInvalidGlobalStmt,              // S1
+		SemaEncounteredKindNone,            // S2
+
+		MiscFileDoesNotExist,               // M1
+		MiscLoadFileFailed,                 // M2
 	};
 
 	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, Source::Location>;
@@ -67,15 +71,20 @@ namespace pcit::panther{
 			break; case DiagnosticCode::TokFileLocationLimitOOB:            return "T14";
 			break; case DiagnosticCode::TokDoubleUnderscoreNotAllowed:      return "T15";
 
-			break; case DiagnosticCode::ParserUnknownStmtStart:          return "P1";
-			break; case DiagnosticCode::ParserIncorrectStmtContinuation: return "P2";
-			break; case DiagnosticCode::ParserUnexpectedEOF:             return "P3";
-			break; case DiagnosticCode::ParserInvalidKindForAThisParam:  return "P4";
-			break; case DiagnosticCode::ParserDereferenceOrUnwrapOnType: return "P5";
-			break; case DiagnosticCode::ParserAssumedTokenNotPreset:     return "P6";
+			break; case DiagnosticCode::ParserUnknownStmtStart:             return "P1";
+			break; case DiagnosticCode::ParserIncorrectStmtContinuation:    return "P2";
+			break; case DiagnosticCode::ParserUnexpectedEOF:                return "P3";
+			break; case DiagnosticCode::ParserInvalidKindForAThisParam:     return "P4";
+			break; case DiagnosticCode::ParserDereferenceOrUnwrapOnType:    return "P5";
+			break; case DiagnosticCode::ParserAssumedTokenNotPreset:        return "P6";
+			break; case DiagnosticCode::ParserEmptyMultiAssign:             return "P7";
 
-			break; case DiagnosticCode::MiscFileDoesNotExist: return "M1";
-			break; case DiagnosticCode::MiscLoadFileFailed:   return "M2";
+			break; case DiagnosticCode::SemaInvalidGlobalStmt:              return "S1";
+			break; case DiagnosticCode::SemaEncounteredKindNone:            return "S2";
+
+
+			break; case DiagnosticCode::MiscFileDoesNotExist:               return "M1";
+			break; case DiagnosticCode::MiscLoadFileFailed:                 return "M2";
 		}
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");

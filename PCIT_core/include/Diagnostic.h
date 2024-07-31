@@ -12,6 +12,8 @@
 
 #include <Evo.h>
 
+#include <source_location>
+
 namespace pcit::core{
 
 	enum class DiagnosticLevel{
@@ -80,6 +82,16 @@ namespace pcit::core{
 
 		DiagnosticImpl(const DiagnosticImpl&) = default;
 		DiagnosticImpl(DiagnosticImpl&&) = default;
+
+
+
+		static auto createFatalMessage(
+			std::string_view msg, std::source_location source_location = std::source_location::current()
+		) -> std::string {
+			return std::format(
+				"{} (error location: {}:{})", msg, source_location.function_name(), source_location.line()
+			);
+		}
 	};
 
 

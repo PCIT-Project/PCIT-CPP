@@ -60,15 +60,11 @@ namespace pcit::panther{
 			// No other files should be loaded before or after calling this function. If you want more granular control,
 			// 		load files through the Source Manager directly, (Call this->getSourceManager())
 			auto loadFiles(evo::ArrayProxy<fs::path> file_paths) -> void;
-
 			auto tokenizeLoadedFiles() -> void;
-
 			auto parseLoadedFiles() -> void;
+			auto semanticAnalysisLoadedFiles() -> void;
 
 			
-
-
-
 
 			EVO_NODISCARD auto errored() const -> bool { return this->num_errors != 0; }
 			EVO_NODISCARD auto hasHitFailCondition() const -> bool { return this->hit_fail_condition; }
@@ -136,6 +132,8 @@ namespace pcit::panther{
 				#endif
 			}
 		private:
+			auto wait_for_all_current_tasks() -> void;
+
 			auto emit_diagnostic_internal(auto&&... args) -> void {
 				auto diagnostic = Diagnostic(std::forward<decltype(args)>(args)...);
 				this->emit_diagnostic_impl(diagnostic);
@@ -160,6 +158,7 @@ namespace pcit::panther{
 			// threading
 
 			bool task_group_running = false;
+			bool multiple_task_stages_left = false;
 			std::atomic<evo::uint> num_errors = 0;
 			std::atomic<evo::uint> num_threads_running = 0;
 			std::atomic<bool> hit_fail_condition = false;
@@ -178,7 +177,11 @@ namespace pcit::panther{
 				Source::ID source_id;
 			};
 
-			using Task = evo::Variant<LoadFileTask, TokenizeFileTask, ParseFileTask>;
+			struct SemaGlobalDeclsTask{
+				Source::ID source_id;
+			};
+
+			using Task = evo::Variant<LoadFileTask, TokenizeFileTask, ParseFileTask, SemaGlobalDeclsTask>;
 
 			std::queue<std::unique_ptr<Task>> tasks{};
 			std::mutex tasks_mutex{};
@@ -212,6 +215,7 @@ namespace pcit::panther{
 					auto run_load_file(const LoadFileTask& task) -> void;
 					auto run_tokenize_file(const TokenizeFileTask& task) -> void;
 					auto run_parse_file(const ParseFileTask& task) -> void;
+					auto run_sema_global_decls(const SemaGlobalDeclsTask& task) -> void;
 
 				private:
 					Context* context;

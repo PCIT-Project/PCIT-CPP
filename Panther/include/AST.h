@@ -163,6 +163,7 @@ namespace pcit::panther::AST{
 
 
 	struct Return{
+		Token::ID keyword;
 		NodeOptional label;
 		NodeOptional value;
 	};

@@ -1,5 +1,2 @@
 
-
-def foo = @import("asdfasdf");
-def foo = @import("edaa").thing;
-def foo = @import("asdf").thing + 12;
+alias Foo = Int;

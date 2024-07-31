@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.13.0
+
+### Panther
+- Added basic semantic analysis (checking of valid global statements)
+
+### PCIT_core
+- Added fatal diagnostics with source locations (`DiagnosticImpl::createFatalMessage`)
+
+
+<!---------------------------------->
 ## v0.0.12.1
 
 ### Panther

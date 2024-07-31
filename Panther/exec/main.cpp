@@ -41,6 +41,7 @@ struct Config{
 		PrintTokens,
 		PrintAST,
 		Parse,
+		SemanticAnalysis,
 	} target;
 
 	bool verbose;
@@ -56,7 +57,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::PrintAST,
+		.target      = Config::Target::SemanticAnalysis,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
@@ -98,9 +99,10 @@ auto main(int argc, const char* argv[]) -> int {
 		#endif
 
 		switch(config.target){
-			break; case Config::Target::PrintTokens: printer.printlnMagenta("Target: PrintTokens");
-			break; case Config::Target::PrintAST:    printer.printlnMagenta("Target: PrintAST");
-			break; case Config::Target::Parse:    printer.printlnMagenta("Target: Parse");
+			break; case Config::Target::PrintTokens:      printer.printlnMagenta("Target: PrintTokens");
+			break; case Config::Target::PrintAST:         printer.printlnMagenta("Target: PrintAST");
+			break; case Config::Target::Parse:            printer.printlnMagenta("Target: Parse");
+			break; case Config::Target::SemanticAnalysis: printer.printlnMagenta("Target: SemanticAnalysis");
 			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
 		}
 	}
@@ -237,10 +239,48 @@ auto main(int argc, const char* argv[]) -> int {
 		return EXIT_SUCCESS;
 
 	}else if(config.target == Config::Target::Parse){
-		printer.printlnInfo(
-			"Completed tokenizing and parsing in {}ms",
-			static_cast<evo::time::Milliseconds>(evo::time::now() - tokenize_start)
-		);
+		if(config.verbose){
+			const evo::time::Nanoseconds time_diff = evo::time::now() - tokenize_start;
+
+			if(time_diff < static_cast<evo::time::Nanoseconds>(evo::time::Milliseconds(10))){
+				printer.printlnInfo(
+					"Completed tokenizing and parsing in {:.3}ms",
+					static_cast<float32_t>(time_diff) / 10e6
+				);
+			}else{
+				printer.printlnInfo(
+					"Completed tokenizing and parsing in {}ms",
+					static_cast<evo::time::Milliseconds>(time_diff)
+				);
+			}
+		}
+
+		exit();
+		return EXIT_SUCCESS;
+	}
+
+
+	///////////////////////////////////
+	// semantic analysis
+
+	context.semanticAnalysisLoadedFiles();
+
+	if(context.isMultiThreaded()){
+		context.waitForAllTasks();
+	}
+
+	if(context.errored()){
+		if(config.verbose){ printer.printlnError("Encountered an error doing semantic analysis"); }
+
+		exit();
+		return EXIT_FAILURE;
+	}
+
+	if(config.verbose){ printer.printlnSuccess("Successfully analyzed semantics all files"); }
+
+
+	if(config.target == Config::Target::SemanticAnalysis){
+		
 
 		exit();
 		return EXIT_SUCCESS;

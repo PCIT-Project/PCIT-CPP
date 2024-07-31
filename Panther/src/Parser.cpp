@@ -183,6 +183,7 @@ namespace pcit::panther{
 
 	// TODO: check EOF
 	auto Parser::parse_return() -> Result {
+		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token_fail(Token::Kind::KeywordReturn)){ return Result::Code::Error; }
 
 		auto label = AST::NodeOptional();
@@ -207,7 +208,7 @@ namespace pcit::panther{
 			return Result::Code::Error;
 		}
 
-		return this->source.ast_buffer.createReturn(label, expr);
+		return this->source.ast_buffer.createReturn(start_location, label, expr);
 	}
 
 
@@ -279,6 +280,14 @@ namespace pcit::panther{
 
 						break;
 					}
+				}
+
+				if(assignments.empty()){
+					this->context.emitError(
+						Diagnostic::Code::ParserEmptyMultiAssign,
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(-1), this->source.getID()),
+						"Multiple-assignment statements cannot assign to 0 values"
+					);
 				}
 
 				if(this->expect_token_fail(Token::lookupKind("="), "in multiple-assignment")){
@@ -1354,7 +1363,9 @@ namespace pcit::panther{
 			this->context.emitFatal(
 				Diagnostic::Code::ParserAssumedTokenNotPreset,
 				this->source.getTokenBuffer().getSourceLocation(next_token_id, this->source.getID()),
-				std::format("Expected [{}], got [{}] instead", kind, this->reader[next_token_id].getKind())
+				Diagnostic::createFatalMessage(
+					std::format("Expected [{}], got [{}] instead", kind, this->reader[next_token_id].getKind())
+				)
 			);
 
 			return true;

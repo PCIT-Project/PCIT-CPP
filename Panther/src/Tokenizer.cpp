@@ -327,7 +327,7 @@ namespace pcit::panther{
 							this->emit_fatal(
 								Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 								current_location.value(),
-								"Attempted to tokenize invalid integer bit-width"
+								Diagnostic::createFatalMessage("Attempted to tokenize invalid integer bit-width")
 							);
 						} break;
 					}
@@ -987,7 +987,7 @@ namespace pcit::panther{
 						this->emit_fatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 							current_location.value(),
-							"Tried to convert invalid integer string for exponent"
+							Diagnostic::createFatalMessage("Tried to convert invalid integer string for exponent")
 						);
 					} break;
 				}
@@ -1064,7 +1064,7 @@ namespace pcit::panther{
 						this->emit_fatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 							current_location.value(),
-							"Tried to convert invalid literal floating-point number"
+							Diagnostic::createFatalMessage("Tried to convert invalid literal floating-point number")
 						);
 					} break;
 				}
@@ -1122,7 +1122,7 @@ namespace pcit::panther{
 						this->emit_fatal(
 							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
 							current_location.value(),
-							"Tried to convert invalid literal integer"
+							Diagnostic::createFatalMessage("Tried to convert invalid literal integer")
 						);
 						return true;
 					} break;

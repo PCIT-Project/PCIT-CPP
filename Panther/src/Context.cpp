@@ -11,6 +11,7 @@
 
 #include "./Tokenizer.h"
 #include "./Parser.h"
+#include "./sema/global_declarations.h"
 
 namespace pcit::panther{
 
@@ -98,36 +99,11 @@ namespace pcit::panther{
 
 
 	auto Context::waitForAllTasks() -> void {
-		evo::debugAssert(this->isMultiThreaded(), "Context is not set to be multi-threaded");
-		evo::debugAssert(this->threadsRunning(), "Threads are not running");
-		evo::debugAssert(
-			this->hasHitFailCondition() == false, "Context hit a fail condition, threads should be shutdown instead"
-		);
-
-		if(this->shutting_down_threads.test()){ return; }
-
-		while(this->tasks.empty() == false){
-			std::this_thread::sleep_for(std::chrono::milliseconds(32));
+		while(this->multiple_task_stages_left){
+			std::this_thread::yield();	
 		}
 
-		while(true){
-			bool all_done = true;
-
-			for(const Worker& worker : this->workers){
-				if(worker.isWorking()){
-					all_done = false;
-					break;
-				}
-			}
-
-			if(all_done){
-				break;
-			}
-
-			std::this_thread::sleep_for(std::chrono::milliseconds(32));
-		}
-
-		this->task_group_running = false;
+		this->wait_for_all_current_tasks();
 	}
 
 
@@ -164,7 +140,6 @@ namespace pcit::panther{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
 			
 			this->task_group_running = true;
-
 			for(Source* source : this->src_manager.sources){
 				this->tasks.emplace(std::make_unique<Task>(TokenizeFileTask(source->getID())));
 			}
@@ -183,7 +158,6 @@ namespace pcit::panther{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
 			
 			this->task_group_running = true;
-
 			for(Source* source : this->src_manager.sources){
 				this->tasks.emplace(std::make_unique<Task>(ParseFileTask(source->getID())));
 			}
@@ -194,6 +168,67 @@ namespace pcit::panther{
 		}
 	}
 
+
+	auto Context::semanticAnalysisLoadedFiles() -> void {
+		evo::debugAssert(this->task_group_running == false, "Task group already running");
+
+		this->multiple_task_stages_left = true;
+
+		{
+			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
+
+			this->task_group_running = true;
+			for(Source* source : this->src_manager.sources){
+				this->tasks.emplace(std::make_unique<Task>(SemaGlobalDeclsTask(source->getID())));
+			}
+		}
+
+		if(this->isSingleThreaded()){
+			this->consume_tasks_single_threaded();
+		}else{
+			this->wait_for_all_current_tasks();
+		}
+
+		// TODO: the rest of semantic analysis
+
+		this->multiple_task_stages_left = false;
+	}
+
+
+
+
+	auto Context::wait_for_all_current_tasks() -> void {
+		evo::debugAssert(this->isMultiThreaded(), "Context is not set to be multi-threaded");
+		evo::debugAssert(this->threadsRunning(), "Threads are not running");
+		evo::debugAssert(
+			this->hasHitFailCondition() == false, "Context hit a fail condition, threads should be shutdown instead"
+		);
+
+		if(this->shutting_down_threads.test()){ return; }
+
+		while(this->tasks.empty() == false){
+			std::this_thread::yield();
+		}
+
+		while(true){
+			bool all_done = true;
+
+			for(const Worker& worker : this->workers){
+				if(worker.isWorking()){
+					all_done = false;
+					break;
+				}
+			}
+
+			if(all_done){
+				break;
+			}
+
+			std::this_thread::sleep_for(std::chrono::milliseconds(32));
+		}
+
+		this->task_group_running = false;
+	}
 
 
 
@@ -288,9 +323,10 @@ namespace pcit::panther{
 		task.visit([&](auto& value) -> void {
 			using ValueT = std::decay_t<decltype(value)>;
 
-			     if constexpr(std::is_same_v<ValueT, LoadFileTask>){     this->run_load_file(value);     }
-			else if constexpr(std::is_same_v<ValueT, TokenizeFileTask>){ this->run_tokenize_file(value); }
-			else if constexpr(std::is_same_v<ValueT, ParseFileTask>){    this->run_parse_file(value);    }
+			if constexpr(std::is_same_v<ValueT, LoadFileTask>){             this->run_load_file(value);         }
+			else if constexpr(std::is_same_v<ValueT, TokenizeFileTask>){    this->run_tokenize_file(value);     }
+			else if constexpr(std::is_same_v<ValueT, ParseFileTask>){       this->run_parse_file(value);        }
+			else if constexpr(std::is_same_v<ValueT, SemaGlobalDeclsTask>){ this->run_sema_global_decls(value); }
 		});
 
 	}
@@ -361,6 +397,15 @@ namespace pcit::panther{
 		const SourceManager& source_manager = this->context->getSourceManager();
 		const Source& source = source_manager.getSource(task.source_id);
 		this->context->emitTrace("Parsed file: \"{}\"", source.getLocationAsString());
+	}
+
+
+	auto Context::Worker::run_sema_global_decls(const SemaGlobalDeclsTask& task) -> void {
+		if(sema::analyze_global_declarations(*this->context, task.source_id) == false){ return; }
+
+		const SourceManager& source_manager = this->context->getSourceManager();
+		const Source& source = source_manager.getSource(task.source_id);
+		this->context->emitTrace("Sema Global Decls: \"{}\"", source.getLocationAsString());
 	}
 
 
