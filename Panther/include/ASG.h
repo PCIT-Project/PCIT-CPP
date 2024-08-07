@@ -10,18 +10,22 @@
 #pragma once
 
 
+#include <Evo.h>
 #include <PCIT_core.h>
 
-#include "../../include/source_data.h"
+#include "./AST.h"
 
-namespace pcit::panther{
-	class Context;
+
+namespace pcit::panther::ASG{
+
+	struct Func{
+		class ID : public core::UniqueID<uint32_t, class ID> {
+			public:
+				using core::UniqueID<uint32_t, ID>::UniqueID;
+		};
+
+		AST::Node ident;
+	};
+
 }
 
-
-namespace pcit::panther::sema{
-	
-	auto analyze_global_declarations(Context& context, SourceID source_id) -> bool;
-	
-	
-}

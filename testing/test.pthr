@@ -1,2 +1,14 @@
 
-alias Foo = Int;
+
+
+func test = () -> Void {
+	
+}
+
+func asdf = () -> Void {
+	
+}
+
+func test = () -> Void {
+	
+}

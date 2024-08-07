@@ -19,14 +19,15 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// print file location
 
-		printer.printGray(
-			std::format(
-				"\t{}:{}:{}\n",
-				source.getLocationAsString(),
-				location.lineStart,
-				location.collumnStart
-			)
-		);
+		if(level == Diagnostic::Level::Info){
+			printer.printGray(
+				std::format("\t\t{}:{}:{}\n", source.getLocationAsString(), location.lineStart, location.collumnStart)
+			);
+		}else{
+			printer.printGray(
+				std::format("\t{}:{}:{}\n", source.getLocationAsString(), location.lineStart, location.collumnStart)
+			);
+		}
 
 		const std::string line_number_str = std::to_string(location.lineStart);
 
@@ -76,7 +77,11 @@ namespace pcit::panther{
 			cursor += 1;
 		}
 
-		printer.printGray(std::format("\t{} | {}\n", line_number_str, line_str));
+		if(level == Diagnostic::Level::Info){
+			printer.printGray(std::format("\t\t{} | {}\n", line_number_str, line_str));
+		}else{
+			printer.printGray(std::format("\t{} | {}\n", line_number_str, line_str));
+		}
 
 
 		///////////////////////////////////
@@ -86,7 +91,12 @@ namespace pcit::panther{
 		for(size_t i = 0; i < line_number_str.size(); i+=1){
 			line_space_str += ' ';
 		}
-		printer.printGray(std::format("\t{} | ", line_space_str));
+
+		if(level == Diagnostic::Level::Info){
+			printer.printGray(std::format("\t\t{} | ", line_space_str));
+		}else{
+			printer.printGray(std::format("\t{} | ", line_space_str));
+		}
 
 
 		///////////////////////////////////

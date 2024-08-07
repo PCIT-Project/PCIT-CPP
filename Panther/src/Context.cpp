@@ -11,7 +11,7 @@
 
 #include "./Tokenizer.h"
 #include "./Parser.h"
-#include "./sema/global_declarations.h"
+#include "./sema/SemanticAnalyzer.h"
 
 namespace pcit::panther{
 
@@ -173,6 +173,10 @@ namespace pcit::panther{
 		evo::debugAssert(this->task_group_running == false, "Task group already running");
 
 		this->multiple_task_stages_left = true;
+
+		if(this->type_manager.builtinsInitialized() == false){
+			this->type_manager.initBuiltins();
+		}
 
 		{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
@@ -401,10 +405,14 @@ namespace pcit::panther{
 
 
 	auto Context::Worker::run_sema_global_decls(const SemaGlobalDeclsTask& task) -> void {
-		if(sema::analyze_global_declarations(*this->context, task.source_id) == false){ return; }
+		SourceManager& source_manager = this->context->getSourceManager();
+		Source& source = source_manager.getSource(task.source_id);
+		source.global_scope_level = this->context->getScopeManager().createScopeLevel();
 
-		const SourceManager& source_manager = this->context->getSourceManager();
-		const Source& source = source_manager.getSource(task.source_id);
+		auto semantic_analyzer = sema::SemanticAnalyzer(*this->context, task.source_id);
+
+		if(semantic_analyzer.analyze_global_declarations() == false){ return; }
+
 		this->context->emitTrace("Sema Global Decls: \"{}\"", source.getLocationAsString());
 	}
 

@@ -20,6 +20,8 @@ namespace fs = std::filesystem;
 
 #include "./SourceManager.h"
 #include "./diagnostics.h"
+#include "./TypeManager.h"
+#include "../src/sema/ScopeManager.h"
 
 
 namespace pcit::panther{
@@ -71,6 +73,9 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getSourceManager()       ->       SourceManager& { return this->src_manager; }
 			EVO_NODISCARD auto getSourceManager() const -> const SourceManager& { return this->src_manager; }
+
+			EVO_NODISCARD auto getTypeManager()       ->       TypeManager& { return this->type_manager; }
+			EVO_NODISCARD auto getTypeManager() const -> const TypeManager& { return this->type_manager; }
 
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
 
@@ -131,6 +136,10 @@ namespace pcit::panther{
 					evo::log::trace(fmt, std::forward<decltype(args)>(args)...);
 				#endif
 			}
+
+			EVO_NODISCARD auto getScopeManager() const -> const sema::ScopeManager& { return this->scope_manager; }
+			EVO_NODISCARD auto getScopeManager()       ->       sema::ScopeManager& { return this->scope_manager; }
+
 		private:
 			auto wait_for_all_current_tasks() -> void;
 
@@ -149,9 +158,12 @@ namespace pcit::panther{
 			SourceManager src_manager;
 			std::mutex src_manager_mutex{};
 
+			TypeManager type_manager{};
 
 			DiagnosticCallback callback;
 			std::mutex callback_mutex{};
+
+			sema::ScopeManager scope_manager{};
 
 
 			///////////////////////////////////

@@ -400,6 +400,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeUSize:
 			case Token::Kind::TypeUI_N:
 			case Token::Kind::TypeF16:
+			case Token::Kind::TypeBF16:
 			case Token::Kind::TypeF32:
 			case Token::Kind::TypeF64:
 			case Token::Kind::TypeF80:
@@ -1241,7 +1242,6 @@ namespace pcit::panther{
 			}
 		}
 
-
 		return params;
 	}
 
@@ -1259,6 +1259,8 @@ namespace pcit::panther{
 			return returns;
 		}
 
+
+		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token_fail(Token::lookupKind("("))){ return evo::resultError; }
 
 		while(true){
@@ -1307,6 +1309,21 @@ namespace pcit::panther{
 
 				break;
 			}
+		}
+
+
+		if(returns.empty()){
+			this->context.emitError(
+				Diagnostic::Code::ParserEmptyFuncReturnBlock,
+				this->source.getTokenBuffer().getSourceLocation(start_location, this->source.getID()),
+				"Function return blocks must have at least one type",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(
+						"For the function to return nothing, replace the return parameter block \"()\" with \"Void\""
+					)
+				}
+			);
+			return evo::resultError;
 		}
 
 

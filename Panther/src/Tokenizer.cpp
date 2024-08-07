@@ -167,6 +167,7 @@ namespace pcit::panther{
 		{"USize",       Token::Kind::TypeUSize},
 
 		{"F16",         Token::Kind::TypeF16},
+		{"BF16",        Token::Kind::TypeBF16},
 		{"F32",         Token::Kind::TypeF32},
 		{"F64",         Token::Kind::TypeF64},
 		{"F80",         Token::Kind::TypeF80},
@@ -249,7 +250,7 @@ namespace pcit::panther{
 			if(this->char_stream.at_end()){ break; }
 
 			peeked_char = this->char_stream.peek();
-		}while( (evo::isAlphaNumeric(peeked_char) || peeked_char == '_'));
+		}while(evo::isAlphaNumeric(peeked_char) || peeked_char == '_');
 
 		auto ident_name = std::string_view(string_start_ptr, this->char_stream.peek_raw_ptr() - string_start_ptr);
 
@@ -388,11 +389,14 @@ namespace pcit::panther{
 		return true;
 	}
 
-
+	// TODO: improve the perf of this by having separate lookups based on the ammount left
+		//   (no need to check length 3 ops if it's known to only have 1 char left)
 	auto Tokenizer::tokenize_operators() -> bool {
+		const size_t ammount_left = this->char_stream.ammount_left();
+
 		switch(this->char_stream.peek()){
 			case '=': {
-				if(this->char_stream.peek(1) == '='){
+				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
 					this->char_stream.skip(evo::stringSize("=="));
 					this->create_token(Token::lookupKind("=="));
 					return true;
@@ -404,134 +408,135 @@ namespace pcit::panther{
 			} break;
 
 			case '+': {
-				switch(this->char_stream.peek(1)){
-					case '=': {
-						this->char_stream.skip(evo::stringSize("+="));
-						this->create_token(Token::lookupKind("+="));
-						return true;
-					} break;
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '=': {
+							this->char_stream.skip(evo::stringSize("+="));
+							this->create_token(Token::lookupKind("+="));
+							return true;
+						} break;
 
-					case '@': {
-						if(this->char_stream.peek(2) == '='){
-							this->char_stream.skip(evo::stringSize("+@="));
-							this->create_token(Token::lookupKind("+@="));
-							return true;
-						}else{
-							this->char_stream.skip(evo::stringSize("+@"));
-							this->create_token(Token::lookupKind("+@"));
-							return true;
-						}
-					} break;
+						case '@': {
+							if(this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("+@="));
+								this->create_token(Token::lookupKind("+@="));
+								return true;
+							}else{
+								this->char_stream.skip(evo::stringSize("+@"));
+								this->create_token(Token::lookupKind("+@"));
+								return true;
+							}
+						} break;
 
-					case '|': {
-						if(this->char_stream.peek(2) == '='){
-							this->char_stream.skip(evo::stringSize("+|="));
-							this->create_token(Token::lookupKind("+|="));
-							return true;
-						}else{
-							this->char_stream.skip(evo::stringSize("+|"));
-							this->create_token(Token::lookupKind("+|"));
-							return true;
-						}
-					} break;
-
-					default: {
-						this->char_stream.skip(evo::stringSize("+"));
-						this->create_token(Token::lookupKind("+"));
-						return true;
-					} break;
+						case '|': {
+							if(this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("+|="));
+								this->create_token(Token::lookupKind("+|="));
+								return true;
+							}else{
+								this->char_stream.skip(evo::stringSize("+|"));
+								this->create_token(Token::lookupKind("+|"));
+								return true;
+							}
+						} break;
+					}
 				}
+
+				this->char_stream.skip(evo::stringSize("+"));
+				this->create_token(Token::lookupKind("+"));
+				return true;
 			} break;
 
 			case '-': {
-				switch(this->char_stream.peek(1)){
-					case '>': {
-						this->char_stream.skip(evo::stringSize("->"));
-						this->create_token(Token::lookupKind("->"));
-						return true;
-					} break;
-
-					case '=': {
-						this->char_stream.skip(evo::stringSize("-="));
-						this->create_token(Token::lookupKind("-="));
-						return true;
-					} break;
-
-					case '@': {
-						if(this->char_stream.peek(2) == '='){
-							this->char_stream.skip(evo::stringSize("-@="));
-							this->create_token(Token::lookupKind("-@="));
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '>': {
+							this->char_stream.skip(evo::stringSize("->"));
+							this->create_token(Token::lookupKind("->"));
 							return true;
-						}else{
-							this->char_stream.skip(evo::stringSize("-@"));
-							this->create_token(Token::lookupKind("-@"));
-							return true;
-						}
-					} break;
+						} break;
 
-					case '|': {
-						if(this->char_stream.peek(2) == '='){
-							this->char_stream.skip(evo::stringSize("-|="));
-							this->create_token(Token::lookupKind("-|="));
+						case '=': {
+							this->char_stream.skip(evo::stringSize("-="));
+							this->create_token(Token::lookupKind("-="));
 							return true;
-						}else{
-							this->char_stream.skip(evo::stringSize("-|"));
-							this->create_token(Token::lookupKind("-|"));
-							return true;
-						}
-					} break;
+						} break;
 
-					default: {
-						this->char_stream.skip(evo::stringSize("-"));
-						this->create_token(Token::lookupKind("-"));
-						return true;
-					} break;
+						case '@': {
+							if(this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("-@="));
+								this->create_token(Token::lookupKind("-@="));
+								return true;
+							}else{
+								this->char_stream.skip(evo::stringSize("-@"));
+								this->create_token(Token::lookupKind("-@"));
+								return true;
+							}
+						} break;
+
+						case '|': {
+							if(this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("-|="));
+								this->create_token(Token::lookupKind("-|="));
+								return true;
+							}else{
+								this->char_stream.skip(evo::stringSize("-|"));
+								this->create_token(Token::lookupKind("-|"));
+								return true;
+							}
+						} break;
+
+					}
 				}
+
+				this->char_stream.skip(evo::stringSize("-"));
+				this->create_token(Token::lookupKind("-"));
+				return true;
 			} break;
 
 			case '*': {
-				switch(this->char_stream.peek(1)){
-					case '=': {
-						this->char_stream.skip(evo::stringSize("*="));
-						this->create_token(Token::lookupKind("*="));
-						return true;
-					} break;
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '=': {
+							this->char_stream.skip(evo::stringSize("*="));
+							this->create_token(Token::lookupKind("*="));
+							return true;
+						} break;
 
-					case '@': {
-						if(this->char_stream.peek(2) == '='){
-							this->char_stream.skip(evo::stringSize("*@="));
-							this->create_token(Token::lookupKind("*@="));
-							return true;
-						}else{
-							this->char_stream.skip(evo::stringSize("*@"));
-							this->create_token(Token::lookupKind("*@"));
-							return true;
-						}
-					} break;
+						case '@': {
+							if(this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("*@="));
+								this->create_token(Token::lookupKind("*@="));
+								return true;
+							}else{
+								this->char_stream.skip(evo::stringSize("*@"));
+								this->create_token(Token::lookupKind("*@"));
+								return true;
+							}
+						} break;
 
-					case '|': {
-						if(this->char_stream.peek(2) == '='){
-							this->char_stream.skip(evo::stringSize("*|="));
-							this->create_token(Token::lookupKind("*|="));
-							return true;
-						}else{
-							this->char_stream.skip(evo::stringSize("*|"));
-							this->create_token(Token::lookupKind("*|"));
-							return true;
-						}
-					} break;
-
-					default: {
-						this->char_stream.skip(evo::stringSize("*"));
-						this->create_token(Token::lookupKind("*"));
-						return true;
-					} break;
+						case '|': {
+							if(this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("*|="));
+								this->create_token(Token::lookupKind("*|="));
+								return true;
+							}else{
+								this->char_stream.skip(evo::stringSize("*|"));
+								this->create_token(Token::lookupKind("*|"));
+								return true;
+							}
+						} break;
+					}
 				}
+
+				this->char_stream.skip(evo::stringSize("*"));
+				this->create_token(Token::lookupKind("*"));
+				return true;
 			} break;
 
 
 			case '/': {
-				if(this->char_stream.peek(1) == '='){
+				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
 					this->char_stream.skip(evo::stringSize("/="));
 					this->create_token(Token::lookupKind("/="));
 					return true;
@@ -543,7 +548,7 @@ namespace pcit::panther{
 			} break;
 
 			case '%': {
-				if(this->char_stream.peek(1) == '='){
+				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
 					this->char_stream.skip(evo::stringSize("%="));
 					this->create_token(Token::lookupKind("%="));
 					return true;
@@ -555,131 +560,129 @@ namespace pcit::panther{
 			} break;
 
 			case '<': {
-				switch(this->char_stream.peek(1)){
-					case '<': {
-						switch(this->char_stream.peek(2)){
-							case '=': {
-								this->char_stream.skip(evo::stringSize("<<="));
-								this->create_token(Token::lookupKind("<<="));
-								return true;
-							} break;
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '<': {
+							if(ammount_left > 2){
+								switch(this->char_stream.peek(2)){
+									case '=': {
+										this->char_stream.skip(evo::stringSize("<<="));
+										this->create_token(Token::lookupKind("<<="));
+										return true;
+									} break;
 
-							case '|': {
-								if(this->char_stream.peek(3) == '='){
-									this->char_stream.skip(evo::stringSize("<<|="));
-									this->create_token(Token::lookupKind("<<|="));
-									return true;
-								}else{
-									this->char_stream.skip(evo::stringSize("<<|"));
-									this->create_token(Token::lookupKind("<<|"));
-									return true;
+									case '|': {
+										if(ammount_left > 3 && this->char_stream.peek(3) == '='){
+											this->char_stream.skip(evo::stringSize("<<|="));
+											this->create_token(Token::lookupKind("<<|="));
+											return true;
+										}else{
+											this->char_stream.skip(evo::stringSize("<<|"));
+											this->create_token(Token::lookupKind("<<|"));
+											return true;
+										}
+									} break;
 								}
-							} break;
 
-							default: {
 								this->char_stream.skip(evo::stringSize("<<"));
 								this->create_token(Token::lookupKind("<<"));
 								return true;
-							} break;
-						}
-					} break;
+							}
+						} break;
 
-					case '=': {
-						this->char_stream.skip(evo::stringSize("<="));
-						this->create_token(Token::lookupKind("<="));
-						return true;
-					} break;
+						case '=': {
+							this->char_stream.skip(evo::stringSize("<="));
+							this->create_token(Token::lookupKind("<="));
+							return true;
+						} break;
 
-					case '{': {
-						this->char_stream.skip(evo::stringSize("<{"));
-						this->create_token(Token::lookupKind("<{"));
-						return true;
-					} break;
-
-					default: {
-						this->char_stream.skip(evo::stringSize("<"));
-						this->create_token(Token::lookupKind("<"));
-						return true;
-					} break;
+						case '{': {
+							this->char_stream.skip(evo::stringSize("<{"));
+							this->create_token(Token::lookupKind("<{"));
+							return true;
+						} break;
+					}
 				}
+
+				this->char_stream.skip(evo::stringSize("<"));
+				this->create_token(Token::lookupKind("<"));
+				return true;
 			} break;
 
 			case '>': {
-				switch(this->char_stream.peek(1)){
-					case '>': {
-						if(this->char_stream.peek(2) == '='){
-							this->char_stream.skip(evo::stringSize(">>="));
-							this->create_token(Token::lookupKind(">>="));
-							return true;
-						}else{
-							this->char_stream.skip(evo::stringSize(">>"));
-							this->create_token(Token::lookupKind(">>"));
-							return true;
-						}
-					} break;
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '>': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize(">>="));
+								this->create_token(Token::lookupKind(">>="));
+								return true;
+							}else{
+								this->char_stream.skip(evo::stringSize(">>"));
+								this->create_token(Token::lookupKind(">>"));
+								return true;
+							}
+						} break;
 
-					case '=': {
-						this->char_stream.skip(evo::stringSize(">="));
-						this->create_token(Token::lookupKind(">="));
-						return true;
-					} break;
-
-					default: {
-						this->char_stream.skip(evo::stringSize(">"));
-						this->create_token(Token::lookupKind(">"));
-						return true;
-					} break;
+						case '=': {
+							this->char_stream.skip(evo::stringSize(">="));
+							this->create_token(Token::lookupKind(">="));
+							return true;
+						} break;
+					}
 				}
+
+				this->char_stream.skip(evo::stringSize(">"));
+				this->create_token(Token::lookupKind(">"));
+				return true;
 			} break;
 
 			case '&': {
-				switch(this->char_stream.peek(2)){
-					case '=': {
-						this->char_stream.skip(evo::stringSize("&="));
-						this->create_token(Token::lookupKind("&="));
-						return true;
-					} break;
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(2)){
+						case '=': {
+							this->char_stream.skip(evo::stringSize("&="));
+							this->create_token(Token::lookupKind("&="));
+							return true;
+						} break;
 
-					case '&': {
-						this->char_stream.skip(evo::stringSize("&&"));
-						this->create_token(Token::lookupKind("&&"));
-						return true;
-					} break;
-
-					default: {
-						this->char_stream.skip(evo::stringSize("&"));
-						this->create_token(Token::lookupKind("&"));
-						return true;
-					} break;
+						case '&': {
+							this->char_stream.skip(evo::stringSize("&&"));
+							this->create_token(Token::lookupKind("&&"));
+							return true;
+						} break;
+					}
 				}
 
+				this->char_stream.skip(evo::stringSize("&"));
+				this->create_token(Token::lookupKind("&"));
+				return true;
 			} break;
 
 			case '|': {
-				switch(this->char_stream.peek(2)){
-					case '=': {
-						this->char_stream.skip(evo::stringSize("|="));
-						this->create_token(Token::lookupKind("|="));
-						return true;
-					} break;
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(2)){
+						case '=': {
+							this->char_stream.skip(evo::stringSize("|="));
+							this->create_token(Token::lookupKind("|="));
+							return true;
+						} break;
 
-					case '|': {
-						this->char_stream.skip(evo::stringSize("||"));
-						this->create_token(Token::lookupKind("||"));
-						return true;
-					} break;
-
-					default: {
-						this->char_stream.skip(evo::stringSize("|"));
-						this->create_token(Token::lookupKind("|"));
-						return true;
-					} break;
+						case '|': {
+							this->char_stream.skip(evo::stringSize("||"));
+							this->create_token(Token::lookupKind("||"));
+							return true;
+						} break;
+					}
 				}
 
+				this->char_stream.skip(evo::stringSize("|"));
+				this->create_token(Token::lookupKind("|"));
+				return true;
 			} break;
 
 			case '^': {
-				if(this->char_stream.peek(1) == '='){
+				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
 					this->char_stream.skip(evo::stringSize("^="));
 					this->create_token(Token::lookupKind("^="));
 					return true;
@@ -691,7 +694,7 @@ namespace pcit::panther{
 			} break;
 
 			case '!': {
-				if(this->char_stream.peek(1) == '='){
+				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
 					this->char_stream.skip(evo::stringSize("!="));
 					this->create_token(Token::lookupKind("!="));
 					return true;
@@ -703,25 +706,25 @@ namespace pcit::panther{
 			} break;
 
 			case '.': {
-				switch(this->char_stream.peek(1)){
-					case '*': {
-						this->char_stream.skip(evo::stringSize(".*"));
-						this->create_token(Token::lookupKind(".*"));
-						return true;
-					} break;
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '*': {
+							this->char_stream.skip(evo::stringSize(".*"));
+							this->create_token(Token::lookupKind(".*"));
+							return true;
+						} break;
 
-					case '?': {
-						this->char_stream.skip(evo::stringSize(".?"));
-						this->create_token(Token::lookupKind(".?"));
-						return true;
-					} break;
-
-					default: {
-						this->char_stream.skip(evo::stringSize("."));
-						this->create_token(Token::lookupKind("."));
-						return true;
-					} break;
+						case '?': {
+							this->char_stream.skip(evo::stringSize(".?"));
+							this->create_token(Token::lookupKind(".?"));
+							return true;
+						} break;
+					}
 				}
+
+				this->char_stream.skip(evo::stringSize("."));
+				this->create_token(Token::lookupKind("."));
+				return true;
 			} break;
 
 			case '~': {
@@ -731,7 +734,7 @@ namespace pcit::panther{
 			} break;
 
 			case '}': {
-				if(this->char_stream.peek(1) == '>'){
+				if(ammount_left > 1 && this->char_stream.peek(1) == '>'){
 					this->char_stream.skip(evo::stringSize("}>"));
 					this->create_token(Token::lookupKind("}>"));
 					return true;

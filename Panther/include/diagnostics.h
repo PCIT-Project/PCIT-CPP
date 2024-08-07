@@ -42,18 +42,27 @@ namespace pcit::panther{
 		ParserDereferenceOrUnwrapOnType,    // P5
 		ParserAssumedTokenNotPreset,        // P6
 		ParserEmptyMultiAssign,             // P7
+		ParserEmptyFuncReturnBlock,         // P8
 
-		SemaInvalidGlobalStmt,              // S1
-		SemaEncounteredKindNone,            // S2
+		SemaEncounteredKindNone,            // S1
+		SemaInvalidGlobalStmt,              // S2
+		SemaAlreadyDefined,                 // S3
 
 		MiscFileDoesNotExist,               // M1
 		MiscLoadFileFailed,                 // M2
+		MiscUnimplementedFeature,           // M3
 	};
 
 	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, Source::Location>;
 
 
+
+
 	EVO_NODISCARD inline auto printDiagnosticCode(DiagnosticCode code) -> std::string_view {
+		#if defined(EVO_COMPILER_MSVC)
+			#pragma warning(default : 4062)
+		#endif
+
 		switch(code){
 			break; case DiagnosticCode::TokUnrecognizedCharacter:           return "T1";
 			break; case DiagnosticCode::TokUnterminatedMultilineComment:    return "T2";
@@ -78,16 +87,22 @@ namespace pcit::panther{
 			break; case DiagnosticCode::ParserDereferenceOrUnwrapOnType:    return "P5";
 			break; case DiagnosticCode::ParserAssumedTokenNotPreset:        return "P6";
 			break; case DiagnosticCode::ParserEmptyMultiAssign:             return "P7";
+			break; case DiagnosticCode::ParserEmptyFuncReturnBlock:         return "P8";
 
-			break; case DiagnosticCode::SemaInvalidGlobalStmt:              return "S1";
-			break; case DiagnosticCode::SemaEncounteredKindNone:            return "S2";
-
+			break; case DiagnosticCode::SemaEncounteredKindNone:            return "S1";
+			break; case DiagnosticCode::SemaInvalidGlobalStmt:              return "S2";
+			break; case DiagnosticCode::SemaAlreadyDefined:                 return "S3";
 
 			break; case DiagnosticCode::MiscFileDoesNotExist:               return "M1";
 			break; case DiagnosticCode::MiscLoadFileFailed:                 return "M2";
+			break; case DiagnosticCode::MiscUnimplementedFeature:           return "M3";
 		}
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");
+
+		#if defined(EVO_COMPILER_MSVC)
+			#pragma warning(disable : 4062)
+		#endif
 	}
 
 }

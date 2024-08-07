@@ -19,8 +19,15 @@ namespace fs = std::filesystem;
 #include "./source_data.h"
 #include "./TokenBuffer.h"
 #include "./ASTBuffer.h"
+#include "./ASGBuffer.h"
+#include "../src/sema/ScopeManager.h"
+
 
 namespace pcit::panther{
+
+	namespace sema{
+		class SemanticAnalyzer;
+	}
 
 
 	class Source{
@@ -49,7 +56,8 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getTokenBuffer() const -> const TokenBuffer& { return this->token_buffer; }
 			EVO_NODISCARD auto getASTBuffer() const -> const ASTBuffer& { return this->ast_buffer; }
-			
+			EVO_NODISCARD auto getASGBuffer() const -> const ASGBuffer& { return this->asg_buffer; }
+
 
 		private:
 			Source(ID src_id, const std::string& loc, const std::string& data_str)
@@ -84,11 +92,15 @@ namespace pcit::panther{
 
 			TokenBuffer token_buffer{};
 			ASTBuffer ast_buffer{};
+			ASGBuffer asg_buffer{};
+
+			sema::ScopeManager::ScopeLevel::ID global_scope_level = sema::ScopeManager::ScopeLevel::ID::dummy();
 
 			friend class SourceManager;
 			friend class Context;
 			friend class Tokenizer;
 			friend class Parser;
+			friend sema::SemanticAnalyzer;
 	};
 
 }

@@ -9,7 +9,6 @@
 
 #pragma once
 
-#include <deque>
 
 #include <Evo.h>
 #include <PCIT_core.h>
@@ -115,11 +114,6 @@ namespace pcit::panther::AST{
 	static_assert(std::is_trivially_copyable_v<Node>, "AST::Node is not trivially copyable");
 	static_assert(std::is_trivially_copyable_v<NodeOptional>, "AST::NodeOptional is not trivially copyable");
 
-}
-
-
-
-namespace pcit::panther::AST{
 
 	struct VarDecl{
 		bool isDef;

@@ -1,0 +1,77 @@
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// Part of the PCIT-CPP, under the Apache License v2.0              //
+// You may not use this file except in compliance with the License. //
+// See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+
+#pragma once
+
+
+#include <PCIT_core.h>
+
+#include "../../include/source_data.h"
+#include "../../include/Context.h"
+#include "../../include/Source.h"
+
+
+
+namespace pcit::panther::sema{
+
+	class SemanticAnalyzer{
+		public:
+			SemanticAnalyzer(Context& _context, Source::ID source_id);
+			~SemanticAnalyzer() = default;
+
+
+			auto analyze_global_declarations() -> bool;
+			
+
+		private:
+			template<bool IS_GLOBAL>
+			auto analyze_var_decl(const AST::VarDecl& var_decl) -> bool;
+
+			template<bool IS_GLOBAL>
+			auto analyze_func_decl(const AST::FuncDecl& func_decl) -> bool;
+
+			template<bool IS_GLOBAL>
+			auto analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool;
+
+			template<typename NODE_T>
+			EVO_NODISCARD auto already_defined(std::string_view ident, const NODE_T& node) const -> bool;
+
+			EVO_NODISCARD auto getCurrentScopeLevel() const -> ScopeManager::ScopeLevel&;
+
+			///////////////////////////////////
+			// get source location
+
+			auto get_source_location(Token::ID token_id) const -> SourceLocation;
+			
+			auto get_source_location(const AST::Node& node) const -> SourceLocation;
+
+			auto get_source_location(const AST::VarDecl& var_decl) const -> SourceLocation;
+			auto get_source_location(const AST::FuncDecl& func_decl) const -> SourceLocation;
+			auto get_source_location(const AST::AliasDecl& alias_decl) const -> SourceLocation;
+			auto get_source_location(const AST::Return& return_stmt) const -> SourceLocation;
+			auto get_source_location(const AST::FuncCall& func_call) const -> SourceLocation;
+			auto get_source_location(const AST::TemplatedExpr& templated_expr) const -> SourceLocation;
+			auto get_source_location(const AST::Prefix& prefix) const -> SourceLocation;
+			auto get_source_location(const AST::Infix& infix) const -> SourceLocation;
+			auto get_source_location(const AST::Postfix& postfix) const -> SourceLocation;
+			auto get_source_location(const AST::MultiAssign& multi_assign) const -> SourceLocation;
+			auto get_source_location(const AST::Type& type) const -> SourceLocation;
+
+			auto get_source_location(ASG::Func::ID func_id) const -> SourceLocation;
+	
+		private:
+			Context& context;
+			Source& source;
+
+			ScopeManager::Scope scope{};
+	};
+	
+	
+	
+}

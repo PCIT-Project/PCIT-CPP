@@ -25,7 +25,7 @@ namespace pcit::panther{
 					using Iterator = IteratorImpl<ID>;
 			};
 
-			enum class Kind{
+			enum class Kind : uint32_t {
 				None,
 
 				Ident,
@@ -59,6 +59,7 @@ namespace pcit::panther{
 				TypeUI_N,
 
 				TypeF16,
+				TypeBF16,
 				TypeF32,
 				TypeF64,
 				TypeF80,
@@ -396,6 +397,7 @@ namespace pcit::panther{
 					break; case Kind::TypeUI_N: return "UI_n";
 
 					break; case Kind::TypeF16: return "F16";
+					break; case Kind::TypeBF16: return "BF16";
 					break; case Kind::TypeF32: return "F32";
 					break; case Kind::TypeF64: return "F64";
 					break; case Kind::TypeF80: return "F80";

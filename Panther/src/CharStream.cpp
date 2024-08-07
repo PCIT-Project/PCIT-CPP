@@ -20,9 +20,10 @@ namespace pcit::panther{
 	}
 
 	auto CharStream::peek_raw_ptr() const -> const char* {
-		evo::debugAssert(this->at_end() == false, "Cannot peek at end");
+		evo::debugAssert(this->cursor <= this->data.size(), "Cannot peek past end");
 
-		return &this->data[this->cursor];
+		// This is done this way so can peek the end ptr
+		return this->data.data() + this->cursor;
 	}
 
 

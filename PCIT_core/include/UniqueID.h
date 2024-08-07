@@ -19,6 +19,7 @@ namespace pcit::core{
 	class UniqueID{
 		public:
 			using ThisT = UniqueID<BaseT, SelfReference>;
+			using Base = BaseT;
 
 			template<class T>
 			class IteratorImpl{
@@ -78,8 +79,18 @@ namespace pcit::core{
 			explicit constexpr UniqueID(const BaseT& id) : internal_id(id) {}
 			constexpr ~UniqueID() = default;
 
+			static constexpr auto dummy() -> SelfReference { return SelfReference(); }
 
 			EVO_NODISCARD constexpr auto get() const -> BaseT { return this->internal_id; }
+			
+
+		protected:
+			#if defined(PCIT_CONFIG_DEBUG)
+				constexpr UniqueID() : internal_id(std::numeric_limits<BaseT>::max()) {};
+			#else
+				constexpr UniqueID() : internal_id() {};
+			#endif
+
 	
 		private:
 			BaseT internal_id;
@@ -90,6 +101,7 @@ namespace pcit::core{
 	class UniqueComparableID{
 		public:
 			using ThisT = UniqueComparableID<BaseT, SelfReference>;
+			using Base = BaseT;
 
 			template<class T>
 			class IteratorImpl{
@@ -149,6 +161,8 @@ namespace pcit::core{
 			explicit constexpr UniqueComparableID(const BaseT& id) : internal_id(id) {}
 			constexpr ~UniqueComparableID() = default;
 
+			static constexpr auto dummy() -> SelfReference { return SelfReference(); }
+
 
 			EVO_NODISCARD constexpr auto operator==(const ThisT& rhs) const -> bool {
 				return this->get() == rhs.get();
@@ -160,6 +174,14 @@ namespace pcit::core{
 
 
 			EVO_NODISCARD constexpr auto get() const -> BaseT { return this->internal_id; }
+
+
+		protected:
+			#if defined(PCIT_CONFIG_DEBUG)
+				constexpr UniqueComparableID() : internal_id(std::numeric_limits<BaseT>::max()) {};
+			#else
+				constexpr UniqueComparableID() : internal_id() {};
+			#endif
 	
 		private:
 			BaseT internal_id;

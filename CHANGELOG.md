@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.14.0
+
+### Panther
+- Added checking of supported statements in semantic analysis
+- Added checking of function re-definition
+- Added the BF16 type ("brain" floating point - 7-bit significand)
+- Fixed fatal errors caused by diagnostics with infos
+- Fixed end of file checking for tokenization of operators and identifiers
+- Fixed unstable behaviour with function parameters in the AST
+- Changed indentation level of diagnostic infos in the default diagnostic callback
+
+
+<!---------------------------------->
 ## v0.0.13.0
 
 ### Panther
@@ -21,7 +34,7 @@
 ## v0.0.12.0
 
 ### Panther
-- Added `def` variable decalration
+- Added `def` variable declaration
 - Added `alias` declarations
 
 
@@ -31,7 +44,7 @@
 ### Panther
 - Separated Tokens and Token locations (more data-oriented)
 - Fixed string and character literal tokens pointing to garbage/invalid strings
-- Added checking if a source location is too big (max lines / collumn number is 2^32-1)
+- Added checking if a source location is too big (max lines / column number is 2^32-1)
 
 
 <!---------------------------------->
@@ -69,7 +82,7 @@
 - Fixed parser incorrectly detecting statement scope blocks as statement expressions
 
 ### pthr
-- Fixed some AST printing formatting mistakes
+- Fixed some AST printing formatting issues
 
 
 <!---------------------------------->
