@@ -1,11 +1,11 @@
 
 
 
-func test = () -> Void {
+func test = () -> Int* {
 	
 }
 
-func asdf = () -> Void {
+func asdf = () -> (name: Int*, bar: Int*) {
 	
 }
 

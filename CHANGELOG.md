@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.14.1
+
+### Panther
+- Added function return type checking
+- Added functions with multiple returns
+- Changed max tokens per source file to 2^32-2 (from 2^32-1)
+- Fixed fatal error doing semantic analysis when multi-threaded
+
+### PCIT_core
+- Added the `Optional` interface
+	- simple way to overload `std::optional` for user-types
+
+
+<!---------------------------------->
 ## v0.0.14.0
 
 ### Panther

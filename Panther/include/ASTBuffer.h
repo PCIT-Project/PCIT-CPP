@@ -30,42 +30,42 @@ namespace pcit::panther{
 			EVO_NODISCARD auto numGlobalStmts() const -> size_t { return this->global_stmts.size(); }
 
 
-			EVO_NODISCARD auto getLiteral(const AST::Node& node) const -> Token::ID {
+			EVO_NODISCARD static auto getLiteral(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Literal, "Node is not a Literal");
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD auto getIdent(const AST::Node& node) const -> Token::ID {
+			EVO_NODISCARD static auto getIdent(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Ident, "Node is not a Ident");
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD auto getIntrinsic(const AST::Node& node) const -> Token::ID {
+			EVO_NODISCARD static auto getIntrinsic(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Intrinsic, "Node is not a Intrinsic");
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD auto getAttribute(const AST::Node& node) const -> Token::ID {
+			EVO_NODISCARD static auto getAttribute(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Attribute, "Node is not a Attribute");
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD auto getBuiltinType(const AST::Node& node) const -> Token::ID {
+			EVO_NODISCARD static auto getBuiltinType(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::BuiltinType, "Node is not a BuiltinType");
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD auto getUninit(const AST::Node& node) const -> Token::ID {
+			EVO_NODISCARD static auto getUninit(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Uninit, "Node is not a Uninit");
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD auto getThis(const AST::Node& node) const -> Token::ID {
+			EVO_NODISCARD static auto getThis(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::This, "Node is not a This");
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD auto getDiscard(const AST::Node& node) const -> Token::ID {
+			EVO_NODISCARD static auto getDiscard(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.getKind() == AST::Kind::Discard, "Node is not a Discard");
 				return node._value.token_id;
 			}

@@ -76,7 +76,7 @@ namespace pcit::panther{
 		if(this->check_result_fail(ident, "identifier in variable declaration")){ return Result::Code::Error; }
 
 
-		auto type = AST::NodeOptional();
+		auto type = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].getKind() == Token::lookupKind(":")){
 			if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::Error; }
 
@@ -93,7 +93,7 @@ namespace pcit::panther{
 		if(attributes.code() == Result::Code::Error){ return Result::Code::Error; }
 
 
-		auto value = AST::NodeOptional();
+		auto value = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("=")){
 			if(this->assert_token_fail(Token::lookupKind("="))){ return Result::Code::Error; }
 				
@@ -109,7 +109,9 @@ namespace pcit::panther{
 		if(this->expect_token_fail(Token::lookupKind(";"), "after variable declaration")){ return Result::Code::Error; }
 
 
-		return this->source.ast_buffer.createVarDecl(IS_DEF, ident.value(), type, attributes.value(), value);
+		return this->source.ast_buffer.createVarDecl(
+			IS_DEF, ASTBuffer::getIdent(ident.value()), type, attributes.value(), value
+		);
 	}
 
 
@@ -126,7 +128,7 @@ namespace pcit::panther{
 			return Result::Code::Error;
 		}
 
-		auto template_pack_node = AST::NodeOptional();
+		auto template_pack_node = std::optional<AST::Node>();
 		const Result template_pack_result = this->parse_template_pack();
 		switch(template_pack_result.code()){
 			case Result::Code::Success:   template_pack_node = template_pack_result.value(); break;
@@ -177,7 +179,7 @@ namespace pcit::panther{
 
 		if(this->expect_token_fail(Token::lookupKind(";"), "at end of alias declaration")){ return Result::Code::Error; }
 
-		return this->source.ast_buffer.createAliasDecl(ident.value(), type.value());
+		return this->source.ast_buffer.createAliasDecl(ASTBuffer::getIdent(ident.value()), type.value());
 	}
 
 
@@ -186,8 +188,8 @@ namespace pcit::panther{
 		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token_fail(Token::Kind::KeywordReturn)){ return Result::Code::Error; }
 
-		auto label = AST::NodeOptional();
-		auto expr = AST::NodeOptional();
+		auto label = std::optional<AST::Node>();
+		auto expr = std::optional<AST::Node>();
 
 		if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("->")){
 			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::Error; }
@@ -347,7 +349,7 @@ namespace pcit::panther{
 		if(this->reader[this->reader.peek()].getKind() != Token::lookupKind("{")){ return Result::Code::WrongType; }
 		if(this->assert_token_fail(Token::lookupKind("{"))){ return Result::Code::Error; }
 
-		auto label = AST::NodeOptional();
+		auto label = std::optional<AST::Node>();
 
 		if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("->")){
 			if(label_requirement == BlockLabelRequirement::NotAllowed){
@@ -877,7 +879,7 @@ namespace pcit::panther{
 							break;
 						}
 
-						auto arg_ident = AST::NodeOptional();
+						auto arg_ident = std::optional<AST::Node>();
 
 						if(
 							this->reader[this->reader.peek()].getKind() == Token::Kind::Ident &&
@@ -988,7 +990,7 @@ namespace pcit::panther{
 
 		while(this->reader[this->reader.peek()].getKind() == Token::Kind::Attribute){
 			const Token::ID attr_token_id = this->reader.next();
-			auto argument = AST::NodeOptional();
+			auto argument = std::optional<AST::Node>();
 
 			if(this->reader[this->reader.peek()].getKind() == Token::lookupKind("(")){
 				if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::Error; }
@@ -1005,7 +1007,7 @@ namespace pcit::panther{
 
 			}
 
-			attributes.emplace_back(AST::Node(AST::Kind::Attribute, attr_token_id), argument);
+			attributes.emplace_back(attr_token_id, argument);
 		}
 
 		return this->source.ast_buffer.createAttributeBlock(std::move(attributes));
@@ -1097,7 +1099,7 @@ namespace pcit::panther{
 				return Result::Code::Error;
 			}
 
-			params.emplace_back(ident.value(), type.value());
+			params.emplace_back(ASTBuffer::getIdent(ident.value()), type.value());
 
 
 			// check if ending or should continue
@@ -1133,8 +1135,8 @@ namespace pcit::panther{
 			}
 
 			
-			auto param_ident = AST::NodeOptional();
-			auto param_type = AST::NodeOptional();
+			auto param_ident = std::optional<AST::Node>();
+			auto param_type = std::optional<AST::Node>();
 			using ParamKind = AST::FuncDecl::Param::Kind;
 			auto param_kind = std::optional<ParamKind>();
 
@@ -1224,8 +1226,7 @@ namespace pcit::panther{
 			const Result attributes = this->parse_attribute_block();
 			if(attributes.code() == Result::Code::Error){ return evo::resultError; }
 
-
-			params.emplace_back(param_ident.value(), param_type, param_kind.value(), attributes.value());
+			params.emplace_back(*param_ident, param_type, *param_kind, attributes.value());
 
 			// check if ending or should continue
 			const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].getKind();
@@ -1245,7 +1246,7 @@ namespace pcit::panther{
 		return params;
 	}
 
-
+	#include <optional>
 
 	auto Parser::parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>> {
 		auto returns = evo::SmallVector<AST::FuncDecl::Return>();
@@ -1273,13 +1274,18 @@ namespace pcit::panther{
 			if(ident.code() == Result::Code::Error){
 				return evo::resultError;
 			}else if(ident.code() == Result::Code::WrongType){
+				auto infos = evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("If a function has multiple return parameters, all must be named"),
+				};
+				if(returns.empty()){
+					infos.emplace_back(
+						"If you want a single return value that's unnamed,"
+						" remove the parentheses around the return type"
+					);
+				}
+
 				this->expected_but_got(
-					"identifier in function return parameter", this->reader.peek(),
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("If a function has multiple return parameters, all must be named"),
-						Diagnostic::Info("If you want a single return value that's unnamed,"
-							 	         " remove the parentheses around the return type")
-					}
+					"identifier in function return parameter", this->reader.peek(), std::move(infos)
 				);
 				return evo::resultError;
 			}
@@ -1293,7 +1299,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			returns.emplace_back(ident.value(), type.value());
+			returns.emplace_back(ASTBuffer::getIdent(ident.value()), type.value());
 
 
 			// check if ending or should continue

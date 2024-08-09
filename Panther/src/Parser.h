@@ -48,7 +48,7 @@ namespace pcit::panther{
 					Result(Code res_code) : result_code(res_code) {}
 					Result(AST::Node val) : result_code(Code::Success), node(val) {}
 
-					Result(const Result& rhs) = default;
+					// Result(const Result& rhs) = default;
 
 					~Result() = default;
 

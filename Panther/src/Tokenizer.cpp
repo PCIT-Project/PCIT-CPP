@@ -1294,27 +1294,26 @@ namespace pcit::panther{
 	// errors
 
 	auto Tokenizer::file_too_big() -> bool {
-		constexpr static size_t MAX_TOKENS = std::numeric_limits<uint32_t>::max();
+		constexpr static size_t MAX_TOKENS = std::numeric_limits<uint32_t>::max() - 1;
 
-		if(this->source.token_buffer.size() >= MAX_TOKENS) [[unlikely]] {
-			const evo::Result<Source::Location> current_location = this->get_current_location_token();
-			if(current_location.isError()){ return true; }
+		if(this->source.token_buffer.size() < MAX_TOKENS){ return false; }
 
-			this->emit_error(
-				Diagnostic::Code::TokFileTooLarge,
-				current_location.value(),
-				"File too large",
-				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info(std::format("Source files can have a maximum of {} tokens", MAX_TOKENS)),
-				}
-			);
 
-			this->can_continue = false;
+		const evo::Result<Source::Location> current_location = this->get_current_location_token();
+		if(current_location.isError()){ return true; }
 
-			return true;
-		}
+		this->emit_error(
+			Diagnostic::Code::TokFileTooLarge,
+			current_location.value(),
+			"File too large",
+			evo::SmallVector<Diagnostic::Info>{
+				Diagnostic::Info(std::format("Source files can have a maximum of {} (2^32-2) tokens", MAX_TOKENS)),
+			}
+		);
 
-		return false;
+		this->can_continue = false;
+
+		return true;
 	}
 
 

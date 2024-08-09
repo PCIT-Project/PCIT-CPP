@@ -273,9 +273,9 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Type");
-					if(var_decl.type.hasValue()){
+					if(var_decl.type.has_value()){
 						this->printer.print(" ");
-						this->print_type(var_decl.type.value());
+						this->print_type(this->ast_buffer.getType(*var_decl.type));
 					}else{
 						this->printer.printGray(" {INFERRED}\n");
 					}
@@ -285,10 +285,10 @@ namespace pthr{
 
 					this->indenter.print_end();
 					this->print_minor_header("Value");
-					if(var_decl.value.hasValue()){
+					if(var_decl.value.has_value()){
 						this->printer.print("\n");
 						this->indenter.push();
-						this->print_expr(var_decl.value.value());
+						this->print_expr(*var_decl.value);
 						this->indenter.pop();
 					}else{
 						this->printer.printGray(" {NONE}\n");
@@ -309,13 +309,13 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					this->print_ident(func_decl.ident);
+					this->print_ident(func_decl.name);
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Template Pack");
-					if(func_decl.templatePack.hasValue()){
+					if(func_decl.templatePack.has_value()){
 						const panther::AST::TemplatePack& template_pack = 
-							this->ast_buffer.getTemplatePack(func_decl.templatePack.value());
+							this->ast_buffer.getTemplatePack(*func_decl.templatePack);
 
 						this->printer.print("\n");
 						this->indenter.push();
@@ -339,7 +339,7 @@ namespace pthr{
 								this->indenter.print_end();
 								this->print_minor_header("Type");
 								this->printer.print(" ");
-								this->print_type(param.type);
+								this->print_type(this->ast_buffer.getType(param.type));
 
 								this->indenter.pop();
 							}
@@ -372,16 +372,16 @@ namespace pthr{
 							{
 								this->indenter.push();
 
-								if(param.ident.getKind() == panther::AST::Kind::Ident){
+								if(param.name.getKind() == panther::AST::Kind::Ident){
 									this->indenter.print_arrow();
 									this->print_minor_header("Identifier");
 									this->printer.print(" ");
-									this->print_ident(param.ident);
+									this->print_ident(param.name);
 
 									this->indenter.print_arrow();
 									this->print_minor_header("Type");
 									this->printer.print(" ");
-									this->print_type(param.type.value());
+									this->print_type(this->ast_buffer.getType(*param.type));
 
 								}else{
 									this->indenter.print_arrow();
@@ -432,8 +432,8 @@ namespace pthr{
 								this->indenter.print_arrow();
 								this->print_minor_header("Identifier");
 								this->printer.print(" ");
-								if(return_param.ident.hasValue()){
-									this->print_ident(return_param.ident.value());
+								if(return_param.ident.has_value()){
+									this->print_ident(*return_param.ident);
 								}else{
 									this->printer.printGray("{NONE}\n");
 								}
@@ -441,7 +441,7 @@ namespace pthr{
 								this->indenter.print_end();
 								this->print_minor_header("Type");
 								this->printer.print(" ");
-								this->print_type(return_param.type);
+								this->print_type(this->ast_buffer.getType(return_param.type));
 
 								this->indenter.pop();
 							}
@@ -475,7 +475,7 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("Type");
 					this->printer.print(" ");
-					this->print_type(alias_decl.type);
+					this->print_type(this->ast_buffer.getType(alias_decl.type));
 
 					this->indenter.pop();
 				}
@@ -491,19 +491,19 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Label");
-					if(ret.label.hasValue()){
+					if(ret.label.has_value()){
 						this->printer.print(" ");
-						this->print_ident(ret.label.value());
+						this->print_ident(*ret.label);
 					}else{
 						this->printer.printGray(" {NONE}\n");
 					}
 
 					this->indenter.print_end();
 					this->print_minor_header("Value");
-					if(ret.value.hasValue()){
+					if(ret.value.has_value()){
 						this->indenter.push();
 						this->printer.print("\n");
-						this->print_expr(ret.value.value());
+						this->print_expr(*ret.value);
 						this->indenter.pop();
 					}else{
 						this->printer.printGray(" {NONE}\n");
@@ -528,9 +528,9 @@ namespace pthr{
 
 						this->indenter.print_arrow();
 						this->print_minor_header("Label");
-						if(block.label.hasValue()){
+						if(block.label.has_value()){
 							this->printer.print(" ");
-							this->print_ident(block.label.value());
+							this->print_ident(*block.label);
 						}else{
 							this->printer.printGray(" {NONE}\n");
 						}
@@ -613,38 +613,31 @@ namespace pthr{
 			}
 
 			
-			auto print_type(const panther::AST::Node& node) -> void {
-				if(node.getKind() == panther::AST::Kind::Type){
-					const panther::AST::Type& type = this->ast_buffer.getType(node);
+			auto print_type(const panther::AST::Type& type) -> void {
+				this->print_base_type(type.base);
 
-					this->print_base_type(type.base);
-
-					if(type.qualifiers.empty() == false){
-						auto qualifier_str = std::string();
-						bool not_first_qualifier = false;
-						for(const panther::AST::Type::Qualifier& qualifier : type.qualifiers){
-							if(not_first_qualifier){
-								qualifier_str += ' ';
-							}else{
-								not_first_qualifier = true;
-							}
-
-							if(qualifier.isPtr){ qualifier_str += '*'; }
-							if(qualifier.isReadOnly){ qualifier_str += '|'; }
-							if(qualifier.isOptional){ qualifier_str += '?'; }
+				if(type.qualifiers.empty() == false){
+					auto qualifier_str = std::string();
+					bool not_first_qualifier = false;
+					for(const panther::AST::Type::Qualifier& qualifier : type.qualifiers){
+						if(not_first_qualifier){
+							qualifier_str += ' ';
+						}else{
+							not_first_qualifier = true;
 						}
 
-						this->printer.printMagenta(qualifier_str);
+						if(qualifier.isPtr){ qualifier_str += '*'; }
+						if(qualifier.isReadOnly){ qualifier_str += '|'; }
+						if(qualifier.isOptional){ qualifier_str += '?'; }
 					}
 
-					if(type.base.getKind() == panther::AST::Kind::BuiltinType){
-						this->printer.printGray(" {BUILTIN}\n");
-					}else{
-						this->printer.print("\n");
-					}
+					this->printer.printMagenta(qualifier_str);
+				}
 
+				if(type.base.getKind() == panther::AST::Kind::BuiltinType){
+					this->printer.printGray(" {BUILTIN}\n");
 				}else{
-					evo::debugFatalBreak("Invalid type kind");
+					this->printer.print("\n");
 				}
 			}
 
@@ -679,7 +672,7 @@ namespace pthr{
 					} break;
 
 					case panther::AST::Kind::Type: {
-						this->print_type(node);
+						this->print_type(this->ast_buffer.getType(node));
 					} break;
 
 
@@ -953,11 +946,11 @@ namespace pthr{
 							{
 								this->indenter.push();
 
-								if(arg.explicitIdent.hasValue()){
+								if(arg.explicitIdent.has_value()){
 									this->indenter.print_arrow();
 									this->print_minor_header("Explicit Identifier");
 									this->printer.print(" ");
-									this->print_ident(arg.explicitIdent.value());
+									this->print_ident(*arg.explicitIdent);
 
 									this->indenter.print_end();
 									this->print_minor_header("Expression");
@@ -1060,16 +1053,15 @@ namespace pthr{
 
 							this->indenter.print_arrow();
 							this->print_minor_header("Attribute");
-							const panther::Token::ID attr_token_id = this->ast_buffer.getAttribute(attribute.name);
-							const panther::Token& attr_token = this->source.getTokenBuffer()[attr_token_id];
+							const panther::Token& attr_token = this->source.getTokenBuffer()[attribute.attribute];
 							this->printer.printMagenta(" #{}\n", attr_token.getString());
 
 							this->indenter.print_end();
 							this->print_minor_header("Argument");
-							if(attribute.arg.hasValue()){
+							if(attribute.arg.has_value()){
 								this->printer.print("\n");
 								this->indenter.push();
-								this->print_expr(attribute.arg.value());
+								this->print_expr(*attribute.arg);
 								this->indenter.pop();
 							}else{
 								this->printer.printGray(" {NONE}\n");
@@ -1091,10 +1083,16 @@ namespace pthr{
 				this->printer.printMagenta("{}\n", ident_tok.getString());
 			}
 
-			auto print_intrinsic(const panther::AST::Node& ident) const -> void {
-				const panther::Token::ID ident_tok_id = this->ast_buffer.getIntrinsic(ident);
+			auto print_ident(panther::Token::ID ident_tok_id) const -> void {
 				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
-				this->printer.printMagenta("@{}\n", ident_tok.getString());
+				evo::debugAssert(ident_tok.getKind() == panther::Token::Kind::Ident);
+				this->printer.printMagenta("{}\n", ident_tok.getString());
+			}
+
+			auto print_intrinsic(const panther::AST::Node& intrinsic) const -> void {
+				const panther::Token::ID intrinsic_tok_id = this->ast_buffer.getIntrinsic(intrinsic);
+				const panther::Token& intrinsic_tok = this->source.getTokenBuffer()[intrinsic_tok_id];
+				this->printer.printMagenta("@{}\n", intrinsic_tok.getString());
 			}
 
 

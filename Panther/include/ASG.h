@@ -14,6 +14,7 @@
 #include <PCIT_core.h>
 
 #include "./AST.h"
+#include "./TypeManager.h"
 
 
 namespace pcit::panther::ASG{
@@ -24,7 +25,9 @@ namespace pcit::panther::ASG{
 				using core::UniqueID<uint32_t, ID>::UniqueID;
 		};
 
-		AST::Node ident;
+
+		AST::Node name;
+		BaseType::ID baseTypeID;
 	};
 
 }

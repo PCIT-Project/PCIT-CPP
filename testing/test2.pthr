@@ -1,1 +1,14 @@
-var test2: Int = 14;
+
+
+
+func test = () -> Int* {
+	
+}
+
+func asdf = () -> (name: Int*, bar: Int*) {
+	
+}
+
+func test = () -> Void {
+	
+}

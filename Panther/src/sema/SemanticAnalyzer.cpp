@@ -101,12 +101,16 @@ namespace pcit::panther::sema{
 
 	template<bool IS_GLOBAL>
 	auto SemanticAnalyzer::analyze_func_decl(const AST::FuncDecl& func_decl) -> bool {
-		const Token::ID func_ident_tok_id = this->source.getASTBuffer().getIdent(func_decl.ident);
+		const Token::ID func_ident_tok_id = this->source.getASTBuffer().getIdent(func_decl.name);
 		const std::string_view func_ident = this->source.getTokenBuffer()[func_ident_tok_id].getString();
 
 		if(this->already_defined(func_ident, func_decl)){ return false; }
 
-		if(func_decl.templatePack.hasValue()){
+
+		///////////////////////////////////
+		// template pack
+
+		if(func_decl.templatePack.has_value()){
 			this->context.emitError(
 				Diagnostic::Code::MiscUnimplementedFeature,
 				this->get_source_location(func_decl),
@@ -114,6 +118,10 @@ namespace pcit::panther::sema{
 			);
 			return false;
 		}
+
+
+		///////////////////////////////////
+		// params
 
 		if(func_decl.params.empty() == false){
 			this->context.emitError(
@@ -123,6 +131,10 @@ namespace pcit::panther::sema{
 			);
 			return false;
 		}
+
+
+		///////////////////////////////////
+		// attributes
 
 		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
 		if(attr_block.attributes.empty() == false){
@@ -134,7 +146,39 @@ namespace pcit::panther::sema{
 			return false;
 		}
 
-		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(func_decl.ident);
+
+		///////////////////////////////////
+		// returns
+
+		auto return_params = evo::SmallVector<BaseType::Function::ReturnParam>{};
+		for(size_t i = 0; const AST::FuncDecl::Return& return_param : func_decl.returns){
+			const AST::Type& return_param_ast_type = this->source.getASTBuffer().getType(return_param.type);
+			const evo::Result<TypeInfo::VoidableID> type_info = this->get_type_id(return_param_ast_type);
+			if(type_info.isError()){ return false; }
+
+			if(return_param.ident.has_value() && type_info.value().isVoid()){
+				this->context.emitError(
+					Diagnostic::Code::SemaNamedReturnParamIsTypeVoid,
+					this->get_source_location(return_param.type),
+					"The type of a named function return parameter cannot be \"Void\""
+				);
+				return false;
+			}
+
+			return_params.emplace_back(return_param.ident, type_info.value());
+
+			i += 1;
+		}
+
+
+		///////////////////////////////////
+		// create
+
+		const BaseType::ID base_type_id = this->context.getTypeManager().getOrCreateFunction(
+			BaseType::Function(this->source.getID(), std::move(return_params))
+		);
+
+		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(func_decl.name, base_type_id);
 		this->getCurrentScopeLevel().addFunc(func_ident, asg_func_id);
 
 		return true;
@@ -149,6 +193,81 @@ namespace pcit::panther::sema{
 		);
 		return false;
 	};
+
+
+
+
+	auto SemanticAnalyzer::get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID> {
+		auto base_type = std::optional<BaseType::ID>();
+
+		if(ast_type.base.getKind() == AST::Kind::BuiltinType){
+			const Token::ID builtin_type_token_id = ASTBuffer::getBuiltinType(ast_type.base);
+			const Token& builtin_type_token = this->source.getTokenBuffer()[builtin_type_token_id];
+
+			switch(builtin_type_token.getKind()){
+				case Token::Kind::TypeVoid: {
+					if(ast_type.qualifiers.empty() == false){
+						this->context.emitError(
+							Diagnostic::Code::SemaVoidWithQualifiers,
+							this->get_source_location(ast_type.base),
+							"Type \"Void\" cannot have qualifiers"
+						);
+						return evo::resultError;
+					}
+					return TypeInfo::VoidableID::Void();
+				} break;
+
+				case Token::Kind::TypeType:   case Token::Kind::TypeThis:      case Token::Kind::TypeInt:
+				case Token::Kind::TypeISize:  case Token::Kind::TypeUInt:      case Token::Kind::TypeUSize:
+				case Token::Kind::TypeF16:    case Token::Kind::TypeBF16:      case Token::Kind::TypeF32:
+				case Token::Kind::TypeF64:    case Token::Kind::TypeF80:       case Token::Kind::TypeF128:
+				case Token::Kind::TypeByte:   case Token::Kind::TypeBool:      case Token::Kind::TypeChar:
+				case Token::Kind::TypeRawPtr: case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:
+				case Token::Kind::TypeCInt:   case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:
+				case Token::Kind::TypeCULong: case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
+				case Token::Kind::TypeCLongDouble: {
+					base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(builtin_type_token.getKind());
+				} break;
+
+				case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
+					base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(
+						builtin_type_token.getKind(), builtin_type_token.getBitWidth()
+					);
+				} break;
+
+				default: {
+					evo::debugFatalBreak("Unknown or unsupported BuiltinType: {}", builtin_type_token.getKind());
+				} break;
+			}
+
+		}else{
+			this->context.emitError(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				this->get_source_location(ast_type.base),
+				"Only builtin types are currently supported"
+			);
+
+			return evo::resultError;
+		}
+
+		evo::debugAssert(base_type.has_value(), "base type was not set");
+
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
+		for(const AST::Type::Qualifier& qualifier : ast_type.qualifiers){
+			TypeInfo::Qualifier& new_qualifier = qualifiers.emplace_back();
+
+			if(qualifier.isPtr){ new_qualifier.set(TypeInfo::QualifierFlag::Ptr); }
+			if(qualifier.isReadOnly){ new_qualifier.set(TypeInfo::QualifierFlag::ReadOnly); }
+			if(qualifier.isOptional){ new_qualifier.set(TypeInfo::QualifierFlag::Optional); }
+		}
+
+		return TypeInfo::VoidableID(
+			this->context.getTypeManager().getOrCreateTypeInfo(
+				TypeInfo(*base_type, std::move(qualifiers))
+			)
+		);
+	}
+
 
 
 
@@ -232,7 +351,7 @@ namespace pcit::panther::sema{
 	}
 
 	auto SemanticAnalyzer::get_source_location(const AST::FuncDecl& func_decl) const -> SourceLocation {
-		return this->get_source_location(func_decl.ident);
+		return this->get_source_location(func_decl.name);
 	}
 
 	auto SemanticAnalyzer::get_source_location(const AST::AliasDecl& alias_decl) const -> SourceLocation {
@@ -273,7 +392,7 @@ namespace pcit::panther::sema{
 
 	auto SemanticAnalyzer::get_source_location(ASG::Func::ID func_id) const -> SourceLocation {
 		const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(func_id);
-		return this->get_source_location(asg_func.ident);
+		return this->get_source_location(asg_func.name);
 	}
 
 }

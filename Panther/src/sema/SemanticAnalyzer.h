@@ -15,8 +15,7 @@
 #include "../../include/source_data.h"
 #include "../../include/Context.h"
 #include "../../include/Source.h"
-
-
+#include "../../include/TypeManager.h"
 
 namespace pcit::panther::sema{
 
@@ -38,6 +37,10 @@ namespace pcit::panther::sema{
 
 			template<bool IS_GLOBAL>
 			auto analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool;
+
+
+			auto get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID>;
+
 
 			template<typename NODE_T>
 			EVO_NODISCARD auto already_defined(std::string_view ident, const NODE_T& node) const -> bool;

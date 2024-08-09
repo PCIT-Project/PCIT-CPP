@@ -80,6 +80,7 @@ namespace pcit::panther{
 				TypeCLongLong,
 				TypeCULongLong,
 				TypeCLongDouble,
+
 				
 				///////////////////////////////////
 				// keywords
@@ -241,12 +242,12 @@ namespace pcit::panther{
 				return this->get_value<uint64_t>();
 			}
 
-			EVO_NODISCARD auto getBitWidth() const -> uint64_t {
+			EVO_NODISCARD auto getBitWidth() const -> uint32_t {
 				evo::debugAssert(
 					this->kind == Kind::TypeI_N || this->kind == Kind::TypeUI_N,
 					"Token does not have a bit-width value"
 				);
-				return this->get_value<uint64_t>();
+				return uint32_t(this->get_value<uint64_t>());
 			}
 
 			EVO_NODISCARD auto getFloat() const -> float64_t {
@@ -573,16 +574,45 @@ namespace pcit::panther{
 	static_assert(sizeof(Token) == 16, "sizeof pcit::panther::Token is different than expected");
 	static_assert(sizeof(Token::Location) == 16, "sizeof pcit::panther::Token::Location is different than expected");
 
+
+	struct TokenIDOptInterface{
+		static constexpr auto init(Token::ID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const Token::ID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
 }
 
 
-template<>
-struct std::formatter<pcit::panther::Token::Kind> : std::formatter<std::string_view> {
-	using Token = pcit::panther::Token;
+#include <optional>
 
-    auto format(const Token::Kind& kind, std::format_context& ctx) const -> std::format_context::iterator {
-        return std::formatter<std::string_view>::format(Token::printKind(kind), ctx);
-    }
-};
+namespace std{
+
+	template<>
+	struct formatter<pcit::panther::Token::Kind> : formatter<string_view> {
+		using Token = pcit::panther::Token;
+
+	    auto format(const Token::Kind& kind, format_context& ctx) const -> format_context::iterator {
+	        return formatter<string_view>::format(Token::printKind(kind), ctx);
+	    }
+	};
+
+
+	template<>
+	class optional<pcit::panther::Token::ID> 
+		: public pcit::core::Optional<pcit::panther::Token::ID, pcit::panther::TokenIDOptInterface>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::Token::ID, pcit::panther::TokenIDOptInterface>::Optional;
+			using pcit::core::Optional<pcit::panther::Token::ID, pcit::panther::TokenIDOptInterface>::operator=;
+	};
+
+	
+}
+
 
 

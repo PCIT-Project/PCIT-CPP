@@ -13,3 +13,4 @@
 #include "./UniqueID.h"
 #include "./Diagnostic.h"
 #include "./Printer.h"
+#include "./Optional.h"

@@ -27,7 +27,7 @@ namespace pcit::panther{
 
 			auto createFunc(auto&&... args) -> ASG::Func::ID {
 				const auto created_id = ASG::Func::ID(uint32_t(this->funcs.size()));
-				this->funcs.emplace_back(std::forward<decltype(args)...>(args)...);
+				this->funcs.emplace_back(std::forward<decltype(args)>(args)...);
 				return created_id;
 			}
 

@@ -14,19 +14,78 @@
 #include <Evo.h>
 #include <PCIT_core.h>
 
+#include "./source_data.h"
 #include "./Token.h"
 
 namespace pcit::panther{
 
+
+	//////////////////////////////////////////////////////////////////////
+	// forward decls
+
+	// is aliased as TypeInfo::ID
+	class TypeInfoID : public core::UniqueComparableID<uint32_t, class TypeInfoID> {
+		public:
+			using core::UniqueComparableID<uint32_t, TypeInfoID>::UniqueComparableID;
+	};
+
+	// is aliased as TypeInfo::VoidableID
+	class TypeInfoVoidableID{
+		public:
+			TypeInfoVoidableID(TypeInfoID type_id) : id(type_id) {};
+			~TypeInfoVoidableID() = default;
+
+			EVO_NODISCARD static auto Void() -> TypeInfoVoidableID { return TypeInfoVoidableID(); };
+
+			EVO_NODISCARD auto operator==(const TypeInfoVoidableID& rhs) const -> bool {
+				return this->id == rhs.id;
+			};
+
+			EVO_NODISCARD auto typeID() const -> const TypeInfoID& {
+				evo::debugAssert(this->isVoid() == false, "type is void");
+				return this->id;
+			};
+
+			EVO_NODISCARD auto typeID() -> TypeInfoID& {
+				evo::debugAssert(this->isVoid() == false, "type is void");
+				return this->id;
+			};
+
+
+			EVO_NODISCARD auto isVoid() const -> bool {
+				return this->id.get() == std::numeric_limits<TypeInfoID::Base>::max();
+			};
+
+		private:
+			TypeInfoVoidableID() : id(std::numeric_limits<TypeInfoID::Base>::max()) {};
+	
+		private:
+			TypeInfoID id;
+	};
+
+
+	//////////////////////////////////////////////////////////////////////
+	// base type
+
 	struct BaseType{
 		enum class Kind{
 			Builtin,
+			Function,
 		};
 
-		// TODO: privatize members, constructor
 		struct ID{
-			Kind kind;
-			uint32_t id;
+			EVO_NODISCARD auto operator==(const ID& rhs) const -> bool {
+				return this->kind == rhs.kind && this->id == rhs.id;
+			};
+
+			private:
+				ID(Kind _kind, uint32_t _id) : kind(_kind), id(_id) {};
+
+			private:
+				Kind kind;
+				uint32_t id;
+
+				friend class TypeManager;
 		};
 
 
@@ -77,49 +136,43 @@ namespace pcit::panther{
 
 				friend class TypeManager;
 		};
+
+		struct Function{
+			class ID : public core::UniqueID<uint32_t, class ID> {
+				public:
+					using core::UniqueID<uint32_t, ID>::UniqueID;
+			};
+
+			struct ReturnParam{
+				std::optional<Token::ID> ident;
+				TypeInfoVoidableID typeID;
+
+				EVO_NODISCARD auto operator==(const ReturnParam& rhs) const -> bool {
+					return this->ident == rhs.ident && this->typeID == rhs.typeID;
+				}
+			};
+
+			Function(SourceID _source_id, evo::SmallVector<ReturnParam>&& return_params_in)
+				: source_id(_source_id), return_params(std::move(return_params_in)) {};
+
+			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
+			EVO_NODISCARD auto getReturnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
+
+			EVO_NODISCARD auto operator==(const Function& rhs) const -> bool {
+				return this->source_id == rhs.source_id && this->return_params == rhs.return_params;
+			}
+
+			private:
+				SourceID source_id;
+				evo::SmallVector<ReturnParam> return_params;
+		};
 	};
 
 
-	class Type{
+	class TypeInfo{
 		public:
-			class ID : public core::UniqueComparableID<uint32_t, class ID> {
-				public:
-					using core::UniqueComparableID<uint32_t, ID>::UniqueComparableID;
-			};
-
-			class VoidableID{
-				public:
-					VoidableID(ID type_id) : id(type_id) {};
-					~VoidableID() = default;
-
-					EVO_NODISCARD static auto Void() -> VoidableID { return VoidableID(); };
-
-					EVO_NODISCARD auto operator==(const VoidableID& rhs) const -> bool {
-						return this->id == rhs.id;
-					};
-
-					EVO_NODISCARD auto typeID() const -> const ID& {
-						evo::debugAssert(this->isVoid() == false, "type is void");
-						return this->id;
-					};
-
-					EVO_NODISCARD auto typeID() -> ID& {
-						evo::debugAssert(this->isVoid() == false, "type is void");
-						return this->id;
-					};
-
-
-					EVO_NODISCARD auto isVoid() const -> bool {
-						return this->id.get() == std::numeric_limits<ID::Base>::max();
-					};
-
-				private:
-					VoidableID() : id(std::numeric_limits<ID::Base>::max()) {};
-			
-				private:
-					ID id;
-			};
-
+			using ID = TypeInfoID;
+			using VoidableID = TypeInfoVoidableID;
 
 			enum class QualifierFlag{
 				Ptr,
@@ -132,13 +185,18 @@ namespace pcit::panther{
 			static_assert(sizeof(Qualifier) == 1);
 			
 		public:
-			Type(BaseType::ID id) : base_type(id), qualifiers() {};
-			Type(BaseType::ID id, evo::SmallVector<Qualifier>&& _qualifiers)
+			TypeInfo(BaseType::ID id) : base_type(id), qualifiers() {};
+			TypeInfo(BaseType::ID id, evo::SmallVector<Qualifier>&& _qualifiers)
 				: base_type(id), qualifiers(std::move(_qualifiers)) {};
-			~Type() = default;
+			~TypeInfo() = default;
+
 
 			EVO_NODISCARD auto getBaseTypeID() const -> BaseType::ID { return this->base_type; }
 			EVO_NODISCARD auto getQualifiers() const -> evo::ArrayProxy<Qualifier> { return this->qualifiers; }
+
+			EVO_NODISCARD auto operator==(const TypeInfo& rhs) const -> bool {
+				return this->base_type == rhs.base_type && this->qualifiers == rhs.qualifiers;
+			};
 	
 		private:
 			BaseType::ID base_type;
@@ -153,7 +211,11 @@ namespace pcit::panther{
 			auto initBuiltins() -> void; // single-threaded
 			EVO_NODISCARD auto builtinsInitialized() const -> bool; // single-threaded
 
-			EVO_NODISCARD auto getType(Type::ID id) const -> const Type&;
+			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
+			EVO_NODISCARD auto getOrCreateTypeInfo(TypeInfo&& lookup_type_info) -> TypeInfo::ID;
+
+			EVO_NODISCARD auto getFunction(BaseType::Function::ID id) const -> const BaseType::Function&;
+			EVO_NODISCARD auto getOrCreateFunction(BaseType::Function lookup_func) -> BaseType::ID;
 
 			EVO_NODISCARD auto getBuiltin(BaseType::Builtin::ID id) const -> const BaseType::Builtin&;
 			EVO_NODISCARD auto getOrCreateBuiltinBaseType(Token::Kind kind) -> BaseType::ID;
@@ -164,11 +226,16 @@ namespace pcit::panther{
 				-> BaseType::ID;
 
 		private:
+			// TODO: improve lookup times
 			// TODO: better allocation methods (custom allocator instead of new/delete)?
+
 			std::vector<BaseType::Builtin*> builtins{};
 			mutable std::shared_mutex builtins_mutex{};
 
-			std::vector<Type*> types{};
+			std::vector<BaseType::Function*> functions{};
+			mutable std::shared_mutex functions_mutex{};
+
+			std::vector<TypeInfo*> types{};
 			mutable std::shared_mutex types_mutex{};
 	};
 

@@ -103,7 +103,9 @@ namespace pcit::panther{
 			std::this_thread::yield();	
 		}
 
-		this->wait_for_all_current_tasks();
+		if(this->threadsRunning()){
+			this->wait_for_all_current_tasks();
+		}
 	}
 
 
