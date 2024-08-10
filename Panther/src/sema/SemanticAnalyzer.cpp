@@ -68,7 +68,7 @@ namespace pcit::panther::sema{
 						this->get_source_location(this->source.getASTBuffer().getReturn(global_stmt)),
 						"Invalid global statement"
 					);
-					return false;
+					return this->may_recover();
 				};
 
 
@@ -87,18 +87,16 @@ namespace pcit::panther::sema{
 			}
 		}
 
-		return true;
+		return this->context.errored();
 	}
 
 
 	auto SemanticAnalyzer::analyze_global_stmts() -> bool {
 		for(const GlobalScope::Func& global_func : this->source.global_scope.getFuncs()){
-			if(this->analyze_func_body(global_func.ast_func, global_func.asg_func) == false){
-				return false;
-			}
+			if(this->analyze_func_body(global_func.ast_func, global_func.asg_func) == false){ return false; }
 		}
 
-		return true;
+		return this->context.errored();
 	}
 
 
@@ -193,13 +191,31 @@ namespace pcit::panther::sema{
 			BaseType::Function(this->source.getID(), std::move(return_params))
 		);
 
-		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(func_decl.name, base_type_id);
+		const ASG::Func::ID asg_func_id = [&](){
+			if constexpr(IS_GLOBAL){
+				return this->source.asg_buffer.createFunc(func_decl.name, base_type_id);
+			}else{
+				evo::debugAssert(this->scope.inObjectScope(), "expected to be in object scope");
+				return this->scope.getCurrentObjectScope().visit([&](auto obj_scope_id) -> ASG::Func::ID {
+					using ObjScopeID = std::decay_t<decltype(obj_scope_id)>;
+
+					if constexpr(std::is_same_v<ObjScopeID, ASG::Func::ID>){
+						return this->source.asg_buffer.createFunc(func_decl.name, base_type_id, obj_scope_id);
+					}
+				});
+			}
+		}();
+		
 		this->getCurrentScopeLevel().addFunc(func_ident, asg_func_id);
 
-		this->source.global_scope.addFunc(func_decl, asg_func_id);
-
-		return true;
+		if constexpr(IS_GLOBAL){
+			this->source.global_scope.addFunc(func_decl, asg_func_id);
+			return true;
+		}else{
+			return this->analyze_func_body(func_decl, asg_func_id);
+		}
 	};
+
 
 	template<bool IS_GLOBAL>
 	auto SemanticAnalyzer::analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool {
@@ -216,13 +232,13 @@ namespace pcit::panther::sema{
 
 
 	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> bool {
-		this->scope.pushScopeLevel(this->context.getScopeManager().createScopeLevel());
-		this->scope.pushObjectScope(asg_func);
+		this->scope.pushScopeLevel(this->context.getScopeManager().createScopeLevel(), asg_func);
+		EVO_DEFER([&](){ this->scope.popScopeLevel(); });
 
-		if(this->analyze_block(this->source.getASTBuffer().getBlock(ast_func.block)) == false){ return false; }
+		if(this->analyze_block(this->source.getASTBuffer().getBlock(ast_func.block)) == false){
+			return this->may_recover();
+		}
 
-		this->scope.popObjectScope();
-		this->scope.popScopeLevel();
 		return true;
 	}
 
@@ -250,7 +266,12 @@ namespace pcit::panther::sema{
 				return false;
 			} break;
 
-			case AST::Kind::VarDecl:       case AST::Kind::FuncDecl: case AST::Kind::AliasDecl:
+
+			case AST::Kind::FuncDecl: {
+				return this->analyze_func_decl<false>(this->source.getASTBuffer().getFuncDecl(node));
+			} break;
+
+			case AST::Kind::VarDecl:                                 case AST::Kind::AliasDecl:
 			case AST::Kind::Return:        case AST::Kind::Block:    case AST::Kind::FuncCall:
 			case AST::Kind::TemplatedExpr: case AST::Kind::Infix:    case AST::Kind::MultiAssign: {
 				this->context.emitError(

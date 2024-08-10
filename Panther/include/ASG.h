@@ -28,6 +28,7 @@ namespace pcit::panther::ASG{
 
 		AST::Node name;
 		BaseType::ID baseTypeID;
+		evo::Variant<std::monostate, Func::ID> parent;
 	};
 
 }

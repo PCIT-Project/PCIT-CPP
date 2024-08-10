@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.15.0
+
+### Panther
+- Added support for declaration of functions inside functions
+- Added more support for the `mayRecover` config option
+
+
+<!---------------------------------->
 ## v0.0.14.2
 
 ### Panther

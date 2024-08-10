@@ -29,6 +29,32 @@ namespace pcit::panther::sema{
 	}
 
 
+	//////////////////////////////////////////////////////////////////////
+	// scope
+
+	auto ScopeManager::Scope::pushScopeLevel(ScopeLevel::ID id) -> void {
+		this->scope_levels.emplace_back(id);
+	}
+
+	auto ScopeManager::Scope::pushScopeLevel(ScopeLevel::ID id, ASG::Func::ID func_id) -> void {
+		this->scope_levels.emplace_back(id);
+		this->object_scopes.emplace_back(ObjectScope(func_id), evo::uint(this->scope_levels.size()));
+	}
+
+	auto ScopeManager::Scope::popScopeLevel() -> void {
+		evo::debugAssert(!this->scope_levels.empty(), "cannot pop scope level as there are none");
+
+		if(
+			this->inObjectScope() && 
+			this->object_scopes.back().scope_level_index == evo::uint(this->scope_levels.size())
+		){
+			this->object_scopes.pop_back();		
+		}
+
+		this->scope_levels.pop_back();
+	}
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// scope manager

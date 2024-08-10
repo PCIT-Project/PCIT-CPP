@@ -51,8 +51,9 @@ namespace pcit::panther::sema{
 					///////////////////////////////////
 					// scope level
 
-					auto pushScopeLevel(ScopeLevel::ID id) -> void { this->scope_levels.emplace_back(id); };
-					auto popScopeLevel() -> void { this->scope_levels.pop_back(); };
+					auto pushScopeLevel(ScopeLevel::ID id) -> void;
+					auto pushScopeLevel(ScopeLevel::ID id, ASG::Func::ID func_id) -> void;
+					auto popScopeLevel() -> void;
 
 					EVO_NODISCARD auto getCurrentScopeLevel() const -> ScopeLevel::ID {
 						return this->scope_levels.back();
@@ -79,21 +80,20 @@ namespace pcit::panther::sema{
 					// object scope
 
 					EVO_NODISCARD auto inObjectScope() const -> bool { return !this->object_scopes.empty(); }
-					EVO_NODISCARD auto getObjectScope() const -> const ObjectScope& {
+					EVO_NODISCARD auto getCurrentObjectScope() const -> const ObjectScope& {
 						evo::debugAssert(this->inObjectScope(), "not in object scope");
-						return this->object_scopes.back();
+						return this->object_scopes.back().obj_scope;
 					}
 
-					auto pushObjectScope(ASG::Func::ID func_id) -> void { this->object_scopes.emplace_back(func_id); };
-					auto popObjectScope() -> void {
-						evo::debugAssert(this->inObjectScope(), "not in object scope");
-						this->object_scopes.pop_back();
-					}
-			
 				private:
+					struct ObjectScopeData{
+						ObjectScope obj_scope;
+						evo::uint scope_level_index;
+					};
+
 					// TODO: use a stack?
 					evo::SmallVector<ScopeLevel::ID> scope_levels{};
-					evo::SmallVector<ObjectScope> object_scopes{};
+					evo::SmallVector<ObjectScopeData> object_scopes{};
 			};
 		
 		public:
