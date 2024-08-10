@@ -95,6 +95,7 @@ namespace pcit::panther{
 			ASGBuffer asg_buffer{};
 
 			sema::ScopeManager::ScopeLevel::ID global_scope_level = sema::ScopeManager::ScopeLevel::ID::dummy();
+			sema::GlobalScope global_scope{};
 
 			friend class SourceManager;
 			friend class Context;

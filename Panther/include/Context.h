@@ -34,6 +34,7 @@ namespace pcit::panther{
 			struct Config{
 				evo::uint numThreads   = 0;
 				evo::uint maxNumErrors = 1;
+				bool mayRecover        = true;
 			};
 
 		public:
@@ -193,7 +194,13 @@ namespace pcit::panther{
 				Source::ID source_id;
 			};
 
-			using Task = evo::Variant<LoadFileTask, TokenizeFileTask, ParseFileTask, SemaGlobalDeclsTask>;
+			struct SemaGlobalStmtsTask{
+				Source::ID source_id;
+			};
+
+			using Task = evo::Variant<
+				LoadFileTask, TokenizeFileTask, ParseFileTask, SemaGlobalDeclsTask, SemaGlobalStmtsTask
+			>;
 
 			std::queue<std::unique_ptr<Task>> tasks{};
 			std::mutex tasks_mutex{};
@@ -228,6 +235,8 @@ namespace pcit::panther{
 					auto run_tokenize_file(const TokenizeFileTask& task) -> void;
 					auto run_parse_file(const ParseFileTask& task) -> void;
 					auto run_sema_global_decls(const SemaGlobalDeclsTask& task) -> void;
+					auto run_sema_global_stmts(const SemaGlobalStmtsTask& task) -> void;
+
 
 				private:
 					Context* context;

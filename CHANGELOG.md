@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.14.2
+
+### Panther
+- Added detection of valid statements within functions
+- Added `mayRecover` option to `Context::Context`
+	- if `true`, can continue semantic analysis on that file if encountered a recoverable error (won't exceed `maxErrors`)
+
+
+<!---------------------------------->
 ## v0.0.14.1
 
 ### Panther

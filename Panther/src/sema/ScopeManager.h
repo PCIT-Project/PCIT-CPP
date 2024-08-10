@@ -42,11 +42,17 @@ namespace pcit::panther::sema{
 
 			class Scope{ // not thread-safe
 				public:
+					using ObjectScope = evo::Variant<ASG::Func::ID>;
+
+				public:
 					Scope() = default;
 					~Scope() = default;
 
-					auto addScopeLevel(ScopeLevel::ID id) -> void { this->scope_levels.emplace_back(id); };
-					auto removeScopeLevel() -> void { this->scope_levels.pop_back(); };
+					///////////////////////////////////
+					// scope level
+
+					auto pushScopeLevel(ScopeLevel::ID id) -> void { this->scope_levels.emplace_back(id); };
+					auto popScopeLevel() -> void { this->scope_levels.pop_back(); };
 
 					EVO_NODISCARD auto getCurrentScopeLevel() const -> ScopeLevel::ID {
 						return this->scope_levels.back();
@@ -67,10 +73,27 @@ namespace pcit::panther::sema{
 					EVO_NODISCARD auto end() const -> evo::SmallVector<ScopeLevel::ID>::const_iterator {
 						return this->scope_levels.end();
 					}
+
+
+					///////////////////////////////////
+					// object scope
+
+					EVO_NODISCARD auto inObjectScope() const -> bool { return !this->object_scopes.empty(); }
+					EVO_NODISCARD auto getObjectScope() const -> const ObjectScope& {
+						evo::debugAssert(this->inObjectScope(), "not in object scope");
+						return this->object_scopes.back();
+					}
+
+					auto pushObjectScope(ASG::Func::ID func_id) -> void { this->object_scopes.emplace_back(func_id); };
+					auto popObjectScope() -> void {
+						evo::debugAssert(this->inObjectScope(), "not in object scope");
+						this->object_scopes.pop_back();
+					}
 			
 				private:
 					// TODO: use a stack?
-					evo::SmallVector<ScopeLevel::ID> scope_levels;
+					evo::SmallVector<ScopeLevel::ID> scope_levels{};
+					evo::SmallVector<ObjectScope> object_scopes{};
 			};
 		
 		public:
@@ -93,6 +116,25 @@ namespace pcit::panther::sema{
 		private:
 			std::vector<ScopeLevel*> scope_levels{};
 			mutable std::shared_mutex mutex{};
+	};
+
+
+	class GlobalScope{
+		public:
+			struct Func{
+				const AST::FuncDecl& ast_func;
+				ASG::Func::ID asg_func;
+			};
+
+		public:
+			GlobalScope() = default;
+			~GlobalScope() = default;
+
+			auto addFunc(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> void;
+			EVO_NODISCARD auto getFuncs() const -> evo::ArrayProxy<Func>;
+	
+		private:
+			evo::SmallVector<Func> funcs{};
 	};
 	
 	

@@ -195,9 +195,21 @@ namespace pcit::panther{
 			this->wait_for_all_current_tasks();
 		}
 
-		// TODO: the rest of semantic analysis
+
+		{
+			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
+
+			this->task_group_running = true;
+			for(Source* source : this->src_manager.sources){
+				this->tasks.emplace(std::make_unique<Task>(SemaGlobalStmtsTask(source->getID())));
+			}
+		}
 
 		this->multiple_task_stages_left = false;
+
+		if(this->isSingleThreaded()){
+			this->consume_tasks_single_threaded();
+		}
 	}
 
 
@@ -333,6 +345,7 @@ namespace pcit::panther{
 			else if constexpr(std::is_same_v<ValueT, TokenizeFileTask>){    this->run_tokenize_file(value);     }
 			else if constexpr(std::is_same_v<ValueT, ParseFileTask>){       this->run_parse_file(value);        }
 			else if constexpr(std::is_same_v<ValueT, SemaGlobalDeclsTask>){ this->run_sema_global_decls(value); }
+			else if constexpr(std::is_same_v<ValueT, SemaGlobalStmtsTask>){ this->run_sema_global_stmts(value); }
 		});
 
 	}
@@ -416,6 +429,17 @@ namespace pcit::panther{
 		if(semantic_analyzer.analyze_global_declarations() == false){ return; }
 
 		this->context->emitTrace("Sema Global Decls: \"{}\"", source.getLocationAsString());
+	}
+
+
+	auto Context::Worker::run_sema_global_stmts(const SemaGlobalStmtsTask& task) -> void {
+		auto semantic_analyzer = sema::SemanticAnalyzer(*this->context, task.source_id);
+
+		if(semantic_analyzer.analyze_global_stmts() == false){ return; }
+
+		const SourceManager& source_manager = this->context->getSourceManager();
+		const Source& source = source_manager.getSource(task.source_id);
+		this->context->emitTrace("Sema Global Stmts: \"{}\"", source.getLocationAsString());
 	}
 
 

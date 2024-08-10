@@ -12,22 +12,23 @@
 #include "../../include/AST.h"
 
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
+
 namespace pcit::panther::sema{
 
 
 	SemanticAnalyzer::SemanticAnalyzer(Context& _context, Source::ID source_id) 
 		: context(_context), source(this->context.getSourceManager()[source_id]) {
 
-		this->scope.addScopeLevel(this->source.global_scope_level);
+		this->scope.pushScopeLevel(this->source.global_scope_level);
 	};
 
 	
 	auto SemanticAnalyzer::analyze_global_declarations() -> bool {
 		for(const AST::Node& global_stmt : this->source.getASTBuffer().getGlobalStmts()){
-
-			#if defined(EVO_COMPILER_MSVC)
-				#pragma warning(default : 4062)
-			#endif
 
 			switch(global_stmt.getKind()){
 				case AST::Kind::None: {
@@ -74,10 +75,11 @@ namespace pcit::panther::sema{
 				case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
 				case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
 				case AST::Kind::Uninit:         case AST::Kind::Discard: {
+					// TODO: message the exact kind
 					this->context.emitFatal(
 						Diagnostic::Code::SemaInvalidGlobalStmt,
 						std::nullopt,
-						Diagnostic::createFatalMessage("Invalid global statement: TemplatePack")
+						Diagnostic::createFatalMessage("Invalid global statement")
 					);
 					return false;
 				};
@@ -87,6 +89,19 @@ namespace pcit::panther::sema{
 
 		return true;
 	}
+
+
+	auto SemanticAnalyzer::analyze_global_stmts() -> bool {
+		for(const GlobalScope::Func& global_func : this->source.global_scope.getFuncs()){
+			if(this->analyze_func_body(global_func.ast_func, global_func.asg_func) == false){
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+
 
 
 	template<bool IS_GLOBAL>
@@ -181,6 +196,8 @@ namespace pcit::panther::sema{
 		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(func_decl.name, base_type_id);
 		this->getCurrentScopeLevel().addFunc(func_ident, asg_func_id);
 
+		this->source.global_scope.addFunc(func_decl, asg_func_id);
+
 		return true;
 	};
 
@@ -193,6 +210,85 @@ namespace pcit::panther::sema{
 		);
 		return false;
 	};
+
+
+
+
+
+	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> bool {
+		this->scope.pushScopeLevel(this->context.getScopeManager().createScopeLevel());
+		this->scope.pushObjectScope(asg_func);
+
+		if(this->analyze_block(this->source.getASTBuffer().getBlock(ast_func.block)) == false){ return false; }
+
+		this->scope.popObjectScope();
+		this->scope.popScopeLevel();
+		return true;
+	}
+
+
+
+	auto SemanticAnalyzer::analyze_block(const AST::Block& block) -> bool {
+		for(const AST::Node& stmt : block.stmts){
+			if(this->analyze_stmt(stmt) == false){ return false; }
+		}
+
+		return true;
+	}
+
+
+
+
+	auto SemanticAnalyzer::analyze_stmt(const AST::Node& node) -> bool {
+		switch(node.getKind()){
+			case AST::Kind::None: {
+				this->context.emitFatal(
+					Diagnostic::Code::SemaEncounteredKindNone,
+					std::nullopt,
+					Diagnostic::createFatalMessage("Encountered AST node kind of None")
+				);
+				return false;
+			} break;
+
+			case AST::Kind::VarDecl:       case AST::Kind::FuncDecl: case AST::Kind::AliasDecl:
+			case AST::Kind::Return:        case AST::Kind::Block:    case AST::Kind::FuncCall:
+			case AST::Kind::TemplatedExpr: case AST::Kind::Infix:    case AST::Kind::MultiAssign: {
+				this->context.emitError(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					this->get_source_location(node),
+					"This stmt kind is currently unsupported"
+				);
+				return false;
+			} break;
+
+
+			case AST::Kind::Literal:   case AST::Kind::This:    case AST::Kind::Ident:
+			case AST::Kind::Intrinsic: case AST::Kind::Postfix: {
+				// TODO: message the exact kind
+				this->context.emitError(
+					Diagnostic::Code::SemaInvalidStmt,
+					this->get_source_location(node),
+					"Invalid statement"
+				);
+				return this->may_recover();
+			} break;
+
+
+			case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
+			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
+			case AST::Kind::Uninit:         case AST::Kind::Discard: {
+				// TODO: message the exact kind
+				this->context.emitFatal(
+					Diagnostic::Code::SemaInvalidStmt,
+					std::nullopt,
+					Diagnostic::createFatalMessage("Invalid statement")
+				);
+				return false;
+			} break;
+		}
+
+		return true;
+	}
 
 
 
@@ -298,6 +394,12 @@ namespace pcit::panther::sema{
 
 	auto SemanticAnalyzer::getCurrentScopeLevel() const -> ScopeManager::ScopeLevel& {
 		return this->context.getScopeManager()[this->scope.getCurrentScopeLevel()];
+	}
+
+
+
+	auto SemanticAnalyzer::may_recover() const -> bool {
+		return !this->context.hasHitFailCondition() && this->context.getConfig().mayRecover;
 	}
 
 

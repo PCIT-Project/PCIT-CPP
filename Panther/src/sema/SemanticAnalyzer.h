@@ -26,26 +26,38 @@ namespace pcit::panther::sema{
 
 
 			auto analyze_global_declarations() -> bool;
-			
+			auto analyze_global_stmts() -> bool;
+
 
 		private:
 			template<bool IS_GLOBAL>
-			auto analyze_var_decl(const AST::VarDecl& var_decl) -> bool;
+			EVO_NODISCARD auto analyze_var_decl(const AST::VarDecl& var_decl) -> bool;
 
 			template<bool IS_GLOBAL>
-			auto analyze_func_decl(const AST::FuncDecl& func_decl) -> bool;
+			EVO_NODISCARD auto analyze_func_decl(const AST::FuncDecl& func_decl) -> bool;
 
 			template<bool IS_GLOBAL>
-			auto analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool;
+			EVO_NODISCARD auto analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool;
 
 
-			auto get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID>;
+			EVO_NODISCARD auto analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> bool;
+
+			EVO_NODISCARD auto analyze_block(const AST::Block& block) -> bool;
+
+
+			EVO_NODISCARD auto analyze_stmt(const AST::Node& node) -> bool;
+
+
+			EVO_NODISCARD auto get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID>;
 
 
 			template<typename NODE_T>
 			EVO_NODISCARD auto already_defined(std::string_view ident, const NODE_T& node) const -> bool;
 
 			EVO_NODISCARD auto getCurrentScopeLevel() const -> ScopeManager::ScopeLevel&;
+
+
+			EVO_NODISCARD auto may_recover() const -> bool;
 
 			///////////////////////////////////
 			// get source location

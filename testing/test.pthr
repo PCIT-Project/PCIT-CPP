@@ -1,14 +1,6 @@
 
 
 
-func test = () -> Int* {
-	
-}
-
-func asdf = () -> (name: Int*, bar: Int*) {
-	
-}
-
 func test = () -> Void {
-	
+	1;
 }

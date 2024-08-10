@@ -46,9 +46,10 @@ struct Config{
 
 	bool verbose;
 	bool print_color;
-	evo::uint max_threads;
 
+	evo::uint max_threads    = 0;
 	evo::uint max_num_errors = 1;
+	bool may_recover         = true;
 };
 
 
@@ -61,10 +62,9 @@ auto main(int argc, const char* argv[]) -> int {
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
-		// .max_threads = panther::Context::optimalNumThreads(),
-		.max_threads = 0,
-
+		// .max_threads    = panther::Context::optimalNumThreads(),
 		.max_num_errors = 2,
+		// .may_recover    = false,
 	};
 
 
@@ -113,6 +113,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), panther::Context::Config{
 		.numThreads   = num_threads,
 		.maxNumErrors = config.max_num_errors,
+		.mayRecover   = config.may_recover,
 	});
 
 

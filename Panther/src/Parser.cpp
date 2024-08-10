@@ -150,7 +150,7 @@ namespace pcit::panther{
 		if(returns.isError()){ return Result::Code::Error; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::NotAllowed);
-		if(this->check_result_fail(block, "statement block in function declaration")){
+		if(this->check_result_fail(block, "statement block in function declaration")){ // TODO: better messaging 
 			return Result::Code::Error;
 		}
 

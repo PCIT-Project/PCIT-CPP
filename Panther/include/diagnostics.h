@@ -46,9 +46,10 @@ namespace pcit::panther{
 
 		SemaEncounteredKindNone,            // S1
 		SemaInvalidGlobalStmt,              // S2
-		SemaAlreadyDefined,                 // S3
-		SemaNamedReturnParamIsTypeVoid,     // S4,
-		SemaVoidWithQualifiers,             // S5,
+		SemaInvalidStmt,                    // S3
+		SemaAlreadyDefined,                 // S4
+		SemaNamedReturnParamIsTypeVoid,     // S5
+		SemaVoidWithQualifiers,             // S6
 
 		MiscFileDoesNotExist,               // M1
 		MiscLoadFileFailed,                 // M2
@@ -93,9 +94,10 @@ namespace pcit::panther{
 
 			break; case DiagnosticCode::SemaEncounteredKindNone:            return "S1";
 			break; case DiagnosticCode::SemaInvalidGlobalStmt:              return "S2";
-			break; case DiagnosticCode::SemaAlreadyDefined:                 return "S3";
-			break; case DiagnosticCode::SemaNamedReturnParamIsTypeVoid:     return "S4";
-			break; case DiagnosticCode::SemaVoidWithQualifiers:             return "S5";
+			break; case DiagnosticCode::SemaInvalidStmt:                    return "S3";
+			break; case DiagnosticCode::SemaAlreadyDefined:                 return "S4";
+			break; case DiagnosticCode::SemaNamedReturnParamIsTypeVoid:     return "S5";
+			break; case DiagnosticCode::SemaVoidWithQualifiers:             return "S6";
 
 			break; case DiagnosticCode::MiscFileDoesNotExist:               return "M1";
 			break; case DiagnosticCode::MiscLoadFileFailed:                 return "M2";

@@ -51,4 +51,16 @@ namespace pcit::panther::sema{
 
 
 
+	//////////////////////////////////////////////////////////////////////
+	// global scope
+
+	auto GlobalScope::addFunc(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> void {
+		this->funcs.emplace_back(ast_func, asg_func);
+	}
+
+	auto GlobalScope::getFuncs() const -> evo::ArrayProxy<Func> {
+		return this->funcs;
+	}
+
+
 }
