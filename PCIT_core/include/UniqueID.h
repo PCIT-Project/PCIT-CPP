@@ -15,59 +15,59 @@
 namespace pcit::core{
 
 
+
 	template<class BaseT, class SelfReference>
 	class UniqueID{
 		public:
 			using ThisT = UniqueID<BaseT, SelfReference>;
 			using Base = BaseT;
 
-			template<class T>
-			class IteratorImpl{
+			class Iterator{
 			    public:
 			        using difference_type   = std::ptrdiff_t;
-			        using value_type        = T;
+			        using value_type        = SelfReference;
 
-			        constexpr IteratorImpl(const ThisT& _id) : id(_id) {}
-			        constexpr ~IteratorImpl() = default;
+			        constexpr Iterator(const ThisT& _id) : id(_id) {}
+			        constexpr ~Iterator() = default;
 
 
-			        constexpr auto operator++() -> IteratorImpl& {
+			        constexpr auto operator++() -> Iterator& {
 			            BaseT* id_ptr = (BaseT*)&this->id;
 			            (*id_ptr)++;
 			            return *this;
 			        }
 
-			        constexpr auto operator++(int) -> IteratorImpl {
-			            IteratorImpl iterator = *this;
+			        constexpr auto operator++(int) -> Iterator {
+			            Iterator iterator = *this;
 			            ++(*this);
 			            return iterator;
 			        }
 
 
-			        constexpr auto operator--() -> IteratorImpl& {
+			        constexpr auto operator--() -> Iterator& {
 			            BaseT* id_ptr = (BaseT*)&this->id;
 			            (*id_ptr)--;
 			            return *this;
 			        }
 
-			        constexpr auto operator--(int) -> IteratorImpl {
-			            IteratorImpl iterator = *this;
+			        constexpr auto operator--(int) -> Iterator {
+			            Iterator iterator = *this;
 			            --(*this);
 			            return iterator;
 			        }
 
-			        EVO_NODISCARD constexpr auto operator*() const -> const T& {
-			        	return *((const T*)&this->id);
+			        EVO_NODISCARD constexpr auto operator*() const -> const SelfReference& {
+			        	return *((const SelfReference*)&this->id);
 			        }
 
-			        EVO_NODISCARD constexpr auto operator->() const -> const T* {
-			        	return (const T*)&this->id;
+			        EVO_NODISCARD constexpr auto operator->() const -> const SelfReference* {
+			        	return (const SelfReference*)&this->id;
 			        }
 
-			        EVO_NODISCARD constexpr auto operator==(const IteratorImpl& rhs) const -> bool {
+			        EVO_NODISCARD constexpr auto operator==(const Iterator& rhs) const -> bool {
 			        	return this->id == rhs.id;
 			        }
-			        EVO_NODISCARD constexpr auto operator!=(const IteratorImpl& rhs) const -> bool {
+			        EVO_NODISCARD constexpr auto operator!=(const Iterator& rhs) const -> bool {
 			        	return this->id != rhs.id;
 			        }
 			
@@ -78,88 +78,6 @@ namespace pcit::core{
 		public:
 			explicit constexpr UniqueID(const BaseT& id) : internal_id(id) {}
 			constexpr ~UniqueID() = default;
-
-			static constexpr auto dummy() -> SelfReference { return SelfReference(); }
-
-			EVO_NODISCARD constexpr auto get() const -> BaseT { return this->internal_id; }
-			
-
-		protected:
-			#if defined(PCIT_CONFIG_DEBUG)
-				constexpr UniqueID() : internal_id(std::numeric_limits<BaseT>::max()) {};
-			#else
-				constexpr UniqueID() : internal_id() {};
-			#endif
-
-	
-		private:
-			BaseT internal_id;
-	};
-
-
-	template<class BaseT, class SelfReference>
-	class UniqueComparableID{
-		public:
-			using ThisT = UniqueComparableID<BaseT, SelfReference>;
-			using Base = BaseT;
-
-			template<class T>
-			class IteratorImpl{
-			    public:
-			        using difference_type   = std::ptrdiff_t;
-			        using value_type        = T;
-
-			        constexpr IteratorImpl(const ThisT& _id) : id(_id) {}
-			        constexpr ~IteratorImpl() = default;
-
-
-			        constexpr auto operator++() -> IteratorImpl& {
-			            BaseT* id_ptr = (BaseT*)&this->id;
-			            (*id_ptr)++;
-			            return *this;
-			        }
-
-			        constexpr auto operator++(int) -> IteratorImpl {
-			            IteratorImpl iterator = *this;
-			            ++(*this);
-			            return iterator;
-			        }
-
-
-			        constexpr auto operator--() -> IteratorImpl& {
-			            BaseT* id_ptr = (BaseT*)&this->id;
-			            (*id_ptr)--;
-			            return *this;
-			        }
-
-			        constexpr auto operator--(int) -> IteratorImpl {
-			            IteratorImpl iterator = *this;
-			            --(*this);
-			            return iterator;
-			        }
-
-			        EVO_NODISCARD constexpr auto operator*() const -> const T& {
-			        	return *((const T*)&this->id);
-			        }
-
-			        EVO_NODISCARD constexpr auto operator->() const -> const T* {
-			        	return (const T*)&this->id;
-			        }
-
-			        EVO_NODISCARD constexpr auto operator==(const IteratorImpl& rhs) const -> bool {
-			        	return this->id == rhs.id;
-			        }
-			        EVO_NODISCARD constexpr auto operator!=(const IteratorImpl& rhs) const -> bool {
-			        	return this->id != rhs.id;
-			        }
-			
-			    private:
-			        ThisT id;
-			};
-
-		public:
-			explicit constexpr UniqueComparableID(const BaseT& id) : internal_id(id) {}
-			constexpr ~UniqueComparableID() = default;
 
 			static constexpr auto dummy() -> SelfReference { return SelfReference(); }
 
@@ -178,9 +96,9 @@ namespace pcit::core{
 
 		protected:
 			#if defined(PCIT_CONFIG_DEBUG)
-				constexpr UniqueComparableID() : internal_id(std::numeric_limits<BaseT>::max()) {};
+				constexpr UniqueID() : internal_id(std::numeric_limits<BaseT>::max()) {};
 			#else
-				constexpr UniqueComparableID() : internal_id() {};
+				constexpr UniqueID() : internal_id() {};
 			#endif
 	
 		private:

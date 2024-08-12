@@ -2,6 +2,7 @@
 .vs/
 build/
 testing/local
+libs/LLVM_build
 
 # outputs
 *.o

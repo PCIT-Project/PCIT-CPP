@@ -26,10 +26,9 @@
 namespace pcit::panther{
 
 
-	class SourceID : public core::UniqueComparableID<uint32_t, class SourceID> {
+	class SourceID : public core::UniqueID<uint32_t, class SourceID> {
 		public:
-			using core::UniqueComparableID<uint32_t, SourceID>::UniqueComparableID;
-			using Iterator = IteratorImpl<SourceID>;
+			using core::UniqueID<uint32_t, SourceID>::UniqueID;
 	};
 
 

@@ -51,6 +51,8 @@ namespace pcit::panther{
 		SemaNamedReturnParamIsTypeVoid,     // S5
 		SemaVoidWithQualifiers,             // S6
 
+		LLLVMDataLayoutError,               // LLVM1
+
 		MiscFileDoesNotExist,               // M1
 		MiscLoadFileFailed,                 // M2
 		MiscUnimplementedFeature,           // M3
@@ -98,6 +100,8 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaAlreadyDefined:                 return "S4";
 			break; case DiagnosticCode::SemaNamedReturnParamIsTypeVoid:     return "S5";
 			break; case DiagnosticCode::SemaVoidWithQualifiers:             return "S6";
+
+			break; case DiagnosticCode::LLLVMDataLayoutError:               return "LLVM1";
 
 			break; case DiagnosticCode::MiscFileDoesNotExist:               return "M1";
 			break; case DiagnosticCode::MiscLoadFileFailed:                 return "M2";

@@ -9,9 +9,13 @@
 
 #pragma once
 
-#include "./version.h"
-#include "./UniqueID.h"
-#include "./Diagnostic.h"
-#include "./Printer.h"
-#include "./Optional.h"
-#include "./IterRange.h"
+#include "./class_impls/enums.h"
+#include "./class_impls/types.h"
+#include "./class_impls/stmts.h"
+
+#include "./LLVMContext.h"
+#include "./Module.h"
+#include "./Function.h"
+
+#include "./IRBuilder.h"
+

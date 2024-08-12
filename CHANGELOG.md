@@ -1,11 +1,29 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.16.0
+Added LLVM to the build
+
+### Panther
+- Added compiling to LLVMIR
+- Temporarily disallowed functions with that return anything other than `Void`
+
+### PCIT_core
+- Added `IterRange`
+
+### pthr
+- Added `PrintLLVMIR` build target
+
+
+<!---------------------------------->
 ## v0.0.15.0
 
 ### Panther
 - Added support for declaration of functions inside functions
 - Added more support for the `mayRecover` config option
+
+### PCIT_core
+- Added `UniqueID` and `UniqueComparableID`
 
 
 <!---------------------------------->
@@ -297,14 +315,14 @@
 ## v0.0.3.0
 Added Tokenization and improved diagnostics
 
-### pthr
-- Added build targets to config
-
 ### Panther
 - Added `Token` and `TokenBuffer`
 - Added tokenization
 - Fixed fatal error when multiple worker threads reported an error at the same time
 - Added pointing to source code in diagnostics
+
+### pthr
+- Added build targets to config
 
 
 <!---------------------------------->

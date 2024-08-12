@@ -12,6 +12,11 @@
 #include "./Tokenizer.h"
 #include "./Parser.h"
 #include "./sema/SemanticAnalyzer.h"
+#include "./ASGToLLVMIR.h"
+
+
+#include <llvm_interface.h>
+
 
 namespace pcit::panther{
 
@@ -210,6 +215,49 @@ namespace pcit::panther{
 		if(this->isSingleThreaded()){
 			this->consume_tasks_single_threaded();
 		}
+	}
+
+
+	auto Context::printLLVMIR() -> evo::Result<std::string> {
+		auto llvm_context = llvmint::LLVMContext();
+		llvm_context.init();
+
+		const evo::Result<std::string> printed_llvm_ir = [&](){
+			auto module = llvmint::Module("testing", llvm_context);
+
+			const std::string target_triple = module.getDefaultTargetTriple();
+
+			const std::string data_layout_error = module.setDataLayout(
+				target_triple,
+				llvmint::Module::Relocation::Default,
+				llvmint::Module::CodeSize::Default,
+				llvmint::Module::OptLevel::None,
+				false
+			);
+
+			if(!data_layout_error.empty()){
+				this->emitFatal(
+					Diagnostic::Code::LLLVMDataLayoutError,
+					std::nullopt,
+					Diagnostic::createFatalMessage(
+						std::format("Failed to set data layout with message: {}", data_layout_error)
+					)
+				);
+				return evo::Result<std::string>(evo::resultError);
+			}
+
+			module.setTargetTriple(target_triple);
+
+
+			auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module);
+			asg_to_llvmir.lower();
+
+			return evo::Result<std::string>(module.print());
+		}();
+
+		llvm_context.deinit();
+
+		return printed_llvm_ir;
 	}
 
 

@@ -19,10 +19,9 @@ namespace pcit::panther{
 
 	class Token{
 		public:
-			struct ID : public core::UniqueComparableID<uint32_t, ID> { // ID lookup in TokenBuffer
+			struct ID : public core::UniqueID<uint32_t, ID> { // ID lookup in TokenBuffer
 				public:
-					using core::UniqueComparableID<uint32_t, ID>::UniqueComparableID;
-					using Iterator = IteratorImpl<ID>;
+					using core::UniqueID<uint32_t, ID>::UniqueID;
 			};
 
 			enum class Kind : uint32_t {

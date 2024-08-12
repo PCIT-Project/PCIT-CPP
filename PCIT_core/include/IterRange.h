@@ -6,12 +6,26 @@
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
 
-
 #pragma once
 
-#include "./version.h"
-#include "./UniqueID.h"
-#include "./Diagnostic.h"
-#include "./Printer.h"
-#include "./Optional.h"
-#include "./IterRange.h"
+#include <Evo.h>
+
+namespace pcit::core{
+
+
+	template<class T>
+	class IterRange{
+		public:
+			IterRange(const T& begin_iter, const T& end_iter) : _begin(begin_iter), _end(end_iter) {};
+			~IterRange() = default;
+		
+			EVO_NODISCARD auto begin() const -> const T& { return this->_begin; }
+			EVO_NODISCARD auto end() const -> const T& { return this->_end; }
+
+
+		private:
+			T _begin;
+			T _end;
+	};
+	
+}

@@ -9,9 +9,24 @@
 
 #pragma once
 
-#include "./version.h"
-#include "./UniqueID.h"
-#include "./Diagnostic.h"
-#include "./Printer.h"
-#include "./Optional.h"
-#include "./IterRange.h"
+
+namespace llvm{
+
+	class LLVMContext;
+	class Module;
+	class TargetMachine;
+
+	class IRBuilderBase;
+	class NoFolder;
+	class IRBuilderDefaultInserter;
+
+	class Function;
+
+	// types
+	class Type;
+	class FunctionType;
+
+	// stmts
+	class BasicBlock;
+	
+}

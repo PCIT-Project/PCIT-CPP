@@ -22,8 +22,8 @@ Statically typed, compiled, high-performance, general-purpose programming langua
 Will also be able to compile C and hopefully C++ code. The main intent is for this to allow seamless interoperability with Panther, but these frontends will be able to be used stand-alone.
 
 
-## Downloading:
-`git clone https://github.com/PCIT-Project/PCIT-CPP.git --recursive`
+## Building:
+The build instructions can be found [here](BUILDING.md).
 
 
 ## Versioning:

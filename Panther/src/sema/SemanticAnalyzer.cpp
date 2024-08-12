@@ -184,6 +184,23 @@ namespace pcit::panther::sema{
 		}
 
 
+		if(return_params.size() > 1){
+			this->context.emitError(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				this->get_source_location(*func_decl.returns[1].ident),
+				"multiple return parameters are currently unsupported"
+			);
+			return false;
+		}else if(return_params[0].typeID.isVoid() == false){
+			this->context.emitError(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				this->get_source_location(func_decl.returns[0].type),
+				"functions with return types other than \"Void\" are currently unsupported"
+			);
+			return false;
+		}
+
+
 		///////////////////////////////////
 		// create
 
@@ -397,13 +414,19 @@ namespace pcit::panther::sema{
 
 			const std::optional<ASG::Func::ID> lookup_func = scope_level.lookupFunc(ident);
 			if(lookup_func.has_value()){
+				auto infos = evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("First defined here:", this->get_source_location(lookup_func.value())),
+				};
+
+				if(scope_level_id != this->scope.getCurrentScopeLevel()){
+					infos.emplace_back("Note: shadowing is not allowed");
+				}
+
 				this->context.emitError(
 					Diagnostic::Code::SemaAlreadyDefined,
 					this->get_source_location(node),
-					std::format("Identifier \"{}\" was already defined", ident),
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("First defined here:", this->get_source_location(lookup_func.value())),
-					}
+					std::format("Identifier \"{}\" was already defined in this scope", ident),
+					infos
 				);
 				return true;
 			}

@@ -67,6 +67,7 @@ namespace pcit::panther{
 			auto parseLoadedFiles() -> void;
 			auto semanticAnalysisLoadedFiles() -> void;
 
+			EVO_NODISCARD auto printLLVMIR() -> evo::Result<std::string>;
 			
 
 			EVO_NODISCARD auto errored() const -> bool { return this->num_errors != 0; }

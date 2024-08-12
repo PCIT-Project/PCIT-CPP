@@ -212,8 +212,11 @@ filter {}
 ------------------------------------------------------------------------------
 -- projects
 
+include "./libs/premake5_LLVM.lua"
+
 include "./PCIT_core/premake5_PCIT_core.lua"
 include "./Panther/premake5_panther.lua"
+include "./PCIT_core/internal/llvm_interface/premake5_PCIT_llvm_interface.lua"
 
 
 ------------------------------------------------------------------------------
@@ -223,6 +226,8 @@ project("Evo").group = "External Libs"
 
 project("PCIT_core").group = "Libs"
 project("Panther").group = "Libs"
+
+project("PCIT_llvm_interface").group = "DynLibs"
 
 project("pthr").group = "Executables"
 

@@ -2,21 +2,15 @@
 
 
 func foo = () -> Void {
-	func test = () -> Void { // 1
+	func test = () -> Void {
 		
 	}
 
-	func test = () -> Void { // 2
-		
-	}
 }
 
 func bar = () -> Void {
-	func test = () -> Void { // 3
+	func test = () -> Void {
 		
 	}
 
-	func test = () -> Void { // 4
-		
-	}
 }

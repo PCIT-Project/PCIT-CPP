@@ -9,9 +9,23 @@
 
 #pragma once
 
-#include "./version.h"
-#include "./UniqueID.h"
-#include "./Diagnostic.h"
-#include "./Printer.h"
-#include "./Optional.h"
-#include "./IterRange.h"
+#include <Evo.h>
+
+#include "./class_impls/native_ptr_decls.h"
+
+namespace pcit::llvmint{
+	
+	class BasicBlock{
+		public:
+			BasicBlock(llvm::BasicBlock* native_stmt) : _native(native_stmt) {};
+			~BasicBlock() = default;
+
+			EVO_NODISCARD auto native() const -> llvm::BasicBlock* { return this->_native; }
+	
+		private:
+			llvm::BasicBlock* _native;
+	};
+
+
+	
+}

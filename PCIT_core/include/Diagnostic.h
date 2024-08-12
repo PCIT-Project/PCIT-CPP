@@ -89,7 +89,7 @@ namespace pcit::core{
 			std::string_view msg, std::source_location source_location = std::source_location::current()
 		) -> std::string {
 			return std::format(
-				"{} (error location: {}:{})", msg, source_location.function_name(), source_location.line()
+				"{} (error location: {} | {})", msg, source_location.function_name(), source_location.line()
 			);
 		}
 	};

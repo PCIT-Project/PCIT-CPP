@@ -31,9 +31,17 @@ namespace pcit::panther{
 				return created_id;
 			}
 
-			auto getFunc(ASG::Func::ID id) const -> const ASG::Func& { return this->funcs[id.get()]; }
-			auto getFunc(ASG::Func::ID id)       ->       ASG::Func& { return this->funcs[id.get()]; }
+			EVO_NODISCARD auto getFunc(ASG::Func::ID id) const -> const ASG::Func& { return this->funcs[id.get()]; }
+			EVO_NODISCARD auto getFunc(ASG::Func::ID id)       ->       ASG::Func& { return this->funcs[id.get()]; }
 
+			EVO_NODISCARD auto getFuncs() const -> core::IterRange<ASG::Func::ID::Iterator> {
+				return core::IterRange<ASG::Func::ID::Iterator>(
+					ASG::Func::ID::Iterator(ASG::Func::ID(0)),
+					ASG::Func::ID::Iterator(ASG::Func::ID(uint32_t(this->funcs.size())))
+				);
+			};
+
+			EVO_NODISCARD auto numFuncs() const -> size_t { return this->funcs.size(); }
 	
 		private:
 			evo::SmallVector<ASG::Func> funcs{};

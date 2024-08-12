@@ -36,12 +36,18 @@ namespace panther = pcit::panther;
 #endif
 
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
+
 struct Config{
 	enum class Target{
 		PrintTokens,
 		PrintAST,
 		Parse,
 		SemanticAnalysis,
+		PrintLLVMIR,
 	} target;
 
 	bool verbose;
@@ -58,7 +64,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::SemanticAnalysis,
+		.target      = Config::Target::PrintLLVMIR,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
@@ -66,7 +72,6 @@ auto main(int argc, const char* argv[]) -> int {
 		.max_num_errors = 2,
 		// .may_recover    = false,
 	};
-
 
 	// print UTF-8 characters on windows
 	#if defined(EVO_PLATFORM_WINDOWS)
@@ -103,6 +108,7 @@ auto main(int argc, const char* argv[]) -> int {
 			break; case Config::Target::PrintAST:         printer.printlnMagenta("Target: PrintAST");
 			break; case Config::Target::Parse:            printer.printlnMagenta("Target: Parse");
 			break; case Config::Target::SemanticAnalysis: printer.printlnMagenta("Target: SemanticAnalysis");
+			break; case Config::Target::PrintLLVMIR:      printer.printlnMagenta("Target: PrintLLVMIR");
 			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
 		}
 	}
@@ -281,7 +287,24 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	if(config.target == Config::Target::SemanticAnalysis){
-		
+
+		exit();
+		return EXIT_SUCCESS;
+	}
+
+
+	///////////////////////////////////
+	// print llvmir
+
+	if(config.target == Config::Target::PrintLLVMIR){
+		const evo::Result<std::string> llvm_ir = context.printLLVMIR();
+
+		if(llvm_ir.isError()){
+			exit();
+			return EXIT_FAILURE;			
+		}
+
+		printer.printlnCyan(llvm_ir.value());
 
 		exit();
 		return EXIT_SUCCESS;

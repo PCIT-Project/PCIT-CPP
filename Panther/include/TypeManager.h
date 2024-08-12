@@ -24,9 +24,9 @@ namespace pcit::panther{
 	// forward decls
 
 	// is aliased as TypeInfo::ID
-	class TypeInfoID : public core::UniqueComparableID<uint32_t, class TypeInfoID> {
+	class TypeInfoID : public core::UniqueID<uint32_t, class TypeInfoID> {
 		public:
-			using core::UniqueComparableID<uint32_t, TypeInfoID>::UniqueComparableID;
+			using core::UniqueID<uint32_t, TypeInfoID>::UniqueID;
 	};
 
 	// is aliased as TypeInfo::VoidableID
