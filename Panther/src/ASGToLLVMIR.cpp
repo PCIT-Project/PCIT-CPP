@@ -78,6 +78,7 @@ namespace pcit::panther{
 
 		switch(stmt.kind()){
 			break; case ASG::Stmt::Kind::Var: this->lower_var(asg_buffer.getVar(stmt.varID()));
+			break; case ASG::Stmt::Kind::FuncCall: this->lower_func_call(asg_buffer.getFuncCall(stmt.funcCallID()));
 		}
 	}
 
@@ -92,6 +93,14 @@ namespace pcit::panther{
 	}
 
 
+	auto ASGToLLVMIR::lower_func_call(const ASG::FuncCall& func_call) -> void {
+		const FuncInfo& func_info = this->func_infos.find(func_call.target)->second;
+
+		this->builder.createCall(func_info.func, {});
+	}
+
+
+
 	auto ASGToLLVMIR::get_type(const TypeInfo::ID& type_info_id) const -> llvmint::Type {
 		return this->get_type(this->context.getTypeManager().getTypeInfo(type_info_id));
 	}
@@ -102,13 +111,13 @@ namespace pcit::panther{
 			if(type_qualifiers.back().has(TypeInfo::QualifierFlag::Ptr)){
 				return static_cast<llvmint::Type>(this->builder.getTypePtr());
 			}else{
-				evo::debugFatalBreak("Optional is unsupported");	
+				evo::fatalBreak("Optional is unsupported");	
 			}
 		}
 
-		switch(type_info.getBaseTypeID().kind()){
+		switch(type_info.baseTypeID().kind()){
 			case BaseType::Kind::Builtin: {
-				const BaseType::Builtin::ID builtin_id = type_info.getBaseTypeID().id<BaseType::Builtin::ID>();
+				const BaseType::Builtin::ID builtin_id = type_info.baseTypeID().id<BaseType::Builtin::ID>();
 				const BaseType::Builtin& builtin = this->context.getTypeManager().getBuiltin(builtin_id);
 
 				// TODO: select correct type based on target platform / architecture
@@ -150,7 +159,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::Function: {
-				evo::debugFatalBreak("Function types are unsupported");
+				evo::fatalBreak("Function types are unsupported");
 			} break;
 		}
 
@@ -159,7 +168,7 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::get_value(const ASG::Expr& expr, bool get_pointer_to_value) const -> llvmint::Value {
-		evo::debugAssert(get_pointer_to_value == false, "getting pointer to value is currently unsupported");
+		evo::Assert(get_pointer_to_value == false, "getting pointer to value is currently unsupported");
 
 		switch(expr.kind()){
 			case ASG::Expr::Kind::LiteralInt: {
@@ -194,7 +203,11 @@ namespace pcit::panther{
 			} break;
 
 			case ASG::Expr::Kind::Var: {
-				evo::debugFatalBreak("ASG::Expr::Kind::Var is unsupported");
+				evo::fatalBreak("ASG::Expr::Kind::Var is unsupported");
+			} break;
+
+			case ASG::Expr::Kind::Func: {
+				evo::fatalBreak("ASG::Expr::Kind::Func is unsupported");
 			} break;
 		}
 

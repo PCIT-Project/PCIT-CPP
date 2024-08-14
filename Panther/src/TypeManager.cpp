@@ -102,7 +102,7 @@ namespace pcit::panther{
 		if(type_info_id.isVoid()) [[unlikely]] {
 			return "Void";
 		}else{
-			return this->printType(type_info_id);
+			return this->printType(type_info_id.typeID());
 		}
 	}
 
@@ -110,9 +110,9 @@ namespace pcit::panther{
 		const TypeInfo& type_info = this->getTypeInfo(type_info_id);
 
 		auto get_base_str = [&]() -> std::string {
-			switch(type_info.getBaseTypeID().kind()){
+			switch(type_info.baseTypeID().kind()){
 				case BaseType::Kind::Builtin: {
-					const BaseType::Builtin::ID builtin_id = type_info.getBaseTypeID().id<BaseType::Builtin::ID>();
+					const BaseType::Builtin::ID builtin_id = type_info.baseTypeID().id<BaseType::Builtin::ID>();
 					const BaseType::Builtin& builtin = this->getBuiltin(builtin_id);
 
 					if(builtin.kind() == Token::Kind::TypeI_N){

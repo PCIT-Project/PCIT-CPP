@@ -1,7 +1,14 @@
 
 
 
-func test_func = () -> Void {
-	var foo: USize = 12;
+func func_1 = () -> Void {
+	var foo: Int = 12;
+	func_2();
 }
+
+func func_2 = () -> Void {
+	
+}
+
+
 

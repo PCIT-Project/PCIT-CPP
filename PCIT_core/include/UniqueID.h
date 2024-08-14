@@ -17,7 +17,7 @@ namespace pcit::core{
 
 
 	template<class BaseT, class SelfReference>
-	class UniqueID{
+	struct UniqueID{
 		public:
 			using ThisT = UniqueID<BaseT, SelfReference>;
 			using Base = BaseT;

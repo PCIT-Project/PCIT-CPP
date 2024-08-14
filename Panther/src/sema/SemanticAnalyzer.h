@@ -47,6 +47,8 @@ namespace pcit::panther::sema{
 
 			EVO_NODISCARD auto analyze_stmt(const AST::Node& node) -> bool;
 
+			EVO_NODISCARD auto analyze_func_call(const AST::FuncCall& func_call) -> bool;
+
 
 			EVO_NODISCARD auto get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID>;
 
@@ -67,7 +69,7 @@ namespace pcit::panther::sema{
 				};
 
 				ValueType value_type;
-				std::optional<TypeInfo::VoidableID> type_id; // nullopt if is ValueType::[Import|FluidLiteral]
+				std::optional<TypeInfo::ID> type_id; // nullopt if is ValueType::[Import|FluidLiteral]
 				std::optional<ASG::Expr> expr; // nullopt if from ExprValueKind::None
 
 				EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {

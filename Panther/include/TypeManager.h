@@ -27,9 +27,8 @@ namespace pcit::panther{
 	// forward decls
 
 	// is aliased as TypeInfo::ID
-	class TypeInfoID : public core::UniqueID<uint32_t, class TypeInfoID> {
-		public:
-			using core::UniqueID<uint32_t, TypeInfoID>::UniqueID;
+	struct TypeInfoID : public core::UniqueID<uint32_t, struct TypeInfoID> {
+		using core::UniqueID<uint32_t, TypeInfoID>::UniqueID;
 	};
 
 	struct TypeInfoIDOptInterface{
@@ -90,12 +89,8 @@ namespace pcit::panther{
 		};
 
 
-
 		struct Builtin{
-			class ID : public core::UniqueID<uint32_t, class ID> {
-				public:
-					using core::UniqueID<uint32_t, ID>::UniqueID;
-			};
+			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 			EVO_NODISCARD auto kind() const -> Token::Kind { return this->_kind; }
 
@@ -140,10 +135,7 @@ namespace pcit::panther{
 		};
 
 		struct Function{
-			class ID : public core::UniqueID<uint32_t, class ID> {
-				public:
-					using core::UniqueID<uint32_t, ID>::UniqueID;
-			};
+			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 			struct ReturnParam{
 				std::optional<Token::ID> ident;
@@ -229,7 +221,7 @@ namespace pcit::panther{
 			~TypeInfo() = default;
 
 
-			EVO_NODISCARD auto getBaseTypeID() const -> BaseType::ID { return this->base_type; }
+			EVO_NODISCARD auto baseTypeID() const -> BaseType::ID { return this->base_type; }
 			EVO_NODISCARD auto qualifiers() const -> evo::ArrayProxy<Qualifier> { return this->_qualifiers; }
 
 			EVO_NODISCARD auto operator==(const TypeInfo& rhs) const -> bool {

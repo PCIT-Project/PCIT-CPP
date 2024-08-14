@@ -15,18 +15,12 @@
 namespace pcit::llvmint{
 
 
-	Constant::operator Value() const {
-		return Value(static_cast<llvm::Value*>(this->native()));
-	}
-	
+	Constant::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
-	ConstantInt::operator Constant() const {
-		return Constant(static_cast<llvm::Constant*>(this->native()));
-	}
+	ConstantInt::operator Constant() const { return Constant(static_cast<llvm::Constant*>(this->native()));	}
+	ConstantInt::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
-	ConstantInt::operator Value() const {
-		return Value(static_cast<llvm::Value*>(this->native()));
-	}
+	CallInst::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 	
 		
 }

@@ -56,6 +56,8 @@ namespace pcit::panther{
 		SemaCannotInferType,                // S10
 		SemaIncorrectExprValueType,         // S11
 		SemaTypeMismatch,                   // S12
+		SemaIdentNotInScope,                // S13
+		SemaCannotCallLikeFunction,         // S14
 
 		LLLVMDataLayoutError,               // LLVM1
 
@@ -112,6 +114,8 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaCannotInferType:                return "S10";
 			break; case DiagnosticCode::SemaIncorrectExprValueType:         return "S11";
 			break; case DiagnosticCode::SemaTypeMismatch:                   return "S12";
+			break; case DiagnosticCode::SemaIdentNotInScope:                return "S13";
+			break; case DiagnosticCode::SemaCannotCallLikeFunction:         return "S14";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:               return "LLVM1";
 

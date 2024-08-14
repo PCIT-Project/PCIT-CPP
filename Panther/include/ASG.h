@@ -25,63 +25,62 @@ namespace pcit::panther::ASG{
 	//////////////////////////////////////////////////////////////////////
 	// forward declarations
 
-	class FuncID : public core::UniqueID<uint32_t, class FuncID> {
-		public:
-			using core::UniqueID<uint32_t, FuncID>::UniqueID;
-	};
+	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {using core::UniqueID<uint32_t, FuncID>::UniqueID;};
 
 	using Parent = evo::Variant<std::monostate, FuncID>;
 
 
-	class VarID : public core::UniqueID<uint32_t, class VarID> {
-		public:
-			using core::UniqueID<uint32_t, VarID>::UniqueID;
+	struct FuncLinkID{
+		FuncLinkID(SourceID source_id, FuncID func_id) : _source_id(source_id), _func_id(func_id) {}
+
+		EVO_NODISCARD auto sourceID() const -> SourceID { return this->_source_id; }
+		EVO_NODISCARD auto funcID() const -> FuncID { return this->_func_id; }
+
+		EVO_NODISCARD auto operator==(const FuncLinkID& rhs) const -> bool {
+			return this->_source_id == rhs._source_id && this->_func_id == rhs._func_id;
+		}
+
+		EVO_NODISCARD auto operator!=(const FuncLinkID& rhs) const -> bool {
+			return this->_source_id != rhs._source_id || this->_func_id != rhs._func_id;
+		}
+		
+		private:
+			SourceID _source_id;
+			FuncID _func_id;
 	};
+
+
+	struct VarID : public core::UniqueID<uint32_t, struct VarID> { using core::UniqueID<uint32_t, VarID>::UniqueID;	};
 
 
 	//////////////////////////////////////////////////////////////////////
 	// expressions
 
 	struct LiteralInt{
-		class ID : public core::UniqueID<uint32_t, class ID> {
-			public:
-				using core::UniqueID<uint32_t, ID>::UniqueID;
-		};
-
+		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 		uint64_t value;
 		std::optional<TypeInfo::ID> typeID; // TODO: change to BaseType::ID?
 	};
 
 	struct LiteralFloat{
-		class ID : public core::UniqueID<uint32_t, class ID> {
-			public:
-				using core::UniqueID<uint32_t, ID>::UniqueID;
-		};
-
+		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 		
 		float64_t value;
 		std::optional<TypeInfo::ID> typeID; // TODO: change to BaseType::ID?
 	};
 
 	struct LiteralBool{
-		class ID : public core::UniqueID<uint32_t, class ID> {
-			public:
-				using core::UniqueID<uint32_t, ID>::UniqueID;
-		};
+		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 		bool value;
 	};
 
 	struct LiteralChar{
-		class ID : public core::UniqueID<uint32_t, class ID> {
-			public:
-				using core::UniqueID<uint32_t, ID>::UniqueID;
-		};
+		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 		char value;
 	};
-
 
 
 
@@ -93,6 +92,7 @@ namespace pcit::panther::ASG{
 			LiteralChar,
 
 			Var,
+			Func,
 		};
 
 
@@ -100,7 +100,9 @@ namespace pcit::panther::ASG{
 		explicit Expr(LiteralFloat::ID float_id) : _kind(Kind::LiteralFloat), value{.literal_float = float_id} {};
 		explicit Expr(LiteralBool::ID bool_id) : _kind(Kind::LiteralBool), value{.literal_bool = bool_id} {};
 		explicit Expr(LiteralChar::ID char_id) : _kind(Kind::LiteralChar), value{.literal_char = char_id} {};
+
 		explicit Expr(VarID var_id) : _kind(Kind::Var), value{.var = var_id} {};
+		explicit Expr(FuncID func_id) : _kind(Kind::Func), value{.func = func_id} {};
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -128,6 +130,12 @@ namespace pcit::panther::ASG{
 			return this->value.var;
 		}
 
+		EVO_NODISCARD auto funcID() const -> FuncID {
+			evo::debugAssert(this->kind() == Kind::Func, "not a func");
+			return this->value.func;
+		}
+
+
 		private:
 			Kind _kind;
 
@@ -138,8 +146,8 @@ namespace pcit::panther::ASG{
 				LiteralChar::ID literal_char;
 
 				VarID var;
+				FuncID func;
 			} value;
-
 	};
 
 	static_assert(sizeof(Expr) == 8, "sizeof(pcit::panther::ASG::Expr) is different than expected");
@@ -149,13 +157,22 @@ namespace pcit::panther::ASG{
 	// statements
 
 
+
+	struct FuncCall{
+		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+
+		FuncLinkID target;
+	};
+
+
 	struct Stmt{
 		enum class Kind{
 			Var,
+			FuncCall,
 		};
 
-
 		explicit Stmt(VarID var_id) : _kind(Kind::Var), value{.var_id = var_id} {};
+		explicit Stmt(FuncCall::ID func_call_id) : _kind(Kind::FuncCall), value{.func_call_id = func_call_id} {};
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -165,11 +182,17 @@ namespace pcit::panther::ASG{
 			return this->value.var_id;
 		}
 
+		EVO_NODISCARD auto funcCallID() const -> FuncCall::ID {
+			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
+			return this->value.func_call_id;
+		}
+
 
 		private:
 			Kind _kind;
 			union {
 				VarID var_id;
+				FuncCall::ID func_call_id;
 			} value;
 	};
 
@@ -181,27 +204,7 @@ namespace pcit::panther::ASG{
 
 	struct Func{
 		using ID = FuncID;
-
-		struct LinkID{
-			LinkID(SourceID source_id, ID func_id) : _source_id(source_id), _func_id(func_id) {}
-
-			EVO_NODISCARD auto sourceID() const -> SourceID { return this->_source_id; }
-			EVO_NODISCARD auto funcID() const -> ID { return this->_func_id; }
-
-			EVO_NODISCARD auto operator==(const LinkID& rhs) const -> bool {
-				return this->_source_id == rhs._source_id && this->_func_id == rhs._func_id;
-			}
-
-			EVO_NODISCARD auto operator!=(const LinkID& rhs) const -> bool {
-				return this->_source_id != rhs._source_id || this->_func_id != rhs._func_id;
-			}
-			
-			private:
-				SourceID _source_id;
-				ID _func_id;
-		};
-
-
+		using LinkID = FuncLinkID;
 
 		AST::Node name;
 		BaseType::ID baseTypeID;

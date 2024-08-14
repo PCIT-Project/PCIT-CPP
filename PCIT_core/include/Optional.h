@@ -56,13 +56,23 @@ namespace pcit::core{
 			constexpr Optional(const Optional& rhs) = default;
 			constexpr Optional(Optional&& rhs) = default;
 
+
+
+			// template<class U>
+			// constexpr Optional(const optional<U>& other) = default;
+
+			// template<class U>
+			// constexpr Optional(optional<U>&& other) = default;
+
+
 			template<class... Args>
 			constexpr explicit Optional(std::in_place_t, Args&&... args) : value{} {
 				std::construct_at(&this->_value.held, std::forward<Args...>(args)...);
 			}
 
-			constexpr Optional(T&& value) : _value{} {
-				std::construct_at(&this->_value.held, std::forward<T>(value));
+			template<class U = T>
+			constexpr Optional(U&& value) : _value{} {
+				std::construct_at(&this->_value.held, std::forward<U>(value));
 			}
 
 			constexpr ~Optional() requires(std::is_trivially_destructible_v<T> == false) {

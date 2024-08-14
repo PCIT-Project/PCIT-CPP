@@ -60,10 +60,20 @@ namespace pcit::llvmint{
 	}
 
 
-
 	auto IRBuilder::createRet() -> void {
 		this->builder->CreateRetVoid();
 	}
+
+
+	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
+		return this->builder->CreateCall(
+			func.native(),
+			llvm::ArrayRef((llvm::Value**)params.data(), params.size()),
+			name.c_str()
+		);
+	}
+
+	
 
 	
 

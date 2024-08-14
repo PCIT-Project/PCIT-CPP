@@ -22,9 +22,8 @@ namespace pcit::panther::sema{
 		public:
 			class ScopeLevel{
 				public:
-					class ID : public core::UniqueID<uint32_t, class ID> {
-						public:
-							using core::UniqueID<uint32_t, ID>::UniqueID;
+					struct ID : public core::UniqueID<uint32_t, struct ID> {
+						using core::UniqueID<uint32_t, ID>::UniqueID;
 					};
 
 				public:

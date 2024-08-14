@@ -74,6 +74,20 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// func calls
+
+			EVO_NODISCARD auto createFuncCall(auto&&... args) -> ASG::FuncCall::ID {
+				const auto created_id = ASG::FuncCall::ID(uint32_t(this->func_calls.size()));
+				this->func_calls.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getFuncCall(ASG::FuncCall::ID id) const -> const ASG::FuncCall& {
+				return this->func_calls[id.get()];
+			}
+
+
+			///////////////////////////////////
 			// ints
 
 			EVO_NODISCARD auto createLiteralInt(uint64_t integer, std::optional<TypeInfo::ID> type_info_id)
@@ -134,6 +148,8 @@ namespace pcit::panther{
 		private:
 			evo::SmallVector<ASG::Func> funcs{};
 			evo::SmallVector<ASG::Var> vars{};
+
+			evo::SmallVector<ASG::FuncCall> func_calls{};
 
 			evo::SmallVector<ASG::LiteralInt> literal_ints{};
 			evo::SmallVector<ASG::LiteralFloat> literal_floats{};

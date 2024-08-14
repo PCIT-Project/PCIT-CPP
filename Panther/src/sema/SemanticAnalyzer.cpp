@@ -110,7 +110,7 @@ namespace pcit::panther::sema{
 
 	template<bool IS_GLOBAL>
 	auto SemanticAnalyzer::analyze_var_decl(const AST::VarDecl& var_decl) -> bool {
-		if constexpr(IS_GLOBAL){ evo::debugAssert("Don't call this function in global scope yet"); }
+		if constexpr(IS_GLOBAL){ evo::debugAssert("Don't call this function for global scope yet"); }
 
 		const std::string_view var_ident = this->source.getTokenBuffer()[var_decl.ident].getString();
 		if(this->already_defined(var_ident, var_decl)){ return false; }
@@ -158,10 +158,11 @@ namespace pcit::panther::sema{
 		// type checking
 
 		if(expr_info_result.value().is_concrete()){
+			// TODO: better messaging?
 			this->context.emitError(
 				Diagnostic::Code::SemaIncorrectExprValueType,
 				this->get_source_location(*var_decl.value),
-				"Variable must be declared with ephemeral value"
+				"Variable must be declared with an ephemeral expression value"
 			);
 			return false;
 
@@ -189,14 +190,14 @@ namespace pcit::panther::sema{
 
 			if(
 				var_type_info.qualifiers().empty() == false || 
-				var_type_info.getBaseTypeID().kind() != BaseType::Kind::Builtin
+				var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
 			){
 				this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
 				return false;
 			}
 
 
-			const BaseType::Builtin::ID var_type_builtin_id = var_type_info.getBaseTypeID().id<BaseType::Builtin::ID>();
+			const BaseType::Builtin::ID var_type_builtin_id = var_type_info.baseTypeID().id<BaseType::Builtin::ID>();
 			const BaseType::Builtin& var_type_builtin = this->context.getTypeManager().getBuiltin(var_type_builtin_id);
 
 			if(expr_info_result.value().expr->kind() == ASG::Expr::Kind::LiteralInt){
@@ -254,34 +255,13 @@ namespace pcit::panther::sema{
 
 			
 		}else if(var_type_id.has_value()){
-			if(expr_info_result.value().type_id->isVoid()){
-				// TODO: better messaging
-				this->context.emitError(
-					Diagnostic::Code::SemaVarOfTypeVoid,
-					this->get_source_location(var_decl.type.value()),
-					"Variables cannot be of type \"Void\""
-				);
-				return false;
-			}
-
-			if(*var_type_id != expr_info_result.value().type_id->typeID()){
+			if(*var_type_id != expr_info_result.value().type_id){
 				this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
 				return false;
 			}
 
-
 		}else{
-			if(expr_info_result.value().type_id->isVoid()){
-				// TODO: better messaging
-				this->context.emitError(
-					Diagnostic::Code::SemaVarOfTypeVoid,
-					this->get_source_location(var_decl.type.value()),
-					"Variables cannot be of type \"Void\""
-				);
-				return false;
-			}
-
-			var_type_id = expr_info_result.value().type_id->typeID();
+			var_type_id = expr_info_result.value().type_id;
 		}
 
 
@@ -465,6 +445,7 @@ namespace pcit::panther::sema{
 	auto SemanticAnalyzer::analyze_stmt(const AST::Node& node) -> bool {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
+		// TODO: order cases correctly
 		switch(node.kind()){
 			case AST::Kind::None: {
 				this->context.emitFatal(
@@ -487,8 +468,11 @@ namespace pcit::panther::sema{
             	return this->analyze_alias_decl<false>(ast_buffer.getAliasDecl(node));
         	} break;
 
+        	case AST::Kind::FuncCall: {
+        		return this->analyze_func_call(ast_buffer.getFuncCall(node));
+    		} break;
 
-			case AST::Kind::Return:        case AST::Kind::Block:    case AST::Kind::FuncCall:
+			case AST::Kind::Return:        case AST::Kind::Block:    
 			case AST::Kind::TemplatedExpr: case AST::Kind::Infix:    case AST::Kind::MultiAssign: {
 				this->context.emitError(
 					Diagnostic::Code::MiscUnimplementedFeature,
@@ -526,6 +510,58 @@ namespace pcit::panther::sema{
 
 		return true;
 	}
+
+
+
+	auto SemanticAnalyzer::analyze_func_call(const AST::FuncCall& func_call) -> bool {
+		const evo::Result<ExprInfo> call_target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
+		if(call_target_info_res.isError()){ return this->may_recover(); }
+
+		if(
+			call_target_info_res.value().value_type == ExprInfo::ValueType::Import || 
+			call_target_info_res.value().value_type == ExprInfo::ValueType::FluidLiteral
+		){
+			this->context.emitError(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				this->get_source_location(func_call.target),
+				"Cannot call this expression like a function"
+			);
+			return this->may_recover();
+		}
+
+
+		const TypeInfo& call_target_type_info = 
+			this->context.getTypeManager().getTypeInfo(*call_target_info_res.value().type_id);
+
+		if(
+			call_target_type_info.qualifiers().empty() == false ||
+			call_target_type_info.baseTypeID().kind() != BaseType::Kind::Function
+		){
+			this->context.emitError(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				this->get_source_location(func_call.target),
+				"Cannot call this expression like a function"
+			);
+			return this->may_recover();
+		}
+
+
+		///////////////////////////////////
+		// create
+
+		const ASG::FuncCall::ID asg_func_call_id = this->source.asg_buffer.createFuncCall(
+			ASG::Func::LinkID(this->source.getID(), call_target_info_res.value().expr->funcID())
+		);
+
+		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
+		ASG::Func& current_func = this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
+		current_func.stmts.emplace_back(asg_func_call_id);
+
+		return false;
+	}
+
+
+
 
 
 
@@ -753,10 +789,53 @@ namespace pcit::panther::sema{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_ident(const Token::ID& ident) -> evo::Result<ExprInfo> {
+		if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+			this->context.emitError(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				this->get_source_location(ident),
+				"consteval identifier expressions are currently unsupported"
+			);
+
+			return evo::resultError;
+		}
+
+		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
+
+		for(ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
+			const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[scope_level_id];
+
+			const std::optional<ASG::Func::ID> lookup_func_id = scope_level.lookupFunc(ident_str);
+			if(lookup_func_id.has_value()){
+				const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(*lookup_func_id);
+
+				const TypeInfo::ID type_id = this->context.getTypeManager().getOrCreateTypeInfo(
+					TypeInfo(asg_func.baseTypeID)
+				);
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(ExprInfo::ValueType::ConcreteConst, type_id, std::nullopt);
+				}else{
+					return ExprInfo(ExprInfo::ValueType::ConcreteConst, type_id, ASG::Expr(*lookup_func_id));
+				}
+			}
+
+			const std::optional<ASG::Var::ID> lookup_var_id = scope_level.lookupVar(ident_str);
+			if(lookup_var_id.has_value()){
+				const ASG::Var& asg_var = this->source.getASGBuffer().getVar(*lookup_var_id);
+
+				const auto value_type = ExprInfo::ValueType::ConcreteMutable;
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(value_type, asg_var.typeID, std::nullopt);
+				}else{
+					return ExprInfo(value_type, asg_var.typeID, ASG::Expr(*lookup_var_id));
+				}
+			}
+		}
+
 		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
+			Diagnostic::Code::SemaIdentNotInScope,
 			this->get_source_location(ident),
-			"ident expressions are currently unsupported"
+			std::format("Identifier \"{}\" was not defined in this scope", ident_str)
 		);
 		return evo::resultError;
 	}
@@ -801,7 +880,7 @@ namespace pcit::panther::sema{
 			} break;
 
 			case Token::Kind::LiteralBool: {
-				expr_info.type_id = TypeInfo::VoidableID(this->context.getTypeManager().getTypeBool());
+				expr_info.type_id = this->context.getTypeManager().getTypeBool();
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr_info.expr = ASG::Expr(this->source.asg_buffer.createLiteralBool(token.getBool()));
@@ -818,7 +897,7 @@ namespace pcit::panther::sema{
 			} break;
 
 			case Token::Kind::LiteralChar: {
-				expr_info.type_id = TypeInfo::VoidableID(this->context.getTypeManager().getTypeChar());
+				expr_info.type_id = this->context.getTypeManager().getTypeChar();
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr_info.expr = ASG::Expr(this->source.asg_buffer.createLiteralChar(token.getString()[0]));
@@ -915,6 +994,8 @@ namespace pcit::panther::sema{
 		std::string_view name, const NODE_T& location, TypeInfo::ID expected, const ExprInfo& got
 	) -> void {
 		const TypeManager& type_manager = this->context.getTypeManager();
+
+		// TODO: make sure the types given in the infos line up
 
 		auto infos = evo::SmallVector<Diagnostic::Info>();
 		infos.emplace_back(std::format("{} is of type: {}", name, type_manager.printType(expected)));

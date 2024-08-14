@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.18.0
+
+### Panther
+- Added function call statements
+- Added variable expressions
+
+### PCIT_core
+- Fixed `Optional` sometimes not selecting a constructor as expected
+
+
+<!---------------------------------->
 ## v0.0.17.0
 
 ### Panther

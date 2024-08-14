@@ -49,7 +49,11 @@ namespace pcit::llvmint{
 			// createUnreachable
 			// createBranch
 			// createCondBranch
-			// createCall
+
+			auto createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0') 
+				-> CallInst;
+
+			
 			// createIntrinsicCall
 			// createPhi
 

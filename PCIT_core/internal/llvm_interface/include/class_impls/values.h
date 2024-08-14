@@ -57,5 +57,19 @@ namespace pcit::llvmint{
 
 
 
+	class CallInst{
+		public:
+			CallInst(llvm::CallInst* native_type) : _native(native_type) {};
+			~CallInst() = default;
+
+			EVO_NODISCARD operator Value() const;
+
+			EVO_NODISCARD auto native() const -> llvm::CallInst* { return this->_native; }
+	
+		private:
+			llvm::CallInst* _native;
+	};
+
+
 	
 }

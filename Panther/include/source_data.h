@@ -26,9 +26,8 @@
 namespace pcit::panther{
 
 
-	class SourceID : public core::UniqueID<uint32_t, class SourceID> {
-		public:
-			using core::UniqueID<uint32_t, SourceID>::UniqueID;
+	struct SourceID : public core::UniqueID<uint32_t, struct SourceID> { 
+		using core::UniqueID<uint32_t, SourceID>::UniqueID;
 	};
 
 
