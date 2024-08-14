@@ -170,7 +170,6 @@ namespace pcit::panther{
 		{"BF16",        Token::Kind::TypeBF16},
 		{"F32",         Token::Kind::TypeF32},
 		{"F64",         Token::Kind::TypeF64},
-		{"F80",         Token::Kind::TypeF80},
 		{"F128",        Token::Kind::TypeF128},
 
 		{"Byte",        Token::Kind::TypeByte},

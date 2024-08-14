@@ -14,6 +14,7 @@
 #include "./class_impls/native_ptr_decls.h"
 #include "./class_impls/types.h"
 #include "./class_impls/stmts.h"
+#include "./class_impls/values.h"
 #include "./Function.h"
 
 namespace pcit::llvmint{
@@ -35,9 +36,12 @@ namespace pcit::llvmint{
 
 			auto createBasicBlock(const Function& func, evo::CStrProxy name = '\0') -> BasicBlock;
 
-			// createAlloca
+			EVO_NODISCARD auto createAlloca(const Type& type, evo::CStrProxy name = '\0') -> Alloca;
+			
 			// createLoad
-			// createStore
+
+			auto createStore(const Alloca& dst, const Value& source, bool is_volatile = false) -> void;
+			auto createStore(const Value& dst, const Value& source, bool is_volatile = false) -> void;
 
 			auto createRet() -> void;
 
@@ -95,50 +99,64 @@ namespace pcit::llvmint{
 			//////////////////////////////////////////////////////////////////////
 			// values
 
-			// valueUI32
-			// valueUI64
-			// valueUI_N
+			EVO_NODISCARD auto getValueBool(bool value) const -> ConstantInt;
 
-			// valueCInt
+			EVO_NODISCARD auto getValueI8(uint8_t value) const -> ConstantInt;
+			EVO_NODISCARD auto getValueI16(uint16_t value) const -> ConstantInt;
+			EVO_NODISCARD auto getValueI32(uint32_t value) const -> ConstantInt;
+			EVO_NODISCARD auto getValueI64(uint64_t value) const -> ConstantInt;
+			EVO_NODISCARD auto getValueI128(uint64_t value) const -> ConstantInt;
+			
+			EVO_NODISCARD auto getValueI_N(evo::uint bitwidth, uint64_t value) const -> ConstantInt;
 
-			// valueBool
+			EVO_NODISCARD auto getValueIntegral(const IntegerType& type, uint64_t value) const -> ConstantInt;
 
-			// valueString
+			EVO_NODISCARD auto getValueF16(float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueBF16(float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF32(float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF64(float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF128(float64_t value) const -> Constant;
 
-			// valueGlobal
+			EVO_NODISCARD auto getValueFloat(const Type& type, float64_t value) const -> Constant;
+
+			EVO_NODISCARD auto getNaNF16() const -> Constant;
+			EVO_NODISCARD auto getNaNBF16() const -> Constant;
+			EVO_NODISCARD auto getNaNF32() const -> Constant;
+			EVO_NODISCARD auto getNaNF64() const -> Constant;
+			EVO_NODISCARD auto getNaNF128() const -> Constant;
+
+			EVO_NODISCARD auto getInfinityF16() const -> Constant;
+			EVO_NODISCARD auto getInfinityBF16() const -> Constant;
+			EVO_NODISCARD auto getInfinityF32() const -> Constant;
+			EVO_NODISCARD auto getInfinityF64() const -> Constant;
+			EVO_NODISCARD auto getInfinityF128() const -> Constant;
 
 
 			//////////////////////////////////////////////////////////////////////
 			// types
 
-			EVO_NODISCARD auto getFuncProto(
-				const llvmint::Type& return_type, evo::ArrayProxy<llvmint::Type> params, bool is_var_args
-			) -> llvmint::FunctionType;
+			EVO_NODISCARD auto getFuncProto(const Type& return_type, evo::ArrayProxy<Type> params, bool is_var_args)
+				-> FunctionType;
 
+			EVO_NODISCARD auto getTypeBool() const -> IntegerType;
 
-			// getTypeBool
+			EVO_NODISCARD auto getTypeI8() const -> IntegerType;
+			EVO_NODISCARD auto getTypeI16() const -> IntegerType;
+			EVO_NODISCARD auto getTypeI32() const -> IntegerType;
+			EVO_NODISCARD auto getTypeI64() const -> IntegerType;
+			EVO_NODISCARD auto getTypeI128() const -> IntegerType;
 
+			EVO_NODISCARD auto getTypeI_N(evo::uint width) const -> IntegerType;
 
-			// getTypeI8
-			// getTypeI16
-			// getTypeI32
-			// getTypeI64
-			// getTypeI128
+			EVO_NODISCARD auto getTypeF16() const -> Type;
+			EVO_NODISCARD auto getTypeBF16() const -> Type;
+			EVO_NODISCARD auto getTypeF32() const -> Type;
+			EVO_NODISCARD auto getTypeF64() const -> Type;
+			EVO_NODISCARD auto getTypeF128() const -> Type;
 
-			// getTypeI_N
+			EVO_NODISCARD auto getTypePtr() const -> PointerType;
 
-			// getTypeInt
-			// getTypeUInt
-			// getTypeISize
-			// getTypeUSize
-
-
-			// getTypeCInt
-
-
-			// getTypePtr
-
-			EVO_NODISCARD auto getTypeVoid() const -> llvmint::Type;
+			EVO_NODISCARD auto getTypeVoid() const -> Type;
 
 
 

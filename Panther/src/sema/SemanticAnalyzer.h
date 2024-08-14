@@ -51,13 +51,93 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID>;
 
 
+			EVO_NODISCARD auto get_current_scope_level() const -> ScopeManager::ScopeLevel&;
+
+
+			///////////////////////////////////
+			// expr
+
+			struct ExprInfo{
+				enum class ValueType{
+					ConcreteConst,
+					ConcreteMutable,
+					Ephemeral,
+					FluidLiteral, // literal ints and floats (they don't have explicit type)
+					Import,
+				};
+
+				ValueType value_type;
+				std::optional<TypeInfo::VoidableID> type_id; // nullopt if is ValueType::[Import|FluidLiteral]
+				std::optional<ASG::Expr> expr; // nullopt if from ExprValueKind::None
+
+				EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {
+					return this->value_type == ValueType::Ephemeral || this->value_type == ValueType::FluidLiteral;
+				}
+
+				EVO_NODISCARD constexpr auto is_concrete() const -> bool {
+					return this->value_type == ValueType::ConcreteConst || 
+						   this->value_type == ValueType::ConcreteMutable;
+				}
+			};
+
+			enum class ExprValueKind{
+				None, // If you just want to get the type
+				Runtime,
+				ConstEval,
+			};
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr(const AST::Node& node) -> evo::Result<ExprInfo>;
+
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_block(const AST::Block& block) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_templated_expr(const AST::TemplatedExpr& templated_expr)
+				-> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_prefix(const AST::Prefix& prefix) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_infix(const AST::Infix& infix) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_postfix(const AST::Postfix& postfix) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_ident(const Token::ID& ident) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_intrinsic(const Token::ID& intrinsic) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_literal(const Token::ID& literal) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_uninit(const Token::ID& uninit) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_this(const Token::ID& this_expr) -> evo::Result<ExprInfo>;
+
+
+			///////////////////////////////////
+			// error handling
+
 			template<typename NODE_T>
 			EVO_NODISCARD auto already_defined(std::string_view ident, const NODE_T& node) const -> bool;
 
-			EVO_NODISCARD auto getCurrentScopeLevel() const -> ScopeManager::ScopeLevel&;
-
+			template<typename NODE_T>
+			auto type_mismatch(
+				std::string_view name, const NODE_T& location, TypeInfo::ID expected, const ExprInfo& got
+			) -> void;
 
 			EVO_NODISCARD auto may_recover() const -> bool;
+
 
 			///////////////////////////////////
 			// get source location
@@ -70,6 +150,7 @@ namespace pcit::panther::sema{
 			auto get_source_location(const AST::FuncDecl& func_decl) const -> SourceLocation;
 			auto get_source_location(const AST::AliasDecl& alias_decl) const -> SourceLocation;
 			auto get_source_location(const AST::Return& return_stmt) const -> SourceLocation;
+			auto get_source_location(const AST::Block& block) const -> SourceLocation;
 			auto get_source_location(const AST::FuncCall& func_call) const -> SourceLocation;
 			auto get_source_location(const AST::TemplatedExpr& templated_expr) const -> SourceLocation;
 			auto get_source_location(const AST::Prefix& prefix) const -> SourceLocation;
@@ -79,6 +160,8 @@ namespace pcit::panther::sema{
 			auto get_source_location(const AST::Type& type) const -> SourceLocation;
 
 			auto get_source_location(ASG::Func::ID func_id) const -> SourceLocation;
+			auto get_source_location(ASG::Var::ID var_id) const -> SourceLocation;
+
 	
 		private:
 			Context& context;

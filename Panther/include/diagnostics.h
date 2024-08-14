@@ -44,12 +44,18 @@ namespace pcit::panther{
 		ParserEmptyMultiAssign,             // P7
 		ParserEmptyFuncReturnBlock,         // P8
 
-		SemaEncounteredKindNone,            // S1
-		SemaInvalidGlobalStmt,              // S2
-		SemaInvalidStmt,                    // S3
-		SemaAlreadyDefined,                 // S4
-		SemaNamedReturnParamIsTypeVoid,     // S5
-		SemaVoidWithQualifiers,             // S6
+		SemaEncounteredASTKindNone,         // S1
+		SemaInvalidGlobalStmtKind,          // S2
+		SemaInvalidStmtKind,                // S3
+		SemaInvalidExprKind,                // S4
+		SemaAlreadyDefined,                 // S5
+		SemaNamedReturnParamIsTypeVoid,     // S6
+		SemaVoidWithQualifiers,             // S7
+		SemaVarOfTypeVoid,                  // S8
+		SemaVarWithNoValue,                 // S9
+		SemaCannotInferType,                // S10
+		SemaIncorrectExprValueType,         // S11
+		SemaTypeMismatch,                   // S12
 
 		LLLVMDataLayoutError,               // LLVM1
 
@@ -94,12 +100,18 @@ namespace pcit::panther{
 			break; case DiagnosticCode::ParserEmptyMultiAssign:             return "P7";
 			break; case DiagnosticCode::ParserEmptyFuncReturnBlock:         return "P8";
 
-			break; case DiagnosticCode::SemaEncounteredKindNone:            return "S1";
-			break; case DiagnosticCode::SemaInvalidGlobalStmt:              return "S2";
-			break; case DiagnosticCode::SemaInvalidStmt:                    return "S3";
-			break; case DiagnosticCode::SemaAlreadyDefined:                 return "S4";
-			break; case DiagnosticCode::SemaNamedReturnParamIsTypeVoid:     return "S5";
-			break; case DiagnosticCode::SemaVoidWithQualifiers:             return "S6";
+			break; case DiagnosticCode::SemaEncounteredASTKindNone:         return "S1";
+			break; case DiagnosticCode::SemaInvalidGlobalStmtKind:          return "S2";
+			break; case DiagnosticCode::SemaInvalidStmtKind:                return "S3";
+			break; case DiagnosticCode::SemaInvalidExprKind:                return "S4";
+			break; case DiagnosticCode::SemaAlreadyDefined:                 return "S5";
+			break; case DiagnosticCode::SemaNamedReturnParamIsTypeVoid:     return "S6";
+			break; case DiagnosticCode::SemaVoidWithQualifiers:             return "S7";
+			break; case DiagnosticCode::SemaVarOfTypeVoid:                  return "S8";
+			break; case DiagnosticCode::SemaVarWithNoValue:                 return "S9";
+			break; case DiagnosticCode::SemaCannotInferType:                return "S10";
+			break; case DiagnosticCode::SemaIncorrectExprValueType:         return "S11";
+			break; case DiagnosticCode::SemaTypeMismatch:                   return "S12";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:               return "LLVM1";
 

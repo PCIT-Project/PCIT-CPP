@@ -1,16 +1,7 @@
 
 
 
-func foo = () -> Void {
-	func test = () -> Void {
-		
-	}
-
+func test_func = () -> Void {
+	var foo: USize = 12;
 }
 
-func bar = () -> Void {
-	func test = () -> Void {
-		
-	}
-
-}

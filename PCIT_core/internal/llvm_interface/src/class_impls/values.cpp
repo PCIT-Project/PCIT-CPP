@@ -7,16 +7,26 @@
 //////////////////////////////////////////////////////////////////////
 
 
-#pragma once
+#include "../../include/class_impls/values.h"
 
-#include "./class_impls/enums.h"
-#include "./class_impls/types.h"
-#include "./class_impls/stmts.h"
-#include "./class_impls/values.h"
+#include <LLVM.h>
 
-#include "./LLVMContext.h"
-#include "./Module.h"
-#include "./Function.h"
 
-#include "./IRBuilder.h"
+namespace pcit::llvmint{
 
+
+	Constant::operator Value() const {
+		return Value(static_cast<llvm::Value*>(this->native()));
+	}
+	
+
+	ConstantInt::operator Constant() const {
+		return Constant(static_cast<llvm::Constant*>(this->native()));
+	}
+
+	ConstantInt::operator Value() const {
+		return Value(static_cast<llvm::Value*>(this->native()));
+	}
+	
+		
+}

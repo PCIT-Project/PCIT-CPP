@@ -38,7 +38,7 @@ namespace pcit::llvmint{
 
 			enum class CodeSize{
 				Default,
-				Tiny,
+				// Tiny, // seems to cause a crash within LLVM
 				Small,
 				Kernel,
 				Medium,

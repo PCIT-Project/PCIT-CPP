@@ -7,16 +7,21 @@
 //////////////////////////////////////////////////////////////////////
 
 
-#pragma once
+#include "../../include/class_impls/types.h"
 
-#include "./class_impls/enums.h"
-#include "./class_impls/types.h"
-#include "./class_impls/stmts.h"
-#include "./class_impls/values.h"
+#include <LLVM.h>
 
-#include "./LLVMContext.h"
-#include "./Module.h"
-#include "./Function.h"
 
-#include "./IRBuilder.h"
+namespace pcit::llvmint{
 
+
+	IntegerType::operator Type() const {
+		return Type(static_cast<llvm::Type*>(this->native()));
+	}
+
+	PointerType::operator Type() const {
+		return Type(static_cast<llvm::Type*>(this->native()));
+	}
+	
+		
+}

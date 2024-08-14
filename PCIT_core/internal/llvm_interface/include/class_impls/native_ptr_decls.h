@@ -25,8 +25,16 @@ namespace llvm{
 	// types
 	class Type;
 	class FunctionType;
+	class IntegerType;
+	class PointerType;
 
 	// stmts
 	class BasicBlock;
+	class AllocaInst;
+
+	// value
+	class Value;
+	class Constant;
+	class ConstantInt;
 	
 }

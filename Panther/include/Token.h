@@ -61,7 +61,6 @@ namespace pcit::panther{
 				TypeBF16,
 				TypeF32,
 				TypeF64,
-				TypeF80,
 				TypeF128,
 
 				TypeByte,
@@ -205,21 +204,21 @@ namespace pcit::panther{
 			};
 
 		public:
-			Token(Kind _kind) : kind(_kind) {}
+			Token(Kind token_kind) : _kind(token_kind) {}
 
-			Token(Kind _kind, bool val) : kind(_kind) {
+			Token(Kind token_kind, bool val) : _kind(token_kind) {
 				this->get_value<bool>() = val;
 			}
 
-			Token(Kind _kind, uint64_t val) : kind(_kind) {
+			Token(Kind token_kind, uint64_t val) : _kind(token_kind) {
 				this->get_value<uint64_t>() = val;
 			}
 
-			Token(Kind _kind, float64_t val) : kind(_kind) {
+			Token(Kind token_kind, float64_t val) : _kind(token_kind) {
 				this->get_value<float64_t>() = val;
 			}
 
-			Token(Kind _kind, std::string_view val) : kind(_kind) {
+			Token(Kind token_kind, std::string_view val) : _kind(token_kind) {
 				SmallStringView& value_str = this->get_value<SmallStringView>();
 				value_str.ptr = val.data();
 				value_str.size = uint32_t(val.size());
@@ -228,36 +227,36 @@ namespace pcit::panther{
 			~Token() = default;
 
 
-			EVO_NODISCARD auto getKind() const -> const Kind& { return this->kind; }
+			EVO_NODISCARD auto kind() const -> const Kind& { return this->_kind; }
 
 
 			EVO_NODISCARD auto getBool() const -> bool {
-				evo::debugAssert(this->kind == Kind::LiteralBool, "Token does not have a bool value");
+				evo::debugAssert(this->_kind == Kind::LiteralBool, "Token does not have a bool value");
 				return this->get_value<bool>();
 			}
 
 			EVO_NODISCARD auto getInt() const -> uint64_t {
-				evo::debugAssert(this->kind == Kind::LiteralInt, "Token does not have a integer value");
+				evo::debugAssert(this->_kind == Kind::LiteralInt, "Token does not have a integer value");
 				return this->get_value<uint64_t>();
 			}
 
 			EVO_NODISCARD auto getBitWidth() const -> uint32_t {
 				evo::debugAssert(
-					this->kind == Kind::TypeI_N || this->kind == Kind::TypeUI_N,
+					this->_kind == Kind::TypeI_N || this->_kind == Kind::TypeUI_N,
 					"Token does not have a bit-width value"
 				);
 				return uint32_t(this->get_value<uint64_t>());
 			}
 
 			EVO_NODISCARD auto getFloat() const -> float64_t {
-				evo::debugAssert(this->kind == Kind::LiteralFloat, "Token does not have a float value");
+				evo::debugAssert(this->_kind == Kind::LiteralFloat, "Token does not have a float value");
 				return this->get_value<float64_t>();
 			}
 
 			EVO_NODISCARD auto getString() const -> std::string_view {
 				evo::debugAssert(
-					this->kind == Kind::LiteralString || this->kind == Kind::LiteralChar ||
-					this->kind == Kind::Ident || this->kind == Kind::Intrinsic || this->kind == Kind::Attribute,
+					this->_kind == Kind::LiteralString || this->_kind == Kind::LiteralChar ||
+					this->_kind == Kind::Ident || this->_kind == Kind::Intrinsic || this->_kind == Kind::Attribute,
 					"Token does not have a string value"
 				);
 
@@ -390,17 +389,16 @@ namespace pcit::panther{
 
 					break; case Kind::TypeInt: return "Int";
 					break; case Kind::TypeISize: return "ISize";
-					break; case Kind::TypeI_N: return "I_n";
+					break; case Kind::TypeI_N: return "I{n}";
 
 					break; case Kind::TypeUInt: return "UInt";
 					break; case Kind::TypeUSize: return "USize";
-					break; case Kind::TypeUI_N: return "UI_n";
+					break; case Kind::TypeUI_N: return "UI{n}";
 
 					break; case Kind::TypeF16: return "F16";
 					break; case Kind::TypeBF16: return "BF16";
 					break; case Kind::TypeF32: return "F32";
 					break; case Kind::TypeF64: return "F64";
-					break; case Kind::TypeF80: return "F80";
 					break; case Kind::TypeF128: return "F128";
 
 					break; case Kind::TypeByte: return "Byte";
@@ -566,7 +564,7 @@ namespace pcit::panther{
 
 
 		private:
-			Kind kind;
+			Kind _kind;
 			evo::byte value[12];
 	};
 
@@ -586,8 +584,6 @@ namespace pcit::panther{
 
 }
 
-
-#include <optional>
 
 namespace std{
 

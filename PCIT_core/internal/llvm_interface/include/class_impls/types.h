@@ -11,7 +11,7 @@
 
 #include <Evo.h>
 
-#include "./class_impls/native_ptr_decls.h"
+#include "./native_ptr_decls.h"
 
 namespace pcit::llvmint{
 	
@@ -36,6 +36,34 @@ namespace pcit::llvmint{
 	
 		private:
 			llvm::FunctionType* _native;
+	};
+
+
+	class IntegerType{
+		public:
+			IntegerType(llvm::IntegerType* native_type) : _native(native_type) {};
+			~IntegerType() = default;
+
+			EVO_NODISCARD operator Type() const;
+
+			EVO_NODISCARD auto native() const -> llvm::IntegerType* { return this->_native; }
+	
+		private:
+			llvm::IntegerType* _native;
+	};
+
+
+	class PointerType{
+		public:
+			PointerType(llvm::PointerType* native_type) : _native(native_type) {};
+			~PointerType() = default;
+
+			EVO_NODISCARD operator Type() const;
+
+			EVO_NODISCARD auto native() const -> llvm::PointerType* { return this->_native; }
+	
+		private:
+			llvm::PointerType* _native;
 	};
 
 	

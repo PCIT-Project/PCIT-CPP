@@ -30,10 +30,10 @@ namespace pcit::panther::sema{
 	auto SemanticAnalyzer::analyze_global_declarations() -> bool {
 		for(const AST::Node& global_stmt : this->source.getASTBuffer().getGlobalStmts()){
 
-			switch(global_stmt.getKind()){
+			switch(global_stmt.kind()){
 				case AST::Kind::None: {
 					this->context.emitFatal(
-						Diagnostic::Code::SemaEncounteredKindNone,
+						Diagnostic::Code::SemaEncounteredASTKindNone,
 						std::nullopt,
 						Diagnostic::createFatalMessage("Encountered AST node kind of None")
 					);
@@ -41,9 +41,15 @@ namespace pcit::panther::sema{
 				} break;
 
 				case AST::Kind::VarDecl: {
-					if(this->analyze_var_decl<true>(this->source.getASTBuffer().getVarDecl(global_stmt)) == false){
-						return false;
-					}
+					// if(this->analyze_var_decl<true>(this->source.getASTBuffer().getVarDecl(global_stmt)) == false){
+					// 	return false;
+					// }
+					this->context.emitError(
+						Diagnostic::Code::MiscUnimplementedFeature,
+						this->get_source_location(global_stmt),
+						"global variable declarations are currently unsupported"
+					);
+					return false;
 				} break;
 
 				case AST::Kind::FuncDecl: {
@@ -64,7 +70,7 @@ namespace pcit::panther::sema{
 				case AST::Kind::MultiAssign:   case AST::Kind::Ident: case AST::Kind::Intrinsic:
 				case AST::Kind::Literal:       case AST::Kind::This: {
 					this->context.emitError(
-						Diagnostic::Code::SemaInvalidGlobalStmt,
+						Diagnostic::Code::SemaInvalidGlobalStmtKind,
 						this->get_source_location(this->source.getASTBuffer().getReturn(global_stmt)),
 						"Invalid global statement"
 					);
@@ -77,7 +83,7 @@ namespace pcit::panther::sema{
 				case AST::Kind::Uninit:         case AST::Kind::Discard: {
 					// TODO: message the exact kind
 					this->context.emitFatal(
-						Diagnostic::Code::SemaInvalidGlobalStmt,
+						Diagnostic::Code::SemaInvalidGlobalStmtKind,
 						std::nullopt,
 						Diagnostic::createFatalMessage("Invalid global statement")
 					);
@@ -104,19 +110,203 @@ namespace pcit::panther::sema{
 
 	template<bool IS_GLOBAL>
 	auto SemanticAnalyzer::analyze_var_decl(const AST::VarDecl& var_decl) -> bool {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(var_decl),
-			"variable declarations are currently unsupported"
+		if constexpr(IS_GLOBAL){ evo::debugAssert("Don't call this function in global scope yet"); }
+
+		const std::string_view var_ident = this->source.getTokenBuffer()[var_decl.ident].getString();
+		if(this->already_defined(var_ident, var_decl)){ return false; }
+
+
+		///////////////////////////////////
+		// type
+
+		auto var_type_id = std::optional<TypeInfo::ID>();
+		if(var_decl.type.has_value()){
+			const evo::Result<TypeInfo::VoidableID> var_type_result = 
+				this->get_type_id(this->source.getASTBuffer().getType(*var_decl.type));
+			if(var_type_result.isError()){ return false; }
+
+			if(var_type_result.value().isVoid()){
+				this->context.emitError(
+					Diagnostic::Code::SemaVarOfTypeVoid,
+					this->get_source_location(var_decl.type.value()),
+					"Variables cannot be of type \"Void\""
+				);
+				return false;
+			}
+
+			var_type_id = var_type_result.value().typeID();
+		}
+
+
+		///////////////////////////////////
+		// value
+
+		if(var_decl.value.has_value() == false){
+			this->context.emitError(
+				Diagnostic::Code::SemaVarWithNoValue,
+				this->get_source_location(var_decl.ident),
+				"Variables must have values"
+			);
+			return false;	
+		}
+
+		const evo::Result<ExprInfo> expr_info_result = this->analyze_expr<ExprValueKind::Runtime>(*var_decl.value);
+		if(expr_info_result.isError()){ return false; }
+
+
+		///////////////////////////////////
+		// type checking
+
+		if(expr_info_result.value().is_concrete()){
+			this->context.emitError(
+				Diagnostic::Code::SemaIncorrectExprValueType,
+				this->get_source_location(*var_decl.value),
+				"Variable must be declared with ephemeral value"
+			);
+			return false;
+
+		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::Import){
+			this->context.emitError(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				this->get_source_location(*var_decl.value),
+				"Imports are currently unsupported"
+			);
+			return false;
+		}
+
+
+		if(expr_info_result.value().value_type == ExprInfo::ValueType::FluidLiteral){
+			if(var_type_id.has_value() == false){
+				this->context.emitError(
+					Diagnostic::Code::SemaCannotInferType,
+					this->get_source_location(*var_decl.value),
+					"Cannot infer the type of a fluid literal"
+				);
+				return false;
+			}
+
+			const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(*var_type_id);
+
+			if(
+				var_type_info.qualifiers().empty() == false || 
+				var_type_info.getBaseTypeID().kind() != BaseType::Kind::Builtin
+			){
+				this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
+				return false;
+			}
+
+
+			const BaseType::Builtin::ID var_type_builtin_id = var_type_info.getBaseTypeID().id<BaseType::Builtin::ID>();
+			const BaseType::Builtin& var_type_builtin = this->context.getTypeManager().getBuiltin(var_type_builtin_id);
+
+			if(expr_info_result.value().expr->kind() == ASG::Expr::Kind::LiteralInt){
+				switch(var_type_builtin.kind()){
+					case Token::Kind::TypeInt:
+					case Token::Kind::TypeISize:
+					case Token::Kind::TypeI_N:
+					case Token::Kind::TypeUInt:
+					case Token::Kind::TypeUSize:
+					case Token::Kind::TypeUI_N:
+					case Token::Kind::TypeByte:
+					case Token::Kind::TypeCShort:
+					case Token::Kind::TypeCUShort:
+					case Token::Kind::TypeCInt:
+					case Token::Kind::TypeCUInt:
+					case Token::Kind::TypeCLong:
+					case Token::Kind::TypeCULong:
+					case Token::Kind::TypeCLongLong:
+					case Token::Kind::TypeCULongLong:
+					case Token::Kind::TypeCLongDouble:
+						break;
+
+					default: {
+						this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
+						return false;
+					}
+				}
+
+				const ASG::LiteralInt::ID literal_int_id = expr_info_result.value().expr->literalIntID();
+				this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = *var_type_id;
+
+
+			}else{
+				evo::debugAssert(
+					expr_info_result.value().expr->kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
+				);
+
+				switch(var_type_builtin.kind()){
+					case Token::Kind::TypeF16:
+					case Token::Kind::TypeBF16:
+					case Token::Kind::TypeF32:
+					case Token::Kind::TypeF64:
+					case Token::Kind::TypeF128:
+						break;
+
+					default: {
+						this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
+						return false;
+					}
+				}
+
+				const ASG::LiteralFloat::ID literal_float_id = expr_info_result.value().expr->literalFloatID();
+				this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = *var_type_id;
+			}
+
+			
+		}else if(var_type_id.has_value()){
+			if(expr_info_result.value().type_id->isVoid()){
+				// TODO: better messaging
+				this->context.emitError(
+					Diagnostic::Code::SemaVarOfTypeVoid,
+					this->get_source_location(var_decl.type.value()),
+					"Variables cannot be of type \"Void\""
+				);
+				return false;
+			}
+
+			if(*var_type_id != expr_info_result.value().type_id->typeID()){
+				this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
+				return false;
+			}
+
+
+		}else{
+			if(expr_info_result.value().type_id->isVoid()){
+				// TODO: better messaging
+				this->context.emitError(
+					Diagnostic::Code::SemaVarOfTypeVoid,
+					this->get_source_location(var_decl.type.value()),
+					"Variables cannot be of type \"Void\""
+				);
+				return false;
+			}
+
+			var_type_id = expr_info_result.value().type_id->typeID();
+		}
+
+
+		///////////////////////////////////
+		// create
+
+		const ASG::Var::ID asg_var_id = this->source.asg_buffer.createVar(
+			var_decl.ident, *var_type_id, *expr_info_result.value().expr
 		);
-		return false;
+
+		this->get_current_scope_level().addVar(var_ident, asg_var_id);
+
+		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
+		ASG::Func& current_func = this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
+		current_func.stmts.emplace_back(asg_var_id);
+		
+		return true;
 	};
+
+
 
 	template<bool IS_GLOBAL>
 	auto SemanticAnalyzer::analyze_func_decl(const AST::FuncDecl& func_decl) -> bool {
 		const Token::ID func_ident_tok_id = this->source.getASTBuffer().getIdent(func_decl.name);
 		const std::string_view func_ident = this->source.getTokenBuffer()[func_ident_tok_id].getString();
-
 		if(this->already_defined(func_ident, func_decl)){ return false; }
 
 
@@ -223,7 +413,7 @@ namespace pcit::panther::sema{
 			}
 		}();
 		
-		this->getCurrentScopeLevel().addFunc(func_ident, asg_func_id);
+		this->get_current_scope_level().addFunc(func_ident, asg_func_id);
 
 		if constexpr(IS_GLOBAL){
 			this->source.global_scope.addFunc(func_decl, asg_func_id);
@@ -273,22 +463,31 @@ namespace pcit::panther::sema{
 
 
 	auto SemanticAnalyzer::analyze_stmt(const AST::Node& node) -> bool {
-		switch(node.getKind()){
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+
+		switch(node.kind()){
 			case AST::Kind::None: {
 				this->context.emitFatal(
-					Diagnostic::Code::SemaEncounteredKindNone,
+					Diagnostic::Code::SemaEncounteredASTKindNone,
 					std::nullopt,
 					Diagnostic::createFatalMessage("Encountered AST node kind of None")
 				);
 				return false;
 			} break;
 
-
-			case AST::Kind::FuncDecl: {
-				return this->analyze_func_decl<false>(this->source.getASTBuffer().getFuncDecl(node));
+			case AST::Kind::VarDecl: {
+				return this->analyze_var_decl<false>(ast_buffer.getVarDecl(node));
 			} break;
 
-			case AST::Kind::VarDecl:                                 case AST::Kind::AliasDecl:
+			case AST::Kind::FuncDecl: {
+				return this->analyze_func_decl<false>(ast_buffer.getFuncDecl(node));
+			} break;
+
+            case AST::Kind::AliasDecl: {
+            	return this->analyze_alias_decl<false>(ast_buffer.getAliasDecl(node));
+        	} break;
+
+
 			case AST::Kind::Return:        case AST::Kind::Block:    case AST::Kind::FuncCall:
 			case AST::Kind::TemplatedExpr: case AST::Kind::Infix:    case AST::Kind::MultiAssign: {
 				this->context.emitError(
@@ -304,7 +503,7 @@ namespace pcit::panther::sema{
 			case AST::Kind::Intrinsic: case AST::Kind::Postfix: {
 				// TODO: message the exact kind
 				this->context.emitError(
-					Diagnostic::Code::SemaInvalidStmt,
+					Diagnostic::Code::SemaInvalidStmtKind,
 					this->get_source_location(node),
 					"Invalid statement"
 				);
@@ -317,7 +516,7 @@ namespace pcit::panther::sema{
 			case AST::Kind::Uninit:         case AST::Kind::Discard: {
 				// TODO: message the exact kind
 				this->context.emitFatal(
-					Diagnostic::Code::SemaInvalidStmt,
+					Diagnostic::Code::SemaInvalidStmtKind,
 					std::nullopt,
 					Diagnostic::createFatalMessage("Invalid statement")
 				);
@@ -334,11 +533,11 @@ namespace pcit::panther::sema{
 	auto SemanticAnalyzer::get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID> {
 		auto base_type = std::optional<BaseType::ID>();
 
-		if(ast_type.base.getKind() == AST::Kind::BuiltinType){
+		if(ast_type.base.kind() == AST::Kind::BuiltinType){
 			const Token::ID builtin_type_token_id = ASTBuffer::getBuiltinType(ast_type.base);
 			const Token& builtin_type_token = this->source.getTokenBuffer()[builtin_type_token_id];
 
-			switch(builtin_type_token.getKind()){
+			switch(builtin_type_token.kind()){
 				case Token::Kind::TypeVoid: {
 					if(ast_type.qualifiers.empty() == false){
 						this->context.emitError(
@@ -351,26 +550,25 @@ namespace pcit::panther::sema{
 					return TypeInfo::VoidableID::Void();
 				} break;
 
-				case Token::Kind::TypeType:   case Token::Kind::TypeThis:      case Token::Kind::TypeInt:
-				case Token::Kind::TypeISize:  case Token::Kind::TypeUInt:      case Token::Kind::TypeUSize:
-				case Token::Kind::TypeF16:    case Token::Kind::TypeBF16:      case Token::Kind::TypeF32:
-				case Token::Kind::TypeF64:    case Token::Kind::TypeF80:       case Token::Kind::TypeF128:
-				case Token::Kind::TypeByte:   case Token::Kind::TypeBool:      case Token::Kind::TypeChar:
-				case Token::Kind::TypeRawPtr: case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:
-				case Token::Kind::TypeCInt:   case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:
-				case Token::Kind::TypeCULong: case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
-				case Token::Kind::TypeCLongDouble: {
-					base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(builtin_type_token.getKind());
+				case Token::Kind::TypeType:      case Token::Kind::TypeThis:       case Token::Kind::TypeInt:
+				case Token::Kind::TypeISize:     case Token::Kind::TypeUInt:       case Token::Kind::TypeUSize:
+				case Token::Kind::TypeF16:       case Token::Kind::TypeBF16:       case Token::Kind::TypeF32:
+				case Token::Kind::TypeF64:       case Token::Kind::TypeF128:       case Token::Kind::TypeByte:
+				case Token::Kind::TypeBool:      case Token::Kind::TypeChar:       case Token::Kind::TypeRawPtr:
+				case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
+				case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
+				case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: case Token::Kind::TypeCLongDouble: {
+					base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(builtin_type_token.kind());
 				} break;
 
 				case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
 					base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(
-						builtin_type_token.getKind(), builtin_type_token.getBitWidth()
+						builtin_type_token.kind(), builtin_type_token.getBitWidth()
 					);
 				} break;
 
 				default: {
-					evo::debugFatalBreak("Unknown or unsupported BuiltinType: {}", builtin_type_token.getKind());
+					evo::debugFatalBreak("Unknown or unsupported BuiltinType: {}", builtin_type_token.kind());
 				} break;
 			}
 
@@ -378,7 +576,7 @@ namespace pcit::panther::sema{
 			this->context.emitError(
 				Diagnostic::Code::MiscUnimplementedFeature,
 				this->get_source_location(ast_type.base),
-				"Only builtin types are currently supported"
+				"Only built-in-types are currently supported"
 			);
 
 			return evo::resultError;
@@ -404,10 +602,266 @@ namespace pcit::panther::sema{
 
 
 
+	auto SemanticAnalyzer::get_current_scope_level() const -> ScopeManager::ScopeLevel& {
+		return this->context.getScopeManager()[this->scope.getCurrentScopeLevel()];
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// expr
+
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr(const AST::Node& node) -> evo::Result<ExprInfo> {
+		switch(node.kind()){
+			case AST::Kind::Block: {
+				return this->analyze_expr_block<EXPR_VALUE_KIND>(this->source.getASTBuffer().getBlock(node));
+			} break;
+			
+			case AST::Kind::FuncCall: {
+				return this->analyze_expr_func_call<EXPR_VALUE_KIND>(this->source.getASTBuffer().getFuncCall(node));
+			} break;
+			
+			case AST::Kind::TemplatedExpr: {
+				return this->analyze_expr_templated_expr<EXPR_VALUE_KIND>(
+					this->source.getASTBuffer().getTemplatedExpr(node)
+				);
+			} break;
+			
+			case AST::Kind::Prefix: {
+				return this->analyze_expr_prefix<EXPR_VALUE_KIND>(this->source.getASTBuffer().getPrefix(node));
+			} break;
+			
+			case AST::Kind::Infix: {
+				return this->analyze_expr_infix<EXPR_VALUE_KIND>(this->source.getASTBuffer().getInfix(node));
+			} break;
+			
+			case AST::Kind::Postfix: {
+				return this->analyze_expr_postfix<EXPR_VALUE_KIND>(this->source.getASTBuffer().getPostfix(node));
+			} break;
+			
+			case AST::Kind::Ident: {
+				return this->analyze_expr_ident<EXPR_VALUE_KIND>(this->source.getASTBuffer().getIdent(node));
+			} break;
+			
+			case AST::Kind::Intrinsic: {
+				return this->analyze_expr_intrinsic<EXPR_VALUE_KIND>(this->source.getASTBuffer().getIntrinsic(node));
+			} break;
+			
+			case AST::Kind::Literal: {
+				return this->analyze_expr_literal<EXPR_VALUE_KIND>(this->source.getASTBuffer().getLiteral(node));
+			} break;
+			
+			case AST::Kind::Uninit: {
+				return this->analyze_expr_uninit<EXPR_VALUE_KIND>(this->source.getASTBuffer().getUninit(node));
+			} break;
+			
+			case AST::Kind::This: {
+				return this->analyze_expr_this<EXPR_VALUE_KIND>(this->source.getASTBuffer().getThis(node));
+			} break;
+			
+
+			case AST::Kind::None: {
+				this->context.emitFatal(
+					Diagnostic::Code::SemaEncounteredASTKindNone,
+					std::nullopt,
+					Diagnostic::createFatalMessage("Encountered AST node kind of None")
+				);
+				return evo::resultError;
+			} break;
+
+			case AST::Kind::VarDecl:     case AST::Kind::FuncDecl:       case AST::Kind::AliasDecl:
+			case AST::Kind::Return:      case AST::Kind::TemplatePack:   case AST::Kind::MultiAssign:
+			case AST::Kind::Type:        case AST::Kind::AttributeBlock: case AST::Kind::Attribute:
+			case AST::Kind::BuiltinType: case AST::Kind::Discard: {
+				// TODO: better messaging (specify what kind)
+				this->context.emitFatal(
+					Diagnostic::Code::SemaInvalidExprKind,
+					std::nullopt,
+					Diagnostic::createFatalMessage("Encountered expr of invalid AST kind")
+				);
+				return evo::resultError;
+			} break;
+		}
+
+		return evo::resultError;
+	}
+
+
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_block(const AST::Block& block) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(block),
+			"block expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(func_call),
+			"function call expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_templated_expr(const AST::TemplatedExpr& templated_expr)
+	-> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(templated_expr),
+			"templated expression expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_prefix(const AST::Prefix& prefix) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(prefix),
+			"prefix expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_infix(const AST::Infix& infix) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(infix),
+			"infix expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_postfix(const AST::Postfix& postfix) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(postfix),
+			"postfix expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_ident(const Token::ID& ident) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(ident),
+			"ident expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_intrinsic(const Token::ID& intrinsic) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(intrinsic),
+			"intrinsic expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_literal(const Token::ID& literal) -> evo::Result<ExprInfo> {
+		const Token& token = this->source.getTokenBuffer()[literal];
+		
+		auto expr_info = ExprInfo(ExprInfo::ValueType::Ephemeral, std::nullopt, std::nullopt);
+
+		switch(token.kind()){
+			case Token::Kind::LiteralInt: {
+				expr_info.value_type = ExprInfo::ValueType::FluidLiteral;
+				// expr_info.type_id = TypeInfo::VoidableID(this->context.getTypeManager().getTypeInt());
+
+				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
+					expr_info.expr = ASG::Expr(
+						this->source.asg_buffer.createLiteralInt(token.getInt(), std::nullopt)
+					);
+				}
+			} break;
+
+			case Token::Kind::LiteralFloat: {
+				expr_info.value_type = ExprInfo::ValueType::FluidLiteral;
+				// expr_info.type_id = TypeInfo::VoidableID(this->context.getTypeManager().getTypeFloat());
+
+				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
+					expr_info.expr = ASG::Expr(
+						this->source.asg_buffer.createLiteralFloat(token.getFloat(), std::nullopt)
+					);
+				}
+			} break;
+
+			case Token::Kind::LiteralBool: {
+				expr_info.type_id = TypeInfo::VoidableID(this->context.getTypeManager().getTypeBool());
+
+				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
+					expr_info.expr = ASG::Expr(this->source.asg_buffer.createLiteralBool(token.getBool()));
+				}
+			} break;
+
+			case Token::Kind::LiteralString: {
+				this->context.emitError(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					this->get_source_location(literal),
+					"literal strings are currently unsupported"
+				);
+				return evo::resultError;
+			} break;
+
+			case Token::Kind::LiteralChar: {
+				expr_info.type_id = TypeInfo::VoidableID(this->context.getTypeManager().getTypeChar());
+
+				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
+					expr_info.expr = ASG::Expr(this->source.asg_buffer.createLiteralChar(token.getString()[0]));
+				}
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Token is not a literal");
+			} break;
+		}
+
+		return expr_info;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_uninit(const Token::ID& uninit) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(uninit),
+			"uninit expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_this(const Token::ID& this_expr) -> evo::Result<ExprInfo> {
+		this->context.emitError(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			this->get_source_location(this_expr),
+			"this expressions are currently unsupported"
+		);
+		return evo::resultError;
+	}
+
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// error handling
 
 	template<typename NODE_T>
 	auto SemanticAnalyzer::already_defined(std::string_view ident, const NODE_T& node) const -> bool {
-		static constexpr bool IS_FUNC = std::is_same_v<NODE_T, AST::FuncDecl>;
 
 		for(ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
 			const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[scope_level_id];
@@ -430,14 +884,70 @@ namespace pcit::panther::sema{
 				);
 				return true;
 			}
+
+			const std::optional<ASG::Var::ID> lookup_var = scope_level.lookupVar(ident);
+			if(lookup_var.has_value()){
+				auto infos = evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("First defined here:", this->get_source_location(lookup_var.value())),
+				};
+
+				if(scope_level_id != this->scope.getCurrentScopeLevel()){
+					infos.emplace_back("Note: shadowing is not allowed");
+				}
+
+				this->context.emitError(
+					Diagnostic::Code::SemaAlreadyDefined,
+					this->get_source_location(node),
+					std::format("Identifier \"{}\" was already defined in this scope", ident),
+					infos
+				);
+				return true;
+			}
 		}
 
 		return false;
 	}
 
 
-	auto SemanticAnalyzer::getCurrentScopeLevel() const -> ScopeManager::ScopeLevel& {
-		return this->context.getScopeManager()[this->scope.getCurrentScopeLevel()];
+
+	template<typename NODE_T>
+	auto SemanticAnalyzer::type_mismatch(
+		std::string_view name, const NODE_T& location, TypeInfo::ID expected, const ExprInfo& got
+	) -> void {
+		const TypeManager& type_manager = this->context.getTypeManager();
+
+		auto infos = evo::SmallVector<Diagnostic::Info>();
+		infos.emplace_back(std::format("{} is of type: {}", name, type_manager.printType(expected)));
+
+		if(got.type_id.has_value()){
+			infos.emplace_back(std::format("Expression is of type: {}", type_manager.printType(*got.type_id)));
+
+		}else if(got.value_type == ExprInfo::ValueType::Import){
+			infos.emplace_back("Expression is of type: {IMPORT}");
+
+		}else{
+			evo::debugAssert(got.value_type == ExprInfo::ValueType::FluidLiteral, "expected fluid literal");
+
+			if(got.expr.has_value()){
+				if(got.expr->kind() == ASG::Expr::Kind::LiteralInt){
+					infos.emplace_back("Expression is of type: {LITERAL INTEGER}");
+					
+				}else{
+					evo::debugAssert(got.expr->kind() == ASG::Expr::Kind::LiteralFloat, "expected literal float");
+					infos.emplace_back("Expression is of type: {LITERAL FLOAT}");
+				}
+
+			}else{
+				infos.emplace_back("Expression is of type: {LITERAL NUMBER}");
+			}
+		}
+
+		this->context.emitError(
+			Diagnostic::Code::SemaTypeMismatch,
+			this->get_source_location(location),
+			std::format("{} cannot accept an expression of a different type, and cannot be implicitly converted", name),
+			std::move(infos)
+		);
 	}
 
 
@@ -462,13 +972,13 @@ namespace pcit::panther::sema{
 
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
-		switch(node.getKind()){
+		switch(node.kind()){
 			case AST::Kind::None:           evo::debugFatalBreak("Cannot get location of AST::Kind::None");
 			case AST::Kind::VarDecl:        return this->get_source_location(ast_buffer.getVarDecl(node));
 			case AST::Kind::FuncDecl:       return this->get_source_location(ast_buffer.getFuncDecl(node));
 			case AST::Kind::AliasDecl:      return this->get_source_location(ast_buffer.getAliasDecl(node));
 			case AST::Kind::Return:         return this->get_source_location(ast_buffer.getReturn(node));
-			case AST::Kind::Block:          evo::debugFatalBreak("Cannot get location of AST::Kind::Block");
+			case AST::Kind::Block:          return this->get_source_location(ast_buffer.getBlock(node));
 			case AST::Kind::FuncCall:       return this->get_source_location(ast_buffer.getFuncCall(node));
 			case AST::Kind::TemplatePack:   evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
 			case AST::Kind::TemplatedExpr:  return this->get_source_location(ast_buffer.getTemplatedExpr(node));
@@ -508,6 +1018,10 @@ namespace pcit::panther::sema{
 		return this->get_source_location(return_stmt.keyword);
 	}
 
+	auto SemanticAnalyzer::get_source_location(const AST::Block& block) const -> SourceLocation {
+		return this->get_source_location(block.openBrace);
+	}
+
 	auto SemanticAnalyzer::get_source_location(const AST::FuncCall& func_call) const -> SourceLocation {
 		return this->get_source_location(func_call.target);
 	}
@@ -536,9 +1050,16 @@ namespace pcit::panther::sema{
 		return this->get_source_location(type.base);
 	}
 
+
+
 	auto SemanticAnalyzer::get_source_location(ASG::Func::ID func_id) const -> SourceLocation {
 		const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(func_id);
 		return this->get_source_location(asg_func.name);
+	}
+
+	auto SemanticAnalyzer::get_source_location(ASG::Var::ID var_id) const -> SourceLocation {
+		const ASG::Var& asg_var = this->source.getASGBuffer().getVar(var_id);
+		return this->get_source_location(asg_var.ident);
 	}
 
 }

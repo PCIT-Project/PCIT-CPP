@@ -23,20 +23,40 @@ namespace pcit::panther{
 
 	class ASGToLLVMIR{
 		public:
-			ASGToLLVMIR(Context& _context, llvmint::LLVMContext& llvm_context, llvmint::Module& _module)
-				: context(_context), module(_module), builder(llvm_context) {};
+			struct Config{
+				bool optimize;
+			};
+
+		public:
+			ASGToLLVMIR(
+				Context& _context, llvmint::LLVMContext& llvm_context, llvmint::Module& _module, const Config& _config
+			) : context(_context), module(_module), builder(llvm_context), config(_config) {};
 
 			~ASGToLLVMIR() = default;
 
 			auto lower() -> void;
 
 		private:
-			auto lower_func_decl(const Source& source, ASG::Func::ID func_id) -> void;
-			auto lower_func_body(const Source& source, ASG::Func::ID func_id) -> void;
+			auto lower_func_decl(ASG::Func::ID func_id) -> void;
+			auto lower_func_body(ASG::Func::ID func_id) -> void;
 
-			auto mangle_name(const Source& source, const ASG::Func& func) const -> std::string;
-			auto submangle_parent(const Source& source, const ASG::Parent& parent) const -> std::string;
-			auto get_func_ident_name(const Source& source, const ASG::Func& func) const -> std::string;
+			auto lower_stmt(const ASG::Stmt& stmt) -> void;
+			auto lower_var(const ASG::Var& var) -> void;
+
+			EVO_NODISCARD auto get_type(const TypeInfo::ID& type_info_id) const -> llvmint::Type;
+			EVO_NODISCARD auto get_type(const TypeInfo& type_info) const -> llvmint::Type;
+
+			// TODO: make get_pointer_to_value a template?
+			EVO_NODISCARD auto get_value(const ASG::Expr& expr, bool get_pointer_to_value = false) const 
+				-> llvmint::Value;
+
+
+			EVO_NODISCARD auto mangle_name(const ASG::Func& func) const -> std::string;
+			EVO_NODISCARD auto submangle_parent(const ASG::Parent& parent) const -> std::string;
+			EVO_NODISCARD auto get_func_ident_name(const ASG::Func& func) const -> std::string;
+
+			template<class... Args>
+			EVO_NODISCARD auto stmt_name(std::format_string<Args...> fmt, Args&&... args) const -> std::string;
 	
 		private:
 			Context& context;
@@ -44,6 +64,9 @@ namespace pcit::panther{
 
 			llvmint::IRBuilder builder;
 
+			Config config;
+
+			Source* current_source = nullptr;
 
 			struct FuncInfo{
 				llvmint::Function func;

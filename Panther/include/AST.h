@@ -23,7 +23,7 @@ namespace pcit::panther{
 namespace pcit::panther::AST{
 
 	enum class Kind{
-		None, // only allowed for OptionalNode
+		None, // don't use! only here to allow optimization of std::optional<Node>
 
 		VarDecl,
 		FuncDecl,
@@ -62,16 +62,16 @@ namespace pcit::panther::AST{
 	//    some funcs are static, but if not get the ASTBuffer from the respective Source
 	class Node{
 		public:
-			constexpr Node(Kind _kind, Token::ID token_id) : kind(_kind), _value{.token_id = token_id} {}
-			constexpr Node(Kind _kind, uint32_t node_index) : kind(_kind), _value{.node_index = node_index} {}
+			constexpr Node(Kind node_kind, Token::ID token_id) : _kind(node_kind), _value{.token_id = token_id} {}
+			constexpr Node(Kind node_kind, uint32_t node_index) : _kind(node_kind), _value{.node_index = node_index} {}
 
 			constexpr Node(const Node& rhs) = default;
 
-			EVO_NODISCARD constexpr auto getKind() const -> Kind { return this->kind; }
+			EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
 
 		
 		private:
-			Kind kind;
+			Kind _kind;
 
 			union Value{
 				evo::byte dummy[1];
@@ -88,11 +88,11 @@ namespace pcit::panther::AST{
 
 	struct NodeOptInterface{
 		static constexpr auto init(Node* node) -> void {
-			node->kind = Kind::None;
+			node->_kind = Kind::None;
 		}
 
 		static constexpr auto has_value(const Node& node) -> bool {
-			return node.getKind() != Kind::None;
+			return node.kind() != Kind::None;
 		}
 	};
 
@@ -168,6 +168,7 @@ namespace pcit::panther::AST{
 	};
 
 	struct Block{
+		Token::ID openBrace;
 		std::optional<Node> label;
 		evo::SmallVector<Node> stmts;
 	};

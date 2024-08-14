@@ -69,11 +69,11 @@ namespace pthr{
 			const panther::Token& token = token_buffer[token_id];
 			
 			printer.printGray(location_strings[i]);
-			printer.printInfo("[{}]", token.getKind());
+			printer.printInfo("[{}]", token.kind());
 
 
 			const std::string data_str = [&]() {
-				switch(token.getKind()){
+				switch(token.kind()){
 					break; case panther::Token::Kind::Ident:     return std::format(" {}", token.getString());
 					break; case panther::Token::Kind::Intrinsic: return std::format(" @{}", token.getString());
 					break; case panther::Token::Kind::Attribute: return std::format(" #{}", token.getString());
@@ -207,7 +207,7 @@ namespace pthr{
 
 		private:
 			auto print_stmt(const panther::AST::Node& stmt) -> void {
-				switch(stmt.getKind()){
+				switch(stmt.kind()){
 					case panther::AST::Kind::VarDecl: {
 						this->print_var_decl(this->ast_buffer.getVarDecl(stmt));
 					} break;
@@ -245,7 +245,7 @@ namespace pthr{
 
 					default: {
 						evo::debugFatalBreak(
-							"Unknown or unsupported statement kind ({})", evo::to_underlying(stmt.getKind())
+							"Unknown or unsupported statement kind ({})", evo::to_underlying(stmt.kind())
 						);
 					} break;
 				}
@@ -372,7 +372,7 @@ namespace pthr{
 							{
 								this->indenter.push();
 
-								if(param.name.getKind() == panther::AST::Kind::Ident){
+								if(param.name.kind() == panther::AST::Kind::Ident){
 									this->indenter.print_arrow();
 									this->print_minor_header("Identifier");
 									this->printer.print(" ");
@@ -565,17 +565,17 @@ namespace pthr{
 
 
 			auto print_base_type(const panther::AST::Node& base_type) -> void {
-				switch(base_type.getKind()){
+				switch(base_type.kind()){
 					case panther::AST::Kind::BuiltinType: {
 						const panther::Token::ID type_token_id = this->ast_buffer.getBuiltinType(base_type);
 						const panther::Token& type_token = this->source.getTokenBuffer()[type_token_id];
 
-						if(type_token.getKind() == panther::Token::Kind::TypeI_N){
+						if(type_token.kind() == panther::Token::Kind::TypeI_N){
 							this->printer.printMagenta("I{}", type_token.getBitWidth());
-						}else if(type_token.getKind() == panther::Token::Kind::TypeUI_N){
+						}else if(type_token.kind() == panther::Token::Kind::TypeUI_N){
 							this->printer.printMagenta("UI{}", type_token.getBitWidth());
 						}else{
-							this->printer.printMagenta("{}", type_token.getKind());
+							this->printer.printMagenta("{}", type_token.kind());
 						}
 
 					} break;
@@ -634,7 +634,7 @@ namespace pthr{
 					this->printer.printMagenta(qualifier_str);
 				}
 
-				if(type.base.getKind() == panther::AST::Kind::BuiltinType){
+				if(type.base.kind() == panther::AST::Kind::BuiltinType){
 					this->printer.printGray(" {BUILTIN}\n");
 				}else{
 					this->printer.print("\n");
@@ -645,7 +645,7 @@ namespace pthr{
 			auto print_expr(const panther::AST::Node& node) -> void {
 				this->indenter.print();
 
-				switch(node.getKind()){
+				switch(node.kind()){
 					case panther::AST::Kind::Prefix: {
 						this->print_prefix(this->ast_buffer.getPrefix(node));
 					} break;
@@ -680,7 +680,7 @@ namespace pthr{
 						const panther::Token::ID token_id = this->ast_buffer.getLiteral(node);
 						const panther::Token& token = this->source.getTokenBuffer()[token_id];
 
-						switch(token.getKind()){
+						switch(token.kind()){
 							case panther::Token::Kind::LiteralInt: {
 								this->printer.printMagenta(std::to_string(token.getInt()));
 								this->printer.printGray(" {LiteralInt}");
@@ -752,7 +752,7 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Operator");
-					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[prefix.opTokenID].getKind());
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[prefix.opTokenID].kind());
 
 					this->indenter.print_end();
 					this->print_minor_header("RHS");
@@ -777,7 +777,7 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Operator");
-					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[infix.opTokenID].getKind());
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[infix.opTokenID].kind());
 
 					this->indenter.print_arrow();
 					this->print_minor_header("LHS");
@@ -823,7 +823,7 @@ namespace pthr{
 
 							this->print_minor_header(std::format("Assignment {}", i));
 
-							switch(assign.getKind()){
+							switch(assign.kind()){
 								case panther::AST::Kind::Ident: {
 									this->printer.print(" ");
 									this->print_ident(assign);
@@ -864,7 +864,7 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Operator");
-					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[infix.opTokenID].getKind());
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[infix.opTokenID].kind());
 
 					this->indenter.print_arrow();
 					this->print_minor_header("LHS");
@@ -896,7 +896,7 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Operator");
-					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[postfix.opTokenID].getKind());
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[postfix.opTokenID].kind());
 
 					this->indenter.print_end();
 					this->print_minor_header("LHS");
@@ -1078,20 +1078,20 @@ namespace pthr{
 
 
 			auto print_ident(const panther::AST::Node& ident) const -> void {
-				const panther::Token::ID ident_tok_id = this->ast_buffer.getIdent(ident);
-				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
+				const panther::Token::ID ident_token_id = this->ast_buffer.getIdent(ident);
+				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_token_id];
 				this->printer.printMagenta("{}\n", ident_tok.getString());
 			}
 
-			auto print_ident(panther::Token::ID ident_tok_id) const -> void {
-				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_tok_id];
-				evo::debugAssert(ident_tok.getKind() == panther::Token::Kind::Ident);
+			auto print_ident(panther::Token::ID ident_token_id) const -> void {
+				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_token_id];
+				evo::debugAssert(ident_tok.kind() == panther::Token::Kind::Ident);
 				this->printer.printMagenta("{}\n", ident_tok.getString());
 			}
 
 			auto print_intrinsic(const panther::AST::Node& intrinsic) const -> void {
-				const panther::Token::ID intrinsic_tok_id = this->ast_buffer.getIntrinsic(intrinsic);
-				const panther::Token& intrinsic_tok = this->source.getTokenBuffer()[intrinsic_tok_id];
+				const panther::Token::ID intrinsic_token_id = this->ast_buffer.getIntrinsic(intrinsic);
+				const panther::Token& intrinsic_tok = this->source.getTokenBuffer()[intrinsic_token_id];
 				this->printer.printMagenta("@{}\n", intrinsic_tok.getString());
 			}
 

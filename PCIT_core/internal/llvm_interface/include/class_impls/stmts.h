@@ -27,5 +27,15 @@ namespace pcit::llvmint{
 	};
 
 
+	class Alloca{
+		public:
+			Alloca(llvm::AllocaInst* native_stmt) : _native(native_stmt) {};
+			~Alloca() = default;
+
+			EVO_NODISCARD auto native() const -> llvm::AllocaInst* { return this->_native; }
+	
+		private:
+			llvm::AllocaInst* _native;
+	};
 	
 }

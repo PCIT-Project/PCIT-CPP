@@ -249,7 +249,7 @@ namespace pcit::panther{
 			module.setTargetTriple(target_triple);
 
 
-			auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module);
+			auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module, ASGToLLVMIR::Config(false));
 			asg_to_llvmir.lower();
 
 			return evo::Result<std::string>(module.print());

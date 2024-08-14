@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.17.0
+
+### Panther
+- Added variable declarations
+- Added the concept of fluid literals
+	- literal ints can become any integral type
+	- literal floats can become any float type
+- Removed built-in-type `F80`
+
+
+<!---------------------------------->
 ## v0.0.16.0
 Added LLVM to the build
 

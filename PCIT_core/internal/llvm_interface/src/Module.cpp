@@ -72,7 +72,7 @@ namespace pcit::llvmint{
 		const std::optional<llvm::CodeModel::Model> code_model = [&](){
 			switch(code_size){
 				case CodeSize::Default: return std::optional<llvm::CodeModel::Model>();
-				case CodeSize::Tiny:    return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Tiny);
+				// case CodeSize::Tiny:    return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Tiny);
 				case CodeSize::Small:   return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Small);
 				case CodeSize::Kernel:  return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Kernel);
 				case CodeSize::Medium:  return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Medium);

@@ -23,9 +23,23 @@ namespace pcit::panther::sema{
 	}
 
 	auto ScopeManager::ScopeLevel::addFunc(std::string_view ident, ASG::Func::ID id) -> void {
-		evo::debugAssert(this->lookupFunc(ident).has_value() == false, "Scope already has function \"{}\"", ident);
+		evo::debugAssert(this->lookupFunc(ident).has_value() == false, "Scope already has func \"{}\"", ident);
 
 		this->funcs.emplace(ident, id);
+	}
+
+
+	auto ScopeManager::ScopeLevel::lookupVar(std::string_view ident) const -> std::optional<ASG::Var::ID> {
+		const std::unordered_map<std::string_view, ASG::Var::ID>::const_iterator lookup_iter = this->vars.find(ident);
+		if(lookup_iter == this->vars.end()){ return std::nullopt; }
+
+		return lookup_iter->second;
+	}
+
+	auto ScopeManager::ScopeLevel::addVar(std::string_view ident, ASG::Var::ID id) -> void {
+		evo::debugAssert(this->lookupVar(ident).has_value() == false, "Scope already has var \"{}\"", ident);
+
+		this->vars.emplace(ident, id);
 	}
 
 
@@ -86,6 +100,15 @@ namespace pcit::panther::sema{
 
 	auto GlobalScope::getFuncs() const -> evo::ArrayProxy<Func> {
 		return this->funcs;
+	}
+
+
+	auto GlobalScope::addVar(const AST::VarDecl& ast_var, ASG::Var::ID asg_var) -> void {
+		this->vars.emplace_back(ast_var, asg_var);
+	}
+
+	auto GlobalScope::getVars() const -> evo::ArrayProxy<Var> {
+		return this->vars;
 	}
 
 

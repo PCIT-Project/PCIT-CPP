@@ -12,6 +12,7 @@
 #include "./version.h"
 #include "./UniqueID.h"
 #include "./Diagnostic.h"
+#include "./platform.h"
 #include "./Printer.h"
 #include "./Optional.h"
 #include "./IterRange.h"

@@ -34,9 +34,12 @@ namespace pcit::panther::sema{
 					EVO_NODISCARD auto lookupFunc(std::string_view ident) const -> std::optional<ASG::Func::ID>;
 					auto addFunc(std::string_view ident, ASG::Func::ID id) -> void;
 
+					EVO_NODISCARD auto lookupVar(std::string_view ident) const -> std::optional<ASG::Var::ID>;
+					auto addVar(std::string_view ident, ASG::Var::ID id) -> void;
 
 				private:
 					std::unordered_map<std::string_view, ASG::Func::ID> funcs{};
+					std::unordered_map<std::string_view, ASG::Var::ID> vars{};
 			};
 
 
@@ -126,15 +129,24 @@ namespace pcit::panther::sema{
 				ASG::Func::ID asg_func;
 			};
 
+			struct Var{
+				const AST::VarDecl& ast_var;
+				ASG::Var::ID asg_var;
+			};
+
 		public:
 			GlobalScope() = default;
 			~GlobalScope() = default;
 
 			auto addFunc(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> void;
 			EVO_NODISCARD auto getFuncs() const -> evo::ArrayProxy<Func>;
+
+			auto addVar(const AST::VarDecl& ast_var, ASG::Var::ID asg_var) -> void;
+			EVO_NODISCARD auto getVars() const -> evo::ArrayProxy<Var>;
 	
 		private:
 			evo::SmallVector<Func> funcs{};
+			evo::SmallVector<Var> vars{};
 	};
 	
 	
