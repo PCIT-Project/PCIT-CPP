@@ -12,17 +12,28 @@
 
 #include <PCIT_core.h>
 
-#include "../../include/source_data.h"
-#include "../../include/Context.h"
-#include "../../include/Source.h"
-#include "../../include/TypeManager.h"
+#include "../include/source_data.h"
+#include "../include/Context.h"
+#include "../include/Source.h"
+#include "../include/TypeManager.h"
 
-namespace pcit::panther::sema{
+namespace pcit::panther{
 
 	class SemanticAnalyzer{
 		public:
 			SemanticAnalyzer(Context& _context, Source::ID source_id);
+
+			// for template instantiation
+			SemanticAnalyzer(
+				Context& _context,
+				Source& _source,
+				const ScopeManager::Scope& _scope,
+				evo::SmallVector<SourceLocation>&& _template_parents
+			);
+
 			~SemanticAnalyzer() = default;
+
+			SemanticAnalyzer(const SemanticAnalyzer&) = delete;
 
 
 			auto analyze_global_declarations() -> bool;
@@ -30,11 +41,16 @@ namespace pcit::panther::sema{
 
 
 		private:
+			///////////////////////////////////
+			// analyze
+
 			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto analyze_var_decl(const AST::VarDecl& var_decl) -> bool;
 
 			template<bool IS_GLOBAL>
-			EVO_NODISCARD auto analyze_func_decl(const AST::FuncDecl& func_decl) -> bool;
+			EVO_NODISCARD auto analyze_func_decl(
+				const AST::FuncDecl& func_decl, ASG::Func::InstanceID instance_id = ASG::Func::InstanceID()
+			) -> evo::Result<std::optional<ASG::Func::ID>>;
 
 			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool;
@@ -50,10 +66,18 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto analyze_func_call(const AST::FuncCall& func_call) -> bool;
 
 
+			///////////////////////////////////
+			// misc
+
 			EVO_NODISCARD auto get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID>;
+			EVO_NODISCARD auto get_type_id(const Token::ID& ident_token_id) -> evo::Result<TypeInfo::VoidableID>;
+			EVO_NODISCARD auto is_type_generic(const AST::Type& ast_type) -> evo::Result<bool>; // is it type "Type"
 
 
 			EVO_NODISCARD auto get_current_scope_level() const -> ScopeManager::ScopeLevel&;
+
+			template<bool IS_GLOBAL>
+			EVO_NODISCARD auto get_parent() const -> ASG::Parent;
 
 
 			///////////////////////////////////
@@ -64,12 +88,17 @@ namespace pcit::panther::sema{
 					ConcreteConst,
 					ConcreteMutable,
 					Ephemeral,
-					FluidLiteral, // literal ints and floats (they don't have explicit type)
+					FluidLiteral,
 					Import,
+					Templated,
 				};
 
 				ValueType value_type;
-				std::optional<TypeInfo::ID> type_id; // nullopt if is ValueType::[Import|FluidLiteral]
+				evo::Variant<
+					std::monostate,            // ValueType::[Import|FluidLiteral]
+					TypeInfo::VoidableID,      // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
+					ASG::TemplatedFunc::LinkID // ValueType::Templated
+				> type_id;
 				std::optional<ASG::Expr> expr; // nullopt if from ExprValueKind::None
 
 				EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {
@@ -141,8 +170,37 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto may_recover() const -> bool;
 
 
+			template<typename NODE_T>
+			auto emit_fatal(
+				Diagnostic::Code code,
+				const NODE_T& location,
+				std::string&& msg,
+				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
+			) const -> void;
+
+			template<typename NODE_T>
+			auto emit_error(
+				Diagnostic::Code code,
+				const NODE_T& location,
+				std::string&& msg,
+				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
+			) const -> void;
+
+			template<typename NODE_T>
+			auto emit_warning(
+				Diagnostic::Code code,
+				const NODE_T& location,
+				std::string&& msg,
+				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
+			) const -> void;
+
+			auto add_template_location_infos(evo::SmallVector<Diagnostic::Info>& infos) const -> void;
+
+
 			///////////////////////////////////
 			// get source location
+
+			auto get_source_location(std::nullopt_t) const -> std::optional<SourceLocation>;
 
 			auto get_source_location(Token::ID token_id) const -> SourceLocation;
 			
@@ -162,6 +220,7 @@ namespace pcit::panther::sema{
 			auto get_source_location(const AST::Type& type) const -> SourceLocation;
 
 			auto get_source_location(ASG::Func::ID func_id) const -> SourceLocation;
+			auto get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation;
 			auto get_source_location(ASG::Var::ID var_id) const -> SourceLocation;
 
 	
@@ -169,7 +228,15 @@ namespace pcit::panther::sema{
 			Context& context;
 			Source& source;
 
-			ScopeManager::Scope scope{};
+			ScopeManager::Scope scope;
+			evo::SmallVector<SourceLocation> template_parents;
+
+			struct TemplateExpr{
+				ASG::Expr expr;
+				Source::ID source_id;
+			};
+			std::unordered_map<std::string_view, TemplateExpr> template_arg_exprs{};
+			std::unordered_map<std::string_view, TypeInfo::VoidableID> template_arg_types{};
 	};
 	
 	

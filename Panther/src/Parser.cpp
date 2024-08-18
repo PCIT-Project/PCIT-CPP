@@ -99,7 +99,7 @@ namespace pcit::panther{
 				
 			const Result value_result = this->parse_expr();
 			// TODO: better messaging around block exprs missing a label
-			if(this->check_result_fail(value_result, "value after [=] in variable declaration")){
+			if(this->check_result_fail(value_result, "expression after [=] in variable declaration")){
 				return Result::Code::Error;
 			}
 

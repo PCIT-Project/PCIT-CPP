@@ -11,7 +11,7 @@
 
 #include "./Tokenizer.h"
 #include "./Parser.h"
-#include "./sema/SemanticAnalyzer.h"
+#include "./SemanticAnalyzer.h"
 #include "./ASGToLLVMIR.h"
 
 
@@ -472,7 +472,7 @@ namespace pcit::panther{
 		Source& source = source_manager.getSource(task.source_id);
 		source.global_scope_level = this->context->getScopeManager().createScopeLevel();
 
-		auto semantic_analyzer = sema::SemanticAnalyzer(*this->context, task.source_id);
+		auto semantic_analyzer = SemanticAnalyzer(*this->context, task.source_id);
 
 		if(semantic_analyzer.analyze_global_declarations() == false){ return; }
 
@@ -481,7 +481,7 @@ namespace pcit::panther{
 
 
 	auto Context::Worker::run_sema_global_stmts(const SemaGlobalStmtsTask& task) -> void {
-		auto semantic_analyzer = sema::SemanticAnalyzer(*this->context, task.source_id);
+		auto semantic_analyzer = SemanticAnalyzer(*this->context, task.source_id);
 
 		if(semantic_analyzer.analyze_global_stmts() == false){ return; }
 

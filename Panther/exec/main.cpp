@@ -48,13 +48,14 @@ struct Config{
 		Parse,
 		SemanticAnalysis,
 		PrintLLVMIR,
+		LLVMIR,
 	} target;
 
 	bool verbose;
 	bool print_color;
 
 	evo::uint max_threads    = 0;
-	evo::uint max_num_errors = 1;
+	evo::uint max_num_errors = std::numeric_limits<evo::uint>::max();
 	bool may_recover         = true;
 };
 
@@ -69,7 +70,7 @@ auto main(int argc, const char* argv[]) -> int {
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
 		// .max_threads    = panther::Context::optimalNumThreads(),
-		.max_num_errors = 2,
+		.max_num_errors = 10,
 		// .may_recover    = false,
 	};
 
@@ -109,6 +110,7 @@ auto main(int argc, const char* argv[]) -> int {
 			break; case Config::Target::Parse:            printer.printlnMagenta("Target: Parse");
 			break; case Config::Target::SemanticAnalysis: printer.printlnMagenta("Target: SemanticAnalysis");
 			break; case Config::Target::PrintLLVMIR:      printer.printlnMagenta("Target: PrintLLVMIR");
+			break; case Config::Target::LLVMIR:           printer.printlnMagenta("Target: LLVMIR");
 			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
 		}
 	}
@@ -305,6 +307,23 @@ auto main(int argc, const char* argv[]) -> int {
 		}
 
 		printer.printlnCyan(llvm_ir.value());
+
+		exit();
+		return EXIT_SUCCESS;
+
+	}else if(config.target == Config::Target::LLVMIR){
+		const evo::Result<std::string> llvm_ir = context.printLLVMIR();
+
+		if(llvm_ir.isError()){
+			exit();
+			return EXIT_FAILURE;			
+		}
+
+		if(evo::fs::writeFile("a.ll", llvm_ir.value()) == false){
+			printer.printlnError("Failed to write file: \"a.ll\"");
+		}else{
+			printer.printlnSuccess("Successfully write LLVMIR file \"a.ll\"");
+		}
 
 		exit();
 		return EXIT_SUCCESS;

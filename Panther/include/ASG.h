@@ -15,69 +15,43 @@
 
 #include "./AST.h"
 #include "./TypeManager.h"
+#include "./ASG_IDs.h"
+#include "./ScopeManager.h"
+
+
+namespace pcit::panther{
+	class Source;
+}
 
 
 namespace pcit::panther::ASG{
-
-	// All IDs defined here are used as indexes into ASGBuffer (found in Source)
-
-
-	//////////////////////////////////////////////////////////////////////
-	// forward declarations
-
-	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {using core::UniqueID<uint32_t, FuncID>::UniqueID;};
-
-	using Parent = evo::Variant<std::monostate, FuncID>;
-
-
-	struct FuncLinkID{
-		FuncLinkID(SourceID source_id, FuncID func_id) : _source_id(source_id), _func_id(func_id) {}
-
-		EVO_NODISCARD auto sourceID() const -> SourceID { return this->_source_id; }
-		EVO_NODISCARD auto funcID() const -> FuncID { return this->_func_id; }
-
-		EVO_NODISCARD auto operator==(const FuncLinkID& rhs) const -> bool {
-			return this->_source_id == rhs._source_id && this->_func_id == rhs._func_id;
-		}
-
-		EVO_NODISCARD auto operator!=(const FuncLinkID& rhs) const -> bool {
-			return this->_source_id != rhs._source_id || this->_func_id != rhs._func_id;
-		}
-		
-		private:
-			SourceID _source_id;
-			FuncID _func_id;
-	};
-
-
-	struct VarID : public core::UniqueID<uint32_t, struct VarID> { using core::UniqueID<uint32_t, VarID>::UniqueID;	};
 
 
 	//////////////////////////////////////////////////////////////////////
 	// expressions
 
 	struct LiteralInt{
-		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+		using ID = LiteralIntID;
 
 		uint64_t value;
 		std::optional<TypeInfo::ID> typeID; // TODO: change to BaseType::ID?
 	};
 
 	struct LiteralFloat{
-		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+		using ID = LiteralFloatID;
 		
 		float64_t value;
 		std::optional<TypeInfo::ID> typeID; // TODO: change to BaseType::ID?
 	};
 
 	struct LiteralBool{
-		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+		using ID = LiteralBoolID;
 
 		bool value;
 	};
 
 	struct LiteralChar{
-		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+		using ID = LiteralCharID;
 
 		char value;
 	};
@@ -159,7 +133,7 @@ namespace pcit::panther::ASG{
 
 
 	struct FuncCall{
-		struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+		using ID = FuncCallID;
 
 		FuncLinkID target;
 	};
@@ -206,10 +180,113 @@ namespace pcit::panther::ASG{
 		using ID = FuncID;
 		using LinkID = FuncLinkID;
 
+		struct InstanceID{
+			InstanceID() : id(std::numeric_limits<uint32_t>::max()) {}
+			InstanceID(uint32_t instance_id) : id(instance_id) {}
+
+			EVO_NODISCARD auto get() const -> uint32_t {
+				evo::debugAssert(this->has_value(), "cannot get instance value as it doesn't have one");
+				return this->id;
+			}
+
+			EVO_NODISCARD auto has_value() const -> bool {
+				return this->id != std::numeric_limits<uint32_t>::max();
+			}
+
+			private:
+				uint32_t id;
+		};
+
 		AST::Node name;
 		BaseType::ID baseTypeID;
 		Parent parent;
+		InstanceID instanceID;
 		evo::SmallVector<Stmt> stmts{};
+	};
+
+
+	struct TemplatedFunc{
+		using ID = TemplatedFuncID;
+
+		struct LinkID{
+			LinkID(SourceID source_id, ID templated_func_id)
+				: _source_id(source_id), _templated_func_id(templated_func_id) {}
+
+			EVO_NODISCARD auto sourceID() const -> SourceID { return this->_source_id; }
+			EVO_NODISCARD auto templatedFuncID() const -> ID { return this->_templated_func_id; }
+
+			EVO_NODISCARD auto operator==(const LinkID& rhs) const -> bool {
+				return this->_source_id == rhs._source_id && this->_templated_func_id == rhs._templated_func_id;
+			}
+
+			EVO_NODISCARD auto operator!=(const LinkID& rhs) const -> bool {
+				return this->_source_id != rhs._source_id || this->_templated_func_id != rhs._templated_func_id;
+			}
+			
+			private:
+				SourceID _source_id;
+				ID _templated_func_id;
+		};
+
+
+		struct TemplateParam{
+			Token::ID ident;
+			std::optional<TypeInfo::ID> typeID; // nullopt means type "Type"
+		};
+
+		const AST::FuncDecl& funcDecl;
+		Parent parent;
+		evo::SmallVector<TemplateParam> templateParams;
+		ScopeManager::Scope scope;
+
+		TemplatedFunc(
+			const AST::FuncDecl& func_decl,
+			Parent _parent,
+			evo::SmallVector<TemplateParam>&& template_params,
+			const ScopeManager::Scope& _scope
+		) : 
+			funcDecl(func_decl),
+			parent(_parent),
+			templateParams(std::move(template_params)),
+			scope(_scope)
+		{}
+
+
+		struct LookupInfo{
+			bool needToGenerate;
+			ASG::Func::InstanceID instanceID;
+
+			LookupInfo(
+				bool _need_to_generate,
+				ASG::Func::InstanceID instance_id,
+				std::atomic<std::optional<Func::ID>>& func_id
+			) : needToGenerate(_need_to_generate), instanceID(instance_id), id(func_id) {}
+
+			auto waitForAndGetID() const -> Func::ID {
+				while(this->id.load().has_value() == false){}
+				return *this->id.load(); 
+			};
+
+			auto store(Func::ID func_id) -> void {
+				this->id.store(func_id);
+			}
+
+			private:
+				std::atomic<std::optional<Func::ID>>& id;
+		};
+
+		using Arg = std::variant<TypeInfo::VoidableID, uint64_t, double, char, bool>;
+		EVO_NODISCARD auto lookupInstance(evo::SmallVector<Arg>&& args) -> LookupInfo;
+
+		private:
+			struct Instatiation{
+				std::atomic<std::optional<Func::ID>> id;
+				evo::SmallVector<Arg> args;
+			};
+			// TODO: speedup lookup?
+			// TODO: better allocation?
+			evo::SmallVector<std::unique_ptr<Instatiation>> instantiations{};
+			mutable std::mutex instance_lock{};
 	};
 
 
@@ -243,13 +320,3 @@ namespace pcit::panther::ASG{
 	};
 
 }
-
-
-template<>
-struct std::hash<pcit::panther::ASG::Func::LinkID>{
-	auto operator()(const pcit::panther::ASG::Func::LinkID& link_id) const noexcept -> size_t {
-		auto hasher = std::hash<uint32_t>{};
-		return evo::hashCombine(hasher(link_id.sourceID().get()), hasher(link_id.funcID().get()));
-	};
-};
-

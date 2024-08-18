@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.19.0
+
+### Panther
+- Added templated function (just `Type` parameters)
+- Fixed issue where no statements were analyzed after a function call (in semantic analysis)
+- Fixed local variables declared before a locally-declared function were accepted as part of the scope
+- Fixed identifiers `I`, `U`, and `UI` causing fatal errors
+
+### pthr
+- Added build target `LLVMIR`
+
+
+<!---------------------------------->
 ## v0.0.18.0
 
 ### Panther
@@ -30,11 +43,12 @@ Added LLVM to the build
 - Added compiling to LLVMIR
 - Temporarily disallowed functions with that return anything other than `Void`
 
+### pthr
+- Added `PrintLLVMIR` build target
+
 ### PCIT_core
 - Added `IterRange`
 
-### pthr
-- Added `PrintLLVMIR` build target
 
 
 <!---------------------------------->

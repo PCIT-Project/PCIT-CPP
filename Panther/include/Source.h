@@ -20,7 +20,7 @@ namespace fs = std::filesystem;
 #include "./TokenBuffer.h"
 #include "./ASTBuffer.h"
 #include "./ASGBuffer.h"
-#include "../src/sema/ScopeManager.h"
+#include "./ScopeManager.h"
 
 
 namespace pcit::panther{
@@ -94,14 +94,14 @@ namespace pcit::panther{
 			ASTBuffer ast_buffer{};
 			ASGBuffer asg_buffer{};
 
-			sema::ScopeManager::ScopeLevel::ID global_scope_level = sema::ScopeManager::ScopeLevel::ID::dummy();
-			sema::GlobalScope global_scope{};
+			ScopeManager::ScopeLevel::ID global_scope_level = ScopeManager::ScopeLevel::ID::dummy();
+			GlobalScope global_scope{};
 
 			friend class SourceManager;
 			friend class Context;
 			friend class Tokenizer;
 			friend class Parser;
-			friend sema::SemanticAnalyzer;
+			friend SemanticAnalyzer;
 	};
 
 }

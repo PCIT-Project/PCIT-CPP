@@ -7,10 +7,12 @@
 //////////////////////////////////////////////////////////////////////
 
 
-#include "./ScopeManager.h"
+#include "../include/ScopeManager.h"
+
+#include "../include/ASG.h"
 
 
-namespace pcit::panther::sema{
+namespace pcit::panther{
 
 	//////////////////////////////////////////////////////////////////////
 	// scope level
@@ -21,11 +23,28 @@ namespace pcit::panther::sema{
 
 		return lookup_iter->second;
 	}
-
 	auto ScopeManager::ScopeLevel::addFunc(std::string_view ident, ASG::Func::ID id) -> void {
 		evo::debugAssert(this->lookupFunc(ident).has_value() == false, "Scope already has func \"{}\"", ident);
 
 		this->funcs.emplace(ident, id);
+	}
+
+
+	auto ScopeManager::ScopeLevel::lookupTemplatedFunc(std::string_view ident) const
+	-> std::optional<ASG::TemplatedFunc::ID> {
+		using LookupIterator = std::unordered_map<std::string_view, ASG::TemplatedFunc::ID>::const_iterator;
+		const LookupIterator lookup_iter = this->templated_funcs.find(ident);
+		if(lookup_iter == this->templated_funcs.end()){ return std::nullopt; }
+
+		return lookup_iter->second;
+	}
+	auto ScopeManager::ScopeLevel::addTemplatedFunc(std::string_view ident, ASG::TemplatedFunc::ID id) -> void {
+		evo::debugAssert(
+			this->lookupTemplatedFunc(ident).has_value() == false, 
+			"Scope already has templated func \"{}\"", ident
+		);
+
+		this->templated_funcs.emplace(ident, id);
 	}
 
 
@@ -35,7 +54,6 @@ namespace pcit::panther::sema{
 
 		return lookup_iter->second;
 	}
-
 	auto ScopeManager::ScopeLevel::addVar(std::string_view ident, ASG::Var::ID id) -> void {
 		evo::debugAssert(this->lookupVar(ident).has_value() == false, "Scope already has var \"{}\"", ident);
 
@@ -52,15 +70,18 @@ namespace pcit::panther::sema{
 
 	auto ScopeManager::Scope::pushScopeLevel(ScopeLevel::ID id, ASG::Func::ID func_id) -> void {
 		this->scope_levels.emplace_back(id);
-		this->object_scopes.emplace_back(ObjectScope(func_id), evo::uint(this->scope_levels.size()));
+		this->object_scopes.emplace_back(ObjectScope(func_id), uint32_t(this->scope_levels.size()));
 	}
 
 	auto ScopeManager::Scope::popScopeLevel() -> void {
 		evo::debugAssert(!this->scope_levels.empty(), "cannot pop scope level as there are none");
+		evo::debugAssert(
+			this->getCurrentObjectScope().is<std::monostate>() == false, "fake object scope was not popped"
+		);
 
 		if(
 			this->inObjectScope() && 
-			this->object_scopes.back().scope_level_index == evo::uint(this->scope_levels.size())
+			this->object_scopes.back().scope_level_index == uint32_t(this->scope_levels.size())
 		){
 			this->object_scopes.pop_back();		
 		}

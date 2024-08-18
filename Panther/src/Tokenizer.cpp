@@ -333,10 +333,12 @@ namespace pcit::panther{
 					}
 				};
 
-				if(ident_name[0] == 'I'){
-					parse_integer(Token::Kind::TypeI_N, 1);
-				}else if(ident_name[0] == 'U' && ident_name[1] == 'I'){
-					parse_integer(Token::Kind::TypeUI_N, 2);
+				if(ident_name.size() > 1){
+					if(ident_name[0] == 'I'){
+						parse_integer(Token::Kind::TypeI_N, 1);
+					}else if(ident_name.size() > 2 && ident_name[0] == 'U' && ident_name[1] == 'I'){
+						parse_integer(Token::Kind::TypeUI_N, 2);
+					}
 				}
 
 				if(this->can_continue == false){ return false; }

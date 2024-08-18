@@ -9,7 +9,7 @@
 
 #include "./SemanticAnalyzer.h"
 
-#include "../../include/AST.h"
+#include "../include/AST.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -17,12 +17,21 @@
 #endif
 
 
-namespace pcit::panther::sema{
+namespace pcit::panther{
 
 
 	SemanticAnalyzer::SemanticAnalyzer(Context& _context, Source::ID source_id) 
-		: context(_context), source(this->context.getSourceManager()[source_id]) {
+		: context(_context), source(this->context.getSourceManager()[source_id]), scope(), template_parents() {
 
+		this->scope.pushScopeLevel(this->source.global_scope_level);
+	};
+
+	SemanticAnalyzer::SemanticAnalyzer(
+		Context& _context,
+		Source& _source,
+		const ScopeManager::Scope& _scope,
+		evo::SmallVector<SourceLocation>&& _template_parents
+	) : context(_context), source(_source), scope(_scope), template_parents(std::move(_template_parents)) {
 		this->scope.pushScopeLevel(this->source.global_scope_level);
 	};
 
@@ -32,7 +41,7 @@ namespace pcit::panther::sema{
 
 			switch(global_stmt.kind()){
 				case AST::Kind::None: {
-					this->context.emitFatal(
+					this->emit_fatal(
 						Diagnostic::Code::SemaEncounteredASTKindNone,
 						std::nullopt,
 						Diagnostic::createFatalMessage("Encountered AST node kind of None")
@@ -44,16 +53,17 @@ namespace pcit::panther::sema{
 					// if(this->analyze_var_decl<true>(this->source.getASTBuffer().getVarDecl(global_stmt)) == false){
 					// 	return false;
 					// }
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::MiscUnimplementedFeature,
-						this->get_source_location(global_stmt),
+						global_stmt,
 						"global variable declarations are currently unsupported"
 					);
 					return false;
 				} break;
 
 				case AST::Kind::FuncDecl: {
-					if(this->analyze_func_decl<true>(this->source.getASTBuffer().getFuncDecl(global_stmt)) == false){
+					const AST::FuncDecl& func_decl = this->source.getASTBuffer().getFuncDecl(global_stmt);
+					if(this->analyze_func_decl<true>(func_decl).isError()){
 						return false;
 					}
 				} break;
@@ -69,9 +79,9 @@ namespace pcit::panther::sema{
 				case AST::Kind::TemplatedExpr: case AST::Kind::Infix: case AST::Kind::Postfix:
 				case AST::Kind::MultiAssign:   case AST::Kind::Ident: case AST::Kind::Intrinsic:
 				case AST::Kind::Literal:       case AST::Kind::This: {
-					this->context.emitError(
+					this->emit_error(
 						Diagnostic::Code::SemaInvalidGlobalStmtKind,
-						this->get_source_location(this->source.getASTBuffer().getReturn(global_stmt)),
+						this->source.getASTBuffer().getReturn(global_stmt),
 						"Invalid global statement"
 					);
 					return this->may_recover();
@@ -82,7 +92,7 @@ namespace pcit::panther::sema{
 				case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
 				case AST::Kind::Uninit:         case AST::Kind::Discard: {
 					// TODO: message the exact kind
-					this->context.emitFatal(
+					this->emit_fatal(
 						Diagnostic::Code::SemaInvalidGlobalStmtKind,
 						std::nullopt,
 						Diagnostic::createFatalMessage("Invalid global statement")
@@ -126,9 +136,9 @@ namespace pcit::panther::sema{
 			if(var_type_result.isError()){ return false; }
 
 			if(var_type_result.value().isVoid()){
-				this->context.emitError(
-					Diagnostic::Code::SemaVarOfTypeVoid,
-					this->get_source_location(var_decl.type.value()),
+				this->emit_error(
+					Diagnostic::Code::SemaImproperUseOfTypeVoid,
+					*var_decl.type,
 					"Variables cannot be of type \"Void\""
 				);
 				return false;
@@ -142,11 +152,7 @@ namespace pcit::panther::sema{
 		// value
 
 		if(var_decl.value.has_value() == false){
-			this->context.emitError(
-				Diagnostic::Code::SemaVarWithNoValue,
-				this->get_source_location(var_decl.ident),
-				"Variables must have values"
-			);
+			this->emit_error(Diagnostic::Code::SemaVarWithNoValue, var_decl.ident, "Variables must have values");
 			return false;	
 		}
 
@@ -159,18 +165,16 @@ namespace pcit::panther::sema{
 
 		if(expr_info_result.value().is_concrete()){
 			// TODO: better messaging?
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::SemaIncorrectExprValueType,
-				this->get_source_location(*var_decl.value),
+				*var_decl.value,
 				"Variable must be declared with an ephemeral expression value"
 			);
 			return false;
 
 		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::Import){
-			this->context.emitError(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				this->get_source_location(*var_decl.value),
-				"Imports are currently unsupported"
+			this->emit_error(
+				Diagnostic::Code::MiscUnimplementedFeature, *var_decl.value, "Imports are currently unsupported"
 			);
 			return false;
 		}
@@ -178,10 +182,8 @@ namespace pcit::panther::sema{
 
 		if(expr_info_result.value().value_type == ExprInfo::ValueType::FluidLiteral){
 			if(var_type_id.has_value() == false){
-				this->context.emitError(
-					Diagnostic::Code::SemaCannotInferType,
-					this->get_source_location(*var_decl.value),
-					"Cannot infer the type of a fluid literal"
+				this->emit_error(
+					Diagnostic::Code::SemaCannotInferType, *var_decl.value, "Cannot infer the type of a fluid literal"
 				);
 				return false;
 			}
@@ -255,13 +257,24 @@ namespace pcit::panther::sema{
 
 			
 		}else if(var_type_id.has_value()){
-			if(*var_type_id != expr_info_result.value().type_id){
+			const TypeInfo::VoidableID expr_type = expr_info_result.value().type_id.as<TypeInfo::VoidableID>();
+			if(expr_type.isVoid() == false && *var_type_id != expr_type.typeID()){
 				this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
 				return false;
 			}
 
 		}else{
-			var_type_id = expr_info_result.value().type_id;
+			const TypeInfo::VoidableID expr_type = expr_info_result.value().type_id.as<TypeInfo::VoidableID>();
+			if(expr_type.isVoid()){
+				this->emit_error(
+					Diagnostic::Code::SemaImproperUseOfTypeVoid,
+					*var_decl.value,
+					"Variables cannot be of type \"Void\""
+				);
+				return false;
+			}
+
+			var_type_id = expr_type.typeID();
 		}
 
 
@@ -284,35 +297,88 @@ namespace pcit::panther::sema{
 
 
 	template<bool IS_GLOBAL>
-	auto SemanticAnalyzer::analyze_func_decl(const AST::FuncDecl& func_decl) -> bool {
+	auto SemanticAnalyzer::analyze_func_decl(const AST::FuncDecl& func_decl, ASG::Func::InstanceID instance_id)
+	-> evo::Result<std::optional<ASG::Func::ID>> {
+		const bool instantiate_template = instance_id.has_value();
+
 		const Token::ID func_ident_tok_id = this->source.getASTBuffer().getIdent(func_decl.name);
 		const std::string_view func_ident = this->source.getTokenBuffer()[func_ident_tok_id].getString();
-		if(this->already_defined(func_ident, func_decl)){ return false; }
+		if(this->already_defined(func_ident, func_decl)){ return evo::resultError; }
 
 
 		///////////////////////////////////
 		// template pack
 
-		if(func_decl.templatePack.has_value()){
-			this->context.emitError(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				this->get_source_location(func_decl),
-				"function declarations with template packs are currently unsupported"
-			);
-			return false;
-		}
+		auto template_params = evo::SmallVector<ASG::TemplatedFunc::TemplateParam>{};
+		if(instantiate_template == false){
+			if(func_decl.templatePack.has_value()){
+				const AST::TemplatePack& ast_template_pack = 
+					this->source.getASTBuffer().getTemplatePack(*func_decl.templatePack);
 
+				if(ast_template_pack.params.empty()){
+					this->emit_error(
+						Diagnostic::Code::SemaEmptyTemplatePackDeclaration,
+						func_decl,
+						"Template pack declarations cannot be empty"
+					);
+					return evo::resultError;
+				}
+
+
+				this->scope.pushFakeObjectScope();
+				EVO_DEFER([&](){ this->scope.popFakeObjectScope(); });
+
+				for(const AST::TemplatePack::Param& template_param : ast_template_pack.params){
+					const Token& template_param_ident_token = this->source.getTokenBuffer()[template_param.ident];
+					const std::string_view template_param_ident = template_param_ident_token.getString();
+
+					if(this->already_defined(template_param_ident, template_param.ident)){
+						return evo::resultError;
+					}
+
+					const AST::Type& param_ast_type = this->source.getASTBuffer().getType(template_param.type);
+
+					const evo::Result<bool> param_type_is_generic = this->is_type_generic(param_ast_type);
+					if(param_type_is_generic.isError()){ return evo::resultError; }
+
+					if(param_type_is_generic.value()){
+						template_params.emplace_back(template_param.ident, std::nullopt);
+
+					}else{
+						this->emit_error(
+							Diagnostic::Code::MiscUnimplementedFeature,
+							param_ast_type,
+							"Template value arguments are currently unsupported"
+						);
+						return evo::resultError;
+						// const evo::Result<TypeInfo::VoidableID> param_type_id = this->get_type_id(param_ast_type);
+						// if(param_type_id.isError()){ return evo::resultError; }
+
+						// if(param_type_id.value().isVoid()){
+						// 	this->emit_error(
+						// 		Diagnostic::Code::SemaImproperUseOfTypeVoid,
+						// 		param_ast_type,
+						// 		"Template parameter cannot be of type \"Void\""
+						// 	);
+						// 	return evo::resultError;
+						// }
+
+						// template_params.emplace_back(template_param.ident, param_type_id.value().typeID());
+					}
+				}
+			}
+		}
 
 		///////////////////////////////////
 		// params
 
 		if(func_decl.params.empty() == false){
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::MiscUnimplementedFeature,
-				this->get_source_location(func_decl),
+				func_decl,
 				"function declarations with parameters are currently unsupported"
 			);
-			return false;
+			return evo::resultError;
 		}
 
 
@@ -321,12 +387,12 @@ namespace pcit::panther::sema{
 
 		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
 		if(attr_block.attributes.empty() == false){
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::MiscUnimplementedFeature,
-				this->get_source_location(func_decl),
+				func_decl,
 				"function declarations with attributes are currently unsupported"
 			);
-			return false;
+			return evo::resultError;
 		}
 
 
@@ -337,15 +403,15 @@ namespace pcit::panther::sema{
 		for(size_t i = 0; const AST::FuncDecl::Return& return_param : func_decl.returns){
 			const AST::Type& return_param_ast_type = this->source.getASTBuffer().getType(return_param.type);
 			const evo::Result<TypeInfo::VoidableID> type_info = this->get_type_id(return_param_ast_type);
-			if(type_info.isError()){ return false; }
+			if(type_info.isError()){ return evo::resultError; }
 
 			if(return_param.ident.has_value() && type_info.value().isVoid()){
-				this->context.emitError(
-					Diagnostic::Code::SemaNamedReturnParamIsTypeVoid,
-					this->get_source_location(return_param.type),
+				this->emit_error(
+					Diagnostic::Code::SemaImproperUseOfTypeVoid,
+					return_param.type,
 					"The type of a named function return parameter cannot be \"Void\""
 				);
-				return false;
+				return evo::resultError;
 			}
 
 			return_params.emplace_back(return_param.ident, type_info.value());
@@ -355,61 +421,75 @@ namespace pcit::panther::sema{
 
 
 		if(return_params.size() > 1){
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::MiscUnimplementedFeature,
-				this->get_source_location(*func_decl.returns[1].ident),
+				*func_decl.returns[1].ident,
 				"multiple return parameters are currently unsupported"
 			);
-			return false;
+			return evo::resultError;
 		}else if(return_params[0].typeID.isVoid() == false){
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::MiscUnimplementedFeature,
-				this->get_source_location(func_decl.returns[0].type),
+				func_decl.returns[0].type,
 				"functions with return types other than \"Void\" are currently unsupported"
 			);
-			return false;
+			return evo::resultError;
 		}
 
 
 		///////////////////////////////////
 		// create
 
+		const ASG::Parent parent = this->get_parent<IS_GLOBAL>();
+
+		if(instantiate_template == false){
+			if(template_params.size() >= 1){
+				const ASG::TemplatedFunc::ID asg_templated_func_id = this->source.asg_buffer.createTemplatedFunc(
+					func_decl, parent, std::move(template_params), this->scope
+				);
+
+				this->get_current_scope_level().addTemplatedFunc(func_ident, asg_templated_func_id);
+
+				return std::optional<ASG::Func::ID>();
+			}
+		}
+
+
 		const BaseType::ID base_type_id = this->context.getTypeManager().getOrCreateFunction(
 			BaseType::Function(this->source.getID(), std::move(return_params))
 		);
 
-		const ASG::Func::ID asg_func_id = [&](){
-			if constexpr(IS_GLOBAL){
-				return this->source.asg_buffer.createFunc(func_decl.name, base_type_id);
-			}else{
-				evo::debugAssert(this->scope.inObjectScope(), "expected to be in object scope");
-				return this->scope.getCurrentObjectScope().visit([&](auto obj_scope_id) -> ASG::Func::ID {
-					using ObjScopeID = std::decay_t<decltype(obj_scope_id)>;
-
-					if constexpr(std::is_same_v<ObjScopeID, ASG::Func::ID>){
-						return this->source.asg_buffer.createFunc(func_decl.name, base_type_id, obj_scope_id);
-					}
-				});
-			}
-		}();
+		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(
+			func_decl.name, base_type_id, parent, instance_id
+		);
 		
-		this->get_current_scope_level().addFunc(func_ident, asg_func_id);
+		if(instantiate_template == false){
+			this->get_current_scope_level().addFunc(func_ident, asg_func_id);
+		}
 
-		if constexpr(IS_GLOBAL){
-			this->source.global_scope.addFunc(func_decl, asg_func_id);
-			return true;
+
+		if(instantiate_template){
+			return std::optional<ASG::Func::ID>(asg_func_id);
+
 		}else{
-			return this->analyze_func_body(func_decl, asg_func_id);
+			if constexpr(IS_GLOBAL){
+				this->source.global_scope.addFunc(func_decl, asg_func_id);
+				return std::optional<ASG::Func::ID>(asg_func_id);
+			}else{
+				if(this->analyze_func_body(func_decl, asg_func_id)){
+					return std::optional<ASG::Func::ID>(asg_func_id);
+				}else{
+					return evo::resultError;
+				}
+			}
 		}
 	};
 
 
 	template<bool IS_GLOBAL>
 	auto SemanticAnalyzer::analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(alias_decl),
-			"alias declarations are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, alias_decl, "alias declarations are currently unsupported"
 		);
 		return false;
 	};
@@ -448,7 +528,7 @@ namespace pcit::panther::sema{
 		// TODO: order cases correctly
 		switch(node.kind()){
 			case AST::Kind::None: {
-				this->context.emitFatal(
+				this->emit_fatal(
 					Diagnostic::Code::SemaEncounteredASTKindNone,
 					std::nullopt,
 					Diagnostic::createFatalMessage("Encountered AST node kind of None")
@@ -461,7 +541,7 @@ namespace pcit::panther::sema{
 			} break;
 
 			case AST::Kind::FuncDecl: {
-				return this->analyze_func_decl<false>(ast_buffer.getFuncDecl(node));
+				return this->analyze_func_decl<false>(ast_buffer.getFuncDecl(node)).isSuccess();
 			} break;
 
             case AST::Kind::AliasDecl: {
@@ -474,10 +554,8 @@ namespace pcit::panther::sema{
 
 			case AST::Kind::Return:        case AST::Kind::Block:    
 			case AST::Kind::TemplatedExpr: case AST::Kind::Infix:    case AST::Kind::MultiAssign: {
-				this->context.emitError(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					this->get_source_location(node),
-					"This stmt kind is currently unsupported"
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature, node, "This stmt kind is currently unsupported"
 				);
 				return false;
 			} break;
@@ -486,11 +564,7 @@ namespace pcit::panther::sema{
 			case AST::Kind::Literal:   case AST::Kind::This:    case AST::Kind::Ident:
 			case AST::Kind::Intrinsic: case AST::Kind::Postfix: {
 				// TODO: message the exact kind
-				this->context.emitError(
-					Diagnostic::Code::SemaInvalidStmtKind,
-					this->get_source_location(node),
-					"Invalid statement"
-				);
+				this->emit_error(Diagnostic::Code::SemaInvalidStmtKind, node, "Invalid statement");
 				return this->may_recover();
 			} break;
 
@@ -499,7 +573,7 @@ namespace pcit::panther::sema{
 			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
 			case AST::Kind::Uninit:         case AST::Kind::Discard: {
 				// TODO: message the exact kind
-				this->context.emitFatal(
+				this->emit_fatal(
 					Diagnostic::Code::SemaInvalidStmtKind,
 					std::nullopt,
 					Diagnostic::createFatalMessage("Invalid statement")
@@ -514,32 +588,38 @@ namespace pcit::panther::sema{
 
 
 	auto SemanticAnalyzer::analyze_func_call(const AST::FuncCall& func_call) -> bool {
-		const evo::Result<ExprInfo> call_target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
-		if(call_target_info_res.isError()){ return this->may_recover(); }
+		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
+		if(target_info_res.isError()){ return this->may_recover(); }
 
-		if(
-			call_target_info_res.value().value_type == ExprInfo::ValueType::Import || 
-			call_target_info_res.value().value_type == ExprInfo::ValueType::FluidLiteral
-		){
-			this->context.emitError(
+		if(target_info_res.value().type_id.is<TypeInfo::VoidableID>() == false){
+			this->emit_error(
 				Diagnostic::Code::SemaCannotCallLikeFunction,
-				this->get_source_location(func_call.target),
+				func_call.target,
 				"Cannot call this expression like a function"
 			);
 			return this->may_recover();
 		}
 
 
-		const TypeInfo& call_target_type_info = 
-			this->context.getTypeManager().getTypeInfo(*call_target_info_res.value().type_id);
+		const TypeInfo::VoidableID target_type_id = target_info_res.value().type_id.as<TypeInfo::VoidableID>();
+		if(target_type_id.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				func_call.target,
+				"Cannot call this expression like a function"
+			);
+			return this->may_recover();
+		}
+
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id.typeID());
 
 		if(
-			call_target_type_info.qualifiers().empty() == false ||
-			call_target_type_info.baseTypeID().kind() != BaseType::Kind::Function
+			target_type_info.qualifiers().empty() == false ||
+			target_type_info.baseTypeID().kind() != BaseType::Kind::Function
 		){
-			this->context.emitError(
+			this->emit_error(
 				Diagnostic::Code::SemaCannotCallLikeFunction,
-				this->get_source_location(func_call.target),
+				func_call.target,
 				"Cannot call this expression like a function"
 			);
 			return this->may_recover();
@@ -549,15 +629,15 @@ namespace pcit::panther::sema{
 		///////////////////////////////////
 		// create
 
-		const ASG::FuncCall::ID asg_func_call_id = this->source.asg_buffer.createFuncCall(
-			ASG::Func::LinkID(this->source.getID(), call_target_info_res.value().expr->funcID())
+		const ASG::FuncCall::ID asg_func_id = this->source.asg_buffer.createFuncCall(
+			ASG::Func::LinkID(this->source.getID(), target_info_res.value().expr->funcID())
 		);
 
 		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
 		ASG::Func& current_func = this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
-		current_func.stmts.emplace_back(asg_func_call_id);
+		current_func.stmts.emplace_back(asg_func_id);
 
-		return false;
+		return true;
 	}
 
 
@@ -569,53 +649,99 @@ namespace pcit::panther::sema{
 	auto SemanticAnalyzer::get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID> {
 		auto base_type = std::optional<BaseType::ID>();
 
-		if(ast_type.base.kind() == AST::Kind::BuiltinType){
-			const Token::ID builtin_type_token_id = ASTBuffer::getBuiltinType(ast_type.base);
-			const Token& builtin_type_token = this->source.getTokenBuffer()[builtin_type_token_id];
+		switch(ast_type.base.kind()){
+			case AST::Kind::BuiltinType: {
+				const Token::ID builtin_type_token_id = ASTBuffer::getBuiltinType(ast_type.base);
+				const Token& builtin_type_token = this->source.getTokenBuffer()[builtin_type_token_id];
 
-			switch(builtin_type_token.kind()){
-				case Token::Kind::TypeVoid: {
+				switch(builtin_type_token.kind()){
+					case Token::Kind::TypeVoid: {
+						if(ast_type.qualifiers.empty() == false){
+							this->emit_error(
+								Diagnostic::Code::SemaVoidWithQualifiers,
+								ast_type.base,
+								"Type \"Void\" cannot have qualifiers"
+							);
+							return evo::resultError;
+						}
+						return TypeInfo::VoidableID::Void();
+					} break;
+
+					case Token::Kind::TypeThis:       case Token::Kind::TypeInt:        case Token::Kind::TypeISize:
+					case Token::Kind::TypeUInt:       case Token::Kind::TypeUSize:      case Token::Kind::TypeF16:
+					case Token::Kind::TypeBF16:       case Token::Kind::TypeF32:        case Token::Kind::TypeF64:
+					case Token::Kind::TypeF128:       case Token::Kind::TypeByte:       case Token::Kind::TypeBool:
+					case Token::Kind::TypeChar:       case Token::Kind::TypeRawPtr:     case Token::Kind::TypeCShort:
+					case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:       case Token::Kind::TypeCUInt:
+					case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:     case Token::Kind::TypeCLongLong:
+					case Token::Kind::TypeCULongLong: case Token::Kind::TypeCLongDouble: {
+						base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(
+							builtin_type_token.kind()
+						);
+					} break;
+
+					case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
+						base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(
+							builtin_type_token.kind(), builtin_type_token.getBitWidth()
+						);
+					} break;
+
+
+					case Token::Kind::TypeType: {
+						this->emit_error(
+							Diagnostic::Code::SemaGenericTypeNotInTemplatePackDecl,
+							ast_type,
+							"Type \"Type\" may only be used in a template pack declaration"
+						);
+						return evo::resultError;
+					} break;
+
+					default: {
+						evo::debugFatalBreak("Unknown or unsupported BuiltinType: {}", builtin_type_token.kind());
+					} break;
+				}
+			} break;
+
+			case AST::Kind::Ident: {
+				const Token::ID base_type_token_id = ASTBuffer::getIdent(ast_type.base);
+				const evo::Result<TypeInfo::VoidableID> ident_type_id = this->get_type_id(base_type_token_id);
+				if(ident_type_id.isError()){ return evo::resultError; }
+
+				if(ident_type_id.value().isVoid()){
 					if(ast_type.qualifiers.empty() == false){
-						this->context.emitError(
+						this->emit_error(
 							Diagnostic::Code::SemaVoidWithQualifiers,
-							this->get_source_location(ast_type.base),
+							ast_type.base,
 							"Type \"Void\" cannot have qualifiers"
 						);
 						return evo::resultError;
 					}
 					return TypeInfo::VoidableID::Void();
-				} break;
+				}
 
-				case Token::Kind::TypeType:      case Token::Kind::TypeThis:       case Token::Kind::TypeInt:
-				case Token::Kind::TypeISize:     case Token::Kind::TypeUInt:       case Token::Kind::TypeUSize:
-				case Token::Kind::TypeF16:       case Token::Kind::TypeBF16:       case Token::Kind::TypeF32:
-				case Token::Kind::TypeF64:       case Token::Kind::TypeF128:       case Token::Kind::TypeByte:
-				case Token::Kind::TypeBool:      case Token::Kind::TypeChar:       case Token::Kind::TypeRawPtr:
-				case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
-				case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
-				case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: case Token::Kind::TypeCLongDouble: {
-					base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(builtin_type_token.kind());
-				} break;
+				const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(ident_type_id.value().typeID());
 
-				case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
-					base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(
-						builtin_type_token.kind(), builtin_type_token.getBitWidth()
+				if(type_info.qualifiers().empty() == false){
+					this->emit_error(
+						Diagnostic::Code::MiscUnimplementedFeature,
+						base_type_token_id,
+						"Ident types with qualifiers are not supported"
 					);
-				} break;
+					return evo::resultError;
+				}
 
-				default: {
-					evo::debugFatalBreak("Unknown or unsupported BuiltinType: {}", builtin_type_token.kind());
-				} break;
-			}
+				base_type = type_info.baseTypeID();
+			} break;
 
-		}else{
-			this->context.emitError(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				this->get_source_location(ast_type.base),
-				"Only built-in-types are currently supported"
-			);
-
-			return evo::resultError;
+			// TODO: separate out into more kinds to be more specific (errors vs fatal)
+			default: {
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidBaseType,
+					ast_type.base,
+					"Unknown or unsupported base type"
+				);
+				return evo::resultError;
+			} break;
 		}
 
 		evo::debugAssert(base_type.has_value(), "base type was not set");
@@ -637,9 +763,65 @@ namespace pcit::panther::sema{
 	}
 
 
+	auto SemanticAnalyzer::get_type_id(const Token::ID& ident_token_id) -> evo::Result<TypeInfo::VoidableID> {
+		const Token& type_token = this->source.getTokenBuffer()[ident_token_id];
+		const std::string_view ident_str = type_token.getString();
+
+		const auto template_type_find = this->template_arg_types.find(ident_str);
+		if(template_type_find != this->template_arg_types.end()){
+			return template_type_find->second;
+		}
+
+		this->emit_error(
+			Diagnostic::Code::SemaIdentNotInScope,
+			ident_token_id,
+			std::format("Type \"{}\" was not defined in this scope", ident_str)
+		);
+		return evo::resultError;
+	}
+
+
+
+	auto SemanticAnalyzer::is_type_generic(const AST::Type& ast_type) -> evo::Result<bool> {
+		if(ast_type.base.kind() != AST::Kind::BuiltinType){ return false; }
+
+		const Token::ID base_type_token_id = this->source.getASTBuffer().getBuiltinType(ast_type.base);
+		const Token& base_type_token = this->source.getTokenBuffer()[base_type_token_id];
+		
+		if(base_type_token.kind() != Token::Kind::TypeType){ return false; }
+
+		if(ast_type.qualifiers.empty()){ return true; }
+
+		this->emit_error(
+			Diagnostic::Code::SemaGenericTypeWithQualifiers, ast_type, "Type \"Type\" cannot have qualifiers"
+		);
+		return evo::resultError;
+	}
+
+
 
 	auto SemanticAnalyzer::get_current_scope_level() const -> ScopeManager::ScopeLevel& {
 		return this->context.getScopeManager()[this->scope.getCurrentScopeLevel()];
+	}
+
+
+	template<bool IS_GLOBAL>
+	auto SemanticAnalyzer::get_parent() const -> ASG::Parent {
+		if constexpr(IS_GLOBAL){
+			return std::monostate();
+
+		}else{
+			evo::debugAssert(this->scope.inObjectScope(), "expected to be in object scope");
+			return this->scope.getCurrentObjectScope().visit([&](auto obj_scope_id) -> ASG::Parent {
+				using ObjScopeID = std::decay_t<decltype(obj_scope_id)>;
+
+				if constexpr(std::is_same_v<ObjScopeID, ASG::Func::ID>){
+					return obj_scope_id;
+				}else{
+					evo::debugFatalBreak("Unknown or unsupported object scope type");
+				}
+			});
+		}
 	}
 
 
@@ -699,7 +881,7 @@ namespace pcit::panther::sema{
 			
 
 			case AST::Kind::None: {
-				this->context.emitFatal(
+				this->emit_fatal(
 					Diagnostic::Code::SemaEncounteredASTKindNone,
 					std::nullopt,
 					Diagnostic::createFatalMessage("Encountered AST node kind of None")
@@ -712,7 +894,7 @@ namespace pcit::panther::sema{
 			case AST::Kind::Type:        case AST::Kind::AttributeBlock: case AST::Kind::Attribute:
 			case AST::Kind::BuiltinType: case AST::Kind::Discard: {
 				// TODO: better messaging (specify what kind)
-				this->context.emitFatal(
+				this->emit_fatal(
 					Diagnostic::Code::SemaInvalidExprKind,
 					std::nullopt,
 					Diagnostic::createFatalMessage("Encountered expr of invalid AST kind")
@@ -728,80 +910,296 @@ namespace pcit::panther::sema{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_block(const AST::Block& block) -> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(block),
-			"block expressions are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, block, "block expressions are currently unsupported"
 		);
 		return evo::resultError;
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(func_call),
-			"function call expressions are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, func_call, "function call expressions are currently unsupported"
 		);
 		return evo::resultError;
 	}
+
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_templated_expr(const AST::TemplatedExpr& templated_expr)
 	-> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(templated_expr),
-			"templated expression expressions are currently unsupported"
+		const evo::Result<ExprInfo> base_info = this->analyze_expr<ExprValueKind::None>(templated_expr.base);
+		if(base_info.isError()){ return evo::resultError; }
+
+		if(base_info.value().value_type != ExprInfo::ValueType::Templated){
+			// TODO: better messaging
+			this->emit_error(
+				Diagnostic::Code::SemaUnexpectedTemplateArgs,
+				templated_expr.base,
+				"Expression does not accept template arguments"
+			);
+			return evo::resultError;
+		}
+
+		evo::debugAssert(
+			base_info.value().type_id.is<ASG::TemplatedFunc::LinkID>(),
+			"currently unsupported type of templated type"
 		);
-		return evo::resultError;
+
+		const ASG::TemplatedFunc::LinkID templated_func_link_id = 
+			base_info.value().type_id.as<ASG::TemplatedFunc::LinkID>();
+
+		Source& declared_source = this->context.getSourceManager()[templated_func_link_id.sourceID()];
+		ASG::TemplatedFunc& templated_func = *declared_source.getASGBuffer().templated_funcs[
+			templated_func_link_id.templatedFuncID().get()
+		];
+
+		if(templated_expr.args.size() != templated_func.templateParams.size()){
+			// TODO: give exact number of arguments
+			this->emit_error(
+				Diagnostic::Code::SemaIncorrectTemplateInstantiation,
+				templated_expr,
+				"Incorrect number of template arguments"
+			);
+			return evo::resultError;
+		}
+
+		// auto expr_args = evo::SmallVector<ASG::Expr>();
+		auto type_args = evo::SmallVector<TypeInfo::VoidableID>();
+		auto args = evo::SmallVector<ASG::TemplatedFunc::Arg>();
+		args.reserve(templated_func.templateParams.size());
+		for(size_t i = 0; i < templated_func.templateParams.size(); i+=1){
+			const ASG::TemplatedFunc::TemplateParam& template_param = templated_func.templateParams[i];
+			const AST::Node& template_arg = templated_expr.args[i];
+
+			if(template_param.typeID.has_value()){ // is expression
+				if(template_arg.kind() == AST::Kind::Type){
+					// TODO: show declaration of template
+					this->emit_error(
+						Diagnostic::Code::SemaIncorrectTemplateInstantiation,
+						templated_expr.args[i],
+						std::format("Expected expression in template argument index {}", i),
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info(
+								"Template parameter declaration:", this->get_source_location(template_param.ident)
+							)
+						}
+					);
+					return evo::resultError;
+				}
+
+				// const evo::Result<ExprInfo> arg_expr_info = this->analyze_expr<ExprValueKind::ConstEval>(template_arg);
+				// if(arg_expr_info.isError()){ return evo::resultError; }
+
+				// if(
+				// 	arg_expr_info.value().value_type == ExprInfo::ValueType::Import ||
+				// 	arg_expr_info.value().value_type == ExprInfo::ValueType::Templated
+				// ){
+				// 	this->emit_error(
+				// 		Diagnostic::Code::SemaIncorrectTemplateArgValueType, template_arg, "Invalid template argument"
+				// 	);
+				// 	return evo::resultError;
+				// }
+
+				// // expr_args.emplace_back(*arg_expr_info.value().expr);
+
+				// switch(arg_expr_info.value().expr->kind()){
+				// 	case ASG::Expr::Kind::LiteralInt: {
+				// 		const ASG::LiteralInt::ID literal_id = arg_expr_info.value().expr->literalIntID();
+				// 		args.emplace_back(this->source.getASGBuffer().getLiteralInt(literal_id).value);
+				// 	} break;
+
+				// 	case ASG::Expr::Kind::LiteralFloat: {
+				// 		const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().expr->literalFloatID();
+				// 		args.emplace_back(this->source.getASGBuffer().getLiteralFloat(literal_id).value);
+				// 	} break;
+
+				// 	case ASG::Expr::Kind::LiteralBool: {
+				// 		const ASG::LiteralBool::ID literal_id = arg_expr_info.value().expr->literalBoolID();
+				// 		args.emplace_back(this->source.getASGBuffer().getLiteralBool(literal_id).value);
+				// 	} break;
+
+				// 	case ASG::Expr::Kind::LiteralChar: {
+				// 		const ASG::LiteralChar::ID literal_id = arg_expr_info.value().expr->literalCharID();
+				// 		args.emplace_back(this->source.getASGBuffer().getLiteralChar(literal_id).value);
+				// 	} break;
+
+				// 	default: {
+				// 		this->emit_fatal(
+				// 			Diagnostic::Code::SemaExpectedConstEvalValue,
+				// 			template_arg,
+				// 			Diagnostic::createFatalMessage("Evaluated consteval value was not actually consteval")
+				// 		);
+				// 		return evo::resultError;
+				// 	} break;
+				// }
+
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					templated_expr.args[i],
+					"Template value arguments are currently unsupported"
+				);
+				return evo::resultError;
+
+			}else{ // is type
+				switch(template_arg.kind()){
+					case AST::Kind::Type: {
+						const AST::Type& arg_ast_type = this->source.getASTBuffer().getType(template_arg);
+						const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_type);
+						if(arg_type.isError()){ return evo::resultError; }
+
+						args.emplace_back(arg_type.value());
+						type_args.emplace_back(arg_type.value());
+					} break;
+
+					case AST::Kind::Ident: {
+						const Token::ID arg_ast_type_token_id = this->source.getASTBuffer().getIdent(template_arg);
+						const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_type_token_id);
+						if(arg_type.isError()){ return evo::resultError; }
+
+						args.emplace_back(arg_type.value());
+						type_args.emplace_back(arg_type.value());
+					} break;
+
+					default: {
+						// TODO: show declaration of template
+						this->emit_error(
+							Diagnostic::Code::SemaIncorrectTemplateInstantiation,
+							templated_expr.args[i],
+							std::format("Expected type in template argument index {}", i),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"Template parameter declaration:", this->get_source_location(template_param.ident)
+								)
+							}
+						);
+						return evo::resultError;
+					} break;
+				}
+
+			}
+		}
+
+		ASG::TemplatedFunc::LookupInfo lookup_info = templated_func.lookupInstance(std::move(args));
+
+		auto func_id = std::optional<ASG::Func::ID>();
+		if(lookup_info.needToGenerate){
+			evo::SmallVector<SourceLocation> template_instance_template_parents = this->template_parents;
+			template_instance_template_parents.emplace_back(this->get_source_location(templated_expr));
+
+			auto template_sema = SemanticAnalyzer(
+				this->context, declared_source, templated_func.scope, std::move(template_instance_template_parents)
+			);
+
+			// if sub-template, add parent's template params to scope
+			if(
+				templated_func.parent.is<std::monostate>() == false &&
+				templated_func.parent == this->scope.getCurrentObjectScope()
+			){
+				template_sema.template_arg_types = this->template_arg_types;
+			}
+
+			// add template params to scope
+			for(size_t i = 0; i < templated_func.templateParams.size(); i+=1){
+				const ASG::TemplatedFunc::TemplateParam& template_param = templated_func.templateParams[i];
+				const AST::Node& template_arg = templated_expr.args[i];
+
+				const std::string_view param_ident_str = 
+					this->source.getTokenBuffer()[template_param.ident].getString();
+
+				if(template_param.typeID.has_value()){ // is expression
+
+
+				}else{ // is type
+					switch(template_arg.kind()){
+						case AST::Kind::Type: {
+							const AST::Type& arg_ast_type = this->source.getASTBuffer().getType(template_arg);
+							const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_type);
+
+							template_sema.template_arg_types.emplace(param_ident_str, arg_type.value());
+						} break;
+
+						case AST::Kind::Ident: {
+							const Token::ID& arg_ast_ident_type = this->source.getASTBuffer().getIdent(template_arg);
+							const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_ident_type);
+
+							template_sema.template_arg_types.emplace(param_ident_str, arg_type.value());
+						} break;
+					}
+				}
+			}
+
+
+			const evo::Result<std::optional<ASG::Func::ID>> instatiation = [&](){
+				if(templated_func.scope.inObjectScope()){
+					return template_sema.analyze_func_decl<false>(
+						templated_func.funcDecl, lookup_info.instanceID
+					);
+
+				}else{
+					return template_sema.analyze_func_decl<true>(
+						templated_func.funcDecl, lookup_info.instanceID
+					);
+					
+				}
+			}();
+
+
+
+			if(instatiation.isError()){ return evo::resultError; }
+			func_id = *instatiation.value();
+			lookup_info.store(*func_id);
+
+			if(template_sema.analyze_func_body(templated_func.funcDecl, *func_id) == false){ return evo::resultError; }
+
+		}else{
+			func_id = lookup_info.waitForAndGetID();
+		}
+
+		const ASG::Func& instantiated_func = declared_source.getASGBuffer().getFunc(*func_id);
+
+		const TypeInfo::ID instantiated_func_type = this->context.getTypeManager().getOrCreateTypeInfo(
+			TypeInfo(instantiated_func.baseTypeID)
+		);
+
+		if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+			return ExprInfo(ExprInfo::ValueType::ConcreteConst, instantiated_func_type, std::nullopt);
+
+		}else{
+			return ExprInfo(ExprInfo::ValueType::ConcreteConst, instantiated_func_type, ASG::Expr(*func_id));
+		}
 	}
+
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_prefix(const AST::Prefix& prefix) -> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(prefix),
-			"prefix expressions are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix expressions are currently unsupported"
 		);
 		return evo::resultError;
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_infix(const AST::Infix& infix) -> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(infix),
-			"infix expressions are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, infix, "infix expressions are currently unsupported"
 		);
 		return evo::resultError;
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_postfix(const AST::Postfix& postfix) -> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(postfix),
-			"postfix expressions are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, postfix, "postfix expressions are currently unsupported"
 		);
 		return evo::resultError;
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_ident(const Token::ID& ident) -> evo::Result<ExprInfo> {
-		if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
-			this->context.emitError(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				this->get_source_location(ident),
-				"consteval identifier expressions are currently unsupported"
-			);
-
-			return evo::resultError;
-		}
-
 		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
 
-		for(ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
+		for(size_t i = this->scope.size() - 1; ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
 			const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[scope_level_id];
 
 			const std::optional<ASG::Func::ID> lookup_func_id = scope_level.lookupFunc(ident_str);
@@ -819,22 +1217,77 @@ namespace pcit::panther::sema{
 				}
 			}
 
-			const std::optional<ASG::Var::ID> lookup_var_id = scope_level.lookupVar(ident_str);
-			if(lookup_var_id.has_value()){
-				const ASG::Var& asg_var = this->source.getASGBuffer().getVar(*lookup_var_id);
-
-				const auto value_type = ExprInfo::ValueType::ConcreteMutable;
+			const std::optional<ASG::TemplatedFunc::ID> lookup_templated_func_id = 
+				scope_level.lookupTemplatedFunc(ident_str);
+			if(lookup_templated_func_id.has_value()){
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-					return ExprInfo(value_type, asg_var.typeID, std::nullopt);
+					return ExprInfo(
+						ExprInfo::ValueType::Templated,
+						ASG::TemplatedFunc::LinkID(this->source.getID(), *lookup_templated_func_id),
+						std::nullopt
+					);
+
 				}else{
-					return ExprInfo(value_type, asg_var.typeID, ASG::Expr(*lookup_var_id));
+					this->emit_error(
+						Diagnostic::Code::SemaExpectedTemplateArgs,
+						ident,
+						std::format(
+							"Identifier \"{}\" is a templated function and requires template arguments", ident_str
+						),
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Defined here:", this->get_source_location(*lookup_templated_func_id)),
+						}
+					);
+					return evo::resultError;
 				}
 			}
+
+
+			const std::optional<ASG::Var::ID> lookup_var_id = scope_level.lookupVar(ident_str);
+			if(lookup_var_id.has_value()){
+				if(i >= this->scope.getCurrentObjectScopeIndex() || i == 0){
+					const ASG::Var& asg_var = this->source.getASGBuffer().getVar(*lookup_var_id);
+
+					const auto value_type = ExprInfo::ValueType::ConcreteMutable;
+
+					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+						return ExprInfo(value_type, asg_var.typeID, std::nullopt);
+
+					}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+						this->emit_error(
+							Diagnostic::Code::MiscUnimplementedFeature,
+							ident,
+							"consteval variable expressions are currently unsupported"
+						);
+						return evo::resultError;
+
+					}else{
+						return ExprInfo(value_type, asg_var.typeID, ASG::Expr(*lookup_var_id));
+					}
+				}else{
+					// TODO: better messaging
+					this->emit_error(
+						Diagnostic::Code::SemaIdentNotInScope,
+						ident,
+						std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info(
+								"Local variables / members cannot be accessed inside a sub-object scope. Defined here:",
+								this->get_source_location(*lookup_var_id)
+							),
+						}
+					);
+					return evo::resultError;
+				}
+			}
+
+
+			i -= 1;
 		}
 
-		this->context.emitError(
+		this->emit_error(
 			Diagnostic::Code::SemaIdentNotInScope,
-			this->get_source_location(ident),
+			ident,
 			std::format("Identifier \"{}\" was not defined in this scope", ident_str)
 		);
 		return evo::resultError;
@@ -842,10 +1295,8 @@ namespace pcit::panther::sema{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_intrinsic(const Token::ID& intrinsic) -> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(intrinsic),
-			"intrinsic expressions are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, intrinsic, "intrinsic expressions are currently unsupported"
 		);
 		return evo::resultError;
 	}
@@ -854,7 +1305,7 @@ namespace pcit::panther::sema{
 	auto SemanticAnalyzer::analyze_expr_literal(const Token::ID& literal) -> evo::Result<ExprInfo> {
 		const Token& token = this->source.getTokenBuffer()[literal];
 		
-		auto expr_info = ExprInfo(ExprInfo::ValueType::Ephemeral, std::nullopt, std::nullopt);
+		auto expr_info = ExprInfo(ExprInfo::ValueType::Ephemeral, std::monostate(), std::nullopt);
 
 		switch(token.kind()){
 			case Token::Kind::LiteralInt: {
@@ -888,10 +1339,8 @@ namespace pcit::panther::sema{
 			} break;
 
 			case Token::Kind::LiteralString: {
-				this->context.emitError(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					this->get_source_location(literal),
-					"literal strings are currently unsupported"
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature, literal, "literal strings are currently unsupported"
 				);
 				return evo::resultError;
 			} break;
@@ -914,20 +1363,16 @@ namespace pcit::panther::sema{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_uninit(const Token::ID& uninit) -> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(uninit),
-			"uninit expressions are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, uninit, "[uninit] expressions are currently unsupported"
 		);
 		return evo::resultError;
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_this(const Token::ID& this_expr) -> evo::Result<ExprInfo> {
-		this->context.emitError(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->get_source_location(this_expr),
-			"this expressions are currently unsupported"
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, this_expr, "[this] expressions are currently unsupported"
 		);
 		return evo::resultError;
 	}
@@ -941,8 +1386,21 @@ namespace pcit::panther::sema{
 
 	template<typename NODE_T>
 	auto SemanticAnalyzer::already_defined(std::string_view ident, const NODE_T& node) const -> bool {
+		const auto template_type_find = this->template_arg_types.find(ident);
+		if(template_type_find != this->template_arg_types.end()){
+			this->emit_error(
+				Diagnostic::Code::SemaAlreadyDefined,
+				node,
+				std::format("Identifier \"{}\" was already defined in this scope", ident),
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(std::format("\"{}\" is a template parameter", ident)), // TODO: definition location
+					Diagnostic::Info("Note: shadowing is not allowed")
+				}
+			);
+			return true;
+		}
 
-		for(ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
+		for(size_t i = this->scope.size() - 1; ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
 			const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[scope_level_id];
 
 			const std::optional<ASG::Func::ID> lookup_func = scope_level.lookupFunc(ident);
@@ -955,33 +1413,37 @@ namespace pcit::panther::sema{
 					infos.emplace_back("Note: shadowing is not allowed");
 				}
 
-				this->context.emitError(
+				this->emit_error(
 					Diagnostic::Code::SemaAlreadyDefined,
-					this->get_source_location(node),
+					node,
 					std::format("Identifier \"{}\" was already defined in this scope", ident),
-					infos
+					std::move(infos)
 				);
 				return true;
 			}
 
-			const std::optional<ASG::Var::ID> lookup_var = scope_level.lookupVar(ident);
-			if(lookup_var.has_value()){
-				auto infos = evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info("First defined here:", this->get_source_location(lookup_var.value())),
-				};
+			if(i >= this->scope.getCurrentObjectScopeIndex() || i == 0){
+				const std::optional<ASG::Var::ID> lookup_var = scope_level.lookupVar(ident);
+				if(lookup_var.has_value()){
+					auto infos = evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("First defined here:", this->get_source_location(lookup_var.value())),
+					};
 
-				if(scope_level_id != this->scope.getCurrentScopeLevel()){
-					infos.emplace_back("Note: shadowing is not allowed");
+					if(scope_level_id != this->scope.getCurrentScopeLevel()){
+						infos.emplace_back("Note: shadowing is not allowed");
+					}
+
+					this->emit_error(
+						Diagnostic::Code::SemaAlreadyDefined,
+						node,
+						std::format("Identifier \"{}\" was already defined in this scope", ident),
+						std::move(infos)
+					);
+					return true;
 				}
-
-				this->context.emitError(
-					Diagnostic::Code::SemaAlreadyDefined,
-					this->get_source_location(node),
-					std::format("Identifier \"{}\" was already defined in this scope", ident),
-					infos
-				);
-				return true;
 			}
+
+			i -= 1;
 		}
 
 		return false;
@@ -1000,8 +1462,10 @@ namespace pcit::panther::sema{
 		auto infos = evo::SmallVector<Diagnostic::Info>();
 		infos.emplace_back(std::format("{} is of type: {}", name, type_manager.printType(expected)));
 
-		if(got.type_id.has_value()){
-			infos.emplace_back(std::format("Expression is of type: {}", type_manager.printType(*got.type_id)));
+		if(got.type_id.is<TypeInfo::VoidableID>()){
+			infos.emplace_back(
+				std::format("Expression is of type: {}", type_manager.printType(got.type_id.as<TypeInfo::VoidableID>()))
+			);
 
 		}else if(got.value_type == ExprInfo::ValueType::Import){
 			infos.emplace_back("Expression is of type: {IMPORT}");
@@ -1023,9 +1487,9 @@ namespace pcit::panther::sema{
 			}
 		}
 
-		this->context.emitError(
+		this->emit_error(
 			Diagnostic::Code::SemaTypeMismatch,
-			this->get_source_location(location),
+			location,
 			std::format("{} cannot accept an expression of a different type, and cannot be implicitly converted", name),
 			std::move(infos)
 		);
@@ -1038,9 +1502,64 @@ namespace pcit::panther::sema{
 	}
 
 
+	template<typename NODE_T>
+	auto SemanticAnalyzer::emit_fatal(
+		Diagnostic::Code code,
+		const NODE_T& location,
+		std::string&& msg,
+		evo::SmallVector<Diagnostic::Info>&& infos
+	) const -> void {
+		this->add_template_location_infos(infos);
+		this->context.emitFatal(code, this->get_source_location(location), std::move(msg), std::move(infos));
+	}
+
+	template<typename NODE_T>
+	auto SemanticAnalyzer::emit_error(
+		Diagnostic::Code code,
+		const NODE_T& location,
+		std::string&& msg,
+		evo::SmallVector<Diagnostic::Info>&& infos
+	) const -> void {
+		this->add_template_location_infos(infos);
+		this->context.emitError(code, this->get_source_location(location), std::move(msg), std::move(infos));
+	}
+
+	template<typename NODE_T>
+	auto SemanticAnalyzer::emit_warning(
+		Diagnostic::Code code,
+		const NODE_T& location,
+		std::string&& msg,
+		evo::SmallVector<Diagnostic::Info>&& infos
+	) const -> void {
+		this->add_template_location_infos(infos);
+		this->context.emitWarning(code, this->get_source_location(location), std::move(msg), std::move(infos));
+	}
+
+
+	auto SemanticAnalyzer::add_template_location_infos(evo::SmallVector<Diagnostic::Info>& infos) const -> void {
+		if(this->template_parents.empty()){
+			return;
+
+		}else if(this->template_parents.size() == 1){
+			infos.emplace_back("template instantiated here:", this->template_parents[0]);
+
+		}else{
+			for(size_t i = 0; const SourceLocation& template_parent : this->template_parents){
+				infos.emplace_back(std::format("template instantiated here (depth: {}):", i), template_parent);
+			
+				i += 1;
+			}
+		}
+	}
+
 
 	//////////////////////////////////////////////////////////////////////
 	// get source location
+
+	auto SemanticAnalyzer::get_source_location(std::nullopt_t) const -> std::optional<SourceLocation> {
+		return std::nullopt;
+	};
+
 
 	auto SemanticAnalyzer::get_source_location(Token::ID token_id) const -> SourceLocation {
 		return this->source.getTokenBuffer().getSourceLocation(token_id, this->source.getID());
@@ -1137,6 +1656,12 @@ namespace pcit::panther::sema{
 		const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(func_id);
 		return this->get_source_location(asg_func.name);
 	}
+
+	auto SemanticAnalyzer::get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation {
+		const ASG::TemplatedFunc& asg_templated_func = this->source.getASGBuffer().getTemplatedFunc(templated_func_id);
+		return this->get_source_location(asg_templated_func.funcDecl.name);
+	}
+
 
 	auto SemanticAnalyzer::get_source_location(ASG::Var::ID var_id) const -> SourceLocation {
 		const ASG::Var& asg_var = this->source.getASGBuffer().getVar(var_id);

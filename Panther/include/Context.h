@@ -21,7 +21,7 @@ namespace fs = std::filesystem;
 #include "./SourceManager.h"
 #include "./diagnostics.h"
 #include "./TypeManager.h"
-#include "../src/sema/ScopeManager.h"
+#include "./ScopeManager.h"
 
 
 namespace pcit::panther{
@@ -59,9 +59,7 @@ namespace pcit::panther{
 
 
 			// Loads a number of files in a multithreaded. 
-			// TODO: Make sure the following comment is actually true
-			// No other files should be loaded before or after calling this function. If you want more granular control,
-			// 		load files through the Source Manager directly, (Call this->getSourceManager())
+			// TODO: make a task of the grouped parallelizable tasks merged into one
 			auto loadFiles(evo::ArrayProxy<fs::path> file_paths) -> void;
 			auto tokenizeLoadedFiles() -> void;
 			auto parseLoadedFiles() -> void;
@@ -139,8 +137,8 @@ namespace pcit::panther{
 				#endif
 			}
 
-			EVO_NODISCARD auto getScopeManager() const -> const sema::ScopeManager& { return this->scope_manager; }
-			EVO_NODISCARD auto getScopeManager()       ->       sema::ScopeManager& { return this->scope_manager; }
+			EVO_NODISCARD auto getScopeManager() const -> const ScopeManager& { return this->scope_manager; }
+			EVO_NODISCARD auto getScopeManager()       ->       ScopeManager& { return this->scope_manager; }
 
 		private:
 			auto wait_for_all_current_tasks() -> void;
@@ -165,7 +163,7 @@ namespace pcit::panther{
 			DiagnosticCallback callback;
 			std::mutex callback_mutex{};
 
-			sema::ScopeManager scope_manager{};
+			ScopeManager scope_manager{};
 
 
 			///////////////////////////////////

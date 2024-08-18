@@ -1,14 +1,19 @@
 
 
 
-func func_1 = () -> Void {
-	var foo: Int = 12;
-	func_2();
+
+
+func test = () -> Void {
+
+	func templated_test = <{T: Type, VAL: Int}> () -> Void {
+		var foo: T = VAL;
+	}
+
+	templated_test<{I59, 12}>();
+	templated_test<{I78, true}>();
+
 }
 
-func func_2 = () -> Void {
-	
-}
 
 
 

@@ -13,9 +13,13 @@
 
 #include <PCIT_core.h>
 
-#include "../../include/ASG.h"
+#include "./ASG_IDs.h"
+#include "./source_data.h"
+#include "./AST.h"
+#include "./TypeManager.h"
 
-namespace pcit::panther::sema{
+
+namespace pcit::panther{
 
 	
 	class ScopeManager{
@@ -26,25 +30,34 @@ namespace pcit::panther::sema{
 						using core::UniqueID<uint32_t, ID>::UniqueID;
 					};
 
+					// using TemplateExpr = evo::Variant<uint64_t, float64_t, bool, char>;
+
 				public:
 					ScopeLevel() = default;
 					~ScopeLevel() = default;
 
-					EVO_NODISCARD auto lookupFunc(std::string_view ident) const -> std::optional<ASG::Func::ID>;
-					auto addFunc(std::string_view ident, ASG::Func::ID id) -> void;
+					EVO_NODISCARD auto lookupFunc(std::string_view ident) const -> std::optional<ASG::FuncID>;
+					auto addFunc(std::string_view ident, ASG::FuncID id) -> void;
 
-					EVO_NODISCARD auto lookupVar(std::string_view ident) const -> std::optional<ASG::Var::ID>;
-					auto addVar(std::string_view ident, ASG::Var::ID id) -> void;
+					EVO_NODISCARD auto lookupTemplatedFunc(std::string_view ident) const 
+						-> std::optional<ASG::TemplatedFuncID>;
+					auto addTemplatedFunc(std::string_view ident, ASG::TemplatedFuncID id) -> void;
+
+					EVO_NODISCARD auto lookupVar(std::string_view ident) const -> std::optional<ASG::VarID>;
+					auto addVar(std::string_view ident, ASG::VarID id) -> void;
+
 
 				private:
-					std::unordered_map<std::string_view, ASG::Func::ID> funcs{};
-					std::unordered_map<std::string_view, ASG::Var::ID> vars{};
+					std::unordered_map<std::string_view, ASG::FuncID> funcs{};
+					std::unordered_map<std::string_view, ASG::TemplatedFuncID> templated_funcs{};
+					std::unordered_map<std::string_view, ASG::VarID> vars{};
+
 			};
 
 
 			class Scope{ // not thread-safe
 				public:
-					using ObjectScope = evo::Variant<ASG::Func::ID>;
+					using ObjectScope = evo::Variant<std::monostate, ASG::FuncID>;
 
 				public:
 					Scope() = default;
@@ -54,27 +67,33 @@ namespace pcit::panther::sema{
 					// scope level
 
 					auto pushScopeLevel(ScopeLevel::ID id) -> void;
-					auto pushScopeLevel(ScopeLevel::ID id, ASG::Func::ID func_id) -> void;
+					auto pushScopeLevel(ScopeLevel::ID id, ASG::FuncID func_id) -> void;
 					auto popScopeLevel() -> void;
 
 					EVO_NODISCARD auto getCurrentScopeLevel() const -> ScopeLevel::ID {
 						return this->scope_levels.back();
 					}
 
-					EVO_NODISCARD auto begin() -> evo::SmallVector<ScopeLevel::ID>::iterator {
-						return this->scope_levels.begin();
+					// note: these are purposely backwards
+
+					EVO_NODISCARD auto begin() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
+						return this->scope_levels.rbegin();
 					}
 
-					EVO_NODISCARD auto begin() const -> evo::SmallVector<ScopeLevel::ID>::const_iterator {
-						return this->scope_levels.begin();
+					EVO_NODISCARD auto begin() const -> evo::SmallVector<ScopeLevel::ID>::const_reverse_iterator {
+						return this->scope_levels.rbegin();
 					}
 
-					EVO_NODISCARD auto end() -> evo::SmallVector<ScopeLevel::ID>::iterator {
-						return this->scope_levels.end();
+					EVO_NODISCARD auto end() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
+						return this->scope_levels.rend();
 					}
 
-					EVO_NODISCARD auto end() const -> evo::SmallVector<ScopeLevel::ID>::const_iterator {
-						return this->scope_levels.end();
+					EVO_NODISCARD auto end() const -> evo::SmallVector<ScopeLevel::ID>::const_reverse_iterator {
+						return this->scope_levels.rend();
+					}
+
+					EVO_NODISCARD auto size() const -> size_t {
+						return this->scope_levels.size();
 					}
 
 
@@ -87,10 +106,28 @@ namespace pcit::panther::sema{
 						return this->object_scopes.back().obj_scope;
 					}
 
+					EVO_NODISCARD auto getCurrentObjectScopeIndex() const -> uint32_t {
+						if(this->object_scopes.empty()){ return 0; }
+						return this->object_scopes.back().scope_level_index - 1;
+					}
+
+					// must be popped manually
+					// be careful - only use when declaring things like params
+					EVO_NODISCARD auto pushFakeObjectScope() -> void {
+						this->object_scopes.emplace_back(std::monostate(), uint32_t(this->scope_levels.size()) + 1);
+					}
+
+					EVO_NODISCARD auto popFakeObjectScope() -> void {
+						evo::debugAssert(
+							this->getCurrentObjectScope().is<std::monostate>(), "not in a fake object scope"
+						);
+						this->object_scopes.pop_back();
+					}
+
 				private:
 					struct ObjectScopeData{
 						ObjectScope obj_scope;
-						evo::uint scope_level_index;
+						uint32_t scope_level_index;
 					};
 
 					// TODO: use a stack?
@@ -125,22 +162,22 @@ namespace pcit::panther::sema{
 		public:
 			struct Func{
 				const AST::FuncDecl& ast_func;
-				ASG::Func::ID asg_func;
+				ASG::FuncID asg_func;
 			};
 
 			struct Var{
 				const AST::VarDecl& ast_var;
-				ASG::Var::ID asg_var;
+				ASG::VarID asg_var;
 			};
 
 		public:
 			GlobalScope() = default;
 			~GlobalScope() = default;
 
-			auto addFunc(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> void;
+			auto addFunc(const AST::FuncDecl& ast_func, ASG::FuncID asg_func) -> void;
 			EVO_NODISCARD auto getFuncs() const -> evo::ArrayProxy<Func>;
 
-			auto addVar(const AST::VarDecl& ast_var, ASG::Var::ID asg_var) -> void;
+			auto addVar(const AST::VarDecl& ast_var, ASG::VarID asg_var) -> void;
 			EVO_NODISCARD auto getVars() const -> evo::ArrayProxy<Var>;
 	
 		private:

@@ -19,11 +19,6 @@
 
 namespace pcit::panther{
 
-	namespace sema{
-		class SemanticAnalyzer;
-	}
-
-
 	class ASGBuffer{
 		public:
 			ASGBuffer() = default;
@@ -39,7 +34,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto getFunc(ASG::Func::ID id) const -> const ASG::Func& { return this->funcs[id.get()]; }
-			EVO_NODISCARD auto getFunc(ASG::Func::ID id)       ->       ASG::Func& { return this->funcs[id.get()]; }
+
 
 			EVO_NODISCARD auto getFuncs() const -> core::IterRange<ASG::Func::ID::Iterator> {
 				return core::IterRange<ASG::Func::ID::Iterator>(
@@ -52,6 +47,22 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// templated func calls
+
+			EVO_NODISCARD auto createTemplatedFunc(auto&&... args) -> ASG::TemplatedFunc::ID {
+				const auto created_id = ASG::TemplatedFunc::ID(uint32_t(this->templated_funcs.size()));
+				this->templated_funcs.emplace_back(
+					std::make_unique<ASG::TemplatedFunc>(std::forward<decltype(args)>(args)...)
+				);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getTemplatedFunc(ASG::TemplatedFunc::ID id) const -> const ASG::TemplatedFunc& {
+				return *this->templated_funcs[id.get()];
+			}
+
+
+			///////////////////////////////////
 			// vars
 
 			EVO_NODISCARD auto createVar(auto&&... args) -> ASG::Var::ID {
@@ -61,7 +72,6 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto getVar(ASG::Var::ID id) const -> const ASG::Var& { return this->vars[id.get()]; }
-			EVO_NODISCARD auto getVar(ASG::Var::ID id)       ->       ASG::Var& { return this->vars[id.get()]; }
 
 			EVO_NODISCARD auto getVars() const -> core::IterRange<ASG::Var::ID::Iterator> {
 				return core::IterRange<ASG::Var::ID::Iterator>(
@@ -147,6 +157,7 @@ namespace pcit::panther{
 	
 		private:
 			evo::SmallVector<ASG::Func> funcs{};
+			evo::SmallVector<std::unique_ptr<ASG::TemplatedFunc>> templated_funcs{};
 			evo::SmallVector<ASG::Var> vars{};
 
 			evo::SmallVector<ASG::FuncCall> func_calls{};
@@ -156,7 +167,7 @@ namespace pcit::panther{
 			evo::SmallVector<ASG::LiteralBool> literal_bools{}; // switch to bool for std::vector<bool> optimization?
 			evo::SmallVector<ASG::LiteralChar> literal_chars{};
 
-			friend sema::SemanticAnalyzer;
+			friend class SemanticAnalyzer;
 	};
 
 

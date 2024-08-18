@@ -245,7 +245,13 @@ namespace pcit::panther{
 
 	auto ASGToLLVMIR::get_func_ident_name(const ASG::Func& func) const -> std::string {
 		const Token::ID func_ident_token_id = this->current_source->getASTBuffer().getIdent(func.name);
-		return std::string(this->current_source->getTokenBuffer()[func_ident_token_id].getString());
+		auto name = std::string(this->current_source->getTokenBuffer()[func_ident_token_id].getString());
+
+		if(func.instanceID.has_value()){
+			name += std::format("-i{}", func.instanceID.get());
+		}
+
+		return name;
 	}
 
 
