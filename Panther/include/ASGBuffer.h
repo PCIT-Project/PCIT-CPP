@@ -103,7 +103,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto createLiteralInt(uint64_t integer, std::optional<TypeInfo::ID> type_info_id)
 			-> ASG::LiteralInt::ID {
 				const auto created_id = ASG::LiteralInt::ID(uint32_t(this->literal_ints.size()));
-				this->literal_ints.emplace_back(integer, type_info_id);
+				this->literal_ints.emplace_back(type_info_id, integer);
 				return created_id;
 			}
 
@@ -118,7 +118,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto createLiteralFloat(float64_t floating_point, std::optional<TypeInfo::ID> type_info_id)
 			-> ASG::LiteralFloat::ID {
 				const auto created_id = ASG::LiteralFloat::ID(uint32_t(this->literal_floats.size()));
-				this->literal_floats.emplace_back(floating_point, type_info_id);
+				this->literal_floats.emplace_back(type_info_id, floating_point);
 				return created_id;
 			}
 

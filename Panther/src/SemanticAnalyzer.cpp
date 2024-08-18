@@ -188,71 +188,10 @@ namespace pcit::panther{
 				return false;
 			}
 
-			const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(*var_type_id);
-
-			if(
-				var_type_info.qualifiers().empty() == false || 
-				var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
-			){
-				this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
-				return false;
-			}
-
-
-			const BaseType::Builtin::ID var_type_builtin_id = var_type_info.baseTypeID().id<BaseType::Builtin::ID>();
-			const BaseType::Builtin& var_type_builtin = this->context.getTypeManager().getBuiltin(var_type_builtin_id);
-
-			if(expr_info_result.value().expr->kind() == ASG::Expr::Kind::LiteralInt){
-				switch(var_type_builtin.kind()){
-					case Token::Kind::TypeInt:
-					case Token::Kind::TypeISize:
-					case Token::Kind::TypeI_N:
-					case Token::Kind::TypeUInt:
-					case Token::Kind::TypeUSize:
-					case Token::Kind::TypeUI_N:
-					case Token::Kind::TypeByte:
-					case Token::Kind::TypeCShort:
-					case Token::Kind::TypeCUShort:
-					case Token::Kind::TypeCInt:
-					case Token::Kind::TypeCUInt:
-					case Token::Kind::TypeCLong:
-					case Token::Kind::TypeCULong:
-					case Token::Kind::TypeCLongLong:
-					case Token::Kind::TypeCULongLong:
-					case Token::Kind::TypeCLongDouble:
-						break;
-
-					default: {
-						this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
-						return false;
-					}
-				}
-
-				const ASG::LiteralInt::ID literal_int_id = expr_info_result.value().expr->literalIntID();
-				this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = *var_type_id;
-
-
-			}else{
-				evo::debugAssert(
-					expr_info_result.value().expr->kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
-				);
-
-				switch(var_type_builtin.kind()){
-					case Token::Kind::TypeF16:
-					case Token::Kind::TypeBF16:
-					case Token::Kind::TypeF32:
-					case Token::Kind::TypeF64:
-					case Token::Kind::TypeF128:
-						break;
-
-					default: {
-						this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
-						return false;
-					}
-				}
-
-				const ASG::LiteralFloat::ID literal_float_id = expr_info_result.value().expr->literalFloatID();
-				this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = *var_type_id;
+			if(this->type_check_and_set_fluid_literal_type(
+				"Variable", *var_decl.value, *var_type_id, expr_info_result.value()
+			) == false){
+				return false;	
 			}
 
 			
@@ -345,25 +284,19 @@ namespace pcit::panther{
 						template_params.emplace_back(template_param.ident, std::nullopt);
 
 					}else{
-						this->emit_error(
-							Diagnostic::Code::MiscUnimplementedFeature,
-							param_ast_type,
-							"Template value arguments are currently unsupported"
-						);
-						return evo::resultError;
-						// const evo::Result<TypeInfo::VoidableID> param_type_id = this->get_type_id(param_ast_type);
-						// if(param_type_id.isError()){ return evo::resultError; }
+						const evo::Result<TypeInfo::VoidableID> param_type_id = this->get_type_id(param_ast_type);
+						if(param_type_id.isError()){ return evo::resultError; }
 
-						// if(param_type_id.value().isVoid()){
-						// 	this->emit_error(
-						// 		Diagnostic::Code::SemaImproperUseOfTypeVoid,
-						// 		param_ast_type,
-						// 		"Template parameter cannot be of type \"Void\""
-						// 	);
-						// 	return evo::resultError;
-						// }
+						if(param_type_id.value().isVoid()){
+							this->emit_error(
+								Diagnostic::Code::SemaImproperUseOfTypeVoid,
+								param_ast_type,
+								"Template parameter cannot be of type \"Void\""
+							);
+							return evo::resultError;
+						}
 
-						// template_params.emplace_back(template_param.ident, param_type_id.value().typeID());
+						template_params.emplace_back(template_param.ident, param_type_id.value().typeID());
 					}
 				}
 			}
@@ -826,6 +759,7 @@ namespace pcit::panther{
 
 
 
+
 	//////////////////////////////////////////////////////////////////////
 	// expr
 
@@ -964,10 +898,10 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
-		// auto expr_args = evo::SmallVector<ASG::Expr>();
-		auto type_args = evo::SmallVector<TypeInfo::VoidableID>();
-		auto args = evo::SmallVector<ASG::TemplatedFunc::Arg>();
-		args.reserve(templated_func.templateParams.size());
+		auto instantiation_args = evo::SmallVector<ASG::TemplatedFunc::Arg>();
+		instantiation_args.reserve(templated_func.templateParams.size());
+		auto value_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, ExprInfo>>();
+		value_args.reserve(templated_func.templateParams.size());
 		for(size_t i = 0; i < templated_func.templateParams.size(); i+=1){
 			const ASG::TemplatedFunc::TemplateParam& template_param = templated_func.templateParams[i];
 			const AST::Node& template_arg = templated_expr.args[i];
@@ -988,58 +922,71 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				// const evo::Result<ExprInfo> arg_expr_info = this->analyze_expr<ExprValueKind::ConstEval>(template_arg);
-				// if(arg_expr_info.isError()){ return evo::resultError; }
+				const evo::Result<ExprInfo> arg_expr_info = this->analyze_expr<ExprValueKind::ConstEval>(template_arg);
+				if(arg_expr_info.isError()){ return evo::resultError; }
 
-				// if(
-				// 	arg_expr_info.value().value_type == ExprInfo::ValueType::Import ||
-				// 	arg_expr_info.value().value_type == ExprInfo::ValueType::Templated
-				// ){
-				// 	this->emit_error(
-				// 		Diagnostic::Code::SemaIncorrectTemplateArgValueType, template_arg, "Invalid template argument"
-				// 	);
-				// 	return evo::resultError;
-				// }
 
-				// // expr_args.emplace_back(*arg_expr_info.value().expr);
+				switch(arg_expr_info.value().value_type){
+					case ExprInfo::ValueType::Import: case ExprInfo::ValueType::Templated: {
+						this->emit_error(
+							Diagnostic::Code::SemaIncorrectTemplateArgValueType,
+							template_arg,
+							"Invalid template argument"
+						);
+						return evo::resultError;
+					} break;
 
-				// switch(arg_expr_info.value().expr->kind()){
-				// 	case ASG::Expr::Kind::LiteralInt: {
-				// 		const ASG::LiteralInt::ID literal_id = arg_expr_info.value().expr->literalIntID();
-				// 		args.emplace_back(this->source.getASGBuffer().getLiteralInt(literal_id).value);
-				// 	} break;
+					case ExprInfo::ValueType::FluidLiteral: {
+						if(this->type_check_and_set_fluid_literal_type(
+							"Template parameter", template_arg, *template_param.typeID, arg_expr_info.value()
+						) == false){
+							return evo::resultError;
+						}
+					} break;
 
-				// 	case ASG::Expr::Kind::LiteralFloat: {
-				// 		const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().expr->literalFloatID();
-				// 		args.emplace_back(this->source.getASGBuffer().getLiteralFloat(literal_id).value);
-				// 	} break;
+					default: {
+						if(*template_param.typeID != arg_expr_info.value().type_id.as<TypeInfo::VoidableID>()){
+							this->type_mismatch(
+								"Template parameter", template_arg, *template_param.typeID, arg_expr_info.value()
+							);
+							return evo::resultError;
+						}
+					} break;
+				}
 
-				// 	case ASG::Expr::Kind::LiteralBool: {
-				// 		const ASG::LiteralBool::ID literal_id = arg_expr_info.value().expr->literalBoolID();
-				// 		args.emplace_back(this->source.getASGBuffer().getLiteralBool(literal_id).value);
-				// 	} break;
 
-				// 	case ASG::Expr::Kind::LiteralChar: {
-				// 		const ASG::LiteralChar::ID literal_id = arg_expr_info.value().expr->literalCharID();
-				// 		args.emplace_back(this->source.getASGBuffer().getLiteralChar(literal_id).value);
-				// 	} break;
+				value_args.emplace_back(arg_expr_info.value());
 
-				// 	default: {
-				// 		this->emit_fatal(
-				// 			Diagnostic::Code::SemaExpectedConstEvalValue,
-				// 			template_arg,
-				// 			Diagnostic::createFatalMessage("Evaluated consteval value was not actually consteval")
-				// 		);
-				// 		return evo::resultError;
-				// 	} break;
-				// }
+				switch(arg_expr_info.value().expr->kind()){
+					case ASG::Expr::Kind::LiteralInt: {
+						const ASG::LiteralInt::ID literal_id = arg_expr_info.value().expr->literalIntID();
+						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralInt(literal_id).value);
+					} break;
 
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					templated_expr.args[i],
-					"Template value arguments are currently unsupported"
-				);
-				return evo::resultError;
+					case ASG::Expr::Kind::LiteralFloat: {
+						const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().expr->literalFloatID();
+						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralFloat(literal_id).value);
+					} break;
+
+					case ASG::Expr::Kind::LiteralBool: {
+						const ASG::LiteralBool::ID literal_id = arg_expr_info.value().expr->literalBoolID();
+						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralBool(literal_id).value);
+					} break;
+
+					case ASG::Expr::Kind::LiteralChar: {
+						const ASG::LiteralChar::ID literal_id = arg_expr_info.value().expr->literalCharID();
+						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralChar(literal_id).value);
+					} break;
+
+					default: {
+						this->emit_fatal(
+							Diagnostic::Code::SemaExpectedConstEvalValue,
+							template_arg,
+							Diagnostic::createFatalMessage("Evaluated consteval value was not actually consteval")
+						);
+						return evo::resultError;
+					} break;
+				}
 
 			}else{ // is type
 				switch(template_arg.kind()){
@@ -1048,8 +995,8 @@ namespace pcit::panther{
 						const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_type);
 						if(arg_type.isError()){ return evo::resultError; }
 
-						args.emplace_back(arg_type.value());
-						type_args.emplace_back(arg_type.value());
+						instantiation_args.emplace_back(arg_type.value());
+						value_args.emplace_back(arg_type.value());
 					} break;
 
 					case AST::Kind::Ident: {
@@ -1057,8 +1004,8 @@ namespace pcit::panther{
 						const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_type_token_id);
 						if(arg_type.isError()){ return evo::resultError; }
 
-						args.emplace_back(arg_type.value());
-						type_args.emplace_back(arg_type.value());
+						instantiation_args.emplace_back(arg_type.value());
+						value_args.emplace_back(arg_type.value());
 					} break;
 
 					default: {
@@ -1080,7 +1027,7 @@ namespace pcit::panther{
 			}
 		}
 
-		ASG::TemplatedFunc::LookupInfo lookup_info = templated_func.lookupInstance(std::move(args));
+		ASG::TemplatedFunc::LookupInfo lookup_info = templated_func.lookupInstance(std::move(instantiation_args));
 
 		auto func_id = std::optional<ASG::Func::ID>();
 		if(lookup_info.needToGenerate){
@@ -1096,41 +1043,33 @@ namespace pcit::panther{
 				templated_func.parent.is<std::monostate>() == false &&
 				templated_func.parent == this->scope.getCurrentObjectScope()
 			){
+				template_sema.template_arg_exprs = this->template_arg_exprs;
 				template_sema.template_arg_types = this->template_arg_types;
 			}
 
 			// add template params to scope
 			for(size_t i = 0; i < templated_func.templateParams.size(); i+=1){
 				const ASG::TemplatedFunc::TemplateParam& template_param = templated_func.templateParams[i];
-				const AST::Node& template_arg = templated_expr.args[i];
+				const evo::Variant<TypeInfo::VoidableID, ExprInfo> value_arg = value_args[i];
 
 				const std::string_view param_ident_str = 
 					this->source.getTokenBuffer()[template_param.ident].getString();
 
-				if(template_param.typeID.has_value()){ // is expression
 
+				value_arg.visit([&](const auto& value) -> void {
+					using ValueT = std::decay_t<decltype(value)>;
 
-				}else{ // is type
-					switch(template_arg.kind()){
-						case AST::Kind::Type: {
-							const AST::Type& arg_ast_type = this->source.getASTBuffer().getType(template_arg);
-							const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_type);
-
-							template_sema.template_arg_types.emplace(param_ident_str, arg_type.value());
-						} break;
-
-						case AST::Kind::Ident: {
-							const Token::ID& arg_ast_ident_type = this->source.getASTBuffer().getIdent(template_arg);
-							const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_ident_type);
-
-							template_sema.template_arg_types.emplace(param_ident_str, arg_type.value());
-						} break;
+					if constexpr(std::is_same_v<ValueT, TypeInfo::VoidableID>){
+						template_sema.template_arg_types.emplace(param_ident_str, value);
+					}else{
+						template_sema.template_arg_exprs.emplace(param_ident_str, value);
 					}
-				}
+				});
 			}
 
 
-			const evo::Result<std::optional<ASG::Func::ID>> instatiation = [&](){
+			// analyze func decl and get instantiation
+			const evo::Result<std::optional<ASG::Func::ID>> instantiation = [&](){
 				if(templated_func.scope.inObjectScope()){
 					return template_sema.analyze_func_decl<false>(
 						templated_func.funcDecl, lookup_info.instanceID
@@ -1144,12 +1083,12 @@ namespace pcit::panther{
 				}
 			}();
 
-
-
-			if(instatiation.isError()){ return evo::resultError; }
-			func_id = *instatiation.value();
+			// set instantiation
+			if(instantiation.isError()){ return evo::resultError; }
+			func_id = *instantiation.value();
 			lookup_info.store(*func_id);
 
+			// analyze func body
 			if(template_sema.analyze_func_body(templated_func.funcDecl, *func_id) == false){ return evo::resultError; }
 
 		}else{
@@ -1199,9 +1138,21 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_expr_ident(const Token::ID& ident) -> evo::Result<ExprInfo> {
 		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
 
+		// template exprs
+		const auto template_expr_find = this->template_arg_exprs.find(ident_str);
+		if(template_expr_find != this->template_arg_exprs.end()){
+			if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+				const ExprInfo& template_expr_info = template_expr_find->second;
+				return ExprInfo(template_expr_info.value_type, template_expr_info.type_id, std::nullopt);
+			}else{
+				return template_expr_find->second;
+			}
+		}
+
 		for(size_t i = this->scope.size() - 1; ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
 			const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[scope_level_id];
 
+			// functions
 			const std::optional<ASG::Func::ID> lookup_func_id = scope_level.lookupFunc(ident_str);
 			if(lookup_func_id.has_value()){
 				const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(*lookup_func_id);
@@ -1217,6 +1168,7 @@ namespace pcit::panther{
 				}
 			}
 
+			// templated functions
 			const std::optional<ASG::TemplatedFunc::ID> lookup_templated_func_id = 
 				scope_level.lookupTemplatedFunc(ident_str);
 			if(lookup_templated_func_id.has_value()){
@@ -1242,7 +1194,7 @@ namespace pcit::panther{
 				}
 			}
 
-
+			// variables
 			const std::optional<ASG::Var::ID> lookup_var_id = scope_level.lookupVar(ident_str);
 			if(lookup_var_id.has_value()){
 				if(i >= this->scope.getCurrentObjectScopeIndex() || i == 0){
@@ -1310,7 +1262,6 @@ namespace pcit::panther{
 		switch(token.kind()){
 			case Token::Kind::LiteralInt: {
 				expr_info.value_type = ExprInfo::ValueType::FluidLiteral;
-				// expr_info.type_id = TypeInfo::VoidableID(this->context.getTypeManager().getTypeInt());
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr_info.expr = ASG::Expr(
@@ -1321,7 +1272,6 @@ namespace pcit::panther{
 
 			case Token::Kind::LiteralFloat: {
 				expr_info.value_type = ExprInfo::ValueType::FluidLiteral;
-				// expr_info.type_id = TypeInfo::VoidableID(this->context.getTypeManager().getTypeFloat());
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr_info.expr = ASG::Expr(
@@ -1383,6 +1333,82 @@ namespace pcit::panther{
 
 	//////////////////////////////////////////////////////////////////////
 	// error handling
+
+	template<typename NODE_T>
+	auto SemanticAnalyzer::type_check_and_set_fluid_literal_type(
+		std::string_view name, const NODE_T& location, TypeInfo::ID target_type_id, const ExprInfo& expr_info
+	) -> bool {
+		const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(target_type_id);
+
+		if(
+			var_type_info.qualifiers().empty() == false || 
+			var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
+		){
+			this->type_mismatch(name, location, target_type_id, expr_info);
+			return false;
+		}
+
+
+		const BaseType::Builtin::ID var_type_builtin_id = var_type_info.baseTypeID().id<BaseType::Builtin::ID>();
+		const BaseType::Builtin& var_type_builtin = this->context.getTypeManager().getBuiltin(var_type_builtin_id);
+
+		if(expr_info.expr->kind() == ASG::Expr::Kind::LiteralInt){
+			switch(var_type_builtin.kind()){
+				case Token::Kind::TypeInt:
+				case Token::Kind::TypeISize:
+				case Token::Kind::TypeI_N:
+				case Token::Kind::TypeUInt:
+				case Token::Kind::TypeUSize:
+				case Token::Kind::TypeUI_N:
+				case Token::Kind::TypeByte:
+				case Token::Kind::TypeCShort:
+				case Token::Kind::TypeCUShort:
+				case Token::Kind::TypeCInt:
+				case Token::Kind::TypeCUInt:
+				case Token::Kind::TypeCLong:
+				case Token::Kind::TypeCULong:
+				case Token::Kind::TypeCLongLong:
+				case Token::Kind::TypeCULongLong:
+				case Token::Kind::TypeCLongDouble:
+					break;
+
+				default: {
+					this->type_mismatch(name, location, target_type_id, expr_info);
+					return false;
+				}
+			}
+
+			const ASG::LiteralInt::ID literal_int_id = expr_info.expr->literalIntID();
+			this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = target_type_id;
+
+
+		}else{
+			evo::debugAssert(
+				expr_info.expr->kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
+			);
+
+			switch(var_type_builtin.kind()){
+				case Token::Kind::TypeF16:
+				case Token::Kind::TypeBF16:
+				case Token::Kind::TypeF32:
+				case Token::Kind::TypeF64:
+				case Token::Kind::TypeF128:
+					break;
+
+				default: {
+					this->type_mismatch(name, location, target_type_id, expr_info);
+					return false;
+				}
+			}
+
+			const ASG::LiteralFloat::ID literal_float_id = expr_info.expr->literalFloatID();
+			this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = target_type_id;
+		}
+
+		return true;
+	}
+
+
 
 	template<typename NODE_T>
 	auto SemanticAnalyzer::already_defined(std::string_view ident, const NODE_T& node) const -> bool {

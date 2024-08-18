@@ -1,10 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.20.0
+
+### Panther
+- Added templated function with value parameters
+
+
+<!---------------------------------->
 ## v0.0.19.0
 
 ### Panther
-- Added templated function (just `Type` parameters)
+- Added templated function with `Type` parameters
 - Fixed issue where no statements were analyzed after a function call (in semantic analysis)
 - Fixed local variables declared before a locally-declared function were accepted as part of the scope
 - Fixed identifiers `I`, `U`, and `UI` causing fatal errors

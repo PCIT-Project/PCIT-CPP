@@ -80,6 +80,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_parent() const -> ASG::Parent;
 
 
+
 			///////////////////////////////////
 			// expr
 
@@ -160,6 +161,11 @@ namespace pcit::panther{
 			// error handling
 
 			template<typename NODE_T>
+			EVO_NODISCARD auto type_check_and_set_fluid_literal_type(
+				std::string_view name, const NODE_T& location, TypeInfo::ID target_type_id, const ExprInfo& expr_info
+			) -> bool;
+
+			template<typename NODE_T>
 			EVO_NODISCARD auto already_defined(std::string_view ident, const NODE_T& node) const -> bool;
 
 			template<typename NODE_T>
@@ -231,11 +237,7 @@ namespace pcit::panther{
 			ScopeManager::Scope scope;
 			evo::SmallVector<SourceLocation> template_parents;
 
-			struct TemplateExpr{
-				ASG::Expr expr;
-				Source::ID source_id;
-			};
-			std::unordered_map<std::string_view, TemplateExpr> template_arg_exprs{};
+			std::unordered_map<std::string_view, ExprInfo> template_arg_exprs{};
 			std::unordered_map<std::string_view, TypeInfo::VoidableID> template_arg_types{};
 	};
 	

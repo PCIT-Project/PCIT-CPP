@@ -9,8 +9,8 @@ func test = () -> Void {
 		var foo: T = VAL;
 	}
 
-	templated_test<{I59, 12}>();
-	templated_test<{I78, true}>();
+	templated_test<{I59, 6}>();
+	templated_test<{I78, 8}>();
 
 }
 

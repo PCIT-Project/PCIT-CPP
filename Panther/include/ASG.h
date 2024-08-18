@@ -33,15 +33,18 @@ namespace pcit::panther::ASG{
 	struct LiteralInt{
 		using ID = LiteralIntID;
 
+		// TODO: change to BaseType::ID?
+		std::optional<TypeInfo::ID> typeID; // nullopt if type is unknown (needs to be set before usage)
 		uint64_t value;
-		std::optional<TypeInfo::ID> typeID; // TODO: change to BaseType::ID?
 	};
 
 	struct LiteralFloat{
 		using ID = LiteralFloatID;
-		
+	
+
+		// TODO: change to BaseType::ID?
+		std::optional<TypeInfo::ID> typeID; // nullopt if type is unknown (needs to be set before usage)
 		float64_t value;
-		std::optional<TypeInfo::ID> typeID; // TODO: change to BaseType::ID?
 	};
 
 	struct LiteralBool{
