@@ -72,6 +72,10 @@ namespace pcit::panther{
 		SemaUnsupportedOperator,              // S26
 		SemaImportMemberDoesntExist,          // S27
 		SemaImportMemberIsntPub,              // S28
+		SemaConstEvalVarNotDef,               // S29
+		SemaAssignmentDstNotConcreteMutable,  // S30
+		SemaAssignmentValueNotEphemeral,      // S31
+		SemaCopyExprNotConcrete,              // S32
 
 		LLLVMDataLayoutError,                 // LLVM1
 
@@ -145,6 +149,10 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaUnsupportedOperator:              return "S26";
 			break; case DiagnosticCode::SemaImportMemberDoesntExist:          return "S27";
 			break; case DiagnosticCode::SemaImportMemberIsntPub:              return "S28";
+			break; case DiagnosticCode::SemaConstEvalVarNotDef:               return "S29";
+			break; case DiagnosticCode::SemaAssignmentDstNotConcreteMutable:  return "S30";
+			break; case DiagnosticCode::SemaAssignmentValueNotEphemeral:      return "S31";
+			break; case DiagnosticCode::SemaCopyExprNotConcrete:              return "S32";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 

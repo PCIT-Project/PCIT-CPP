@@ -11,6 +11,7 @@
 
 #include <Evo.h>
 
+#include "./types.h"
 #include "./native_ptr_decls.h"
 
 namespace pcit::llvmint{
@@ -24,6 +25,23 @@ namespace pcit::llvmint{
 	
 		private:
 			llvm::Value* _native;
+	};
+
+
+	class Alloca{
+		public:
+			Alloca(llvm::AllocaInst* native_stmt) : _native(native_stmt) {};
+			~Alloca() = default;
+
+			EVO_NODISCARD auto getAllocatedType() const -> Type;
+
+
+			EVO_NODISCARD operator Value() const;
+
+			EVO_NODISCARD auto native() const -> llvm::AllocaInst* { return this->_native; }
+	
+		private:
+			llvm::AllocaInst* _native;
 	};
 
 
@@ -68,6 +86,20 @@ namespace pcit::llvmint{
 	
 		private:
 			llvm::CallInst* _native;
+	};
+
+
+	class LoadInst{
+		public:
+			LoadInst(llvm::LoadInst* native_stmt) : _native(native_stmt) {};
+			~LoadInst() = default;
+
+			EVO_NODISCARD operator Value() const;
+
+			EVO_NODISCARD auto native() const -> llvm::LoadInst* { return this->_native; }
+	
+		private:
+			llvm::LoadInst* _native;
 	};
 
 

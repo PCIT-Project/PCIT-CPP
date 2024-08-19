@@ -14,6 +14,10 @@
 
 namespace pcit::llvmint{
 
+	Alloca::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
+	auto Alloca::getAllocatedType() const -> Type {
+		return Type(this->native()->getAllocatedType());
+	}
 
 	Constant::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
@@ -21,6 +25,7 @@ namespace pcit::llvmint{
 	ConstantInt::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
 	CallInst::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
-	
+
+	LoadInst::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 		
 }

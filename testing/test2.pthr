@@ -1,7 +1,8 @@
 
 
 func templated = <{T: Type, VAL: Int}> () #pub -> Void {
-	const foo: T = VAL;
+	const foo: T = 12;
+	const bar: Int = VAL;
 }
 
 

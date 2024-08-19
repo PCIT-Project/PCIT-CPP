@@ -178,7 +178,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 	context.loadFiles({
 		"test.pthr",
-		"test2.pthr",
+		// "test2.pthr",
 		
 		// "./local/big_test.pthr",
 		// "./local/big_test_with_params.pthr",

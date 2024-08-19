@@ -37,8 +37,11 @@ namespace pcit::llvmint{
 			auto createBasicBlock(const Function& func, evo::CStrProxy name = '\0') -> BasicBlock;
 
 			EVO_NODISCARD auto createAlloca(const Type& type, evo::CStrProxy name = '\0') -> Alloca;
+			EVO_NODISCARD auto createAlloca(const Type& type, const Value& array_length, evo::CStrProxy name = '\0') 
+			-> Alloca;
 			
-			// createLoad
+			EVO_NODISCARD auto createLoad(const Value& value, const Type& type, evo::CStrProxy name = '\0') -> LoadInst;
+			EVO_NODISCARD auto createLoad(const Alloca& alloca, evo::CStrProxy name = '\0') -> LoadInst;
 
 			auto createStore(const Alloca& dst, const Value& source, bool is_volatile = false) -> void;
 			auto createStore(const Value& dst, const Value& source, bool is_volatile = false) -> void;

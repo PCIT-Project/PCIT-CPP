@@ -60,6 +60,10 @@ namespace pcit::panther::ASG{
 	};
 
 
+	namespace Copy{
+		using ID = CopyID;
+	}
+
 
 	struct Expr{
 		enum class Kind{
@@ -67,6 +71,8 @@ namespace pcit::panther::ASG{
 			LiteralFloat,
 			LiteralBool,
 			LiteralChar,
+
+			Copy,
 
 			Var,
 			Func,
@@ -78,7 +84,9 @@ namespace pcit::panther::ASG{
 		explicit Expr(LiteralBool::ID bool_id) : _kind(Kind::LiteralBool), value{.literal_bool = bool_id} {};
 		explicit Expr(LiteralChar::ID char_id) : _kind(Kind::LiteralChar), value{.literal_char = char_id} {};
 
-		explicit Expr(VarID var_id) : _kind(Kind::Var), value{.var = var_id} {};
+		explicit Expr(Copy::ID copy_id) : _kind(Kind::Copy), value{.copy = copy_id} {};
+
+		explicit Expr(VarLinkID var_id) : _kind(Kind::Var), value{.var = var_id} {};
 		explicit Expr(FuncLinkID func_id) : _kind(Kind::Func), value{.func = func_id} {};
 
 
@@ -102,7 +110,14 @@ namespace pcit::panther::ASG{
 			return this->value.literal_char;
 		}
 
-		EVO_NODISCARD auto varID() const -> VarID {
+
+		EVO_NODISCARD auto copyID() const -> Copy::ID {
+			evo::debugAssert(this->kind() == Kind::Copy, "not a copy");
+			return this->value.copy;
+		}
+
+
+		EVO_NODISCARD auto varLinkID() const -> VarLinkID {
 			evo::debugAssert(this->kind() == Kind::Var, "not a var");
 			return this->value.var;
 		}
@@ -122,7 +137,9 @@ namespace pcit::panther::ASG{
 				LiteralBool::ID literal_bool;
 				LiteralChar::ID literal_char;
 
-				VarID var;
+				Copy::ID copy;
+
+				VarLinkID var;
 				FuncLinkID func; // TODO: figure out how to shrink this / something else to allow Expr to be size 8
 			} value;
 	};
@@ -141,14 +158,24 @@ namespace pcit::panther::ASG{
 	};
 
 
+	struct Assign{
+		using ID = AssignID;
+
+		Expr lhs;
+		Expr rhs;
+	};
+
+
 	struct Stmt{
 		enum class Kind{
 			Var,
 			FuncCall,
+			Assign,
 		};
 
-		explicit Stmt(VarID var_id) : _kind(Kind::Var), value{.var_id = var_id} {};
-		explicit Stmt(FuncCall::ID func_call_id) : _kind(Kind::FuncCall), value{.func_call_id = func_call_id} {};
+		explicit Stmt(VarID var_id) : _kind(Kind::Var), value{.var_id = var_id} {}
+		explicit Stmt(FuncCall::ID func_call_id) : _kind(Kind::FuncCall), value{.func_call_id = func_call_id} {}
+		explicit Stmt(Assign::ID assign_id) : _kind(Kind::Assign), value{.assign_id = assign_id} {}
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -163,12 +190,18 @@ namespace pcit::panther::ASG{
 			return this->value.func_call_id;
 		}
 
+		EVO_NODISCARD auto assignID() const -> Assign::ID {
+			evo::debugAssert(this->kind() == Kind::Assign, "not an assign");
+			return this->value.assign_id;
+		}
+
 
 		private:
 			Kind _kind;
 			union {
 				VarID var_id;
 				FuncCall::ID func_call_id;
+				Assign::ID assign_id;
 			} value;
 	};
 
@@ -298,25 +331,7 @@ namespace pcit::panther::ASG{
 
 	struct Var{
 		using ID = VarID;
-
-		struct LinkID{
-			LinkID(SourceID source_id, ID var_id) : _source_id(source_id), _var_id(var_id) {}
-
-			EVO_NODISCARD auto sourceID() const -> SourceID { return this->_source_id; }
-			EVO_NODISCARD auto varID() const -> ID { return this->_var_id; }
-
-			EVO_NODISCARD auto operator==(const LinkID& rhs) const -> bool {
-				return this->_source_id == rhs._source_id && this->_var_id == rhs._var_id;
-			}
-
-			EVO_NODISCARD auto operator!=(const LinkID& rhs) const -> bool {
-				return this->_source_id != rhs._source_id || this->_var_id != rhs._var_id;
-			}
-			
-			private:
-				SourceID _source_id;
-				ID _var_id;
-		};
+		using LinkID = VarLinkID;
 
 		AST::VarDecl::Kind kind;
 		Token::ID ident;

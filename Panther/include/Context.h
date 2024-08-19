@@ -97,10 +97,9 @@ namespace pcit::panther{
 			// internal use only
 
 			auto emitFatal(auto&&... args) -> void {
-				this->num_errors += 1;
-				if(this->num_errors <= this->config.maxNumErrors){
-					this->emit_diagnostic_internal(Diagnostic::Level::Fatal, std::forward<decltype(args)>(args)...);
-				}
+				this->num_errors = this->config.maxNumErrors;
+				hit_fail_condition = true;
+				this->emit_diagnostic_internal(Diagnostic::Level::Fatal, std::forward<decltype(args)>(args)...);
 				this->notify_task_errored();
 			}
 

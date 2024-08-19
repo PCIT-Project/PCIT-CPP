@@ -48,7 +48,20 @@ namespace pcit::llvmint{
 
 	auto IRBuilder::createAlloca(const Type& type, evo::CStrProxy name) -> Alloca {
 		return Alloca(this->builder->CreateAlloca(type.native(), nullptr, name.c_str()));
-	};
+	}
+
+	auto IRBuilder::createAlloca(const Type& type, const Value& array_length, evo::CStrProxy name) -> Alloca {
+		return Alloca(this->builder->CreateAlloca(type.native(), array_length.native(), name.c_str()));
+	}
+	
+	
+	auto IRBuilder::createLoad(const Value& value, const Type& type, evo::CStrProxy name) -> LoadInst {
+		return this->builder->CreateLoad(type.native(), value.native(), name.c_str());
+	}
+
+	auto IRBuilder::createLoad(const Alloca& alloca, evo::CStrProxy name) -> LoadInst {
+		return this->createLoad(alloca, alloca.getAllocatedType(), name);
+	}
 
 
 	auto IRBuilder::createStore(const Alloca& dst, const Value& source, bool is_volatile) -> void {

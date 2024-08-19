@@ -77,19 +77,24 @@ namespace pcit::panther{
 		const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
 
 		switch(stmt.kind()){
-			break; case ASG::Stmt::Kind::Var: this->lower_var(asg_buffer.getVar(stmt.varID()));
+			break; case ASG::Stmt::Kind::Var: this->lower_var(stmt.varID());
 			break; case ASG::Stmt::Kind::FuncCall: this->lower_func_call(asg_buffer.getFuncCall(stmt.funcCallID()));
+			break; case ASG::Stmt::Kind::Assign: this->lower_assign(asg_buffer.getAssign(stmt.assignID()));
 		}
 	}
 
 
-	auto ASGToLLVMIR::lower_var(const ASG::Var& var) -> void {
+	auto ASGToLLVMIR::lower_var(const ASG::Var::ID var_id) -> void {
+		const ASG::Var& var = this->current_source->getASGBuffer().getVar(var_id);
+
 		const llvmint::Alloca var_alloca = this->builder.createAlloca(
 			this->get_type(var.typeID),
 			this->stmt_name("{}.alloca", this->current_source->getTokenBuffer()[var.ident].getString())
 		);
 
 		this->builder.createStore(var_alloca, this->get_value(var.expr), false);
+
+		this->var_infos.emplace(ASG::Var::LinkID(this->current_source->getID(), var_id), VarInfo(var_alloca));
 	}
 
 
@@ -97,6 +102,14 @@ namespace pcit::panther{
 		const FuncInfo& func_info = this->func_infos.find(func_call.target)->second;
 
 		this->builder.createCall(func_info.func, {});
+	}
+
+
+	auto ASGToLLVMIR::lower_assign(const ASG::Assign& assign) -> void {
+		llvmint::Value lhs = this->get_concrete_value(assign.lhs);
+		llvmint::Value rhs = this->get_value(assign.rhs);
+
+		this->builder.createStore(lhs, rhs);
 	}
 
 
@@ -167,7 +180,28 @@ namespace pcit::panther{
 	}
 
 
-	auto ASGToLLVMIR::get_value(const ASG::Expr& expr, bool get_pointer_to_value) const -> llvmint::Value {
+	auto ASGToLLVMIR::get_concrete_value(const ASG::Expr& expr) -> llvmint::Value {
+		switch(expr.kind()){
+			case ASG::Expr::Kind::LiteralInt:  case ASG::Expr::Kind::LiteralFloat: case ASG::Expr::Kind::LiteralBool:
+			case ASG::Expr::Kind::LiteralChar: case ASG::Expr::Kind::Copy: {
+				evo::debugFatalBreak("Cannot get concrete value this kind");
+			} break;
+
+			case ASG::Expr::Kind::Var: {
+				const VarInfo& var_info = this->var_infos.find(expr.varLinkID())->second;
+				return static_cast<llvmint::Value>(var_info.alloca);
+			} break;
+
+			case ASG::Expr::Kind::Func: {
+				evo::fatalBreak("Function values are unsupported");
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported expr kind");
+	}
+
+
+	auto ASGToLLVMIR::get_value(const ASG::Expr& expr, bool get_pointer_to_value) -> llvmint::Value {
 		evo::Assert(get_pointer_to_value == false, "getting pointer to value is currently unsupported");
 
 		switch(expr.kind()){
@@ -202,8 +236,17 @@ namespace pcit::panther{
 				return static_cast<llvmint::Value>(this->builder.getValueI8(uint8_t(char_value)));
 			} break;
 
+			case ASG::Expr::Kind::Copy: {
+				const ASG::Expr& copy_expr = this->current_source->getASGBuffer().getCopy(expr.copyID());
+				return this->get_value(copy_expr, false);
+			} break;
+
 			case ASG::Expr::Kind::Var: {
-				evo::fatalBreak("ASG::Expr::Kind::Var is unsupported");
+				const VarInfo& var_info = this->var_infos.find(expr.varLinkID())->second;
+				const llvmint::LoadInst load_inst = this->builder.createLoad(
+					var_info.alloca, this->stmt_name("var.load")
+				);
+				return static_cast<llvmint::Value>(load_inst);
 			} break;
 
 			case ASG::Expr::Kind::Func: {
@@ -255,11 +298,19 @@ namespace pcit::panther{
 	}
 
 
+	auto ASGToLLVMIR::stmt_name(std::string_view str) const -> std::string {
+		if(this->config.optimize){
+			return std::string();
+		}else{
+			return std::string(str);
+		}
+	}
+
 
 	template<class... Args>
 	auto ASGToLLVMIR::stmt_name(std::format_string<Args...> fmt, Args&&... args) const -> std::string {
 		if(this->config.optimize){
-			return "";
+			return std::string();
 		}else{
 			return std::format(fmt, std::forward<Args...>(args)...);
 		}

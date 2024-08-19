@@ -41,6 +41,10 @@ namespace pcit::panther::ASG{
 	};
 
 
+	struct CopyID : public core::UniqueID<uint32_t, struct CopyID> {
+		using core::UniqueID<uint32_t, CopyID>::UniqueID;
+	};
+
 
 	//////////////////////////////////////////////////////////////////////
 	// statements
@@ -48,6 +52,10 @@ namespace pcit::panther::ASG{
 
 	struct FuncCallID : public core::UniqueID<uint32_t, struct FuncCallID> {
 		using core::UniqueID<uint32_t, FuncCallID>::UniqueID;
+	};
+
+	struct AssignID : public core::UniqueID<uint32_t, struct AssignID> {
+		using core::UniqueID<uint32_t, AssignID>::UniqueID;
 	};
 
 
@@ -82,6 +90,25 @@ namespace pcit::panther::ASG{
 
 
 	struct VarID : public core::UniqueID<uint32_t, struct VarID> { using core::UniqueID<uint32_t, VarID>::UniqueID;	};
+
+	struct VarLinkID{
+		VarLinkID(SourceID source_id, VarID var_id) : _source_id(source_id), _var_id(var_id) {}
+
+		EVO_NODISCARD auto sourceID() const -> SourceID { return this->_source_id; }
+		EVO_NODISCARD auto varID() const -> VarID { return this->_var_id; }
+
+		EVO_NODISCARD auto operator==(const VarLinkID& rhs) const -> bool {
+			return this->_source_id == rhs._source_id && this->_var_id == rhs._var_id;
+		}
+
+		EVO_NODISCARD auto operator!=(const VarLinkID& rhs) const -> bool {
+			return this->_source_id != rhs._source_id || this->_var_id != rhs._var_id;
+		}
+		
+		private:
+			SourceID _source_id;
+			VarID _var_id;
+	};
 }
 
 
@@ -90,6 +117,15 @@ struct std::hash<pcit::panther::ASG::FuncLinkID>{
 	auto operator()(const pcit::panther::ASG::FuncLinkID& link_id) const noexcept -> size_t {
 		auto hasher = std::hash<uint32_t>{};
 		return evo::hashCombine(hasher(link_id.sourceID().get()), hasher(link_id.funcID().get()));
+	};
+};
+
+
+template<>
+struct std::hash<pcit::panther::ASG::VarLinkID>{
+	auto operator()(const pcit::panther::ASG::VarLinkID& link_id) const noexcept -> size_t {
+		auto hasher = std::hash<uint32_t>{};
+		return evo::hashCombine(hasher(link_id.sourceID().get()), hasher(link_id.varID().get()));
 	};
 };
 

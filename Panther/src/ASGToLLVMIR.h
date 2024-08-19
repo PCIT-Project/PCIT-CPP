@@ -41,16 +41,17 @@ namespace pcit::panther{
 			auto lower_func_body(ASG::Func::ID func_id) -> void;
 
 			auto lower_stmt(const ASG::Stmt& stmt) -> void;
-			auto lower_var(const ASG::Var& var) -> void;
+			auto lower_var(const ASG::Var::ID var_id) -> void;
 			auto lower_func_call(const ASG::FuncCall& func_call) -> void;
+			auto lower_assign(const ASG::Assign& assign) -> void;
 
 
 			EVO_NODISCARD auto get_type(const TypeInfo::ID& type_info_id) const -> llvmint::Type;
 			EVO_NODISCARD auto get_type(const TypeInfo& type_info) const -> llvmint::Type;
 
 			// TODO: make get_pointer_to_value a template?
-			EVO_NODISCARD auto get_value(const ASG::Expr& expr, bool get_pointer_to_value = false) const 
-				-> llvmint::Value;
+			EVO_NODISCARD auto get_value(const ASG::Expr& expr, bool get_pointer_to_value = false) -> llvmint::Value;
+			EVO_NODISCARD auto get_concrete_value(const ASG::Expr& expr) -> llvmint::Value;
 
 
 			EVO_NODISCARD auto mangle_name(const ASG::Func& func) const -> std::string;
@@ -59,6 +60,7 @@ namespace pcit::panther{
 
 			template<class... Args>
 			EVO_NODISCARD auto stmt_name(std::format_string<Args...> fmt, Args&&... args) const -> std::string;
+			EVO_NODISCARD auto stmt_name(std::string_view str) const -> std::string;
 	
 		private:
 			Context& context;
@@ -75,6 +77,11 @@ namespace pcit::panther{
 			};
 
 			std::unordered_map<ASG::Func::LinkID, FuncInfo> func_infos{};
+
+			struct VarInfo{
+				llvmint::Alloca alloca;
+			};
+			std::unordered_map<ASG::Var::LinkID, VarInfo> var_infos{};
 	};
 
 	

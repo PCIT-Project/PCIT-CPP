@@ -37,5 +37,6 @@ namespace llvm{
 	class Constant;
 	class ConstantInt;
 	class CallInst;
+	class LoadInst;
 	
 }

@@ -81,7 +81,7 @@ namespace pcit::panther{
 				case AST::Kind::Literal:       case AST::Kind::This: {
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidGlobalStmtKind,
-						this->source.getASTBuffer().getReturn(global_stmt),
+						global_stmt,
 						"Invalid global statement"
 					);
 					return this->may_recover();
@@ -517,8 +517,13 @@ namespace pcit::panther{
         		return this->analyze_func_call(ast_buffer.getFuncCall(node));
     		} break;
 
+    		case AST::Kind::Infix: {
+    			return this->analyze_infix_stmt(ast_buffer.getInfix(node));
+			} break;
+
+
 			case AST::Kind::Return:        case AST::Kind::Block:    
-			case AST::Kind::TemplatedExpr: case AST::Kind::Infix:    case AST::Kind::MultiAssign: {
+			case AST::Kind::TemplatedExpr: case AST::Kind::MultiAssign: {
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature, node, "This stmt kind is currently unsupported"
 				);
@@ -607,6 +612,86 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::analyze_infix_stmt(const AST::Infix& infix) -> bool {
+		if(this->source.getTokenBuffer()[infix.opTokenID].kind() != Token::lookupKind("=")){
+			// TODO: better messaging
+			this->emit_error(Diagnostic::Code::SemaInvalidStmtKind, infix, "Invalid stmt kind");
+			return false;
+		}
+
+		///////////////////////////////////
+		// assignment
+
+		// lhs
+
+		const evo::Result<ExprInfo> lhs_info = this->analyze_expr<ExprValueKind::Runtime>(infix.lhs);
+		if(lhs_info.isError()){ return this->may_recover(); }
+
+		if(lhs_info.value().value_type != ExprInfo::ValueType::ConcreteMutable){
+			if(lhs_info.value().value_type == ExprInfo::ValueType::ConcreteConst){
+				this->emit_error(
+					Diagnostic::Code::SemaAssignmentDstNotConcreteMutable,
+					infix.lhs,
+					"Cannot assign to a constant value"
+				);
+				return this->may_recover();
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SemaAssignmentDstNotConcreteMutable,
+					infix.lhs,
+					"Cannot assign to a non-concrete value"
+				);
+				return this->may_recover();
+			}
+		}
+
+
+		// rhs
+
+		evo::Result<ExprInfo> rhs_info = this->analyze_expr<ExprValueKind::Runtime>(infix.rhs);
+		if(rhs_info.isError()){ return this->may_recover(); }
+
+		if(rhs_info.value().is_ephemeral() == false){
+			this->emit_error(
+				Diagnostic::Code::SemaAssignmentValueNotEphemeral,
+				infix.rhs,
+				"Assignment value must be ephemeral"
+			);
+			return this->may_recover();
+		}
+
+		const TypeInfo::VoidableID lhs_type = lhs_info.value().type_id.as<TypeInfo::VoidableID>();
+		if(rhs_info.value().value_type == ExprInfo::ValueType::FluidLiteral){
+			if(
+				this->type_check_and_set_fluid_literal_type(
+					"Assignment", infix.rhs, lhs_type.typeID(), rhs_info.value()
+				) == false
+			){
+				return this->may_recover();
+			}
+
+		}else{ // ExprInfo::ValueType::Ephemeral
+			const TypeInfo::VoidableID rhs_type = rhs_info.value().type_id.as<TypeInfo::VoidableID>();
+			if(lhs_type != rhs_type){
+				this->type_mismatch(
+					"Assignment", infix.rhs, lhs_type.typeID(), rhs_info.value()
+				);
+				return this->may_recover();
+			}
+		}
+
+
+		const ASG::Assign::ID asg_assign_id = this->source.asg_buffer.createAssign(
+			*lhs_info.value().expr, *rhs_info.value().expr
+		);
+
+		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
+		ASG::Func& current_func = this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
+		current_func.stmts.emplace_back(asg_assign_id);
+
+		return true;
+	}
 
 
 
@@ -1056,6 +1141,10 @@ namespace pcit::panther{
 					} break;
 				}
 
+				evo::debugAssert(
+					arg_expr_info.value().value_type == ExprInfo::ValueType::Ephemeral,
+					"consteval expr is not ephemeral"
+				);
 
 				value_args.emplace_back(arg_expr_info.value());
 
@@ -1283,10 +1372,69 @@ namespace pcit::panther{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_prefix(const AST::Prefix& prefix) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix expressions are currently unsupported"
-		);
-		return evo::resultError;
+		const evo::Result<ExprInfo> rhs_info = this->analyze_expr<EXPR_VALUE_KIND>(prefix.rhs);
+		if(rhs_info.isError()){ return evo::resultError; }
+
+		switch(this->source.getTokenBuffer()[prefix.opTokenID].kind()){
+			case Token::lookupKind("&"): {
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [&] expression is currently unsupported"
+				);
+				return evo::resultError;
+			} break;
+
+			case Token::Kind::KeywordCopy: {
+				if(rhs_info.value().is_concrete() == false){
+					this->emit_error(
+						Diagnostic::Code::SemaCopyExprNotConcrete,
+						prefix.rhs,
+						"rhs of [copy] expression must be concrete"
+					);
+					return evo::resultError;
+				}
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, std::nullopt);
+				}else{
+					const ASG::Copy::ID asg_copy_id = this->source.asg_buffer.createCopy(*rhs_info.value().expr);
+
+					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, ASG::Expr(asg_copy_id));
+				}
+			} break;
+
+			case Token::Kind::KeywordMove: {
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [move] is currently unsupported"
+				);
+				return evo::resultError;
+			} break;
+
+			case Token::lookupKind("-"): {
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [-] expression is currently unsupported"
+				);
+				return evo::resultError;
+			} break;
+
+			case Token::lookupKind("!"): {
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [!] expression is currently unsupported"
+				);
+				return evo::resultError;
+			} break;
+
+			case Token::lookupKind("~"): {
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [~] expression is currently unsupported"
+				);
+				return evo::resultError;
+			} break;
+
+
+			default: {
+				evo::debugFatalBreak("Unknown or unsupported infix operator");
+			} break;
+		}
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
@@ -1542,15 +1690,27 @@ namespace pcit::panther{
 					return std::optional<ExprInfo>(ExprInfo(value_type, asg_var.typeID, std::nullopt));
 
 				}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
-					this->emit_error(
-						Diagnostic::Code::MiscUnimplementedFeature,
-						ident,
-						"consteval variable expressions are currently unsupported"
+					if(asg_var.kind != AST::VarDecl::Kind::Def){
+						// TODO: better messaging
+						this->emit_error(
+							Diagnostic::Code::SemaConstEvalVarNotDef,
+							ident,
+							"Cannot get a consteval value from a variable that isn't def",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Declared here:", this->get_source_location(*lookup_var_id))
+							}
+						);
+						return evo::resultError;
+					}
+
+					return std::optional<ExprInfo>(
+						ExprInfo(ExprInfo::ValueType::Ephemeral, asg_var.typeID, asg_var.expr)
 					);
-					return evo::resultError;
 
 				}else{
-					return std::optional<ExprInfo>(ExprInfo(value_type, asg_var.typeID, ASG::Expr(*lookup_var_id)));
+					return std::optional<ExprInfo>(
+						ExprInfo(value_type, asg_var.typeID, ASG::Expr(ASG::Var::LinkID(source_id, *lookup_var_id)))
+					);
 				}
 			}else{
 				// TODO: better messaging

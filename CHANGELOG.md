@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.22.0
+
+### Panther
+- Added support for variables to be used as consteval values
+- Added support for assignment expressions
+- Added support for `copy` expressions
+- Fixed fatal error when encountering an invalid global statement
+- Fatal diagnostics now always emit whether hit max errors or not. Additionally, no more errors should be emitted after it
+- Fixed diagnostic "Cannot get a consteval value from a variable that isn't def" not giving the correct source location
+
+
+<!---------------------------------->
 ## v0.0.21.0
 
 ### Panther
@@ -28,7 +40,7 @@
 - Added templated function with `Type` parameters
 - Fixed issue where no statements were analyzed after a function call (in semantic analysis)
 - Fixed local variables declared before a locally-declared function were accepted as part of the scope
-- Fixed identifiers `I`, `U`, and `UI` causing fatal errors
+- Fixed identifiers `I`, `U`, and `UI` causing fatal errors tokenizer
 
 ### pthr
 - Added build target `LLVMIR`

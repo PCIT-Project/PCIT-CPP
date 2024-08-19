@@ -64,6 +64,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_stmt(const AST::Node& node) -> bool;
 
 			EVO_NODISCARD auto analyze_func_call(const AST::FuncCall& func_call) -> bool;
+			EVO_NODISCARD auto analyze_infix_stmt(const AST::Infix& infix) -> bool;
 
 
 			///////////////////////////////////

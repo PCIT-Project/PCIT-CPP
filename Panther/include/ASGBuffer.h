@@ -98,6 +98,34 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// assignments
+
+			EVO_NODISCARD auto createAssign(auto&&... args) -> ASG::Assign::ID {
+				const auto created_id = ASG::Assign::ID(uint32_t(this->assigns.size()));
+				this->assigns.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getAssign(ASG::Assign::ID id) const -> const ASG::Assign& {
+				return this->assigns[id.get()];
+			}
+
+
+			///////////////////////////////////
+			// assignments
+
+			EVO_NODISCARD auto createCopy(auto&&... args) -> ASG::Copy::ID {
+				const auto created_id = ASG::Copy::ID(uint32_t(this->copies.size()));
+				this->copies.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getCopy(ASG::Copy::ID id) const -> const ASG::Expr& {
+				return this->copies[id.get()];
+			}
+
+
+			///////////////////////////////////
 			// ints
 
 			EVO_NODISCARD auto createLiteralInt(uint64_t integer, std::optional<TypeInfo::ID> type_info_id)
@@ -161,6 +189,9 @@ namespace pcit::panther{
 			evo::SmallVector<ASG::Var> vars{};
 
 			evo::SmallVector<ASG::FuncCall> func_calls{};
+			evo::SmallVector<ASG::Assign> assigns{};
+
+			evo::SmallVector<ASG::Expr> copies{};
 
 			evo::SmallVector<ASG::LiteralInt> literal_ints{};
 			evo::SmallVector<ASG::LiteralFloat> literal_floats{};

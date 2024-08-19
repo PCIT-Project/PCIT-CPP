@@ -1,16 +1,11 @@
 
 
-
-
-
 func test = () -> Void {
-	def test2 = @import("./test2.pthr");
-	// def test2_copy = test2;
+	var foo: Int = 12;
+	foo = 14;
 
-	test2.templated<{UI86, 79}>();
-	test2.regular();
+
+
+	var bar: Int = 16;
+	foo = copy bar;
 }
-
-
-
-
