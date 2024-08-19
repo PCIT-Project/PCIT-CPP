@@ -89,18 +89,19 @@ namespace pcit::panther{
 					ConcreteConst,
 					ConcreteMutable,
 					Ephemeral,
-					FluidLiteral,
+					FluidLiteral, // only if actual type is unknown
 					Import,
 					Templated,
 				};
 
 				ValueType value_type;
 				evo::Variant<
-					std::monostate,            // ValueType::[Import|FluidLiteral]
-					TypeInfo::VoidableID,      // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
-					ASG::TemplatedFunc::LinkID // ValueType::Templated
+					std::monostate,             // ValueType::FluidLiteral
+					TypeInfo::VoidableID,       // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
+					ASG::TemplatedFunc::LinkID, // ValueType::Templated
+					Source::ID                  // ValueType::Import
 				> type_id;
-				std::optional<ASG::Expr> expr; // nullopt if from ExprValueKind::None
+				std::optional<ASG::Expr> expr; // nullopt if from ExprValueKind::None or ValueType::Import
 
 				EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {
 					return this->value_type == ValueType::Ephemeral || this->value_type == ValueType::FluidLiteral;
@@ -144,6 +145,16 @@ namespace pcit::panther{
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_ident(const Token::ID& ident) -> evo::Result<ExprInfo>;
 
+			// TODO: does this need to be separate function
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_ident_in_scope_level(
+				Source::ID source, // is this needed, or does `this->source.getID()` suffice?
+				const Token::ID& ident,
+				std::string_view ident_str,
+				ScopeManager::ScopeLevel::ID scope_level_id,
+				bool variables_in_scope
+			) -> evo::Result<std::optional<ExprInfo>>;
+
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_intrinsic(const Token::ID& intrinsic) -> evo::Result<ExprInfo>;
 
@@ -162,11 +173,11 @@ namespace pcit::panther{
 
 			template<typename NODE_T>
 			EVO_NODISCARD auto type_check_and_set_fluid_literal_type(
-				std::string_view name, const NODE_T& location, TypeInfo::ID target_type_id, const ExprInfo& expr_info
+				std::string_view name, const NODE_T& location, TypeInfo::ID target_type_id, ExprInfo& expr_info
 			) -> bool;
 
 			template<typename NODE_T>
-			EVO_NODISCARD auto already_defined(std::string_view ident, const NODE_T& node) const -> bool;
+			EVO_NODISCARD auto already_defined(std::string_view ident_str, const NODE_T& node) const -> bool;
 
 			template<typename NODE_T>
 			auto type_mismatch(
@@ -175,6 +186,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto may_recover() const -> bool;
 
+			auto print_type(const ExprInfo& expr_info) const -> std::string;
 
 			template<typename NODE_T>
 			auto emit_fatal(

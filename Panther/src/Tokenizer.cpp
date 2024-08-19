@@ -190,6 +190,7 @@ namespace pcit::panther{
 
 		// keywords
 		{"var",    Token::Kind::KeywordVar},
+		{"const",  Token::Kind::KeywordConst},
 		{"def",    Token::Kind::KeywordDef},
 		{"func",   Token::Kind::KeywordFunc},
 		{"alias",  Token::Kind::KeywordAlias},

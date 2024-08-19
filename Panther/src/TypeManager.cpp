@@ -138,7 +138,7 @@ namespace pcit::panther{
 		std::string type_str = get_base_str();
 
 		bool is_first_qualifer = true;
-		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
 			if(type_info.qualifiers().size() > 1){
 				if(is_first_qualifer){
 					is_first_qualifer = false;
@@ -147,9 +147,9 @@ namespace pcit::panther{
 				}
 			}
 
-			if(qualifier.has(TypeInfo::QualifierFlag::Ptr)){ type_str += '*'; }
-			if(qualifier.has(TypeInfo::QualifierFlag::ReadOnly)){ type_str += '|'; }
-			if(qualifier.has(TypeInfo::QualifierFlag::Optional)){ type_str += '?'; }
+			if(qualifier.isPtr){ type_str += '*'; }
+			if(qualifier.isReadOnly){ type_str += '|'; }
+			if(qualifier.isOptional){ type_str += '?'; }
 		}
 
 		return type_str;

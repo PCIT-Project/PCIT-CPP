@@ -106,9 +106,9 @@ namespace pcit::panther{
 	}
 
 	auto ASGToLLVMIR::get_type(const TypeInfo& type_info) const -> llvmint::Type {
-		const evo::ArrayProxy<TypeInfo::Qualifier> type_qualifiers = type_info.qualifiers();
+		const evo::ArrayProxy<AST::Type::Qualifier> type_qualifiers = type_info.qualifiers();
 		if(type_qualifiers.empty() == false){
-			if(type_qualifiers.back().has(TypeInfo::QualifierFlag::Ptr)){
+			if(type_qualifiers.back().isPtr){
 				return static_cast<llvmint::Type>(this->builder.getTypePtr());
 			}else{
 				evo::fatalBreak("Optional is unsupported");	

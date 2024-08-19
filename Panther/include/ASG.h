@@ -79,7 +79,7 @@ namespace pcit::panther::ASG{
 		explicit Expr(LiteralChar::ID char_id) : _kind(Kind::LiteralChar), value{.literal_char = char_id} {};
 
 		explicit Expr(VarID var_id) : _kind(Kind::Var), value{.var = var_id} {};
-		explicit Expr(FuncID func_id) : _kind(Kind::Func), value{.func = func_id} {};
+		explicit Expr(FuncLinkID func_id) : _kind(Kind::Func), value{.func = func_id} {};
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -107,7 +107,7 @@ namespace pcit::panther::ASG{
 			return this->value.var;
 		}
 
-		EVO_NODISCARD auto funcID() const -> FuncID {
+		EVO_NODISCARD auto funcLinkID() const -> FuncLinkID {
 			evo::debugAssert(this->kind() == Kind::Func, "not a func");
 			return this->value.func;
 		}
@@ -123,11 +123,10 @@ namespace pcit::panther::ASG{
 				LiteralChar::ID literal_char;
 
 				VarID var;
-				FuncID func;
+				FuncLinkID func; // TODO: figure out how to shrink this / something else to allow Expr to be size 8
 			} value;
 	};
 
-	static_assert(sizeof(Expr) == 8, "sizeof(pcit::panther::ASG::Expr) is different than expected");
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -173,7 +172,7 @@ namespace pcit::panther::ASG{
 			} value;
 	};
 
-	static_assert(sizeof(Stmt) == 8, "sizeof(pcit::panther::ASG::Stmt) is different than expected");
+	static_assert(sizeof(Stmt) == 8, "sizeof(pcit::panther::ASG::Stmt) != 8");
 
 
 
@@ -204,6 +203,7 @@ namespace pcit::panther::ASG{
 		BaseType::ID baseTypeID;
 		Parent parent;
 		InstanceID instanceID;
+		bool isPub: 1;
 		evo::SmallVector<Stmt> stmts{};
 	};
 
@@ -241,17 +241,20 @@ namespace pcit::panther::ASG{
 		Parent parent;
 		evo::SmallVector<TemplateParam> templateParams;
 		ScopeManager::Scope scope;
+		bool isPub: 1;
 
 		TemplatedFunc(
 			const AST::FuncDecl& func_decl,
 			Parent _parent,
 			evo::SmallVector<TemplateParam>&& template_params,
-			const ScopeManager::Scope& _scope
+			const ScopeManager::Scope& _scope,
+			bool is_pub
 		) : 
 			funcDecl(func_decl),
 			parent(_parent),
 			templateParams(std::move(template_params)),
-			scope(_scope)
+			scope(_scope),
+			isPub(is_pub)
 		{}
 
 
@@ -315,8 +318,7 @@ namespace pcit::panther::ASG{
 				ID _var_id;
 		};
 
-
-
+		AST::VarDecl::Kind kind;
 		Token::ID ident;
 		TypeInfo::ID typeID;
 		Expr expr;

@@ -46,12 +46,16 @@ namespace pcit::panther{
 					EVO_NODISCARD auto lookupVar(std::string_view ident) const -> std::optional<ASG::VarID>;
 					auto addVar(std::string_view ident, ASG::VarID id) -> void;
 
+					EVO_NODISCARD auto lookupImport(std::string_view ident) const -> std::optional<SourceID>;
+					EVO_NODISCARD auto getImportLocation(std::string_view ident) const -> Token::ID;
+					auto addImport(std::string_view ident, SourceID id, Token::ID location) -> void;
 
 				private:
 					std::unordered_map<std::string_view, ASG::FuncID> funcs{};
 					std::unordered_map<std::string_view, ASG::TemplatedFuncID> templated_funcs{};
 					std::unordered_map<std::string_view, ASG::VarID> vars{};
-
+					std::unordered_map<std::string_view, SourceID> imports{};
+					std::unordered_map<std::string_view, Token::ID> import_locations{};
 			};
 
 
@@ -157,7 +161,7 @@ namespace pcit::panther{
 			mutable std::shared_mutex mutex{};
 	};
 
-
+	// just to help SemanticAnalyzer keep track of the global declarations
 	class GlobalScope{
 		public:
 			struct Func{

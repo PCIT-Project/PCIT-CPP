@@ -4,14 +4,11 @@
 
 
 func test = () -> Void {
+	def test2 = @import("./test2.pthr");
+	// def test2_copy = test2;
 
-	func templated_test = <{T: Type, VAL: Int}> () -> Void {
-		var foo: T = VAL;
-	}
-
-	templated_test<{I59, 6}>();
-	templated_test<{I78, 8}>();
-
+	test2.templated<{UI86, 79}>();
+	test2.regular();
 }
 
 

@@ -84,6 +84,7 @@ namespace pcit::panther{
 				// keywords
 
 				KeywordVar,
+				KeywordConst,
 				KeywordDef,
 				KeywordFunc,
 				KeywordAlias,
@@ -383,45 +384,46 @@ namespace pcit::panther{
 					///////////////////////////////////
 					// types
 
-					break; case Kind::TypeVoid: return "Void";
-					break; case Kind::TypeType: return "Type";
-					break; case Kind::TypeThis: return "This";
+					break; case Kind::TypeVoid:           return "Void";
+					break; case Kind::TypeType:           return "Type";
+					break; case Kind::TypeThis:           return "This";
 
-					break; case Kind::TypeInt: return "Int";
-					break; case Kind::TypeISize: return "ISize";
-					break; case Kind::TypeI_N: return "I{n}";
+					break; case Kind::TypeInt:            return "Int";
+					break; case Kind::TypeISize:          return "ISize";
+					break; case Kind::TypeI_N:            return "I{n}";
 
-					break; case Kind::TypeUInt: return "UInt";
-					break; case Kind::TypeUSize: return "USize";
-					break; case Kind::TypeUI_N: return "UI{n}";
+					break; case Kind::TypeUInt:           return "UInt";
+					break; case Kind::TypeUSize:          return "USize";
+					break; case Kind::TypeUI_N:           return "UI{n}";
 
-					break; case Kind::TypeF16: return "F16";
-					break; case Kind::TypeBF16: return "BF16";
-					break; case Kind::TypeF32: return "F32";
-					break; case Kind::TypeF64: return "F64";
-					break; case Kind::TypeF128: return "F128";
+					break; case Kind::TypeF16:            return "F16";
+					break; case Kind::TypeBF16:           return "BF16";
+					break; case Kind::TypeF32:            return "F32";
+					break; case Kind::TypeF64:            return "F64";
+					break; case Kind::TypeF128:           return "F128";
 
-					break; case Kind::TypeByte: return "Byte";
-					break; case Kind::TypeBool: return "Bool";
-					break; case Kind::TypeChar: return "Char";
-					break; case Kind::TypeRawPtr: return "RawPtr";
+					break; case Kind::TypeByte:           return "Byte";
+					break; case Kind::TypeBool:           return "Bool";
+					break; case Kind::TypeChar:           return "Char";
+					break; case Kind::TypeRawPtr:         return "RawPtr";
 
 					// C compatibility
-					break; case Kind::TypeCShort: return "CShort";
-					break; case Kind::TypeCUShort: return "CUShort";
-					break; case Kind::TypeCInt: return "CInt";
-					break; case Kind::TypeCUInt: return "CUInt";
-					break; case Kind::TypeCLong: return "CLong";
-					break; case Kind::TypeCULong: return "CULong";
-					break; case Kind::TypeCLongLong: return "CLongLong";
-					break; case Kind::TypeCULongLong: return "CULongLong";
-					break; case Kind::TypeCLongDouble: return "CLongDouble";
+					break; case Kind::TypeCShort:         return "CShort";
+					break; case Kind::TypeCUShort:        return "CUShort";
+					break; case Kind::TypeCInt:           return "CInt";
+					break; case Kind::TypeCUInt:          return "CUInt";
+					break; case Kind::TypeCLong:          return "CLong";
+					break; case Kind::TypeCULong:         return "CULong";
+					break; case Kind::TypeCLongLong:      return "CLongLong";
+					break; case Kind::TypeCULongLong:     return "CULongLong";
+					break; case Kind::TypeCLongDouble:    return "CLongDouble";
 
 
 					///////////////////////////////////
 					// keywords
 
 					break; case Kind::KeywordVar:         return "var";
+					break; case Kind::KeywordConst:       return "const";
 					break; case Kind::KeywordDef:         return "def";
 					break; case Kind::KeywordFunc:        return "func";
 					break; case Kind::KeywordAlias:       return "alias";

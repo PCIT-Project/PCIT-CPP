@@ -74,7 +74,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto parse_stmt() -> Result;
 
-			template<bool IS_DEF>
+			template<AST::VarDecl::Kind VAR_DECL_KIND>
 			EVO_NODISCARD auto parse_var_decl() -> Result;
 
 			EVO_NODISCARD auto parse_func_decl() -> Result;

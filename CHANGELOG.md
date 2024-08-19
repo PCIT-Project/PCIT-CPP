@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.21.0
+
+### Panther
+- Added `const` variables
+- Added intrinsic function `@import`
+	- hacked in at the moment, so no checking of parameters
+- Added the function attribute `pub`
+- Allowed functions to have attributes
+- Fixed fluid literals not being converted into ephemeral values properly
+- Improved source code location in diagnostics for accessor operators
+- Improved readability of type mismatch diagnostic
+
+
+<!---------------------------------->
 ## v0.0.20.0
 
 ### Panther

@@ -261,6 +261,71 @@ namespace pcit::panther{
 	}
 
 
+	auto Context::lookupSourceID(const std::string_view path) -> evo::Result<Source::ID> {
+		for(const Source::ID source_id : this->src_manager){
+			const Source& source = this->src_manager[source_id];
+
+			if(source.getLocationAsString() == path){
+				return source_id;
+			}
+		}
+
+		return evo::resultError;
+	}
+
+
+
+	auto Context::lookupRelativeSourceID(const fs::path& file_location, const std::string_view src_path)
+    -> evo::Expected<Source::ID, LookupSourceIDError> {
+
+		// check is valid path
+		if(src_path.empty()){ return evo::Unexpected(LookupSourceIDError::EmptyPath); }
+
+		fs::path relative_dir = file_location;
+		relative_dir.remove_filename();
+
+		// generate path
+		const fs::path lookup_path = [&]() noexcept {
+			if(src_path.starts_with("./")){
+				return relative_dir / fs::path(src_path.substr(2));
+
+			}else if(src_path.starts_with(".\\")){
+				return relative_dir / fs::path(src_path.substr(3));
+
+			// }else if(src_path.starts_with("/") || src_path.starts_with("\\")){
+			// 	return relative_dir / fs::path(src_path.substr(1));
+
+			}else if(src_path.starts_with("../") || src_path.starts_with("..\\")){
+				return relative_dir / fs::path(src_path);
+
+			}else{
+				return this->config.basePath / fs::path(src_path);
+			}
+		}().lexically_normal();
+
+		if(file_location == lookup_path){
+			return evo::Unexpected(LookupSourceIDError::SameAsCaller);
+		}
+
+		// look for path
+		for(const Source::ID source_id : this->src_manager){
+			const Source& source = this->src_manager[source_id];
+
+			if(source.getLocationAsString() == lookup_path){
+				return source_id;
+			}
+		}
+
+
+		if(evo::fs::exists(lookup_path.string())){
+			return evo::Unexpected(LookupSourceIDError::NotOneOfSources);			
+		}
+
+		return evo::Unexpected(LookupSourceIDError::DoesntExist);
+	}
+
+
+
 
 
 	auto Context::wait_for_all_current_tasks() -> void {

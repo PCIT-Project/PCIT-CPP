@@ -10,6 +10,7 @@
 #include "../include/ScopeManager.h"
 
 #include "../include/ASG.h"
+#include "../include/Source.h"
 
 
 namespace pcit::panther{
@@ -58,6 +59,28 @@ namespace pcit::panther{
 		evo::debugAssert(this->lookupVar(ident).has_value() == false, "Scope already has var \"{}\"", ident);
 
 		this->vars.emplace(ident, id);
+	}
+
+
+
+	auto ScopeManager::ScopeLevel::lookupImport(std::string_view ident) const -> std::optional<Source::ID> {
+		const std::unordered_map<std::string_view, Source::ID>::const_iterator lookup_iter = this->imports.find(ident);
+		if(lookup_iter == this->imports.end()){ return std::nullopt; }
+
+		return lookup_iter->second;
+	}
+	auto ScopeManager::ScopeLevel::getImportLocation(std::string_view ident) const -> Token::ID {
+		using LookupIter = std::unordered_map<std::string_view, Token::ID>::const_iterator;
+		const LookupIter lookup_iter = this->import_locations.find(ident);
+		evo::debugAssert(lookup_iter != this->import_locations.end(), "scope level does not have import \"{}\"", ident);
+
+		return lookup_iter->second;
+	}
+	auto ScopeManager::ScopeLevel::addImport(std::string_view ident, Source::ID id, Token::ID location) -> void {
+		evo::debugAssert(this->lookupImport(ident).has_value() == false, "Scope already has var \"{}\"", ident);
+
+		this->imports.emplace(ident, id);
+		this->import_locations.emplace(ident, location);
 	}
 
 

@@ -32,9 +32,18 @@ namespace pcit::panther{
 			using DiagnosticCallback = std::function<void(const Context&, const Diagnostic&)>;
 
 			struct Config{
+				fs::path basePath;
+				
 				evo::uint numThreads   = 0;
 				evo::uint maxNumErrors = 1;
 				bool mayRecover        = true;
+			};
+
+			enum class LookupSourceIDError{
+				EmptyPath,
+				SameAsCaller,
+				NotOneOfSources,
+				DoesntExist,
 			};
 
 		public:
@@ -66,6 +75,10 @@ namespace pcit::panther{
 			auto semanticAnalysisLoadedFiles() -> void;
 
 			EVO_NODISCARD auto printLLVMIR() -> evo::Result<std::string>;
+
+			EVO_NODISCARD auto lookupSourceID(const std::string_view src_path) -> evo::Result<Source::ID>;
+			EVO_NODISCARD auto lookupRelativeSourceID(const fs::path& file_location, const std::string_view src_path)
+				-> evo::Expected<Source::ID, LookupSourceIDError>;
 			
 
 			EVO_NODISCARD auto errored() const -> bool { return this->num_errors != 0; }
@@ -78,7 +91,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getTypeManager() const -> const TypeManager& { return this->type_manager; }
 
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
-
 
 
 			///////////////////////////////////

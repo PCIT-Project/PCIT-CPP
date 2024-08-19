@@ -17,7 +17,7 @@
 
 namespace pcit::panther{
 
-
+	// TODO: reorganize/reorder codes
 	enum class DiagnosticCode{
 		TokUnrecognizedCharacter,             // T1
 		TokUnterminatedMultilineComment,      // T2
@@ -66,12 +66,19 @@ namespace pcit::panther{
 		SemaIncorrectTemplateInstantiation,   // S20
 		SemaExpectedConstEvalValue,           // S21
 		SemaInvalidBaseType,                  // S22
+		SemaUnknownAttribute,                 // S23
+		SemaFailedToImportFile,               // S24
+		SemaIncorrectImportDecl,              // S25
+		SemaUnsupportedOperator,              // S26
+		SemaImportMemberDoesntExist,          // S27
+		SemaImportMemberIsntPub,              // S28
 
 		LLLVMDataLayoutError,                 // LLVM1
 
 		MiscFileDoesNotExist,                 // M1
 		MiscLoadFileFailed,                   // M2
 		MiscUnimplementedFeature,             // M3
+		MiscUnknownFatal,                     // M4
 	};
 
 	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, Source::Location>;
@@ -132,12 +139,19 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaIncorrectTemplateInstantiation:   return "S20";
 			break; case DiagnosticCode::SemaExpectedConstEvalValue:           return "S21";
 			break; case DiagnosticCode::SemaInvalidBaseType:                  return "S22";
+			break; case DiagnosticCode::SemaUnknownAttribute:                 return "S23";
+			break; case DiagnosticCode::SemaFailedToImportFile:               return "S24";
+			break; case DiagnosticCode::SemaIncorrectImportDecl:              return "S25";
+			break; case DiagnosticCode::SemaUnsupportedOperator:              return "S26";
+			break; case DiagnosticCode::SemaImportMemberDoesntExist:          return "S27";
+			break; case DiagnosticCode::SemaImportMemberIsntPub:              return "S28";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 
 			break; case DiagnosticCode::MiscFileDoesNotExist:                 return "M1";
 			break; case DiagnosticCode::MiscLoadFileFailed:                   return "M2";
 			break; case DiagnosticCode::MiscUnimplementedFeature:             return "M3";
+			break; case DiagnosticCode::MiscUnknownFatal:                     return "M4";
 		}
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");

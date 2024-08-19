@@ -16,6 +16,7 @@
 
 #include "./source_data.h"
 #include "./Token.h"
+#include "./AST.h"
 
 namespace pcit::panther{
 
@@ -210,19 +211,17 @@ namespace pcit::panther{
 				Optional,
 				_max,
 			};
-
-			using Qualifier = evo::Flags<QualifierFlag>;
-			static_assert(sizeof(Qualifier) == 1);
+			
 			
 		public:
 			TypeInfo(const BaseType::ID& id) : base_type(id), _qualifiers() {};
-			TypeInfo(const BaseType::ID& id, evo::SmallVector<Qualifier>&& qualifiers_list)
-				: base_type(id), _qualifiers(std::move(qualifiers_list)) {};
+			TypeInfo(const BaseType::ID& id, const evo::SmallVector<AST::Type::Qualifier>& qualifiers_list)
+				: base_type(id), _qualifiers(qualifiers_list) {};
 			~TypeInfo() = default;
 
 
 			EVO_NODISCARD auto baseTypeID() const -> BaseType::ID { return this->base_type; }
-			EVO_NODISCARD auto qualifiers() const -> evo::ArrayProxy<Qualifier> { return this->_qualifiers; }
+			EVO_NODISCARD auto qualifiers() const -> evo::ArrayProxy<AST::Type::Qualifier> { return this->_qualifiers; }
 
 			EVO_NODISCARD auto operator==(const TypeInfo& rhs) const -> bool {
 				return this->base_type == rhs.base_type && this->_qualifiers == rhs._qualifiers;
@@ -230,7 +229,7 @@ namespace pcit::panther{
 	
 		private:
 			BaseType::ID base_type;
-			evo::SmallVector<Qualifier> _qualifiers;
+			evo::SmallVector<AST::Type::Qualifier> _qualifiers;
 	};
 
 	class TypeManager{

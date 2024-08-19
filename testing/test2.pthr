@@ -1,14 +1,10 @@
 
 
-
-func test = () -> Int* {
-	
+func templated = <{T: Type, VAL: Int}> () #pub -> Void {
+	const foo: T = VAL;
 }
 
-func asdf = () -> (name: Int*, bar: Int*) {
-	
-}
 
-func test = () -> Void {
+func regular = () #pub -> Void {
 	
 }

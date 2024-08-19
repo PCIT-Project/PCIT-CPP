@@ -46,10 +46,11 @@ namespace pcit::panther{
 		const Token& peeked_token = this->reader[this->reader.peek()];
 		
 		switch(peeked_token.kind()){
-			case Token::Kind::KeywordVar: return this->parse_var_decl<false>();
-			case Token::Kind::KeywordDef: return this->parse_var_decl<true>();
-			case Token::Kind::KeywordFunc: return this->parse_func_decl();
-			case Token::Kind::KeywordAlias: return this->parse_alias_decl();
+			case Token::Kind::KeywordVar:    return this->parse_var_decl<AST::VarDecl::Kind::Var>();
+			case Token::Kind::KeywordConst:  return this->parse_var_decl<AST::VarDecl::Kind::Const>();
+			case Token::Kind::KeywordDef:    return this->parse_var_decl<AST::VarDecl::Kind::Def>();
+			case Token::Kind::KeywordFunc:   return this->parse_func_decl();
+			case Token::Kind::KeywordAlias:  return this->parse_alias_decl();
 			case Token::Kind::KeywordReturn: return this->parse_return();
 		}
 
@@ -64,12 +65,16 @@ namespace pcit::panther{
 
 
 	// TODO: check EOF
-	template<bool IS_DEF>
+	template<AST::VarDecl::Kind VAR_DECL_KIND>
 	auto Parser::parse_var_decl() -> Result {
-		if constexpr(IS_DEF){
-			if(this->assert_token_fail(Token::Kind::KeywordDef)){ return Result::Code::Error; }
-		}else{
+		if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::Var){
 			if(this->assert_token_fail(Token::Kind::KeywordVar)){ return Result::Code::Error; }
+
+		}else if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::Const){
+			if(this->assert_token_fail(Token::Kind::KeywordConst)){ return Result::Code::Error; }
+			
+		}else{
+			if(this->assert_token_fail(Token::Kind::KeywordDef)){ return Result::Code::Error; }
 		}
 
 		const Result ident = this->parse_ident();
@@ -111,7 +116,7 @@ namespace pcit::panther{
 
 
 		return this->source.ast_buffer.createVarDecl(
-			IS_DEF, ASTBuffer::getIdent(ident.value()), type, attributes.value(), value
+			VAR_DECL_KIND, ASTBuffer::getIdent(ident.value()), type, attributes.value(), value
 		);
 	}
 

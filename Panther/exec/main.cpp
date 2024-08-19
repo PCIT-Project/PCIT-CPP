@@ -54,6 +54,9 @@ struct Config{
 	bool verbose;
 	bool print_color;
 
+	fs::path relative_dir{};
+	bool relative_dir_set = false;
+
 	evo::uint max_threads    = 0;
 	evo::uint max_num_errors = std::numeric_limits<evo::uint>::max();
 	bool may_recover         = true;
@@ -118,7 +121,23 @@ auto main(int argc, const char* argv[]) -> int {
 
 	const evo::uint num_threads = config.max_threads;
 
+	if(config.relative_dir_set == false){
+		config.relative_dir_set = true;
+
+		std::error_code ec;
+		config.relative_dir = fs::current_path(ec);
+		if(ec){
+			printer.printlnError("Failed to get relative directory");
+			printer.printlnError("\tcode: \"{}\"", ec.value());
+			printer.printlnError("\tmessage: \"{}\"", ec.message());
+
+			// exit();
+			return EXIT_FAILURE;
+		}
+	}
+
 	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), panther::Context::Config{
+		.basePath     = config.relative_dir,
 		.numThreads   = num_threads,
 		.maxNumErrors = config.max_num_errors,
 		.mayRecover   = config.may_recover,
@@ -159,7 +178,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 	context.loadFiles({
 		"test.pthr",
-		// "test2.pthr",
+		"test2.pthr",
 		
 		// "./local/big_test.pthr",
 		// "./local/big_test_with_params.pthr",

@@ -121,7 +121,12 @@ namespace std{
 namespace pcit::panther::AST{
 	
 	struct VarDecl{
-		bool isDef;
+		enum class Kind{
+			Var,
+			Const,
+			Def,
+		};
+		Kind kind;
 		Token::ID ident;
 		std::optional<Node> type;
 		Node attributeBlock;
@@ -221,10 +226,15 @@ namespace pcit::panther::AST{
 
 	struct Type{
 		struct Qualifier{
-			bool isPtr;
-			bool isReadOnly;
-			bool isOptional;
+			bool isPtr: 1;
+			bool isReadOnly: 1;
+			bool isOptional: 1;
+
+			EVO_NODISCARD auto operator==(const Qualifier& rhs) const -> bool {
+				return (std::bit_cast<uint8_t>(*this) & 0b111) == (std::bit_cast<uint8_t>(rhs) & 0b111);
+			}
 		};
+		static_assert(sizeof(Qualifier) == 1, "sizeof(AST::Type::Qualifier) != 1");
 
 		Node base;
 		evo::SmallVector<Qualifier> qualifiers;

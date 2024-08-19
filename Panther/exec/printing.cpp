@@ -260,10 +260,10 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Kind");
-					if(var_decl.isDef){
-						this->printer.printMagenta(" def\n");
-					}else{
-						this->printer.printMagenta(" var\n");
+					switch(var_decl.kind){
+						break; case panther::AST::VarDecl::Kind::Var:   this->printer.printMagenta(" var\n");
+						break; case panther::AST::VarDecl::Kind::Const: this->printer.printMagenta(" const\n");
+						break; case panther::AST::VarDecl::Kind::Def:   this->printer.printMagenta(" def\n");
 					}
 
 					this->indenter.print_arrow();
