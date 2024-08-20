@@ -110,84 +110,85 @@ namespace pcit::panther{
 
 				RightArrow, // ->
 				Underscore, // _
+				Ellipsis,   // ...
 
 				// assignment
-				Assign, // =
-				AssignAdd, // +=
-				AssignAddWrap, // +@=
-				AssignAddSat, // +|=
-				AssignSub, // -=
-				AssignSubWrap, // -@=
-				AssignSubSat, // -|=
-				AssignMul, // *=
-				AssignMulWrap, // *@=
-				AssignMulSat, // *|=
-				AssignDiv, // /=
-				AssignMod, // %=
-				AssignShiftLeft, // <<=
+				Assign,             // =
+				AssignAdd,          // +=
+				AssignAddWrap,      // +@=
+				AssignAddSat,       // +|=
+				AssignSub,          // -=
+				AssignSubWrap,      // -@=
+				AssignSubSat,       // -|=
+				AssignMul,          // *=
+				AssignMulWrap,      // *@=
+				AssignMulSat,       // *|=
+				AssignDiv,          // /=
+				AssignMod,          // %=
+				AssignShiftLeft,    // <<=
 				AssignShiftLeftSat, // <<|=
-				AssignShiftRight, // >>=
-				AssignBitwiseAnd, // &=
-				AssignBitwiseOr, // |=
-				AssignBitwiseXOr, // ^=
+				AssignShiftRight,   // >>=
+				AssignBitwiseAnd,   // &=
+				AssignBitwiseOr,    // |=
+				AssignBitwiseXOr,   // ^=
 
 
 				// arithmetic
-				Plus, // +
-				AddWrap, // +@
-				AddSat, // +|
-				Minus, // -
-				SubWrap, // -@
-				SubSat, // -|
-				Asterisk, // *
-				MulWrap, // *@
-				MulSat, // *|
+				Plus,         // +
+				AddWrap,      // +@
+				AddSat,       // +|
+				Minus,        // -
+				SubWrap,      // -@
+				SubSat,       // -|
+				Asterisk,     // *
+				MulWrap,      // *@
+				MulSat,       // *|
 				ForwardSlash, // /
-				Mod, // %
+				Mod,          // %
 
 				// comparative
-				Equal, // ==
-				NotEqual, // !=
-				LessThan, // <
-				LessThanEqual, // <=
-				GreaterThan, // >
+				Equal,            // ==
+				NotEqual,         // !=
+				LessThan,         // <
+				LessThanEqual,    // <=
+				GreaterThan,      // >
 				GreaterThanEqual, // >=
 
 				// logical
 				Not, // !
 				And, // &&
-				Or, // ||
+				Or,  // ||
 
 				// bitwise
-				ShiftLeft, // <<
+				ShiftLeft,    // <<
 				ShiftLeftSat, // <<|
-				ShiftRight, // >>
-				BitwiseAnd, // &
-				BitwiseOr, // |
-				BitwiseXOr, // ^
-				BitwiseNot, // ~
+				ShiftRight,   // >>
+				BitwiseAnd,   // &
+				BitwiseOr,    // |
+				BitwiseXOr,   // ^
+				BitwiseNot,   // ~
 
 				// accessors
-				Accessor, // .
+				Accessor,    // .
 				Dereference, // .*
-				Unwrap, // .?
+				Unwrap,      // .?
 
 				// Templates
-				OpenTemplate, // <{
+				OpenTemplate,  // <{
 				CloseTemplate, // }>
 				
 				///////////////////////////////////
 				// punctuation
 
-				OpenParen, // (
-				CloseParen, // )
-				OpenBracket, // [
+				OpenParen,    // (
+				CloseParen,   // )
+				OpenBracket,  // [
 				CloseBracket, // ]
-				OpenBrace, // {
-				CloseBrace, // }
-				Comma, // ,
-				SemiColon, // ;
-				Colon, // :
+				OpenBrace,    // {
+				CloseBrace,   // }
+				Comma,        // ,
+				SemiColon,    // ;
+				Colon,        // :
 				QuestionMark, // ?
 			};
 
@@ -274,6 +275,8 @@ namespace pcit::panther{
 				if(op_str == "<<|="){ return Kind::AssignShiftLeftSat; }
 
 				// length 3
+				if(op_str == "..."){ return Kind::Ellipsis; }
+
 				if(op_str == "<<|"){ return Kind::ShiftLeftSat; }
 				if(op_str == "+@="){ return Kind::AssignAddWrap; }
 				if(op_str == "+|="){ return Kind::AssignAddSat; }

@@ -195,7 +195,7 @@ namespace pcit::panther{
 		if(this->assert_token_fail(Token::Kind::KeywordReturn)){ return Result::Code::Error; }
 
 		auto label = std::optional<AST::Node>();
-		auto expr = std::optional<AST::Node>();
+		auto expr = evo::Variant<std::monostate, AST::Node, Token::ID>();
 
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
 			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::Error; }
@@ -205,11 +205,15 @@ namespace pcit::panther{
 			label = label_result.value();
 		}
 
-		const Result expr_result = this->parse_expr();
-		if(expr_result.code() == Result::Code::Error){
-			return Result::Code::Error;
-		}else if(expr_result.code() == Result::Code::Success){
-			expr = expr_result.value();
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("...")){
+			expr = this->reader.next();
+		}else{
+			const Result expr_result = this->parse_expr();
+			if(expr_result.code() == Result::Code::Error){
+				return Result::Code::Error;
+			}else if(expr_result.code() == Result::Code::Success){
+				expr = expr_result.value();
+			}
 		}
 
 		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [return] statement")){

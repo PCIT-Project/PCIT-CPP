@@ -250,10 +250,7 @@ namespace pcit::panther{
 		);
 
 		this->get_current_scope_level().addVar(var_ident, asg_var_id);
-
-		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
-		ASG::Func& current_func = this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
-		current_func.stmts.emplace_back(asg_var_id);
+		this->get_current_func().stmts.emplace_back(asg_var_id);
 		
 		return true;
 	};
@@ -463,12 +460,16 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> bool {
-		this->scope.pushScopeLevel(this->context.getScopeManager().createScopeLevel(), asg_func);
+	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool {
+		this->scope.pushScopeLevel(this->context.getScopeManager().createScopeLevel(), asg_func_id);
 		EVO_DEFER([&](){ this->scope.popScopeLevel(); });
 
 		if(this->analyze_block(this->source.getASTBuffer().getBlock(ast_func.block)) == false){
 			return this->may_recover();
+		}
+
+		if(this->get_current_scope_level().isTerminated()){
+			this->get_current_func().isTerminated = true;
 		}
 
 		return true;
@@ -488,6 +489,17 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze_stmt(const AST::Node& node) -> bool {
+		if(this->get_current_scope_level().isTerminated()){
+			// TODO: better messaging
+			this->emit_error(
+				Diagnostic::Code::SemaStmtAfterScopeTerminated,
+				node,
+				"Encountered statement after scope is terminated"
+			);
+			return false;
+		}
+
+
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		// TODO: order cases correctly
@@ -521,9 +533,11 @@ namespace pcit::panther{
     			return this->analyze_infix_stmt(ast_buffer.getInfix(node));
 			} break;
 
+			case AST::Kind::Return: {
+    			return this->analyze_return_stmt(ast_buffer.getReturn(node));
+			} break;
 
-			case AST::Kind::Return:        case AST::Kind::Block:    
-			case AST::Kind::TemplatedExpr: case AST::Kind::MultiAssign: {
+			case AST::Kind::Block: case AST::Kind::MultiAssign: {
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature, node, "This stmt kind is currently unsupported"
 				);
@@ -532,7 +546,7 @@ namespace pcit::panther{
 
 
 			case AST::Kind::Literal:   case AST::Kind::This:    case AST::Kind::Ident:
-			case AST::Kind::Intrinsic: case AST::Kind::Postfix: {
+			case AST::Kind::Intrinsic: case AST::Kind::Postfix: case AST::Kind::TemplatedExpr: {
 				// TODO: message the exact kind
 				this->emit_error(Diagnostic::Code::SemaInvalidStmtKind, node, "Invalid statement");
 				return this->may_recover();
@@ -603,9 +617,7 @@ namespace pcit::panther{
 			target_info_res.value().expr->funcLinkID()
 		);
 
-		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
-		ASG::Func& current_func = this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
-		current_func.stmts.emplace_back(asg_func_id);
+		this->get_current_func().stmts.emplace_back(asg_func_id);
 
 		return true;
 	}
@@ -686,9 +698,70 @@ namespace pcit::panther{
 			*lhs_info.value().expr, *rhs_info.value().expr
 		);
 
-		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
-		ASG::Func& current_func = this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
-		current_func.stmts.emplace_back(asg_assign_id);
+		this->get_current_func().stmts.emplace_back(asg_assign_id);
+
+		return true;
+	}
+
+
+
+	auto SemanticAnalyzer::analyze_return_stmt(const AST::Return& return_stmt) -> bool {
+		if(return_stmt.label.has_value()){
+			this->emit_error(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				return_stmt.label.value(),
+				"return statements with labels are currently unsupported"
+			);
+			return false;
+		}
+
+		auto return_value = std::optional<ASG::Expr>();
+		const bool return_value_visit_result = return_stmt.value.visit([&](auto value) -> bool {
+			using ValueT = std::decay_t<decltype(value)>;
+
+			if constexpr(std::is_same_v<ValueT, std::monostate>){
+				// TODO: 
+				return true;
+
+			}else if constexpr(std::is_same_v<ValueT, panther::AST::Node>){
+				const evo::Result<ExprInfo> value_info = this->analyze_expr<ExprValueKind::Runtime>(value);
+				if(value_info.isError()){ return false; }
+
+				if(value_info.value().is_ephemeral() == false){
+					this->emit_error(
+						Diagnostic::Code::SemaReturnNotEphemeral,
+						value,
+						"Value of return statement is not ephemeral"
+					);
+					return false;
+				}
+
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					value,
+					"return statements with values are currently unsupported"
+				);
+				return false;
+
+			}else if constexpr(std::is_same_v<ValueT, panther::Token::ID>){
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					value,
+					"return statements with [...] are currently unsupported"
+				);
+				return false;
+
+			}else{
+				static_assert(sizeof(ValueT) < 0, "Unknown or unsupported return value kind");
+			}
+		});
+		if(!return_value_visit_result){ return false; }
+
+		const ASG::Return::ID asg_return_id = this->source.asg_buffer.createReturn(return_value);
+
+		this->get_current_func().stmts.emplace_back(asg_return_id);
+
+		this->get_current_scope_level().setTerminated();
 
 		return true;
 	}
@@ -861,6 +934,13 @@ namespace pcit::panther{
 				}
 			});
 		}
+	}
+
+
+
+	auto SemanticAnalyzer::get_current_func() const -> ASG::Func& {
+		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
+		return this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
 	}
 
 

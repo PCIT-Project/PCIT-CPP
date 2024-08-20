@@ -112,7 +112,21 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// assignments
+			// returns
+
+			EVO_NODISCARD auto createReturn(auto&&... args) -> ASG::Return::ID {
+				const auto created_id = ASG::Return::ID(uint32_t(this->returns.size()));
+				this->returns.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getReturn(ASG::Return::ID id) const -> const ASG::Return& {
+				return this->returns[id.get()];
+			}
+
+
+			///////////////////////////////////
+			// copies
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> ASG::Copy::ID {
 				const auto created_id = ASG::Copy::ID(uint32_t(this->copies.size()));
@@ -190,6 +204,7 @@ namespace pcit::panther{
 
 			evo::SmallVector<ASG::FuncCall> func_calls{};
 			evo::SmallVector<ASG::Assign> assigns{};
+			evo::SmallVector<ASG::Return> returns{};
 
 			evo::SmallVector<ASG::Expr> copies{};
 

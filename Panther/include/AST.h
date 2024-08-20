@@ -169,7 +169,7 @@ namespace pcit::panther::AST{
 	struct Return{
 		Token::ID keyword;
 		std::optional<Node> label;
-		std::optional<Node> value;
+		evo::Variant<std::monostate, Node, Token::ID> value; // std::monostate == return; Token::ID == return...;
 	};
 
 	struct Block{

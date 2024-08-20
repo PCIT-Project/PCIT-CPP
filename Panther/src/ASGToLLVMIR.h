@@ -44,6 +44,7 @@ namespace pcit::panther{
 			auto lower_var(const ASG::Var::ID var_id) -> void;
 			auto lower_func_call(const ASG::FuncCall& func_call) -> void;
 			auto lower_assign(const ASG::Assign& assign) -> void;
+			auto lower_return(const ASG::Return& return_stmt) -> void;
 
 
 			EVO_NODISCARD auto get_type(const TypeInfo::ID& type_info_id) const -> llvmint::Type;

@@ -68,7 +68,9 @@ namespace pcit::panther{
 			this->lower_stmt(stmt);
 		}
 
-		this->builder.createRet();
+		if(asg_func.isTerminated == false){
+			this->builder.createRet();
+		}
 	}
 
 
@@ -80,6 +82,7 @@ namespace pcit::panther{
 			break; case ASG::Stmt::Kind::Var: this->lower_var(stmt.varID());
 			break; case ASG::Stmt::Kind::FuncCall: this->lower_func_call(asg_buffer.getFuncCall(stmt.funcCallID()));
 			break; case ASG::Stmt::Kind::Assign: this->lower_assign(asg_buffer.getAssign(stmt.assignID()));
+			break; case ASG::Stmt::Kind::Return: this->lower_return(asg_buffer.getReturn(stmt.returnID()));
 		}
 	}
 
@@ -110,6 +113,15 @@ namespace pcit::panther{
 		llvmint::Value rhs = this->get_value(assign.rhs);
 
 		this->builder.createStore(lhs, rhs);
+	}
+
+	auto ASGToLLVMIR::lower_return(const ASG::Return& return_stmt) -> void {
+		if(return_stmt.value.has_value() == false){
+			this->builder.createRet();
+			return;
+		}
+
+		this->builder.createRet(this->get_value(*return_stmt.value));
 	}
 
 

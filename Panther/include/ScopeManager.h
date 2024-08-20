@@ -36,6 +36,12 @@ namespace pcit::panther{
 					ScopeLevel() = default;
 					~ScopeLevel() = default;
 
+					auto addSubScope() -> void;
+					auto setSubScopeTerminated() -> void;
+					auto setTerminated() -> void;
+					EVO_NODISCARD auto isTerminated() const -> bool;
+					EVO_NODISCARD auto isNotTerminated() const -> bool;
+
 					EVO_NODISCARD auto lookupFunc(std::string_view ident) const -> std::optional<ASG::FuncID>;
 					auto addFunc(std::string_view ident, ASG::FuncID id) -> void;
 
@@ -56,6 +62,9 @@ namespace pcit::panther{
 					std::unordered_map<std::string_view, ASG::VarID> vars{};
 					std::unordered_map<std::string_view, SourceID> imports{};
 					std::unordered_map<std::string_view, Token::ID> import_locations{};
+					evo::uint num_sub_scopes_not_terminated = 0;
+					bool is_terminated = false;
+					bool has_sub_scopes = false;
 			};
 
 

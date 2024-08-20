@@ -495,19 +495,32 @@ namespace pthr{
 						this->printer.print(" ");
 						this->print_ident(*ret.label);
 					}else{
-						this->printer.printGray(" {NONE}\n");
+						this->printer.printlnGray(" {NONE}");
 					}
 
 					this->indenter.print_end();
 					this->print_minor_header("Value");
-					if(ret.value.has_value()){
-						this->indenter.push();
-						this->printer.print("\n");
-						this->print_expr(*ret.value);
-						this->indenter.pop();
-					}else{
-						this->printer.printGray(" {NONE}\n");
-					}
+
+					ret.value.visit([&](auto value) -> void {
+						using ValueT = std::decay_t<decltype(value)>;
+
+						if constexpr(std::is_same_v<ValueT, std::monostate>){
+							this->printer.printlnGray(" {NONE}");
+
+						}else if constexpr(std::is_same_v<ValueT, panther::AST::Node>){
+							this->indenter.push();
+							this->printer.print("\n");
+							this->print_expr(value);
+							this->indenter.pop();
+
+						}else if constexpr(std::is_same_v<ValueT, panther::Token::ID>){
+							this->printer.printlnGray(" [...]");
+
+						}else{
+							static_assert(sizeof(ValueT) < 0, "Unknown or unsupported return value kind");
+						}
+					});
+
 
 					this->indenter.pop();
 				}

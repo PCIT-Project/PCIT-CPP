@@ -77,6 +77,10 @@ namespace pcit::llvmint{
 		this->builder->CreateRetVoid();
 	}
 
+	auto IRBuilder::createRet(const Value& value) -> void {
+		this->builder->CreateRet(value.native());
+	}
+
 
 	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
 		return this->builder->CreateCall(

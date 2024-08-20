@@ -1,11 +1,9 @@
 
 
-func test = () -> Void {
-	var foo: Int = 12;
-	foo = 14;
+func with_return = () -> Void {
+	return;
+}
 
-
-
-	var bar: Int = 16;
-	foo = copy bar;
+func without_return = () -> Void {
+	
 }

@@ -56,7 +56,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool;
 
 
-			EVO_NODISCARD auto analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> bool;
+			EVO_NODISCARD auto analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool;
 
 			EVO_NODISCARD auto analyze_block(const AST::Block& block) -> bool;
 
@@ -65,6 +65,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto analyze_func_call(const AST::FuncCall& func_call) -> bool;
 			EVO_NODISCARD auto analyze_infix_stmt(const AST::Infix& infix) -> bool;
+			EVO_NODISCARD auto analyze_return_stmt(const AST::Return& return_stmt) -> bool;
 
 
 			///////////////////////////////////
@@ -79,6 +80,8 @@ namespace pcit::panther{
 
 			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto get_parent() const -> ASG::Parent;
+
+			EVO_NODISCARD auto get_current_func() const -> ASG::Func&;
 
 
 

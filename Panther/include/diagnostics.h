@@ -76,6 +76,8 @@ namespace pcit::panther{
 		SemaAssignmentDstNotConcreteMutable,  // S30
 		SemaAssignmentValueNotEphemeral,      // S31
 		SemaCopyExprNotConcrete,              // S32
+		SemaReturnNotEphemeral,               // S33
+		SemaStmtAfterScopeTerminated,         // S34
 
 		LLLVMDataLayoutError,                 // LLVM1
 
@@ -153,6 +155,8 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaAssignmentDstNotConcreteMutable:  return "S30";
 			break; case DiagnosticCode::SemaAssignmentValueNotEphemeral:      return "S31";
 			break; case DiagnosticCode::SemaCopyExprNotConcrete:              return "S32";
+			break; case DiagnosticCode::SemaReturnNotEphemeral:               return "S33";
+			break; case DiagnosticCode::SemaStmtAfterScopeTerminated:         return "S34";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 

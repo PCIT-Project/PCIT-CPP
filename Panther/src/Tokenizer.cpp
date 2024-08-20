@@ -721,6 +721,14 @@ namespace pcit::panther{
 							this->create_token(Token::lookupKind(".?"));
 							return true;
 						} break;
+
+						case '.': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '.'){
+								this->char_stream.skip(evo::stringSize("..."));
+								this->create_token(Token::lookupKind("..."));
+								return true;	
+							}
+						} break;
 					}
 				}
 

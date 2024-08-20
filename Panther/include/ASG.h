@@ -165,17 +165,25 @@ namespace pcit::panther::ASG{
 		Expr rhs;
 	};
 
+	struct Return{
+		using ID = ReturnID;
+
+		std::optional<Expr> value; // nullopt means `return;`
+	};
+
 
 	struct Stmt{
 		enum class Kind{
 			Var,
 			FuncCall,
 			Assign,
+			Return,
 		};
 
 		explicit Stmt(VarID var_id) : _kind(Kind::Var), value{.var_id = var_id} {}
 		explicit Stmt(FuncCall::ID func_call_id) : _kind(Kind::FuncCall), value{.func_call_id = func_call_id} {}
 		explicit Stmt(Assign::ID assign_id) : _kind(Kind::Assign), value{.assign_id = assign_id} {}
+		explicit Stmt(Return::ID return_id) : _kind(Kind::Return), value{.return_id = return_id} {}
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -195,6 +203,11 @@ namespace pcit::panther::ASG{
 			return this->value.assign_id;
 		}
 
+		EVO_NODISCARD auto returnID() const -> Return::ID {
+			evo::debugAssert(this->kind() == Kind::Return, "not an return");
+			return this->value.return_id;
+		}
+
 
 		private:
 			Kind _kind;
@@ -202,6 +215,7 @@ namespace pcit::panther::ASG{
 				VarID var_id;
 				FuncCall::ID func_call_id;
 				Assign::ID assign_id;
+				Return::ID return_id;
 			} value;
 	};
 
@@ -237,6 +251,7 @@ namespace pcit::panther::ASG{
 		Parent parent;
 		InstanceID instanceID;
 		bool isPub: 1;
+		bool isTerminated: 1 = false;
 		evo::SmallVector<Stmt> stmts{};
 	};
 

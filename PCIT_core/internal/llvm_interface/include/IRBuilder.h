@@ -47,6 +47,7 @@ namespace pcit::llvmint{
 			auto createStore(const Value& dst, const Value& source, bool is_volatile = false) -> void;
 
 			auto createRet() -> void;
+			auto createRet(const Value& value) -> void;
 
 			// createGEP
 			// createUnreachable

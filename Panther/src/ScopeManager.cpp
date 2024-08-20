@@ -18,6 +18,30 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// scope level
 
+	auto ScopeManager::ScopeLevel::addSubScope() -> void {
+		this->has_sub_scopes = true;
+		this->num_sub_scopes_not_terminated += 1;
+	}
+
+	auto ScopeManager::ScopeLevel::setSubScopeTerminated() -> void {
+		evo::debugAssert(this->num_sub_scopes_not_terminated != 0, "setSubScopeTerminated called too many times");
+		this->num_sub_scopes_not_terminated -= 1;
+	}
+
+	auto ScopeManager::ScopeLevel::setTerminated() -> void {
+		this->is_terminated = true;
+	}
+
+	auto ScopeManager::ScopeLevel::isTerminated() const -> bool {
+		return this->is_terminated || (this->has_sub_scopes && this->num_sub_scopes_not_terminated == 0);
+	}
+
+	auto ScopeManager::ScopeLevel::isNotTerminated() const -> bool {
+		return !this->isTerminated();
+	}
+
+
+
 	auto ScopeManager::ScopeLevel::lookupFunc(std::string_view ident) const -> std::optional<ASG::Func::ID> {
 		const std::unordered_map<std::string_view, ASG::Func::ID>::const_iterator lookup_iter = this->funcs.find(ident);
 		if(lookup_iter == this->funcs.end()){ return std::nullopt; }

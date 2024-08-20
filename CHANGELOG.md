@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.23.0
+
+### Panther
+- Added support for return statements
+- Added tokenizing and parsing of return statements for multiple returns
+
+
+<!---------------------------------->
 ## v0.0.22.0
 
 ### Panther
