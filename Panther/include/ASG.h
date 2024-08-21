@@ -73,6 +73,7 @@ namespace pcit::panther::ASG{
 			LiteralChar,
 
 			Copy,
+			FuncCall,
 
 			Var,
 			Func,
@@ -85,6 +86,7 @@ namespace pcit::panther::ASG{
 		explicit Expr(LiteralChar::ID char_id) : _kind(Kind::LiteralChar), value{.literal_char = char_id} {};
 
 		explicit Expr(Copy::ID copy_id) : _kind(Kind::Copy), value{.copy = copy_id} {};
+		explicit Expr(FuncCallID func_call_id) : _kind(Kind::FuncCall), value{.func_call = func_call_id} {};
 
 		explicit Expr(VarLinkID var_id) : _kind(Kind::Var), value{.var = var_id} {};
 		explicit Expr(FuncLinkID func_id) : _kind(Kind::Func), value{.func = func_id} {};
@@ -116,6 +118,11 @@ namespace pcit::panther::ASG{
 			return this->value.copy;
 		}
 
+		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
+			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
+			return this->value.func_call;
+		}
+
 
 		EVO_NODISCARD auto varLinkID() const -> VarLinkID {
 			evo::debugAssert(this->kind() == Kind::Var, "not a var");
@@ -138,6 +145,7 @@ namespace pcit::panther::ASG{
 				LiteralChar::ID literal_char;
 
 				Copy::ID copy;
+				FuncCallID func_call;
 
 				VarLinkID var;
 				FuncLinkID func; // TODO: figure out how to shrink this / something else to allow Expr to be size 8

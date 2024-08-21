@@ -24,7 +24,7 @@ namespace pcit::panther{
 	class ASGToLLVMIR{
 		public:
 			struct Config{
-				bool useReadableNames;
+				bool useReadableRegisters;
 			};
 
 		public:
@@ -37,9 +37,6 @@ namespace pcit::panther{
 			auto lower() -> void;
 
 			auto addRuntime() -> void;
-
-
-
 
 
 		private:
@@ -69,6 +66,16 @@ namespace pcit::panther{
 			template<class... Args>
 			EVO_NODISCARD auto stmt_name(std::format_string<Args...> fmt, Args&&... args) const -> std::string;
 			EVO_NODISCARD auto stmt_name(std::string_view str) const -> std::string;
+
+			struct FuncInfo{
+				llvmint::Function func;
+			};
+			EVO_NODISCARD auto get_func_info(ASG::Func::LinkID link_id) const -> const FuncInfo&;
+
+			struct VarInfo{
+				llvmint::Alloca alloca;
+			};
+			EVO_NODISCARD auto get_var_info(ASG::Var::LinkID link_id) const -> const VarInfo&;
 	
 		private:
 			Context& context;
@@ -80,15 +87,10 @@ namespace pcit::panther{
 
 			Source* current_source = nullptr;
 
-			struct FuncInfo{
-				llvmint::Function func;
-			};
+			
 
 			std::unordered_map<ASG::Func::LinkID, FuncInfo> func_infos{};
 
-			struct VarInfo{
-				llvmint::Alloca alloca;
-			};
 			std::unordered_map<ASG::Var::LinkID, VarInfo> var_infos{};
 	};
 

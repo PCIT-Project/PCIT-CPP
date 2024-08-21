@@ -220,9 +220,13 @@ namespace pcit::panther{
 
 
 
-	auto Context::lower_to_llvmir(llvmint::LLVMContext& llvm_context, llvmint::Module& module, bool add_runtime)
-	-> bool {
-		auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module, ASGToLLVMIR::Config(false));
+	auto Context::lower_to_llvmir(
+		llvmint::LLVMContext& llvm_context,
+		llvmint::Module& module,
+		bool add_runtime,
+		bool use_readable_registers
+	)-> bool {
+		auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module, ASGToLLVMIR::Config(use_readable_registers));
 		asg_to_llvmir.lower();
 
 		if(add_runtime){
@@ -273,7 +277,7 @@ namespace pcit::panther{
 			module.setTargetTriple(target_triple);
 
 
-			if(this->lower_to_llvmir(llvm_context, module, add_runtime) == false){
+			if(this->lower_to_llvmir(llvm_context, module, add_runtime, true) == false){
 				return evo::Result<std::string>(evo::resultError);
 			}
 
@@ -318,7 +322,7 @@ namespace pcit::panther{
 			module.setTargetTriple(target_triple);
 
 
-			if(this->lower_to_llvmir(llvm_context, module, true) == false){
+			if(this->lower_to_llvmir(llvm_context, module, true, false) == false){
 				return evo::Result<uint8_t>(evo::resultError);
 			}
 			

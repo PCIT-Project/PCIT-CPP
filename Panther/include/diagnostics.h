@@ -81,6 +81,9 @@ namespace pcit::panther{
 		SemaIncorrectReturnStmtKind,          // S35
 		SemaInvalidEntrySignature,            // S36
 		SemaMultipleEntriesDeclared,          // S37
+		SemaDiscardingFuncReturn,             // S38
+		SemaFuncDoesntReturnValue,            // S39
+		SemaInvalidDiscardStmtRHS,            // S40
 
 		LLLVMDataLayoutError,                 // LLVM1
 
@@ -164,6 +167,9 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaIncorrectReturnStmtKind:          return "S35";
 			break; case DiagnosticCode::SemaInvalidEntrySignature:            return "S36";
 			break; case DiagnosticCode::SemaMultipleEntriesDeclared:          return "S37";
+			break; case DiagnosticCode::SemaDiscardingFuncReturn:             return "S38";
+			break; case DiagnosticCode::SemaFuncDoesntReturnValue:            return "S39";
+			break; case DiagnosticCode::SemaInvalidDiscardStmtRHS:            return "S40";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 

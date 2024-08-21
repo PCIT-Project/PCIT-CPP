@@ -43,7 +43,7 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::addRuntime() -> void {
-		const FuncInfo& entry_func_info = this->func_infos.find(*this->context.getEntry())->second;
+		const FuncInfo& entry_func_info = this->get_func_info(*this->context.getEntry());
 
 		const llvmint::FunctionType main_func_proto = this->builder.getFuncProto(
 			this->builder.getTypeI32(), {}, false
@@ -89,7 +89,7 @@ namespace pcit::panther{
 	auto ASGToLLVMIR::lower_func_body(ASG::Func::ID func_id) -> void {
 		const ASG::Func& asg_func = this->current_source->getASGBuffer().getFunc(func_id);
 		auto link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
-		const FuncInfo& func_info = this->func_infos.find(link_id)->second;
+		const FuncInfo& func_info = this->get_func_info(link_id);
 
 		this->builder.setInsertionPointAtBack(func_info.func);
 
@@ -131,8 +131,7 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::lower_func_call(const ASG::FuncCall& func_call) -> void {
-		const FuncInfo& func_info = this->func_infos.find(func_call.target)->second;
-
+		const FuncInfo& func_info = this->get_func_info(func_call.target);
 		this->builder.createCall(func_info.func, {});
 	}
 
@@ -232,12 +231,12 @@ namespace pcit::panther{
 	auto ASGToLLVMIR::get_concrete_value(const ASG::Expr& expr) -> llvmint::Value {
 		switch(expr.kind()){
 			case ASG::Expr::Kind::LiteralInt:  case ASG::Expr::Kind::LiteralFloat: case ASG::Expr::Kind::LiteralBool:
-			case ASG::Expr::Kind::LiteralChar: case ASG::Expr::Kind::Copy: {
+			case ASG::Expr::Kind::LiteralChar: case ASG::Expr::Kind::Copy:         case ASG::Expr::Kind::FuncCall: {
 				evo::debugFatalBreak("Cannot get concrete value this kind");
 			} break;
 
 			case ASG::Expr::Kind::Var: {
-				const VarInfo& var_info = this->var_infos.find(expr.varLinkID())->second;
+				const VarInfo& var_info = this->get_var_info(expr.varLinkID());
 				return static_cast<llvmint::Value>(var_info.alloca);
 			} break;
 
@@ -290,8 +289,15 @@ namespace pcit::panther{
 				return this->get_value(copy_expr, false);
 			} break;
 
+			case ASG::Expr::Kind::FuncCall: {
+				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
+				const FuncInfo& func_info = this->get_func_info(asg_buffer.getFuncCall(expr.funcCallID()).target);
+
+				return this->builder.createCall(func_info.func, {});
+			} break;
+
 			case ASG::Expr::Kind::Var: {
-				const VarInfo& var_info = this->var_infos.find(expr.varLinkID())->second;
+				const VarInfo& var_info = this->get_var_info(expr.varLinkID());
 				const llvmint::LoadInst load_inst = this->builder.createLoad(
 					var_info.alloca, this->stmt_name("var.load")
 				);
@@ -348,7 +354,7 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::stmt_name(std::string_view str) const -> std::string {
-		if(this->config.useReadableNames) [[unlikely]] {
+		if(this->config.useReadableRegisters) [[unlikely]] {
 			return std::string(str);
 		}else{
 			return std::string();
@@ -358,11 +364,26 @@ namespace pcit::panther{
 
 	template<class... Args>
 	auto ASGToLLVMIR::stmt_name(std::format_string<Args...> fmt, Args&&... args) const -> std::string {
-		if(this->config.useReadableNames) [[unlikely]] {
+		if(this->config.useReadableRegisters) [[unlikely]] {
 			return std::format(fmt, std::forward<Args...>(args)...);
 		}else{
 			return std::string();
 		}
 	}
+
+
+
+	auto ASGToLLVMIR::get_func_info(ASG::Func::LinkID link_id) const -> const FuncInfo& {
+		const auto& info_find = this->func_infos.find(link_id);
+		evo::debugAssert(info_find != this->func_infos.end(), "doesn't have info for that link id");
+		return info_find->second;
+	}
+
+	auto ASGToLLVMIR::get_var_info(ASG::Var::LinkID link_id) const -> const VarInfo& {
+		const auto& info_find = this->var_infos.find(link_id);
+		evo::debugAssert(info_find != this->var_infos.end(), "doesn't have info for that link id");
+		return info_find->second;
+	}
+
 	
 }

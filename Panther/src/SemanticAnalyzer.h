@@ -101,7 +101,7 @@ namespace pcit::panther{
 				ValueType value_type;
 				evo::Variant<
 					std::monostate,             // ValueType::FluidLiteral
-					TypeInfo::VoidableID,       // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
+					TypeInfo::ID,               // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
 					ASG::TemplatedFunc::LinkID, // ValueType::Templated
 					Source::ID                  // ValueType::Import
 				> type_id;
@@ -132,6 +132,9 @@ namespace pcit::panther{
 
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_intrin_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_templated_expr(const AST::TemplatedExpr& templated_expr)

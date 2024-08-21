@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.25.0
+
+### Panther
+- Added function call expressions
+- Added checking for discarding of function return values
+- Added support for the discard statement
+- Fixed LLVM IR not having readable register names
+
+
+<!---------------------------------->
 ## v0.0.24.0
 Added the ability to run compiled Panther code
 

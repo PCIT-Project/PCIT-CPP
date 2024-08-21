@@ -161,7 +161,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getScopeManager()       ->       ScopeManager& { return this->scope_manager; }
 
 		private:
-			auto lower_to_llvmir(llvmint::LLVMContext& llvm_context, llvmint::Module& module, bool add_runtime) -> bool;
+			auto lower_to_llvmir(
+				llvmint::LLVMContext& llvm_context,
+				llvmint::Module& module,
+				bool add_runtime,
+				bool use_readable_registers
+			) -> bool;
 
 			auto wait_for_all_current_tasks() -> void;
 

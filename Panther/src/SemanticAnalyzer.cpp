@@ -221,24 +221,16 @@ namespace pcit::panther{
 
 			
 		}else if(var_type_id.has_value()){
-			const TypeInfo::VoidableID expr_type = expr_info_result.value().type_id.as<TypeInfo::VoidableID>();
-			if(expr_type.isVoid() == false && *var_type_id != expr_type.typeID()){
+			const TypeInfo::ID expr_type = expr_info_result.value().type_id.as<TypeInfo::ID>();
+			if(*var_type_id != expr_type){
 				this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
 				return false;
 			}
 
 		}else{
-			const TypeInfo::VoidableID expr_type = expr_info_result.value().type_id.as<TypeInfo::VoidableID>();
-			if(expr_type.isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SemaImproperUseOfTypeVoid,
-					*var_decl.value,
-					"Variables cannot be of type \"Void\""
-				);
-				return false;
-			}
+			const TypeInfo::ID expr_type = expr_info_result.value().type_id.as<TypeInfo::ID>();
 
-			var_type_id = expr_type.typeID();
+			var_type_id = expr_type;
 		}
 
 
@@ -622,7 +614,7 @@ namespace pcit::panther{
 		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
 		if(target_info_res.isError()){ return this->may_recover(); }
 
-		if(target_info_res.value().type_id.is<TypeInfo::VoidableID>() == false){
+		if(target_info_res.value().type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
 				Diagnostic::Code::SemaCannotCallLikeFunction,
 				func_call.target,
@@ -632,17 +624,8 @@ namespace pcit::panther{
 		}
 
 
-		const TypeInfo::VoidableID target_type_id = target_info_res.value().type_id.as<TypeInfo::VoidableID>();
-		if(target_type_id.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SemaCannotCallLikeFunction,
-				func_call.target,
-				"Cannot call this expression like a function"
-			);
-			return this->may_recover();
-		}
-
-		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id.typeID());
+		const TypeInfo::ID target_type_id = target_info_res.value().type_id.as<TypeInfo::ID>();
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id);
 
 		if(
 			target_type_info.qualifiers().empty() == false ||
@@ -652,6 +635,22 @@ namespace pcit::panther{
 				Diagnostic::Code::SemaCannotCallLikeFunction,
 				func_call.target,
 				"Cannot call this expression like a function"
+			);
+			return this->may_recover();
+		}
+
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+			target_type_info.baseTypeID().id<BaseType::Function::ID>()
+		);
+
+
+		if(func_type.returnParams()[0].typeID.isVoid() == false){
+			// TODO: better messaging - #mayDiscard
+			this->emit_error(
+				Diagnostic::Code::SemaDiscardingFuncReturn,
+				func_call.target,
+				"Discarding the return value of a function"
 			);
 			return this->may_recover();
 		}
@@ -682,6 +681,33 @@ namespace pcit::panther{
 		// assignment
 
 		// lhs
+
+		if(infix.lhs.kind() == AST::Kind::Discard){
+			if(infix.rhs.kind() != AST::Kind::FuncCall){
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidDiscardStmtRHS,
+					infix.rhs,
+					"Invalid rhs of discard assignment"
+				);
+				return this->may_recover();
+			}
+
+			const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(infix.rhs);
+			const evo::Result<ExprInfo> func_call_info = this->analyze_expr_func_call<ExprValueKind::Runtime>(func_call);
+			if(func_call_info.isError()){ return false; }
+
+			if(func_call_info.value().value_type == ExprInfo::ValueType::Import){
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidDiscardStmtRHS,
+					infix.rhs,
+					"Invalid rhs of discard assignment"
+				);
+				return this->may_recover();
+			}
+
+			this->get_current_func().stmts.emplace_back(func_call_info.value().expr->funcCallID());
+			return true;
+		}
 
 		const evo::Result<ExprInfo> lhs_info = this->analyze_expr<ExprValueKind::Runtime>(infix.lhs);
 		if(lhs_info.isError()){ return this->may_recover(); }
@@ -720,21 +746,21 @@ namespace pcit::panther{
 			return this->may_recover();
 		}
 
-		const TypeInfo::VoidableID lhs_type = lhs_info.value().type_id.as<TypeInfo::VoidableID>();
+		const TypeInfo::ID lhs_type = lhs_info.value().type_id.as<TypeInfo::ID>();
 		if(rhs_info.value().value_type == ExprInfo::ValueType::FluidLiteral){
 			if(
 				this->type_check_and_set_fluid_literal_type(
-					"Assignment", infix.rhs, lhs_type.typeID(), rhs_info.value()
+					"Assignment", infix.rhs, lhs_type, rhs_info.value()
 				) == false
 			){
 				return this->may_recover();
 			}
 
 		}else{ // ExprInfo::ValueType::Ephemeral
-			const TypeInfo::VoidableID rhs_type = rhs_info.value().type_id.as<TypeInfo::VoidableID>();
+			const TypeInfo::ID rhs_type = rhs_info.value().type_id.as<TypeInfo::ID>();
 			if(lhs_type != rhs_type){
 				this->type_mismatch(
-					"Assignment", infix.rhs, lhs_type.typeID(), rhs_info.value()
+					"Assignment", infix.rhs, lhs_type, rhs_info.value()
 				);
 				return this->may_recover();
 			}
@@ -820,7 +846,7 @@ namespace pcit::panther{
 					}
 
 				}else{ // ExprInfo::ValueType::Ephemeral
-					if(value_info.value().type_id.as<TypeInfo::VoidableID>() != returns[0].typeID){
+					if(value_info.value().type_id.as<TypeInfo::ID>() != returns[0].typeID){
 						this->type_mismatch(
 							"Return", value, returns[0].typeID.typeID(), value_info.value()
 						);
@@ -1137,15 +1163,72 @@ namespace pcit::panther{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
-		if(func_call.target.kind() != AST::Kind::Intrinsic){
+		if(func_call.target.kind() == AST::Kind::Intrinsic){
+			return this->analyze_expr_intrin_func_call<EXPR_VALUE_KIND>(func_call);
+		}
+
+
+		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
+		if(target_info_res.isError()){ return evo::resultError; }
+
+		if(target_info_res.value().type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				func_call,
-				"function call expressions (that aren't \"@import\") are currently unsupported"
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				func_call.target,
+				"Cannot call this expression like a function"
 			);
 			return evo::resultError;
 		}
 
+
+		const TypeInfo::ID target_type_id = target_info_res.value().type_id.as<TypeInfo::ID>();
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id);
+
+		if(
+			target_type_info.qualifiers().empty() == false ||
+			target_type_info.baseTypeID().kind() != BaseType::Kind::Function
+		){
+			this->emit_error(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				func_call.target,
+				"Cannot call this expression like a function"
+			);
+			return evo::resultError;
+		}
+
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+			target_type_info.baseTypeID().id<BaseType::Function::ID>()
+		);
+
+
+		if(func_type.returnParams()[0].typeID.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SemaFuncDoesntReturnValue,
+				func_call.target,
+				"Function doesn't return a value"
+			);
+			return evo::resultError;
+		}
+
+
+		///////////////////////////////////
+		// create
+
+		const ASG::FuncCall::ID asg_func_id = this->source.asg_buffer.createFuncCall(
+			target_info_res.value().expr->funcLinkID()
+		);
+
+
+		return ExprInfo(
+			ExprInfo::ValueType::Ephemeral, func_type.returnParams()[0].typeID.typeID(), ASG::Expr(asg_func_id)
+		);
+	}
+
+
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_intrin_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
 		const Token::ID intrinsic_ident_token_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
 		const std::string_view intrinsic_ident = this->source.getTokenBuffer()[intrinsic_ident_token_id].getString();
 		if(intrinsic_ident != "import"){
@@ -1222,7 +1305,14 @@ namespace pcit::panther{
 
 			return ExprInfo(ExprInfo::ValueType::Import, lookup_import.value(), std::nullopt);
 		}
+
 	}
+
+
+
+
+
+
 
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
@@ -1309,7 +1399,7 @@ namespace pcit::panther{
 					} break;
 
 					default: {
-						if(*template_param.typeID != arg_expr_info.value().type_id.as<TypeInfo::VoidableID>()){
+						if(*template_param.typeID != arg_expr_info.value().type_id.as<TypeInfo::ID>()){
 							this->type_mismatch(
 								"Template parameter", template_arg, *template_param.typeID, arg_expr_info.value()
 							);
@@ -2066,7 +2156,7 @@ namespace pcit::panther{
 		}
 
 		expr_info.value_type = ExprInfo::ValueType::Ephemeral;
-		expr_info.type_id = TypeInfo::VoidableID(target_type_id);
+		expr_info.type_id = target_type_id;
 
 		return true;
 	}
@@ -2201,8 +2291,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::print_type(const ExprInfo& expr_info) const -> std::string {
-		if(expr_info.type_id.is<TypeInfo::VoidableID>()){
-			return this->context.getTypeManager().printType(expr_info.type_id.as<TypeInfo::VoidableID>());
+		if(expr_info.type_id.is<TypeInfo::ID>()){
+			return this->context.getTypeManager().printType(expr_info.type_id.as<TypeInfo::ID>());
 
 		}else if(expr_info.value_type == ExprInfo::ValueType::Import){
 			return "{IMPORT}";

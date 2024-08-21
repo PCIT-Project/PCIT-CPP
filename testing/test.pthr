@@ -1,12 +1,18 @@
 
 
+func void_func = () -> Void {
+	
+}
+
+func get_12 = () -> UI8 {
+	return 12;
+}
 
 
 func entry = () #entry -> UI8 {
-	var foo: UI8 = 9;
-	foo = 12;
+	const foo: UI8 = get_12();
 
-	var bar: UI8 = copy foo;
+	_ = get_12();
 
-	return (copy bar);
+	return (copy foo);
 }
