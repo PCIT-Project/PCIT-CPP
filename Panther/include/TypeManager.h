@@ -151,7 +151,7 @@ namespace pcit::panther{
 				: source_id(_source_id), return_params(std::move(return_params_in)) {};
 
 			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
-			EVO_NODISCARD auto getReturnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
+			EVO_NODISCARD auto returnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
 
 			EVO_NODISCARD auto operator==(const Function& rhs) const -> bool {
 				return this->source_id == rhs.source_id && this->return_params == rhs.return_params;
@@ -253,9 +253,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateBuiltinBaseType(Token::Kind kind) -> BaseType::ID;
 			EVO_NODISCARD auto getOrCreateBuiltinBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
 
-			// types of literals
+			// types needed by semantic analyzer to check againt
 			EVO_NODISCARD static auto getTypeBool()  -> TypeInfo::ID { return TypeInfo::ID(0); }
 			EVO_NODISCARD static auto getTypeChar()  -> TypeInfo::ID { return TypeInfo::ID(1); }
+			EVO_NODISCARD static auto getTypeUI8()  -> TypeInfo::ID { return TypeInfo::ID(2); }
 
 		private:
 			EVO_NODISCARD auto get_or_create_builtin_base_type_impl(const BaseType::Builtin& lookup_type)

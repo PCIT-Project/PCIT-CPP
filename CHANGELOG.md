@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.24.0
+Added the ability to run compiled Panther code
+
+### Panther
+- Added support for return values
+- Added support for functions with single-value, unnamed returns
+- Added function attribute `#entry` 
+- Added Panther runtime generation
+- Fixed LLVM IR functions not having the correct return type
+
+### pthr
+- Added build target `Run`
+- Added Panther runtime generation to the `LLVMIR` build target
+
+
+<!---------------------------------->
 ## v0.0.23.0
 
 ### Panther

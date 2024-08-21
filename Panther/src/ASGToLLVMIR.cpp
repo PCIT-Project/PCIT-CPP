@@ -41,10 +41,39 @@ namespace pcit::panther{
 		this->current_source = nullptr;
 	}
 
+
+	auto ASGToLLVMIR::addRuntime() -> void {
+		const FuncInfo& entry_func_info = this->func_infos.find(*this->context.getEntry())->second;
+
+		const llvmint::FunctionType main_func_proto = this->builder.getFuncProto(
+			this->builder.getTypeI32(), {}, false
+		);
+
+		llvmint::Function main_func = this->module.createFunction(
+			"main", main_func_proto, llvmint::LinkageType::External
+		);
+		main_func.setNoThrow();
+		main_func.setCallingConv(llvmint::CallingConv::Fast);
+
+		const llvmint::BasicBlock begin_block = this->builder.createBasicBlock(main_func, "begin");
+		this->builder.setInsertionPoint(begin_block);
+
+		const llvmint::Value begin_ret = static_cast<llvmint::Value>(
+			this->builder.createCall(entry_func_info.func, {}, '\0')
+		);
+		this->builder.createRet(this->builder.createZExt(begin_ret, this->builder.getTypeI32()));
+	}
+
+
 	auto ASGToLLVMIR::lower_func_decl(ASG::Func::ID func_id) -> void {
 		const ASG::Func& func = this->current_source->getASGBuffer().getFunc(func_id);
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+			func.baseTypeID.id<BaseType::Function::ID>()
+		);
 
-		const llvmint::FunctionType func_proto = this->builder.getFuncProto(this->builder.getTypeVoid(), {}, false);
+		const llvmint::FunctionType func_proto = this->builder.getFuncProto(
+			this->get_type(func_type.returnParams()[0].typeID), {}, false
+		);
 		const auto linkage = llvmint::LinkageType::Internal;
 
 		llvmint::Function llvm_func = this->module.createFunction(this->mangle_name(func), func_proto, linkage);
@@ -125,6 +154,14 @@ namespace pcit::panther{
 	}
 
 
+
+	auto ASGToLLVMIR::get_type(const TypeInfo::VoidableID& type_info_voidable_id) const -> llvmint::Type {
+		if(type_info_voidable_id.isVoid()) [[unlikely]] {
+			return this->builder.getTypeVoid();
+		}else{
+			return this->get_type(this->context.getTypeManager().getTypeInfo(type_info_voidable_id.typeID()));
+		}
+	}
 
 	auto ASGToLLVMIR::get_type(const TypeInfo::ID& type_info_id) const -> llvmint::Type {
 		return this->get_type(this->context.getTypeManager().getTypeInfo(type_info_id));
@@ -311,20 +348,20 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::stmt_name(std::string_view str) const -> std::string {
-		if(this->config.optimize){
-			return std::string();
-		}else{
+		if(this->config.useReadableNames) [[unlikely]] {
 			return std::string(str);
+		}else{
+			return std::string();
 		}
 	}
 
 
 	template<class... Args>
 	auto ASGToLLVMIR::stmt_name(std::format_string<Args...> fmt, Args&&... args) const -> std::string {
-		if(this->config.optimize){
-			return std::string();
-		}else{
+		if(this->config.useReadableNames) [[unlikely]] {
 			return std::format(fmt, std::forward<Args...>(args)...);
+		}else{
+			return std::string();
 		}
 	}
 	

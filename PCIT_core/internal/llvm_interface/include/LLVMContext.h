@@ -24,7 +24,7 @@ namespace pcit::llvmint{
 			auto deinit() -> void;
 
 
-			EVO_NODISCARD auto isInitialized() const noexcept -> bool { return this->_native != nullptr; };
+			EVO_NODISCARD auto isInitialized() const -> bool { return this->_native != nullptr; };
 
 			EVO_NODISCARD auto native() const -> const llvm::LLVMContext* { return this->_native; };
 			EVO_NODISCARD auto native()       ->       llvm::LLVMContext* { return this->_native; };

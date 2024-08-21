@@ -78,6 +78,9 @@ namespace pcit::panther{
 		SemaCopyExprNotConcrete,              // S32
 		SemaReturnNotEphemeral,               // S33
 		SemaStmtAfterScopeTerminated,         // S34
+		SemaIncorrectReturnStmtKind,          // S35
+		SemaInvalidEntrySignature,            // S36
+		SemaMultipleEntriesDeclared,          // S37
 
 		LLLVMDataLayoutError,                 // LLVM1
 
@@ -85,6 +88,7 @@ namespace pcit::panther{
 		MiscLoadFileFailed,                   // M2
 		MiscUnimplementedFeature,             // M3
 		MiscUnknownFatal,                     // M4
+		MiscNoEntrySet,                       // M5
 	};
 
 	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, Source::Location>;
@@ -157,6 +161,9 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaCopyExprNotConcrete:              return "S32";
 			break; case DiagnosticCode::SemaReturnNotEphemeral:               return "S33";
 			break; case DiagnosticCode::SemaStmtAfterScopeTerminated:         return "S34";
+			break; case DiagnosticCode::SemaIncorrectReturnStmtKind:          return "S35";
+			break; case DiagnosticCode::SemaInvalidEntrySignature:            return "S36";
+			break; case DiagnosticCode::SemaMultipleEntriesDeclared:          return "S37";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 
@@ -164,6 +171,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::MiscLoadFileFailed:                   return "M2";
 			break; case DiagnosticCode::MiscUnimplementedFeature:             return "M3";
 			break; case DiagnosticCode::MiscUnknownFatal:                     return "M4";
+			break; case DiagnosticCode::MiscNoEntrySet:                       return "M5";
 		}
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");

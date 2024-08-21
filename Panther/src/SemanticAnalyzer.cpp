@@ -341,18 +341,32 @@ namespace pcit::panther{
 		// attributes
 
 		bool is_pub = false;
+		bool is_entry = false;
 
 		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
 		for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
+			// TODO: check if attribute was already set
 			if(attribute_str == "pub"){
 				is_pub = true;
+
+			}else if(attribute_str == "entry"){
+				if(template_params.empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidEntrySignature,
+						*func_decl.templatePack,
+						"Entry function cannot be templated"
+					);
+				}
+
+				is_entry = true;
+
 			}else{
 				this->emit_error(
 					Diagnostic::Code::SemaUnknownAttribute,
 					attribute.attribute,
-					std::format("Unkonwn function attribute \"#{}\"", attribute_str)
+					std::format("Unknown function attribute \"#{}\"", attribute_str)
 				);
 			}
 		}
@@ -389,13 +403,36 @@ namespace pcit::panther{
 				"multiple return parameters are currently unsupported"
 			);
 			return evo::resultError;
-		}else if(return_params[0].typeID.isVoid() == false){
+
+		}else if(return_params[0].ident.has_value()){
 			this->emit_error(
 				Diagnostic::Code::MiscUnimplementedFeature,
 				func_decl.returns[0].type,
-				"functions with return types other than \"Void\" are currently unsupported"
+				"Named return parameters are currently unsupported"
 			);
 			return evo::resultError;
+		}
+
+
+
+		if(is_entry){
+			if(return_params.size() > 1){
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidEntrySignature,
+					*func_decl.returns[1].ident,
+					"Entry function cannot have multiple returns"
+				);
+				return evo::resultError;
+			}
+
+			if(return_params[0].typeID != this->context.getTypeManager().getTypeUI8()){
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidEntrySignature,
+					func_decl.returns[0].type,
+					"Entry function must return \"UI8\""
+				);
+				return evo::resultError;
+			}
 		}
 
 
@@ -427,6 +464,16 @@ namespace pcit::panther{
 		
 		if(instantiate_template == false){
 			this->get_current_scope_level().addFunc(func_ident, asg_func_id);
+
+			if(is_entry && this->context.setEntry(ASG::Func::LinkID(this->source.getID(), asg_func_id)) == false){
+				this->emit_error(
+					Diagnostic::Code::SemaMultipleEntriesDeclared,
+					func_decl.returns[0].type,
+					"Multiple entry functions declared",
+					Diagnostic::Info("First declared here: ", this->get_source_location(*this->context.getEntry()))
+				);
+				return evo::resultError;
+			}
 		}
 
 
@@ -715,16 +762,42 @@ namespace pcit::panther{
 			return false;
 		}
 
+		const ASG::Func& current_func = this->get_current_func();
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+			current_func.baseTypeID.id<BaseType::Function::ID>()
+		);
+
+		const evo::ArrayProxy<BaseType::Function::ReturnParam> returns = func_type.returnParams();
+
 		auto return_value = std::optional<ASG::Expr>();
-		const bool return_value_visit_result = return_stmt.value.visit([&](auto value) -> bool {
+		const bool return_value_visit_result = return_stmt.value.visit([&](const auto& value) -> bool {
 			using ValueT = std::decay_t<decltype(value)>;
 
 			if constexpr(std::is_same_v<ValueT, std::monostate>){
-				// TODO: 
+				if(returns[0].ident.has_value()){
+					this->emit_error(
+						Diagnostic::Code::SemaIncorrectReturnStmtKind,
+						return_stmt,
+						"Incorrect return statement type for named return parameters",
+						Diagnostic::Info("Use \"return...;\" instead")
+					);
+					return false;
+				}
+
+				if(returns[0].typeID.isVoid() == false){
+					// TODO: different diagnostic code?
+					this->emit_error(
+						Diagnostic::Code::SemaIncorrectReturnStmtKind,
+						return_stmt,
+						"Functions that have a return type other than \"Void\" must return a value"
+					);
+					return false;
+				}
+
 				return true;
 
 			}else if constexpr(std::is_same_v<ValueT, panther::AST::Node>){
-				const evo::Result<ExprInfo> value_info = this->analyze_expr<ExprValueKind::Runtime>(value);
+				evo::Result<ExprInfo> value_info = this->analyze_expr<ExprValueKind::Runtime>(value);
 				if(value_info.isError()){ return false; }
 
 				if(value_info.value().is_ephemeral() == false){
@@ -736,14 +809,40 @@ namespace pcit::panther{
 					return false;
 				}
 
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					value,
-					"return statements with values are currently unsupported"
-				);
-				return false;
+					
+				if(value_info.value().value_type == ExprInfo::ValueType::FluidLiteral){
+					if(
+						this->type_check_and_set_fluid_literal_type(
+							"Return", value, returns[0].typeID.typeID(), value_info.value()
+						) == false
+					){
+						return this->may_recover();
+					}
+
+				}else{ // ExprInfo::ValueType::Ephemeral
+					if(value_info.value().type_id.as<TypeInfo::VoidableID>() != returns[0].typeID){
+						this->type_mismatch(
+							"Return", value, returns[0].typeID.typeID(), value_info.value()
+						);
+						return this->may_recover();
+					}
+				}
+
+				return_value = *value_info.value().expr;
+
+				return true;
 
 			}else if constexpr(std::is_same_v<ValueT, panther::Token::ID>){
+				if(returns[0].ident.has_value() == false){
+					this->emit_error(
+						Diagnostic::Code::SemaIncorrectReturnStmtKind,
+						value,
+						"Incorrect return statement type for single unnamed return parameters",
+						Diagnostic::Info("Use \"return;\" instead")
+					);
+					return false;
+				}
+
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
 					value,
@@ -1042,7 +1141,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::MiscUnimplementedFeature,
 				func_call,
-				"function call expressions (that arent \"@import\") are currently unsupported"
+				"function call expressions (that aren't \"@import\") are currently unsupported"
 			);
 			return evo::resultError;
 		}
@@ -1053,7 +1152,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::MiscUnimplementedFeature,
 				func_call,
-				"function call expressions (that arent \"@import\") are currently unsupported"
+				"function call expressions (that aren't \"@import\") are currently unsupported"
 			);
 			return evo::resultError;
 		}
@@ -1180,11 +1279,9 @@ namespace pcit::panther{
 						Diagnostic::Code::SemaIncorrectTemplateInstantiation,
 						templated_expr.args[i],
 						std::format("Expected expression in template argument index {}", i),
-						evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info(
-								"Template parameter declaration:", this->get_source_location(template_param.ident)
-							)
-						}
+						Diagnostic::Info(
+							"Template parameter declaration:", this->get_source_location(template_param.ident)
+						)
 					);
 					return evo::resultError;
 				}
@@ -1285,11 +1382,9 @@ namespace pcit::panther{
 							Diagnostic::Code::SemaIncorrectTemplateInstantiation,
 							templated_expr.args[i],
 							std::format("Expected type in template argument index {}", i),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info(
-									"Template parameter declaration:", this->get_source_location(template_param.ident)
-								)
-							}
+							Diagnostic::Info(
+								"Template parameter declaration:", this->get_source_location(template_param.ident)
+							)
 						);
 						return evo::resultError;
 					} break;
@@ -1529,9 +1624,7 @@ namespace pcit::panther{
 						Diagnostic::Code::SemaUnsupportedOperator,
 						infix,
 						"This type does not support the accessor operator ([.])",
-						evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info(std::format("Type of lhs: {}", this->print_type(lhs_expr_info.value())))
-						}
+						Diagnostic::Info(std::format("Type of lhs: {}", this->print_type(lhs_expr_info.value())))
 					);
 					return evo::resultError;
 				}
@@ -1557,9 +1650,7 @@ namespace pcit::panther{
 							Diagnostic::Code::SemaImportMemberIsntPub,
 							rhs_ident_token_id,
 							std::format("Function \"{}\" isn't marked as public", rhs_ident_str),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("To mark a function as public, add the attribute \"#pub\"")
-							}
+							Diagnostic::Info("To mark a function as public, add the attribute \"#pub\"")
 						);
 						return evo::resultError;
 					}
@@ -1592,9 +1683,7 @@ namespace pcit::panther{
 							Diagnostic::Code::SemaImportMemberIsntPub,
 							rhs_ident_token_id,
 							std::format("Templated function \"{}\" isn't marked as public", rhs_ident_str),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("To mark a function as public, add the attribute \"#pub\"")
-							}
+							Diagnostic::Info("To mark a function as public, add the attribute \"#pub\"")
 						);
 						return evo::resultError;
 					}
@@ -1614,9 +1703,7 @@ namespace pcit::panther{
 								"Identifier \"{}\" is a templated function and requires template arguments",
 								rhs_ident_str
 							),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Defined here:", this->get_source_location(*lookup_templated_func_id)),
-							}
+							Diagnostic::Info("Defined here:", this->get_source_location(*lookup_templated_func_id))
 						);
 						return evo::resultError;
 					}
@@ -1748,9 +1835,7 @@ namespace pcit::panther{
 					std::format(
 						"Identifier \"{}\" is a templated function and requires template arguments", ident_str
 					),
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("Defined here:", this->get_source_location(*lookup_templated_func_id)),
-					}
+					Diagnostic::Info("Defined here:", this->get_source_location(*lookup_templated_func_id))
 				);
 				return evo::resultError;
 			}
@@ -1776,9 +1861,7 @@ namespace pcit::panther{
 							Diagnostic::Code::SemaConstEvalVarNotDef,
 							ident,
 							"Cannot get a consteval value from a variable that isn't def",
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Declared here:", this->get_source_location(*lookup_var_id))
-							}
+							Diagnostic::Info("Declared here:", this->get_source_location(*lookup_var_id))
 						);
 						return evo::resultError;
 					}
@@ -1798,12 +1881,10 @@ namespace pcit::panther{
 					Diagnostic::Code::SemaIdentNotInScope,
 					ident,
 					std::format("Identifier \"{}\" was not defined in this scope", ident_str),
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info(
-							"Local variables / members cannot be accessed inside a sub-object scope. Defined here:",
-							this->get_source_location(*lookup_var_id)
-						),
-					}
+					Diagnostic::Info(
+						"Local variables / members cannot be accessed inside a sub-object scope. Defined here:",
+						this->get_source_location(*lookup_var_id)
+					)
 				);
 				return evo::resultError;
 			}
@@ -2304,6 +2385,15 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::get_source_location(ASG::Func::ID func_id) const -> SourceLocation {
 		const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(func_id);
 		return this->get_source_location(asg_func.name);
+	}
+
+	auto SemanticAnalyzer::get_source_location(ASG::Func::LinkID func_link_id) const -> SourceLocation {
+		const Source& lookup_source = this->context.getSourceManager()[func_link_id.sourceID()];
+		const ASG::Func& asg_func = lookup_source.getASGBuffer().getFunc(func_link_id.funcID());
+
+		evo::debugAssert(asg_func.name.kind() == AST::Kind::Ident, "func name was assumed to be ident");
+		const Token::ID ident_token_id = lookup_source.getASTBuffer().getIdent(asg_func.name);
+		return lookup_source.getTokenBuffer().getSourceLocation(ident_token_id, func_link_id.sourceID());
 	}
 
 	auto SemanticAnalyzer::get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation {

@@ -218,7 +218,31 @@ namespace pcit::panther{
 	}
 
 
-	auto Context::printLLVMIR() -> evo::Result<std::string> {
+
+
+	auto Context::lower_to_llvmir(llvmint::LLVMContext& llvm_context, llvmint::Module& module, bool add_runtime)
+	-> bool {
+		auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module, ASGToLLVMIR::Config(false));
+		asg_to_llvmir.lower();
+
+		if(add_runtime){
+			if(this->entry.has_value() == false){
+				this->emitError(
+					Diagnostic::Code::MiscNoEntrySet,
+					std::nullopt,
+					"No entry function was declared"
+				);
+				return false;
+			}
+
+			asg_to_llvmir.addRuntime();
+		}
+
+		return true;
+	}
+
+
+	auto Context::printLLVMIR(bool add_runtime) -> evo::Result<std::string> {
 		auto llvm_context = llvmint::LLVMContext();
 		llvm_context.init();
 
@@ -249,10 +273,57 @@ namespace pcit::panther{
 			module.setTargetTriple(target_triple);
 
 
-			auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module, ASGToLLVMIR::Config(false));
-			asg_to_llvmir.lower();
+			if(this->lower_to_llvmir(llvm_context, module, add_runtime) == false){
+				return evo::Result<std::string>(evo::resultError);
+			}
 
 			return evo::Result<std::string>(module.print());
+		}();
+
+		llvm_context.deinit();
+
+		return printed_llvm_ir;
+	}
+
+
+
+	auto Context::run() -> evo::Result<uint8_t> {
+		auto llvm_context = llvmint::LLVMContext();
+		llvm_context.init();
+
+		const evo::Result<uint8_t> printed_llvm_ir = [&](){
+			auto module = llvmint::Module("testing", llvm_context);
+
+			const std::string target_triple = module.getDefaultTargetTriple();
+
+			const std::string data_layout_error = module.setDataLayout(
+				target_triple,
+				llvmint::Module::Relocation::Default,
+				llvmint::Module::CodeSize::Default,
+				llvmint::Module::OptLevel::None,
+				true
+			);
+
+			if(!data_layout_error.empty()){
+				this->emitFatal(
+					Diagnostic::Code::LLLVMDataLayoutError,
+					std::nullopt,
+					Diagnostic::createFatalMessage(
+						std::format("Failed to set data layout with message: {}", data_layout_error)
+					)
+				);
+				return evo::Result<uint8_t>(evo::resultError);
+			}
+
+			module.setTargetTriple(target_triple);
+
+
+			if(this->lower_to_llvmir(llvm_context, module, true) == false){
+				return evo::Result<uint8_t>(evo::resultError);
+			}
+			
+
+			return evo::Result<uint8_t>(module.run<uint8_t>("main"));
 		}();
 
 		llvm_context.deinit();
@@ -285,7 +356,7 @@ namespace pcit::panther{
 		relative_dir.remove_filename();
 
 		// generate path
-		const fs::path lookup_path = [&]() noexcept {
+		const fs::path lookup_path = [&]() -> fs::path {
 			if(src_path.starts_with("./")){
 				return relative_dir / fs::path(src_path.substr(2));
 
@@ -322,6 +393,24 @@ namespace pcit::panther{
 		}
 
 		return evo::Unexpected(LookupSourceIDError::DoesntExist);
+	}
+
+
+	auto Context::setEntry(const ASG::Func::LinkID& entry_id) -> bool {
+		const auto lock = std::unique_lock(this->entry_mutex);
+
+		if(this->entry.has_value()){ return false; }
+		this->entry = entry_id;
+
+		this->emitTrace("Set entry function (source id: {})", entry_id.sourceID().get());
+
+		return true;
+	}
+
+	auto Context::getEntry() const -> std::optional<ASG::Func::LinkID> {
+		const auto lock = std::shared_lock(this->entry_mutex);
+
+		return this->entry;
 	}
 
 

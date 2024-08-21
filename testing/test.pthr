@@ -1,9 +1,12 @@
 
 
-func with_return = () -> Void {
-	return;
-}
 
-func without_return = () -> Void {
-	
+
+func entry = () #entry -> UI8 {
+	var foo: UI8 = 9;
+	foo = 12;
+
+	var bar: UI8 = copy foo;
+
+	return (copy bar);
 }

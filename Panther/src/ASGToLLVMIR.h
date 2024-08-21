@@ -24,7 +24,7 @@ namespace pcit::panther{
 	class ASGToLLVMIR{
 		public:
 			struct Config{
-				bool optimize;
+				bool useReadableNames;
 			};
 
 		public:
@@ -35,6 +35,12 @@ namespace pcit::panther{
 			~ASGToLLVMIR() = default;
 
 			auto lower() -> void;
+
+			auto addRuntime() -> void;
+
+
+
+
 
 		private:
 			auto lower_func_decl(ASG::Func::ID func_id) -> void;
@@ -47,6 +53,7 @@ namespace pcit::panther{
 			auto lower_return(const ASG::Return& return_stmt) -> void;
 
 
+			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID& type_info_voidable_id) const -> llvmint::Type;
 			EVO_NODISCARD auto get_type(const TypeInfo::ID& type_info_id) const -> llvmint::Type;
 			EVO_NODISCARD auto get_type(const TypeInfo& type_info) const -> llvmint::Type;
 

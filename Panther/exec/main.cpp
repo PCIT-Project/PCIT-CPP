@@ -49,6 +49,7 @@ struct Config{
 		SemanticAnalysis,
 		PrintLLVMIR,
 		LLVMIR,
+		Run,
 	} target;
 
 	bool verbose;
@@ -68,7 +69,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::PrintLLVMIR,
+		.target      = Config::Target::Run,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
@@ -114,6 +115,7 @@ auto main(int argc, const char* argv[]) -> int {
 			break; case Config::Target::SemanticAnalysis: printer.printlnMagenta("Target: SemanticAnalysis");
 			break; case Config::Target::PrintLLVMIR:      printer.printlnMagenta("Target: PrintLLVMIR");
 			break; case Config::Target::LLVMIR:           printer.printlnMagenta("Target: LLVMIR");
+			break; case Config::Target::Run:              printer.printlnMagenta("Target: Run");
 			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
 		}
 	}
@@ -131,7 +133,6 @@ auto main(int argc, const char* argv[]) -> int {
 			printer.printlnError("\tcode: \"{}\"", ec.value());
 			printer.printlnError("\tmessage: \"{}\"", ec.message());
 
-			// exit();
 			return EXIT_FAILURE;
 		}
 	}
@@ -144,7 +145,7 @@ auto main(int argc, const char* argv[]) -> int {
 	});
 
 
-	auto exit = [&]() -> void {
+	const auto exit_defer = evo::Defer([&]() -> void {
 		if(context.isMultiThreaded() && context.threadsRunning()){
 			context.shutdownThreads();
 		}
@@ -153,7 +154,7 @@ auto main(int argc, const char* argv[]) -> int {
 			printer.printGray("Press Enter to close...");
 			std::cin.get();
 		#endif
-	};
+	});
 
 
 	if(context.isMultiThreaded()){
@@ -191,7 +192,6 @@ auto main(int argc, const char* argv[]) -> int {
 	if(context.errored()){
 		if(config.verbose){ printer.printlnError("Encountered an error loading files"); }
 
-		exit();
 		return EXIT_FAILURE;
 	}
 
@@ -214,7 +214,6 @@ auto main(int argc, const char* argv[]) -> int {
 	if(context.errored()){
 		if(config.verbose){ printer.printlnError("Encountered an error tokenizing files"); }
 
-		exit();
 		return EXIT_FAILURE;
 	}
 
@@ -230,7 +229,6 @@ auto main(int argc, const char* argv[]) -> int {
 			pthr::printTokens(printer, source);
 		}
 
-		exit();
 		return EXIT_SUCCESS;
 	}
 
@@ -247,7 +245,6 @@ auto main(int argc, const char* argv[]) -> int {
 	if(context.errored()){
 		if(config.verbose){ printer.printlnError("Encountered an error parsing files"); }
 
-		exit();
 		return EXIT_FAILURE;
 	}
 
@@ -263,7 +260,6 @@ auto main(int argc, const char* argv[]) -> int {
 			pthr::printAST(printer, source);
 		}
 
-		exit();
 		return EXIT_SUCCESS;
 
 	}else if(config.target == Config::Target::Parse){
@@ -283,7 +279,6 @@ auto main(int argc, const char* argv[]) -> int {
 			}
 		}
 
-		exit();
 		return EXIT_SUCCESS;
 	}
 
@@ -300,7 +295,6 @@ auto main(int argc, const char* argv[]) -> int {
 	if(context.errored()){
 		if(config.verbose){ printer.printlnError("Encountered an error doing semantic analysis"); }
 
-		exit();
 		return EXIT_FAILURE;
 	}
 
@@ -309,7 +303,6 @@ auto main(int argc, const char* argv[]) -> int {
 
 	if(config.target == Config::Target::SemanticAnalysis){
 
-		exit();
 		return EXIT_SUCCESS;
 	}
 
@@ -318,33 +311,43 @@ auto main(int argc, const char* argv[]) -> int {
 	// print llvmir
 
 	if(config.target == Config::Target::PrintLLVMIR){
-		const evo::Result<std::string> llvm_ir = context.printLLVMIR();
+		const evo::Result<std::string> llvm_ir = context.printLLVMIR(false);
 
 		if(llvm_ir.isError()){
-			exit();
 			return EXIT_FAILURE;			
 		}
 
 		printer.printlnCyan(llvm_ir.value());
 
-		exit();
 		return EXIT_SUCCESS;
 
 	}else if(config.target == Config::Target::LLVMIR){
-		const evo::Result<std::string> llvm_ir = context.printLLVMIR();
+		const evo::Result<std::string> llvm_ir = context.printLLVMIR(true);
 
 		if(llvm_ir.isError()){
-			exit();
 			return EXIT_FAILURE;			
 		}
 
 		if(evo::fs::writeFile("a.ll", llvm_ir.value()) == false){
 			printer.printlnError("Failed to write file: \"a.ll\"");
-		}else{
+
+		}else if(config.verbose){
 			printer.printlnSuccess("Successfully write LLVMIR file \"a.ll\"");
 		}
 
-		exit();
+		return EXIT_SUCCESS;
+
+	}else if(config.target == Config::Target::Run){
+		if(config.verbose){ printer.printlnGray("------------------------------\nRunning:"); }
+
+		const evo::Result<uint8_t> run_result = context.run();
+
+		if(run_result.isError()){
+			return EXIT_FAILURE;			
+		}
+
+		if(config.verbose){ printer.printlnInfo("Return Code: {}", run_result.value()); }
+
 		return EXIT_SUCCESS;
 	}
 

@@ -15,6 +15,7 @@
 #include "./class_impls/types.h"
 #include "./class_impls/enums.h"
 #include "./Function.h"
+#include "./ExecutionEngine.h"
 
 namespace pcit::llvmint{
 
@@ -56,8 +57,15 @@ namespace pcit::llvmint{
 			Module(std::string_view name, class LLVMContext& context);
 			~Module();
 
+
+			EVO_NODISCARD auto createFunction(evo::CStrProxy name, const FunctionType& prototype, LinkageType linkage) 
+				-> Function;
+
+
 			EVO_NODISCARD auto getDefaultTargetTriple() -> std::string;
+
 			auto setTargetTriple(const std::string& target_triple) -> void;
+
 			EVO_NODISCARD auto setDataLayout(
 				std::string_view target_triple,
 				Relocation relocation = Relocation::Default,
@@ -66,19 +74,46 @@ namespace pcit::llvmint{
 				bool is_jit           = false
 			) -> std::string; // returns error message (empty if no error)
 
+
 			EVO_NODISCARD auto print() const -> std::string;
 
 
-			EVO_NODISCARD auto createFunction(evo::CStrProxy name, const FunctionType& prototype, LinkageType linkage) 
-				-> Function;
+			template<typename ReturnType>
+			EVO_NODISCARD auto run(std::string_view func_name) -> ReturnType {
+				auto execution_engine = llvmint::ExecutionEngine();
+				execution_engine.createEngine(*this);
+
+				const ReturnType output = execution_engine.runFunction<ReturnType>(func_name);
+
+				execution_engine.shutdownEngine();
+
+				return output;
+			};
+
+			template<>
+			auto run<void>(std::string_view func_name) -> void {
+				auto execution_engine = llvmint::ExecutionEngine();
+				execution_engine.createEngine(*this);
+
+				execution_engine.runFunction<void>(func_name);
+
+				execution_engine.shutdownEngine();
+			};
 			
 
 			EVO_NODISCARD auto getNative() const -> const llvm::Module* { return this->native; }
 			EVO_NODISCARD auto getNative()       ->       llvm::Module* { return this->native; }
+
+
+		private:
+			EVO_NODISCARD auto get_clone() const -> std::unique_ptr<llvm::Module>;
+
 	
 		private:
 			llvm::Module* native;
 			llvm::TargetMachine* target_machine = nullptr;
+
+			friend class ExecutionEngine;
 	};
 
 	

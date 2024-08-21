@@ -24,6 +24,12 @@ namespace fs = std::filesystem;
 #include "./ScopeManager.h"
 
 
+namespace pcit::llvmint{
+	class LLVMContext;
+	class Module;
+}
+
+
 namespace pcit::panther{
 
 
@@ -74,12 +80,15 @@ namespace pcit::panther{
 			auto parseLoadedFiles() -> void;
 			auto semanticAnalysisLoadedFiles() -> void;
 
-			EVO_NODISCARD auto printLLVMIR() -> evo::Result<std::string>;
+			EVO_NODISCARD auto printLLVMIR(bool add_runtime) -> evo::Result<std::string>;
+			EVO_NODISCARD auto run() -> evo::Result<uint8_t>;
 
 			EVO_NODISCARD auto lookupSourceID(const std::string_view src_path) -> evo::Result<Source::ID>;
 			EVO_NODISCARD auto lookupRelativeSourceID(const fs::path& file_location, const std::string_view src_path)
 				-> evo::Expected<Source::ID, LookupSourceIDError>;
 			
+			EVO_NODISCARD auto setEntry(const ASG::Func::LinkID& entry_id) -> bool; // returns false if already set
+			EVO_NODISCARD auto getEntry() const -> std::optional<ASG::Func::LinkID>;
 
 			EVO_NODISCARD auto errored() const -> bool { return this->num_errors != 0; }
 			EVO_NODISCARD auto hasHitFailCondition() const -> bool { return this->hit_fail_condition; }
@@ -152,6 +161,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getScopeManager()       ->       ScopeManager& { return this->scope_manager; }
 
 		private:
+			auto lower_to_llvmir(llvmint::LLVMContext& llvm_context, llvmint::Module& module, bool add_runtime) -> bool;
+
 			auto wait_for_all_current_tasks() -> void;
 
 			auto emit_diagnostic_internal(auto&&... args) -> void {
@@ -167,14 +178,17 @@ namespace pcit::panther{
 			Config config;
 
 			SourceManager src_manager;
-			std::mutex src_manager_mutex{};
+			mutable std::mutex src_manager_mutex{};
 
 			TypeManager type_manager{};
 
 			DiagnosticCallback callback;
-			std::mutex callback_mutex{};
+			mutable std::mutex callback_mutex{};
 
 			ScopeManager scope_manager{};
+
+			std::optional<ASG::Func::LinkID> entry{};
+			mutable std::shared_mutex entry_mutex{};
 
 
 			///////////////////////////////////

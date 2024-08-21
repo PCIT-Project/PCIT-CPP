@@ -192,6 +192,7 @@ namespace pcit::panther{
 
 			auto print_type(const ExprInfo& expr_info) const -> std::string;
 
+
 			template<typename NODE_T>
 			auto emit_fatal(
 				Diagnostic::Code code,
@@ -199,6 +200,14 @@ namespace pcit::panther{
 				std::string&& msg,
 				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
 			) const -> void;
+
+			template<typename NODE_T>
+			auto emit_fatal(
+				Diagnostic::Code code, const NODE_T& location, std::string&& msg, Diagnostic::Info&& info
+			) const -> void {
+				this->emit_fatal(code, location, std::move(msg), evo::SmallVector<Diagnostic::Info>{std::move(info)});
+			}
+
 
 			template<typename NODE_T>
 			auto emit_error(
@@ -209,12 +218,30 @@ namespace pcit::panther{
 			) const -> void;
 
 			template<typename NODE_T>
+			auto emit_error(
+				Diagnostic::Code code, const NODE_T& location, std::string&& msg, Diagnostic::Info&& info
+			) const -> void {
+				this->emit_error(code, location, std::move(msg), evo::SmallVector<Diagnostic::Info>{std::move(info)});
+			}
+
+
+			template<typename NODE_T>
 			auto emit_warning(
 				Diagnostic::Code code,
 				const NODE_T& location,
 				std::string&& msg,
 				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
 			) const -> void;
+
+			template<typename NODE_T>
+			auto emit_warning(
+				Diagnostic::Code code, const NODE_T& location, std::string&& msg, Diagnostic::Info&& info
+			) const -> void {
+				this->emit_warning(code, location, std::move(msg), evo::SmallVector<Diagnostic::Info>{std::move(info)});
+			}
+
+
+
 
 			auto add_template_location_infos(evo::SmallVector<Diagnostic::Info>& infos) const -> void;
 
@@ -242,6 +269,7 @@ namespace pcit::panther{
 			auto get_source_location(const AST::Type& type) const -> SourceLocation;
 
 			auto get_source_location(ASG::Func::ID func_id) const -> SourceLocation;
+			auto get_source_location(ASG::Func::LinkID func_id) const -> SourceLocation;
 			auto get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation;
 			auto get_source_location(ASG::Var::ID var_id) const -> SourceLocation;
 

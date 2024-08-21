@@ -66,6 +66,7 @@ namespace pcit::panther{
 
 		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 9))); // literal bool
 		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 10))); // literal character
+		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 25))); // literal character
 	}
 
 	auto TypeManager::builtinsInitialized() const -> bool {

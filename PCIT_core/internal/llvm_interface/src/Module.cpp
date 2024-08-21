@@ -122,4 +122,8 @@ namespace pcit::llvmint{
 	};
 
 		
+	auto Module::get_clone() const -> std::unique_ptr<llvm::Module> {
+		return llvm::CloneModule(*this->native);
+	};
+
 }

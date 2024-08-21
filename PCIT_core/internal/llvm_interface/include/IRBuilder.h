@@ -65,9 +65,12 @@ namespace pcit::llvmint{
 			///////////////////////////////////
 			// type conversion
 
-			// createTrunc
-			// createZExt
-			// createSExt
+			EVO_NODISCARD auto createTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+				-> Value;
+			EVO_NODISCARD auto createZExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+				-> Value;
+			EVO_NODISCARD auto createSExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+				-> Value;
 
 
 			///////////////////////////////////

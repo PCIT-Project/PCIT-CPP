@@ -90,6 +90,23 @@ namespace pcit::llvmint{
 		);
 	}
 
+
+	//////////////////////////////////////////////////////////////////////
+	// type conversion
+
+	auto IRBuilder::createTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateTrunc(value.native(), dst_type.native(), name.c_str()));
+	}
+	
+	auto IRBuilder::createZExt(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateZExt(value.native(), dst_type.native(), name.c_str()));
+	}
+	
+	auto IRBuilder::createSExt(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateSExt(value.native(), dst_type.native(), name.c_str()));
+	}
+	
+	
 	
 
 	
