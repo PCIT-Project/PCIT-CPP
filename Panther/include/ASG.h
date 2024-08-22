@@ -30,6 +30,112 @@ namespace pcit::panther::ASG{
 	//////////////////////////////////////////////////////////////////////
 	// expressions
 
+	struct Expr{
+		enum class Kind{
+			LiteralInt,
+			LiteralFloat,
+			LiteralBool,
+			LiteralChar,
+
+			Copy,
+			FuncCall,
+			AddrOf,
+			Deref,
+
+			Var,
+			Func,
+		};
+
+
+		explicit Expr(LiteralIntID int_id) : _kind(Kind::LiteralInt), value{.literal_int = int_id} {};
+		explicit Expr(LiteralFloatID float_id) : _kind(Kind::LiteralFloat), value{.literal_float = float_id} {};
+		explicit Expr(LiteralBoolID bool_id) : _kind(Kind::LiteralBool), value{.literal_bool = bool_id} {};
+		explicit Expr(LiteralCharID char_id) : _kind(Kind::LiteralChar), value{.literal_char = char_id} {};
+
+		explicit Expr(CopyID copy_id) : _kind(Kind::Copy), value{.copy = copy_id} {};
+		explicit Expr(FuncCallID func_call_id) : _kind(Kind::FuncCall), value{.func_call = func_call_id} {};
+		explicit Expr(AddrOfID addr_of_id) : _kind(Kind::AddrOf), value{.addr_of = addr_of_id} {};
+		explicit Expr(DerefID deref_id) : _kind(Kind::Deref), value{.deref = deref_id} {};
+
+		explicit Expr(VarLinkID var_id) : _kind(Kind::Var), value{.var = var_id} {};
+		explicit Expr(FuncLinkID func_id) : _kind(Kind::Func), value{.func = func_id} {};
+
+
+		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
+
+
+		EVO_NODISCARD auto literalIntID() const -> LiteralIntID {
+			evo::debugAssert(this->kind() == Kind::LiteralInt, "not a LiteralInt");
+			return this->value.literal_int;
+		}
+		EVO_NODISCARD auto literalFloatID() const -> LiteralFloatID {
+			evo::debugAssert(this->kind() == Kind::LiteralFloat, "not a LiteralFloat");
+			return this->value.literal_float;
+		}
+		EVO_NODISCARD auto literalBoolID() const -> LiteralBoolID {
+			evo::debugAssert(this->kind() == Kind::LiteralBool, "not a LiteralBool");
+			return this->value.literal_bool;
+		}
+		EVO_NODISCARD auto literalCharID() const -> LiteralCharID {
+			evo::debugAssert(this->kind() == Kind::LiteralChar, "not a LiteralChar");
+			return this->value.literal_char;
+		}
+
+
+		EVO_NODISCARD auto copyID() const -> CopyID {
+			evo::debugAssert(this->kind() == Kind::Copy, "not a copy");
+			return this->value.copy;
+		}
+
+		EVO_NODISCARD auto addrOfID() const -> AddrOfID {
+			evo::debugAssert(this->kind() == Kind::AddrOf, "not an addr of");
+			return this->value.addr_of;
+		}
+
+		EVO_NODISCARD auto derefID() const -> DerefID {
+			evo::debugAssert(this->kind() == Kind::Deref, "not an deref");
+			return this->value.deref;
+		}
+
+
+		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
+			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
+			return this->value.func_call;
+		}
+
+
+		EVO_NODISCARD auto varLinkID() const -> VarLinkID {
+			evo::debugAssert(this->kind() == Kind::Var, "not a var");
+			return this->value.var;
+		}
+
+		EVO_NODISCARD auto funcLinkID() const -> FuncLinkID {
+			evo::debugAssert(this->kind() == Kind::Func, "not a func");
+			return this->value.func;
+		}
+
+
+		private:
+			Kind _kind;
+
+			union {
+				LiteralIntID literal_int;
+				LiteralFloatID literal_float;
+				LiteralBoolID literal_bool;
+				LiteralCharID literal_char;
+
+				CopyID copy;
+				AddrOfID addr_of;
+				DerefID deref;
+				FuncCallID func_call;
+
+				VarLinkID var;
+				FuncLinkID func; // TODO: figure out how to shrink this / something else to allow Expr to be size 8
+			} value;
+	};
+
+
+
 	struct LiteralInt{
 		using ID = LiteralIntID;
 
@@ -64,92 +170,17 @@ namespace pcit::panther::ASG{
 		using ID = CopyID;
 	}
 
-
-	struct Expr{
-		enum class Kind{
-			LiteralInt,
-			LiteralFloat,
-			LiteralBool,
-			LiteralChar,
-
-			Copy,
-			FuncCall,
-
-			Var,
-			Func,
-		};
+	namespace AddrOf{
+		using ID = AddrOfID;
+	}
 
 
-		explicit Expr(LiteralInt::ID int_id) : _kind(Kind::LiteralInt), value{.literal_int = int_id} {};
-		explicit Expr(LiteralFloat::ID float_id) : _kind(Kind::LiteralFloat), value{.literal_float = float_id} {};
-		explicit Expr(LiteralBool::ID bool_id) : _kind(Kind::LiteralBool), value{.literal_bool = bool_id} {};
-		explicit Expr(LiteralChar::ID char_id) : _kind(Kind::LiteralChar), value{.literal_char = char_id} {};
 
-		explicit Expr(Copy::ID copy_id) : _kind(Kind::Copy), value{.copy = copy_id} {};
-		explicit Expr(FuncCallID func_call_id) : _kind(Kind::FuncCall), value{.func_call = func_call_id} {};
+	struct Deref{
+		using ID = DerefID;
 
-		explicit Expr(VarLinkID var_id) : _kind(Kind::Var), value{.var = var_id} {};
-		explicit Expr(FuncLinkID func_id) : _kind(Kind::Func), value{.func = func_id} {};
-
-
-		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
-
-
-		EVO_NODISCARD auto literalIntID() const -> LiteralInt::ID {
-			evo::debugAssert(this->kind() == Kind::LiteralInt, "not a LiteralInt");
-			return this->value.literal_int;
-		}
-		EVO_NODISCARD auto literalFloatID() const -> LiteralFloat::ID {
-			evo::debugAssert(this->kind() == Kind::LiteralFloat, "not a LiteralFloat");
-			return this->value.literal_float;
-		}
-		EVO_NODISCARD auto literalBoolID() const -> LiteralBool::ID {
-			evo::debugAssert(this->kind() == Kind::LiteralBool, "not a LiteralBool");
-			return this->value.literal_bool;
-		}
-		EVO_NODISCARD auto literalCharID() const -> LiteralChar::ID {
-			evo::debugAssert(this->kind() == Kind::LiteralChar, "not a LiteralChar");
-			return this->value.literal_char;
-		}
-
-
-		EVO_NODISCARD auto copyID() const -> Copy::ID {
-			evo::debugAssert(this->kind() == Kind::Copy, "not a copy");
-			return this->value.copy;
-		}
-
-		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
-			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
-			return this->value.func_call;
-		}
-
-
-		EVO_NODISCARD auto varLinkID() const -> VarLinkID {
-			evo::debugAssert(this->kind() == Kind::Var, "not a var");
-			return this->value.var;
-		}
-
-		EVO_NODISCARD auto funcLinkID() const -> FuncLinkID {
-			evo::debugAssert(this->kind() == Kind::Func, "not a func");
-			return this->value.func;
-		}
-
-
-		private:
-			Kind _kind;
-
-			union {
-				LiteralInt::ID literal_int;
-				LiteralFloat::ID literal_float;
-				LiteralBool::ID literal_bool;
-				LiteralChar::ID literal_char;
-
-				Copy::ID copy;
-				FuncCallID func_call;
-
-				VarLinkID var;
-				FuncLinkID func; // TODO: figure out how to shrink this / something else to allow Expr to be size 8
-			} value;
+		Expr expr;
+		TypeInfo::ID typeID;
 	};
 
 

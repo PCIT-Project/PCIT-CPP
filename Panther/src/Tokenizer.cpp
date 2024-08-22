@@ -641,7 +641,7 @@ namespace pcit::panther{
 
 			case '&': {
 				if(ammount_left > 1){
-					switch(this->char_stream.peek(2)){
+					switch(this->char_stream.peek(1)){
 						case '=': {
 							this->char_stream.skip(evo::stringSize("&="));
 							this->create_token(Token::lookupKind("&="));
@@ -663,7 +663,7 @@ namespace pcit::panther{
 
 			case '|': {
 				if(ammount_left > 1){
-					switch(this->char_stream.peek(2)){
+					switch(this->char_stream.peek(1)){
 						case '=': {
 							this->char_stream.skip(evo::stringSize("|="));
 							this->create_token(Token::lookupKind("|="));

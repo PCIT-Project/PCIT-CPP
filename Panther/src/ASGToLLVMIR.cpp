@@ -231,8 +231,14 @@ namespace pcit::panther{
 	auto ASGToLLVMIR::get_concrete_value(const ASG::Expr& expr) -> llvmint::Value {
 		switch(expr.kind()){
 			case ASG::Expr::Kind::LiteralInt:  case ASG::Expr::Kind::LiteralFloat: case ASG::Expr::Kind::LiteralBool:
-			case ASG::Expr::Kind::LiteralChar: case ASG::Expr::Kind::Copy:         case ASG::Expr::Kind::FuncCall: {
+			case ASG::Expr::Kind::LiteralChar: case ASG::Expr::Kind::Copy:         case ASG::Expr::Kind::AddrOf:
+			case ASG::Expr::Kind::FuncCall: {
 				evo::debugFatalBreak("Cannot get concrete value this kind");
+			} break;
+
+			case ASG::Expr::Kind::Deref: {
+				const ASG::Deref& deref_expr = this->current_source->getASGBuffer().getDeref(expr.derefID());
+				return this->get_value(deref_expr.expr, false);
 			} break;
 
 			case ASG::Expr::Kind::Var: {
@@ -250,8 +256,6 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::get_value(const ASG::Expr& expr, bool get_pointer_to_value) -> llvmint::Value {
-		evo::Assert(get_pointer_to_value == false, "getting pointer to value is currently unsupported");
-
 		switch(expr.kind()){
 			case ASG::Expr::Kind::LiteralInt: {
 				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
@@ -259,7 +263,12 @@ namespace pcit::panther{
 
 				const llvmint::Type literal_type = this->get_type(*literal_int.typeID);
 				const auto integer_type = llvmint::IntegerType((llvm::IntegerType*)literal_type.native());
-				return static_cast<llvmint::Value>(this->builder.getValueIntegral(integer_type, literal_int.value));
+				const llvmint::ConstantInt value = this->builder.getValueIntegral(integer_type, literal_int.value);
+				if(get_pointer_to_value == false){ return static_cast<llvmint::Value>(value); }
+
+				const llvmint::Alloca alloca = this->builder.createAlloca(literal_type);
+				this->builder.createStore(alloca, static_cast<llvmint::Value>(value));
+				return static_cast<llvmint::Value>(alloca);
 			} break;
 
 			case ASG::Expr::Kind::LiteralFloat: {
@@ -267,37 +276,88 @@ namespace pcit::panther{
 				const ASG::LiteralFloat& literal_float = asg_buffer.getLiteralFloat(expr.literalFloatID());
 
 				const llvmint::Type literal_type = this->get_type(*literal_float.typeID);
-				return static_cast<llvmint::Value>(this->builder.getValueFloat(literal_type, literal_float.value));
+				const llvmint::Constant value = this->builder.getValueFloat(literal_type, literal_float.value);
+				if(get_pointer_to_value == false){ return static_cast<llvmint::Value>(value); }
+
+				const llvmint::Alloca alloca = this->builder.createAlloca(literal_type);
+				this->builder.createStore(alloca, static_cast<llvmint::Value>(value));
+				return static_cast<llvmint::Value>(alloca);
 			} break;
 
 			case ASG::Expr::Kind::LiteralBool: {
 				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
 				const bool bool_value = asg_buffer.getLiteralBool(expr.literalBoolID()).value;
 
-				return static_cast<llvmint::Value>(this->builder.getValueBool(bool_value));
+				const llvmint::ConstantInt value = this->builder.getValueBool(bool_value);
+				if(get_pointer_to_value == false){ return static_cast<llvmint::Value>(value); }
+
+				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypeI8());
+				this->builder.createStore(alloca, static_cast<llvmint::Value>(value));
+				return static_cast<llvmint::Value>(alloca);
 			} break;
 
 			case ASG::Expr::Kind::LiteralChar: {
 				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
 				const char char_value = asg_buffer.getLiteralChar(expr.literalCharID()).value;
 
-				return static_cast<llvmint::Value>(this->builder.getValueI8(uint8_t(char_value)));
+				const llvmint::ConstantInt value = this->builder.getValueI8(uint8_t(char_value));
+				if(get_pointer_to_value == false){ return static_cast<llvmint::Value>(value); }
+
+				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypeI8());
+				this->builder.createStore(alloca, static_cast<llvmint::Value>(value));
+				return static_cast<llvmint::Value>(alloca);
 			} break;
 
 			case ASG::Expr::Kind::Copy: {
 				const ASG::Expr& copy_expr = this->current_source->getASGBuffer().getCopy(expr.copyID());
-				return this->get_value(copy_expr, false);
+				return this->get_value(copy_expr, get_pointer_to_value);
+			} break;
+
+			case ASG::Expr::Kind::Deref: {
+				const ASG::Deref& deref_expr = this->current_source->getASGBuffer().getDeref(expr.derefID());
+				const llvmint::Value value = this->get_value(deref_expr.expr, false);
+				if(get_pointer_to_value){ return value; }
+
+				return this->builder.createLoad(value, this->get_type(deref_expr.typeID));
+			} break;
+
+			case ASG::Expr::Kind::AddrOf: {
+				const ASG::Expr& addr_of_expr = this->current_source->getASGBuffer().getAddrOf(expr.addrOfID());
+				const llvmint::Value address = this->get_value(addr_of_expr, true);
+				if(get_pointer_to_value == false){ return address; }
+
+				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypePtr());
+				this->builder.createStore(alloca, address);
+				return static_cast<llvmint::Value>(alloca);
 			} break;
 
 			case ASG::Expr::Kind::FuncCall: {
 				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
-				const FuncInfo& func_info = this->get_func_info(asg_buffer.getFuncCall(expr.funcCallID()).target);
+				const ASG::Func::LinkID func_link_id = asg_buffer.getFuncCall(expr.funcCallID()).target;
+				const FuncInfo& func_info = this->get_func_info(func_link_id);
 
-				return this->builder.createCall(func_info.func, {});
+				const llvmint::Value func_call_value = this->builder.createCall(func_info.func, {});
+
+				if(get_pointer_to_value == false){ return func_call_value; }
+
+				const Source& linked_source = this->context.getSourceManager()[func_link_id.sourceID()];
+				const ASG::Func& asg_func = linked_source.getASGBuffer().getFunc(func_link_id.funcID());
+				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+					asg_func.baseTypeID.id<BaseType::Function::ID>()
+				);
+				const llvmint::Type return_type = this->get_type(func_type.returnParams()[0].typeID);
+
+				const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
+				this->builder.createStore(alloca, func_call_value);
+				return static_cast<llvmint::Value>(alloca);
 			} break;
 
 			case ASG::Expr::Kind::Var: {
 				const VarInfo& var_info = this->get_var_info(expr.varLinkID());
+				if(get_pointer_to_value){
+					return static_cast<llvmint::Value>(var_info.alloca);
+				}
+
 				const llvmint::LoadInst load_inst = this->builder.createLoad(
 					var_info.alloca, this->stmt_name("var.load")
 				);

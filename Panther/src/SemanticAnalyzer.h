@@ -84,7 +84,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_current_func() const -> ASG::Func&;
 
 
-
 			///////////////////////////////////
 			// expr
 
@@ -93,14 +92,14 @@ namespace pcit::panther{
 					ConcreteConst,
 					ConcreteMutable,
 					Ephemeral,
-					FluidLiteral, // only if actual type is unknown
+					EpemeralFluid, // only if actual type is unknown
 					Import,
 					Templated,
 				};
 
 				ValueType value_type;
 				evo::Variant<
-					std::monostate,             // ValueType::FluidLiteral
+					std::monostate,             // ValueType::EpemeralFluid
 					TypeInfo::ID,               // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
 					ASG::TemplatedFunc::LinkID, // ValueType::Templated
 					Source::ID                  // ValueType::Import
@@ -108,7 +107,7 @@ namespace pcit::panther{
 				std::optional<ASG::Expr> expr; // nullopt if from ExprValueKind::None or ValueType::Import
 
 				EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {
-					return this->value_type == ValueType::Ephemeral || this->value_type == ValueType::FluidLiteral;
+					return this->value_type == ValueType::Ephemeral || this->value_type == ValueType::EpemeralFluid;
 				}
 
 				EVO_NODISCARD constexpr auto is_concrete() const -> bool {
@@ -179,17 +178,22 @@ namespace pcit::panther{
 			// error handling
 
 			template<typename NODE_T>
-			EVO_NODISCARD auto type_check_and_set_fluid_literal_type(
-				std::string_view name, const NODE_T& location, TypeInfo::ID target_type_id, ExprInfo& expr_info
+			EVO_NODISCARD auto type_check_and_implicitly_convert(
+				TypeInfo::ID expected_type_id, ExprInfo& got_expr, std::string_view name, const NODE_T& location
+			) -> bool;
+
+			template<typename NODE_T>
+			auto type_mismatch(
+				TypeInfo::ID expected_type_id, const ExprInfo& got_expr, std::string_view name, const NODE_T& location
+			) -> void;
+
+			template<typename NODE_T>
+			EVO_NODISCARD auto check_type_qualifiers(
+				evo::ArrayProxy<AST::Type::Qualifier> qualifiers, const NODE_T& location
 			) -> bool;
 
 			template<typename NODE_T>
 			EVO_NODISCARD auto already_defined(std::string_view ident_str, const NODE_T& node) const -> bool;
-
-			template<typename NODE_T>
-			auto type_mismatch(
-				std::string_view name, const NODE_T& location, TypeInfo::ID expected, const ExprInfo& got
-			) -> void;
 
 			EVO_NODISCARD auto may_recover() const -> bool;
 

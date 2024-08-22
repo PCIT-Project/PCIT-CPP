@@ -205,7 +205,7 @@ namespace pcit::panther{
 		}
 
 
-		if(expr_info_result.value().value_type == ExprInfo::ValueType::FluidLiteral){
+		if(expr_info_result.value().value_type == ExprInfo::ValueType::EpemeralFluid){
 			if(var_type_id.has_value() == false){
 				this->emit_error(
 					Diagnostic::Code::SemaCannotInferType, *var_decl.value, "Cannot infer the type of a fluid literal"
@@ -213,18 +213,18 @@ namespace pcit::panther{
 				return false;
 			}
 
-			if(this->type_check_and_set_fluid_literal_type(
-				"Variable", *var_decl.value, *var_type_id, expr_info_result.value()
+			if(this->type_check_and_implicitly_convert(
+				*var_type_id, expr_info_result.value(), "Variable", *var_decl.value
 			) == false){
 				return false;	
 			}
 
 			
 		}else if(var_type_id.has_value()){
-			const TypeInfo::ID expr_type = expr_info_result.value().type_id.as<TypeInfo::ID>();
-			if(*var_type_id != expr_type){
-				this->type_mismatch("Variable", *var_decl.value, *var_type_id, expr_info_result.value());
-				return false;
+			if(this->type_check_and_implicitly_convert(
+				*var_type_id, expr_info_result.value(), "Variable", *var_decl.value
+			) == false){
+				return false;	
 			}
 
 		}else{
@@ -747,25 +747,9 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo::ID lhs_type = lhs_info.value().type_id.as<TypeInfo::ID>();
-		if(rhs_info.value().value_type == ExprInfo::ValueType::FluidLiteral){
-			if(
-				this->type_check_and_set_fluid_literal_type(
-					"Assignment", infix.rhs, lhs_type, rhs_info.value()
-				) == false
-			){
-				return this->may_recover();
-			}
-
-		}else{ // ExprInfo::ValueType::Ephemeral
-			const TypeInfo::ID rhs_type = rhs_info.value().type_id.as<TypeInfo::ID>();
-			if(lhs_type != rhs_type){
-				this->type_mismatch(
-					"Assignment", infix.rhs, lhs_type, rhs_info.value()
-				);
-				return this->may_recover();
-			}
+		if(this->type_check_and_implicitly_convert(lhs_type, rhs_info.value(), "Assignment", infix.rhs) == false){
+			return this->may_recover();
 		}
-
 
 		const ASG::Assign::ID asg_assign_id = this->source.asg_buffer.createAssign(
 			*lhs_info.value().expr, *rhs_info.value().expr
@@ -834,24 +818,13 @@ namespace pcit::panther{
 					);
 					return false;
 				}
-
 					
-				if(value_info.value().value_type == ExprInfo::ValueType::FluidLiteral){
-					if(
-						this->type_check_and_set_fluid_literal_type(
-							"Return", value, returns[0].typeID.typeID(), value_info.value()
-						) == false
-					){
-						return this->may_recover();
-					}
-
-				}else{ // ExprInfo::ValueType::Ephemeral
-					if(value_info.value().type_id.as<TypeInfo::ID>() != returns[0].typeID){
-						this->type_mismatch(
-							"Return", value, returns[0].typeID.typeID(), value_info.value()
-						);
-						return this->may_recover();
-					}
+				if(
+					this->type_check_and_implicitly_convert(
+						returns[0].typeID.typeID(), value_info.value(), "Return", value
+					) == false
+				){
+					return this->may_recover();
 				}
 
 				return_value = *value_info.value().expr;
@@ -896,6 +869,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID> {
 		auto base_type = std::optional<BaseType::ID>();
+		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
 
 		switch(ast_type.base.kind()){
 			case AST::Kind::BuiltinType: {
@@ -969,13 +943,8 @@ namespace pcit::panther{
 
 				const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(ident_type_id.value().typeID());
 
-				if(type_info.qualifiers().empty() == false){
-					this->emit_error(
-						Diagnostic::Code::MiscUnimplementedFeature,
-						base_type_token_id,
-						"Ident types with qualifiers are not supported"
-					);
-					return evo::resultError;
+				for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+					qualifiers.emplace_back(qualifier);
 				}
 
 				base_type = type_info.baseTypeID();
@@ -994,8 +963,14 @@ namespace pcit::panther{
 
 		evo::debugAssert(base_type.has_value(), "base type was not set");
 
+		for(const AST::Type::Qualifier& qualifier : ast_type.qualifiers){
+			qualifiers.emplace_back(qualifier);
+		}
+
+		if(this->check_type_qualifiers(qualifiers, ast_type) == false){ return evo::resultError; }
+
 		return TypeInfo::VoidableID(
-			this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(*base_type, ast_type.qualifiers))
+			this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(*base_type, std::move(qualifiers)))
 		);
 	}
 
@@ -1390,19 +1365,10 @@ namespace pcit::panther{
 						return evo::resultError;
 					} break;
 
-					case ExprInfo::ValueType::FluidLiteral: {
-						if(this->type_check_and_set_fluid_literal_type(
-							"Template parameter", template_arg, *template_param.typeID, arg_expr_info.value()
-						) == false){
-							return evo::resultError;
-						}
-					} break;
-
 					default: {
-						if(*template_param.typeID != arg_expr_info.value().type_id.as<TypeInfo::ID>()){
-							this->type_mismatch(
-								"Template parameter", template_arg, *template_param.typeID, arg_expr_info.value()
-							);
+						if(this->type_check_and_implicitly_convert(
+							*template_param.typeID, arg_expr_info.value(), "Template parameter", template_arg
+						) == false){
 							return evo::resultError;
 						}
 					} break;
@@ -1642,10 +1608,41 @@ namespace pcit::panther{
 
 		switch(this->source.getTokenBuffer()[prefix.opTokenID].kind()){
 			case Token::lookupKind("&"): {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [&] expression is currently unsupported"
+				if(rhs_info.value().is_concrete() == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidAddrOfRHS,
+						prefix.rhs,
+						"rhs of an address-of expression ([&]) must be concrete"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID rhs_type_id = rhs_info.value().type_id.as<TypeInfo::ID>();
+				const TypeInfo& rhs_type = this->context.getTypeManager().getTypeInfo(rhs_type_id);
+
+				auto rhs_type_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
+					rhs_type.qualifiers().begin(), rhs_type.qualifiers().end()
 				);
-				return evo::resultError;
+				const bool is_read_only = rhs_info.value().value_type == ExprInfo::ValueType::ConcreteConst;
+				rhs_type_qualifiers.emplace_back(true, is_read_only, false);
+
+				if(this->check_type_qualifiers(rhs_type_qualifiers, prefix) == false){ return evo::resultError; }
+
+
+				const TypeInfo::ID new_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
+					TypeInfo(rhs_type.baseTypeID(), std::move(rhs_type_qualifiers))
+				);
+
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(ExprInfo::ValueType::Ephemeral, new_type_id, std::nullopt);
+					
+				}else{
+					const ASG::AddrOf::ID addr_of_id = this->source.asg_buffer.createAddrOf(
+						ASG::Expr(*rhs_info.value().expr)
+					);
+					return ExprInfo(ExprInfo::ValueType::Ephemeral, new_type_id, ASG::Expr(addr_of_id));
+				}
 			} break;
 
 			case Token::Kind::KeywordCopy: {
@@ -1813,7 +1810,7 @@ namespace pcit::panther{
 			default: {
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					infix,
+					infix.opTokenID,
 					std::format(
 						"Infix [{}] expressions are currently unsupported", 
 						this->source.getTokenBuffer()[infix.opTokenID].kind()
@@ -1826,10 +1823,75 @@ namespace pcit::panther{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_postfix(const AST::Postfix& postfix) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, postfix, "postfix expressions are currently unsupported"
-		);
-		return evo::resultError;
+		switch(this->source.getTokenBuffer()[postfix.opTokenID].kind()){
+			case Token::lookupKind(".*"): {
+				const evo::Result<ExprInfo> lhs_info = this->analyze_expr<EXPR_VALUE_KIND>(postfix.lhs);
+				if(lhs_info.isError()){ return evo::resultError; }
+
+				if(lhs_info.value().type_id.is<TypeInfo::ID>() == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidDerefRHS,
+						postfix.lhs,
+						"Cannot dereference a value that is not a pointer"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo& lhs_type = this->context.getTypeManager().getTypeInfo(
+					lhs_info.value().type_id.as<TypeInfo::ID>()
+				);
+				if(lhs_type.qualifiers().empty() || lhs_type.qualifiers().back().isPtr == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidDerefRHS,
+						postfix.lhs,
+						"Cannot dereference a value that is not a pointer"
+					);
+					return evo::resultError;
+				}
+
+				const auto qualifiers = evo::SmallVector<AST::Type::Qualifier>(
+					lhs_type.qualifiers().begin(), --lhs_type.qualifiers().end()
+				);
+
+				const TypeInfo::ID new_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
+					TypeInfo(lhs_type.baseTypeID(), std::move(qualifiers))
+				);
+
+
+				const ExprInfo::ValueType value_type = lhs_type.qualifiers().back().isReadOnly
+														? ExprInfo::ValueType::ConcreteConst  
+														: ExprInfo::ValueType::ConcreteMutable;
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(value_type, new_type_id, std::nullopt);
+
+				}else{
+					const ASG::Deref::ID asg_deref_id = this->source.asg_buffer.createDeref(
+						*lhs_info.value().expr, new_type_id
+					);
+					return ExprInfo(value_type, new_type_id, ASG::Expr(asg_deref_id));
+				}
+
+			} break;
+
+			case Token::lookupKind(".?"): {
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					postfix.opTokenID,
+					"Postfix [.?] expressions are currently unsupported"
+				);
+				return evo::resultError;
+			} break;
+
+			default: {
+				this->emit_fatal(
+					Diagnostic::Code::MiscInvalidKind,
+					postfix.opTokenID,
+					Diagnostic::createFatalMessage("Unknown or unsupported postfix operator")
+				);
+				return evo::resultError;
+			} break;
+		}
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
@@ -1937,12 +1999,18 @@ namespace pcit::panther{
 			if(variables_in_scope){
 				const ASG::Var& asg_var = this->source.getASGBuffer().getVar(*lookup_var_id);
 
-				const ExprInfo::ValueType value_type = asg_var.kind == AST::VarDecl::Kind::Var 
-				                                       ? ExprInfo::ValueType::ConcreteMutable 
-				                                       : ExprInfo::ValueType::ConcreteConst;
+				auto get_value_type = [&](){
+					switch(asg_var.kind){
+						case AST::VarDecl::Kind::Var:   return ExprInfo::ValueType::ConcreteMutable;
+						case AST::VarDecl::Kind::Const: return ExprInfo::ValueType::ConcreteConst;
+						case AST::VarDecl::Kind::Def:   return ExprInfo::ValueType::Ephemeral;
+					}
+
+					evo::debugFatalBreak("Unkonwn or unsupported AST::VarDecl::Kind");
+				};
 
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-					return std::optional<ExprInfo>(ExprInfo(value_type, asg_var.typeID, std::nullopt));
+					return std::optional<ExprInfo>(ExprInfo(get_value_type(), asg_var.typeID, std::nullopt));
 
 				}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
 					if(asg_var.kind != AST::VarDecl::Kind::Def){
@@ -1962,7 +2030,9 @@ namespace pcit::panther{
 
 				}else{
 					return std::optional<ExprInfo>(
-						ExprInfo(value_type, asg_var.typeID, ASG::Expr(ASG::Var::LinkID(source_id, *lookup_var_id)))
+						ExprInfo(
+							get_value_type(), asg_var.typeID, ASG::Expr(ASG::Var::LinkID(source_id, *lookup_var_id))
+						)
 					);
 				}
 			}else{
@@ -2009,7 +2079,7 @@ namespace pcit::panther{
 
 		switch(token.kind()){
 			case Token::Kind::LiteralInt: {
-				expr_info.value_type = ExprInfo::ValueType::FluidLiteral;
+				expr_info.value_type = ExprInfo::ValueType::EpemeralFluid;
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr_info.expr = ASG::Expr(
@@ -2019,7 +2089,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::LiteralFloat: {
-				expr_info.value_type = ExprInfo::ValueType::FluidLiteral;
+				expr_info.value_type = ExprInfo::ValueType::EpemeralFluid;
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr_info.expr = ASG::Expr(
@@ -2083,81 +2153,193 @@ namespace pcit::panther{
 	// error handling
 
 	template<typename NODE_T>
-	auto SemanticAnalyzer::type_check_and_set_fluid_literal_type(
-		std::string_view name, const NODE_T& location, TypeInfo::ID target_type_id, ExprInfo& expr_info
+	auto SemanticAnalyzer::type_check_and_implicitly_convert(
+		TypeInfo::ID expected_type_id, ExprInfo& got_expr, std::string_view name, const NODE_T& location
 	) -> bool {
-		evo::debugAssert(expr_info.value_type == ExprInfo::ValueType::FluidLiteral, "epxr_info is not a fluid literal");
+		switch(got_expr.value_type){
+			case ExprInfo::ValueType::ConcreteConst:
+			case ExprInfo::ValueType::ConcreteMutable:
+			case ExprInfo::ValueType::Ephemeral: {
+				const TypeInfo::ID got_type_id = got_expr.type_id.as<TypeInfo::ID>();
+				if(expected_type_id != got_type_id){
+					const TypeInfo& expected_type = this->context.getTypeManager().getTypeInfo(expected_type_id);
+					const TypeInfo& got_type      = this->context.getTypeManager().getTypeInfo(got_type_id);
 
-		const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(target_type_id);
+					if(
+						expected_type.baseTypeID()        != got_type.baseTypeID() || 
+						expected_type.qualifiers().size() != got_type.qualifiers().size()
+					){
+						this->type_mismatch(expected_type_id, got_expr, name, location);
+						return false;						
+					}
 
-		if(
-			var_type_info.qualifiers().empty() == false || 
-			var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
-		){
-			this->type_mismatch(name, location, target_type_id, expr_info);
-			return false;
-		}
+					// TODO: optimze this?
+					for(size_t i = 0; i < expected_type.qualifiers().size(); i+=1){
+						const AST::Type::Qualifier& expected_qualifier = expected_type.qualifiers()[i];
+						const AST::Type::Qualifier& got_qualifier      = got_type.qualifiers()[i];
+
+						if(expected_qualifier.isPtr != got_qualifier.isPtr){
+							this->type_mismatch(expected_type_id, got_expr, name, location);
+							return false;
+						}
+						if(expected_qualifier.isReadOnly == false && got_qualifier.isReadOnly){
+							this->type_mismatch(expected_type_id, got_expr, name, location);
+							return false;
+						}
+					}
+				}
+
+				got_expr.type_id = expected_type_id;
+
+				return true;
+			} break;
 
 
-		const BaseType::Builtin::ID var_type_builtin_id = var_type_info.baseTypeID().id<BaseType::Builtin::ID>();
-		const BaseType::Builtin& var_type_builtin = this->context.getTypeManager().getBuiltin(var_type_builtin_id);
+			case ExprInfo::ValueType::EpemeralFluid: {
+				const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(expected_type_id);
 
-		if(expr_info.expr->kind() == ASG::Expr::Kind::LiteralInt){
-			switch(var_type_builtin.kind()){
-				case Token::Kind::TypeInt:
-				case Token::Kind::TypeISize:
-				case Token::Kind::TypeI_N:
-				case Token::Kind::TypeUInt:
-				case Token::Kind::TypeUSize:
-				case Token::Kind::TypeUI_N:
-				case Token::Kind::TypeByte:
-				case Token::Kind::TypeCShort:
-				case Token::Kind::TypeCUShort:
-				case Token::Kind::TypeCInt:
-				case Token::Kind::TypeCUInt:
-				case Token::Kind::TypeCLong:
-				case Token::Kind::TypeCULong:
-				case Token::Kind::TypeCLongLong:
-				case Token::Kind::TypeCULongLong:
-				case Token::Kind::TypeCLongDouble:
-					break;
-
-				default: {
-					this->type_mismatch(name, location, target_type_id, expr_info);
+				if(
+					var_type_info.qualifiers().empty() == false || 
+					var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
+				){
+					this->type_mismatch(expected_type_id, got_expr, name, location);
 					return false;
 				}
-			}
-
-			const ASG::LiteralInt::ID literal_int_id = expr_info.expr->literalIntID();
-			this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = target_type_id;
 
 
-		}else{
-			evo::debugAssert(
-				expr_info.expr->kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
-			);
+				const BaseType::Builtin::ID var_type_builtin_id = 
+					var_type_info.baseTypeID().id<BaseType::Builtin::ID>();
 
-			switch(var_type_builtin.kind()){
-				case Token::Kind::TypeF16:
-				case Token::Kind::TypeBF16:
-				case Token::Kind::TypeF32:
-				case Token::Kind::TypeF64:
-				case Token::Kind::TypeF128:
-					break;
+				const BaseType::Builtin& var_type_builtin = 
+					this->context.getTypeManager().getBuiltin(var_type_builtin_id);
 
-				default: {
-					this->type_mismatch(name, location, target_type_id, expr_info);
-					return false;
+				if(got_expr.expr->kind() == ASG::Expr::Kind::LiteralInt){
+					switch(var_type_builtin.kind()){
+						case Token::Kind::TypeInt:
+						case Token::Kind::TypeISize:
+						case Token::Kind::TypeI_N:
+						case Token::Kind::TypeUInt:
+						case Token::Kind::TypeUSize:
+						case Token::Kind::TypeUI_N:
+						case Token::Kind::TypeByte:
+						case Token::Kind::TypeCShort:
+						case Token::Kind::TypeCUShort:
+						case Token::Kind::TypeCInt:
+						case Token::Kind::TypeCUInt:
+						case Token::Kind::TypeCLong:
+						case Token::Kind::TypeCULong:
+						case Token::Kind::TypeCLongLong:
+						case Token::Kind::TypeCULongLong:
+						case Token::Kind::TypeCLongDouble:
+							break;
+
+						default: {
+							this->type_mismatch(expected_type_id, got_expr, name, location);
+							return false;
+						}
+					}
+
+					const ASG::LiteralInt::ID literal_int_id = got_expr.expr->literalIntID();
+					this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = expected_type_id;
+
+
+				}else{
+					evo::debugAssert(
+						got_expr.expr->kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
+					);
+
+					switch(var_type_builtin.kind()){
+						case Token::Kind::TypeF16:
+						case Token::Kind::TypeBF16:
+						case Token::Kind::TypeF32:
+						case Token::Kind::TypeF64:
+						case Token::Kind::TypeF128:
+							break;
+
+						default: {
+							this->type_mismatch(expected_type_id, got_expr, name, location);
+							return false;
+						}
+					}
+
+					const ASG::LiteralFloat::ID literal_float_id = got_expr.expr->literalFloatID();
+					this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = expected_type_id;
 				}
-			}
 
-			const ASG::LiteralFloat::ID literal_float_id = expr_info.expr->literalFloatID();
-			this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = target_type_id;
+				got_expr.value_type = ExprInfo::ValueType::Ephemeral;
+				got_expr.type_id = expected_type_id;
+
+				return true;
+			} break;
+
+
+			case ExprInfo::ValueType::Import: {
+				evo::debugFatalBreak("Imports should not be compared with this function");
+			} break;
+			
+			case ExprInfo::ValueType::Templated: {
+				evo::debugFatalBreak("Templated types should not be compared with this function");
+			} break;
 		}
 
-		expr_info.value_type = ExprInfo::ValueType::Ephemeral;
-		expr_info.type_id = target_type_id;
+		evo::debugFatalBreak("Unkonwn or unsupported ExprInfo::ValueType");
+	}
 
+
+	template<typename NODE_T>
+	auto SemanticAnalyzer::type_mismatch(
+		TypeInfo::ID expected_type_id, const ExprInfo& got_expr, std::string_view name, const NODE_T& location
+
+	) -> void {
+		std::string expected_type_str = std::format("{} is of type: ", name);
+		std::string got_type_str = std::format("Expression is of type: ", name);
+
+		while(expected_type_str.size() < got_type_str.size()){
+			expected_type_str += ' ';
+		}
+
+		while(got_type_str.size() < expected_type_str.size()){
+			got_type_str += ' ';
+		}
+
+		auto infos = evo::SmallVector<Diagnostic::Info>();
+		infos.emplace_back(expected_type_str + this->context.getTypeManager().printType(expected_type_id));
+		infos.emplace_back(got_type_str + this->print_type(got_expr));
+
+		this->emit_error(
+			Diagnostic::Code::SemaTypeMismatch,
+			location,
+			std::format("{} cannot accept an expression of a different type, and cannot be implicitly converted", name),
+			std::move(infos)
+		);
+	}
+
+	template<typename NODE_T>
+	auto SemanticAnalyzer::check_type_qualifiers(
+		evo::ArrayProxy<AST::Type::Qualifier> qualifiers, const NODE_T& location
+	) -> bool {
+		bool found_read_only_ptr = false;
+		for(ptrdiff_t i = qualifiers.size() - 1; i >= 0; i-=1){
+			const AST::Type::Qualifier& qualifier = qualifiers[i];
+
+			if(found_read_only_ptr){
+				if(qualifier.isPtr && qualifier.isReadOnly == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidTypeQualifiers,
+						location,
+						"Invalid type qualifiers",
+						Diagnostic::Info(
+							"If one type qualifier level is a read-only pointer, "
+							"all previous pointer qualifier levels must also be read-only"
+						)
+					);
+					return false;
+				}
+
+			}else if(qualifier.isPtr && qualifier.isReadOnly){
+				found_read_only_ptr = true;
+			}
+		}
 		return true;
 	}
 
@@ -2172,7 +2354,8 @@ namespace pcit::panther{
 				node,
 				std::format("Identifier \"{}\" was already defined in this scope", ident_str),
 				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info(std::format("\"{}\" is a template parameter", ident_str)), // TODO: definition location
+					// TODO: definition location
+					Diagnostic::Info(std::format("\"{}\" is a template parameter", ident_str)),
 					Diagnostic::Info("Note: shadowing is not allowed")
 				}
 			);
@@ -2256,35 +2439,6 @@ namespace pcit::panther{
 
 
 
-	template<typename NODE_T>
-	auto SemanticAnalyzer::type_mismatch(
-		std::string_view name, const NODE_T& location, TypeInfo::ID expected, const ExprInfo& got
-	) -> void {
-		std::string expected_type_str = std::format("{} is of type: ", name);
-		std::string got_type_str = std::format("Expression is of type: ", name);
-
-		while(expected_type_str.size() < got_type_str.size()){
-			expected_type_str += ' ';
-		}
-
-		while(got_type_str.size() < expected_type_str.size()){
-			got_type_str += ' ';
-		}
-
-		auto infos = evo::SmallVector<Diagnostic::Info>();
-		infos.emplace_back(expected_type_str + this->context.getTypeManager().printType(expected));
-		infos.emplace_back(got_type_str + this->print_type(got));
-
-		this->emit_error(
-			Diagnostic::Code::SemaTypeMismatch,
-			location,
-			std::format("{} cannot accept an expression of a different type, and cannot be implicitly converted", name),
-			std::move(infos)
-		);
-	}
-
-
-
 	auto SemanticAnalyzer::may_recover() const -> bool {
 		return !this->context.hasHitFailCondition() && this->context.getConfig().mayRecover;
 	}
@@ -2298,7 +2452,7 @@ namespace pcit::panther{
 			return "{IMPORT}";
 
 		}else{
-			evo::debugAssert(expr_info.value_type == ExprInfo::ValueType::FluidLiteral, "expected fluid literal");
+			evo::debugAssert(expr_info.value_type == ExprInfo::ValueType::EpemeralFluid, "expected fluid literal");
 
 			if(expr_info.expr.has_value()){
 				if(expr_info.expr->kind() == ASG::Expr::Kind::LiteralInt){

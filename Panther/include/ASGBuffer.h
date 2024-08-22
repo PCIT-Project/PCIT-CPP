@@ -129,13 +129,40 @@ namespace pcit::panther{
 			// copies
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> ASG::Copy::ID {
-				const auto created_id = ASG::Copy::ID(uint32_t(this->copies.size()));
-				this->copies.emplace_back(std::forward<decltype(args)>(args)...);
+				const auto created_id = ASG::Copy::ID(uint32_t(this->misc_exprs.size()));
+				this->misc_exprs.emplace_back(std::forward<decltype(args)>(args)...);
 				return created_id;
 			}
 
 			EVO_NODISCARD auto getCopy(ASG::Copy::ID id) const -> const ASG::Expr& {
-				return this->copies[id.get()];
+				return this->misc_exprs[id.get()];
+			}
+
+
+			///////////////////////////////////
+			// address ofs
+
+			EVO_NODISCARD auto createAddrOf(auto&&... args) -> ASG::AddrOf::ID {
+				const auto created_id = ASG::AddrOf::ID(uint32_t(this->misc_exprs.size()));
+				this->misc_exprs.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getAddrOf(ASG::AddrOf::ID id) const -> const ASG::Expr& {
+				return this->misc_exprs[id.get()];
+			}
+
+			///////////////////////////////////
+			// dereferences
+
+			EVO_NODISCARD auto createDeref(auto&&... args) -> ASG::Deref::ID {
+				const auto created_id = ASG::Deref::ID(uint32_t(this->derefs.size()));
+				this->derefs.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getDeref(ASG::Deref::ID id) const -> const ASG::Deref& {
+				return this->derefs[id.get()];
 			}
 
 
@@ -206,7 +233,8 @@ namespace pcit::panther{
 			evo::SmallVector<ASG::Assign> assigns{};
 			evo::SmallVector<ASG::Return> returns{};
 
-			evo::SmallVector<ASG::Expr> copies{};
+			evo::SmallVector<ASG::Expr> misc_exprs{};
+			evo::SmallVector<ASG::Deref> derefs{};
 
 			evo::SmallVector<ASG::LiteralInt> literal_ints{};
 			evo::SmallVector<ASG::LiteralFloat> literal_floats{};

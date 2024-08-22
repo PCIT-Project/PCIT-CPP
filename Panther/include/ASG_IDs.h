@@ -45,6 +45,14 @@ namespace pcit::panther::ASG{
 		using core::UniqueID<uint32_t, CopyID>::UniqueID;
 	};
 
+	struct AddrOfID : public core::UniqueID<uint32_t, struct AddrOfID> {
+		using core::UniqueID<uint32_t, AddrOfID>::UniqueID;
+	};
+
+	struct DerefID : public core::UniqueID<uint32_t, struct DerefID> {
+		using core::UniqueID<uint32_t, DerefID>::UniqueID;
+	};
+
 
 	//////////////////////////////////////////////////////////////////////
 	// statements

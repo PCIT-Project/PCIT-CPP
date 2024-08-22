@@ -1,18 +1,14 @@
 
 
-func void_func = () -> Void {
-	
-}
 
-func get_12 = () -> UI8 {
-	return 12;
-}
+
 
 
 func entry = () #entry -> UI8 {
-	const foo: UI8 = get_12();
+	var foo: UI8 = 12;
+	const foo_ptr: UI8* = &foo;
 
-	_ = get_12();
+	foo_ptr.* = 14;
 
-	return (copy foo);
+	return (copy foo_ptr.*);
 }

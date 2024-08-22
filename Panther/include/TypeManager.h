@@ -204,14 +204,6 @@ namespace pcit::panther{
 		public:
 			using ID = TypeInfoID;
 			using VoidableID = TypeInfoVoidableID;
-
-			enum class QualifierFlag{
-				Ptr,
-				ReadOnly,
-				Optional,
-				_max,
-			};
-			
 			
 		public:
 			TypeInfo(const BaseType::ID& id) : base_type(id), _qualifiers() {};

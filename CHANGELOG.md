@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.26.0
+- Added support for prefix `&` operator (address-of)
+- Added support for postfix `.*` operator (dereference)
+- Added checking for invalid type qualifiers (read-only pointer above a mutable pointer)
+- Fixed `def` variables not always working as ephemeral values
+- Fixed tokenization issues with caused by interactions with multiple `&` or `|`
+
+
+<!---------------------------------->
 ## v0.0.25.0
 
 ### Panther

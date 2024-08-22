@@ -84,6 +84,9 @@ namespace pcit::panther{
 		SemaDiscardingFuncReturn,             // S38
 		SemaFuncDoesntReturnValue,            // S39
 		SemaInvalidDiscardStmtRHS,            // S40
+		SemaInvalidAddrOfRHS,                 // S41
+		SemaInvalidDerefRHS,                  // S42
+		SemaInvalidTypeQualifiers,            // S43
 
 		LLLVMDataLayoutError,                 // LLVM1
 
@@ -92,6 +95,7 @@ namespace pcit::panther{
 		MiscUnimplementedFeature,             // M3
 		MiscUnknownFatal,                     // M4
 		MiscNoEntrySet,                       // M5
+		MiscInvalidKind,                      // M6
 	};
 
 	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, Source::Location>;
@@ -170,6 +174,9 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaDiscardingFuncReturn:             return "S38";
 			break; case DiagnosticCode::SemaFuncDoesntReturnValue:            return "S39";
 			break; case DiagnosticCode::SemaInvalidDiscardStmtRHS:            return "S40";
+			break; case DiagnosticCode::SemaInvalidAddrOfRHS:                 return "S41";
+			break; case DiagnosticCode::SemaInvalidDerefRHS:                  return "S42";
+			break; case DiagnosticCode::SemaInvalidTypeQualifiers:            return "S43";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 
@@ -178,6 +185,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::MiscUnimplementedFeature:             return "M3";
 			break; case DiagnosticCode::MiscUnknownFatal:                     return "M4";
 			break; case DiagnosticCode::MiscNoEntrySet:                       return "M5";
+			break; case DiagnosticCode::MiscInvalidKind:                      return "M6";
 		}
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");
