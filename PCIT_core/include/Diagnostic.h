@@ -33,20 +33,25 @@ namespace pcit::core{
 		struct Info{
 			std::string message;
 			std::optional<Location> location;
+			std::vector<Info> sub_infos;
 
-			Info(std::string&& _message) : message(std::move(_message)), location() {};
-			Info(std::string&& _message, Location loc) : message(std::move(_message)), location(loc) {};
+			Info(std::string&& _message) : message(std::move(_message)), location(), sub_infos() {};
+			Info(std::string&& _message, Location loc) : message(std::move(_message)), location(loc), sub_infos() {};
+			Info(std::string&& _message, std::optional<Location> loc, std::vector<Info>&& _sub_infos)
+				: message(std::move(_message)), location(loc), sub_infos(std::move(_sub_infos)) {};
 
-			Info(const Info& rhs) : message(rhs.message), location(rhs.location) {};
+			Info(const Info& rhs) : message(rhs.message), location(rhs.location), sub_infos(rhs.sub_infos) {};
 
 			auto operator=(const Info& rhs) -> Info& {
 				this->message = rhs.message;
 				this->location = rhs.location;
+				this->sub_infos = rhs.sub_infos;
 				
 				return *this;
 			}
 
-			Info(Info&& rhs) : message(std::move(rhs.message)), location(rhs.location) {};
+			Info(Info&& rhs)
+				: message(std::move(rhs.message)), location(rhs.location), sub_infos(std::move(rhs.sub_infos)) {};
 		};
 
 		DiagnosticLevel level;

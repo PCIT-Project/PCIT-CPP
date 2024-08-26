@@ -415,6 +415,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeBF16:
 			case Token::Kind::TypeF32:
 			case Token::Kind::TypeF64:
+			case Token::Kind::TypeF80:
 			case Token::Kind::TypeF128:
 			case Token::Kind::TypeByte:
 			case Token::Kind::TypeBool:
@@ -888,13 +889,13 @@ namespace pcit::panther{
 							break;
 						}
 
-						auto arg_ident = std::optional<AST::Node>();
+						auto arg_ident = std::optional<Token::ID>();
 
 						if(
 							this->reader[this->reader.peek()].kind() == Token::Kind::Ident &&
 							this->reader[this->reader.peek(1)].kind() == Token::lookupKind(":")
 						){
-							arg_ident = AST::Node(AST::Kind::Ident, this->reader.next());
+							arg_ident = this->reader.next();
 							if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::Error; }
 						}
 
@@ -1168,7 +1169,7 @@ namespace pcit::panther{
 						this->context.emitError(
 							Diagnostic::Code::ParserInvalidKindForAThisParam,
 							this->source.getTokenBuffer().getSourceLocation(
-								this->reader.peek(-1), this->source.getID()
+								this->reader.peek(), this->source.getID()
 							),
 							"[this] parameters cannot have the kind [in]",
 							evo::SmallVector<Diagnostic::Info>{

@@ -61,6 +61,7 @@ namespace pcit::panther{
 				TypeBF16,
 				TypeF32,
 				TypeF64,
+				TypeF80,
 				TypeF128,
 
 				TypeByte,
@@ -403,6 +404,7 @@ namespace pcit::panther{
 					break; case Kind::TypeBF16:           return "BF16";
 					break; case Kind::TypeF32:            return "F32";
 					break; case Kind::TypeF64:            return "F64";
+					break; case Kind::TypeF80:            return "F80";
 					break; case Kind::TypeF128:           return "F128";
 
 					break; case Kind::TypeByte:           return "Byte";

@@ -213,17 +213,13 @@ namespace pcit::panther{
 				return false;
 			}
 
-			if(this->type_check_and_implicitly_convert(
-				*var_type_id, expr_info_result.value(), "Variable", *var_decl.value
-			) == false){
+			if(this->type_check<true>(*var_type_id, expr_info_result.value(), "Variable", *var_decl.value).ok == false){
 				return false;	
 			}
 
 			
 		}else if(var_type_id.has_value()){
-			if(this->type_check_and_implicitly_convert(
-				*var_type_id, expr_info_result.value(), "Variable", *var_decl.value
-			) == false){
+			if(this->type_check<true>(*var_type_id, expr_info_result.value(), "Variable", *var_decl.value).ok == false){
 				return false;	
 			}
 
@@ -259,25 +255,68 @@ namespace pcit::panther{
 		if(this->already_defined(func_ident, func_decl)){ return evo::resultError; }
 
 
+		// lookup for ident reuse within the function declaration without having a whole new scope
+		// 		(not needed until analyzing function body)
+		// for templates, vars, return, and errors
+		auto created_params = std::unordered_map<std::string_view, Token::ID>();
+
+
+		///////////////////////////////////
+		// attributes
+
+		bool is_pub = false;
+		bool is_entry = false;
+
+		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
+		for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			// TODO: check if attribute was already set
+			if(attribute_str == "pub"){
+				is_pub = true;
+
+			}else if(attribute_str == "entry"){
+				if(func_decl.templatePack.has_value()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidEntrySignature,
+						*func_decl.templatePack,
+						"Entry function cannot be templated"
+					);
+				}
+
+				is_entry = true;
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SemaUnknownAttribute,
+					attribute.attribute,
+					std::format("Unknown function attribute \"#{}\"", attribute_str)
+				);
+			}
+		}
+
+
+
 		///////////////////////////////////
 		// template pack
 
-		auto template_params = evo::SmallVector<ASG::TemplatedFunc::TemplateParam>{};
-		if(instantiate_template == false){
-			if(func_decl.templatePack.has_value()){
-				const AST::TemplatePack& ast_template_pack = 
-					this->source.getASTBuffer().getTemplatePack(*func_decl.templatePack);
+		if(instantiate_template == false && func_decl.templatePack.has_value()){
+			auto template_params = evo::SmallVector<ASG::TemplatedFunc::TemplateParam>{};
 
-				if(ast_template_pack.params.empty()){
-					this->emit_error(
-						Diagnostic::Code::SemaEmptyTemplatePackDeclaration,
-						func_decl,
-						"Template pack declarations cannot be empty"
-					);
-					return evo::resultError;
-				}
+			const AST::TemplatePack& ast_template_pack = 
+				this->source.getASTBuffer().getTemplatePack(*func_decl.templatePack);
+
+			if(ast_template_pack.params.empty()){
+				this->emit_error(
+					Diagnostic::Code::SemaEmptyTemplatePackDeclaration,
+					func_decl,
+					"Template pack declarations cannot be empty"
+				);
+				return evo::resultError;
+			}
 
 
+			{ // get template params
 				this->scope.pushFakeObjectScope();
 				EVO_DEFER([&](){ this->scope.popFakeObjectScope(); });
 
@@ -285,10 +324,21 @@ namespace pcit::panther{
 					const Token& template_param_ident_token = this->source.getTokenBuffer()[template_param.ident];
 					const std::string_view template_param_ident = template_param_ident_token.getString();
 
-					if(this->already_defined(template_param_ident, template_param.ident)){
+					// check if param already created
+					if(this->already_defined(template_param_ident, template_param.ident)){ return evo::resultError; }
+					if(const auto find = created_params.find(template_param_ident); find != created_params.end()){
+						this->emit_error(
+							Diagnostic::Code::SemaAlreadyDefined,
+							template_param.ident,
+							std::format("Identifier \"{}\" was already defined in this scope", template_param_ident),
+							Diagnostic::Info("Declared here", this->get_source_location(find->second))
+						);
 						return evo::resultError;
 					}
 
+					created_params.emplace(template_param_ident, template_param.ident);
+
+					// create param
 					const AST::Type& param_ast_type = this->source.getASTBuffer().getType(template_param.type);
 
 					const evo::Result<bool> param_type_is_generic = this->is_type_generic(param_ast_type);
@@ -314,51 +364,118 @@ namespace pcit::panther{
 					}
 				}
 			}
+
+			// create
+
+			const ASG::Parent parent = this->get_parent<IS_GLOBAL>();
+
+			const ASG::TemplatedFunc::ID asg_templated_func_id = this->source.asg_buffer.createTemplatedFunc(
+				func_decl, parent, std::move(template_params), this->scope, is_pub
+			);
+
+			this->get_current_scope_level().addTemplatedFunc(func_ident, asg_templated_func_id);
+
+			return std::optional<ASG::Func::ID>();
 		}
+
+
 
 		///////////////////////////////////
 		// params
 
-		if(func_decl.params.empty() == false){
-			this->emit_error(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				func_decl,
-				"function declarations with parameters are currently unsupported"
-			);
-			return evo::resultError;
-		}
+		auto params = evo::SmallVector<BaseType::Function::Param>();
+		{
+			this->scope.pushFakeObjectScope();
+			EVO_DEFER([&](){ this->scope.popFakeObjectScope(); });
 
-
-		///////////////////////////////////
-		// attributes
-
-		bool is_pub = false;
-		bool is_entry = false;
-
-		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
-		for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
-			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
-
-			// TODO: check if attribute was already set
-			if(attribute_str == "pub"){
-				is_pub = true;
-
-			}else if(attribute_str == "entry"){
-				if(template_params.empty() == false){
+			for(const AST::FuncDecl::Param& param : func_decl.params){
+				if(param.type.has_value() == false){
 					this->emit_error(
-						Diagnostic::Code::SemaInvalidEntrySignature,
-						*func_decl.templatePack,
-						"Entry function cannot be templated"
+						Diagnostic::Code::MiscUnimplementedFeature,
+						param.name,
+						"[this] parameters are not supported"
 					);
+					return evo::resultError;
 				}
 
-				is_entry = true;
+				const Token::ID param_ident_token_id = this->source.getASTBuffer().getIdent(param.name);
+				const std::string_view param_ident = this->source.getTokenBuffer()[param_ident_token_id].getString();
 
-			}else{
-				this->emit_error(
-					Diagnostic::Code::SemaUnknownAttribute,
-					attribute.attribute,
-					std::format("Unknown function attribute \"#{}\"", attribute_str)
+				if(this->already_defined(param_ident, param.name)){ return evo::resultError; }
+				if(const auto find = created_params.find(param_ident); find != created_params.end()){
+					this->emit_error(
+						Diagnostic::Code::SemaAlreadyDefined,
+						param.name,
+						std::format("Identifier \"{}\" was already defined in this scope", param_ident),
+						Diagnostic::Info("Declared here", this->get_source_location(find->second))
+					);
+					return evo::resultError;
+				}
+
+				created_params.emplace(param_ident, param_ident_token_id);
+
+				const evo::Result<TypeInfo::VoidableID> param_type_res = this->get_type_id(
+					this->source.getASTBuffer().getType(*param.type)
+				);
+				if(param_type_res.isError()){ return evo::resultError; }
+
+				if(param_type_res.value().isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaParamTypeVoid,
+						*param.type,
+						"The type of a function parameter cannot be \"Void\""
+					);
+					return evo::resultError;
+				}
+
+				const AST::AttributeBlock& param_attr_block =
+					this->source.getASTBuffer().getAttributeBlock(param.attributeBlock);
+
+				bool is_must_label = false;
+				for(const AST::AttributeBlock::Attribute& attribute : param_attr_block.attributes){
+					const std::string_view attribute_str =
+						this->source.getTokenBuffer()[attribute.attribute].getString();
+
+					if(attribute_str == "noAlias"){
+						this->emit_warning(
+							Diagnostic::Code::SemaUnknownAttribute,
+							attribute.attribute,
+							"Function parameter attribute \"#noAlias\" is not implemented yet - ignoring"
+						);
+
+					}else if(attribute_str == "mustLabel"){
+						is_must_label = true;						
+
+					}else if(attribute_str == "restrict"){
+						this->emit_error(
+							Diagnostic::Code::SemaUnknownAttribute,
+							attribute.attribute,
+							std::format("Unknown parameter attribute \"#{}\"", attribute_str),
+							Diagnostic::Info("Use \"#noAlias\" instead")
+						);
+						return evo::resultError;
+
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SemaUnknownAttribute,
+							attribute.attribute,
+							std::format("Unknown parameter attribute \"#{}\"", attribute_str)
+						);
+						return evo::resultError;
+					}
+				}
+
+				const bool optimize_with_copy = [&](){
+					if(param.kind == AST::FuncDecl::Param::Kind::Mut){ return false; }
+
+					const TypeInfo::ID param_type = param_type_res.value().typeID();
+					const TypeManager& type_manager = this->context.getTypeManager();
+					return type_manager.isTriviallyCopyable(param_type) && 
+						(type_manager.sizeOf(param_type) <= type_manager.sizeOfGeneralRegister());
+				}();
+
+				params.emplace_back(
+					param_ident_token_id, param_type_res.value().typeID(), param.kind, is_must_label, optimize_with_copy
 				);
 			}
 		}
@@ -433,21 +550,8 @@ namespace pcit::panther{
 
 		const ASG::Parent parent = this->get_parent<IS_GLOBAL>();
 
-		if(instantiate_template == false){
-			if(template_params.size() >= 1){
-				const ASG::TemplatedFunc::ID asg_templated_func_id = this->source.asg_buffer.createTemplatedFunc(
-					func_decl, parent, std::move(template_params), this->scope, is_pub
-				);
-
-				this->get_current_scope_level().addTemplatedFunc(func_ident, asg_templated_func_id);
-
-				return std::optional<ASG::Func::ID>();
-			}
-		}
-
-
 		const BaseType::ID base_type_id = this->context.getTypeManager().getOrCreateFunction(
-			BaseType::Function(this->source.getID(), std::move(return_params))
+			BaseType::Function(this->source.getID(), std::move(params), std::move(return_params))
 		);
 
 		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(
@@ -502,6 +606,21 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool {
 		this->scope.pushScopeLevel(this->context.getScopeManager().createScopeLevel(), asg_func_id);
 		EVO_DEFER([&](){ this->scope.popScopeLevel(); });
+
+		ASG::Func& asg_func = this->source.asg_buffer.funcs[asg_func_id.get()];
+		const BaseType::Function& asg_func_type = this->context.getTypeManager().getFunction(
+			asg_func.baseTypeID.funcID()
+		);
+
+		for(uint32_t i = 0; const BaseType::Function::Param& param : asg_func_type.params()){
+			const ASG::Param::ID asg_param_id = this->source.asg_buffer.createParam(asg_func_id, i);
+			this->get_current_scope_level().addParam(
+				this->source.getTokenBuffer()[param.ident].getString(), asg_param_id
+			);
+			asg_func.params.emplace_back(asg_param_id);
+
+			i += 1;
+		}
 
 		if(this->analyze_block(this->source.getASTBuffer().getBlock(ast_func.block)) == false){
 			return this->may_recover();
@@ -641,7 +760,7 @@ namespace pcit::panther{
 
 
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
-			target_type_info.baseTypeID().id<BaseType::Function::ID>()
+			target_type_info.baseTypeID().funcID()
 		);
 
 
@@ -657,10 +776,39 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
+		// check arguments
+
+		auto arg_infos  = evo::SmallVector<ArgInfo>();
+		arg_infos.reserve(func_call.args.size());
+		for(const AST::FuncCall::Arg& arg : func_call.args){
+			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
+			if(arg_info.isError()){ return false; }
+
+			arg_infos.emplace_back(arg.explicitIdent, arg_info.value(), arg.value);
+		}
+
+
+		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
+			func_call, target_info_res.value().expr->funcLinkID(), &func_type, arg_infos, func_call.args
+		);
+		if(selected_func_overload.isError()){ return false; }
+
+
+		///////////////////////////////////
+		// create
+
+		auto args = evo::SmallVector<ASG::Expr>();
+		args.reserve(arg_infos.size());
+		for(const ArgInfo& arg_info : arg_infos){
+			args.emplace_back(*arg_info.expr_info.expr);
+		}
+
+
+		///////////////////////////////////
 		// create
 
 		const ASG::FuncCall::ID asg_func_id = this->source.asg_buffer.createFuncCall(
-			target_info_res.value().expr->funcLinkID()
+			target_info_res.value().expr->funcLinkID(), std::move(args)
 		);
 
 		this->get_current_func().stmts.emplace_back(asg_func_id);
@@ -693,7 +841,8 @@ namespace pcit::panther{
 			}
 
 			const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(infix.rhs);
-			const evo::Result<ExprInfo> func_call_info = this->analyze_expr_func_call<ExprValueKind::Runtime>(func_call);
+			const evo::Result<ExprInfo> func_call_info = 
+				this->analyze_expr_func_call<ExprValueKind::Runtime>(func_call);
 			if(func_call_info.isError()){ return false; }
 
 			if(func_call_info.value().value_type == ExprInfo::ValueType::Import){
@@ -747,7 +896,7 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo::ID lhs_type = lhs_info.value().type_id.as<TypeInfo::ID>();
-		if(this->type_check_and_implicitly_convert(lhs_type, rhs_info.value(), "Assignment", infix.rhs) == false){
+		if(this->type_check<true>(lhs_type, rhs_info.value(), "Assignment", infix.rhs).ok == false){
 			return this->may_recover();
 		}
 
@@ -774,7 +923,7 @@ namespace pcit::panther{
 
 		const ASG::Func& current_func = this->get_current_func();
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
-			current_func.baseTypeID.id<BaseType::Function::ID>()
+			current_func.baseTypeID.funcID()
 		);
 
 		const evo::ArrayProxy<BaseType::Function::ReturnParam> returns = func_type.returnParams();
@@ -819,11 +968,7 @@ namespace pcit::panther{
 					return false;
 				}
 					
-				if(
-					this->type_check_and_implicitly_convert(
-						returns[0].typeID.typeID(), value_info.value(), "Return", value
-					) == false
-				){
+				if(this->type_check<true>(returns[0].typeID.typeID(), value_info.value(), "Return", value).ok == false){
 					return this->may_recover();
 				}
 
@@ -889,14 +1034,15 @@ namespace pcit::panther{
 						return TypeInfo::VoidableID::Void();
 					} break;
 
-					case Token::Kind::TypeThis:       case Token::Kind::TypeInt:        case Token::Kind::TypeISize:
-					case Token::Kind::TypeUInt:       case Token::Kind::TypeUSize:      case Token::Kind::TypeF16:
-					case Token::Kind::TypeBF16:       case Token::Kind::TypeF32:        case Token::Kind::TypeF64:
-					case Token::Kind::TypeF128:       case Token::Kind::TypeByte:       case Token::Kind::TypeBool:
-					case Token::Kind::TypeChar:       case Token::Kind::TypeRawPtr:     case Token::Kind::TypeCShort:
-					case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:       case Token::Kind::TypeCUInt:
-					case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:     case Token::Kind::TypeCLongLong:
-					case Token::Kind::TypeCULongLong: case Token::Kind::TypeCLongDouble: {
+					case Token::Kind::TypeThis:      case Token::Kind::TypeInt:        case Token::Kind::TypeISize:
+					case Token::Kind::TypeUInt:      case Token::Kind::TypeUSize:      case Token::Kind::TypeF16:
+					case Token::Kind::TypeBF16:      case Token::Kind::TypeF32:        case Token::Kind::TypeF64:
+					case Token::Kind::TypeF80:       case Token::Kind::TypeF128:       case Token::Kind::TypeByte:
+					case Token::Kind::TypeBool:      case Token::Kind::TypeChar:       case Token::Kind::TypeRawPtr:
+					case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
+					case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
+					case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
+					case Token::Kind::TypeCLongDouble: {
 						base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(
 							builtin_type_token.kind()
 						);
@@ -1143,6 +1289,9 @@ namespace pcit::panther{
 		}
 
 
+		///////////////////////////////////
+		// get function and check callable
+
 		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
 		if(target_info_res.isError()){ return evo::resultError; }
 
@@ -1155,6 +1304,9 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
+
+		///////////////////////////////////
+		// get bayse type
 
 		const TypeInfo::ID target_type_id = target_info_res.value().type_id.as<TypeInfo::ID>();
 		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id);
@@ -1172,10 +1324,12 @@ namespace pcit::panther{
 		}
 
 
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
-			target_type_info.baseTypeID().id<BaseType::Function::ID>()
-		);
+		///////////////////////////////////
+		// check function returns values
 
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+			target_type_info.baseTypeID().funcID()
+		);
 
 		if(func_type.returnParams()[0].typeID.isVoid()){
 			this->emit_error(
@@ -1188,10 +1342,35 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
+		// check arguments
+
+		auto arg_infos  = evo::SmallVector<ArgInfo>();
+		arg_infos.reserve(func_call.args.size());
+		for(const AST::FuncCall::Arg& arg : func_call.args){
+			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
+			if(arg_info.isError()){ return evo::resultError; }
+
+			arg_infos.emplace_back(arg.explicitIdent, arg_info.value(), arg.value);
+		}
+
+
+		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
+			func_call, target_info_res.value().expr->funcLinkID(), &func_type, arg_infos, func_call.args
+		);
+		if(selected_func_overload.isError()){ return evo::resultError; }
+
+
+		///////////////////////////////////
 		// create
 
+		auto args = evo::SmallVector<ASG::Expr>();
+		args.reserve(arg_infos.size());
+		for(const ArgInfo& arg_info : arg_infos){
+			args.emplace_back(*arg_info.expr_info.expr);
+		}
+
 		const ASG::FuncCall::ID asg_func_id = this->source.asg_buffer.createFuncCall(
-			target_info_res.value().expr->funcLinkID()
+			target_info_res.value().expr->funcLinkID(), std::move(args)
 		);
 
 
@@ -1366,9 +1545,9 @@ namespace pcit::panther{
 					} break;
 
 					default: {
-						if(this->type_check_and_implicitly_convert(
+						if(this->type_check<true>(
 							*template_param.typeID, arg_expr_info.value(), "Template parameter", template_arg
-						) == false){
+						).ok == false){
 							return evo::resultError;
 						}
 					} break;
@@ -2042,8 +2221,74 @@ namespace pcit::panther{
 					ident,
 					std::format("Identifier \"{}\" was not defined in this scope", ident_str),
 					Diagnostic::Info(
-						"Local variables / members cannot be accessed inside a sub-object scope. Defined here:",
+						"Local variables, parameters, and members cannot be accessed inside a sub-object scope. "
+						"Defined here:",
 						this->get_source_location(*lookup_var_id)
+					)
+				);
+				return evo::resultError;
+			}
+		}
+
+
+		// parameters
+		const std::optional<ASG::Param::ID> lookup_param_id = scope_level.lookupParam(ident_str);
+		if(lookup_param_id.has_value()){
+			if(variables_in_scope){
+				const ASG::Param& asg_param = this->source.getASGBuffer().getParam(*lookup_param_id);
+				const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(asg_param.func);
+
+				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+					asg_func.baseTypeID.funcID()
+				);
+
+				const BaseType::Function::Param& param = func_type.params()[asg_param.index];
+
+				auto get_value_type = [&](){
+					switch(param.kind){
+						case AST::FuncDecl::Param::Kind::Read: return ExprInfo::ValueType::ConcreteConst;
+						case AST::FuncDecl::Param::Kind::Mut:  return ExprInfo::ValueType::ConcreteMutable;
+						case AST::FuncDecl::Param::Kind::In:   return ExprInfo::ValueType::ConcreteMutable;
+					}
+
+					evo::debugFatalBreak("Unkonwn or unsupported AST::FuncDecl::Param::Kind");
+				};
+
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return std::optional<ExprInfo>(ExprInfo(get_value_type(), param.typeID, std::nullopt));
+
+				}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+					this->emit_error(
+						Diagnostic::Code::SemaParamsCannotBeConstEval,
+						ident,
+						"Cannot get a consteval value from a parameter",
+						Diagnostic::Info("Declared here:", this->get_source_location(*lookup_param_id))
+					);
+					return evo::resultError;
+
+				}else{
+					return std::optional<ExprInfo>(
+						ExprInfo(
+							get_value_type(),
+							param.typeID,
+							ASG::Expr(
+								ASG::Param::LinkID(
+									ASG::Func::LinkID(this->source.getID(), asg_param.func), *lookup_param_id
+								)
+							)
+						)
+					);
+				}
+			}else{
+				// TODO: better messaging
+				this->emit_error(
+					Diagnostic::Code::SemaIdentNotInScope,
+					ident,
+					std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+					Diagnostic::Info(
+						"Local variables, parameters, and members cannot be accessed inside a sub-object scope. ",
+						this->get_source_location(*lookup_param_id)
 					)
 				);
 				return evo::resultError;
@@ -2146,16 +2391,263 @@ namespace pcit::panther{
 	}
 
 
+	template<typename NODE_T>
+	auto SemanticAnalyzer::select_func_overload(
+		const NODE_T& location,
+		evo::ArrayProxy<ASG::Func::LinkID> asg_funcs,
+		evo::ArrayProxy<const BaseType::Function*> funcs,
+		evo::SmallVector<ArgInfo>& arg_infos,
+		evo::ArrayProxy<AST::FuncCall::Arg> args
+	) -> evo::Result<size_t> {
+		evo::debugAssert(funcs.empty() == false, "need at least 1 func");
 
+		struct OverloadScore{
+			struct NumMismatch{};
+			struct TypeMismatch      { size_t arg_index; };
+			struct ValueKindMismatch { size_t arg_index; };
+			struct IncorrectLabel    { size_t arg_index; };
+			struct LackingLabel      { size_t arg_index; };
+
+			evo::uint score;
+			evo::Variant<
+				std::monostate, NumMismatch, TypeMismatch, ValueKindMismatch, IncorrectLabel, LackingLabel
+			> reason;
+		};
+		auto scores = evo::SmallVector<OverloadScore>();
+		scores.reserve(funcs.size());
+
+		for(size_t i = 0; const BaseType::Function* func_type_ptr : funcs){
+			EVO_DEFER([&](){ i += 1; });
+
+			bool failed = false;
+
+			const BaseType::Function& func_type = *func_type_ptr;
+
+			if(arg_infos.size() != func_type.params().size()){
+				scores.emplace_back(0, OverloadScore::NumMismatch());
+				continue;
+			}
+
+			evo::uint current_score = 0;
+
+			for(size_t param_i = 0; const BaseType::Function::Param& param : func_type.params()){
+				ArgInfo& arg_info = arg_infos[param_i];
+
+				const TypeCheckInfo& type_check_info = this->type_check<false>(
+					param.typeID, arg_info.expr_info, "Parameter", arg_info.ast_node
+				);
+
+				if(type_check_info.ok == false){
+					scores.emplace_back(0, OverloadScore::TypeMismatch(param_i));
+					failed = true;
+					break;
+				}
+
+				switch(param.kind){
+					case AST::FuncDecl::Param::Kind::Read: {
+						// accepts any value type
+
+						if(arg_info.expr_info.value_type == ExprInfo::ValueType::ConcreteMutable){
+							current_score += 1;
+						}
+					} break;
+
+					case AST::FuncDecl::Param::Kind::Mut: {
+						if(arg_info.expr_info.value_type != ExprInfo::ValueType::ConcreteMutable){
+							scores.emplace_back(0, OverloadScore::ValueKindMismatch(param_i));
+							failed = true;
+						}
+					} break;
+
+					case AST::FuncDecl::Param::Kind::In: {
+						if(arg_info.expr_info.value_type != ExprInfo::ValueType::Ephemeral){
+							scores.emplace_back(0, OverloadScore::ValueKindMismatch(param_i));
+							failed = true;
+						}
+					} break;
+				}
+
+				if(failed){ break; }
+
+				const Source& func_source = this->context.getSourceManager()[asg_funcs[i].sourceID()];
+				const std::string_view param_ident = func_source.getTokenBuffer()[param.ident].getString();
+
+				if(args[param_i].explicitIdent.has_value()){
+					const std::string_view arg_label =
+						this->source.getTokenBuffer()[*args[param_i].explicitIdent].getString();
+
+					if(param_ident != arg_label){
+						scores.emplace_back(0, OverloadScore::IncorrectLabel(param_i));
+						failed = true;
+						break;
+					}
+				}else{
+					if(param.mustLabel){
+						scores.emplace_back(0, OverloadScore::LackingLabel(param_i));
+						failed = true;
+						break;
+					}
+				}
+
+				if(type_check_info.requires_implicit_conversion){
+					current_score += 1;
+				}else{
+					current_score += 2;
+				}
+			
+				param_i += 1;
+			}
+
+			if(failed){ continue; }
+
+
+			scores.emplace_back(1, std::monostate());
+		}
+
+		const OverloadScore* best_score = nullptr;
+		bool found_best_score_match = false;
+		for(const OverloadScore& score : scores){
+			if(score.score > 0){
+				if(best_score == nullptr){
+					best_score = &score;
+
+				}else if(best_score->score == score.score){
+					found_best_score_match = true;
+
+				}else{
+					best_score = &score;
+					found_best_score_match = false;
+				}
+			}
+		}
+
+		if(found_best_score_match){
+			// TODO: better message - show matching functions
+			this->emit_error(Diagnostic::Code::SemaMultipleMatchingFunctions, location, "Multiple matching functions");
+			return evo::resultError;
+
+		}else if(best_score == nullptr){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			for(size_t i = 0; const OverloadScore& score : scores){
+				const std::string_view fail_match_message = "Failed to match:";
+
+				score.reason.visit([&](const auto& reason) -> void {
+					using ReasonT = std::decay_t<decltype(reason)>;
+
+					if constexpr(std::is_same_v<ReasonT, std::monostate>){
+						evo::fatalBreak("None should be ok in this");
+
+					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::NumMismatch>){
+						infos.emplace_back(
+							std::format(
+								"{} mismatched number of arguments (expected {}, got {})",
+								fail_match_message,
+								arg_infos.size(),
+								funcs[i]->params().size()
+							),
+							this->get_source_location(asg_funcs[i])
+						);
+
+					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::TypeMismatch>){
+						infos.emplace_back(
+							std::format(
+								"{} mismatched types at argument index {}",
+								fail_match_message,
+								reason.arg_index
+							),
+							this->get_source_location(funcs[i]->params()[reason.arg_index].ident),
+							std::vector<Diagnostic::Info>{
+								std::format(
+									"Parameter is of type: {}",
+									this->context.getTypeManager().printType(
+										funcs[i]->params()[reason.arg_index].typeID
+									)
+								),
+								std::format("Argument is of type:  {}", this->print_type(arg_infos[i].expr_info)),
+							}
+						);
+
+					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::ValueKindMismatch>){
+						const AST::FuncDecl::Param::Kind param_kind = funcs[i]->params()[reason.arg_index].kind;
+
+						switch(param_kind){
+							case AST::FuncDecl::Param::Kind::Read: {
+								evo::debugFatalBreak("Should not error on a read param");
+							} break;
+
+							case AST::FuncDecl::Param::Kind::Mut: {
+								infos.emplace_back(
+									std::format(
+										"{} [mut] parameters require concrete mutable expressions", fail_match_message
+									),
+									this->get_source_location(funcs[i]->params()[reason.arg_index].ident)
+								);
+							} break;
+
+							case AST::FuncDecl::Param::Kind::In: {
+								infos.emplace_back(
+									std::format("{} [in] parameters require ephemeral expressions", fail_match_message),
+									this->get_source_location(funcs[i]->params()[reason.arg_index].ident)
+								);
+							} break;
+						}
+
+					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::IncorrectLabel>){
+						infos.emplace_back(
+							std::format(
+								"{} incorrect label at argument index {}",
+								fail_match_message,
+								reason.arg_index
+							),
+							this->get_source_location(*args[reason.arg_index].explicitIdent)
+						);
+					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::LackingLabel>){
+						infos.emplace_back(
+							std::format(
+								"{} requrires label at argument index {}",
+								fail_match_message,
+								reason.arg_index
+							),
+							this->get_source_location(args[reason.arg_index].value)
+						);
+					}
+				});
+
+				i += 1;
+			}
+
+			this->emit_error(
+				Diagnostic::Code::SemaNoMatchingFunction, location, "No matching function", std::move(infos)
+			);
+			return evo::resultError;
+
+		}
+
+		const size_t matched_index = size_t(best_score - scores.data());
+		const BaseType::Function& matched_func_type = *funcs[matched_index];
+
+		for(size_t i = 0; ArgInfo& arg_info : arg_infos){
+			if(this->type_check<true>( // this is to implicitly convert all the required args
+				matched_func_type.params()[i].typeID, arg_info.expr_info, "Parameter", arg_info.ast_node
+			).ok == false){
+				evo::debugFatalBreak("This should not be able to fail");
+			}
+		
+			i += 1;
+		}
+
+		return matched_index;
+	}
 
 
 	//////////////////////////////////////////////////////////////////////
 	// error handling
 
-	template<typename NODE_T>
-	auto SemanticAnalyzer::type_check_and_implicitly_convert(
+	template<bool IMPLICITLY_CONVERT, typename NODE_T>
+	auto SemanticAnalyzer::type_check(
 		TypeInfo::ID expected_type_id, ExprInfo& got_expr, std::string_view name, const NODE_T& location
-	) -> bool {
+	) -> TypeCheckInfo {
 		switch(got_expr.value_type){
 			case ExprInfo::ValueType::ConcreteConst:
 			case ExprInfo::ValueType::ConcreteMutable:
@@ -2168,9 +2660,12 @@ namespace pcit::panther{
 					if(
 						expected_type.baseTypeID()        != got_type.baseTypeID() || 
 						expected_type.qualifiers().size() != got_type.qualifiers().size()
-					){
-						this->type_mismatch(expected_type_id, got_expr, name, location);
-						return false;						
+					){	
+
+						if constexpr(IMPLICITLY_CONVERT){
+							this->error_type_mismatch(expected_type_id, got_expr, name, location);
+						}
+						return TypeCheckInfo(false, false);
 					}
 
 					// TODO: optimze this?
@@ -2179,19 +2674,25 @@ namespace pcit::panther{
 						const AST::Type::Qualifier& got_qualifier      = got_type.qualifiers()[i];
 
 						if(expected_qualifier.isPtr != got_qualifier.isPtr){
-							this->type_mismatch(expected_type_id, got_expr, name, location);
-							return false;
+							if constexpr(IMPLICITLY_CONVERT){
+								this->error_type_mismatch(expected_type_id, got_expr, name, location);
+							}
+							return TypeCheckInfo(false, false);
 						}
 						if(expected_qualifier.isReadOnly == false && got_qualifier.isReadOnly){
-							this->type_mismatch(expected_type_id, got_expr, name, location);
-							return false;
+							if constexpr(IMPLICITLY_CONVERT){
+								this->error_type_mismatch(expected_type_id, got_expr, name, location);
+							}
+							return TypeCheckInfo(false, false);
 						}
 					}
 				}
 
-				got_expr.type_id = expected_type_id;
+				if constexpr(IMPLICITLY_CONVERT){
+					EVO_DEFER([&](){ got_expr.type_id = expected_type_id; });
+				}
 
-				return true;
+				return TypeCheckInfo(true, got_expr.type_id.as<TypeInfo::ID>() != expected_type_id);
 			} break;
 
 
@@ -2202,13 +2703,14 @@ namespace pcit::panther{
 					var_type_info.qualifiers().empty() == false || 
 					var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
 				){
-					this->type_mismatch(expected_type_id, got_expr, name, location);
-					return false;
+					if constexpr(IMPLICITLY_CONVERT){
+						this->error_type_mismatch(expected_type_id, got_expr, name, location);
+					}
+					return TypeCheckInfo(false, false);
 				}
 
 
-				const BaseType::Builtin::ID var_type_builtin_id = 
-					var_type_info.baseTypeID().id<BaseType::Builtin::ID>();
+				const BaseType::Builtin::ID var_type_builtin_id = var_type_info.baseTypeID().builtinID();
 
 				const BaseType::Builtin& var_type_builtin = 
 					this->context.getTypeManager().getBuiltin(var_type_builtin_id);
@@ -2234,13 +2736,17 @@ namespace pcit::panther{
 							break;
 
 						default: {
-							this->type_mismatch(expected_type_id, got_expr, name, location);
-							return false;
+							if constexpr(IMPLICITLY_CONVERT){
+								this->error_type_mismatch(expected_type_id, got_expr, name, location);
+							}
+							return TypeCheckInfo(false, false);
 						}
 					}
 
-					const ASG::LiteralInt::ID literal_int_id = got_expr.expr->literalIntID();
-					this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = expected_type_id;
+					if constexpr(IMPLICITLY_CONVERT){
+						const ASG::LiteralInt::ID literal_int_id = got_expr.expr->literalIntID();
+						this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = expected_type_id;
+					}
 
 
 				}else{
@@ -2253,23 +2759,30 @@ namespace pcit::panther{
 						case Token::Kind::TypeBF16:
 						case Token::Kind::TypeF32:
 						case Token::Kind::TypeF64:
+						case Token::Kind::TypeF80:
 						case Token::Kind::TypeF128:
 							break;
 
 						default: {
-							this->type_mismatch(expected_type_id, got_expr, name, location);
-							return false;
+							if constexpr(IMPLICITLY_CONVERT){
+								this->error_type_mismatch(expected_type_id, got_expr, name, location);
+							}
+							return TypeCheckInfo(false, false);
 						}
 					}
 
-					const ASG::LiteralFloat::ID literal_float_id = got_expr.expr->literalFloatID();
-					this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = expected_type_id;
+					if constexpr(IMPLICITLY_CONVERT){
+						const ASG::LiteralFloat::ID literal_float_id = got_expr.expr->literalFloatID();
+						this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = expected_type_id;
+					}
 				}
 
-				got_expr.value_type = ExprInfo::ValueType::Ephemeral;
-				got_expr.type_id = expected_type_id;
+				if constexpr(IMPLICITLY_CONVERT){
+					got_expr.value_type = ExprInfo::ValueType::Ephemeral;
+					got_expr.type_id = expected_type_id;
+				}
 
-				return true;
+				return TypeCheckInfo(true, true);
 			} break;
 
 
@@ -2287,12 +2800,12 @@ namespace pcit::panther{
 
 
 	template<typename NODE_T>
-	auto SemanticAnalyzer::type_mismatch(
+	auto SemanticAnalyzer::error_type_mismatch(
 		TypeInfo::ID expected_type_id, const ExprInfo& got_expr, std::string_view name, const NODE_T& location
 
 	) -> void {
 		std::string expected_type_str = std::format("{} is of type: ", name);
-		std::string got_type_str = std::format("Expression is of type: ", name);
+		auto got_type_str = std::string("Expression is of type: ");
 
 		while(expected_type_str.size() < got_type_str.size()){
 			expected_type_str += ' ';
@@ -2347,6 +2860,7 @@ namespace pcit::panther{
 
 	template<typename NODE_T>
 	auto SemanticAnalyzer::already_defined(std::string_view ident_str, const NODE_T& node) const -> bool {
+		// template types
 		const auto template_type_find = this->template_arg_types.find(ident_str);
 		if(template_type_find != this->template_arg_types.end()){
 			this->emit_error(
@@ -2361,6 +2875,23 @@ namespace pcit::panther{
 			);
 			return true;
 		}
+
+		// template exprs
+		const auto template_expr_find = this->template_arg_exprs.find(ident_str);
+		if(template_expr_find != this->template_arg_exprs.end()){
+			this->emit_error(
+				Diagnostic::Code::SemaAlreadyDefined,
+				node,
+				std::format("Identifier \"{}\" was already defined in this scope", ident_str),
+				evo::SmallVector<Diagnostic::Info>{
+					// TODO: definition location
+					Diagnostic::Info(std::format("\"{}\" is a template parameter", ident_str)),
+					Diagnostic::Info("Note: shadowing is not allowed")
+				}
+			);
+			return true;
+		}
+
 
 		for(size_t i = this->scope.size() - 1; ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
 			const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[scope_level_id];
@@ -2649,6 +3180,15 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::get_source_location(ASG::Var::ID var_id) const -> SourceLocation {
 		const ASG::Var& asg_var = this->source.getASGBuffer().getVar(var_id);
 		return this->get_source_location(asg_var.ident);
+	}
+
+	auto SemanticAnalyzer::get_source_location(ASG::Param::ID param_id) const -> SourceLocation {
+		const ASG::Param& asg_param = this->source.getASGBuffer().getParam(param_id);
+		const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(asg_param.func);
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
+
+		return this->get_source_location(func_type.params()[asg_param.index].ident);
 	}
 
 }

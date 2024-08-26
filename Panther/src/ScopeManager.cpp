@@ -86,6 +86,19 @@ namespace pcit::panther{
 	}
 
 
+	auto ScopeManager::ScopeLevel::lookupParam(std::string_view ident) const -> std::optional<ASG::Param::ID> {
+		const std::unordered_map<std::string_view, ASG::Param::ID>::const_iterator lookup_iter = this->params.find(ident);
+		if(lookup_iter == this->params.end()){ return std::nullopt; }
+
+		return lookup_iter->second;
+	}
+	auto ScopeManager::ScopeLevel::addParam(std::string_view ident, ASG::Param::ID id) -> void {
+		evo::debugAssert(this->lookupParam(ident).has_value() == false, "Scope already has param \"{}\"", ident);
+
+		this->params.emplace(ident, id);
+	}
+
+
 
 	auto ScopeManager::ScopeLevel::lookupImport(std::string_view ident) const -> std::optional<Source::ID> {
 		const std::unordered_map<std::string_view, Source::ID>::const_iterator lookup_iter = this->imports.find(ident);

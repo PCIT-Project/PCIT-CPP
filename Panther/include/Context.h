@@ -185,7 +185,7 @@ namespace pcit::panther{
 			SourceManager src_manager;
 			mutable std::mutex src_manager_mutex{};
 
-			TypeManager type_manager{};
+			TypeManager type_manager;
 
 			DiagnosticCallback callback;
 			mutable std::mutex callback_mutex{};

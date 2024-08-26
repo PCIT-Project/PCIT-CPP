@@ -44,6 +44,7 @@ namespace pcit::panther::ASG{
 
 			Var,
 			Func,
+			Param,
 		};
 
 
@@ -59,6 +60,7 @@ namespace pcit::panther::ASG{
 
 		explicit Expr(VarLinkID var_id) : _kind(Kind::Var), value{.var = var_id} {};
 		explicit Expr(FuncLinkID func_id) : _kind(Kind::Func), value{.func = func_id} {};
+		explicit Expr(ParamLinkID param_id) : _kind(Kind::Param), value{.param = param_id} {};
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -114,6 +116,11 @@ namespace pcit::panther::ASG{
 			return this->value.func;
 		}
 
+		EVO_NODISCARD auto paramLinkID() const -> ParamLinkID {
+			evo::debugAssert(this->kind() == Kind::Param, "not a param");
+			return this->value.param;
+		}
+
 
 		private:
 			Kind _kind;
@@ -129,8 +136,10 @@ namespace pcit::panther::ASG{
 				DerefID deref;
 				FuncCallID func_call;
 
+				// TODO: figure out how to shrink this / something else to allow Expr to be size 8
 				VarLinkID var;
-				FuncLinkID func; // TODO: figure out how to shrink this / something else to allow Expr to be size 8
+				FuncLinkID func;
+				ParamLinkID param;
 			} value;
 	};
 
@@ -194,6 +203,7 @@ namespace pcit::panther::ASG{
 		using ID = FuncCallID;
 
 		FuncLinkID target;
+		evo::SmallVector<Expr> args;
 	};
 
 
@@ -291,7 +301,16 @@ namespace pcit::panther::ASG{
 		InstanceID instanceID;
 		bool isPub: 1;
 		bool isTerminated: 1 = false;
+		evo::SmallVector<ParamID> params{};
 		evo::SmallVector<Stmt> stmts{};
+	};
+
+	struct Param{
+		using ID = ParamID;
+		using LinkID = ParamLinkID;
+
+		Func::ID func;
+		uint32_t index;
 	};
 
 
@@ -392,5 +411,6 @@ namespace pcit::panther::ASG{
 		TypeInfo::ID typeID;
 		Expr expr;
 	};
+
 
 }

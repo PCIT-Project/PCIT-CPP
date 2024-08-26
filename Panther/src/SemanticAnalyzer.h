@@ -174,16 +174,38 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_expr_this(const Token::ID& this_expr) -> evo::Result<ExprInfo>;
 
 
+
+
+			struct ArgInfo{
+				std::optional<Token::ID> explicit_ident;
+				ExprInfo expr_info;
+				const AST::Node& ast_node;
+			};
+			template<typename NODE_T>
+			EVO_NODISCARD auto select_func_overload(
+				const NODE_T& location,
+				evo::ArrayProxy<ASG::Func::LinkID> asg_funcs,
+				evo::ArrayProxy<const BaseType::Function*> funcs,
+				evo::SmallVector<ArgInfo>& arg_infos,
+				evo::ArrayProxy<AST::FuncCall::Arg> args
+			) -> evo::Result<size_t>; // returns index of selected func
+
+
 			///////////////////////////////////
 			// error handling
 
-			template<typename NODE_T>
-			EVO_NODISCARD auto type_check_and_implicitly_convert(
+			struct TypeCheckInfo{
+				bool ok;
+				bool requires_implicit_conversion; // only may be true if .ok is true
+			};
+
+			template<bool IMPLICITLY_CONVERT, typename NODE_T>
+			EVO_NODISCARD auto type_check(
 				TypeInfo::ID expected_type_id, ExprInfo& got_expr, std::string_view name, const NODE_T& location
-			) -> bool;
+			) -> TypeCheckInfo;
 
 			template<typename NODE_T>
-			auto type_mismatch(
+			auto error_type_mismatch(
 				TypeInfo::ID expected_type_id, const ExprInfo& got_expr, std::string_view name, const NODE_T& location
 			) -> void;
 
@@ -279,6 +301,7 @@ namespace pcit::panther{
 			auto get_source_location(ASG::Func::LinkID func_id) const -> SourceLocation;
 			auto get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation;
 			auto get_source_location(ASG::Var::ID var_id) const -> SourceLocation;
+			auto get_source_location(ASG::Param::ID param_id) const -> SourceLocation;
 
 	
 		private:

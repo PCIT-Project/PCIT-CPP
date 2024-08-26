@@ -84,6 +84,21 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// params
+
+			EVO_NODISCARD auto createParam(auto&&... args) -> ASG::Param::ID {
+				const auto created_id = ASG::Param::ID(uint32_t(this->params.size()));
+				this->params.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getParam(ASG::Param::ID id) const -> const ASG::Param& {
+				return this->params[id.get()];
+			}
+
+
+
+			///////////////////////////////////
 			// func calls
 
 			EVO_NODISCARD auto createFuncCall(auto&&... args) -> ASG::FuncCall::ID {
@@ -228,6 +243,7 @@ namespace pcit::panther{
 			evo::SmallVector<ASG::Func> funcs{};
 			evo::SmallVector<std::unique_ptr<ASG::TemplatedFunc>> templated_funcs{};
 			evo::SmallVector<ASG::Var> vars{};
+			evo::SmallVector<ASG::Param> params{};
 
 			evo::SmallVector<ASG::FuncCall> func_calls{};
 			evo::SmallVector<ASG::Assign> assigns{};

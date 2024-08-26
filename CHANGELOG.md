@@ -1,7 +1,28 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.27.0
+
+### Panther
+- Added support for function parameters
+- Added parameter attribute `#mustLabel`
+- Re-added built-in type `F80`
+
+
+<!---------------------------------->
 ## v0.0.26.0
+
+### Panther
+- *[Experimental]* Added clickable source file locations in diagnostics (only works if terminal supports it) 
+- Fixed functions with return types that are from the template instantiation
+- Fixed not properly checking for identifier reuse within a template parameter block
+- Fixed checking for identifier reuse not including expression template arguments
+
+
+<!---------------------------------->
+## v0.0.26.0
+
+### Panther
 - Added support for prefix `&` operator (address-of)
 - Added support for postfix `.*` operator (dereference)
 - Added checking for invalid type qualifiers (read-only pointer above a mutable pointer)
@@ -108,7 +129,7 @@ Added the ability to run compiled Panther code
 - Added the concept of fluid literals
 	- literal ints can become any integral type
 	- literal floats can become any float type
-- Removed built-in-type `F80`
+- Removed built-in type `F80`
 
 
 <!---------------------------------->

@@ -13,21 +13,31 @@ namespace pcit::panther{
 
 
 	static auto print_location(
-		core::Printer& printer, const Source& source, Diagnostic::Level level, const Source::Location& location
+		core::Printer& printer,
+		const Source& source,
+		Diagnostic::Level level,
+		const Source::Location& location,
+		evo::uint depth
 	) -> void {
 
 		///////////////////////////////////
 		// print file location
 
-		if(level == Diagnostic::Level::Info){
-			printer.printGray(
-				std::format("\t\t{}:{}:{}\n", source.getLocationAsString(), location.lineStart, location.collumnStart)
-			);
-		}else{
-			printer.printGray(
-				std::format("\t{}:{}:{}\n", source.getLocationAsString(), location.lineStart, location.collumnStart)
-			);
+		for(size_t i = 0; i < depth; i+=1){
+			printer.print("\t");
 		}
+
+
+		// https://stackoverflow.com/a/66814614
+		printer.printGray(
+			std::format(
+				"\x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\:{}:{}\n", 
+				source.getLocationAsString(),
+				source.getLocationAsString(),
+				location.lineStart,
+				location.collumnStart
+			)
+		);
 
 		const std::string line_number_str = std::to_string(location.lineStart);
 
@@ -133,6 +143,25 @@ namespace pcit::panther{
 	}
 
 
+	static auto print_info(
+		core::Printer& printer, const Context& context, const Diagnostic::Info& info, evo::uint depth
+	) -> void {
+		for(size_t i = 0; i < depth; i+=1){
+			printer.print("\t");
+		}
+
+		printer.printCyan(std::format("<Info> {}\n", info.message));
+
+		if(info.location.has_value()){
+			const Source& source = context.getSourceManager().getSource(info.location->sourceID);
+			print_location(printer, source, Diagnostic::Level::Info, *info.location, depth + 1);
+		}
+
+		for(const Diagnostic::Info& sub_info : info.sub_infos){
+			print_info(printer, context, sub_info, depth + 1);
+		}
+	}
+
 	
 
 	auto createDefaultDiagnosticCallback(core::Printer& printer_ref) -> Context::DiagnosticCallback {
@@ -152,15 +181,11 @@ namespace pcit::panther{
 				const Source::Location& location = *diagnostic.location;
 				const Source& source = context.getSourceManager().getSource(location.sourceID);
 
-				print_location(printer, source, diagnostic.level, location);
+				print_location(printer, source, diagnostic.level, location, 1);
 			}
 
 			for(const Diagnostic::Info& info : diagnostic.infos){
-				printer.printCyan(std::format("\t<Info> {}\n", info.message));
-				if(info.location.has_value()){
-					const Source& source = context.getSourceManager().getSource(info.location->sourceID);
-					print_location(printer, source, Diagnostic::Level::Info, *info.location);
-				}
+				print_info(printer, context, info, 1);
 			}
 
 

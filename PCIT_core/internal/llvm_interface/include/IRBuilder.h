@@ -51,7 +51,9 @@ namespace pcit::llvmint{
 
 			// createGEP
 			// createUnreachable
-			// createBranch
+
+			auto createBranch(const BasicBlock& block) -> void;
+
 			// createCondBranch
 
 			auto createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0') 
@@ -126,6 +128,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getValueBF16(float64_t value) const -> Constant;
 			EVO_NODISCARD auto getValueF32(float64_t value) const -> Constant;
 			EVO_NODISCARD auto getValueF64(float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF80(float64_t value) const -> Constant;
 			EVO_NODISCARD auto getValueF128(float64_t value) const -> Constant;
 
 			EVO_NODISCARD auto getValueFloat(const Type& type, float64_t value) const -> Constant;
@@ -134,12 +137,14 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getNaNBF16() const -> Constant;
 			EVO_NODISCARD auto getNaNF32() const -> Constant;
 			EVO_NODISCARD auto getNaNF64() const -> Constant;
+			EVO_NODISCARD auto getNaNF80() const -> Constant;
 			EVO_NODISCARD auto getNaNF128() const -> Constant;
 
 			EVO_NODISCARD auto getInfinityF16() const -> Constant;
 			EVO_NODISCARD auto getInfinityBF16() const -> Constant;
 			EVO_NODISCARD auto getInfinityF32() const -> Constant;
 			EVO_NODISCARD auto getInfinityF64() const -> Constant;
+			EVO_NODISCARD auto getInfinityF80() const -> Constant;
 			EVO_NODISCARD auto getInfinityF128() const -> Constant;
 
 
@@ -163,6 +168,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getTypeBF16() const -> Type;
 			EVO_NODISCARD auto getTypeF32() const -> Type;
 			EVO_NODISCARD auto getTypeF64() const -> Type;
+			EVO_NODISCARD auto getTypeF80() const -> Type;
 			EVO_NODISCARD auto getTypeF128() const -> Type;
 
 			EVO_NODISCARD auto getTypePtr() const -> PointerType;

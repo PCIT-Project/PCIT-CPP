@@ -1,14 +1,25 @@
 
 
 
+func get_num = <{T: Type}> (num: T in) -> T {
+	return (copy num);
+}
 
+func set_num = (num: UI8* read #mustLabel) -> Void {
+	num.* = 15;
+}
 
 
 func entry = () #entry -> UI8 {
 	var foo: UI8 = 12;
-	const foo_ptr: UI8* = &foo;
 
-	foo_ptr.* = 14;
+	set_num(num: &foo);
 
-	return (copy foo_ptr.*);
+	return get_num<{UI8}>(copy foo);
 }
+
+
+
+
+
+

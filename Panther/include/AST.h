@@ -180,7 +180,7 @@ namespace pcit::panther::AST{
 
 	struct FuncCall{
 		struct Arg{
-			std::optional<Node> explicitIdent;
+			std::optional<Token::ID> explicitIdent;
 			Node value;
 		};
 

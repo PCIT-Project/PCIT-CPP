@@ -21,8 +21,11 @@
 namespace pcit::panther{
 
 
-	Context::Context(DiagnosticCallback diagnostic_callback, const Config& _config) 
-		: callback(diagnostic_callback), config(_config) {
+	Context::Context(DiagnosticCallback diagnostic_callback, const Config& _config) : 
+		callback(diagnostic_callback),
+		config(_config),
+		type_manager(core::Platform::Windows, core::Architecture::x86)
+	{
 		evo::debugAssert(this->config.maxNumErrors > 0, "Max num errors cannot be 0");
 	}
 

@@ -121,6 +121,30 @@ namespace pcit::panther::ASG{
 			SourceID _source_id;
 			VarID _var_id;
 	};
+
+
+	struct ParamID : public core::UniqueID<uint32_t, struct ParamID> {
+		using core::UniqueID<uint32_t, ParamID>::UniqueID;
+	};
+
+	struct ParamLinkID{
+		ParamLinkID(FuncLinkID func_link_id, ParamID param_id) : _func_link_id(func_link_id), _param_id(param_id) {}
+
+		EVO_NODISCARD auto funcLinkID() const -> FuncLinkID { return this->_func_link_id; }
+		EVO_NODISCARD auto paramID() const -> ParamID { return this->_param_id; }
+
+		EVO_NODISCARD auto operator==(const ParamLinkID& rhs) const -> bool {
+			return this->_func_link_id == rhs._func_link_id && this->_param_id == rhs._param_id;
+		}
+
+		EVO_NODISCARD auto operator!=(const ParamLinkID& rhs) const -> bool {
+			return this->_func_link_id != rhs._func_link_id || this->_param_id != rhs._param_id;
+		}
+		
+		private:
+			FuncLinkID _func_link_id;
+			ParamID _param_id;
+	};
 }
 
 
@@ -138,6 +162,16 @@ struct std::hash<pcit::panther::ASG::VarLinkID>{
 	auto operator()(const pcit::panther::ASG::VarLinkID& link_id) const noexcept -> size_t {
 		auto hasher = std::hash<uint32_t>{};
 		return evo::hashCombine(hasher(link_id.sourceID().get()), hasher(link_id.varID().get()));
+	};
+};
+
+template<>
+struct std::hash<pcit::panther::ASG::ParamLinkID>{
+	auto operator()(const pcit::panther::ASG::ParamLinkID& link_id) const noexcept -> size_t {
+		return evo::hashCombine(
+			std::hash<pcit::panther::ASG::FuncLinkID>{}(link_id.funcLinkID()),
+			std::hash<uint32_t>{}(link_id.paramID().get())
+		);
 	};
 };
 

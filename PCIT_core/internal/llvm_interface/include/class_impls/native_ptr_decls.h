@@ -23,6 +23,7 @@ namespace llvm{
 	class ExecutionEngine;
 	
 	class Function;
+	class Argument;
 
 	// types
 	class Type;

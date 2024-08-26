@@ -9,6 +9,11 @@
 
 #include "../include/TypeManager.h"
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
+
 namespace pcit::panther{
 
 	
@@ -35,6 +40,7 @@ namespace pcit::panther{
 		this->builtins.emplace_back(new BaseType::Builtin(Token::Kind::TypeF16));
 		this->builtins.emplace_back(new BaseType::Builtin(Token::Kind::TypeF32));
 		this->builtins.emplace_back(new BaseType::Builtin(Token::Kind::TypeF64));
+		this->builtins.emplace_back(new BaseType::Builtin(Token::Kind::TypeF80));
 		this->builtins.emplace_back(new BaseType::Builtin(Token::Kind::TypeF128));
 		this->builtins.emplace_back(new BaseType::Builtin(Token::Kind::TypeByte));
 		this->builtins.emplace_back(new BaseType::Builtin(Token::Kind::TypeBool));
@@ -64,9 +70,9 @@ namespace pcit::panther{
 
 		this->types.reserve(4); // TODO: optimize this number
 
-		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 9))); // literal bool
-		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 10))); // literal character
-		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 25))); // literal character
+		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 10))); // literal bool
+		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 11))); // literal character
+		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 26))); // UI8
 	}
 
 	auto TypeManager::builtinsInitialized() const -> bool {
@@ -113,7 +119,7 @@ namespace pcit::panther{
 		auto get_base_str = [&]() -> std::string {
 			switch(type_info.baseTypeID().kind()){
 				case BaseType::Kind::Builtin: {
-					const BaseType::Builtin::ID builtin_id = type_info.baseTypeID().id<BaseType::Builtin::ID>();
+					const BaseType::Builtin::ID builtin_id = type_info.baseTypeID().builtinID();
 					const BaseType::Builtin& builtin = this->getBuiltin(builtin_id);
 
 					if(builtin.kind() == Token::Kind::TypeI_N){
@@ -215,5 +221,92 @@ namespace pcit::panther{
 		return new_id;
 	}
 
+
+
+	//////////////////////////////////////////////////////////////////////
+	// type traits
+
+	// https://stackoverflow.com/a/1766566
+	static constexpr auto round_up_to_nearest_multiple_of_8(size_t num) -> size_t {
+		return (num + (8 - 1)) & ~(8 - 1);
+	}
+
+	auto TypeManager::sizeOf(TypeInfo::ID id) const -> size_t {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+		if(type_info.qualifiers().empty()){ return this->sizeOf(type_info.baseTypeID()); }
+
+		evo::debugAssert(
+			type_info.qualifiers().back().isPtr || !type_info.qualifiers().back().isOptional,
+			"optionals are not supported yet"
+		);
+
+		return this->sizeOfPtr();
+	}
+
+
+	auto TypeManager::sizeOf(BaseType::ID id) const -> size_t {
+		switch(id.kind()){
+			case BaseType::Kind::Builtin: {
+				const BaseType::Builtin& builtin = this->getBuiltin(id.builtinID());
+
+				switch(builtin.kind()){
+					case Token::Kind::TypeInt: case Token::Kind::TypeUInt:
+						return this->sizeOfGeneralRegister();
+
+					case Token::Kind::TypeISize: case Token::Kind::TypeUSize:
+						return this->sizeOfPtr();
+
+					case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N:
+						return round_up_to_nearest_multiple_of_8(builtin.bitWidth()) / 8;
+
+					case Token::Kind::TypeF16:    return 2;
+					case Token::Kind::TypeBF16:   return 2;
+					case Token::Kind::TypeF32:    return 4;
+					case Token::Kind::TypeF64:    return 8;
+					case Token::Kind::TypeF80:    return 16;
+					case Token::Kind::TypeF128:   return 16;
+					case Token::Kind::TypeByte:   return 1;
+					case Token::Kind::TypeBool:   return 1;
+					case Token::Kind::TypeChar:   return 1;
+					case Token::Kind::TypeRawPtr: return this->sizeOfPtr();
+
+					// https://en.cppreference.com/w/cpp/language/types
+					case Token::Kind::TypeCShort: case Token::Kind::TypeCUShort:
+					    return 2;
+
+					case Token::Kind::TypeCInt: case Token::Kind::TypeCUInt:
+						return this->platform() == core::Platform::Windows ? 4 : 8;
+
+					case Token::Kind::TypeCLong: case Token::Kind::TypeCULong:
+						return 4;
+
+					case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
+						return 8;
+
+					case Token::Kind::TypeCLongDouble: return this->platform() == core::Platform::Windows ? 8 : 16;
+
+					default: evo::debugFatalBreak("Unknown or unsupported built-in type");
+				}
+			} break;
+
+			case BaseType::Kind::Function: {
+				return this->sizeOfPtr();
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported base-type kind");
+	}
+
+	auto TypeManager::sizeOfPtr() const -> size_t { return 8; }
+	auto TypeManager::sizeOfGeneralRegister() const -> size_t { return 8; }
+
+
+	auto TypeManager::isTriviallyCopyable(TypeInfo::ID) const -> bool {
+		return true;
+	}
+
+	auto TypeManager::isTriviallyCopyable(BaseType::ID) const -> bool {
+		return true;
+	}
 
 }

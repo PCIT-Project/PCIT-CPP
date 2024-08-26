@@ -67,12 +67,20 @@ namespace pcit::panther{
 
 	auto ASGToLLVMIR::lower_func_decl(ASG::Func::ID func_id) -> void {
 		const ASG::Func& func = this->current_source->getASGBuffer().getFunc(func_id);
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
-			func.baseTypeID.id<BaseType::Function::ID>()
-		);
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.baseTypeID.funcID());
+
+		auto param_types = evo::SmallVector<llvmint::Type>();
+		param_types.reserve(func_type.params().size());
+		for(const BaseType::Function::Param& param : func_type.params()){
+			if(param.optimizeWithCopy){
+				param_types.emplace_back(this->get_type(param.typeID));
+			}else{
+				param_types.emplace_back(this->builder.getTypePtr());
+			}
+		}
 
 		const llvmint::FunctionType func_proto = this->builder.getFuncProto(
-			this->get_type(func_type.returnParams()[0].typeID), {}, false
+			this->get_type(func_type.returnParams()[0].typeID), param_types, false
 		);
 		const auto linkage = llvmint::LinkageType::Internal;
 
@@ -80,14 +88,60 @@ namespace pcit::panther{
 		llvm_func.setNoThrow();
 		llvm_func.setCallingConv(llvmint::CallingConv::Fast);
 
-		this->func_infos.emplace(ASG::Func::LinkID(this->current_source->getID(), func_id), FuncInfo(llvm_func));
 
-		this->builder.createBasicBlock(llvm_func, "begin");
+		for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params()){
+			llvm_func.getArg(i).setName(this->current_source->getTokenBuffer()[param.ident].getString());
+
+			i += 1;
+		}
+
+		const auto asg_func_link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
+		this->func_infos.emplace(asg_func_link_id, FuncInfo(llvm_func));
+
+		if(func_type.params().empty()){
+			this->builder.createBasicBlock(llvm_func, "begin");
+			
+		}else{
+			const llvmint::BasicBlock setup_block = this->builder.createBasicBlock(llvm_func, "setup");
+			const llvmint::BasicBlock begin_block = this->builder.createBasicBlock(llvm_func, "begin");
+
+			this->builder.setInsertionPoint(setup_block);
+
+			for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params()){
+				const std::string_view param_name = this->current_source->getTokenBuffer()[param.ident].getString();
+
+				const llvmint::Alloca param_alloca = [&](){
+					if(param.optimizeWithCopy){
+						return this->builder.createAlloca(
+							this->get_type(param.typeID), this->stmt_name("{}.alloca", param_name)
+						);
+
+					}else{
+						return this->builder.createAlloca(
+							this->builder.getTypePtr(), this->stmt_name("{}.alloca", param_name)
+						);
+					}
+				}();
+
+				this->builder.createStore(param_alloca, static_cast<llvmint::Value>(llvm_func.getArg(i)));
+
+				this->param_infos.emplace(
+					ASG::Param::LinkID(asg_func_link_id, func.params[i]),
+					ParamInfo(param_alloca, this->get_type(param.typeID), i)
+				);
+
+				i += 1;
+			}
+
+			this->builder.createBranch(begin_block);
+		}
 	}
 
 
 	auto ASGToLLVMIR::lower_func_body(ASG::Func::ID func_id) -> void {
 		const ASG::Func& asg_func = this->current_source->getASGBuffer().getFunc(func_id);
+		this->current_func = &asg_func;
+
 		auto link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
 		const FuncInfo& func_info = this->get_func_info(link_id);
 
@@ -100,6 +154,8 @@ namespace pcit::panther{
 		if(asg_func.isTerminated == false){
 			this->builder.createRet();
 		}
+
+		this->current_func = nullptr;
 	}
 
 
@@ -108,10 +164,10 @@ namespace pcit::panther{
 		const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
 
 		switch(stmt.kind()){
-			break; case ASG::Stmt::Kind::Var: this->lower_var(stmt.varID());
+			break; case ASG::Stmt::Kind::Var:      this->lower_var(stmt.varID());
 			break; case ASG::Stmt::Kind::FuncCall: this->lower_func_call(asg_buffer.getFuncCall(stmt.funcCallID()));
-			break; case ASG::Stmt::Kind::Assign: this->lower_assign(asg_buffer.getAssign(stmt.assignID()));
-			break; case ASG::Stmt::Kind::Return: this->lower_return(asg_buffer.getReturn(stmt.returnID()));
+			break; case ASG::Stmt::Kind::Assign:   this->lower_assign(asg_buffer.getAssign(stmt.assignID()));
+			break; case ASG::Stmt::Kind::Return:   this->lower_return(asg_buffer.getReturn(stmt.returnID()));
 		}
 	}
 
@@ -132,7 +188,21 @@ namespace pcit::panther{
 
 	auto ASGToLLVMIR::lower_func_call(const ASG::FuncCall& func_call) -> void {
 		const FuncInfo& func_info = this->get_func_info(func_call.target);
-		this->builder.createCall(func_info.func, {});
+		const Source& target_source = this->context.getSourceManager()[func_call.target.sourceID()];
+		const ASG::Func& asg_func_target = target_source.getASGBuffer().getFunc(func_call.target.funcID());
+		const BaseType::Function& func_target_type = 
+			this->context.getTypeManager().getFunction(asg_func_target.baseTypeID.funcID());
+
+		auto args = evo::SmallVector<llvmint::Value>();
+		args.reserve(func_call.args.size());
+		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
+			const bool optimize_with_copy = func_target_type.params()[i].optimizeWithCopy;
+			args.emplace_back(this->get_value(arg, !optimize_with_copy));
+
+			i += 1;
+		}
+
+		this->builder.createCall(func_info.func, args);
 	}
 
 
@@ -178,40 +248,64 @@ namespace pcit::panther{
 
 		switch(type_info.baseTypeID().kind()){
 			case BaseType::Kind::Builtin: {
-				const BaseType::Builtin::ID builtin_id = type_info.baseTypeID().id<BaseType::Builtin::ID>();
+				const BaseType::Builtin::ID builtin_id = type_info.baseTypeID().builtinID();
 				const BaseType::Builtin& builtin = this->context.getTypeManager().getBuiltin(builtin_id);
 
 				// TODO: select correct type based on target platform / architecture
 				switch(builtin.kind()){
-					case Token::Kind::TypeInt: return static_cast<llvmint::Type>(this->builder.getTypeI64());
-					case Token::Kind::TypeISize: return static_cast<llvmint::Type>(this->builder.getTypeI64()); 
-					case Token::Kind::TypeI_N: {
+					case Token::Kind::TypeInt: case Token::Kind::TypeUInt: {
+						return static_cast<llvmint::Type>(
+							this->builder.getTypeI_N(
+								evo::uint(this->context.getTypeManager().sizeOfGeneralRegister() * 8)
+							)
+						);
+					} break;
+
+					case Token::Kind::TypeISize: case Token::Kind::TypeUSize:{
+						return static_cast<llvmint::Type>(
+							this->builder.getTypeI_N(evo::uint(this->context.getTypeManager().sizeOfPtr() * 8))
+						);
+					} break;
+
+					case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
 						return static_cast<llvmint::Type>(this->builder.getTypeI_N(evo::uint(builtin.bitWidth())));
 					} break;
-					case Token::Kind::TypeUInt: return static_cast<llvmint::Type>(this->builder.getTypeI64()); 
-					case Token::Kind::TypeUSize: return static_cast<llvmint::Type>(this->builder.getTypeI64()); 
-					case Token::Kind::TypeUI_N: {
-						return static_cast<llvmint::Type>(this->builder.getTypeI_N(evo::uint(builtin.bitWidth())));
-					} break;
+
 					case Token::Kind::TypeF16: return static_cast<llvmint::Type>(this->builder.getTypeF16()); 
 					case Token::Kind::TypeBF16: return static_cast<llvmint::Type>(this->builder.getTypeBF16()); 
 					case Token::Kind::TypeF32: return static_cast<llvmint::Type>(this->builder.getTypeF32()); 
 					case Token::Kind::TypeF64: return static_cast<llvmint::Type>(this->builder.getTypeF64()); 
+					case Token::Kind::TypeF80: return static_cast<llvmint::Type>(this->builder.getTypeF80());
 					case Token::Kind::TypeF128: return static_cast<llvmint::Type>(this->builder.getTypeF128());
 					case Token::Kind::TypeByte: return static_cast<llvmint::Type>(this->builder.getTypeI8());
 					case Token::Kind::TypeBool: return static_cast<llvmint::Type>(this->builder.getTypeBool()); 
 					case Token::Kind::TypeChar: return static_cast<llvmint::Type>(this->builder.getTypeI8());
 					case Token::Kind::TypeRawPtr: return static_cast<llvmint::Type>(this->builder.getTypePtr());
 
-					case Token::Kind::TypeCShort: return static_cast<llvmint::Type>(this->builder.getTypeI16()); 
-					case Token::Kind::TypeCUShort: return static_cast<llvmint::Type>(this->builder.getTypeI16()); 
-					case Token::Kind::TypeCInt: return static_cast<llvmint::Type>(this->builder.getTypeI32()); 
-					case Token::Kind::TypeCUInt: return static_cast<llvmint::Type>(this->builder.getTypeI32()); 
-					case Token::Kind::TypeCLong: return static_cast<llvmint::Type>(this->builder.getTypeI32()); 
-					case Token::Kind::TypeCULong: return static_cast<llvmint::Type>(this->builder.getTypeI32()); 
-					case Token::Kind::TypeCLongLong: return static_cast<llvmint::Type>(this->builder.getTypeI64()); 
-					case Token::Kind::TypeCULongLong: return static_cast<llvmint::Type>(this->builder.getTypeI64()); 
-					case Token::Kind::TypeCLongDouble: return static_cast<llvmint::Type>(this->builder.getTypeF64());
+					case Token::Kind::TypeCShort: case Token::Kind::TypeCUShort: 
+						return static_cast<llvmint::Type>(this->builder.getTypeI16()); 
+
+					case Token::Kind::TypeCInt: case Token::Kind::TypeCUInt: {
+						if(this->context.getTypeManager().platform() == core::Platform::Windows){
+							return static_cast<llvmint::Type>(this->builder.getTypeI32());
+						}else{
+							return static_cast<llvmint::Type>(this->builder.getTypeI64());
+						}
+					} break;
+
+					case Token::Kind::TypeCLong: case Token::Kind::TypeCULong:
+						return static_cast<llvmint::Type>(this->builder.getTypeI32()); 
+
+					case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
+						return static_cast<llvmint::Type>(this->builder.getTypeI64());
+
+					case Token::Kind::TypeCLongDouble: {
+						if(this->context.getTypeManager().platform() == core::Platform::Windows){
+							return static_cast<llvmint::Type>(this->builder.getTypeF64());
+						}else{
+							return static_cast<llvmint::Type>(this->builder.getTypeF80());
+						}
+					} break;
 
 					default: evo::debugFatalBreak(
 						"Unknown or unsupported builtin-type: {}", evo::to_underlying(builtin.kind())
@@ -248,6 +342,25 @@ namespace pcit::panther{
 
 			case ASG::Expr::Kind::Func: {
 				evo::fatalBreak("Function values are unsupported");
+			} break;
+
+			case ASG::Expr::Kind::Param: {
+				const ParamInfo& param_info = this->get_param_info(expr.paramLinkID());
+				
+				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+					this->current_func->baseTypeID.funcID()
+				);
+
+				const bool optimize_with_copy = func_type.params()[param_info.index].optimizeWithCopy;
+
+				if(optimize_with_copy){
+					return static_cast<llvmint::Value>(param_info.alloca);
+
+				}else{
+					return static_cast<llvmint::Value>(this->builder.createLoad(
+						param_info.alloca, this->stmt_name("param.ptr_lookup")
+					));
+				}
 			} break;
 		}
 
@@ -333,18 +446,29 @@ namespace pcit::panther{
 
 			case ASG::Expr::Kind::FuncCall: {
 				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
-				const ASG::Func::LinkID func_link_id = asg_buffer.getFuncCall(expr.funcCallID()).target;
+				const ASG::FuncCall& func_call = asg_buffer.getFuncCall(expr.funcCallID());
+				const ASG::Func::LinkID& func_link_id = func_call.target;
 				const FuncInfo& func_info = this->get_func_info(func_link_id);
-
-				const llvmint::Value func_call_value = this->builder.createCall(func_info.func, {});
-
-				if(get_pointer_to_value == false){ return func_call_value; }
 
 				const Source& linked_source = this->context.getSourceManager()[func_link_id.sourceID()];
 				const ASG::Func& asg_func = linked_source.getASGBuffer().getFunc(func_link_id.funcID());
 				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
-					asg_func.baseTypeID.id<BaseType::Function::ID>()
+					asg_func.baseTypeID.funcID()
 				);
+
+				auto args = evo::SmallVector<llvmint::Value>();
+				args.reserve(func_call.args.size());
+				for(size_t i = 0; const ASG::Expr& arg : func_call.args){
+					const bool optimize_with_copy = func_type.params()[i].optimizeWithCopy;
+					args.emplace_back(this->get_value(arg, !optimize_with_copy));
+
+					i += 1;
+				}
+
+				const llvmint::Value func_call_value = this->builder.createCall(func_info.func, args);
+				if(get_pointer_to_value == false){ return func_call_value; }
+
+				
 				const llvmint::Type return_type = this->get_type(func_type.returnParams()[0].typeID);
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
@@ -366,6 +490,37 @@ namespace pcit::panther{
 
 			case ASG::Expr::Kind::Func: {
 				evo::fatalBreak("ASG::Expr::Kind::Func is unsupported");
+			} break;
+
+			case ASG::Expr::Kind::Param: {
+				const ParamInfo& param_info = this->get_param_info(expr.paramLinkID());
+
+				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+					this->current_func->baseTypeID.funcID()
+				);
+
+				const bool optimize_with_copy = func_type.params()[param_info.index].optimizeWithCopy;
+
+				if(optimize_with_copy){
+					if(get_pointer_to_value){
+						return static_cast<llvmint::Value>(param_info.alloca);
+					}else{
+						return this->builder.createLoad(param_info.alloca, this->stmt_name("param.load"));
+					}
+
+				}else{
+					const llvmint::LoadInst load_inst = this->builder.createLoad(
+						param_info.alloca, this->stmt_name("param.ptr_lookup")
+					);
+
+					if(get_pointer_to_value) [[unlikely]] {
+						return static_cast<llvmint::Value>(load_inst);
+					}else{
+						return this->builder.createLoad(
+							static_cast<llvmint::Value>(load_inst), param_info.type, this->stmt_name("param.load")
+						);
+					}
+				}
 			} break;
 		}
 
@@ -442,6 +597,12 @@ namespace pcit::panther{
 	auto ASGToLLVMIR::get_var_info(ASG::Var::LinkID link_id) const -> const VarInfo& {
 		const auto& info_find = this->var_infos.find(link_id);
 		evo::debugAssert(info_find != this->var_infos.end(), "doesn't have info for that link id");
+		return info_find->second;
+	}
+
+	auto ASGToLLVMIR::get_param_info(ASG::Param::LinkID link_id) const -> const ParamInfo& {
+		const auto& info_find = this->param_infos.find(link_id);
+		evo::debugAssert(info_find != this->param_infos.end(), "doesn't have info for that link id");
 		return info_find->second;
 	}
 

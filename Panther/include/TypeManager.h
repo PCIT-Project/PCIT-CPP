@@ -138,6 +138,18 @@ namespace pcit::panther{
 		struct Function{
 			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
+			struct Param{
+				Token::ID ident;
+				TypeInfoID typeID;
+				AST::FuncDecl::Param::Kind kind;
+				bool mustLabel:1;
+				bool optimizeWithCopy:1;
+
+				EVO_NODISCARD auto operator==(const Param& rhs) const -> bool {
+					return this->ident == rhs.ident && this->typeID == rhs.typeID;
+				}
+			};
+
 			struct ReturnParam{
 				std::optional<Token::ID> ident;
 				TypeInfoVoidableID typeID;
@@ -147,18 +159,23 @@ namespace pcit::panther{
 				}
 			};
 
-			Function(SourceID _source_id, evo::SmallVector<ReturnParam>&& return_params_in)
-				: source_id(_source_id), return_params(std::move(return_params_in)) {};
+			Function(
+				SourceID _source_id, evo::SmallVector<Param>&& params_in, evo::SmallVector<ReturnParam>&& _return_params
+			) : source_id(_source_id), _params(std::move(params_in)), return_params(std::move(_return_params)) {};
 
 			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
+			EVO_NODISCARD auto params() const -> evo::ArrayProxy<Param> { return this->_params; }
 			EVO_NODISCARD auto returnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
 
 			EVO_NODISCARD auto operator==(const Function& rhs) const -> bool {
-				return this->source_id == rhs.source_id && this->return_params == rhs.return_params;
+				return this->source_id     == rhs.source_id &&
+				       this->_params       == rhs._params   &&
+				       this->return_params == rhs.return_params;
 			}
 
 			private:
 				SourceID source_id;
+				evo::SmallVector<Param> _params;
 				evo::SmallVector<ReturnParam> return_params;
 		};
 
@@ -167,18 +184,12 @@ namespace pcit::panther{
 		struct ID{
 			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
 
-
-			template<class T>
-			EVO_NODISCARD auto id() const -> T { static_assert(sizeof(T) == -1, "cannot get ID of this type"); }
-
-			template<>
-			EVO_NODISCARD auto id<Builtin::ID>() const -> Builtin::ID {
+			EVO_NODISCARD auto builtinID() const -> Builtin::ID {
 				evo::debugAssert(this->kind() == Kind::Builtin, "not a Builtin");
 				return Builtin::ID(this->_id);
 			}
 
-			template<>
-			EVO_NODISCARD auto id<Function::ID>() const -> Function::ID {
+			EVO_NODISCARD auto funcID() const -> Function::ID {
 				evo::debugAssert(this->kind() == Kind::Function, "not a Function");
 				return Function::ID(this->_id);
 			}
@@ -226,11 +237,18 @@ namespace pcit::panther{
 
 	class TypeManager{
 		public:
-			TypeManager() = default;
+			TypeManager(core::Platform target_platform, core::Architecture target_arch)
+				: _platform(target_platform), _architecture(target_arch) {};
 			~TypeManager();
+
 
 			auto initBuiltins() -> void; // single-threaded
 			EVO_NODISCARD auto builtinsInitialized() const -> bool; // single-threaded
+
+
+			EVO_NODISCARD auto platform() const -> core::Platform { return this->_platform; }
+			EVO_NODISCARD auto architecture() const -> core::Architecture { return this->_architecture; }
+
 
 			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
 			EVO_NODISCARD auto getOrCreateTypeInfo(TypeInfo&& lookup_type_info) -> TypeInfo::ID;
@@ -250,11 +268,26 @@ namespace pcit::panther{
 			EVO_NODISCARD static auto getTypeChar()  -> TypeInfo::ID { return TypeInfo::ID(1); }
 			EVO_NODISCARD static auto getTypeUI8()  -> TypeInfo::ID { return TypeInfo::ID(2); }
 
+			// type traits
+			EVO_NODISCARD auto sizeOf(TypeInfo::ID id) const -> size_t;
+			EVO_NODISCARD auto sizeOf(BaseType::ID id) const -> size_t;
+
+			EVO_NODISCARD auto sizeOfPtr() const -> size_t;
+			EVO_NODISCARD auto sizeOfGeneralRegister() const -> size_t;
+
+			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyCopyable(BaseType::ID id) const -> bool;
+
 		private:
 			EVO_NODISCARD auto get_or_create_builtin_base_type_impl(const BaseType::Builtin& lookup_type)
 				-> BaseType::ID;
 
+
 		private:
+			core::Platform _platform;
+			core::Architecture _architecture;
+
+
 			// TODO: improve lookup times
 			// TODO: better allocation methods (custom allocator instead of new/delete)?
 

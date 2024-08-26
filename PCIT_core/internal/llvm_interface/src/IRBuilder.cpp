@@ -82,6 +82,11 @@ namespace pcit::llvmint{
 	}
 
 
+	auto IRBuilder::createBranch(const BasicBlock& block) -> void {
+		this->builder->CreateBr(block.native());
+	}
+
+
 	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
 		return this->builder->CreateCall(
 			func.native(),
@@ -179,6 +184,10 @@ namespace pcit::llvmint{
 		return this->getValueFloat(this->getTypeF64(), value);
 	}
 
+	auto IRBuilder::getValueF80(float64_t value) const -> Constant {
+		return this->getValueFloat(this->getTypeF80(), value);
+	}
+
 	auto IRBuilder::getValueF128(float64_t value) const -> Constant {
 		return this->getValueFloat(this->getTypeF128(), value);
 	}
@@ -204,6 +213,10 @@ namespace pcit::llvmint{
 		return Constant(llvm::ConstantFP::getNaN(this->getTypeF64().native()));
 	}
 
+	auto IRBuilder::getNaNF80() const -> Constant {
+		return Constant(llvm::ConstantFP::getNaN(this->getTypeF80().native()));
+	}
+
 	auto IRBuilder::getNaNF128() const -> Constant {
 		return Constant(llvm::ConstantFP::getNaN(this->getTypeF128().native()));
 	}
@@ -224,6 +237,10 @@ namespace pcit::llvmint{
 
 	auto IRBuilder::getInfinityF64() const -> Constant {
 		return Constant(llvm::ConstantFP::getInfinity(this->getTypeF64().native()));
+	}
+
+	auto IRBuilder::getInfinityF80() const -> Constant {
+		return Constant(llvm::ConstantFP::getInfinity(this->getTypeF80().native()));
 	}
 
 	auto IRBuilder::getInfinityF128() const -> Constant {
@@ -265,6 +282,7 @@ namespace pcit::llvmint{
 	auto IRBuilder::getTypeBF16() const -> Type { return Type(this->builder->getBFloatTy()); }
 	auto IRBuilder::getTypeF32() const -> Type { return Type(this->builder->getFloatTy()); }
 	auto IRBuilder::getTypeF64() const -> Type { return Type(this->builder->getDoubleTy()); }
+	auto IRBuilder::getTypeF80() const -> Type { return Type(llvm::Type::getX86_FP80Ty(this->builder->getContext())); }
 	auto IRBuilder::getTypeF128() const -> Type { return Type(llvm::Type::getFP128Ty(this->builder->getContext())); }
 
 	auto IRBuilder::getTypePtr() const -> PointerType { return PointerType(this->builder->getPtrTy()); }

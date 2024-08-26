@@ -52,6 +52,9 @@ namespace pcit::panther{
 					EVO_NODISCARD auto lookupVar(std::string_view ident) const -> std::optional<ASG::VarID>;
 					auto addVar(std::string_view ident, ASG::VarID id) -> void;
 
+					EVO_NODISCARD auto lookupParam(std::string_view ident) const -> std::optional<ASG::ParamID>;
+					auto addParam(std::string_view ident, ASG::ParamID id) -> void;
+
 					EVO_NODISCARD auto lookupImport(std::string_view ident) const -> std::optional<SourceID>;
 					EVO_NODISCARD auto getImportLocation(std::string_view ident) const -> Token::ID;
 					auto addImport(std::string_view ident, SourceID id, Token::ID location) -> void;
@@ -60,6 +63,7 @@ namespace pcit::panther{
 					std::unordered_map<std::string_view, ASG::FuncID> funcs{};
 					std::unordered_map<std::string_view, ASG::TemplatedFuncID> templated_funcs{};
 					std::unordered_map<std::string_view, ASG::VarID> vars{};
+					std::unordered_map<std::string_view, ASG::ParamID> params{};
 					std::unordered_map<std::string_view, SourceID> imports{};
 					std::unordered_map<std::string_view, Token::ID> import_locations{};
 					evo::uint num_sub_scopes_not_terminated = 0;

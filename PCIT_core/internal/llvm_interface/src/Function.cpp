@@ -14,15 +14,19 @@
 
 namespace pcit::llvmint{
 
-	
-	auto Function::setNoThrow() -> void {
-		this->native()->setDoesNotThrow();
+	//////////////////////////////////////////////////////////////////////
+	// Argument
+
+	auto Argument::setName(std::string_view name) -> void {
+		this->native()->setName(name);
 	}
 
-	auto Function::setCallingConv(CallingConv calling_conv) -> void {
-		this->native()->setCallingConv(evo::to_underlying(calling_conv));
-	}
+	Argument::operator Value() const { return Value(static_cast<llvm::Value*>(this->native())); }
 
+
+
+	//////////////////////////////////////////////////////////////////////
+	// Function
 
 	auto Function::front() const -> const BasicBlock {
 		return BasicBlock(&this->native()->front());
@@ -39,6 +43,22 @@ namespace pcit::llvmint{
 	auto Function::back() -> BasicBlock {
 		return BasicBlock(&this->native()->back());
 	}
+
+
+	auto Function::getArg(evo::uint index) const -> Argument {
+		return Argument(this->native()->getArg(index));
+	}
+
+
+
+	auto Function::setNoThrow() -> void {
+		this->native()->setDoesNotThrow();
+	}
+
+	auto Function::setCallingConv(CallingConv calling_conv) -> void {
+		this->native()->setCallingConv(evo::to_underlying(calling_conv));
+	}
+
 
 
 	

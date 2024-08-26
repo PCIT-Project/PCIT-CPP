@@ -76,6 +76,13 @@ namespace pcit::panther{
 				llvmint::Alloca alloca;
 			};
 			EVO_NODISCARD auto get_var_info(ASG::Var::LinkID link_id) const -> const VarInfo&;
+
+			struct ParamInfo{
+				llvmint::Alloca alloca;
+				llvmint::Type type;
+				evo::uint index;
+			};
+			EVO_NODISCARD auto get_param_info(ASG::Param::LinkID link_id) const -> const ParamInfo&;
 	
 		private:
 			Context& context;
@@ -86,12 +93,12 @@ namespace pcit::panther{
 			Config config;
 
 			Source* current_source = nullptr;
-
+			const ASG::Func* current_func = nullptr;
 			
 
 			std::unordered_map<ASG::Func::LinkID, FuncInfo> func_infos{};
-
 			std::unordered_map<ASG::Var::LinkID, VarInfo> var_infos{};
+			std::unordered_map<ASG::Param::LinkID, ParamInfo> param_infos{};
 	};
 
 	

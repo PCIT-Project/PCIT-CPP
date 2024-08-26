@@ -87,6 +87,12 @@ namespace pcit::panther{
 		SemaInvalidAddrOfRHS,                 // S41
 		SemaInvalidDerefRHS,                  // S42
 		SemaInvalidTypeQualifiers,            // S43
+		SemaParamTypeVoid,                    // S44
+		SemaNoMatchingFunction,               // S45
+		SemaMultipleMatchingFunctions,        // S46
+		SemaParamsCannotBeConstEval,          // S47
+		SemaArgIncorrectLabel,                // S48
+		SemaArgMustBeLabeled,                 // S49
 
 		LLLVMDataLayoutError,                 // LLVM1
 
@@ -177,6 +183,12 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaInvalidAddrOfRHS:                 return "S41";
 			break; case DiagnosticCode::SemaInvalidDerefRHS:                  return "S42";
 			break; case DiagnosticCode::SemaInvalidTypeQualifiers:            return "S43";
+			break; case DiagnosticCode::SemaParamTypeVoid:                    return "S44";
+			break; case DiagnosticCode::SemaNoMatchingFunction:               return "S45";
+			break; case DiagnosticCode::SemaMultipleMatchingFunctions:        return "S46";
+			break; case DiagnosticCode::SemaParamsCannotBeConstEval:          return "S47";
+			break; case DiagnosticCode::SemaArgIncorrectLabel:                return "S48";
+			break; case DiagnosticCode::SemaArgMustBeLabeled:                 return "S49";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 
