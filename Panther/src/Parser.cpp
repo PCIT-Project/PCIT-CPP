@@ -584,8 +584,11 @@ namespace pcit::panther{
 
 	// TODO: check EOF
 	auto Parser::parse_expr() -> Result {
-		const Result uninit_result = this->parse_uninit();
-		if(uninit_result.code() != Result::Code::WrongType){ return uninit_result; }
+		Result result = this->parse_uninit();
+		if(result.code() != Result::Code::WrongType){ return result; }
+
+		result = this->parse_zeroinit();
+		if(result.code() != Result::Code::WrongType){ return result; }
 
 		return this->parse_sub_expr();
 	}
@@ -1064,6 +1067,14 @@ namespace pcit::panther{
 		}
 
 		return AST::Node(AST::Kind::Uninit, this->reader.next());
+	}
+
+	auto Parser::parse_zeroinit() -> Result {
+		if(this->reader[this->reader.peek()].kind() != Token::Kind::KeywordZeroinit){
+			return Result::Code::WrongType;
+		}
+
+		return AST::Node(AST::Kind::Zeroinit, this->reader.next());
 	}
 
 	auto Parser::parse_this() -> Result {

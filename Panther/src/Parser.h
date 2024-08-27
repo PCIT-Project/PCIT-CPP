@@ -122,6 +122,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_intrinsic() -> Result;
 			EVO_NODISCARD auto parse_literal() -> Result;
 			EVO_NODISCARD auto parse_uninit() -> Result;
+			EVO_NODISCARD auto parse_zeroinit() -> Result;
 			EVO_NODISCARD auto parse_this() -> Result;
 
 

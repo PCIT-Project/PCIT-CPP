@@ -70,7 +70,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	auto config = Config{
-		.target      = Config::Target::Run,
+		.target      = Config::Target::PrintLLVMIR,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 

@@ -157,7 +157,7 @@ namespace pcit::panther{
 					}
 				}();
 
-				this->builder.createStore(param_alloca, static_cast<llvmint::Value>(llvm_func.getArg(i)));
+				this->builder.createStore(param_alloca, static_cast<llvmint::Value>(llvm_func.getArg(i)), false);
 
 				this->param_infos.emplace(
 					ASG::Param::LinkID(asg_func_link_id, func.params[i]),
@@ -214,7 +214,24 @@ namespace pcit::panther{
 			this->stmt_name("{}.alloca", this->current_source->getTokenBuffer()[var.ident].getString())
 		);
 
-		this->builder.createStore(var_alloca, this->get_value(var.expr), false);
+		switch(var.expr.kind()){
+			case ASG::Expr::Kind::Uninit: {
+				// do nothing
+			} break;
+
+			case ASG::Expr::Kind::Zeroinit: {
+				this->builder.createMemSetInline(
+					var_alloca,
+					this->builder.getValueI8(0),
+					this->get_value_size(this->context.getTypeManager().sizeOf(var.typeID)),
+					false
+				);
+			} break;
+
+			default: {
+				this->builder.createStore(var_alloca, this->get_value(var.expr), false);
+			} break;
+		}
 
 		this->var_infos.emplace(ASG::Var::LinkID(this->current_source->getID(), var_id), VarInfo(var_alloca));
 	}
@@ -244,7 +261,7 @@ namespace pcit::panther{
 		llvmint::Value lhs = this->get_concrete_value(assign.lhs);
 		llvmint::Value rhs = this->get_value(assign.rhs);
 
-		this->builder.createStore(lhs, rhs);
+		this->builder.createStore(lhs, rhs, false);
 	}
 
 	auto ASGToLLVMIR::lower_return(const ASG::Return& return_stmt) -> void {
@@ -358,9 +375,10 @@ namespace pcit::panther{
 
 	auto ASGToLLVMIR::get_concrete_value(const ASG::Expr& expr) -> llvmint::Value {
 		switch(expr.kind()){
-			case ASG::Expr::Kind::LiteralInt:  case ASG::Expr::Kind::LiteralFloat: case ASG::Expr::Kind::LiteralBool:
-			case ASG::Expr::Kind::LiteralChar: case ASG::Expr::Kind::Copy:         case ASG::Expr::Kind::Move:
-			case ASG::Expr::Kind::AddrOf:      case ASG::Expr::Kind::FuncCall: {
+			case ASG::Expr::Kind::Uninit:       case ASG::Expr::Kind::Zeroinit:    case ASG::Expr::Kind::LiteralInt:
+			case ASG::Expr::Kind::LiteralFloat: case ASG::Expr::Kind::LiteralBool: case ASG::Expr::Kind::LiteralChar:
+			case ASG::Expr::Kind::Copy:         case ASG::Expr::Kind::Move:        case ASG::Expr::Kind::AddrOf:
+			case ASG::Expr::Kind::FuncCall: {
 				evo::debugFatalBreak("Cannot get concrete value this kind");
 			} break;
 
@@ -410,6 +428,14 @@ namespace pcit::panther{
 
 	auto ASGToLLVMIR::get_value(const ASG::Expr& expr, bool get_pointer_to_value) -> llvmint::Value {
 		switch(expr.kind()){
+			case ASG::Expr::Kind::Uninit: {
+				evo::debugFatalBreak("Cannot get value of [uninit]");
+			} break;
+
+			case ASG::Expr::Kind::Zeroinit: {
+				evo::debugFatalBreak("Cannot get value of [zeroinit]");
+			} break;
+
 			case ASG::Expr::Kind::LiteralInt: {
 				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
 				const ASG::LiteralInt& literal_int = asg_buffer.getLiteralInt(expr.literalIntID());
@@ -420,7 +446,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return static_cast<llvmint::Value>(value); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(literal_type);
-				this->builder.createStore(alloca, static_cast<llvmint::Value>(value));
+				this->builder.createStore(alloca, static_cast<llvmint::Value>(value), false);
 				return static_cast<llvmint::Value>(alloca);
 			} break;
 
@@ -433,7 +459,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return static_cast<llvmint::Value>(value); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(literal_type);
-				this->builder.createStore(alloca, static_cast<llvmint::Value>(value));
+				this->builder.createStore(alloca, static_cast<llvmint::Value>(value), false);
 				return static_cast<llvmint::Value>(alloca);
 			} break;
 
@@ -445,7 +471,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return static_cast<llvmint::Value>(value); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypeI8());
-				this->builder.createStore(alloca, static_cast<llvmint::Value>(value));
+				this->builder.createStore(alloca, static_cast<llvmint::Value>(value), false);
 				return static_cast<llvmint::Value>(alloca);
 			} break;
 
@@ -457,7 +483,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return static_cast<llvmint::Value>(value); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypeI8());
-				this->builder.createStore(alloca, static_cast<llvmint::Value>(value));
+				this->builder.createStore(alloca, static_cast<llvmint::Value>(value), false);
 				return static_cast<llvmint::Value>(alloca);
 			} break;
 
@@ -485,7 +511,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return address; }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypePtr());
-				this->builder.createStore(alloca, address);
+				this->builder.createStore(alloca, address, false);
 				return static_cast<llvmint::Value>(alloca);
 			} break;
 
@@ -539,7 +565,7 @@ namespace pcit::panther{
 					const llvmint::Type return_type = this->get_type(func_type.returnParams()[0].typeID);
 
 					const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
-					this->builder.createStore(alloca, func_call_value);
+					this->builder.createStore(alloca, func_call_value, false);
 					return static_cast<llvmint::Value>(alloca);
 				}
 
@@ -695,5 +721,10 @@ namespace pcit::panther{
 		return info_find->second;
 	}
 
+
+
+	auto ASGToLLVMIR::get_value_size(uint64_t val) const -> llvmint::ConstantInt {
+		return this->builder.getValueI64(val);
+	}
 	
 }

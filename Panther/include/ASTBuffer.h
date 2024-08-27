@@ -60,6 +60,11 @@ namespace pcit::panther{
 				return node._value.token_id;
 			}
 
+			EVO_NODISCARD static auto getZeroinit(const AST::Node& node) -> Token::ID {
+				evo::debugAssert(node.kind() == AST::Kind::Zeroinit, "Node is not a Zeroinit");
+				return node._value.token_id;
+			}
+
 			EVO_NODISCARD static auto getThis(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.kind() == AST::Kind::This, "Node is not a This");
 				return node._value.token_id;

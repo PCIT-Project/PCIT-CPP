@@ -44,56 +44,57 @@ namespace pcit::panther{
 		ParserEmptyMultiAssign,               // P7
 		ParserEmptyFuncReturnBlock,           // P8
 
-		SemaEncounteredASTKindNone,           // S1
-		SemaInvalidGlobalStmtKind,            // S2
-		SemaInvalidStmtKind,                  // S3
-		SemaInvalidExprKind,                  // S4
-		SemaAlreadyDefined,                   // S5
-		SemaImproperUseOfTypeVoid,            // S6
-		SemaVoidWithQualifiers,               // S7
-		SemaGenericTypeWithQualifiers,        // S8
-		SemaGenericTypeNotInTemplatePackDecl, // S9
-		SemaVarWithNoValue,                   // S10
-		SemaCannotInferType,                  // S11
-		SemaIncorrectExprValueType,           // S12
-		SemaTypeMismatch,                     // S13
-		SemaIdentNotInScope,                  // S14
-		SemaCannotCallLikeFunction,           // S15
-		SemaEmptyTemplatePackDeclaration,     // S16
-		SemaExpectedTemplateArgs,             // S17
-		SemaUnexpectedTemplateArgs,           // S18
-		SemaIncorrectTemplateArgValueType,    // S19
-		SemaIncorrectTemplateInstantiation,   // S20
-		SemaExpectedConstEvalValue,           // S21
-		SemaInvalidBaseType,                  // S22
-		SemaUnknownAttribute,                 // S23
-		SemaFailedToImportFile,               // S24
-		SemaIncorrectImportDecl,              // S25
-		SemaUnsupportedOperator,              // S26
-		SemaImportMemberDoesntExist,          // S27
-		SemaImportMemberIsntPub,              // S28
-		SemaConstEvalVarNotDef,               // S29
-		SemaAssignmentDstNotConcreteMutable,  // S30
-		SemaAssignmentValueNotEphemeral,      // S31
-		SemaCopyExprNotConcrete,              // S32
-		SemaMoveExprNotConcrete,              // S33
-		SemaReturnNotEphemeral,               // S34
-		SemaStmtAfterScopeTerminated,         // S35
-		SemaIncorrectReturnStmtKind,          // S36
-		SemaInvalidEntrySignature,            // S37
-		SemaMultipleEntriesDeclared,          // S38
-		SemaDiscardingFuncReturn,             // S39
-		SemaFuncDoesntReturnValue,            // S40
-		SemaInvalidDiscardStmtRHS,            // S41
-		SemaInvalidAddrOfRHS,                 // S42
-		SemaInvalidDerefRHS,                  // S43
-		SemaInvalidTypeQualifiers,            // S44
-		SemaParamTypeVoid,                    // S45
-		SemaNoMatchingFunction,               // S46
-		SemaMultipleMatchingFunctions,        // S47
-		SemaParamsCannotBeConstEval,          // S48
-		SemaArgIncorrectLabel,                // S48
-		SemaArgMustBeLabeled,                 // S50
+		SemaEncounteredASTKindNone,
+		SemaInvalidGlobalStmtKind,
+		SemaInvalidStmtKind,
+		SemaInvalidExprKind,
+		SemaAlreadyDefined,
+		SemaImproperUseOfTypeVoid,
+		SemaVoidWithQualifiers,
+		SemaGenericTypeWithQualifiers,
+		SemaGenericTypeNotInTemplatePackDecl,
+		SemaVarWithNoValue,
+		SemaCannotInferType,
+		SemaIncorrectExprValueType,
+		SemaTypeMismatch,
+		SemaIdentNotInScope,
+		SemaCannotCallLikeFunction,
+		SemaEmptyTemplatePackDeclaration,
+		SemaExpectedTemplateArgs,
+		SemaUnexpectedTemplateArgs,
+		SemaIncorrectTemplateArgValueType,
+		SemaIncorrectTemplateInstantiation,
+		SemaExpectedConstEvalValue,
+		SemaInvalidBaseType,
+		SemaUnknownAttribute,
+		SemaFailedToImportFile,
+		SemaIncorrectImportDecl,
+		SemaUnsupportedOperator,
+		SemaImportMemberDoesntExist,
+		SemaImportMemberIsntPub,
+		SemaConstEvalVarNotDef,
+		SemaAssignmentDstNotConcreteMutable,
+		SemaAssignmentValueNotEphemeral,
+		SemaCopyExprNotConcrete,
+		SemaMoveExprNotConcrete,
+		SemaReturnNotEphemeral,
+		SemaStmtAfterScopeTerminated,
+		SemaIncorrectReturnStmtKind,
+		SemaInvalidEntrySignature,
+		SemaMultipleEntriesDeclared,
+		SemaDiscardingFuncReturn,
+		SemaFuncDoesntReturnValue,
+		SemaInvalidDiscardStmtRHS,
+		SemaInvalidAddrOfRHS,
+		SemaInvalidDerefRHS,
+		SemaInvalidTypeQualifiers,
+		SemaParamTypeVoid,
+		SemaNoMatchingFunction,
+		SemaMultipleMatchingFunctions,
+		SemaParamsCannotBeConstEval,
+		SemaArgIncorrectLabel,
+		SemaArgMustBeLabeled,
+		SemaInvalidUseOfInitializerValueExpr,
 
 		LLLVMDataLayoutError,                 // LLVM1
 
@@ -141,56 +142,57 @@ namespace pcit::panther{
 			break; case DiagnosticCode::ParserEmptyMultiAssign:               return "P7";
 			break; case DiagnosticCode::ParserEmptyFuncReturnBlock:           return "P8";
 
-			break; case DiagnosticCode::SemaEncounteredASTKindNone:           return "S1";
-			break; case DiagnosticCode::SemaInvalidGlobalStmtKind:            return "S2";
-			break; case DiagnosticCode::SemaInvalidStmtKind:                  return "S3";
-			break; case DiagnosticCode::SemaInvalidExprKind:                  return "S4";
-			break; case DiagnosticCode::SemaAlreadyDefined:                   return "S5";
-			break; case DiagnosticCode::SemaImproperUseOfTypeVoid:            return "S6";
-			break; case DiagnosticCode::SemaVoidWithQualifiers:               return "S7";
-			break; case DiagnosticCode::SemaGenericTypeWithQualifiers:        return "S8";
-			break; case DiagnosticCode::SemaGenericTypeNotInTemplatePackDecl: return "S9";
-			break; case DiagnosticCode::SemaVarWithNoValue:                   return "S10";
-			break; case DiagnosticCode::SemaCannotInferType:                  return "S11";
-			break; case DiagnosticCode::SemaIncorrectExprValueType:           return "S12";
-			break; case DiagnosticCode::SemaTypeMismatch:                     return "S13";
-			break; case DiagnosticCode::SemaIdentNotInScope:                  return "S14";
-			break; case DiagnosticCode::SemaCannotCallLikeFunction:           return "S15";
-			break; case DiagnosticCode::SemaEmptyTemplatePackDeclaration:     return "S16";
-			break; case DiagnosticCode::SemaExpectedTemplateArgs:             return "S17";
-			break; case DiagnosticCode::SemaUnexpectedTemplateArgs:           return "S18";
-			break; case DiagnosticCode::SemaIncorrectTemplateArgValueType:    return "S19";
-			break; case DiagnosticCode::SemaIncorrectTemplateInstantiation:   return "S20";
-			break; case DiagnosticCode::SemaExpectedConstEvalValue:           return "S21";
-			break; case DiagnosticCode::SemaInvalidBaseType:                  return "S22";
-			break; case DiagnosticCode::SemaUnknownAttribute:                 return "S23";
-			break; case DiagnosticCode::SemaFailedToImportFile:               return "S24";
-			break; case DiagnosticCode::SemaIncorrectImportDecl:              return "S25";
-			break; case DiagnosticCode::SemaUnsupportedOperator:              return "S26";
-			break; case DiagnosticCode::SemaImportMemberDoesntExist:          return "S27";
-			break; case DiagnosticCode::SemaImportMemberIsntPub:              return "S28";
-			break; case DiagnosticCode::SemaConstEvalVarNotDef:               return "S29";
-			break; case DiagnosticCode::SemaAssignmentDstNotConcreteMutable:  return "S30";
-			break; case DiagnosticCode::SemaAssignmentValueNotEphemeral:      return "S31";
-			break; case DiagnosticCode::SemaCopyExprNotConcrete:              return "S32";
-			break; case DiagnosticCode::SemaMoveExprNotConcrete:              return "S33";
-			break; case DiagnosticCode::SemaReturnNotEphemeral:               return "S34";
-			break; case DiagnosticCode::SemaStmtAfterScopeTerminated:         return "S35";
-			break; case DiagnosticCode::SemaIncorrectReturnStmtKind:          return "S36";
-			break; case DiagnosticCode::SemaInvalidEntrySignature:            return "S37";
-			break; case DiagnosticCode::SemaMultipleEntriesDeclared:          return "S38";
-			break; case DiagnosticCode::SemaDiscardingFuncReturn:             return "S39";
-			break; case DiagnosticCode::SemaFuncDoesntReturnValue:            return "S40";
-			break; case DiagnosticCode::SemaInvalidDiscardStmtRHS:            return "S41";
-			break; case DiagnosticCode::SemaInvalidAddrOfRHS:                 return "S42";
-			break; case DiagnosticCode::SemaInvalidDerefRHS:                  return "S43";
-			break; case DiagnosticCode::SemaInvalidTypeQualifiers:            return "S44";
-			break; case DiagnosticCode::SemaParamTypeVoid:                    return "S45";
-			break; case DiagnosticCode::SemaNoMatchingFunction:               return "S46";
-			break; case DiagnosticCode::SemaMultipleMatchingFunctions:        return "S47";
-			break; case DiagnosticCode::SemaParamsCannotBeConstEval:          return "S48";
-			break; case DiagnosticCode::SemaArgIncorrectLabel:                return "S49";
-			break; case DiagnosticCode::SemaArgMustBeLabeled:                 return "S50";
+			break; case DiagnosticCode::SemaEncounteredASTKindNone:           return "S";
+			break; case DiagnosticCode::SemaInvalidGlobalStmtKind:            return "S";
+			break; case DiagnosticCode::SemaInvalidStmtKind:                  return "S";
+			break; case DiagnosticCode::SemaInvalidExprKind:                  return "S";
+			break; case DiagnosticCode::SemaAlreadyDefined:                   return "S";
+			break; case DiagnosticCode::SemaImproperUseOfTypeVoid:            return "S";
+			break; case DiagnosticCode::SemaVoidWithQualifiers:               return "S";
+			break; case DiagnosticCode::SemaGenericTypeWithQualifiers:        return "S";
+			break; case DiagnosticCode::SemaGenericTypeNotInTemplatePackDecl: return "S";
+			break; case DiagnosticCode::SemaVarWithNoValue:                   return "S";
+			break; case DiagnosticCode::SemaCannotInferType:                  return "S";
+			break; case DiagnosticCode::SemaIncorrectExprValueType:           return "S";
+			break; case DiagnosticCode::SemaTypeMismatch:                     return "S";
+			break; case DiagnosticCode::SemaIdentNotInScope:                  return "S";
+			break; case DiagnosticCode::SemaCannotCallLikeFunction:           return "S";
+			break; case DiagnosticCode::SemaEmptyTemplatePackDeclaration:     return "S";
+			break; case DiagnosticCode::SemaExpectedTemplateArgs:             return "S";
+			break; case DiagnosticCode::SemaUnexpectedTemplateArgs:           return "S";
+			break; case DiagnosticCode::SemaIncorrectTemplateArgValueType:    return "S";
+			break; case DiagnosticCode::SemaIncorrectTemplateInstantiation:   return "S";
+			break; case DiagnosticCode::SemaExpectedConstEvalValue:           return "S";
+			break; case DiagnosticCode::SemaInvalidBaseType:                  return "S";
+			break; case DiagnosticCode::SemaUnknownAttribute:                 return "S";
+			break; case DiagnosticCode::SemaFailedToImportFile:               return "S";
+			break; case DiagnosticCode::SemaIncorrectImportDecl:              return "S";
+			break; case DiagnosticCode::SemaUnsupportedOperator:              return "S";
+			break; case DiagnosticCode::SemaImportMemberDoesntExist:          return "S";
+			break; case DiagnosticCode::SemaImportMemberIsntPub:              return "S";
+			break; case DiagnosticCode::SemaConstEvalVarNotDef:               return "S";
+			break; case DiagnosticCode::SemaAssignmentDstNotConcreteMutable:  return "S";
+			break; case DiagnosticCode::SemaAssignmentValueNotEphemeral:      return "S";
+			break; case DiagnosticCode::SemaCopyExprNotConcrete:              return "S";
+			break; case DiagnosticCode::SemaMoveExprNotConcrete:              return "S";
+			break; case DiagnosticCode::SemaReturnNotEphemeral:               return "S";
+			break; case DiagnosticCode::SemaStmtAfterScopeTerminated:         return "S";
+			break; case DiagnosticCode::SemaIncorrectReturnStmtKind:          return "S";
+			break; case DiagnosticCode::SemaInvalidEntrySignature:            return "S";
+			break; case DiagnosticCode::SemaMultipleEntriesDeclared:          return "S";
+			break; case DiagnosticCode::SemaDiscardingFuncReturn:             return "S";
+			break; case DiagnosticCode::SemaFuncDoesntReturnValue:            return "S";
+			break; case DiagnosticCode::SemaInvalidDiscardStmtRHS:            return "S";
+			break; case DiagnosticCode::SemaInvalidAddrOfRHS:                 return "S";
+			break; case DiagnosticCode::SemaInvalidDerefRHS:                  return "S";
+			break; case DiagnosticCode::SemaInvalidTypeQualifiers:            return "S";
+			break; case DiagnosticCode::SemaParamTypeVoid:                    return "S";
+			break; case DiagnosticCode::SemaNoMatchingFunction:               return "S";
+			break; case DiagnosticCode::SemaMultipleMatchingFunctions:        return "S";
+			break; case DiagnosticCode::SemaParamsCannotBeConstEval:          return "S";
+			break; case DiagnosticCode::SemaArgIncorrectLabel:                return "S";
+			break; case DiagnosticCode::SemaArgMustBeLabeled:                 return "S";
+			break; case DiagnosticCode::SemaInvalidUseOfInitializerValueExpr: return "S";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 

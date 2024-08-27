@@ -23,6 +23,14 @@ namespace pcit::panther::ASG{
 	//////////////////////////////////////////////////////////////////////
 	// expressions
 
+	struct UninitID : public core::UniqueID<uint32_t, struct UninitID> {
+		using core::UniqueID<uint32_t, UninitID>::UniqueID;
+	};
+
+	struct ZeroinitID : public core::UniqueID<uint32_t, struct ZeroinitID> {
+		using core::UniqueID<uint32_t, ZeroinitID>::UniqueID;
+	};
+
 
 	struct LiteralIntID : public core::UniqueID<uint32_t, struct LiteralIntID> {
 		using core::UniqueID<uint32_t, LiteralIntID>::UniqueID;

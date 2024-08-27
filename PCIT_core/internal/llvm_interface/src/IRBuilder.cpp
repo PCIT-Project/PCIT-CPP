@@ -16,6 +16,21 @@
 
 namespace pcit::llvmint{
 
+	//////////////////////////////////////////////////////////////////////
+	// helpers
+
+
+	template<class LLVM_TYPE, class LLVMINT_TYPE>
+	static auto createArrayRef(evo::ArrayProxy<LLVMINT_TYPE> arr_proxy) -> llvm::ArrayRef<LLVM_TYPE*> {
+		return llvm::ArrayRef((LLVM_TYPE**)arr_proxy.data(), arr_proxy.size());
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// IRBuilder
+
+
 	IRBuilder::IRBuilder(LLVMContext& context){
 		this->folder = new llvm::NoFolder();
 		this->inserter = new llvm::IRBuilderDefaultInserter();
@@ -88,12 +103,32 @@ namespace pcit::llvmint{
 
 
 	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
-		return this->builder->CreateCall(
-			func.native(),
-			llvm::ArrayRef((llvm::Value**)params.data(), params.size()),
-			name.c_str()
-		);
+		return this->builder->CreateCall(func.native(), createArrayRef<llvm::Value>(params), name.c_str());
 	}
+
+	// auto IRBuilder::createIntrinsicCall(
+	// 	IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name
+	// )-> CallInst {
+
+	// 	// llvm/IR/IntrinsicEnums.inc
+	// 	const llvm::Intrinsic::ID intrinsic_id = [&]() -> llvm::Intrinsic::ID {
+	// 		switch(id){
+	// 			// case IntrinsicID::debugtrap: return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
+	// 			default: evo::debugFatalBreak("Unknown llvm intrinsic");
+	// 		};
+	// 	}();
+
+	// 	return this->builder->CreateIntrinsic(
+	// 		return_type.native(), intrinsic_id, createArrayRef<llvm::Value>(params), nullptr, name.c_str()
+	// 	);
+	// };
+
+
+	auto IRBuilder::createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile)
+	-> void {
+		this->builder->CreateMemSetInline(dst.native(), llvm::MaybeAlign(), value.native(), size.native(), is_volatile);
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -258,11 +293,7 @@ namespace pcit::llvmint{
 		const Type& return_type, evo::ArrayProxy<Type> params, bool is_var_args
 	) -> FunctionType {
 		return FunctionType(
-			llvm::FunctionType::get(
-				return_type.native(),
-				llvm::ArrayRef((llvm::Type**)params.data(), params.size()),
-				is_var_args
-			)
+			llvm::FunctionType::get(return_type.native(), createArrayRef<llvm::Type>(params), is_var_args)
 		);
 	};
 

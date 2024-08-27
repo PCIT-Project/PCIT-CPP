@@ -30,8 +30,12 @@ namespace pcit::panther::ASG{
 	//////////////////////////////////////////////////////////////////////
 	// expressions
 
+	// TODO: make variant?
 	struct Expr{
 		enum class Kind{
+			Uninit,
+			Zeroinit,
+
 			LiteralInt,
 			LiteralFloat,
 			LiteralBool,
@@ -49,6 +53,9 @@ namespace pcit::panther::ASG{
 			ReturnParam,
 		};
 
+
+		explicit Expr(UninitID uninit_id)     : _kind(Kind::Uninit),        value{.uninit = uninit_id}       {};
+		explicit Expr(ZeroinitID zeroinit_id) : _kind(Kind::Zeroinit),      value{.zeroinit = zeroinit_id}   {};
 
 		explicit Expr(LiteralIntID int_id)     : _kind(Kind::LiteralInt),   value{.literal_int = int_id}     {};
 		explicit Expr(LiteralFloatID float_id) : _kind(Kind::LiteralFloat), value{.literal_float = float_id} {};
@@ -69,6 +76,16 @@ namespace pcit::panther::ASG{
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
 
+
+		EVO_NODISCARD auto uninitID() const -> UninitID {
+			evo::debugAssert(this->kind() == Kind::Uninit, "not a Uninit");
+			return this->value.uninit;
+		}
+
+		EVO_NODISCARD auto zeroinitID() const -> ZeroinitID {
+			evo::debugAssert(this->kind() == Kind::Zeroinit, "not a Zeroinit");
+			return this->value.zeroinit;
+		}
 
 		EVO_NODISCARD auto literalIntID() const -> LiteralIntID {
 			evo::debugAssert(this->kind() == Kind::LiteralInt, "not a LiteralInt");
@@ -141,6 +158,9 @@ namespace pcit::panther::ASG{
 			Kind _kind;
 
 			union {
+				UninitID uninit;
+				ZeroinitID zeroinit;
+
 				LiteralIntID literal_int;
 				LiteralFloatID literal_float;
 				LiteralBoolID literal_bool;
@@ -202,6 +222,14 @@ namespace pcit::panther::ASG{
 
 	namespace AddrOf{
 		using ID = AddrOfID;
+	}
+
+	namespace Uninit{
+		using ID = UninitID;
+	}
+
+	namespace Zeroinit{
+		using ID = ZeroinitID;
 	}
 
 

@@ -1,12 +1,8 @@
 
 
-func get_num = <{T: Type}> (num: T in) -> (output: T) {
-	var rvo_ptr_test = &output;
-	rvo_ptr_test.* = move num;
-	return...;
-}
 
 func entry = () #entry -> UI8 {
-	var foo: UI8 = 12;
-	return get_num<{UI8}>(move foo);
+	var foo: UI8 = zeroinit;
+
+	return (move foo);
 }

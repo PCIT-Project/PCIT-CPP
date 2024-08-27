@@ -256,14 +256,42 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// chars
 
-			EVO_NODISCARD auto createLiteralChar(char characcter) -> ASG::LiteralChar::ID {
+			EVO_NODISCARD auto createLiteralChar(char character) -> ASG::LiteralChar::ID {
 				const auto created_id = ASG::LiteralChar::ID(uint32_t(this->literal_chars.size()));
-				this->literal_chars.emplace_back(characcter);
+				this->literal_chars.emplace_back(character);
 				return created_id;
 			}
 
 			EVO_NODISCARD auto getLiteralChar(ASG::LiteralChar::ID id) const -> const ASG::LiteralChar& {
 				return this->literal_chars[id.get()];
+			}
+
+
+			///////////////////////////////////
+			// uninit
+
+			EVO_NODISCARD auto createUninit(Token::ID uninit_token_id) -> ASG::Uninit::ID {
+				const auto created_id = ASG::Uninit::ID(uint32_t(this->misc_tokens.size()));
+				this->misc_tokens.emplace_back(uninit_token_id);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getUninit(ASG::Uninit::ID id) const -> Token::ID {
+				return this->misc_tokens[id.get()];
+			}
+
+
+			///////////////////////////////////
+			// zeroinit
+
+			EVO_NODISCARD auto createZeroinit(Token::ID zeroinit_token_id) -> ASG::Zeroinit::ID {
+				const auto created_id = ASG::Zeroinit::ID(uint32_t(this->misc_tokens.size()));
+				this->misc_tokens.emplace_back(zeroinit_token_id);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getZeroinit(ASG::Zeroinit::ID id) const -> Token::ID {
+				return this->misc_tokens[id.get()];
 			}
 
 	
@@ -285,6 +313,8 @@ namespace pcit::panther{
 			evo::SmallVector<ASG::LiteralFloat> literal_floats{};
 			evo::SmallVector<ASG::LiteralBool> literal_bools{}; // switch to bool for std::vector<bool> optimization?
 			evo::SmallVector<ASG::LiteralChar> literal_chars{};
+
+			evo::SmallVector<Token::ID> misc_tokens{};
 
 			friend class SemanticAnalyzer;
 	};

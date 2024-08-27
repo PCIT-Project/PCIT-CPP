@@ -95,11 +95,12 @@ namespace pcit::panther{
 					EpemeralFluid, // only if actual type is unknown
 					Import,
 					Templated,
+					Initializer, // uninit / zeroinit
 				};
 
 				ValueType value_type;
 				evo::Variant<
-					std::monostate,             // ValueType::EpemeralFluid
+					std::monostate,             // ValueType::[EpemeralFluid|Initializer]
 					TypeInfo::ID,               // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
 					ASG::TemplatedFunc::LinkID, // ValueType::Templated
 					Source::ID                  // ValueType::Import
@@ -169,6 +170,9 @@ namespace pcit::panther{
 
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_uninit(const Token::ID& uninit) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_zeroinit(const Token::ID& zeroinit) -> evo::Result<ExprInfo>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_this(const Token::ID& this_expr) -> evo::Result<ExprInfo>;

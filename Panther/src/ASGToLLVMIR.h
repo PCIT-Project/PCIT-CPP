@@ -90,6 +90,9 @@ namespace pcit::panther{
 				evo::uint index;
 			};
 			EVO_NODISCARD auto get_return_param_info(ASG::ReturnParam::LinkID link_id) const -> const ReturnParamInfo&;
+
+
+			EVO_NODISCARD auto get_value_size(uint64_t val) const -> llvmint::ConstantInt;
 	
 		private:
 			Context& context;

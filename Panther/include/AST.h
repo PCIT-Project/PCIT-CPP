@@ -52,6 +52,7 @@ namespace pcit::panther::AST{
 		Intrinsic,
 		Literal,
 		Uninit,
+		Zeroinit,
 		This,
 		
 		Discard,

@@ -94,6 +94,7 @@ namespace pcit::panther{
 
 				KeywordNull,
 				KeywordUninit,
+				KeywordZeroinit,
 				KeywordThis,
 
 				KeywordRead,
@@ -437,6 +438,7 @@ namespace pcit::panther{
 
 					break; case Kind::KeywordNull:        return "null";
 					break; case Kind::KeywordUninit:      return "uninit";
+					break; case Kind::KeywordZeroinit:    return "zeroinit";
 					break; case Kind::KeywordThis:        return "this";
 
 					break; case Kind::KeywordRead:        return "read";

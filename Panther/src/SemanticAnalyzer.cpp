@@ -90,7 +90,7 @@ namespace pcit::panther{
 
 				case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
 				case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
-				case AST::Kind::Uninit:         case AST::Kind::Discard: {
+				case AST::Kind::Uninit:         case AST::Kind::Zeroinit:  case AST::Kind::Discard: {
 					// TODO: message the exact kind
 					this->emit_fatal(
 						Diagnostic::Code::SemaInvalidGlobalStmtKind,
@@ -204,6 +204,12 @@ namespace pcit::panther{
 			return true;
 		}
 
+		evo::debugAssert(
+			expr_info_result.value().is_ephemeral()
+				|| expr_info_result.value().value_type == ExprInfo::ValueType::Initializer,
+			"unhandled expr info value type"
+		);
+
 
 		if(expr_info_result.value().value_type == ExprInfo::ValueType::EpemeralFluid){
 			if(var_type_id.has_value() == false){
@@ -217,7 +223,9 @@ namespace pcit::panther{
 				return false;	
 			}
 
-			
+		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::Initializer){
+			// do nothing...
+
 		}else if(var_type_id.has_value()){
 			if(this->type_check<true>(*var_type_id, expr_info_result.value(), "Variable", *var_decl.value).ok == false){
 				return false;	
@@ -720,7 +728,7 @@ namespace pcit::panther{
 
 			case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
 			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
-			case AST::Kind::Uninit:         case AST::Kind::Discard: {
+			case AST::Kind::Uninit:         case AST::Kind::Zeroinit:  case AST::Kind::Discard: {
 				// TODO: message the exact kind
 				this->emit_fatal(
 					Diagnostic::Code::SemaInvalidStmtKind,
@@ -790,6 +798,15 @@ namespace pcit::panther{
 		for(const AST::FuncCall::Arg& arg : func_call.args){
 			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
 			if(arg_info.isError()){ return false; }
+
+			if(arg_info.value().value_type == ExprInfo::ValueType::Initializer){
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidUseOfInitializerValueExpr,
+					arg.value,
+					"Initializer values cannot be used as function call arguments"
+				);
+				return false;
+			}
 
 			arg_infos.emplace_back(arg.explicitIdent, arg_info.value(), arg.value);
 		}
@@ -1252,6 +1269,10 @@ namespace pcit::panther{
 			case AST::Kind::Uninit: {
 				return this->analyze_expr_uninit<EXPR_VALUE_KIND>(this->source.getASTBuffer().getUninit(node));
 			} break;
+
+			case AST::Kind::Zeroinit: {
+				return this->analyze_expr_zeroinit<EXPR_VALUE_KIND>(this->source.getASTBuffer().getZeroinit(node));
+			} break;
 			
 			case AST::Kind::This: {
 				return this->analyze_expr_this<EXPR_VALUE_KIND>(this->source.getASTBuffer().getThis(node));
@@ -1547,7 +1568,8 @@ namespace pcit::panther{
 
 
 				switch(arg_expr_info.value().value_type){
-					case ExprInfo::ValueType::Import: case ExprInfo::ValueType::Templated: {
+					case ExprInfo::ValueType::Import: case ExprInfo::ValueType::Templated:
+					case ExprInfo::ValueType::Initializer: {
 						this->emit_error(
 							Diagnostic::Code::SemaIncorrectTemplateArgValueType,
 							template_arg,
@@ -2458,10 +2480,22 @@ namespace pcit::panther{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_uninit(const Token::ID& uninit) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, uninit, "[uninit] expressions are currently unsupported"
-		);
-		return evo::resultError;
+		if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+			return ExprInfo(ExprInfo::ValueType::Initializer, std::monostate(), std::nullopt);
+		}else{
+			const ASG::Uninit::ID uninit_id = this->source.asg_buffer.createUninit(uninit);
+			return ExprInfo(ExprInfo::ValueType::Initializer, std::monostate(), ASG::Expr(uninit_id));
+		}
+	}
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_zeroinit(const Token::ID& zeroinit) -> evo::Result<ExprInfo> {
+		if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+			return ExprInfo(ExprInfo::ValueType::Initializer, std::monostate(), std::nullopt);
+		}else{
+			const ASG::Zeroinit::ID zeroinit_id = this->source.asg_buffer.createZeroinit(zeroinit);
+			return ExprInfo(ExprInfo::ValueType::Initializer, std::monostate(), ASG::Expr(zeroinit_id));
+		}
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
@@ -2875,6 +2909,10 @@ namespace pcit::panther{
 			case ExprInfo::ValueType::Templated: {
 				evo::debugFatalBreak("Templated types should not be compared with this function");
 			} break;
+
+			case ExprInfo::ValueType::Initializer: {
+				evo::debugFatalBreak("Initializer types should not be compared with this function");
+			} break;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported ExprInfo::ValueType");
@@ -3132,6 +3170,7 @@ namespace pcit::panther{
 			case AST::Kind::Intrinsic:      return this->get_source_location(ast_buffer.getIntrinsic(node));
 			case AST::Kind::Literal:        return this->get_source_location(ast_buffer.getLiteral(node));
 			case AST::Kind::Uninit:         return this->get_source_location(ast_buffer.getUninit(node));
+			case AST::Kind::Zeroinit:       return this->get_source_location(ast_buffer.getZeroinit(node));
 			case AST::Kind::This:           return this->get_source_location(ast_buffer.getThis(node));
 			case AST::Kind::Discard:        return this->get_source_location(ast_buffer.getDiscard(node));
 		}

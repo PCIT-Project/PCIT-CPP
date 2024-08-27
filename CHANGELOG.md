@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.29.0
+
+### Panther
+- Added support for initializer value expression `uninint`
+- Added initializer value expression `zeroinita`
+- Temporarily removed specific diagnostic codes for semantic analysis
+
+
+<!---------------------------------->
 ## v0.0.28.0
 
 ### Panther
@@ -18,12 +27,6 @@
 - Added support for function parameters
 - Added parameter attribute `#mustLabel`
 - Re-added built-in type `F80`
-
-
-<!---------------------------------->
-## v0.0.26.0
-
-### Panther
 - *[Experimental]* Added clickable source file locations in diagnostics (only works if terminal supports it) 
 - Fixed functions with return types that are from the template instantiation
 - Fixed not properly checking for identifier reuse within a template parameter block
