@@ -302,6 +302,8 @@ namespace pcit::panther{
 			auto get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation;
 			auto get_source_location(ASG::Var::ID var_id) const -> SourceLocation;
 			auto get_source_location(ASG::Param::ID param_id) const -> SourceLocation;
+			auto get_source_location(ASG::ReturnParam::ID ret_param_id) const -> SourceLocation;
+			auto get_source_location(ScopeManager::ScopeLevel::ImportInfo import_info) const -> SourceLocation;
 
 	
 		private:

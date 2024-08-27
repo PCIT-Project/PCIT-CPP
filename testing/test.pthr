@@ -1,25 +1,12 @@
 
 
-
-func get_num = <{T: Type}> (num: T in) -> T {
-	return (copy num);
+func get_num = <{T: Type}> (num: T in) -> (output: T) {
+	var rvo_ptr_test = &output;
+	rvo_ptr_test.* = move num;
+	return...;
 }
-
-func set_num = (num: UI8* read #mustLabel) -> Void {
-	num.* = 15;
-}
-
 
 func entry = () #entry -> UI8 {
 	var foo: UI8 = 12;
-
-	set_num(num: &foo);
-
-	return get_num<{UI8}>(copy foo);
+	return get_num<{UI8}>(move foo);
 }
-
-
-
-
-
-

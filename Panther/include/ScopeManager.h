@@ -24,13 +24,20 @@ namespace pcit::panther{
 	
 	class ScopeManager{
 		public:
-			class ScopeLevel{
+			class ScopeLevel{ // not thread-safe
 				public:
 					struct ID : public core::UniqueID<uint32_t, struct ID> {
 						using core::UniqueID<uint32_t, ID>::UniqueID;
 					};
 
-					// using TemplateExpr = evo::Variant<uint64_t, float64_t, bool, char>;
+					struct ImportInfo{
+						SourceID sourceID;
+						Token::ID tokenID;
+					};
+
+					using IdentID = evo::Variant<
+						ASG::FuncID, ASG::TemplatedFuncID, ASG::VarID, ASG::ParamID, ASG::ReturnParamID, ImportInfo
+					>;
 
 				public:
 					ScopeLevel() = default;
@@ -42,30 +49,18 @@ namespace pcit::panther{
 					EVO_NODISCARD auto isTerminated() const -> bool;
 					EVO_NODISCARD auto isNotTerminated() const -> bool;
 
-					EVO_NODISCARD auto lookupFunc(std::string_view ident) const -> std::optional<ASG::FuncID>;
 					auto addFunc(std::string_view ident, ASG::FuncID id) -> void;
-
-					EVO_NODISCARD auto lookupTemplatedFunc(std::string_view ident) const 
-						-> std::optional<ASG::TemplatedFuncID>;
 					auto addTemplatedFunc(std::string_view ident, ASG::TemplatedFuncID id) -> void;
-
-					EVO_NODISCARD auto lookupVar(std::string_view ident) const -> std::optional<ASG::VarID>;
 					auto addVar(std::string_view ident, ASG::VarID id) -> void;
-
-					EVO_NODISCARD auto lookupParam(std::string_view ident) const -> std::optional<ASG::ParamID>;
 					auto addParam(std::string_view ident, ASG::ParamID id) -> void;
-
-					EVO_NODISCARD auto lookupImport(std::string_view ident) const -> std::optional<SourceID>;
-					EVO_NODISCARD auto getImportLocation(std::string_view ident) const -> Token::ID;
+					auto addReturnParam(std::string_view ident, ASG::ReturnParamID id) -> void;
 					auto addImport(std::string_view ident, SourceID id, Token::ID location) -> void;
 
+					auto lookupIdent(std::string_view ident) const -> std::optional<IdentID>;
+
 				private:
-					std::unordered_map<std::string_view, ASG::FuncID> funcs{};
-					std::unordered_map<std::string_view, ASG::TemplatedFuncID> templated_funcs{};
-					std::unordered_map<std::string_view, ASG::VarID> vars{};
-					std::unordered_map<std::string_view, ASG::ParamID> params{};
-					std::unordered_map<std::string_view, SourceID> imports{};
-					std::unordered_map<std::string_view, Token::ID> import_locations{};
+					std::unordered_map<std::string_view, IdentID> ids{};
+
 					evo::uint num_sub_scopes_not_terminated = 0;
 					bool is_terminated = false;
 					bool has_sub_scopes = false;

@@ -42,82 +42,48 @@ namespace pcit::panther{
 
 
 
-	auto ScopeManager::ScopeLevel::lookupFunc(std::string_view ident) const -> std::optional<ASG::Func::ID> {
-		const std::unordered_map<std::string_view, ASG::Func::ID>::const_iterator lookup_iter = this->funcs.find(ident);
-		if(lookup_iter == this->funcs.end()){ return std::nullopt; }
-
-		return lookup_iter->second;
-	}
 	auto ScopeManager::ScopeLevel::addFunc(std::string_view ident, ASG::Func::ID id) -> void {
-		evo::debugAssert(this->lookupFunc(ident).has_value() == false, "Scope already has func \"{}\"", ident);
+		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
 
-		this->funcs.emplace(ident, id);
+		this->ids.emplace(ident, id);
 	}
 
-
-	auto ScopeManager::ScopeLevel::lookupTemplatedFunc(std::string_view ident) const
-	-> std::optional<ASG::TemplatedFunc::ID> {
-		using LookupIterator = std::unordered_map<std::string_view, ASG::TemplatedFunc::ID>::const_iterator;
-		const LookupIterator lookup_iter = this->templated_funcs.find(ident);
-		if(lookup_iter == this->templated_funcs.end()){ return std::nullopt; }
-
-		return lookup_iter->second;
-	}
 	auto ScopeManager::ScopeLevel::addTemplatedFunc(std::string_view ident, ASG::TemplatedFunc::ID id) -> void {
-		evo::debugAssert(
-			this->lookupTemplatedFunc(ident).has_value() == false, 
-			"Scope already has templated func \"{}\"", ident
-		);
+		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
 
-		this->templated_funcs.emplace(ident, id);
+		this->ids.emplace(ident, id);
 	}
 
-
-	auto ScopeManager::ScopeLevel::lookupVar(std::string_view ident) const -> std::optional<ASG::Var::ID> {
-		const std::unordered_map<std::string_view, ASG::Var::ID>::const_iterator lookup_iter = this->vars.find(ident);
-		if(lookup_iter == this->vars.end()){ return std::nullopt; }
-
-		return lookup_iter->second;
-	}
 	auto ScopeManager::ScopeLevel::addVar(std::string_view ident, ASG::Var::ID id) -> void {
-		evo::debugAssert(this->lookupVar(ident).has_value() == false, "Scope already has var \"{}\"", ident);
+		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
 
-		this->vars.emplace(ident, id);
+		this->ids.emplace(ident, id);
 	}
 
-
-	auto ScopeManager::ScopeLevel::lookupParam(std::string_view ident) const -> std::optional<ASG::Param::ID> {
-		const std::unordered_map<std::string_view, ASG::Param::ID>::const_iterator lookup_iter = this->params.find(ident);
-		if(lookup_iter == this->params.end()){ return std::nullopt; }
-
-		return lookup_iter->second;
-	}
 	auto ScopeManager::ScopeLevel::addParam(std::string_view ident, ASG::Param::ID id) -> void {
-		evo::debugAssert(this->lookupParam(ident).has_value() == false, "Scope already has param \"{}\"", ident);
+		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
 
-		this->params.emplace(ident, id);
+		this->ids.emplace(ident, id);
 	}
 
+	auto ScopeManager::ScopeLevel::addReturnParam(std::string_view ident, ASG::ReturnParam::ID id) -> void {
+		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
 
-
-	auto ScopeManager::ScopeLevel::lookupImport(std::string_view ident) const -> std::optional<Source::ID> {
-		const std::unordered_map<std::string_view, Source::ID>::const_iterator lookup_iter = this->imports.find(ident);
-		if(lookup_iter == this->imports.end()){ return std::nullopt; }
-
-		return lookup_iter->second;
+		this->ids.emplace(ident, id);
 	}
-	auto ScopeManager::ScopeLevel::getImportLocation(std::string_view ident) const -> Token::ID {
-		using LookupIter = std::unordered_map<std::string_view, Token::ID>::const_iterator;
-		const LookupIter lookup_iter = this->import_locations.find(ident);
-		evo::debugAssert(lookup_iter != this->import_locations.end(), "scope level does not have import \"{}\"", ident);
 
-		return lookup_iter->second;
-	}
 	auto ScopeManager::ScopeLevel::addImport(std::string_view ident, Source::ID id, Token::ID location) -> void {
-		evo::debugAssert(this->lookupImport(ident).has_value() == false, "Scope already has var \"{}\"", ident);
+		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
 
-		this->imports.emplace(ident, id);
-		this->import_locations.emplace(ident, location);
+		this->ids.emplace(ident, ImportInfo(id, location));
+	}
+
+
+	auto ScopeManager::ScopeLevel::lookupIdent(std::string_view ident) const -> std::optional<IdentID> {
+		const auto& ident_find = this->ids.find(ident);
+		if(ident_find == this->ids.end()){ return std::nullopt; }
+
+		return ident_find->second;
 	}
 
 

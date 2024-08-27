@@ -145,18 +145,14 @@ namespace pcit::panther{
 				bool mustLabel:1;
 				bool optimizeWithCopy:1;
 
-				EVO_NODISCARD auto operator==(const Param& rhs) const -> bool {
-					return this->ident == rhs.ident && this->typeID == rhs.typeID;
-				}
+				EVO_NODISCARD auto operator==(const Param&) const -> bool = default;
 			};
 
 			struct ReturnParam{
 				std::optional<Token::ID> ident;
 				TypeInfoVoidableID typeID;
 
-				EVO_NODISCARD auto operator==(const ReturnParam& rhs) const -> bool {
-					return this->ident == rhs.ident && this->typeID == rhs.typeID;
-				}
+				EVO_NODISCARD auto operator==(const ReturnParam&) const -> bool = default;
 			};
 
 			Function(
@@ -167,11 +163,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto params() const -> evo::ArrayProxy<Param> { return this->_params; }
 			EVO_NODISCARD auto returnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
 
-			EVO_NODISCARD auto operator==(const Function& rhs) const -> bool {
-				return this->source_id     == rhs.source_id &&
-				       this->_params       == rhs._params   &&
-				       this->return_params == rhs.return_params;
-			}
+			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->return_params[0].ident.has_value(); }
+
+			EVO_NODISCARD auto operator==(const Function&) const -> bool = default;
 
 			private:
 				SourceID source_id;
@@ -194,10 +188,7 @@ namespace pcit::panther{
 				return Function::ID(this->_id);
 			}
 
-
-			EVO_NODISCARD auto operator==(const ID& rhs) const -> bool {
-				return this->_kind == rhs._kind && this->_id == rhs._id;
-			};
+			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
 
 			private:
 				ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
@@ -226,9 +217,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto baseTypeID() const -> BaseType::ID { return this->base_type; }
 			EVO_NODISCARD auto qualifiers() const -> evo::ArrayProxy<AST::Type::Qualifier> { return this->_qualifiers; }
 
-			EVO_NODISCARD auto operator==(const TypeInfo& rhs) const -> bool {
-				return this->base_type == rhs.base_type && this->_qualifiers == rhs._qualifiers;
-			};
+			EVO_NODISCARD auto operator==(const TypeInfo&) const -> bool = default;
 	
 		private:
 			BaseType::ID base_type;
@@ -264,8 +253,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateBuiltinBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
 
 			// types needed by semantic analyzer to check againt
-			EVO_NODISCARD static auto getTypeBool()  -> TypeInfo::ID { return TypeInfo::ID(0); }
-			EVO_NODISCARD static auto getTypeChar()  -> TypeInfo::ID { return TypeInfo::ID(1); }
+			EVO_NODISCARD static auto getTypeBool() -> TypeInfo::ID { return TypeInfo::ID(0); }
+			EVO_NODISCARD static auto getTypeChar() -> TypeInfo::ID { return TypeInfo::ID(1); }
 			EVO_NODISCARD static auto getTypeUI8()  -> TypeInfo::ID { return TypeInfo::ID(2); }
 
 			// type traits

@@ -38,6 +38,7 @@ namespace pcit::panther::ASG{
 			LiteralChar,
 
 			Copy,
+			Move,
 			FuncCall,
 			AddrOf,
 			Deref,
@@ -45,22 +46,25 @@ namespace pcit::panther::ASG{
 			Var,
 			Func,
 			Param,
+			ReturnParam,
 		};
 
 
-		explicit Expr(LiteralIntID int_id) : _kind(Kind::LiteralInt), value{.literal_int = int_id} {};
+		explicit Expr(LiteralIntID int_id)     : _kind(Kind::LiteralInt),   value{.literal_int = int_id}     {};
 		explicit Expr(LiteralFloatID float_id) : _kind(Kind::LiteralFloat), value{.literal_float = float_id} {};
-		explicit Expr(LiteralBoolID bool_id) : _kind(Kind::LiteralBool), value{.literal_bool = bool_id} {};
-		explicit Expr(LiteralCharID char_id) : _kind(Kind::LiteralChar), value{.literal_char = char_id} {};
+		explicit Expr(LiteralBoolID bool_id)   : _kind(Kind::LiteralBool),  value{.literal_bool = bool_id}   {};
+		explicit Expr(LiteralCharID char_id)   : _kind(Kind::LiteralChar),  value{.literal_char = char_id}   {};
 
-		explicit Expr(CopyID copy_id) : _kind(Kind::Copy), value{.copy = copy_id} {};
-		explicit Expr(FuncCallID func_call_id) : _kind(Kind::FuncCall), value{.func_call = func_call_id} {};
-		explicit Expr(AddrOfID addr_of_id) : _kind(Kind::AddrOf), value{.addr_of = addr_of_id} {};
-		explicit Expr(DerefID deref_id) : _kind(Kind::Deref), value{.deref = deref_id} {};
+		explicit Expr(CopyID copy_id)          : _kind(Kind::Copy),         value{.copy = copy_id}           {};
+		explicit Expr(MoveID move_id)          : _kind(Kind::Move),         value{.move = move_id}           {};
+		explicit Expr(FuncCallID func_call_id) : _kind(Kind::FuncCall),     value{.func_call = func_call_id} {};
+		explicit Expr(AddrOfID addr_of_id)     : _kind(Kind::AddrOf),       value{.addr_of = addr_of_id}     {};
+		explicit Expr(DerefID deref_id)        : _kind(Kind::Deref),        value{.deref = deref_id}         {};
 
-		explicit Expr(VarLinkID var_id) : _kind(Kind::Var), value{.var = var_id} {};
-		explicit Expr(FuncLinkID func_id) : _kind(Kind::Func), value{.func = func_id} {};
-		explicit Expr(ParamLinkID param_id) : _kind(Kind::Param), value{.param = param_id} {};
+		explicit Expr(VarLinkID var_id)        : _kind(Kind::Var),          value{.var = var_id}             {};
+		explicit Expr(FuncLinkID func_id)      : _kind(Kind::Func),         value{.func = func_id}           {};
+		explicit Expr(ParamLinkID param_id)    : _kind(Kind::Param),        value{.param = param_id}         {};
+		explicit Expr(ReturnParamLinkID id)    : _kind(Kind::ReturnParam),  value{.return_param = id}        {};
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -87,6 +91,11 @@ namespace pcit::panther::ASG{
 		EVO_NODISCARD auto copyID() const -> CopyID {
 			evo::debugAssert(this->kind() == Kind::Copy, "not a copy");
 			return this->value.copy;
+		}
+
+		EVO_NODISCARD auto moveID() const -> MoveID {
+			evo::debugAssert(this->kind() == Kind::Move, "not a move");
+			return this->value.move;
 		}
 
 		EVO_NODISCARD auto addrOfID() const -> AddrOfID {
@@ -121,6 +130,12 @@ namespace pcit::panther::ASG{
 			return this->value.param;
 		}
 
+		EVO_NODISCARD auto returnParamLinkID() const -> ReturnParamLinkID {
+			evo::debugAssert(this->kind() == Kind::ReturnParam, "not a return param");
+			return this->value.return_param;
+		}
+
+
 
 		private:
 			Kind _kind;
@@ -132,6 +147,7 @@ namespace pcit::panther::ASG{
 				LiteralCharID literal_char;
 
 				CopyID copy;
+				MoveID move;
 				AddrOfID addr_of;
 				DerefID deref;
 				FuncCallID func_call;
@@ -140,6 +156,7 @@ namespace pcit::panther::ASG{
 				VarLinkID var;
 				FuncLinkID func;
 				ParamLinkID param;
+				ReturnParamLinkID return_param;
 			} value;
 	};
 
@@ -177,6 +194,10 @@ namespace pcit::panther::ASG{
 
 	namespace Copy{
 		using ID = CopyID;
+	}
+
+	namespace Move{
+		using ID = MoveID;
 	}
 
 	namespace AddrOf{
@@ -302,12 +323,21 @@ namespace pcit::panther::ASG{
 		bool isPub: 1;
 		bool isTerminated: 1 = false;
 		evo::SmallVector<ParamID> params{};
+		evo::SmallVector<ReturnParamID> returnParams{}; // only for named return params
 		evo::SmallVector<Stmt> stmts{};
 	};
 
 	struct Param{
 		using ID = ParamID;
 		using LinkID = ParamLinkID;
+
+		Func::ID func;
+		uint32_t index;
+	};
+
+	struct ReturnParam{
+		using ID = ReturnParamID;
+		using LinkID = ReturnParamLinkID;
 
 		Func::ID func;
 		uint32_t index;

@@ -83,6 +83,13 @@ namespace pcit::panther{
 				evo::uint index;
 			};
 			EVO_NODISCARD auto get_param_info(ASG::Param::LinkID link_id) const -> const ParamInfo&;
+
+			struct ReturnParamInfo{
+				llvmint::Argument arg;
+				llvmint::Type type;
+				evo::uint index;
+			};
+			EVO_NODISCARD auto get_return_param_info(ASG::ReturnParam::LinkID link_id) const -> const ReturnParamInfo&;
 	
 		private:
 			Context& context;
@@ -99,6 +106,7 @@ namespace pcit::panther{
 			std::unordered_map<ASG::Func::LinkID, FuncInfo> func_infos{};
 			std::unordered_map<ASG::Var::LinkID, VarInfo> var_infos{};
 			std::unordered_map<ASG::Param::LinkID, ParamInfo> param_infos{};
+			std::unordered_map<ASG::ReturnParam::LinkID, ReturnParamInfo> return_param_infos{};
 	};
 
 	

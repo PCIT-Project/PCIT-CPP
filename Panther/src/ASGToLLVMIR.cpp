@@ -69,6 +69,8 @@ namespace pcit::panther{
 		const ASG::Func& func = this->current_source->getASGBuffer().getFunc(func_id);
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.baseTypeID.funcID());
 
+		const bool has_named_returns = func_type.hasNamedReturns();
+
 		auto param_types = evo::SmallVector<llvmint::Type>();
 		param_types.reserve(func_type.params().size());
 		for(const BaseType::Function::Param& param : func_type.params()){
@@ -79,15 +81,29 @@ namespace pcit::panther{
 			}
 		}
 
-		const llvmint::FunctionType func_proto = this->builder.getFuncProto(
-			this->get_type(func_type.returnParams()[0].typeID), param_types, false
-		);
+		if(has_named_returns){
+			for(size_t i = 0; i < func_type.returnParams().size(); i+=1){
+				param_types.emplace_back(this->builder.getTypePtr());
+			}
+		}
+
+		const llvmint::Type return_type = [&](){
+			if(has_named_returns){
+				return this->builder.getTypeVoid();
+			}else{
+				return this->get_type(func_type.returnParams()[0].typeID);
+			}
+		}();
+
+		const llvmint::FunctionType func_proto = this->builder.getFuncProto(return_type, param_types, false);
 		const auto linkage = llvmint::LinkageType::Internal;
 
 		llvmint::Function llvm_func = this->module.createFunction(this->mangle_name(func), func_proto, linkage);
 		llvm_func.setNoThrow();
 		llvm_func.setCallingConv(llvmint::CallingConv::Fast);
 
+		const auto asg_func_link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
+		this->func_infos.emplace(asg_func_link_id, FuncInfo(llvm_func));
 
 		for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params()){
 			llvm_func.getArg(i).setName(this->current_source->getTokenBuffer()[param.ident].getString());
@@ -95,8 +111,26 @@ namespace pcit::panther{
 			i += 1;
 		}
 
-		const auto asg_func_link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
-		this->func_infos.emplace(asg_func_link_id, FuncInfo(llvm_func));
+		if(has_named_returns){
+			const evo::uint first_return_param_index = evo::uint(func_type.params().size());
+			evo::uint i = first_return_param_index;
+			for(const BaseType::Function::ReturnParam& ret_param : func_type.returnParams()){
+				llvm_func.getArg(i).setName(
+					std::format("ret.{}", this->current_source->getTokenBuffer()[*ret_param.ident].getString())
+				);
+
+				const evo::uint return_i = i - first_return_param_index;
+
+				this->return_param_infos.emplace(
+					ASG::ReturnParam::LinkID(asg_func_link_id, func.returnParams[return_i]),
+					ReturnParamInfo(
+						llvm_func.getArg(i), this->get_type(ret_param.typeID.typeID()), return_i
+					)
+				);
+
+				i += 1;
+			}			
+		}
 
 		if(func_type.params().empty()){
 			this->builder.createBasicBlock(llvm_func, "begin");
@@ -325,8 +359,8 @@ namespace pcit::panther{
 	auto ASGToLLVMIR::get_concrete_value(const ASG::Expr& expr) -> llvmint::Value {
 		switch(expr.kind()){
 			case ASG::Expr::Kind::LiteralInt:  case ASG::Expr::Kind::LiteralFloat: case ASG::Expr::Kind::LiteralBool:
-			case ASG::Expr::Kind::LiteralChar: case ASG::Expr::Kind::Copy:         case ASG::Expr::Kind::AddrOf:
-			case ASG::Expr::Kind::FuncCall: {
+			case ASG::Expr::Kind::LiteralChar: case ASG::Expr::Kind::Copy:         case ASG::Expr::Kind::Move:
+			case ASG::Expr::Kind::AddrOf:      case ASG::Expr::Kind::FuncCall: {
 				evo::debugFatalBreak("Cannot get concrete value this kind");
 			} break;
 
@@ -361,6 +395,12 @@ namespace pcit::panther{
 						param_info.alloca, this->stmt_name("param.ptr_lookup")
 					));
 				}
+			} break;
+
+			case ASG::Expr::Kind::ReturnParam: {
+				const ReturnParamInfo& ret_param_info = this->get_return_param_info(expr.returnParamLinkID());
+
+				return static_cast<llvmint::Value>(ret_param_info.arg);
 			} break;
 		}
 
@@ -426,6 +466,11 @@ namespace pcit::panther{
 				return this->get_value(copy_expr, get_pointer_to_value);
 			} break;
 
+			case ASG::Expr::Kind::Move: {
+				const ASG::Expr& move_expr = this->current_source->getASGBuffer().getMove(expr.moveID());
+				return this->get_value(move_expr, get_pointer_to_value);
+			} break;
+
 			case ASG::Expr::Kind::Deref: {
 				const ASG::Deref& deref_expr = this->current_source->getASGBuffer().getDeref(expr.derefID());
 				const llvmint::Value value = this->get_value(deref_expr.expr, false);
@@ -465,15 +510,39 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				const llvmint::Value func_call_value = this->builder.createCall(func_info.func, args);
-				if(get_pointer_to_value == false){ return func_call_value; }
+				if(func_type.hasNamedReturns()){
+					for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams()){
+						const llvmint::Alloca alloca = this->builder.createAlloca(
+							this->get_type(return_param.typeID),
+							this->stmt_name(
+								"RET_PARAM.{}.alloca",
+								this->current_source->getTokenBuffer()[*return_param.ident].getString()
+							)
+						);
 
-				
-				const llvmint::Type return_type = this->get_type(func_type.returnParams()[0].typeID);
+						args.emplace_back(static_cast<llvmint::Value>(alloca));
+					}
 
-				const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
-				this->builder.createStore(alloca, func_call_value);
-				return static_cast<llvmint::Value>(alloca);
+					this->builder.createCall(func_info.func, args);
+
+					if(get_pointer_to_value){ return args.back(); }
+
+					return static_cast<llvmint::Value>(
+						this->builder.createLoad(args.back(), this->get_type(func_type.returnParams().front().typeID))
+					);
+
+				}else{
+					const llvmint::Value func_call_value = this->builder.createCall(func_info.func, args);
+					if(get_pointer_to_value == false){ return func_call_value; }
+
+					
+					const llvmint::Type return_type = this->get_type(func_type.returnParams()[0].typeID);
+
+					const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
+					this->builder.createStore(alloca, func_call_value);
+					return static_cast<llvmint::Value>(alloca);
+				}
+
 			} break;
 
 			case ASG::Expr::Kind::Var: {
@@ -483,7 +552,7 @@ namespace pcit::panther{
 				}
 
 				const llvmint::LoadInst load_inst = this->builder.createLoad(
-					var_info.alloca, this->stmt_name("var.load")
+					var_info.alloca, this->stmt_name("VAR.load")
 				);
 				return static_cast<llvmint::Value>(load_inst);
 			} break;
@@ -505,23 +574,37 @@ namespace pcit::panther{
 					if(get_pointer_to_value){
 						return static_cast<llvmint::Value>(param_info.alloca);
 					}else{
-						return this->builder.createLoad(param_info.alloca, this->stmt_name("param.load"));
+						return this->builder.createLoad(param_info.alloca, this->stmt_name("PARAM.load"));
 					}
 
 				}else{
 					const llvmint::LoadInst load_inst = this->builder.createLoad(
-						param_info.alloca, this->stmt_name("param.ptr_lookup")
+						param_info.alloca, this->stmt_name("PARAM.ptr_lookup")
 					);
 
 					if(get_pointer_to_value) [[unlikely]] {
 						return static_cast<llvmint::Value>(load_inst);
 					}else{
 						return this->builder.createLoad(
-							static_cast<llvmint::Value>(load_inst), param_info.type, this->stmt_name("param.load")
+							static_cast<llvmint::Value>(load_inst), param_info.type, this->stmt_name("PARAM.load")
 						);
 					}
 				}
 			} break;
+
+			case ASG::Expr::Kind::ReturnParam: {
+				const ReturnParamInfo& ret_param_info = this->get_return_param_info(expr.returnParamLinkID());
+
+				if(get_pointer_to_value) [[unlikely]] {
+					return static_cast<llvmint::Value>(ret_param_info.arg);
+				}else{
+					const llvmint::LoadInst load_inst = this->builder.createLoad(
+						ret_param_info.arg, ret_param_info.type, this->stmt_name("RET_PARAM.load")
+					);
+					return static_cast<llvmint::Value>(load_inst);
+				}
+			} break;
+
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported expr kind");
@@ -603,6 +686,12 @@ namespace pcit::panther{
 	auto ASGToLLVMIR::get_param_info(ASG::Param::LinkID link_id) const -> const ParamInfo& {
 		const auto& info_find = this->param_infos.find(link_id);
 		evo::debugAssert(info_find != this->param_infos.end(), "doesn't have info for that link id");
+		return info_find->second;
+	}
+
+	auto ASGToLLVMIR::get_return_param_info(ASG::ReturnParam::LinkID link_id) const -> const ReturnParamInfo& {
+		const auto& info_find = this->return_param_infos.find(link_id);
+		evo::debugAssert(info_find != this->return_param_infos.end(), "doesn't have info for that link id");
 		return info_find->second;
 	}
 

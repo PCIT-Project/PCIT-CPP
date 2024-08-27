@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.28.0
+
+### Panther
+- Added support for named return values
+- Added support for `move` expressions
+- Improved the API of `ScopeManager::ScopeLevel` to make it nicer and increase performance
+- Improved the wordings of some error diagnostics
+- Fixed fluid literals not correctly being classified as ephemeral when passed into an `in` parameter
+
+
+<!---------------------------------->
 ## v0.0.27.0
 
 ### Panther

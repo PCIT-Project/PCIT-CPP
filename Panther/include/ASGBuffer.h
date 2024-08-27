@@ -97,6 +97,20 @@ namespace pcit::panther{
 			}
 
 
+			///////////////////////////////////
+			// return params
+
+			EVO_NODISCARD auto createReturnParam(auto&&... args) -> ASG::ReturnParam::ID {
+				const auto created_id = ASG::ReturnParam::ID(uint32_t(this->return_params.size()));
+				this->return_params.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getReturnParam(ASG::ReturnParam::ID id) const -> const ASG::ReturnParam& {
+				return this->return_params[id.get()];
+			}
+
+
 
 			///////////////////////////////////
 			// func calls
@@ -150,6 +164,20 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto getCopy(ASG::Copy::ID id) const -> const ASG::Expr& {
+				return this->misc_exprs[id.get()];
+			}
+
+
+			///////////////////////////////////
+			// moves
+
+			EVO_NODISCARD auto createMove(auto&&... args) -> ASG::Move::ID {
+				const auto created_id = ASG::Move::ID(uint32_t(this->misc_exprs.size()));
+				this->misc_exprs.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getMove(ASG::Move::ID id) const -> const ASG::Expr& {
 				return this->misc_exprs[id.get()];
 			}
 
@@ -244,6 +272,7 @@ namespace pcit::panther{
 			evo::SmallVector<std::unique_ptr<ASG::TemplatedFunc>> templated_funcs{};
 			evo::SmallVector<ASG::Var> vars{};
 			evo::SmallVector<ASG::Param> params{};
+			evo::SmallVector<ASG::ReturnParam> return_params{};
 
 			evo::SmallVector<ASG::FuncCall> func_calls{};
 			evo::SmallVector<ASG::Assign> assigns{};

@@ -45,6 +45,10 @@ namespace pcit::panther::ASG{
 		using core::UniqueID<uint32_t, CopyID>::UniqueID;
 	};
 
+	struct MoveID : public core::UniqueID<uint32_t, struct MoveID> {
+		using core::UniqueID<uint32_t, MoveID>::UniqueID;
+	};
+
 	struct AddrOfID : public core::UniqueID<uint32_t, struct AddrOfID> {
 		using core::UniqueID<uint32_t, AddrOfID>::UniqueID;
 	};
@@ -145,6 +149,26 @@ namespace pcit::panther::ASG{
 			FuncLinkID _func_link_id;
 			ParamID _param_id;
 	};
+
+
+	struct ReturnParamID : public core::UniqueID<uint32_t, struct ReturnParamID> {
+		using core::UniqueID<uint32_t, ReturnParamID>::UniqueID;
+	};
+
+	struct ReturnParamLinkID{
+		ReturnParamLinkID(FuncLinkID func_link_id, ReturnParamID return_param_id)
+			: _func_link_id(func_link_id), _return_param_id(return_param_id) {}
+
+		EVO_NODISCARD auto funcLinkID() const -> FuncLinkID { return this->_func_link_id; }
+		EVO_NODISCARD auto returnParamID() const -> ReturnParamID { return this->_return_param_id; }
+
+		EVO_NODISCARD auto operator==(const ReturnParamLinkID&) const -> bool = default;
+
+		
+		private:
+			FuncLinkID _func_link_id;
+			ReturnParamID _return_param_id;
+	};
 }
 
 
@@ -174,4 +198,16 @@ struct std::hash<pcit::panther::ASG::ParamLinkID>{
 		);
 	};
 };
+
+
+template<>
+struct std::hash<pcit::panther::ASG::ReturnParamLinkID>{
+	auto operator()(const pcit::panther::ASG::ReturnParamLinkID& link_id) const noexcept -> size_t {
+		return evo::hashCombine(
+			std::hash<pcit::panther::ASG::FuncLinkID>{}(link_id.funcLinkID()),
+			std::hash<uint32_t>{}(link_id.returnParamID().get())
+		);
+	};
+};
+
 
