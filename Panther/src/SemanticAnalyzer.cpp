@@ -211,6 +211,8 @@ namespace pcit::panther{
 		);
 
 
+
+
 		if(expr_info_result.value().value_type == ExprInfo::ValueType::EpemeralFluid){
 			if(var_type_id.has_value() == false){
 				this->emit_error(
@@ -227,14 +229,34 @@ namespace pcit::panther{
 			// do nothing...
 
 		}else if(var_type_id.has_value()){
+			if(expr_info_result.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectNumberOfAssignTargets,
+					*var_decl.value,
+					"Variable declaration value has multiple values - multiple-assignment is required"
+				);
+				return false;
+			}
+
 			if(this->type_check<true>(*var_type_id, expr_info_result.value(), "Variable", *var_decl.value).ok == false){
 				return false;	
 			}
 
 		}else{
-			const TypeInfo::ID expr_type = expr_info_result.value().type_id.as<TypeInfo::ID>();
+			const evo::SmallVector<TypeInfo::ID>& expr_types
+				= expr_info_result.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
 
-			var_type_id = expr_type;
+			if(expr_types.size() > 1){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectNumberOfAssignTargets,
+					*var_decl.value,
+					"Variable declaration value has multiple values - multiple-assignment is required"
+				);
+				return false;
+			}
+
+
+			var_type_id = expr_types.front();
 		}
 
 
@@ -515,16 +537,6 @@ namespace pcit::panther{
 		}
 
 
-		if(return_params.size() > 1){
-			this->emit_error(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				*func_decl.returns[1].ident,
-				"multiple return parameters are currently unsupported"
-			);
-			return evo::resultError;
-		}
-
-
 		if(is_entry){
 			if(return_params.size() > 1){
 				this->emit_error(
@@ -540,6 +552,15 @@ namespace pcit::panther{
 					Diagnostic::Code::SemaInvalidEntrySignature,
 					func_decl.returns[0].type,
 					"Entry function must return \"UI8\""
+				);
+				return evo::resultError;
+			}
+
+			if(func_decl.returns[0].ident.has_value()){
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidEntrySignature,
+					*func_decl.returns[0].ident,
+					"Entry function cannot have a named return parameter"
 				);
 				return evo::resultError;
 			}
@@ -710,11 +731,16 @@ namespace pcit::panther{
     			return this->analyze_return_stmt(ast_buffer.getReturn(node));
 			} break;
 
-			case AST::Kind::Block: case AST::Kind::MultiAssign: {
+			case AST::Kind::Block: {
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature, node, "This stmt kind is currently unsupported"
 				);
 				return false;
+			} break;
+
+
+			case AST::Kind::MultiAssign: {
+				return this->analyze_multi_assign_stmt(ast_buffer.getMultiAssign(node));
 			} break;
 
 
@@ -748,7 +774,7 @@ namespace pcit::panther{
 		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
 		if(target_info_res.isError()){ return this->may_recover(); }
 
-		if(target_info_res.value().type_id.is<TypeInfo::ID>() == false){
+		if(target_info_res.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() == false){
 			this->emit_error(
 				Diagnostic::Code::SemaCannotCallLikeFunction,
 				func_call.target,
@@ -758,8 +784,18 @@ namespace pcit::panther{
 		}
 
 
-		const TypeInfo::ID target_type_id = target_info_res.value().type_id.as<TypeInfo::ID>();
-		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id);
+		const evo::SmallVector<TypeInfo::ID> target_type_ids =
+			target_info_res.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
+		if(target_type_ids.size() > 1){
+			this->emit_error(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				func_call.target,
+				"Cannot call this expression like a function"
+			);
+			return this->may_recover();
+		}
+
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_ids.front());
 
 		if(
 			target_type_info.qualifiers().empty() == false ||
@@ -919,10 +955,21 @@ namespace pcit::panther{
 			return this->may_recover();
 		}
 
-		const TypeInfo::ID lhs_type = lhs_info.value().type_id.as<TypeInfo::ID>();
-		if(this->type_check<true>(lhs_type, rhs_info.value(), "Assignment", infix.rhs).ok == false){
+		const evo::SmallVector<TypeInfo::ID> lhs_types = lhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
+		if(lhs_types.size() > 1){
+			this->emit_error(
+				Diagnostic::Code::SemaIncorrectNumberOfAssignTargets,
+				infix.rhs,
+				"Multiple values cannot be assigned to a single assignment target"
+			);
 			return this->may_recover();
 		}
+		if(this->type_check<true>(lhs_types[0], rhs_info.value(), "Assignment", infix.rhs).ok == false){
+			return this->may_recover();
+		}
+
+
+		// create
 
 		const ASG::Assign::ID asg_assign_id = this->source.asg_buffer.createAssign(
 			*lhs_info.value().expr, *rhs_info.value().expr
@@ -1037,6 +1084,129 @@ namespace pcit::panther{
 
 		return true;
 	}
+
+
+
+
+	auto SemanticAnalyzer::analyze_multi_assign_stmt(const AST::MultiAssign& multi_assign) -> bool {
+		if(multi_assign.assigns.size() == 1){
+			this->emit_warning(
+				Diagnostic::Code::SemaWarnSingleValInMultiAssign,
+				multi_assign.assigns[0],
+				"Single assignment target in multiple-assignment statemet"
+			);
+		}
+
+
+		///////////////////////////////////
+		// lhs
+
+		auto assign_target_infos = evo::SmallVector<std::optional<ExprInfo>>();
+		assign_target_infos.reserve(multi_assign.assigns.size());
+		for(const AST::Node& assign_target : multi_assign.assigns){
+			if(assign_target.kind() == AST::Kind::Discard){
+				assign_target_infos.emplace_back(std::nullopt);
+				continue;
+			}
+
+			const evo::Result<ExprInfo> assign_target_info = this->analyze_expr<ExprValueKind::Runtime>(assign_target);
+			if(assign_target_info.isError()){ return this->may_recover(); }
+
+			if(assign_target_info.value().value_type != ExprInfo::ValueType::ConcreteMutable){
+				if(assign_target_info.value().value_type == ExprInfo::ValueType::ConcreteConst){
+					this->emit_error(
+						Diagnostic::Code::SemaAssignmentDstNotConcreteMutable,
+						assign_target,
+						"Cannot assign to a constant value"
+					);
+					return this->may_recover();
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SemaAssignmentDstNotConcreteMutable,
+						assign_target,
+						"Cannot assign to a non-concrete value"
+					);
+					return this->may_recover();
+				}
+			}
+
+			assign_target_infos.emplace_back(assign_target_info.value());
+		}
+
+
+
+		///////////////////////////////////
+		// rhs
+
+		const evo::Result<ExprInfo> rhs_info = this->analyze_expr<ExprValueKind::Runtime>(multi_assign.value);
+		if(rhs_info.isError()){ return this->may_recover(); }
+
+		if(rhs_info.value().is_ephemeral() == false){
+			this->emit_error(
+				Diagnostic::Code::SemaAssignmentValueNotEphemeral,
+				multi_assign.value,
+				"Assignment value must be ephemeral"
+			);
+			return this->may_recover();
+		}
+
+		const evo::SmallVector<TypeInfo::ID>& rhs_type_ids
+			= rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
+
+
+		if(rhs_type_ids.size() != assign_target_infos.size()){
+			this->emit_error(
+				Diagnostic::Code::SemaIncorrectNumberOfAssignTargets,
+				multi_assign,
+				"Incorrect number of assignment targets",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(std::format("assignment targets: {}", assign_target_infos.size())),
+					Diagnostic::Info(std::format("expression values:  {}", rhs_type_ids.size()))
+				}
+			);
+			return this->may_recover();
+		}
+
+
+		for(size_t i = 0; std::optional<ExprInfo>& assign_target : assign_target_infos){
+			EVO_DEFER([&](){ i += 1; });
+			if(assign_target.has_value() == false){ continue; }
+
+			const TypeInfo::ID rhs_type_id = rhs_type_ids[i];
+
+			if(
+				this->type_check<true>(rhs_type_id, *assign_target, "Assignment", multi_assign.assigns[i]).ok == false
+			){
+				return this->may_recover();
+			}
+		}
+
+
+
+
+		///////////////////////////////////
+		// create
+
+		auto assign_targets = evo::SmallVector<std::optional<ASG::Expr>>();
+		assign_targets.reserve(assign_target_infos.size());
+		for(const std::optional<ExprInfo>& assign_target_info : assign_target_infos){
+			if(assign_target_info.has_value()){
+				assign_targets.emplace_back(*assign_target_info->expr);
+			}else{
+				assign_targets.emplace_back();
+			}
+		}
+
+		const ASG::MultiAssign::ID asg_multi_assign_id = this->source.asg_buffer.createMultiAssign(
+			std::move(assign_targets), *rhs_info.value().expr
+		);
+
+		this->get_current_func().stmts.emplace_back(asg_multi_assign_id);
+
+		return true;
+	}
+
 
 
 
@@ -1328,7 +1498,7 @@ namespace pcit::panther{
 		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
 		if(target_info_res.isError()){ return evo::resultError; }
 
-		if(target_info_res.value().type_id.is<TypeInfo::ID>() == false){
+		if(target_info_res.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() == false){
 			this->emit_error(
 				Diagnostic::Code::SemaCannotCallLikeFunction,
 				func_call.target,
@@ -1339,10 +1509,19 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// get bayse type
+		// get base type
 
-		const TypeInfo::ID target_type_id = target_info_res.value().type_id.as<TypeInfo::ID>();
-		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id);
+		const evo::SmallVector<TypeInfo::ID> target_type_ids
+			= target_info_res.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
+		if(target_type_ids.size() > 1){
+			this->emit_error(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				func_call.target,
+				"Cannot call this expression like a function"
+			);
+		}
+
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_ids.front());
 
 		if(
 			target_type_info.qualifiers().empty() == false ||
@@ -1377,7 +1556,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// check arguments
 
-		auto arg_infos  = evo::SmallVector<ArgInfo>();
+		auto arg_infos = evo::SmallVector<ArgInfo>();
 		arg_infos.reserve(func_call.args.size());
 		for(const AST::FuncCall::Arg& arg : func_call.args){
 			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
@@ -1406,9 +1585,17 @@ namespace pcit::panther{
 			target_info_res.value().expr->funcLinkID(), std::move(args)
 		);
 
+		auto return_types = evo::SmallVector<TypeInfo::ID>();
+		return_types.reserve(func_type.returnParams().size());
+		for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams()){
+			return_types.emplace_back(return_param.typeID.typeID());
+		}
+
 
 		return ExprInfo(
-			ExprInfo::ValueType::Ephemeral, func_type.returnParams()[0].typeID.typeID(), ASG::Expr(asg_func_id)
+			ExprInfo::ValueType::Ephemeral,
+			ExprInfo::generateExprInfoTypeIDs(std::move(return_types)),
+			ASG::Expr(asg_func_id)
 		);
 	}
 
@@ -1802,12 +1989,16 @@ namespace pcit::panther{
 		);
 
 		if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-			return ExprInfo(ExprInfo::ValueType::ConcreteConst, instantiated_func_type, std::nullopt);
+			return ExprInfo(
+				ExprInfo::ValueType::ConcreteConst,
+				ExprInfo::generateExprInfoTypeIDs(instantiated_func_type),
+				std::nullopt
+			);
 
 		}else{
 			return ExprInfo(
 				ExprInfo::ValueType::ConcreteConst,
-				instantiated_func_type,
+				ExprInfo::generateExprInfoTypeIDs(instantiated_func_type),
 				ASG::Expr(ASG::Func::LinkID(declared_source.getID(), *func_id))
 			);
 		}
@@ -1830,7 +2021,12 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				const TypeInfo::ID rhs_type_id = rhs_info.value().type_id.as<TypeInfo::ID>();
+				evo::debugAssert(
+					rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() == 1,
+					"Expected concrete expr to only have one value"
+				);
+
+				const TypeInfo::ID rhs_type_id = rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
 				const TypeInfo& rhs_type = this->context.getTypeManager().getTypeInfo(rhs_type_id);
 
 				auto rhs_type_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
@@ -1848,13 +2044,19 @@ namespace pcit::panther{
 
 
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-					return ExprInfo(ExprInfo::ValueType::Ephemeral, new_type_id, std::nullopt);
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral, ExprInfo::generateExprInfoTypeIDs(new_type_id), std::nullopt
+					);
 					
 				}else{
 					const ASG::AddrOf::ID addr_of_id = this->source.asg_buffer.createAddrOf(
 						ASG::Expr(*rhs_info.value().expr)
 					);
-					return ExprInfo(ExprInfo::ValueType::Ephemeral, new_type_id, ASG::Expr(addr_of_id));
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(new_type_id),
+						ASG::Expr(addr_of_id)
+					);
 				}
 			} break;
 
@@ -1991,11 +2193,15 @@ namespace pcit::panther{
 
 
 						if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-							return ExprInfo(ExprInfo::ValueType::ConcreteConst, type_id, std::nullopt);
+							return ExprInfo(
+								ExprInfo::ValueType::ConcreteConst,
+								ExprInfo::generateExprInfoTypeIDs(type_id),
+								std::nullopt
+							);
 						}else{
 							return ExprInfo(
 								ExprInfo::ValueType::ConcreteConst,
-								type_id,
+								ExprInfo::generateExprInfoTypeIDs(type_id),
 								ASG::Expr(ASG::Func::LinkID(import_target_source_id, ident_id))
 							);
 						}
@@ -2062,7 +2268,10 @@ namespace pcit::panther{
 				const evo::Result<ExprInfo> lhs_info = this->analyze_expr<EXPR_VALUE_KIND>(postfix.lhs);
 				if(lhs_info.isError()){ return evo::resultError; }
 
-				if(lhs_info.value().type_id.is<TypeInfo::ID>() == false){
+				if(
+					lhs_info.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() == false || 
+					lhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1
+				){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidDerefRHS,
 						postfix.lhs,
@@ -2071,8 +2280,10 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+
+
 				const TypeInfo& lhs_type = this->context.getTypeManager().getTypeInfo(
-					lhs_info.value().type_id.as<TypeInfo::ID>()
+					lhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
 				);
 				if(lhs_type.qualifiers().empty() || lhs_type.qualifiers().back().isPtr == false){
 					this->emit_error(
@@ -2097,13 +2308,15 @@ namespace pcit::panther{
 														: ExprInfo::ValueType::ConcreteMutable;
 
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-					return ExprInfo(value_type, new_type_id, std::nullopt);
+					return ExprInfo(value_type, ExprInfo::generateExprInfoTypeIDs(new_type_id), std::nullopt);
 
 				}else{
 					const ASG::Deref::ID asg_deref_id = this->source.asg_buffer.createDeref(
 						*lhs_info.value().expr, new_type_id
 					);
-					return ExprInfo(value_type, new_type_id, ASG::Expr(asg_deref_id));
+					return ExprInfo(
+						value_type, ExprInfo::generateExprInfoTypeIDs(new_type_id), ASG::Expr(asg_deref_id)
+					);
 				}
 
 			} break;
@@ -2195,12 +2408,18 @@ namespace pcit::panther{
 				);
 
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-					return std::optional<ExprInfo>(ExprInfo(ExprInfo::ValueType::ConcreteConst, type_id, std::nullopt));
+					return std::optional<ExprInfo>(
+						ExprInfo(
+							ExprInfo::ValueType::ConcreteConst,
+							ExprInfo::generateExprInfoTypeIDs(type_id),
+							std::nullopt
+						)
+					);
 				}else{
 					return std::optional<ExprInfo>(
 						ExprInfo(
 							ExprInfo::ValueType::ConcreteConst,
-							type_id,
+							ExprInfo::generateExprInfoTypeIDs(type_id),
 							ASG::Expr(ASG::Func::LinkID(source_id, ident_id))
 						)
 					);
@@ -2244,7 +2463,9 @@ namespace pcit::panther{
 					};
 
 					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-						return std::optional<ExprInfo>(ExprInfo(get_value_type(), asg_var.typeID, std::nullopt));
+						return std::optional<ExprInfo>(
+							ExprInfo(get_value_type(), ExprInfo::generateExprInfoTypeIDs(asg_var.typeID), std::nullopt)
+						);
 
 					}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
 						if(asg_var.kind != AST::VarDecl::Kind::Def){
@@ -2259,13 +2480,19 @@ namespace pcit::panther{
 						}
 
 						return std::optional<ExprInfo>(
-							ExprInfo(ExprInfo::ValueType::Ephemeral, asg_var.typeID, asg_var.expr)
+							ExprInfo(
+								ExprInfo::ValueType::Ephemeral,
+								ExprInfo::generateExprInfoTypeIDs(asg_var.typeID),
+								asg_var.expr
+							)
 						);
 
 					}else{
 						return std::optional<ExprInfo>(
 							ExprInfo(
-								get_value_type(), asg_var.typeID, ASG::Expr(ASG::Var::LinkID(source_id, ident_id))
+								get_value_type(),
+								ExprInfo::generateExprInfoTypeIDs(asg_var.typeID),
+								ASG::Expr(ASG::Var::LinkID(source_id, ident_id))
 							)
 						);
 					}
@@ -2307,7 +2534,9 @@ namespace pcit::panther{
 
 
 					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-						return std::optional<ExprInfo>(ExprInfo(get_value_type(), param.typeID, std::nullopt));
+						return std::optional<ExprInfo>(
+							ExprInfo(get_value_type(), ExprInfo::generateExprInfoTypeIDs(param.typeID), std::nullopt)
+						);
 
 					}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
 						this->emit_error(
@@ -2322,7 +2551,7 @@ namespace pcit::panther{
 						return std::optional<ExprInfo>(
 							ExprInfo(
 								get_value_type(),
-								param.typeID,
+								ExprInfo::generateExprInfoTypeIDs(param.typeID),
 								ASG::Expr(
 									ASG::Param::LinkID(
 										ASG::Func::LinkID(this->source.getID(), asg_param.func), ident_id
@@ -2359,7 +2588,11 @@ namespace pcit::panther{
 
 					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 						return std::optional<ExprInfo>(
-							ExprInfo(ExprInfo::ValueType::ConcreteMutable, return_param.typeID.typeID(), std::nullopt)
+							ExprInfo(
+								ExprInfo::ValueType::ConcreteMutable, 
+								ExprInfo::generateExprInfoTypeIDs(return_param.typeID.typeID()),
+								std::nullopt
+							)
 						);
 
 					}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
@@ -2375,7 +2608,7 @@ namespace pcit::panther{
 						return std::optional<ExprInfo>(
 							ExprInfo(
 								ExprInfo::ValueType::ConcreteMutable,
-								return_param.typeID.typeID(),
+								ExprInfo::generateExprInfoTypeIDs(return_param.typeID.typeID()),
 								ASG::Expr(
 									ASG::ReturnParam::LinkID(
 										ASG::Func::LinkID(this->source.getID(), asg_ret_param.func), ident_id
@@ -2448,7 +2681,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::LiteralBool: {
-				expr_info.type_id = this->context.getTypeManager().getTypeBool();
+				expr_info.type_id = ExprInfo::generateExprInfoTypeIDs(this->context.getTypeManager().getTypeBool());
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr_info.expr = ASG::Expr(this->source.asg_buffer.createLiteralBool(token.getBool()));
@@ -2463,7 +2696,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::LiteralChar: {
-				expr_info.type_id = this->context.getTypeManager().getTypeChar();
+				expr_info.type_id = ExprInfo::generateExprInfoTypeIDs(this->context.getTypeManager().getTypeChar());
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr_info.expr = ASG::Expr(this->source.asg_buffer.createLiteralChar(token.getString()[0]));
@@ -2764,11 +2997,18 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::type_check(
 		TypeInfo::ID expected_type_id, ExprInfo& got_expr, std::string_view name, const NODE_T& location
 	) -> TypeCheckInfo {
+		evo::debugAssert(
+			got_expr.type_id.is<evo::SmallVector<TypeInfo::ID>>() == false ||
+			got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() == 1,
+			"multi-values should be checked before this func"
+		);
+
 		switch(got_expr.value_type){
 			case ExprInfo::ValueType::ConcreteConst:
 			case ExprInfo::ValueType::ConcreteMutable:
 			case ExprInfo::ValueType::Ephemeral: {
-				const TypeInfo::ID got_type_id = got_expr.type_id.as<TypeInfo::ID>();
+				const TypeInfo::ID got_type_id = got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
 				if(expected_type_id != got_type_id){
 					const TypeInfo& expected_type = this->context.getTypeManager().getTypeInfo(expected_type_id);
 					const TypeInfo& got_type      = this->context.getTypeManager().getTypeInfo(got_type_id);
@@ -2805,10 +3045,14 @@ namespace pcit::panther{
 				}
 
 				if constexpr(IMPLICITLY_CONVERT){
-					EVO_DEFER([&](){ got_expr.type_id = expected_type_id; });
+					const auto _ = evo::Defer([&](){
+						got_expr.type_id.emplace<evo::SmallVector<TypeInfo::ID>>({expected_type_id});
+					});
 				}
 
-				return TypeCheckInfo(true, got_expr.type_id.as<TypeInfo::ID>() != expected_type_id);
+				return TypeCheckInfo(
+					true, got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>().front() != expected_type_id
+				);
 			} break;
 
 
@@ -2895,7 +3139,7 @@ namespace pcit::panther{
 
 				if constexpr(IMPLICITLY_CONVERT){
 					got_expr.value_type = ExprInfo::ValueType::Ephemeral;
-					got_expr.type_id = expected_type_id;
+					got_expr.type_id.emplace<evo::SmallVector<TypeInfo::ID>>({expected_type_id});
 				}
 
 				return TypeCheckInfo(true, true);
@@ -3052,8 +3296,13 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::print_type(const ExprInfo& expr_info) const -> std::string {
-		if(expr_info.type_id.is<TypeInfo::ID>()){
-			return this->context.getTypeManager().printType(expr_info.type_id.as<TypeInfo::ID>());
+		if(expr_info.type_id.is<evo::SmallVector<TypeInfo::ID>>()){
+			evo::debugAssert(
+				expr_info.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() == 1, "cannot print multiple types"
+			);
+			return this->context.getTypeManager().printType(
+				expr_info.type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
+			);
 
 		}else if(expr_info.value_type == ExprInfo::ValueType::Import){
 			return "{IMPORT}";
@@ -3225,7 +3474,7 @@ namespace pcit::panther{
 	}
 
 	auto SemanticAnalyzer::get_source_location(const AST::MultiAssign& multi_assign) const -> SourceLocation {
-		return this->get_source_location(multi_assign.assigns[0]);
+		return this->get_source_location(multi_assign.openBracketLocation);
 	}
 
 	auto SemanticAnalyzer::get_source_location(const AST::Type& type) const -> SourceLocation {

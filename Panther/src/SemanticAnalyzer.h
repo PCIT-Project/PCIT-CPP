@@ -66,6 +66,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_func_call(const AST::FuncCall& func_call) -> bool;
 			EVO_NODISCARD auto analyze_infix_stmt(const AST::Infix& infix) -> bool;
 			EVO_NODISCARD auto analyze_return_stmt(const AST::Return& return_stmt) -> bool;
+			EVO_NODISCARD auto analyze_multi_assign_stmt(const AST::MultiAssign& multi_assign) -> bool;
 
 
 			///////////////////////////////////
@@ -100,10 +101,10 @@ namespace pcit::panther{
 
 				ValueType value_type;
 				evo::Variant<
-					std::monostate,             // ValueType::[EpemeralFluid|Initializer]
-					TypeInfo::ID,               // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
-					ASG::TemplatedFunc::LinkID, // ValueType::Templated
-					Source::ID                  // ValueType::Import
+					std::monostate,                 // ValueType::[EpemeralFluid|Initializer]
+					evo::SmallVector<TypeInfo::ID>, // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
+					ASG::TemplatedFunc::LinkID,     // ValueType::Templated
+					Source::ID                      // ValueType::Import
 				> type_id;
 				std::optional<ASG::Expr> expr; // nullopt if from ExprValueKind::None or ValueType::Import
 
@@ -114,6 +115,20 @@ namespace pcit::panther{
 				EVO_NODISCARD constexpr auto is_concrete() const -> bool {
 					return this->value_type == ValueType::ConcreteConst || 
 						   this->value_type == ValueType::ConcreteMutable;
+				}
+
+
+				// The following function is stupid, but it is required for some reason (at least in MSVC 17.11.2)
+				// 		using the implicit construction of the variant causes std::vector<TypeInfo::ID> to 
+				//      be an undefined type and TypeInfo::ID to have a size 0
+				EVO_NODISCARD static auto generateExprInfoTypeIDs(auto&&... args) -> decltype(type_id) {
+					auto type_id_variant = decltype(type_id)();
+					type_id_variant.emplace<evo::SmallVector<TypeInfo::ID>>(std::forward<decltype(args)>(args)...);
+					return type_id_variant;
+				}
+
+				EVO_NODISCARD static auto generateExprInfoTypeIDs(TypeInfo::ID type_info_id) -> decltype(type_id) {
+					return generateExprInfoTypeIDs(evo::SmallVector<TypeInfo::ID>{type_info_id});
 				}
 			};
 

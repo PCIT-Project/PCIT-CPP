@@ -1,11 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.30.0
+
+### Panther
+- Added multiple function return parameters
+- Added checking that entry function does not have named return parameter
+- Fixed discarding of a return value of a function with a named return parameter
+
+
+<!---------------------------------->
 ## v0.0.29.0
 
 ### Panther
 - Added support for initializer value expression `uninint`
-- Added initializer value expression `zeroinita`
+- Added initializer value expression `zeroinit`
 - Temporarily removed specific diagnostic codes for semantic analysis
 
 

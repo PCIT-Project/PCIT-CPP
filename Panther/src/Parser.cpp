@@ -315,7 +315,7 @@ namespace pcit::panther{
 					return Result::Code::Error;
 				}
 
-				return this->source.ast_buffer.createMultiAssign(std::move(assignments), value.value());
+				return this->source.ast_buffer.createMultiAssign(start_location, std::move(assignments), value.value());
 			}
 		}
 

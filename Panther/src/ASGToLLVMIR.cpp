@@ -198,10 +198,13 @@ namespace pcit::panther{
 		const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
 
 		switch(stmt.kind()){
-			break; case ASG::Stmt::Kind::Var:      this->lower_var(stmt.varID());
-			break; case ASG::Stmt::Kind::FuncCall: this->lower_func_call(asg_buffer.getFuncCall(stmt.funcCallID()));
-			break; case ASG::Stmt::Kind::Assign:   this->lower_assign(asg_buffer.getAssign(stmt.assignID()));
-			break; case ASG::Stmt::Kind::Return:   this->lower_return(asg_buffer.getReturn(stmt.returnID()));
+			break; case ASG::Stmt::Kind::Var:         this->lower_var(stmt.varID());
+			break; case ASG::Stmt::Kind::FuncCall:    this->lower_func_call(asg_buffer.getFuncCall(stmt.funcCallID()));
+			break; case ASG::Stmt::Kind::Assign:      this->lower_assign(asg_buffer.getAssign(stmt.assignID()));
+			break; case ASG::Stmt::Kind::MultiAssign:
+				this->lower_multi_assign(asg_buffer.getMultiAssign(stmt.multiAssignID()));
+			break; case ASG::Stmt::Kind::Return:      this->lower_return(asg_buffer.getReturn(stmt.returnID()));
+			break; default: evo::debugFatalBreak("Unknown or unsupported stmt kind");
 		}
 	}
 
@@ -238,31 +241,44 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::lower_func_call(const ASG::FuncCall& func_call) -> void {
-		const FuncInfo& func_info = this->get_func_info(func_call.target);
-		const Source& target_source = this->context.getSourceManager()[func_call.target.sourceID()];
-		const ASG::Func& asg_func_target = target_source.getASGBuffer().getFunc(func_call.target.funcID());
-		const BaseType::Function& func_target_type = 
-			this->context.getTypeManager().getFunction(asg_func_target.baseTypeID.funcID());
-
-		auto args = evo::SmallVector<llvmint::Value>();
-		args.reserve(func_call.args.size());
-		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
-			const bool optimize_with_copy = func_target_type.params()[i].optimizeWithCopy;
-			args.emplace_back(this->get_value(arg, !optimize_with_copy));
-
-			i += 1;
-		}
-
-		this->builder.createCall(func_info.func, args);
+		// TODO: optimize the generated ouput
+		[[maybe_unused]] const evo::SmallVector<llvmint::Value> ret_vals = lower_returning_func_call(func_call, false);
 	}
 
 
 	auto ASGToLLVMIR::lower_assign(const ASG::Assign& assign) -> void {
-		llvmint::Value lhs = this->get_concrete_value(assign.lhs);
-		llvmint::Value rhs = this->get_value(assign.rhs);
+		const llvmint::Value lhs = this->get_concrete_value(assign.lhs);
+		const llvmint::Value rhs = this->get_value(assign.rhs);
 
 		this->builder.createStore(lhs, rhs, false);
 	}
+
+
+	auto ASGToLLVMIR::lower_multi_assign(const ASG::MultiAssign& multi_assign) -> void {
+		auto assign_targets = evo::SmallVector<std::optional<llvmint::Value>>();
+		assign_targets.reserve(multi_assign.targets.size());
+
+		for(const std::optional<ASG::Expr>& target : multi_assign.targets){
+			if(target.has_value()){
+				assign_targets.emplace_back(this->get_concrete_value(*target));
+			}else{
+				assign_targets.emplace_back();
+			}
+		}
+
+		const evo::SmallVector<llvmint::Value> values = this->lower_returning_func_call(
+			this->current_source->getASGBuffer().getFuncCall(multi_assign.value.funcCallID()), false
+		);
+
+		for(size_t i = 0; const std::optional<llvmint::Value>& assign_target : assign_targets){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(assign_target.has_value() == false){ continue; }
+
+			this->builder.createStore(assign_target.value(), values[i], false);
+		}
+	}
+
 
 	auto ASGToLLVMIR::lower_return(const ASG::Return& return_stmt) -> void {
 		if(return_stmt.value.has_value() == false){
@@ -272,6 +288,7 @@ namespace pcit::panther{
 
 		this->builder.createRet(this->get_value(*return_stmt.value));
 	}
+
 
 
 
@@ -518,57 +535,8 @@ namespace pcit::panther{
 			case ASG::Expr::Kind::FuncCall: {
 				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
 				const ASG::FuncCall& func_call = asg_buffer.getFuncCall(expr.funcCallID());
-				const ASG::Func::LinkID& func_link_id = func_call.target;
-				const FuncInfo& func_info = this->get_func_info(func_link_id);
-
-				const Source& linked_source = this->context.getSourceManager()[func_link_id.sourceID()];
-				const ASG::Func& asg_func = linked_source.getASGBuffer().getFunc(func_link_id.funcID());
-				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
-					asg_func.baseTypeID.funcID()
-				);
-
-				auto args = evo::SmallVector<llvmint::Value>();
-				args.reserve(func_call.args.size());
-				for(size_t i = 0; const ASG::Expr& arg : func_call.args){
-					const bool optimize_with_copy = func_type.params()[i].optimizeWithCopy;
-					args.emplace_back(this->get_value(arg, !optimize_with_copy));
-
-					i += 1;
-				}
-
-				if(func_type.hasNamedReturns()){
-					for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams()){
-						const llvmint::Alloca alloca = this->builder.createAlloca(
-							this->get_type(return_param.typeID),
-							this->stmt_name(
-								"RET_PARAM.{}.alloca",
-								this->current_source->getTokenBuffer()[*return_param.ident].getString()
-							)
-						);
-
-						args.emplace_back(static_cast<llvmint::Value>(alloca));
-					}
-
-					this->builder.createCall(func_info.func, args);
-
-					if(get_pointer_to_value){ return args.back(); }
-
-					return static_cast<llvmint::Value>(
-						this->builder.createLoad(args.back(), this->get_type(func_type.returnParams().front().typeID))
-					);
-
-				}else{
-					const llvmint::Value func_call_value = this->builder.createCall(func_info.func, args);
-					if(get_pointer_to_value == false){ return func_call_value; }
-
-					
-					const llvmint::Type return_type = this->get_type(func_type.returnParams()[0].typeID);
-
-					const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
-					this->builder.createStore(alloca, func_call_value, false);
-					return static_cast<llvmint::Value>(alloca);
-				}
-
+				
+				return this->lower_returning_func_call(func_call, get_pointer_to_value).front();
 			} break;
 
 			case ASG::Expr::Kind::Var: {
@@ -635,6 +603,83 @@ namespace pcit::panther{
 
 		evo::debugFatalBreak("Unknown or unsupported expr kind");
 	}
+
+
+	auto ASGToLLVMIR::lower_returning_func_call(const ASG::FuncCall& func_call, bool get_pointer_to_value)
+	-> evo::SmallVector<llvmint::Value> {
+		const ASG::Func::LinkID& func_link_id = func_call.target;
+		const FuncInfo& func_info = this->get_func_info(func_link_id);
+
+		const Source& linked_source = this->context.getSourceManager()[func_link_id.sourceID()];
+		const ASG::Func& asg_func = linked_source.getASGBuffer().getFunc(func_link_id.funcID());
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
+			asg_func.baseTypeID.funcID()
+		);
+
+		auto args = evo::SmallVector<llvmint::Value>();
+		args.reserve(func_call.args.size());
+		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
+			const bool optimize_with_copy = func_type.params()[i].optimizeWithCopy;
+			args.emplace_back(this->get_value(arg, !optimize_with_copy));
+
+			i += 1;
+		}
+
+
+		auto return_values = evo::SmallVector<llvmint::Value>();
+		if(func_type.hasNamedReturns()){
+			for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams()){
+				const llvmint::Alloca alloca = this->builder.createAlloca(
+					this->get_type(return_param.typeID),
+					this->stmt_name(
+						"RET_PARAM.{}.alloca",
+						this->current_source->getTokenBuffer()[*return_param.ident].getString()
+					)
+				);
+
+				args.emplace_back(static_cast<llvmint::Value>(alloca));
+			}
+
+			this->builder.createCall(func_info.func, args);
+
+			if(get_pointer_to_value){
+				for(size_t i = func_type.params().size(); i < args.size(); i+=1){
+					return_values.emplace_back(args[i]);
+				}
+
+				return return_values;
+			}
+
+			for(size_t i = func_type.params().size(); i < args.size(); i+=1){
+				return_values.emplace_back(
+					static_cast<llvmint::Value>(
+						this->builder.createLoad(args[i], this->get_type(func_type.returnParams().front().typeID))
+					)
+				);
+			}
+
+			return return_values;
+
+		}else{
+			const llvmint::Value func_call_value = this->builder.createCall(func_info.func, args);
+			if(get_pointer_to_value == false){
+				return_values.emplace_back(static_cast<llvmint::Value>(func_call_value));
+				return return_values;
+			}
+			
+			const llvmint::Type return_type = this->get_type(func_type.returnParams()[0].typeID);
+
+			const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
+			this->builder.createStore(alloca, func_call_value, false);
+
+			return_values.emplace_back(static_cast<llvmint::Value>(alloca));
+			return return_values;
+		}
+	}
+
+
+
+
 
 
 	auto ASGToLLVMIR::mangle_name(const ASG::Func& func) const -> std::string {

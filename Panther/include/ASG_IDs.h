@@ -78,6 +78,10 @@ namespace pcit::panther::ASG{
 		using core::UniqueID<uint32_t, AssignID>::UniqueID;
 	};
 
+	struct MultiAssignID : public core::UniqueID<uint32_t, struct MultiAssignID> {
+		using core::UniqueID<uint32_t, MultiAssignID>::UniqueID;
+	};
+
 	struct ReturnID : public core::UniqueID<uint32_t, struct ReturnID> {
 		using core::UniqueID<uint32_t, ReturnID>::UniqueID;
 	};

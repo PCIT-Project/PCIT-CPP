@@ -220,6 +220,7 @@ namespace pcit::panther::AST{
 	};
 
 	struct MultiAssign{
+		Token::ID openBracketLocation;
 		evo::SmallVector<Node> assigns;
 		Node value;
 	};

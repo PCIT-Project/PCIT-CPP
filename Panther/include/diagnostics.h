@@ -95,6 +95,9 @@ namespace pcit::panther{
 		SemaArgIncorrectLabel,
 		SemaArgMustBeLabeled,
 		SemaInvalidUseOfInitializerValueExpr,
+		SemaIncorrectNumberOfAssignTargets,
+
+		SemaWarnSingleValInMultiAssign,
 
 		LLLVMDataLayoutError,                 // LLVM1
 
@@ -116,6 +119,7 @@ namespace pcit::panther{
 			#pragma warning(default : 4062)
 		#endif
 
+		// TODO: give Sema and SemaWarn codes unique numbers
 		switch(code){
 			break; case DiagnosticCode::TokUnrecognizedCharacter:             return "T1";
 			break; case DiagnosticCode::TokUnterminatedMultilineComment:      return "T2";
@@ -193,6 +197,9 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaArgIncorrectLabel:                return "S";
 			break; case DiagnosticCode::SemaArgMustBeLabeled:                 return "S";
 			break; case DiagnosticCode::SemaInvalidUseOfInitializerValueExpr: return "S";
+			break; case DiagnosticCode::SemaIncorrectNumberOfAssignTargets:   return "S";
+
+			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:       return "SW";
 
 			break; case DiagnosticCode::LLLVMDataLayoutError:                 return "LLVM1";
 

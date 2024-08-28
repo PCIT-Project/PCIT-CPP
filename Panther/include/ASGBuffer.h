@@ -141,6 +141,20 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// multi-assign
+
+			EVO_NODISCARD auto createMultiAssign(auto&&... args) -> ASG::MultiAssign::ID {
+				const auto created_id = ASG::MultiAssign::ID(uint32_t(this->multi_assigns.size()));
+				this->multi_assigns.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getMultiAssign(ASG::MultiAssign::ID id) const -> const ASG::MultiAssign& {
+				return this->multi_assigns[id.get()];
+			}
+
+
+			///////////////////////////////////
 			// returns
 
 			EVO_NODISCARD auto createReturn(auto&&... args) -> ASG::Return::ID {
@@ -304,6 +318,7 @@ namespace pcit::panther{
 
 			evo::SmallVector<ASG::FuncCall> func_calls{};
 			evo::SmallVector<ASG::Assign> assigns{};
+			evo::SmallVector<ASG::MultiAssign> multi_assigns{};
 			evo::SmallVector<ASG::Return> returns{};
 
 			evo::SmallVector<ASG::Expr> misc_exprs{};

@@ -263,6 +263,13 @@ namespace pcit::panther::ASG{
 		Expr rhs;
 	};
 
+	struct MultiAssign{
+		using ID = MultiAssignID;
+
+		evo::SmallVector<std::optional<Expr>> targets;
+		Expr value;
+	};
+
 	struct Return{
 		using ID = ReturnID;
 
@@ -275,13 +282,16 @@ namespace pcit::panther::ASG{
 			Var,
 			FuncCall,
 			Assign,
+			MultiAssign,
 			Return,
 		};
 
-		explicit Stmt(VarID var_id) : _kind(Kind::Var), value{.var_id = var_id} {}
+		explicit Stmt(VarID var_id)              : _kind(Kind::Var),      value{.var_id = var_id}             {}
 		explicit Stmt(FuncCall::ID func_call_id) : _kind(Kind::FuncCall), value{.func_call_id = func_call_id} {}
-		explicit Stmt(Assign::ID assign_id) : _kind(Kind::Assign), value{.assign_id = assign_id} {}
-		explicit Stmt(Return::ID return_id) : _kind(Kind::Return), value{.return_id = return_id} {}
+		explicit Stmt(Assign::ID assign_id)      : _kind(Kind::Assign),   value{.assign_id = assign_id}       {}
+		explicit Stmt(MultiAssign::ID multi_assign_id)
+			: _kind(Kind::MultiAssign), value{.multi_assign_id = multi_assign_id} {}
+		explicit Stmt(Return::ID return_id)      : _kind(Kind::Return),    value{.return_id = return_id}      {}
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -301,6 +311,11 @@ namespace pcit::panther::ASG{
 			return this->value.assign_id;
 		}
 
+		EVO_NODISCARD auto multiAssignID() const -> MultiAssign::ID {
+			evo::debugAssert(this->kind() == Kind::MultiAssign, "not an assign");
+			return this->value.multi_assign_id;
+		}
+
 		EVO_NODISCARD auto returnID() const -> Return::ID {
 			evo::debugAssert(this->kind() == Kind::Return, "not an return");
 			return this->value.return_id;
@@ -313,6 +328,7 @@ namespace pcit::panther::ASG{
 				VarID var_id;
 				FuncCall::ID func_call_id;
 				Assign::ID assign_id;
+				MultiAssign::ID multi_assign_id;
 				Return::ID return_id;
 			} value;
 	};

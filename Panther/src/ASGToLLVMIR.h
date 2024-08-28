@@ -47,7 +47,9 @@ namespace pcit::panther{
 			auto lower_var(const ASG::Var::ID var_id) -> void;
 			auto lower_func_call(const ASG::FuncCall& func_call) -> void;
 			auto lower_assign(const ASG::Assign& assign) -> void;
+			auto lower_multi_assign(const ASG::MultiAssign& multi_assign) -> void;
 			auto lower_return(const ASG::Return& return_stmt) -> void;
+
 
 
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID& type_info_voidable_id) const -> llvmint::Type;
@@ -55,8 +57,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_type(const TypeInfo& type_info) const -> llvmint::Type;
 
 			// TODO: make get_pointer_to_value a template?
-			EVO_NODISCARD auto get_value(const ASG::Expr& expr, bool get_pointer_to_value = false) -> llvmint::Value;
 			EVO_NODISCARD auto get_concrete_value(const ASG::Expr& expr) -> llvmint::Value;
+			EVO_NODISCARD auto get_value(const ASG::Expr& expr, bool get_pointer_to_value = false) -> llvmint::Value;
+			EVO_NODISCARD auto lower_returning_func_call(const ASG::FuncCall& func_call, bool get_pointer_to_value)
+				-> evo::SmallVector<llvmint::Value>;
 
 
 			EVO_NODISCARD auto mangle_name(const ASG::Func& func) const -> std::string;
