@@ -833,7 +833,7 @@ namespace pcit::panther{
 		arg_infos.reserve(func_call.args.size());
 		for(const AST::FuncCall::Arg& arg : func_call.args){
 			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
-			if(arg_info.isError()){ return false; }
+			if(arg_info.isError()){ return this->may_recover(); }
 
 			if(arg_info.value().value_type == ExprInfo::ValueType::Initializer){
 				this->emit_error(
@@ -841,7 +841,20 @@ namespace pcit::panther{
 					arg.value,
 					"Initializer values cannot be used as function call arguments"
 				);
-				return false;
+				return this->may_recover();
+			}
+
+
+			if(
+				arg_info.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() &&
+				arg_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1
+			){
+				this->emit_error(
+					Diagnostic::Code::SemaMultipleValuesIntoOne,
+					arg.value,
+					"Cannot pass multiple values into a single function argument"
+				);
+				return this->may_recover();
 			}
 
 			arg_infos.emplace_back(arg.explicitIdent, arg_info.value(), arg.value);
@@ -851,7 +864,7 @@ namespace pcit::panther{
 		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
 			func_call, target_info_res.value().expr->funcLinkID(), &func_type, arg_infos, func_call.args
 		);
-		if(selected_func_overload.isError()){ return false; }
+		if(selected_func_overload.isError()){ return this->may_recover(); }
 
 
 		///////////////////////////////////
@@ -882,7 +895,7 @@ namespace pcit::panther{
 		if(this->source.getTokenBuffer()[infix.opTokenID].kind() != Token::lookupKind("=")){
 			// TODO: better messaging
 			this->emit_error(Diagnostic::Code::SemaInvalidStmtKind, infix, "Invalid stmt kind");
-			return false;
+			return this->may_recover();
 		}
 
 		///////////////////////////////////
@@ -1561,6 +1574,18 @@ namespace pcit::panther{
 		for(const AST::FuncCall::Arg& arg : func_call.args){
 			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
 			if(arg_info.isError()){ return evo::resultError; }
+
+			if(
+				arg_info.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() &&
+				arg_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1
+			){
+				this->emit_error(
+					Diagnostic::Code::SemaMultipleValuesIntoOne,
+					arg.value,
+					"Cannot pass multiple values into a single function argument"
+				);
+				return evo::resultError;
+			}
 
 			arg_infos.emplace_back(arg.explicitIdent, arg_info.value(), arg.value);
 		}
@@ -2997,16 +3022,22 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::type_check(
 		TypeInfo::ID expected_type_id, ExprInfo& got_expr, std::string_view name, const NODE_T& location
 	) -> TypeCheckInfo {
-		evo::debugAssert(
-			got_expr.type_id.is<evo::SmallVector<TypeInfo::ID>>() == false ||
-			got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() == 1,
-			"multi-values should be checked before this func"
-		);
-
 		switch(got_expr.value_type){
 			case ExprInfo::ValueType::ConcreteConst:
 			case ExprInfo::ValueType::ConcreteMutable:
 			case ExprInfo::ValueType::Ephemeral: {
+				if(got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != 1){
+					auto name_copy = std::string(name);
+					name_copy[0] = char(std::tolower(int(name_copy[0])));
+
+					this->emit_error(
+						Diagnostic::Code::SemaMultipleValuesIntoOne,
+						location,
+						std::format("Cannot set {} with multiple values", name_copy)
+					);
+					return TypeCheckInfo(false, false);
+				}
+
 				const TypeInfo::ID got_type_id = got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
 
 				if(expected_type_id != got_type_id){
@@ -3297,12 +3328,13 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::print_type(const ExprInfo& expr_info) const -> std::string {
 		if(expr_info.type_id.is<evo::SmallVector<TypeInfo::ID>>()){
-			evo::debugAssert(
-				expr_info.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() == 1, "cannot print multiple types"
-			);
-			return this->context.getTypeManager().printType(
-				expr_info.type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
-			);
+			if(expr_info.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() == 1){
+				return this->context.getTypeManager().printType(
+					expr_info.type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
+				);
+			}else{
+				return "{MULTIPLE}";
+			}
 
 		}else if(expr_info.value_type == ExprInfo::ValueType::Import){
 			return "{IMPORT}";

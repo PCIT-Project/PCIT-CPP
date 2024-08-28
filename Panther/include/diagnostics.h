@@ -96,6 +96,7 @@ namespace pcit::panther{
 		SemaArgMustBeLabeled,
 		SemaInvalidUseOfInitializerValueExpr,
 		SemaIncorrectNumberOfAssignTargets,
+		SemaMultipleValuesIntoOne,
 
 		SemaWarnSingleValInMultiAssign,
 
@@ -198,6 +199,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaArgMustBeLabeled:                 return "S";
 			break; case DiagnosticCode::SemaInvalidUseOfInitializerValueExpr: return "S";
 			break; case DiagnosticCode::SemaIncorrectNumberOfAssignTargets:   return "S";
+			break; case DiagnosticCode::SemaMultipleValuesIntoOne:            return "S";
 
 			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:       return "SW";
 

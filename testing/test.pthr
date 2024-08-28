@@ -11,7 +11,9 @@ func get_two = (in_a: UI8 in, in_b: UI8 in) -> (out_a: UI8, out_b: UI8) {
 func entry = () #entry -> UI8 {
 	var num_1: UI8 = uninit;
 	var num_2: UI8 = uninit;
-	[_, num_2] = get_two(12, 14);
+	[_, num_2] = get_two(get_two(1,2), 14);
+
+	_ = get_two(1, 2);
 
 	return (move num_2);
 }

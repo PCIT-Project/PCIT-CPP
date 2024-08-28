@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.30.1
+
+### Panther
+- Fixed fatal error messages caused by setting a single value with multiple values (multiple return param function)
+
+
+<!---------------------------------->
 ## v0.0.30.0
 
 ### Panther
