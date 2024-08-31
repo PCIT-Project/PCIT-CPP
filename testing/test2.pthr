@@ -1,11 +1,10 @@
 
 
-func templated = <{T: Type, VAL: Int}> () #pub -> Void {
-	const foo: T = 12;
-	const bar: Int = VAL;
+
+func set_num = (num: UI8*) #pub -> Void {
+	num.* = 1;
 }
 
-
-func regular = () #pub -> Void {
-	
+func set_num = (c_num: UI8*|) #pub -> Void {
+	// do nothing
 }

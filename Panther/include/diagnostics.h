@@ -49,6 +49,7 @@ namespace pcit::panther{
 		SemaInvalidStmtKind,
 		SemaInvalidExprKind,
 		SemaAlreadyDefined,
+		SemaOverloadAlreadyDefined,
 		SemaImproperUseOfTypeVoid,
 		SemaVoidWithQualifiers,
 		SemaGenericTypeWithQualifiers,
@@ -152,6 +153,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaInvalidStmtKind:                  return "S";
 			break; case DiagnosticCode::SemaInvalidExprKind:                  return "S";
 			break; case DiagnosticCode::SemaAlreadyDefined:                   return "S";
+			break; case DiagnosticCode::SemaOverloadAlreadyDefined:           return "S";
 			break; case DiagnosticCode::SemaImproperUseOfTypeVoid:            return "S";
 			break; case DiagnosticCode::SemaVoidWithQualifiers:               return "S";
 			break; case DiagnosticCode::SemaGenericTypeWithQualifiers:        return "S";

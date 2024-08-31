@@ -18,88 +18,95 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// scope level
 
-	auto ScopeManager::ScopeLevel::addSubScope() -> void {
+	auto ScopeManager::Level::addSubScope() -> void {
 		this->has_sub_scopes = true;
 		this->num_sub_scopes_not_terminated += 1;
 	}
 
-	auto ScopeManager::ScopeLevel::setSubScopeTerminated() -> void {
+	auto ScopeManager::Level::setSubScopeTerminated() -> void {
 		evo::debugAssert(this->num_sub_scopes_not_terminated != 0, "setSubScopeTerminated called too many times");
 		this->num_sub_scopes_not_terminated -= 1;
 	}
 
-	auto ScopeManager::ScopeLevel::setTerminated() -> void {
+	auto ScopeManager::Level::setTerminated() -> void {
 		this->is_terminated = true;
 	}
 
-	auto ScopeManager::ScopeLevel::isTerminated() const -> bool {
+	auto ScopeManager::Level::isTerminated() const -> bool {
 		return this->is_terminated || (this->has_sub_scopes && this->num_sub_scopes_not_terminated == 0);
 	}
 
-	auto ScopeManager::ScopeLevel::isNotTerminated() const -> bool {
+	auto ScopeManager::Level::isNotTerminated() const -> bool {
 		return !this->isTerminated();
 	}
 
 
 
-	auto ScopeManager::ScopeLevel::addFunc(std::string_view ident, ASG::Func::ID id) -> void {
-		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
+	auto ScopeManager::Level::addFunc(std::string_view ident, ASG::Func::ID id) -> void {
+		decltype(this->ids)::iterator ident_find = this->ids.find(ident);
+		if(ident_find == this->ids.end()){ // create new list
+			// TODO: fix this after MSVC bug is fixed
+			std::pair<decltype(this->ids)::iterator, bool> new_ident_id = this->ids.emplace(ident, IdentID());
+			new_ident_id.first->second.emplace<evo::SmallVector<ASG::FuncID>>({id});
+
+		}else{ // list already exists
+			evo::debugAssert(ident_find->second.is<evo::SmallVector<ASG::FuncID>>(), "ident was not a func");
+			ident_find->second.as<evo::SmallVector<ASG::FuncID>>().emplace_back(id);
+		}
+	}
+
+	auto ScopeManager::Level::addTemplatedFunc(std::string_view ident, ASG::TemplatedFunc::ID id) -> void {
+		evo::debugAssert(this->lookupIdent(ident) == nullptr, "Scope already has ident \"{}\"", ident);
 
 		this->ids.emplace(ident, id);
 	}
 
-	auto ScopeManager::ScopeLevel::addTemplatedFunc(std::string_view ident, ASG::TemplatedFunc::ID id) -> void {
-		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
+	auto ScopeManager::Level::addVar(std::string_view ident, ASG::Var::ID id) -> void {
+		evo::debugAssert(this->lookupIdent(ident) == nullptr, "Scope already has ident \"{}\"", ident);
 
 		this->ids.emplace(ident, id);
 	}
 
-	auto ScopeManager::ScopeLevel::addVar(std::string_view ident, ASG::Var::ID id) -> void {
-		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
+	auto ScopeManager::Level::addParam(std::string_view ident, ASG::Param::ID id) -> void {
+		evo::debugAssert(this->lookupIdent(ident) == nullptr, "Scope already has ident \"{}\"", ident);
 
 		this->ids.emplace(ident, id);
 	}
 
-	auto ScopeManager::ScopeLevel::addParam(std::string_view ident, ASG::Param::ID id) -> void {
-		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
+	auto ScopeManager::Level::addReturnParam(std::string_view ident, ASG::ReturnParam::ID id) -> void {
+		evo::debugAssert(this->lookupIdent(ident) == nullptr, "Scope already has ident \"{}\"", ident);
 
 		this->ids.emplace(ident, id);
 	}
 
-	auto ScopeManager::ScopeLevel::addReturnParam(std::string_view ident, ASG::ReturnParam::ID id) -> void {
-		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
-
-		this->ids.emplace(ident, id);
-	}
-
-	auto ScopeManager::ScopeLevel::addImport(std::string_view ident, Source::ID id, Token::ID location) -> void {
-		evo::debugAssert(this->lookupIdent(ident).has_value() == false, "Scope already has ident \"{}\"", ident);
+	auto ScopeManager::Level::addImport(std::string_view ident, Source::ID id, Token::ID location) -> void {
+		evo::debugAssert(this->lookupIdent(ident) == nullptr, "Scope already has ident \"{}\"", ident);
 
 		this->ids.emplace(ident, ImportInfo(id, location));
 	}
 
 
-	auto ScopeManager::ScopeLevel::lookupIdent(std::string_view ident) const -> std::optional<IdentID> {
-		const auto& ident_find = this->ids.find(ident);
-		if(ident_find == this->ids.end()){ return std::nullopt; }
+	auto ScopeManager::Level::lookupIdent(std::string_view ident) const -> const IdentID* {
+		const decltype(this->ids)::const_iterator ident_find = this->ids.find(ident);
+		if(ident_find == this->ids.end()){ return nullptr; }
 
-		return ident_find->second;
+		return &ident_find->second;
 	}
 
 
 	//////////////////////////////////////////////////////////////////////
 	// scope
 
-	auto ScopeManager::Scope::pushScopeLevel(ScopeLevel::ID id) -> void {
+	auto ScopeManager::Scope::pushLevel(Level::ID id) -> void {
 		this->scope_levels.emplace_back(id);
 	}
 
-	auto ScopeManager::Scope::pushScopeLevel(ScopeLevel::ID id, ASG::Func::ID func_id) -> void {
+	auto ScopeManager::Scope::pushLevel(Level::ID id, ASG::Func::ID func_id) -> void {
 		this->scope_levels.emplace_back(id);
 		this->object_scopes.emplace_back(ObjectScope(func_id), uint32_t(this->scope_levels.size()));
 	}
 
-	auto ScopeManager::Scope::popScopeLevel() -> void {
+	auto ScopeManager::Scope::popLevel() -> void {
 		evo::debugAssert(!this->scope_levels.empty(), "cannot pop scope level as there are none");
 		evo::debugAssert(
 			this->getCurrentObjectScope().is<std::monostate>() == false, "fake object scope was not popped"
@@ -121,18 +128,18 @@ namespace pcit::panther{
 	// scope manager
 	
 	ScopeManager::~ScopeManager(){
-		for(ScopeLevel* scope_level : this->scope_levels){
+		for(Level* scope_level : this->scope_levels){
 			delete scope_level;
 		}
 	}
 
 
-	auto ScopeManager::createScopeLevel() -> ScopeLevel::ID {
+	auto ScopeManager::createLevel() -> Level::ID {
 		const auto lock = std::unique_lock(this->mutex);
 
-		const auto new_scope_level_id = ScopeLevel::ID(uint32_t(this->scope_levels.size()));
+		const auto new_scope_level_id = Level::ID(uint32_t(this->scope_levels.size()));
 		// TODO: better allocation method
-		this->scope_levels.emplace_back(new ScopeLevel());
+		this->scope_levels.emplace_back(new Level());
 		return new_scope_level_id;
 	}
 

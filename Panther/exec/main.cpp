@@ -119,6 +119,7 @@ auto main(int argc, const char* argv[]) -> int {
 			break; case Config::Target::Run:              printer.printlnMagenta("Target: Run");
 			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
 		}
+
 	}
 
 
@@ -136,6 +137,11 @@ auto main(int argc, const char* argv[]) -> int {
 
 			return EXIT_FAILURE;
 		}
+	}
+
+
+	if(config.verbose){
+		printer.printlnMagenta("Relative Directory: \"{}\"", config.relative_dir.string());
 	}
 
 	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), panther::Context::Config{
@@ -179,8 +185,8 @@ auto main(int argc, const char* argv[]) -> int {
 	// load files
 
 	context.loadFiles({
-		"test.pthr",
-		// "test2.pthr",
+		config.relative_dir / "test.pthr",
+		config.relative_dir / "test2.pthr",
 		
 		// "./local/big_test.pthr",
 		// "./local/big_test_with_params.pthr",

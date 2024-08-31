@@ -77,7 +77,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto is_type_generic(const AST::Type& ast_type) -> evo::Result<bool>; // is it type "Type"
 
 
-			EVO_NODISCARD auto get_current_scope_level() const -> ScopeManager::ScopeLevel&;
+			EVO_NODISCARD auto get_current_scope_level() const -> ScopeManager::Level&;
 
 			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto get_parent() const -> ASG::Parent;
@@ -106,7 +106,20 @@ namespace pcit::panther{
 					ASG::TemplatedFunc::LinkID,     // ValueType::Templated
 					Source::ID                      // ValueType::Import
 				> type_id;
-				std::optional<ASG::Expr> expr; // nullopt if from ExprValueKind::None or ValueType::Import
+				evo::SmallVector<ASG::Expr> expr; // empty if from ExprValueKind::None or ValueType::Import
+				                                  // may only be multiple if multiple possible function overloads
+
+
+				ExprInfo(ValueType vt, auto&& _type_id, evo::SmallVector<ASG::Expr>&& expr_list)
+					: value_type(vt), type_id(std::move(_type_id)), expr(std::move(expr_list)) {};
+
+				ExprInfo(ValueType vt, auto&& _type_id, ASG::Expr&& expr_single)
+					: value_type(vt), type_id(std::move(_type_id)), expr{std::move(expr_single)} {};
+
+				ExprInfo(ValueType vt, auto&& _type_id, std::nullopt_t)
+					: value_type(vt), type_id(std::move(_type_id)), expr() {};
+
+
 
 				EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {
 					return this->value_type == ValueType::Ephemeral || this->value_type == ValueType::EpemeralFluid;
@@ -118,9 +131,7 @@ namespace pcit::panther{
 				}
 
 
-				// The following function is stupid, but it is required for some reason (at least in MSVC 17.11.2)
-				// 		using the implicit construction of the variant causes std::vector<TypeInfo::ID> to 
-				//      be an undefined type and TypeInfo::ID to have a size 0
+				// TODO: remove these after MSVC bug is fixed
 				EVO_NODISCARD static auto generateExprInfoTypeIDs(auto&&... args) -> decltype(type_id) {
 					auto type_id_variant = decltype(type_id)();
 					type_id_variant.emplace<evo::SmallVector<TypeInfo::ID>>(std::forward<decltype(args)>(args)...);
@@ -130,6 +141,9 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto generateExprInfoTypeIDs(TypeInfo::ID type_info_id) -> decltype(type_id) {
 					return generateExprInfoTypeIDs(evo::SmallVector<TypeInfo::ID>{type_info_id});
 				}
+
+
+				// TODO: better safety around value (for example, getter for expr to get front only if makes sense)
 			};
 
 			enum class ExprValueKind{
@@ -173,7 +187,7 @@ namespace pcit::panther{
 				Source::ID source, // is this needed, or does `this->source.getID()` suffice?
 				const Token::ID& ident,
 				std::string_view ident_str,
-				ScopeManager::ScopeLevel::ID scope_level_id,
+				ScopeManager::Level::ID scope_level_id,
 				bool variables_in_scope
 			) -> evo::Result<std::optional<ExprInfo>>;
 
@@ -297,32 +311,107 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// get source location
 
-			auto get_source_location(std::nullopt_t) const -> std::optional<SourceLocation>;
+			EVO_NODISCARD auto get_source_location(std::nullopt_t) const -> std::optional<SourceLocation>;
 
-			auto get_source_location(Token::ID token_id) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(Token::ID token_id, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(Token::ID token_id) const -> SourceLocation {
+				return this->get_source_location(token_id, this->source);
+			}
 			
-			auto get_source_location(const AST::Node& node) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Node& node, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Node& node) const -> SourceLocation {
+				return this->get_source_location(node, this->source);
+			}
 
-			auto get_source_location(const AST::VarDecl& var_decl) const -> SourceLocation;
-			auto get_source_location(const AST::FuncDecl& func_decl) const -> SourceLocation;
-			auto get_source_location(const AST::AliasDecl& alias_decl) const -> SourceLocation;
-			auto get_source_location(const AST::Return& return_stmt) const -> SourceLocation;
-			auto get_source_location(const AST::Block& block) const -> SourceLocation;
-			auto get_source_location(const AST::FuncCall& func_call) const -> SourceLocation;
-			auto get_source_location(const AST::TemplatedExpr& templated_expr) const -> SourceLocation;
-			auto get_source_location(const AST::Prefix& prefix) const -> SourceLocation;
-			auto get_source_location(const AST::Infix& infix) const -> SourceLocation;
-			auto get_source_location(const AST::Postfix& postfix) const -> SourceLocation;
-			auto get_source_location(const AST::MultiAssign& multi_assign) const -> SourceLocation;
-			auto get_source_location(const AST::Type& type) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::VarDecl& var_decl, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::VarDecl& var_decl) const -> SourceLocation {
+				return this->get_source_location(var_decl, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::FuncDecl& func_decl, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::FuncDecl& func_decl) const -> SourceLocation {
+				return this->get_source_location(func_decl, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::AliasDecl& alias_decl, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::AliasDecl& alias_decl) const -> SourceLocation {
+				return this->get_source_location(alias_decl, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt) const -> SourceLocation {
+				return this->get_source_location(return_stmt, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::Block& block, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Block& block) const -> SourceLocation {
+				return this->get_source_location(block, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::FuncCall& func_call, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::FuncCall& func_call) const -> SourceLocation {
+				return this->get_source_location(func_call, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::TemplatedExpr& templated_expr, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::TemplatedExpr& templated_expr) const -> SourceLocation {
+				return this->get_source_location(templated_expr, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::Prefix& prefix, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Prefix& prefix) const -> SourceLocation {
+				return this->get_source_location(prefix, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::Infix& infix, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Infix& infix) const -> SourceLocation {
+				return this->get_source_location(infix, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::Postfix& postfix, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Postfix& postfix) const -> SourceLocation {
+				return this->get_source_location(postfix, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::MultiAssign& multi_assign, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::MultiAssign& multi_assign) const -> SourceLocation {
+				return this->get_source_location(multi_assign, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Type& type) const -> SourceLocation {
+				return this->get_source_location(type, this->source);
+			}
 
-			auto get_source_location(ASG::Func::ID func_id) const -> SourceLocation;
-			auto get_source_location(ASG::Func::LinkID func_id) const -> SourceLocation;
-			auto get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation;
-			auto get_source_location(ASG::Var::ID var_id) const -> SourceLocation;
-			auto get_source_location(ASG::Param::ID param_id) const -> SourceLocation;
-			auto get_source_location(ASG::ReturnParam::ID ret_param_id) const -> SourceLocation;
-			auto get_source_location(ScopeManager::ScopeLevel::ImportInfo import_info) const -> SourceLocation;
+
+			EVO_NODISCARD auto get_source_location(ASG::Func::ID func_id, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(ASG::Func::ID func_id) const -> SourceLocation {
+				return this->get_source_location(func_id, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(ASG::Func::LinkID func_id) const -> SourceLocation;
+
+			EVO_NODISCARD auto get_source_location(ASG::TemplatedFunc::ID templated_func_id, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation {
+				return this->get_source_location(templated_func_id, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(ASG::Var::ID var_id, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(ASG::Var::ID var_id) const -> SourceLocation {
+				return this->get_source_location(var_id, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(ASG::Param::ID param_id, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(ASG::Param::ID param_id) const -> SourceLocation {
+				return this->get_source_location(param_id, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(ASG::ReturnParam::ID ret_param_id, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(ASG::ReturnParam::ID ret_param_id) const -> SourceLocation {
+				return this->get_source_location(ret_param_id, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(ScopeManager::Level::ImportInfo import_info, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(ScopeManager::Level::ImportInfo import_info) const 
+			-> SourceLocation {
+				return this->get_source_location(import_info, this->source);
+			}
 
 	
 		private:

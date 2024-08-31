@@ -1,19 +1,12 @@
 
 
-func get_two = (in_a: UI8 in, in_b: UI8 in) -> (out_a: UI8, out_b: UI8) {
-	out_a = move in_a;
-	out_b = move in_b;
-	return...;
-}
-
-
-
 func entry = () #entry -> UI8 {
-	var num_1: UI8 = uninit;
-	var num_2: UI8 = uninit;
-	[_, num_2] = get_two(get_two(1,2), 14);
+	def test2 = @import("test2.pthr");
 
-	_ = get_two(1, 2);
 
-	return (move num_2);
+	var foo: UI8 = 0;
+	test2.set_num(&foo);
+
+	return (move foo);
 }
+

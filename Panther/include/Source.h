@@ -94,7 +94,7 @@ namespace pcit::panther{
 			ASTBuffer ast_buffer{};
 			ASGBuffer asg_buffer{};
 
-			ScopeManager::ScopeLevel::ID global_scope_level = ScopeManager::ScopeLevel::ID::dummy();
+			ScopeManager::Level::ID global_scope_level = ScopeManager::Level::ID::dummy();
 			GlobalScope global_scope{};
 
 			friend class SourceManager;

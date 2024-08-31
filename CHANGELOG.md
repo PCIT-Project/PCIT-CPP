@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.31.0
+
+### Panther
+- Added function overloading
+- Fixed diagnostic source locations from failing to match function overload
+- Fixed fatal error when returning a value in a function that has return type `Void`
+
+
+<!---------------------------------->
 ## v0.0.30.1
 
 ### Panther

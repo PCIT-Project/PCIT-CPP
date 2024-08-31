@@ -23,7 +23,7 @@ namespace pcit::panther{
 	SemanticAnalyzer::SemanticAnalyzer(Context& _context, Source::ID source_id) 
 		: context(_context), source(this->context.getSourceManager()[source_id]), scope(), template_parents() {
 
-		this->scope.pushScopeLevel(this->source.global_scope_level);
+		this->scope.pushLevel(this->source.global_scope_level);
 	};
 
 	SemanticAnalyzer::SemanticAnalyzer(
@@ -32,7 +32,7 @@ namespace pcit::panther{
 		const ScopeManager::Scope& _scope,
 		evo::SmallVector<SourceLocation>&& _template_parents
 	) : context(_context), source(_source), scope(_scope), template_parents(std::move(_template_parents)) {
-		this->scope.pushScopeLevel(this->source.global_scope_level);
+		this->scope.pushLevel(this->source.global_scope_level);
 	};
 
 	
@@ -264,7 +264,7 @@ namespace pcit::panther{
 		// create
 
 		const ASG::Var::ID asg_var_id = this->source.asg_buffer.createVar(
-			var_decl.kind, var_decl.ident, *var_type_id, *expr_info_result.value().expr
+			var_decl.kind, var_decl.ident, *var_type_id, expr_info_result.value().expr.front()
 		);
 
 		this->get_current_scope_level().addVar(var_ident, asg_var_id);
@@ -283,7 +283,13 @@ namespace pcit::panther{
 		const Token::ID func_ident_tok_id = this->source.getASTBuffer().getIdent(func_decl.name);
 		const std::string_view func_ident = this->source.getTokenBuffer()[func_ident_tok_id].getString();
 		if(instantiate_template == false){
-			if(this->already_defined(func_ident, func_decl)){ return evo::resultError; }
+			const ScopeManager::Level& current_scope_level = this->get_current_scope_level();
+			const ScopeManager::Level::IdentID* lookup_ident_id = current_scope_level.lookupIdent(func_ident);
+
+			if(lookup_ident_id != nullptr && lookup_ident_id->is<evo::SmallVector<ASG::Func::ID>>() == false){
+				[[maybe_unused]] const auto _ = this->already_defined(func_ident, func_decl);
+				return evo::resultError;
+			}
 		}
 
 
@@ -568,6 +574,45 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
+		// check for overload redeclaration
+
+		if(instantiate_template == false){
+			const ScopeManager::Level& current_scope_level = this->get_current_scope_level();
+			const ScopeManager::Level::IdentID* lookup_ident_id = current_scope_level.lookupIdent(func_ident);
+
+			if(lookup_ident_id != nullptr){
+				for(const ASG::Func::ID& overload_id : lookup_ident_id->as<evo::SmallVector<ASG::Func::ID>>()){
+					bool is_different = false;
+
+					const ASG::Func& overload = this->source.getASGBuffer().getFunc(overload_id);
+					const BaseType::Function& overload_type =
+						this->context.getTypeManager().getFunction(overload.baseTypeID.funcID());
+
+					for(size_t i = 0; const BaseType::Function::Param& overload_param : overload_type.params()){
+						if(overload_param.typeID != params[i].typeID){
+							is_different = true;
+							break;
+						}
+					
+						i += 1;
+					}
+
+					if(is_different == false){
+						this->emit_error(
+							Diagnostic::Code::SemaOverloadAlreadyDefined,
+							func_decl,
+							"Function overload already defined",
+							Diagnostic::Info("First defined here:", this->get_source_location(overload_id))
+						);
+						return evo::resultError;
+					}
+				}
+			}
+		}
+
+
+
+		///////////////////////////////////
 		// create
 
 		const ASG::Parent parent = this->get_parent<IS_GLOBAL>();
@@ -626,8 +671,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool {
-		this->scope.pushScopeLevel(this->context.getScopeManager().createScopeLevel(), asg_func_id);
-		EVO_DEFER([&](){ this->scope.popScopeLevel(); });
+		this->scope.pushLevel(this->context.getScopeManager().createLevel(), asg_func_id);
+		EVO_DEFER([&](){ this->scope.popLevel(); });
 
 		ASG::Func& asg_func = this->source.asg_buffer.funcs[asg_func_id.get()];
 		const BaseType::Function& asg_func_type = this->context.getTypeManager().getFunction(
@@ -786,50 +831,52 @@ namespace pcit::panther{
 
 		const evo::SmallVector<TypeInfo::ID> target_type_ids =
 			target_info_res.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
-		if(target_type_ids.size() > 1){
-			this->emit_error(
-				Diagnostic::Code::SemaCannotCallLikeFunction,
-				func_call.target,
-				"Cannot call this expression like a function"
-			);
-			return this->may_recover();
-		}
 
-		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_ids.front());
-
-		if(
-			target_type_info.qualifiers().empty() == false ||
-			target_type_info.baseTypeID().kind() != BaseType::Kind::Function
-		){
-			this->emit_error(
-				Diagnostic::Code::SemaCannotCallLikeFunction,
-				func_call.target,
-				"Cannot call this expression like a function"
-			);
-			return this->may_recover();
+		auto target_type_infos = evo::SmallVector<const TypeInfo*>();
+		target_type_infos.reserve(target_type_ids.size());
+		for(const TypeInfo::ID& target_type_id : target_type_ids){
+			target_type_infos.emplace_back(&this->context.getTypeManager().getTypeInfo(target_type_id));
 		}
 
 
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
-			target_type_info.baseTypeID().funcID()
-		);
+		if(target_type_infos.size() == 1){
+			if(
+				target_type_infos.front()->qualifiers().empty() == false ||
+				target_type_infos.front()->baseTypeID().kind() != BaseType::Kind::Function
+			){
+				this->emit_error(
+					Diagnostic::Code::SemaCannotCallLikeFunction,
+					func_call.target,
+					"Cannot call this expression like a function"
+				);
+				return this->may_recover();
+			}
 
+		}else{
+			if(target_info_res.value().value_type != ExprInfo::ValueType::ConcreteConst){
+				this->emit_error(
+					Diagnostic::Code::SemaCannotCallLikeFunction,
+					func_call.target,
+					"Cannot call this expression like a function"
+				);
+				return this->may_recover();
+			}
+		}
 
-		if(func_type.returnParams()[0].typeID.isVoid() == false){
-			// TODO: better messaging - #mayDiscard
-			this->emit_error(
-				Diagnostic::Code::SemaDiscardingFuncReturn,
-				func_call.target,
-				"Discarding the return value of a function"
+		
+		auto func_types = evo::SmallVector<const BaseType::Function*>();
+		func_types.reserve(target_type_infos.size());
+		for(const TypeInfo* target_type_info : target_type_infos){
+			func_types.emplace_back(
+				&this->context.getTypeManager().getFunction(target_type_info->baseTypeID().funcID())
 			);
-			return this->may_recover();
 		}
 
 
 		///////////////////////////////////
 		// check arguments
 
-		auto arg_infos  = evo::SmallVector<ArgInfo>();
+		auto arg_infos = evo::SmallVector<ArgInfo>();
 		arg_infos.reserve(func_call.args.size());
 		for(const AST::FuncCall::Arg& arg : func_call.args){
 			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
@@ -861,10 +908,27 @@ namespace pcit::panther{
 		}
 
 
+		auto func_link_ids = evo::SmallVector<ASG::Func::LinkID>();
+		func_link_ids.reserve(target_info_res.value().expr.size());
+		for(const ASG::Expr& func_expr : target_info_res.value().expr){
+			func_link_ids.emplace_back(func_expr.funcLinkID());
+		}
+
 		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
-			func_call, target_info_res.value().expr->funcLinkID(), &func_type, arg_infos, func_call.args
+			func_call, func_link_ids, func_types, arg_infos, func_call.args
 		);
 		if(selected_func_overload.isError()){ return this->may_recover(); }
+
+
+		if(func_types[selected_func_overload.value()]->returnParams()[0].typeID.isVoid() == false){
+			// TODO: better messaging - #mayDiscard
+			this->emit_error(
+				Diagnostic::Code::SemaDiscardingFuncReturn,
+				func_call.target,
+				"Discarding the return value of a function"
+			);
+			return this->may_recover();
+		}
 
 
 		///////////////////////////////////
@@ -873,7 +937,7 @@ namespace pcit::panther{
 		auto args = evo::SmallVector<ASG::Expr>();
 		args.reserve(arg_infos.size());
 		for(const ArgInfo& arg_info : arg_infos){
-			args.emplace_back(*arg_info.expr_info.expr);
+			args.emplace_back(arg_info.expr_info.expr.front());
 		}
 
 
@@ -881,7 +945,7 @@ namespace pcit::panther{
 		// create
 
 		const ASG::FuncCall::ID asg_func_id = this->source.asg_buffer.createFuncCall(
-			target_info_res.value().expr->funcLinkID(), std::move(args)
+			func_link_ids[selected_func_overload.value()], std::move(args)
 		);
 
 		this->get_current_func().stmts.emplace_back(asg_func_id);
@@ -927,7 +991,7 @@ namespace pcit::panther{
 				return this->may_recover();
 			}
 
-			this->get_current_func().stmts.emplace_back(func_call_info.value().expr->funcCallID());
+			this->get_current_func().stmts.emplace_back(func_call_info.value().expr.front().funcCallID());
 			return true;
 		}
 
@@ -985,7 +1049,7 @@ namespace pcit::panther{
 		// create
 
 		const ASG::Assign::ID asg_assign_id = this->source.asg_buffer.createAssign(
-			*lhs_info.value().expr, *rhs_info.value().expr
+			lhs_info.value().expr.front(), rhs_info.value().expr.front()
 		);
 
 		this->get_current_func().stmts.emplace_back(asg_assign_id);
@@ -1043,6 +1107,16 @@ namespace pcit::panther{
 				evo::Result<ExprInfo> value_info = this->analyze_expr<ExprValueKind::Runtime>(value);
 				if(value_info.isError()){ return false; }
 
+				if(returns[0].typeID.isVoid()){
+					// TODO: different Diagnostic::Code?
+					this->emit_error(
+						Diagnostic::Code::SemaIncorrectReturnStmtKind,
+						return_stmt,
+						"Functions that have a return type \"Void\" cannot return a value"
+					);
+					return false;
+				}
+
 				if(returns[0].ident.has_value()){
 					this->emit_error(
 						Diagnostic::Code::SemaIncorrectReturnStmtKind,
@@ -1066,7 +1140,7 @@ namespace pcit::panther{
 					return this->may_recover();
 				}
 
-				return_value = *value_info.value().expr;
+				return_value = value_info.value().expr.front();
 
 				return true;
 
@@ -1205,14 +1279,14 @@ namespace pcit::panther{
 		assign_targets.reserve(assign_target_infos.size());
 		for(const std::optional<ExprInfo>& assign_target_info : assign_target_infos){
 			if(assign_target_info.has_value()){
-				assign_targets.emplace_back(*assign_target_info->expr);
+				assign_targets.emplace_back(assign_target_info->expr.front());
 			}else{
 				assign_targets.emplace_back();
 			}
 		}
 
 		const ASG::MultiAssign::ID asg_multi_assign_id = this->source.asg_buffer.createMultiAssign(
-			std::move(assign_targets), *rhs_info.value().expr
+			std::move(assign_targets), rhs_info.value().expr.front()
 		);
 
 		this->get_current_func().stmts.emplace_back(asg_multi_assign_id);
@@ -1370,8 +1444,8 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::get_current_scope_level() const -> ScopeManager::ScopeLevel& {
-		return this->context.getScopeManager()[this->scope.getCurrentScopeLevel()];
+	auto SemanticAnalyzer::get_current_scope_level() const -> ScopeManager::Level& {
+		return this->context.getScopeManager()[this->scope.getCurrentLevel()];
 	}
 
 
@@ -1524,45 +1598,47 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// get base type
 
-		const evo::SmallVector<TypeInfo::ID> target_type_ids
-			= target_info_res.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
-		if(target_type_ids.size() > 1){
-			this->emit_error(
-				Diagnostic::Code::SemaCannotCallLikeFunction,
-				func_call.target,
-				"Cannot call this expression like a function"
-			);
-		}
+		const evo::SmallVector<TypeInfo::ID> target_type_ids =
+			target_info_res.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
 
-		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_ids.front());
-
-		if(
-			target_type_info.qualifiers().empty() == false ||
-			target_type_info.baseTypeID().kind() != BaseType::Kind::Function
-		){
-			this->emit_error(
-				Diagnostic::Code::SemaCannotCallLikeFunction,
-				func_call.target,
-				"Cannot call this expression like a function"
-			);
-			return evo::resultError;
+		auto target_type_infos = evo::SmallVector<const TypeInfo*>();
+		target_type_infos.reserve(target_type_ids.size());
+		for(const TypeInfo::ID& target_type_id : target_type_ids){
+			target_type_infos.emplace_back(&this->context.getTypeManager().getTypeInfo(target_type_id));
 		}
 
 
-		///////////////////////////////////
-		// check function returns values
+		if(target_type_infos.size() == 1){
+			if(
+				target_type_infos.front()->qualifiers().empty() == false ||
+				target_type_infos.front()->baseTypeID().kind() != BaseType::Kind::Function
+			){
+				this->emit_error(
+					Diagnostic::Code::SemaCannotCallLikeFunction,
+					func_call.target,
+					"Cannot call this expression like a function"
+				);
+				return evo::resultError;
+			}
 
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(
-			target_type_info.baseTypeID().funcID()
-		);
+		}else{
+			if(target_info_res.value().value_type != ExprInfo::ValueType::ConcreteConst){
+				this->emit_error(
+					Diagnostic::Code::SemaCannotCallLikeFunction,
+					func_call.target,
+					"Cannot call this expression like a function"
+				);
+				return evo::resultError;
+			}
+		}
 
-		if(func_type.returnParams()[0].typeID.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SemaFuncDoesntReturnValue,
-				func_call.target,
-				"Function doesn't return a value"
+
+		auto func_types = evo::SmallVector<const BaseType::Function*>();
+		func_types.reserve(target_type_infos.size());
+		for(const TypeInfo* target_type_info : target_type_infos){
+			func_types.emplace_back(
+				&this->context.getTypeManager().getFunction(target_type_info->baseTypeID().funcID())
 			);
-			return evo::resultError;
 		}
 
 
@@ -1591,10 +1667,32 @@ namespace pcit::panther{
 		}
 
 
+		///////////////////////////////////
+		// select overload
+
+		auto func_link_ids = evo::SmallVector<ASG::Func::LinkID>();
+		func_link_ids.reserve(target_info_res.value().expr.size());
+		for(const ASG::Expr& func_expr : target_info_res.value().expr){
+			func_link_ids.emplace_back(func_expr.funcLinkID());
+		}
+
 		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
-			func_call, target_info_res.value().expr->funcLinkID(), &func_type, arg_infos, func_call.args
+			func_call, func_link_ids, func_types, arg_infos, func_call.args
 		);
 		if(selected_func_overload.isError()){ return evo::resultError; }
+
+
+		///////////////////////////////////
+		// check function returns values
+
+		if(func_types[selected_func_overload.value()]->returnParams()[0].typeID.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SemaFuncDoesntReturnValue,
+				func_call.target,
+				"Function doesn't return a value"
+			);
+			return evo::resultError;
+		}
 
 
 		///////////////////////////////////
@@ -1603,19 +1701,20 @@ namespace pcit::panther{
 		auto args = evo::SmallVector<ASG::Expr>();
 		args.reserve(arg_infos.size());
 		for(const ArgInfo& arg_info : arg_infos){
-			args.emplace_back(*arg_info.expr_info.expr);
+			args.emplace_back(arg_info.expr_info.expr.front());
 		}
 
 		const ASG::FuncCall::ID asg_func_id = this->source.asg_buffer.createFuncCall(
-			target_info_res.value().expr->funcLinkID(), std::move(args)
+			func_link_ids[selected_func_overload.value()], std::move(args)
 		);
 
 		auto return_types = evo::SmallVector<TypeInfo::ID>();
-		return_types.reserve(func_type.returnParams().size());
-		for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams()){
+		const evo::ArrayProxy<BaseType::Function::ReturnParam> overload_return_params =
+			func_types[selected_func_overload.value()]->returnParams();
+		return_types.reserve(overload_return_params.size());
+		for(const BaseType::Function::ReturnParam& return_param : overload_return_params){
 			return_types.emplace_back(return_param.typeID.typeID());
 		}
-
 
 		return ExprInfo(
 			ExprInfo::ValueType::Ephemeral,
@@ -1806,24 +1905,24 @@ namespace pcit::panther{
 
 				value_args.emplace_back(arg_expr_info.value());
 
-				switch(arg_expr_info.value().expr->kind()){
+				switch(arg_expr_info.value().expr.front().kind()){
 					case ASG::Expr::Kind::LiteralInt: {
-						const ASG::LiteralInt::ID literal_id = arg_expr_info.value().expr->literalIntID();
+						const ASG::LiteralInt::ID literal_id = arg_expr_info.value().expr.front().literalIntID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralInt(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralFloat: {
-						const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().expr->literalFloatID();
+						const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().expr.front().literalFloatID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralFloat(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralBool: {
-						const ASG::LiteralBool::ID literal_id = arg_expr_info.value().expr->literalBoolID();
+						const ASG::LiteralBool::ID literal_id = arg_expr_info.value().expr.front().literalBoolID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralBool(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralChar: {
-						const ASG::LiteralChar::ID literal_id = arg_expr_info.value().expr->literalCharID();
+						const ASG::LiteralChar::ID literal_id = arg_expr_info.value().expr.front().literalCharID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralChar(literal_id).value);
 					} break;
 
@@ -1913,10 +2012,10 @@ namespace pcit::panther{
 							template_sema.template_arg_exprs.emplace(param_ident_str, value);
 
 						}else{ // if not the same source, need to copy over the expression to the ASGBuffer
-							switch(value.expr->kind()){
+							switch(value.expr.front().kind()){
 								case ASG::Expr::Kind::LiteralInt: {
 									const ASG::LiteralInt& literal_int =
-										this->source.getASGBuffer().getLiteralInt(value.expr->literalIntID());
+										this->source.getASGBuffer().getLiteralInt(value.expr.front().literalIntID());
 
 									const ASG::LiteralInt::ID copied_value = 
 										declared_source.asg_buffer.createLiteralInt(
@@ -1930,8 +2029,9 @@ namespace pcit::panther{
 								} break;
 
 								case ASG::Expr::Kind::LiteralFloat: {
-									const ASG::LiteralFloat& literal_float =
-										this->source.getASGBuffer().getLiteralFloat(value.expr->literalFloatID());
+									const ASG::LiteralFloat& literal_float =this->source.getASGBuffer().getLiteralFloat(
+										value.expr.front().literalFloatID()
+									);
 
 									const ASG::LiteralFloat::ID copied_value = 
 										declared_source.asg_buffer.createLiteralFloat(
@@ -1946,7 +2046,7 @@ namespace pcit::panther{
 
 								case ASG::Expr::Kind::LiteralBool: {
 									const ASG::LiteralBool& literal_bool =
-										this->source.getASGBuffer().getLiteralBool(value.expr->literalBoolID());
+										this->source.getASGBuffer().getLiteralBool(value.expr.front().literalBoolID());
 
 									const ASG::LiteralBool::ID copied_value = 
 										declared_source.asg_buffer.createLiteralBool(literal_bool.value);
@@ -1959,7 +2059,7 @@ namespace pcit::panther{
 
 								case ASG::Expr::Kind::LiteralChar: {
 									const ASG::LiteralChar& literal_char =
-										this->source.getASGBuffer().getLiteralChar(value.expr->literalCharID());
+										this->source.getASGBuffer().getLiteralChar(value.expr.front().literalCharID());
 
 									const ASG::LiteralChar::ID copied_value = 
 										declared_source.asg_buffer.createLiteralChar(literal_char.value);
@@ -2075,7 +2175,7 @@ namespace pcit::panther{
 					
 				}else{
 					const ASG::AddrOf::ID addr_of_id = this->source.asg_buffer.createAddrOf(
-						ASG::Expr(*rhs_info.value().expr)
+						ASG::Expr(rhs_info.value().expr.front())
 					);
 					return ExprInfo(
 						ExprInfo::ValueType::Ephemeral,
@@ -2098,7 +2198,7 @@ namespace pcit::panther{
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, std::nullopt);
 				}else{
-					const ASG::Copy::ID asg_copy_id = this->source.asg_buffer.createCopy(*rhs_info.value().expr);
+					const ASG::Copy::ID asg_copy_id = this->source.asg_buffer.createCopy(rhs_info.value().expr.front());
 
 					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, ASG::Expr(asg_copy_id));
 				}
@@ -2117,7 +2217,7 @@ namespace pcit::panther{
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, std::nullopt);
 				}else{
-					const ASG::Move::ID asg_move_id = this->source.asg_buffer.createMove(*rhs_info.value().expr);
+					const ASG::Move::ID asg_move_id = this->source.asg_buffer.createMove(rhs_info.value().expr.front());
 
 					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, ASG::Expr(asg_move_id));
 				}
@@ -2174,16 +2274,14 @@ namespace pcit::panther{
 				const Source::ID import_target_source_id = lhs_expr_info.value().type_id.as<Source::ID>();
 				const Source& import_target_source = this->context.getSourceManager()[import_target_source_id];
 
-				const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[
+				const ScopeManager::Level& scope_level = this->context.getScopeManager()[
 					import_target_source.global_scope_level
 				];
 
 
+				const ScopeManager::Level::IdentID* ident_id_lookup = scope_level.lookupIdent(rhs_ident_str);
 
-				const std::optional<ScopeManager::ScopeLevel::IdentID> ident_id_lookup
-					= scope_level.lookupIdent(rhs_ident_str);
-
-				if(ident_id_lookup.has_value() == false){
+				if(ident_id_lookup == nullptr){
 					this->emit_error(
 						Diagnostic::Code::SemaImportMemberDoesntExist,
 						rhs_ident_token_id,
@@ -2194,40 +2292,47 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-
-
 				return ident_id_lookup->visit([&](const auto ident_id) -> evo::Result<ExprInfo> {
 					using IdentID = std::decay_t<decltype(ident_id)>;
 
-					if constexpr(std::is_same_v<IdentID, ASG::Func::ID>){ // functions
-						const ASG::Func& asg_func = import_target_source.getASGBuffer().getFunc(ident_id);
+					if constexpr(std::is_same_v<IdentID, evo::SmallVector<ASG::Func::ID>>){ // functions
+						auto type_ids = evo::SmallVector<TypeInfo::ID>();
+						type_ids.reserve(ident_id.size());
+						for(const ASG::FuncID& asg_func_id : ident_id){
+							const ASG::Func& asg_func = import_target_source.getASGBuffer().getFunc(asg_func_id);
 
-						if(asg_func.isPub == false){
-							this->emit_error(
-								Diagnostic::Code::SemaImportMemberIsntPub,
-								rhs_ident_token_id,
-								std::format("Function \"{}\" isn't marked as public", rhs_ident_str),
-								Diagnostic::Info("To mark a function as public, add the attribute \"#pub\"")
-							);
-							return evo::resultError;
+							if(asg_func.isPub == false){
+								this->emit_error(
+									Diagnostic::Code::SemaImportMemberIsntPub,
+									rhs_ident_token_id,
+									std::format("Function \"{}\" isn't marked as public", rhs_ident_str),
+									Diagnostic::Info("To mark a function as public, add the attribute \"#pub\"")
+								);
+								return evo::resultError;
+							}
+							
+							type_ids.emplace_back(this->context.getTypeManager().getOrCreateTypeInfo(
+								TypeInfo(asg_func.baseTypeID)
+							));
 						}
-
-						const TypeInfo::ID type_id = this->context.getTypeManager().getOrCreateTypeInfo(
-							TypeInfo(asg_func.baseTypeID)
-						);
-
 
 						if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 							return ExprInfo(
 								ExprInfo::ValueType::ConcreteConst,
-								ExprInfo::generateExprInfoTypeIDs(type_id),
+								ExprInfo::generateExprInfoTypeIDs(std::move(type_ids)),
 								std::nullopt
 							);
 						}else{
+							auto func_exprs = evo::SmallVector<ASG::Expr>();
+							func_exprs.reserve(ident_id.size());
+							for(const ASG::Func::ID& func_id : ident_id){
+								func_exprs.emplace_back(ASG::Func::LinkID(import_target_source_id, func_id));
+							}
+
 							return ExprInfo(
 								ExprInfo::ValueType::ConcreteConst,
-								ExprInfo::generateExprInfoTypeIDs(type_id),
-								ASG::Expr(ASG::Func::LinkID(import_target_source_id, ident_id))
+								ExprInfo::generateExprInfoTypeIDs(std::move(type_ids)),
+								std::move(func_exprs)
 							);
 						}
 
@@ -2337,7 +2442,7 @@ namespace pcit::panther{
 
 				}else{
 					const ASG::Deref::ID asg_deref_id = this->source.asg_buffer.createDeref(
-						*lhs_info.value().expr, new_type_id
+						lhs_info.value().expr.front(), new_type_id
 					);
 					return ExprInfo(
 						value_type, ExprInfo::generateExprInfoTypeIDs(new_type_id), ASG::Expr(asg_deref_id)
@@ -2381,7 +2486,7 @@ namespace pcit::panther{
 			}
 		}
 
-		for(size_t i = this->scope.size() - 1; ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
+		for(size_t i = this->scope.size() - 1; ScopeManager::Level::ID scope_level_id : this->scope){
 			const evo::Result<std::optional<ExprInfo>> scope_level_lookup = 
 				this->analyze_expr_ident_in_scope_level<EXPR_VALUE_KIND>(
 					this->source.getID(),
@@ -2412,40 +2517,49 @@ namespace pcit::panther{
 		Source::ID source_id,
 		const Token::ID& ident,
 		std::string_view ident_str,
-		ScopeManager::ScopeLevel::ID scope_level_id,
+		ScopeManager::Level::ID scope_level_id,
 		bool variables_in_scope
 	) -> evo::Result<std::optional<ExprInfo>> {
-		const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[scope_level_id];
+		const ScopeManager::Level& scope_level = this->context.getScopeManager()[scope_level_id];
 
-		const std::optional<ScopeManager::ScopeLevel::IdentID> ident_id_lookup = scope_level.lookupIdent(ident_str);
-		if(ident_id_lookup.has_value() == false){ return std::optional<ExprInfo>(); }
+		const ScopeManager::Level::IdentID* ident_id_lookup = scope_level.lookupIdent(ident_str);
+		if(ident_id_lookup == nullptr){ return std::optional<ExprInfo>(); }
 
 
 		return ident_id_lookup->visit([&](const auto ident_id) -> evo::Result<std::optional<ExprInfo>> {
 			using IdentID = std::decay_t<decltype(ident_id)>;
 
-			
-			if constexpr(std::is_same_v<IdentID, ASG::Func::ID>){ // functions
-				const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(ident_id);
-
-				const TypeInfo::ID type_id = this->context.getTypeManager().getOrCreateTypeInfo(
-					TypeInfo(asg_func.baseTypeID)
-				);
+			if constexpr(std::is_same_v<IdentID, evo::SmallVector<ASG::Func::ID>>){ // functions
+				auto type_ids = evo::SmallVector<TypeInfo::ID>();
+				type_ids.reserve(ident_id.size());
+				for(const ASG::FuncID& asg_func_id : ident_id){
+					const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(asg_func_id);
+					
+					type_ids.emplace_back(this->context.getTypeManager().getOrCreateTypeInfo(
+						TypeInfo(asg_func.baseTypeID)
+					));
+				}
 
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return std::optional<ExprInfo>(
 						ExprInfo(
 							ExprInfo::ValueType::ConcreteConst,
-							ExprInfo::generateExprInfoTypeIDs(type_id),
+							ExprInfo::generateExprInfoTypeIDs(std::move(type_ids)),
 							std::nullopt
 						)
 					);
 				}else{
+					auto func_exprs = evo::SmallVector<ASG::Expr>();
+					func_exprs.reserve(ident_id.size());
+					for(const ASG::Func::ID& func_id : ident_id){
+						func_exprs.emplace_back(ASG::Func::LinkID(source_id, func_id));
+					}
+
 					return std::optional<ExprInfo>(
 						ExprInfo(
 							ExprInfo::ValueType::ConcreteConst,
-							ExprInfo::generateExprInfoTypeIDs(type_id),
-							ASG::Expr(ASG::Func::LinkID(source_id, ident_id))
+							ExprInfo::generateExprInfoTypeIDs(std::move(type_ids)),
+							std::move(func_exprs)
 						)
 					);
 				}
@@ -2508,7 +2622,7 @@ namespace pcit::panther{
 							ExprInfo(
 								ExprInfo::ValueType::Ephemeral,
 								ExprInfo::generateExprInfoTypeIDs(asg_var.typeID),
-								asg_var.expr
+								/*copy*/ ASG::Expr(asg_var.expr)
 							)
 						);
 
@@ -2656,13 +2770,13 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-			}else if constexpr(std::is_same_v<IdentID, ScopeManager::ScopeLevel::ImportInfo>){ // parameters
+			}else if constexpr(std::is_same_v<IdentID, ScopeManager::Level::ImportInfo>){ // parameters
 				return std::optional<ExprInfo>(
 					ExprInfo(ExprInfo::ValueType::Import, ident_id.sourceID, std::nullopt)
 				);
 
 			}else{
-				evo::debugFatalBreak("Unknown or unsupported ScopeManager::ScopeLevel::IdentID kind");
+				evo::debugFatalBreak("Unknown or unsupported ScopeManager::Level::IdentID kind");
 			}
 		});
 	}
@@ -2689,7 +2803,7 @@ namespace pcit::panther{
 				expr_info.value_type = ExprInfo::ValueType::EpemeralFluid;
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
-					expr_info.expr = ASG::Expr(
+					expr_info.expr.emplace_back(
 						this->source.asg_buffer.createLiteralInt(token.getInt(), std::nullopt)
 					);
 				}
@@ -2699,7 +2813,7 @@ namespace pcit::panther{
 				expr_info.value_type = ExprInfo::ValueType::EpemeralFluid;
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
-					expr_info.expr = ASG::Expr(
+					expr_info.expr.emplace_back(
 						this->source.asg_buffer.createLiteralFloat(token.getFloat(), std::nullopt)
 					);
 				}
@@ -2709,7 +2823,7 @@ namespace pcit::panther{
 				expr_info.type_id = ExprInfo::generateExprInfoTypeIDs(this->context.getTypeManager().getTypeBool());
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
-					expr_info.expr = ASG::Expr(this->source.asg_buffer.createLiteralBool(token.getBool()));
+					expr_info.expr.emplace_back(this->source.asg_buffer.createLiteralBool(token.getBool()));
 				}
 			} break;
 
@@ -2724,7 +2838,7 @@ namespace pcit::panther{
 				expr_info.type_id = ExprInfo::generateExprInfoTypeIDs(this->context.getTypeManager().getTypeChar());
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
-					expr_info.expr = ASG::Expr(this->source.asg_buffer.createLiteralChar(token.getString()[0]));
+					expr_info.expr.emplace_back(this->source.asg_buffer.createLiteralChar(token.getString()[0]));
 				}
 			} break;
 
@@ -2774,6 +2888,8 @@ namespace pcit::panther{
 		evo::ArrayProxy<AST::FuncCall::Arg> args
 	) -> evo::Result<size_t> {
 		evo::debugAssert(funcs.empty() == false, "need at least 1 func");
+		evo::debugAssert(asg_funcs.size() == funcs.size(), "mismatched size of `asg_funcs` and `funcs`");
+		evo::debugAssert(arg_infos.size() == args.size(), "mismatched size of `arg_infos` and `args`");
 
 		struct OverloadScore{
 			struct NumMismatch{};
@@ -2821,16 +2937,19 @@ namespace pcit::panther{
 					case AST::FuncDecl::Param::Kind::Read: {
 						// accepts any value type
 
-						if(arg_info.expr_info.value_type == ExprInfo::ValueType::ConcreteMutable){
-							current_score += 1;
-						}
+						// if(arg_info.expr_info.value_type == ExprInfo::ValueType::ConcreteMutable){
+						// 	current_score += 1;
+						// }
 					} break;
 
 					case AST::FuncDecl::Param::Kind::Mut: {
 						if(arg_info.expr_info.value_type != ExprInfo::ValueType::ConcreteMutable){
 							scores.emplace_back(0, OverloadScore::ValueKindMismatch(param_i));
 							failed = true;
+						}else{
+							current_score += 1;
 						}
+
 					} break;
 
 					case AST::FuncDecl::Param::Kind::In: {
@@ -2863,19 +2982,18 @@ namespace pcit::panther{
 					}
 				}
 
-				if(type_check_info.requires_implicit_conversion){
+				if(type_check_info.requires_implicit_conversion == false){
 					current_score += 1;
-				}else{
-					current_score += 2;
 				}
 			
+				current_score += 1;
+
 				param_i += 1;
 			}
 
 			if(failed){ continue; }
 
-
-			scores.emplace_back(1, std::monostate());
+			scores.emplace_back(current_score + 1, std::monostate());
 		}
 
 		const OverloadScore* best_score = nullptr;
@@ -2888,7 +3006,7 @@ namespace pcit::panther{
 				}else if(best_score->score == score.score){
 					found_best_score_match = true;
 
-				}else{
+				}else if(best_score->score < score.score){
 					best_score = &score;
 					found_best_score_match = false;
 				}
@@ -2896,8 +3014,22 @@ namespace pcit::panther{
 		}
 
 		if(found_best_score_match){
-			// TODO: better message - show matching functions
-			this->emit_error(Diagnostic::Code::SemaMultipleMatchingFunctions, location, "Multiple matching functions");
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			infos.reserve(2);
+			for(size_t i = std::numeric_limits<size_t>::max(); const OverloadScore& score : scores){
+				i += 1;
+
+				if(score.score == best_score->score){
+					infos.emplace_back("Could be this one:", this->get_source_location(asg_funcs[i]));
+				}
+			}
+
+			this->emit_error(
+				Diagnostic::Code::SemaMultipleMatchingFunctions,
+				location,
+				"Multiple matching functions",
+				std::move(infos)
+			);
 			return evo::resultError;
 
 		}else if(best_score == nullptr){
@@ -2910,7 +3042,7 @@ namespace pcit::panther{
 					using ReasonT = std::decay_t<decltype(reason)>;
 
 					if constexpr(std::is_same_v<ReasonT, std::monostate>){
-						evo::fatalBreak("None should be ok in this");
+						evo::fatalBreak("std::monostate marks a passing match - should not have a score of 0");
 
 					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::NumMismatch>){
 						infos.emplace_back(
@@ -2930,7 +3062,10 @@ namespace pcit::panther{
 								fail_match_message,
 								reason.arg_index
 							),
-							this->get_source_location(funcs[i]->params()[reason.arg_index].ident),
+							this->get_source_location(
+								funcs[i]->params()[reason.arg_index].ident,
+								this->context.getSourceManager()[asg_funcs[i].sourceID()]
+							),
 							std::vector<Diagnostic::Info>{
 								std::format(
 									"Parameter is of type: {}",
@@ -2955,14 +3090,20 @@ namespace pcit::panther{
 									std::format(
 										"{} [mut] parameters require concrete mutable expressions", fail_match_message
 									),
-									this->get_source_location(funcs[i]->params()[reason.arg_index].ident)
+									this->get_source_location(
+										funcs[i]->params()[reason.arg_index].ident,
+										this->context.getSourceManager()[asg_funcs[i].sourceID()]
+									)
 								);
 							} break;
 
 							case AST::FuncDecl::Param::Kind::In: {
 								infos.emplace_back(
 									std::format("{} [in] parameters require ephemeral expressions", fail_match_message),
-									this->get_source_location(funcs[i]->params()[reason.arg_index].ident)
+									this->get_source_location(
+										funcs[i]->params()[reason.arg_index].ident,
+										this->context.getSourceManager()[asg_funcs[i].sourceID()]
+									)
 								);
 							} break;
 						}
@@ -3106,7 +3247,7 @@ namespace pcit::panther{
 				const BaseType::Builtin& var_type_builtin = 
 					this->context.getTypeManager().getBuiltin(var_type_builtin_id);
 
-				if(got_expr.expr->kind() == ASG::Expr::Kind::LiteralInt){
+				if(got_expr.expr.front().kind() == ASG::Expr::Kind::LiteralInt){
 					switch(var_type_builtin.kind()){
 						case Token::Kind::TypeInt:
 						case Token::Kind::TypeISize:
@@ -3135,14 +3276,14 @@ namespace pcit::panther{
 					}
 
 					if constexpr(IMPLICITLY_CONVERT){
-						const ASG::LiteralInt::ID literal_int_id = got_expr.expr->literalIntID();
+						const ASG::LiteralInt::ID literal_int_id = got_expr.expr.front().literalIntID();
 						this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = expected_type_id;
 					}
 
 
 				}else{
 					evo::debugAssert(
-						got_expr.expr->kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
+						got_expr.expr.front().kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
 					);
 
 					switch(var_type_builtin.kind()){
@@ -3163,7 +3304,7 @@ namespace pcit::panther{
 					}
 
 					if constexpr(IMPLICITLY_CONVERT){
-						const ASG::LiteralFloat::ID literal_float_id = got_expr.expr->literalFloatID();
+						const ASG::LiteralFloat::ID literal_float_id = got_expr.expr.front().literalFloatID();
 						this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = expected_type_id;
 					}
 				}
@@ -3288,18 +3429,38 @@ namespace pcit::panther{
 		}
 
 
-		for(size_t i = this->scope.size() - 1; ScopeManager::ScopeLevel::ID scope_level_id : this->scope){
-			const ScopeManager::ScopeLevel& scope_level = this->context.getScopeManager()[scope_level_id];
+		for(size_t i = this->scope.size() - 1; ScopeManager::Level::ID scope_level_id : this->scope){
+			const ScopeManager::Level& scope_level = this->context.getScopeManager()[scope_level_id];
 
-			const std::optional<ScopeManager::ScopeLevel::IdentID> lookup_ident_id = scope_level.lookupIdent(ident_str);
+			const ScopeManager::Level::IdentID* lookup_ident_id = scope_level.lookupIdent(ident_str);
 
-			if(lookup_ident_id.has_value()){
+			if(lookup_ident_id != nullptr){
 				lookup_ident_id->visit([&](const auto ident_id) -> void {
-					auto infos = evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("First defined here:", this->get_source_location(ident_id)),
-					};
+					auto infos = evo::SmallVector<Diagnostic::Info>();
 
-					if(scope_level_id != this->scope.getCurrentScopeLevel()){
+					using IdentIDType = std::decay_t<decltype(ident_id)>;
+
+					if constexpr(std::is_same_v<IdentIDType, evo::SmallVector<ASG::FuncID>>){
+						if(ident_id.size() == 1){
+							infos.emplace_back("First defined here:", this->get_source_location(ident_id.front()));
+
+						}else if(ident_id.size() == 2){
+							infos.emplace_back(
+								"First defined here (and 1 other place):", this->get_source_location(ident_id.front())
+							);
+						}else{
+							infos.emplace_back(
+								std::format("First defined here (and {} other places):", ident_id.size() - 1),
+								this->get_source_location(ident_id.front())
+							);
+						}
+
+					}else{
+						Diagnostic::Info("First defined here:", this->get_source_location(ident_id));
+					}
+
+
+					if(scope_level_id != this->scope.getCurrentLevel()){
 						infos.emplace_back("Note: shadowing is not allowed");
 					}
 
@@ -3342,12 +3503,14 @@ namespace pcit::panther{
 		}else{
 			evo::debugAssert(expr_info.value_type == ExprInfo::ValueType::EpemeralFluid, "expected fluid literal");
 
-			if(expr_info.expr.has_value()){
-				if(expr_info.expr->kind() == ASG::Expr::Kind::LiteralInt){
+			if(expr_info.expr.empty() == false){
+				if(expr_info.expr.front().kind() == ASG::Expr::Kind::LiteralInt){
 					return "{LITERAL INTEGER}";
 					
 				}else{
-					evo::debugAssert(expr_info.expr->kind() == ASG::Expr::Kind::LiteralFloat, "expected literal float");
+					evo::debugAssert(
+						expr_info.expr.front().kind() == ASG::Expr::Kind::LiteralFloat, "expected literal float"
+					);
 					return "{LITERAL FLOAT}";
 				}
 
@@ -3418,106 +3581,113 @@ namespace pcit::panther{
 	};
 
 
-	auto SemanticAnalyzer::get_source_location(Token::ID token_id) const -> SourceLocation {
-		return this->source.getTokenBuffer().getSourceLocation(token_id, this->source.getID());
+	auto SemanticAnalyzer::get_source_location(Token::ID token_id, const Source& src) const -> SourceLocation {
+		return src.getTokenBuffer().getSourceLocation(token_id, src.getID());
 	}
 	
-	auto SemanticAnalyzer::get_source_location(const AST::Node& node) const -> SourceLocation {
+	auto SemanticAnalyzer::get_source_location(const AST::Node& node, const Source& src) const -> SourceLocation {
 		#if defined(EVO_COMPILER_MSVC)
 			#pragma warning(default : 4062)
 		#endif
 
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const ASTBuffer& ast_buffer = src.getASTBuffer();
 
 		switch(node.kind()){
 			case AST::Kind::None:           evo::debugFatalBreak("Cannot get location of AST::Kind::None");
-			case AST::Kind::VarDecl:        return this->get_source_location(ast_buffer.getVarDecl(node));
-			case AST::Kind::FuncDecl:       return this->get_source_location(ast_buffer.getFuncDecl(node));
-			case AST::Kind::AliasDecl:      return this->get_source_location(ast_buffer.getAliasDecl(node));
-			case AST::Kind::Return:         return this->get_source_location(ast_buffer.getReturn(node));
-			case AST::Kind::Block:          return this->get_source_location(ast_buffer.getBlock(node));
-			case AST::Kind::FuncCall:       return this->get_source_location(ast_buffer.getFuncCall(node));
+			case AST::Kind::VarDecl:        return this->get_source_location(ast_buffer.getVarDecl(node), src);
+			case AST::Kind::FuncDecl:       return this->get_source_location(ast_buffer.getFuncDecl(node), src);
+			case AST::Kind::AliasDecl:      return this->get_source_location(ast_buffer.getAliasDecl(node), src);
+			case AST::Kind::Return:         return this->get_source_location(ast_buffer.getReturn(node), src);
+			case AST::Kind::Block:          return this->get_source_location(ast_buffer.getBlock(node), src);
+			case AST::Kind::FuncCall:       return this->get_source_location(ast_buffer.getFuncCall(node), src);
 			case AST::Kind::TemplatePack:   evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
-			case AST::Kind::TemplatedExpr:  return this->get_source_location(ast_buffer.getTemplatedExpr(node));
-			case AST::Kind::Prefix:         return this->get_source_location(ast_buffer.getPrefix(node));
-			case AST::Kind::Infix:          return this->get_source_location(ast_buffer.getInfix(node));
-			case AST::Kind::Postfix:        return this->get_source_location(ast_buffer.getPostfix(node));
-			case AST::Kind::MultiAssign:    return this->get_source_location(ast_buffer.getMultiAssign(node));
-			case AST::Kind::Type:           return this->get_source_location(ast_buffer.getType(node));
+			case AST::Kind::TemplatedExpr:  return this->get_source_location(ast_buffer.getTemplatedExpr(node), src);
+			case AST::Kind::Prefix:         return this->get_source_location(ast_buffer.getPrefix(node), src);
+			case AST::Kind::Infix:          return this->get_source_location(ast_buffer.getInfix(node), src);
+			case AST::Kind::Postfix:        return this->get_source_location(ast_buffer.getPostfix(node), src);
+			case AST::Kind::MultiAssign:    return this->get_source_location(ast_buffer.getMultiAssign(node), src);
+			case AST::Kind::Type:           return this->get_source_location(ast_buffer.getType(node), src);
 			case AST::Kind::AttributeBlock: evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
-			case AST::Kind::Attribute:      return this->get_source_location(ast_buffer.getAttribute(node));
-			case AST::Kind::BuiltinType:    return this->get_source_location(ast_buffer.getBuiltinType(node));
-			case AST::Kind::Ident:          return this->get_source_location(ast_buffer.getIdent(node));
-			case AST::Kind::Intrinsic:      return this->get_source_location(ast_buffer.getIntrinsic(node));
-			case AST::Kind::Literal:        return this->get_source_location(ast_buffer.getLiteral(node));
-			case AST::Kind::Uninit:         return this->get_source_location(ast_buffer.getUninit(node));
-			case AST::Kind::Zeroinit:       return this->get_source_location(ast_buffer.getZeroinit(node));
-			case AST::Kind::This:           return this->get_source_location(ast_buffer.getThis(node));
-			case AST::Kind::Discard:        return this->get_source_location(ast_buffer.getDiscard(node));
+			case AST::Kind::Attribute:      return this->get_source_location(ast_buffer.getAttribute(node), src);
+			case AST::Kind::BuiltinType:    return this->get_source_location(ast_buffer.getBuiltinType(node), src);
+			case AST::Kind::Ident:          return this->get_source_location(ast_buffer.getIdent(node), src);
+			case AST::Kind::Intrinsic:      return this->get_source_location(ast_buffer.getIntrinsic(node), src);
+			case AST::Kind::Literal:        return this->get_source_location(ast_buffer.getLiteral(node), src);
+			case AST::Kind::Uninit:         return this->get_source_location(ast_buffer.getUninit(node), src);
+			case AST::Kind::Zeroinit:       return this->get_source_location(ast_buffer.getZeroinit(node), src);
+			case AST::Kind::This:           return this->get_source_location(ast_buffer.getThis(node), src);
+			case AST::Kind::Discard:        return this->get_source_location(ast_buffer.getDiscard(node), src);
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported AST::Kind");
 	}
 
 
-	auto SemanticAnalyzer::get_source_location(const AST::VarDecl& var_decl) const -> SourceLocation {
-		return this->get_source_location(var_decl.ident);
+	auto SemanticAnalyzer::get_source_location(const AST::VarDecl& var_decl, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(var_decl.ident, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::FuncDecl& func_decl) const -> SourceLocation {
-		return this->get_source_location(func_decl.name);
+	auto SemanticAnalyzer::get_source_location(const AST::FuncDecl& func_decl, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(func_decl.name, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::AliasDecl& alias_decl) const -> SourceLocation {
-		return this->get_source_location(alias_decl.ident);
+	auto SemanticAnalyzer::get_source_location(const AST::AliasDecl& alias_decl, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(alias_decl.ident, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::Return& return_stmt) const -> SourceLocation {
-		return this->get_source_location(return_stmt.keyword);
+	auto SemanticAnalyzer::get_source_location(const AST::Return& return_stmt, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(return_stmt.keyword, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::Block& block) const -> SourceLocation {
-		return this->get_source_location(block.openBrace);
+	auto SemanticAnalyzer::get_source_location(const AST::Block& block, const Source& src) const -> SourceLocation {
+		return this->get_source_location(block.openBrace, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::FuncCall& func_call) const -> SourceLocation {
-		return this->get_source_location(func_call.target);
+	auto SemanticAnalyzer::get_source_location(const AST::FuncCall& func_call, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(func_call.target, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::TemplatedExpr& templated_expr) const -> SourceLocation {
-		return this->get_source_location(templated_expr.base);
+	auto SemanticAnalyzer::get_source_location(const AST::TemplatedExpr& templated_expr, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(templated_expr.base, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::Prefix& prefix) const -> SourceLocation {
-		return this->get_source_location(prefix.opTokenID);	
+	auto SemanticAnalyzer::get_source_location(const AST::Prefix& prefix, const Source& src) const -> SourceLocation {
+		return this->get_source_location(prefix.opTokenID, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::Infix& infix) const -> SourceLocation {
-		const Token& infix_op_token = this->source.getTokenBuffer()[infix.opTokenID];
+	auto SemanticAnalyzer::get_source_location(const AST::Infix& infix, const Source& src) const -> SourceLocation {
+		const Token& infix_op_token = src.getTokenBuffer()[infix.opTokenID];
 		if(infix_op_token.kind() == Token::lookupKind(".")){
-			return this->get_source_location(infix.rhs);
+			return this->get_source_location(infix.rhs, src);
 		}else{
-			return this->get_source_location(infix.opTokenID);
+			return this->get_source_location(infix.opTokenID, src);
 		}
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::Postfix& postfix) const -> SourceLocation {
-		return this->get_source_location(postfix.opTokenID);
+	auto SemanticAnalyzer::get_source_location(const AST::Postfix& postfix, const Source& src) const -> SourceLocation {
+		return this->get_source_location(postfix.opTokenID, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::MultiAssign& multi_assign) const -> SourceLocation {
-		return this->get_source_location(multi_assign.openBracketLocation);
+	auto SemanticAnalyzer::get_source_location(const AST::MultiAssign& multi_assign, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(multi_assign.openBracketLocation, src);
 	}
 
-	auto SemanticAnalyzer::get_source_location(const AST::Type& type) const -> SourceLocation {
-		return this->get_source_location(type.base);
+	auto SemanticAnalyzer::get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation {
+		return this->get_source_location(type.base, src);
 	}
 
 
 
-	auto SemanticAnalyzer::get_source_location(ASG::Func::ID func_id) const -> SourceLocation {
-		const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(func_id);
-		return this->get_source_location(asg_func.name);
+	auto SemanticAnalyzer::get_source_location(ASG::Func::ID func_id, const Source& src) const -> SourceLocation {
+		const ASG::Func& asg_func = src.getASGBuffer().getFunc(func_id);
+		return this->get_source_location(asg_func.name, src);
 	}
 
 	auto SemanticAnalyzer::get_source_location(ASG::Func::LinkID func_link_id) const -> SourceLocation {
@@ -3529,38 +3699,40 @@ namespace pcit::panther{
 		return lookup_source.getTokenBuffer().getSourceLocation(ident_token_id, func_link_id.sourceID());
 	}
 
-	auto SemanticAnalyzer::get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation {
-		const ASG::TemplatedFunc& asg_templated_func = this->source.getASGBuffer().getTemplatedFunc(templated_func_id);
-		return this->get_source_location(asg_templated_func.funcDecl.name);
-	}
-
-
-	auto SemanticAnalyzer::get_source_location(ASG::Var::ID var_id) const -> SourceLocation {
-		const ASG::Var& asg_var = this->source.getASGBuffer().getVar(var_id);
-		return this->get_source_location(asg_var.ident);
-	}
-
-	auto SemanticAnalyzer::get_source_location(ASG::Param::ID param_id) const -> SourceLocation {
-		const ASG::Param& asg_param = this->source.getASGBuffer().getParam(param_id);
-		const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(asg_param.func);
-
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
-
-		return this->get_source_location(func_type.params()[asg_param.index].ident);
-	}
-
-	auto SemanticAnalyzer::get_source_location(ASG::ReturnParam::ID ret_param_id) const -> SourceLocation {
-		const ASG::ReturnParam& asg_ret_param = this->source.getASGBuffer().getReturnParam(ret_param_id);
-		const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(asg_ret_param.func);
-
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
-
-		return this->get_source_location(*func_type.returnParams()[asg_ret_param.index].ident);
-	}
-
-	auto SemanticAnalyzer::get_source_location(ScopeManager::ScopeLevel::ImportInfo import_info) const
+	auto SemanticAnalyzer::get_source_location(ASG::TemplatedFunc::ID templated_func_id, const Source& src) const
 	-> SourceLocation {
-		return this->get_source_location(import_info.tokenID);
+		const ASG::TemplatedFunc& asg_templated_func = src.getASGBuffer().getTemplatedFunc(templated_func_id);
+		return this->get_source_location(asg_templated_func.funcDecl.name, src);
+	}
+
+
+	auto SemanticAnalyzer::get_source_location(ASG::Var::ID var_id, const Source& src) const -> SourceLocation {
+		const ASG::Var& asg_var = src.getASGBuffer().getVar(var_id);
+		return this->get_source_location(asg_var.ident, src);
+	}
+
+	auto SemanticAnalyzer::get_source_location(ASG::Param::ID param_id, const Source& src) const -> SourceLocation {
+		const ASG::Param& asg_param = src.getASGBuffer().getParam(param_id);
+		const ASG::Func& asg_func = src.getASGBuffer().getFunc(asg_param.func);
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
+
+		return this->get_source_location(func_type.params()[asg_param.index].ident, src);
+	}
+
+	auto SemanticAnalyzer::get_source_location(ASG::ReturnParam::ID ret_param_id, const Source& src) const
+	-> SourceLocation {
+		const ASG::ReturnParam& asg_ret_param = src.getASGBuffer().getReturnParam(ret_param_id);
+		const ASG::Func& asg_func = src.getASGBuffer().getFunc(asg_ret_param.func);
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
+
+		return this->get_source_location(*func_type.returnParams()[asg_ret_param.index].ident, src);
+	}
+
+	auto SemanticAnalyzer::get_source_location(ScopeManager::Level::ImportInfo import_info, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(import_info.tokenID, src);
 	}
 
 

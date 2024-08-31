@@ -24,7 +24,7 @@ namespace pcit::panther{
 	
 	class ScopeManager{
 		public:
-			class ScopeLevel{ // not thread-safe
+			class Level{ // not thread-safe
 				public:
 					struct ID : public core::UniqueID<uint32_t, struct ID> {
 						using core::UniqueID<uint32_t, ID>::UniqueID;
@@ -36,12 +36,17 @@ namespace pcit::panther{
 					};
 
 					using IdentID = evo::Variant<
-						ASG::FuncID, ASG::TemplatedFuncID, ASG::VarID, ASG::ParamID, ASG::ReturnParamID, ImportInfo
+						evo::SmallVector<ASG::FuncID>,
+						ASG::TemplatedFuncID,
+						ASG::VarID,
+						ASG::ParamID,
+						ASG::ReturnParamID,
+						ImportInfo
 					>;
 
 				public:
-					ScopeLevel() = default;
-					~ScopeLevel() = default;
+					Level() = default;
+					~Level() = default;
 
 					auto addSubScope() -> void;
 					auto setSubScopeTerminated() -> void;
@@ -56,7 +61,7 @@ namespace pcit::panther{
 					auto addReturnParam(std::string_view ident, ASG::ReturnParamID id) -> void;
 					auto addImport(std::string_view ident, SourceID id, Token::ID location) -> void;
 
-					auto lookupIdent(std::string_view ident) const -> std::optional<IdentID>;
+					auto lookupIdent(std::string_view ident) const -> const IdentID*;
 
 				private:
 					std::unordered_map<std::string_view, IdentID> ids{};
@@ -78,29 +83,29 @@ namespace pcit::panther{
 					///////////////////////////////////
 					// scope level
 
-					auto pushScopeLevel(ScopeLevel::ID id) -> void;
-					auto pushScopeLevel(ScopeLevel::ID id, ASG::FuncID func_id) -> void;
-					auto popScopeLevel() -> void;
+					auto pushLevel(Level::ID id) -> void;
+					auto pushLevel(Level::ID id, ASG::FuncID func_id) -> void;
+					auto popLevel() -> void;
 
-					EVO_NODISCARD auto getCurrentScopeLevel() const -> ScopeLevel::ID {
+					EVO_NODISCARD auto getCurrentLevel() const -> Level::ID {
 						return this->scope_levels.back();
 					}
 
 					// note: these are purposely backwards
 
-					EVO_NODISCARD auto begin() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
+					EVO_NODISCARD auto begin() -> evo::SmallVector<Level::ID>::reverse_iterator {
 						return this->scope_levels.rbegin();
 					}
 
-					EVO_NODISCARD auto begin() const -> evo::SmallVector<ScopeLevel::ID>::const_reverse_iterator {
+					EVO_NODISCARD auto begin() const -> evo::SmallVector<Level::ID>::const_reverse_iterator {
 						return this->scope_levels.rbegin();
 					}
 
-					EVO_NODISCARD auto end() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
+					EVO_NODISCARD auto end() -> evo::SmallVector<Level::ID>::reverse_iterator {
 						return this->scope_levels.rend();
 					}
 
-					EVO_NODISCARD auto end() const -> evo::SmallVector<ScopeLevel::ID>::const_reverse_iterator {
+					EVO_NODISCARD auto end() const -> evo::SmallVector<Level::ID>::const_reverse_iterator {
 						return this->scope_levels.rend();
 					}
 
@@ -143,7 +148,7 @@ namespace pcit::panther{
 					};
 
 					// TODO: use a stack?
-					evo::SmallVector<ScopeLevel::ID> scope_levels{};
+					evo::SmallVector<Level::ID> scope_levels{};
 					evo::SmallVector<ObjectScopeData> object_scopes{};
 			};
 		
@@ -151,21 +156,21 @@ namespace pcit::panther{
 			ScopeManager() = default;
 			~ScopeManager();
 
-			EVO_NODISCARD auto operator[](ScopeLevel::ID id) const -> const ScopeLevel& {
+			EVO_NODISCARD auto operator[](Level::ID id) const -> const Level& {
 				const auto lock = std::shared_lock(this->mutex);
 				return *this->scope_levels[id.get()];
 			}
 
-			EVO_NODISCARD auto operator[](ScopeLevel::ID id) -> ScopeLevel& {
+			EVO_NODISCARD auto operator[](Level::ID id) -> Level& {
 				const auto lock = std::shared_lock(this->mutex);
 				return *this->scope_levels[id.get()];
 			}
 
 
-			EVO_NODISCARD auto createScopeLevel() -> ScopeLevel::ID;
+			EVO_NODISCARD auto createLevel() -> Level::ID;
 	
 		private:
-			std::vector<ScopeLevel*> scope_levels{};
+			std::vector<Level*> scope_levels{};
 			mutable std::shared_mutex mutex{};
 	};
 

@@ -631,7 +631,7 @@ namespace pcit::panther{
 	auto Context::Worker::run_sema_global_decls(const SemaGlobalDeclsTask& task) -> void {
 		SourceManager& source_manager = this->context->getSourceManager();
 		Source& source = source_manager.getSource(task.source_id);
-		source.global_scope_level = this->context->getScopeManager().createScopeLevel();
+		source.global_scope_level = this->context->getScopeManager().createLevel();
 
 		auto semantic_analyzer = SemanticAnalyzer(*this->context, task.source_id);
 
