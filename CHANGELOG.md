@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.31.1
+
+### Panther
+- Fixed function overloads not respecting differences in parameter kinds
+- Fixed fatal error when taking the address of an expression with multiple values
+
+
+<!---------------------------------->
 ## v0.0.31.0
 
 ### Panther

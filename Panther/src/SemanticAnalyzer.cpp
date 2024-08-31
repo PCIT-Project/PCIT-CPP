@@ -589,7 +589,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(overload.baseTypeID.funcID());
 
 					for(size_t i = 0; const BaseType::Function::Param& overload_param : overload_type.params()){
-						if(overload_param.typeID != params[i].typeID){
+						if(overload_param.typeID != params[i].typeID || overload_param.kind != params[i].kind){
 							is_different = true;
 							break;
 						}
@@ -2146,10 +2146,15 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				evo::debugAssert(
-					rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() == 1,
-					"Expected concrete expr to only have one value"
-				);
+				if(rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != 1){
+					// TODO: better messaging
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidAddrOfRHS,
+						prefix.rhs,
+						"rhs of an address-of expression ([&]) must be have a single value"
+					);
+					return evo::resultError;	
+				}
 
 				const TypeInfo::ID rhs_type_id = rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
 				const TypeInfo& rhs_type = this->context.getTypeManager().getTypeInfo(rhs_type_id);

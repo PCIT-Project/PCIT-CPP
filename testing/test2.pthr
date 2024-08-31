@@ -1,10 +1,10 @@
 
 
 
-func set_num = (num: UI8*) #pub -> Void {
+func set_num = (num: UI8* read) #pub -> Void {
 	num.* = 1;
 }
 
-func set_num = (c_num: UI8*|) #pub -> Void {
+func set_num = (c_num: UI8* mut) #pub -> Void {
 	// do nothing
 }
