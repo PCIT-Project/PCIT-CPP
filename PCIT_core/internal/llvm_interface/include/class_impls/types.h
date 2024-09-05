@@ -32,6 +32,9 @@ namespace pcit::llvmint{
 			FunctionType(llvm::FunctionType* native_type) : _native(native_type) {};
 			~FunctionType() = default;
 
+			EVO_NODISCARD explicit operator Type() const;
+			EVO_NODISCARD auto asType() const -> Type { return static_cast<Type>(*this); }
+
 			EVO_NODISCARD auto native() const -> llvm::FunctionType* { return this->_native; }
 	
 		private:
@@ -44,7 +47,8 @@ namespace pcit::llvmint{
 			IntegerType(llvm::IntegerType* native_type) : _native(native_type) {};
 			~IntegerType() = default;
 
-			EVO_NODISCARD operator Type() const;
+			EVO_NODISCARD explicit operator Type() const;
+			EVO_NODISCARD auto asType() const -> Type { return static_cast<Type>(*this); }
 
 			EVO_NODISCARD auto native() const -> llvm::IntegerType* { return this->_native; }
 	
@@ -58,7 +62,8 @@ namespace pcit::llvmint{
 			PointerType(llvm::PointerType* native_type) : _native(native_type) {};
 			~PointerType() = default;
 
-			EVO_NODISCARD operator Type() const;
+			EVO_NODISCARD explicit operator Type() const;
+			EVO_NODISCARD auto asType() const -> Type { return static_cast<Type>(*this); }
 
 			EVO_NODISCARD auto native() const -> llvm::PointerType* { return this->_native; }
 	

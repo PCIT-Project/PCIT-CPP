@@ -54,8 +54,8 @@ namespace pcit::panther::ASG{
 		};
 
 
-		explicit Expr(UninitID uninit_id)     : _kind(Kind::Uninit),        value{.uninit = uninit_id}       {};
-		explicit Expr(ZeroinitID zeroinit_id) : _kind(Kind::Zeroinit),      value{.zeroinit = zeroinit_id}   {};
+		explicit Expr(UninitID uninit_id)      : _kind(Kind::Uninit),       value{.uninit = uninit_id}       {};
+		explicit Expr(ZeroinitID zeroinit_id)  : _kind(Kind::Zeroinit),     value{.zeroinit = zeroinit_id}   {};
 
 		explicit Expr(LiteralIntID int_id)     : _kind(Kind::LiteralInt),   value{.literal_int = int_id}     {};
 		explicit Expr(LiteralFloatID float_id) : _kind(Kind::LiteralFloat), value{.literal_float = float_id} {};

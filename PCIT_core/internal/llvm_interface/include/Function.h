@@ -25,7 +25,8 @@ namespace pcit::llvmint{
 
 			auto setName(std::string_view name) -> void;
 
-			EVO_NODISCARD operator Value() const;
+			EVO_NODISCARD explicit operator Value() const;
+			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
 
 
 			EVO_NODISCARD auto native() const -> llvm::Argument* { return this->_native; }
@@ -50,6 +51,8 @@ namespace pcit::llvmint{
 			auto setNoThrow() -> void;
 			auto setCallingConv(CallingConv calling_conv) -> void;
 
+			EVO_NODISCARD explicit operator Value() const;
+			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
 
 			EVO_NODISCARD auto native() const -> llvm::Function* { return this->_native; }
 	

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.32.0
+
+### Panther
+- Added function pointers
+	- Note: there is no way to write a function pointer type yet
+- Fixed fatal error when copying or moving a function
+- Made various improvements to some diagnostic messages
+
+
+<!---------------------------------->
 ## v0.0.31.1
 
 ### Panther

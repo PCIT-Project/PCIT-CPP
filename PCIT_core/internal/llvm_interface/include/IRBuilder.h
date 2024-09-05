@@ -155,8 +155,9 @@ namespace pcit::llvmint{
 			//////////////////////////////////////////////////////////////////////
 			// types
 
-			EVO_NODISCARD auto getFuncProto(const Type& return_type, evo::ArrayProxy<Type> params, bool is_var_args)
-				-> FunctionType;
+			EVO_NODISCARD auto getFuncProto(
+				const Type& return_type, evo::ArrayProxy<Type> params, bool is_var_args
+			) const -> FunctionType;
 
 			EVO_NODISCARD auto getTypeBool() const -> IntegerType;
 

@@ -97,6 +97,7 @@ namespace pcit::panther{
 					Import,
 					Templated,
 					Initializer, // uninit / zeroinit
+					Function, // function, not func pointer
 				};
 
 				ValueType value_type;
@@ -128,6 +129,11 @@ namespace pcit::panther{
 				EVO_NODISCARD constexpr auto is_concrete() const -> bool {
 					return this->value_type == ValueType::ConcreteConst || 
 						   this->value_type == ValueType::ConcreteMutable;
+				}
+
+				EVO_NODISCARD constexpr auto is_const() const -> bool {
+					return this->value_type == ValueType::ConcreteConst || 
+						   this->value_type == ValueType::Function;
 				}
 
 

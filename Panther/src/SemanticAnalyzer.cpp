@@ -1673,7 +1673,22 @@ namespace pcit::panther{
 		auto func_link_ids = evo::SmallVector<ASG::Func::LinkID>();
 		func_link_ids.reserve(target_info_res.value().expr.size());
 		for(const ASG::Expr& func_expr : target_info_res.value().expr){
-			func_link_ids.emplace_back(func_expr.funcLinkID());
+			switch(func_expr.kind()){
+				case ASG::Expr::Kind::Func: {
+					func_link_ids.emplace_back(func_expr.funcLinkID());
+				} break;
+
+				case ASG::Expr::Kind::Var: {
+					const ASG::Var::LinkID asg_var_link_id = func_expr.varLinkID();
+					const Source& target_source = this->context.getSourceManager()[asg_var_link_id.sourceID()];
+					const ASG::Var& asg_var = target_source.getASGBuffer().getVar(asg_var_link_id.varID());
+					func_link_ids.emplace_back(asg_var.expr.funcLinkID());
+				} break;
+
+				default: {
+					evo::debugFatalBreak("Cannot get function call from this ASG::Expr type");
+				} break;
+			}
 		}
 
 		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
@@ -2137,66 +2152,107 @@ namespace pcit::panther{
 
 		switch(this->source.getTokenBuffer()[prefix.opTokenID].kind()){
 			case Token::lookupKind("&"): {
-				if(rhs_info.value().is_concrete() == false){
+				const bool rhs_is_function = rhs_info.value().value_type == ExprInfo::ValueType::Function;
+				if(rhs_info.value().is_concrete() == false && rhs_is_function == false){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidAddrOfRHS,
 						prefix.rhs,
-						"rhs of an address-of expression ([&]) must be concrete"
+						"rhs of an address-of expression ([&]) must be concrete or a function"
 					);
 					return evo::resultError;
 				}
 
 				if(rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != 1){
-					// TODO: better messaging
-					this->emit_error(
-						Diagnostic::Code::SemaInvalidAddrOfRHS,
-						prefix.rhs,
-						"rhs of an address-of expression ([&]) must be have a single value"
-					);
+					if(rhs_is_function){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidAddrOfRHS,
+							prefix.rhs,
+							"Cannot take an address-of ([&]) of a function that has overloads"
+						);
+
+					}else{
+						// TODO: better messaging
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidAddrOfRHS,
+							prefix.rhs,
+							"rhs of an address-of expression ([&]) must be have a single value"
+						);
+					}
+
 					return evo::resultError;	
 				}
 
-				const TypeInfo::ID rhs_type_id = rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
-				const TypeInfo& rhs_type = this->context.getTypeManager().getTypeInfo(rhs_type_id);
 
-				auto rhs_type_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
-					rhs_type.qualifiers().begin(), rhs_type.qualifiers().end()
-				);
-				const bool is_read_only = rhs_info.value().value_type == ExprInfo::ValueType::ConcreteConst;
-				rhs_type_qualifiers.emplace_back(true, is_read_only, false);
+				const evo::Result<TypeInfo::ID> new_type_id = [&](){					
+					const TypeInfo::ID rhs_type_id = 
+						rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
 
-				if(this->check_type_qualifiers(rhs_type_qualifiers, prefix) == false){ return evo::resultError; }
+					if(rhs_is_function){ return evo::Result<TypeInfo::ID>(rhs_type_id);	}
 
+					const TypeInfo& rhs_type = this->context.getTypeManager().getTypeInfo(rhs_type_id);
 
-				const TypeInfo::ID new_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
-					TypeInfo(rhs_type.baseTypeID(), std::move(rhs_type_qualifiers))
-				);
+					auto rhs_type_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
+						rhs_type.qualifiers().begin(), rhs_type.qualifiers().end()
+					);
+					const bool is_read_only = rhs_info.value().value_type == ExprInfo::ValueType::ConcreteConst;
+					rhs_type_qualifiers.emplace_back(true, is_read_only, false);
+
+					if(this->check_type_qualifiers(rhs_type_qualifiers, prefix) == false){
+						return evo::Result<TypeInfo::ID>(evo::resultError);
+					}
+
+					return evo::Result<TypeInfo::ID>(
+						this->context.getTypeManager().getOrCreateTypeInfo(
+							TypeInfo(rhs_type.baseTypeID(), std::move(rhs_type_qualifiers))
+						)
+					);
+				}();
+				if(new_type_id.isError()){ return evo::resultError; }
 
 
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return ExprInfo(
-						ExprInfo::ValueType::Ephemeral, ExprInfo::generateExprInfoTypeIDs(new_type_id), std::nullopt
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
+						std::nullopt
 					);
 					
 				}else{
-					const ASG::AddrOf::ID addr_of_id = this->source.asg_buffer.createAddrOf(
-						ASG::Expr(rhs_info.value().expr.front())
-					);
-					return ExprInfo(
-						ExprInfo::ValueType::Ephemeral,
-						ExprInfo::generateExprInfoTypeIDs(new_type_id),
-						ASG::Expr(addr_of_id)
-					);
+					if(rhs_is_function) [[unlikely]] {
+						return ExprInfo(
+							ExprInfo::ValueType::Ephemeral,
+							ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
+							ASG::Expr(rhs_info.value().expr.front())
+						);
+					}else{
+						const ASG::AddrOf::ID addr_of_id = this->source.asg_buffer.createAddrOf(
+							ASG::Expr(rhs_info.value().expr.front())
+						);
+						return ExprInfo(
+							ExprInfo::ValueType::Ephemeral,
+							ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
+							ASG::Expr(addr_of_id)
+						);
+					}
 				}
 			} break;
 
 			case Token::Kind::KeywordCopy: {
 				if(rhs_info.value().is_concrete() == false){
-					this->emit_error(
-						Diagnostic::Code::SemaCopyExprNotConcrete,
-						prefix.rhs,
-						"rhs of [copy] expression must be concrete"
-					);
+					if(rhs_info.value().value_type == ExprInfo::ValueType::Function){
+						this->emit_error(
+							Diagnostic::Code::SemaCopyExprNotConcrete,
+							prefix.rhs,
+							"rhs of [copy] expression cannot be a function",
+							Diagnostic::Info("To get a function pointer, use the address-of operator ([&])")
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SemaCopyExprNotConcrete,
+							prefix.rhs,
+							"rhs of [copy] expression must be concrete"
+						);
+					}
 					return evo::resultError;
 				}
 
@@ -2211,11 +2267,20 @@ namespace pcit::panther{
 
 			case Token::Kind::KeywordMove: {
 				if(rhs_info.value().is_concrete() == false){
-					this->emit_error(
-						Diagnostic::Code::SemaMoveExprNotConcrete,
-						prefix.rhs,
-						"rhs of [move] expression must be concrete"
-					);
+					if(rhs_info.value().value_type == ExprInfo::ValueType::Function){
+						this->emit_error(
+							Diagnostic::Code::SemaMoveExprNotConcrete,
+							prefix.rhs,
+							"rhs of [move] expression cannot be a function",
+							Diagnostic::Info("To get a function pointer, use the address-of operator ([&])")
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SemaMoveExprNotConcrete,
+							prefix.rhs,
+							"rhs of [move] expression must be concrete"
+						);
+					}
 					return evo::resultError;
 				}
 
@@ -2291,7 +2356,7 @@ namespace pcit::panther{
 						Diagnostic::Code::SemaImportMemberDoesntExist,
 						rhs_ident_token_id,
 						std::format(
-							"Imported source doesn't have Identifier \"{}\" declared in global scope", rhs_ident_str
+							"Imported source doesn't have identifier \"{}\" declared in global scope", rhs_ident_str
 						)
 					);
 					return evo::resultError;
@@ -2311,7 +2376,15 @@ namespace pcit::panther{
 									Diagnostic::Code::SemaImportMemberIsntPub,
 									rhs_ident_token_id,
 									std::format("Function \"{}\" isn't marked as public", rhs_ident_str),
-									Diagnostic::Info("To mark a function as public, add the attribute \"#pub\"")
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info("To mark a function as public, add the attribute \"#pub\""),
+										Diagnostic::Info(
+											"Function declared here:",
+											this->get_source_location(
+												ASG::Func::LinkID(import_target_source_id, asg_func_id)
+											)
+										)
+									}
 								);
 								return evo::resultError;
 							}
@@ -2323,7 +2396,7 @@ namespace pcit::panther{
 
 						if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 							return ExprInfo(
-								ExprInfo::ValueType::ConcreteConst,
+								ExprInfo::ValueType::Function,
 								ExprInfo::generateExprInfoTypeIDs(std::move(type_ids)),
 								std::nullopt
 							);
@@ -2335,7 +2408,7 @@ namespace pcit::panther{
 							}
 
 							return ExprInfo(
-								ExprInfo::ValueType::ConcreteConst,
+								ExprInfo::ValueType::Function,
 								ExprInfo::generateExprInfoTypeIDs(std::move(type_ids)),
 								std::move(func_exprs)
 							);
@@ -2548,7 +2621,7 @@ namespace pcit::panther{
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return std::optional<ExprInfo>(
 						ExprInfo(
-							ExprInfo::ValueType::ConcreteConst,
+							ExprInfo::ValueType::Function,
 							ExprInfo::generateExprInfoTypeIDs(std::move(type_ids)),
 							std::nullopt
 						)
@@ -2562,7 +2635,7 @@ namespace pcit::panther{
 
 					return std::optional<ExprInfo>(
 						ExprInfo(
-							ExprInfo::ValueType::ConcreteConst,
+							ExprInfo::ValueType::Function,
 							ExprInfo::generateExprInfoTypeIDs(std::move(type_ids)),
 							std::move(func_exprs)
 						)

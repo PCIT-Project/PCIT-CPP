@@ -36,7 +36,9 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getAllocatedType() const -> Type;
 
 
-			EVO_NODISCARD operator Value() const;
+			EVO_NODISCARD explicit operator Value() const;
+			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
+
 
 			EVO_NODISCARD auto native() const -> llvm::AllocaInst* { return this->_native; }
 	
@@ -50,7 +52,9 @@ namespace pcit::llvmint{
 			Constant(llvm::Constant* native_type) : _native(native_type) {};
 			~Constant() = default;
 
-			EVO_NODISCARD operator Value() const;
+			EVO_NODISCARD explicit operator Value() const;
+			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
+
 
 			EVO_NODISCARD auto native() const -> llvm::Constant* { return this->_native; }
 	
@@ -64,8 +68,12 @@ namespace pcit::llvmint{
 			ConstantInt(llvm::ConstantInt* native_type) : _native(native_type) {};
 			~ConstantInt() = default;
 
-			EVO_NODISCARD operator Value() const;
-			EVO_NODISCARD operator Constant() const;
+			EVO_NODISCARD explicit operator Value() const;
+			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
+
+			EVO_NODISCARD explicit operator Constant() const;
+			EVO_NODISCARD auto asConstant() const -> Constant { return static_cast<Constant>(*this); }
+
 
 			EVO_NODISCARD auto native() const -> llvm::ConstantInt* { return this->_native; }
 	
@@ -80,7 +88,9 @@ namespace pcit::llvmint{
 			CallInst(llvm::CallInst* native_type) : _native(native_type) {};
 			~CallInst() = default;
 
-			EVO_NODISCARD operator Value() const;
+			EVO_NODISCARD explicit operator Value() const;
+			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
+
 
 			EVO_NODISCARD auto native() const -> llvm::CallInst* { return this->_native; }
 	
@@ -94,7 +104,9 @@ namespace pcit::llvmint{
 			LoadInst(llvm::LoadInst* native_stmt) : _native(native_stmt) {};
 			~LoadInst() = default;
 
-			EVO_NODISCARD operator Value() const;
+			EVO_NODISCARD explicit operator Value() const;
+			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
+
 
 			EVO_NODISCARD auto native() const -> llvm::LoadInst* { return this->_native; }
 	

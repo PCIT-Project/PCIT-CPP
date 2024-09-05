@@ -75,7 +75,7 @@ namespace pcit::llvmint{
 	}
 
 	auto IRBuilder::createLoad(const Alloca& alloca, evo::CStrProxy name) -> LoadInst {
-		return this->createLoad(alloca, alloca.getAllocatedType(), name);
+		return this->createLoad(static_cast<llvmint::Value>(alloca), alloca.getAllocatedType(), name);
 	}
 
 
@@ -291,7 +291,7 @@ namespace pcit::llvmint{
 
 	auto IRBuilder::getFuncProto(
 		const Type& return_type, evo::ArrayProxy<Type> params, bool is_var_args
-	) -> FunctionType {
+	) const -> FunctionType {
 		return FunctionType(
 			llvm::FunctionType::get(return_type.native(), createArrayRef<llvm::Type>(params), is_var_args)
 		);

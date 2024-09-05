@@ -55,6 +55,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID& type_info_voidable_id) const -> llvmint::Type;
 			EVO_NODISCARD auto get_type(const TypeInfo::ID& type_info_id) const -> llvmint::Type;
 			EVO_NODISCARD auto get_type(const TypeInfo& type_info) const -> llvmint::Type;
+			EVO_NODISCARD auto get_func_type(const BaseType::Function& func_type) const -> llvmint::FunctionType;
 
 			// TODO: make get_pointer_to_value a template?
 			EVO_NODISCARD auto get_concrete_value(const ASG::Expr& expr) -> llvmint::Value;

@@ -8,3 +8,8 @@ func set_num = (num: UI8* read) #pub -> Void {
 func set_num = (c_num: UI8* mut) #pub -> Void {
 	// do nothing
 }
+
+
+func get_num = () #pub -> UI8 {
+	return 1;
+}

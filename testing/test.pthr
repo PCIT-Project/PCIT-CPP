@@ -1,9 +1,13 @@
 
+func get_num = () -> UI8 {
+	return 1;
+}
+
 
 func entry = () #entry -> UI8 {
-	var foo: UI8 = 0;
-	var foo_ptr = &foo;
-	@import("test2.pthr").set_num(foo_ptr);
+	def test2 = @import("test2.pthr");
+	var bar = &test2.get_num;
+	var foo: UI8 = bar();
 
 	return (move foo);
 }

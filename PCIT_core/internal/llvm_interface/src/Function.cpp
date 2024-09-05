@@ -61,5 +61,9 @@ namespace pcit::llvmint{
 
 
 
+	Function::operator Value() const { return Value(static_cast<llvm::Value*>(this->native())); }
+
+
+
 	
 }

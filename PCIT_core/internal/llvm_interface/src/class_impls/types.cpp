@@ -14,6 +14,9 @@
 
 namespace pcit::llvmint{
 
+	FunctionType::operator Type() const {
+		return Type(static_cast<llvm::Type*>(this->native()));
+	}
 
 	IntegerType::operator Type() const {
 		return Type(static_cast<llvm::Type*>(this->native()));
