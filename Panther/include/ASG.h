@@ -484,6 +484,7 @@ namespace pcit::panther::ASG{
 		Token::ID ident;
 		TypeInfo::ID typeID;
 		Expr expr;
+		bool isConst:1;
 	};
 
 

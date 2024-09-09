@@ -57,6 +57,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getTokenBuffer() const -> const TokenBuffer& { return this->token_buffer; }
 			EVO_NODISCARD auto getASTBuffer() const -> const ASTBuffer& { return this->ast_buffer; }
 			EVO_NODISCARD auto getASGBuffer() const -> const ASGBuffer& { return this->asg_buffer; }
+			EVO_NODISCARD auto getGlobalScope() const -> const GlobalScope& { return this->global_scope; }
 
 
 		private:

@@ -327,9 +327,9 @@ namespace pcit::panther{
 		const Token::ID op_token_id = this->reader.next();
 		switch(this->reader[op_token_id].kind()){
 			case Token::lookupKind("="):
-			case Token::lookupKind("+="):  case Token::lookupKind("+@="):  case Token::lookupKind("+|="):
-			case Token::lookupKind("-="):  case Token::lookupKind("-@="):  case Token::lookupKind("-|="):
-			case Token::lookupKind("*="):  case Token::lookupKind("*@="):  case Token::lookupKind("*|="):
+			case Token::lookupKind("+="):  case Token::lookupKind("+%="):  case Token::lookupKind("+|="):
+			case Token::lookupKind("-="):  case Token::lookupKind("-%="):  case Token::lookupKind("-|="):
+			case Token::lookupKind("*="):  case Token::lookupKind("*%="):  case Token::lookupKind("*|="):
 			case Token::lookupKind("/="):  case Token::lookupKind("%="):
 			case Token::lookupKind("<<="): case Token::lookupKind("<<|="): case Token::lookupKind(">>="):
 			case Token::lookupKind("&="):  case Token::lookupKind("|="):   case Token::lookupKind("^="):
@@ -622,14 +622,14 @@ namespace pcit::panther{
 			case Token::lookupKind(">>"):  return 5;
 
 			case Token::lookupKind("+"):   return 6;
-			case Token::lookupKind("+@"):  return 6;
+			case Token::lookupKind("+%"):  return 6;
 			case Token::lookupKind("+|"):  return 6;
 			case Token::lookupKind("-"):   return 6;
-			case Token::lookupKind("-@"):  return 6;
+			case Token::lookupKind("-%"):  return 6;
 			case Token::lookupKind("-|"):  return 6;
 
 			case Token::lookupKind("*"):   return 7;
-			case Token::lookupKind("*@"):  return 7;
+			case Token::lookupKind("*%"):  return 7;
 			case Token::lookupKind("*|"):  return 7;
 			case Token::lookupKind("/"):   return 7;
 			case Token::lookupKind("%"):   return 7;

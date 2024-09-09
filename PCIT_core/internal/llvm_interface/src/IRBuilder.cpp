@@ -70,12 +70,17 @@ namespace pcit::llvmint{
 	}
 	
 	
-	auto IRBuilder::createLoad(const Value& value, const Type& type, evo::CStrProxy name) -> LoadInst {
-		return this->builder->CreateLoad(type.native(), value.native(), name.c_str());
+	auto IRBuilder::createLoad(const Value& value, const Type& type, bool is_volatile, evo::CStrProxy name)
+	-> LoadInst {
+		return this->builder->CreateLoad(type.native(), value.native(), is_volatile, name.c_str());
 	}
 
-	auto IRBuilder::createLoad(const Alloca& alloca, evo::CStrProxy name) -> LoadInst {
-		return this->createLoad(static_cast<llvmint::Value>(alloca), alloca.getAllocatedType(), name);
+	auto IRBuilder::createLoad(const Alloca& alloca, bool is_volatile, evo::CStrProxy name) -> LoadInst {
+		return this->createLoad(alloca.asValue(), alloca.getAllocatedType(), is_volatile, name);
+	}
+
+	auto IRBuilder::createLoad(const GlobalVariable& global_var, bool is_volatile, evo::CStrProxy name) -> LoadInst {
+		return this->createLoad(global_var.asValue(), global_var.getType(), is_volatile, name);
 	}
 
 

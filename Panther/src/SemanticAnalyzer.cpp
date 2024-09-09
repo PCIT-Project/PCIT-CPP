@@ -50,15 +50,9 @@ namespace pcit::panther{
 				} break;
 
 				case AST::Kind::VarDecl: {
-					// if(this->analyze_var_decl<true>(this->source.getASTBuffer().getVarDecl(global_stmt)) == false){
-					// 	return false;
-					// }
-					this->emit_error(
-						Diagnostic::Code::MiscUnimplementedFeature,
-						global_stmt,
-						"global variable declarations are currently unsupported"
-					);
-					return false;
+					if(this->analyze_var_decl<true>(this->source.getASTBuffer().getVarDecl(global_stmt)) == false){
+						return false;
+					}
 				} break;
 
 				case AST::Kind::FuncDecl: {
@@ -157,10 +151,14 @@ namespace pcit::panther{
 		}
 
 		evo::Result<ExprInfo> expr_info_result = [&](){
-			if(var_decl.kind == AST::VarDecl::Kind::Def){
+			if constexpr(IS_GLOBAL){
 				return this->analyze_expr<ExprValueKind::ConstEval>(*var_decl.value);
 			}else{
-				return this->analyze_expr<ExprValueKind::Runtime>(*var_decl.value);
+				if(var_decl.kind == AST::VarDecl::Kind::Def){
+					return this->analyze_expr<ExprValueKind::ConstEval>(*var_decl.value);
+				}else{
+					return this->analyze_expr<ExprValueKind::Runtime>(*var_decl.value);
+				}
 			}
 		}();
 		if(expr_info_result.isError()){ return false; }
@@ -261,14 +259,45 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
+		// attributes
+
+
+		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
+		for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			// TODO: check if attribute was already set
+			// if(attribute_str == "something"){
+
+			// }else{
+				this->emit_error(
+					Diagnostic::Code::SemaUnknownAttribute,
+					attribute.attribute,
+					std::format("Unknown variable attribute \"#{}\"", attribute_str)
+				);				
+			// }
+		}
+
+
+
+		///////////////////////////////////
 		// create
 
 		const ASG::Var::ID asg_var_id = this->source.asg_buffer.createVar(
-			var_decl.kind, var_decl.ident, *var_type_id, expr_info_result.value().expr.front()
+			var_decl.kind,
+			var_decl.ident,
+			*var_type_id,
+			expr_info_result.value().expr.front(),
+			var_decl.kind == AST::VarDecl::Kind::Const
 		);
 
 		this->get_current_scope_level().addVar(var_ident, asg_var_id);
-		this->get_current_func().stmts.emplace_back(asg_var_id);
+
+		if constexpr(IS_GLOBAL){
+			this->source.global_scope.addVar(var_decl, asg_var_id);
+		}else{
+			this->get_current_func().stmts.emplace_back(asg_var_id);
+		}
 		
 		return true;
 	};
@@ -474,15 +503,13 @@ namespace pcit::panther{
 					const std::string_view attribute_str =
 						this->source.getTokenBuffer()[attribute.attribute].getString();
 
+					// TODO: check for attribute reuse
 					if(attribute_str == "noAlias"){
 						this->emit_warning(
 							Diagnostic::Code::SemaUnknownAttribute,
 							attribute.attribute,
 							"Function parameter attribute \"#noAlias\" is not implemented yet - ignoring"
 						);
-
-					}else if(attribute_str == "mustLabel"){
-						is_must_label = true;						
 
 					}else if(attribute_str == "restrict"){
 						this->emit_error(
@@ -492,6 +519,9 @@ namespace pcit::panther{
 							Diagnostic::Info("Use \"#noAlias\" instead")
 						);
 						return evo::resultError;
+
+					}else if(attribute_str == "mustLabel"){
+						is_must_label = true;
 
 					}else{
 						this->emit_error(
@@ -2493,7 +2523,7 @@ namespace pcit::panther{
 				const TypeInfo& lhs_type = this->context.getTypeManager().getTypeInfo(
 					lhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
 				);
-				if(lhs_type.qualifiers().empty() || lhs_type.qualifiers().back().isPtr == false){
+				if(lhs_type.isPointer() == false){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidDerefRHS,
 						postfix.lhs,
@@ -3534,7 +3564,7 @@ namespace pcit::panther{
 						}
 
 					}else{
-						Diagnostic::Info("First defined here:", this->get_source_location(ident_id));
+						infos.emplace_back("First defined here:", this->get_source_location(ident_id));
 					}
 
 

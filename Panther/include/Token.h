@@ -117,13 +117,13 @@ namespace pcit::panther{
 				// assignment
 				Assign,             // =
 				AssignAdd,          // +=
-				AssignAddWrap,      // +@=
+				AssignAddWrap,      // +%=
 				AssignAddSat,       // +|=
 				AssignSub,          // -=
-				AssignSubWrap,      // -@=
+				AssignSubWrap,      // -%=
 				AssignSubSat,       // -|=
 				AssignMul,          // *=
-				AssignMulWrap,      // *@=
+				AssignMulWrap,      // *%=
 				AssignMulSat,       // *|=
 				AssignDiv,          // /=
 				AssignMod,          // %=
@@ -137,13 +137,13 @@ namespace pcit::panther{
 
 				// arithmetic
 				Plus,         // +
-				AddWrap,      // +@
+				AddWrap,      // +%
 				AddSat,       // +|
 				Minus,        // -
-				SubWrap,      // -@
+				SubWrap,      // -%
 				SubSat,       // -|
 				Asterisk,     // *
-				MulWrap,      // *@
+				MulWrap,      // *%
 				MulSat,       // *|
 				ForwardSlash, // /
 				Mod,          // %
@@ -280,11 +280,11 @@ namespace pcit::panther{
 				if(op_str == "..."){ return Kind::Ellipsis; }
 
 				if(op_str == "<<|"){ return Kind::ShiftLeftSat; }
-				if(op_str == "+@="){ return Kind::AssignAddWrap; }
+				if(op_str == "+%="){ return Kind::AssignAddWrap; }
 				if(op_str == "+|="){ return Kind::AssignAddSat; }
-				if(op_str == "-@="){ return Kind::AssignSubWrap; }
+				if(op_str == "-%="){ return Kind::AssignSubWrap; }
 				if(op_str == "-|="){ return Kind::AssignSubSat; }
-				if(op_str == "*@="){ return Kind::AssignMulWrap; }
+				if(op_str == "*%="){ return Kind::AssignMulWrap; }
 				if(op_str == "*|="){ return Kind::AssignMulSat; }
 				if(op_str == "<<="){ return Kind::AssignShiftLeft; }
 				if(op_str == ">>="){ return Kind::AssignShiftRight; }
@@ -302,11 +302,11 @@ namespace pcit::panther{
 				if(op_str == "|="){ return Kind::AssignBitwiseOr; }
 				if(op_str == "^="){ return Kind::AssignBitwiseXOr; }
 
-				if(op_str == "+@"){ return Kind::AddWrap; }
+				if(op_str == "+%"){ return Kind::AddWrap; }
 				if(op_str == "+|"){ return Kind::AddSat; }
-				if(op_str == "-@"){ return Kind::SubWrap; }
+				if(op_str == "-%"){ return Kind::SubWrap; }
 				if(op_str == "-|"){ return Kind::SubSat; }
-				if(op_str == "*@"){ return Kind::MulWrap; }
+				if(op_str == "*%"){ return Kind::MulWrap; }
 				if(op_str == "*|"){ return Kind::MulSat; }
 
 				if(op_str == "=="){ return Kind::Equal; }
@@ -461,13 +461,13 @@ namespace pcit::panther{
 					// assignment
 					break; case Kind::Assign:             return "=";
 					break; case Kind::AssignAdd:          return "+=";
-					break; case Kind::AssignAddWrap:      return "+@=";
+					break; case Kind::AssignAddWrap:      return "+%=";
 					break; case Kind::AssignAddSat:       return "+|=";
 					break; case Kind::AssignSub:          return "-=";
-					break; case Kind::AssignSubWrap:      return "-@=";
+					break; case Kind::AssignSubWrap:      return "-%=";
 					break; case Kind::AssignSubSat:       return "-|=";
 					break; case Kind::AssignMul:          return "*=";
-					break; case Kind::AssignMulWrap:      return "*@=";
+					break; case Kind::AssignMulWrap:      return "*%=";
 					break; case Kind::AssignMulSat:       return "*|=";
 					break; case Kind::AssignDiv:          return "/=";
 					break; case Kind::AssignMod:          return "%=";
@@ -480,13 +480,13 @@ namespace pcit::panther{
 
 					// arithmetic
 					break; case Kind::Plus:               return "+";
-					break; case Kind::AddWrap:            return "+@";
+					break; case Kind::AddWrap:            return "+%";
 					break; case Kind::AddSat:             return "+|";
 					break; case Kind::Minus:              return "-";
-					break; case Kind::SubWrap:            return "-@";
+					break; case Kind::SubWrap:            return "-%";
 					break; case Kind::SubSat:             return "-|";
 					break; case Kind::Asterisk:           return "*";
-					break; case Kind::MulWrap:            return "*@";
+					break; case Kind::MulWrap:            return "*%";
 					break; case Kind::MulSat:             return "*|";
 					break; case Kind::ForwardSlash:       return "/";
 					break; case Kind::Mod:                return "%";

@@ -115,5 +115,25 @@ namespace pcit::llvmint{
 	};
 
 
+
+
+	class GlobalVariable{
+		public:
+			GlobalVariable(llvm::GlobalVariable* native_type) : _native(native_type) {};
+			~GlobalVariable() = default;
+
+			EVO_NODISCARD auto getType() const -> Type;
+
+			EVO_NODISCARD explicit operator Value() const;
+			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
+			
+
+			EVO_NODISCARD auto native() const -> llvm::GlobalVariable* { return this->_native; }
+	
+		private:
+			llvm::GlobalVariable* _native;
+	};
+
+
 	
 }

@@ -22,6 +22,16 @@
 namespace pcit::panther{
 
 	auto ASGToLLVMIR::lower() -> void {
+		// lower variables
+		for(const Source::ID& source_id : this->context.getSourceManager()){
+			this->current_source = &this->context.getSourceManager()[source_id];
+
+			for(const GlobalScope::Var& global_var : this->current_source->getGlobalScope().getVars()){
+				this->lower_global_var(global_var.asg_var);
+			}
+		}
+
+		// lower func decls
 		for(const Source::ID& source_id : this->context.getSourceManager()){
 			this->current_source = &this->context.getSourceManager()[source_id];
 
@@ -30,6 +40,7 @@ namespace pcit::panther{
 			}
 		}
 
+		// lower func bodies
 		for(const Source::ID& source_id : this->context.getSourceManager()){
 			this->current_source = &this->context.getSourceManager()[source_id];
 
@@ -64,7 +75,83 @@ namespace pcit::panther{
 	}
 
 
-	auto ASGToLLVMIR::lower_func_decl(ASG::Func::ID func_id) -> void {
+
+
+
+	auto ASGToLLVMIR::lower_global_var(const ASG::Var::ID& var_id) -> void {
+		const ASG::Var& asg_var = this->current_source->getASGBuffer().getVar(var_id);
+
+		if(asg_var.kind == AST::VarDecl::Kind::Def){ return; } // make sure not to emit def variables
+
+		const llvmint::Type type = this->get_type(asg_var.typeID);
+
+		llvmint::GlobalVariable global_var = [&](){
+			if(asg_var.expr.kind() == ASG::Expr::Kind::Zeroinit) [[unlikely]] {
+				const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(asg_var.typeID);
+				evo::debugAssert(var_type_info.isPointer() == false, "cannot zeroinit a pointer");
+				evo::debugAssert(var_type_info.isOptionalNotPointer() == false, "not supported");
+
+				if(var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin){
+					return this->module.createGlobalZeroinit(
+						type, llvmint::LinkageType::Internal, asg_var.isConst, this->mangle_name(asg_var)
+					);
+				}
+
+				const BaseType::Builtin& var_builtin_type = this->context.getTypeManager().getBuiltin(
+					var_type_info.baseTypeID().builtinID()
+				);
+				
+				llvmint::Constant constant_value = [&](){
+					switch(var_builtin_type.kind()){
+						case Token::Kind::TypeInt:       case Token::Kind::TypeISize:      case Token::Kind::TypeI_N:
+						case Token::Kind::TypeUInt:      case Token::Kind::TypeUSize:      case Token::Kind::TypeUI_N:
+						case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
+						case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
+						case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: 
+						case Token::Kind::TypeCLongDouble: {
+							const auto integer_type = llvmint::IntegerType(
+								(llvm::IntegerType*)this->get_type(var_builtin_type).native()
+							);
+							return this->builder.getValueIntegral(integer_type, 0).asConstant();
+						} break;
+
+						case Token::Kind::TypeF16: case Token::Kind::TypeBF16: case Token::Kind::TypeF32:
+						case Token::Kind::TypeF64: case Token::Kind::TypeF80:  case Token::Kind::TypeF128: {
+							const llvmint::Type float_type = this->get_type(var_builtin_type);
+							return this->builder.getValueFloat(float_type, 0.0);
+						} break;
+
+						case Token::Kind::TypeByte: return this->builder.getValueI8(0).asConstant();
+						case Token::Kind::TypeBool: return this->builder.getValueBool(false).asConstant();
+						case Token::Kind::TypeChar: return this->builder.getValueI8(0).asConstant();
+						
+						default: evo::debugFatalBreak("Unknown or unsupported base-type kind");
+					}
+				}();
+
+				return this->module.createGlobal(
+					constant_value, type, llvmint::LinkageType::Internal, asg_var.isConst, this->mangle_name(asg_var)
+				);
+
+			}else if(asg_var.expr.kind() == ASG::Expr::Kind::Uninit) [[unlikely]] {
+				return this->module.createGlobalUninit(
+					type, llvmint::LinkageType::Internal, asg_var.isConst, this->mangle_name(asg_var)
+				);
+
+			}else{
+				const llvmint::Constant constant_value = this->get_constant_value(asg_var.expr);
+				return this->module.createGlobal(
+					constant_value, type, llvmint::LinkageType::Internal, asg_var.isConst, this->mangle_name(asg_var)
+				);
+			}
+		}();
+
+
+		this->var_infos.emplace(ASG::Var::LinkID(this->current_source->getID(), var_id), VarInfo(global_var));
+	}
+
+
+	auto ASGToLLVMIR::lower_func_decl(const ASG::Func::ID& func_id) -> void {
 		const ASG::Func& func = this->current_source->getASGBuffer().getFunc(func_id);
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.baseTypeID.funcID());
 
@@ -146,7 +233,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ASGToLLVMIR::lower_func_body(ASG::Func::ID func_id) -> void {
+	auto ASGToLLVMIR::lower_func_body(const ASG::Func::ID& func_id) -> void {
 		const ASG::Func& asg_func = this->current_source->getASGBuffer().getFunc(func_id);
 		this->current_func = &asg_func;
 
@@ -183,15 +270,15 @@ namespace pcit::panther{
 	}
 
 
-	auto ASGToLLVMIR::lower_var(const ASG::Var::ID var_id) -> void {
-		const ASG::Var& var = this->current_source->getASGBuffer().getVar(var_id);
+	auto ASGToLLVMIR::lower_var(const ASG::Var::ID& var_id) -> void {
+		const ASG::Var& asg_var = this->current_source->getASGBuffer().getVar(var_id);
 
 		const llvmint::Alloca var_alloca = this->builder.createAlloca(
-			this->get_type(var.typeID),
-			this->stmt_name("{}.alloca", this->current_source->getTokenBuffer()[var.ident].getString())
+			this->get_type(asg_var.typeID),
+			this->stmt_name("{}.alloca", this->current_source->getTokenBuffer()[asg_var.ident].getString())
 		);
 
-		switch(var.expr.kind()){
+		switch(asg_var.expr.kind()){
 			case ASG::Expr::Kind::Uninit: {
 				// do nothing
 			} break;
@@ -200,13 +287,13 @@ namespace pcit::panther{
 				this->builder.createMemSetInline(
 					var_alloca.asValue(),
 					this->builder.getValueI8(0).asValue(),
-					this->get_value_size(this->context.getTypeManager().sizeOf(var.typeID)).asValue(),
+					this->get_value_size(this->context.getTypeManager().sizeOf(asg_var.typeID)).asValue(),
 					false
 				);
 			} break;
 
 			default: {
-				this->builder.createStore(var_alloca, this->get_value(var.expr), false);
+				this->builder.createStore(var_alloca, this->get_value(asg_var.expr), false);
 			} break;
 		}
 
@@ -292,65 +379,7 @@ namespace pcit::panther{
 			case BaseType::Kind::Builtin: {
 				const BaseType::Builtin::ID builtin_id = type_info.baseTypeID().builtinID();
 				const BaseType::Builtin& builtin = this->context.getTypeManager().getBuiltin(builtin_id);
-
-				// TODO: select correct type based on target platform / architecture
-				switch(builtin.kind()){
-					case Token::Kind::TypeInt: case Token::Kind::TypeUInt: {
-						return this->builder.getTypeI_N(
-							evo::uint(this->context.getTypeManager().sizeOfGeneralRegister() * 8)
-						).asType();
-					} break;
-
-					case Token::Kind::TypeISize: case Token::Kind::TypeUSize:{
-						return this->builder.getTypeI_N(
-							evo::uint(this->context.getTypeManager().sizeOfPtr() * 8)
-						).asType();
-					} break;
-
-					case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
-						return this->builder.getTypeI_N(evo::uint(builtin.bitWidth())).asType();
-					} break;
-
-					case Token::Kind::TypeF16: return this->builder.getTypeF16();
-					case Token::Kind::TypeBF16: return this->builder.getTypeBF16();
-					case Token::Kind::TypeF32: return this->builder.getTypeF32();
-					case Token::Kind::TypeF64: return this->builder.getTypeF64();
-					case Token::Kind::TypeF80: return this->builder.getTypeF80();
-					case Token::Kind::TypeF128: return this->builder.getTypeF128();
-					case Token::Kind::TypeByte: return this->builder.getTypeI8().asType();
-					case Token::Kind::TypeBool: return this->builder.getTypeBool().asType();
-					case Token::Kind::TypeChar: return this->builder.getTypeI8().asType();
-					case Token::Kind::TypeRawPtr: return this->builder.getTypePtr().asType();
-
-					case Token::Kind::TypeCShort: case Token::Kind::TypeCUShort: 
-						return this->builder.getTypeI16().asType();
-
-					case Token::Kind::TypeCInt: case Token::Kind::TypeCUInt: {
-						if(this->context.getTypeManager().platform() == core::Platform::Windows){
-							return this->builder.getTypeI32().asType();
-						}else{
-							return this->builder.getTypeI64().asType();
-						}
-					} break;
-
-					case Token::Kind::TypeCLong: case Token::Kind::TypeCULong:
-						return this->builder.getTypeI32().asType();
-
-					case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
-						return this->builder.getTypeI64().asType();
-
-					case Token::Kind::TypeCLongDouble: {
-						if(this->context.getTypeManager().platform() == core::Platform::Windows){
-							return this->builder.getTypeF64();
-						}else{
-							return this->builder.getTypeF80();
-						}
-					} break;
-
-					default: evo::debugFatalBreak(
-						"Unknown or unsupported builtin-type: {}", evo::to_underlying(builtin.kind())
-					);
-				}
+				return this->get_type(builtin);
 			} break;
 
 			case BaseType::Kind::Function: {
@@ -360,6 +389,70 @@ namespace pcit::panther{
 
 		evo::debugFatalBreak("Unknown or unsupported builtin kind");
 	}
+
+
+	auto ASGToLLVMIR::get_type(const BaseType::Builtin& builtin) const -> llvmint::Type {
+		switch(builtin.kind()){
+			case Token::Kind::TypeInt: case Token::Kind::TypeUInt: {
+				return this->builder.getTypeI_N(
+					evo::uint(this->context.getTypeManager().sizeOfGeneralRegister() * 8)
+				).asType();
+			} break;
+
+			case Token::Kind::TypeISize: case Token::Kind::TypeUSize:{
+				return this->builder.getTypeI_N(
+					evo::uint(this->context.getTypeManager().sizeOfPtr() * 8)
+				).asType();
+			} break;
+
+			case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
+				return this->builder.getTypeI_N(evo::uint(builtin.bitWidth())).asType();
+			} break;
+
+			case Token::Kind::TypeF16: return this->builder.getTypeF16();
+			case Token::Kind::TypeBF16: return this->builder.getTypeBF16();
+			case Token::Kind::TypeF32: return this->builder.getTypeF32();
+			case Token::Kind::TypeF64: return this->builder.getTypeF64();
+			case Token::Kind::TypeF80: return this->builder.getTypeF80();
+			case Token::Kind::TypeF128: return this->builder.getTypeF128();
+			case Token::Kind::TypeByte: return this->builder.getTypeI8().asType();
+			case Token::Kind::TypeBool: return this->builder.getTypeBool().asType();
+			case Token::Kind::TypeChar: return this->builder.getTypeI8().asType();
+			case Token::Kind::TypeRawPtr: return this->builder.getTypePtr().asType();
+
+			case Token::Kind::TypeCShort: case Token::Kind::TypeCUShort: 
+				return this->builder.getTypeI16().asType();
+
+			case Token::Kind::TypeCInt: case Token::Kind::TypeCUInt: {
+				if(this->context.getTypeManager().platform() == core::Platform::Windows){
+					return this->builder.getTypeI32().asType();
+				}else{
+					return this->builder.getTypeI64().asType();
+				}
+			} break;
+
+			case Token::Kind::TypeCLong: case Token::Kind::TypeCULong:
+				return this->builder.getTypeI32().asType();
+
+			case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
+				return this->builder.getTypeI64().asType();
+
+			case Token::Kind::TypeCLongDouble: {
+				if(this->context.getTypeManager().platform() == core::Platform::Windows){
+					return this->builder.getTypeF64();
+				}else{
+					return this->builder.getTypeF80();
+				}
+			} break;
+
+			default: evo::debugFatalBreak(
+				"Unknown or unsupported builtin-type: {}", evo::to_underlying(builtin.kind())
+			);
+		}
+	}
+
+
+
 
 	auto ASGToLLVMIR::get_func_type(const BaseType::Function& func_type) const -> llvmint::FunctionType {
 		const bool has_named_returns = func_type.hasNamedReturns();
@@ -408,7 +501,17 @@ namespace pcit::panther{
 
 			case ASG::Expr::Kind::Var: {
 				const VarInfo& var_info = this->get_var_info(expr.varLinkID());
-				return var_info.alloca.asValue();
+				return var_info.value.visit([&](auto value) -> llvmint::Value {
+					using ValueT = std::decay_t<decltype(value)>;
+
+					if constexpr(std::is_same_v<ValueT, llvmint::Alloca>){
+						return value.asValue();
+					}else if constexpr(std::is_same_v<ValueT, llvmint::GlobalVariable>){
+						return value.asValue();
+					}else{
+						static_assert(false, "Unknown or unsupported var kind");
+					}
+				});
 			} break;
 
 			case ASG::Expr::Kind::Func: {
@@ -428,7 +531,9 @@ namespace pcit::panther{
 					return param_info.alloca.asValue();
 
 				}else{
-					return this->builder.createLoad(param_info.alloca, this->stmt_name("param.ptr_lookup")).asValue();
+					return this->builder.createLoad(
+						param_info.alloca, false, this->stmt_name("param.ptr_lookup")
+					).asValue();
 				}
 			} break;
 
@@ -519,7 +624,9 @@ namespace pcit::panther{
 				const llvmint::Value value = this->get_value(deref_expr.expr, false);
 				if(get_pointer_to_value){ return value; }
 
-				return this->builder.createLoad(value, this->get_type(deref_expr.typeID)).asValue();
+				return this->builder.createLoad(
+					value, this->get_type(deref_expr.typeID), false, this->stmt_name("DEREF")
+				).asValue();
 			} break;
 
 			case ASG::Expr::Kind::AddrOf: {
@@ -542,12 +649,22 @@ namespace pcit::panther{
 			case ASG::Expr::Kind::Var: {
 				const VarInfo& var_info = this->get_var_info(expr.varLinkID());
 				if(get_pointer_to_value){
-					return var_info.alloca.asValue();
+					return var_info.value.visit([&](auto value) -> llvmint::Value {
+						using ValueT = std::decay_t<decltype(value)>;
+
+						if constexpr(std::is_same_v<ValueT, llvmint::Alloca>){
+							return value.asValue();
+						}else if constexpr(std::is_same_v<ValueT, llvmint::GlobalVariable>){
+							return value.asValue();
+						}else{
+							static_assert(false, "Unknown or unsupported var kind");
+						}
+					});
 				}
 
-				const llvmint::LoadInst load_inst = this->builder.createLoad(
-					var_info.alloca, this->stmt_name("VAR.load")
-				);
+				const llvmint::LoadInst load_inst = var_info.value.visit([&](auto value) -> llvmint::LoadInst {
+					return this->builder.createLoad(value, false, this->stmt_name("VAR.load"));
+				});
 				return load_inst.asValue();
 			} break;
 
@@ -568,19 +685,21 @@ namespace pcit::panther{
 					if(get_pointer_to_value){
 						return param_info.alloca.asValue();
 					}else{
-						return this->builder.createLoad(param_info.alloca, this->stmt_name("PARAM.load")).asValue();
+						return this->builder.createLoad(
+							param_info.alloca, false, this->stmt_name("PARAM.load")
+						).asValue();
 					}
 
 				}else{
 					const llvmint::LoadInst load_inst = this->builder.createLoad(
-						param_info.alloca, this->stmt_name("PARAM.ptr_lookup")
+						param_info.alloca, false, this->stmt_name("PARAM.ptr_lookup")
 					);
 
 					if(get_pointer_to_value) [[unlikely]] {
 						return load_inst.asValue();
 					}else{
 						return this->builder.createLoad(
-							load_inst.asValue(), param_info.type, this->stmt_name("PARAM.load")
+							load_inst.asValue(), param_info.type, false, this->stmt_name("PARAM.load")
 						).asValue();
 					}
 				}
@@ -593,7 +712,7 @@ namespace pcit::panther{
 					return ret_param_info.arg.asValue();
 				}else{
 					const llvmint::LoadInst load_inst = this->builder.createLoad(
-						ret_param_info.arg.asValue(), ret_param_info.type, this->stmt_name("RET_PARAM.load")
+						ret_param_info.arg.asValue(), ret_param_info.type, false, this->stmt_name("RET_PARAM.load")
 					);
 					return load_inst.asValue();
 				}
@@ -602,6 +721,58 @@ namespace pcit::panther{
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported expr kind");
+	}
+
+
+	auto ASGToLLVMIR::get_constant_value(const ASG::Expr& expr) -> llvmint::Constant {
+		switch(expr.kind()){
+			case ASG::Expr::Kind::LiteralInt: {
+				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
+				const ASG::LiteralInt& literal_int = asg_buffer.getLiteralInt(expr.literalIntID());
+
+				const llvmint::Type literal_type = this->get_type(*literal_int.typeID);
+				const auto integer_type = llvmint::IntegerType((llvm::IntegerType*)literal_type.native());
+				return this->builder.getValueIntegral(integer_type, literal_int.value).asConstant();
+			} break;
+
+			case ASG::Expr::Kind::LiteralFloat: {
+				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
+				const ASG::LiteralFloat& literal_float = asg_buffer.getLiteralFloat(expr.literalFloatID());
+
+				const llvmint::Type literal_type = this->get_type(*literal_float.typeID);
+				return this->builder.getValueFloat(literal_type, literal_float.value);
+			} break;
+
+			case ASG::Expr::Kind::LiteralBool: {
+				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
+				const bool bool_value = asg_buffer.getLiteralBool(expr.literalBoolID()).value;
+
+				return this->builder.getValueBool(bool_value).asConstant();
+			} break;
+
+			case ASG::Expr::Kind::LiteralChar: {
+				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
+				const char char_value = asg_buffer.getLiteralChar(expr.literalCharID()).value;
+
+				return this->builder.getValueI8(uint8_t(char_value)).asConstant();
+			} break;
+
+			case ASG::Expr::Kind::Uninit:
+			case ASG::Expr::Kind::Zeroinit:
+			case ASG::Expr::Kind::Copy:
+			case ASG::Expr::Kind::Move:
+			case ASG::Expr::Kind::FuncCall:
+			case ASG::Expr::Kind::AddrOf:
+			case ASG::Expr::Kind::Deref:
+			case ASG::Expr::Kind::Var:
+			case ASG::Expr::Kind::Func:
+			case ASG::Expr::Kind::Param:
+			case ASG::Expr::Kind::ReturnParam:
+				evo::debugFatalBreak("Cannot get constant value from this ASG::Expr kind");
+		}
+
+		// to statisfy MSVC warning C4715
+		evo::unreachable();
 	}
 
 
@@ -652,7 +823,9 @@ namespace pcit::panther{
 
 			for(size_t i = func_type.params().size(); i < args.size(); i+=1){
 				return_values.emplace_back(
-					this->builder.createLoad(args[i], this->get_type(func_type.returnParams().front().typeID)).asValue()
+					this->builder.createLoad(
+						args[i], this->get_type(func_type.returnParams().front().typeID), false
+					).asValue()
 				);
 			}
 
@@ -687,6 +860,12 @@ namespace pcit::panther{
 			this->submangle_parent(func.parent),
 			this->get_func_ident_name(func)
 		);
+	}
+
+	auto ASGToLLVMIR::mangle_name(const ASG::Var& var) const -> std::string {
+		const std::string_view var_ident = this->current_source->getTokenBuffer()[var.ident].getString();
+
+		return std::format("PTHR.{}.{}", this->current_source->getID().get(), var_ident);
 	}
 
 

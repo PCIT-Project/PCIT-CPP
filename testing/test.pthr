@@ -1,14 +1,7 @@
-
-func get_num = () -> UI8 {
-	return 1;
-}
+def foo: UI8 = zeroinit;
+const bar: UI8 = foo;
 
 
 func entry = () #entry -> UI8 {
-	def test2 = @import("test2.pthr");
-	var bar = &test2.get_num;
-	var foo: UI8 = bar();
-
-	return (move foo);
+	return copy bar;
 }
-

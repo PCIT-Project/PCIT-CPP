@@ -20,11 +20,11 @@
 namespace pcit::llvmint{
 
 	Module::Module(std::string_view name, LLVMContext& context){
-		this->native = new llvm::Module(llvm::StringRef(name), *context.native());
+		this->_native = new llvm::Module(llvm::StringRef(name), *context.native());
 	}
 	
 	Module::~Module(){
-		delete this->native;
+		delete this->_native;
 	}
 
 
@@ -34,7 +34,7 @@ namespace pcit::llvmint{
 
 
 	auto Module::setTargetTriple(const std::string& target_triple) -> void {
-		this->native->setTargetTriple(target_triple);
+		this->_native->setTargetTriple(target_triple);
 	}
 
 	auto Module::setDataLayout(
@@ -95,9 +95,52 @@ namespace pcit::llvmint{
 			target_triple, cpu, features, target_options, reloc_model, code_model, code_gen_opt_level, is_jit
 		);
 
-		this->native->setDataLayout(target_machine->createDataLayout());
+		this->native()->setDataLayout(target_machine->createDataLayout());
 
 		return error_msg;
+	}
+
+
+	auto Module::createFunction(
+		evo::CStrProxy name, const FunctionType& prototype, llvmint::LinkageType linkage
+	) -> Function {
+		return Function(llvm::Function::Create(
+			prototype.native(), static_cast<llvm::GlobalValue::LinkageTypes>(linkage), name.c_str(), this->native()
+		));
+	};
+
+
+	auto Module::createGlobal(
+		const llvmint::Constant& value,
+		const llvmint::Type& type,
+		llvmint::LinkageType linkage,
+		bool is_constant,
+		evo::CStrProxy name
+	) -> llvmint::GlobalVariable {
+		// this gets freed automatically in the destructor of the module
+		llvm::GlobalVariable* global = new llvm::GlobalVariable(
+			*this->native(),
+			type.native(),
+			is_constant,
+			static_cast<llvm::GlobalValue::LinkageTypes>(linkage),
+			value.native(),
+			name.c_str()
+		);
+
+
+		return llvmint::GlobalVariable(global);
+	}
+
+	auto Module::createGlobalUninit(
+		const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name
+	) -> llvmint::GlobalVariable {
+		return this->createGlobal(llvm::UndefValue::get(type.native()), type, linkage, is_constant, name);
+	}
+
+	auto Module::createGlobalZeroinit(
+		const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name
+	) -> llvmint::GlobalVariable {
+		return this->createGlobal(llvm::ConstantAggregateZero::get(type.native()), type, linkage, is_constant, name);
 	}
 
 
@@ -105,25 +148,15 @@ namespace pcit::llvmint{
 		auto data = llvm::SmallVector<char>();
 		auto stream = llvm::raw_svector_ostream(data);
 
-		this->native->print(stream, nullptr);
+		this->native()->print(stream, nullptr);
 
 		const llvm::StringRef str_ref = stream.str(); 
 		return str_ref.str();
 	}
 
-
-
-	auto Module::createFunction(
-		evo::CStrProxy name, const FunctionType& prototype, llvmint::LinkageType linkage
-	) -> Function {
-		return Function(llvm::Function::Create(
-			prototype.native(), static_cast<llvm::GlobalValue::LinkageTypes>(linkage), name.c_str(), this->native
-		));
-	};
-
 		
 	auto Module::get_clone() const -> std::unique_ptr<llvm::Module> {
-		return llvm::CloneModule(*this->native);
+		return llvm::CloneModule(*this->_native);
 	};
 
 }

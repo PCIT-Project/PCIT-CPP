@@ -58,10 +58,6 @@ namespace pcit::llvmint{
 			~Module();
 
 
-			EVO_NODISCARD auto createFunction(evo::CStrProxy name, const FunctionType& prototype, LinkageType linkage) 
-				-> Function;
-
-
 			EVO_NODISCARD auto getDefaultTargetTriple() -> std::string;
 
 			auto setTargetTriple(const std::string& target_triple) -> void;
@@ -73,6 +69,28 @@ namespace pcit::llvmint{
 				OptLevel opt_level    = OptLevel::Default,
 				bool is_jit           = false
 			) -> std::string; // returns error message (empty if no error)
+
+
+			EVO_NODISCARD auto createFunction(evo::CStrProxy name, const FunctionType& prototype, LinkageType linkage) 
+				-> Function;
+
+
+			EVO_NODISCARD auto createGlobal(
+				const llvmint::Constant& value,
+				const llvmint::Type& type,
+				llvmint::LinkageType linkage,
+				bool is_constant,
+				evo::CStrProxy name = '\0'
+			) -> llvmint::GlobalVariable;
+
+			EVO_NODISCARD auto createGlobalUninit(
+				const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
+			) -> llvmint::GlobalVariable;
+
+			EVO_NODISCARD auto createGlobalZeroinit(
+				const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
+			) -> llvmint::GlobalVariable;
+
 
 
 			EVO_NODISCARD auto print() const -> std::string;
@@ -101,8 +119,8 @@ namespace pcit::llvmint{
 			};
 			
 
-			EVO_NODISCARD auto getNative() const -> const llvm::Module* { return this->native; }
-			EVO_NODISCARD auto getNative()       ->       llvm::Module* { return this->native; }
+			EVO_NODISCARD auto native() const -> const llvm::Module* { return this->_native; }
+			EVO_NODISCARD auto native()       ->       llvm::Module* { return this->_native; }
 
 
 		private:
@@ -110,7 +128,7 @@ namespace pcit::llvmint{
 
 	
 		private:
-			llvm::Module* native;
+			llvm::Module* _native;
 			llvm::TargetMachine* target_machine = nullptr;
 
 			friend class ExecutionEngine;

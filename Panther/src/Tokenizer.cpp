@@ -420,14 +420,14 @@ namespace pcit::panther{
 							return true;
 						} break;
 
-						case '@': {
+						case '%': {
 							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("+@="));
-								this->create_token(Token::lookupKind("+@="));
+								this->char_stream.skip(evo::stringSize("+%="));
+								this->create_token(Token::lookupKind("+%="));
 								return true;
 							}else{
-								this->char_stream.skip(evo::stringSize("+@"));
-								this->create_token(Token::lookupKind("+@"));
+								this->char_stream.skip(evo::stringSize("+%"));
+								this->create_token(Token::lookupKind("+%"));
 								return true;
 							}
 						} break;
@@ -466,14 +466,14 @@ namespace pcit::panther{
 							return true;
 						} break;
 
-						case '@': {
+						case '%': {
 							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("-@="));
-								this->create_token(Token::lookupKind("-@="));
+								this->char_stream.skip(evo::stringSize("-%="));
+								this->create_token(Token::lookupKind("-%="));
 								return true;
 							}else{
-								this->char_stream.skip(evo::stringSize("-@"));
-								this->create_token(Token::lookupKind("-@"));
+								this->char_stream.skip(evo::stringSize("-%"));
+								this->create_token(Token::lookupKind("-%"));
 								return true;
 							}
 						} break;
@@ -507,14 +507,14 @@ namespace pcit::panther{
 							return true;
 						} break;
 
-						case '@': {
+						case '%': {
 							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("*@="));
-								this->create_token(Token::lookupKind("*@="));
+								this->char_stream.skip(evo::stringSize("*%="));
+								this->create_token(Token::lookupKind("*%="));
 								return true;
 							}else{
-								this->char_stream.skip(evo::stringSize("*@"));
-								this->create_token(Token::lookupKind("*@"));
+								this->char_stream.skip(evo::stringSize("*%"));
+								this->create_token(Token::lookupKind("*%"));
 								return true;
 							}
 						} break;

@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.33.0
+
+### Panther
+- Added global variables
+- Added checking of valid variable attributes
+- Fixed identifier re-declaration diagnostic not always adding the "First defined here" info
+- changed wrapping arithmetic operator syntax from `@` to `%`
+	- `+@` -> `+%`
+	- `+@=` -> `+%=`
+	- `-@` -> `-%`
+	- `-@=` -> `-%=`
+	- `*@` -> `*%`
+	- `*@=` -> `*%=`
+
+
+<!---------------------------------->
 ## v0.0.32.0
 
 ### Panther

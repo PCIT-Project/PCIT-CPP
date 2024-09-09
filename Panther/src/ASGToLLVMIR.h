@@ -40,11 +40,13 @@ namespace pcit::panther{
 
 
 		private:
-			auto lower_func_decl(ASG::Func::ID func_id) -> void;
-			auto lower_func_body(ASG::Func::ID func_id) -> void;
+			auto lower_global_var(const ASG::Var::ID& var_id) -> void;
+
+			auto lower_func_decl(const ASG::Func::ID& func_id) -> void;
+			auto lower_func_body(const ASG::Func::ID& func_id) -> void;
 
 			auto lower_stmt(const ASG::Stmt& stmt) -> void;
-			auto lower_var(const ASG::Var::ID var_id) -> void;
+			auto lower_var(const ASG::Var::ID& var_id) -> void;
 			auto lower_func_call(const ASG::FuncCall& func_call) -> void;
 			auto lower_assign(const ASG::Assign& assign) -> void;
 			auto lower_multi_assign(const ASG::MultiAssign& multi_assign) -> void;
@@ -55,18 +57,23 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID& type_info_voidable_id) const -> llvmint::Type;
 			EVO_NODISCARD auto get_type(const TypeInfo::ID& type_info_id) const -> llvmint::Type;
 			EVO_NODISCARD auto get_type(const TypeInfo& type_info) const -> llvmint::Type;
+			EVO_NODISCARD auto get_type(const BaseType::Builtin& builtin) const -> llvmint::Type;
+
 			EVO_NODISCARD auto get_func_type(const BaseType::Function& func_type) const -> llvmint::FunctionType;
 
 			// TODO: make get_pointer_to_value a template?
 			EVO_NODISCARD auto get_concrete_value(const ASG::Expr& expr) -> llvmint::Value;
 			EVO_NODISCARD auto get_value(const ASG::Expr& expr, bool get_pointer_to_value = false) -> llvmint::Value;
+			EVO_NODISCARD auto get_constant_value(const ASG::Expr& expr) -> llvmint::Constant;
 			EVO_NODISCARD auto lower_returning_func_call(const ASG::FuncCall& func_call, bool get_pointer_to_value)
 				-> evo::SmallVector<llvmint::Value>;
 
 
 			EVO_NODISCARD auto mangle_name(const ASG::Func& func) const -> std::string;
+			EVO_NODISCARD auto mangle_name(const ASG::Var& var) const -> std::string;
 			EVO_NODISCARD auto submangle_parent(const ASG::Parent& parent) const -> std::string;
 			EVO_NODISCARD auto get_func_ident_name(const ASG::Func& func) const -> std::string;
+			EVO_NODISCARD auto get_var_ident_name(const ASG::Var& func) const -> std::string;
 
 			template<class... Args>
 			EVO_NODISCARD auto stmt_name(std::format_string<Args...> fmt, Args&&... args) const -> std::string;
@@ -78,7 +85,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_func_info(ASG::Func::LinkID link_id) const -> const FuncInfo&;
 
 			struct VarInfo{
-				llvmint::Alloca alloca;
+				evo::Variant<llvmint::Alloca, llvmint::GlobalVariable> value;
 			};
 			EVO_NODISCARD auto get_var_info(ASG::Var::LinkID link_id) const -> const VarInfo&;
 

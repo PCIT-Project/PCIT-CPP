@@ -218,6 +218,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto qualifiers() const -> evo::ArrayProxy<AST::Type::Qualifier> { return this->_qualifiers; }
 
 			EVO_NODISCARD auto operator==(const TypeInfo&) const -> bool = default;
+
+			EVO_NODISCARD auto isPointer() const -> bool {
+				return this->qualifiers().empty() == false && this->qualifiers().back().isPtr;
+			}
+
+			EVO_NODISCARD auto isOptionalNotPointer() const -> bool {
+				return this->qualifiers().empty() == false      && 
+				       this->qualifiers().back().isPtr == false &&
+				       this->qualifiers().back().isOptional;
+			}
 	
 		private:
 			BaseType::ID base_type;
