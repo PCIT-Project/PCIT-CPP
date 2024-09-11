@@ -59,6 +59,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool;
 
 			EVO_NODISCARD auto analyze_block(const AST::Block& block) -> bool;
+			EVO_NODISCARD auto analyze_local_scope_block(const AST::Block& block) -> bool;
 
 
 			EVO_NODISCARD auto analyze_stmt(const AST::Node& node) -> bool;

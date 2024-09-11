@@ -755,6 +755,14 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::analyze_local_scope_block(const AST::Block& block) -> bool {
+		this->scope.pushLevel(this->context.getScopeManager().createLevel());
+		EVO_DEFER([&](){ this->scope.popLevel(); });
+
+		return this->analyze_block(block);
+	}
+
+
 
 
 	auto SemanticAnalyzer::analyze_stmt(const AST::Node& node) -> bool {
@@ -807,10 +815,7 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::Block: {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature, node, "This stmt kind is currently unsupported"
-				);
-				return false;
+				return this->analyze_local_scope_block(ast_buffer.getBlock(node));
 			} break;
 
 

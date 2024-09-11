@@ -1,7 +1,8 @@
-def foo: UI8 = zeroinit;
-const bar: UI8 = foo;
-
 
 func entry = () #entry -> UI8 {
-	return copy bar;
+	{
+		var foo: Int = 12;
+	}
+
+	return (move foo);
 }

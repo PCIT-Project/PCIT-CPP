@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.34.0
+
+### Panther
+- Added local scope statement blocks
+
+
+<!---------------------------------->
 ## v0.0.33.0
 
 ### Panther
