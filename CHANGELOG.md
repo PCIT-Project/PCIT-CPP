@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.35.0
+
+### Panther
+- Added `when` conditionals (compile time conditionals - doesn't open a new scope)
+- Added parsing of `if` conditionals
+
+### Misc
+- Improved README
+
+
+<!---------------------------------->
 ## v0.0.34.0
 
 ### Panther

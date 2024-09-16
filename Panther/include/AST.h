@@ -30,6 +30,8 @@ namespace pcit::panther::AST{
 		AliasDecl,
 
 		Return,
+		Conditional,
+		WhenConditional,
 
 		Block,
 		FuncCall,
@@ -171,6 +173,20 @@ namespace pcit::panther::AST{
 		Token::ID keyword;
 		std::optional<Node> label;
 		evo::Variant<std::monostate, Node, Token::ID> value; // std::monostate == return; Token::ID == return...;
+	};
+
+	struct Conditional{
+		Token::ID keyword;
+		Node cond;
+		Node thenBlock;
+		std::optional<Node> elseBlock;
+	};
+
+	struct WhenConditional{
+		Token::ID keyword;
+		Node cond;
+		Node thenBlock;
+		std::optional<Node> elseBlock;
 	};
 
 	struct Block{

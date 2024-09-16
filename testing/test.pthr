@@ -1,16 +1,24 @@
 
-func entry = () #entry -> UI8 {
-	var foo = {->foo_label<{UI8}>
-		return->foo_label 12;
-	};
-	
-	// var foo = {->foo_label
-	// 	var bar: UI8 = {->bar_label
-	// 		return->bar_label = 12;
-	// 	}; 
+when(true){
+	def COND: Bool = true;
+}else{
+	def COND: Bool = false;
+}
 
-	// 	return->foo_label (move bar);
-	// };
+
+func get_return_code = <{TEMPL_COND: Bool}> () -> UI8 {
+	when(TEMPL_COND){
+		var foo: UI8 = 12;
+	}else when(true){
+		var foo: UI8 = 14;
+	}else{
+		// cause a error (foo undefined)
+	}
 
 	return (move foo);
+}
+
+
+func entry = () #entry -> UI8 {
+	return get_return_code<{COND}>();
 }

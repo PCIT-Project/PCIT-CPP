@@ -52,6 +52,8 @@ namespace pcit::panther{
 			case Token::Kind::KeywordFunc:   return this->parse_func_decl();
 			case Token::Kind::KeywordAlias:  return this->parse_alias_decl();
 			case Token::Kind::KeywordReturn: return this->parse_return();
+			case Token::Kind::KeywordIf:     return this->parse_conditional<false>();
+			case Token::Kind::KeywordWhen:   return this->parse_conditional<true>();
 		}
 
 		Result result = this->parse_assignment();
@@ -221,6 +223,90 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createReturn(start_location, label, expr);
+	}
+
+
+	template<bool IS_WHEN>
+	auto Parser::parse_conditional() -> Result {
+		const Token::ID keyword_token_id = this->reader.peek();
+
+		static constexpr Token::Kind COND_TOKEN_KIND = IS_WHEN ? Token::Kind::KeywordWhen : Token::Kind::KeywordIf;
+		if(this->assert_token_fail(COND_TOKEN_KIND)){ return Result::Code::Error; }
+
+
+		if(this->expect_token_fail(Token::lookupKind("("), "in conditional statement")){ return Result::Code::Error; }
+
+		const Result cond = this->parse_expr();
+
+		if(this->expect_token_fail(Token::lookupKind(")"), "in conditional statement")){ return Result::Code::Error; }
+
+		const Result then_block = this->parse_block(BlockLabelRequirement::NotAllowed);
+		if(this->check_result_fail(then_block, "statement block in conditional statement")){
+			return Result::Code::Error;
+		}
+
+		auto else_block = std::optional<AST::Node>();
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::KeywordElse){
+			if(this->assert_token_fail(Token::Kind::KeywordElse)){ return Result::Code::Error; }
+
+			const Token::Kind else_if_kind = this->reader[this->reader.peek()].kind();
+
+			if(else_if_kind == Token::lookupKind("{")){
+				const Result else_block_result = this->parse_block(BlockLabelRequirement::NotAllowed);
+				if(this->check_result_fail(else_block_result, "statement block in conditional statement")){
+					return Result::Code::Error;
+				}
+
+				else_block = else_block_result.value();
+
+			}else if(else_if_kind != COND_TOKEN_KIND){
+				if constexpr(IS_WHEN){
+					if(else_if_kind == Token::Kind::KeywordIf){
+						this->expected_but_got(
+							"[when] after [else]",
+							this->reader.peek(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Cannot mix [if] and [when] in a chain"), // TODO: better messaging
+							}
+						);
+					}else{
+						this->expected_but_got("[when] or [{] after [else]", this->reader.peek());
+					}
+				}else{
+					if(else_if_kind == Token::Kind::KeywordWhen){
+						this->expected_but_got(
+							"[if] after [else]",
+							this->reader.peek(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Cannot mix [if] and [when] in a chain"), // TODO: better messaging
+							}
+						);
+					}else{
+						this->expected_but_got("[if] or [{] after [else]", this->reader.peek());
+					}
+				}
+				return Result::Code::Error;
+
+			}else{
+				const Result else_block_result = this->parse_conditional<IS_WHEN>();
+				if(this->check_result_fail(else_block_result, "statement block in conditional statement")){
+					return Result::Code::Error;
+				}
+
+				else_block = else_block_result.value();
+			}
+		}
+
+
+		if constexpr(IS_WHEN){
+			return this->source.ast_buffer.createWhenConditional(
+				keyword_token_id, cond.value(), then_block.value(), else_block
+			);
+		}else{
+			return this->source.ast_buffer.createConditional(
+				keyword_token_id, cond.value(), then_block.value(), else_block
+			);
+		}
 	}
 
 

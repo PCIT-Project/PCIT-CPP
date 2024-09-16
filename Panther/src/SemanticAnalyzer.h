@@ -44,6 +44,8 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// analyze
 
+			auto analyze_global_declaration(const AST::Node& global_stmt) -> bool;
+
 			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto analyze_var_decl(const AST::VarDecl& var_decl) -> bool;
 
@@ -55,6 +57,9 @@ namespace pcit::panther{
 			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool;
 
+			template<bool IS_GLOBAL>
+			EVO_NODISCARD auto analyze_when_conditional(const AST::WhenConditional& when_conditional) -> bool;
+			EVO_NODISCARD auto analyze_conditional(const AST::Conditional& conditional) -> bool;
 
 			EVO_NODISCARD auto analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool;
 
@@ -335,54 +340,77 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_source_location(const AST::VarDecl& var_decl) const -> SourceLocation {
 				return this->get_source_location(var_decl, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::FuncDecl& func_decl, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::FuncDecl& func_decl) const -> SourceLocation {
 				return this->get_source_location(func_decl, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::AliasDecl& alias_decl, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::AliasDecl& alias_decl) const -> SourceLocation {
 				return this->get_source_location(alias_decl, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt) const -> SourceLocation {
 				return this->get_source_location(return_stmt, this->source);
 			}
+
+			EVO_NODISCARD auto get_source_location(const AST::Conditional& conditional, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Conditional& conditional) const -> SourceLocation {
+				return this->get_source_location(conditional, this->source);
+			}
+
+			EVO_NODISCARD auto get_source_location(const AST::WhenConditional& when_cond, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::WhenConditional& when_cond) const -> SourceLocation {
+				return this->get_source_location(when_cond, this->source);
+			}
+
 			EVO_NODISCARD auto get_source_location(const AST::Block& block, const Source& src) const -> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::Block& block) const -> SourceLocation {
 				return this->get_source_location(block, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::FuncCall& func_call, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::FuncCall& func_call) const -> SourceLocation {
 				return this->get_source_location(func_call, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::TemplatedExpr& templated_expr, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::TemplatedExpr& templated_expr) const -> SourceLocation {
 				return this->get_source_location(templated_expr, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::Prefix& prefix, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::Prefix& prefix) const -> SourceLocation {
 				return this->get_source_location(prefix, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::Infix& infix, const Source& src) const -> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::Infix& infix) const -> SourceLocation {
 				return this->get_source_location(infix, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::Postfix& postfix, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::Postfix& postfix) const -> SourceLocation {
 				return this->get_source_location(postfix, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::MultiAssign& multi_assign, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::MultiAssign& multi_assign) const -> SourceLocation {
 				return this->get_source_location(multi_assign, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::Type& type) const -> SourceLocation {
 				return this->get_source_location(type, this->source);

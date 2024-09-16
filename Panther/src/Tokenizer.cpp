@@ -211,6 +211,10 @@ namespace pcit::panther{
 		{"move",     Token::Kind::KeywordMove},
 		{"as",       Token::Kind::KeywordAs},
 
+		{"if",       Token::Kind::KeywordIf},
+		{"else",     Token::Kind::KeywordElse},
+		{"when",     Token::Kind::KeywordWhen},
+
 		// discard
 		{"_", Token::lookupKind("_")},
 	};

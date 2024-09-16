@@ -118,6 +118,26 @@ namespace pcit::panther{
 				return this->returns[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createConditional(auto&&... args) -> AST::Node {
+				const uint32_t node_index = uint32_t(this->conditionals.size());
+				this->conditionals.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::Conditional, node_index);
+			}
+			EVO_NODISCARD auto getConditional(const AST::Node& node) const -> const AST::Conditional& {
+				evo::debugAssert(node.kind() == AST::Kind::Conditional, "Node is not a Conditional");
+				return this->conditionals[node._value.node_index];
+			}
+
+			EVO_NODISCARD auto createWhenConditional(auto&&... args) -> AST::Node {
+				const uint32_t node_index = uint32_t(this->when_conditionals.size());
+				this->when_conditionals.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::WhenConditional, node_index);
+			}
+			EVO_NODISCARD auto getWhenConditional(const AST::Node& node) const -> const AST::WhenConditional& {
+				evo::debugAssert(node.kind() == AST::Kind::WhenConditional, "Node is not a WhenConditional");
+				return this->when_conditionals[node._value.node_index];
+			}
+
 
 			EVO_NODISCARD auto createBlock(auto&&... args) -> AST::Node {
 				const uint32_t node_index = uint32_t(this->blocks.size());
@@ -125,7 +145,7 @@ namespace pcit::panther{
 				return AST::Node(AST::Kind::Block, node_index);
 			}
 			EVO_NODISCARD auto getBlock(const AST::Node& node) const -> const AST::Block& {
-				evo::debugAssert(node.kind() == AST::Kind::Block, "Node is not a VarDecl");
+				evo::debugAssert(node.kind() == AST::Kind::Block, "Node is not a Block");
 				return this->blocks[node._value.node_index];
 			}
 
@@ -234,6 +254,8 @@ namespace pcit::panther{
 			evo::SmallVector<AST::AliasDecl> alias_decls{};
 
 			evo::SmallVector<AST::Return> returns{};
+			evo::SmallVector<AST::Conditional> conditionals{};
+			evo::SmallVector<AST::WhenConditional> when_conditionals{};
 
 			evo::SmallVector<AST::Block> blocks{};
 			evo::SmallVector<AST::FuncCall> func_calls{};

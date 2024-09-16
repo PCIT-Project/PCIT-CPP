@@ -38,63 +38,7 @@ namespace pcit::panther{
 	
 	auto SemanticAnalyzer::analyze_global_declarations() -> bool {
 		for(const AST::Node& global_stmt : this->source.getASTBuffer().getGlobalStmts()){
-
-			switch(global_stmt.kind()){
-				case AST::Kind::None: {
-					this->emit_fatal(
-						Diagnostic::Code::SemaEncounteredASTKindNone,
-						std::nullopt,
-						Diagnostic::createFatalMessage("Encountered AST node kind of None")
-					);
-					return false;
-				} break;
-
-				case AST::Kind::VarDecl: {
-					if(this->analyze_var_decl<true>(this->source.getASTBuffer().getVarDecl(global_stmt)) == false){
-						return false;
-					}
-				} break;
-
-				case AST::Kind::FuncDecl: {
-					const AST::FuncDecl& func_decl = this->source.getASTBuffer().getFuncDecl(global_stmt);
-					if(this->analyze_func_decl<true>(func_decl).isError()){
-						return false;
-					}
-				} break;
-
-				case AST::Kind::AliasDecl: {
-					if(this->analyze_alias_decl<true>(this->source.getASTBuffer().getAliasDecl(global_stmt)) == false){
-						return false;
-					}
-				} break;
-
-
-				case AST::Kind::Return:        case AST::Kind::Block: case AST::Kind::FuncCall:
-				case AST::Kind::TemplatedExpr: case AST::Kind::Infix: case AST::Kind::Postfix:
-				case AST::Kind::MultiAssign:   case AST::Kind::Ident: case AST::Kind::Intrinsic:
-				case AST::Kind::Literal:       case AST::Kind::This: {
-					this->emit_error(
-						Diagnostic::Code::SemaInvalidGlobalStmtKind,
-						global_stmt,
-						"Invalid global statement"
-					);
-					return this->may_recover();
-				};
-
-
-				case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
-				case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
-				case AST::Kind::Uninit:         case AST::Kind::Zeroinit:  case AST::Kind::Discard: {
-					// TODO: message the exact kind
-					this->emit_fatal(
-						Diagnostic::Code::SemaInvalidGlobalStmtKind,
-						std::nullopt,
-						Diagnostic::createFatalMessage("Invalid global statement")
-					);
-					return false;
-				};
-
-			}
+			if(this->analyze_global_declaration(global_stmt) == false){ return false; }
 		}
 
 		return this->context.errored();
@@ -109,6 +53,67 @@ namespace pcit::panther{
 		return this->context.errored();
 	}
 
+
+	auto SemanticAnalyzer::analyze_global_declaration(const AST::Node& global_stmt) -> bool {
+		switch(global_stmt.kind()){
+			case AST::Kind::None: {
+				this->emit_fatal(
+					Diagnostic::Code::SemaEncounteredASTKindNone,
+					std::nullopt,
+					Diagnostic::createFatalMessage("Encountered AST node kind of None")
+				);
+				return false;
+			} break;
+
+			case AST::Kind::VarDecl: {
+				return this->analyze_var_decl<true>(this->source.getASTBuffer().getVarDecl(global_stmt));
+			} break;
+
+			case AST::Kind::FuncDecl: {
+				const AST::FuncDecl& func_decl = this->source.getASTBuffer().getFuncDecl(global_stmt);
+				return !this->analyze_func_decl<true>(func_decl).isError();
+			} break;
+
+			case AST::Kind::AliasDecl: {
+				return this->analyze_alias_decl<true>(this->source.getASTBuffer().getAliasDecl(global_stmt));
+			} break;
+
+			case AST::Kind::WhenConditional: {
+				return this->analyze_when_conditional<true>(
+					this->source.getASTBuffer().getWhenConditional(global_stmt)
+				);
+			} break;
+
+
+			case AST::Kind::Return:    case AST::Kind::Conditional:   case AST::Kind::Block:
+			case AST::Kind::FuncCall:  case AST::Kind::TemplatedExpr: case AST::Kind::Infix:
+			case AST::Kind::Postfix:   case AST::Kind::MultiAssign:   case AST::Kind::Ident:
+			case AST::Kind::Intrinsic: case AST::Kind::Literal:       case AST::Kind::This: {
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidGlobalStmtKind,
+					global_stmt,
+					"Invalid global statement"
+				);
+				return this->may_recover();
+			};
+
+
+			case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
+			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
+			case AST::Kind::Uninit:         case AST::Kind::Zeroinit:  case AST::Kind::Discard: {
+				// TODO: message the exact kind
+				this->emit_fatal(
+					Diagnostic::Code::SemaInvalidGlobalStmtKind,
+					std::nullopt,
+					Diagnostic::createFatalMessage("Invalid global statement")
+				);
+				return false;
+			};
+
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported AST::Kind");
+	}
 
 
 
@@ -697,6 +702,66 @@ namespace pcit::panther{
 	};
 
 
+	template<bool IS_GLOBAL>
+	auto SemanticAnalyzer::analyze_when_conditional(const AST::WhenConditional& when_conditional) -> bool {
+		evo::Result<ExprInfo> cond = this->analyze_expr<ExprValueKind::ConstEval>(when_conditional.cond);
+		if(cond.isError()){ return false; }
+
+		const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
+		if(
+			this->type_check<true>(
+				bool_type_id, cond.value(), "when conditional condition", when_conditional.cond
+			).ok == false
+		){
+			return false;
+		}
+
+		const bool cond_value = [&](){
+			const ASG::Expr& expr = cond.value().expr.front();
+			const ASG::LiteralBool& literal_bool = this->source.getASGBuffer().getLiteralBool(expr.literalBoolID());
+			return literal_bool.value;
+		}();
+
+		if(cond_value){
+			const AST::Block& then_block = this->source.getASTBuffer().getBlock(when_conditional.thenBlock);
+
+			if constexpr(IS_GLOBAL){
+				for(const AST::Node& global_stmt : then_block.stmts){
+					if(this->analyze_global_declaration(global_stmt) == false){ return false; }
+				}
+
+				return true;
+
+			}else{
+				return this->analyze_block(then_block);
+			}
+		}
+
+		if(when_conditional.elseBlock.has_value()){
+			if(when_conditional.elseBlock->kind() == AST::Kind::Block){
+				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*when_conditional.elseBlock);
+				for(const AST::Node& global_stmt : else_block.stmts){
+					if(this->analyze_global_declaration(global_stmt) == false){ return false; }
+				}
+
+				return true;
+				
+			}else{
+				return this->analyze_when_conditional<IS_GLOBAL>(
+					this->source.getASTBuffer().getWhenConditional(*when_conditional.elseBlock)
+				);
+			}
+		}
+
+		return true;
+	}
+
+	auto SemanticAnalyzer::analyze_conditional(const AST::Conditional& conditional) -> bool {
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature, conditional, "conditionals are currently unsupported"
+		);
+		return false;
+	}
 
 
 
@@ -812,6 +877,14 @@ namespace pcit::panther{
 
 			case AST::Kind::Return: {
     			return this->analyze_return_stmt(ast_buffer.getReturn(node));
+			} break;
+
+			case AST::Kind::Conditional: {
+    			return this->analyze_conditional(ast_buffer.getConditional(node));
+			} break;
+
+			case AST::Kind::WhenConditional: {
+    			return this->analyze_when_conditional<false>(ast_buffer.getWhenConditional(node));
 			} break;
 
 			case AST::Kind::Block: {
@@ -2534,6 +2607,7 @@ namespace pcit::panther{
 						postfix.lhs,
 						"Cannot dereference a value that is not a pointer"
 					);
+					evo::breakpoint();
 					return evo::resultError;
 				}
 
@@ -3706,30 +3780,32 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = src.getASTBuffer();
 
 		switch(node.kind()){
-			case AST::Kind::None:           evo::debugFatalBreak("Cannot get location of AST::Kind::None");
-			case AST::Kind::VarDecl:        return this->get_source_location(ast_buffer.getVarDecl(node), src);
-			case AST::Kind::FuncDecl:       return this->get_source_location(ast_buffer.getFuncDecl(node), src);
-			case AST::Kind::AliasDecl:      return this->get_source_location(ast_buffer.getAliasDecl(node), src);
-			case AST::Kind::Return:         return this->get_source_location(ast_buffer.getReturn(node), src);
-			case AST::Kind::Block:          return this->get_source_location(ast_buffer.getBlock(node), src);
-			case AST::Kind::FuncCall:       return this->get_source_location(ast_buffer.getFuncCall(node), src);
-			case AST::Kind::TemplatePack:   evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
-			case AST::Kind::TemplatedExpr:  return this->get_source_location(ast_buffer.getTemplatedExpr(node), src);
-			case AST::Kind::Prefix:         return this->get_source_location(ast_buffer.getPrefix(node), src);
-			case AST::Kind::Infix:          return this->get_source_location(ast_buffer.getInfix(node), src);
-			case AST::Kind::Postfix:        return this->get_source_location(ast_buffer.getPostfix(node), src);
-			case AST::Kind::MultiAssign:    return this->get_source_location(ast_buffer.getMultiAssign(node), src);
-			case AST::Kind::Type:           return this->get_source_location(ast_buffer.getType(node), src);
-			case AST::Kind::AttributeBlock: evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
-			case AST::Kind::Attribute:      return this->get_source_location(ast_buffer.getAttribute(node), src);
-			case AST::Kind::BuiltinType:    return this->get_source_location(ast_buffer.getBuiltinType(node), src);
-			case AST::Kind::Ident:          return this->get_source_location(ast_buffer.getIdent(node), src);
-			case AST::Kind::Intrinsic:      return this->get_source_location(ast_buffer.getIntrinsic(node), src);
-			case AST::Kind::Literal:        return this->get_source_location(ast_buffer.getLiteral(node), src);
-			case AST::Kind::Uninit:         return this->get_source_location(ast_buffer.getUninit(node), src);
-			case AST::Kind::Zeroinit:       return this->get_source_location(ast_buffer.getZeroinit(node), src);
-			case AST::Kind::This:           return this->get_source_location(ast_buffer.getThis(node), src);
-			case AST::Kind::Discard:        return this->get_source_location(ast_buffer.getDiscard(node), src);
+			case AST::Kind::None:            evo::debugFatalBreak("Cannot get location of AST::Kind::None");
+			case AST::Kind::VarDecl:         return this->get_source_location(ast_buffer.getVarDecl(node), src);
+			case AST::Kind::FuncDecl:        return this->get_source_location(ast_buffer.getFuncDecl(node), src);
+			case AST::Kind::AliasDecl:       return this->get_source_location(ast_buffer.getAliasDecl(node), src);
+			case AST::Kind::Return:          return this->get_source_location(ast_buffer.getReturn(node), src);
+			case AST::Kind::Conditional:     return this->get_source_location(ast_buffer.getConditional(node), src);
+			case AST::Kind::WhenConditional: return this->get_source_location(ast_buffer.getWhenConditional(node), src);
+			case AST::Kind::Block:           return this->get_source_location(ast_buffer.getBlock(node), src);
+			case AST::Kind::FuncCall:        return this->get_source_location(ast_buffer.getFuncCall(node), src);
+			case AST::Kind::TemplatePack:    evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
+			case AST::Kind::TemplatedExpr:   return this->get_source_location(ast_buffer.getTemplatedExpr(node), src);
+			case AST::Kind::Prefix:          return this->get_source_location(ast_buffer.getPrefix(node), src);
+			case AST::Kind::Infix:           return this->get_source_location(ast_buffer.getInfix(node), src);
+			case AST::Kind::Postfix:         return this->get_source_location(ast_buffer.getPostfix(node), src);
+			case AST::Kind::MultiAssign:     return this->get_source_location(ast_buffer.getMultiAssign(node), src);
+			case AST::Kind::Type:            return this->get_source_location(ast_buffer.getType(node), src);
+			case AST::Kind::AttributeBlock:  evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
+			case AST::Kind::Attribute:       return this->get_source_location(ast_buffer.getAttribute(node), src);
+			case AST::Kind::BuiltinType:     return this->get_source_location(ast_buffer.getBuiltinType(node), src);
+			case AST::Kind::Ident:           return this->get_source_location(ast_buffer.getIdent(node), src);
+			case AST::Kind::Intrinsic:       return this->get_source_location(ast_buffer.getIntrinsic(node), src);
+			case AST::Kind::Literal:         return this->get_source_location(ast_buffer.getLiteral(node), src);
+			case AST::Kind::Uninit:          return this->get_source_location(ast_buffer.getUninit(node), src);
+			case AST::Kind::Zeroinit:        return this->get_source_location(ast_buffer.getZeroinit(node), src);
+			case AST::Kind::This:            return this->get_source_location(ast_buffer.getThis(node), src);
+			case AST::Kind::Discard:         return this->get_source_location(ast_buffer.getDiscard(node), src);
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported AST::Kind");
@@ -3754,6 +3830,16 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::get_source_location(const AST::Return& return_stmt, const Source& src) const
 	-> SourceLocation {
 		return this->get_source_location(return_stmt.keyword, src);
+	}
+
+	auto SemanticAnalyzer::get_source_location(const AST::Conditional& conditional, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(conditional.keyword, src);
+	}
+
+	auto SemanticAnalyzer::get_source_location(const AST::WhenConditional& when_cond, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(when_cond.keyword, src);
 	}
 
 	auto SemanticAnalyzer::get_source_location(const AST::Block& block, const Source& src) const -> SourceLocation {

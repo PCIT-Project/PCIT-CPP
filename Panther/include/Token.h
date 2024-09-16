@@ -106,6 +106,10 @@ namespace pcit::panther{
 				KeywordMove,
 				KeywordAs,
 
+				KeywordIf,
+				KeywordElse,
+				KeywordWhen,
+
 
 				///////////////////////////////////
 				// operators
@@ -445,10 +449,14 @@ namespace pcit::panther{
 					break; case Kind::KeywordMut:         return "mut";
 					break; case Kind::KeywordIn:          return "in";
 
-					// break; case Kind::KeywordAddr:     return "addr";
 					break; case Kind::KeywordCopy:        return "copy";
 					break; case Kind::KeywordMove:        return "move";
 					break; case Kind::KeywordAs:          return "as";
+
+					break; case Kind::KeywordIf:          return "if";
+					break; case Kind::KeywordElse:        return "else";
+					break; case Kind::KeywordWhen:        return "when";
+
 
 
 					///////////////////////////////////
