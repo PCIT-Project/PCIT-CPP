@@ -1,8 +1,16 @@
 
 func entry = () #entry -> UI8 {
-	{
-		var foo: Int = 12;
-	}
+	var foo = {->foo_label<{UI8}>
+		return->foo_label 12;
+	};
+	
+	// var foo = {->foo_label
+	// 	var bar: UI8 = {->bar_label
+	// 		return->bar_label = 12;
+	// 	}; 
+
+	// 	return->foo_label (move bar);
+	// };
 
 	return (move foo);
 }

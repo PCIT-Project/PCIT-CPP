@@ -87,9 +87,10 @@ namespace pcit::panther{
 					auto pushLevel(Level::ID id, ASG::FuncID func_id) -> void;
 					auto popLevel() -> void;
 
-					EVO_NODISCARD auto getCurrentLevel() const -> Level::ID {
-						return this->scope_levels.back();
-					}
+					EVO_NODISCARD auto getCurrentLevel() const -> Level::ID { return this->scope_levels.back(); }
+
+
+					EVO_NODISCARD auto size() const -> size_t { return this->scope_levels.size(); }
 
 					// note: these are purposely backwards
 
@@ -109,13 +110,11 @@ namespace pcit::panther{
 						return this->scope_levels.rend();
 					}
 
-					EVO_NODISCARD auto size() const -> size_t {
-						return this->scope_levels.size();
-					}
-
-
+					
 					///////////////////////////////////
 					// object scope
+
+					// pushing / popping happens automatically with `pushLevel` / `popLevel`
 
 					EVO_NODISCARD auto inObjectScope() const -> bool { return !this->object_scopes.empty(); }
 					EVO_NODISCARD auto getCurrentObjectScope() const -> const ObjectScope& {
@@ -140,6 +139,7 @@ namespace pcit::panther{
 						);
 						this->object_scopes.pop_back();
 					}
+
 
 				private:
 					struct ObjectScopeData{

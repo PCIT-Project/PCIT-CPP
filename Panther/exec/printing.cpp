@@ -544,6 +544,16 @@ namespace pthr{
 						if(block.label.has_value()){
 							this->printer.print(" ");
 							this->print_ident(*block.label);
+
+							this->indenter.print_arrow();
+							this->print_minor_header("Label Explicit Type");
+							this->printer.print(" ");
+							if(block.labelExplicitType.has_value()){
+								this->print_type(this->source.getASTBuffer().getType(*block.labelExplicitType));
+							}else{
+								this->printer.printlnGray("{NONE}");
+							}
+
 						}else{
 							this->printer.printGray(" {NONE}\n");
 						}

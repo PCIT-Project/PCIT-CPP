@@ -5,6 +5,7 @@
 
 ### Panther
 - Added local scope statement blocks
+- Added explicit typing of block expressions
 
 
 <!---------------------------------->

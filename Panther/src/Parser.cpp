@@ -360,6 +360,7 @@ namespace pcit::panther{
 		if(this->assert_token_fail(Token::lookupKind("{"))){ return Result::Code::Error; }
 
 		auto label = std::optional<AST::Node>();
+		auto label_type = std::optional<AST::Node>();
 
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
 			if(label_requirement == BlockLabelRequirement::NotAllowed){
@@ -372,6 +373,34 @@ namespace pcit::panther{
 			const Result label_result = this->parse_ident();
 			if(this->check_result_fail(label_result, "identifier in block label")){ return Result::Code::Error; }
 			label = label_result.value();
+
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<{")){
+				if(label_requirement == BlockLabelRequirement::Optional){
+					this->context.emitError(
+						Diagnostic::Code::ParserIncorrectStmtContinuation,
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						"This labeled block is not allowed to have an explicit type",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Note: Only expression blocks may have types")
+						}
+					);
+					return Result::Code::Error;
+				}
+
+				if(this->assert_token_fail(Token::lookupKind("<{"))){ return Result::Code::Error; }
+
+				const Result type_result = this->parse_type<TypeKind::Explicit>();
+				if(this->check_result_fail(type_result, "type in explicitly-typed labeled expression block")){
+					return Result::Code::Error;
+				}
+
+				if(this->expect_token_fail(
+					Token::lookupKind("}>"), "after type in explicitly-typed labeled expression block")
+				){ return Result::Code::Error; }
+
+				label_type = type_result.value();
+			}
+
 
 		}else if(label_requirement == BlockLabelRequirement::Required){
 			this->reader.go_back(start_location);
@@ -392,7 +421,9 @@ namespace pcit::panther{
 			statements.emplace_back(stmt.value());
 		}
 
-		return this->source.ast_buffer.createBlock(start_location, label, std::move(statements));
+		return this->source.ast_buffer.createBlock(
+			start_location, std::move(label), std::move(label_type), std::move(statements)
+		);
 	}
 
 

@@ -176,6 +176,7 @@ namespace pcit::panther::AST{
 	struct Block{
 		Token::ID openBrace;
 		std::optional<Node> label;
+		std::optional<Node> labelExplicitType; // only if .label is not nullopt
 		evo::SmallVector<Node> stmts;
 	};
 
