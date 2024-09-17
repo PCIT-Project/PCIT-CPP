@@ -989,7 +989,7 @@ namespace pcit::panther{
 	}
 
 
-
+	// TODO: merge some of the functionality with analyze_expr_func_call
 	auto SemanticAnalyzer::analyze_func_call(const AST::FuncCall& func_call) -> bool {
 		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
 		if(target_info_res.isError()){ return this->may_recover(); }
@@ -1086,7 +1086,22 @@ namespace pcit::panther{
 		auto func_link_ids = evo::SmallVector<ASG::Func::LinkID>();
 		func_link_ids.reserve(target_info_res.value().expr.size());
 		for(const ASG::Expr& func_expr : target_info_res.value().expr){
-			func_link_ids.emplace_back(func_expr.funcLinkID());
+			switch(func_expr.kind()){
+				case ASG::Expr::Kind::Func: {
+					func_link_ids.emplace_back(func_expr.funcLinkID());
+				} break;
+
+				case ASG::Expr::Kind::Var: {
+					const ASG::Var::LinkID asg_var_link_id = func_expr.varLinkID();
+					const Source& target_source = this->context.getSourceManager()[asg_var_link_id.sourceID()];
+					const ASG::Var& asg_var = target_source.getASGBuffer().getVar(asg_var_link_id.varID());
+					func_link_ids.emplace_back(asg_var.expr.funcLinkID());
+				} break;
+
+				default: {
+					evo::debugFatalBreak("Cannot get function call from this ASG::Expr type");
+				} break;
+			}
 		}
 
 		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
@@ -1640,9 +1655,9 @@ namespace pcit::panther{
 	}
 
 	auto SemanticAnalyzer::push_scope_level(ASG::StmtBlock* stmt_block, ASG::Func::ID asg_func_id) -> void {
-		if(this->scope.inObjectScope()){
+		// if(this->scope.inObjectScope()){
 			this->get_current_scope_level().addSubScope();
-		}
+		// }
 		this->scope.pushLevel(this->context.getScopeManager().createLevel(stmt_block), asg_func_id);
 	}
 
@@ -1789,6 +1804,7 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
+	// TODO: merge some of the functionality with analyze_func_call
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
 		if(func_call.target.kind() == AST::Kind::Intrinsic){

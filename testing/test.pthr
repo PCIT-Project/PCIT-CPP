@@ -1,35 +1,13 @@
-func staggered = () -> UI8 {
 
-	if(true){
-		return 0;
-		
-	}else{
-		if(true){
-			unreachable;
-
-		}else{
-			return 2;
-		}
-
-		// return 3;
-	}
-
-	// return 4;
-
+func test = () -> Void {
+	
 }
 
 
-func inline = () -> UI8 {
-	     if(true){ return 0; }
-	else if(true){ unreachable; }
-	else         { return 2; }
-
-	// return 3;
-}
 
 func entry = () #entry -> UI8 {
-	{
-		return 2;
-	}
+	const test_func_ptr = &test;
+	test_func_ptr();
 
+	return 0;
 }

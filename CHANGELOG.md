@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.36.1
+
+### Panther
+- Fixed fatal error when calling a function pointer that as a statement
+
+
+<!---------------------------------->
 ## v0.0.36.0
 
 ### Panther
@@ -38,11 +45,11 @@
 - Added checking of valid variable attributes
 - Fixed identifier re-declaration diagnostic not always adding the "First defined here" info
 - changed wrapping arithmetic operator syntax from `@` to `%`
-	- `+@` -> `+%`
+	- `+@`  -> `+%`
 	- `+@=` -> `+%=`
-	- `-@` -> `-%`
+	- `-@`  -> `-%`
 	- `-@=` -> `-%=`
-	- `*@` -> `*%`
+	- `*@`  -> `*%`
 	- `*@=` -> `*%=`
 
 
