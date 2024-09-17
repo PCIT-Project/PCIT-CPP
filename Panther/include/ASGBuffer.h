@@ -169,6 +169,20 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// conditionals
+
+			EVO_NODISCARD auto createConditional(auto&&... args) -> ASG::Conditional::ID {
+				const auto created_id = ASG::Conditional::ID(uint32_t(this->conds.size()));
+				this->conds.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getConditional(ASG::Conditional::ID id) const -> const ASG::Conditional& {
+				return this->conds[id.get()];
+			}
+
+
+			///////////////////////////////////
 			// copies
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> ASG::Copy::ID {
@@ -320,6 +334,7 @@ namespace pcit::panther{
 			evo::SmallVector<ASG::Assign> assigns{};
 			evo::SmallVector<ASG::MultiAssign> multi_assigns{};
 			evo::SmallVector<ASG::Return> returns{};
+			evo::SmallVector<ASG::Conditional> conds{};
 
 			evo::SmallVector<ASG::Expr> misc_exprs{};
 			evo::SmallVector<ASG::Deref> derefs{};

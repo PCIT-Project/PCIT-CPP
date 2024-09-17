@@ -51,6 +51,7 @@ namespace pcit::panther{
 			auto lower_assign(const ASG::Assign& assign) -> void;
 			auto lower_multi_assign(const ASG::MultiAssign& multi_assign) -> void;
 			auto lower_return(const ASG::Return& return_stmt) -> void;
+			auto lower_conditional(const ASG::Conditional& conditional_stmt) -> void;
 
 
 
@@ -83,6 +84,7 @@ namespace pcit::panther{
 				llvmint::Function func;
 			};
 			EVO_NODISCARD auto get_func_info(ASG::Func::LinkID link_id) const -> const FuncInfo&;
+			EVO_NODISCARD auto get_current_func_info() const -> const FuncInfo&;
 
 			struct VarInfo{
 				evo::Variant<llvmint::Alloca, llvmint::GlobalVariable> value;
@@ -116,6 +118,7 @@ namespace pcit::panther{
 
 			Source* current_source = nullptr;
 			const ASG::Func* current_func = nullptr;
+			std::optional<ASG::Func::LinkID> current_func_link_id{};
 			
 
 			std::unordered_map<ASG::Func::LinkID, FuncInfo> func_infos{};

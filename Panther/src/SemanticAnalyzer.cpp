@@ -85,10 +85,11 @@ namespace pcit::panther{
 			} break;
 
 
-			case AST::Kind::Return:    case AST::Kind::Conditional:   case AST::Kind::Block:
-			case AST::Kind::FuncCall:  case AST::Kind::TemplatedExpr: case AST::Kind::Infix:
-			case AST::Kind::Postfix:   case AST::Kind::MultiAssign:   case AST::Kind::Ident:
-			case AST::Kind::Intrinsic: case AST::Kind::Literal:       case AST::Kind::This: {
+			case AST::Kind::Return: case AST::Kind::Unreachable: case AST::Kind::Conditional:
+			case AST::Kind::Block:  case AST::Kind::FuncCall:    case AST::Kind::TemplatedExpr:
+			case AST::Kind::Infix:  case AST::Kind::Postfix:     case AST::Kind::MultiAssign:
+			case AST::Kind::Ident:  case AST::Kind::Intrinsic:   case AST::Kind::Literal:
+			case AST::Kind::This: {
 				this->emit_error(
 					Diagnostic::Code::SemaInvalidGlobalStmtKind,
 					global_stmt,
@@ -301,7 +302,7 @@ namespace pcit::panther{
 		if constexpr(IS_GLOBAL){
 			this->source.global_scope.addVar(var_decl, asg_var_id);
 		}else{
-			this->get_current_func().stmts.emplace_back(asg_var_id);
+			this->get_current_scope_level().stmtBlock().emplace_back(asg_var_id);
 		}
 		
 		return true;
@@ -756,20 +757,70 @@ namespace pcit::panther{
 		return true;
 	}
 
+
+
+
+
 	auto SemanticAnalyzer::analyze_conditional(const AST::Conditional& conditional) -> bool {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, conditional, "conditionals are currently unsupported"
+		evo::Result<ExprInfo> cond = this->analyze_expr<ExprValueKind::Runtime>(conditional.cond);
+		if(cond.isError()){ return this->may_recover(); }
+
+		const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
+		if(
+			this->type_check<true>(
+				bool_type_id, cond.value(), "if conditional condition", conditional.cond
+			).ok == false
+		){
+			return this->may_recover();
+		}
+
+
+		auto then_block = ASG::StmtBlock();
+		{
+			this->push_scope_level(&then_block);
+			EVO_DEFER([&](){ this->pop_scope_level(); });
+
+			const AST::Block ast_block = this->source.getASTBuffer().getBlock(conditional.thenBlock);
+			if(this->analyze_block(ast_block) == false){ return this->may_recover(); }
+		}
+
+
+		auto else_block = ASG::StmtBlock();
+		if(conditional.elseBlock.has_value()){
+			this->push_scope_level(&else_block);
+			EVO_DEFER([&](){ this->pop_scope_level(); });
+
+			if(conditional.elseBlock->kind() == AST::Kind::Block){
+				const AST::Block& ast_block = this->source.getASTBuffer().getBlock(*conditional.elseBlock);
+				if(this->analyze_block(ast_block) == false){ return this->may_recover(); }
+				
+			}else{
+				const AST::Conditional& ast_conditional =
+					this->source.getASTBuffer().getConditional(*conditional.elseBlock);
+				if(this->analyze_conditional(ast_conditional) == false){
+					return this->may_recover();
+				}
+			}
+
+		}
+
+		const ASG::Conditional::ID asg_cond_id = this->source.asg_buffer.createConditional(
+			cond.value().expr.front(), std::move(then_block), std::move(else_block)
 		);
-		return false;
+
+		this->get_current_scope_level().stmtBlock().emplace_back(asg_cond_id);
+
+		return true;
 	}
 
 
 
 	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool {
-		this->scope.pushLevel(this->context.getScopeManager().createLevel(), asg_func_id);
-		EVO_DEFER([&](){ this->scope.popLevel(); });
-
 		ASG::Func& asg_func = this->source.asg_buffer.funcs[asg_func_id.get()];
+
+		this->push_scope_level(&asg_func.stmts, asg_func_id);
+		EVO_DEFER([&](){ this->pop_scope_level(); });
+
 		const BaseType::Function& asg_func_type = this->context.getTypeManager().getFunction(
 			asg_func.baseTypeID.funcID()
 		);
@@ -804,6 +855,18 @@ namespace pcit::panther{
 
 		if(this->get_current_scope_level().isTerminated()){
 			this->get_current_func().isTerminated = true;
+
+		}else if(asg_func_type.returnsVoid() == false){
+			this->emit_error(
+				Diagnostic::Code::SemaFuncIsntTerminated,
+				ast_func,
+				"Function isn't terminated",
+				Diagnostic::Info(
+					"A function is terminated when all control paths end in a [return], [unreachable], "
+					"or a function call that has the attribute `#noReturn`"
+				)
+			);
+			return false;
 		}
 
 		return true;
@@ -821,8 +884,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze_local_scope_block(const AST::Block& block) -> bool {
-		this->scope.pushLevel(this->context.getScopeManager().createLevel());
-		EVO_DEFER([&](){ this->scope.popLevel(); });
+		this->push_scope_level(&this->get_current_scope_level().stmtBlock());
+		EVO_DEFER([&](){ this->pop_scope_level(); });
 
 		return this->analyze_block(block);
 	}
@@ -877,6 +940,10 @@ namespace pcit::panther{
 
 			case AST::Kind::Return: {
     			return this->analyze_return_stmt(ast_buffer.getReturn(node));
+			} break;
+
+			case AST::Kind::Unreachable: {
+    			return this->analyze_unreachable_stmt(ast_buffer.getUnreachable(node));
 			} break;
 
 			case AST::Kind::Conditional: {
@@ -1056,7 +1123,7 @@ namespace pcit::panther{
 			func_link_ids[selected_func_overload.value()], std::move(args)
 		);
 
-		this->get_current_func().stmts.emplace_back(asg_func_id);
+		this->get_current_scope_level().stmtBlock().emplace_back(asg_func_id);
 
 		return true;
 	}
@@ -1099,7 +1166,7 @@ namespace pcit::panther{
 				return this->may_recover();
 			}
 
-			this->get_current_func().stmts.emplace_back(func_call_info.value().expr.front().funcCallID());
+			this->get_current_scope_level().stmtBlock().emplace_back(func_call_info.value().expr.front().funcCallID());
 			return true;
 		}
 
@@ -1160,7 +1227,7 @@ namespace pcit::panther{
 			lhs_info.value().expr.front(), rhs_info.value().expr.front()
 		);
 
-		this->get_current_func().stmts.emplace_back(asg_assign_id);
+		this->get_current_scope_level().stmtBlock().emplace_back(asg_assign_id);
 
 		return true;
 	}
@@ -1273,7 +1340,7 @@ namespace pcit::panther{
 
 		const ASG::Return::ID asg_return_id = this->source.asg_buffer.createReturn(return_value);
 
-		this->get_current_func().stmts.emplace_back(asg_return_id);
+		this->get_current_scope_level().stmtBlock().emplace_back(asg_return_id);
 
 		this->get_current_scope_level().setTerminated();
 
@@ -1281,6 +1348,14 @@ namespace pcit::panther{
 	}
 
 
+
+	auto SemanticAnalyzer::analyze_unreachable_stmt(const Token::ID& unreachable_stmt) -> bool {
+		this->get_current_scope_level().stmtBlock().emplace_back(ASG::Stmt::createUnreachable(unreachable_stmt));
+
+		this->get_current_scope_level().setTerminated();
+		
+		return true;
+	}
 
 
 	auto SemanticAnalyzer::analyze_multi_assign_stmt(const AST::MultiAssign& multi_assign) -> bool {
@@ -1397,7 +1472,7 @@ namespace pcit::panther{
 			std::move(assign_targets), rhs_info.value().expr.front()
 		);
 
-		this->get_current_func().stmts.emplace_back(asg_multi_assign_id);
+		this->get_current_scope_level().stmtBlock().emplace_back(asg_multi_assign_id);
 
 		return true;
 	}
@@ -1554,6 +1629,40 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::get_current_scope_level() const -> ScopeManager::Level& {
 		return this->context.getScopeManager()[this->scope.getCurrentLevel()];
+	}
+
+
+	auto SemanticAnalyzer::push_scope_level(ASG::StmtBlock* stmt_block) -> void {
+		if(this->scope.inObjectScope()){
+			this->get_current_scope_level().addSubScope();
+		}
+		this->scope.pushLevel(this->context.getScopeManager().createLevel(stmt_block));
+	}
+
+	auto SemanticAnalyzer::push_scope_level(ASG::StmtBlock* stmt_block, ASG::Func::ID asg_func_id) -> void {
+		if(this->scope.inObjectScope()){
+			this->get_current_scope_level().addSubScope();
+		}
+		this->scope.pushLevel(this->context.getScopeManager().createLevel(stmt_block), asg_func_id);
+	}
+
+	auto SemanticAnalyzer::pop_scope_level() -> void {
+		ScopeManager::Level& current_scope_level = this->get_current_scope_level();
+		const bool current_scope_is_terminated = current_scope_level.isTerminated();
+
+		if(
+			current_scope_level.hasStmtBlock()                      &&
+			current_scope_level.stmtBlock().isTerminated() == false &&
+			current_scope_level.isTerminated()
+		){
+			current_scope_level.stmtBlock().setTerminated();
+		}
+
+		this->scope.popLevel(); // `current_scope_level` is now invalid
+
+		if(current_scope_is_terminated && this->scope.inObjectScope() && !this->scope.inObjectMainScope()){
+			this->get_current_scope_level().setSubScopeTerminated();
+		}
 	}
 
 
@@ -2607,7 +2716,6 @@ namespace pcit::panther{
 						postfix.lhs,
 						"Cannot dereference a value that is not a pointer"
 					);
-					evo::breakpoint();
 					return evo::resultError;
 				}
 
@@ -3785,6 +3893,7 @@ namespace pcit::panther{
 			case AST::Kind::FuncDecl:        return this->get_source_location(ast_buffer.getFuncDecl(node), src);
 			case AST::Kind::AliasDecl:       return this->get_source_location(ast_buffer.getAliasDecl(node), src);
 			case AST::Kind::Return:          return this->get_source_location(ast_buffer.getReturn(node), src);
+			case AST::Kind::Unreachable:     return this->get_source_location(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::Conditional:     return this->get_source_location(ast_buffer.getConditional(node), src);
 			case AST::Kind::WhenConditional: return this->get_source_location(ast_buffer.getWhenConditional(node), src);
 			case AST::Kind::Block:           return this->get_source_location(ast_buffer.getBlock(node), src);

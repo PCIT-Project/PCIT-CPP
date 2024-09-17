@@ -17,6 +17,7 @@
 #include "./TypeManager.h"
 #include "./ASG_IDs.h"
 #include "./ScopeManager.h"
+#include "./ASG_Stmt.h"
 
 
 namespace pcit::panther{
@@ -46,7 +47,7 @@ namespace pcit::panther::ASG{
 			FuncCall,
 			AddrOf,
 			Deref,
-
+			
 			Var,
 			Func,
 			Param,
@@ -247,7 +248,6 @@ namespace pcit::panther::ASG{
 	// statements
 
 
-
 	struct FuncCall{
 		using ID = FuncCallID;
 
@@ -276,66 +276,13 @@ namespace pcit::panther::ASG{
 		std::optional<Expr> value; // nullopt means `return;`
 	};
 
+	struct Conditional{
+		using ID = ConditionalID;
 
-	struct Stmt{
-		enum class Kind{
-			Var,
-			FuncCall,
-			Assign,
-			MultiAssign,
-			Return,
-		};
-
-		explicit Stmt(VarID var_id)              : _kind(Kind::Var),      value{.var_id = var_id}             {}
-		explicit Stmt(FuncCall::ID func_call_id) : _kind(Kind::FuncCall), value{.func_call_id = func_call_id} {}
-		explicit Stmt(Assign::ID assign_id)      : _kind(Kind::Assign),   value{.assign_id = assign_id}       {}
-		explicit Stmt(MultiAssign::ID multi_assign_id)
-			: _kind(Kind::MultiAssign), value{.multi_assign_id = multi_assign_id} {}
-		explicit Stmt(Return::ID return_id)      : _kind(Kind::Return),    value{.return_id = return_id}      {}
-
-
-		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
-
-		EVO_NODISCARD auto varID() const -> VarID {
-			evo::debugAssert(this->kind() == Kind::Var, "not a var");
-			return this->value.var_id;
-		}
-
-		EVO_NODISCARD auto funcCallID() const -> FuncCall::ID {
-			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
-			return this->value.func_call_id;
-		}
-
-		EVO_NODISCARD auto assignID() const -> Assign::ID {
-			evo::debugAssert(this->kind() == Kind::Assign, "not an assign");
-			return this->value.assign_id;
-		}
-
-		EVO_NODISCARD auto multiAssignID() const -> MultiAssign::ID {
-			evo::debugAssert(this->kind() == Kind::MultiAssign, "not an assign");
-			return this->value.multi_assign_id;
-		}
-
-		EVO_NODISCARD auto returnID() const -> Return::ID {
-			evo::debugAssert(this->kind() == Kind::Return, "not an return");
-			return this->value.return_id;
-		}
-
-
-		private:
-			Kind _kind;
-			union {
-				VarID var_id;
-				FuncCall::ID func_call_id;
-				Assign::ID assign_id;
-				MultiAssign::ID multi_assign_id;
-				Return::ID return_id;
-			} value;
+		Expr cond;
+		StmtBlock thenStmts;
+		StmtBlock elseStmts;
 	};
-
-	static_assert(sizeof(Stmt) == 8, "sizeof(pcit::panther::ASG::Stmt) != 8");
-
-
 
 
 
@@ -368,7 +315,7 @@ namespace pcit::panther::ASG{
 		bool isTerminated: 1 = false;
 		evo::SmallVector<ParamID> params{};
 		evo::SmallVector<ReturnParamID> returnParams{}; // only for named return params
-		evo::SmallVector<Stmt> stmts{};
+		StmtBlock stmts{};
 	};
 
 	struct Param{

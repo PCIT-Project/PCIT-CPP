@@ -14,6 +14,7 @@
 #include <PCIT_core.h>
 
 #include "./ASG_IDs.h"
+#include "./ASG_Stmt.h"
 #include "./source_data.h"
 #include "./AST.h"
 #include "./TypeManager.h"
@@ -45,8 +46,12 @@ namespace pcit::panther{
 					>;
 
 				public:
-					Level() = default;
+					Level(ASG::StmtBlock* stmt_block = nullptr) : _stmt_block(stmt_block) {}
 					~Level() = default;
+
+					EVO_NODISCARD auto hasStmtBlock() const -> bool;
+					EVO_NODISCARD auto stmtBlock() const -> const ASG::StmtBlock&;
+					EVO_NODISCARD auto stmtBlock()       ->       ASG::StmtBlock&;
 
 					auto addSubScope() -> void;
 					auto setSubScopeTerminated() -> void;
@@ -66,8 +71,9 @@ namespace pcit::panther{
 				private:
 					std::unordered_map<std::string_view, IdentID> ids{};
 
+					ASG::StmtBlock* _stmt_block;
+
 					evo::uint num_sub_scopes_not_terminated = 0;
-					bool is_terminated = false;
 					bool has_sub_scopes = false;
 			};
 
@@ -92,7 +98,7 @@ namespace pcit::panther{
 
 					EVO_NODISCARD auto size() const -> size_t { return this->scope_levels.size(); }
 
-					// note: these are purposely backwards
+					// note: these are purposely reverse iterators
 
 					EVO_NODISCARD auto begin() -> evo::SmallVector<Level::ID>::reverse_iterator {
 						return this->scope_levels.rbegin();
@@ -126,6 +132,12 @@ namespace pcit::panther{
 						if(this->object_scopes.empty()){ return 0; }
 						return this->object_scopes.back().scope_level_index - 1;
 					}
+
+					EVO_NODISCARD auto inObjectMainScope() const -> bool {
+						evo::debugAssert(this->object_scopes.size() >= 1, "not in object scope");
+						return this->object_scopes.back().scope_level_index - 1 == this->size();
+					}
+
 
 					// must be popped manually
 					// be careful - only use when declaring things like params
@@ -167,7 +179,7 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto createLevel() -> Level::ID;
+			EVO_NODISCARD auto createLevel(ASG::StmtBlock* stmt_block = nullptr) -> Level::ID;
 	
 		private:
 			std::vector<Level*> scope_levels{};

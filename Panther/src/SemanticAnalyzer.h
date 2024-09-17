@@ -72,6 +72,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_func_call(const AST::FuncCall& func_call) -> bool;
 			EVO_NODISCARD auto analyze_infix_stmt(const AST::Infix& infix) -> bool;
 			EVO_NODISCARD auto analyze_return_stmt(const AST::Return& return_stmt) -> bool;
+			EVO_NODISCARD auto analyze_unreachable_stmt(const Token::ID& unreachable_stmt) -> bool;
 			EVO_NODISCARD auto analyze_multi_assign_stmt(const AST::MultiAssign& multi_assign) -> bool;
 
 
@@ -84,6 +85,10 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto get_current_scope_level() const -> ScopeManager::Level&;
+			EVO_NODISCARD auto push_scope_level(ASG::StmtBlock* stmt_block = nullptr) -> void;
+			EVO_NODISCARD auto push_scope_level(ASG::StmtBlock* stmt_block, ASG::Func::ID asg_func_id)
+				-> void;
+			EVO_NODISCARD auto pop_scope_level() -> void;
 
 			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto get_parent() const -> ASG::Parent;

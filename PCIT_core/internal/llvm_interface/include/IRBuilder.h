@@ -57,12 +57,14 @@ namespace pcit::llvmint{
 			auto createRet() -> void;
 			auto createRet(const Value& value) -> void;
 
+			auto createUnreachable() -> void;
+			
 			// createGEP
-			// createUnreachable
 
 			auto createBranch(const BasicBlock& block) -> void;
 
-			// createCondBranch
+			auto createCondBranch(const Value& cond, const BasicBlock& then_block, const BasicBlock& else_block)
+				-> void;
 
 			// createPhi
 
@@ -113,10 +115,12 @@ namespace pcit::llvmint{
 
 
 			//////////////////////////////////////////////////////////////////////
-			// set
+			// insertion point
 
 			auto setInsertionPoint(const BasicBlock& block) -> void;
 			auto setInsertionPointAtBack(const Function& func) -> void;
+
+			EVO_NODISCARD auto getInsertionPoint() -> llvmint::BasicBlock;
 
 
 

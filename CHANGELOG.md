@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.36.0
+
+### Panther
+- Added `if` conditionals
+- Added `unreachable` statements
+- Added checking that a function that doesn't return `Void` is terminated
+- Fixed checking of termination in scoped statement blocks
+- Fixed breakpoint being thrown when attempting to dereference a value that's not a pointer
+
+
+<!---------------------------------->
 ## v0.0.35.0
 
 ### Panther

@@ -86,6 +86,10 @@ namespace pcit::panther::ASG{
 		using core::UniqueID<uint32_t, ReturnID>::UniqueID;
 	};
 
+	struct ConditionalID : public core::UniqueID<uint32_t, struct ConditionalID> {
+		using core::UniqueID<uint32_t, ConditionalID>::UniqueID;
+	};
+
 
 	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {using core::UniqueID<uint32_t, FuncID>::UniqueID;};
 

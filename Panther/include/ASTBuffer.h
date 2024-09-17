@@ -30,11 +30,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto numGlobalStmts() const -> size_t { return this->global_stmts.size(); }
 
 
-			EVO_NODISCARD static auto getLiteral(const AST::Node& node) -> Token::ID {
-				evo::debugAssert(node.kind() == AST::Kind::Literal, "Node is not a Literal");
-				return node._value.token_id;
-			}
-
 			EVO_NODISCARD static auto getIdent(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.kind() == AST::Kind::Ident, "Node is not a Ident");
 				return node._value.token_id;
@@ -42,6 +37,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD static auto getIntrinsic(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.kind() == AST::Kind::Intrinsic, "Node is not a Intrinsic");
+				return node._value.token_id;
+			}
+
+			EVO_NODISCARD static auto getLiteral(const AST::Node& node) -> Token::ID {
+				evo::debugAssert(node.kind() == AST::Kind::Literal, "Node is not a Literal");
 				return node._value.token_id;
 			}
 
@@ -72,6 +72,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD static auto getDiscard(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.kind() == AST::Kind::Discard, "Node is not a Discard");
+				return node._value.token_id;
+			}
+
+			EVO_NODISCARD static auto getUnreachable(const AST::Node& node) -> Token::ID {
+				evo::debugAssert(node.kind() == AST::Kind::Unreachable, "Node is not a Unreachable");
 				return node._value.token_id;
 			}
 

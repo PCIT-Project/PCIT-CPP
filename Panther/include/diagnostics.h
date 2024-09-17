@@ -98,6 +98,7 @@ namespace pcit::panther{
 		SemaInvalidUseOfInitializerValueExpr,
 		SemaIncorrectNumberOfAssignTargets,
 		SemaMultipleValuesIntoOne,
+		SemaFuncIsntTerminated,
 
 		SemaWarnSingleValInMultiAssign,
 
@@ -202,6 +203,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaInvalidUseOfInitializerValueExpr: return "S";
 			break; case DiagnosticCode::SemaIncorrectNumberOfAssignTargets:   return "S";
 			break; case DiagnosticCode::SemaMultipleValuesIntoOne:            return "S";
+			break; case DiagnosticCode::SemaFuncIsntTerminated:               return "S";
 
 			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:       return "SW";
 

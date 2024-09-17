@@ -163,7 +163,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto params() const -> evo::ArrayProxy<Param> { return this->_params; }
 			EVO_NODISCARD auto returnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
 
+
 			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->return_params[0].ident.has_value(); }
+			EVO_NODISCARD auto returnsVoid() const -> bool { return this->return_params[0].typeID.isVoid(); }
 
 			EVO_NODISCARD auto operator==(const Function&) const -> bool = default;
 

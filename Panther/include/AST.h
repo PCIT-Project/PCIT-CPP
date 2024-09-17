@@ -32,6 +32,7 @@ namespace pcit::panther::AST{
 		Return,
 		Conditional,
 		WhenConditional,
+		Unreachable,
 
 		Block,
 		FuncCall,

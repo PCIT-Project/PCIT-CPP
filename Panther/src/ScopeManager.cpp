@@ -18,6 +18,24 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// scope level
 
+	auto ScopeManager::Level::hasStmtBlock() const -> bool {
+		return this->_stmt_block != nullptr;
+	}
+
+	auto ScopeManager::Level::stmtBlock() const -> const ASG::StmtBlock& {
+		evo::debugAssert(this->_stmt_block != nullptr, "this scope doesn't have a stmt block");
+
+		return *this->_stmt_block;
+	}
+
+	auto ScopeManager::Level::stmtBlock() -> ASG::StmtBlock& {
+		evo::debugAssert(this->_stmt_block != nullptr, "this scope doesn't have a stmt block");
+
+		return *this->_stmt_block;
+	}
+
+
+
 	auto ScopeManager::Level::addSubScope() -> void {
 		this->has_sub_scopes = true;
 		this->num_sub_scopes_not_terminated += 1;
@@ -29,11 +47,11 @@ namespace pcit::panther{
 	}
 
 	auto ScopeManager::Level::setTerminated() -> void {
-		this->is_terminated = true;
+		this->_stmt_block->setTerminated();
 	}
 
 	auto ScopeManager::Level::isTerminated() const -> bool {
-		return this->is_terminated || (this->has_sub_scopes && this->num_sub_scopes_not_terminated == 0);
+		return this->_stmt_block->isTerminated() || (this->has_sub_scopes && this->num_sub_scopes_not_terminated == 0);
 	}
 
 	auto ScopeManager::Level::isNotTerminated() const -> bool {
@@ -116,7 +134,7 @@ namespace pcit::panther{
 			this->inObjectScope() && 
 			this->object_scopes.back().scope_level_index == uint32_t(this->scope_levels.size())
 		){
-			this->object_scopes.pop_back();		
+			this->object_scopes.pop_back();
 		}
 
 		this->scope_levels.pop_back();
@@ -134,12 +152,12 @@ namespace pcit::panther{
 	}
 
 
-	auto ScopeManager::createLevel() -> Level::ID {
+	auto ScopeManager::createLevel(ASG::StmtBlock* stmt_block) -> Level::ID {
 		const auto lock = std::unique_lock(this->mutex);
 
 		const auto new_scope_level_id = Level::ID(uint32_t(this->scope_levels.size()));
 		// TODO: better allocation method
-		this->scope_levels.emplace_back(new Level());
+		this->scope_levels.emplace_back(new Level(stmt_block));
 		return new_scope_level_id;
 	}
 

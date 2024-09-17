@@ -46,14 +46,15 @@ namespace pcit::panther{
 		const Token& peeked_token = this->reader[this->reader.peek()];
 		
 		switch(peeked_token.kind()){
-			case Token::Kind::KeywordVar:    return this->parse_var_decl<AST::VarDecl::Kind::Var>();
-			case Token::Kind::KeywordConst:  return this->parse_var_decl<AST::VarDecl::Kind::Const>();
-			case Token::Kind::KeywordDef:    return this->parse_var_decl<AST::VarDecl::Kind::Def>();
-			case Token::Kind::KeywordFunc:   return this->parse_func_decl();
-			case Token::Kind::KeywordAlias:  return this->parse_alias_decl();
-			case Token::Kind::KeywordReturn: return this->parse_return();
-			case Token::Kind::KeywordIf:     return this->parse_conditional<false>();
-			case Token::Kind::KeywordWhen:   return this->parse_conditional<true>();
+			case Token::Kind::KeywordVar:         return this->parse_var_decl<AST::VarDecl::Kind::Var>();
+			case Token::Kind::KeywordConst:       return this->parse_var_decl<AST::VarDecl::Kind::Const>();
+			case Token::Kind::KeywordDef:         return this->parse_var_decl<AST::VarDecl::Kind::Def>();
+			case Token::Kind::KeywordFunc:        return this->parse_func_decl();
+			case Token::Kind::KeywordAlias:       return this->parse_alias_decl();
+			case Token::Kind::KeywordReturn:      return this->parse_return();
+			case Token::Kind::KeywordUnreachable: return this->parse_unreachable();
+			case Token::Kind::KeywordIf:          return this->parse_conditional<false>();
+			case Token::Kind::KeywordWhen:        return this->parse_conditional<true>();
 		}
 
 		Result result = this->parse_assignment();
@@ -225,7 +226,20 @@ namespace pcit::panther{
 		return this->source.ast_buffer.createReturn(start_location, label, expr);
 	}
 
+	// TODO: check EOF
+	auto Parser::parse_unreachable() -> Result {
+		const Token::ID start_location = this->reader.peek();
+		if(this->assert_token_fail(Token::Kind::KeywordUnreachable)){ return Result::Code::Error; }
 
+		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [unreachable] statement")){
+			return Result::Code::Error;
+		}
+
+		return AST::Node(AST::Kind::Unreachable, start_location);
+	}
+
+
+	// TODO: check EOF
 	template<bool IS_WHEN>
 	auto Parser::parse_conditional() -> Result {
 		const Token::ID keyword_token_id = this->reader.peek();

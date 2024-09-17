@@ -91,6 +91,7 @@ namespace pcit::panther{
 				KeywordAlias,
 
 				KeywordReturn,
+				KeywordUnreachable,
 
 				KeywordNull,
 				KeywordUninit,
@@ -439,6 +440,7 @@ namespace pcit::panther{
 					break; case Kind::KeywordAlias:       return "alias";
 
 					break; case Kind::KeywordReturn:      return "return";
+					break; case Kind::KeywordUnreachable: return "unreachable";
 
 					break; case Kind::KeywordNull:        return "null";
 					break; case Kind::KeywordUninit:      return "uninit";

@@ -238,6 +238,7 @@ namespace pcit::panther{
 		this->current_func = &asg_func;
 
 		auto link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
+		this->current_func_link_id = link_id;
 		const FuncInfo& func_info = this->get_func_info(link_id);
 
 		this->builder.setInsertionPointAtBack(func_info.func);
@@ -247,9 +248,18 @@ namespace pcit::panther{
 		}
 
 		if(asg_func.isTerminated == false){
-			this->builder.createRet();
+			const BaseType::Function& func_type = 
+				this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
+
+
+			if(func_type.returnsVoid()){
+				this->builder.createRet();
+			}else{
+				this->builder.createUnreachable();
+			}
 		}
 
+		this->current_func_link_id = std::nullopt;
 		this->current_func = nullptr;
 	}
 
@@ -265,7 +275,9 @@ namespace pcit::panther{
 			break; case ASG::Stmt::Kind::MultiAssign:
 				this->lower_multi_assign(asg_buffer.getMultiAssign(stmt.multiAssignID()));
 			break; case ASG::Stmt::Kind::Return:      this->lower_return(asg_buffer.getReturn(stmt.returnID()));
-			break; default: evo::debugFatalBreak("Unknown or unsupported stmt kind");
+			break; case ASG::Stmt::Kind::Unreachable: this->builder.createUnreachable();
+			break; case ASG::Stmt::Kind::Conditional:
+				this->lower_conditional(asg_buffer.getConditional(stmt.conditionalID()));
 		}
 	}
 
@@ -348,6 +360,72 @@ namespace pcit::panther{
 		}
 
 		this->builder.createRet(this->get_value(*return_stmt.value));
+	}
+
+
+
+	auto ASGToLLVMIR::lower_conditional(const ASG::Conditional& conditional_stmt) -> void {
+		const FuncInfo& current_func_info = this->get_current_func_info();
+
+		const llvmint::BasicBlock then_block = this->builder.createBasicBlock(current_func_info.func, "IF.THEN");
+		auto end_block = std::optional<llvmint::BasicBlock>();
+
+		const llvmint::Value cond_value = this->get_value(conditional_stmt.cond);
+
+		if(conditional_stmt.elseStmts.empty()){
+			end_block = this->builder.createBasicBlock(current_func_info.func, "IF.END");
+
+			this->builder.createCondBranch(cond_value, then_block, *end_block);
+
+			this->builder.setInsertionPoint(then_block);
+			for(const ASG::Stmt& stmt : conditional_stmt.thenStmts){
+				this->lower_stmt(stmt);
+			}
+
+			if(conditional_stmt.thenStmts.isTerminated() == false){
+				this->builder.setInsertionPoint(then_block);
+				this->builder.createBranch(*end_block);
+			}
+		}else{
+			const llvmint::BasicBlock else_block = this->builder.createBasicBlock(current_func_info.func, "IF.ELSE");
+
+			this->builder.createCondBranch(cond_value, then_block, else_block);
+
+			// then block
+			this->builder.setInsertionPoint(then_block);
+			for(const ASG::Stmt& stmt : conditional_stmt.thenStmts){
+				this->lower_stmt(stmt);
+			}
+
+			// required because stuff in the then block might add basic blocks
+			const llvmint::BasicBlock then_block_end = this->builder.getInsertionPoint();
+
+			// else block
+			this->builder.setInsertionPoint(else_block);
+			for(const ASG::Stmt& stmt : conditional_stmt.elseStmts){
+				this->lower_stmt(stmt);
+			}
+
+			// end block
+			const bool then_terminated = conditional_stmt.thenStmts.isTerminated();
+			const bool else_terminated = conditional_stmt.elseStmts.isTerminated();
+
+			if(else_terminated && then_terminated){ return; }
+
+			end_block = this->builder.createBasicBlock(current_func_info.func, "IF.END");
+
+			if(!else_terminated){
+				this->builder.createBranch(*end_block);
+			}
+
+			if(!then_terminated){
+				this->builder.setInsertionPoint(then_block_end);
+				this->builder.createBranch(*end_block);
+			}
+		}
+
+
+		this->builder.setInsertionPoint(*end_block);
 	}
 
 
@@ -455,8 +533,6 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::get_func_type(const BaseType::Function& func_type) const -> llvmint::FunctionType {
-		const bool has_named_returns = func_type.hasNamedReturns();
-
 		auto param_types = evo::SmallVector<llvmint::Type>();
 		param_types.reserve(func_type.params().size());
 		for(const BaseType::Function::Param& param : func_type.params()){
@@ -467,17 +543,17 @@ namespace pcit::panther{
 			}
 		}
 
-		if(has_named_returns){
+		if(func_type.hasNamedReturns()){
 			for(size_t i = 0; i < func_type.returnParams().size(); i+=1){
 				param_types.emplace_back(this->builder.getTypePtr());
 			}
 		}
 
 		const llvmint::Type return_type = [&](){
-			if(has_named_returns){
+			if(func_type.hasNamedReturns()){
 				return this->builder.getTypeVoid();
 			}else{
-				return this->get_type(func_type.returnParams()[0].typeID);
+				return this->get_type(func_type.returnParams().front().typeID);
 			}
 		}();
 
@@ -924,6 +1000,12 @@ namespace pcit::panther{
 		evo::debugAssert(info_find != this->func_infos.end(), "doesn't have info for that link id");
 		return info_find->second;
 	}
+
+	auto ASGToLLVMIR::get_current_func_info() const -> const FuncInfo& {
+		evo::debugAssert(this->current_func_link_id.has_value(), "current_func_link_id is not set");
+		return this->get_func_info(*this->current_func_link_id);
+	}
+
 
 	auto ASGToLLVMIR::get_var_info(ASG::Var::LinkID link_id) const -> const VarInfo& {
 		const auto& info_find = this->var_infos.find(link_id);

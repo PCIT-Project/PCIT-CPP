@@ -102,9 +102,20 @@ namespace pcit::llvmint{
 	}
 
 
+	auto IRBuilder::createUnreachable() -> void {
+		this->builder->CreateUnreachable();
+	}
+
+
 	auto IRBuilder::createBranch(const BasicBlock& block) -> void {
 		this->builder->CreateBr(block.native());
 	}
+
+	auto IRBuilder::createCondBranch(const Value& cond, const BasicBlock& then_block, const BasicBlock& else_block)
+	-> void {
+		this->builder->CreateCondBr(cond.native(), then_block.native(), else_block.native());
+	}
+
 
 
 	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
@@ -152,20 +163,22 @@ namespace pcit::llvmint{
 	}
 	
 	
-	
 
-	
 
 	//////////////////////////////////////////////////////////////////////
-	// set
+	// insertion point
 
 	auto IRBuilder::setInsertionPoint(const BasicBlock& block) -> void {
 		this->builder->SetInsertPoint(block.native());
-	};
+	}
 
 	auto IRBuilder::setInsertionPointAtBack(const Function& function) -> void {
 		this->setInsertionPoint(function.back());
-	};
+	}
+
+	auto IRBuilder::getInsertionPoint() -> llvmint::BasicBlock {
+		return llvmint::BasicBlock(this->builder->GetInsertBlock());
+	}
 
 
 	//////////////////////////////////////////////////////////////////////

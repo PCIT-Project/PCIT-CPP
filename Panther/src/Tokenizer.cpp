@@ -190,30 +190,31 @@ namespace pcit::panther{
 
 
 		// keywords
-		{"var",      Token::Kind::KeywordVar},
-		{"const",    Token::Kind::KeywordConst},
-		{"def",      Token::Kind::KeywordDef},
-		{"func",     Token::Kind::KeywordFunc},
-		{"alias",    Token::Kind::KeywordAlias},
+		{"var",         Token::Kind::KeywordVar},
+		{"const",       Token::Kind::KeywordConst},
+		{"def",         Token::Kind::KeywordDef},
+		{"func",        Token::Kind::KeywordFunc},
+		{"alias",       Token::Kind::KeywordAlias},
 
-		{"return",   Token::Kind::KeywordReturn},
+		{"return",      Token::Kind::KeywordReturn},
+		{"unreachable", Token::Kind::KeywordUnreachable},
 
-		{"null",     Token::Kind::KeywordNull},
-		{"uninit",   Token::Kind::KeywordUninit},
-		{"zeroinit", Token::Kind::KeywordZeroinit},
-		{"this",     Token::Kind::KeywordThis},
+		{"null",        Token::Kind::KeywordNull},
+		{"uninit",      Token::Kind::KeywordUninit},
+		{"zeroinit",    Token::Kind::KeywordZeroinit},
+		{"this",        Token::Kind::KeywordThis},
 
-		{"read",     Token::Kind::KeywordRead},
-		{"mut",      Token::Kind::KeywordMut},
-		{"in",       Token::Kind::KeywordIn},
+		{"read",        Token::Kind::KeywordRead},
+		{"mut",         Token::Kind::KeywordMut},
+		{"in",          Token::Kind::KeywordIn},
 
-		{"copy",     Token::Kind::KeywordCopy},
-		{"move",     Token::Kind::KeywordMove},
-		{"as",       Token::Kind::KeywordAs},
+		{"copy",        Token::Kind::KeywordCopy},
+		{"move",        Token::Kind::KeywordMove},
+		{"as",          Token::Kind::KeywordAs},
 
-		{"if",       Token::Kind::KeywordIf},
-		{"else",     Token::Kind::KeywordElse},
-		{"when",     Token::Kind::KeywordWhen},
+		{"if",          Token::Kind::KeywordIf},
+		{"else",        Token::Kind::KeywordElse},
+		{"when",        Token::Kind::KeywordWhen},
 
 		// discard
 		{"_", Token::lookupKind("_")},

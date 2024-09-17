@@ -80,6 +80,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_func_decl() -> Result;
 			EVO_NODISCARD auto parse_alias_decl() -> Result;
 			EVO_NODISCARD auto parse_return() -> Result;
+			EVO_NODISCARD auto parse_unreachable() -> Result;
 
 			template<bool IS_WHEN>
 			EVO_NODISCARD auto parse_conditional() -> Result;
