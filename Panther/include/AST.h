@@ -22,7 +22,7 @@ namespace pcit::panther{
 
 namespace pcit::panther::AST{
 
-	enum class Kind{
+	enum class Kind : uint32_t {
 		None, // don't use! only here to allow optimization of std::optional<Node>
 
 		VarDecl,
@@ -125,7 +125,7 @@ namespace std{
 namespace pcit::panther::AST{
 	
 	struct VarDecl{
-		enum class Kind{
+		enum class Kind : uint8_t {
 			Var,
 			Const,
 			Def,
@@ -139,7 +139,7 @@ namespace pcit::panther::AST{
 
 	struct FuncDecl{
 		struct Param{
-			enum class Kind{
+			enum class Kind : uint8_t {
 				Read,
 				Mut,
 				In,

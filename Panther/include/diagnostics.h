@@ -59,6 +59,7 @@ namespace pcit::panther{
 		SemaIncorrectExprValueType,
 		SemaTypeMismatch,
 		SemaIdentNotInScope,
+		SemaIntrinsicDoesntExist,
 		SemaCannotCallLikeFunction,
 		SemaEmptyTemplatePackDeclaration,
 		SemaExpectedTemplateArgs,
@@ -164,6 +165,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaIncorrectExprValueType:           return "S";
 			break; case DiagnosticCode::SemaTypeMismatch:                     return "S";
 			break; case DiagnosticCode::SemaIdentNotInScope:                  return "S";
+			break; case DiagnosticCode::SemaIntrinsicDoesntExist:             return "S";
 			break; case DiagnosticCode::SemaCannotCallLikeFunction:           return "S";
 			break; case DiagnosticCode::SemaEmptyTemplatePackDeclaration:     return "S";
 			break; case DiagnosticCode::SemaExpectedTemplateArgs:             return "S";

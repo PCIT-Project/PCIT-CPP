@@ -186,7 +186,13 @@ namespace pcit::panther{
 
 		if(this->type_manager.builtinsInitialized() == false){
 			this->type_manager.initBuiltins();
+			this->init_intrinsics();
 		}
+
+		if(isIntrinsicLookupTableSetup() == false){
+			setupIntrinsicLookupTable();
+		}
+
 
 		{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
@@ -202,7 +208,6 @@ namespace pcit::panther{
 		}else{
 			this->wait_for_all_current_tasks();
 		}
-
 
 		{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
@@ -422,6 +427,21 @@ namespace pcit::panther{
 
 
 
+	auto Context::getIntrinsic(Intrinsic::Kind kind) const -> const Intrinsic& {
+		evo::debugAssert(kind != Intrinsic::Kind::_max_, "Intrinsic::Kind::_max_ is not a valid intrinsic to lookup");
+
+		return this->intrinsics[size_t(kind)];
+	}
+
+	auto Context::getTemplatedIntrinsic(TemplatedIntrinsic::Kind kind) const -> const TemplatedIntrinsic& {
+		evo::debugAssert(
+			kind != TemplatedIntrinsic::Kind::_max_,
+			"TemplatedIntrinsic::Kind::_max_ is not a valid templated intrinsic to lookup"
+		);
+
+		return this->templated_intrinsics[size_t(kind)];
+	}
+
 
 
 	auto Context::wait_for_all_current_tasks() -> void {
@@ -492,6 +512,35 @@ namespace pcit::panther{
 
 		this->task_group_running = false;
 	}
+
+
+
+	auto Context::init_intrinsics() -> void {
+		///////////////////////////////////
+		// non-templated
+
+		this->intrinsics[size_t(Intrinsic::Kind::Breakpoint)] = Intrinsic(
+			this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>(),
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+					}
+				)
+			)
+		);
+
+
+		///////////////////////////////////
+		// templated
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SizeOf)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+			evo::SmallVector<TemplatedIntrinsic::Param>(),
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{this->type_manager.getTypeUSize()}
+		);
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////

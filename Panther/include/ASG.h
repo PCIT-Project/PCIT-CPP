@@ -18,6 +18,7 @@
 #include "./ASG_IDs.h"
 #include "./ScopeManager.h"
 #include "./ASG_Stmt.h"
+#include "./intrinsics.h"
 
 
 namespace pcit::panther{
@@ -33,7 +34,7 @@ namespace pcit::panther::ASG{
 
 	// TODO: make variant?
 	struct Expr{
-		enum class Kind{
+		enum class Kind : uint32_t {
 			Uninit,
 			Zeroinit,
 
@@ -42,12 +43,15 @@ namespace pcit::panther::ASG{
 			LiteralBool,
 			LiteralChar,
 
+			Intrinsic,
+			TemplatedIntrinsicInstantiation,
+
 			Copy,
 			Move,
 			FuncCall,
 			AddrOf,
 			Deref,
-			
+				
 			Var,
 			Func,
 			Param,
@@ -55,24 +59,30 @@ namespace pcit::panther::ASG{
 		};
 
 
-		explicit Expr(UninitID uninit_id)      : _kind(Kind::Uninit),       value{.uninit = uninit_id}       {};
-		explicit Expr(ZeroinitID zeroinit_id)  : _kind(Kind::Zeroinit),     value{.zeroinit = zeroinit_id}   {};
+		explicit Expr(UninitID uninit_id)       : _kind(Kind::Uninit),       value{.uninit = uninit_id}       {};
+		explicit Expr(ZeroinitID zeroinit_id)   : _kind(Kind::Zeroinit),     value{.zeroinit = zeroinit_id}   {};
 
-		explicit Expr(LiteralIntID int_id)     : _kind(Kind::LiteralInt),   value{.literal_int = int_id}     {};
-		explicit Expr(LiteralFloatID float_id) : _kind(Kind::LiteralFloat), value{.literal_float = float_id} {};
-		explicit Expr(LiteralBoolID bool_id)   : _kind(Kind::LiteralBool),  value{.literal_bool = bool_id}   {};
-		explicit Expr(LiteralCharID char_id)   : _kind(Kind::LiteralChar),  value{.literal_char = char_id}   {};
+		explicit Expr(LiteralIntID int_id)      : _kind(Kind::LiteralInt),   value{.literal_int = int_id}     {};
+		explicit Expr(LiteralFloatID float_id)  : _kind(Kind::LiteralFloat), value{.literal_float = float_id} {};
+		explicit Expr(LiteralBoolID bool_id)    : _kind(Kind::LiteralBool),  value{.literal_bool = bool_id}   {};
+		explicit Expr(LiteralCharID char_id)    : _kind(Kind::LiteralChar),  value{.literal_char = char_id}   {};
 
-		explicit Expr(CopyID copy_id)          : _kind(Kind::Copy),         value{.copy = copy_id}           {};
-		explicit Expr(MoveID move_id)          : _kind(Kind::Move),         value{.move = move_id}           {};
-		explicit Expr(FuncCallID func_call_id) : _kind(Kind::FuncCall),     value{.func_call = func_call_id} {};
-		explicit Expr(AddrOfID addr_of_id)     : _kind(Kind::AddrOf),       value{.addr_of = addr_of_id}     {};
-		explicit Expr(DerefID deref_id)        : _kind(Kind::Deref),        value{.deref = deref_id}         {};
+		explicit Expr(Intrinsic::Kind intrinsic_kind) : _kind(Kind::Intrinsic), value{.intrinsic = intrinsic_kind} {};
+		explicit Expr(TemplatedIntrinsicInstantiationID templated_intrinsic_instantiation_id)
+			: _kind(Kind::TemplatedIntrinsicInstantiation), 
+			  value{.templated_intrinsic_instantiation = templated_intrinsic_instantiation_id} 
+			  {};
 
-		explicit Expr(VarLinkID var_id)        : _kind(Kind::Var),          value{.var = var_id}             {};
-		explicit Expr(FuncLinkID func_id)      : _kind(Kind::Func),         value{.func = func_id}           {};
-		explicit Expr(ParamLinkID param_id)    : _kind(Kind::Param),        value{.param = param_id}         {};
-		explicit Expr(ReturnParamLinkID id)    : _kind(Kind::ReturnParam),  value{.return_param = id}        {};
+		explicit Expr(CopyID copy_id)           : _kind(Kind::Copy),         value{.copy = copy_id}           {};
+		explicit Expr(MoveID move_id)           : _kind(Kind::Move),         value{.move = move_id}           {};
+		explicit Expr(FuncCallID func_call_id)  : _kind(Kind::FuncCall),     value{.func_call = func_call_id} {};
+		explicit Expr(AddrOfID addr_of_id)      : _kind(Kind::AddrOf),       value{.addr_of = addr_of_id}     {};
+		explicit Expr(DerefID deref_id)         : _kind(Kind::Deref),        value{.deref = deref_id}         {};
+
+		explicit Expr(VarLinkID var_id)         : _kind(Kind::Var),          value{.var = var_id}             {};
+		explicit Expr(FuncLinkID func_id)       : _kind(Kind::Func),         value{.func = func_id}           {};
+		explicit Expr(ParamLinkID param_id)     : _kind(Kind::Param),        value{.param = param_id}         {};
+		explicit Expr(ReturnParamLinkID id)     : _kind(Kind::ReturnParam),  value{.return_param = id}        {};
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -105,49 +115,50 @@ namespace pcit::panther::ASG{
 			return this->value.literal_char;
 		}
 
+		EVO_NODISCARD auto intrinsicID() const -> Intrinsic::Kind {
+			evo::debugAssert(this->kind() == Kind::Intrinsic, "not a Intrinsic");
+			return this->value.intrinsic;
+		}
+		EVO_NODISCARD auto templatedIntrinsicInstantiationID() const -> TemplatedIntrinsicInstantiationID {
+			evo::debugAssert(
+				this->kind() == Kind::TemplatedIntrinsicInstantiation, "not a TemplatedIntrinsicInstantiation"
+			);
+			return this->value.templated_intrinsic_instantiation;
+		}
 
 		EVO_NODISCARD auto copyID() const -> CopyID {
 			evo::debugAssert(this->kind() == Kind::Copy, "not a copy");
 			return this->value.copy;
 		}
-
 		EVO_NODISCARD auto moveID() const -> MoveID {
 			evo::debugAssert(this->kind() == Kind::Move, "not a move");
 			return this->value.move;
 		}
-
+		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
+			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
+			return this->value.func_call;
+		}
 		EVO_NODISCARD auto addrOfID() const -> AddrOfID {
 			evo::debugAssert(this->kind() == Kind::AddrOf, "not an addr of");
 			return this->value.addr_of;
 		}
-
 		EVO_NODISCARD auto derefID() const -> DerefID {
 			evo::debugAssert(this->kind() == Kind::Deref, "not an deref");
 			return this->value.deref;
 		}
 
-
-		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
-			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
-			return this->value.func_call;
-		}
-
-
 		EVO_NODISCARD auto varLinkID() const -> VarLinkID {
 			evo::debugAssert(this->kind() == Kind::Var, "not a var");
 			return this->value.var;
 		}
-
 		EVO_NODISCARD auto funcLinkID() const -> FuncLinkID {
 			evo::debugAssert(this->kind() == Kind::Func, "not a func");
 			return this->value.func;
 		}
-
 		EVO_NODISCARD auto paramLinkID() const -> ParamLinkID {
 			evo::debugAssert(this->kind() == Kind::Param, "not a param");
 			return this->value.param;
 		}
-
 		EVO_NODISCARD auto returnParamLinkID() const -> ReturnParamLinkID {
 			evo::debugAssert(this->kind() == Kind::ReturnParam, "not a return param");
 			return this->value.return_param;
@@ -166,6 +177,9 @@ namespace pcit::panther::ASG{
 				LiteralFloatID literal_float;
 				LiteralBoolID literal_bool;
 				LiteralCharID literal_char;
+
+				Intrinsic::Kind intrinsic;
+				TemplatedIntrinsicInstantiationID templated_intrinsic_instantiation;
 
 				CopyID copy;
 				MoveID move;
@@ -213,6 +227,16 @@ namespace pcit::panther::ASG{
 	};
 
 
+	struct TemplatedIntrinsicInstantiation{
+		using ID = TemplatedIntrinsicInstantiationID;
+
+		using TemplateArg = evo::Variant<TypeInfo::VoidableID, uint64_t, double, char, bool>;
+
+		TemplatedIntrinsic::Kind kind;
+		evo::SmallVector<TemplateArg> templateArgs;
+	};
+
+
 	namespace Copy{
 		using ID = CopyID;
 	}
@@ -251,7 +275,7 @@ namespace pcit::panther::ASG{
 	struct FuncCall{
 		using ID = FuncCallID;
 
-		FuncLinkID target;
+		evo::Variant<FuncLinkID, Intrinsic::Kind, TemplatedIntrinsicInstantiationID> target;
 		evo::SmallVector<Expr> args;
 	};
 
@@ -408,7 +432,7 @@ namespace pcit::panther::ASG{
 				std::atomic<std::optional<Func::ID>>& id;
 		};
 
-		using Arg = std::variant<TypeInfo::VoidableID, uint64_t, double, char, bool>;
+		using Arg = evo::Variant<TypeInfo::VoidableID, uint64_t, double, char, bool>;
 		EVO_NODISCARD auto lookupInstance(evo::SmallVector<Arg>&& args) -> LookupInfo;
 
 		private:

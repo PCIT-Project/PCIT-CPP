@@ -238,6 +238,24 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// template intrinsic instantiations
+
+			EVO_NODISCARD auto createTemplatedIntrinsicInstantiation(auto&&... args)
+			-> ASG::TemplatedIntrinsicInstantiation::ID {
+				const auto created_id = ASG::TemplatedIntrinsicInstantiation::ID(
+					uint32_t(this->templated_intrinsic_instantiations.size())
+				);
+				this->templated_intrinsic_instantiations.emplace_back(std::forward<decltype(args)>(args)...);
+				return created_id;
+			}
+
+			EVO_NODISCARD auto getTemplatedIntrinsicInstantiation(ASG::TemplatedIntrinsicInstantiation::ID id) const
+			-> const ASG::TemplatedIntrinsicInstantiation& {
+				return this->templated_intrinsic_instantiations[id.get()];
+			}
+
+
+			///////////////////////////////////
 			// ints
 
 			EVO_NODISCARD auto createLiteralInt(uint64_t integer, std::optional<TypeInfo::ID> type_info_id)
@@ -338,6 +356,8 @@ namespace pcit::panther{
 
 			evo::SmallVector<ASG::Expr> misc_exprs{};
 			evo::SmallVector<ASG::Deref> derefs{};
+
+			evo::SmallVector<ASG::TemplatedIntrinsicInstantiation> templated_intrinsic_instantiations{};
 
 			evo::SmallVector<ASG::LiteralInt> literal_ints{};
 			evo::SmallVector<ASG::LiteralFloat> literal_floats{};

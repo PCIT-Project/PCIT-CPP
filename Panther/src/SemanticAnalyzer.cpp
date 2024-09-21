@@ -19,6 +19,65 @@
 
 namespace pcit::panther{
 
+	//////////////////////////////////////////////////////////////////////
+	// intrinsic lookup table
+
+	class IntrinsicLookupTable{
+		public:
+			IntrinsicLookupTable() = default;
+			~IntrinsicLookupTable() = default;
+
+			using IntrinKind = evo::Variant<std::monostate, Intrinsic::Kind, TemplatedIntrinsic::Kind>;
+
+			auto setup() -> void {
+				evo::debugAssert(this->isSetup() == false, "intrinsic lookup table was already setup");
+
+				this->map = std::unordered_map<std::string_view, IntrinKind>{
+					{"breakpoint", Intrinsic::Kind::Breakpoint},
+
+					{"sizeOf", TemplatedIntrinsic::Kind::SizeOf},
+				};
+
+				this->map_end = this->map.end();
+
+				this->is_setup = true;
+			}
+
+			auto lookup(std::string_view intrinsic) -> IntrinKind {
+				evo::debugAssert(this->isSetup(), "intrinsic lookup table was not setup");
+
+				const auto lookup_iter = this->map.find(intrinsic);
+				if(lookup_iter == this->map_end){ return std::monostate(); }
+
+				return lookup_iter->second;
+			}
+
+
+			EVO_NODISCARD auto isSetup() const -> bool { return this->is_setup; }
+
+		private:
+			bool is_setup = false;
+			std::unordered_map<std::string_view, IntrinKind> map{};
+			std::unordered_map<std::string_view, IntrinKind>::iterator map_end{map.end()};
+	};
+
+
+	static IntrinsicLookupTable intrinsic_lookup_table{};
+
+
+	auto setupIntrinsicLookupTable() -> void {
+		intrinsic_lookup_table.setup();
+	}
+
+
+	auto isIntrinsicLookupTableSetup() -> bool {
+		return intrinsic_lookup_table.isSetup();
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// semantic analyzer
 
 	SemanticAnalyzer::SemanticAnalyzer(Context& _context, Source::ID source_id) 
 		: context(_context), source(this->context.getSourceManager()[source_id]), scope(), template_parents() {
@@ -654,7 +713,7 @@ namespace pcit::panther{
 		const ASG::Parent parent = this->get_parent<IS_GLOBAL>();
 
 		const BaseType::ID base_type_id = this->context.getTypeManager().getOrCreateFunction(
-			BaseType::Function(this->source.getID(), std::move(params), std::move(return_params))
+			BaseType::Function(std::move(params), std::move(return_params))
 		);
 
 		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(
@@ -829,7 +888,7 @@ namespace pcit::panther{
 		for(uint32_t i = 0; const BaseType::Function::Param& param : asg_func_type.params()){
 			const ASG::Param::ID asg_param_id = this->source.asg_buffer.createParam(asg_func_id, i);
 			this->get_current_scope_level().addParam(
-				this->source.getTokenBuffer()[param.ident].getString(), asg_param_id
+				this->source.getTokenBuffer()[param.ident.as<Token::ID>()].getString(), asg_param_id
 			);
 			asg_func.params.emplace_back(asg_param_id);
 
@@ -1098,15 +1157,27 @@ namespace pcit::panther{
 					func_link_ids.emplace_back(asg_var.expr.funcLinkID());
 				} break;
 
+				case ASG::Expr::Kind::Intrinsic:
+				case ASG::Expr::Kind::TemplatedIntrinsicInstantiation: {
+					// No func link id to add
+				} break;
+
 				default: {
 					evo::debugFatalBreak("Cannot get function call from this ASG::Expr type");
 				} break;
 			}
 		}
 
-		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
-			func_call, func_link_ids, func_types, arg_infos, func_call.args
-		);
+		const evo::Result<size_t> selected_func_overload = [&](){
+			if(func_link_ids.empty()){ // is intrinsic
+				return this->select_func_overload<true>(func_call, nullptr, func_types, arg_infos, func_call.args);
+				
+			}else{ // not intrinsic
+				return this->select_func_overload<false>(
+					func_call, func_link_ids, func_types, arg_infos, func_call.args
+				);
+			}
+		}();
 		if(selected_func_overload.isError()){ return this->may_recover(); }
 
 
@@ -1134,9 +1205,28 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// create
 
-		const ASG::FuncCall::ID asg_func_id = this->source.asg_buffer.createFuncCall(
-			func_link_ids[selected_func_overload.value()], std::move(args)
-		);
+		const ASG::FuncCall::ID asg_func_id = [&](){
+			if(func_link_ids.empty()){
+				const ASG::Expr& selected_expr = target_info_res.value().expr[selected_func_overload.value()];
+				
+				if(selected_expr.kind() == ASG::Expr::Kind::Intrinsic){
+					return this->source.asg_buffer.createFuncCall(selected_expr.intrinsicID(), std::move(args));
+				}else{
+					evo::debugAssert(
+						selected_expr.kind() == ASG::Expr::Kind::TemplatedIntrinsicInstantiation,
+						"Unknown or unsupported intrinsic kind"
+					);
+					return this->source.asg_buffer.createFuncCall(
+						selected_expr.templatedIntrinsicInstantiationID(), std::move(args)
+					);
+				}
+
+			}else{
+				return this->source.asg_buffer.createFuncCall(
+					func_link_ids[selected_func_overload.value()], std::move(args)
+				);
+			}
+		}();
 
 		this->get_current_scope_level().stmtBlock().emplace_back(asg_func_id);
 
@@ -1188,7 +1278,7 @@ namespace pcit::panther{
 		const evo::Result<ExprInfo> lhs_info = this->analyze_expr<ExprValueKind::Runtime>(infix.lhs);
 		if(lhs_info.isError()){ return this->may_recover(); }
 
-		if(lhs_info.value().value_type != ExprInfo::ValueType::ConcreteMutable){
+		if(lhs_info.value().value_type != ExprInfo::ValueType::ConcreteMut){
 			if(lhs_info.value().value_type == ExprInfo::ValueType::ConcreteConst){
 				this->emit_error(
 					Diagnostic::Code::SemaAssignmentDstNotConcreteMutable,
@@ -1397,7 +1487,7 @@ namespace pcit::panther{
 			const evo::Result<ExprInfo> assign_target_info = this->analyze_expr<ExprValueKind::Runtime>(assign_target);
 			if(assign_target_info.isError()){ return this->may_recover(); }
 
-			if(assign_target_info.value().value_type != ExprInfo::ValueType::ConcreteMutable){
+			if(assign_target_info.value().value_type != ExprInfo::ValueType::ConcreteMut){
 				if(assign_target_info.value().value_type == ExprInfo::ValueType::ConcreteConst){
 					this->emit_error(
 						Diagnostic::Code::SemaAssignmentDstNotConcreteMutable,
@@ -1808,7 +1898,13 @@ namespace pcit::panther{
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
 		if(func_call.target.kind() == AST::Kind::Intrinsic){
-			return this->analyze_expr_intrin_func_call<EXPR_VALUE_KIND>(func_call);
+			const Token::ID intrinsic_ident_token_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
+			const std::string_view intrinsic_ident = 
+				this->source.getTokenBuffer()[intrinsic_ident_token_id].getString();
+
+			if(intrinsic_ident == "import"){
+				return this->analyze_import<EXPR_VALUE_KIND>(func_call);
+			}
 		}
 
 
@@ -1918,15 +2014,28 @@ namespace pcit::panther{
 					func_link_ids.emplace_back(asg_var.expr.funcLinkID());
 				} break;
 
+				case ASG::Expr::Kind::Intrinsic:
+				case ASG::Expr::Kind::TemplatedIntrinsicInstantiation: {
+					// No func link id to add
+				} break;
+
 				default: {
 					evo::debugFatalBreak("Cannot get function call from this ASG::Expr type");
 				} break;
 			}
 		}
 
-		const evo::Result<size_t> selected_func_overload = this->select_func_overload(
-			func_call, func_link_ids, func_types, arg_infos, func_call.args
-		);
+		const evo::Result<size_t> selected_func_overload = [&](){
+			if(func_link_ids.empty()){ // is intrinsic
+				return this->select_func_overload<true>(func_call, nullptr, func_types, arg_infos, func_call.args);
+				
+			}else{ // not intrinsic
+				return this->select_func_overload<false>(
+					func_call, func_link_ids, func_types, arg_infos, func_call.args
+				);
+			}
+		}();
+
 		if(selected_func_overload.isError()){ return evo::resultError; }
 
 
@@ -1952,10 +2061,6 @@ namespace pcit::panther{
 			args.emplace_back(arg_info.expr_info.expr.front());
 		}
 
-		const ASG::FuncCall::ID asg_func_id = this->source.asg_buffer.createFuncCall(
-			func_link_ids[selected_func_overload.value()], std::move(args)
-		);
-
 		auto return_types = evo::SmallVector<TypeInfo::ID>();
 		const evo::ArrayProxy<BaseType::Function::ReturnParam> overload_return_params =
 			func_types[selected_func_overload.value()]->returnParams();
@@ -1963,6 +2068,29 @@ namespace pcit::panther{
 		for(const BaseType::Function::ReturnParam& return_param : overload_return_params){
 			return_types.emplace_back(return_param.typeID.typeID());
 		}
+
+		const ASG::FuncCall::ID asg_func_id = [&](){
+			if(func_link_ids.empty()){
+				const ASG::Expr& selected_expr = target_info_res.value().expr[selected_func_overload.value()];
+				
+				if(selected_expr.kind() == ASG::Expr::Kind::Intrinsic){
+					return this->source.asg_buffer.createFuncCall(selected_expr.intrinsicID(), std::move(args));
+				}else{
+					evo::debugAssert(
+						selected_expr.kind() == ASG::Expr::Kind::TemplatedIntrinsicInstantiation,
+						"Unknown or unsupported intrinsic kind"
+					);
+					return this->source.asg_buffer.createFuncCall(
+						selected_expr.templatedIntrinsicInstantiationID(), std::move(args)
+					);
+				}
+
+			}else{
+				return this->source.asg_buffer.createFuncCall(
+					func_link_ids[selected_func_overload.value()], std::move(args)
+				);
+			}
+		}();
 
 		return ExprInfo(
 			ExprInfo::ValueType::Ephemeral,
@@ -1974,17 +2102,12 @@ namespace pcit::panther{
 
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
-	auto SemanticAnalyzer::analyze_expr_intrin_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
+	auto SemanticAnalyzer::analyze_import(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
 		const Token::ID intrinsic_ident_token_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
 		const std::string_view intrinsic_ident = this->source.getTokenBuffer()[intrinsic_ident_token_id].getString();
-		if(intrinsic_ident != "import"){
-			this->emit_error(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				func_call,
-				"function call expressions (that aren't \"@import\") are currently unsupported"
-			);
-			return evo::resultError;
-		}
+		evo::debugAssert(
+			intrinsic_ident == "import", "Cannot analyze this intrinsic \"@{}\" with this function", intrinsic_ident
+		);
 
 		const Token::ID lookup_path_token_id = this->source.getASTBuffer().getLiteral(func_call.args[0].value);
 		const std::string_view lookup_path = this->source.getTokenBuffer()[lookup_path_token_id].getString();
@@ -2068,6 +2191,12 @@ namespace pcit::panther{
 		if(base_info.isError()){ return evo::resultError; }
 
 		if(base_info.value().value_type != ExprInfo::ValueType::Templated){
+			if(base_info.value().value_type == ExprInfo::ValueType::TemplatedIntrinsic){
+				return this->analyze_expr_templated_intrinsic<EXPR_VALUE_KIND>(
+					templated_expr, base_info.value().type_id.as<TemplatedIntrinsic::Kind>()
+				);
+			}
+
 			// TODO: better messaging
 			this->emit_error(
 				Diagnostic::Code::SemaUnexpectedTemplateArgs,
@@ -2079,7 +2208,7 @@ namespace pcit::panther{
 
 		evo::debugAssert(
 			base_info.value().type_id.is<ASG::TemplatedFunc::LinkID>(),
-			"currently unsupported type of templated type"
+			"currently unsupported kind of templated type"
 		);
 
 		const ASG::TemplatedFunc::LinkID templated_func_link_id = 
@@ -2205,7 +2334,6 @@ namespace pcit::panther{
 					} break;
 
 					default: {
-						// TODO: show declaration of template
 						this->emit_error(
 							Diagnostic::Code::SemaIncorrectTemplateInstantiation,
 							templated_expr.args[i],
@@ -2376,6 +2504,168 @@ namespace pcit::panther{
 			);
 		}
 	}
+
+
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
+	auto SemanticAnalyzer::analyze_expr_templated_intrinsic(
+		const AST::TemplatedExpr& templated_expr, TemplatedIntrinsic::Kind templated_intrinsic_kind
+	) -> evo::Result<ExprInfo> {
+		const TemplatedIntrinsic& templated_intrinsic = this->context.getTemplatedIntrinsic(templated_intrinsic_kind);
+
+		if(templated_expr.args.size() != templated_intrinsic.templateParams.size()){
+			// TODO: give exact number of arguments
+			this->emit_error(
+				Diagnostic::Code::SemaIncorrectTemplateInstantiation,
+				templated_expr,
+				"Incorrect number of template arguments"
+			);
+			return evo::resultError;
+		}
+
+		auto instantiation_type_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
+		instantiation_type_args.reserve(templated_intrinsic.templateParams.size());
+
+		auto instantiation_args = evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>();
+		instantiation_args.reserve(templated_intrinsic.templateParams.size());
+		
+		for(size_t i = 0; i < templated_intrinsic.templateParams.size(); i+=1){
+			const std::optional<TypeInfo::ID>& template_param = templated_intrinsic.templateParams[i];
+			const AST::Node& template_arg = templated_expr.args[i];
+
+			if(template_param.has_value()){ // templated param is expr
+				if(template_arg.kind() == AST::Kind::Type){
+					// TODO: show declaration of template
+					this->emit_error(
+						Diagnostic::Code::SemaIncorrectTemplateInstantiation,
+						templated_expr.args[i],
+						std::format("Expected expression in template argument index {}", i)
+					);
+					return evo::resultError;
+				}
+
+				evo::Result<ExprInfo> arg_expr_info = this->analyze_expr<ExprValueKind::ConstEval>(template_arg);
+				if(arg_expr_info.isError()){ return evo::resultError; }
+
+
+				switch(arg_expr_info.value().value_type){
+					case ExprInfo::ValueType::Import: case ExprInfo::ValueType::Templated:
+					case ExprInfo::ValueType::Initializer: {
+						this->emit_error(
+							Diagnostic::Code::SemaIncorrectTemplateArgValueType,
+							template_arg,
+							"Invalid template argument"
+						);
+						return evo::resultError;
+					} break;
+
+					default: {
+						if(this->type_check<true>(
+							*template_param, arg_expr_info.value(), "Template parameter", template_arg
+						).ok == false){
+							return evo::resultError;
+						}
+					} break;
+				}
+
+				evo::debugAssert(
+					arg_expr_info.value().value_type == ExprInfo::ValueType::Ephemeral,
+					"consteval expr is not ephemeral"
+				);
+
+				instantiation_type_args.emplace_back(std::nullopt);
+
+				switch(arg_expr_info.value().expr.front().kind()){
+					case ASG::Expr::Kind::LiteralInt: {
+						const ASG::LiteralInt::ID literal_id = arg_expr_info.value().expr.front().literalIntID();
+						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralInt(literal_id).value);
+					} break;
+
+					case ASG::Expr::Kind::LiteralFloat: {
+						const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().expr.front().literalFloatID();
+						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralFloat(literal_id).value);
+					} break;
+
+					case ASG::Expr::Kind::LiteralBool: {
+						const ASG::LiteralBool::ID literal_id = arg_expr_info.value().expr.front().literalBoolID();
+						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralBool(literal_id).value);
+					} break;
+
+					case ASG::Expr::Kind::LiteralChar: {
+						const ASG::LiteralChar::ID literal_id = arg_expr_info.value().expr.front().literalCharID();
+						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralChar(literal_id).value);
+					} break;
+
+					default: {
+						this->emit_fatal(
+							Diagnostic::Code::SemaExpectedConstEvalValue,
+							template_arg,
+							Diagnostic::createFatalMessage("Evaluated consteval value was not actually consteval")
+						);
+						return evo::resultError;
+					} break;
+				}
+				
+			}else{ // templated param is type
+				switch(template_arg.kind()){
+					case AST::Kind::Type: {
+						const AST::Type& arg_ast_type = this->source.getASTBuffer().getType(template_arg);
+						const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_type);
+						if(arg_type.isError()){ return evo::resultError; }
+
+						instantiation_type_args.emplace_back(arg_type.value());
+						instantiation_args.emplace_back(arg_type.value());
+					} break;
+
+					case AST::Kind::Ident: {
+						const Token::ID arg_ast_type_token_id = this->source.getASTBuffer().getIdent(template_arg);
+						const evo::Result<TypeInfo::VoidableID> arg_type = this->get_type_id(arg_ast_type_token_id);
+						if(arg_type.isError()){ return evo::resultError; }
+
+						instantiation_type_args.emplace_back(arg_type.value());
+						instantiation_args.emplace_back(arg_type.value());
+					} break;
+
+					default: {
+						this->emit_error(
+							Diagnostic::Code::SemaIncorrectTemplateInstantiation,
+							templated_expr.args[i],
+							std::format("Expected type in template argument index {}", i)
+						);
+						return evo::resultError;
+					} break;
+				}
+			}
+		}
+
+		const BaseType::Function instantiated_base_type = 
+			templated_intrinsic.getTypeInstantiation(instantiation_type_args);
+
+		const TypeInfo::ID instantiated_type = this->context.getTypeManager().getOrCreateTypeInfo(
+			TypeInfo(
+				this->context.getTypeManager().getOrCreateFunction(instantiated_base_type)
+			)
+		);
+
+
+		if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+			return ExprInfo(
+				ExprInfo::ValueType::Intrinsic, ExprInfo::generateExprInfoTypeIDs(instantiated_type), std::nullopt
+			);
+		}else{
+			const ASG::TemplatedIntrinsicInstantiation::ID asg_templated_intrinsic_instantiation_id 
+				= this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+					templated_intrinsic_kind, std::move(instantiation_args)
+				);
+
+			return ExprInfo(
+				ExprInfo::ValueType::Intrinsic,
+				ExprInfo::generateExprInfoTypeIDs(instantiated_type),
+				evo::SmallVector<ASG::Expr>{ASG::Expr(asg_templated_intrinsic_instantiation_id)}
+			);
+		}
+	}
+
 
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
@@ -2746,7 +3036,7 @@ namespace pcit::panther{
 
 				const ExprInfo::ValueType value_type = lhs_type.qualifiers().back().isReadOnly
 														? ExprInfo::ValueType::ConcreteConst  
-														: ExprInfo::ValueType::ConcreteMutable;
+														: ExprInfo::ValueType::ConcreteMut;
 
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return ExprInfo(value_type, ExprInfo::generateExprInfoTypeIDs(new_type_id), std::nullopt);
@@ -2904,7 +3194,7 @@ namespace pcit::panther{
 
 					auto get_value_type = [&](){
 						switch(asg_var.kind){
-							case AST::VarDecl::Kind::Var:   return ExprInfo::ValueType::ConcreteMutable;
+							case AST::VarDecl::Kind::Var:   return ExprInfo::ValueType::ConcreteMut;
 							case AST::VarDecl::Kind::Const: return ExprInfo::ValueType::ConcreteConst;
 							case AST::VarDecl::Kind::Def:   return ExprInfo::ValueType::Ephemeral;
 						}
@@ -2975,8 +3265,8 @@ namespace pcit::panther{
 					auto get_value_type = [&](){
 						switch(param.kind){
 							case AST::FuncDecl::Param::Kind::Read: return ExprInfo::ValueType::ConcreteConst;
-							case AST::FuncDecl::Param::Kind::Mut:  return ExprInfo::ValueType::ConcreteMutable;
-							case AST::FuncDecl::Param::Kind::In:   return ExprInfo::ValueType::ConcreteMutable;
+							case AST::FuncDecl::Param::Kind::Mut:  return ExprInfo::ValueType::ConcreteMut;
+							case AST::FuncDecl::Param::Kind::In:   return ExprInfo::ValueType::ConcreteMut;
 						}
 
 						evo::debugFatalBreak("Unknown or unsupported AST::FuncDecl::Param::Kind");
@@ -3039,7 +3329,7 @@ namespace pcit::panther{
 					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 						return std::optional<ExprInfo>(
 							ExprInfo(
-								ExprInfo::ValueType::ConcreteMutable, 
+								ExprInfo::ValueType::ConcreteMut, 
 								ExprInfo::generateExprInfoTypeIDs(return_param.typeID.typeID()),
 								std::nullopt
 							)
@@ -3057,7 +3347,7 @@ namespace pcit::panther{
 					}else{
 						return std::optional<ExprInfo>(
 							ExprInfo(
-								ExprInfo::ValueType::ConcreteMutable,
+								ExprInfo::ValueType::ConcreteMut,
 								ExprInfo::generateExprInfoTypeIDs(return_param.typeID.typeID()),
 								ASG::Expr(
 									ASG::ReturnParam::LinkID(
@@ -3096,11 +3386,51 @@ namespace pcit::panther{
 
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
-	auto SemanticAnalyzer::analyze_expr_intrinsic(const Token::ID& intrinsic) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, intrinsic, "intrinsic expressions are currently unsupported"
-		);
-		return evo::resultError;
+	auto SemanticAnalyzer::analyze_expr_intrinsic(const Token::ID& intrinsic_token_id) -> evo::Result<ExprInfo> {
+		const std::string_view intrinsic_name = this->source.getTokenBuffer()[intrinsic_token_id].getString();
+
+		const IntrinsicLookupTable::IntrinKind intrinsic_lookup = intrinsic_lookup_table.lookup(intrinsic_name);
+		if(intrinsic_lookup.is<std::monostate>()){
+			this->emit_error(
+				Diagnostic::Code::SemaIntrinsicDoesntExist,
+				intrinsic_token_id,
+				std::format("Intrinsic \"@{}\" doesn't exist", intrinsic_name)
+			);
+			return evo::resultError;
+		}
+
+		return intrinsic_lookup.visit([&](auto intrin_kind) -> ExprInfo {
+			using IntrinKindT = std::decay_t<decltype(intrin_kind)>;
+
+			if constexpr(std::is_same_v<IntrinKindT, Intrinsic::Kind>){
+				const Intrinsic& intrinsic = this->context.getIntrinsic(intrin_kind);
+				const TypeInfo::ID intrinsic_type = this->context.getTypeManager().getOrCreateTypeInfo(
+					TypeInfo(intrinsic.baseType)
+				);
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(
+						ExprInfo::ValueType::Intrinsic, ExprInfo::generateExprInfoTypeIDs(intrinsic_type), std::nullopt
+					);
+				}else{
+					return ExprInfo(
+						ExprInfo::ValueType::Intrinsic,
+						ExprInfo::generateExprInfoTypeIDs(intrinsic_type),
+						ASG::Expr(intrin_kind)
+					);
+				}
+				
+			}else if constexpr(std::is_same_v<IntrinKindT, TemplatedIntrinsic::Kind>){
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(ExprInfo::ValueType::TemplatedIntrinsic, intrin_kind, std::nullopt);
+				}else{
+					evo::debugFatalBreak("Cannot get a value from a templated intrinsic without template arguments");
+				}
+
+			}else{
+				evo::debugFatalBreak("Intrinsic not existing should have been caught");
+			}
+		});
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
@@ -3190,7 +3520,7 @@ namespace pcit::panther{
 	}
 
 
-	template<typename NODE_T>
+	template<bool IS_INTRINSIC, typename NODE_T>
 	auto SemanticAnalyzer::select_func_overload(
 		const NODE_T& location,
 		evo::ArrayProxy<ASG::Func::LinkID> asg_funcs,
@@ -3199,7 +3529,9 @@ namespace pcit::panther{
 		evo::ArrayProxy<AST::FuncCall::Arg> args
 	) -> evo::Result<size_t> {
 		evo::debugAssert(funcs.empty() == false, "need at least 1 func");
-		evo::debugAssert(asg_funcs.size() == funcs.size(), "mismatched size of `asg_funcs` and `funcs`");
+		if constexpr(IS_INTRINSIC == false){
+			evo::debugAssert(asg_funcs.size() == funcs.size(), "mismatched size of `asg_funcs` and `funcs`");
+		}
 		evo::debugAssert(arg_infos.size() == args.size(), "mismatched size of `arg_infos` and `args`");
 
 		struct OverloadScore{
@@ -3247,14 +3579,10 @@ namespace pcit::panther{
 				switch(param.kind){
 					case AST::FuncDecl::Param::Kind::Read: {
 						// accepts any value type
-
-						// if(arg_info.expr_info.value_type == ExprInfo::ValueType::ConcreteMutable){
-						// 	current_score += 1;
-						// }
 					} break;
 
 					case AST::FuncDecl::Param::Kind::Mut: {
-						if(arg_info.expr_info.value_type != ExprInfo::ValueType::ConcreteMutable){
+						if(arg_info.expr_info.value_type != ExprInfo::ValueType::ConcreteMut){
 							scores.emplace_back(0, OverloadScore::ValueKindMismatch(param_i));
 							failed = true;
 						}else{
@@ -3273,8 +3601,14 @@ namespace pcit::panther{
 
 				if(failed){ break; }
 
-				const Source& func_source = this->context.getSourceManager()[asg_funcs[i].sourceID()];
-				const std::string_view param_ident = func_source.getTokenBuffer()[param.ident].getString();
+				const std::string_view param_ident = param.ident.visit([&](const auto& param_ident_id){
+					if constexpr(std::is_same_v<std::decay_t<decltype(param_ident_id)>, Token::ID>){
+						const Source& func_source = this->context.getSourceManager()[asg_funcs[i].sourceID()];
+						return func_source.getTokenBuffer()[param_ident_id].getString();
+					}else{
+						return strings::toStringView(param_ident_id);
+					}
+				});
 
 				if(args[param_i].explicitIdent.has_value()){
 					const std::string_view arg_label =
@@ -3330,8 +3664,10 @@ namespace pcit::panther{
 			for(size_t i = std::numeric_limits<size_t>::max(); const OverloadScore& score : scores){
 				i += 1;
 
-				if(score.score == best_score->score){
-					infos.emplace_back("Could be this one:", this->get_source_location(asg_funcs[i]));
+				if constexpr(IS_INTRINSIC == false){
+					if(score.score == best_score->score){
+						infos.emplace_back("Could be this one:", this->get_source_location(asg_funcs[i]));
+					}
 				}
 			}
 
@@ -3363,7 +3699,13 @@ namespace pcit::panther{
 								arg_infos.size(),
 								funcs[i]->params().size()
 							),
-							this->get_source_location(asg_funcs[i])
+							[&](){
+								if constexpr(IS_INTRINSIC){
+									return std::nullopt;
+								}else{
+									return this->get_source_location(asg_funcs[i]);
+								}
+							}()
 						);
 
 					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::TypeMismatch>){
@@ -3373,10 +3715,15 @@ namespace pcit::panther{
 								fail_match_message,
 								reason.arg_index
 							),
-							this->get_source_location(
-								funcs[i]->params()[reason.arg_index].ident,
-								this->context.getSourceManager()[asg_funcs[i].sourceID()]
-							),
+							funcs[i]->params()[reason.arg_index].ident.visit([&](auto param_ident){
+								if constexpr(std::is_same_v<std::decay_t<decltype(param_ident)>, Token::ID>){
+									return std::optional<Source::Location>(this->get_source_location(
+										param_ident, this->context.getSourceManager()[asg_funcs[i].sourceID()]
+									));
+								}else{
+									return std::optional<Source::Location>();
+								}
+							}),
 							std::vector<Diagnostic::Info>{
 								std::format(
 									"Parameter is of type: {}",
@@ -3401,20 +3748,30 @@ namespace pcit::panther{
 									std::format(
 										"{} [mut] parameters require concrete mutable expressions", fail_match_message
 									),
-									this->get_source_location(
-										funcs[i]->params()[reason.arg_index].ident,
-										this->context.getSourceManager()[asg_funcs[i].sourceID()]
-									)
+									funcs[i]->params()[reason.arg_index].ident.visit([&](auto param_ident){
+										if constexpr(std::is_same_v<std::decay_t<decltype(param_ident)>, Token::ID>){
+											return std::optional<Source::Location>(this->get_source_location(
+												param_ident, this->context.getSourceManager()[asg_funcs[i].sourceID()]
+											));
+										}else{
+											return std::optional<Source::Location>();
+										}
+									})
 								);
 							} break;
 
 							case AST::FuncDecl::Param::Kind::In: {
 								infos.emplace_back(
 									std::format("{} [in] parameters require ephemeral expressions", fail_match_message),
-									this->get_source_location(
-										funcs[i]->params()[reason.arg_index].ident,
-										this->context.getSourceManager()[asg_funcs[i].sourceID()]
-									)
+									funcs[i]->params()[reason.arg_index].ident.visit([&](auto param_ident){
+										if constexpr(std::is_same_v<std::decay_t<decltype(param_ident)>, Token::ID>){
+											return std::optional<Source::Location>(this->get_source_location(
+												param_ident, this->context.getSourceManager()[asg_funcs[i].sourceID()]
+											));
+										}else{
+											return std::optional<Source::Location>();
+										}
+									})
 								);
 							} break;
 						}
@@ -3476,7 +3833,7 @@ namespace pcit::panther{
 	) -> TypeCheckInfo {
 		switch(got_expr.value_type){
 			case ExprInfo::ValueType::ConcreteConst:
-			case ExprInfo::ValueType::ConcreteMutable:
+			case ExprInfo::ValueType::ConcreteMut:
 			case ExprInfo::ValueType::Ephemeral: {
 				if(got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != 1){
 					auto name_copy = std::string(name);
@@ -4041,7 +4398,11 @@ namespace pcit::panther{
 
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
 
-		return this->get_source_location(func_type.params()[asg_param.index].ident, src);
+		evo::debugAssert(
+			func_type.params()[asg_param.index].ident.is<Token::ID>(), "Cannot get location of intrinsic param ident"
+		);
+
+		return this->get_source_location(func_type.params()[asg_param.index].ident.as<Token::ID>(), src);
 	}
 
 	auto SemanticAnalyzer::get_source_location(ASG::ReturnParam::ID ret_param_id, const Source& src) const

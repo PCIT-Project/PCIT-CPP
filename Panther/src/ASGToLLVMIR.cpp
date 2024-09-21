@@ -166,7 +166,14 @@ namespace pcit::panther{
 		this->func_infos.emplace(asg_func_link_id, FuncInfo(llvm_func));
 
 		for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params()){
-			llvm_func.getArg(i).setName(this->current_source->getTokenBuffer()[param.ident].getString());
+			const std::string_view param_name = param.ident.visit([&](const auto& param_ident_id) -> std::string_view {
+				if constexpr(std::is_same_v<std::decay_t<decltype(param_ident_id)>, Token::ID>){
+					return this->current_source->getTokenBuffer()[param_ident_id].getString();
+				}else{
+					return strings::toStringView(param_ident_id);
+				}
+			});
+			llvm_func.getArg(i).setName(param_name);
 
 			i += 1;
 		}
@@ -202,7 +209,15 @@ namespace pcit::panther{
 			this->builder.setInsertionPoint(setup_block);
 
 			for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params()){
-				const std::string_view param_name = this->current_source->getTokenBuffer()[param.ident].getString();
+				const std::string_view param_name = param.ident.visit(
+					[&](const auto& param_ident_id) -> std::string_view {
+						if constexpr(std::is_same_v<std::decay_t<decltype(param_ident_id)>, Token::ID>){
+							return this->current_source->getTokenBuffer()[param_ident_id].getString();
+						}else{
+							return strings::toStringView(param_ident_id);
+						}
+					}
+				);
 
 				const llvmint::Alloca param_alloca = [&](){
 					if(param.optimizeWithCopy){
@@ -463,6 +478,8 @@ namespace pcit::panther{
 			case BaseType::Kind::Function: {
 				return this->builder.getTypePtr().asType();
 			} break;
+
+			case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot get a dummy type");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported builtin kind");
@@ -565,6 +582,7 @@ namespace pcit::panther{
 		switch(expr.kind()){
 			case ASG::Expr::Kind::Uninit:       case ASG::Expr::Kind::Zeroinit:    case ASG::Expr::Kind::LiteralInt:
 			case ASG::Expr::Kind::LiteralFloat: case ASG::Expr::Kind::LiteralBool: case ASG::Expr::Kind::LiteralChar:
+			case ASG::Expr::Kind::Intrinsic:    case ASG::Expr::Kind::TemplatedIntrinsicInstantiation:
 			case ASG::Expr::Kind::Copy:         case ASG::Expr::Kind::Move:        case ASG::Expr::Kind::AddrOf:
 			case ASG::Expr::Kind::FuncCall: {
 				evo::debugFatalBreak("Cannot get concrete value this kind");
@@ -683,6 +701,14 @@ namespace pcit::panther{
 				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypeI8().asType());
 				this->builder.createStore(alloca, value.asValue(), false);
 				return alloca.asValue();
+			} break;
+
+			case ASG::Expr::Kind::Intrinsic: {
+				evo::debugFatalBreak("Cannot get value of intrinsic function");
+			} break;
+
+			case ASG::Expr::Kind::TemplatedIntrinsicInstantiation: {
+				evo::debugFatalBreak("Cannot get value of template instantiated intrinsic function");
 			} break;
 
 			case ASG::Expr::Kind::Copy: {
@@ -835,6 +861,8 @@ namespace pcit::panther{
 
 			case ASG::Expr::Kind::Uninit:
 			case ASG::Expr::Kind::Zeroinit:
+			case ASG::Expr::Kind::Intrinsic:
+			case ASG::Expr::Kind::TemplatedIntrinsicInstantiation:
 			case ASG::Expr::Kind::Copy:
 			case ASG::Expr::Kind::Move:
 			case ASG::Expr::Kind::FuncCall:
@@ -854,7 +882,11 @@ namespace pcit::panther{
 
 	auto ASGToLLVMIR::lower_returning_func_call(const ASG::FuncCall& func_call, bool get_pointer_to_value)
 	-> evo::SmallVector<llvmint::Value> {
-		const ASG::Func::LinkID& func_link_id = func_call.target;
+		if(func_call.target.is<ASG::Func::LinkID>() == false){
+			return this->lower_returning_intrinsic_call(func_call, get_pointer_to_value);
+		}
+
+		const ASG::Func::LinkID& func_link_id = func_call.target.as<ASG::Func::LinkID>();
 		const FuncInfo& func_info = this->get_func_info(func_link_id);
 
 		const Source& linked_source = this->context.getSourceManager()[func_link_id.sourceID()];
@@ -925,7 +957,68 @@ namespace pcit::panther{
 	}
 
 
+	auto ASGToLLVMIR::lower_returning_intrinsic_call(const ASG::FuncCall& func_call, bool get_pointer_to_value)
+	-> evo::SmallVector<llvmint::Value> {
+		evo::debugAssert(get_pointer_to_value == false, "cannot get pointers to intrinsic func call values");
 
+		auto args = evo::SmallVector<llvmint::Value>();
+		args.reserve(func_call.args.size());
+		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
+			args.emplace_back(this->get_value(arg, false));
+
+			i += 1;
+		}
+
+
+		if(func_call.target.is<Intrinsic::Kind>()){
+			switch(func_call.target.as<Intrinsic::Kind>()){
+				case Intrinsic::Kind::Breakpoint: {
+					this->builder.createIntrinsicCall(
+						llvmint::IRBuilder::IntrinsicID::debugtrap, this->builder.getTypeVoid(), nullptr
+					);
+
+					return evo::SmallVector<llvmint::Value>();
+				} break;
+
+				case Intrinsic::Kind::_max_: {
+					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown or unsupported intrinsic kind");
+			
+		}else{
+			evo::debugAssert(
+				func_call.target.is<ASG::TemplatedIntrinsicInstantiation::ID>(),
+				"cannot lower intrinsic for FuncLink::ID"
+			);
+
+			const ASG::TemplatedIntrinsicInstantiation& instantiation = 
+				this->current_source->getASGBuffer().getTemplatedIntrinsicInstantiation(
+					func_call.target.as<ASG::TemplatedIntrinsicInstantiation::ID>()
+				);
+
+			switch(instantiation.kind){
+				case TemplatedIntrinsic::Kind::SizeOf: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueI_N(
+							evo::uint(this->context.getTypeManager().sizeOfPtr()),
+							this->context.getTypeManager().sizeOf(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						).asValue()
+					};
+				} break;
+
+
+				case TemplatedIntrinsic::Kind::_max_: {
+					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown or unsupported templated intrinsic kind");
+		}
+	}
 
 
 

@@ -68,6 +68,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_constant_value(const ASG::Expr& expr) -> llvmint::Constant;
 			EVO_NODISCARD auto lower_returning_func_call(const ASG::FuncCall& func_call, bool get_pointer_to_value)
 				-> evo::SmallVector<llvmint::Value>;
+			EVO_NODISCARD auto lower_returning_intrinsic_call(const ASG::FuncCall& func_call, bool get_pointer_to_value)
+				-> evo::SmallVector<llvmint::Value>;
 
 
 			EVO_NODISCARD auto mangle_name(const ASG::Func& func) const -> std::string;

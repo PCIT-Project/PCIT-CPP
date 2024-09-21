@@ -153,7 +153,7 @@ namespace pcit::panther{
 	}
 
 
-
+	// TODO: change to not use global initialization
 	const static auto keyword_map = std::unordered_map<std::string_view, Token::Kind>{
 		// types
 		{"Void",        Token::Kind::TypeVoid},

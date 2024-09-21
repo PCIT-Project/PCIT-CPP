@@ -276,7 +276,6 @@ namespace pcit::panther{
 
 
 
-			// TODO: hash-map optimization?
 			EVO_NODISCARD static consteval auto lookupKind(std::string_view op_str) -> Kind {
 				// length 4
 				if(op_str == "<<|="){ return Kind::AssignShiftLeftSat; }

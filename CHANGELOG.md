@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.37.0
+
+### Panther
+- Added support for intrinsic functions
+- Added intrinsic function `@breakpoint`
+- Added intrinsic function `@sizeOf`
+
+
+<!---------------------------------->
 ## v0.0.36.1
 
 ### Panther

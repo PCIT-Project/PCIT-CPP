@@ -14,6 +14,11 @@
 #include "../include/LLVMContext.h"
 
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
+
 namespace pcit::llvmint{
 
 	//////////////////////////////////////////////////////////////////////
@@ -122,22 +127,23 @@ namespace pcit::llvmint{
 		return this->builder->CreateCall(func.native(), createArrayRef<llvm::Value>(params), name.c_str());
 	}
 
-	// auto IRBuilder::createIntrinsicCall(
-	// 	IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name
-	// )-> CallInst {
+	auto IRBuilder::createIntrinsicCall(
+		IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name
+	)-> CallInst {
 
-	// 	// llvm/IR/IntrinsicEnums.inc
-	// 	const llvm::Intrinsic::ID intrinsic_id = [&]() -> llvm::Intrinsic::ID {
-	// 		switch(id){
-	// 			// case IntrinsicID::debugtrap: return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
-	// 			default: evo::debugFatalBreak("Unknown llvm intrinsic");
-	// 		};
-	// 	}();
+		// llvm/IR/IntrinsicEnums.inc
+		const llvm::Intrinsic::ID intrinsic_id = [&]() -> llvm::Intrinsic::ID {
+			switch(id){
+				case IntrinsicID::debugtrap: return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
+			}
 
-	// 	return this->builder->CreateIntrinsic(
-	// 		return_type.native(), intrinsic_id, createArrayRef<llvm::Value>(params), nullptr, name.c_str()
-	// 	);
-	// };
+			evo::debugFatalBreak("Unknown or unsupported intrinsic id");
+		}();
+
+		return this->builder->CreateIntrinsic(
+			return_type.native(), intrinsic_id, createArrayRef<llvm::Value>(params), nullptr, name.c_str()
+		);
+	};
 
 
 	auto IRBuilder::createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile)

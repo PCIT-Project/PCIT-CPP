@@ -16,8 +16,13 @@
 #include "../include/Context.h"
 #include "../include/Source.h"
 #include "../include/TypeManager.h"
+// #include "../include/intrinsics.h"
 
 namespace pcit::panther{
+
+	auto setupIntrinsicLookupTable() -> void;
+	auto isIntrinsicLookupTableSetup() -> bool;
+
 
 	class SemanticAnalyzer{
 		public:
@@ -102,21 +107,24 @@ namespace pcit::panther{
 			struct ExprInfo{
 				enum class ValueType{
 					ConcreteConst,
-					ConcreteMutable,
+					ConcreteMut,
 					Ephemeral,
 					EpemeralFluid, // only if actual type is unknown
 					Import,
 					Templated,
 					Initializer, // uninit / zeroinit
 					Function, // function, not func pointer
+					Intrinsic,
+					TemplatedIntrinsic,
 				};
 
 				ValueType value_type;
 				evo::Variant<
-					std::monostate,                 // ValueType::[EpemeralFluid|Initializer]
-					evo::SmallVector<TypeInfo::ID>, // ValueType::[ConcreteConst|ConcreteMutable|Ephemeral]
-					ASG::TemplatedFunc::LinkID,     // ValueType::Templated
-					Source::ID                      // ValueType::Import
+					std::monostate,                 // EpemeralFluid|Initializer
+					evo::SmallVector<TypeInfo::ID>, // ConcreteConst|ConcreteMut|Ephemeral|Function|Intrinsic
+					ASG::TemplatedFunc::LinkID,     // Templated
+					Source::ID,                     // Import
+					TemplatedIntrinsic::Kind        // TemplatedIntrinsic
 				> type_id;
 				evo::SmallVector<ASG::Expr> expr; // empty if from ExprValueKind::None or ValueType::Import
 				                                  // may only be multiple if multiple possible function overloads
@@ -139,7 +147,7 @@ namespace pcit::panther{
 
 				EVO_NODISCARD constexpr auto is_concrete() const -> bool {
 					return this->value_type == ValueType::ConcreteConst || 
-						   this->value_type == ValueType::ConcreteMutable;
+						   this->value_type == ValueType::ConcreteMut;
 				}
 
 				EVO_NODISCARD constexpr auto is_const() const -> bool {
@@ -180,11 +188,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
-			EVO_NODISCARD auto analyze_expr_intrin_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo>;
+			EVO_NODISCARD auto analyze_import(const AST::FuncCall& func_call) -> evo::Result<ExprInfo>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_templated_expr(const AST::TemplatedExpr& templated_expr)
 				-> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_templated_intrinsic(
+				const AST::TemplatedExpr& templated_expr, TemplatedIntrinsic::Kind templated_intrinsic_kind
+			) -> evo::Result<ExprInfo>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_prefix(const AST::Prefix& prefix) -> evo::Result<ExprInfo>;
@@ -209,7 +222,7 @@ namespace pcit::panther{
 			) -> evo::Result<std::optional<ExprInfo>>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
-			EVO_NODISCARD auto analyze_expr_intrinsic(const Token::ID& intrinsic) -> evo::Result<ExprInfo>;
+			EVO_NODISCARD auto analyze_expr_intrinsic(const Token::ID& intrinsic_token_id) -> evo::Result<ExprInfo>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_literal(const Token::ID& literal) -> evo::Result<ExprInfo>;
@@ -231,7 +244,7 @@ namespace pcit::panther{
 				ExprInfo expr_info;
 				const AST::Node& ast_node;
 			};
-			template<typename NODE_T>
+			template<bool IS_INTRINSIC, typename NODE_T>
 			EVO_NODISCARD auto select_func_overload(
 				const NODE_T& location,
 				evo::ArrayProxy<ASG::Func::LinkID> asg_funcs,
@@ -453,7 +466,7 @@ namespace pcit::panther{
 				return this->get_source_location(import_info, this->source);
 			}
 
-	
+
 		private:
 			Context& context;
 			Source& source;
@@ -463,6 +476,7 @@ namespace pcit::panther{
 
 			std::unordered_map<std::string_view, ExprInfo> template_arg_exprs{};
 			std::unordered_map<std::string_view, TypeInfo::VoidableID> template_arg_types{};
+
 	};
 	
 	

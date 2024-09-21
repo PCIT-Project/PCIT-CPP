@@ -1,13 +1,5 @@
-
-func test = () -> Void {
-	
-}
-
-
-
 func entry = () #entry -> UI8 {
-	const test_func_ptr = &test;
-	test_func_ptr();
-
+	@breakpoint();
+	const size: USize = @sizeOf<{I57}>();
 	return 0;
 }

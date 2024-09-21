@@ -22,6 +22,7 @@ namespace fs = std::filesystem;
 #include "./diagnostics.h"
 #include "./TypeManager.h"
 #include "./ScopeManager.h"
+#include "./intrinsics.h"
 
 
 namespace pcit::llvmint{
@@ -101,6 +102,9 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
 
+			EVO_NODISCARD auto getIntrinsic(Intrinsic::Kind kind) const -> const Intrinsic&;
+			EVO_NODISCARD auto getTemplatedIntrinsic(TemplatedIntrinsic::Kind kind) const -> const TemplatedIntrinsic&;
+
 
 			///////////////////////////////////
 			// internal use only
@@ -178,6 +182,9 @@ namespace pcit::panther{
 			auto emit_diagnostic_impl(const Diagnostic& diagnostic) -> void;
 			auto notify_task_errored() -> void;
 			auto consume_tasks_single_threaded() -> void;
+
+
+			auto init_intrinsics() -> void;
 	
 		private:
 			Config config;
@@ -194,6 +201,11 @@ namespace pcit::panther{
 
 			std::optional<ASG::Func::LinkID> entry{};
 			mutable std::shared_mutex entry_mutex{};
+
+			std::array<Intrinsic, size_t(Intrinsic::Kind::_max_)> intrinsics{Intrinsic::dummy()};
+			std::array<TemplatedIntrinsic, size_t(TemplatedIntrinsic::Kind::_max_)> templated_intrinsics{
+				TemplatedIntrinsic::dummy()
+			};
 
 
 			///////////////////////////////////

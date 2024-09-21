@@ -36,7 +36,8 @@ namespace pcit::core{
 			std::vector<Info> sub_infos;
 
 			Info(std::string&& _message) : message(std::move(_message)), location(), sub_infos() {};
-			Info(std::string&& _message, Location loc) : message(std::move(_message)), location(loc), sub_infos() {};
+			Info(std::string&& _message, std::optional<Location> loc) 
+				: message(std::move(_message)), location(loc), sub_infos() {};
 			Info(std::string&& _message, std::optional<Location> loc, std::vector<Info>&& _sub_infos)
 				: message(std::move(_message)), location(loc), sub_infos(std::move(_sub_infos)) {};
 

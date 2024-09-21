@@ -29,7 +29,7 @@
 namespace pcit::panther::ASG{
 
 	struct Stmt{
-		enum class Kind{
+		enum class Kind : uint32_t {
 			Var,
 			FuncCall,
 			Assign,

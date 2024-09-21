@@ -49,6 +49,12 @@ namespace pcit::panther::ASG{
 	};
 
 
+	struct TemplatedIntrinsicInstantiationID 
+		: public core::UniqueID<uint32_t, struct TemplatedIntrinsicInstantiationID> {
+		using core::UniqueID<uint32_t, TemplatedIntrinsicInstantiationID>::UniqueID;
+	};
+
+
 	struct CopyID : public core::UniqueID<uint32_t, struct CopyID> {
 		using core::UniqueID<uint32_t, CopyID>::UniqueID;
 	};

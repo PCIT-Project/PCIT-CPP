@@ -24,7 +24,7 @@ namespace pcit::llvmint{
 	class IRBuilder{
 		public:
 			enum class IntrinsicID{
-				// debugtrap,
+				debugtrap,
 			};
 
 		public:
@@ -70,9 +70,9 @@ namespace pcit::llvmint{
 
 			auto createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0') 
 				-> CallInst;
-			// auto createIntrinsicCall(
-			// 	IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name
-			// ) -> CallInst;
+			auto createIntrinsicCall(
+				IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0'
+			) -> CallInst;
 
 			auto createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile) -> void;
 

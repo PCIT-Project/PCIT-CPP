@@ -17,6 +17,8 @@
 #include "./source_data.h"
 #include "./Token.h"
 #include "./AST.h"
+#include "./strings.h"
+
 
 namespace pcit::panther{
 
@@ -84,7 +86,9 @@ namespace pcit::panther{
 
 
 	namespace BaseType{
-		enum class Kind{
+		enum class Kind : uint8_t {
+			Dummy,
+
 			Builtin,
 			Function,
 		};
@@ -139,7 +143,7 @@ namespace pcit::panther{
 			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 			struct Param{
-				Token::ID ident;
+				evo::Variant<Token::ID, strings::StringCode> ident;
 				TypeInfoID typeID;
 				AST::FuncDecl::Param::Kind kind;
 				bool mustLabel:1;
@@ -156,13 +160,11 @@ namespace pcit::panther{
 			};
 
 			Function(
-				SourceID _source_id, evo::SmallVector<Param>&& params_in, evo::SmallVector<ReturnParam>&& _return_params
-			) : source_id(_source_id), _params(std::move(params_in)), return_params(std::move(_return_params)) {};
+				evo::SmallVector<Param>&& params_in, evo::SmallVector<ReturnParam>&& _return_params
+			) : _params(std::move(params_in)), return_params(std::move(_return_params)) {};
 
-			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
 			EVO_NODISCARD auto params() const -> evo::ArrayProxy<Param> { return this->_params; }
 			EVO_NODISCARD auto returnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
-
 
 			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->return_params[0].ident.has_value(); }
 			EVO_NODISCARD auto returnsVoid() const -> bool { return this->return_params[0].typeID.isVoid(); }
@@ -170,7 +172,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto operator==(const Function&) const -> bool = default;
 
 			private:
-				SourceID source_id;
 				evo::SmallVector<Param> _params;
 				evo::SmallVector<ReturnParam> return_params;
 		};
@@ -192,8 +193,13 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
 
+
+			EVO_NODISCARD static constexpr auto dummy() -> ID {
+				return ID(Kind::Dummy, std::numeric_limits<uint32_t>::max());
+			}
+
 			private:
-				ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
+				constexpr ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
 
 			private:
 				Kind _kind;
@@ -264,10 +270,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateBuiltinBaseType(Token::Kind kind) -> BaseType::ID;
 			EVO_NODISCARD auto getOrCreateBuiltinBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
 
-			// types needed by semantic analyzer to check againt
-			EVO_NODISCARD static auto getTypeBool() -> TypeInfo::ID { return TypeInfo::ID(0); }
-			EVO_NODISCARD static auto getTypeChar() -> TypeInfo::ID { return TypeInfo::ID(1); }
-			EVO_NODISCARD static auto getTypeUI8()  -> TypeInfo::ID { return TypeInfo::ID(2); }
+			// types needed by semantic analyzer to check againt or for generating intrinsics
+			EVO_NODISCARD static auto getTypeBool()  -> TypeInfo::ID { return TypeInfo::ID(0); }
+			EVO_NODISCARD static auto getTypeChar()  -> TypeInfo::ID { return TypeInfo::ID(1); }
+			EVO_NODISCARD static auto getTypeUI8()   -> TypeInfo::ID { return TypeInfo::ID(2); }
+			EVO_NODISCARD static auto getTypeUSize() -> TypeInfo::ID { return TypeInfo::ID(3); }
 
 			// type traits
 			EVO_NODISCARD auto sizeOf(TypeInfo::ID id) const -> size_t;

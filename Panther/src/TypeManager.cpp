@@ -73,6 +73,7 @@ namespace pcit::panther{
 		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 10))); // literal bool
 		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 11))); // literal character
 		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 26))); // UI8
+		this->types.emplace_back(new TypeInfo(BaseType::ID(BaseType::Kind::Builtin, 3))); // USize
 	}
 
 	auto TypeManager::builtinsInitialized() const -> bool {
@@ -136,6 +137,8 @@ namespace pcit::panther{
 				case BaseType::Kind::Function: {
 					return "{FUNCTION}";
 				} break;
+
+				case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot print a dummy type");
 			}
 
 			evo::debugFatalBreak("Unknown or unsuport base-type kind");
@@ -292,6 +295,8 @@ namespace pcit::panther{
 			case BaseType::Kind::Function: {
 				return this->sizeOfPtr();
 			} break;
+
+			case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot get the size of a dummy type");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported base-type kind");
