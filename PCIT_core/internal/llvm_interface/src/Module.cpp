@@ -157,6 +157,19 @@ namespace pcit::llvmint{
 		
 	auto Module::get_clone() const -> std::unique_ptr<llvm::Module> {
 		return llvm::CloneModule(*this->_native);
-	};
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// linked funcs
+
+	static auto print_hello_world() -> void {
+		evo::println("Hello world, I'm Panther!");
+	}
+
+
+	auto Module::setup_linked_funcs(ExecutionEngine& execution_engine) -> void {
+		execution_engine.registerFunction("PTHR._printHelloWorld", uint64_t(&print_hello_world));
+	}
 
 }

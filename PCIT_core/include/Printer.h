@@ -38,6 +38,7 @@ namespace pcit::core{
 
 
 			auto print(std::string_view str) -> void;
+			auto println(std::string_view str) -> void;
 
 
 			///////////////////////////////////

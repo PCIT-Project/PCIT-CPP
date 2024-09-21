@@ -333,7 +333,6 @@ namespace pcit::panther{
 			if(this->lower_to_llvmir(llvm_context, module, true, false) == false){
 				return evo::Result<uint8_t>(evo::resultError);
 			}
-			
 
 			return evo::Result<uint8_t>(module.run<uint8_t>("main"));
 		}();
@@ -516,18 +515,34 @@ namespace pcit::panther{
 
 
 	auto Context::init_intrinsics() -> void {
+		auto create_intrinsic = [&](
+			evo::SmallVector<BaseType::Function::Param>&& params,
+			evo::SmallVector<BaseType::Function::ReturnParam>&& return_params
+		) -> Intrinsic {
+			return Intrinsic(
+				this->type_manager.getOrCreateFunction(
+					BaseType::Function(std::move(params), std::move(return_params))
+				)
+			);
+		};
+
+
+
 		///////////////////////////////////
 		// non-templated
 
-		this->intrinsics[size_t(Intrinsic::Kind::Breakpoint)] = Intrinsic(
-			this->type_manager.getOrCreateFunction(
-				BaseType::Function(
-					evo::SmallVector<BaseType::Function::Param>(),
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-					}
-				)
-			)
+		this->intrinsics[size_t(Intrinsic::Kind::Breakpoint)] = create_intrinsic(
+			evo::SmallVector<BaseType::Function::Param>(),
+			evo::SmallVector<BaseType::Function::ReturnParam>{
+				BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+			}
+		);
+
+		this->intrinsics[size_t(Intrinsic::Kind::_printHelloWorld)] = create_intrinsic(
+			evo::SmallVector<BaseType::Function::Param>(),
+			evo::SmallVector<BaseType::Function::ReturnParam>{
+				BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+			}
 		);
 
 

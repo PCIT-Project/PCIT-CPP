@@ -10,6 +10,22 @@
 #include "./printing.h"
 
 namespace pthr{
+
+	//////////////////////////////////////////////////////////////////////
+	// title
+
+	auto printTitle(pcit::core::Printer& printer) -> void {
+		// https://www.asciiart.eu/text-to-ascii-art
+		// modified from the `Slant` font
+
+		printer.printlnCyan(R"(            __   __         
+    ____   / /_ / /_   _____
+   / __ \ / __// __ \ / ___/
+  / /_/ // /_ / / / // /     (Panther Compiler)
+ / ____/ \__//_/ /_//_/     
+/_/)");
+	}
+
 	
 	//////////////////////////////////////////////////////////////////////
 	// tokens
@@ -1149,6 +1165,7 @@ namespace pthr{
 		ast_printer.print_header();
 		ast_printer.print_globals();
 	}
+
 
 
 }

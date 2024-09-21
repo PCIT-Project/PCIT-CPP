@@ -76,20 +76,20 @@ namespace pcit::llvmint{
 
 
 			EVO_NODISCARD auto createGlobal(
-				const llvmint::Constant& value,
-				const llvmint::Type& type,
-				llvmint::LinkageType linkage,
+				const Constant& value,
+				const Type& type,
+				LinkageType linkage,
 				bool is_constant,
 				evo::CStrProxy name = '\0'
-			) -> llvmint::GlobalVariable;
+			) -> GlobalVariable;
 
 			EVO_NODISCARD auto createGlobalUninit(
-				const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
-			) -> llvmint::GlobalVariable;
+				const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
+			) -> GlobalVariable;
 
 			EVO_NODISCARD auto createGlobalZeroinit(
-				const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
-			) -> llvmint::GlobalVariable;
+				const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
+			) -> GlobalVariable;
 
 
 
@@ -98,8 +98,10 @@ namespace pcit::llvmint{
 
 			template<typename ReturnType>
 			EVO_NODISCARD auto run(std::string_view func_name) -> ReturnType {
-				auto execution_engine = llvmint::ExecutionEngine();
+				auto execution_engine = ExecutionEngine();
 				execution_engine.createEngine(*this);
+				this->setup_linked_funcs(execution_engine);
+
 
 				const ReturnType output = execution_engine.runFunction<ReturnType>(func_name);
 
@@ -110,8 +112,9 @@ namespace pcit::llvmint{
 
 			template<>
 			auto run<void>(std::string_view func_name) -> void {
-				auto execution_engine = llvmint::ExecutionEngine();
+				auto execution_engine = ExecutionEngine();
 				execution_engine.createEngine(*this);
+				this->setup_linked_funcs(execution_engine);
 
 				execution_engine.runFunction<void>(func_name);
 
@@ -126,7 +129,9 @@ namespace pcit::llvmint{
 		private:
 			EVO_NODISCARD auto get_clone() const -> std::unique_ptr<llvm::Module>;
 
+			auto setup_linked_funcs(ExecutionEngine& execution_engine) -> void;
 	
+
 		private:
 			llvm::Module* _native;
 			llvm::TargetMachine* target_machine = nullptr;

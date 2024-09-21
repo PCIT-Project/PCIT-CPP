@@ -34,6 +34,10 @@ namespace pcit::llvmint{
 			auto shutdownEngine() -> void;
 
 
+			auto registerFunction(const class Function& func, void* func_call) -> void;
+			auto registerFunction(std::string_view func, uint64_t func_call_address) -> void;
+
+
 			template<typename T>
 			EVO_NODISCARD auto runFunction(std::string_view func_name) -> T {
 				const uint64_t func_addr = this->get_func_address(func_name);
@@ -55,6 +59,4 @@ namespace pcit::llvmint{
 		private:
 			llvm::ExecutionEngine* engine = nullptr;
 	};
-
-
 }

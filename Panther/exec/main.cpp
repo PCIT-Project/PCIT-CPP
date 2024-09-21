@@ -70,7 +70,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	auto config = Config{
-		.target      = Config::Target::PrintLLVMIR,
+		.target      = Config::Target::Run,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
@@ -92,8 +92,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	if(config.verbose){
-		printer.printlnCyan("pthr (Panther Compiler)");
-		printer.printlnGray("-----------------------");
+		pthr::printTitle(printer);
+		printer.printlnGray("-----------------------------------------------");
 
 		#if defined(PCIT_BUILD_DEBUG)
 			printer.printlnMagenta(std::format("v{} (debug)", pcit::core::version));

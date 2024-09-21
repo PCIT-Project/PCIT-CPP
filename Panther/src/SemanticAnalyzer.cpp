@@ -34,6 +34,7 @@ namespace pcit::panther{
 
 				this->map = std::unordered_map<std::string_view, IntrinKind>{
 					{"breakpoint", Intrinsic::Kind::Breakpoint},
+					{"_printHelloWorld", Intrinsic::Kind::_printHelloWorld},
 
 					{"sizeOf", TemplatedIntrinsic::Kind::SizeOf},
 				};

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.37.1
+
+### Panther
+- Added intrinsic function `@_printHelloWorld`
+
+### pthr
+- Added nicer logo when compiling in verbose mode
+
+
+<!---------------------------------->
 ## v0.0.37.0
 
 ### Panther

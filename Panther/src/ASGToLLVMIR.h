@@ -40,6 +40,8 @@ namespace pcit::panther{
 
 
 		private:
+			auto add_runtime_links() -> void;
+
 			auto lower_global_var(const ASG::Var::ID& var_id) -> void;
 
 			auto lower_func_decl(const ASG::Func::ID& func_id) -> void;
@@ -121,12 +123,15 @@ namespace pcit::panther{
 			Source* current_source = nullptr;
 			const ASG::Func* current_func = nullptr;
 			std::optional<ASG::Func::LinkID> current_func_link_id{};
-			
 
 			std::unordered_map<ASG::Func::LinkID, FuncInfo> func_infos{};
 			std::unordered_map<ASG::Var::LinkID, VarInfo> var_infos{};
 			std::unordered_map<ASG::Param::LinkID, ParamInfo> param_infos{};
 			std::unordered_map<ASG::ReturnParam::LinkID, ReturnParamInfo> return_param_infos{};
+
+			struct LinkedFunctions{
+				std::optional<llvmint::Function> print_hello_world{};
+			} linked_functions;
 	};
 
 	

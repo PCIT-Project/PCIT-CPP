@@ -18,6 +18,7 @@ namespace panther = pcit::panther;
 
 namespace pthr{
 
+	auto printTitle(pcit::core::Printer& printer) -> void;
 
 	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) -> void;
 

@@ -202,10 +202,8 @@ namespace pcit::panther{
 			std::optional<ASG::Func::LinkID> entry{};
 			mutable std::shared_mutex entry_mutex{};
 
-			std::array<Intrinsic, size_t(Intrinsic::Kind::_max_)> intrinsics{Intrinsic::dummy()};
-			std::array<TemplatedIntrinsic, size_t(TemplatedIntrinsic::Kind::_max_)> templated_intrinsics{
-				TemplatedIntrinsic::dummy()
-			};
+			std::array<Intrinsic, size_t(Intrinsic::Kind::_max_)> intrinsics{};
+			std::array<TemplatedIntrinsic, size_t(TemplatedIntrinsic::Kind::_max_)> templated_intrinsics{};
 
 
 			///////////////////////////////////

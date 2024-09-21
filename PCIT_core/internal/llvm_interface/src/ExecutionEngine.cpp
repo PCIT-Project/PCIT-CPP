@@ -12,6 +12,7 @@
 #include <LLVM.h>
 
 #include "../include/Module.h"
+#include "../include/Function.h"
 
 
 namespace pcit::llvmint{
@@ -20,7 +21,11 @@ namespace pcit::llvmint{
 	auto ExecutionEngine::createEngine(const Module& module) -> void {
 		evo::debugAssert(this->hasCreatedEngine() == false, "Execution engine already created");
 
-		this->engine = llvm::EngineBuilder(module.get_clone()).setEngineKind(llvm::EngineKind::JIT).create();
+		this->engine = llvm::EngineBuilder(module.get_clone())
+			.setEngineKind(llvm::EngineKind::JIT)
+			.create();
+
+		this->engine->DisableSymbolSearching();
 	};
 
 
@@ -30,6 +35,17 @@ namespace pcit::llvmint{
 		delete this->engine;
 		this->engine = nullptr;
 	};
+
+
+	auto ExecutionEngine::registerFunction(const Function& func, void* func_call) -> void {
+		this->engine->addGlobalMapping(static_cast<const llvm::GlobalValue*>(func.native()), func_call);
+	}
+
+	auto ExecutionEngine::registerFunction(std::string_view func, uint64_t func_call_address) -> void {
+		this->engine->addGlobalMapping(func, func_call_address);
+	}
+
+
 
 
 

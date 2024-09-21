@@ -22,6 +22,8 @@
 namespace pcit::panther{
 
 	auto ASGToLLVMIR::lower() -> void {
+		this->add_runtime_links();
+
 		// lower variables
 		for(const Source::ID& source_id : this->context.getSourceManager()){
 			this->current_source = &this->context.getSourceManager()[source_id];
@@ -74,6 +76,19 @@ namespace pcit::panther{
 		this->builder.createRet(this->builder.createZExt(begin_ret, this->builder.getTypeI32().asType()));
 	}
 
+
+
+	auto ASGToLLVMIR::add_runtime_links() -> void {
+		///////////////////////////////////
+		// _printHelloWorld
+
+		linked_functions.print_hello_world = this->module.createFunction(
+			"PTHR._printHelloWorld",
+			this->builder.getFuncProto(this->builder.getTypeVoid(), {}, false),
+			llvmint::LinkageType::External
+		);
+		linked_functions.print_hello_world->setNoThrow();
+	}
 
 
 
@@ -976,6 +991,12 @@ namespace pcit::panther{
 					this->builder.createIntrinsicCall(
 						llvmint::IRBuilder::IntrinsicID::debugtrap, this->builder.getTypeVoid(), nullptr
 					);
+
+					return evo::SmallVector<llvmint::Value>();
+				} break;
+
+				case Intrinsic::Kind::_printHelloWorld: {
+					this->builder.createCall(*linked_functions.print_hello_world, nullptr);
 
 					return evo::SmallVector<llvmint::Value>();
 				} break;

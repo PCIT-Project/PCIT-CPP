@@ -1,5 +1,7 @@
+
 func entry = () #entry -> UI8 {
-	@breakpoint();
+	@_printHelloWorld();
+	
 	const size: USize = @sizeOf<{I57}>();
 	return 0;
 }

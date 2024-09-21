@@ -22,16 +22,15 @@ namespace pcit::panther{
 		// Use ID to lookup Intrinsics in Context
 		enum class Kind : uint32_t {
 			Breakpoint,
+			_printHelloWorld,
 
-			_max_
+			_max_,
 		};
 
 		BaseType::ID baseType;
 
-
-		EVO_NODISCARD static constexpr auto dummy() -> Intrinsic {
-			return Intrinsic(BaseType::ID::dummy());
-		}
+		Intrinsic() : baseType(BaseType::ID::dummy()) {};
+		Intrinsic(BaseType::ID base_type) : baseType(base_type) {};
 	};
 
 
@@ -42,7 +41,6 @@ namespace pcit::panther{
 
 			_max_
 		};
-
 
 
 		struct Param{
@@ -56,6 +54,7 @@ namespace pcit::panther{
 		evo::SmallVector<std::optional<TypeInfo::ID>> templateParams; // nullopt means it's a `Type` param
 		evo::SmallVector<Param> params;
 		evo::SmallVector<ReturnParam> returns;
+
 
 		// nullopt if is an expr argument
 		EVO_NODISCARD auto getTypeInstantiation(
@@ -92,12 +91,6 @@ namespace pcit::panther{
 			}
 
 			return BaseType::Function(std::move(instantiated_params), std::move(instantiated_returns));
-		}
-
-
-
-		EVO_NODISCARD static constexpr auto dummy() -> TemplatedIntrinsic {
-			return TemplatedIntrinsic({}, {}, {});
 		}
 	};
 	

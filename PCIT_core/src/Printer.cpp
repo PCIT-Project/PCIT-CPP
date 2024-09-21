@@ -120,6 +120,10 @@ namespace pcit::core{
 	auto Printer::print(std::string_view str) -> void {
 		evo::print(str);
 	}
+
+	auto Printer::println(std::string_view str) -> void {
+		evo::println(str);
+	}
 	
 
 	auto Printer::printFatal(std::string_view str) -> void {
