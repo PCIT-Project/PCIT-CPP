@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.37.2
+
+### Panther
+- Added checking for initializer values being used as function call expression arguments
+- Fixed diagnostic being emitted that the intrinsic `@import` was unknown if the call was a statement
+
+
+<!---------------------------------->
 ## v0.0.37.1
 
 ### Panther

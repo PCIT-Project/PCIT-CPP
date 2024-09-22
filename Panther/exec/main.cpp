@@ -93,7 +93,6 @@ auto main(int argc, const char* argv[]) -> int {
 
 	if(config.verbose){
 		pthr::printTitle(printer);
-		printer.printlnGray("-----------------------------------------------");
 
 		#if defined(PCIT_BUILD_DEBUG)
 			printer.printlnMagenta(std::format("v{} (debug)", pcit::core::version));

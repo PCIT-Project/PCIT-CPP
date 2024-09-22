@@ -1051,186 +1051,25 @@ namespace pcit::panther{
 
 	// TODO: merge some of the functionality with analyze_expr_func_call
 	auto SemanticAnalyzer::analyze_func_call(const AST::FuncCall& func_call) -> bool {
-		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
-		if(target_info_res.isError()){ return this->may_recover(); }
+		if(func_call.target.kind() == AST::Kind::Intrinsic){
+			const Token::ID intrinsic_ident_token_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
+			const std::string_view intrinsic_ident = 
+				this->source.getTokenBuffer()[intrinsic_ident_token_id].getString();
 
-		if(target_info_res.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() == false){
-			this->emit_error(
-				Diagnostic::Code::SemaCannotCallLikeFunction,
-				func_call.target,
-				"Cannot call this expression like a function"
-			);
-			return this->may_recover();
-		}
+			if(intrinsic_ident == "import"){
+				if(this->analyze_import<ExprValueKind::Runtime>(func_call).isError()){ return false; }
 
-
-		const evo::SmallVector<TypeInfo::ID> target_type_ids =
-			target_info_res.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
-
-		auto target_type_infos = evo::SmallVector<const TypeInfo*>();
-		target_type_infos.reserve(target_type_ids.size());
-		for(const TypeInfo::ID& target_type_id : target_type_ids){
-			target_type_infos.emplace_back(&this->context.getTypeManager().getTypeInfo(target_type_id));
-		}
-
-
-		if(target_type_infos.size() == 1){
-			if(
-				target_type_infos.front()->qualifiers().empty() == false ||
-				target_type_infos.front()->baseTypeID().kind() != BaseType::Kind::Function
-			){
-				this->emit_error(
-					Diagnostic::Code::SemaCannotCallLikeFunction,
-					func_call.target,
-					"Cannot call this expression like a function"
-				);
-				return this->may_recover();
-			}
-
-		}else{
-			if(target_info_res.value().value_type != ExprInfo::ValueType::ConcreteConst){
-				this->emit_error(
-					Diagnostic::Code::SemaCannotCallLikeFunction,
-					func_call.target,
-					"Cannot call this expression like a function"
-				);
-				return this->may_recover();
+				this->emit_error(Diagnostic::Code::SemaDiscardingFuncReturn, func_call, "Cannot discard an import");
+				return false;
 			}
 		}
-
 		
-		auto func_types = evo::SmallVector<const BaseType::Function*>();
-		func_types.reserve(target_type_infos.size());
-		for(const TypeInfo* target_type_info : target_type_infos){
-			func_types.emplace_back(
-				&this->context.getTypeManager().getFunction(target_type_info->baseTypeID().funcID())
-			);
-		}
 
+		evo::Result<AnalyzedFuncCallData> analyzed_func_call_data
+			= this->analyze_func_call_impl<ExprValueKind::Runtime, true>(func_call);
+		if(analyzed_func_call_data.isError()){ return this->may_recover(); }
 
-		///////////////////////////////////
-		// check arguments
-
-		auto arg_infos = evo::SmallVector<ArgInfo>();
-		arg_infos.reserve(func_call.args.size());
-		for(const AST::FuncCall::Arg& arg : func_call.args){
-			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
-			if(arg_info.isError()){ return this->may_recover(); }
-
-			if(arg_info.value().value_type == ExprInfo::ValueType::Initializer){
-				this->emit_error(
-					Diagnostic::Code::SemaInvalidUseOfInitializerValueExpr,
-					arg.value,
-					"Initializer values cannot be used as function call arguments"
-				);
-				return this->may_recover();
-			}
-
-
-			if(
-				arg_info.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() &&
-				arg_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1
-			){
-				this->emit_error(
-					Diagnostic::Code::SemaMultipleValuesIntoOne,
-					arg.value,
-					"Cannot pass multiple values into a single function argument"
-				);
-				return this->may_recover();
-			}
-
-			arg_infos.emplace_back(arg.explicitIdent, arg_info.value(), arg.value);
-		}
-
-
-		auto func_link_ids = evo::SmallVector<ASG::Func::LinkID>();
-		func_link_ids.reserve(target_info_res.value().expr.size());
-		for(const ASG::Expr& func_expr : target_info_res.value().expr){
-			switch(func_expr.kind()){
-				case ASG::Expr::Kind::Func: {
-					func_link_ids.emplace_back(func_expr.funcLinkID());
-				} break;
-
-				case ASG::Expr::Kind::Var: {
-					const ASG::Var::LinkID asg_var_link_id = func_expr.varLinkID();
-					const Source& target_source = this->context.getSourceManager()[asg_var_link_id.sourceID()];
-					const ASG::Var& asg_var = target_source.getASGBuffer().getVar(asg_var_link_id.varID());
-					func_link_ids.emplace_back(asg_var.expr.funcLinkID());
-				} break;
-
-				case ASG::Expr::Kind::Intrinsic:
-				case ASG::Expr::Kind::TemplatedIntrinsicInstantiation: {
-					// No func link id to add
-				} break;
-
-				default: {
-					evo::debugFatalBreak("Cannot get function call from this ASG::Expr type");
-				} break;
-			}
-		}
-
-		const evo::Result<size_t> selected_func_overload = [&](){
-			if(func_link_ids.empty()){ // is intrinsic
-				return this->select_func_overload<true>(func_call, nullptr, func_types, arg_infos, func_call.args);
-				
-			}else{ // not intrinsic
-				return this->select_func_overload<false>(
-					func_call, func_link_ids, func_types, arg_infos, func_call.args
-				);
-			}
-		}();
-		if(selected_func_overload.isError()){ return this->may_recover(); }
-
-
-		if(func_types[selected_func_overload.value()]->returnParams()[0].typeID.isVoid() == false){
-			// TODO: better messaging - #mayDiscard
-			this->emit_error(
-				Diagnostic::Code::SemaDiscardingFuncReturn,
-				func_call.target,
-				"Discarding the return value of a function"
-			);
-			return this->may_recover();
-		}
-
-
-		///////////////////////////////////
-		// create
-
-		auto args = evo::SmallVector<ASG::Expr>();
-		args.reserve(arg_infos.size());
-		for(const ArgInfo& arg_info : arg_infos){
-			args.emplace_back(arg_info.expr_info.expr.front());
-		}
-
-
-		///////////////////////////////////
-		// create
-
-		const ASG::FuncCall::ID asg_func_id = [&](){
-			if(func_link_ids.empty()){
-				const ASG::Expr& selected_expr = target_info_res.value().expr[selected_func_overload.value()];
-				
-				if(selected_expr.kind() == ASG::Expr::Kind::Intrinsic){
-					return this->source.asg_buffer.createFuncCall(selected_expr.intrinsicID(), std::move(args));
-				}else{
-					evo::debugAssert(
-						selected_expr.kind() == ASG::Expr::Kind::TemplatedIntrinsicInstantiation,
-						"Unknown or unsupported intrinsic kind"
-					);
-					return this->source.asg_buffer.createFuncCall(
-						selected_expr.templatedIntrinsicInstantiationID(), std::move(args)
-					);
-				}
-
-			}else{
-				return this->source.asg_buffer.createFuncCall(
-					func_link_ids[selected_func_overload.value()], std::move(args)
-				);
-			}
-		}();
-
-		this->get_current_scope_level().stmtBlock().emplace_back(asg_func_id);
-
+		this->get_current_scope_level().stmtBlock().emplace_back(*analyzed_func_call_data.value().asg_func_id);
 		return true;
 	}
 
@@ -1895,7 +1734,6 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
-	// TODO: merge some of the functionality with analyze_func_call
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
 		if(func_call.target.kind() == AST::Kind::Intrinsic){
@@ -1907,197 +1745,45 @@ namespace pcit::panther{
 				return this->analyze_import<EXPR_VALUE_KIND>(func_call);
 			}
 		}
+		
 
+		evo::Result<AnalyzedFuncCallData> analyzed_func_call_data
+			= this->analyze_func_call_impl<ExprValueKind::Runtime, false>(func_call);
+		if(analyzed_func_call_data.isError()){ return evo::resultError; }
 
-		///////////////////////////////////
-		// get function and check callable
-
-		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
-		if(target_info_res.isError()){ return evo::resultError; }
-
-		if(target_info_res.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() == false){
-			this->emit_error(
-				Diagnostic::Code::SemaCannotCallLikeFunction,
-				func_call.target,
-				"Cannot call this expression like a function"
-			);
-			return evo::resultError;
-		}
 
 
 		///////////////////////////////////
-		// get base type
+		// get return types
 
-		const evo::SmallVector<TypeInfo::ID> target_type_ids =
-			target_info_res.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
+		const evo::ArrayProxy<BaseType::Function::ReturnParam> overload_return_params =
+			analyzed_func_call_data.value().selected_func_type->returnParams();
 
-		auto target_type_infos = evo::SmallVector<const TypeInfo*>();
-		target_type_infos.reserve(target_type_ids.size());
-		for(const TypeInfo::ID& target_type_id : target_type_ids){
-			target_type_infos.emplace_back(&this->context.getTypeManager().getTypeInfo(target_type_id));
-		}
+		auto return_types = evo::SmallVector<TypeInfo::ID>();
+		return_types.reserve(overload_return_params.size());
 
-
-		if(target_type_infos.size() == 1){
-			if(
-				target_type_infos.front()->qualifiers().empty() == false ||
-				target_type_infos.front()->baseTypeID().kind() != BaseType::Kind::Function
-			){
-				this->emit_error(
-					Diagnostic::Code::SemaCannotCallLikeFunction,
-					func_call.target,
-					"Cannot call this expression like a function"
-				);
-				return evo::resultError;
-			}
-
-		}else{
-			if(target_info_res.value().value_type != ExprInfo::ValueType::ConcreteConst){
-				this->emit_error(
-					Diagnostic::Code::SemaCannotCallLikeFunction,
-					func_call.target,
-					"Cannot call this expression like a function"
-				);
-				return evo::resultError;
-			}
-		}
-
-
-		auto func_types = evo::SmallVector<const BaseType::Function*>();
-		func_types.reserve(target_type_infos.size());
-		for(const TypeInfo* target_type_info : target_type_infos){
-			func_types.emplace_back(
-				&this->context.getTypeManager().getFunction(target_type_info->baseTypeID().funcID())
-			);
-		}
-
-
-		///////////////////////////////////
-		// check arguments
-
-		auto arg_infos = evo::SmallVector<ArgInfo>();
-		arg_infos.reserve(func_call.args.size());
-		for(const AST::FuncCall::Arg& arg : func_call.args){
-			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
-			if(arg_info.isError()){ return evo::resultError; }
-
-			if(
-				arg_info.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() &&
-				arg_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1
-			){
-				this->emit_error(
-					Diagnostic::Code::SemaMultipleValuesIntoOne,
-					arg.value,
-					"Cannot pass multiple values into a single function argument"
-				);
-				return evo::resultError;
-			}
-
-			arg_infos.emplace_back(arg.explicitIdent, arg_info.value(), arg.value);
-		}
-
-
-		///////////////////////////////////
-		// select overload
-
-		auto func_link_ids = evo::SmallVector<ASG::Func::LinkID>();
-		func_link_ids.reserve(target_info_res.value().expr.size());
-		for(const ASG::Expr& func_expr : target_info_res.value().expr){
-			switch(func_expr.kind()){
-				case ASG::Expr::Kind::Func: {
-					func_link_ids.emplace_back(func_expr.funcLinkID());
-				} break;
-
-				case ASG::Expr::Kind::Var: {
-					const ASG::Var::LinkID asg_var_link_id = func_expr.varLinkID();
-					const Source& target_source = this->context.getSourceManager()[asg_var_link_id.sourceID()];
-					const ASG::Var& asg_var = target_source.getASGBuffer().getVar(asg_var_link_id.varID());
-					func_link_ids.emplace_back(asg_var.expr.funcLinkID());
-				} break;
-
-				case ASG::Expr::Kind::Intrinsic:
-				case ASG::Expr::Kind::TemplatedIntrinsicInstantiation: {
-					// No func link id to add
-				} break;
-
-				default: {
-					evo::debugFatalBreak("Cannot get function call from this ASG::Expr type");
-				} break;
-			}
-		}
-
-		const evo::Result<size_t> selected_func_overload = [&](){
-			if(func_link_ids.empty()){ // is intrinsic
-				return this->select_func_overload<true>(func_call, nullptr, func_types, arg_infos, func_call.args);
-				
-			}else{ // not intrinsic
-				return this->select_func_overload<false>(
-					func_call, func_link_ids, func_types, arg_infos, func_call.args
-				);
-			}
-		}();
-
-		if(selected_func_overload.isError()){ return evo::resultError; }
-
-
-		///////////////////////////////////
-		// check function returns values
-
-		if(func_types[selected_func_overload.value()]->returnParams()[0].typeID.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SemaFuncDoesntReturnValue,
-				func_call.target,
-				"Function doesn't return a value"
-			);
-			return evo::resultError;
+		for(const BaseType::Function::ReturnParam& return_param : overload_return_params){
+			return_types.emplace_back(return_param.typeID.typeID());
 		}
 
 
 		///////////////////////////////////
 		// create
 
-		auto args = evo::SmallVector<ASG::Expr>();
-		args.reserve(arg_infos.size());
-		for(const ArgInfo& arg_info : arg_infos){
-			args.emplace_back(arg_info.expr_info.expr.front());
+		if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+			return ExprInfo(
+				ExprInfo::ValueType::Ephemeral,
+				ExprInfo::generateExprInfoTypeIDs(std::move(return_types)),
+				std::nullopt
+			);
+
+		}else{
+			return ExprInfo(
+				ExprInfo::ValueType::Ephemeral,
+				ExprInfo::generateExprInfoTypeIDs(std::move(return_types)),
+				ASG::Expr(*analyzed_func_call_data.value().asg_func_id)
+			);
 		}
-
-		auto return_types = evo::SmallVector<TypeInfo::ID>();
-		const evo::ArrayProxy<BaseType::Function::ReturnParam> overload_return_params =
-			func_types[selected_func_overload.value()]->returnParams();
-		return_types.reserve(overload_return_params.size());
-		for(const BaseType::Function::ReturnParam& return_param : overload_return_params){
-			return_types.emplace_back(return_param.typeID.typeID());
-		}
-
-		const ASG::FuncCall::ID asg_func_id = [&](){
-			if(func_link_ids.empty()){
-				const ASG::Expr& selected_expr = target_info_res.value().expr[selected_func_overload.value()];
-				
-				if(selected_expr.kind() == ASG::Expr::Kind::Intrinsic){
-					return this->source.asg_buffer.createFuncCall(selected_expr.intrinsicID(), std::move(args));
-				}else{
-					evo::debugAssert(
-						selected_expr.kind() == ASG::Expr::Kind::TemplatedIntrinsicInstantiation,
-						"Unknown or unsupported intrinsic kind"
-					);
-					return this->source.asg_buffer.createFuncCall(
-						selected_expr.templatedIntrinsicInstantiationID(), std::move(args)
-					);
-				}
-
-			}else{
-				return this->source.asg_buffer.createFuncCall(
-					func_link_ids[selected_func_overload.value()], std::move(args)
-				);
-			}
-		}();
-
-		return ExprInfo(
-			ExprInfo::ValueType::Ephemeral,
-			ExprInfo::generateExprInfoTypeIDs(std::move(return_types)),
-			ASG::Expr(asg_func_id)
-		);
 	}
 
 
@@ -3519,6 +3205,223 @@ namespace pcit::panther{
 		);
 		return evo::resultError;
 	}
+
+
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND, bool IS_STMT>
+	auto SemanticAnalyzer::analyze_func_call_impl(const AST::FuncCall& func_call) -> evo::Result<AnalyzedFuncCallData> {
+		///////////////////////////////////
+		// get function and check callable
+
+		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
+		if(target_info_res.isError()){ return evo::resultError; }
+
+		if(target_info_res.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() == false){
+			this->emit_error(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				func_call.target,
+				"Cannot call this expression like a function"
+			);
+			return evo::resultError;
+		}
+
+
+		///////////////////////////////////
+		// get base type(s)
+
+		const evo::SmallVector<TypeInfo::ID> target_type_ids =
+			target_info_res.value().type_id.as<evo::SmallVector<TypeInfo::ID>>();
+
+		auto target_type_infos = evo::SmallVector<const TypeInfo*>();
+		target_type_infos.reserve(target_type_ids.size());
+		for(const TypeInfo::ID& target_type_id : target_type_ids){
+			target_type_infos.emplace_back(&this->context.getTypeManager().getTypeInfo(target_type_id));
+		}
+
+
+		if(target_type_infos.size() == 1){
+			if(
+				target_type_infos.front()->qualifiers().empty() == false ||
+				target_type_infos.front()->baseTypeID().kind() != BaseType::Kind::Function
+			){
+				this->emit_error(
+					Diagnostic::Code::SemaCannotCallLikeFunction,
+					func_call.target,
+					"Cannot call this expression like a function"
+				);
+				return evo::resultError;
+			}
+
+		}else{
+			if(target_info_res.value().value_type != ExprInfo::ValueType::ConcreteConst){
+				this->emit_error(
+					Diagnostic::Code::SemaCannotCallLikeFunction,
+					func_call.target,
+					"Cannot call this expression like a function"
+				);
+				return evo::resultError;
+			}
+		}
+
+
+		auto func_types = evo::SmallVector<const BaseType::Function*>();
+		func_types.reserve(target_type_infos.size());
+		for(const TypeInfo* target_type_info : target_type_infos){
+			func_types.emplace_back(
+				&this->context.getTypeManager().getFunction(target_type_info->baseTypeID().funcID())
+			);
+		}
+
+
+		///////////////////////////////////
+		// check argument expressions
+
+		auto arg_infos = evo::SmallVector<ArgInfo>();
+		arg_infos.reserve(func_call.args.size());
+		for(const AST::FuncCall::Arg& arg : func_call.args){
+			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
+			if(arg_info.isError()){ return evo::resultError; }
+
+			if(arg_info.value().value_type == ExprInfo::ValueType::Initializer){
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidUseOfInitializerValueExpr,
+					arg.value,
+					"Initializer values cannot be used as function call arguments"
+				);
+				return evo::resultError;
+			}
+
+
+			if(
+				arg_info.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() &&
+				arg_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1
+			){
+				this->emit_error(
+					Diagnostic::Code::SemaMultipleValuesIntoOne,
+					arg.value,
+					"Cannot pass multiple values into a single function argument"
+				);
+				return evo::resultError;
+			}
+
+			arg_infos.emplace_back(arg.explicitIdent, arg_info.value(), arg.value);
+		}
+
+
+		///////////////////////////////////
+		// select overload
+
+		auto potential_func_link_ids = evo::SmallVector<ASG::Func::LinkID>();
+		potential_func_link_ids.reserve(target_info_res.value().expr.size());
+		for(const ASG::Expr& func_expr : target_info_res.value().expr){
+			switch(func_expr.kind()){
+				case ASG::Expr::Kind::Func: {
+					potential_func_link_ids.emplace_back(func_expr.funcLinkID());
+				} break;
+
+				case ASG::Expr::Kind::Var: {
+					const ASG::Var::LinkID asg_var_link_id = func_expr.varLinkID();
+					const Source& target_source = this->context.getSourceManager()[asg_var_link_id.sourceID()];
+					const ASG::Var& asg_var = target_source.getASGBuffer().getVar(asg_var_link_id.varID());
+					potential_func_link_ids.emplace_back(asg_var.expr.funcLinkID());
+				} break;
+
+				case ASG::Expr::Kind::Intrinsic:
+				case ASG::Expr::Kind::TemplatedIntrinsicInstantiation: {
+					// No func link id to add
+				} break;
+
+				default: {
+					evo::debugFatalBreak("Cannot get function call from this ASG::Expr type");
+				} break;
+			}
+		}
+
+		const evo::Result<size_t> selected_func_overload_index = [&](){
+			if(potential_func_link_ids.empty()){ // is intrinsic
+				return this->select_func_overload<true>(func_call, nullptr, func_types, arg_infos, func_call.args);
+				
+			}else{ // not intrinsic
+				return this->select_func_overload<false>(
+					func_call, potential_func_link_ids, func_types, arg_infos, func_call.args
+				);
+			}
+		}();
+
+		if(selected_func_overload_index.isError()){ return evo::resultError; }
+
+
+		///////////////////////////////////
+		// check function return value
+
+		if constexpr(IS_STMT){
+			if(func_types[selected_func_overload_index.value()]->returnParams()[0].typeID.isVoid() == false){
+				// TODO: better messaging - #mayDiscard
+				this->emit_error(
+					Diagnostic::Code::SemaDiscardingFuncReturn,
+					func_call.target,
+					"Discarding the return value of a function"
+				);
+				return evo::resultError;
+			}
+		}else{
+			if(func_types[selected_func_overload_index.value()]->returnParams()[0].typeID.isVoid()){
+				this->emit_error(
+					Diagnostic::Code::SemaFuncDoesntReturnValue,
+					func_call.target,
+					"Function doesn't return a value"
+				);
+				return evo::resultError;
+			}
+		}
+
+
+
+		///////////////////////////////////
+		// organize arguments
+
+		auto args = evo::SmallVector<ASG::Expr>();
+		args.reserve(arg_infos.size());
+		for(const ArgInfo& arg_info : arg_infos){
+			args.emplace_back(arg_info.expr_info.expr.front());
+		}
+
+
+		///////////////////////////////////
+		// create asg_func
+
+		auto asg_func_id = std::optional<ASG::FuncCall::ID>();
+
+		if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
+			if(potential_func_link_ids.empty()){
+				const ASG::Expr& selected_expr = target_info_res.value().expr[selected_func_overload_index.value()];
+				
+				if(selected_expr.kind() == ASG::Expr::Kind::Intrinsic){
+					asg_func_id = this->source.asg_buffer.createFuncCall(selected_expr.intrinsicID(), std::move(args));
+				}else{
+					evo::debugAssert(
+						selected_expr.kind() == ASG::Expr::Kind::TemplatedIntrinsicInstantiation,
+						"Unknown or unsupported intrinsic kind"
+					);
+					asg_func_id = this->source.asg_buffer.createFuncCall(
+						selected_expr.templatedIntrinsicInstantiationID(), std::move(args)
+					);
+				}
+
+			}else{
+				asg_func_id = this->source.asg_buffer.createFuncCall(
+					potential_func_link_ids[selected_func_overload_index.value()], std::move(args)
+				);
+			}
+		}
+
+
+		///////////////////////////////////
+		// done
+
+		return AnalyzedFuncCallData(func_types[selected_func_overload_index.value()], asg_func_id);
+	};
+
 
 
 	template<bool IS_INTRINSIC, typename NODE_T>

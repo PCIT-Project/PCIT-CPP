@@ -239,6 +239,16 @@ namespace pcit::panther{
 
 
 
+			struct AnalyzedFuncCallData{
+				const BaseType::Function* selected_func_type;
+				std::optional<ASG::FuncCall::ID> asg_func_id;
+			};
+
+			template<ExprValueKind EXPR_VALUE_KIND, bool IS_STMT>
+			EVO_NODISCARD auto analyze_func_call_impl(const AST::FuncCall& func_call)
+				-> evo::Result<AnalyzedFuncCallData>;
+				
+
 			struct ArgInfo{
 				std::optional<Token::ID> explicit_ident;
 				ExprInfo expr_info;
