@@ -100,6 +100,8 @@ namespace pcit::panther{
 		SemaIncorrectNumberOfAssignTargets,
 		SemaMultipleValuesIntoOne,
 		SemaFuncIsntTerminated,
+		SemaAttributeAlreadySet,
+		SemaInvalidAttributeArgument,
 
 		SemaWarnSingleValInMultiAssign,
 
@@ -206,6 +208,8 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaIncorrectNumberOfAssignTargets:   return "S";
 			break; case DiagnosticCode::SemaMultipleValuesIntoOne:            return "S";
 			break; case DiagnosticCode::SemaFuncIsntTerminated:               return "S";
+			break; case DiagnosticCode::SemaAttributeAlreadySet:              return "S";
+			break; case DiagnosticCode::SemaInvalidAttributeArgument:         return "S";
 
 			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:       return "SW";
 

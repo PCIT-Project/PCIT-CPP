@@ -70,7 +70,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	auto config = Config{
-		.target      = Config::Target::Run,
+		.target      = Config::Target::PrintLLVMIR,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
@@ -185,7 +185,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 	context.loadFiles({
 		config.relative_dir / "test.pthr",
-		// config.relative_dir / "test2.pthr",
+		config.relative_dir / "test2.pthr",
 		
 		// "./local/big_test.pthr",
 		// "./local/big_test_with_params.pthr",

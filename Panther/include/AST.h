@@ -264,7 +264,7 @@ namespace pcit::panther::AST{
 	struct AttributeBlock{
 		struct Attribute{
 			Token::ID attribute;
-			std::optional<Node> arg;
+			evo::SmallVector<Node, 2> args;
 		};
 
 		evo::SmallVector<Attribute> attributes;

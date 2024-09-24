@@ -91,8 +91,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_current_scope_level() const -> ScopeManager::Level&;
 			EVO_NODISCARD auto push_scope_level(ASG::StmtBlock* stmt_block = nullptr) -> void;
-			EVO_NODISCARD auto push_scope_level(ASG::StmtBlock* stmt_block, ASG::Func::ID asg_func_id)
-				-> void;
+			EVO_NODISCARD auto push_scope_level(ASG::StmtBlock* stmt_block, ASG::Func::ID asg_func_id) -> void;
 			EVO_NODISCARD auto pop_scope_level() -> void;
 
 			template<bool IS_GLOBAL>
@@ -118,28 +117,33 @@ namespace pcit::panther{
 					TemplatedIntrinsic,
 				};
 
-				ValueType value_type;
-				evo::Variant<
+				using TypeID = evo::Variant<
 					std::monostate,                 // EpemeralFluid|Initializer
 					evo::SmallVector<TypeInfo::ID>, // ConcreteConst|ConcreteMut|Ephemeral|Function|Intrinsic
 					ASG::TemplatedFunc::LinkID,     // Templated
 					Source::ID,                     // Import
 					TemplatedIntrinsic::Kind        // TemplatedIntrinsic
-				> type_id;
-				evo::SmallVector<ASG::Expr> expr; // empty if from ExprValueKind::None or ValueType::Import
-				                                  // may only be multiple if multiple possible function overloads
+				>;
 
+				ValueType value_type;
+				TypeID type_id;
+
+
+				///////////////////////////////////
+				// constructors
 
 				ExprInfo(ValueType vt, auto&& _type_id, evo::SmallVector<ASG::Expr>&& expr_list)
-					: value_type(vt), type_id(std::move(_type_id)), expr(std::move(expr_list)) {};
+					: value_type(vt), type_id(std::move(_type_id)), exprs(std::move(expr_list)) {};
 
 				ExprInfo(ValueType vt, auto&& _type_id, ASG::Expr&& expr_single)
-					: value_type(vt), type_id(std::move(_type_id)), expr{std::move(expr_single)} {};
+					: value_type(vt), type_id(std::move(_type_id)), exprs{std::move(expr_single)} {};
 
 				ExprInfo(ValueType vt, auto&& _type_id, std::nullopt_t)
-					: value_type(vt), type_id(std::move(_type_id)), expr() {};
+					: value_type(vt), type_id(std::move(_type_id)), exprs() {};
 
 
+				///////////////////////////////////
+				// value type checking
 
 				EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {
 					return this->value_type == ValueType::Ephemeral || this->value_type == ValueType::EpemeralFluid;
@@ -156,7 +160,53 @@ namespace pcit::panther{
 				}
 
 
+				///////////////////////////////////
+				// single expr
+
+				EVO_NODISCARD auto hasExpr() const -> bool { return this->exprs.size() == 1; }
+
+				EVO_NODISCARD auto getExpr() const& -> const ASG::Expr& {
+					evo::debugAssert(this->exprs.empty() == false, "cannot get expr when there is none");
+					evo::debugAssert(this->hasExpr(), "cannot get single expr when there are multiple");
+
+					return this->exprs.front();
+				}
+
+				EVO_NODISCARD auto getExpr() & -> ASG::Expr& {
+					evo::debugAssert(this->exprs.empty() == false, "cannot get expr when there is none");
+					evo::debugAssert(this->hasExpr(), "cannot get single expr when there are multiple");
+
+					return this->exprs.front();
+				}
+
+				EVO_NODISCARD auto getExpr() const&& -> const ASG::Expr&& {
+					evo::debugAssert(this->exprs.empty() == false, "cannot get expr when there is none");
+					evo::debugAssert(this->hasExpr(), "cannot get single expr when there are multiple");
+
+					return std::move(this->exprs.front());
+				}
+
+				EVO_NODISCARD auto getExpr() && -> ASG::Expr&& {
+					evo::debugAssert(this->exprs.empty() == false, "cannot get expr when there is none");
+					evo::debugAssert(this->hasExpr(), "cannot get single expr when there are multiple");
+
+					return std::move(this->exprs.front());
+				}
+
+
+				///////////////////////////////////
+				// multiple exprs
+
+				EVO_NODISCARD auto numExprs() const -> size_t { return this->exprs.size(); }
+
+				EVO_NODISCARD auto getExprList() const -> evo::ArrayProxy<ASG::Expr> { return this->exprs; }
+
+				EVO_NODISCARD auto getExpr(size_t i) const& -> const ASG::Expr& { return this->exprs[i]; }
+
+
+				///////////////////////////////////
 				// TODO: remove these after MSVC bug is fixed
+
 				EVO_NODISCARD static auto generateExprInfoTypeIDs(auto&&... args) -> decltype(type_id) {
 					auto type_id_variant = decltype(type_id)();
 					type_id_variant.emplace<evo::SmallVector<TypeInfo::ID>>(std::forward<decltype(args)>(args)...);
@@ -167,9 +217,10 @@ namespace pcit::panther{
 					return generateExprInfoTypeIDs(evo::SmallVector<TypeInfo::ID>{type_info_id});
 				}
 
-
-				// TODO: better safety around value (for example, getter for expr to get front only if makes sense)
+				private:
+					evo::SmallVector<ASG::Expr> exprs; // empty if from ExprValueKind::None or ValueType::Import
 			};
+
 
 			enum class ExprValueKind{
 				None, // If you just want to get the type
@@ -442,6 +493,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::Type& type) const -> SourceLocation {
 				return this->get_source_location(type, this->source);
+			}
+
+			EVO_NODISCARD auto get_source_location(const AST::AttributeBlock::Attribute& attr, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::AttributeBlock::Attribute& attr) const -> SourceLocation {
+				return this->get_source_location(attr, this->source);
 			}
 
 

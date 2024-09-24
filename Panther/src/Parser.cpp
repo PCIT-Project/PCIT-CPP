@@ -1134,7 +1134,7 @@ namespace pcit::panther{
 
 		while(this->reader[this->reader.peek()].kind() == Token::Kind::Attribute){
 			const Token::ID attr_token_id = this->reader.next();
-			auto argument = std::optional<AST::Node>();
+			auto arguments = evo::SmallVector<AST::Node, 2>();
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 				if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::Error; }
@@ -1143,7 +1143,17 @@ namespace pcit::panther{
 				if(this->check_result_fail(argument_result, "argument in attribute after [(]")){
 					return Result::Code::Error;
 				}
-				argument = argument_result.value();
+				arguments.emplace_back(argument_result.value());
+
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(",")){
+					if(this->assert_token_fail(Token::lookupKind(","))){ return Result::Code::Error; }
+
+					const Result argument2_result = this->parse_expr();
+					if(this->check_result_fail(argument2_result, "argument in attribute after [,]")){
+						return Result::Code::Error;
+					}
+					arguments.emplace_back(argument2_result.value());
+				}
 
 				if(this->expect_token_fail(Token::lookupKind(")"), "after attribute argument")){
 					return Result::Code::Error;
@@ -1151,7 +1161,7 @@ namespace pcit::panther{
 
 			}
 
-			attributes.emplace_back(attr_token_id, argument);
+			attributes.emplace_back(attr_token_id, std::move(arguments));
 		}
 
 		return this->source.ast_buffer.createAttributeBlock(std::move(attributes));

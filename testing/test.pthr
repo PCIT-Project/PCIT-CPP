@@ -1,7 +1,6 @@
 
+
+
 func entry = () #entry -> UI8 {
-	@_printHelloWorld();
-	
-	const size: USize = @sizeOf<{I57}>();
-	return 0;
+	return @import("test2.pthr").get_num();
 }

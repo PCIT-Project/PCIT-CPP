@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.38.0
+
+### Panther
+- Added conditional argument to attributes:
+	- `#pub`
+	- `#mustLabel`
+- Added checking for if attributes were already set
+- Added support for attributes to have 2 arguments
+- Added checking of valid attribute arguments
+- Fixed a function being marked as `#entry` being templated not being properly handled
+
+
+<!---------------------------------->
 ## v0.0.37.2
 
 ### Panther

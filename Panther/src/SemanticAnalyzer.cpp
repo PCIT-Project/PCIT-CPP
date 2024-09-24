@@ -327,12 +327,10 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// attributes
 
-
 		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
 		for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			// TODO: check if attribute was already set
 			// if(attribute_str == "something"){
 
 			// }else{
@@ -353,7 +351,7 @@ namespace pcit::panther{
 			var_decl.kind,
 			var_decl.ident,
 			*var_type_id,
-			expr_info_result.value().expr.front(),
+			expr_info_result.value().getExpr(),
 			var_decl.kind == AST::VarDecl::Kind::Const
 		);
 
@@ -397,24 +395,88 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// attributes
 
+		bool pub_set = false;
 		bool is_pub = false;
+
 		bool is_entry = false;
+
 
 		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
 		for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			// TODO: check if attribute was already set
 			if(attribute_str == "pub"){
-				is_pub = true;
+				if(pub_set){
+					this->emit_error(
+						Diagnostic::Code::SemaAttributeAlreadySet,
+						attribute,
+						"Attribute `#pub` was already set"
+					);
+					return evo::resultError;
+				}else{
+					pub_set = true;
+				}
+
+				if(attribute.args.empty()){
+					is_pub = true;
+
+				}else if(attribute.args.size() == 1){
+					evo::Result<ExprInfo> cond = this->analyze_expr<ExprValueKind::ConstEval>(attribute.args.front());
+					if(cond.isError()){ return evo::resultError; }
+
+					const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
+					if(
+						this->type_check<true>(
+							bool_type_id, cond.value(), "attribute `#pub` condition argument", attribute.args.front()
+						).ok == false
+					){
+						return evo::resultError;
+					}
+
+					const bool cond_value = [&](){
+						const ASG::Expr& expr = cond.value().getExpr();
+						const ASG::LiteralBool& literal_bool 
+							= this->source.getASGBuffer().getLiteralBool(expr.literalBoolID());
+						return literal_bool.value;
+					}();
+
+					is_pub = cond_value;
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidAttributeArgument,
+						attribute.args.back(),
+						"Invalid argument in attribute `#pub`"
+					);
+					return evo::resultError;
+				}
 
 			}else if(attribute_str == "entry"){
+				if(is_entry){
+					this->emit_error(
+						Diagnostic::Code::SemaAttributeAlreadySet,
+						attribute,
+						"Attribute `#entry` was already set"
+					);
+					return evo::resultError;
+				}
+
 				if(func_decl.templatePack.has_value()){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidEntrySignature,
 						*func_decl.templatePack,
 						"Entry function cannot be templated"
 					);
+					return evo::resultError;
+				}
+
+				if(attribute.args.empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidAttributeArgument,
+						attribute.args.back(),
+						"Invalid argument in attribute `#entry`"
+					);
+					return evo::resultError;
 				}
 
 				is_entry = true;
@@ -565,6 +627,8 @@ namespace pcit::panther{
 					this->source.getASTBuffer().getAttributeBlock(param.attributeBlock);
 
 				bool is_must_label = false;
+				bool must_label_set = false;
+
 				for(const AST::AttributeBlock::Attribute& attribute : param_attr_block.attributes){
 					const std::string_view attribute_str =
 						this->source.getTokenBuffer()[attribute.attribute].getString();
@@ -587,7 +651,54 @@ namespace pcit::panther{
 						return evo::resultError;
 
 					}else if(attribute_str == "mustLabel"){
-						is_must_label = true;
+						if(must_label_set){
+							this->emit_error(
+								Diagnostic::Code::SemaAttributeAlreadySet,
+								attribute,
+								"Attribute `#mustLabel` was already set"
+							);
+							return evo::resultError;
+						}else{
+							must_label_set = true;
+						}
+
+						if(attribute.args.empty()){
+							is_must_label = true;
+
+						}else if(attribute.args.size() == 1){
+							evo::Result<ExprInfo> cond = 
+								this->analyze_expr<ExprValueKind::ConstEval>(attribute.args.front());
+							if(cond.isError()){ return evo::resultError; }
+
+							const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
+							if(
+								this->type_check<true>(
+									bool_type_id,
+									cond.value(),
+									"attribute `#mustLabel` condition argument",
+									attribute.args.front()
+								).ok == false
+							){
+								return evo::resultError;
+							}
+
+							const bool cond_value = [&](){
+								const ASG::Expr& expr = cond.value().getExpr();
+								const ASG::LiteralBool& literal_bool 
+									= this->source.getASGBuffer().getLiteralBool(expr.literalBoolID());
+								return literal_bool.value;
+							}();
+
+							is_must_label = cond_value;
+
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SemaInvalidAttributeArgument,
+								attribute.args.back(),
+								"Invalid argument in attribute `#mustLabel`"
+							);
+							return evo::resultError;
+						}
 
 					}else{
 						this->emit_error(
@@ -778,7 +889,7 @@ namespace pcit::panther{
 		}
 
 		const bool cond_value = [&](){
-			const ASG::Expr& expr = cond.value().expr.front();
+			const ASG::Expr& expr = cond.value().getExpr();
 			const ASG::LiteralBool& literal_bool = this->source.getASGBuffer().getLiteralBool(expr.literalBoolID());
 			return literal_bool.value;
 		}();
@@ -865,7 +976,7 @@ namespace pcit::panther{
 		}
 
 		const ASG::Conditional::ID asg_cond_id = this->source.asg_buffer.createConditional(
-			cond.value().expr.front(), std::move(then_block), std::move(else_block)
+			cond.value().getExpr(), std::move(then_block), std::move(else_block)
 		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(asg_cond_id);
@@ -1049,7 +1160,6 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: merge some of the functionality with analyze_expr_func_call
 	auto SemanticAnalyzer::analyze_func_call(const AST::FuncCall& func_call) -> bool {
 		if(func_call.target.kind() == AST::Kind::Intrinsic){
 			const Token::ID intrinsic_ident_token_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
@@ -1111,7 +1221,7 @@ namespace pcit::panther{
 				return this->may_recover();
 			}
 
-			this->get_current_scope_level().stmtBlock().emplace_back(func_call_info.value().expr.front().funcCallID());
+			this->get_current_scope_level().stmtBlock().emplace_back(func_call_info.value().getExpr().funcCallID());
 			return true;
 		}
 
@@ -1169,7 +1279,7 @@ namespace pcit::panther{
 		// create
 
 		const ASG::Assign::ID asg_assign_id = this->source.asg_buffer.createAssign(
-			lhs_info.value().expr.front(), rhs_info.value().expr.front()
+			lhs_info.value().getExpr(), rhs_info.value().getExpr()
 		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(asg_assign_id);
@@ -1260,7 +1370,7 @@ namespace pcit::panther{
 					return this->may_recover();
 				}
 
-				return_value = value_info.value().expr.front();
+				return_value = value_info.value().getExpr();
 
 				return true;
 
@@ -1407,14 +1517,14 @@ namespace pcit::panther{
 		assign_targets.reserve(assign_target_infos.size());
 		for(const std::optional<ExprInfo>& assign_target_info : assign_target_infos){
 			if(assign_target_info.has_value()){
-				assign_targets.emplace_back(assign_target_info->expr.front());
+				assign_targets.emplace_back(assign_target_info->getExpr());
 			}else{
 				assign_targets.emplace_back();
 			}
 		}
 
 		const ASG::MultiAssign::ID asg_multi_assign_id = this->source.asg_buffer.createMultiAssign(
-			std::move(assign_targets), rhs_info.value().expr.front()
+			std::move(assign_targets), rhs_info.value().getExpr()
 		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(asg_multi_assign_id);
@@ -1969,24 +2079,24 @@ namespace pcit::panther{
 
 				value_args.emplace_back(arg_expr_info.value());
 
-				switch(arg_expr_info.value().expr.front().kind()){
+				switch(arg_expr_info.value().getExpr().kind()){
 					case ASG::Expr::Kind::LiteralInt: {
-						const ASG::LiteralInt::ID literal_id = arg_expr_info.value().expr.front().literalIntID();
+						const ASG::LiteralInt::ID literal_id = arg_expr_info.value().getExpr().literalIntID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralInt(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralFloat: {
-						const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().expr.front().literalFloatID();
+						const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().getExpr().literalFloatID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralFloat(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralBool: {
-						const ASG::LiteralBool::ID literal_id = arg_expr_info.value().expr.front().literalBoolID();
+						const ASG::LiteralBool::ID literal_id = arg_expr_info.value().getExpr().literalBoolID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralBool(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralChar: {
-						const ASG::LiteralChar::ID literal_id = arg_expr_info.value().expr.front().literalCharID();
+						const ASG::LiteralChar::ID literal_id = arg_expr_info.value().getExpr().literalCharID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralChar(literal_id).value);
 					} break;
 
@@ -2075,10 +2185,10 @@ namespace pcit::panther{
 							template_sema.template_arg_exprs.emplace(param_ident_str, value);
 
 						}else{ // if not the same source, need to copy over the expression to the ASGBuffer
-							switch(value.expr.front().kind()){
+							switch(value.getExpr().kind()){
 								case ASG::Expr::Kind::LiteralInt: {
 									const ASG::LiteralInt& literal_int =
-										this->source.getASGBuffer().getLiteralInt(value.expr.front().literalIntID());
+										this->source.getASGBuffer().getLiteralInt(value.getExpr().literalIntID());
 
 									const ASG::LiteralInt::ID copied_value = 
 										declared_source.asg_buffer.createLiteralInt(
@@ -2093,7 +2203,7 @@ namespace pcit::panther{
 
 								case ASG::Expr::Kind::LiteralFloat: {
 									const ASG::LiteralFloat& literal_float =this->source.getASGBuffer().getLiteralFloat(
-										value.expr.front().literalFloatID()
+										value.getExpr().literalFloatID()
 									);
 
 									const ASG::LiteralFloat::ID copied_value = 
@@ -2109,7 +2219,7 @@ namespace pcit::panther{
 
 								case ASG::Expr::Kind::LiteralBool: {
 									const ASG::LiteralBool& literal_bool =
-										this->source.getASGBuffer().getLiteralBool(value.expr.front().literalBoolID());
+										this->source.getASGBuffer().getLiteralBool(value.getExpr().literalBoolID());
 
 									const ASG::LiteralBool::ID copied_value = 
 										declared_source.asg_buffer.createLiteralBool(literal_bool.value);
@@ -2122,7 +2232,7 @@ namespace pcit::panther{
 
 								case ASG::Expr::Kind::LiteralChar: {
 									const ASG::LiteralChar& literal_char =
-										this->source.getASGBuffer().getLiteralChar(value.expr.front().literalCharID());
+										this->source.getASGBuffer().getLiteralChar(value.getExpr().literalCharID());
 
 									const ASG::LiteralChar::ID copied_value = 
 										declared_source.asg_buffer.createLiteralChar(literal_char.value);
@@ -2262,24 +2372,24 @@ namespace pcit::panther{
 
 				instantiation_type_args.emplace_back(std::nullopt);
 
-				switch(arg_expr_info.value().expr.front().kind()){
+				switch(arg_expr_info.value().getExpr().kind()){
 					case ASG::Expr::Kind::LiteralInt: {
-						const ASG::LiteralInt::ID literal_id = arg_expr_info.value().expr.front().literalIntID();
+						const ASG::LiteralInt::ID literal_id = arg_expr_info.value().getExpr().literalIntID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralInt(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralFloat: {
-						const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().expr.front().literalFloatID();
+						const ASG::LiteralFloat::ID literal_id = arg_expr_info.value().getExpr().literalFloatID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralFloat(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralBool: {
-						const ASG::LiteralBool::ID literal_id = arg_expr_info.value().expr.front().literalBoolID();
+						const ASG::LiteralBool::ID literal_id = arg_expr_info.value().getExpr().literalBoolID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralBool(literal_id).value);
 					} break;
 
 					case ASG::Expr::Kind::LiteralChar: {
-						const ASG::LiteralChar::ID literal_id = arg_expr_info.value().expr.front().literalCharID();
+						const ASG::LiteralChar::ID literal_id = arg_expr_info.value().getExpr().literalCharID();
 						instantiation_args.emplace_back(this->source.getASGBuffer().getLiteralChar(literal_id).value);
 					} break;
 
@@ -2432,11 +2542,11 @@ namespace pcit::panther{
 						return ExprInfo(
 							ExprInfo::ValueType::Ephemeral,
 							ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
-							ASG::Expr(rhs_info.value().expr.front())
+							ASG::Expr(rhs_info.value().getExpr())
 						);
 					}else{
 						const ASG::AddrOf::ID addr_of_id = this->source.asg_buffer.createAddrOf(
-							ASG::Expr(rhs_info.value().expr.front())
+							ASG::Expr(rhs_info.value().getExpr())
 						);
 						return ExprInfo(
 							ExprInfo::ValueType::Ephemeral,
@@ -2469,7 +2579,7 @@ namespace pcit::panther{
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, std::nullopt);
 				}else{
-					const ASG::Copy::ID asg_copy_id = this->source.asg_buffer.createCopy(rhs_info.value().expr.front());
+					const ASG::Copy::ID asg_copy_id = this->source.asg_buffer.createCopy(rhs_info.value().getExpr());
 
 					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, ASG::Expr(asg_copy_id));
 				}
@@ -2497,7 +2607,7 @@ namespace pcit::panther{
 				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, std::nullopt);
 				}else{
-					const ASG::Move::ID asg_move_id = this->source.asg_buffer.createMove(rhs_info.value().expr.front());
+					const ASG::Move::ID asg_move_id = this->source.asg_buffer.createMove(rhs_info.value().getExpr());
 
 					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, ASG::Expr(asg_move_id));
 				}
@@ -2730,7 +2840,7 @@ namespace pcit::panther{
 
 				}else{
 					const ASG::Deref::ID asg_deref_id = this->source.asg_buffer.createDeref(
-						lhs_info.value().expr.front(), new_type_id
+						lhs_info.value().getExpr(), new_type_id
 					);
 					return ExprInfo(
 						value_type, ExprInfo::generateExprInfoTypeIDs(new_type_id), ASG::Expr(asg_deref_id)
@@ -3123,35 +3233,37 @@ namespace pcit::panther{
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_literal(const Token::ID& literal) -> evo::Result<ExprInfo> {
 		const Token& token = this->source.getTokenBuffer()[literal];
-		
-		auto expr_info = ExprInfo(ExprInfo::ValueType::Ephemeral, std::monostate(), std::nullopt);
+
+		auto value_type = ExprInfo::ValueType::Ephemeral;
+		auto type_id = ExprInfo::TypeID(std::monostate());
+		auto expr = evo::SmallVector<ASG::Expr>();
 
 		switch(token.kind()){
 			case Token::Kind::LiteralInt: {
-				expr_info.value_type = ExprInfo::ValueType::EpemeralFluid;
+				value_type = ExprInfo::ValueType::EpemeralFluid;
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
-					expr_info.expr.emplace_back(
+					expr.emplace_back(
 						this->source.asg_buffer.createLiteralInt(token.getInt(), std::nullopt)
 					);
 				}
 			} break;
 
 			case Token::Kind::LiteralFloat: {
-				expr_info.value_type = ExprInfo::ValueType::EpemeralFluid;
+				value_type = ExprInfo::ValueType::EpemeralFluid;
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
-					expr_info.expr.emplace_back(
+					expr.emplace_back(
 						this->source.asg_buffer.createLiteralFloat(token.getFloat(), std::nullopt)
 					);
 				}
 			} break;
 
 			case Token::Kind::LiteralBool: {
-				expr_info.type_id = ExprInfo::generateExprInfoTypeIDs(this->context.getTypeManager().getTypeBool());
+				type_id = ExprInfo::generateExprInfoTypeIDs(this->context.getTypeManager().getTypeBool());
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
-					expr_info.expr.emplace_back(this->source.asg_buffer.createLiteralBool(token.getBool()));
+					expr.emplace_back(this->source.asg_buffer.createLiteralBool(token.getBool()));
 				}
 			} break;
 
@@ -3163,10 +3275,10 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::LiteralChar: {
-				expr_info.type_id = ExprInfo::generateExprInfoTypeIDs(this->context.getTypeManager().getTypeChar());
+				type_id = ExprInfo::generateExprInfoTypeIDs(this->context.getTypeManager().getTypeChar());
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
-					expr_info.expr.emplace_back(this->source.asg_buffer.createLiteralChar(token.getString()[0]));
+					expr.emplace_back(this->source.asg_buffer.createLiteralChar(token.getString()[0]));
 				}
 			} break;
 
@@ -3175,7 +3287,7 @@ namespace pcit::panther{
 			} break;
 		}
 
-		return expr_info;
+		return ExprInfo(value_type, std::move(type_id), std::move(expr));
 	}
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
@@ -3312,8 +3424,8 @@ namespace pcit::panther{
 		// select overload
 
 		auto potential_func_link_ids = evo::SmallVector<ASG::Func::LinkID>();
-		potential_func_link_ids.reserve(target_info_res.value().expr.size());
-		for(const ASG::Expr& func_expr : target_info_res.value().expr){
+		potential_func_link_ids.reserve(target_info_res.value().numExprs());
+		for(const ASG::Expr& func_expr : target_info_res.value().getExprList()){
 			switch(func_expr.kind()){
 				case ASG::Expr::Kind::Func: {
 					potential_func_link_ids.emplace_back(func_expr.funcLinkID());
@@ -3383,7 +3495,7 @@ namespace pcit::panther{
 		auto args = evo::SmallVector<ASG::Expr>();
 		args.reserve(arg_infos.size());
 		for(const ArgInfo& arg_info : arg_infos){
-			args.emplace_back(arg_info.expr_info.expr.front());
+			args.emplace_back(arg_info.expr_info.getExpr());
 		}
 
 
@@ -3394,7 +3506,7 @@ namespace pcit::panther{
 
 		if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 			if(potential_func_link_ids.empty()){
-				const ASG::Expr& selected_expr = target_info_res.value().expr[selected_func_overload_index.value()];
+				const ASG::Expr& selected_expr = target_info_res.value().getExpr(selected_func_overload_index.value());
 				
 				if(selected_expr.kind() == ASG::Expr::Kind::Intrinsic){
 					asg_func_id = this->source.asg_buffer.createFuncCall(selected_expr.intrinsicID(), std::move(args));
@@ -3819,7 +3931,7 @@ namespace pcit::panther{
 				const BaseType::Builtin& var_type_builtin = 
 					this->context.getTypeManager().getBuiltin(var_type_builtin_id);
 
-				if(got_expr.expr.front().kind() == ASG::Expr::Kind::LiteralInt){
+				if(got_expr.getExpr().kind() == ASG::Expr::Kind::LiteralInt){
 					switch(var_type_builtin.kind()){
 						case Token::Kind::TypeInt:
 						case Token::Kind::TypeISize:
@@ -3848,14 +3960,14 @@ namespace pcit::panther{
 					}
 
 					if constexpr(IMPLICITLY_CONVERT){
-						const ASG::LiteralInt::ID literal_int_id = got_expr.expr.front().literalIntID();
+						const ASG::LiteralInt::ID literal_int_id = got_expr.getExpr().literalIntID();
 						this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = expected_type_id;
 					}
 
 
 				}else{
 					evo::debugAssert(
-						got_expr.expr.front().kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
+						got_expr.getExpr().kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
 					);
 
 					switch(var_type_builtin.kind()){
@@ -3876,7 +3988,7 @@ namespace pcit::panther{
 					}
 
 					if constexpr(IMPLICITLY_CONVERT){
-						const ASG::LiteralFloat::ID literal_float_id = got_expr.expr.front().literalFloatID();
+						const ASG::LiteralFloat::ID literal_float_id = got_expr.getExpr().literalFloatID();
 						this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = expected_type_id;
 					}
 				}
@@ -4075,13 +4187,13 @@ namespace pcit::panther{
 		}else{
 			evo::debugAssert(expr_info.value_type == ExprInfo::ValueType::EpemeralFluid, "expected fluid literal");
 
-			if(expr_info.expr.empty() == false){
-				if(expr_info.expr.front().kind() == ASG::Expr::Kind::LiteralInt){
+			if(expr_info.hasExpr() == false){
+				if(expr_info.getExpr().kind() == ASG::Expr::Kind::LiteralInt){
 					return "{LITERAL INTEGER}";
 					
 				}else{
 					evo::debugAssert(
-						expr_info.expr.front().kind() == ASG::Expr::Kind::LiteralFloat, "expected literal float"
+						expr_info.getExpr().kind() == ASG::Expr::Kind::LiteralFloat, "expected literal float"
 					);
 					return "{LITERAL FLOAT}";
 				}
@@ -4266,6 +4378,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation {
 		return this->get_source_location(type.base, src);
+	}
+
+	auto SemanticAnalyzer::get_source_location(const AST::AttributeBlock::Attribute& attr, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(attr.attribute, src);
 	}
 
 

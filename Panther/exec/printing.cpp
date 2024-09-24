@@ -1098,14 +1098,36 @@ namespace pthr{
 							this->printer.printMagenta(" #{}\n", attr_token.getString());
 
 							this->indenter.print_end();
-							this->print_minor_header("Argument");
-							if(attribute.arg.has_value()){
+							if(attribute.args.empty()){
+								this->print_minor_header("Argument");
+								this->printer.printGray(" {NONE}\n");
+
+							}else if(attribute.args.size() == 1){
+								this->print_minor_header("Argument");
 								this->printer.print("\n");
 								this->indenter.push();
-								this->print_expr(*attribute.arg);
+								this->print_expr(attribute.args[0]);
 								this->indenter.pop();
+
 							}else{
-								this->printer.printGray(" {NONE}\n");
+								this->print_minor_header("Arguments");
+								this->printer.print("\n");
+								this->indenter.push();
+								for(size_t j = 0; const panther::AST::Node& arg : attribute.args){
+									if(j - 1 < attribute.args.size()){
+										this->indenter.print_end();
+									}else{
+										this->indenter.print_arrow();
+									}
+
+									this->print_major_header(std::format("Argument {}", j));
+									this->indenter.push();
+									this->print_expr(arg);
+									this->indenter.pop();
+								
+									j += 1;
+								}
+								this->indenter.pop();
 							}
 
 							this->indenter.pop();
