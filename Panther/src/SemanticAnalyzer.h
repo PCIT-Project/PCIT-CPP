@@ -107,6 +107,7 @@ namespace pcit::panther{
 				enum class ValueType{
 					ConcreteConst,
 					ConcreteMut,
+					ConcreteMutGlobal,
 					Ephemeral,
 					EpemeralFluid, // only if actual type is unknown
 					Import,
@@ -119,7 +120,8 @@ namespace pcit::panther{
 
 				using TypeID = evo::Variant<
 					std::monostate,                 // EpemeralFluid|Initializer
-					evo::SmallVector<TypeInfo::ID>, // ConcreteConst|ConcreteMut|Ephemeral|Function|Intrinsic
+					evo::SmallVector<TypeInfo::ID>, // ConcreteConst|ConcreteMut|ConcreteMutGlobal
+													//	|Ephemeral|Function|Intrinsic
 					ASG::TemplatedFunc::LinkID,     // Templated
 					Source::ID,                     // Import
 					TemplatedIntrinsic::Kind        // TemplatedIntrinsic
@@ -151,7 +153,8 @@ namespace pcit::panther{
 
 				EVO_NODISCARD constexpr auto is_concrete() const -> bool {
 					return this->value_type == ValueType::ConcreteConst || 
-						   this->value_type == ValueType::ConcreteMut;
+						   this->value_type == ValueType::ConcreteMut || 
+						   this->value_type == ValueType::ConcreteMutGlobal;
 				}
 
 				EVO_NODISCARD constexpr auto is_const() const -> bool {
@@ -253,6 +256,10 @@ namespace pcit::panther{
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_prefix(const AST::Prefix& prefix) -> evo::Result<ExprInfo>;
 
+			template<ExprValueKind EXPR_VALUE_KIND, bool IS_CONST>
+			EVO_NODISCARD auto analyze_expr_prefix_address_of(const AST::Prefix& prefix, const ExprInfo& rhs_info)
+				-> evo::Result<ExprInfo>;
+
 			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_infix(const AST::Infix& infix) -> evo::Result<ExprInfo>;
 
@@ -269,7 +276,8 @@ namespace pcit::panther{
 				const Token::ID& ident,
 				std::string_view ident_str,
 				ScopeManager::Level::ID scope_level_id,
-				bool variables_in_scope
+				bool variables_in_scope,
+				bool is_globals
 			) -> evo::Result<std::optional<ExprInfo>>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
@@ -313,6 +321,28 @@ namespace pcit::panther{
 				evo::SmallVector<ArgInfo>& arg_infos,
 				evo::ArrayProxy<AST::FuncCall::Arg> args
 			) -> evo::Result<size_t>; // returns index of selected func
+
+
+
+
+			struct ConditionalAttribute{
+				EVO_NODISCARD auto check(
+					SemanticAnalyzer& sema, const AST::AttributeBlock::Attribute& attribute, std::string_view attr_name
+				) -> bool;
+
+				EVO_NODISCARD auto is_set() const -> bool { return this->_is_set; }
+
+				auto force_set() -> void {
+					this->_is_set = true;
+					this->_was_used = true;
+				}
+
+				private:
+					bool _was_used = false;
+					bool _is_set = false;
+			};
+
+			friend ConditionalAttribute;
 
 
 			///////////////////////////////////

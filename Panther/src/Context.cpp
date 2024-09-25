@@ -521,7 +521,7 @@ namespace pcit::panther{
 		) -> Intrinsic {
 			return Intrinsic(
 				this->type_manager.getOrCreateFunction(
-					BaseType::Function(std::move(params), std::move(return_params))
+					BaseType::Function(std::move(params), std::move(return_params), false)
 				)
 			);
 		};

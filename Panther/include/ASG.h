@@ -336,6 +336,7 @@ namespace pcit::panther::ASG{
 		Parent parent;
 		InstanceID instanceID;
 		bool isPub: 1;
+
 		bool isTerminated: 1 = false;
 		evo::SmallVector<ParamID> params{};
 		evo::SmallVector<ReturnParamID> returnParams{}; // only for named return params
@@ -393,19 +394,22 @@ namespace pcit::panther::ASG{
 		evo::SmallVector<TemplateParam> templateParams;
 		ScopeManager::Scope scope;
 		bool isPub: 1;
+		bool isRuntime: 1;
 
 		TemplatedFunc(
 			const AST::FuncDecl& func_decl,
 			Parent _parent,
 			evo::SmallVector<TemplateParam>&& template_params,
 			const ScopeManager::Scope& _scope,
-			bool is_pub
+			bool is_pub,
+			bool is_runtime
 		) : 
 			funcDecl(func_decl),
 			parent(_parent),
 			templateParams(std::move(template_params)),
 			scope(_scope),
-			isPub(is_pub)
+			isPub(is_pub),
+			isRuntime(is_runtime)
 		{}
 
 

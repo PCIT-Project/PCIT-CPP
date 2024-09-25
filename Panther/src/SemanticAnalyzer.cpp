@@ -275,8 +275,6 @@ namespace pcit::panther{
 		);
 
 
-
-
 		if(expr_info_result.value().value_type == ExprInfo::ValueType::EpemeralFluid){
 			if(var_type_id.has_value() == false){
 				this->emit_error(
@@ -290,7 +288,14 @@ namespace pcit::panther{
 			}
 
 		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::Initializer){
-			// do nothing...
+			if(var_type_id.has_value() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaCannotInferType,
+					*var_decl.value,
+					"Cannot infer the type of an initializer value"
+				);
+				return false;
+			}
 
 		}else if(var_type_id.has_value()){
 			if(expr_info_result.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1){
@@ -395,63 +400,40 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// attributes
 
-		bool pub_set = false;
-		bool is_pub = false;
-
+		auto pub_attr = ConditionalAttribute();
+		auto runtime_attr = ConditionalAttribute();
 		bool is_entry = false;
-
 
 		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
 		for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
 			if(attribute_str == "pub"){
-				if(pub_set){
-					this->emit_error(
-						Diagnostic::Code::SemaAttributeAlreadySet,
+				if(pub_attr.check(*this, attribute, "pub") == false){ return evo::resultError; }
+
+			}else if(attribute_str == "runtime"){
+				if(is_entry){
+					this->emit_warning(
+						Diagnostic::Code::SemaWarnEntryIsImplicitRuntime,
 						attribute,
-						"Attribute `#pub` was already set"
+						"The function with the \"entry\" attribute is implicitly runtime"
 					);
-					return evo::resultError;
-				}else{
-					pub_set = true;
+					continue;
 				}
 
-				if(attribute.args.empty()){
-					is_pub = true;
+				if(runtime_attr.check(*this, attribute, "runtime") == false){ return evo::resultError; }
 
-				}else if(attribute.args.size() == 1){
-					evo::Result<ExprInfo> cond = this->analyze_expr<ExprValueKind::ConstEval>(attribute.args.front());
-					if(cond.isError()){ return evo::resultError; }
-
-					const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
-					if(
-						this->type_check<true>(
-							bool_type_id, cond.value(), "attribute `#pub` condition argument", attribute.args.front()
-						).ok == false
-					){
-						return evo::resultError;
-					}
-
-					const bool cond_value = [&](){
-						const ASG::Expr& expr = cond.value().getExpr();
-						const ASG::LiteralBool& literal_bool 
-							= this->source.getASGBuffer().getLiteralBool(expr.literalBoolID());
-						return literal_bool.value;
-					}();
-
-					is_pub = cond_value;
-
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SemaInvalidAttributeArgument,
-						attribute.args.back(),
-						"Invalid argument in attribute `#pub`"
-					);
-					return evo::resultError;
-				}
 
 			}else if(attribute_str == "entry"){
+				if(runtime_attr.is_set()){
+					this->emit_warning(
+						Diagnostic::Code::SemaWarnEntryIsImplicitRuntime,
+						attribute,
+						"The function with the \"entry\" attribute is implicitly runtime"
+					);
+					continue;
+				}
+
 				if(is_entry){
 					this->emit_error(
 						Diagnostic::Code::SemaAttributeAlreadySet,
@@ -479,6 +461,7 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+				runtime_attr.force_set();
 				is_entry = true;
 
 			}else{
@@ -565,7 +548,7 @@ namespace pcit::panther{
 			const ASG::Parent parent = this->get_parent<IS_GLOBAL>();
 
 			const ASG::TemplatedFunc::ID asg_templated_func_id = this->source.asg_buffer.createTemplatedFunc(
-				func_decl, parent, std::move(template_params), this->scope, is_pub
+				func_decl, parent, std::move(template_params), this->scope, pub_attr.is_set(), runtime_attr.is_set()
 			);
 
 			this->get_current_scope_level().addTemplatedFunc(func_ident, asg_templated_func_id);
@@ -627,7 +610,6 @@ namespace pcit::panther{
 					this->source.getASTBuffer().getAttributeBlock(param.attributeBlock);
 
 				bool is_must_label = false;
-				bool must_label_set = false;
 
 				for(const AST::AttributeBlock::Attribute& attribute : param_attr_block.attributes){
 					const std::string_view attribute_str =
@@ -651,7 +633,7 @@ namespace pcit::panther{
 						return evo::resultError;
 
 					}else if(attribute_str == "mustLabel"){
-						if(must_label_set){
+						if(is_must_label){
 							this->emit_error(
 								Diagnostic::Code::SemaAttributeAlreadySet,
 								attribute,
@@ -659,46 +641,9 @@ namespace pcit::panther{
 							);
 							return evo::resultError;
 						}else{
-							must_label_set = true;
-						}
-
-						if(attribute.args.empty()){
 							is_must_label = true;
-
-						}else if(attribute.args.size() == 1){
-							evo::Result<ExprInfo> cond = 
-								this->analyze_expr<ExprValueKind::ConstEval>(attribute.args.front());
-							if(cond.isError()){ return evo::resultError; }
-
-							const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
-							if(
-								this->type_check<true>(
-									bool_type_id,
-									cond.value(),
-									"attribute `#mustLabel` condition argument",
-									attribute.args.front()
-								).ok == false
-							){
-								return evo::resultError;
-							}
-
-							const bool cond_value = [&](){
-								const ASG::Expr& expr = cond.value().getExpr();
-								const ASG::LiteralBool& literal_bool 
-									= this->source.getASGBuffer().getLiteralBool(expr.literalBoolID());
-								return literal_bool.value;
-							}();
-
-							is_must_label = cond_value;
-
-						}else{
-							this->emit_error(
-								Diagnostic::Code::SemaInvalidAttributeArgument,
-								attribute.args.back(),
-								"Invalid argument in attribute `#mustLabel`"
-							);
-							return evo::resultError;
 						}
+
 
 					}else{
 						this->emit_error(
@@ -795,6 +740,8 @@ namespace pcit::panther{
 					const BaseType::Function& overload_type =
 						this->context.getTypeManager().getFunction(overload.baseTypeID.funcID());
 
+					if(params.size() != overload_type.params().size()){ break; }
+
 					for(size_t i = 0; const BaseType::Function::Param& overload_param : overload_type.params()){
 						if(overload_param.typeID != params[i].typeID || overload_param.kind != params[i].kind){
 							is_different = true;
@@ -825,11 +772,11 @@ namespace pcit::panther{
 		const ASG::Parent parent = this->get_parent<IS_GLOBAL>();
 
 		const BaseType::ID base_type_id = this->context.getTypeManager().getOrCreateFunction(
-			BaseType::Function(std::move(params), std::move(return_params))
+			BaseType::Function(std::move(params), std::move(return_params), runtime_attr.is_set())
 		);
 
 		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(
-			func_decl.name, base_type_id, parent, instance_id, is_pub
+			func_decl.name, base_type_id, parent, instance_id, pub_attr.is_set()
 		);
 		
 		if(instantiate_template == false){
@@ -1228,8 +1175,21 @@ namespace pcit::panther{
 		const evo::Result<ExprInfo> lhs_info = this->analyze_expr<ExprValueKind::Runtime>(infix.lhs);
 		if(lhs_info.isError()){ return this->may_recover(); }
 
-		if(lhs_info.value().value_type != ExprInfo::ValueType::ConcreteMut){
-			if(lhs_info.value().value_type == ExprInfo::ValueType::ConcreteConst){
+		if(lhs_info.value().value_type == ExprInfo::ValueType::ConcreteMutGlobal){
+			const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
+			const BaseType::Function& current_func_base_type =
+				this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
+			if(current_func_base_type.isRuntime() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaAssignmentDstGlobalInRuntimeFunc,
+					infix.lhs,
+					"Cannot assign to a global in a function that does not have the runtime attribute"
+				);
+				return this->may_recover();
+			}
+
+		}else if(lhs_info.value().value_type != ExprInfo::ValueType::ConcreteMut){
+			if(lhs_info.value().is_const()){
 				this->emit_error(
 					Diagnostic::Code::SemaAssignmentDstNotConcreteMutable,
 					infix.lhs,
@@ -1438,7 +1398,7 @@ namespace pcit::panther{
 			if(assign_target_info.isError()){ return this->may_recover(); }
 
 			if(assign_target_info.value().value_type != ExprInfo::ValueType::ConcreteMut){
-				if(assign_target_info.value().value_type == ExprInfo::ValueType::ConcreteConst){
+				if(assign_target_info.value().is_const()){
 					this->emit_error(
 						Diagnostic::Code::SemaAssignmentDstNotConcreteMutable,
 						assign_target,
@@ -1818,7 +1778,8 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::VarDecl:     case AST::Kind::FuncDecl:       case AST::Kind::AliasDecl:
-			case AST::Kind::Return:      case AST::Kind::TemplatePack:   case AST::Kind::MultiAssign:
+			case AST::Kind::Return:      case AST::Kind::Conditional:    case AST::Kind::WhenConditional:
+			case AST::Kind::Unreachable: case AST::Kind::TemplatePack:   case AST::Kind::MultiAssign:
 			case AST::Kind::Type:        case AST::Kind::AttributeBlock: case AST::Kind::Attribute:
 			case AST::Kind::BuiltinType: case AST::Kind::Discard: {
 				// TODO: better messaging (specify what kind)
@@ -2471,91 +2432,11 @@ namespace pcit::panther{
 		if(rhs_info.isError()){ return evo::resultError; }
 
 		switch(this->source.getTokenBuffer()[prefix.opTokenID].kind()){
-			case Token::lookupKind("&"): {
-				const bool rhs_is_function = rhs_info.value().value_type == ExprInfo::ValueType::Function;
-				if(rhs_info.value().is_concrete() == false && rhs_is_function == false){
-					this->emit_error(
-						Diagnostic::Code::SemaInvalidAddrOfRHS,
-						prefix.rhs,
-						"rhs of an address-of expression ([&]) must be concrete or a function"
-					);
-					return evo::resultError;
-				}
+			case Token::lookupKind("&"):
+				return this->analyze_expr_prefix_address_of<EXPR_VALUE_KIND, false>(prefix, rhs_info.value());
 
-				if(rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != 1){
-					if(rhs_is_function){
-						this->emit_error(
-							Diagnostic::Code::SemaInvalidAddrOfRHS,
-							prefix.rhs,
-							"Cannot take an address-of ([&]) of a function that has overloads"
-						);
-
-					}else{
-						// TODO: better messaging
-						this->emit_error(
-							Diagnostic::Code::SemaInvalidAddrOfRHS,
-							prefix.rhs,
-							"rhs of an address-of expression ([&]) must be have a single value"
-						);
-					}
-
-					return evo::resultError;	
-				}
-
-
-				const evo::Result<TypeInfo::ID> new_type_id = [&](){					
-					const TypeInfo::ID rhs_type_id = 
-						rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
-
-					if(rhs_is_function){ return evo::Result<TypeInfo::ID>(rhs_type_id);	}
-
-					const TypeInfo& rhs_type = this->context.getTypeManager().getTypeInfo(rhs_type_id);
-
-					auto rhs_type_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
-						rhs_type.qualifiers().begin(), rhs_type.qualifiers().end()
-					);
-					const bool is_read_only = rhs_info.value().value_type == ExprInfo::ValueType::ConcreteConst;
-					rhs_type_qualifiers.emplace_back(true, is_read_only, false);
-
-					if(this->check_type_qualifiers(rhs_type_qualifiers, prefix) == false){
-						return evo::Result<TypeInfo::ID>(evo::resultError);
-					}
-
-					return evo::Result<TypeInfo::ID>(
-						this->context.getTypeManager().getOrCreateTypeInfo(
-							TypeInfo(rhs_type.baseTypeID(), std::move(rhs_type_qualifiers))
-						)
-					);
-				}();
-				if(new_type_id.isError()){ return evo::resultError; }
-
-
-				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
-					return ExprInfo(
-						ExprInfo::ValueType::Ephemeral,
-						ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
-						std::nullopt
-					);
-					
-				}else{
-					if(rhs_is_function) [[unlikely]] {
-						return ExprInfo(
-							ExprInfo::ValueType::Ephemeral,
-							ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
-							ASG::Expr(rhs_info.value().getExpr())
-						);
-					}else{
-						const ASG::AddrOf::ID addr_of_id = this->source.asg_buffer.createAddrOf(
-							ASG::Expr(rhs_info.value().getExpr())
-						);
-						return ExprInfo(
-							ExprInfo::ValueType::Ephemeral,
-							ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
-							ASG::Expr(addr_of_id)
-						);
-					}
-				}
-			} break;
+			case Token::lookupKind("&|"):
+				return this->analyze_expr_prefix_address_of<EXPR_VALUE_KIND, true>(prefix, rhs_info.value());
 
 			case Token::Kind::KeywordCopy: {
 				if(rhs_info.value().is_concrete() == false){
@@ -2641,6 +2522,116 @@ namespace pcit::panther{
 		}
 	}
 
+
+	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND, bool IS_CONST>
+	auto SemanticAnalyzer::analyze_expr_prefix_address_of(const AST::Prefix& prefix, const ExprInfo& rhs_info)
+	-> evo::Result<ExprInfo> {
+		const bool rhs_is_function = rhs_info.value_type == ExprInfo::ValueType::Function;
+		if(rhs_info.is_concrete() == false && rhs_is_function == false){
+			this->emit_error(
+				Diagnostic::Code::SemaInvalidAddrOfRHS,
+				prefix.rhs,
+				"RHS of an address-of expression ([&]) must be concrete or a function"
+			);
+			return evo::resultError;
+		}
+
+		if(rhs_info.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != 1){
+			if(rhs_is_function){
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidAddrOfRHS,
+					prefix.rhs,
+					"Cannot take an address-of ([&]) of a function that has overloads"
+				);
+
+			}else{
+				// TODO: better messaging
+				this->emit_error(
+					Diagnostic::Code::SemaInvalidAddrOfRHS,
+					prefix.rhs,
+					"RHS of an address-of expression ([&]) must be have a single value"
+				);
+			}
+
+			return evo::resultError;	
+		}
+
+		if constexpr(IS_CONST == false){
+			if(rhs_info.value_type == ExprInfo::ValueType::ConcreteMutGlobal){
+				const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
+				const BaseType::Function& current_func_base_type =
+					this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
+
+				if(rhs_info.is_const() == false && current_func_base_type.isRuntime() == false){
+					// TODO: better messaging
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidAddrOfRHS,
+						prefix.rhs,
+						"Cannot take address of a mutable global in a function that has the \"runtime\" attribute",
+						Diagnostic::Info("Use \"&|\" instead of \"&\" to get a read-only pointer")
+					);
+					return evo::resultError;
+				}
+			}
+		}
+
+
+		const evo::Result<TypeInfo::ID> new_type_id = [&](){					
+			const TypeInfo::ID rhs_type_id = 
+				rhs_info.type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+			if(rhs_is_function){ return evo::Result<TypeInfo::ID>(rhs_type_id);	}
+
+			const TypeInfo& rhs_type = this->context.getTypeManager().getTypeInfo(rhs_type_id);
+
+			auto rhs_type_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
+				rhs_type.qualifiers().begin(), rhs_type.qualifiers().end()
+			);
+			const bool is_read_only = rhs_info.is_const() || IS_CONST;
+			rhs_type_qualifiers.emplace_back(true, is_read_only, false);
+
+			if(this->check_type_qualifiers(rhs_type_qualifiers, prefix) == false){
+				return evo::Result<TypeInfo::ID>(evo::resultError);
+			}
+
+			return evo::Result<TypeInfo::ID>(
+				this->context.getTypeManager().getOrCreateTypeInfo(
+					TypeInfo(rhs_type.baseTypeID(), std::move(rhs_type_qualifiers))
+				)
+			);
+		}();
+		if(new_type_id.isError()){ return evo::resultError; }
+
+
+		if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+			return ExprInfo(
+				ExprInfo::ValueType::Ephemeral,
+				ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
+				std::nullopt
+			);
+			
+		}else{
+			if(rhs_is_function) [[unlikely]] {
+				return ExprInfo(
+					ExprInfo::ValueType::Ephemeral,
+					ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
+					ASG::Expr(rhs_info.getExpr())
+				);
+			}else{
+				const ASG::AddrOf::ID addr_of_id = this->source.asg_buffer.createAddrOf(
+					ASG::Expr(rhs_info.getExpr())
+				);
+				return ExprInfo(
+					ExprInfo::ValueType::Ephemeral,
+					ExprInfo::generateExprInfoTypeIDs(new_type_id.value()),
+					ASG::Expr(addr_of_id)
+				);
+			}
+		}
+	}
+
+
+
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_infix(const AST::Infix& infix) -> evo::Result<ExprInfo> {
 		switch(this->source.getTokenBuffer()[infix.opTokenID].kind()){
@@ -2695,16 +2686,13 @@ namespace pcit::panther{
 								this->emit_error(
 									Diagnostic::Code::SemaImportMemberIsntPub,
 									rhs_ident_token_id,
-									std::format("Function \"{}\" isn't marked as public", rhs_ident_str),
-									evo::SmallVector<Diagnostic::Info>{
-										Diagnostic::Info("To mark a function as public, add the attribute \"#pub\""),
-										Diagnostic::Info(
-											"Function declared here:",
-											this->get_source_location(
-												ASG::Func::LinkID(import_target_source_id, asg_func_id)
-											)
+									std::format("Function \"{}\" doesn't have the \"pub\" attribute", rhs_ident_str),
+									Diagnostic::Info(
+										"Function declared here:",
+										this->get_source_location(
+											ASG::Func::LinkID(import_target_source_id, asg_func_id)
 										)
-									}
+									)
 								);
 								return evo::resultError;
 							}
@@ -2742,8 +2730,9 @@ namespace pcit::panther{
 							this->emit_error(
 								Diagnostic::Code::SemaImportMemberIsntPub,
 								rhs_ident_token_id,
-								std::format("Templated function \"{}\" isn't marked as public", rhs_ident_str),
-								Diagnostic::Info("To mark a function as public, add the attribute \"#pub\"")
+								std::format(
+									"Templated function \"{}\" doesn't have the \"pub\" attribute", rhs_ident_str
+								)
 							);
 							return evo::resultError;
 						}
@@ -2891,7 +2880,8 @@ namespace pcit::panther{
 					ident,
 					ident_str,
 					scope_level_id,
-					i >= this->scope.getCurrentObjectScopeIndex() || i == 0
+					i >= this->scope.getCurrentObjectScopeIndex() || i == 0,
+					i == 0
 				);
 
 			if(scope_level_lookup.isError()){ return evo::resultError; }
@@ -2916,7 +2906,8 @@ namespace pcit::panther{
 		const Token::ID& ident,
 		std::string_view ident_str,
 		ScopeManager::Level::ID scope_level_id,
-		bool variables_in_scope
+		bool variables_in_scope,
+		bool is_global
 	) -> evo::Result<std::optional<ExprInfo>> {
 		const ScopeManager::Level& scope_level = this->context.getScopeManager()[scope_level_id];
 
@@ -2991,7 +2982,13 @@ namespace pcit::panther{
 
 					auto get_value_type = [&](){
 						switch(asg_var.kind){
-							case AST::VarDecl::Kind::Var:   return ExprInfo::ValueType::ConcreteMut;
+							case AST::VarDecl::Kind::Var: {
+								if(is_global){
+									return ExprInfo::ValueType::ConcreteMutGlobal;
+								}else{
+									return ExprInfo::ValueType::ConcreteMut;
+								}
+							}
 							case AST::VarDecl::Kind::Const: return ExprInfo::ValueType::ConcreteConst;
 							case AST::VarDecl::Kind::Def:   return ExprInfo::ValueType::Ephemeral;
 						}
@@ -3364,15 +3361,13 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-		}else{
-			if(target_info_res.value().value_type != ExprInfo::ValueType::ConcreteConst){
-				this->emit_error(
-					Diagnostic::Code::SemaCannotCallLikeFunction,
-					func_call.target,
-					"Cannot call this expression like a function"
-				);
-				return evo::resultError;
-			}
+		}else if(target_info_res.value().value_type != ExprInfo::ValueType::Function){
+			this->emit_error(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				func_call.target,
+				"Cannot call this expression like a function"
+			);
+			return evo::resultError;
 		}
 
 
@@ -3488,6 +3483,24 @@ namespace pcit::panther{
 		}
 
 
+		///////////////////////////////////
+		// check runtime attribute
+
+		if(func_types[selected_func_overload_index.value()]->isRuntime()){
+			const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
+			const BaseType::Function& current_func_base_type =
+				this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
+			
+			if(current_func_base_type.isRuntime() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaCantCallRuntimeFuncInNotRuntimeFunc,
+					func_call,
+					"Cannot call a function with the \"runtime\" attribute from a function that does not have it"
+				);
+				return evo::resultError;
+			}
+		}
+
 
 		///////////////////////////////////
 		// organize arguments
@@ -3552,15 +3565,28 @@ namespace pcit::panther{
 
 		struct OverloadScore{
 			struct NumMismatch{};
-			struct TypeMismatch      { size_t arg_index; };
-			struct ValueKindMismatch { size_t arg_index; };
-			struct IncorrectLabel    { size_t arg_index; };
-			struct LackingLabel      { size_t arg_index; };
+			struct TypeMismatch        { size_t arg_index; };
+			struct ValueKindMismatch   { size_t arg_index; };
+			struct MutGlobalNotRuntime { size_t arg_index; bool calling_runtime; bool target_runtime; };
+			struct IncorrectLabel      { size_t arg_index; };
+			struct LackingLabel        { size_t arg_index; };
+
+			using Reason = evo::Variant<
+				std::monostate,
+				NumMismatch,
+				TypeMismatch,
+				ValueKindMismatch,
+				MutGlobalNotRuntime,
+				IncorrectLabel,
+				LackingLabel
+			>;
 
 			evo::uint score;
-			evo::Variant<
-				std::monostate, NumMismatch, TypeMismatch, ValueKindMismatch, IncorrectLabel, LackingLabel
-			> reason;
+			Reason reason;
+
+			OverloadScore(evo::uint _score) : score(_score), reason(std::monostate()) {};
+			OverloadScore(Reason _reason) : score(0), reason(_reason) {};
+
 		};
 		auto scores = evo::SmallVector<OverloadScore>();
 		scores.reserve(funcs.size());
@@ -3573,7 +3599,7 @@ namespace pcit::panther{
 			const BaseType::Function& func_type = *func_type_ptr;
 
 			if(arg_infos.size() != func_type.params().size()){
-				scores.emplace_back(0, OverloadScore::NumMismatch());
+				scores.emplace_back(OverloadScore::NumMismatch());
 				continue;
 			}
 
@@ -3587,7 +3613,7 @@ namespace pcit::panther{
 				);
 
 				if(type_check_info.ok == false){
-					scores.emplace_back(0, OverloadScore::TypeMismatch(param_i));
+					scores.emplace_back(OverloadScore::TypeMismatch(param_i));
 					failed = true;
 					break;
 				}
@@ -3598,9 +3624,30 @@ namespace pcit::panther{
 					} break;
 
 					case AST::FuncDecl::Param::Kind::Mut: {
-						if(arg_info.expr_info.value_type != ExprInfo::ValueType::ConcreteMut){
-							scores.emplace_back(0, OverloadScore::ValueKindMismatch(param_i));
+						if(arg_info.expr_info.value_type == ExprInfo::ValueType::ConcreteMutGlobal){
+							const bool is_target_func_runtime = func_type.isRuntime();
+							const bool is_calling_func_runtime = [&](){
+								const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
+								const BaseType::Function& current_func_base_type =
+									this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
+								return current_func_base_type.isRuntime();
+							}();
+
+							if(is_target_func_runtime && is_calling_func_runtime){
+								current_score += 1;
+							}else{
+								scores.emplace_back(
+									OverloadScore::MutGlobalNotRuntime(
+										param_i, !is_calling_func_runtime, !is_target_func_runtime
+									)
+								);
+								failed = true;	
+							}
+
+						}else if(arg_info.expr_info.value_type != ExprInfo::ValueType::ConcreteMut){
+							scores.emplace_back(OverloadScore::ValueKindMismatch(param_i));
 							failed = true;
+
 						}else{
 							current_score += 1;
 						}
@@ -3609,7 +3656,7 @@ namespace pcit::panther{
 
 					case AST::FuncDecl::Param::Kind::In: {
 						if(arg_info.expr_info.is_ephemeral() == false){
-							scores.emplace_back(0, OverloadScore::ValueKindMismatch(param_i));
+							scores.emplace_back(OverloadScore::ValueKindMismatch(param_i));
 							failed = true;
 						}
 					} break;
@@ -3631,13 +3678,13 @@ namespace pcit::panther{
 						this->source.getTokenBuffer()[*args[param_i].explicitIdent].getString();
 
 					if(param_ident != arg_label){
-						scores.emplace_back(0, OverloadScore::IncorrectLabel(param_i));
+						scores.emplace_back(OverloadScore::IncorrectLabel(param_i));
 						failed = true;
 						break;
 					}
 				}else{
 					if(param.mustLabel){
-						scores.emplace_back(0, OverloadScore::LackingLabel(param_i));
+						scores.emplace_back(OverloadScore::LackingLabel(param_i));
 						failed = true;
 						break;
 					}
@@ -3654,7 +3701,7 @@ namespace pcit::panther{
 
 			if(failed){ continue; }
 
-			scores.emplace_back(current_score + 1, std::monostate());
+			scores.emplace_back(current_score + 1);
 		}
 
 		const OverloadScore* best_score = nullptr;
@@ -3747,7 +3794,9 @@ namespace pcit::panther{
 										funcs[i]->params()[reason.arg_index].typeID
 									)
 								),
-								std::format("Argument is of type:  {}", this->print_type(arg_infos[i].expr_info)),
+								std::format(
+									"Argument is of type:  {}", this->print_type(arg_infos[reason.arg_index].expr_info)
+								),
 							}
 						);
 
@@ -3792,6 +3841,38 @@ namespace pcit::panther{
 							} break;
 						}
 
+					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::MutGlobalNotRuntime>){
+						const std::string_view not_runtime_message = [&](){
+							if(reason.target_runtime){
+								if(reason.calling_runtime){
+									return "cannot mutate a global variable in a function that "
+                                            "doesn't have the runtime attribute, and "
+											"cannot pass a global variable to a [mut] parameter "
+											"when the target function does not have the runtime attribute";
+								}else{
+									return "cannot pass a global variable to a [mut] parameter "
+											"when the target function does not have the runtime attribute";
+								}
+							}else{
+								evo::debugAssert(
+									reason.calling_runtime, "cannot be that both target and calling are runtime"
+								);
+
+								return "cannot mutate a global variable in a function that "
+									    "doesn't have the runtime attribute";
+							}	
+						}();
+
+						infos.emplace_back(
+							std::format(
+								"{} {} (argument index {})",
+								fail_match_message,
+								not_runtime_message,
+								reason.arg_index
+							),
+							this->get_source_location(args[reason.arg_index].value)
+						);
+
 					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::IncorrectLabel>){
 						infos.emplace_back(
 							std::format(
@@ -3801,6 +3882,7 @@ namespace pcit::panther{
 							),
 							this->get_source_location(*args[reason.arg_index].explicitIdent)
 						);
+
 					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::LackingLabel>){
 						infos.emplace_back(
 							std::format(
@@ -3820,7 +3902,6 @@ namespace pcit::panther{
 				Diagnostic::Code::SemaNoMatchingFunction, location, "No matching function", std::move(infos)
 			);
 			return evo::resultError;
-
 		}
 
 		const size_t matched_index = size_t(best_score - scores.data());
@@ -3840,6 +3921,64 @@ namespace pcit::panther{
 	}
 
 
+
+	auto SemanticAnalyzer::ConditionalAttribute::check(
+		SemanticAnalyzer& sema, const AST::AttributeBlock::Attribute& attribute, std::string_view attr_name
+	) -> bool {
+		if(this->_was_used){
+			sema.emit_error(
+				Diagnostic::Code::SemaAttributeAlreadySet,
+				attribute,
+				std::format("Attribute `#{}` was already used", attr_name)
+			);
+			return false;
+		}else{
+			this->_was_used = true;
+		}
+
+		if(attribute.args.empty()){
+			_is_set = true;
+			return true;
+
+		}else if(attribute.args.size() == 1){
+			evo::Result<ExprInfo> cond = sema.analyze_expr<ExprValueKind::ConstEval>(attribute.args.front());
+			if(cond.isError()){ return false; }
+
+			const TypeInfo::ID bool_type_id = sema.context.getTypeManager().getTypeBool();
+			if(
+				sema.type_check<true>(
+					bool_type_id,
+					cond.value(),
+					std::format("attribute `#{}` condition argument", attr_name),
+					attribute.args.front()
+				).ok == false
+			){
+				return false;
+			}
+
+			const bool cond_value = [&](){
+				const ASG::Expr& expr = cond.value().getExpr();
+				const ASG::LiteralBool& literal_bool 
+					= sema.source.getASGBuffer().getLiteralBool(expr.literalBoolID());
+				return literal_bool.value;
+			}();
+
+			_is_set = cond_value;
+			return true;
+
+		}else{
+			sema.emit_error(
+				Diagnostic::Code::SemaInvalidAttributeArgument,
+				attribute.args.back(),
+				"Invalid argument in attribute `#pub`"
+			);
+			return false;
+		}
+	}
+
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// error handling
 
@@ -3850,6 +3989,7 @@ namespace pcit::panther{
 		switch(got_expr.value_type){
 			case ExprInfo::ValueType::ConcreteConst:
 			case ExprInfo::ValueType::ConcreteMut:
+			case ExprInfo::ValueType::ConcreteMutGlobal:
 			case ExprInfo::ValueType::Ephemeral: {
 				if(got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != 1){
 					auto name_copy = std::string(name);

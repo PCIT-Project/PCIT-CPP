@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.39.0
+
+### Panther
+- Added the `#runtime` function attribute
+- Added read-only address-of operator (`&|`)
+- Added checking for type inference of an initializer value
+	- Also fixes a fatal error caused by attempting to do type inference of an initializer value
+- Removed conditional argument from attribute `#mustLabel`
+- Improved / simplified error diagnostic messages about missing attributes
+- Slight tweaks to README
+- Fixed fatal error caused by declaring function overloads with different number of parameters
+- Fixed calling an overloaded functions causing a diagnostic to be emitted that it is not callable
+- Fixed fatal error caused by in some cases having a type mismatch in a failed overload resolution
+- Fixed fatal error when printing `...` token
+
+
+<!---------------------------------->
 ## v0.0.38.0
 
 ### Panther

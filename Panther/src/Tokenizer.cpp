@@ -660,6 +660,12 @@ namespace pcit::panther{
 							this->create_token(Token::lookupKind("&&"));
 							return true;
 						} break;
+
+						case '|': {
+							this->char_stream.skip(evo::stringSize("&|"));
+							this->create_token(Token::lookupKind("&|"));
+							return true;
+						} break;
 					}
 				}
 

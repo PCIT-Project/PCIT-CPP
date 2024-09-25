@@ -850,6 +850,7 @@ namespace pcit::panther{
 
 		switch(op_token_kind){
 			case Token::lookupKind("&"):
+			case Token::lookupKind("&|"):
 			case Token::Kind::KeywordCopy:
 			case Token::Kind::KeywordMove:
 			case Token::lookupKind("-"):

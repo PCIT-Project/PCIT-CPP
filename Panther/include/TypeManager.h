@@ -160,11 +160,12 @@ namespace pcit::panther{
 			};
 
 			Function(
-				evo::SmallVector<Param>&& params_in, evo::SmallVector<ReturnParam>&& _return_params
-			) : _params(std::move(params_in)), return_params(std::move(_return_params)) {};
+				evo::SmallVector<Param>&& params_in, evo::SmallVector<ReturnParam>&& _return_params, bool _is_runtime
+			) : _params(std::move(params_in)), return_params(std::move(_return_params)), is_runtime(_is_runtime) {};
 
 			EVO_NODISCARD auto params() const -> evo::ArrayProxy<Param> { return this->_params; }
 			EVO_NODISCARD auto returnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
+			EVO_NODISCARD auto isRuntime() const -> bool { return this->is_runtime; }
 
 			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->return_params[0].ident.has_value(); }
 			EVO_NODISCARD auto returnsVoid() const -> bool { return this->return_params[0].typeID.isVoid(); }
@@ -174,6 +175,7 @@ namespace pcit::panther{
 			private:
 				evo::SmallVector<Param> _params;
 				evo::SmallVector<ReturnParam> return_params;
+				bool is_runtime:1;
 		};
 
 

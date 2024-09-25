@@ -90,7 +90,7 @@ namespace pcit::panther{
 				instantiated_returns.emplace_back(std::nullopt, return_type);
 			}
 
-			return BaseType::Function(std::move(instantiated_params), std::move(instantiated_returns));
+			return BaseType::Function(std::move(instantiated_params), std::move(instantiated_returns), false);
 		}
 	};
 	

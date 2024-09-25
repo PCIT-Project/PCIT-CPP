@@ -2,6 +2,12 @@
 
 
 
-func get_num = () #pub(false) -> UI8 {
+func get_num_templ = <{T: Type}> () #pub -> T {
+	return 12;
+}
+
+
+
+func get_num = () #pub -> UI8 {
 	return 12;
 }

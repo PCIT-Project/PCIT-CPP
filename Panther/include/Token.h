@@ -102,7 +102,6 @@ namespace pcit::panther{
 				KeywordMut,
 				KeywordIn,
 				
-				// KeywordAddr,
 				KeywordCopy,
 				KeywordMove,
 				KeywordAs,
@@ -115,9 +114,11 @@ namespace pcit::panther{
 				///////////////////////////////////
 				// operators
 
-				RightArrow, // ->
-				Underscore, // _
-				Ellipsis,   // ...
+				RightArrow,        // ->
+				Underscore,        // _
+				Ellipsis,          // ...
+				ReadOnlyAddressOf, // &|
+
 
 				// assignment
 				Assign,             // =
@@ -296,6 +297,7 @@ namespace pcit::panther{
 
 				// length 2
 				if(op_str == "->"){ return Kind::RightArrow; }
+				if(op_str == "&|"){ return Kind::ReadOnlyAddressOf; }
 
 				if(op_str == "+="){ return Kind::AssignAdd; }
 				if(op_str == "-="){ return Kind::AssignSub; }
@@ -465,6 +467,8 @@ namespace pcit::panther{
 
 					break; case Kind::RightArrow:         return "->";
 					break; case Kind::Underscore:         return "_";
+					break; case Kind::Ellipsis:           return "...";
+					break; case Kind::ReadOnlyAddressOf:  return "&|";
 
 
 					// assignment

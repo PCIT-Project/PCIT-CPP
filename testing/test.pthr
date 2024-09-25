@@ -1,6 +1,14 @@
+var global: Int = 12;
+
+
+func constexpr_test = () -> Void {
+	var ptr: Int*| = &global;
+}
 
 
 
 func entry = () #entry -> UI8 {
-	return @import("test2.pthr").get_num();
+	global = 12;
+
+	return 12;
 }
