@@ -173,7 +173,10 @@ namespace pcit::panther{
 
 						evo::debugAssert(peek_location >= 0, "cannot peek past beginning of buffer");
 						evo::debugAssert(
-							size_t(peek_location) < this->buffer.size(), "cannot peek past beginning of buffer"
+							size_t(peek_location) < this->buffer.size(),
+							"cannot peek past beginning of buffer(peek location: {}, buffer size: {})",
+							size_t(peek_location),
+							this->buffer.size()
 						);
 
 						return Token::ID(uint32_t(peek_location));

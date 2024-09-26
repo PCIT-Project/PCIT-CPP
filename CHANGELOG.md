@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.40.0
+
+### Panther
+- Fixed fatal error with usage of templated functions
+- Improved performance around memory allocations / reallocations
+- Fixed `TypeManager` not deallocating memory for function types
+
+### PCIT_core
+- Added `LinearStepAlloc`
+
+
+<!---------------------------------->
 ## v0.0.39.0
 
 ### Panther

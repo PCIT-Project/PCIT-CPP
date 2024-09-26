@@ -24,7 +24,7 @@ namespace pcit::core{
 	constexpr auto version = Version{
 		.major   = 0,
 		.release = 0,
-		.minor   = 39,
+		.minor   = 40,
 		.patch   = 0,
 	};
 
@@ -35,7 +35,7 @@ template<>
 struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
     auto format(const pcit::core::Version& version, std::format_context& ctx) const -> std::format_context::iterator {
         return std::formatter<std::string>::format(
-        	std::format("{}.{}.{}.{}", version.major, version.release, version.minor, version.patch), 
+        	std::format("{}.{}.{}.{}", version.major, version.release, version.minor, version.patch),
         	ctx
         );
     }

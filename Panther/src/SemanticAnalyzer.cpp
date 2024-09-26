@@ -934,7 +934,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool {
-		ASG::Func& asg_func = this->source.asg_buffer.funcs[asg_func_id.get()];
+		ASG::Func& asg_func = this->source.asg_buffer.funcs[asg_func_id];
 
 		this->push_scope_level(&asg_func.stmts, asg_func_id);
 		EVO_DEFER([&](){ this->pop_scope_level(); });
@@ -1126,7 +1126,9 @@ namespace pcit::panther{
 			= this->analyze_func_call_impl<ExprValueKind::Runtime, true>(func_call);
 		if(analyzed_func_call_data.isError()){ return this->may_recover(); }
 
-		this->get_current_scope_level().stmtBlock().emplace_back(*analyzed_func_call_data.value().asg_func_id);
+		auto& csl = this->get_current_scope_level();
+		auto& sb = csl.stmtBlock();
+		sb.emplace_back(*analyzed_func_call_data.value().asg_func_id);
 		return true;
 	}
 
@@ -1704,7 +1706,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::get_current_func() const -> ASG::Func& {
 		const ScopeManager::Scope::ObjectScope& current_object_scope = this->scope.getCurrentObjectScope();
-		return this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>().get()];
+		return this->source.asg_buffer.funcs[current_object_scope.as<ASG::Func::ID>()];
 	}
 
 
@@ -1973,8 +1975,8 @@ namespace pcit::panther{
 			base_info.value().type_id.as<ASG::TemplatedFunc::LinkID>();
 
 		Source& declared_source = this->context.getSourceManager()[templated_func_link_id.sourceID()];
-		ASG::TemplatedFunc& templated_func = *declared_source.getASGBuffer().templated_funcs[
-			templated_func_link_id.templatedFuncID().get()
+		ASG::TemplatedFunc& templated_func = declared_source.asg_buffer.templated_funcs[
+			templated_func_link_id.templatedFuncID()
 		];
 
 		if(templated_expr.args.size() != templated_func.templateParams.size()){
@@ -4101,7 +4103,7 @@ namespace pcit::panther{
 
 					if constexpr(IMPLICITLY_CONVERT){
 						const ASG::LiteralInt::ID literal_int_id = got_expr.getExpr().literalIntID();
-						this->source.asg_buffer.literal_ints[literal_int_id.get()].typeID = expected_type_id;
+						this->source.asg_buffer.literal_ints[literal_int_id].typeID = expected_type_id;
 					}
 
 
@@ -4129,7 +4131,7 @@ namespace pcit::panther{
 
 					if constexpr(IMPLICITLY_CONVERT){
 						const ASG::LiteralFloat::ID literal_float_id = got_expr.getExpr().literalFloatID();
-						this->source.asg_buffer.literal_floats[literal_float_id.get()].typeID = expected_type_id;
+						this->source.asg_buffer.literal_floats[literal_float_id].typeID = expected_type_id;
 					}
 				}
 

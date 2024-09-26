@@ -83,8 +83,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto createVarDecl(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->var_decls.size());
-				this->var_decls.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->var_decls.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::VarDecl, node_index);
 			}
 			EVO_NODISCARD auto getVarDecl(const AST::Node& node) const -> const AST::VarDecl& {
@@ -93,8 +92,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createFuncDecl(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->func_decls.size());
-				this->func_decls.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->func_decls.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::FuncDecl, node_index);
 			}
 			EVO_NODISCARD auto getFuncDecl(const AST::Node& node) const -> const AST::FuncDecl& {
@@ -103,8 +101,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createAliasDecl(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->alias_decls.size());
-				this->alias_decls.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->alias_decls.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::AliasDecl, node_index);
 			}
 			EVO_NODISCARD auto getAliasDecl(const AST::Node& node) const -> const AST::AliasDecl& {
@@ -114,8 +111,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto createReturn(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->returns.size());
-				this->returns.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->returns.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Return, node_index);
 			}
 			EVO_NODISCARD auto getReturn(const AST::Node& node) const -> const AST::Return& {
@@ -124,8 +120,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createConditional(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->conditionals.size());
-				this->conditionals.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->conditionals.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Conditional, node_index);
 			}
 			EVO_NODISCARD auto getConditional(const AST::Node& node) const -> const AST::Conditional& {
@@ -134,8 +129,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createWhenConditional(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->when_conditionals.size());
-				this->when_conditionals.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->when_conditionals.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::WhenConditional, node_index);
 			}
 			EVO_NODISCARD auto getWhenConditional(const AST::Node& node) const -> const AST::WhenConditional& {
@@ -145,8 +139,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto createBlock(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->blocks.size());
-				this->blocks.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->blocks.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Block, node_index);
 			}
 			EVO_NODISCARD auto getBlock(const AST::Node& node) const -> const AST::Block& {
@@ -155,8 +148,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createFuncCall(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->func_calls.size());
-				this->func_calls.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->func_calls.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::FuncCall, node_index);
 			}
 			EVO_NODISCARD auto getFuncCall(const AST::Node& node) const -> const AST::FuncCall& {
@@ -165,8 +157,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createTemplatePack(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->template_packs.size());
-				this->template_packs.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->template_packs.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::TemplatePack, node_index);
 			}
 			EVO_NODISCARD auto getTemplatePack(const AST::Node& node) const -> const AST::TemplatePack& {
@@ -175,8 +166,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createTemplatedExpr(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->templated_expr.size());
-				this->templated_expr.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->templated_expr.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::TemplatedExpr, node_index);
 			}
 			EVO_NODISCARD auto getTemplatedExpr(const AST::Node& node) const -> const AST::TemplatedExpr& {
@@ -186,8 +176,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto createPrefix(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->prefixes.size());
-				this->prefixes.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->prefixes.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Prefix, node_index);
 			}
 			EVO_NODISCARD auto getPrefix(const AST::Node& node) const -> const AST::Prefix& {
@@ -196,8 +185,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createInfix(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->infixes.size());
-				this->infixes.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->infixes.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Infix, node_index);
 			}
 			EVO_NODISCARD auto getInfix(const AST::Node& node) const -> const AST::Infix& {
@@ -206,8 +194,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto createPostfix(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->postfixes.size());
-				this->postfixes.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->postfixes.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Postfix, node_index);
 			}
 			EVO_NODISCARD auto getPostfix(const AST::Node& node) const -> const AST::Postfix& {
@@ -217,8 +204,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto createMultiAssign(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->multi_assigns.size());
-				this->multi_assigns.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->multi_assigns.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::MultiAssign, node_index);
 			}
 			EVO_NODISCARD auto getMultiAssign(const AST::Node& node) const -> const AST::MultiAssign& {
@@ -229,8 +215,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto createType(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->types.size());
-				this->types.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->types.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Type, node_index);
 			}
 			EVO_NODISCARD auto getType(const AST::Node& node) const -> const AST::Type& {
@@ -240,8 +225,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto createAttributeBlock(auto&&... args) -> AST::Node {
-				const uint32_t node_index = uint32_t(this->attribute_blocks.size());
-				this->attribute_blocks.emplace_back(std::forward<decltype(args)>(args)...);
+				const uint32_t node_index = this->attribute_blocks.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::AttributeBlock, node_index);
 			}
 			EVO_NODISCARD auto getAttributeBlock(const AST::Node& node) const -> const AST::AttributeBlock& {
@@ -254,28 +238,28 @@ namespace pcit::panther{
 		private:
 			evo::SmallVector<AST::Node> global_stmts{};
 
-			evo::SmallVector<AST::VarDecl> var_decls{};
-			evo::SmallVector<AST::FuncDecl> func_decls{};
-			evo::SmallVector<AST::AliasDecl> alias_decls{};
+			core::LinearStepAlloc<AST::VarDecl, uint32_t> var_decls{};
+			core::LinearStepAlloc<AST::FuncDecl, uint32_t> func_decls{};
+			core::LinearStepAlloc<AST::AliasDecl, uint32_t> alias_decls{};
 
-			evo::SmallVector<AST::Return> returns{};
-			evo::SmallVector<AST::Conditional> conditionals{};
-			evo::SmallVector<AST::WhenConditional> when_conditionals{};
+			core::LinearStepAlloc<AST::Return, uint32_t> returns{};
+			core::LinearStepAlloc<AST::Conditional, uint32_t> conditionals{};
+			core::LinearStepAlloc<AST::WhenConditional, uint32_t> when_conditionals{};
 
-			evo::SmallVector<AST::Block> blocks{};
-			evo::SmallVector<AST::FuncCall> func_calls{};
-			evo::SmallVector<AST::TemplatePack> template_packs{};
-			evo::SmallVector<AST::TemplatedExpr> templated_expr{};
+			core::LinearStepAlloc<AST::Block, uint32_t> blocks{};
+			core::LinearStepAlloc<AST::FuncCall, uint32_t> func_calls{};
+			core::LinearStepAlloc<AST::TemplatePack, uint32_t> template_packs{};
+			core::LinearStepAlloc<AST::TemplatedExpr, uint32_t> templated_expr{};
 
-			evo::SmallVector<AST::Prefix> prefixes{};
-			evo::SmallVector<AST::Infix> infixes{};
-			evo::SmallVector<AST::Postfix> postfixes{};
+			core::LinearStepAlloc<AST::Prefix, uint32_t> prefixes{};
+			core::LinearStepAlloc<AST::Infix, uint32_t> infixes{};
+			core::LinearStepAlloc<AST::Postfix, uint32_t> postfixes{};
 
-			evo::SmallVector<AST::MultiAssign> multi_assigns{};
+			core::LinearStepAlloc<AST::MultiAssign, uint32_t> multi_assigns{};
 
-			evo::SmallVector<AST::Type> types{};
+			core::LinearStepAlloc<AST::Type, uint32_t> types{};
 
-			evo::SmallVector<AST::AttributeBlock> attribute_blocks{};
+			core::LinearStepAlloc<AST::AttributeBlock, uint32_t> attribute_blocks{};
 
 
 			friend class Parser;

@@ -130,9 +130,6 @@ namespace pcit::panther{
 
 		this->task_group_running = true;
 
-		// TODO: maybe check if any files had been loaded yet
-		this->getSourceManager().reserveSources(file_paths.size());
-
 		for(const fs::path& file_path : file_paths){
 			this->tasks.emplace(std::make_unique<Task>(LoadFileTask(file_path)));
 		}
@@ -150,8 +147,8 @@ namespace pcit::panther{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
 			
 			this->task_group_running = true;
-			for(Source* source : this->src_manager.sources){
-				this->tasks.emplace(std::make_unique<Task>(TokenizeFileTask(source->getID())));
+			for(const Source::ID::Iterator source_id_iter : this->src_manager){
+				this->tasks.emplace(std::make_unique<Task>(TokenizeFileTask(*source_id_iter)));
 			}
 		}
 
@@ -168,8 +165,8 @@ namespace pcit::panther{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
 			
 			this->task_group_running = true;
-			for(Source* source : this->src_manager.sources){
-				this->tasks.emplace(std::make_unique<Task>(ParseFileTask(source->getID())));
+			for(const Source::ID::Iterator source_id_iter : this->src_manager){
+				this->tasks.emplace(std::make_unique<Task>(ParseFileTask(*source_id_iter)));
 			}
 		}
 
@@ -198,8 +195,8 @@ namespace pcit::panther{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
 
 			this->task_group_running = true;
-			for(Source* source : this->src_manager.sources){
-				this->tasks.emplace(std::make_unique<Task>(SemaGlobalDeclsTask(source->getID())));
+			for(const Source::ID::Iterator source_id_iter : this->src_manager){
+				this->tasks.emplace(std::make_unique<Task>(SemaGlobalDeclsTask(*source_id_iter)));
 			}
 		}
 
@@ -213,8 +210,8 @@ namespace pcit::panther{
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
 
 			this->task_group_running = true;
-			for(Source* source : this->src_manager.sources){
-				this->tasks.emplace(std::make_unique<Task>(SemaGlobalStmtsTask(source->getID())));
+			for(const Source::ID::Iterator source_id_iter : this->src_manager){
+				this->tasks.emplace(std::make_unique<Task>(SemaGlobalStmtsTask(*source_id_iter)));
 			}
 		}
 

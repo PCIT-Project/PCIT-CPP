@@ -143,27 +143,6 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
-	// scope manager
-	
-	ScopeManager::~ScopeManager(){
-		for(Level* scope_level : this->scope_levels){
-			delete scope_level;
-		}
-	}
-
-
-	auto ScopeManager::createLevel(ASG::StmtBlock* stmt_block) -> Level::ID {
-		const auto lock = std::unique_lock(this->mutex);
-
-		const auto new_scope_level_id = Level::ID(uint32_t(this->scope_levels.size()));
-		// TODO: better allocation method
-		this->scope_levels.emplace_back(new Level(stmt_block));
-		return new_scope_level_id;
-	}
-
-
-
-	//////////////////////////////////////////////////////////////////////
 	// global scope
 
 	auto GlobalScope::addFunc(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func) -> void {

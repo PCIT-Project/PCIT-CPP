@@ -1,14 +1,17 @@
-var global: Int = 12;
 
 
-func constexpr_test = () -> Void {
-	var ptr: Int*| = &global;
+func get_num = () -> UI8 {
+	return 12;
 }
 
 
+func test = <{NUM: UI8}> () -> Void {
+	
+}
+
 
 func entry = () #entry -> UI8 {
-	global = 12;
 
-	return 12;
+	test<{12}>();
+	return get_num();
 }

@@ -116,27 +116,25 @@ namespace pcit::panther{
 				return this->_kind != rhs._kind || this->bit_width != rhs.bit_width;
 			}
 
+
+
+			Builtin(Token::Kind tok_kind) : _kind(tok_kind), bit_width(0) {
+				evo::debugAssert(
+					this->_kind != Token::Kind::TypeI_N && this->_kind != Token::Kind::TypeUI_N,
+					"This type requires a bit-width"
+				);
+			};
+
+			Builtin(Token::Kind tok_kind, uint32_t _bit_width) : _kind(tok_kind), bit_width(_bit_width) {
+				evo::debugAssert(
+					this->_kind == Token::Kind::TypeI_N || this->_kind == Token::Kind::TypeUI_N,
+					"This type does not have a bit-width"
+				);
+			};
+
 			private:
-				Builtin(Token::Kind tok_kind) : _kind(tok_kind), bit_width(0) {
-					evo::debugAssert(
-						this->_kind != Token::Kind::TypeI_N && this->_kind != Token::Kind::TypeUI_N,
-						"This type requires a bit-width"
-					);
-				};
-
-				Builtin(Token::Kind tok_kind, uint32_t _bit_width) : _kind(tok_kind), bit_width(_bit_width) {
-					evo::debugAssert(
-						this->_kind == Token::Kind::TypeI_N || this->_kind == Token::Kind::TypeUI_N,
-						"This type does not have a bit-width"
-					);
-				};
-
-				Builtin(const Builtin& rhs) = default;
-
 				Token::Kind _kind;
 				uint32_t bit_width;
-
-				friend TypeManager;
 		};
 
 		struct Function{
@@ -248,7 +246,7 @@ namespace pcit::panther{
 		public:
 			TypeManager(core::Platform target_platform, core::Architecture target_arch)
 				: _platform(target_platform), _architecture(target_arch) {};
-			~TypeManager();
+			~TypeManager() = default;
 
 
 			auto initBuiltins() -> void; // single-threaded
@@ -299,15 +297,14 @@ namespace pcit::panther{
 
 
 			// TODO: improve lookup times
-			// TODO: better allocation methods (custom allocator instead of new/delete)?
 
-			std::vector<BaseType::Builtin*> builtins{};
+			core::LinearStepAlloc<BaseType::Builtin, BaseType::Builtin::ID> builtins{};
 			mutable std::shared_mutex builtins_mutex{};
 
-			std::vector<BaseType::Function*> functions{};
+			core::LinearStepAlloc<BaseType::Function, BaseType::Function::ID> functions{};
 			mutable std::shared_mutex functions_mutex{};
 
-			std::vector<TypeInfo*> types{};
+			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable std::shared_mutex types_mutex{};
 	};
 

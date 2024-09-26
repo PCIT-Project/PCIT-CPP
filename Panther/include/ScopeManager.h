@@ -166,23 +166,26 @@ namespace pcit::panther{
 		
 		public:
 			ScopeManager() = default;
-			~ScopeManager();
+			~ScopeManager() = default;
 
 			EVO_NODISCARD auto operator[](Level::ID id) const -> const Level& {
 				const auto lock = std::shared_lock(this->mutex);
-				return *this->scope_levels[id.get()];
+				return this->scope_levels[id];
 			}
 
 			EVO_NODISCARD auto operator[](Level::ID id) -> Level& {
 				const auto lock = std::shared_lock(this->mutex);
-				return *this->scope_levels[id.get()];
+				return this->scope_levels[id];
 			}
 
 
-			EVO_NODISCARD auto createLevel(ASG::StmtBlock* stmt_block = nullptr) -> Level::ID;
+			EVO_NODISCARD auto createLevel(ASG::StmtBlock* stmt_block = nullptr) -> Level::ID {
+				const auto lock = std::unique_lock(this->mutex);
+				return this->scope_levels.emplace_back(stmt_block);
+			}
 	
 		private:
-			std::vector<Level*> scope_levels{};
+			core::LinearStepAlloc<Level, Level::ID> scope_levels{};
 			mutable std::shared_mutex mutex{};
 	};
 

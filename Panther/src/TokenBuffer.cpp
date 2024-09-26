@@ -62,21 +62,21 @@ namespace pcit::panther{
 
 
 	auto TokenBuffer::get(Token::ID id) const -> const Token& {
-		return this->tokens[id.get()];
+		return this->tokens[id];
 	}
 
 	auto TokenBuffer::get(Token::ID id) -> Token& {
 		evo::debugAssert(this->isLocked() == false, "Cannot get mutable token when TokenBuffer is locked");
-		return this->tokens[id.get()];
+		return this->tokens[id];
 	}
 
 
 	auto TokenBuffer::getLocation(Token::ID id) const -> const Token::Location& {
-		return this->token_locations[id.get()];
+		return this->token_locations[id];
 	};
 
 	auto TokenBuffer::getSourceLocation(Token::ID id, Source::ID source_id) const -> SourceLocation {
-		const Token::Location& source_location = this->token_locations[id.get()];
+		const Token::Location& source_location = this->token_locations[id];
 		return SourceLocation(
 			source_id,
 			source_location.lineStart,
@@ -85,8 +85,5 @@ namespace pcit::panther{
 			source_location.collumnEnd
 		);
 	};
-
-
-
 
 }

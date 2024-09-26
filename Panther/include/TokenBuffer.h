@@ -66,8 +66,8 @@ namespace pcit::panther{
 
 		
 		private:
-			std::vector<Token> tokens{};
-			std::vector<Token::Location> token_locations{};
+			core::LinearStepAlloc<Token, Token::ID> tokens{};
+			core::LinearStepAlloc<Token::Location, Token::ID> token_locations{};
 			std::vector<char*> string_literals{};
 			bool is_locked = false;
 

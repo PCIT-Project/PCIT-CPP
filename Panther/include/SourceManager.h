@@ -32,13 +32,10 @@ namespace pcit::panther{
 	class SourceManager{
 		public:
 			SourceManager() = default;
-			~SourceManager();
+			~SourceManager() = default;
 
 			SourceManager(const SourceManager&) = delete;
 			auto operator=(const SourceManager&) = delete;
-
-			// make sure enough space for `num_source` source is allocated
-			auto reserveSources(size_t num_source) -> void;
 
 			auto addSource(const std::string& location, const std::string& data) -> Source::ID;
 			auto addSource(const std::string& location, std::string&& data) -> Source::ID;
@@ -54,8 +51,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getSource(Source::ID id)       ->       Source&;
 			EVO_NODISCARD auto getSource(Source::ID id) const -> const Source&;
 
-			EVO_NODISCARD auto operator[](Source::ID id)       ->       Source& {return this->getSource(id);}
-			EVO_NODISCARD auto operator[](Source::ID id) const -> const Source& {return this->getSource(id);}
+			EVO_NODISCARD auto operator[](Source::ID id)       ->       Source& { return this->getSource(id); }
+			EVO_NODISCARD auto operator[](Source::ID id) const -> const Source& { return this->getSource(id); }
 
 			EVO_NODISCARD auto numSources() const -> size_t { return this->sources.size(); }
 
@@ -66,16 +63,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto end() const -> Source::ID::Iterator {
 				return Source::ID::Iterator(Source::ID(uint32_t(this->sources.size())));
 			}
-
-		private:
-			auto alloc_source(auto&&... args) -> Source*;
-			auto free_source(Source* source) -> void;
-
 	
 		private:
-			std::vector<Source*> sources{};
-
-			friend class Context;
+			core::LinearStepAlloc<Source, Source::ID, 0> sources{};
 	};
 
 

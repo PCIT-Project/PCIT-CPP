@@ -12,89 +12,66 @@
 namespace pcit::panther{
 
 
-	SourceManager::~SourceManager() {
-		for(Source* source : this->sources){
-			this->free_source(source);
-		}
-	}
-
-
-	auto SourceManager::reserveSources(size_t num_sources) -> void {
-		this->sources.reserve(num_sources);
-	}
-
-
-	// TODO: create custom vector impl to not have to do a push_back
-	// 		(can't do a emplace_back because I want Source::Source() to be private)
 	auto SourceManager::addSource(const std::string& location, const std::string& data) -> Source::ID {
 		const Source::ID new_source_id = Source::ID(uint32_t(this->sources.size()));
-		this->sources.push_back(this->alloc_source(new_source_id, location, data));
+		this->sources.emplace_back(Source(new_source_id, location, data));
 		return new_source_id;
 	}
 
 	auto SourceManager::addSource(const std::string& location, std::string&& data) -> Source::ID {
 		const Source::ID new_source_id = Source::ID(uint32_t(this->sources.size()));
-		this->sources.push_back(this->alloc_source(new_source_id, location, std::move(data)));
+		this->sources.emplace_back(Source(new_source_id, location, std::move(data)));
 		return new_source_id;
 	}
 
 	auto SourceManager::addSource(std::string&& location, const std::string& data) -> Source::ID {
 		const Source::ID new_source_id = Source::ID(uint32_t(this->sources.size()));
-		this->sources.push_back(this->alloc_source(new_source_id, std::move(location), data));
+		this->sources.emplace_back(Source(new_source_id, std::move(location), data));
 		return new_source_id;
 	}
 
 	auto SourceManager::addSource(std::string&& location, std::string&& data) -> Source::ID {
 		const Source::ID new_source_id = Source::ID(uint32_t(this->sources.size()));
-		this->sources.push_back(this->alloc_source(new_source_id, std::move(location), std::move(data)));
+		this->sources.emplace_back(Source(new_source_id, std::move(location), std::move(data)));
 		return new_source_id;
 	}
 
 
 	auto SourceManager::addSource(const fs::path& location, const std::string& data) -> Source::ID {
 		const Source::ID new_source_id = Source::ID(uint32_t(this->sources.size()));
-		this->sources.push_back(this->alloc_source(new_source_id, location, data));
+		this->sources.emplace_back(Source(new_source_id, location, data));
 		return new_source_id;
 	}
 
 	auto SourceManager::addSource(const fs::path& location, std::string&& data) -> Source::ID {
 		const Source::ID new_source_id = Source::ID(uint32_t(this->sources.size()));
-		this->sources.push_back(this->alloc_source(new_source_id, location, std::move(data)));
+		this->sources.emplace_back(Source(new_source_id, location, std::move(data)));
 		return new_source_id;
 	}
 
 	auto SourceManager::addSource(fs::path&& location, const std::string& data) -> Source::ID {
 		const Source::ID new_source_id = Source::ID(uint32_t(this->sources.size()));
-		this->sources.push_back(this->alloc_source(new_source_id, std::move(location), data));
+		this->sources.emplace_back(Source(new_source_id, std::move(location), data));
 		return new_source_id;
 	}
 
 	auto SourceManager::addSource(fs::path&& location, std::string&& data) -> Source::ID {
 		const Source::ID new_source_id = Source::ID(uint32_t(this->sources.size()));
-		this->sources.push_back(this->alloc_source(new_source_id, std::move(location), std::move(data)));
+		this->sources.emplace_back(Source(new_source_id, std::move(location), std::move(data)));
 		return new_source_id;
 	}
 
 
 
-	
+
 	auto SourceManager::getSource(Source::ID id) -> Source& {
-		return *this->sources[id.get()];
+		return this->sources[id];
 	}
 
 	auto SourceManager::getSource(Source::ID id) const -> const Source& {
-		return *this->sources[id.get()];
+		return this->sources[id];
 	}
 
 
-
-	// TODO: better allocation method
-	auto SourceManager::alloc_source(auto&&... args) -> Source* {
-		return new Source(std::forward<decltype(args)>(args)...);
-	}
-
-	auto SourceManager::free_source(Source* source) -> void {
-		delete source;
-	}
 
 }
