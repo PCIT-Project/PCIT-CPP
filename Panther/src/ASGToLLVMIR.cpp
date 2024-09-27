@@ -315,6 +315,8 @@ namespace pcit::panther{
 	auto ASGToLLVMIR::lower_var(const ASG::Var::ID& var_id) -> void {
 		const ASG::Var& asg_var = this->current_source->getASGBuffer().getVar(var_id);
 
+		if(asg_var.kind == AST::VarDecl::Kind::Def){ return; } // make sure not to emit def variables
+
 		const llvmint::Alloca var_alloca = this->builder.createAlloca(
 			this->get_type(asg_var.typeID),
 			this->stmt_name("{}.alloca", this->current_source->getTokenBuffer()[asg_var.ident].getString())

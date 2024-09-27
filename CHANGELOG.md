@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.40.1
+
+### Panther
+- Fixed `def` variables defined in local scope being emitted
+
+
+<!---------------------------------->
 ## v0.0.40.0
 
 ### Panther

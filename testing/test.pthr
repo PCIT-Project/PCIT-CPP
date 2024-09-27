@@ -1,17 +1,15 @@
 
 
-func get_num = () -> UI8 {
-	return 12;
+func get_num = <{NUM: UI8}> () -> UI8 {
+	return NUM;
 }
 
 
-func test = <{NUM: UI8}> () -> Void {
-	
-}
-
+def NUM_VAL: UI8 = 12;
 
 func entry = () #entry -> UI8 {
+	def NUM: UI8 = NUM_VAL;
 
-	test<{12}>();
-	return get_num();
+
+	return get_num<{NUM}>();
 }
