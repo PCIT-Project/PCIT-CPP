@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -54,8 +54,13 @@ namespace pcit::llvmint{
 			};
 
 		public:
-			Module(std::string_view name, class LLVMContext& context);
-			~Module();
+			Module() = default;
+			~Module() = default;
+
+			auto init(std::string_view name, class LLVMContext& context) -> void;
+			auto deinit() -> void;
+
+			EVO_NODISCARD auto isInitialized() const -> bool { return this->_native != nullptr; }
 
 
 			EVO_NODISCARD auto getDefaultTargetTriple() -> std::string;
@@ -100,25 +105,16 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto run(std::string_view func_name) -> ReturnType {
 				auto execution_engine = ExecutionEngine();
 				execution_engine.createEngine(*this);
-				this->setup_linked_funcs(execution_engine);
+				execution_engine.setupLinkedFuncs();
 
-
-				const ReturnType output = execution_engine.runFunction<ReturnType>(func_name);
-
-				execution_engine.shutdownEngine();
-
-				return output;
-			};
-
-			template<>
-			auto run<void>(std::string_view func_name) -> void {
-				auto execution_engine = ExecutionEngine();
-				execution_engine.createEngine(*this);
-				this->setup_linked_funcs(execution_engine);
-
-				execution_engine.runFunction<void>(func_name);
-
-				execution_engine.shutdownEngine();
+				if constexpr(std::is_same_v<void, ReturnType>){
+					execution_engine.runFunctionDirectly<ReturnType>(func_name);
+					execution_engine.shutdownEngine();
+				}else{
+					const ReturnType output = execution_engine.runFunctionDirectly<ReturnType>(func_name);
+					execution_engine.shutdownEngine();
+					return output;
+				}
 			};
 			
 
@@ -133,7 +129,7 @@ namespace pcit::llvmint{
 	
 
 		private:
-			llvm::Module* _native;
+			llvm::Module* _native = nullptr;
 			llvm::TargetMachine* target_machine = nullptr;
 
 			friend class ExecutionEngine;

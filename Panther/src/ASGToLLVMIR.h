@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -37,11 +37,13 @@ namespace pcit::panther{
 			auto lower() -> void;
 
 			auto addRuntime() -> void;
+			auto addRuntimeLinks() -> void; // run automatically by `addRuntime`
+
+
+			EVO_NODISCARD auto getFuncMangledName(ASG::Func::LinkID link_id) -> std::string_view;
 
 
 		private:
-			auto add_runtime_links() -> void;
-
 			auto lower_global_var(const ASG::Var::ID& var_id) -> void;
 
 			auto lower_func_decl(const ASG::Func::ID& func_id) -> void;
@@ -86,6 +88,7 @@ namespace pcit::panther{
 
 			struct FuncInfo{
 				llvmint::Function func;
+				std::string mangled_name;
 			};
 			EVO_NODISCARD auto get_func_info(ASG::Func::LinkID link_id) const -> const FuncInfo&;
 			EVO_NODISCARD auto get_current_func_info() const -> const FuncInfo&;

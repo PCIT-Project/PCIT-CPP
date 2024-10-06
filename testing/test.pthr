@@ -1,15 +1,28 @@
 
 
-func get_num = <{NUM: UI8}> () -> UI8 {
-	return NUM;
+func get_return_code = () -> UI8 {
+	return 19;
 }
 
 
-def NUM_VAL: UI8 = 12;
+func get_val = () -> UI27 {
+	var cond: Bool = true;
+	cond = false;
+
+	if(cond){
+		return 81;
+	}
+
+	return 12;
+}
+
 
 func entry = () #entry -> UI8 {
-	def NUM: UI8 = NUM_VAL;
+	def val = get_val();
+	const foo = val;
 
 
-	return get_num<{NUM}>();
+	def NUM: UI8 = get_return_code();
+
+	return NUM;
 }

@@ -9,28 +9,35 @@
 
 #pragma once
 
+
 #include <Evo.h>
 
-#include "./class_impls/native_ptr_decls.h"
+#include "../include/ASG.h"
+#include "../include/ASGBuffer.h"
 
-namespace pcit::llvmint{
 
-	class LLVMContext{
+namespace pcit::panther{
+
+
+	class ComptimeExecutor{
 		public:
-			LLVMContext() = default;
-			~LLVMContext() { evo::debugAssert(!this->isInitialized(), "Did not call shutdown() before destructor"); };
+			ComptimeExecutor(class Context& _context) : context(_context) {};
+			~ComptimeExecutor() = default;
 
-			auto init() -> void;
+			auto init() -> std::string; // string is error message if initalization fails (empty if successful)
 			auto deinit() -> void;
 
+			EVO_NODISCARD auto runFunc(
+				const ASG::Func::LinkID& link_id, evo::ArrayProxy<ASG::Expr> params, ASGBuffer& asg_buffer
+			) -> evo::SmallVector<ASG::Expr>;
 
-			EVO_NODISCARD auto isInitialized() const -> bool { return this->_native != nullptr; };
-
-			EVO_NODISCARD auto native() const -> const llvm::LLVMContext* { return this->_native; };
-			EVO_NODISCARD auto native()       ->       llvm::LLVMContext* { return this->_native; };
 	
 		private:
-			llvm::LLVMContext* _native = nullptr;
+			class Context& context;
+
+			struct Data;
+			Data* data = nullptr;
 	};
-	
+
+
 }

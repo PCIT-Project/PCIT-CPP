@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -9,11 +9,15 @@
 
 #pragma once
 
-#include "./version.h"
-#include "./UniqueID.h"
+#include "./generic_numbers/GenericInt.h"
+#include "./generic_numbers/GenericFloat.h"
+#include "./generic_numbers/GenericValue.h"
+
 #include "./Diagnostic.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./Optional.h"
 #include "./IterRange.h"
 #include "./LinearStepAlloc.h"
+#include "./Optional.h"
+#include "./platform.h"
+#include "./Printer.h"
+#include "./UniqueID.h"
+#include "./version.h"

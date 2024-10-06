@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -105,13 +105,37 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::analyze_global_stmts() -> bool {
+	auto SemanticAnalyzer::analyze_global_comptime_stmts() -> bool {
 		for(const GlobalScope::Func& global_func : this->source.global_scope.getFuncs()){
-			if(this->analyze_func_body(global_func.ast_func, global_func.asg_func) == false){ return false; }
+			const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(global_func.asg_func);
+			const BaseType::ID func_base_type_id = asg_func.baseTypeID;
+			const BaseType::Function& func_base_type =
+				this->context.getTypeManager().getFunction(func_base_type_id.funcID());
+			
+			if(func_base_type.isRuntime() == false){
+				if(this->analyze_func_body(global_func.ast_func, global_func.asg_func) == false){ return false; }
+			}
 		}
 
-		return this->context.errored();
+		return !this->context.errored();
 	}
+
+
+	auto SemanticAnalyzer::analyze_global_runtime_stmts() -> bool {
+		for(const GlobalScope::Func& global_func : this->source.global_scope.getFuncs()){
+			const ASG::Func& asg_func = this->source.getASGBuffer().getFunc(global_func.asg_func);
+			const BaseType::ID func_base_type_id = asg_func.baseTypeID;
+			const BaseType::Function& func_base_type =
+				this->context.getTypeManager().getFunction(func_base_type_id.funcID());
+			
+			if(func_base_type.isRuntime()){
+				if(this->analyze_func_body(global_func.ast_func, global_func.asg_func) == false){ return false; }
+			}
+		}
+
+		return !this->context.errored();
+	}
+
 
 
 	auto SemanticAnalyzer::analyze_global_declaration(const AST::Node& global_stmt) -> bool {
@@ -920,6 +944,9 @@ namespace pcit::panther{
 				}
 			}
 
+		}else{
+			// requires new sub-scope to be added even if theres no else block for termination tracking
+			this->get_current_scope_level().addSubScope();
 		}
 
 		const ASG::Conditional::ID asg_cond_id = this->source.asg_buffer.createConditional(
@@ -1126,9 +1153,7 @@ namespace pcit::panther{
 			= this->analyze_func_call_impl<ExprValueKind::Runtime, true>(func_call);
 		if(analyzed_func_call_data.isError()){ return this->may_recover(); }
 
-		auto& csl = this->get_current_scope_level();
-		auto& sb = csl.stmtBlock();
-		sb.emplace_back(*analyzed_func_call_data.value().asg_func_id);
+		this->get_current_scope_level().stmtBlock().emplace_back(*analyzed_func_call_data.value().asg_func_call_id);
 		return true;
 	}
 
@@ -1821,7 +1846,7 @@ namespace pcit::panther{
 		
 
 		evo::Result<AnalyzedFuncCallData> analyzed_func_call_data
-			= this->analyze_func_call_impl<ExprValueKind::Runtime, false>(func_call);
+			= this->analyze_func_call_impl<EXPR_VALUE_KIND, false>(func_call);
 		if(analyzed_func_call_data.isError()){ return evo::resultError; }
 
 
@@ -1850,11 +1875,72 @@ namespace pcit::panther{
 				std::nullopt
 			);
 
-		}else{
+		}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::Runtime){
 			return ExprInfo(
 				ExprInfo::ValueType::Ephemeral,
 				ExprInfo::generateExprInfoTypeIDs(std::move(return_types)),
-				ASG::Expr(*analyzed_func_call_data.value().asg_func_id)
+				ASG::Expr(*analyzed_func_call_data.value().asg_func_call_id)
+			);
+
+		}else{
+			static_assert(EXPR_VALUE_KIND == ExprValueKind::ConstEval, "Wrong expr value kind");
+
+			if(analyzed_func_call_data.value().selected_func_type->isRuntime()){
+				this->emit_error(
+					Diagnostic::Code::SemaCantCallRuntimeFuncInComptimeContext,
+					func_call,
+					"Cannot get comptime value from function with \"runtime\" attribute"
+				);
+				return evo::resultError;				
+			}
+
+			const ASG::FuncCall& asg_func_call = this->source.getASGBuffer().getFuncCall(
+				*analyzed_func_call_data.value().asg_func_call_id
+			);
+
+
+			evo::SmallVector<ASG::Expr> asg_exprs = asg_func_call.target.visit(
+				[&](const auto& func_call_target) -> evo::SmallVector<ASG::Expr> {
+				using FuncCallTarget = std::decay_t<decltype(func_call_target)>;
+
+				if constexpr(std::is_same_v<FuncCallTarget, ASG::Func::LinkID>){
+					return this->context.comptime_executor.runFunc(
+						func_call_target, asg_func_call.args, this->source.asg_buffer
+					);
+
+				}else if constexpr(std::is_same_v<FuncCallTarget, Intrinsic::Kind>){
+					evo::debugFatalBreak("Cannot handle this consteval func target");
+
+				}else{
+					const ASG::TemplatedIntrinsicInstantiation& instantiation =
+						this->source.getASGBuffer().getTemplatedIntrinsicInstantiation(func_call_target);
+
+					switch(instantiation.kind){
+						case TemplatedIntrinsic::Kind::SizeOf: {
+							const size_t type_size = this->context.getTypeManager().sizeOf(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							);
+
+							const ASG::LiteralInt::ID literal_int_id = this->source.asg_buffer.createLiteralInt(
+								core::GenericInt::create<uint64_t>(type_size),
+								this->context.getTypeManager().getTypeUSize()
+							);
+							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
+						} break;
+
+						case TemplatedIntrinsic::Kind::_max_: {
+							evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
+						} break;
+					}
+
+					evo::debugFatalBreak("Unknown or unsupported templated intrinsic kind");
+				}
+			});
+
+			return ExprInfo(
+				ExprInfo::ValueType::Ephemeral,
+				ExprInfo::generateExprInfoTypeIDs(std::move(return_types)),
+				std::move(asg_exprs)
 			);
 		}
 	}
@@ -3024,11 +3110,18 @@ namespace pcit::panther{
 						);
 
 					}else{
+						ASG::Expr asg_expr = [&](){
+							if(asg_var.kind == AST::VarDecl::Kind::Def){
+								return /*copy*/ ASG::Expr(asg_var.expr);	
+							}else{
+								return ASG::Expr(ASG::Var::LinkID(source_id, ident_id));
+							}
+						}();
 						return std::optional<ExprInfo>(
 							ExprInfo(
 								get_value_type(),
 								ExprInfo::generateExprInfoTypeIDs(asg_var.typeID),
-								ASG::Expr(ASG::Var::LinkID(source_id, ident_id))
+								std::move(asg_expr)
 							)
 						);
 					}
@@ -3243,7 +3336,10 @@ namespace pcit::panther{
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr.emplace_back(
-						this->source.asg_buffer.createLiteralInt(token.getInt(), std::nullopt)
+						this->source.asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint64_t>(token.getInt()),
+							std::nullopt
+						)
 					);
 				}
 			} break;
@@ -3253,7 +3349,7 @@ namespace pcit::panther{
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr.emplace_back(
-						this->source.asg_buffer.createLiteralFloat(token.getFloat(), std::nullopt)
+						this->source.asg_buffer.createLiteralFloat(core::GenericFloat(token.getFloat()), std::nullopt)
 					);
 				}
 			} break;
@@ -3324,7 +3420,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// get function and check callable
 
-		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<ExprValueKind::Runtime>(func_call.target);
+		const evo::Result<ExprInfo> target_info_res = this->analyze_expr<EXPR_VALUE_KIND>(func_call.target);
 		if(target_info_res.isError()){ return evo::resultError; }
 
 		if(target_info_res.value().type_id.is<evo::SmallVector<TypeInfo::ID>>() == false){
@@ -3388,7 +3484,7 @@ namespace pcit::panther{
 		auto arg_infos = evo::SmallVector<ArgInfo>();
 		arg_infos.reserve(func_call.args.size());
 		for(const AST::FuncCall::Arg& arg : func_call.args){
-			const evo::Result<ExprInfo> arg_info = this->analyze_expr<ExprValueKind::Runtime>(arg.value);
+			const evo::Result<ExprInfo> arg_info = this->analyze_expr<EXPR_VALUE_KIND>(arg.value);
 			if(arg_info.isError()){ return evo::resultError; }
 
 			if(arg_info.value().value_type == ExprInfo::ValueType::Initializer){
@@ -3495,7 +3591,7 @@ namespace pcit::panther{
 			
 			if(current_func_base_type.isRuntime() == false){
 				this->emit_error(
-					Diagnostic::Code::SemaCantCallRuntimeFuncInNotRuntimeFunc,
+					Diagnostic::Code::SemaCantCallRuntimeFuncInComptimeContext,
 					func_call,
 					"Cannot call a function with the \"runtime\" attribute from a function that does not have it"
 				);
@@ -3517,26 +3613,28 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// create asg_func
 
-		auto asg_func_id = std::optional<ASG::FuncCall::ID>();
+		auto asg_func_call_id = std::optional<ASG::FuncCall::ID>();
 
 		if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 			if(potential_func_link_ids.empty()){
 				const ASG::Expr& selected_expr = target_info_res.value().getExpr(selected_func_overload_index.value());
 				
 				if(selected_expr.kind() == ASG::Expr::Kind::Intrinsic){
-					asg_func_id = this->source.asg_buffer.createFuncCall(selected_expr.intrinsicID(), std::move(args));
+					asg_func_call_id = this->source.asg_buffer.createFuncCall(
+						selected_expr.intrinsicID(), std::move(args)
+					);
 				}else{
 					evo::debugAssert(
 						selected_expr.kind() == ASG::Expr::Kind::TemplatedIntrinsicInstantiation,
 						"Unknown or unsupported intrinsic kind"
 					);
-					asg_func_id = this->source.asg_buffer.createFuncCall(
+					asg_func_call_id = this->source.asg_buffer.createFuncCall(
 						selected_expr.templatedIntrinsicInstantiationID(), std::move(args)
 					);
 				}
 
 			}else{
-				asg_func_id = this->source.asg_buffer.createFuncCall(
+				asg_func_call_id = this->source.asg_buffer.createFuncCall(
 					potential_func_link_ids[selected_func_overload_index.value()], std::move(args)
 				);
 			}
@@ -3546,7 +3644,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// done
 
-		return AnalyzedFuncCallData(func_types[selected_func_overload_index.value()], asg_func_id);
+		return AnalyzedFuncCallData(func_types[selected_func_overload_index.value()], asg_func_call_id);
 	};
 
 

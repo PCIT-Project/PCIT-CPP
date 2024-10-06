@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.41.0
+
+### Panther
+- Added compile-time execution
+	- Just proof of concept
+	- Not all required checking or features are implemented
+- Fixed termination checking for condionals without `else` blocks
+
+### PCIT_core
+- Added `GenericInt`
+- Added `GenericFloat`
+- Added `GenericValue`
+
+
+<!---------------------------------->
 ## v0.0.40.1
 
 ### Panther

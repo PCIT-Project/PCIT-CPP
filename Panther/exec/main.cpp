@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -62,7 +62,6 @@ struct Config{
 	evo::uint max_num_errors = std::numeric_limits<evo::uint>::max();
 	bool may_recover         = true;
 };
-
 
 
 auto main(int argc, const char* argv[]) -> int {

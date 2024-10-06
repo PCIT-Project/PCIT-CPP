@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -22,7 +22,7 @@
 namespace pcit::panther{
 
 	auto ASGToLLVMIR::lower() -> void {
-		this->add_runtime_links();
+		this->addRuntimeLinks();
 
 		// lower variables
 		for(const Source::ID& source_id : this->context.getSourceManager()){
@@ -78,7 +78,7 @@ namespace pcit::panther{
 
 
 
-	auto ASGToLLVMIR::add_runtime_links() -> void {
+	auto ASGToLLVMIR::addRuntimeLinks() -> void {
 		///////////////////////////////////
 		// _printHelloWorld
 
@@ -90,6 +90,12 @@ namespace pcit::panther{
 		linked_functions.print_hello_world->setNoThrow();
 	}
 
+
+
+	auto ASGToLLVMIR::getFuncMangledName(ASG::Func::LinkID link_id) -> std::string_view {
+		const FuncInfo& func_info = this->get_func_info(link_id);
+		return std::string_view(func_info.mangled_name);
+	}
 
 
 
@@ -173,12 +179,13 @@ namespace pcit::panther{
 		const llvmint::FunctionType func_proto = this->get_func_type(func_type);
 		const auto linkage = llvmint::LinkageType::Internal;
 
-		llvmint::Function llvm_func = this->module.createFunction(this->mangle_name(func), func_proto, linkage);
+		const std::string mangled_name = this->mangle_name(func);
+		llvmint::Function llvm_func = this->module.createFunction(mangled_name, func_proto, linkage);
 		llvm_func.setNoThrow();
 		llvm_func.setCallingConv(llvmint::CallingConv::Fast);
 
 		const auto asg_func_link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
-		this->func_infos.emplace(asg_func_link_id, FuncInfo(llvm_func));
+		this->func_infos.emplace(asg_func_link_id, FuncInfo(llvm_func, std::move(mangled_name)));
 
 		for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params()){
 			const std::string_view param_name = param.ident.visit([&](const auto& param_ident_id) -> std::string_view {
@@ -675,7 +682,9 @@ namespace pcit::panther{
 
 				const llvmint::Type literal_type = this->get_type(*literal_int.typeID);
 				const auto integer_type = llvmint::IntegerType((llvm::IntegerType*)literal_type.native());
-				const llvmint::ConstantInt value = this->builder.getValueIntegral(integer_type, literal_int.value);
+				const llvmint::ConstantInt value = this->builder.getValueIntegral(
+					integer_type, static_cast<uint64_t>(literal_int.value)
+				);
 				if(get_pointer_to_value == false){ return value.asValue(); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(literal_type);
@@ -688,7 +697,9 @@ namespace pcit::panther{
 				const ASG::LiteralFloat& literal_float = asg_buffer.getLiteralFloat(expr.literalFloatID());
 
 				const llvmint::Type literal_type = this->get_type(*literal_float.typeID);
-				const llvmint::Constant value = this->builder.getValueFloat(literal_type, literal_float.value);
+				const llvmint::Constant value = this->builder.getValueFloat(
+					literal_type, static_cast<float64_t>(literal_float.value)
+				);
 				if(get_pointer_to_value == false){ return value.asValue(); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(literal_type);
@@ -851,7 +862,9 @@ namespace pcit::panther{
 
 				const llvmint::Type literal_type = this->get_type(*literal_int.typeID);
 				const auto integer_type = llvmint::IntegerType((llvm::IntegerType*)literal_type.native());
-				return this->builder.getValueIntegral(integer_type, literal_int.value).asConstant();
+				return this->builder.getValueIntegral(
+					integer_type, uint64_t(literal_int.value)
+				).asConstant();
 			} break;
 
 			case ASG::Expr::Kind::LiteralFloat: {
@@ -859,7 +872,7 @@ namespace pcit::panther{
 				const ASG::LiteralFloat& literal_float = asg_buffer.getLiteralFloat(expr.literalFloatID());
 
 				const llvmint::Type literal_type = this->get_type(*literal_float.typeID);
-				return this->builder.getValueFloat(literal_type, literal_float.value);
+				return this->builder.getValueFloat(literal_type, static_cast<float64_t>(literal_float.value));
 			} break;
 
 			case ASG::Expr::Kind::LiteralBool: {

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -41,31 +41,31 @@ namespace pcit::llvmint{
 		this->engine->addGlobalMapping(static_cast<const llvm::GlobalValue*>(func.native()), func_call);
 	}
 
-	auto ExecutionEngine::registerFunction(std::string_view func, uint64_t func_call_address) -> void {
-		this->engine->addGlobalMapping(func, func_call_address);
+	auto ExecutionEngine::registerFunction(std::string_view func, void* func_call_address) -> void {
+		this->engine->addGlobalMapping(func, uint64_t(func_call_address));
+	}
+
+	
+
+	//////////////////////////////////////////////////////////////////////
+	// linked functions
+
+	static auto print_hello_world() -> void {
+		evo::println("Hello world, I'm Panther!");
 	}
 
 
+	auto ExecutionEngine::setupLinkedFuncs() -> void {
+		this->registerFunction("PTHR._printHelloWorld", &print_hello_world);
+	}
 
 
+	//////////////////////////////////////////////////////////////////////
+	// internal
 
 	auto ExecutionEngine::get_func_address(std::string_view func_name) const -> uint64_t {
 		const std::string func_name_str = std::string(func_name);
 		return this->engine->getFunctionAddress(func_name_str);
 	};
-
-
-
-
-	template<>
-	auto ExecutionEngine::runFunction<void>(std::string_view func_name) -> void {
-		const uint64_t func_addr = this->get_func_address(func_name);
-
-		using FuncType = void(*)(void);
-		const FuncType func = (FuncType)func_addr;
-		func();
-	};
-
-
 	
 }

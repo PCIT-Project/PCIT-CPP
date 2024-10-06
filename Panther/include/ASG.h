@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -202,7 +202,7 @@ namespace pcit::panther::ASG{
 
 		// TODO: change to BaseType::ID?
 		std::optional<TypeInfo::ID> typeID; // nullopt if type is unknown (needs to be set before usage)
-		uint64_t value;
+		core::GenericInt value;
 	};
 
 	struct LiteralFloat{
@@ -211,7 +211,7 @@ namespace pcit::panther::ASG{
 
 		// TODO: change to BaseType::ID?
 		std::optional<TypeInfo::ID> typeID; // nullopt if type is unknown (needs to be set before usage)
-		float64_t value;
+		core::GenericFloat value;
 	};
 
 	struct LiteralBool{
@@ -230,7 +230,7 @@ namespace pcit::panther::ASG{
 	struct TemplatedIntrinsicInstantiation{
 		using ID = TemplatedIntrinsicInstantiationID;
 
-		using TemplateArg = evo::Variant<TypeInfo::VoidableID, uint64_t, double, char, bool>;
+		using TemplateArg = evo::Variant<TypeInfo::VoidableID, core::GenericInt, core::GenericFloat, char, bool>;
 
 		TemplatedIntrinsic::Kind kind;
 		evo::SmallVector<TemplateArg> templateArgs;
@@ -436,7 +436,7 @@ namespace pcit::panther::ASG{
 				std::atomic<std::optional<Func::ID>>& id;
 		};
 
-		using Arg = evo::Variant<TypeInfo::VoidableID, uint64_t, double, char, bool>;
+		using Arg = evo::Variant<TypeInfo::VoidableID, core::GenericInt, core::GenericFloat, char, bool>;
 		EVO_NODISCARD auto lookupInstance(evo::SmallVector<Arg>&& args) -> LookupInfo;
 
 		private:

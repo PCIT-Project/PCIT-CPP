@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -191,34 +191,64 @@ namespace pcit::panther{
 		}
 
 
-		{
+		{ // global declarations
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
 
 			this->task_group_running = true;
 			for(const Source::ID::Iterator source_id_iter : this->src_manager){
 				this->tasks.emplace(std::make_unique<Task>(SemaGlobalDeclsTask(*source_id_iter)));
 			}
+
+			if(this->isSingleThreaded()){
+				this->consume_tasks_single_threaded();
+			}else{
+				this->wait_for_all_current_tasks();
+			}
 		}
 
-		if(this->isSingleThreaded()){
-			this->consume_tasks_single_threaded();
-		}else{
-			this->wait_for_all_current_tasks();
-		}
 
-		{
+		{ // global stmts comptime
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
 
 			this->task_group_running = true;
 			for(const Source::ID::Iterator source_id_iter : this->src_manager){
-				this->tasks.emplace(std::make_unique<Task>(SemaGlobalStmtsTask(*source_id_iter)));
+				this->tasks.emplace(std::make_unique<Task>(SemaGlobalStmtsComptimeTask(*source_id_iter)));
+			}
+			
+			if(this->isSingleThreaded()){
+				this->consume_tasks_single_threaded();
+			}else{
+				this->wait_for_all_current_tasks();
 			}
 		}
 
-		this->multiple_task_stages_left = false;
 
-		if(this->isSingleThreaded()){
-			this->consume_tasks_single_threaded();
+		const std::string error_msg = this->comptime_executor.init();
+		EVO_DEFER([&](){ this->comptime_executor.deinit(); });
+
+		if(error_msg.empty() == false){
+			this->emitFatal(
+				Diagnostic::Code::LLLVMDataLayoutError,
+				std::nullopt,
+				Diagnostic::createFatalMessage(error_msg)
+			);
+			return;
+		}
+
+
+		{ // global stmts runtime
+			const auto lock_guard = std::lock_guard(this->src_manager_mutex);
+
+			this->task_group_running = true;
+			for(const Source::ID::Iterator source_id_iter : this->src_manager){
+				this->tasks.emplace(std::make_unique<Task>(SemaGlobalStmtsRuntimeTask(*source_id_iter)));
+			}
+
+			this->multiple_task_stages_left = false;
+
+			if(this->isSingleThreaded()){
+				this->consume_tasks_single_threaded();
+			}
 		}
 	}
 
@@ -256,7 +286,9 @@ namespace pcit::panther{
 		llvm_context.init();
 
 		const evo::Result<std::string> printed_llvm_ir = [&](){
-			auto module = llvmint::Module("testing", llvm_context);
+			auto module = llvmint::Module();
+			module.init("testing", llvm_context);
+			EVO_DEFER([&](){ module.deinit(); });
 
 			const std::string target_triple = module.getDefaultTargetTriple();
 
@@ -300,8 +332,10 @@ namespace pcit::panther{
 		auto llvm_context = llvmint::LLVMContext();
 		llvm_context.init();
 
-		const evo::Result<uint8_t> printed_llvm_ir = [&](){
-			auto module = llvmint::Module("testing", llvm_context);
+		const evo::Result<uint8_t> result = [&](){
+			auto module = llvmint::Module();
+			module.init("testing", llvm_context);
+			EVO_DEFER([&](){ module.deinit(); });
 
 			const std::string target_triple = module.getDefaultTargetTriple();
 
@@ -336,7 +370,7 @@ namespace pcit::panther{
 
 		llvm_context.deinit();
 
-		return printed_llvm_ir;
+		return result;
 	}
 
 
@@ -615,7 +649,11 @@ namespace pcit::panther{
 			else if constexpr(std::is_same_v<ValueT, TokenizeFileTask>){    this->run_tokenize_file(value);     }
 			else if constexpr(std::is_same_v<ValueT, ParseFileTask>){       this->run_parse_file(value);        }
 			else if constexpr(std::is_same_v<ValueT, SemaGlobalDeclsTask>){ this->run_sema_global_decls(value); }
-			else if constexpr(std::is_same_v<ValueT, SemaGlobalStmtsTask>){ this->run_sema_global_stmts(value); }
+			else if constexpr(std::is_same_v<ValueT, SemaGlobalStmtsComptimeTask>){
+				this->run_sema_global_comptime_stmts(value);
+			}else if constexpr(std::is_same_v<ValueT, SemaGlobalStmtsRuntimeTask>){
+				this->run_sema_global_runtime_stmts(value);
+			}
 		});
 
 	}
@@ -702,14 +740,25 @@ namespace pcit::panther{
 	}
 
 
-	auto Context::Worker::run_sema_global_stmts(const SemaGlobalStmtsTask& task) -> void {
+	auto Context::Worker::run_sema_global_comptime_stmts(const SemaGlobalStmtsComptimeTask& task) -> void {
 		auto semantic_analyzer = SemanticAnalyzer(*this->context, task.source_id);
 
-		if(semantic_analyzer.analyze_global_stmts() == false){ return; }
+		if(semantic_analyzer.analyze_global_comptime_stmts() == false){ return; }
 
 		const SourceManager& source_manager = this->context->getSourceManager();
 		const Source& source = source_manager.getSource(task.source_id);
-		this->context->emitTrace("Sema Global Stmts: \"{}\"", source.getLocationAsString());
+		this->context->emitTrace("Sema Global Stmts Comptime: \"{}\"", source.getLocationAsString());
+	}
+
+
+	auto Context::Worker::run_sema_global_runtime_stmts(const SemaGlobalStmtsRuntimeTask& task) -> void {
+		auto semantic_analyzer = SemanticAnalyzer(*this->context, task.source_id);
+
+		if(semantic_analyzer.analyze_global_runtime_stmts() == false){ return; }
+
+		const SourceManager& source_manager = this->context->getSourceManager();
+		const Source& source = source_manager.getSource(task.source_id);
+		this->context->emitTrace("Sema Global Stmts Runtime: \"{}\"", source.getLocationAsString());
 	}
 
 

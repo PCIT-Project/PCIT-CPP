@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -23,6 +23,7 @@ namespace fs = std::filesystem;
 #include "./TypeManager.h"
 #include "./ScopeManager.h"
 #include "./intrinsics.h"
+#include "../src/ComptimeExecutor.h"
 
 
 namespace pcit::llvmint{
@@ -205,6 +206,10 @@ namespace pcit::panther{
 			std::array<Intrinsic, size_t(Intrinsic::Kind::_max_)> intrinsics{};
 			std::array<TemplatedIntrinsic, size_t(TemplatedIntrinsic::Kind::_max_)> templated_intrinsics{};
 
+			ComptimeExecutor comptime_executor{*this};
+
+			friend class SemanticAnalyzer; // to access comptime_executor
+
 
 			///////////////////////////////////
 			// threading
@@ -233,12 +238,21 @@ namespace pcit::panther{
 				Source::ID source_id;
 			};
 
-			struct SemaGlobalStmtsTask{
+			struct SemaGlobalStmtsComptimeTask{
+				Source::ID source_id;
+			};
+
+			struct SemaGlobalStmtsRuntimeTask{
 				Source::ID source_id;
 			};
 
 			using Task = evo::Variant<
-				LoadFileTask, TokenizeFileTask, ParseFileTask, SemaGlobalDeclsTask, SemaGlobalStmtsTask
+				LoadFileTask,
+				TokenizeFileTask,
+				ParseFileTask,
+				SemaGlobalDeclsTask,
+				SemaGlobalStmtsComptimeTask,
+				SemaGlobalStmtsRuntimeTask
 			>;
 
 			std::queue<std::unique_ptr<Task>> tasks{};
@@ -274,7 +288,8 @@ namespace pcit::panther{
 					auto run_tokenize_file(const TokenizeFileTask& task) -> void;
 					auto run_parse_file(const ParseFileTask& task) -> void;
 					auto run_sema_global_decls(const SemaGlobalDeclsTask& task) -> void;
-					auto run_sema_global_stmts(const SemaGlobalStmtsTask& task) -> void;
+					auto run_sema_global_comptime_stmts(const SemaGlobalStmtsComptimeTask& task) -> void;
+					auto run_sema_global_runtime_stmts(const SemaGlobalStmtsRuntimeTask& task) -> void;
 
 
 				private:

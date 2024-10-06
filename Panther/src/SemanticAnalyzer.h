@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -42,7 +42,8 @@ namespace pcit::panther{
 
 
 			auto analyze_global_declarations() -> bool;
-			auto analyze_global_stmts() -> bool;
+			auto analyze_global_comptime_stmts() -> bool;
+			auto analyze_global_runtime_stmts() -> bool;
 
 
 		private:
@@ -296,11 +297,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_expr_this(const Token::ID& this_expr) -> evo::Result<ExprInfo>;
 
 
-
+			///////////////////////////////////
+			// misc
 
 			struct AnalyzedFuncCallData{
 				const BaseType::Function* selected_func_type;
-				std::optional<ASG::FuncCall::ID> asg_func_id;
+				std::optional<ASG::FuncCall::ID> asg_func_call_id;
 			};
 
 			template<ExprValueKind EXPR_VALUE_KIND, bool IS_STMT>
@@ -323,7 +325,8 @@ namespace pcit::panther{
 			) -> evo::Result<size_t>; // returns index of selected func
 
 
-
+			///////////////////////////////////
+			// attributes
 
 			struct ConditionalAttribute{
 				EVO_NODISCARD auto check(

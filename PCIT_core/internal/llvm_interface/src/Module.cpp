@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -19,11 +19,11 @@
 
 namespace pcit::llvmint{
 
-	Module::Module(std::string_view name, LLVMContext& context){
+	auto Module::init(std::string_view name, LLVMContext& context) -> void {
 		this->_native = new llvm::Module(llvm::StringRef(name), *context.native());
 	}
 	
-	Module::~Module(){
+	auto Module::deinit() -> void {
 		delete this->_native;
 	}
 
@@ -34,6 +34,7 @@ namespace pcit::llvmint{
 
 
 	auto Module::setTargetTriple(const std::string& target_triple) -> void {
+		evo::debugAssert(this->isInitialized(), "not initialized");
 		this->_native->setTargetTriple(target_triple);
 	}
 
@@ -44,6 +45,7 @@ namespace pcit::llvmint{
 		OptLevel opt_level,
 		bool is_jit
 	) -> std::string {
+		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		auto error_msg = std::string();
 		const llvm::Target* target = llvm::TargetRegistry::lookupTarget(target_triple, error_msg);
@@ -104,6 +106,8 @@ namespace pcit::llvmint{
 	auto Module::createFunction(
 		evo::CStrProxy name, const FunctionType& prototype, llvmint::LinkageType linkage
 	) -> Function {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
 		return Function(llvm::Function::Create(
 			prototype.native(), static_cast<llvm::GlobalValue::LinkageTypes>(linkage), name.c_str(), this->native()
 		));
@@ -117,6 +121,8 @@ namespace pcit::llvmint{
 		bool is_constant,
 		evo::CStrProxy name
 	) -> llvmint::GlobalVariable {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
 		// this gets freed automatically in the destructor of the module
 		llvm::GlobalVariable* global = new llvm::GlobalVariable(
 			*this->native(),
@@ -134,17 +140,23 @@ namespace pcit::llvmint{
 	auto Module::createGlobalUninit(
 		const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name
 	) -> llvmint::GlobalVariable {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
 		return this->createGlobal(llvm::UndefValue::get(type.native()), type, linkage, is_constant, name);
 	}
 
 	auto Module::createGlobalZeroinit(
 		const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name
 	) -> llvmint::GlobalVariable {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
 		return this->createGlobal(llvm::ConstantAggregateZero::get(type.native()), type, linkage, is_constant, name);
 	}
 
 
 	auto Module::print() const -> std::string {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
 		auto data = llvm::SmallVector<char>();
 		auto stream = llvm::raw_svector_ostream(data);
 
@@ -156,20 +168,10 @@ namespace pcit::llvmint{
 
 		
 	auto Module::get_clone() const -> std::unique_ptr<llvm::Module> {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
 		return llvm::CloneModule(*this->_native);
 	}
 
-
-	//////////////////////////////////////////////////////////////////////
-	// linked funcs
-
-	static auto print_hello_world() -> void {
-		evo::println("Hello world, I'm Panther!");
-	}
-
-
-	auto Module::setup_linked_funcs(ExecutionEngine& execution_engine) -> void {
-		execution_engine.registerFunction("PTHR._printHelloWorld", uint64_t(&print_hello_world));
-	}
 
 }

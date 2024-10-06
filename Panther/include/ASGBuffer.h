@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////
 //                                                                  //
-// Part of the PCIT-CPP, under the Apache License v2.0              //
+// Part of PCIT-CPP, under the Apache License v2.0                  //
 // You may not use this file except in compliance with the License. //
 // See `http://www.apache.org/licenses/LICENSE-2.0` for info        //
 //                                                                  //
@@ -224,7 +224,7 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// ints
 
-			EVO_NODISCARD auto createLiteralInt(uint64_t integer, std::optional<TypeInfo::ID> type_info_id)
+			EVO_NODISCARD auto createLiteralInt(core::GenericInt integer, std::optional<TypeInfo::ID> type_info_id)
 			-> ASG::LiteralInt::ID {
 				return this->literal_ints.emplace_back(type_info_id, integer);
 			}
@@ -237,8 +237,9 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// floats
 
-			EVO_NODISCARD auto createLiteralFloat(float64_t floating_point, std::optional<TypeInfo::ID> type_info_id)
-			-> ASG::LiteralFloat::ID {
+			EVO_NODISCARD auto createLiteralFloat(
+				core::GenericFloat floating_point, std::optional<TypeInfo::ID> type_info_id
+			) -> ASG::LiteralFloat::ID {
 				return this->literal_floats.emplace_back(type_info_id, floating_point);
 			}
 
