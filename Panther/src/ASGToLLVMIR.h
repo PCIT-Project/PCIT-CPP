@@ -35,6 +35,9 @@ namespace pcit::panther{
 			~ASGToLLVMIR() = default;
 
 			auto lower() -> void;
+			auto lowerFunc(const ASG::Func::LinkID& func_link_id) -> void; // TODO: Do I need to add mutexes to
+																		// synchronize this with recreating engine in
+																		// ComptimeExecutor? I don't think it's needed
 
 			auto addRuntime() -> void;
 			auto addRuntimeLinks() -> void; // run automatically by `addRuntime`

@@ -52,18 +52,17 @@ namespace pcit::panther{
 			this->context, this->data->llvm_context, this->data->module, ASGToLLVMIR::Config(false)
 		);
 
-		this->data->asg_to_llvmir->lower();
-		this->data->asg_to_llvmir->addRuntimeLinks();
-
-		this->data->execution_engine.createEngine(this->data->module);
-		this->data->execution_engine.setupLinkedFuncs();
+		// this->data->asg_to_llvmir->addRuntimeLinks();
+		// this->data->asg_to_llvmir->lower();
 
 		return std::string();
 	}
 
 
 	auto ComptimeExecutor::deinit() -> void {
-		this->data->execution_engine.shutdownEngine();
+		if(this->data->execution_engine.hasCreatedEngine()){
+			this->data->execution_engine.shutdownEngine();
+		}
 
 		delete this->data->asg_to_llvmir;
 		this->data->asg_to_llvmir = nullptr;
@@ -80,6 +79,12 @@ namespace pcit::panther{
 	auto ComptimeExecutor::runFunc(
 		const ASG::Func::LinkID& link_id, evo::ArrayProxy<ASG::Expr> params, ASGBuffer& asg_buffer
 	) -> evo::SmallVector<ASG::Expr> {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
+		const auto lock = std::shared_lock(this->mutex);
+
+		this->restart_engine_if_needed();
+
 		const TypeManager& type_manager = this->context.getTypeManager();
 
 		const ASG::Func& func = this->context.getSourceManager()[link_id.sourceID()]
@@ -130,6 +135,32 @@ namespace pcit::panther{
 		return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
 	};
 
+
+
+
+	auto ComptimeExecutor::addFunc(const ASG::Func::LinkID& func_link_id) -> void {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
+		const auto lock = std::unique_lock(this->mutex);
+		this->requires_engine_restart = true;
+
+		this->data->asg_to_llvmir->lowerFunc(func_link_id);
+	}
+
+
+	auto ComptimeExecutor::restart_engine_if_needed() -> void {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
+		if(this->requires_engine_restart == false){ return; }
+		this->requires_engine_restart = false;
+
+		if(this->data->execution_engine.hasCreatedEngine()){
+			this->data->execution_engine.shutdownEngine();
+		}
+
+		this->data->execution_engine.createEngine(this->data->module);
+		this->data->execution_engine.setupLinkedFuncs();
+	}
 
 
 }

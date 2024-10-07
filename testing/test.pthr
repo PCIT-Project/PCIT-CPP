@@ -1,28 +1,26 @@
 
 
-func get_return_code = () -> UI8 {
-	return 19;
+// func test = () -> Void {
+// 	def NUM: UI8 = get_num();
+// }
+
+func get_num2 = () -> UI8 {
+	return get_num();
 }
 
-
-func get_val = () -> UI27 {
-	var cond: Bool = true;
-	cond = false;
-
-	if(cond){
-		return 81;
-	}
-
+func get_num = () -> UI8 {
 	return 12;
 }
 
 
+// func get_num = <{T: Type}> () -> T {
+// 	return 12;
+// }
+
+
 func entry = () #entry -> UI8 {
-	def val = get_val();
-	const foo = val;
-
-
-	def NUM: UI8 = get_return_code();
+	// def NUM: UI8 = get_num<{UI8}>();
+	def NUM: UI8 = get_num2();
 
 	return NUM;
 }

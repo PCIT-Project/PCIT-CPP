@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.41.1
+
+### Panther
+- Fixed fatal error when calling a templated function as a comptime value
+- Fixed fatal error when calling functions in comptime not declared before usage
+
+
+<!---------------------------------->
 ## v0.0.41.0
 
 ### Panther

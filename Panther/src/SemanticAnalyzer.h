@@ -67,6 +67,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_when_conditional(const AST::WhenConditional& when_conditional) -> bool;
 			EVO_NODISCARD auto analyze_conditional(const AST::Conditional& conditional) -> bool;
 
+			template<bool IS_RUNTIME>
 			EVO_NODISCARD auto analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool;
 
 			EVO_NODISCARD auto analyze_block(const AST::Block& block) -> bool;

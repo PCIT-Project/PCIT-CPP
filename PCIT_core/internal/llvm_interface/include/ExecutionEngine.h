@@ -62,8 +62,6 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto hasCreatedEngine() const -> bool { return this->engine != nullptr; };
 
 
-
-
 		private:
 			EVO_NODISCARD auto get_func_address(std::string_view func_name) const -> uint64_t;
 	

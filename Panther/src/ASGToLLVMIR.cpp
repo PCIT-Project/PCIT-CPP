@@ -55,6 +55,17 @@ namespace pcit::panther{
 	}
 
 
+	auto ASGToLLVMIR::lowerFunc(const ASG::Func::LinkID& func_link_id) -> void {
+		this->current_source = &this->context.getSourceManager()[func_link_id.sourceID()];
+
+		this->lower_func_decl(func_link_id.funcID());
+		this->lower_func_body(func_link_id.funcID());
+
+		this->current_source = nullptr;
+	}
+
+
+
 	auto ASGToLLVMIR::addRuntime() -> void {
 		const FuncInfo& entry_func_info = this->get_func_info(*this->context.getEntry());
 

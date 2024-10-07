@@ -113,7 +113,7 @@ namespace pcit::panther{
 				this->context.getTypeManager().getFunction(func_base_type_id.funcID());
 			
 			if(func_base_type.isRuntime() == false){
-				if(this->analyze_func_body(global_func.ast_func, global_func.asg_func) == false){ return false; }
+				if(this->analyze_func_body<false>(global_func.ast_func, global_func.asg_func) == false){ return false; }
 			}
 		}
 
@@ -129,7 +129,7 @@ namespace pcit::panther{
 				this->context.getTypeManager().getFunction(func_base_type_id.funcID());
 			
 			if(func_base_type.isRuntime()){
-				if(this->analyze_func_body(global_func.ast_func, global_func.asg_func) == false){ return false; }
+				if(this->analyze_func_body<true>(global_func.ast_func, global_func.asg_func) == false){ return false; }
 			}
 		}
 
@@ -799,8 +799,16 @@ namespace pcit::panther{
 			BaseType::Function(std::move(params), std::move(return_params), runtime_attr.is_set())
 		);
 
+		const std::optional<ScopeManager::Scope> decl_scope = [&](){
+			if(runtime_attr.is_set()){
+				return std::optional<ScopeManager::Scope>();
+			}else{
+				return std::optional<ScopeManager::Scope>(this->scope);
+			}
+		}();
+
 		const ASG::Func::ID asg_func_id = this->source.asg_buffer.createFunc(
-			func_decl.name, base_type_id, parent, instance_id, pub_attr.is_set()
+			func_decl.name, base_type_id, parent, instance_id, pub_attr.is_set(), decl_scope, func_decl
 		);
 		
 		if(instantiate_template == false){
@@ -826,7 +834,7 @@ namespace pcit::panther{
 				this->source.global_scope.addFunc(func_decl, asg_func_id);
 				return std::optional<ASG::Func::ID>(asg_func_id);
 			}else{
-				if(this->analyze_func_body(func_decl, asg_func_id)){
+				if(this->analyze_func_body<true>(func_decl, asg_func_id)){
 					return std::optional<ASG::Func::ID>(asg_func_id);
 				}else{
 					return evo::resultError;
@@ -959,9 +967,12 @@ namespace pcit::panther{
 	}
 
 
-
+	template<bool IS_RUNTIME>
 	auto SemanticAnalyzer::analyze_func_body(const AST::FuncDecl& ast_func, ASG::Func::ID asg_func_id) -> bool {
 		ASG::Func& asg_func = this->source.asg_buffer.funcs[asg_func_id];
+
+		const auto asg_func_body_lock = std::unique_lock(asg_func.body_analysis_mutex);
+		if(asg_func.is_body_analyzed){ return true; } // don't re-analyze
 
 		this->push_scope_level(&asg_func.stmts, asg_func_id);
 		EVO_DEFER([&](){ this->pop_scope_level(); });
@@ -1012,6 +1023,13 @@ namespace pcit::panther{
 				)
 			);
 			return false;
+		}
+
+
+		asg_func.is_body_analyzed = true;
+
+		if constexpr(IS_RUNTIME == false){
+			this->context.comptime_executor.addFunc(ASG::Func::LinkID(this->source.getID(), asg_func_id));
 		}
 
 		return true;
@@ -1904,6 +1922,13 @@ namespace pcit::panther{
 				using FuncCallTarget = std::decay_t<decltype(func_call_target)>;
 
 				if constexpr(std::is_same_v<FuncCallTarget, ASG::Func::LinkID>){
+					#if defined(PCIT_CONFIG_DEBUG)
+						const ASG::Func& asg_func_target = this->context.getSourceManager()[func_call_target.sourceID()]
+							.getASGBuffer().getFunc(func_call_target.funcID());
+
+						evo::debugAssert(asg_func_target.isBodyAnalyzed(), "body of this function was not analyzed");
+					#endif
+
 					return this->context.comptime_executor.runFunc(
 						func_call_target, asg_func_call.args, this->source.asg_buffer
 					);
@@ -2323,7 +2348,13 @@ namespace pcit::panther{
 			lookup_info.store(*func_id);
 
 			// analyze func body
-			if(template_sema.analyze_func_body(templated_func.funcDecl, *func_id) == false){ return evo::resultError; }
+			if(
+				template_sema.analyze_func_body<EXPR_VALUE_KIND == ExprValueKind::Runtime>(
+					templated_func.funcDecl, *func_id
+				) == false
+			){
+				return evo::resultError;
+			}
 
 		}else{
 			func_id = lookup_info.waitForAndGetID();
@@ -3611,7 +3642,7 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// create asg_func
+		// create func call
 
 		auto asg_func_call_id = std::optional<ASG::FuncCall::ID>();
 
@@ -3634,12 +3665,29 @@ namespace pcit::panther{
 				}
 
 			}else{
-				asg_func_call_id = this->source.asg_buffer.createFuncCall(
-					potential_func_link_ids[selected_func_overload_index.value()], std::move(args)
-				);
+				const ASG::Func::LinkID target_link_id = potential_func_link_ids[selected_func_overload_index.value()];
+				asg_func_call_id = this->source.asg_buffer.createFuncCall(target_link_id, std::move(args));
+
+				const bool is_current_func_runtime = [&](){
+					const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
+					const BaseType::Function& current_func_base_type =
+						this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
+					return current_func_base_type.isRuntime();
+				}();
+
+				if(is_current_func_runtime == false){
+					Source& target_source = this->context.getSourceManager()[target_link_id.sourceID()];
+					const ASG::Func& target_asg_func = target_source.getASGBuffer().getFunc(target_link_id.funcID());
+					
+					auto func_sema = SemanticAnalyzer(
+						this->context, target_source, *target_asg_func.scope, evo::SmallVector<SourceLocation>{}
+					);
+					if(func_sema.analyze_func_body<false>(target_asg_func.ast_func, target_link_id.funcID()) == false){
+						return evo::resultError;
+					}
+				}
 			}
 		}
-
 
 		///////////////////////////////////
 		// done

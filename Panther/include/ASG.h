@@ -23,6 +23,7 @@
 
 namespace pcit::panther{
 	class Source;
+	class SemanticAnalyzer;
 }
 
 
@@ -309,7 +310,7 @@ namespace pcit::panther::ASG{
 	};
 
 
-
+	// TODO: move .scope, .body_analysis_mutex, .is_body_analyzed, and .ast_func to Scope or somewhere else
 	struct Func{
 		using ID = FuncID;
 		using LinkID = FuncLinkID;
@@ -335,12 +336,43 @@ namespace pcit::panther::ASG{
 		BaseType::ID baseTypeID;
 		Parent parent;
 		InstanceID instanceID;
-		bool isPub: 1;
+		bool isPub;
+		std::optional<ScopeManager::Scope> scope; // only if is constexpr
 
-		bool isTerminated: 1 = false;
+		bool isTerminated = false;
 		evo::SmallVector<ParamID> params{};
 		evo::SmallVector<ReturnParamID> returnParams{}; // only for named return params
 		StmtBlock stmts{};
+
+		Func(
+			const AST::Node& _name,
+			const BaseType::ID& base_type_id,
+			const Parent& _parent,
+			const InstanceID& instance_id,
+			bool is_pub,
+			const std::optional<ScopeManager::Scope>& _scope,
+			const AST::FuncDecl& _ast_func
+		) : name(_name),
+			baseTypeID(base_type_id),
+			parent(_parent),
+			instanceID(instance_id),
+			isPub(is_pub),
+			scope(_scope),
+			ast_func(_ast_func)
+		{}
+
+
+		EVO_NODISCARD auto isBodyAnalyzed() const -> bool {
+			const auto lock = std::shared_lock(this->body_analysis_mutex);
+			return this->is_body_analyzed;
+		}
+
+		private:
+			mutable std::shared_mutex body_analysis_mutex{};
+			bool is_body_analyzed = false;
+			AST::FuncDecl ast_func;
+
+			friend /*class*/ SemanticAnalyzer;
 	};
 
 	struct Param{

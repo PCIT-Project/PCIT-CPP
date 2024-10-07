@@ -205,6 +205,19 @@ namespace pcit::panther{
 				this->wait_for_all_current_tasks();
 			}
 		}
+		
+
+		const std::string error_msg = this->comptime_executor.init();
+		EVO_DEFER([&](){ this->comptime_executor.deinit(); });
+
+		if(error_msg.empty() == false){
+			this->emitFatal(
+				Diagnostic::Code::LLLVMDataLayoutError,
+				std::nullopt,
+				Diagnostic::createFatalMessage(error_msg)
+			);
+			return;
+		}
 
 
 		{ // global stmts comptime
@@ -220,19 +233,6 @@ namespace pcit::panther{
 			}else{
 				this->wait_for_all_current_tasks();
 			}
-		}
-
-
-		const std::string error_msg = this->comptime_executor.init();
-		EVO_DEFER([&](){ this->comptime_executor.deinit(); });
-
-		if(error_msg.empty() == false){
-			this->emitFatal(
-				Diagnostic::Code::LLLVMDataLayoutError,
-				std::nullopt,
-				Diagnostic::createFatalMessage(error_msg)
-			);
-			return;
 		}
 
 
