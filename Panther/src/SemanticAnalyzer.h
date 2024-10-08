@@ -33,7 +33,8 @@ namespace pcit::panther{
 				Context& _context,
 				Source& _source,
 				const ScopeManager::Scope& _scope,
-				evo::SmallVector<SourceLocation>&& _template_parents
+				evo::SmallVector<SourceLocation>&& _template_parents,
+				evo::SmallVector<ASG::Func::LinkID>&& _comptime_call_stack
 			);
 
 			~SemanticAnalyzer() = default;
@@ -574,6 +575,7 @@ namespace pcit::panther{
 
 			ScopeManager::Scope scope;
 			evo::SmallVector<SourceLocation> template_parents;
+			evo::SmallVector<ASG::Func::LinkID> comptime_call_stack;
 
 			std::unordered_map<std::string_view, ExprInfo> template_arg_exprs{};
 			std::unordered_map<std::string_view, TypeInfo::VoidableID> template_arg_types{};

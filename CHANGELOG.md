@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.41.2
+
+### Panther
+- Added checking for circular dependencies in comptime
+- Added support for comptime functions that return `Bool`, `Char`, `F32`, and `F64`
+- Fixed printing of type of literal integers and literal floats
+
+
+<!---------------------------------->
 ## v0.0.41.1
 
 ### Panther
@@ -15,7 +24,7 @@
 - Added compile-time execution
 	- Just proof of concept
 	- Not all required checking or features are implemented
-- Fixed termination checking for condionals without `else` blocks
+- Fixed termination checking for conditionals without `else` blocks
 
 ### PCIT_core
 - Added `GenericInt`

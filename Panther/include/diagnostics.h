@@ -104,6 +104,7 @@ namespace pcit::panther{
 		SemaAttributeAlreadySet,
 		SemaInvalidAttributeArgument,
 		SemaCantCallRuntimeFuncInComptimeContext,
+		SemaComptimeCircularDependency,
 
 		SemaWarnSingleValInMultiAssign,
 		SemaWarnEntryIsImplicitRuntime,
@@ -215,6 +216,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaAttributeAlreadySet:                  return "S";
 			break; case DiagnosticCode::SemaInvalidAttributeArgument:             return "S";
 			break; case DiagnosticCode::SemaCantCallRuntimeFuncInComptimeContext: return "S";
+			break; case DiagnosticCode::SemaComptimeCircularDependency:           return "S";
 
 			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:           return "SW";
 			break; case DiagnosticCode::SemaWarnEntryIsImplicitRuntime:           return "SW";

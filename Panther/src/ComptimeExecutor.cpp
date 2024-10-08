@@ -96,43 +96,108 @@ namespace pcit::panther{
 
 		const std::string_view func_mangled_name = this->data->asg_to_llvmir->getFuncMangledName(link_id);
 
-		const ASG::LiteralInt::ID literal_int_id = [&](){
-			evo::debugAssert(
-				func_return_type.baseTypeID().kind() == BaseType::Kind::Builtin, "non-builtin type not supported yet"
-			);
-			evo::debugAssert(func_return_type.qualifiers().empty(), "qualifiers not supported yet");
 
-			const BaseType::Builtin& func_return_base_type = type_manager.getBuiltin(
-				func_return_type.baseTypeID().builtinID()
-				);
+		evo::debugAssert(
+			func_return_type.baseTypeID().kind() == BaseType::Kind::Builtin, "non-builtin type not supported yet"
+		);
+		evo::debugAssert(func_return_type.qualifiers().empty(), "qualifiers not supported yet");
 
-			evo::debugAssert(func_return_base_type.kind() != Token::Kind::TypeBool, "Bool not supported yet");
-			evo::debugAssert(func_return_base_type.kind() != Token::Kind::TypeChar, "Char not supported yet");
+		const BaseType::Builtin& func_return_base_type = type_manager.getBuiltin(
+			func_return_type.baseTypeID().builtinID()
+		);
 
-			const size_t size_of_func_return_base_type = type_manager.sizeOf(func_return_type.baseTypeID());
+		switch(func_return_base_type.kind()){
+			case Token::Kind::TypeBool: {
+				const bool value = this->data->module.run<bool>(func_mangled_name);
+				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralBool(value))};
+			} break;
 
-			if(size_of_func_return_base_type == 1){
-				const uint8_t value = this->data->module.run<uint8_t>(func_mangled_name);
-				return asg_buffer.createLiteralInt(core::GenericInt::create<uint8_t>(value), func_return_type_id);
+			case Token::Kind::TypeChar: {
+				const char value = this->data->module.run<char>(func_mangled_name);
+				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralChar(value))};
+			} break;
 
-			}else if(size_of_func_return_base_type == 2){
-				const uint16_t value = this->data->module.run<uint16_t>(func_mangled_name);
-				return asg_buffer.createLiteralInt(core::GenericInt::create<uint16_t>(value), func_return_type_id);
+			case Token::Kind::TypeF16: {
+				evo::fatalBreak("Type F16 not supported for comptime return yet (bugged in LLVM)");
+			} break;
 
-			}else if(size_of_func_return_base_type == 4){
-				const uint32_t value = this->data->module.run<uint32_t>(func_mangled_name);
-				return asg_buffer.createLiteralInt(core::GenericInt::create<uint32_t>(value), func_return_type_id);
+			case Token::Kind::TypeBF16: {
+				evo::fatalBreak("Type BF16 not supported for comptime return yet (bugged in LLVM)");
+			} break;
 
-			}else if(size_of_func_return_base_type == 8){
-				const uint64_t value = this->data->module.run<uint64_t>(func_mangled_name);
-				return asg_buffer.createLiteralInt(core::GenericInt::create<uint64_t>(value), func_return_type_id);
+			case Token::Kind::TypeF32: {
+				const float32_t value = this->data->module.run<float32_t>(func_mangled_name);
+				return evo::SmallVector<ASG::Expr>{
+					ASG::Expr(
+						asg_buffer.createLiteralFloat(core::GenericFloat(value), func_return_type_id)
+					)
+				};
+			} break;
 
-			}else{
-				evo::debugFatalBreak("This type is not supported");
-			}
-		}();
+			case Token::Kind::TypeF64: {
+				const float64_t value = this->data->module.run<float64_t>(func_mangled_name);
+				return evo::SmallVector<ASG::Expr>{
+					ASG::Expr(
+						asg_buffer.createLiteralFloat(core::GenericFloat(value), func_return_type_id)
+					)
+				};
+			} break;
 
-		return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
+			case Token::Kind::TypeF80: case Token::Kind::TypeF128: {
+				evo::fatalBreak("Type F80 and F128 not supported for comptime return yet");
+			} break;
+
+			case Token::Kind::TypeCLongDouble: {
+				evo::fatalBreak("Type CLongDouble is not supported for comptime return yet");
+			} break;
+
+			case Token::Kind::TypeInt:     case Token::Kind::TypeISize:  case Token::Kind::TypeI_N:
+			case Token::Kind::TypeUInt:    case Token::Kind::TypeUSize:  case Token::Kind::TypeUI_N:
+			case Token::Kind::TypeByte:    case Token::Kind::TypeRawPtr: case Token::Kind::TypeCShort:
+			case Token::Kind::TypeCUShort: case Token::Kind::TypeCInt:   case Token::Kind::TypeCUInt:
+			case Token::Kind::TypeCLong:   case Token::Kind::TypeCULong: case Token::Kind::TypeCLongLong:
+			case Token::Kind::TypeCULongLong: {
+				const ASG::LiteralInt::ID literal_int_id = [&](){
+					const size_t size_of_func_return_base_type = type_manager.sizeOf(func_return_type.baseTypeID());
+
+					if(size_of_func_return_base_type == 1){
+						const uint8_t value = this->data->module.run<uint8_t>(func_mangled_name);
+						return asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint8_t>(value), func_return_type_id
+						);
+
+					}else if(size_of_func_return_base_type == 2){
+						const uint16_t value = this->data->module.run<uint16_t>(func_mangled_name);
+						return asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint16_t>(value), func_return_type_id
+						);
+
+					}else if(size_of_func_return_base_type == 4){
+						const uint32_t value = this->data->module.run<uint32_t>(func_mangled_name);
+						return asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint32_t>(value), func_return_type_id
+						);
+
+					}else if(size_of_func_return_base_type == 8){
+						const uint64_t value = this->data->module.run<uint64_t>(func_mangled_name);
+						return asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint64_t>(value), func_return_type_id
+						);
+
+					}else{
+						evo::debugFatalBreak("This type is not supported");
+					}
+				}();
+
+				return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
+			} break;
+
+
+			default: {
+				evo::debugFatalBreak("Unknown or unsupported type");
+			} break;
+		}
+
 	};
 
 

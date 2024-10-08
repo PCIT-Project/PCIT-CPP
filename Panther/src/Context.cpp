@@ -235,6 +235,7 @@ namespace pcit::panther{
 			}
 		}
 
+		if(this->errored()){ return; }
 
 		{ // global stmts runtime
 			const auto lock_guard = std::lock_guard(this->src_manager_mutex);

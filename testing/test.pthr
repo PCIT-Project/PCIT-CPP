@@ -1,26 +1,14 @@
 
 
-// func test = () -> Void {
-// 	def NUM: UI8 = get_num();
-// }
-
-func get_num2 = () -> UI8 {
-	return get_num();
-}
-
-func get_num = () -> UI8 {
+func get_val = () -> F16 {
 	return 12;
 }
 
 
-// func get_num = <{T: Type}> () -> T {
-// 	return 12;
-// }
-
 
 func entry = () #entry -> UI8 {
-	// def NUM: UI8 = get_num<{UI8}>();
-	def NUM: UI8 = get_num2();
+	def VAL = get_val();
+	const val = VAL;
 
-	return NUM;
+	return 12;
 }

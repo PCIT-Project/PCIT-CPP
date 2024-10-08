@@ -20,29 +20,41 @@ namespace pcit::core{
 			explicit GenericFloat(float32_t val) : ap_float(val) {}
 			explicit GenericFloat(float64_t val) : ap_float(val) {}
 
-			// EVO_NODISCARD static auto createF16(GenericInt&& value) -> GenericFloat {
-			// 	return GenericFloat(llvmint::APFloatBase::IEEEhalf(), std::move(value));
-			// }
+			EVO_NODISCARD static auto createF16(GenericInt&& value) -> GenericFloat {
+				return GenericFloat(llvmint::APFloatBase::IEEEhalf(), std::move(value));
+			}
+			EVO_NODISCARD static auto createF16(uint16_t value) -> GenericFloat {
+				return createF16(GenericInt(16, value));
+			}
 
-			// EVO_NODISCARD static auto createBF16(GenericInt&& value) -> GenericFloat {
-			// 	return GenericFloat(llvmint::APFloatBase::BFloat(), std::move(value));
-			// }
+			EVO_NODISCARD static auto createBF16(GenericInt&& value) -> GenericFloat {
+				return GenericFloat(llvmint::APFloatBase::BFloat(), std::move(value));
+			}
+			EVO_NODISCARD static auto createBF16(uint16_t value) -> GenericFloat {
+				return createBF16(GenericInt(16, value));
+			}
 
-			// EVO_NODISCARD static auto createF32(GenericInt&& value) -> GenericFloat {
-			// 	return GenericFloat(llvmint::APFloatBase::IEEEsingle(), std::move(value));
-			// }
+			EVO_NODISCARD static auto createF32(GenericInt&& value) -> GenericFloat {
+				return GenericFloat(llvmint::APFloatBase::IEEEsingle(), std::move(value));
+			}
+			EVO_NODISCARD static auto createF32(uint32_t value) -> GenericFloat {
+				return GenericFloat(std::bit_cast<float32_t>(value));
+			}
 
-			// EVO_NODISCARD static auto createF64(GenericInt&& value) -> GenericFloat {
-			// 	return GenericFloat(llvmint::APFloatBase::IEEEdouble(), std::move(value));
-			// }
+			EVO_NODISCARD static auto createF64(GenericInt&& value) -> GenericFloat {
+				return GenericFloat(llvmint::APFloatBase::IEEEdouble(), std::move(value));
+			}
+			EVO_NODISCARD static auto createF64(uint64_t value) -> GenericFloat {
+				return GenericFloat(std::bit_cast<float64_t>(value));
+			}
 
-			// EVO_NODISCARD static auto createF80(GenericInt&& value) -> GenericFloat {
-			// 	return GenericFloat(llvmint::APFloatBase::IEEEquad(), std::move(value));
-			// }
+			EVO_NODISCARD static auto createF80(GenericInt&& value) -> GenericFloat {
+				return GenericFloat(llvmint::APFloatBase::IEEEquad(), std::move(value));
+			}
 
-			// EVO_NODISCARD static auto createF128(GenericInt&& value) -> GenericFloat {
-			// 	return GenericFloat(llvmint::APFloatBase::x87DoubleExtended(), std::move(value));
-			// }
+			EVO_NODISCARD static auto createF128(GenericInt&& value) -> GenericFloat {
+				return GenericFloat(llvmint::APFloatBase::x87DoubleExtended(), std::move(value));
+			}
 
 
 			~GenericFloat() = default;
@@ -59,8 +71,8 @@ namespace pcit::core{
 
 
 		private:
-			// GenericFloat(const llvmint::fltSemantics& semantics, GenericInt&& value)
-			// 	: ap_float(semantics, value.ap_int) {}
+			GenericFloat(const llvmint::fltSemantics& semantics, GenericInt&& value)
+				: ap_float(semantics, value.ap_int) {}
 
 	
 		private:

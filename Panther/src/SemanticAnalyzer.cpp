@@ -81,7 +81,11 @@ namespace pcit::panther{
 	// semantic analyzer
 
 	SemanticAnalyzer::SemanticAnalyzer(Context& _context, Source::ID source_id) 
-		: context(_context), source(this->context.getSourceManager()[source_id]), scope(), template_parents() {
+		: context(_context),
+		source(this->context.getSourceManager()[source_id]),
+		scope(),
+		template_parents(),
+		comptime_call_stack() {
 
 		this->scope.pushLevel(this->source.global_scope_level);
 	};
@@ -90,8 +94,13 @@ namespace pcit::panther{
 		Context& _context,
 		Source& _source,
 		const ScopeManager::Scope& _scope,
-		evo::SmallVector<SourceLocation>&& _template_parents
-	) : context(_context), source(_source), scope(_scope), template_parents(std::move(_template_parents)) {
+		evo::SmallVector<SourceLocation>&& _template_parents,
+		evo::SmallVector<ASG::Func::LinkID>&& _comptime_call_stack
+	) : context(_context),
+		source(_source),
+		scope(_scope),
+		template_parents(std::move(_template_parents)),
+		comptime_call_stack(_comptime_call_stack) {
 		this->scope.pushLevel(this->source.global_scope_level);
 	};
 
@@ -974,6 +983,7 @@ namespace pcit::panther{
 		const auto asg_func_body_lock = std::unique_lock(asg_func.body_analysis_mutex);
 		if(asg_func.is_body_analyzed){ return true; } // don't re-analyze
 
+
 		this->push_scope_level(&asg_func.stmts, asg_func_id);
 		EVO_DEFER([&](){ this->pop_scope_level(); });
 
@@ -1006,6 +1016,7 @@ namespace pcit::panther{
 		}
 
 		if(this->analyze_block(this->source.getASTBuffer().getBlock(ast_func.block)) == false){
+			if(asg_func_type.isRuntime() == false){ asg_func.is_body_errored = true; }
 			return this->may_recover();
 		}
 
@@ -1029,6 +1040,7 @@ namespace pcit::panther{
 		asg_func.is_body_analyzed = true;
 
 		if constexpr(IS_RUNTIME == false){
+			if(asg_func.is_body_errored){ return false; }
 			this->context.comptime_executor.addFunc(ASG::Func::LinkID(this->source.getID(), asg_func_id));
 		}
 
@@ -1833,7 +1845,7 @@ namespace pcit::panther{
 					std::nullopt,
 					Diagnostic::createFatalMessage("Encountered expr of invalid AST kind")
 				);
-				return evo::resultError;
+				return evo::resultError; 
 			} break;
 		}
 
@@ -1926,7 +1938,7 @@ namespace pcit::panther{
 						const ASG::Func& asg_func_target = this->context.getSourceManager()[func_call_target.sourceID()]
 							.getASGBuffer().getFunc(func_call_target.funcID());
 
-						evo::debugAssert(asg_func_target.isBodyAnalyzed(), "body of this function was not analyzed");
+						evo::debugAssert(asg_func_target.is_body_analyzed, "body of this function was not analyzed");
 					#endif
 
 					return this->context.comptime_executor.runFunc(
@@ -2228,7 +2240,11 @@ namespace pcit::panther{
 			template_instance_template_parents.emplace_back(this->get_source_location(templated_expr));
 
 			auto template_sema = SemanticAnalyzer(
-				this->context, declared_source, templated_func.scope, std::move(template_instance_template_parents)
+				this->context,
+				declared_source,
+				templated_func.scope,
+				std::move(template_instance_template_parents),
+				evo::SmallVector<ASG::Func::LinkID>()
 			);
 
 			// if sub-template, add parent's template params to scope
@@ -2876,8 +2892,16 @@ namespace pcit::panther{
 							return evo::resultError;
 						}
 
+					}else if constexpr(
+						std::is_same_v<IdentID, ASG::VarID> ||
+						std::is_same_v<IdentID, ASG::ParamID> ||
+						std::is_same_v<IdentID, ASG::ReturnParamID> ||
+						std::is_same_v<IdentID, ScopeManager::Level::ImportInfo>
+					){
+						evo::debugFatalBreak("Unsupported import kind");
+						
 					}else{
-						evo::debugFatalBreak("Unknown or unsupported import kind");
+						static_assert(false, "Unknown or unsupported import kind");
 					}
 				});
 
@@ -3297,7 +3321,7 @@ namespace pcit::panther{
 				);
 
 			}else{
-				evo::debugFatalBreak("Unknown or unsupported ScopeManager::Level::IdentID kind");
+				static_assert(false, "Unknown or unsupported ScopeManager::Level::IdentID kind");
 			}
 		});
 	}
@@ -3678,12 +3702,39 @@ namespace pcit::panther{
 				if(is_current_func_runtime == false){
 					Source& target_source = this->context.getSourceManager()[target_link_id.sourceID()];
 					const ASG::Func& target_asg_func = target_source.getASGBuffer().getFunc(target_link_id.funcID());
-					
-					auto func_sema = SemanticAnalyzer(
-						this->context, target_source, *target_asg_func.scope, evo::SmallVector<SourceLocation>{}
+
+					evo::SmallVector<ASG::Func::LinkID> comptime_call_stack_copy = this->comptime_call_stack;
+					comptime_call_stack_copy.emplace_back(
+						this->source.getID(), this->scope.getCurrentObjectScope().as<ASG::Func::ID>()
 					);
+
+					for(const ASG::Func::LinkID& comptime_caller : comptime_call_stack_copy){
+						if(comptime_caller == target_link_id){
+							// TODO: better message
+							this->emit_error(
+								Diagnostic::Code::SemaComptimeCircularDependency,
+								func_call,
+								"Comptime circular dependency detected"
+							);
+
+							return evo::resultError;
+						}
+					}
+
+					auto func_sema = SemanticAnalyzer(
+						this->context,
+						target_source,
+						*target_asg_func.scope,
+						evo::SmallVector<SourceLocation>(this->template_parents),
+						std::move(comptime_call_stack_copy)
+					);
+
 					if(func_sema.analyze_func_body<false>(target_asg_func.ast_func, target_link_id.funcID()) == false){
 						return evo::resultError;
+					}
+
+					if(target_asg_func.is_body_errored){
+						this->get_current_func().is_body_errored = true;
 					}
 				}
 			}
@@ -4201,11 +4252,11 @@ namespace pcit::panther{
 
 
 			case ExprInfo::ValueType::EpemeralFluid: {
-				const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(expected_type_id);
+				const TypeInfo& expected_type_info = this->context.getTypeManager().getTypeInfo(expected_type_id);
 
 				if(
-					var_type_info.qualifiers().empty() == false || 
-					var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
+					expected_type_info.qualifiers().empty() == false || 
+					expected_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
 				){
 					if constexpr(IMPLICITLY_CONVERT){
 						this->error_type_mismatch(expected_type_id, got_expr, name, location);
@@ -4214,13 +4265,13 @@ namespace pcit::panther{
 				}
 
 
-				const BaseType::Builtin::ID var_type_builtin_id = var_type_info.baseTypeID().builtinID();
+				const BaseType::Builtin::ID expected_type_builtin_id = expected_type_info.baseTypeID().builtinID();
 
-				const BaseType::Builtin& var_type_builtin = 
-					this->context.getTypeManager().getBuiltin(var_type_builtin_id);
+				const BaseType::Builtin& expected_type_builtin = 
+					this->context.getTypeManager().getBuiltin(expected_type_builtin_id);
 
 				if(got_expr.getExpr().kind() == ASG::Expr::Kind::LiteralInt){
-					switch(var_type_builtin.kind()){
+					switch(expected_type_builtin.kind()){
 						case Token::Kind::TypeInt:
 						case Token::Kind::TypeISize:
 						case Token::Kind::TypeI_N:
@@ -4258,7 +4309,7 @@ namespace pcit::panther{
 						got_expr.getExpr().kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
 					);
 
-					switch(var_type_builtin.kind()){
+					switch(expected_type_builtin.kind()){
 						case Token::Kind::TypeF16:
 						case Token::Kind::TypeBF16:
 						case Token::Kind::TypeF32:
@@ -4475,7 +4526,7 @@ namespace pcit::panther{
 		}else{
 			evo::debugAssert(expr_info.value_type == ExprInfo::ValueType::EpemeralFluid, "expected fluid literal");
 
-			if(expr_info.hasExpr() == false){
+			if(expr_info.hasExpr()){
 				if(expr_info.getExpr().kind() == ASG::Expr::Kind::LiteralInt){
 					return "{LITERAL INTEGER}";
 					

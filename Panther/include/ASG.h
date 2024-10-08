@@ -310,7 +310,7 @@ namespace pcit::panther::ASG{
 	};
 
 
-	// TODO: move .scope, .body_analysis_mutex, .is_body_analyzed, and .ast_func to Scope or somewhere else
+	// TODO: move .scope, .body_analysis_mutex, .is_body_analyzed, and .ast_func to somewhere else
 	struct Func{
 		using ID = FuncID;
 		using LinkID = FuncLinkID;
@@ -362,14 +362,10 @@ namespace pcit::panther::ASG{
 		{}
 
 
-		EVO_NODISCARD auto isBodyAnalyzed() const -> bool {
-			const auto lock = std::shared_lock(this->body_analysis_mutex);
-			return this->is_body_analyzed;
-		}
-
 		private:
 			mutable std::shared_mutex body_analysis_mutex{};
 			bool is_body_analyzed = false;
+			bool is_body_errored = false; // only need to set if func is not runtime
 			AST::FuncDecl ast_func;
 
 			friend /*class*/ SemanticAnalyzer;
