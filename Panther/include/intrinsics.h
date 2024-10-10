@@ -37,7 +37,15 @@ namespace pcit::panther{
 	struct TemplatedIntrinsic{
 		// Use ID to lookup TemplatedIntrinsics in Context
 		enum class Kind : uint32_t {
+			IsSameType,
+			IsTriviallyCopyable,
+			IsTriviallyDestructable,
+			IsPrimitive,
+			IsIntegral,
+			IsFloatingPoint,
+
 			SizeOf,
+			BitCast,
 
 			_max_
 		};
@@ -45,8 +53,8 @@ namespace pcit::panther{
 
 		struct Param{
 			strings::StringCode ident;
-			evo::Variant<TypeInfo::ID, uint32_t> type; // uint32_t is the index of the templateParam
 			AST::FuncDecl::Param::Kind kind;
+			evo::Variant<TypeInfo::ID, uint32_t> type; // uint32_t is the index of the templateParam
 		};
 
 		using ReturnParam = evo::Variant<TypeInfo::VoidableID, uint32_t>; // uint32_t is the index of the templateParam

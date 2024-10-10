@@ -181,8 +181,8 @@ namespace pcit::panther{
 
 		this->multiple_task_stages_left = true;
 
-		if(this->type_manager.builtinsInitialized() == false){
-			this->type_manager.initBuiltins();
+		if(this->type_manager.primitivesInitialized() == false){
+			this->type_manager.initPrimitives();
 			this->init_intrinsics();
 		}
 
@@ -581,10 +581,56 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// templated
 
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsSameType)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt, std::nullopt},
+			evo::SmallVector<TemplatedIntrinsic::Param>(),
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{this->type_manager.getTypeBool()}
+		);
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyCopyable)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+			evo::SmallVector<TemplatedIntrinsic::Param>(),
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{this->type_manager.getTypeBool()}
+		);
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyDestructable)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+			evo::SmallVector<TemplatedIntrinsic::Param>(),
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{this->type_manager.getTypeBool()}
+		);
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsPrimitive)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+			evo::SmallVector<TemplatedIntrinsic::Param>(),
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{this->type_manager.getTypeBool()}
+		);
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsIntegral)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+			evo::SmallVector<TemplatedIntrinsic::Param>(),
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{this->type_manager.getTypeBool()}
+		);
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsFloatingPoint)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+			evo::SmallVector<TemplatedIntrinsic::Param>(),
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{this->type_manager.getTypeBool()}
+		);
+
+
+
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SizeOf)] = TemplatedIntrinsic(
 			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
 			evo::SmallVector<TemplatedIntrinsic::Param>(),
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{this->type_manager.getTypeUSize()}
+		);
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::BitCast)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt, std::nullopt},
+			evo::SmallVector<TemplatedIntrinsic::Param>{
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+			},
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(1)}
 		);
 	}
 

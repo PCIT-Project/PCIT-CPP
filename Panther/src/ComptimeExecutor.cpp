@@ -98,12 +98,12 @@ namespace pcit::panther{
 
 
 		evo::debugAssert(
-			func_return_type.baseTypeID().kind() == BaseType::Kind::Builtin, "non-builtin type not supported yet"
+			func_return_type.baseTypeID().kind() == BaseType::Kind::Primitive, "non-primitive type not supported yet"
 		);
 		evo::debugAssert(func_return_type.qualifiers().empty(), "qualifiers not supported yet");
 
-		const BaseType::Builtin& func_return_base_type = type_manager.getBuiltin(
-			func_return_type.baseTypeID().builtinID()
+		const BaseType::Primitive& func_return_base_type = type_manager.getPrimitive(
+			func_return_type.baseTypeID().primitiveID()
 		);
 
 		switch(func_return_base_type.kind()){

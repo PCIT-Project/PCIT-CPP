@@ -66,6 +66,7 @@ namespace pcit::panther{
 		SemaUnexpectedTemplateArgs,
 		SemaIncorrectTemplateArgValueType,
 		SemaIncorrectTemplateInstantiation,
+		SemaInvalidIntrinsicTemplateArg,
 		SemaExpectedConstEvalValue,
 		SemaInvalidBaseType,
 		SemaUnknownAttribute,
@@ -178,6 +179,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaUnexpectedTemplateArgs:               return "S";
 			break; case DiagnosticCode::SemaIncorrectTemplateArgValueType:        return "S";
 			break; case DiagnosticCode::SemaIncorrectTemplateInstantiation:       return "S";
+			break; case DiagnosticCode::SemaInvalidIntrinsicTemplateArg:          return "S";
 			break; case DiagnosticCode::SemaExpectedConstEvalValue:               return "S";
 			break; case DiagnosticCode::SemaInvalidBaseType:                      return "S";
 			break; case DiagnosticCode::SemaUnknownAttribute:                     return "S";

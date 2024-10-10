@@ -607,8 +607,8 @@ namespace pthr{
 
 			auto print_base_type(const panther::AST::Node& base_type) -> void {
 				switch(base_type.kind()){
-					case panther::AST::Kind::BuiltinType: {
-						const panther::Token::ID type_token_id = this->ast_buffer.getBuiltinType(base_type);
+					case panther::AST::Kind::PrimitiveType: {
+						const panther::Token::ID type_token_id = this->ast_buffer.getPrimitiveType(base_type);
 						const panther::Token& type_token = this->source.getTokenBuffer()[type_token_id];
 
 						if(type_token.kind() == panther::Token::Kind::TypeI_N){
@@ -675,8 +675,8 @@ namespace pthr{
 					this->printer.printMagenta(qualifier_str);
 				}
 
-				if(type.base.kind() == panther::AST::Kind::BuiltinType){
-					this->printer.printGray(" {BUILTIN}\n");
+				if(type.base.kind() == panther::AST::Kind::PrimitiveType){
+					this->printer.printGray(" {PRIMITIVE}\n");
 				}else{
 					this->printer.print("\n");
 				}

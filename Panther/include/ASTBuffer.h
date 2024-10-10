@@ -50,8 +50,8 @@ namespace pcit::panther{
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD static auto getBuiltinType(const AST::Node& node) -> Token::ID {
-				evo::debugAssert(node.kind() == AST::Kind::BuiltinType, "Node is not a BuiltinType");
+			EVO_NODISCARD static auto getPrimitiveType(const AST::Node& node) -> Token::ID {
+				evo::debugAssert(node.kind() == AST::Kind::PrimitiveType, "Node is not a PrimitiveType");
 				return node._value.token_id;
 			}
 

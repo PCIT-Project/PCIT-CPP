@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.42.0
+
+### Panther
+- Added intrinsics:
+	- `@isSameType`
+	- `@isTriviallyCopyable`
+	- `@isTriviallyDestructable`
+	- `@isPrimitive`
+	- `@isIntegral`
+	- `@isFloatingPoint`
+	- `@bitCast`
+- Added checking for `@sizeOf` of type `Void`
+- Fixed else blocks of `when` conditionals always considering stmts inside to be in global scope
+- Fixed incorrect fatal error when using some value kinds as the assignment value in a variable declaration
+
+
+<!---------------------------------->
 ## v0.0.41.2
 
 ### Panther

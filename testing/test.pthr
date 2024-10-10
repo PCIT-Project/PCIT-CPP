@@ -1,14 +1,20 @@
 
 
-func get_val = () -> F16 {
-	return 12;
+func test = (num: F32) -> I32 {
+	return @bitCast<{F32, I32}>(num);
 }
 
 
 
-func entry = () #entry -> UI8 {
-	def VAL = get_val();
-	const val = VAL;
 
-	return 12;
+func entry = () #entry -> UI8 {
+	const foo: Byte = 12;
+
+	const TEST = @bitCast<{Byte, UI8}>;
+	// def TEST = test;
+
+	// const test: Bool = @isSameType<{Void, Void}>();
+
+	// return @basicConvert<{UInt, UI8}>(foo);
+	return TEST(foo);
 }

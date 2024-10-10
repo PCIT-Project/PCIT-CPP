@@ -123,18 +123,18 @@ namespace pcit::panther{
 				evo::debugAssert(var_type_info.isPointer() == false, "cannot zeroinit a pointer");
 				evo::debugAssert(var_type_info.isOptionalNotPointer() == false, "not supported");
 
-				if(var_type_info.baseTypeID().kind() != BaseType::Kind::Builtin){
+				if(var_type_info.baseTypeID().kind() != BaseType::Kind::Primitive){
 					return this->module.createGlobalZeroinit(
 						type, llvmint::LinkageType::Internal, asg_var.isConst, this->mangle_name(asg_var)
 					);
 				}
 
-				const BaseType::Builtin& var_builtin_type = this->context.getTypeManager().getBuiltin(
-					var_type_info.baseTypeID().builtinID()
+				const BaseType::Primitive& var_primitive_type = this->context.getTypeManager().getPrimitive(
+					var_type_info.baseTypeID().primitiveID()
 				);
 				
 				llvmint::Constant constant_value = [&](){
-					switch(var_builtin_type.kind()){
+					switch(var_primitive_type.kind()){
 						case Token::Kind::TypeInt:       case Token::Kind::TypeISize:      case Token::Kind::TypeI_N:
 						case Token::Kind::TypeUInt:      case Token::Kind::TypeUSize:      case Token::Kind::TypeUI_N:
 						case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
@@ -142,14 +142,14 @@ namespace pcit::panther{
 						case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: 
 						case Token::Kind::TypeCLongDouble: {
 							const auto integer_type = llvmint::IntegerType(
-								(llvm::IntegerType*)this->get_type(var_builtin_type).native()
+								(llvm::IntegerType*)this->get_type(var_primitive_type).native()
 							);
 							return this->builder.getValueIntegral(integer_type, 0).asConstant();
 						} break;
 
 						case Token::Kind::TypeF16: case Token::Kind::TypeBF16: case Token::Kind::TypeF32:
 						case Token::Kind::TypeF64: case Token::Kind::TypeF80:  case Token::Kind::TypeF128: {
-							const llvmint::Type float_type = this->get_type(var_builtin_type);
+							const llvmint::Type float_type = this->get_type(var_primitive_type);
 							return this->builder.getValueFloat(float_type, 0.0);
 						} break;
 
@@ -504,10 +504,10 @@ namespace pcit::panther{
 		}
 
 		switch(type_info.baseTypeID().kind()){
-			case BaseType::Kind::Builtin: {
-				const BaseType::Builtin::ID builtin_id = type_info.baseTypeID().builtinID();
-				const BaseType::Builtin& builtin = this->context.getTypeManager().getBuiltin(builtin_id);
-				return this->get_type(builtin);
+			case BaseType::Kind::Primitive: {
+				const BaseType::Primitive::ID primitive_id = type_info.baseTypeID().primitiveID();
+				const BaseType::Primitive& primitive = this->context.getTypeManager().getPrimitive(primitive_id);
+				return this->get_type(primitive);
 			} break;
 
 			case BaseType::Kind::Function: {
@@ -517,12 +517,12 @@ namespace pcit::panther{
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot get a dummy type");
 		}
 
-		evo::debugFatalBreak("Unknown or unsupported builtin kind");
+		evo::debugFatalBreak("Unknown or unsupported primitive kind");
 	}
 
 
-	auto ASGToLLVMIR::get_type(const BaseType::Builtin& builtin) const -> llvmint::Type {
-		switch(builtin.kind()){
+	auto ASGToLLVMIR::get_type(const BaseType::Primitive& primitive) const -> llvmint::Type {
+		switch(primitive.kind()){
 			case Token::Kind::TypeInt: case Token::Kind::TypeUInt: {
 				return this->builder.getTypeI_N(
 					evo::uint(this->context.getTypeManager().sizeOfGeneralRegister() * 8)
@@ -536,7 +536,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
-				return this->builder.getTypeI_N(evo::uint(builtin.bitWidth())).asType();
+				return this->builder.getTypeI_N(evo::uint(primitive.bitWidth())).asType();
 			} break;
 
 			case Token::Kind::TypeF16: return this->builder.getTypeF16();
@@ -576,7 +576,7 @@ namespace pcit::panther{
 			} break;
 
 			default: evo::debugFatalBreak(
-				"Unknown or unsupported builtin-type: {}", evo::to_underlying(builtin.kind())
+				"Unknown or unsupported primitive-type: {}", evo::to_underlying(primitive.kind())
 			);
 		}
 	}
@@ -1046,6 +1046,65 @@ namespace pcit::panther{
 				);
 
 			switch(instantiation.kind){
+				case TemplatedIntrinsic::Kind::IsSameType: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueBool(
+							instantiation.templateArgs[0].as<TypeInfo::VoidableID>() == 
+							instantiation.templateArgs[1].as<TypeInfo::VoidableID>()
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsTriviallyCopyable: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueBool(
+							this->context.getTypeManager().isTriviallyCopyable(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsTriviallyDestructable: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueBool(
+							this->context.getTypeManager().isTriviallyDestructable(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsPrimitive: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueBool(
+							this->context.getTypeManager().isPrimitive(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsIntegral: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueBool(
+							this->context.getTypeManager().isIntegral(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
+							)
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsFloatingPoint: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueBool(
+							this->context.getTypeManager().isFloatingPoint(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
+							)
+						).asValue()
+					};
+				} break;
+
 				case TemplatedIntrinsic::Kind::SizeOf: {
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.getValueI_N(
@@ -1057,6 +1116,23 @@ namespace pcit::panther{
 					};
 				} break;
 
+				case TemplatedIntrinsic::Kind::BitCast: {
+					if(
+						instantiation.templateArgs[0].as<TypeInfo::VoidableID>() ==
+						instantiation.templateArgs[1].as<TypeInfo::VoidableID>()
+					){
+						return args;
+					}
+
+
+					const llvmint::Type to_type = this->get_type(
+						instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID()
+					);
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createBitCast(args[0], to_type, this->stmt_name("BITCAST"))
+					};
+				} break;
 
 				case TemplatedIntrinsic::Kind::_max_: {
 					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");

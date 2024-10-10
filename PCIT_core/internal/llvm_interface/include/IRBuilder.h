@@ -87,6 +87,9 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto createSExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
 
+			EVO_NODISCARD auto createBitCast(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+				-> Value;
+
 
 			///////////////////////////////////
 			// operators

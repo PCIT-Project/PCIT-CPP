@@ -89,12 +89,12 @@ namespace pcit::panther{
 		enum class Kind : uint8_t {
 			Dummy,
 
-			Builtin,
+			Primitive,
 			Function,
 		};
 
 
-		struct Builtin{
+		struct Primitive{
 			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 			EVO_NODISCARD auto kind() const -> Token::Kind { return this->_kind; }
@@ -108,24 +108,24 @@ namespace pcit::panther{
 				return this->bit_width;
 			}
 
-			EVO_NODISCARD auto operator==(const Builtin& rhs) const -> bool {
+			EVO_NODISCARD auto operator==(const Primitive& rhs) const -> bool {
 				return this->_kind == rhs._kind && this->bit_width == rhs.bit_width;
 			}
 
-			EVO_NODISCARD auto operator!=(const Builtin& rhs) const -> bool {
+			EVO_NODISCARD auto operator!=(const Primitive& rhs) const -> bool {
 				return this->_kind != rhs._kind || this->bit_width != rhs.bit_width;
 			}
 
 
 
-			Builtin(Token::Kind tok_kind) : _kind(tok_kind), bit_width(0) {
+			Primitive(Token::Kind tok_kind) : _kind(tok_kind), bit_width(0) {
 				evo::debugAssert(
 					this->_kind != Token::Kind::TypeI_N && this->_kind != Token::Kind::TypeUI_N,
 					"This type requires a bit-width"
 				);
 			};
 
-			Builtin(Token::Kind tok_kind, uint32_t _bit_width) : _kind(tok_kind), bit_width(_bit_width) {
+			Primitive(Token::Kind tok_kind, uint32_t _bit_width) : _kind(tok_kind), bit_width(_bit_width) {
 				evo::debugAssert(
 					this->_kind == Token::Kind::TypeI_N || this->_kind == Token::Kind::TypeUI_N,
 					"This type does not have a bit-width"
@@ -181,9 +181,9 @@ namespace pcit::panther{
 		struct ID{
 			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
 
-			EVO_NODISCARD auto builtinID() const -> Builtin::ID {
-				evo::debugAssert(this->kind() == Kind::Builtin, "not a Builtin");
-				return Builtin::ID(this->_id);
+			EVO_NODISCARD auto primitiveID() const -> Primitive::ID {
+				evo::debugAssert(this->kind() == Kind::Primitive, "not a Primitive");
+				return Primitive::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto funcID() const -> Function::ID {
@@ -249,8 +249,8 @@ namespace pcit::panther{
 			~TypeManager() = default;
 
 
-			auto initBuiltins() -> void; // single-threaded
-			EVO_NODISCARD auto builtinsInitialized() const -> bool; // single-threaded
+			auto initPrimitives() -> void; // single-threaded
+			EVO_NODISCARD auto primitivesInitialized() const -> bool; // single-threaded
 
 
 			EVO_NODISCARD auto platform() const -> core::Platform { return this->_platform; }
@@ -266,9 +266,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id) const -> const BaseType::Function&;
 			EVO_NODISCARD auto getOrCreateFunction(BaseType::Function lookup_func) -> BaseType::ID;
 
-			EVO_NODISCARD auto getBuiltin(BaseType::Builtin::ID id) const -> const BaseType::Builtin&;
-			EVO_NODISCARD auto getOrCreateBuiltinBaseType(Token::Kind kind) -> BaseType::ID;
-			EVO_NODISCARD auto getOrCreateBuiltinBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
+			EVO_NODISCARD auto getPrimitive(BaseType::Primitive::ID id) const -> const BaseType::Primitive&;
+			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind) -> BaseType::ID;
+			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
 
 			// types needed by semantic analyzer to check againt or for generating intrinsics
 			EVO_NODISCARD static auto getTypeBool()  -> TypeInfo::ID { return TypeInfo::ID(0); }
@@ -286,8 +286,23 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyCopyable(BaseType::ID id) const -> bool;
 
+			EVO_NODISCARD auto isTriviallyDestructable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyDestructable(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isPrimitive(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isPrimitive(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isPrimitive(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isIntegral(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isIntegral(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isIntegral(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isFloatingPoint(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isFloatingPoint(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isFloatingPoint(BaseType::ID id) const -> bool;
+
 		private:
-			EVO_NODISCARD auto get_or_create_builtin_base_type_impl(const BaseType::Builtin& lookup_type)
+			EVO_NODISCARD auto get_or_create_primitive_base_type_impl(const BaseType::Primitive& lookup_type)
 				-> BaseType::ID;
 
 
@@ -298,8 +313,8 @@ namespace pcit::panther{
 
 			// TODO: improve lookup times
 
-			core::LinearStepAlloc<BaseType::Builtin, BaseType::Builtin::ID> builtins{};
-			mutable std::shared_mutex builtins_mutex{};
+			core::LinearStepAlloc<BaseType::Primitive, BaseType::Primitive::ID> primitives{};
+			mutable std::shared_mutex primitives_mutex{};
 
 			core::LinearStepAlloc<BaseType::Function, BaseType::Function::ID> functions{};
 			mutable std::shared_mutex functions_mutex{};

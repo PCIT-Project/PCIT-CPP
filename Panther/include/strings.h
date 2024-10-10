@@ -14,17 +14,19 @@
 
 namespace pcit::panther::strings{
 
-	enum class StringCode{
-		Num, // num
-		LHS, // lhs
-		RHS, // rhs
+	enum class StringCode : uint32_t {
+		Num,   // num
+		LHS,   // lhs
+		RHS,   // rhs
+		Value, // value
 	};
 
 	EVO_NODISCARD constexpr auto toStringView(StringCode str) -> std::string_view {
 		switch(str){
-			case StringCode::Num: return "num";
-			case StringCode::LHS: return "lhs";
-			case StringCode::RHS: return "rhs";
+			case StringCode::Num:   return "num";
+			case StringCode::LHS:   return "lhs";
+			case StringCode::RHS:   return "rhs";
+			case StringCode::Value: return "value";
 		}
 
 		evo::debugFatalBreak("Unknown string code");

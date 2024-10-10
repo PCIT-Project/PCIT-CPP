@@ -36,7 +36,13 @@ namespace pcit::panther{
 					{"breakpoint", Intrinsic::Kind::Breakpoint},
 					{"_printHelloWorld", Intrinsic::Kind::_printHelloWorld},
 
+					{"isSameType", TemplatedIntrinsic::Kind::IsSameType},
+					{"isTriviallyCopyable", TemplatedIntrinsic::Kind::IsTriviallyCopyable},
+					{"isTriviallyDestructable", TemplatedIntrinsic::Kind::IsTriviallyDestructable},
+					{"isPrimitive", TemplatedIntrinsic::Kind::IsPrimitive},
+					{"isIntegral", TemplatedIntrinsic::Kind::IsIntegral},
 					{"sizeOf", TemplatedIntrinsic::Kind::SizeOf},
+					{"bitCast", TemplatedIntrinsic::Kind::BitCast},
 				};
 
 				this->map_end = this->map.end();
@@ -193,7 +199,7 @@ namespace pcit::panther{
 
 
 			case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
-			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
+			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::PrimitiveType:
 			case AST::Kind::Uninit:         case AST::Kind::Zeroinit:  case AST::Kind::Discard: {
 				// TODO: message the exact kind
 				this->emit_fatal(
@@ -275,6 +281,19 @@ namespace pcit::panther{
 			);
 			return false;
 
+		}else if(
+			expr_info_result.value().value_type == ExprInfo::ValueType::Intrinsic ||
+			expr_info_result.value().value_type == ExprInfo::ValueType::TemplatedIntrinsic
+		){
+			// TODO: better messaging?
+			this->emit_error(
+				Diagnostic::Code::SemaIncorrectExprValueType,
+				*var_decl.value,
+				"Variable must be declared with an ephemeral expression value",
+				Diagnostic::Info("Did you mean to call this?")
+			);
+			return false;
+
 		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::Import){
 			if(var_decl.kind != AST::VarDecl::Kind::Def){
 				this->emit_error(
@@ -299,16 +318,8 @@ namespace pcit::panther{
 				var_ident, expr_info_result.value().type_id.as<Source::ID>(), var_decl.ident
 			);
 			return true;
-		}
 
-		evo::debugAssert(
-			expr_info_result.value().is_ephemeral()
-				|| expr_info_result.value().value_type == ExprInfo::ValueType::Initializer,
-			"unhandled expr info value type"
-		);
-
-
-		if(expr_info_result.value().value_type == ExprInfo::ValueType::EpemeralFluid){
+		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::EpemeralFluid){
 			if(var_type_id.has_value() == false){
 				this->emit_error(
 					Diagnostic::Code::SemaCannotInferType, *var_decl.value, "Cannot infer the type of a fluid literal"
@@ -328,7 +339,7 @@ namespace pcit::panther{
 					"Cannot infer the type of an initializer value"
 				);
 				return false;
-			}
+			}			
 
 		}else if(var_type_id.has_value()){
 			if(expr_info_result.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().size() > 1){
@@ -900,11 +911,16 @@ namespace pcit::panther{
 		if(when_conditional.elseBlock.has_value()){
 			if(when_conditional.elseBlock->kind() == AST::Kind::Block){
 				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*when_conditional.elseBlock);
-				for(const AST::Node& global_stmt : else_block.stmts){
-					if(this->analyze_global_declaration(global_stmt) == false){ return false; }
-				}
+				if constexpr(IS_GLOBAL){
+					for(const AST::Node& global_stmt : else_block.stmts){
+						if(this->analyze_global_declaration(global_stmt) == false){ return false; }
+					}
 
-				return true;
+					return true;
+
+				}else{
+					return this->analyze_block(else_block);
+				}
 				
 			}else{
 				return this->analyze_when_conditional<IS_GLOBAL>(
@@ -1148,7 +1164,7 @@ namespace pcit::panther{
 
 
 			case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
-			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::BuiltinType:
+			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::PrimitiveType:
 			case AST::Kind::Uninit:         case AST::Kind::Zeroinit:  case AST::Kind::Discard: {
 				// TODO: message the exact kind
 				this->emit_fatal(
@@ -1558,11 +1574,11 @@ namespace pcit::panther{
 		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
 
 		switch(ast_type.base.kind()){
-			case AST::Kind::BuiltinType: {
-				const Token::ID builtin_type_token_id = ASTBuffer::getBuiltinType(ast_type.base);
-				const Token& builtin_type_token = this->source.getTokenBuffer()[builtin_type_token_id];
+			case AST::Kind::PrimitiveType: {
+				const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(ast_type.base);
+				const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
 
-				switch(builtin_type_token.kind()){
+				switch(primitive_type_token.kind()){
 					case Token::Kind::TypeVoid: {
 						if(ast_type.qualifiers.empty() == false){
 							this->emit_error(
@@ -1584,14 +1600,14 @@ namespace pcit::panther{
 					case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
 					case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
 					case Token::Kind::TypeCLongDouble: {
-						base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(
-							builtin_type_token.kind()
+						base_type = this->context.getTypeManager().getOrCreatePrimitiveBaseType(
+							primitive_type_token.kind()
 						);
 					} break;
 
 					case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
-						base_type = this->context.getTypeManager().getOrCreateBuiltinBaseType(
-							builtin_type_token.kind(), builtin_type_token.getBitWidth()
+						base_type = this->context.getTypeManager().getOrCreatePrimitiveBaseType(
+							primitive_type_token.kind(), primitive_type_token.getBitWidth()
 						);
 					} break;
 
@@ -1606,7 +1622,7 @@ namespace pcit::panther{
 					} break;
 
 					default: {
-						evo::debugFatalBreak("Unknown or unsupported BuiltinType: {}", builtin_type_token.kind());
+						evo::debugFatalBreak("Unknown or unsupported PrimitiveType: {}", primitive_type_token.kind());
 					} break;
 				}
 			} break;
@@ -1682,9 +1698,9 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::is_type_generic(const AST::Type& ast_type) -> evo::Result<bool> {
-		if(ast_type.base.kind() != AST::Kind::BuiltinType){ return false; }
+		if(ast_type.base.kind() != AST::Kind::PrimitiveType){ return false; }
 
-		const Token::ID base_type_token_id = this->source.getASTBuffer().getBuiltinType(ast_type.base);
+		const Token::ID base_type_token_id = this->source.getASTBuffer().getPrimitiveType(ast_type.base);
 		const Token& base_type_token = this->source.getTokenBuffer()[base_type_token_id];
 		
 		if(base_type_token.kind() != Token::Kind::TypeType){ return false; }
@@ -1838,7 +1854,7 @@ namespace pcit::panther{
 			case AST::Kind::Return:      case AST::Kind::Conditional:    case AST::Kind::WhenConditional:
 			case AST::Kind::Unreachable: case AST::Kind::TemplatePack:   case AST::Kind::MultiAssign:
 			case AST::Kind::Type:        case AST::Kind::AttributeBlock: case AST::Kind::Attribute:
-			case AST::Kind::BuiltinType: case AST::Kind::Discard: {
+			case AST::Kind::PrimitiveType: case AST::Kind::Discard: {
 				// TODO: better messaging (specify what kind)
 				this->emit_fatal(
 					Diagnostic::Code::SemaInvalidExprKind,
@@ -1953,6 +1969,60 @@ namespace pcit::panther{
 						this->source.getASGBuffer().getTemplatedIntrinsicInstantiation(func_call_target);
 
 					switch(instantiation.kind){
+						case TemplatedIntrinsic::Kind::IsSameType: {
+							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>() == 
+								instantiation.templateArgs[1].as<TypeInfo::VoidableID>()
+							);
+							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
+						} break;
+
+						case TemplatedIntrinsic::Kind::IsTriviallyCopyable: {
+							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
+								this->context.getTypeManager().isTriviallyCopyable(
+									instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+								)
+							);
+							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
+						} break;
+
+						case TemplatedIntrinsic::Kind::IsTriviallyDestructable: {
+							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
+								this->context.getTypeManager().isTriviallyDestructable(
+									instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+								)
+							);
+							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
+						} break;
+
+						case TemplatedIntrinsic::Kind::IsPrimitive: {
+							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
+								this->context.getTypeManager().isPrimitive(
+									instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
+								)
+							);
+							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
+						} break;
+
+						case TemplatedIntrinsic::Kind::IsIntegral: {
+							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
+								this->context.getTypeManager().isIntegral(
+									instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
+								)
+							);
+							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
+						} break;
+
+						case TemplatedIntrinsic::Kind::IsFloatingPoint: {
+							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
+								this->context.getTypeManager().isFloatingPoint(
+									instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
+								)
+							);
+							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
+						} break;
+
+
 						case TemplatedIntrinsic::Kind::SizeOf: {
 							const size_t type_size = this->context.getTypeManager().sizeOf(
 								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
@@ -1965,6 +2035,15 @@ namespace pcit::panther{
 							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
 						} break;
 
+						case TemplatedIntrinsic::Kind::BitCast: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@bitCast` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
 						case TemplatedIntrinsic::Kind::_max_: {
 							evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
 						} break;
@@ -1973,6 +2052,10 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Unknown or unsupported templated intrinsic kind");
 				}
 			});
+
+
+			// TODO: remove when not needed any more
+			if(asg_exprs.empty()){ return evo::resultError; }
 
 			return ExprInfo(
 				ExprInfo::ValueType::Ephemeral,
@@ -2530,6 +2613,110 @@ namespace pcit::panther{
 				}
 			}
 		}
+
+
+		// check template type args are valid
+		switch(templated_intrinsic_kind){
+			case TemplatedIntrinsic::Kind::IsSameType: break;
+
+			case TemplatedIntrinsic::Kind::IsTriviallyCopyable: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get if type `Void` is trivially-copyable"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::IsTriviallyDestructable: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get if type `Void` is trivially-destructable"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::IsPrimitive:     break;
+			case TemplatedIntrinsic::Kind::IsIntegral:      break;
+			case TemplatedIntrinsic::Kind::IsFloatingPoint: break;
+
+			case TemplatedIntrinsic::Kind::SizeOf: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get size of type `Void`"
+					);
+					return evo::resultError;
+				}
+			};
+
+			case TemplatedIntrinsic::Kind::BitCast: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot bit-cast from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot bit-cast to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				const TypeManager& type_manager = this->context.getTypeManager();
+
+				if(type_manager.sizeOf(from_type) != type_manager.sizeOf(to_type)){
+					// TODO: better messaging - give exact sizes
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr,
+						"Cannot bit-cast types that are different sizes"
+					);
+					return evo::resultError;
+				}
+
+				if(type_manager.isTriviallyDestructable(from_type) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"The `FROM` type requires `@isTriviallyDestructable<{FROM}>`"
+					);
+					return evo::resultError;
+				}
+
+				if(type_manager.isTriviallyDestructable(to_type) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"The `TO` type requires `@isTriviallyDestructable<{TO}>`"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+
+			case TemplatedIntrinsic::Kind::_max_: {
+				evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
+			} break;
+		}
+
+
+
 
 		const BaseType::Function instantiated_base_type = 
 			templated_intrinsic.getTypeInstantiation(instantiation_type_args);
@@ -4256,7 +4443,7 @@ namespace pcit::panther{
 
 				if(
 					expected_type_info.qualifiers().empty() == false || 
-					expected_type_info.baseTypeID().kind() != BaseType::Kind::Builtin
+					expected_type_info.baseTypeID().kind() != BaseType::Kind::Primitive
 				){
 					if constexpr(IMPLICITLY_CONVERT){
 						this->error_type_mismatch(expected_type_id, got_expr, name, location);
@@ -4265,13 +4452,13 @@ namespace pcit::panther{
 				}
 
 
-				const BaseType::Builtin::ID expected_type_builtin_id = expected_type_info.baseTypeID().builtinID();
+				const BaseType::Primitive::ID expected_type_primitive_id = expected_type_info.baseTypeID().primitiveID();
 
-				const BaseType::Builtin& expected_type_builtin = 
-					this->context.getTypeManager().getBuiltin(expected_type_builtin_id);
+				const BaseType::Primitive& expected_type_primitive = 
+					this->context.getTypeManager().getPrimitive(expected_type_primitive_id);
 
 				if(got_expr.getExpr().kind() == ASG::Expr::Kind::LiteralInt){
-					switch(expected_type_builtin.kind()){
+					switch(expected_type_primitive.kind()){
 						case Token::Kind::TypeInt:
 						case Token::Kind::TypeISize:
 						case Token::Kind::TypeI_N:
@@ -4309,7 +4496,7 @@ namespace pcit::panther{
 						got_expr.getExpr().kind() == ASG::Expr::Kind::LiteralFloat, "Expected literal float"
 					);
 
-					switch(expected_type_builtin.kind()){
+					switch(expected_type_primitive.kind()){
 						case Token::Kind::TypeF16:
 						case Token::Kind::TypeBF16:
 						case Token::Kind::TypeF32:
@@ -4635,7 +4822,7 @@ namespace pcit::panther{
 			case AST::Kind::Type:            return this->get_source_location(ast_buffer.getType(node), src);
 			case AST::Kind::AttributeBlock:  evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
 			case AST::Kind::Attribute:       return this->get_source_location(ast_buffer.getAttribute(node), src);
-			case AST::Kind::BuiltinType:     return this->get_source_location(ast_buffer.getBuiltinType(node), src);
+			case AST::Kind::PrimitiveType:     return this->get_source_location(ast_buffer.getPrimitiveType(node), src);
 			case AST::Kind::Ident:           return this->get_source_location(ast_buffer.getIdent(node), src);
 			case AST::Kind::Intrinsic:       return this->get_source_location(ast_buffer.getIntrinsic(node), src);
 			case AST::Kind::Literal:         return this->get_source_location(ast_buffer.getLiteral(node), src);

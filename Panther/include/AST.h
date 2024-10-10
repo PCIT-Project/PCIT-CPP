@@ -50,7 +50,7 @@ namespace pcit::panther::AST{
 		AttributeBlock,
 		Attribute,
 
-		BuiltinType,
+		PrimitiveType,
 		Ident,
 		Intrinsic,
 		Literal,

@@ -531,7 +531,7 @@ namespace pcit::panther{
 	template<Parser::TypeKind KIND>
 	auto Parser::parse_type() -> Result {
 		const Token::ID start_location = this->reader.peek();
-		bool is_builtin = true;
+		bool is_primitive = true;
 		switch(this->reader[start_location].kind()){
 			case Token::Kind::TypeVoid:
 			case Token::Kind::TypeType:
@@ -564,14 +564,14 @@ namespace pcit::panther{
 				break;
 
 			case Token::Kind::Ident: case Token::Kind::Intrinsic: {
-				is_builtin = false;
+				is_primitive = false;
 			} break;
 
 			default: return Result::Code::WrongType;
 		}
 
 		const Result base_type = [&]() {
-			if(is_builtin){
+			if(is_primitive){
 				const Token::ID base_type_token_id = this->reader.next();
 
 				const Token& peeked_token = this->reader[this->reader.peek()];
@@ -614,7 +614,7 @@ namespace pcit::panther{
 					return Result(Result::Code::Error);
 				}
 
-				return Result(AST::Node(AST::Kind::BuiltinType, base_type_token_id));
+				return Result(AST::Node(AST::Kind::PrimitiveType, base_type_token_id));
 
 			}else{
 				if constexpr(KIND == TypeKind::TemplateArg){
@@ -701,7 +701,7 @@ namespace pcit::panther{
 
 			// just an ident
 			if constexpr(KIND == TypeKind::TemplateArg){
-				if(is_builtin == false && qualifiers.empty()){
+				if(is_primitive == false && qualifiers.empty()){
 					this->reader.go_back(start_location);
 					return Result::Code::WrongType;
 				}
