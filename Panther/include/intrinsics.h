@@ -45,6 +45,7 @@ namespace pcit::panther{
 			IsFloatingPoint,
 
 			SizeOf,
+			GetTypeID,
 			BitCast,
 
 			_max_

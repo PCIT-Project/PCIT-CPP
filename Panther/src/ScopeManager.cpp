@@ -104,6 +104,14 @@ namespace pcit::panther{
 	}
 
 
+	auto ScopeManager::Level::addAlias(std::string_view ident, BaseType::Alias::ID id) -> void {
+		evo::debugAssert(this->lookupIdent(ident) == nullptr, "Scope already has ident \"{}\"", ident);
+
+		this->ids.emplace(ident, id);
+	}
+
+
+
 	auto ScopeManager::Level::lookupIdent(std::string_view ident) const -> const IdentID* {
 		const decltype(this->ids)::const_iterator ident_find = this->ids.find(ident);
 		if(ident_find == this->ids.end()){ return nullptr; }

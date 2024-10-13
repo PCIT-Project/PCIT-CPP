@@ -33,16 +33,17 @@ namespace pcit::panther{
 				evo::debugAssert(this->isSetup() == false, "intrinsic lookup table was already setup");
 
 				this->map = std::unordered_map<std::string_view, IntrinKind>{
-					{"breakpoint", Intrinsic::Kind::Breakpoint},
+					{"breakpoint",       Intrinsic::Kind::Breakpoint},
 					{"_printHelloWorld", Intrinsic::Kind::_printHelloWorld},
 
-					{"isSameType", TemplatedIntrinsic::Kind::IsSameType},
-					{"isTriviallyCopyable", TemplatedIntrinsic::Kind::IsTriviallyCopyable},
+					{"isSameType",              TemplatedIntrinsic::Kind::IsSameType},
+					{"isTriviallyCopyable",     TemplatedIntrinsic::Kind::IsTriviallyCopyable},
 					{"isTriviallyDestructable", TemplatedIntrinsic::Kind::IsTriviallyDestructable},
-					{"isPrimitive", TemplatedIntrinsic::Kind::IsPrimitive},
-					{"isIntegral", TemplatedIntrinsic::Kind::IsIntegral},
-					{"sizeOf", TemplatedIntrinsic::Kind::SizeOf},
-					{"bitCast", TemplatedIntrinsic::Kind::BitCast},
+					{"isPrimitive",             TemplatedIntrinsic::Kind::IsPrimitive},
+					{"isIntegral",              TemplatedIntrinsic::Kind::IsIntegral},
+					{"sizeOf",                  TemplatedIntrinsic::Kind::SizeOf},
+					{"getTypeID",               TemplatedIntrinsic::Kind::GetTypeID},
+					{"bitCast",                 TemplatedIntrinsic::Kind::BitCast},
 				};
 
 				this->map_end = this->map.end();
@@ -127,7 +128,7 @@ namespace pcit::panther{
 			const BaseType::Function& func_base_type =
 				this->context.getTypeManager().getFunction(func_base_type_id.funcID());
 			
-			if(func_base_type.isRuntime() == false){
+			if(func_base_type.isRuntime == false){
 				if(this->analyze_func_body<false>(global_func.ast_func, global_func.asg_func) == false){ return false; }
 			}
 		}
@@ -143,7 +144,7 @@ namespace pcit::panther{
 			const BaseType::Function& func_base_type =
 				this->context.getTypeManager().getFunction(func_base_type_id.funcID());
 			
-			if(func_base_type.isRuntime()){
+			if(func_base_type.isRuntime){
 				if(this->analyze_func_body<true>(global_func.ast_func, global_func.asg_func) == false){ return false; }
 			}
 		}
@@ -198,9 +199,10 @@ namespace pcit::panther{
 			};
 
 
-			case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
-			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::PrimitiveType:
-			case AST::Kind::Uninit:         case AST::Kind::Zeroinit:  case AST::Kind::Discard: {
+			case AST::Kind::TemplatePack:    case AST::Kind::Prefix:         case AST::Kind::Type:
+			case AST::Kind::TypeIDConverter: case AST::Kind::AttributeBlock: case AST::Kind::Attribute:
+			case AST::Kind::PrimitiveType:   case AST::Kind::Uninit:         case AST::Kind::Zeroinit:
+			case AST::Kind::Discard: {
 				// TODO: message the exact kind
 				this->emit_fatal(
 					Diagnostic::Code::SemaInvalidGlobalStmtKind,
@@ -219,8 +221,6 @@ namespace pcit::panther{
 
 	template<bool IS_GLOBAL>
 	auto SemanticAnalyzer::analyze_var_decl(const AST::VarDecl& var_decl) -> bool {
-		if constexpr(IS_GLOBAL){ evo::debugAssert("Don't call this function for global scope yet"); }
-
 		const std::string_view var_ident = this->source.getTokenBuffer()[var_decl.ident].getString();
 		if(this->already_defined(var_ident, var_decl)){ return false; }
 
@@ -563,7 +563,7 @@ namespace pcit::panther{
 					// create param
 					const AST::Type& param_ast_type = this->source.getASTBuffer().getType(template_param.type);
 
-					const evo::Result<bool> param_type_is_generic = this->is_type_generic(param_ast_type);
+					const evo::Result<bool> param_type_is_generic = this->is_type_Type(param_ast_type);
 					if(param_type_is_generic.isError()){ return evo::resultError; }
 
 					if(param_type_is_generic.value()){
@@ -784,9 +784,9 @@ namespace pcit::panther{
 					const BaseType::Function& overload_type =
 						this->context.getTypeManager().getFunction(overload.baseTypeID.funcID());
 
-					if(params.size() != overload_type.params().size()){ break; }
+					if(params.size() != overload_type.params.size()){ break; }
 
-					for(size_t i = 0; const BaseType::Function::Param& overload_param : overload_type.params()){
+					for(size_t i = 0; const BaseType::Function::Param& overload_param : overload_type.params){
 						if(overload_param.typeID != params[i].typeID || overload_param.kind != params[i].kind){
 							is_different = true;
 							break;
@@ -854,22 +854,45 @@ namespace pcit::panther{
 				this->source.global_scope.addFunc(func_decl, asg_func_id);
 				return std::optional<ASG::Func::ID>(asg_func_id);
 			}else{
-				if(this->analyze_func_body<true>(func_decl, asg_func_id)){
-					return std::optional<ASG::Func::ID>(asg_func_id);
+				if(runtime_attr.is_set()){
+					if(this->analyze_func_body<true>(func_decl, asg_func_id)){
+						return std::optional<ASG::Func::ID>(asg_func_id);
+					}else{
+						return evo::resultError;
+					}
 				}else{
-					return evo::resultError;
+					if(this->analyze_func_body<false>(func_decl, asg_func_id)){
+						return std::optional<ASG::Func::ID>(asg_func_id);
+					}else{
+						return evo::resultError;
+					}
 				}
 			}
 		}
 	};
 
-
+	// TODO: remove IS_GLOBAL template?
 	template<bool IS_GLOBAL>
 	auto SemanticAnalyzer::analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, alias_decl, "alias declarations are currently unsupported"
+		const std::string_view alias_ident = this->source.getTokenBuffer()[alias_decl.ident].getString();
+		if(this->already_defined(alias_ident, alias_decl)){ return false; }
+
+		const evo::Result<TypeInfo::VoidableID> aliased_type = this->get_type_id(
+			this->source.getASTBuffer().getType(alias_decl.type)
 		);
-		return false;
+		if(aliased_type.isError()){ return false; }
+
+		const BaseType::ID alias_base_type_id = this->context.getTypeManager().getOrCreateAlias(
+			BaseType::Alias(this->source.getID(), alias_decl.ident, aliased_type.value())
+		);
+
+		this->get_current_scope_level().addAlias(alias_ident, alias_base_type_id.aliasID());
+
+		// if constexpr(IS_GLOBAL){
+		// 	this->source.global_scope.addAlias(alias_decl, alias_base_type_id.aliasID());
+		// }
+
+		return true;
 	};
 
 
@@ -999,16 +1022,15 @@ namespace pcit::panther{
 		const auto asg_func_body_lock = std::unique_lock(asg_func.body_analysis_mutex);
 		if(asg_func.is_body_analyzed){ return true; } // don't re-analyze
 
-
-		this->push_scope_level(&asg_func.stmts, asg_func_id);
-		EVO_DEFER([&](){ this->pop_scope_level(); });
+		this->scope.pushLevel(this->context.getScopeManager().createLevel(&asg_func.stmts), asg_func_id);
+		EVO_DEFER([&](){ this->scope.popLevel(); });
 
 		const BaseType::Function& asg_func_type = this->context.getTypeManager().getFunction(
 			asg_func.baseTypeID.funcID()
 		);
 
 		// create params
-		for(uint32_t i = 0; const BaseType::Function::Param& param : asg_func_type.params()){
+		for(uint32_t i = 0; const BaseType::Function::Param& param : asg_func_type.params){
 			const ASG::Param::ID asg_param_id = this->source.asg_buffer.createParam(asg_func_id, i);
 			this->get_current_scope_level().addParam(
 				this->source.getTokenBuffer()[param.ident.as<Token::ID>()].getString(), asg_param_id
@@ -1019,8 +1041,8 @@ namespace pcit::panther{
 		}
 
 		// create return params
-		if(asg_func_type.returnParams()[0].ident.has_value()){
-			for(uint32_t i = 0; const BaseType::Function::ReturnParam& ret_param : asg_func_type.returnParams()){
+		if(asg_func_type.returnParams[0].ident.has_value()){
+			for(uint32_t i = 0; const BaseType::Function::ReturnParam& ret_param : asg_func_type.returnParams){
 				const ASG::ReturnParam::ID asg_ret_param_id = this->source.asg_buffer.createReturnParam(asg_func_id, i);
 				this->get_current_scope_level().addReturnParam(
 					this->source.getTokenBuffer()[*ret_param.ident].getString(), asg_ret_param_id
@@ -1032,7 +1054,7 @@ namespace pcit::panther{
 		}
 
 		if(this->analyze_block(this->source.getASTBuffer().getBlock(ast_func.block)) == false){
-			if(asg_func_type.isRuntime() == false){ asg_func.is_body_errored = true; }
+			if(asg_func_type.isRuntime == false){ asg_func.is_body_errored = true; }
 			return this->may_recover();
 		}
 
@@ -1163,9 +1185,10 @@ namespace pcit::panther{
 			} break;
 
 
-			case AST::Kind::TemplatePack:   case AST::Kind::Prefix:    case AST::Kind::Type:
-			case AST::Kind::AttributeBlock: case AST::Kind::Attribute: case AST::Kind::PrimitiveType:
-			case AST::Kind::Uninit:         case AST::Kind::Zeroinit:  case AST::Kind::Discard: {
+			case AST::Kind::TemplatePack:    case AST::Kind::Prefix:         case AST::Kind::Type:
+			case AST::Kind::TypeIDConverter: case AST::Kind::AttributeBlock: case AST::Kind::Attribute:
+			case AST::Kind::PrimitiveType:   case AST::Kind::Uninit:         case AST::Kind::Zeroinit:
+			case AST::Kind::Discard: {
 				// TODO: message the exact kind
 				this->emit_fatal(
 					Diagnostic::Code::SemaInvalidStmtKind,
@@ -1252,7 +1275,7 @@ namespace pcit::panther{
 			const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
 			const BaseType::Function& current_func_base_type =
 				this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
-			if(current_func_base_type.isRuntime() == false){
+			if(current_func_base_type.isRuntime == false){
 				this->emit_error(
 					Diagnostic::Code::SemaAssignmentDstGlobalInRuntimeFunc,
 					infix.lhs,
@@ -1337,7 +1360,7 @@ namespace pcit::panther{
 			current_func.baseTypeID.funcID()
 		);
 
-		const evo::ArrayProxy<BaseType::Function::ReturnParam> returns = func_type.returnParams();
+		const evo::ArrayProxy<BaseType::Function::ReturnParam> returns = func_type.returnParams;
 
 		auto return_value = std::optional<ASG::Expr>();
 		const bool return_value_visit_result = return_stmt.value.visit([&](const auto& value) -> bool {
@@ -1573,6 +1596,8 @@ namespace pcit::panther{
 		auto base_type = std::optional<BaseType::ID>();
 		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
 
+		bool should_error_invalid_type_qualifiers = true;
+
 		switch(ast_type.base.kind()){
 			case AST::Kind::PrimitiveType: {
 				const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(ast_type.base);
@@ -1596,9 +1621,9 @@ namespace pcit::panther{
 					case Token::Kind::TypeBF16:      case Token::Kind::TypeF32:        case Token::Kind::TypeF64:
 					case Token::Kind::TypeF80:       case Token::Kind::TypeF128:       case Token::Kind::TypeByte:
 					case Token::Kind::TypeBool:      case Token::Kind::TypeChar:       case Token::Kind::TypeRawPtr:
-					case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
-					case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
-					case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
+					case Token::Kind::TypeTypeID:    case Token::Kind::TypeCShort:     case Token::Kind::TypeCUShort:
+					case Token::Kind::TypeCInt:      case Token::Kind::TypeCUInt:      case Token::Kind::TypeCLong:
+					case Token::Kind::TypeCULong:    case Token::Kind::TypeCLongLong:  case Token::Kind::TypeCULongLong:
 					case Token::Kind::TypeCLongDouble: {
 						base_type = this->context.getTypeManager().getOrCreatePrimitiveBaseType(
 							primitive_type_token.kind()
@@ -1628,6 +1653,8 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::Ident: {
+				should_error_invalid_type_qualifiers = false;
+
 				const Token::ID base_type_token_id = ASTBuffer::getIdent(ast_type.base);
 				const evo::Result<TypeInfo::VoidableID> ident_type_id = this->get_type_id(base_type_token_id);
 				if(ident_type_id.isError()){ return evo::resultError; }
@@ -1653,6 +1680,47 @@ namespace pcit::panther{
 				base_type = type_info.baseTypeID();
 			} break;
 
+			case AST::Kind::TypeIDConverter: {
+				// TODO: should uncomment this? (Panther design decision)
+				// should_error_invalid_type_qualifiers = false;
+
+				const AST::TypeIDConverter& type_id_converter = 
+					this->source.getASTBuffer().getTypeIDConverter(ast_type.base);
+
+				const evo::Result<ExprInfo> type_id_expr_info = 
+					this->analyze_expr<ExprValueKind::ConstEval>(type_id_converter.expr);
+				if(type_id_expr_info.isError()){ return evo::resultError; }
+
+				const ExprInfo::TypeID& expr_type_id = type_id_expr_info.value().type_id;
+
+				if(
+					expr_type_id.is<evo::SmallVector<TypeInfo::ID>>() == false ||
+					expr_type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != 1 || 
+					expr_type_id.as<evo::SmallVector<TypeInfo::ID>>().front() != TypeManager::getTypeTypeID()
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaNotValidExprForTypeIDConversion,
+						ast_type.base,
+						"Expression is not valid for TypeID conversion"
+					);
+					return evo::resultError;
+				}
+
+				const ASG::Expr& type_id_expr = type_id_expr_info.value().getExpr();
+				const ASG::LiteralInt& type_id_value = 
+					this->source.getASGBuffer().getLiteralInt(type_id_expr.literalIntID());
+
+				const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(
+					TypeInfo::ID(static_cast<uint32_t>(type_id_value.value))
+				);
+
+				for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+					qualifiers.emplace_back(qualifier);
+				}
+
+				base_type = type_info.baseTypeID();
+			} break;
+
 			// TODO: separate out into more kinds to be more specific (errors vs fatal)
 			default: {
 				this->emit_error(
@@ -1670,7 +1738,19 @@ namespace pcit::panther{
 			qualifiers.emplace_back(qualifier);
 		}
 
-		if(this->check_type_qualifiers(qualifiers, ast_type) == false){ return evo::resultError; }
+		if(should_error_invalid_type_qualifiers){
+			if(this->check_type_qualifiers(qualifiers, ast_type) == false){ return evo::resultError; }
+
+		}else{
+			bool found_read_only_ptr = false;
+			for(auto iter = qualifiers.rbegin(); iter != qualifiers.rend(); ++iter){
+				if(found_read_only_ptr){
+					if(iter->isPtr){ iter->isReadOnly = true; }
+				}else{
+					if(iter->isPtr && iter->isReadOnly){ found_read_only_ptr = true; }
+				}
+			}
+		}
 
 		return TypeInfo::VoidableID(
 			this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(*base_type, std::move(qualifiers)))
@@ -1687,6 +1767,45 @@ namespace pcit::panther{
 			return template_type_find->second;
 		}
 
+
+		for(size_t i = this->scope.size() - 1; ScopeManager::Level::ID scope_level_id : this->scope){
+			EVO_DEFER([&](){ i -= 1; });
+
+			const ScopeManager::Level& scope_level = this->context.getScopeManager()[scope_level_id];
+
+			const ScopeManager::Level::IdentID* ident_id_lookup = scope_level.lookupIdent(ident_str);
+			if(ident_id_lookup == nullptr){ continue; }
+
+			if(ident_id_lookup->is<BaseType::Alias::ID>() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaExprCannotBeUsedAsType,
+					ident_token_id,
+					std::format("Identifier \"{}\" is not a type", ident_str)
+				);
+				return evo::resultError;
+			}
+
+			const bool variables_in_scope = i >= this->scope.getCurrentObjectScopeIndex() || i == 0;
+			if(variables_in_scope){
+				return this->context.getTypeManager().getAlias(ident_id_lookup->as<BaseType::Alias::ID>()).aliasedType;
+
+			}else{
+				// TODO: better messaging
+				this->emit_error(
+					Diagnostic::Code::SemaIdentNotInScope,
+					ident_token_id,
+					std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+					Diagnostic::Info(
+						"Local variables, parameters, and members cannot be accessed inside a sub-object scope. "
+						"Defined here:",
+						this->get_source_location(ident_token_id)
+					)
+				);
+				return evo::resultError;
+			}
+		}
+
+
 		this->emit_error(
 			Diagnostic::Code::SemaIdentNotInScope,
 			ident_token_id,
@@ -1697,7 +1816,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::is_type_generic(const AST::Type& ast_type) -> evo::Result<bool> {
+	auto SemanticAnalyzer::is_type_Type(const AST::Type& ast_type) -> evo::Result<bool> {
 		if(ast_type.base.kind() != AST::Kind::PrimitiveType){ return false; }
 
 		const Token::ID base_type_token_id = this->source.getASTBuffer().getPrimitiveType(ast_type.base);
@@ -1901,7 +2020,7 @@ namespace pcit::panther{
 		// get return types
 
 		const evo::ArrayProxy<BaseType::Function::ReturnParam> overload_return_params =
-			analyzed_func_call_data.value().selected_func_type->returnParams();
+			analyzed_func_call_data.value().selected_func_type->returnParams;
 
 		auto return_types = evo::SmallVector<TypeInfo::ID>();
 		return_types.reserve(overload_return_params.size());
@@ -1931,7 +2050,7 @@ namespace pcit::panther{
 		}else{
 			static_assert(EXPR_VALUE_KIND == ExprValueKind::ConstEval, "Wrong expr value kind");
 
-			if(analyzed_func_call_data.value().selected_func_type->isRuntime()){
+			if(analyzed_func_call_data.value().selected_func_type->isRuntime){
 				this->emit_error(
 					Diagnostic::Code::SemaCantCallRuntimeFuncInComptimeContext,
 					func_call,
@@ -2030,7 +2149,17 @@ namespace pcit::panther{
 
 							const ASG::LiteralInt::ID literal_int_id = this->source.asg_buffer.createLiteralInt(
 								core::GenericInt::create<uint64_t>(type_size),
-								this->context.getTypeManager().getTypeUSize()
+								TypeManager::getTypeUSize()
+							);
+							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
+						} break;
+
+						case TemplatedIntrinsic::Kind::GetTypeID: {
+							const ASG::LiteralInt::ID literal_int_id = this->source.asg_buffer.createLiteralInt(
+								core::GenericInt::create<uint32_t>(
+									instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID().get()
+								),
+								this->context.getTypeManager().getTypeTypeID()
 							);
 							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
 						} break;
@@ -2654,7 +2783,18 @@ namespace pcit::panther{
 					);
 					return evo::resultError;
 				}
-			};
+			} break;
+
+			case TemplatedIntrinsic::Kind::GetTypeID: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get TypeID of `Void`"
+					);
+					return evo::resultError;
+				}
+			} break;
 
 			case TemplatedIntrinsic::Kind::BitCast: {
 				if(instantiation_type_args[0]->isVoid()){
@@ -2716,17 +2856,13 @@ namespace pcit::panther{
 		}
 
 
-
-
-		const BaseType::Function instantiated_base_type = 
-			templated_intrinsic.getTypeInstantiation(instantiation_type_args);
-
 		const TypeInfo::ID instantiated_type = this->context.getTypeManager().getOrCreateTypeInfo(
 			TypeInfo(
-				this->context.getTypeManager().getOrCreateFunction(instantiated_base_type)
+				this->context.getTypeManager().getOrCreateFunction(
+					templated_intrinsic.getTypeInstantiation(instantiation_type_args)
+				)
 			)
 		);
-
 
 		if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 			return ExprInfo(
@@ -2884,7 +3020,7 @@ namespace pcit::panther{
 				const BaseType::Function& current_func_base_type =
 					this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
 
-				if(rhs_info.is_const() == false && current_func_base_type.isRuntime() == false){
+				if(rhs_info.is_const() == false && current_func_base_type.isRuntime == false){
 					// TODO: better messaging
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidAddrOfRHS,
@@ -2912,8 +3048,13 @@ namespace pcit::panther{
 			const bool is_read_only = rhs_info.is_const() || IS_CONST;
 			rhs_type_qualifiers.emplace_back(true, is_read_only, false);
 
-			if(this->check_type_qualifiers(rhs_type_qualifiers, prefix) == false){
-				return evo::Result<TypeInfo::ID>(evo::resultError);
+			bool found_read_only_ptr = false;
+			for(auto iter = rhs_type_qualifiers.rbegin(); iter != rhs_type_qualifiers.rend(); ++iter){
+				if(found_read_only_ptr){
+					if(iter->isPtr){ iter->isReadOnly = true; }
+				}else{
+					if(iter->isPtr && iter->isReadOnly){ found_read_only_ptr = true; }
+				}
 			}
 
 			return evo::Result<TypeInfo::ID>(
@@ -3083,7 +3224,8 @@ namespace pcit::panther{
 						std::is_same_v<IdentID, ASG::VarID> ||
 						std::is_same_v<IdentID, ASG::ParamID> ||
 						std::is_same_v<IdentID, ASG::ReturnParamID> ||
-						std::is_same_v<IdentID, ScopeManager::Level::ImportInfo>
+						std::is_same_v<IdentID, ScopeManager::Level::ImportInfo> ||
+						std::is_same_v<IdentID, BaseType::Alias::ID>
 					){
 						evo::debugFatalBreak("Unsupported import kind");
 						
@@ -3391,7 +3533,7 @@ namespace pcit::panther{
 						asg_func.baseTypeID.funcID()
 					);
 
-					const BaseType::Function::Param& param = func_type.params()[asg_param.index];
+					const BaseType::Function::Param& param = func_type.params[asg_param.index];
 
 					auto get_value_type = [&](){
 						switch(param.kind){
@@ -3455,7 +3597,7 @@ namespace pcit::panther{
 						asg_func.baseTypeID.funcID()
 					);
 
-					const BaseType::Function::ReturnParam& return_param = func_type.returnParams()[asg_ret_param.index];
+					const BaseType::Function::ReturnParam& return_param = func_type.returnParams[asg_ret_param.index];
 
 					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 						return std::optional<ExprInfo>(
@@ -3506,6 +3648,14 @@ namespace pcit::panther{
 				return std::optional<ExprInfo>(
 					ExprInfo(ExprInfo::ValueType::Import, ident_id.sourceID, std::nullopt)
 				);
+
+			}else if constexpr(std::is_same_v<IdentID, BaseType::Alias::ID>){
+				this->emit_error(
+					Diagnostic::Code::SemaTypeCannotBeUsedAsExpr,
+					ident,
+					"Type alias cannot be used as an expression"
+				);
+				return evo::resultError;
 
 			}else{
 				static_assert(false, "Unknown or unsupported ScopeManager::Level::IdentID kind");
@@ -3802,7 +3952,7 @@ namespace pcit::panther{
 		// check function return value
 
 		if constexpr(IS_STMT){
-			if(func_types[selected_func_overload_index.value()]->returnParams()[0].typeID.isVoid() == false){
+			if(func_types[selected_func_overload_index.value()]->returnParams[0].typeID.isVoid() == false){
 				// TODO: better messaging - #mayDiscard
 				this->emit_error(
 					Diagnostic::Code::SemaDiscardingFuncReturn,
@@ -3812,7 +3962,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 		}else{
-			if(func_types[selected_func_overload_index.value()]->returnParams()[0].typeID.isVoid()){
+			if(func_types[selected_func_overload_index.value()]->returnParams[0].typeID.isVoid()){
 				this->emit_error(
 					Diagnostic::Code::SemaFuncDoesntReturnValue,
 					func_call.target,
@@ -3826,12 +3976,12 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// check runtime attribute
 
-		if(func_types[selected_func_overload_index.value()]->isRuntime()){
+		if(func_types[selected_func_overload_index.value()]->isRuntime){
 			const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
 			const BaseType::Function& current_func_base_type =
 				this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
 			
-			if(current_func_base_type.isRuntime() == false){
+			if(current_func_base_type.isRuntime == false){
 				this->emit_error(
 					Diagnostic::Code::SemaCantCallRuntimeFuncInComptimeContext,
 					func_call,
@@ -3883,7 +4033,7 @@ namespace pcit::panther{
 					const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
 					const BaseType::Function& current_func_base_type =
 						this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
-					return current_func_base_type.isRuntime();
+					return current_func_base_type.isRuntime;
 				}();
 
 				if(is_current_func_runtime == false){
@@ -3984,14 +4134,14 @@ namespace pcit::panther{
 
 			const BaseType::Function& func_type = *func_type_ptr;
 
-			if(arg_infos.size() != func_type.params().size()){
+			if(arg_infos.size() != func_type.params.size()){
 				scores.emplace_back(OverloadScore::NumMismatch());
 				continue;
 			}
 
 			evo::uint current_score = 0;
 
-			for(size_t param_i = 0; const BaseType::Function::Param& param : func_type.params()){
+			for(size_t param_i = 0; const BaseType::Function::Param& param : func_type.params){
 				ArgInfo& arg_info = arg_infos[param_i];
 
 				const TypeCheckInfo& type_check_info = this->type_check<false>(
@@ -4011,12 +4161,12 @@ namespace pcit::panther{
 
 					case AST::FuncDecl::Param::Kind::Mut: {
 						if(arg_info.expr_info.value_type == ExprInfo::ValueType::ConcreteMutGlobal){
-							const bool is_target_func_runtime = func_type.isRuntime();
+							const bool is_target_func_runtime = func_type.isRuntime;
 							const bool is_calling_func_runtime = [&](){
 								const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
 								const BaseType::Function& current_func_base_type =
 									this->context.getTypeManager().getFunction(current_func_base_type_id.funcID());
-								return current_func_base_type.isRuntime();
+								return current_func_base_type.isRuntime;
 							}();
 
 							if(is_target_func_runtime && is_calling_func_runtime){
@@ -4146,7 +4296,7 @@ namespace pcit::panther{
 								"{} mismatched number of arguments (expected {}, got {})",
 								fail_match_message,
 								arg_infos.size(),
-								funcs[i]->params().size()
+								funcs[i]->params.size()
 							),
 							[&](){
 								if constexpr(IS_INTRINSIC){
@@ -4164,7 +4314,7 @@ namespace pcit::panther{
 								fail_match_message,
 								reason.arg_index
 							),
-							funcs[i]->params()[reason.arg_index].ident.visit([&](auto param_ident){
+							funcs[i]->params[reason.arg_index].ident.visit([&](auto param_ident){
 								if constexpr(std::is_same_v<std::decay_t<decltype(param_ident)>, Token::ID>){
 									return std::optional<Source::Location>(this->get_source_location(
 										param_ident, this->context.getSourceManager()[asg_funcs[i].sourceID()]
@@ -4177,7 +4327,7 @@ namespace pcit::panther{
 								std::format(
 									"Parameter is of type: {}",
 									this->context.getTypeManager().printType(
-										funcs[i]->params()[reason.arg_index].typeID
+										funcs[i]->params[reason.arg_index].typeID
 									)
 								),
 								std::format(
@@ -4187,7 +4337,7 @@ namespace pcit::panther{
 						);
 
 					}else if constexpr(std::is_same_v<ReasonT, OverloadScore::ValueKindMismatch>){
-						const AST::FuncDecl::Param::Kind param_kind = funcs[i]->params()[reason.arg_index].kind;
+						const AST::FuncDecl::Param::Kind param_kind = funcs[i]->params[reason.arg_index].kind;
 
 						switch(param_kind){
 							case AST::FuncDecl::Param::Kind::Read: {
@@ -4199,7 +4349,7 @@ namespace pcit::panther{
 									std::format(
 										"{} [mut] parameters require concrete mutable expressions", fail_match_message
 									),
-									funcs[i]->params()[reason.arg_index].ident.visit([&](auto param_ident){
+									funcs[i]->params[reason.arg_index].ident.visit([&](auto param_ident){
 										if constexpr(std::is_same_v<std::decay_t<decltype(param_ident)>, Token::ID>){
 											return std::optional<Source::Location>(this->get_source_location(
 												param_ident, this->context.getSourceManager()[asg_funcs[i].sourceID()]
@@ -4214,7 +4364,7 @@ namespace pcit::panther{
 							case AST::FuncDecl::Param::Kind::In: {
 								infos.emplace_back(
 									std::format("{} [in] parameters require ephemeral expressions", fail_match_message),
-									funcs[i]->params()[reason.arg_index].ident.visit([&](auto param_ident){
+									funcs[i]->params[reason.arg_index].ident.visit([&](auto param_ident){
 										if constexpr(std::is_same_v<std::decay_t<decltype(param_ident)>, Token::ID>){
 											return std::optional<Source::Location>(this->get_source_location(
 												param_ident, this->context.getSourceManager()[asg_funcs[i].sourceID()]
@@ -4295,7 +4445,7 @@ namespace pcit::panther{
 
 		for(size_t i = 0; ArgInfo& arg_info : arg_infos){
 			if(this->type_check<true>( // this is to implicitly convert all the required args
-				matched_func_type.params()[i].typeID, arg_info.expr_info, "Parameter", arg_info.ast_node
+				matched_func_type.params[i].typeID, arg_info.expr_info, "Parameter", arg_info.ast_node
 			).ok == false){
 				evo::debugFatalBreak("This should not be able to fail");
 			}
@@ -4820,9 +4970,10 @@ namespace pcit::panther{
 			case AST::Kind::Postfix:         return this->get_source_location(ast_buffer.getPostfix(node), src);
 			case AST::Kind::MultiAssign:     return this->get_source_location(ast_buffer.getMultiAssign(node), src);
 			case AST::Kind::Type:            return this->get_source_location(ast_buffer.getType(node), src);
+			case AST::Kind::TypeIDConverter: return this->get_source_location(ast_buffer.getTypeIDConverter(node), src);
 			case AST::Kind::AttributeBlock:  evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
 			case AST::Kind::Attribute:       return this->get_source_location(ast_buffer.getAttribute(node), src);
-			case AST::Kind::PrimitiveType:     return this->get_source_location(ast_buffer.getPrimitiveType(node), src);
+			case AST::Kind::PrimitiveType:   return this->get_source_location(ast_buffer.getPrimitiveType(node), src);
 			case AST::Kind::Ident:           return this->get_source_location(ast_buffer.getIdent(node), src);
 			case AST::Kind::Intrinsic:       return this->get_source_location(ast_buffer.getIntrinsic(node), src);
 			case AST::Kind::Literal:         return this->get_source_location(ast_buffer.getLiteral(node), src);
@@ -4906,6 +5057,11 @@ namespace pcit::panther{
 		return this->get_source_location(type.base, src);
 	}
 
+	auto SemanticAnalyzer::get_source_location(const AST::TypeIDConverter& type, const Source& src) const
+	-> SourceLocation {
+		return this->get_source_location(type.expr, src);
+	}
+
 	auto SemanticAnalyzer::get_source_location(const AST::AttributeBlock::Attribute& attr, const Source& src) const
 	-> SourceLocation {
 		return this->get_source_location(attr.attribute, src);
@@ -4946,10 +5102,10 @@ namespace pcit::panther{
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
 
 		evo::debugAssert(
-			func_type.params()[asg_param.index].ident.is<Token::ID>(), "Cannot get location of intrinsic param ident"
+			func_type.params[asg_param.index].ident.is<Token::ID>(), "Cannot get location of intrinsic param ident"
 		);
 
-		return this->get_source_location(func_type.params()[asg_param.index].ident.as<Token::ID>(), src);
+		return this->get_source_location(func_type.params[asg_param.index].ident.as<Token::ID>(), src);
 	}
 
 	auto SemanticAnalyzer::get_source_location(ASG::ReturnParam::ID ret_param_id, const Source& src) const
@@ -4959,12 +5115,18 @@ namespace pcit::panther{
 
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
 
-		return this->get_source_location(*func_type.returnParams()[asg_ret_param.index].ident, src);
+		return this->get_source_location(*func_type.returnParams[asg_ret_param.index].ident, src);
 	}
 
 	auto SemanticAnalyzer::get_source_location(ScopeManager::Level::ImportInfo import_info, const Source& src) const
 	-> SourceLocation {
 		return this->get_source_location(import_info.tokenID, src);
+	}
+
+	auto SemanticAnalyzer::get_source_location(BaseType::Alias::ID alias_id, const Source& src) const
+	-> SourceLocation {
+		const BaseType::Alias& alias = this->context.getTypeManager().getAlias(alias_id);
+		return this->get_source_location(alias.identTokenID, src);
 	}
 
 

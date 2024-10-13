@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.43.0
+
+### Panther
+- Added `alias` declarations
+- Added primitive-type `TypeID`
+- Added intrinsic function `@getTypeID`
+- Added Type ID conversion expression
+- Improved rules around read-only-ness of chained type qualifiers
+- Fixed fatal error when creating a global variable of type `CLongDouble` that was set to `zeroinit`
+- Fixed fatal error caused by error when parsing a type
+- Fixed incorrect error diagnostic being emitted that the function scope was terminated after a sub-function declaration
+- Fixed fatal error when trying to run a compile-time function declared inside a runtime function
+
+## Misc
+- Updated README to move Panther example to new PCIT website
+
+
+<!---------------------------------->
 ## v0.0.42.0
 
 ### Panther
@@ -78,11 +96,13 @@
 	- Also fixes a fatal error caused by attempting to do type inference of an initializer value
 - Removed conditional argument from attribute `#mustLabel`
 - Improved / simplified error diagnostic messages about missing attributes
-- Slight tweaks to README
 - Fixed fatal error caused by declaring function overloads with different number of parameters
 - Fixed calling an overloaded functions causing a diagnostic to be emitted that it is not callable
 - Fixed fatal error caused by in some cases having a type mismatch in a failed overload resolution
 - Fixed fatal error when printing `...` token
+
+## Misc
+- Slight tweaks to README
 
 
 <!---------------------------------->
@@ -247,7 +267,7 @@
 ### Panther
 - Added support for function parameters
 - Added parameter attribute `#mustLabel`
-- Re-added built-in type `F80`
+- Re-added primitive-type `F80`
 - *[Experimental]* Added clickable source file locations in diagnostics (only works if terminal supports it) 
 - Fixed functions with return types that are from the template instantiation
 - Fixed not properly checking for identifier reuse within a template parameter block
@@ -364,7 +384,7 @@ Added the ability to run compiled Panther code
 - Added the concept of fluid literals
 	- literal ints can become any integral type
 	- literal floats can become any float type
-- Removed built-in type `F80`
+- Removed primitive-type `F80`
 
 
 <!---------------------------------->

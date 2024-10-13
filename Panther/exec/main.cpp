@@ -43,13 +43,13 @@ namespace panther = pcit::panther;
 
 struct Config{
 	enum class Target{
-		PrintTokens,
-		PrintAST,
-		Parse,
-		SemanticAnalysis,
-		PrintLLVMIR,
-		LLVMIR,
 		Run,
+		LLVMIR,
+		PrintLLVMIR,
+		SemanticAnalysis,
+		Parse,
+		PrintAST,
+		PrintTokens,
 	} target;
 
 	bool verbose;

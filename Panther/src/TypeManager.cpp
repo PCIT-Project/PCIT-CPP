@@ -33,6 +33,7 @@ namespace pcit::panther{
 		const BaseType::Primitive::ID type_bool = this->primitives.emplace_back(Token::Kind::TypeBool);
 		const BaseType::Primitive::ID type_char = this->primitives.emplace_back(Token::Kind::TypeChar);
 		this->primitives.emplace_back(Token::Kind::TypeRawPtr);
+		const BaseType::Primitive::ID type_type_id = this->primitives.emplace_back(Token::Kind::TypeTypeID);
 
 		this->primitives.emplace_back(Token::Kind::TypeCShort);
 		this->primitives.emplace_back(Token::Kind::TypeCUShort);
@@ -54,12 +55,11 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TypeUI_N, 32);
 		this->primitives.emplace_back(Token::Kind::TypeUI_N, 64);
 
-
-
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_bool.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_char.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_ui8.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_usize.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_type_id.get())));
 	}
 
 	auto TypeManager::primitivesInitialized() const -> bool {
@@ -117,7 +117,14 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::Function: {
+					// TODO: fix this
 					return "{FUNCTION}";
+				} break;
+
+				case BaseType::Kind::Alias: {
+					const BaseType::Alias::ID alias_id = type_info.baseTypeID().aliasID();
+					const BaseType::Alias& alias = this->getAlias(alias_id);
+					return this->printType(alias.aliasedType);
 				} break;
 
 				case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot print a dummy type");
@@ -129,7 +136,7 @@ namespace pcit::panther{
 
 		std::string type_str = get_base_str();
 
-		bool is_first_qualifer = true;
+		bool is_first_qualifer = type_str.back() != '*' && type_str.back() != '|' && type_str.back() != '?';
 		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
 			if(type_info.qualifiers().size() > 1){
 				if(is_first_qualifer){
@@ -157,7 +164,7 @@ namespace pcit::panther{
 		return this->functions[id];
 	}
 
-	auto TypeManager::getOrCreateFunction(BaseType::Function lookup_func) -> BaseType::ID {
+	auto TypeManager::getOrCreateFunction(BaseType::Function&& lookup_func) -> BaseType::ID {
 		const auto lock = std::unique_lock(this->functions_mutex);
 
 		for(uint32_t i = 0; i < this->functions.size(); i+=1){
@@ -200,6 +207,28 @@ namespace pcit::panther{
 		return BaseType::ID(BaseType::Kind::Primitive, new_primitive.get());
 	}
 
+
+	//////////////////////////////////////////////////////////////////////
+	// aliases
+
+	auto TypeManager::getAlias(BaseType::Alias::ID id) const -> const BaseType::Alias& {
+		const auto lock = std::shared_lock(this->aliases_mutex);
+		return this->aliases[id];
+	}
+
+
+	auto TypeManager::getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID {
+		const auto lock = std::shared_lock(this->aliases_mutex);
+		
+		for(uint32_t i = 0; i < this->aliases.size(); i+=1){
+			if(this->aliases[BaseType::Alias::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::Alias, i);
+			}
+		}
+
+		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(lookup_type);
+		return BaseType::ID(BaseType::Kind::Alias, new_alias.get());
+	}
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -248,6 +277,7 @@ namespace pcit::panther{
 					case Token::Kind::TypeBool:   return 1;
 					case Token::Kind::TypeChar:   return 1;
 					case Token::Kind::TypeRawPtr: return this->sizeOfPtr();
+					case Token::Kind::TypeTypeID: return 4;
 
 					// https://en.cppreference.com/w/cpp/language/types
 					case Token::Kind::TypeCShort: case Token::Kind::TypeCUShort:
@@ -270,6 +300,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::Function: {
 				return this->sizeOfPtr();
+			} break;
+
+			case BaseType::Kind::Alias: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				evo::debugAssert(alias.aliasedType.isVoid() == false, "cannot get sizeof type `Void`");
+				return this->sizeOf(alias.aliasedType.typeID());
 			} break;
 
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot get the size of a dummy type");
@@ -368,6 +404,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeBool:        return false;
 			case Token::Kind::TypeChar:        return false;
 			case Token::Kind::TypeRawPtr:      return false;
+			case Token::Kind::TypeTypeID:      return false;
 			case Token::Kind::TypeCShort:      return true;
 			case Token::Kind::TypeCUShort:     return true;
 			case Token::Kind::TypeCInt:        return true;
@@ -422,6 +459,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeBool:        return false;
 			case Token::Kind::TypeChar:        return false;
 			case Token::Kind::TypeRawPtr:      return false;
+			case Token::Kind::TypeTypeID:      return false;
 			case Token::Kind::TypeCShort:      return false;
 			case Token::Kind::TypeCUShort:     return false;
 			case Token::Kind::TypeCInt:        return false;

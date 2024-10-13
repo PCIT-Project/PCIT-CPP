@@ -91,7 +91,7 @@ namespace pcit::panther{
 			.getASGBuffer().getFunc(link_id.funcID());
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.baseTypeID.funcID());
 
-		const TypeInfo::ID func_return_type_id = func_type.returnParams().front().typeID.typeID();
+		const TypeInfo::ID func_return_type_id = func_type.returnParams.front().typeID.typeID();
 		const TypeInfo& func_return_type = type_manager.getTypeInfo(func_return_type_id);
 
 		const std::string_view func_mangled_name = this->data->asg_to_llvmir->getFuncMangledName(link_id);
@@ -151,12 +151,12 @@ namespace pcit::panther{
 				evo::fatalBreak("Type CLongDouble is not supported for comptime return yet");
 			} break;
 
-			case Token::Kind::TypeInt:     case Token::Kind::TypeISize:  case Token::Kind::TypeI_N:
-			case Token::Kind::TypeUInt:    case Token::Kind::TypeUSize:  case Token::Kind::TypeUI_N:
-			case Token::Kind::TypeByte:    case Token::Kind::TypeRawPtr: case Token::Kind::TypeCShort:
-			case Token::Kind::TypeCUShort: case Token::Kind::TypeCInt:   case Token::Kind::TypeCUInt:
-			case Token::Kind::TypeCLong:   case Token::Kind::TypeCULong: case Token::Kind::TypeCLongLong:
-			case Token::Kind::TypeCULongLong: {
+			case Token::Kind::TypeInt:       case Token::Kind::TypeISize:        case Token::Kind::TypeI_N:
+			case Token::Kind::TypeUInt:      case Token::Kind::TypeUSize:        case Token::Kind::TypeUI_N:
+			case Token::Kind::TypeByte:      case Token::Kind::TypeRawPtr:       case Token::Kind::TypeTypeID:
+			case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:      case Token::Kind::TypeCInt:
+			case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:        case Token::Kind::TypeCULong:
+			case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: {
 				const ASG::LiteralInt::ID literal_int_id = [&](){
 					const size_t size_of_func_return_base_type = type_manager.sizeOf(func_return_type.baseTypeID());
 

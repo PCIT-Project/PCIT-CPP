@@ -139,8 +139,7 @@ namespace pcit::panther{
 						case Token::Kind::TypeUInt:      case Token::Kind::TypeUSize:      case Token::Kind::TypeUI_N:
 						case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
 						case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
-						case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: 
-						case Token::Kind::TypeCLongDouble: {
+						case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: {
 							const auto integer_type = llvmint::IntegerType(
 								(llvm::IntegerType*)this->get_type(var_primitive_type).native()
 							);
@@ -148,7 +147,8 @@ namespace pcit::panther{
 						} break;
 
 						case Token::Kind::TypeF16: case Token::Kind::TypeBF16: case Token::Kind::TypeF32:
-						case Token::Kind::TypeF64: case Token::Kind::TypeF80:  case Token::Kind::TypeF128: {
+						case Token::Kind::TypeF64: case Token::Kind::TypeF80:  case Token::Kind::TypeF128:
+						case Token::Kind::TypeCLongDouble: {
 							const llvmint::Type float_type = this->get_type(var_primitive_type);
 							return this->builder.getValueFloat(float_type, 0.0);
 						} break;
@@ -198,7 +198,7 @@ namespace pcit::panther{
 		const auto asg_func_link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
 		this->func_infos.emplace(asg_func_link_id, FuncInfo(llvm_func, std::move(mangled_name)));
 
-		for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params()){
+		for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params){
 			const std::string_view param_name = param.ident.visit([&](const auto& param_ident_id) -> std::string_view {
 				if constexpr(std::is_same_v<std::decay_t<decltype(param_ident_id)>, Token::ID>){
 					return this->current_source->getTokenBuffer()[param_ident_id].getString();
@@ -212,9 +212,9 @@ namespace pcit::panther{
 		}
 
 		if(func_type.hasNamedReturns()){
-			const evo::uint first_return_param_index = evo::uint(func_type.params().size());
+			const evo::uint first_return_param_index = evo::uint(func_type.params.size());
 			evo::uint i = first_return_param_index;
-			for(const BaseType::Function::ReturnParam& ret_param : func_type.returnParams()){
+			for(const BaseType::Function::ReturnParam& ret_param : func_type.returnParams){
 				llvm_func.getArg(i).setName(
 					std::format("ret.{}", this->current_source->getTokenBuffer()[*ret_param.ident].getString())
 				);
@@ -232,7 +232,7 @@ namespace pcit::panther{
 			}			
 		}
 
-		if(func_type.params().empty()){
+		if(func_type.params.empty()){
 			this->builder.createBasicBlock(llvm_func, "begin");
 			
 		}else{
@@ -241,7 +241,7 @@ namespace pcit::panther{
 
 			this->builder.setInsertionPoint(setup_block);
 
-			for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params()){
+			for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params){
 				const std::string_view param_name = param.ident.visit(
 					[&](const auto& param_ident_id) -> std::string_view {
 						if constexpr(std::is_same_v<std::decay_t<decltype(param_ident_id)>, Token::ID>){
@@ -514,6 +514,12 @@ namespace pcit::panther{
 				return this->builder.getTypePtr().asType();
 			} break;
 
+			case BaseType::Kind::Alias: {
+				const BaseType::Alias::ID alias_id = type_info.baseTypeID().aliasID();
+				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(alias_id);
+				return this->get_type(alias.aliasedType);
+			} break;
+
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot get a dummy type");
 		}
 
@@ -549,6 +555,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeBool: return this->builder.getTypeBool().asType();
 			case Token::Kind::TypeChar: return this->builder.getTypeI8().asType();
 			case Token::Kind::TypeRawPtr: return this->builder.getTypePtr().asType();
+			case Token::Kind::TypeTypeID: return this->builder.getTypeI32().asType();
 
 			case Token::Kind::TypeCShort: case Token::Kind::TypeCUShort: 
 				return this->builder.getTypeI16().asType();
@@ -586,8 +593,8 @@ namespace pcit::panther{
 
 	auto ASGToLLVMIR::get_func_type(const BaseType::Function& func_type) const -> llvmint::FunctionType {
 		auto param_types = evo::SmallVector<llvmint::Type>();
-		param_types.reserve(func_type.params().size());
-		for(const BaseType::Function::Param& param : func_type.params()){
+		param_types.reserve(func_type.params.size());
+		for(const BaseType::Function::Param& param : func_type.params){
 			if(param.optimizeWithCopy){
 				param_types.emplace_back(this->get_type(param.typeID));
 			}else{
@@ -596,7 +603,7 @@ namespace pcit::panther{
 		}
 
 		if(func_type.hasNamedReturns()){
-			for(size_t i = 0; i < func_type.returnParams().size(); i+=1){
+			for(size_t i = 0; i < func_type.returnParams.size(); i+=1){
 				param_types.emplace_back(this->builder.getTypePtr());
 			}
 		}
@@ -605,7 +612,7 @@ namespace pcit::panther{
 			if(func_type.hasNamedReturns()){
 				return this->builder.getTypeVoid();
 			}else{
-				return this->get_type(func_type.returnParams().front().typeID);
+				return this->get_type(func_type.returnParams.front().typeID);
 			}
 		}();
 
@@ -654,7 +661,7 @@ namespace pcit::panther{
 					this->current_func->baseTypeID.funcID()
 				);
 
-				const bool optimize_with_copy = func_type.params()[param_info.index].optimizeWithCopy;
+				const bool optimize_with_copy = func_type.params[param_info.index].optimizeWithCopy;
 
 				if(optimize_with_copy){
 					return param_info.alloca.asValue();
@@ -820,7 +827,7 @@ namespace pcit::panther{
 					this->current_func->baseTypeID.funcID()
 				);
 
-				const bool optimize_with_copy = func_type.params()[param_info.index].optimizeWithCopy;
+				const bool optimize_with_copy = func_type.params[param_info.index].optimizeWithCopy;
 
 				if(optimize_with_copy){
 					if(get_pointer_to_value){
@@ -939,7 +946,7 @@ namespace pcit::panther{
 		auto args = evo::SmallVector<llvmint::Value>();
 		args.reserve(func_call.args.size());
 		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
-			const bool optimize_with_copy = func_type.params()[i].optimizeWithCopy;
+			const bool optimize_with_copy = func_type.params[i].optimizeWithCopy;
 			args.emplace_back(this->get_value(arg, !optimize_with_copy));
 
 			i += 1;
@@ -948,7 +955,7 @@ namespace pcit::panther{
 
 		auto return_values = evo::SmallVector<llvmint::Value>();
 		if(func_type.hasNamedReturns()){
-			for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams()){
+			for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams){
 				const llvmint::Alloca alloca = this->builder.createAlloca(
 					this->get_type(return_param.typeID),
 					this->stmt_name(
@@ -963,17 +970,17 @@ namespace pcit::panther{
 			this->builder.createCall(func_info.func, args);
 
 			if(get_pointer_to_value){
-				for(size_t i = func_type.params().size(); i < args.size(); i+=1){
+				for(size_t i = func_type.params.size(); i < args.size(); i+=1){
 					return_values.emplace_back(args[i]);
 				}
 
 				return return_values;
 			}
 
-			for(size_t i = func_type.params().size(); i < args.size(); i+=1){
+			for(size_t i = func_type.params.size(); i < args.size(); i+=1){
 				return_values.emplace_back(
 					this->builder.createLoad(
-						args[i], this->get_type(func_type.returnParams().front().typeID), false
+						args[i], this->get_type(func_type.returnParams.front().typeID), false
 					).asValue()
 				);
 			}
@@ -987,7 +994,7 @@ namespace pcit::panther{
 				return return_values;
 			}
 			
-			const llvmint::Type return_type = this->get_type(func_type.returnParams()[0].typeID);
+			const llvmint::Type return_type = this->get_type(func_type.returnParams[0].typeID);
 
 			const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
 			this->builder.createStore(alloca, func_call_value, false);
@@ -1009,7 +1016,6 @@ namespace pcit::panther{
 
 			i += 1;
 		}
-
 
 		if(func_call.target.is<Intrinsic::Kind>()){
 			switch(func_call.target.as<Intrinsic::Kind>()){
@@ -1112,6 +1118,17 @@ namespace pcit::panther{
 							this->context.getTypeManager().sizeOf(
 								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
 							)
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::GetTypeID: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueIntegral(
+							llvmint::IntegerType( // This is safe because it is guaranteed to be an integer type
+								(llvm::IntegerType*)this->get_type(TypeManager::getTypeTypeID()).native()
+							),
+							instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID().get()
 						).asValue()
 					};
 				} break;

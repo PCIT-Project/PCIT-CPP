@@ -24,12 +24,12 @@ namespace pcit::core{
 	constexpr auto version = Version{
 		.major   = 0,
 		.release = 0,
-		.minor   = 42,
+		.minor   = 43,
 		.patch   = 0,
 	};
 
 }
-
+ 	
 
 template<>
 struct std::formatter<pcit::core::Version> : std::formatter<std::string> {

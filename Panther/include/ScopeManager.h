@@ -42,7 +42,8 @@ namespace pcit::panther{
 						ASG::VarID,
 						ASG::ParamID,
 						ASG::ReturnParamID,
-						ImportInfo
+						ImportInfo,
+						BaseType::Alias::ID
 					>;
 
 				public:
@@ -65,6 +66,7 @@ namespace pcit::panther{
 					auto addParam(std::string_view ident, ASG::ParamID id) -> void;
 					auto addReturnParam(std::string_view ident, ASG::ReturnParamID id) -> void;
 					auto addImport(std::string_view ident, SourceID id, Token::ID location) -> void;
+					auto addAlias(std::string_view ident, BaseType::Alias::ID id) -> void;
 
 					auto lookupIdent(std::string_view ident) const -> const IdentID*;
 

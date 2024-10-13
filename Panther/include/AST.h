@@ -46,6 +46,7 @@ namespace pcit::panther::AST{
 		MultiAssign,
 
 		Type,
+		TypeIDConverter,
 
 		AttributeBlock,
 		Attribute,
@@ -166,6 +167,7 @@ namespace pcit::panther::AST{
 
 	struct AliasDecl{
 		Token::ID ident;
+		Node attributeBlock;
 		Node type;
 	};
 
@@ -258,6 +260,10 @@ namespace pcit::panther::AST{
 
 		Node base;
 		evo::SmallVector<Qualifier> qualifiers;
+	};
+
+	struct TypeIDConverter{ // example: Type(@getTypeID<{Int}>())
+		Node expr;
 	};
 
 

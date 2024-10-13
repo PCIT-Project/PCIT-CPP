@@ -56,39 +56,5 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 ## Updates:
 List of changes for each version can be found [here](CHANGELOG.md). Note: very small changes may not be listed.
 
-
-## Panther Syntax
-Here's a quick taste of the syntax of the Panther programming language. All of the following currently compiles (as of `v0.0.39.0`). If you want a peek at all currently supported features, maybe look at [the change log](CHANGELOG.md). Please keep in mind that any and all syntax may change in the future.
-```Panther
-// importing a file
-def some_file = @import("directory/file.pthr");
-
-// function declaration (parameter `num` is implicity `read`)
-func set_num = (num: UI8, num_to_change: UI8 mut) -> Void {
-	num_to_change = copy num;
-}
-
-// templated function
-func just_return_num = <{T: Type}> (num: T) -> T {
-	func sub_func = (sub_num: T) -> T {
-		return (move sub_num);
-	}
-
-	return sub_func(num);
-}
-
-// entry function (notice the name doesn't matter, but it has the attribute `#entry`)
-func asdf = () #entry -> UI8 {
-	def COMPILE_TIME_VALUE: Bool = true;
-	when(COMPILE_TIME_VALUE){ // compile time conditional (doesn't enter a new scope)
-		var foo = just_return_num<{UI8}>(some_file.get_UI8_12()); // variable declaration with type inference
-	}else{
-		var foo: UI8 = 12; // variable declaration with explicit type
-	}
-
-	var bar: UI8 = uninit;
-	set_num(foo, bar);
-
-	return (move bar);
-}
-```
+## Panther Example
+To see some example Panther code, go to the [Panther page](https://pcit-project.github.io/Panther.html) of the PCIT website.

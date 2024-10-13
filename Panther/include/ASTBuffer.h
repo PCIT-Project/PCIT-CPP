@@ -223,6 +223,17 @@ namespace pcit::panther{
 				return this->types[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createTypeIDConverter(auto&&... args) -> AST::Node {
+				const uint32_t node_index = this->type_id_converters.emplace_back(
+					std::forward<decltype(args)>(args)...
+				);
+				return AST::Node(AST::Kind::TypeIDConverter, node_index);
+			}
+			EVO_NODISCARD auto getTypeIDConverter(const AST::Node& node) const -> const AST::TypeIDConverter& {
+				evo::debugAssert(node.kind() == AST::Kind::TypeIDConverter, "Node is not a TypeIDConverter");
+				return this->type_id_converters[node._value.node_index];
+			}
+
 
 			EVO_NODISCARD auto createAttributeBlock(auto&&... args) -> AST::Node {
 				const uint32_t node_index = this->attribute_blocks.emplace_back(std::forward<decltype(args)>(args)...);
@@ -258,6 +269,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::MultiAssign, uint32_t> multi_assigns{};
 
 			core::LinearStepAlloc<AST::Type, uint32_t> types{};
+			core::LinearStepAlloc<AST::TypeIDConverter, uint32_t> type_id_converters{};
 
 			core::LinearStepAlloc<AST::AttributeBlock, uint32_t> attribute_blocks{};
 

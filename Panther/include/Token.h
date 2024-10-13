@@ -68,6 +68,7 @@ namespace pcit::panther{
 				TypeBool,
 				TypeChar,
 				TypeRawPtr,
+				TypeTypeID,
 
 				// C compatibility
 				TypeCShort,
@@ -418,6 +419,7 @@ namespace pcit::panther{
 					break; case Kind::TypeBool:           return "Bool";
 					break; case Kind::TypeChar:           return "Char";
 					break; case Kind::TypeRawPtr:         return "RawPtr";
+					break; case Kind::TypeTypeID:         return "TypeID";
 
 					// C compatibility
 					break; case Kind::TypeCShort:         return "CShort";

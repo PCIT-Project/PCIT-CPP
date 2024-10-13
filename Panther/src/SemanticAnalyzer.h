@@ -89,7 +89,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID>;
 			EVO_NODISCARD auto get_type_id(const Token::ID& ident_token_id) -> evo::Result<TypeInfo::VoidableID>;
-			EVO_NODISCARD auto is_type_generic(const AST::Type& ast_type) -> evo::Result<bool>; // is it type "Type"
+			EVO_NODISCARD auto is_type_Type(const AST::Type& ast_type) -> evo::Result<bool>;
 
 
 			EVO_NODISCARD auto get_current_scope_level() const -> ScopeManager::Level&;
@@ -530,6 +530,12 @@ namespace pcit::panther{
 				return this->get_source_location(type, this->source);
 			}
 
+			EVO_NODISCARD auto get_source_location(const AST::TypeIDConverter& type, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::TypeIDConverter& type) const -> SourceLocation {
+				return this->get_source_location(type, this->source);
+			}
+
 			EVO_NODISCARD auto get_source_location(const AST::AttributeBlock::Attribute& attr, const Source& src) const
 				-> SourceLocation;
 			EVO_NODISCARD auto get_source_location(const AST::AttributeBlock::Attribute& attr) const -> SourceLocation {
@@ -566,6 +572,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_source_location(ScopeManager::Level::ImportInfo import_info) const 
 			-> SourceLocation {
 				return this->get_source_location(import_info, this->source);
+			}
+			EVO_NODISCARD auto get_source_location(BaseType::Alias::ID alias_id, const Source& src) const
+				-> SourceLocation;
+			EVO_NODISCARD auto get_source_location(BaseType::Alias::ID alias_id) const -> SourceLocation {
+				return this->get_source_location(alias_id, this->source);
 			}
 
 

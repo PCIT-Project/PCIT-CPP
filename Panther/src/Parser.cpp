@@ -181,14 +181,19 @@ namespace pcit::panther{
 		const Result ident = this->parse_ident();
 		if(this->check_result_fail(ident, "identifier in alias declaration")){ return Result::Code::Error; }
 
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::Error){ return Result::Code::Error; }
+
 		if(this->expect_token_fail(Token::lookupKind("="), "in alias declaration")){ return Result::Code::Error; }
 
 		const Result type = this->parse_type<TypeKind::Explicit>();
 		if(this->check_result_fail(type, "type in alias declaration")){ return Result::Code::Error; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at end of alias declaration")){ return Result::Code::Error; }
+		if(this->expect_token_fail(Token::lookupKind(";"), "at end of alias declaration")){ return Result::Code::Error;}
 
-		return this->source.ast_buffer.createAliasDecl(ASTBuffer::getIdent(ident.value()), type.value());
+		return this->source.ast_buffer.createAliasDecl(
+			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
+		);
 	}
 
 
@@ -534,7 +539,6 @@ namespace pcit::panther{
 		bool is_primitive = true;
 		switch(this->reader[start_location].kind()){
 			case Token::Kind::TypeVoid:
-			case Token::Kind::TypeType:
 			case Token::Kind::TypeThis:
 			case Token::Kind::TypeInt:
 			case Token::Kind::TypeISize:
@@ -552,6 +556,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeBool:
 			case Token::Kind::TypeChar:
 			case Token::Kind::TypeRawPtr:
+			case Token::Kind::TypeTypeID:
 			case Token::Kind::TypeCShort:
 			case Token::Kind::TypeCUShort:
 			case Token::Kind::TypeCInt:
@@ -562,6 +567,12 @@ namespace pcit::panther{
 			case Token::Kind::TypeCULongLong:
 			case Token::Kind::TypeCLongDouble:
 				break;
+
+			case Token::Kind::TypeType: {
+				if(this->reader[this->reader.peek(1)].kind() == Token::lookupKind("(")){
+					is_primitive = false;
+				}
+			} break;
 
 			case Token::Kind::Ident: case Token::Kind::Intrinsic: {
 				is_primitive = false;
@@ -616,6 +627,21 @@ namespace pcit::panther{
 
 				return Result(AST::Node(AST::Kind::PrimitiveType, base_type_token_id));
 
+			}else if(this->reader[start_location].kind() == Token::Kind::TypeType){
+				if(this->assert_token_fail(Token::Kind::TypeType)){ return Result(Result::Code::Error); }
+				if(this->assert_token_fail(Token::lookupKind("("))){ return Result(Result::Code::Error); }
+
+				const Result type_id_expr = this->parse_expr();
+				if(this->check_result_fail(type_id_expr, "expression in TypeID converter")){
+					return Result(Result::Code::Error);
+				}
+
+				if(this->expect_token_fail(Token::lookupKind(")"), "after expression in TypeID converter")){
+					return Result(Result::Code::Error);
+				}
+
+				return Result(this->source.ast_buffer.createTypeIDConverter(type_id_expr.value()));
+
 			}else{
 				if constexpr(KIND == TypeKind::TemplateArg){
 					return this->parse_term<IsTypeTerm::Maybe>();
@@ -628,7 +654,9 @@ namespace pcit::panther{
 		if(base_type.code() == Result::Code::Error){
 			return Result::Code::Error;
 		}else if(base_type.code() == Result::Code::WrongType){
-			this->reader.go_back(start_location);
+			if(this->reader.peek() != start_location){
+				this->reader.go_back(start_location);
+			}
 			return Result::Code::WrongType;
 		}
 

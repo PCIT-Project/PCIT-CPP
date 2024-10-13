@@ -490,6 +490,9 @@ namespace pthr{
 					this->printer.print(" ");
 					this->print_ident(alias_decl.ident);
 
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(alias_decl.attributeBlock));
+
 					this->indenter.print_end();
 					this->print_minor_header("Type");
 					this->printer.print(" ");
@@ -647,6 +650,13 @@ namespace pthr{
 						this->printer.printMagenta("<{");
 						this->printer.printGray("...{} args...", templated_expr.args.size());
 						this->printer.printMagenta("}>");
+					} break;
+
+					// TODO: print this properly
+					case panther::AST::Kind::TypeIDConverter: {
+						this->printer.printMagenta("Type(");
+						this->printer.printGray("...expr...");
+						this->printer.printMagenta(")");
 					} break;
 
 					default: evo::debugFatalBreak("Unknown or unsupported base type");

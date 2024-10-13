@@ -59,6 +59,7 @@ namespace pcit::panther{
 		SemaIncorrectExprValueType,
 		SemaTypeMismatch,
 		SemaIdentNotInScope,
+		SemaTypeNotInScope,
 		SemaIntrinsicDoesntExist,
 		SemaCannotCallLikeFunction,
 		SemaEmptyTemplatePackDeclaration,
@@ -106,6 +107,9 @@ namespace pcit::panther{
 		SemaInvalidAttributeArgument,
 		SemaCantCallRuntimeFuncInComptimeContext,
 		SemaComptimeCircularDependency,
+		SemaTypeCannotBeUsedAsExpr,
+		SemaExprCannotBeUsedAsType,
+		SemaNotValidExprForTypeIDConversion,
 
 		SemaWarnSingleValInMultiAssign,
 		SemaWarnEntryIsImplicitRuntime,
@@ -172,6 +176,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaIncorrectExprValueType:               return "S";
 			break; case DiagnosticCode::SemaTypeMismatch:                         return "S";
 			break; case DiagnosticCode::SemaIdentNotInScope:                      return "S";
+			break; case DiagnosticCode::SemaTypeNotInScope:                       return "S";
 			break; case DiagnosticCode::SemaIntrinsicDoesntExist:                 return "S";
 			break; case DiagnosticCode::SemaCannotCallLikeFunction:               return "S";
 			break; case DiagnosticCode::SemaEmptyTemplatePackDeclaration:         return "S";
@@ -219,6 +224,9 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaInvalidAttributeArgument:             return "S";
 			break; case DiagnosticCode::SemaCantCallRuntimeFuncInComptimeContext: return "S";
 			break; case DiagnosticCode::SemaComptimeCircularDependency:           return "S";
+			break; case DiagnosticCode::SemaTypeCannotBeUsedAsExpr:               return "S";
+			break; case DiagnosticCode::SemaExprCannotBeUsedAsType:               return "S";
+			break; case DiagnosticCode::SemaNotValidExprForTypeIDConversion:      return "S";
 
 			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:           return "SW";
 			break; case DiagnosticCode::SemaWarnEntryIsImplicitRuntime:           return "SW";

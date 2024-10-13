@@ -177,6 +177,7 @@ namespace pcit::panther{
 		{"Bool",        Token::Kind::TypeBool},
 		{"Char",        Token::Kind::TypeChar},
 		{"RawPtr",      Token::Kind::TypeRawPtr},
+		{"TypeID",      Token::Kind::TypeTypeID},
 
 		{"CShort",      Token::Kind::TypeCShort},
 		{"CUShort",     Token::Kind::TypeCUShort},

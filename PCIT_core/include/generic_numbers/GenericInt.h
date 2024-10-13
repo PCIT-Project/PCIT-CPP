@@ -41,6 +41,7 @@ namespace pcit::core{
 			EVO_NODISCARD auto operator==(const GenericInt& rhs) const -> bool { return this->ap_int == rhs.ap_int; }
 
 			EVO_NODISCARD explicit operator uint64_t() const { return *this->ap_int.getRawData(); }
+			EVO_NODISCARD explicit operator uint32_t() const { return uint32_t(*this->ap_int.getRawData()); }
 
 			
 		private:

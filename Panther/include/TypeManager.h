@@ -91,6 +91,7 @@ namespace pcit::panther{
 
 			Primitive,
 			Function,
+			Alias,
 		};
 
 
@@ -157,23 +158,26 @@ namespace pcit::panther{
 				EVO_NODISCARD auto operator==(const ReturnParam&) const -> bool = default;
 			};
 
-			Function(
-				evo::SmallVector<Param>&& params_in, evo::SmallVector<ReturnParam>&& _return_params, bool _is_runtime
-			) : _params(std::move(params_in)), return_params(std::move(_return_params)), is_runtime(_is_runtime) {};
+			evo::SmallVector<Param> params;
+			evo::SmallVector<ReturnParam> returnParams;
+			bool isRuntime;
 
-			EVO_NODISCARD auto params() const -> evo::ArrayProxy<Param> { return this->_params; }
-			EVO_NODISCARD auto returnParams() const -> evo::ArrayProxy<ReturnParam> { return this->return_params; }
-			EVO_NODISCARD auto isRuntime() const -> bool { return this->is_runtime; }
 
-			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->return_params[0].ident.has_value(); }
-			EVO_NODISCARD auto returnsVoid() const -> bool { return this->return_params[0].typeID.isVoid(); }
+			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->returnParams[0].ident.has_value(); }
+			EVO_NODISCARD auto returnsVoid() const -> bool { return this->returnParams[0].typeID.isVoid(); }
 
 			EVO_NODISCARD auto operator==(const Function&) const -> bool = default;
+		};
 
-			private:
-				evo::SmallVector<Param> _params;
-				evo::SmallVector<ReturnParam> return_params;
-				bool is_runtime:1;
+
+		struct Alias{
+			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+
+			SourceID sourceID;
+			Token::ID identTokenID;
+			TypeInfoVoidableID aliasedType;
+			
+			EVO_NODISCARD auto operator==(const Alias&) const -> bool = default;
 		};
 
 
@@ -190,6 +194,12 @@ namespace pcit::panther{
 				evo::debugAssert(this->kind() == Kind::Function, "not a Function");
 				return Function::ID(this->_id);
 			}
+
+			EVO_NODISCARD auto aliasID() const -> Alias::ID {
+				evo::debugAssert(this->kind() == Kind::Alias, "not an Alias");
+				return Alias::ID(this->_id);
+			}
+
 
 			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
 
@@ -264,19 +274,27 @@ namespace pcit::panther{
 			EVO_NODISCARD auto printType(TypeInfo::ID type_info_id) const -> std::string;
 
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id) const -> const BaseType::Function&;
-			EVO_NODISCARD auto getOrCreateFunction(BaseType::Function lookup_func) -> BaseType::ID;
+			EVO_NODISCARD auto getOrCreateFunction(BaseType::Function&& lookup_func) -> BaseType::ID;
 
 			EVO_NODISCARD auto getPrimitive(BaseType::Primitive::ID id) const -> const BaseType::Primitive&;
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind) -> BaseType::ID;
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
 
-			// types needed by semantic analyzer to check againt or for generating intrinsics
-			EVO_NODISCARD static auto getTypeBool()  -> TypeInfo::ID { return TypeInfo::ID(0); }
-			EVO_NODISCARD static auto getTypeChar()  -> TypeInfo::ID { return TypeInfo::ID(1); }
-			EVO_NODISCARD static auto getTypeUI8()   -> TypeInfo::ID { return TypeInfo::ID(2); }
-			EVO_NODISCARD static auto getTypeUSize() -> TypeInfo::ID { return TypeInfo::ID(3); }
+			EVO_NODISCARD auto getAlias(BaseType::Alias::ID id) const -> const BaseType::Alias&;
+			EVO_NODISCARD auto getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID;
 
+
+			// types needed by semantic analyzer to check against or for generating intrinsics
+			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0); }
+			EVO_NODISCARD static auto getTypeChar()   -> TypeInfo::ID { return TypeInfo::ID(1); }
+			EVO_NODISCARD static auto getTypeUI8()    -> TypeInfo::ID { return TypeInfo::ID(2); }
+			EVO_NODISCARD static auto getTypeUSize()  -> TypeInfo::ID { return TypeInfo::ID(3); }
+			EVO_NODISCARD static auto getTypeTypeID() -> TypeInfo::ID { return TypeInfo::ID(4); }
+
+
+			///////////////////////////////////
 			// type traits
+
 			EVO_NODISCARD auto sizeOf(TypeInfo::ID id) const -> size_t;
 			EVO_NODISCARD auto sizeOf(BaseType::ID id) const -> size_t;
 
@@ -318,6 +336,9 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::Function, BaseType::Function::ID> functions{};
 			mutable std::shared_mutex functions_mutex{};
+
+			core::LinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
+			mutable std::shared_mutex aliases_mutex{};
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable std::shared_mutex types_mutex{};
