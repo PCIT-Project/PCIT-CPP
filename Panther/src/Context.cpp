@@ -559,6 +559,7 @@ namespace pcit::panther{
 		};
 
 
+		constexpr std::nullopt_t TYPE_ARG = std::nullopt;
 
 		///////////////////////////////////
 		// non-templated
@@ -581,63 +582,58 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// templated
 
+
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsSameType)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt, std::nullopt},
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TYPE_ARG},
 			evo::SmallVector<TemplatedIntrinsic::Param>(),
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
 		);
 
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyCopyable)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
-			evo::SmallVector<TemplatedIntrinsic::Param>(),
-			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
-		);
 
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyDestructable)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
-			evo::SmallVector<TemplatedIntrinsic::Param>(),
-			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
-		);
 
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsPrimitive)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+		const auto type_trait_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TYPE_ARG},
 			evo::SmallVector<TemplatedIntrinsic::Param>(),
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
 		);
-
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsIntegral)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
-			evo::SmallVector<TemplatedIntrinsic::Param>(),
-			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
-		);
-
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsFloatingPoint)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
-			evo::SmallVector<TemplatedIntrinsic::Param>(),
-			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
-		);
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyCopyable)] = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyDestructable)] = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsPrimitive)] = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsIntegral)] = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsFloatingPoint)] = type_trait_func;
 
 
 
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SizeOf)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},
 			evo::SmallVector<TemplatedIntrinsic::Param>(),
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeUSize()}
 		);
 
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::GetTypeID)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt},
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},
 			evo::SmallVector<TemplatedIntrinsic::Param>(),
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeTypeID()}
 		);
 
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::BitCast)] = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{std::nullopt, std::nullopt},
+
+		const auto conversion_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TYPE_ARG},
 			evo::SmallVector<TemplatedIntrinsic::Param>{
 				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
 			},
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(1)}
 		);
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::BitCast)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Trunc)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::TruncFloatPoint)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::ZExt)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SExt)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::ExtFloatPoint)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IntegralToFloatPoint)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::UIntegralToFloatPoint)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FloatPointToIntegral)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FloatPointToUIntegral)] = conversion_func;
 	}
 
 

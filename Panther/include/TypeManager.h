@@ -226,7 +226,7 @@ namespace pcit::panther{
 			using VoidableID = TypeInfoVoidableID;
 			
 		public:
-			TypeInfo(const BaseType::ID& id) : base_type(id), _qualifiers() {};
+			explicit TypeInfo(const BaseType::ID& id) : base_type(id), _qualifiers() {};
 			TypeInfo(const BaseType::ID& id, const evo::SmallVector<AST::Type::Qualifier>& qualifiers_list)
 				: base_type(id), _qualifiers(qualifiers_list) {};
 			~TypeInfo() = default;
@@ -269,6 +269,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
 			EVO_NODISCARD auto getOrCreateTypeInfo(TypeInfo&& lookup_type_info) -> TypeInfo::ID;
+			EVO_NODISCARD auto getTypeInfo(TypeInfo&& lookup_type_info) const -> TypeInfo::ID;
 				
 			EVO_NODISCARD auto printType(TypeInfo::VoidableID type_info_id) const -> std::string;
 			EVO_NODISCARD auto printType(TypeInfo::ID type_info_id) const -> std::string;
@@ -284,12 +285,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID;
 
 
-			// types needed by semantic analyzer to check against or for generating intrinsics
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0); }
 			EVO_NODISCARD static auto getTypeChar()   -> TypeInfo::ID { return TypeInfo::ID(1); }
 			EVO_NODISCARD static auto getTypeUI8()    -> TypeInfo::ID { return TypeInfo::ID(2); }
 			EVO_NODISCARD static auto getTypeUSize()  -> TypeInfo::ID { return TypeInfo::ID(3); }
 			EVO_NODISCARD static auto getTypeTypeID() -> TypeInfo::ID { return TypeInfo::ID(4); }
+			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(5); }
 
 
 			///////////////////////////////////
@@ -315,9 +316,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isIntegral(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isIntegral(BaseType::ID id) const -> bool;
 
+			EVO_NODISCARD auto isUnsignedIntegral(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isUnsignedIntegral(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isUnsignedIntegral(BaseType::ID id) const -> bool;
+
 			EVO_NODISCARD auto isFloatingPoint(TypeInfo::VoidableID id) const -> bool;
 			EVO_NODISCARD auto isFloatingPoint(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isFloatingPoint(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto getUnderlyingType(TypeInfo::ID id) -> evo::Result<TypeInfo::ID>;
+			EVO_NODISCARD auto getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID>;
 
 		private:
 			EVO_NODISCARD auto get_or_create_primitive_base_type_impl(const BaseType::Primitive& lookup_type)

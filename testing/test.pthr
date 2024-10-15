@@ -1,5 +1,6 @@
 
 
-func entry = () #entry -> Type(@getTypeID<{UI8}>()) {
-	return 12;
+func entry = () #entry -> UI8 {
+	const foo: F64 = @extFloatPoint<{F32, F64}>(12.0);
+	return @floatPointToUIntegral<{F64, UI8}>(foo);
 }

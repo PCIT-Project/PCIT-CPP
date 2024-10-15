@@ -1151,6 +1151,70 @@ namespace pcit::panther{
 					};
 				} break;
 
+
+				case TemplatedIntrinsic::Kind::Trunc: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createTrunc(args[0], this->get_type(to_type), this->stmt_name("TRUNC"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::TruncFloatPoint: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createFPTrunc(args[0], this->get_type(to_type), this->stmt_name("FPTRUNC"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SExt: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createSExt(args[0], this->get_type(to_type), this->stmt_name("SEXT"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::ZExt: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createZExt(args[0], this->get_type(to_type), this->stmt_name("ZEXT"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::ExtFloatPoint: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createFPExt(args[0], this->get_type(to_type), this->stmt_name("FPEXT"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IntegralToFloatPoint: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createSIToFP(args[0], this->get_type(to_type), this->stmt_name("SITOFP"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::UIntegralToFloatPoint: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createUIToFP(args[0], this->get_type(to_type), this->stmt_name("UITOFP"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FloatPointToIntegral: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createFPToSI(args[0], this->get_type(to_type), this->stmt_name("FPTOSI"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FloatPointToUIntegral: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createFPToUI(args[0], this->get_type(to_type), this->stmt_name("FPTOUI"))
+					};
+				} break;
+
 				case TemplatedIntrinsic::Kind::_max_: {
 					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
 				} break;

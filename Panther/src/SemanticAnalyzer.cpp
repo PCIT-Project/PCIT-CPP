@@ -44,6 +44,15 @@ namespace pcit::panther{
 					{"sizeOf",                  TemplatedIntrinsic::Kind::SizeOf},
 					{"getTypeID",               TemplatedIntrinsic::Kind::GetTypeID},
 					{"bitCast",                 TemplatedIntrinsic::Kind::BitCast},
+					{"trunc",                   TemplatedIntrinsic::Kind::Trunc},
+					{"truncFloatPoint",         TemplatedIntrinsic::Kind::TruncFloatPoint},
+					{"zext",                    TemplatedIntrinsic::Kind::ZExt},
+					{"sext",                    TemplatedIntrinsic::Kind::SExt},
+					{"extFloatPoint",           TemplatedIntrinsic::Kind::ExtFloatPoint},
+					{"integralToFloatPoint",    TemplatedIntrinsic::Kind::IntegralToFloatPoint},
+					{"uintegralToFloatPoint",   TemplatedIntrinsic::Kind::UIntegralToFloatPoint},
+					{"floatPointToIntegral",    TemplatedIntrinsic::Kind::FloatPointToIntegral},
+					{"floatPointToUIntegral",   TemplatedIntrinsic::Kind::FloatPointToUIntegral},
 				};
 
 				this->map_end = this->map.end();
@@ -2173,6 +2182,89 @@ namespace pcit::panther{
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
+						case TemplatedIntrinsic::Kind::Trunc: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@trunc` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::TruncFloatPoint: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@truncFloat` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::SExt: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@sext` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::ZExt: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@zext` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::ExtFloatPoint: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@extFloat` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::IntegralToFloatPoint: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@intToFloat` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+
+						case TemplatedIntrinsic::Kind::UIntegralToFloatPoint: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@uintToFloat` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::FloatPointToIntegral: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@floatToInt` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::FloatPointToUIntegral: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@floatToUInt` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+
 						case TemplatedIntrinsic::Kind::_max_: {
 							evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
 						} break;
@@ -2848,6 +2940,524 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 			} break;
+
+
+			case TemplatedIntrinsic::Kind::Trunc: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot truncate from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot truncate to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(from_type_underlying.isError() || type_manager.isIntegral(from_type_underlying.value()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot truncate from this type"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(to_type_underlying.isError() || type_manager.isIntegral(to_type_underlying.value()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot truncate to this type"
+					);
+					return evo::resultError;
+				}
+
+				if(
+					type_manager.sizeOf(from_type_underlying.value()) < type_manager.sizeOf(to_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot truncate to a smaller type"
+					);
+					return evo::resultError;	
+				}
+			} break;
+
+
+			case TemplatedIntrinsic::Kind::TruncFloatPoint: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot truncate from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot truncate to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(
+					from_type_underlying.isError() ||
+					type_manager.isFloatingPoint(from_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot truncate from this type"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(
+					to_type_underlying.isError() ||
+					type_manager.isFloatingPoint(to_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot truncate to this type"
+					);
+					return evo::resultError;
+				}
+
+				if(
+					type_manager.sizeOf(from_type_underlying.value()) < type_manager.sizeOf(to_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot truncate to a smaller type"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+
+			case TemplatedIntrinsic::Kind::SExt: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot signed-extend from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot signed-extend to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(from_type_underlying.isError() || type_manager.isIntegral(from_type_underlying.value()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot signed-extend from this type"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(
+					to_type_underlying.isError() || 
+					type_manager.isIntegral(to_type_underlying.value()) == false ||
+					type_manager.isUnsignedIntegral(to_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot signed-extend to this type"
+					);
+					return evo::resultError;
+				}
+
+				if(
+					type_manager.sizeOf(from_type_underlying.value()) > type_manager.sizeOf(to_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot signed-extend to a larger type"
+					);
+					return evo::resultError;	
+				}
+			} break;
+
+
+			case TemplatedIntrinsic::Kind::ZExt: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot zero-extend from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot zero-extend to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(
+					from_type_underlying.isError() ||
+					type_manager.isUnsignedIntegral(from_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot zero-extend from this type"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(to_type_underlying.isError() || type_manager.isIntegral(to_type_underlying.value()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot zero-extend to this type"
+					);
+					return evo::resultError;
+				}
+
+				if(
+					type_manager.sizeOf(from_type_underlying.value()) > type_manager.sizeOf(to_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot zero-extend to a larger type"
+					);
+					return evo::resultError;	
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::ExtFloatPoint: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot extend from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot extend to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(
+					from_type_underlying.isError() ||
+					type_manager.isFloatingPoint(from_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot extend from this type"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(
+					to_type_underlying.isError() ||
+					type_manager.isFloatingPoint(to_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot extend to this type"
+					);
+					return evo::resultError;
+				}
+
+				if(
+					type_manager.sizeOf(from_type_underlying.value()) > type_manager.sizeOf(to_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot extend to a smaller type"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::IntegralToFloatPoint: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot convert from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(
+					from_type_underlying.isError() ||
+					type_manager.isIntegral(from_type_underlying.value()) == false ||
+					type_manager.isUnsignedIntegral(from_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot convert from this type"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(to_type_underlying.isError() || type_manager.isFloatingPoint(to_type_underlying.value()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to this type"
+					);
+					return evo::resultError;
+				}
+
+				if(
+					type_manager.sizeOf(from_type_underlying.value()) > type_manager.sizeOf(to_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to a smaller type"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+
+			case TemplatedIntrinsic::Kind::UIntegralToFloatPoint: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot convert from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(
+					from_type_underlying.isError() ||
+					type_manager.isIntegral(from_type_underlying.value()) == false ||
+					type_manager.isUnsignedIntegral(from_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot convert from this type"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(to_type_underlying.isError() || type_manager.isFloatingPoint(to_type_underlying.value()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to this type"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::FloatPointToIntegral: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot convert from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(
+					from_type_underlying.isError() ||
+					type_manager.isFloatingPoint(from_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to this type"
+					);
+					return evo::resultError;
+				}
+				
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(
+					to_type_underlying.isError() ||
+					type_manager.isIntegral(to_type_underlying.value()) == false ||
+					type_manager.isUnsignedIntegral(to_type_underlying.value())
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to this type"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::FloatPointToUIntegral: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot convert from type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const TypeInfo::ID from_type = instantiation_type_args[0]->typeID();
+				const TypeInfo::ID to_type = instantiation_type_args[1]->typeID();
+
+				TypeManager& type_manager = this->context.getTypeManager();
+
+				const evo::Result<TypeInfo::ID> from_type_underlying = type_manager.getUnderlyingType(from_type);
+				if(
+					from_type_underlying.isError() ||
+					type_manager.isFloatingPoint(from_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to this type"
+					);
+					return evo::resultError;
+				}
+				
+				const evo::Result<TypeInfo::ID> to_type_underlying = type_manager.getUnderlyingType(to_type);
+				if(
+					to_type_underlying.isError() ||
+					type_manager.isIntegral(to_type_underlying.value()) == false ||
+					type_manager.isUnsignedIntegral(to_type_underlying.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot convert to this type"
+					);
+					return evo::resultError;
+				}
+			} break;
+			
 
 
 			case TemplatedIntrinsic::Kind::_max_: {

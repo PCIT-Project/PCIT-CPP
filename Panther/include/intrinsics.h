@@ -47,6 +47,15 @@ namespace pcit::panther{
 			SizeOf,
 			GetTypeID,
 			BitCast,
+			Trunc,
+			TruncFloatPoint,
+			SExt,
+			ZExt,
+			ExtFloatPoint,
+			IntegralToFloatPoint,
+			UIntegralToFloatPoint,
+			FloatPointToIntegral,
+			FloatPointToUIntegral,
 
 			_max_
 		};
@@ -71,10 +80,6 @@ namespace pcit::panther{
 		) const -> BaseType::Function {
 			auto instantiated_params = evo::SmallVector<BaseType::Function::Param>();
 			instantiated_params.reserve(this->params.size());
-
-			auto instantiated_returns = evo::SmallVector<BaseType::Function::ReturnParam>();
-			instantiated_returns.reserve(this->returns.size());
-
 			for(const Param& param : this->params){
 				const TypeInfo::ID param_type = param.type.visit([&](const auto& param_type) -> TypeInfo::ID {
 					if constexpr(std::is_same_v<std::decay_t<decltype(param_type)>, TypeInfo::ID>){
@@ -87,6 +92,8 @@ namespace pcit::panther{
 				instantiated_params.emplace_back(param.ident, param_type, param.kind, false, false);
 			}
 
+			auto instantiated_returns = evo::SmallVector<BaseType::Function::ReturnParam>();
+			instantiated_returns.reserve(this->returns.size());
 			for(const ReturnParam& return_param : this->returns){
 				const TypeInfo::VoidableID return_type = return_param.visit([&](const auto& return_data){
 					if constexpr(std::is_same_v<std::decay_t<decltype(return_data)>, TypeInfo::VoidableID>){

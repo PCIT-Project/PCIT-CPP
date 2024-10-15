@@ -32,7 +32,7 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TypeByte);
 		const BaseType::Primitive::ID type_bool = this->primitives.emplace_back(Token::Kind::TypeBool);
 		const BaseType::Primitive::ID type_char = this->primitives.emplace_back(Token::Kind::TypeChar);
-		this->primitives.emplace_back(Token::Kind::TypeRawPtr);
+		const BaseType::Primitive::ID type_raw_ptr = this->primitives.emplace_back(Token::Kind::TypeRawPtr);
 		const BaseType::Primitive::ID type_type_id = this->primitives.emplace_back(Token::Kind::TypeTypeID);
 
 		this->primitives.emplace_back(Token::Kind::TypeCShort);
@@ -60,6 +60,7 @@ namespace pcit::panther{
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_ui8.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_usize.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_type_id.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::Primitive, type_raw_ptr.get())));
 	}
 
 	auto TypeManager::primitivesInitialized() const -> bool {
@@ -85,6 +86,18 @@ namespace pcit::panther{
 		}
 
 		return this->types.emplace_back(std::move(lookup_type_info));
+	}
+
+	auto TypeManager::getTypeInfo(TypeInfo&& lookup_type_info) const -> TypeInfo::ID {
+		const auto lock = std::unique_lock(this->types_mutex);
+
+		for(uint32_t i = 0; i < this->types.size(); i+=1){
+			if(this->types[TypeInfo::ID(i)] == lookup_type_info){
+				return TypeInfo::ID(i);
+			}
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported type info");
 	}
 
 
@@ -127,7 +140,7 @@ namespace pcit::panther{
 					return this->printType(alias.aliasedType);
 				} break;
 
-				case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot print a dummy type");
+				case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
 			}
 
 			evo::debugFatalBreak("Unknown or unsuport base-type kind");
@@ -308,7 +321,7 @@ namespace pcit::panther{
 				return this->sizeOf(alias.aliasedType.typeID());
 			} break;
 
-			case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot get the size of a dummy type");
+			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported base-type kind");
@@ -420,6 +433,60 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
+	// isUnsignedIntegral
+
+	auto TypeManager::isUnsignedIntegral(TypeInfo::VoidableID id) const -> bool {
+		if(id.isVoid()){ return false; }
+		return this->isUnsignedIntegral(id.typeID());
+	}
+
+	auto TypeManager::isUnsignedIntegral(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.qualifiers().empty()){ return this->isUnsignedIntegral(type_info.baseTypeID()); }
+
+		return false;
+	}
+
+
+	auto TypeManager::isUnsignedIntegral(BaseType::ID id) const -> bool {
+		if(id.kind() != BaseType::Kind::Primitive){ return false; }
+
+		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+
+		switch(primitive.kind()){
+			case Token::Kind::TypeInt:         return false;
+			case Token::Kind::TypeISize:       return false;
+			case Token::Kind::TypeI_N:         return false;
+			case Token::Kind::TypeUInt:        return true;
+			case Token::Kind::TypeUSize:       return true;
+			case Token::Kind::TypeUI_N:        return true;
+			case Token::Kind::TypeF16:         return false;
+			case Token::Kind::TypeBF16:        return false;
+			case Token::Kind::TypeF32:         return false;
+			case Token::Kind::TypeF64:         return false;
+			case Token::Kind::TypeF80:         return false;
+			case Token::Kind::TypeF128:        return false;
+			case Token::Kind::TypeByte:        return false;
+			case Token::Kind::TypeBool:        return false;
+			case Token::Kind::TypeChar:        return false;
+			case Token::Kind::TypeRawPtr:      return false;
+			case Token::Kind::TypeTypeID:      return false;
+			case Token::Kind::TypeCShort:      return false;
+			case Token::Kind::TypeCUShort:     return true;
+			case Token::Kind::TypeCInt:        return false;
+			case Token::Kind::TypeCUInt:       return true;
+			case Token::Kind::TypeCLong:       return false;
+			case Token::Kind::TypeCULong:      return true;
+			case Token::Kind::TypeCLongLong:   return false;
+			case Token::Kind::TypeCULongLong:  return true;
+			case Token::Kind::TypeCLongDouble: return false;
+			default: evo::debugFatalBreak("Not a type");
+		}
+	}
+
+
+	///////////////////////////////////
 	// isFloatingPoint
 
 	auto TypeManager::isFloatingPoint(TypeInfo::VoidableID id) const -> bool {
@@ -441,7 +508,6 @@ namespace pcit::panther{
 		if(id.kind() != BaseType::Kind::Primitive){ return false; }
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
-
 		switch(primitive.kind()){
 			case Token::Kind::TypeInt:         return false;
 			case Token::Kind::TypeISize:       return false;
@@ -469,6 +535,149 @@ namespace pcit::panther{
 			case Token::Kind::TypeCLongLong:   return false;
 			case Token::Kind::TypeCULongLong:  return false;
 			case Token::Kind::TypeCLongDouble: return true;
+			default: evo::debugFatalBreak("Not a type");
+		}
+	}
+
+
+	///////////////////////////////////
+	// getUnderlyingType
+
+	auto TypeManager::getUnderlyingType(TypeInfo::ID id) -> evo::Result<TypeInfo::ID> {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.qualifiers().empty()){ return this->getUnderlyingType(type_info.baseTypeID()); }
+		
+		if(type_info.qualifiers().back().isPtr){ return TypeManager::getTypeRawPtr(); }
+
+		return evo::resultError;
+	}
+
+	// TODO: optimize this function
+	auto TypeManager::getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID> {
+		switch(id.kind()){
+			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
+			case BaseType::Kind::Primitive: break;
+			case BaseType::Kind::Function: evo::resultError;
+			case BaseType::Kind::Alias: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				if(alias.aliasedType.isVoid()){ return evo::resultError; }
+				return this->getUnderlyingType(alias.aliasedType.typeID());
+			} break;
+		}
+
+		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+		switch(primitive.kind()){
+			case Token::Kind::TypeInt:{
+				return this->getTypeInfo(
+					TypeInfo(
+						this->getOrCreatePrimitiveBaseType(
+							Token::Kind::TypeI_N, uint32_t(this->sizeOfGeneralRegister())
+						)
+					)
+				);
+			} break;
+
+			case Token::Kind::TypeISize:{
+				return this->getTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeI_N, uint32_t(this->sizeOfPtr())))
+				);
+			} break;
+
+			case Token::Kind::TypeI_N: {
+				return this->getTypeInfo(TypeInfo(id));
+			} break;
+
+			case Token::Kind::TypeUInt: {
+				return this->getTypeInfo(
+					TypeInfo(
+						this->getOrCreatePrimitiveBaseType(
+							Token::Kind::TypeUI_N, uint32_t(this->sizeOfGeneralRegister())
+						)
+					)
+				);
+			} break;
+
+			case Token::Kind::TypeUSize: {
+				return this->getTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, uint32_t(this->sizeOfPtr())))
+				);
+			} break;
+
+			case Token::Kind::TypeUI_N: {
+				return this->getTypeInfo(TypeInfo(id));
+			} break;
+
+			case Token::Kind::TypeF16: {
+				return this->getTypeInfo(TypeInfo(id));
+			} break;
+
+			case Token::Kind::TypeBF16: {
+				return this->getTypeInfo(TypeInfo(id));
+			} break;
+
+			case Token::Kind::TypeF32: {
+				return this->getTypeInfo(TypeInfo(id));
+			} break;
+
+			case Token::Kind::TypeF64: {
+				return this->getTypeInfo(TypeInfo(id));
+			} break;
+
+			case Token::Kind::TypeF80: {
+				return this->getTypeInfo(TypeInfo(id));
+			} break;
+
+			case Token::Kind::TypeF128: {
+				return this->getTypeInfo(TypeInfo(id));
+			} break;
+
+			case Token::Kind::TypeByte: {
+				return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 8)));
+			} break;
+
+			case Token::Kind::TypeBool: {
+				return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 1)));
+			} break;
+
+			case Token::Kind::TypeChar: {
+				return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 8)));
+			} break;
+
+			case Token::Kind::TypeRawPtr: {
+				return this->getTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, uint32_t(this->sizeOfPtr())))
+				);
+			} break;
+
+			case Token::Kind::TypeTypeID: {
+				return this->getTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 32))
+				);
+			} break;
+
+			case Token::Kind::TypeCShort: case Token::Kind::TypeCInt: case Token::Kind::TypeCLong:
+			case Token::Kind::TypeCLongLong: {
+				return this->getTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeI_N, uint32_t(this->sizeOf(id))))
+				);
+			} break;
+
+			case Token::Kind::TypeCUShort: case Token::Kind::TypeCUInt: case Token::Kind::TypeCULong:
+			case Token::Kind::TypeCULongLong: {
+				return this->getTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, uint32_t(this->sizeOf(id))))
+				);
+			} break;
+
+			case Token::Kind::TypeCLongDouble: {
+				if(this->platform() == core::Platform::Windows){
+					return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeF64)));
+				}else{
+					return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeF128)));
+				}
+			} break;
+
 			default: evo::debugFatalBreak("Not a type");
 		}
 	}

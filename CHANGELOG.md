@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.44.0
+
+### Panther
+- Added type conversion intrinsics:
+	- `@trunc`
+	- `@truncFloatPoint`
+	- `@sext`
+	- `@zext`
+	- `@extFloatPoint`
+	- `@integralToFloatPoint`
+	- `@uintegralToFloatPoint`
+	- `@floatPointToIntegral`
+	- `@floatPointToUIntegral`
+
+
+<!---------------------------------->
 ## v0.0.43.0
 
 ### Panther
@@ -15,7 +31,7 @@
 - Fixed fatal error when trying to run a compile-time function declared inside a runtime function
 
 ## Misc
-- Updated README to move Panther example to new PCIT website
+- Updated README to move Panther example to new [PCIT website](pcit-project.github.io)
 
 
 <!---------------------------------->
