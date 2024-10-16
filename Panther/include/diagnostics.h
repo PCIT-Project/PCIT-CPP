@@ -92,6 +92,8 @@ namespace pcit::panther{
 		SemaInvalidDiscardStmtRHS,
 		SemaInvalidAddrOfRHS,
 		SemaInvalidDerefRHS,
+		SemaInvalidAsLHS,
+		SemaInvalidAsRHS,
 		SemaInvalidTypeQualifiers,
 		SemaParamTypeVoid,
 		SemaNoMatchingFunction,
@@ -209,6 +211,8 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaInvalidDiscardStmtRHS:                return "S";
 			break; case DiagnosticCode::SemaInvalidAddrOfRHS:                     return "S";
 			break; case DiagnosticCode::SemaInvalidDerefRHS:                      return "S";
+			break; case DiagnosticCode::SemaInvalidAsLHS:                         return "S";
+			break; case DiagnosticCode::SemaInvalidAsRHS:                         return "S";
 			break; case DiagnosticCode::SemaInvalidTypeQualifiers:                return "S";
 			break; case DiagnosticCode::SemaParamTypeVoid:                        return "S";
 			break; case DiagnosticCode::SemaNoMatchingFunction:                   return "S";

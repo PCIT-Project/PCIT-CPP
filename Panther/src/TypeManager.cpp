@@ -88,18 +88,6 @@ namespace pcit::panther{
 		return this->types.emplace_back(std::move(lookup_type_info));
 	}
 
-	auto TypeManager::getTypeInfo(TypeInfo&& lookup_type_info) const -> TypeInfo::ID {
-		const auto lock = std::unique_lock(this->types_mutex);
-
-		for(uint32_t i = 0; i < this->types.size(); i+=1){
-			if(this->types[TypeInfo::ID(i)] == lookup_type_info){
-				return TypeInfo::ID(i);
-			}
-		}
-
-		evo::debugFatalBreak("Unknown or unsupported type info");
-	}
-
 
 	auto TypeManager::printType(TypeInfo::VoidableID type_info_id) const -> std::string {
 		if(type_info_id.isVoid()) [[unlikely]] {
@@ -569,7 +557,7 @@ namespace pcit::panther{
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
 			case Token::Kind::TypeInt:{
-				return this->getTypeInfo(
+				return this->getOrCreateTypeInfo(
 					TypeInfo(
 						this->getOrCreatePrimitiveBaseType(
 							Token::Kind::TypeI_N, uint32_t(this->sizeOfGeneralRegister())
@@ -579,17 +567,17 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeISize:{
-				return this->getTypeInfo(
+				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeI_N, uint32_t(this->sizeOfPtr())))
 				);
 			} break;
 
 			case Token::Kind::TypeI_N: {
-				return this->getTypeInfo(TypeInfo(id));
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TypeUInt: {
-				return this->getTypeInfo(
+				return this->getOrCreateTypeInfo(
 					TypeInfo(
 						this->getOrCreatePrimitiveBaseType(
 							Token::Kind::TypeUI_N, uint32_t(this->sizeOfGeneralRegister())
@@ -599,82 +587,90 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeUSize: {
-				return this->getTypeInfo(
+				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, uint32_t(this->sizeOfPtr())))
 				);
 			} break;
 
 			case Token::Kind::TypeUI_N: {
-				return this->getTypeInfo(TypeInfo(id));
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TypeF16: {
-				return this->getTypeInfo(TypeInfo(id));
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TypeBF16: {
-				return this->getTypeInfo(TypeInfo(id));
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TypeF32: {
-				return this->getTypeInfo(TypeInfo(id));
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TypeF64: {
-				return this->getTypeInfo(TypeInfo(id));
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TypeF80: {
-				return this->getTypeInfo(TypeInfo(id));
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TypeF128: {
-				return this->getTypeInfo(TypeInfo(id));
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TypeByte: {
-				return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 8)));
-			} break;
-
-			case Token::Kind::TypeBool: {
-				return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 1)));
-			} break;
-
-			case Token::Kind::TypeChar: {
-				return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 8)));
-			} break;
-
-			case Token::Kind::TypeRawPtr: {
-				return this->getTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, uint32_t(this->sizeOfPtr())))
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 8))
 				);
 			} break;
 
+			case Token::Kind::TypeBool: {
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 1))
+				);
+			} break;
+
+			case Token::Kind::TypeChar: {
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 8))
+				);
+			} break;
+
+			case Token::Kind::TypeRawPtr: {
+				return TypeManager::getTypeRawPtr();
+			} break;
+
 			case Token::Kind::TypeTypeID: {
-				return this->getTypeInfo(
+				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 32))
 				);
 			} break;
 
 			case Token::Kind::TypeCShort: case Token::Kind::TypeCInt: case Token::Kind::TypeCLong:
 			case Token::Kind::TypeCLongLong: {
-				return this->getTypeInfo(
+				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeI_N, uint32_t(this->sizeOf(id))))
 				);
 			} break;
 
 			case Token::Kind::TypeCUShort: case Token::Kind::TypeCUInt: case Token::Kind::TypeCULong:
 			case Token::Kind::TypeCULongLong: {
-				return this->getTypeInfo(
+				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, uint32_t(this->sizeOf(id))))
 				);
 			} break;
 
 			case Token::Kind::TypeCLongDouble: {
 				if(this->platform() == core::Platform::Windows){
-					return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeF64)));
+					return this->getOrCreateTypeInfo(
+						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeF64))
+					);
 				}else{
-					return this->getTypeInfo(TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeF128)));
+					return this->getOrCreateTypeInfo(
+						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeF128))
+					);
 				}
 			} break;
 

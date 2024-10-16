@@ -1134,20 +1134,13 @@ namespace pcit::panther{
 				} break;
 
 				case TemplatedIntrinsic::Kind::BitCast: {
-					if(
-						instantiation.templateArgs[0].as<TypeInfo::VoidableID>() ==
-						instantiation.templateArgs[1].as<TypeInfo::VoidableID>()
-					){
-						return args;
-					}
+					const TypeInfo::ID from_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const TypeInfo::ID to_type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 
-
-					const llvmint::Type to_type = this->get_type(
-						instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID()
-					);
+					if(from_type_id == to_type_id){ return args; }
 
 					return evo::SmallVector<llvmint::Value>{
-						this->builder.createBitCast(args[0], to_type, this->stmt_name("BITCAST"))
+						this->builder.createBitCast(args[0], this->get_type(to_type_id), this->stmt_name("BITCAST"))
 					};
 				} break;
 

@@ -299,8 +299,14 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_expr_this(const Token::ID& this_expr) -> evo::Result<ExprInfo>;
 
 
+
 			///////////////////////////////////
 			// misc
+
+			EVO_NODISCARD auto get_as_conversion(
+				const ExprInfo& value, const TypeInfo::VoidableID to_type_id, const AST::Infix& infix_expr
+			) -> evo::Result<ExprInfo>;
+
 
 			struct AnalyzedFuncCallData{
 				const BaseType::Function* selected_func_type;

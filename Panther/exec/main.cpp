@@ -68,7 +68,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::Run,
+		.target      = Config::Target::PrintLLVMIR,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 

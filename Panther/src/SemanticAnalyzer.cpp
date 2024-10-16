@@ -969,17 +969,22 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze_conditional(const AST::Conditional& conditional) -> bool {
-		evo::Result<ExprInfo> cond = this->analyze_expr<ExprValueKind::Runtime>(conditional.cond);
-		if(cond.isError()){ return this->may_recover(); }
+		bool errored = false;
 
-		const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
-		if(
-			this->type_check<true>(
-				bool_type_id, cond.value(), "if conditional condition", conditional.cond
-			).ok == false
-		){
-			return this->may_recover();
+		evo::Result<ExprInfo> cond = this->analyze_expr<ExprValueKind::Runtime>(conditional.cond);
+		if(cond.isError()){
+			errored = true;
+		}else{
+			const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
+			if(
+				this->type_check<true>(
+					bool_type_id, cond.value(), "if conditional condition", conditional.cond
+				).ok == false
+			){
+				errored = true;
+			}
 		}
+
 
 
 		auto then_block = ASG::StmtBlock();
@@ -988,7 +993,7 @@ namespace pcit::panther{
 			EVO_DEFER([&](){ this->pop_scope_level(); });
 
 			const AST::Block ast_block = this->source.getASTBuffer().getBlock(conditional.thenBlock);
-			if(this->analyze_block(ast_block) == false){ return this->may_recover(); }
+			if(this->analyze_block(ast_block) == false){ errored = true; }
 		}
 
 
@@ -999,7 +1004,7 @@ namespace pcit::panther{
 
 			if(conditional.elseBlock->kind() == AST::Kind::Block){
 				const AST::Block& ast_block = this->source.getASTBuffer().getBlock(*conditional.elseBlock);
-				if(this->analyze_block(ast_block) == false){ return this->may_recover(); }
+				if(this->analyze_block(ast_block) == false){ errored = true; }
 				
 			}else{
 				const AST::Conditional& ast_conditional =
@@ -1014,13 +1019,17 @@ namespace pcit::panther{
 			this->get_current_scope_level().addSubScope();
 		}
 
-		const ASG::Conditional::ID asg_cond_id = this->source.asg_buffer.createConditional(
-			cond.value().getExpr(), std::move(then_block), std::move(else_block)
-		);
+		if(!errored){
+			const ASG::Conditional::ID asg_cond_id = this->source.asg_buffer.createConditional(
+				cond.value().getExpr(), std::move(then_block), std::move(else_block)
+			);
 
-		this->get_current_scope_level().stmtBlock().emplace_back(asg_cond_id);
+			this->get_current_scope_level().stmtBlock().emplace_back(asg_cond_id);
 
-		return true;
+			return true;
+		}else{
+			return this->may_recover();
+		}
 	}
 
 
@@ -3846,6 +3855,26 @@ namespace pcit::panther{
 
 			} break;
 
+			case Token::Kind::KeywordAs: {
+				const evo::Result<ExprInfo> lhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.lhs);
+				if(lhs_expr_info.isError()){ return evo::resultError; }
+
+				if(
+					(lhs_expr_info.value().is_ephemeral() == false && lhs_expr_info.value().is_concrete() == false) ||
+					lhs_expr_info.value().hasExpr() == false
+				){
+					this->emit_error(Diagnostic::Code::SemaInvalidAsLHS, infix.lhs, "Invalid LHS of [as] operation");
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::VoidableID> to_type_id = this->get_type_id(
+					this->source.getASTBuffer().getType(infix.rhs)
+				);
+				if(to_type_id.isError()){ return evo::resultError; }
+
+				return this->get_as_conversion(lhs_expr_info.value(), to_type_id.value(), infix);
+			} break;
+
 			default: {
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
@@ -4414,6 +4443,201 @@ namespace pcit::panther{
 		);
 		return evo::resultError;
 	}
+
+
+
+	auto SemanticAnalyzer::get_as_conversion(
+		const ExprInfo& value, const TypeInfo::VoidableID to_type_id, const AST::Infix& infix_expr
+	) -> evo::Result<ExprInfo> {
+		if(to_type_id.isVoid()){
+			this->emit_error(Diagnostic::Code::SemaInvalidAsRHS, infix_expr.rhs, "Cannot convert to type `Void`");
+			return evo::resultError;
+		}
+
+		if(value.value_type == ExprInfo::ValueType::EpemeralFluid){
+			this->emit_error(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				infix_expr.lhs,
+				"Using operator [as] on a fluid literal is currently unsupported"
+			);
+			return evo::resultError;
+		}
+
+
+		const TypeInfo::ID from_type_id = value.type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+		const evo::Result<TypeInfo::ID> from_underlying_type_id = 
+			this->context.getTypeManager().getUnderlyingType(from_type_id);
+		if(from_underlying_type_id.isError()){
+			this->emit_error(
+				Diagnostic::Code::SemaInvalidAsLHS,
+				infix_expr.lhs,
+				"No valid operator [as] for this type",
+				Diagnostic::Info("Type: " + this->context.getTypeManager().printType(from_type_id))
+			);
+			return evo::resultError;
+		}
+
+
+		const evo::Result<TypeInfo::ID> to_underlying_type_id =
+			this->context.getTypeManager().getUnderlyingType(to_type_id.typeID());
+		if(to_underlying_type_id.isError()){
+			// TODO: better messaging
+			this->emit_error(Diagnostic::Code::SemaInvalidAsRHS, infix_expr.rhs, "Cannot convert to this type");
+			return evo::resultError;
+		}
+
+
+		const BaseType::Primitive& from_type = this->context.getTypeManager().getPrimitive(
+			this->context.getTypeManager().getTypeInfo(from_underlying_type_id.value()).baseTypeID().primitiveID()
+		);
+
+		const BaseType::Primitive& to_type = this->context.getTypeManager().getPrimitive(
+			this->context.getTypeManager().getTypeInfo(to_underlying_type_id.value()).baseTypeID().primitiveID()
+		);
+
+
+		if(from_type.kind() == Token::Kind::TypeRawPtr && to_type.kind() == Token::Kind::TypeRawPtr){
+			const TypeInfo& from_actual_type = this->context.getTypeManager().getTypeInfo(from_type_id);
+			const TypeInfo& to_actual_type = this->context.getTypeManager().getTypeInfo(to_type_id.typeID());
+
+			if(from_actual_type.isPointer() && to_actual_type.isPointer()){
+				// TODO: better messaging
+				this->emit_error(Diagnostic::Code::SemaInvalidAsLHS, infix_expr, "Cannot convert pointers");
+				return evo::resultError;	
+			}
+
+			return ExprInfo(
+				ExprInfo::ValueType::Ephemeral,
+				ExprInfo::generateExprInfoTypeIDs(to_type_id.typeID()),
+				evo::SmallVector<ASG::Expr>{value.getExpr()}
+			);
+
+		}else if(from_type.kind() == Token::Kind::TypeRawPtr){
+			evo::breakpoint();
+			// TODO: better messaging
+			this->emit_error(Diagnostic::Code::SemaInvalidAsLHS, infix_expr.lhs, "Cannot convert from pointers");
+			return evo::resultError;
+
+		}else if(to_type.kind() == Token::Kind::TypeRawPtr){
+			// TODO: better messaging
+			this->emit_error(Diagnostic::Code::SemaInvalidAsRHS, infix_expr.rhs, "Cannot convert to pointers");
+			return evo::resultError;
+		}
+
+		// if converting to same type, no conversion needed
+		if(from_underlying_type_id.value() == to_underlying_type_id.value()){
+			return value;
+		}
+
+
+		struct TypeConversionData{
+			enum class Kind{
+				Integer,
+				UnsignedInteger,
+				Float,
+			} kind;
+			evo::uint width;
+		};
+
+		auto get_type_conversion_data = [this](const BaseType::Primitive& primitive_type) -> TypeConversionData {
+			switch(primitive_type.kind()){
+				case Token::Kind::TypeI_N:
+					return TypeConversionData(TypeConversionData::Kind::Integer, primitive_type.bitWidth());
+				case Token::Kind::TypeUI_N:
+					return TypeConversionData(TypeConversionData::Kind::UnsignedInteger, primitive_type.bitWidth());
+				case Token::Kind::TypeF16:  return TypeConversionData(TypeConversionData::Kind::Float, 16);
+				case Token::Kind::TypeF32:  return TypeConversionData(TypeConversionData::Kind::Float, 32);
+				case Token::Kind::TypeF64:  return TypeConversionData(TypeConversionData::Kind::Float, 64);
+				case Token::Kind::TypeF80:  return TypeConversionData(TypeConversionData::Kind::Float, 80);
+				case Token::Kind::TypeF128: return TypeConversionData(TypeConversionData::Kind::Float, 128);
+
+				default: evo::debugFatalBreak("Unknown or unsupported underlying type");
+			}
+		};
+
+		const TypeConversionData from_data = get_type_conversion_data(from_type);
+		const TypeConversionData to_data = get_type_conversion_data(to_type);
+		
+
+		const TemplatedIntrinsic::Kind intrinsic_kind = [&](){
+			switch(from_data.kind){
+				case TypeConversionData::Kind::Integer: {
+					switch(to_data.kind){
+						case TypeConversionData::Kind::Integer: case TypeConversionData::Kind::UnsignedInteger: {
+							if(from_data.width < to_data.width){
+								return TemplatedIntrinsic::Kind::SExt;
+							}else{
+								return TemplatedIntrinsic::Kind::Trunc;
+							}
+						} break;
+
+						case TypeConversionData::Kind::Float: {
+							return TemplatedIntrinsic::Kind::IntegralToFloatPoint;
+						} break;
+					}
+				} break;
+
+				case TypeConversionData::Kind::UnsignedInteger: {
+					switch(to_data.kind){
+						case TypeConversionData::Kind::Integer: case TypeConversionData::Kind::UnsignedInteger: {
+							if(from_data.width < to_data.width){
+								return TemplatedIntrinsic::Kind::ZExt;
+							}else{
+								return TemplatedIntrinsic::Kind::Trunc;
+							}
+						} break;
+
+						case TypeConversionData::Kind::Float: {
+							return TemplatedIntrinsic::Kind::UIntegralToFloatPoint;
+						} break;
+					}
+				} break;
+
+				case TypeConversionData::Kind::Float: {
+					switch(to_data.kind){
+						case TypeConversionData::Kind::Integer: {
+							return TemplatedIntrinsic::Kind::FloatPointToIntegral;
+						} break;
+
+						case TypeConversionData::Kind::UnsignedInteger: {
+							return TemplatedIntrinsic::Kind::FloatPointToUIntegral;
+						} break;
+
+						case TypeConversionData::Kind::Float: {
+							if(from_data.width < to_data.width){
+								return TemplatedIntrinsic::Kind::ExtFloatPoint;
+							}else{
+								return TemplatedIntrinsic::Kind::TruncFloatPoint;
+							}
+						} break;
+					}
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown or unsupported TypeConversionData::Kind");
+		}();
+
+		using InstantiationID = ASG::TemplatedIntrinsicInstantiation::ID;
+		const InstantiationID instantiation_id = this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+			intrinsic_kind,
+			evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{
+				from_underlying_type_id.value(),
+				to_underlying_type_id.value()
+			}
+		);
+
+		const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
+			instantiation_id, evo::SmallVector<ASG::Expr>{value.getExpr()}
+		);
+
+		return ExprInfo(
+			ExprInfo::ValueType::Ephemeral,
+			ExprInfo::generateExprInfoTypeIDs(to_type_id.typeID()),
+			evo::SmallVector<ASG::Expr>{ASG::Expr(created_func_call_id)}
+		);
+	}
+
+
 
 
 

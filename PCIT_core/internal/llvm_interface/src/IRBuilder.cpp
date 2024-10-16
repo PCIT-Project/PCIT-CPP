@@ -193,7 +193,7 @@ namespace pcit::llvmint{
 	
 	
 	auto IRBuilder::createBitCast(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateBitCast(value.native(), dst_type.native(), name.c_str()));
+		return Value(this->builder->CreateBitOrPointerCast(value.native(), dst_type.native(), name.c_str()));
 	}	
 
 

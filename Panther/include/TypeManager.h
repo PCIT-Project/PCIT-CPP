@@ -269,7 +269,6 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
 			EVO_NODISCARD auto getOrCreateTypeInfo(TypeInfo&& lookup_type_info) -> TypeInfo::ID;
-			EVO_NODISCARD auto getTypeInfo(TypeInfo&& lookup_type_info) const -> TypeInfo::ID;
 				
 			EVO_NODISCARD auto printType(TypeInfo::VoidableID type_info_id) const -> std::string;
 			EVO_NODISCARD auto printType(TypeInfo::ID type_info_id) const -> std::string;

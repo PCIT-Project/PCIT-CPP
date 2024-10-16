@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.45.0
+
+### Panther
+- Added `as` operator
+- Improved error recovery of conditionals
+- Fixed underlying type of `RawPtr` being `UI64` (should be `RawPtr`)
+- Fixed `@bitCast` between integrals and pointers
+
+
+<!---------------------------------->
 ## v0.0.44.0
 
 ### Panther
