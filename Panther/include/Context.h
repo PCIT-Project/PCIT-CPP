@@ -34,7 +34,6 @@ namespace pcit::llvmint{
 
 namespace pcit::panther{
 
-
 	class Context{
 		public:
 			using DiagnosticCallback = std::function<void(const Context&, const Diagnostic&)>;
@@ -42,9 +41,12 @@ namespace pcit::panther{
 			struct Config{
 				fs::path basePath;
 				
-				evo::uint numThreads   = 0;
-				evo::uint maxNumErrors = 1;
-				bool mayRecover        = true;
+				bool addSourceLocations = true;
+				bool checkedArithmetic  = true;
+
+				unsigned numThreads     = 0; // 0 for single-threaded
+				unsigned maxNumErrors   = 1;
+				bool mayRecover         = true;
 			};
 
 			enum class LookupSourceIDError{
@@ -55,15 +57,14 @@ namespace pcit::panther{
 			};
 
 		public:
-			// pass 0 for _num_threads for single threaded
-			Context(DiagnosticCallback diagnostic_callback, const Config& _config);
+			Context(core::Printer& _printer, DiagnosticCallback diagnostic_callback, const Config& _config);
 			~Context();
 
 			Context(const Context&) = delete;
 			auto operator=(const Context&) = delete;
 
 			// Returns 0 if number is unknown
-			EVO_NODISCARD static auto optimalNumThreads() -> evo::uint;
+			EVO_NODISCARD static auto optimalNumThreads() -> unsigned;
 
 			EVO_NODISCARD auto isSingleThreaded() const -> bool { return this->config.numThreads == 0; }
 			EVO_NODISCARD auto isMultiThreaded() const -> bool { return this->config.numThreads != 0; }
@@ -170,7 +171,7 @@ namespace pcit::panther{
 				llvmint::LLVMContext& llvm_context,
 				llvmint::Module& module,
 				bool add_runtime,
-				bool use_readable_registers
+				const struct ASGToLLVMIRConfig& backend_config
 			) -> bool;
 
 			auto wait_for_all_current_tasks() -> void;
@@ -189,6 +190,7 @@ namespace pcit::panther{
 	
 		private:
 			Config config;
+			core::Printer& printer;
 
 			SourceManager src_manager;
 			mutable std::mutex src_manager_mutex{};
@@ -206,7 +208,7 @@ namespace pcit::panther{
 			std::array<Intrinsic, size_t(Intrinsic::Kind::_max_)> intrinsics{};
 			std::array<TemplatedIntrinsic, size_t(TemplatedIntrinsic::Kind::_max_)> templated_intrinsics{};
 
-			ComptimeExecutor comptime_executor{*this};
+			ComptimeExecutor comptime_executor{*this, this->printer};
 
 			friend class SemanticAnalyzer; // to access comptime_executor
 
@@ -216,8 +218,8 @@ namespace pcit::panther{
 
 			bool task_group_running = false;
 			bool multiple_task_stages_left = false;
-			std::atomic<evo::uint> num_errors = 0;
-			std::atomic<evo::uint> num_threads_running = 0;
+			std::atomic<unsigned> num_errors = 0;
+			std::atomic<unsigned> num_threads_running = 0;
 			std::atomic<bool> hit_fail_condition = false;
 			std::atomic_flag shutting_down_threads{};
 

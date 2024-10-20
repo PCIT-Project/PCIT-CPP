@@ -46,16 +46,34 @@ namespace pcit::panther{
 
 			SizeOf,
 			GetTypeID,
+
 			BitCast,
 			Trunc,
-			TruncFloatPoint,
+			FTrunc,
 			SExt,
 			ZExt,
-			ExtFloatPoint,
-			IntegralToFloatPoint,
-			UIntegralToFloatPoint,
-			FloatPointToIntegral,
-			FloatPointToUIntegral,
+			FExt,
+			IToF,
+			UIToF,
+			FToI,
+			FToUI,
+
+			Add,
+			AddWrap,
+			AddSat,
+			FAdd,
+			Sub,
+			SubWrap,
+			SubSat,
+			FSub,
+			Mul,
+			MulWrap,
+			MulSat,
+			FMul,
+			Div,
+			FDiv,
+			Rem,
+
 
 			_max_
 		};

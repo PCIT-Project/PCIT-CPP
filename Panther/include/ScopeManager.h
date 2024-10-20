@@ -75,7 +75,7 @@ namespace pcit::panther{
 
 					ASG::StmtBlock* _stmt_block;
 
-					evo::uint num_sub_scopes_not_terminated = 0;
+					unsigned num_sub_scopes_not_terminated = 0;
 					bool has_sub_scopes = false;
 			};
 

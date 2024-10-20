@@ -25,6 +25,20 @@ namespace pcit::llvmint{
 		public:
 			enum class IntrinsicID{
 				debugtrap,
+
+				saddSat,
+				saddOverflow,
+				smulFixSat,
+				smulOverflow,
+				ssubSat,
+				ssubOverflow,
+
+				uaddSat,
+				uaddOverflow,
+				umulFixSat,
+				umulOverflow,
+				usubSat,
+				usubOverflow,
 			};
 
 		public:
@@ -59,8 +73,6 @@ namespace pcit::llvmint{
 
 			auto createUnreachable() -> void;
 			
-			// createGEP
-
 			auto createBranch(const BasicBlock& block) -> void;
 
 			auto createCondBranch(const Value& cond, const BasicBlock& then_block, const BasicBlock& else_block)
@@ -105,16 +117,41 @@ namespace pcit::llvmint{
 				-> Value;
 
 			
+			///////////////////////////////////
+			// element operations
+
+			EVO_NODISCARD auto createExtractValue(
+				const Value& value, evo::ArrayProxy<unsigned> indices, evo::CStrProxy name = '\0'
+			) -> Value;
 
 
 			///////////////////////////////////
 			// operators
 
-			// createAdd
-			// createSub
-			// createMul
-			// createUDiv
-			// createSDiv
+			EVO_NODISCARD auto createAdd(
+				const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name = '\0'
+			) -> Value;
+			EVO_NODISCARD auto createFAdd(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+
+			EVO_NODISCARD auto createSub(
+				const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name = '\0'
+			) -> Value;
+			EVO_NODISCARD auto createFSub(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+
+			EVO_NODISCARD auto createMul(
+				const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name = '\0'
+			) -> Value;
+			EVO_NODISCARD auto createFMul(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+
+			EVO_NODISCARD auto createUDiv(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name = '\0')
+				-> Value;
+			EVO_NODISCARD auto createSDiv(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name = '\0')
+				-> Value;
+			EVO_NODISCARD auto createFDiv(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+
+			EVO_NODISCARD auto createURem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createSRem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFRem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 
 
 			// createICmpEQ
@@ -154,7 +191,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getValueI64(uint64_t value) const -> ConstantInt;
 			EVO_NODISCARD auto getValueI128(uint64_t value) const -> ConstantInt;
 			
-			EVO_NODISCARD auto getValueI_N(evo::uint bitwidth, uint64_t value) const -> ConstantInt;
+			EVO_NODISCARD auto getValueI_N(unsigned bitwidth, uint64_t value) const -> ConstantInt;
 
 			EVO_NODISCARD auto getValueIntegral(const IntegerType& type, uint64_t value) const -> ConstantInt;
 
@@ -182,12 +219,21 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getInfinityF128() const -> Constant;
 
 
+			EVO_NODISCARD auto getValueGlobalStrPtr(std::string_view str, evo::CStrProxy name = '\0') const -> Constant;
+
+
 			//////////////////////////////////////////////////////////////////////
 			// types
 
 			EVO_NODISCARD auto getFuncProto(
 				const Type& return_type, evo::ArrayProxy<Type> params, bool is_var_args
 			) const -> FunctionType;
+
+			EVO_NODISCARD auto getStructType(evo::ArrayProxy<Type> members) -> StructType;
+			EVO_NODISCARD auto createStructType(
+				evo::ArrayProxy<Type> members, bool is_packed, evo::CStrProxy name = '\0'
+			) const -> StructType;
+			EVO_NODISCARD auto createStructType(evo::ArrayProxy<Type>, const char*) = delete;
 
 			EVO_NODISCARD auto getTypeBool() const -> IntegerType;
 
@@ -197,7 +243,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getTypeI64() const -> IntegerType;
 			EVO_NODISCARD auto getTypeI128() const -> IntegerType;
 
-			EVO_NODISCARD auto getTypeI_N(evo::uint width) const -> IntegerType;
+			EVO_NODISCARD auto getTypeI_N(unsigned width) const -> IntegerType;
 
 			EVO_NODISCARD auto getTypeF16() const -> Type;
 			EVO_NODISCARD auto getTypeBF16() const -> Type;

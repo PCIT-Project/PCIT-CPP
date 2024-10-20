@@ -11,6 +11,7 @@
 
 
 #include <Evo.h>
+#include <PCIT_core.h>
 
 #include "../include/ASG.h"
 #include "../include/ASGBuffer.h"
@@ -21,7 +22,7 @@ namespace pcit::panther{
 
 	class ComptimeExecutor{
 		public:
-			ComptimeExecutor(class Context& _context) : context(_context) {};
+			ComptimeExecutor(class Context& _context, core::Printer& _printer) : context(_context), printer(_printer) {}
 			~ComptimeExecutor() = default;
 
 			auto init() -> std::string; // string is error message if initalization fails (empty if successful)
@@ -41,6 +42,7 @@ namespace pcit::panther{
 
 		private:
 			class Context& context;
+			core::Printer& printer;
 
 			mutable std::shared_mutex mutex{};
 			bool requires_engine_restart = false;

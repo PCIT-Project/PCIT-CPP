@@ -46,7 +46,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto back() const -> const BasicBlock;
 			EVO_NODISCARD auto back()       ->       BasicBlock;
 
-			EVO_NODISCARD auto getArg(evo::uint index) const -> Argument;
+			EVO_NODISCARD auto getArg(unsigned index) const -> Argument;
 
 			auto setNoThrow() -> void;
 			auto setCallingConv(CallingConv calling_conv) -> void;

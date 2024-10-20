@@ -12,6 +12,7 @@
 #include "../include/Context.h"
 #include "../include/Source.h"
 #include "../include/SourceManager.h"
+#include "../include/get_source_location.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -22,7 +23,8 @@
 namespace pcit::panther{
 
 	auto ASGToLLVMIR::lower() -> void {
-		this->addRuntimeLinks();
+		this->add_links();
+		if(this->config.isJIT){ this->add_links_for_JIT(); }
 
 		// lower variables
 		for(const Source::ID& source_id : this->context.getSourceManager()){
@@ -88,11 +90,16 @@ namespace pcit::panther{
 	}
 
 
+	auto ASGToLLVMIR::getFuncMangledName(ASG::Func::LinkID link_id) -> std::string_view {
+		const FuncInfo& func_info = this->get_func_info(link_id);
+		return std::string_view(func_info.mangled_name);
+	}
 
-	auto ASGToLLVMIR::addRuntimeLinks() -> void {
-		///////////////////////////////////
+
+
+
+	auto ASGToLLVMIR::add_links() -> void {
 		// _printHelloWorld
-
 		linked_functions.print_hello_world = this->module.createFunction(
 			"PTHR._printHelloWorld",
 			this->builder.getFuncProto(this->builder.getTypeVoid(), {}, false),
@@ -101,11 +108,32 @@ namespace pcit::panther{
 		linked_functions.print_hello_world->setNoThrow();
 	}
 
+	auto ASGToLLVMIR::add_links_for_JIT() -> void {
+		if(this->config.addSourceLocations){
+			linked_functions.panic_with_location = this->module.createFunction(
+				"PTHR.panic_with_location",
+				this->builder.getFuncProto(
+					this->builder.getTypeVoid(),
+					{
+						this->builder.getTypePtr().asType(),
+						this->builder.getTypeI32().asType(),
+						this->builder.getTypeI32().asType(),
+						this->builder.getTypeI32().asType()
+					},
+					false
+				),
+				llvmint::LinkageType::External
+			);
+			linked_functions.panic_with_location->setNoThrow();
 
-
-	auto ASGToLLVMIR::getFuncMangledName(ASG::Func::LinkID link_id) -> std::string_view {
-		const FuncInfo& func_info = this->get_func_info(link_id);
-		return std::string_view(func_info.mangled_name);
+		}else{
+			linked_functions.panic = this->module.createFunction(
+				"PTHR.panic",
+				this->builder.getFuncProto(this->builder.getTypeVoid(), {this->builder.getTypePtr().asType()}, false),
+				llvmint::LinkageType::External
+			);
+			linked_functions.panic->setNoThrow();
+		}
 	}
 
 
@@ -198,7 +226,7 @@ namespace pcit::panther{
 		const auto asg_func_link_id = ASG::Func::LinkID(this->current_source->getID(), func_id);
 		this->func_infos.emplace(asg_func_link_id, FuncInfo(llvm_func, std::move(mangled_name)));
 
-		for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params){
+		for(unsigned i = 0; const BaseType::Function::Param& param : func_type.params){
 			const std::string_view param_name = param.ident.visit([&](const auto& param_ident_id) -> std::string_view {
 				if constexpr(std::is_same_v<std::decay_t<decltype(param_ident_id)>, Token::ID>){
 					return this->current_source->getTokenBuffer()[param_ident_id].getString();
@@ -212,14 +240,14 @@ namespace pcit::panther{
 		}
 
 		if(func_type.hasNamedReturns()){
-			const evo::uint first_return_param_index = evo::uint(func_type.params.size());
-			evo::uint i = first_return_param_index;
+			const unsigned first_return_param_index = unsigned(func_type.params.size());
+			unsigned i = first_return_param_index;
 			for(const BaseType::Function::ReturnParam& ret_param : func_type.returnParams){
 				llvm_func.getArg(i).setName(
 					std::format("ret.{}", this->current_source->getTokenBuffer()[*ret_param.ident].getString())
 				);
 
-				const evo::uint return_i = i - first_return_param_index;
+				const unsigned return_i = i - first_return_param_index;
 
 				this->return_param_infos.emplace(
 					ASG::ReturnParam::LinkID(asg_func_link_id, func.returnParams[return_i]),
@@ -241,7 +269,7 @@ namespace pcit::panther{
 
 			this->builder.setInsertionPoint(setup_block);
 
-			for(evo::uint i = 0; const BaseType::Function::Param& param : func_type.params){
+			for(unsigned i = 0; const BaseType::Function::Param& param : func_type.params){
 				const std::string_view param_name = param.ident.visit(
 					[&](const auto& param_ident_id) -> std::string_view {
 						if constexpr(std::is_same_v<std::decay_t<decltype(param_ident_id)>, Token::ID>){
@@ -531,18 +559,18 @@ namespace pcit::panther{
 		switch(primitive.kind()){
 			case Token::Kind::TypeInt: case Token::Kind::TypeUInt: {
 				return this->builder.getTypeI_N(
-					evo::uint(this->context.getTypeManager().sizeOfGeneralRegister() * 8)
+					unsigned(this->context.getTypeManager().sizeOfGeneralRegister() * 8)
 				).asType();
 			} break;
 
 			case Token::Kind::TypeISize: case Token::Kind::TypeUSize:{
 				return this->builder.getTypeI_N(
-					evo::uint(this->context.getTypeManager().sizeOfPtr() * 8)
+					unsigned(this->context.getTypeManager().sizeOfPtr() * 8)
 				).asType();
 			} break;
 
 			case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
-				return this->builder.getTypeI_N(evo::uint(primitive.bitWidth())).asType();
+				return this->builder.getTypeI_N(unsigned(primitive.bitWidth())).asType();
 			} break;
 
 			case Token::Kind::TypeF16: return this->builder.getTypeF16();
@@ -1028,7 +1056,7 @@ namespace pcit::panther{
 				} break;
 
 				case Intrinsic::Kind::_printHelloWorld: {
-					this->builder.createCall(*linked_functions.print_hello_world, nullptr);
+					this->builder.createCall(*this->linked_functions.print_hello_world, nullptr);
 
 					return evo::SmallVector<llvmint::Value>();
 				} break;
@@ -1114,7 +1142,7 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::SizeOf: {
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.getValueI_N(
-							evo::uint(this->context.getTypeManager().sizeOfPtr()),
+							unsigned(this->context.getTypeManager().sizeOfPtr()),
 							this->context.getTypeManager().sizeOf(
 								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
 							)
@@ -1152,7 +1180,7 @@ namespace pcit::panther{
 					};
 				} break;
 
-				case TemplatedIntrinsic::Kind::TruncFloatPoint: {
+				case TemplatedIntrinsic::Kind::FTrunc: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.createFPTrunc(args[0], this->get_type(to_type), this->stmt_name("FPTRUNC"))
@@ -1173,40 +1201,354 @@ namespace pcit::panther{
 					};
 				} break;
 
-				case TemplatedIntrinsic::Kind::ExtFloatPoint: {
+				case TemplatedIntrinsic::Kind::FExt: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.createFPExt(args[0], this->get_type(to_type), this->stmt_name("FPEXT"))
 					};
 				} break;
 
-				case TemplatedIntrinsic::Kind::IntegralToFloatPoint: {
+				case TemplatedIntrinsic::Kind::IToF: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.createSIToFP(args[0], this->get_type(to_type), this->stmt_name("SITOFP"))
 					};
 				} break;
 
-				case TemplatedIntrinsic::Kind::UIntegralToFloatPoint: {
+				case TemplatedIntrinsic::Kind::UIToF: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.createUIToFP(args[0], this->get_type(to_type), this->stmt_name("UITOFP"))
 					};
 				} break;
 
-				case TemplatedIntrinsic::Kind::FloatPointToIntegral: {
+				case TemplatedIntrinsic::Kind::FToI: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.createFPToSI(args[0], this->get_type(to_type), this->stmt_name("FPTOSI"))
 					};
 				} break;
 
-				case TemplatedIntrinsic::Kind::FloatPointToUIntegral: {
+				case TemplatedIntrinsic::Kind::FToUI: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.createFPToUI(args[0], this->get_type(to_type), this->stmt_name("FPTOUI"))
 					};
 				} break;
+
+
+				///////////////////////////////////
+				// addition
+
+				case TemplatedIntrinsic::Kind::Add: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
+					if(may_wrap || this->config.checkedArithmetic == false){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createAdd(
+								args[0],
+								args[1],
+								is_unsigned & !may_wrap,
+								!is_unsigned & !may_wrap,
+								this->stmt_name("ADD")
+							)
+						};
+					}
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::uaddOverflow
+						: llvmint::IRBuilder::IntrinsicID::saddOverflow;
+
+					const llvmint::Type return_type = this->builder.getStructType(
+						{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					).asType();
+
+					const llvmint::Value add_wrap_value = this->builder.createIntrinsicCall(
+						intrinsic_id, return_type, args, this->stmt_name("ADD")
+					).asValue();
+
+					const llvmint::Value add_value = 
+						this->builder.createExtractValue(add_wrap_value, {0}, this->stmt_name("ADD.VALUE"));
+					const llvmint::Value wrapped_value = 
+						this->builder.createExtractValue(add_wrap_value, {1}, this->stmt_name("ADD.WRAPPED"));
+
+					this->add_assertion(wrapped_value, "ADD_CHECK", "Addition overflowed", func_call.location);
+
+					return evo::SmallVector<llvmint::Value>{add_value};
+
+				} break;
+
+				case TemplatedIntrinsic::Kind::AddWrap: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::uaddOverflow
+						: llvmint::IRBuilder::IntrinsicID::saddOverflow;
+
+					const llvmint::Type return_type = this->builder.getStructType(
+						{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					).asType();
+
+					const llvmint::Value add_value = this->builder.createIntrinsicCall(
+						intrinsic_id, return_type, args, this->stmt_name("ADD_WRAP")
+					).asValue();
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createExtractValue(add_value, {0}, this->stmt_name("ADD_WRAP.VALUE")),
+						this->builder.createExtractValue(add_value, {1}, this->stmt_name("ADD_WRAP.WRAPPED")),
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::AddSat: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::uaddSat
+						: llvmint::IRBuilder::IntrinsicID::saddSat;
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createIntrinsicCall(
+							intrinsic_id, this->get_type(arg_type), args, this->stmt_name("ADD_SAT")
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FAdd: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createFAdd(args[0], args[1], this->stmt_name("FADD"))
+					};
+				} break;
+
+
+				///////////////////////////////////
+				// subtraction
+
+				case TemplatedIntrinsic::Kind::Sub: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
+					if(may_wrap || this->config.checkedArithmetic == false){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createSub(
+								args[0],
+								args[1],
+								is_unsigned & !may_wrap,
+								!is_unsigned & !may_wrap,
+								this->stmt_name("SUB")
+							)
+						};
+					}
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::usubOverflow
+						: llvmint::IRBuilder::IntrinsicID::ssubOverflow;
+
+					const llvmint::Type return_type = this->builder.getStructType(
+						{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					).asType();
+
+					const llvmint::Value sub_wrap_value = this->builder.createIntrinsicCall(
+						intrinsic_id, return_type, args, this->stmt_name("SUB")
+					).asValue();
+
+					const llvmint::Value sub_value = 
+						this->builder.createExtractValue(sub_wrap_value, {0}, this->stmt_name("SUB.VALUE"));
+					const llvmint::Value wrapped_value = 
+						this->builder.createExtractValue(sub_wrap_value, {1}, this->stmt_name("SUB.WRAPPED"));
+
+					this->add_assertion(wrapped_value, "SUB_CHECK", "Subtraction overflowed", func_call.location);
+
+					return evo::SmallVector<llvmint::Value>{sub_value};
+
+				} break;
+
+				case TemplatedIntrinsic::Kind::SubWrap: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::usubOverflow
+						: llvmint::IRBuilder::IntrinsicID::ssubOverflow;
+
+					const llvmint::Type return_type = this->builder.getStructType(
+						{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					).asType();
+
+					const llvmint::Value sub_value = this->builder.createIntrinsicCall(
+						intrinsic_id, return_type, args, this->stmt_name("SUB_WRAP")
+					).asValue();
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createExtractValue(sub_value, {0}, this->stmt_name("SUB_WRAP.VALUE")),
+						this->builder.createExtractValue(sub_value, {1}, this->stmt_name("SUB_WRAP.WRAPPED")),
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SubSat: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::usubSat
+						: llvmint::IRBuilder::IntrinsicID::ssubSat;
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createIntrinsicCall(
+							intrinsic_id, this->get_type(arg_type), args, this->stmt_name("SUB_SAT")
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FSub: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createFSub(args[0], args[1], this->stmt_name("FSUB"))
+					};
+				} break;
+
+
+				///////////////////////////////////
+				// multiplication
+
+				case TemplatedIntrinsic::Kind::Mul: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
+					if(may_wrap || this->config.checkedArithmetic == false){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createMul(
+								args[0],
+								args[1],
+								is_unsigned & !may_wrap,
+								!is_unsigned & !may_wrap,
+								this->stmt_name("MUL")
+							)
+						};
+					}
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::umulOverflow
+						: llvmint::IRBuilder::IntrinsicID::smulOverflow;
+
+					const llvmint::Type return_type = this->builder.getStructType(
+						{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					).asType();
+
+					const llvmint::Value mul_wrap_value = this->builder.createIntrinsicCall(
+						intrinsic_id, return_type, args, this->stmt_name("MUL")
+					).asValue();
+
+					const llvmint::Value mul_value = 
+						this->builder.createExtractValue(mul_wrap_value, {0}, this->stmt_name("MUL.VALUE"));
+					const llvmint::Value wrapped_value = 
+						this->builder.createExtractValue(mul_wrap_value, {1}, this->stmt_name("MUL.WRAPPED"));
+
+					this->add_assertion(wrapped_value, "MUL_CHECK", "Multiplication overflowed", func_call.location);
+
+					return evo::SmallVector<llvmint::Value>{mul_value};
+
+				} break;
+
+				case TemplatedIntrinsic::Kind::MulWrap: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::umulOverflow
+						: llvmint::IRBuilder::IntrinsicID::smulOverflow;
+
+					const llvmint::Type return_type = this->builder.getStructType(
+						{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					).asType();
+
+					const llvmint::Value mul_value = this->builder.createIntrinsicCall(
+						intrinsic_id, return_type, args, this->stmt_name("MUL_WRAP")
+					).asValue();
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createExtractValue(mul_value, {0}, this->stmt_name("MUL_WRAP.VALUE")),
+						this->builder.createExtractValue(mul_value, {1}, this->stmt_name("MUL_WRAP.WRAPPED")),
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::MulSat: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+						? llvmint::IRBuilder::IntrinsicID::umulFixSat
+						: llvmint::IRBuilder::IntrinsicID::smulFixSat;
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createIntrinsicCall(
+							intrinsic_id,
+							this->get_type(arg_type),
+							{args[0], args[1], this->builder.getValueI32(0).asValue()},
+							this->stmt_name("MUL_SAT")
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FMul: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createFMul(args[0], args[1], this->stmt_name("FMUL"))
+					};
+				} break;
+
+
+				///////////////////////////////////
+				// division / remainder
+
+				case TemplatedIntrinsic::Kind::Div: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_exact = instantiation.templateArgs[1].as<bool>();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					if(is_unsigned){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createUDiv(args[0], args[1], is_exact, this->stmt_name("DIV"))
+						};
+					}else{
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createSDiv(args[0], args[1], is_exact, this->stmt_name("DIV"))
+						};
+					}
+				} break;
+
+				case TemplatedIntrinsic::Kind::FDiv: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createFDiv(args[0], args[1], this->stmt_name("FDIV"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::Rem: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floatint_point){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createFRem(args[0], args[1], this->stmt_name("Rem"))
+						};
+					}
+
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createURem(args[0], args[1], this->stmt_name("Rem"))
+						};
+					}else{
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createSRem(args[0], args[1], this->stmt_name("Rem"))
+						};
+					}
+				} break;
+
+
 
 				case TemplatedIntrinsic::Kind::_max_: {
 					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
@@ -1215,6 +1557,49 @@ namespace pcit::panther{
 
 			evo::debugFatalBreak("Unknown or unsupported templated intrinsic kind");
 		}
+	}
+
+
+
+	auto ASGToLLVMIR::add_panic(std::string_view message, const ASG::Location& location) -> void {
+		const llvmint::Constant panic_message = this->builder.getValueGlobalStrPtr(message);
+
+		if(this->config.addSourceLocations){
+			this->builder.createCall(
+				*this->linked_functions.panic_with_location,
+				{
+					panic_message.asValue(),
+					this->builder.getValueI32(this->current_source->getID().get()).asValue(),
+					this->builder.getValueI32(location.line).asValue(),
+					this->builder.getValueI32(location.collumn).asValue(),
+				}
+			);
+		}else{
+			this->builder.createCall(*this->linked_functions.panic, {panic_message.asValue()});
+		}
+	}
+
+	auto ASGToLLVMIR::add_assertion(
+		const llvmint::Value& cond, std::string_view block_name, std::string_view message, const ASG::Location& location
+	) -> void {
+		const FuncInfo& current_func_info = this->get_current_func_info();
+
+		const llvmint::BasicBlock fail_block = this->builder.createBasicBlock(
+			current_func_info.func, std::format("{}.FAIL", block_name)
+		);
+
+		const llvmint::BasicBlock succeed_block = this->builder.createBasicBlock(
+			current_func_info.func, std::format("{}.SUCCEED", block_name)
+		);
+
+
+		this->builder.createCondBranch(cond, fail_block, succeed_block);
+
+		this->builder.setInsertionPoint(fail_block);
+		this->add_panic(message, location);
+		this->builder.createBranch(succeed_block);
+
+		this->builder.setInsertionPoint(succeed_block);
 	}
 
 

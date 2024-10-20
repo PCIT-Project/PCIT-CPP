@@ -17,7 +17,7 @@ namespace pcit::panther{
 		const Source& source,
 		Diagnostic::Level level,
 		const Source::Location& location,
-		evo::uint depth
+		unsigned depth
 	) -> void {
 
 		///////////////////////////////////
@@ -144,7 +144,7 @@ namespace pcit::panther{
 
 
 	static auto print_info(
-		core::Printer& printer, const Context& context, const Diagnostic::Info& info, evo::uint depth
+		core::Printer& printer, const Context& context, const Diagnostic::Info& info, unsigned depth
 	) -> void {
 		for(size_t i = 0; i < depth; i+=1){
 			printer.print("\t");

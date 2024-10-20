@@ -19,6 +19,7 @@
 #include "./ScopeManager.h"
 #include "./ASG_Stmt.h"
 #include "./intrinsics.h"
+#include "./source_data.h"
 
 
 namespace pcit::panther{
@@ -28,6 +29,17 @@ namespace pcit::panther{
 
 
 namespace pcit::panther::ASG{
+
+	// source location data to embed in the compilation target
+	struct Location{
+		// Source::ID should be found through other means
+		uint32_t line;
+		uint32_t collumn;
+
+		static auto fromSourceLocation(const SourceLocation& source_location) -> Location {
+			return Location(source_location.lineStart, source_location.collumnStart);
+		}
+	};
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -278,6 +290,7 @@ namespace pcit::panther::ASG{
 
 		evo::Variant<FuncLinkID, Intrinsic::Kind, TemplatedIntrinsicInstantiationID> target;
 		evo::SmallVector<Expr> args;
+		Location location;
 	};
 
 

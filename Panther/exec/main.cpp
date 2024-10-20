@@ -58,9 +58,12 @@ struct Config{
 	fs::path relative_dir{};
 	bool relative_dir_set = false;
 
-	evo::uint max_threads    = 0;
-	evo::uint max_num_errors = std::numeric_limits<evo::uint>::max();
-	bool may_recover         = true;
+	bool add_source_locations = true;
+	bool checked_arithmetic = true;
+
+	unsigned max_threads      = 0;
+	unsigned max_num_errors   = std::numeric_limits<unsigned>::max();
+	bool may_recover          = true;
 };
 
 
@@ -68,9 +71,12 @@ auto main(int argc, const char* argv[]) -> int {
 	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::PrintLLVMIR,
+		.target      = Config::Target::Run,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
+
+		// .add_source_locations = false,
+		// .checked_arithmetic = false,
 
 		// .max_threads    = panther::Context::optimalNumThreads(),
 		.max_num_errors = 10,
@@ -120,7 +126,7 @@ auto main(int argc, const char* argv[]) -> int {
 	}
 
 
-	const evo::uint num_threads = config.max_threads;
+	const unsigned num_threads = config.max_threads;
 
 	if(config.relative_dir_set == false){
 		config.relative_dir_set = true;
@@ -141,24 +147,47 @@ auto main(int argc, const char* argv[]) -> int {
 		printer.printlnMagenta("Relative Directory: \"{}\"", config.relative_dir.string());
 	}
 
-	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), panther::Context::Config{
-		.basePath     = config.relative_dir,
-		.numThreads   = num_threads,
-		.maxNumErrors = config.max_num_errors,
-		.mayRecover   = config.may_recover,
-	});
+	auto context = panther::Context(
+		printer,
+		panther::createDefaultDiagnosticCallback(printer),
+		panther::Context::Config{
+			.basePath     = config.relative_dir,
+
+			.addSourceLocations = config.add_source_locations,
+			.checkedArithmetic  = config.checked_arithmetic,
+
+			.numThreads   = num_threads,
+			.maxNumErrors = config.max_num_errors,
+			.mayRecover   = config.may_recover,
+		}
+	);
 
 
 	const auto exit_defer = evo::Defer([&]() -> void {
 		if(context.isMultiThreaded() && context.threadsRunning()){
 			context.shutdownThreads();
 		}
-
-		#if !defined(PCIT_BUILD_DIST) && defined(EVO_COMPILER_MSVC)
-			printer.printGray("Press Enter to close...");
-			std::cin.get();
-		#endif
 	});
+
+
+	#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
+		if(::IsDebuggerPresent()){
+			static auto at_exit_call = [&]() -> void {
+				// not using printer because it should always go to stdout
+				if(config.print_color){
+					evo::printGray("Press [Enter] to close...");
+				}else{
+					evo::print("Press [Enter] to close...");
+				}
+
+				std::cin.get();
+				evo::println();
+			};
+			std::atexit([]() -> void {
+				at_exit_call();
+			});
+		}
+	#endif
 
 
 	if(context.isMultiThreaded()){

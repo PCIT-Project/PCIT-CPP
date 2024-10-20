@@ -25,6 +25,10 @@ namespace pcit::llvmint{
 	PointerType::operator Type() const {
 		return Type(static_cast<llvm::Type*>(this->native()));
 	}
+
+	StructType::operator Type() const {
+		return Type(static_cast<llvm::Type*>(this->native()));
+	}
 	
 		
 }

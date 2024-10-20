@@ -21,7 +21,8 @@
 namespace pcit::panther{
 
 
-	Context::Context(DiagnosticCallback diagnostic_callback, const Config& _config) : 
+	Context::Context(core::Printer& _printer, DiagnosticCallback diagnostic_callback, const Config& _config) : 
+		printer(_printer),
 		callback(diagnostic_callback),
 		config(_config),
 		type_manager(core::Platform::Windows, core::Architecture::x86)
@@ -37,7 +38,7 @@ namespace pcit::panther{
 	}
 	
 
-	auto Context::optimalNumThreads() -> evo::uint {
+	auto Context::optimalNumThreads() -> unsigned {
 		return std::thread::hardware_concurrency() - 1;
 	}
 
@@ -256,32 +257,6 @@ namespace pcit::panther{
 
 
 
-	auto Context::lower_to_llvmir(
-		llvmint::LLVMContext& llvm_context,
-		llvmint::Module& module,
-		bool add_runtime,
-		bool use_readable_registers
-	)-> bool {
-		auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module, ASGToLLVMIR::Config(use_readable_registers));
-		asg_to_llvmir.lower();
-
-		if(add_runtime){
-			if(this->entry.has_value() == false){
-				this->emitError(
-					Diagnostic::Code::MiscNoEntrySet,
-					std::nullopt,
-					"No entry function was declared"
-				);
-				return false;
-			}
-
-			asg_to_llvmir.addRuntime();
-		}
-
-		return true;
-	}
-
-
 	auto Context::printLLVMIR(bool add_runtime) -> evo::Result<std::string> {
 		auto llvm_context = llvmint::LLVMContext();
 		llvm_context.init();
@@ -314,8 +289,13 @@ namespace pcit::panther{
 
 			module.setTargetTriple(target_triple);
 
-
-			if(this->lower_to_llvmir(llvm_context, module, add_runtime, true) == false){
+			const auto backend_config = ASGToLLVMIR::Config{
+				.useReadableRegisters = true,
+				.checkedArithmetic    = this->config.checkedArithmetic,
+				.isJIT                = !add_runtime,
+				.addSourceLocations   = this->config.addSourceLocations,
+			};
+			if(this->lower_to_llvmir(llvm_context, module, add_runtime, backend_config) == false){
 				return evo::Result<std::string>(evo::resultError);
 			}
 
@@ -361,12 +341,17 @@ namespace pcit::panther{
 
 			module.setTargetTriple(target_triple);
 
-
-			if(this->lower_to_llvmir(llvm_context, module, true, false) == false){
+			const auto backend_config = ASGToLLVMIR::Config{
+				.useReadableRegisters = false,
+				.checkedArithmetic    = this->config.checkedArithmetic,
+				.isJIT                = true,
+				.addSourceLocations   = this->config.addSourceLocations,
+			};
+			if(this->lower_to_llvmir(llvm_context, module, true, backend_config) == false){
 				return evo::Result<uint8_t>(evo::resultError);
 			}
 
-			return evo::Result<uint8_t>(module.run<uint8_t>("main"));
+			return evo::Result<uint8_t>(module.run<uint8_t>("main", this->printer));
 		}();
 
 		llvm_context.deinit();
@@ -472,6 +457,34 @@ namespace pcit::panther{
 
 		return this->templated_intrinsics[size_t(kind)];
 	}
+
+
+
+	auto Context::lower_to_llvmir(
+		llvmint::LLVMContext& llvm_context,
+		llvmint::Module& module,
+		bool add_runtime,
+		const ASGToLLVMIR::Config& backend_config
+	)-> bool {
+		auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module, backend_config);
+		asg_to_llvmir.lower();
+
+		if(add_runtime){
+			if(this->entry.has_value() == false){
+				this->emitError(
+					Diagnostic::Code::MiscNoEntrySet,
+					std::nullopt,
+					"No entry function was declared"
+				);
+				return false;
+			}
+
+			asg_to_llvmir.addRuntime();
+		}
+
+		return true;
+	}
+
 
 
 
@@ -596,11 +609,11 @@ namespace pcit::panther{
 			evo::SmallVector<TemplatedIntrinsic::Param>(),
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
 		);
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyCopyable)] = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyCopyable)]     = type_trait_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyDestructable)] = type_trait_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsPrimitive)] = type_trait_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsIntegral)] = type_trait_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsFloatingPoint)] = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsPrimitive)]             = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsIntegral)]              = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsFloatingPoint)]         = type_trait_func;
 
 
 
@@ -625,16 +638,73 @@ namespace pcit::panther{
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(1)}
 		);
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::BitCast)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Trunc)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::TruncFloatPoint)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::ZExt)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SExt)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::ExtFloatPoint)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IntegralToFloatPoint)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::UIntegralToFloatPoint)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FloatPointToIntegral)] = conversion_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FloatPointToUIntegral)] = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Trunc)]   = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FTrunc)]  = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SExt)]    = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::ZExt)]    = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FExt)]    = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IToF)]    = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::UIToF)]   = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FToI)]    = conversion_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FToUI)]   = conversion_func;
+
+
+		const auto arithmetic_maybe_wrap_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TypeManager::getTypeBool()},
+			evo::SmallVector<TemplatedIntrinsic::Param>{
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+			},
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0)}
+		);
+		const auto arithmetic_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},
+			evo::SmallVector<TemplatedIntrinsic::Param>{
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+			},
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0)}
+		);
+		const auto arithmetic_wrap_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},
+			evo::SmallVector<TemplatedIntrinsic::Param>{
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+			},
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0), TypeManager::getTypeBool()}
+		);
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Add)]     = arithmetic_maybe_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::AddWrap)] = arithmetic_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::AddSat)]  = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FAdd)]    = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Sub)]     = arithmetic_maybe_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SubWrap)] = arithmetic_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SubSat)]  = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FSub)]    = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Mul)]     = arithmetic_maybe_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::MulWrap)] = arithmetic_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::MulSat)]  = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FMul)]    = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Div)]     = arithmetic_maybe_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FDiv)]    = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Rem)]     = arithmetic_func;
+
+
+
+		///////////////////////////////////
+		// checking that everything was instantiated
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			for(const Intrinsic& intrinsic : this->intrinsics){
+				evo::debugAssert(intrinsic.baseType != BaseType::ID::dummy(), "Not all intrinsics are instantiated");
+			}
+
+			for(const TemplatedIntrinsic& templated_intrinsic : this->templated_intrinsics){
+				evo::debugAssert(!templated_intrinsic.returns.empty(), "Not all templated intrinsics are instantiated");
+			}
+		#endif
 	}
+
 
 
 

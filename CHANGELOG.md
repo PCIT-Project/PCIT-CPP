@@ -1,6 +1,40 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.46.0
+
+### Panther
+- Added arithmetic intrinsic functions:
+	- `@add`
+	- `@addWrap`
+	- `@addSat`
+	- `@fadd`
+	- `@sub`
+	- `@subWrap`
+	- `@subSat`
+	- `@fsub`
+	- `@mul`
+	- `@mulWrap`
+	- `@mulSat`
+	- `@fmul`
+	- `@div`
+	- `@fdiv`
+	- `@rem`
+- Added new settings to `Context::Config`
+	- `addSourceLocations`
+	- `checkedArithmetic`
+- Improved performance of compile-time execution
+- Renamed some intrinsics:
+	- `@TruncFloatPoint` -> `@ftrunc`
+	- `@ExtFloatPoint` -> `@fext`
+	- `@IntegralToFloatPoint` -> `@itof`
+	- `@UIntegralToFloatPoint` -> `@uitof`
+	- `@FloatPointToIntegral` -> `@ftoi`
+	- `@FloatPointToUIntegral` -> `@ftoui`
+- Fixed `@isFloatingPoint` incorrectly being an unknown intrinsic
+
+
+<!---------------------------------->
 ## v0.0.45.0
 
 ### Panther

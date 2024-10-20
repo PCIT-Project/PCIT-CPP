@@ -48,8 +48,14 @@ namespace pcit::panther{
 
 		this->data->module.setTargetTriple(target_triple);
 
+		const auto config = ASGToLLVMIR::Config{
+			.useReadableRegisters = false,
+			.checkedArithmetic    = false,
+			.isJIT                = true,
+		};
+
 		this->data->asg_to_llvmir = new ASGToLLVMIR(
-			this->context, this->data->llvm_context, this->data->module, ASGToLLVMIR::Config(false)
+			this->context, this->data->llvm_context, this->data->module, config
 		);
 
 		// this->data->asg_to_llvmir->addRuntimeLinks();
@@ -108,12 +114,12 @@ namespace pcit::panther{
 
 		switch(func_return_base_type.kind()){
 			case Token::Kind::TypeBool: {
-				const bool value = this->data->module.run<bool>(func_mangled_name);
+				const bool value = this->data->execution_engine.runFunctionDirectly<bool>(func_mangled_name);
 				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralBool(value))};
 			} break;
 
 			case Token::Kind::TypeChar: {
-				const char value = this->data->module.run<char>(func_mangled_name);
+				const char value = this->data->execution_engine.runFunctionDirectly<char>(func_mangled_name);
 				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralChar(value))};
 			} break;
 
@@ -126,7 +132,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeF32: {
-				const float32_t value = this->data->module.run<float32_t>(func_mangled_name);
+				const float32_t value = this->data->execution_engine.runFunctionDirectly<float32_t>(func_mangled_name);
 				return evo::SmallVector<ASG::Expr>{
 					ASG::Expr(
 						asg_buffer.createLiteralFloat(core::GenericFloat(value), func_return_type_id)
@@ -135,7 +141,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeF64: {
-				const float64_t value = this->data->module.run<float64_t>(func_mangled_name);
+				const float64_t value = this->data->execution_engine.runFunctionDirectly<float64_t>(func_mangled_name);
 				return evo::SmallVector<ASG::Expr>{
 					ASG::Expr(
 						asg_buffer.createLiteralFloat(core::GenericFloat(value), func_return_type_id)
@@ -161,25 +167,33 @@ namespace pcit::panther{
 					const size_t size_of_func_return_base_type = type_manager.sizeOf(func_return_type.baseTypeID());
 
 					if(size_of_func_return_base_type == 1){
-						const uint8_t value = this->data->module.run<uint8_t>(func_mangled_name);
+						const uint8_t value = this->data->execution_engine.runFunctionDirectly<uint8_t>(
+							func_mangled_name
+						);
 						return asg_buffer.createLiteralInt(
 							core::GenericInt::create<uint8_t>(value), func_return_type_id
 						);
 
 					}else if(size_of_func_return_base_type == 2){
-						const uint16_t value = this->data->module.run<uint16_t>(func_mangled_name);
+						const uint16_t value = this->data->execution_engine.runFunctionDirectly<uint16_t>(
+							func_mangled_name
+						);
 						return asg_buffer.createLiteralInt(
 							core::GenericInt::create<uint16_t>(value), func_return_type_id
 						);
 
 					}else if(size_of_func_return_base_type == 4){
-						const uint32_t value = this->data->module.run<uint32_t>(func_mangled_name);
+						const uint32_t value = this->data->execution_engine.runFunctionDirectly<uint32_t>(
+							func_mangled_name
+						);
 						return asg_buffer.createLiteralInt(
 							core::GenericInt::create<uint32_t>(value), func_return_type_id
 						);
 
 					}else if(size_of_func_return_base_type == 8){
-						const uint64_t value = this->data->module.run<uint64_t>(func_mangled_name);
+						const uint64_t value = this->data->execution_engine.runFunctionDirectly<uint64_t>(
+							func_mangled_name
+						);
 						return asg_buffer.createLiteralInt(
 							core::GenericInt::create<uint64_t>(value), func_return_type_id
 						);
@@ -224,7 +238,7 @@ namespace pcit::panther{
 		}
 
 		this->data->execution_engine.createEngine(this->data->module);
-		this->data->execution_engine.setupLinkedFuncs();
+		this->data->execution_engine.setupLinkedFuncs(this->printer);
 	}
 
 

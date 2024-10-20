@@ -11,9 +11,12 @@
 
 #include <Evo.h>
 
+
 #include "./class_impls/native_ptr_decls.h"
 #include "./class_impls/enums.h"
 #include "./class_impls/stmts.h"
+
+#include "../../../include/Printer.h"
 
 
 namespace pcit::llvmint{
@@ -57,7 +60,7 @@ namespace pcit::llvmint{
 
 
 
-			auto setupLinkedFuncs() -> void;
+			auto setupLinkedFuncs(core::Printer& printer) -> void;
 
 			EVO_NODISCARD auto hasCreatedEngine() const -> bool { return this->engine != nullptr; };
 

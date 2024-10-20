@@ -45,7 +45,7 @@ namespace pcit::llvmint{
 	}
 
 
-	auto Function::getArg(evo::uint index) const -> Argument {
+	auto Function::getArg(unsigned index) const -> Argument {
 		return Argument(this->native()->getArg(index));
 	}
 

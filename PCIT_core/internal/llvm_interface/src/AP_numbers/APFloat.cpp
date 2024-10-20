@@ -311,7 +311,7 @@ namespace pcit::llvmint{
 	const unsigned int maxExponent = 16383;
 	const unsigned int maxPrecision = 113;
 	const unsigned int maxPowerOfFiveExponent = maxExponent + maxPrecision - 1;
-	const evo::uint maxPowerOfFiveParts = 2 + ((maxPowerOfFiveExponent * 815) / (351 * APFloatBase::integerPartWidth));
+	const unsigned int maxPowerOfFiveParts = 2 + ((maxPowerOfFiveExponent * 815) / (351 * APFloatBase::integerPartWidth));
 
 	unsigned int APFloatBase::semanticsPrecision(const fltSemantics &semantics) {
 		return semantics.precision;

@@ -134,7 +134,21 @@ namespace pcit::llvmint{
 		// llvm/IR/IntrinsicEnums.inc
 		const llvm::Intrinsic::ID intrinsic_id = [&]() -> llvm::Intrinsic::ID {
 			switch(id){
-				case IntrinsicID::debugtrap: return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
+				case IntrinsicID::debugtrap:    return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
+
+				case IntrinsicID::saddSat:      return llvm::Intrinsic::IndependentIntrinsics::sadd_sat;
+				case IntrinsicID::saddOverflow: return llvm::Intrinsic::IndependentIntrinsics::sadd_with_overflow;
+				case IntrinsicID::smulFixSat:   return llvm::Intrinsic::IndependentIntrinsics::smul_fix_sat;
+				case IntrinsicID::smulOverflow: return llvm::Intrinsic::IndependentIntrinsics::smul_with_overflow;
+				case IntrinsicID::ssubSat:      return llvm::Intrinsic::IndependentIntrinsics::ssub_sat;
+				case IntrinsicID::ssubOverflow: return llvm::Intrinsic::IndependentIntrinsics::ssub_with_overflow;
+
+				case IntrinsicID::uaddSat:      return llvm::Intrinsic::IndependentIntrinsics::uadd_sat;
+				case IntrinsicID::uaddOverflow: return llvm::Intrinsic::IndependentIntrinsics::uadd_with_overflow;
+				case IntrinsicID::umulFixSat:   return llvm::Intrinsic::IndependentIntrinsics::umul_fix_sat;
+				case IntrinsicID::umulOverflow: return llvm::Intrinsic::IndependentIntrinsics::umul_with_overflow;
+				case IntrinsicID::usubSat:      return llvm::Intrinsic::IndependentIntrinsics::usub_sat;
+				case IntrinsicID::usubOverflow: return llvm::Intrinsic::IndependentIntrinsics::usub_with_overflow;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported intrinsic id");
@@ -194,7 +208,75 @@ namespace pcit::llvmint{
 	
 	auto IRBuilder::createBitCast(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
 		return Value(this->builder->CreateBitOrPointerCast(value.native(), dst_type.native(), name.c_str()));
-	}	
+	}
+
+	//////////////////////////////////////////////////////////////////////
+	// element operations
+
+	auto IRBuilder::createExtractValue(const Value& value, evo::ArrayProxy<unsigned> indices, evo::CStrProxy name)
+	-> Value {
+		return Value(
+			this->builder->CreateExtractValue(
+				value.native(), llvm::ArrayRef(indices.data(), indices.size()), name.c_str()
+			)
+		);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// operators
+
+	auto IRBuilder::createAdd(const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateAdd(lhs.native(), rhs.native(), name.c_str(), nuw, nsw));
+	}
+
+	auto IRBuilder::createFAdd(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFAdd(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+
+	auto IRBuilder::createSub(const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateSub(lhs.native(), rhs.native(), name.c_str(), nuw, nsw));
+	}
+
+	auto IRBuilder::createFSub(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFSub(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+
+	auto IRBuilder::createMul(const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateMul(lhs.native(), rhs.native(), name.c_str(), nuw, nsw));
+	}
+
+	auto IRBuilder::createFMul(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFMul(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+
+	auto IRBuilder::createUDiv(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateUDiv(lhs.native(), rhs.native(), name.c_str(), exact));
+	}
+
+	auto IRBuilder::createSDiv(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateSDiv(lhs.native(), rhs.native(), name.c_str(), exact));
+	}
+
+	auto IRBuilder::createFDiv(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFDiv(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+
+	auto IRBuilder::createURem(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateURem(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+	auto IRBuilder::createSRem(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateSRem(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+	auto IRBuilder::createFRem(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFRem(lhs.native(), rhs.native(), name.c_str()));
+	}
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -243,7 +325,7 @@ namespace pcit::llvmint{
 	}
 	
 
-	auto IRBuilder::getValueI_N(evo::uint bitwidth, uint64_t value) const -> ConstantInt {
+	auto IRBuilder::getValueI_N(unsigned bitwidth, uint64_t value) const -> ConstantInt {
 		return ConstantInt(this->builder->getIntN(bitwidth, value));
 	}
 
@@ -333,6 +415,9 @@ namespace pcit::llvmint{
 	}
 
 
+	auto IRBuilder::getValueGlobalStrPtr(std::string_view str, evo::CStrProxy name) const -> Constant {
+		return Constant(this->builder->CreateGlobalStringPtr(str, name.c_str()));
+	}
 
 	
 
@@ -347,6 +432,17 @@ namespace pcit::llvmint{
 		);
 	};
 
+
+	auto IRBuilder::getStructType(evo::ArrayProxy<Type> members) -> StructType {
+		return StructType(llvm::StructType::get(this->get_native_context(), createArrayRef<llvm::Type>(members)));
+	}
+
+	auto IRBuilder::createStructType(evo::ArrayProxy<Type> members, bool is_packed, evo::CStrProxy name) const
+	-> StructType {
+		return StructType(llvm::StructType::create(createArrayRef<llvm::Type>(members), name.c_str(), is_packed));
+	}
+
+
 	auto IRBuilder::getTypeBool() const -> IntegerType { return IntegerType(this->builder->getInt1Ty()); }
 
 	auto IRBuilder::getTypeI8() const -> IntegerType { return IntegerType(this->builder->getInt8Ty()); }
@@ -355,7 +451,7 @@ namespace pcit::llvmint{
 	auto IRBuilder::getTypeI64() const -> IntegerType { return IntegerType(this->builder->getInt64Ty()); }
 	auto IRBuilder::getTypeI128() const -> IntegerType { return IntegerType(this->builder->getInt128Ty()); }
 
-	auto IRBuilder::getTypeI_N(evo::uint width) const -> IntegerType {
+	auto IRBuilder::getTypeI_N(unsigned width) const -> IntegerType {
 		return IntegerType(this->builder->getIntNTy(width));
 	}
 

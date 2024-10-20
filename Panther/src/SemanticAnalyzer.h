@@ -16,7 +16,7 @@
 #include "../include/Context.h"
 #include "../include/Source.h"
 #include "../include/TypeManager.h"
-// #include "../include/intrinsics.h"
+#include "../include/get_source_location.h"
 
 namespace pcit::panther{
 
@@ -443,146 +443,205 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// get source location
 
-			EVO_NODISCARD auto get_source_location(std::nullopt_t) const -> std::optional<SourceLocation>;
+			EVO_NODISCARD auto get_source_location(std::nullopt_t) const -> std::optional<SourceLocation> {
+				return std::nullopt;
+			}
 
-			EVO_NODISCARD auto get_source_location(Token::ID token_id, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(Token::ID token_id, const Source& src) const -> SourceLocation {
+				return pcit::panther::get_source_location(token_id, src);
+			}
 			EVO_NODISCARD auto get_source_location(Token::ID token_id) const -> SourceLocation {
-				return this->get_source_location(token_id, this->source);
+				return pcit::panther::get_source_location(token_id, this->source);
 			}
 			
-			EVO_NODISCARD auto get_source_location(const AST::Node& node, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Node& node, const Source& src) const -> SourceLocation {
+				return pcit::panther::get_source_location(node, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::Node& node) const -> SourceLocation {
-				return this->get_source_location(node, this->source);
+				return pcit::panther::get_source_location(node, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::VarDecl& var_decl, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(var_decl, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::VarDecl& var_decl) const -> SourceLocation {
-				return this->get_source_location(var_decl, this->source);
+				return pcit::panther::get_source_location(var_decl, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::FuncDecl& func_decl, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(func_decl, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::FuncDecl& func_decl) const -> SourceLocation {
-				return this->get_source_location(func_decl, this->source);
+				return pcit::panther::get_source_location(func_decl, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::AliasDecl& alias_decl, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(alias_decl, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::AliasDecl& alias_decl) const -> SourceLocation {
-				return this->get_source_location(alias_decl, this->source);
+				return pcit::panther::get_source_location(alias_decl, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(return_stmt, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt) const -> SourceLocation {
-				return this->get_source_location(return_stmt, this->source);
+				return pcit::panther::get_source_location(return_stmt, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::Conditional& conditional, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(conditional, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::Conditional& conditional) const -> SourceLocation {
-				return this->get_source_location(conditional, this->source);
+				return pcit::panther::get_source_location(conditional, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::WhenConditional& when_cond, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(when_cond, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::WhenConditional& when_cond) const -> SourceLocation {
-				return this->get_source_location(when_cond, this->source);
+				return pcit::panther::get_source_location(when_cond, this->source);
 			}
 
-			EVO_NODISCARD auto get_source_location(const AST::Block& block, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Block& block, const Source& src) const -> SourceLocation {
+				return pcit::panther::get_source_location(block, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::Block& block) const -> SourceLocation {
-				return this->get_source_location(block, this->source);
+				return pcit::panther::get_source_location(block, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::FuncCall& func_call, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(func_call, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::FuncCall& func_call) const -> SourceLocation {
-				return this->get_source_location(func_call, this->source);
+				return pcit::panther::get_source_location(func_call, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::TemplatedExpr& templated_expr, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(templated_expr, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::TemplatedExpr& templated_expr) const -> SourceLocation {
-				return this->get_source_location(templated_expr, this->source);
+				return pcit::panther::get_source_location(templated_expr, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::Prefix& prefix, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(prefix, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::Prefix& prefix) const -> SourceLocation {
-				return this->get_source_location(prefix, this->source);
+				return pcit::panther::get_source_location(prefix, this->source);
 			}
 
-			EVO_NODISCARD auto get_source_location(const AST::Infix& infix, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Infix& infix, const Source& src) const -> SourceLocation {
+				return pcit::panther::get_source_location(infix, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::Infix& infix) const -> SourceLocation {
-				return this->get_source_location(infix, this->source);
+				return pcit::panther::get_source_location(infix, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::Postfix& postfix, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(postfix, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::Postfix& postfix) const -> SourceLocation {
-				return this->get_source_location(postfix, this->source);
+				return pcit::panther::get_source_location(postfix, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::MultiAssign& multi_assign, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(multi_assign, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::MultiAssign& multi_assign) const -> SourceLocation {
-				return this->get_source_location(multi_assign, this->source);
+				return pcit::panther::get_source_location(multi_assign, this->source);
 			}
 
-			EVO_NODISCARD auto get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation {
+				return pcit::panther::get_source_location(type, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::Type& type) const -> SourceLocation {
-				return this->get_source_location(type, this->source);
+				return pcit::panther::get_source_location(type, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::TypeIDConverter& type, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(type, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::TypeIDConverter& type) const -> SourceLocation {
-				return this->get_source_location(type, this->source);
+				return pcit::panther::get_source_location(type, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::AttributeBlock::Attribute& attr, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(attr, src);
+			}
 			EVO_NODISCARD auto get_source_location(const AST::AttributeBlock::Attribute& attr) const -> SourceLocation {
-				return this->get_source_location(attr, this->source);
+				return pcit::panther::get_source_location(attr, this->source);
 			}
 
 
-			EVO_NODISCARD auto get_source_location(ASG::Func::ID func_id, const Source& src) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(ASG::Func::ID func_id, const Source& src) const -> SourceLocation {
+				return pcit::panther::get_source_location(func_id, src);
+			}
 			EVO_NODISCARD auto get_source_location(ASG::Func::ID func_id) const -> SourceLocation {
-				return this->get_source_location(func_id, this->source);
+				return pcit::panther::get_source_location(func_id, this->source);
 			}
-			EVO_NODISCARD auto get_source_location(ASG::Func::LinkID func_id) const -> SourceLocation;
+			EVO_NODISCARD auto get_source_location(ASG::Func::LinkID func_link_id) const -> SourceLocation {
+				return pcit::panther::get_source_location(func_link_id, this->context.getSourceManager());
+			}
 
 			EVO_NODISCARD auto get_source_location(ASG::TemplatedFunc::ID templated_func_id, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(templated_func_id, src);
+			}
 			EVO_NODISCARD auto get_source_location(ASG::TemplatedFunc::ID templated_func_id) const -> SourceLocation {
-				return this->get_source_location(templated_func_id, this->source);
+				return pcit::panther::get_source_location(templated_func_id, this->source);
 			}
-			EVO_NODISCARD auto get_source_location(ASG::Var::ID var_id, const Source& src) const -> SourceLocation;
+
+			EVO_NODISCARD auto get_source_location(ASG::Var::ID var_id, const Source& src) const -> SourceLocation {
+				return pcit::panther::get_source_location(var_id, src);
+			}
 			EVO_NODISCARD auto get_source_location(ASG::Var::ID var_id) const -> SourceLocation {
-				return this->get_source_location(var_id, this->source);
+				return pcit::panther::get_source_location(var_id, this->source);
 			}
-			EVO_NODISCARD auto get_source_location(ASG::Param::ID param_id, const Source& src) const -> SourceLocation;
+
+			EVO_NODISCARD auto get_source_location(ASG::Param::ID param_id, const Source& src) const -> SourceLocation {
+				return pcit::panther::get_source_location(param_id, src, this->context.getTypeManager());
+			}
 			EVO_NODISCARD auto get_source_location(ASG::Param::ID param_id) const -> SourceLocation {
-				return this->get_source_location(param_id, this->source);
+				return pcit::panther::get_source_location(param_id, this->source, this->context.getTypeManager());
 			}
+
 			EVO_NODISCARD auto get_source_location(ASG::ReturnParam::ID ret_param_id, const Source& src) const
-				-> SourceLocation;
-			EVO_NODISCARD auto get_source_location(ASG::ReturnParam::ID ret_param_id) const -> SourceLocation {
-				return this->get_source_location(ret_param_id, this->source);
+			-> SourceLocation {
+				return pcit::panther::get_source_location(ret_param_id, src, this->context.getTypeManager());
 			}
+			EVO_NODISCARD auto get_source_location(ASG::ReturnParam::ID ret_param_id) const -> SourceLocation {
+				return pcit::panther::get_source_location(ret_param_id, this->source, this->context.getTypeManager());
+			}
+
 			EVO_NODISCARD auto get_source_location(ScopeManager::Level::ImportInfo import_info, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(import_info, src);
+			}
 			EVO_NODISCARD auto get_source_location(ScopeManager::Level::ImportInfo import_info) const 
 			-> SourceLocation {
-				return this->get_source_location(import_info, this->source);
+				return pcit::panther::get_source_location(import_info, this->source);
 			}
+
 			EVO_NODISCARD auto get_source_location(BaseType::Alias::ID alias_id, const Source& src) const
-				-> SourceLocation;
+			-> SourceLocation {
+				return pcit::panther::get_source_location(alias_id, src, this->context.getTypeManager());
+			}
 			EVO_NODISCARD auto get_source_location(BaseType::Alias::ID alias_id) const -> SourceLocation {
-				return this->get_source_location(alias_id, this->source);
+				return pcit::panther::get_source_location(alias_id, this->source, this->context.getTypeManager());
 			}
 
 

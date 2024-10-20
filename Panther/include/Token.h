@@ -153,6 +153,7 @@ namespace pcit::panther{
 				MulWrap,      // *%
 				MulSat,       // *|
 				ForwardSlash, // /
+				DoubleForwardSlash, // //
 				Mod,          // %
 
 				// comparative
@@ -315,6 +316,7 @@ namespace pcit::panther{
 				if(op_str == "-|"){ return Kind::SubSat; }
 				if(op_str == "*%"){ return Kind::MulWrap; }
 				if(op_str == "*|"){ return Kind::MulSat; }
+				if(op_str == "//"){ return Kind::DoubleForwardSlash; }
 
 				if(op_str == "=="){ return Kind::Equal; }
 				if(op_str == "!="){ return Kind::NotEqual; }

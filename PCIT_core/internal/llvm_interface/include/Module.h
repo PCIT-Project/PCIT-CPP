@@ -102,10 +102,10 @@ namespace pcit::llvmint{
 
 
 			template<typename ReturnType>
-			EVO_NODISCARD auto run(std::string_view func_name) -> ReturnType {
+			EVO_NODISCARD auto run(std::string_view func_name, core::Printer& printer) -> ReturnType {
 				auto execution_engine = ExecutionEngine();
 				execution_engine.createEngine(*this);
-				execution_engine.setupLinkedFuncs();
+				execution_engine.setupLinkedFuncs(printer);
 
 				if constexpr(std::is_same_v<void, ReturnType>){
 					execution_engine.runFunctionDirectly<ReturnType>(func_name);

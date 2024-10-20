@@ -33,26 +33,48 @@ namespace pcit::panther{
 				evo::debugAssert(this->isSetup() == false, "intrinsic lookup table was already setup");
 
 				this->map = std::unordered_map<std::string_view, IntrinKind>{
+					// intrinsics
 					{"breakpoint",       Intrinsic::Kind::Breakpoint},
 					{"_printHelloWorld", Intrinsic::Kind::_printHelloWorld},
 
+
+					// templated intrinsics
 					{"isSameType",              TemplatedIntrinsic::Kind::IsSameType},
 					{"isTriviallyCopyable",     TemplatedIntrinsic::Kind::IsTriviallyCopyable},
 					{"isTriviallyDestructable", TemplatedIntrinsic::Kind::IsTriviallyDestructable},
 					{"isPrimitive",             TemplatedIntrinsic::Kind::IsPrimitive},
 					{"isIntegral",              TemplatedIntrinsic::Kind::IsIntegral},
+					{"isFloatingPoint",         TemplatedIntrinsic::Kind::IsFloatingPoint},
+
 					{"sizeOf",                  TemplatedIntrinsic::Kind::SizeOf},
 					{"getTypeID",               TemplatedIntrinsic::Kind::GetTypeID},
 					{"bitCast",                 TemplatedIntrinsic::Kind::BitCast},
+
 					{"trunc",                   TemplatedIntrinsic::Kind::Trunc},
-					{"truncFloatPoint",         TemplatedIntrinsic::Kind::TruncFloatPoint},
+					{"ftrunc",                  TemplatedIntrinsic::Kind::FTrunc},
 					{"zext",                    TemplatedIntrinsic::Kind::ZExt},
 					{"sext",                    TemplatedIntrinsic::Kind::SExt},
-					{"extFloatPoint",           TemplatedIntrinsic::Kind::ExtFloatPoint},
-					{"integralToFloatPoint",    TemplatedIntrinsic::Kind::IntegralToFloatPoint},
-					{"uintegralToFloatPoint",   TemplatedIntrinsic::Kind::UIntegralToFloatPoint},
-					{"floatPointToIntegral",    TemplatedIntrinsic::Kind::FloatPointToIntegral},
-					{"floatPointToUIntegral",   TemplatedIntrinsic::Kind::FloatPointToUIntegral},
+					{"fext",                    TemplatedIntrinsic::Kind::FExt},
+					{"itof",                    TemplatedIntrinsic::Kind::IToF},
+					{"uitof",                   TemplatedIntrinsic::Kind::UIToF},
+					{"ftoi",                    TemplatedIntrinsic::Kind::FToI},
+					{"ftoui",                   TemplatedIntrinsic::Kind::FToUI},
+
+					{"add",                     TemplatedIntrinsic::Kind::Add},
+					{"addWrap",                 TemplatedIntrinsic::Kind::AddWrap},
+					{"addSat",                  TemplatedIntrinsic::Kind::AddSat},
+					{"fadd",                    TemplatedIntrinsic::Kind::FAdd},
+					{"sub",                     TemplatedIntrinsic::Kind::Sub},
+					{"subWrap",                 TemplatedIntrinsic::Kind::SubWrap},
+					{"subSat",                  TemplatedIntrinsic::Kind::SubSat},
+					{"fsub",                    TemplatedIntrinsic::Kind::FSub},
+					{"mul",                     TemplatedIntrinsic::Kind::Mul},
+					{"mulWrap",                 TemplatedIntrinsic::Kind::MulWrap},
+					{"mulSat",                  TemplatedIntrinsic::Kind::MulSat},
+					{"fmul",                    TemplatedIntrinsic::Kind::FMul},
+					{"div",                     TemplatedIntrinsic::Kind::Div},
+					{"fdiv",                    TemplatedIntrinsic::Kind::FDiv},
+					{"rem",                     TemplatedIntrinsic::Kind::Rem},
 				};
 
 				this->map_end = this->map.end();
@@ -2200,11 +2222,11 @@ namespace pcit::panther{
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
-						case TemplatedIntrinsic::Kind::TruncFloatPoint: {
+						case TemplatedIntrinsic::Kind::FTrunc: {
 							this->emit_error(
 								Diagnostic::Code::MiscUnimplementedFeature,
 								func_call,
-								"Compile-time `@truncFloat` is not supported yet"
+								"Compile-time `@ftrunc` is not supported yet"
 							);
 							return evo::SmallVector<ASG::Expr>();
 						} break;
@@ -2227,52 +2249,186 @@ namespace pcit::panther{
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
-						case TemplatedIntrinsic::Kind::ExtFloatPoint: {
+						case TemplatedIntrinsic::Kind::FExt: {
 							this->emit_error(
 								Diagnostic::Code::MiscUnimplementedFeature,
 								func_call,
-								"Compile-time `@extFloat` is not supported yet"
+								"Compile-time `@fext` is not supported yet"
 							);
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
-						case TemplatedIntrinsic::Kind::IntegralToFloatPoint: {
+						case TemplatedIntrinsic::Kind::IToF: {
 							this->emit_error(
 								Diagnostic::Code::MiscUnimplementedFeature,
 								func_call,
-								"Compile-time `@intToFloat` is not supported yet"
+								"Compile-time `@itof` is not supported yet"
 							);
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
 
-						case TemplatedIntrinsic::Kind::UIntegralToFloatPoint: {
+						case TemplatedIntrinsic::Kind::UIToF: {
 							this->emit_error(
 								Diagnostic::Code::MiscUnimplementedFeature,
 								func_call,
-								"Compile-time `@uintToFloat` is not supported yet"
+								"Compile-time `@uitof` is not supported yet"
 							);
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
-						case TemplatedIntrinsic::Kind::FloatPointToIntegral: {
+						case TemplatedIntrinsic::Kind::FToI: {
 							this->emit_error(
 								Diagnostic::Code::MiscUnimplementedFeature,
 								func_call,
-								"Compile-time `@floatToInt` is not supported yet"
+								"Compile-time `@ftoi` is not supported yet"
 							);
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
-						case TemplatedIntrinsic::Kind::FloatPointToUIntegral: {
+						case TemplatedIntrinsic::Kind::FToUI: {
 							this->emit_error(
 								Diagnostic::Code::MiscUnimplementedFeature,
 								func_call,
-								"Compile-time `@floatToUInt` is not supported yet"
+								"Compile-time `@ftoui` is not supported yet"
 							);
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
+						case TemplatedIntrinsic::Kind::Add: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@add` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::AddWrap: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@addWrap` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::AddSat: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@addSat` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::FAdd: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@fadd` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::Sub: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@sub` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::SubWrap: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@subWrap` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::SubSat: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@subSat` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::FSub: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@fsub` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::Mul: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@mul` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::MulWrap: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@mulWrap` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::MulSat: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@mulSat` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::FMul: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@fmul` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::Div: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@div` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::FDiv: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@fdiv` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
+
+						case TemplatedIntrinsic::Kind::Rem: {
+							this->emit_error(
+								Diagnostic::Code::MiscUnimplementedFeature,
+								func_call,
+								"Compile-time `@rem` is not supported yet"
+							);
+							return evo::SmallVector<ASG::Expr>();
+						} break;
 
 						case TemplatedIntrinsic::Kind::_max_: {
 							evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
@@ -3008,7 +3164,7 @@ namespace pcit::panther{
 			} break;
 
 
-			case TemplatedIntrinsic::Kind::TruncFloatPoint: {
+			case TemplatedIntrinsic::Kind::FTrunc: {
 				if(instantiation_type_args[0]->isVoid()){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
@@ -3191,7 +3347,7 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case TemplatedIntrinsic::Kind::ExtFloatPoint: {
+			case TemplatedIntrinsic::Kind::FExt: {
 				if(instantiation_type_args[0]->isVoid()){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
@@ -3253,7 +3409,7 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case TemplatedIntrinsic::Kind::IntegralToFloatPoint: {
+			case TemplatedIntrinsic::Kind::IToF: {
 				if(instantiation_type_args[0]->isVoid()){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
@@ -3314,7 +3470,7 @@ namespace pcit::panther{
 			} break;
 
 
-			case TemplatedIntrinsic::Kind::UIntegralToFloatPoint: {
+			case TemplatedIntrinsic::Kind::UIToF: {
 				if(instantiation_type_args[0]->isVoid()){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
@@ -3363,7 +3519,7 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case TemplatedIntrinsic::Kind::FloatPointToIntegral: {
+			case TemplatedIntrinsic::Kind::FToI: {
 				if(instantiation_type_args[0]->isVoid()){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
@@ -3415,7 +3571,7 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case TemplatedIntrinsic::Kind::FloatPointToUIntegral: {
+			case TemplatedIntrinsic::Kind::FToUI: {
 				if(instantiation_type_args[0]->isVoid()){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
@@ -3466,7 +3622,76 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 			} break;
-			
+
+
+			case TemplatedIntrinsic::Kind::Add:     case TemplatedIntrinsic::Kind::AddWrap:
+			case TemplatedIntrinsic::Kind::AddSat:  case TemplatedIntrinsic::Kind::Sub:
+			case TemplatedIntrinsic::Kind::SubWrap: case TemplatedIntrinsic::Kind::SubSat:
+			case TemplatedIntrinsic::Kind::Mul:     case TemplatedIntrinsic::Kind::MulWrap:
+			case TemplatedIntrinsic::Kind::MulSat:  case TemplatedIntrinsic::Kind::Div: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot add type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(this->context.getTypeManager().isIntegral(instantiation_type_args[0]->typeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"This intrinsic only accepts integrals"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::FAdd:  case TemplatedIntrinsic::Kind::FSub:
+			case TemplatedIntrinsic::Kind::FMul:  case TemplatedIntrinsic::Kind::FDiv: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot add type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(this->context.getTypeManager().isFloatingPoint(instantiation_type_args[0]->typeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"This intrinsic only accepts floating-points"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::Rem: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get remander of type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(
+					this->context.getTypeManager().isIntegral(instantiation_type_args[0]->typeID()) == false &&
+					this->context.getTypeManager().isFloatingPoint(instantiation_type_args[0]->typeID()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"This intrinsic only accepts integrals or floating-points"
+					);
+					return evo::resultError;
+				}
+			} break;
+
 
 
 			case TemplatedIntrinsic::Kind::_max_: {
@@ -4536,7 +4761,7 @@ namespace pcit::panther{
 				UnsignedInteger,
 				Float,
 			} kind;
-			evo::uint width;
+			unsigned width;
 		};
 
 		auto get_type_conversion_data = [this](const BaseType::Primitive& primitive_type) -> TypeConversionData {
@@ -4572,7 +4797,7 @@ namespace pcit::panther{
 						} break;
 
 						case TypeConversionData::Kind::Float: {
-							return TemplatedIntrinsic::Kind::IntegralToFloatPoint;
+							return TemplatedIntrinsic::Kind::IToF;
 						} break;
 					}
 				} break;
@@ -4588,7 +4813,7 @@ namespace pcit::panther{
 						} break;
 
 						case TypeConversionData::Kind::Float: {
-							return TemplatedIntrinsic::Kind::UIntegralToFloatPoint;
+							return TemplatedIntrinsic::Kind::UIToF;
 						} break;
 					}
 				} break;
@@ -4596,18 +4821,18 @@ namespace pcit::panther{
 				case TypeConversionData::Kind::Float: {
 					switch(to_data.kind){
 						case TypeConversionData::Kind::Integer: {
-							return TemplatedIntrinsic::Kind::FloatPointToIntegral;
+							return TemplatedIntrinsic::Kind::FToI;
 						} break;
 
 						case TypeConversionData::Kind::UnsignedInteger: {
-							return TemplatedIntrinsic::Kind::FloatPointToUIntegral;
+							return TemplatedIntrinsic::Kind::FToUI;
 						} break;
 
 						case TypeConversionData::Kind::Float: {
 							if(from_data.width < to_data.width){
-								return TemplatedIntrinsic::Kind::ExtFloatPoint;
+								return TemplatedIntrinsic::Kind::FExt;
 							}else{
-								return TemplatedIntrinsic::Kind::TruncFloatPoint;
+								return TemplatedIntrinsic::Kind::FTrunc;
 							}
 						} break;
 					}
@@ -4627,7 +4852,9 @@ namespace pcit::panther{
 		);
 
 		const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
-			instantiation_id, evo::SmallVector<ASG::Expr>{value.getExpr()}
+			instantiation_id,
+			evo::SmallVector<ASG::Expr>{value.getExpr()},
+			ASG::Location::fromSourceLocation(this->get_source_location(infix_expr))
 		);
 
 		return ExprInfo(
@@ -4847,7 +5074,9 @@ namespace pcit::panther{
 				
 				if(selected_expr.kind() == ASG::Expr::Kind::Intrinsic){
 					asg_func_call_id = this->source.asg_buffer.createFuncCall(
-						selected_expr.intrinsicID(), std::move(args)
+						selected_expr.intrinsicID(),
+						std::move(args),
+						ASG::Location::fromSourceLocation(this->get_source_location(func_call))
 					);
 				}else{
 					evo::debugAssert(
@@ -4855,13 +5084,19 @@ namespace pcit::panther{
 						"Unknown or unsupported intrinsic kind"
 					);
 					asg_func_call_id = this->source.asg_buffer.createFuncCall(
-						selected_expr.templatedIntrinsicInstantiationID(), std::move(args)
+						selected_expr.templatedIntrinsicInstantiationID(),
+						std::move(args),
+						ASG::Location::fromSourceLocation(this->get_source_location(func_call))
 					);
 				}
 
 			}else{
 				const ASG::Func::LinkID target_link_id = potential_func_link_ids[selected_func_overload_index.value()];
-				asg_func_call_id = this->source.asg_buffer.createFuncCall(target_link_id, std::move(args));
+				asg_func_call_id = this->source.asg_buffer.createFuncCall(
+					target_link_id,
+					std::move(args),
+					ASG::Location::fromSourceLocation(this->get_source_location(func_call))
+				);
 
 				const bool is_current_func_runtime = [&](){
 					const BaseType::ID current_func_base_type_id = this->get_current_func().baseTypeID;
@@ -4951,10 +5186,10 @@ namespace pcit::panther{
 				LackingLabel
 			>;
 
-			evo::uint score;
+			unsigned score;
 			Reason reason;
 
-			OverloadScore(evo::uint _score) : score(_score), reason(std::monostate()) {};
+			OverloadScore(unsigned _score) : score(_score), reason(std::monostate()) {};
 			OverloadScore(Reason _reason) : score(0), reason(_reason) {};
 
 		};
@@ -4973,7 +5208,7 @@ namespace pcit::panther{
 				continue;
 			}
 
-			evo::uint current_score = 0;
+			unsigned current_score = 0;
 
 			for(size_t param_i = 0; const BaseType::Function::Param& param : func_type.params){
 				ArgInfo& arg_info = arg_infos[param_i];
@@ -5765,203 +6000,5 @@ namespace pcit::panther{
 			}
 		}
 	}
-
-
-	//////////////////////////////////////////////////////////////////////
-	// get source location
-
-	auto SemanticAnalyzer::get_source_location(std::nullopt_t) const -> std::optional<SourceLocation> {
-		return std::nullopt;
-	};
-
-
-	auto SemanticAnalyzer::get_source_location(Token::ID token_id, const Source& src) const -> SourceLocation {
-		return src.getTokenBuffer().getSourceLocation(token_id, src.getID());
-	}
-	
-	auto SemanticAnalyzer::get_source_location(const AST::Node& node, const Source& src) const -> SourceLocation {
-		#if defined(EVO_COMPILER_MSVC)
-			#pragma warning(default : 4062)
-		#endif
-
-		const ASTBuffer& ast_buffer = src.getASTBuffer();
-
-		switch(node.kind()){
-			case AST::Kind::None:            evo::debugFatalBreak("Cannot get location of AST::Kind::None");
-			case AST::Kind::VarDecl:         return this->get_source_location(ast_buffer.getVarDecl(node), src);
-			case AST::Kind::FuncDecl:        return this->get_source_location(ast_buffer.getFuncDecl(node), src);
-			case AST::Kind::AliasDecl:       return this->get_source_location(ast_buffer.getAliasDecl(node), src);
-			case AST::Kind::Return:          return this->get_source_location(ast_buffer.getReturn(node), src);
-			case AST::Kind::Unreachable:     return this->get_source_location(ast_buffer.getUnreachable(node), src);
-			case AST::Kind::Conditional:     return this->get_source_location(ast_buffer.getConditional(node), src);
-			case AST::Kind::WhenConditional: return this->get_source_location(ast_buffer.getWhenConditional(node), src);
-			case AST::Kind::Block:           return this->get_source_location(ast_buffer.getBlock(node), src);
-			case AST::Kind::FuncCall:        return this->get_source_location(ast_buffer.getFuncCall(node), src);
-			case AST::Kind::TemplatePack:    evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
-			case AST::Kind::TemplatedExpr:   return this->get_source_location(ast_buffer.getTemplatedExpr(node), src);
-			case AST::Kind::Prefix:          return this->get_source_location(ast_buffer.getPrefix(node), src);
-			case AST::Kind::Infix:           return this->get_source_location(ast_buffer.getInfix(node), src);
-			case AST::Kind::Postfix:         return this->get_source_location(ast_buffer.getPostfix(node), src);
-			case AST::Kind::MultiAssign:     return this->get_source_location(ast_buffer.getMultiAssign(node), src);
-			case AST::Kind::Type:            return this->get_source_location(ast_buffer.getType(node), src);
-			case AST::Kind::TypeIDConverter: return this->get_source_location(ast_buffer.getTypeIDConverter(node), src);
-			case AST::Kind::AttributeBlock:  evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
-			case AST::Kind::Attribute:       return this->get_source_location(ast_buffer.getAttribute(node), src);
-			case AST::Kind::PrimitiveType:   return this->get_source_location(ast_buffer.getPrimitiveType(node), src);
-			case AST::Kind::Ident:           return this->get_source_location(ast_buffer.getIdent(node), src);
-			case AST::Kind::Intrinsic:       return this->get_source_location(ast_buffer.getIntrinsic(node), src);
-			case AST::Kind::Literal:         return this->get_source_location(ast_buffer.getLiteral(node), src);
-			case AST::Kind::Uninit:          return this->get_source_location(ast_buffer.getUninit(node), src);
-			case AST::Kind::Zeroinit:        return this->get_source_location(ast_buffer.getZeroinit(node), src);
-			case AST::Kind::This:            return this->get_source_location(ast_buffer.getThis(node), src);
-			case AST::Kind::Discard:         return this->get_source_location(ast_buffer.getDiscard(node), src);
-		}
-
-		evo::debugFatalBreak("Unknown or unsupported AST::Kind");
-	}
-
-
-	auto SemanticAnalyzer::get_source_location(const AST::VarDecl& var_decl, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(var_decl.ident, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::FuncDecl& func_decl, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(func_decl.name, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::AliasDecl& alias_decl, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(alias_decl.ident, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::Return& return_stmt, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(return_stmt.keyword, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::Conditional& conditional, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(conditional.keyword, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::WhenConditional& when_cond, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(when_cond.keyword, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::Block& block, const Source& src) const -> SourceLocation {
-		return this->get_source_location(block.openBrace, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::FuncCall& func_call, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(func_call.target, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::TemplatedExpr& templated_expr, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(templated_expr.base, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::Prefix& prefix, const Source& src) const -> SourceLocation {
-		return this->get_source_location(prefix.opTokenID, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::Infix& infix, const Source& src) const -> SourceLocation {
-		const Token& infix_op_token = src.getTokenBuffer()[infix.opTokenID];
-		if(infix_op_token.kind() == Token::lookupKind(".")){
-			return this->get_source_location(infix.rhs, src);
-		}else{
-			return this->get_source_location(infix.opTokenID, src);
-		}
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::Postfix& postfix, const Source& src) const -> SourceLocation {
-		return this->get_source_location(postfix.opTokenID, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::MultiAssign& multi_assign, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(multi_assign.openBracketLocation, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation {
-		return this->get_source_location(type.base, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::TypeIDConverter& type, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(type.expr, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(const AST::AttributeBlock::Attribute& attr, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(attr.attribute, src);
-	}
-
-
-
-	auto SemanticAnalyzer::get_source_location(ASG::Func::ID func_id, const Source& src) const -> SourceLocation {
-		const ASG::Func& asg_func = src.getASGBuffer().getFunc(func_id);
-		return this->get_source_location(asg_func.name, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(ASG::Func::LinkID func_link_id) const -> SourceLocation {
-		const Source& lookup_source = this->context.getSourceManager()[func_link_id.sourceID()];
-		const ASG::Func& asg_func = lookup_source.getASGBuffer().getFunc(func_link_id.funcID());
-
-		evo::debugAssert(asg_func.name.kind() == AST::Kind::Ident, "func name was assumed to be ident");
-		const Token::ID ident_token_id = lookup_source.getASTBuffer().getIdent(asg_func.name);
-		return lookup_source.getTokenBuffer().getSourceLocation(ident_token_id, func_link_id.sourceID());
-	}
-
-	auto SemanticAnalyzer::get_source_location(ASG::TemplatedFunc::ID templated_func_id, const Source& src) const
-	-> SourceLocation {
-		const ASG::TemplatedFunc& asg_templated_func = src.getASGBuffer().getTemplatedFunc(templated_func_id);
-		return this->get_source_location(asg_templated_func.funcDecl.name, src);
-	}
-
-
-	auto SemanticAnalyzer::get_source_location(ASG::Var::ID var_id, const Source& src) const -> SourceLocation {
-		const ASG::Var& asg_var = src.getASGBuffer().getVar(var_id);
-		return this->get_source_location(asg_var.ident, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(ASG::Param::ID param_id, const Source& src) const -> SourceLocation {
-		const ASG::Param& asg_param = src.getASGBuffer().getParam(param_id);
-		const ASG::Func& asg_func = src.getASGBuffer().getFunc(asg_param.func);
-
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
-
-		evo::debugAssert(
-			func_type.params[asg_param.index].ident.is<Token::ID>(), "Cannot get location of intrinsic param ident"
-		);
-
-		return this->get_source_location(func_type.params[asg_param.index].ident.as<Token::ID>(), src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(ASG::ReturnParam::ID ret_param_id, const Source& src) const
-	-> SourceLocation {
-		const ASG::ReturnParam& asg_ret_param = src.getASGBuffer().getReturnParam(ret_param_id);
-		const ASG::Func& asg_func = src.getASGBuffer().getFunc(asg_ret_param.func);
-
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
-
-		return this->get_source_location(*func_type.returnParams[asg_ret_param.index].ident, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(ScopeManager::Level::ImportInfo import_info, const Source& src) const
-	-> SourceLocation {
-		return this->get_source_location(import_info.tokenID, src);
-	}
-
-	auto SemanticAnalyzer::get_source_location(BaseType::Alias::ID alias_id, const Source& src) const
-	-> SourceLocation {
-		const BaseType::Alias& alias = this->context.getTypeManager().getAlias(alias_id);
-		return this->get_source_location(alias.identTokenID, src);
-	}
-
 
 }

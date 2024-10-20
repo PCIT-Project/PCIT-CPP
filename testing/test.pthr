@@ -1,14 +1,6 @@
 
 
 
-
-
 func entry = () #entry -> UI8 {
-	def F32_VAL: F32 = 12.3;
-	const foo: F64 = F32_VAL as F64;
-
-	const foo_ptr: RawPtr = &foo as RawPtr;
-	
-	// UB
-	return @bitCast<{RawPtr, UI64}>(foo_ptr) as UI8;
+	return @rem<{F32}>(12.4, 7.6) as UI8;
 }

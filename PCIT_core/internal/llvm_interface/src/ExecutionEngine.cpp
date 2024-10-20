@@ -17,9 +17,14 @@
 
 namespace pcit::llvmint{
 
+	std::atomic<bool> engine_created = false;
+
 	
 	auto ExecutionEngine::createEngine(const Module& module) -> void {
 		evo::debugAssert(this->hasCreatedEngine() == false, "Execution engine already created");
+
+		[[maybe_unused]] const bool already_created = engine_created.exchange(true);
+		evo::debugAssert(!already_created, "Cannot have multiple execution engines running at once");
 
 		this->engine = llvm::EngineBuilder(module.get_clone())
 			.setEngineKind(llvm::EngineKind::JIT)
@@ -34,6 +39,8 @@ namespace pcit::llvmint{
 
 		delete this->engine;
 		this->engine = nullptr;
+
+		engine_created = false;
 	};
 
 
@@ -50,13 +57,29 @@ namespace pcit::llvmint{
 	//////////////////////////////////////////////////////////////////////
 	// linked functions
 
+	static core::Printer* runtime_funcs_printer = nullptr;
+
 	static auto print_hello_world() -> void {
-		evo::println("Hello world, I'm Panther!");
+		runtime_funcs_printer->println("Hello world, I'm Panther!");
+	}
+
+	static auto runtime_panic(const char* msg) -> void {
+		runtime_funcs_printer->printlnRed("<PTHR> Runtime Panic: \"{}\"", msg);
+		std::exit(EXIT_FAILURE);
+	}
+
+	static auto runtime_panic_with_location(const char* msg, uint32_t source_id, uint32_t line, uint32_t collumn)
+	-> void {
+		runtime_funcs_printer->printlnRed("<PTHR> Runtime Panic ({}:{}:{}): \"{}\"", source_id, line, collumn, msg);
+		std::exit(EXIT_FAILURE);
 	}
 
 
-	auto ExecutionEngine::setupLinkedFuncs() -> void {
+	auto ExecutionEngine::setupLinkedFuncs(core::Printer& printer) -> void {
+		runtime_funcs_printer = &printer;
 		this->registerFunction("PTHR._printHelloWorld", &print_hello_world);
+		this->registerFunction("PTHR.panic", &runtime_panic);
+		this->registerFunction("PTHR.panic_with_location", &runtime_panic_with_location);
 	}
 
 

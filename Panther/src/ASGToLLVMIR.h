@@ -21,11 +21,16 @@ namespace pcit::panther{
 	class Source;
 	class Context;
 
+	struct ASGToLLVMIRConfig{
+		bool useReadableRegisters;
+		bool checkedArithmetic;
+		bool isJIT;
+		bool addSourceLocations;
+	};
+
 	class ASGToLLVMIR{
 		public:
-			struct Config{
-				bool useReadableRegisters;
-			};
+			using Config = ASGToLLVMIRConfig;
 
 		public:
 			ASGToLLVMIR(
@@ -40,13 +45,15 @@ namespace pcit::panther{
 																		// ComptimeExecutor? I don't think it's needed
 
 			auto addRuntime() -> void;
-			auto addRuntimeLinks() -> void; // run automatically by `addRuntime`
 
 
 			EVO_NODISCARD auto getFuncMangledName(ASG::Func::LinkID link_id) -> std::string_view;
 
 
 		private:
+			auto add_links() -> void;
+			auto add_links_for_JIT() -> void;
+
 			auto lower_global_var(const ASG::Var::ID& var_id) -> void;
 
 			auto lower_func_decl(const ASG::Func::ID& func_id) -> void;
@@ -79,6 +86,15 @@ namespace pcit::panther{
 				-> evo::SmallVector<llvmint::Value>;
 
 
+			EVO_NODISCARD auto add_panic(std::string_view message, const ASG::Location& location) -> void;
+			EVO_NODISCARD auto add_assertion(
+				const llvmint::Value& cond,
+				std::string_view block_name,
+				std::string_view message,
+				const ASG::Location& location
+			) -> void;
+
+
 			EVO_NODISCARD auto mangle_name(const ASG::Func& func) const -> std::string;
 			EVO_NODISCARD auto mangle_name(const ASG::Var& var) const -> std::string;
 			EVO_NODISCARD auto submangle_parent(const ASG::Parent& parent) const -> std::string;
@@ -104,14 +120,14 @@ namespace pcit::panther{
 			struct ParamInfo{
 				llvmint::Alloca alloca;
 				llvmint::Type type;
-				evo::uint index;
+				unsigned index;
 			};
 			EVO_NODISCARD auto get_param_info(ASG::Param::LinkID link_id) const -> const ParamInfo&;
 
 			struct ReturnParamInfo{
 				llvmint::Argument arg;
 				llvmint::Type type;
-				evo::uint index;
+				unsigned index;
 			};
 			EVO_NODISCARD auto get_return_param_info(ASG::ReturnParam::LinkID link_id) const -> const ReturnParamInfo&;
 
@@ -137,6 +153,10 @@ namespace pcit::panther{
 
 			struct LinkedFunctions{
 				std::optional<llvmint::Function> print_hello_world{};
+
+				// for JIT
+				std::optional<llvmint::Function> panic{};
+				std::optional<llvmint::Function> panic_with_location{};
 			} linked_functions;
 	};
 

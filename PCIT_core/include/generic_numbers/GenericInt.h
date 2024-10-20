@@ -23,7 +23,7 @@ namespace pcit::core{
 
 	class GenericInt{
 		public:
-			GenericInt(evo::uint bit_width, uint64_t value, bool is_signed = false)
+			GenericInt(unsigned bit_width, uint64_t value, bool is_signed = false)
 				: ap_int(bit_width, value, is_signed) {}
 
 			GenericInt(const llvm::APInt& native) : ap_int(llvmint::APInt::fromNative(native)) {}
