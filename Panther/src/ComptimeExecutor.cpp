@@ -50,8 +50,9 @@ namespace pcit::panther{
 
 		const auto config = ASGToLLVMIR::Config{
 			.useReadableRegisters = false,
-			.checkedArithmetic    = false,
+			.checkedArithmetic    = true,
 			.isJIT                = true,
+			.addSourceLocations   = true,
 		};
 
 		this->data->asg_to_llvmir = new ASGToLLVMIR(
@@ -84,7 +85,7 @@ namespace pcit::panther{
 
 	auto ComptimeExecutor::runFunc(
 		const ASG::Func::LinkID& link_id, evo::ArrayProxy<ASG::Expr> params, ASGBuffer& asg_buffer
-	) -> evo::SmallVector<ASG::Expr> {
+	) -> evo::Result<evo::SmallVector<ASG::Expr>> {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		const auto lock = std::shared_lock(this->mutex);
@@ -114,13 +115,15 @@ namespace pcit::panther{
 
 		switch(func_return_base_type.kind()){
 			case Token::Kind::TypeBool: {
-				const bool value = this->data->execution_engine.runFunctionDirectly<bool>(func_mangled_name);
-				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralBool(value))};
+				const evo::Result<bool> value = this->data->execution_engine.runFunctionDirectly<bool>(func_mangled_name);
+				if(value.isError()){ return evo::resultError; }
+				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralBool(value.value()))};
 			} break;
 
 			case Token::Kind::TypeChar: {
-				const char value = this->data->execution_engine.runFunctionDirectly<char>(func_mangled_name);
-				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralChar(value))};
+				const evo::Result<char> value = this->data->execution_engine.runFunctionDirectly<char>(func_mangled_name);
+				if(value.isError()){ return evo::resultError; }
+				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralChar(value.value()))};
 			} break;
 
 			case Token::Kind::TypeF16: {
@@ -132,19 +135,21 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeF32: {
-				const float32_t value = this->data->execution_engine.runFunctionDirectly<float32_t>(func_mangled_name);
+				const evo::Result<float32_t> value = this->data->execution_engine.runFunctionDirectly<float32_t>(func_mangled_name);
+				if(value.isError()){ return evo::resultError; }
 				return evo::SmallVector<ASG::Expr>{
 					ASG::Expr(
-						asg_buffer.createLiteralFloat(core::GenericFloat(value), func_return_type_id)
+						asg_buffer.createLiteralFloat(core::GenericFloat(value.value()), func_return_type_id)
 					)
 				};
 			} break;
 
 			case Token::Kind::TypeF64: {
-				const float64_t value = this->data->execution_engine.runFunctionDirectly<float64_t>(func_mangled_name);
+				const evo::Result<float64_t> value = this->data->execution_engine.runFunctionDirectly<float64_t>(func_mangled_name);
+				if(value.isError()){ return evo::resultError; }
 				return evo::SmallVector<ASG::Expr>{
 					ASG::Expr(
-						asg_buffer.createLiteralFloat(core::GenericFloat(value), func_return_type_id)
+						asg_buffer.createLiteralFloat(core::GenericFloat(value.value()), func_return_type_id)
 					)
 				};
 			} break;
@@ -163,47 +168,44 @@ namespace pcit::panther{
 			case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:      case Token::Kind::TypeCInt:
 			case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:        case Token::Kind::TypeCULong:
 			case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: {
-				const ASG::LiteralInt::ID literal_int_id = [&](){
+				const evo::Result<ASG::LiteralInt::ID> literal_int_id = [&](){
 					const size_t size_of_func_return_base_type = type_manager.sizeOf(func_return_type.baseTypeID());
 
 					if(size_of_func_return_base_type == 1){
-						const uint8_t value = this->data->execution_engine.runFunctionDirectly<uint8_t>(
-							func_mangled_name
-						);
-						return asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint8_t>(value), func_return_type_id
-						);
+						const evo::Result<uint8_t> value = this->data->execution_engine.runFunctionDirectly<uint8_t>(func_mangled_name);
+						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
+						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint8_t>(value.value()), func_return_type_id
+						));
 
 					}else if(size_of_func_return_base_type == 2){
-						const uint16_t value = this->data->execution_engine.runFunctionDirectly<uint16_t>(
-							func_mangled_name
-						);
-						return asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint16_t>(value), func_return_type_id
-						);
+						const evo::Result<uint16_t> value = this->data->execution_engine.runFunctionDirectly<uint16_t>(func_mangled_name);
+						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
+						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint16_t>(value.value()), func_return_type_id
+						));
 
 					}else if(size_of_func_return_base_type == 4){
-						const uint32_t value = this->data->execution_engine.runFunctionDirectly<uint32_t>(
-							func_mangled_name
-						);
-						return asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint32_t>(value), func_return_type_id
-						);
+						const evo::Result<uint32_t> value = this->data->execution_engine.runFunctionDirectly<uint32_t>(func_mangled_name);
+						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
+						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint32_t>(value.value()), func_return_type_id
+						));
 
 					}else if(size_of_func_return_base_type == 8){
-						const uint64_t value = this->data->execution_engine.runFunctionDirectly<uint64_t>(
-							func_mangled_name
-						);
-						return asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint64_t>(value), func_return_type_id
-						);
+						const evo::Result<uint64_t> value = this->data->execution_engine.runFunctionDirectly<uint64_t>(func_mangled_name);
+						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
+						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
+							core::GenericInt::create<uint64_t>(value.value()), func_return_type_id
+						));
 
 					}else{
 						evo::debugFatalBreak("This type is not supported");
 					}
 				}();
+				if(literal_int_id.isError()){ return evo::resultError; }
 
-				return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
+				return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id.value())};
 			} break;
 
 
@@ -227,6 +229,229 @@ namespace pcit::panther{
 	}
 
 
+	//////////////////////////////////////////////////////////////////////
+	// intrinsics
+
+
+	///////////////////////////////////
+	// addition
+
+	auto ComptimeExecutor::intrinAdd(
+		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> evo::Result<core::GenericInt> {
+		const core::GenericInt::WrapResult result = this->intrinAddWrap(type_id, lhs, rhs);
+		if(result.wrapped && !may_wrap){ return evo::resultError; }
+		return result.result;
+	}
+
+
+	auto ComptimeExecutor::intrinAddWrap(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt::WrapResult {
+		return this->intrin_arithmetic<core::GenericInt::WrapResult>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
+				-> core::GenericInt::WrapResult {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.uadd(rhs);
+				}else{
+					return lhs.sadd(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinAddSat(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
+				-> core::GenericInt {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.uaddSat(rhs);
+				}else{
+					return lhs.saddSat(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinFAdd(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> core::GenericFloat {
+		return this->intrin_arithmetic(type_id, lhs, rhs, 
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
+				return lhs.add(rhs);
+			}
+		);
+	}
+
+
+	///////////////////////////////////
+	// subtraction
+
+	auto ComptimeExecutor::intrinSub(
+		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> evo::Result<core::GenericInt> {
+		const core::GenericInt::WrapResult result = this->intrinSubWrap(type_id, lhs, rhs);
+		if(result.wrapped && !may_wrap){ return evo::resultError; }
+		return result.result;
+	}
+
+
+	auto ComptimeExecutor::intrinSubWrap(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt::WrapResult {
+		return this->intrin_arithmetic<core::GenericInt::WrapResult>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
+				-> core::GenericInt::WrapResult {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.usub(rhs);
+				}else{
+					return lhs.ssub(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinSubSat(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
+				-> core::GenericInt {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.usubSat(rhs);
+				}else{
+					return lhs.ssubSat(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinFSub(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> core::GenericFloat {
+		return this->intrin_arithmetic(type_id, lhs, rhs, 
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
+				return lhs.sub(rhs);
+			}
+		);
+	}
+
+
+	///////////////////////////////////
+	// multiplication
+
+	auto ComptimeExecutor::intrinMul(
+		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> evo::Result<core::GenericInt> {
+		const core::GenericInt::WrapResult result = this->intrinMulWrap(type_id, lhs, rhs);
+		if(result.wrapped && !may_wrap){ return evo::resultError; }
+		return result.result;
+	}
+
+
+	auto ComptimeExecutor::intrinMulWrap(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt::WrapResult {
+		return this->intrin_arithmetic<core::GenericInt::WrapResult>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
+				-> core::GenericInt::WrapResult {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.umul(rhs);
+				}else{
+					return lhs.smul(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinMulSat(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
+				-> core::GenericInt {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.umulSat(rhs);
+				}else{
+					return lhs.smulSat(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinFMul(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> core::GenericFloat {
+		return this->intrin_arithmetic(type_id, lhs, rhs, 
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
+				return lhs.mul(rhs);
+			}
+		);
+	}
+
+
+	///////////////////////////////////
+	// division / remainder
+
+	auto ComptimeExecutor::intrinDiv(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
+				-> core::GenericInt {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.udiv(rhs);
+				}else{
+					return lhs.sdiv(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinFDiv(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> core::GenericFloat {
+		return this->intrin_arithmetic(type_id, lhs, rhs, 
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
+				return lhs.div(rhs);
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinRem(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
+				-> core::GenericInt {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.urem(rhs);
+				}else{
+					return lhs.srem(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinRem(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> core::GenericFloat {
+		return this->intrin_arithmetic(type_id, lhs, rhs, 
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
+				return lhs.rem(rhs);
+			}
+		);
+	}
+
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// internal engine
+
 	auto ComptimeExecutor::restart_engine_if_needed() -> void {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
@@ -240,6 +465,88 @@ namespace pcit::panther{
 		this->data->execution_engine.createEngine(this->data->module);
 		this->data->execution_engine.setupLinkedFuncs(this->printer);
 	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// intrin impl
+
+	template<class RETURN>
+	auto ComptimeExecutor::intrin_arithmetic(
+		const TypeInfo::ID type_id,
+		const core::GenericInt& lhs,
+		const core::GenericInt& rhs,
+		IntrinOp<RETURN> intrin_op
+	) -> RETURN {
+		TypeManager& type_manager = this->context.getTypeManager();
+		const bool is_unsigned = type_manager.isUnsignedIntegral(type_id);
+
+		const unsigned type_width = [&](){
+			const TypeInfo::ID underlying_id = type_manager.getUnderlyingType(type_id).value();
+			const TypeInfo& underlying_type = type_manager.getTypeInfo(underlying_id);
+			const BaseType::Primitive& primitive = type_manager.getPrimitive(
+				underlying_type.baseTypeID().primitiveID()
+			);
+			return primitive.bitWidth();
+		}();
+		
+
+		const core::GenericInt& lhs_converted = lhs.extOrTrunc(type_width, is_unsigned);
+		const core::GenericInt& rhs_converted = rhs.extOrTrunc(type_width, is_unsigned);
+
+		return intrin_op(type_id, lhs_converted, rhs_converted);
+	}
+
+	auto ComptimeExecutor::intrin_arithmetic(
+		const TypeInfo::ID type_id,
+		const core::GenericFloat& lhs,
+		const core::GenericFloat& rhs,
+		std::function<core::GenericFloat(const core::GenericFloat&, const core::GenericFloat&)> intrin_op
+	) -> core::GenericFloat {
+		const TypeManager& type_manager = this->context.getTypeManager();
+
+		const TypeInfo& type = type_manager.getTypeInfo(type_id);
+		const BaseType::Primitive& primitive = type_manager.getPrimitive(type.baseTypeID().primitiveID());
+
+		auto lhs_converted = std::optional<core::GenericFloat>();
+		auto rhs_converted = std::optional<core::GenericFloat>();
+		switch(primitive.kind()){
+			case Token::Kind::TypeF16: {
+				lhs_converted = lhs.asF16();
+				rhs_converted = rhs.asF16();
+			} break;
+
+			case Token::Kind::TypeBF16: {
+				lhs_converted = lhs.asBF16();
+				rhs_converted = rhs.asBF16();
+			} break;
+
+			case Token::Kind::TypeF32: {
+				lhs_converted = lhs.asF32();
+				rhs_converted = rhs.asF32();
+			} break;
+
+			case Token::Kind::TypeF64: {
+				lhs_converted = lhs.asF64();
+				rhs_converted = rhs.asF64();
+			} break;
+
+			case Token::Kind::TypeF80: {
+				lhs_converted = lhs.asF80();
+				rhs_converted = rhs.asF80();
+			} break;
+
+			case Token::Kind::TypeF128: {
+				lhs_converted = lhs.asF128();
+				rhs_converted = rhs.asF128();
+			} break;
+
+			default: evo::debugFatalBreak("Unknown or unsupported float type");
+		}
+
+		return intrin_op(*lhs_converted, *rhs_converted);
+	}
+
+
 
 
 }

@@ -15,6 +15,7 @@
 #include "../include/Function.h"
 
 
+
 namespace pcit::llvmint{
 
 	std::atomic<bool> engine_created = false;
@@ -52,6 +53,11 @@ namespace pcit::llvmint{
 		this->engine->addGlobalMapping(func, uint64_t(func_call_address));
 	}
 
+
+	static std::jmp_buf panic_jump;
+	auto ExecutionEngine::get_panic_jump() -> std::jmp_buf& {
+		return panic_jump;
+	}
 	
 
 	//////////////////////////////////////////////////////////////////////
@@ -59,19 +65,20 @@ namespace pcit::llvmint{
 
 	static core::Printer* runtime_funcs_printer = nullptr;
 
+
 	static auto print_hello_world() -> void {
 		runtime_funcs_printer->println("Hello world, I'm Panther!");
 	}
 
 	static auto runtime_panic(const char* msg) -> void {
-		runtime_funcs_printer->printlnRed("<PTHR> Runtime Panic: \"{}\"", msg);
-		std::exit(EXIT_FAILURE);
+		runtime_funcs_printer->printlnRed("<PTHR> Execution Panic: \"{}\"", msg);
+		std::longjmp(panic_jump, true);
 	}
 
 	static auto runtime_panic_with_location(const char* msg, uint32_t source_id, uint32_t line, uint32_t collumn)
 	-> void {
-		runtime_funcs_printer->printlnRed("<PTHR> Runtime Panic ({}:{}:{}): \"{}\"", source_id, line, collumn, msg);
-		std::exit(EXIT_FAILURE);
+		runtime_funcs_printer->printlnRed("<PTHR> Execution Panic ({}:{}:{}): \"{}\"", source_id, line, collumn, msg);
+		std::longjmp(panic_jump, true);
 	}
 
 

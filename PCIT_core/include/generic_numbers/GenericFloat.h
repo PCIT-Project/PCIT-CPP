@@ -49,11 +49,11 @@ namespace pcit::core{
 			}
 
 			EVO_NODISCARD static auto createF80(GenericInt&& value) -> GenericFloat {
-				return GenericFloat(llvmint::APFloatBase::IEEEquad(), std::move(value));
+				return GenericFloat(llvmint::APFloatBase::x87DoubleExtended(), std::move(value));
 			}
 
 			EVO_NODISCARD static auto createF128(GenericInt&& value) -> GenericFloat {
-				return GenericFloat(llvmint::APFloatBase::x87DoubleExtended(), std::move(value));
+				return GenericFloat(llvmint::APFloatBase::IEEEquad(), std::move(value));
 			}
 
 
@@ -69,10 +69,105 @@ namespace pcit::core{
 			EVO_NODISCARD explicit operator float32_t() const { return this->ap_float.convertToFloat();  }
 
 
+			//////////////////////////////////////////////////////////////////////
+			// Arithmetic operations
+
+
+			EVO_NODISCARD auto add(const GenericFloat& rhs) const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				std::ignore = ap_float_copy.add(rhs.ap_float, llvmint::glue::RoundingMode::TowardZero);
+				return GenericFloat(std::move(ap_float_copy));
+			}
+
+			EVO_NODISCARD auto sub(const GenericFloat& rhs) const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				std::ignore = ap_float_copy.subtract(rhs.ap_float, llvmint::glue::RoundingMode::TowardZero);
+				return GenericFloat(std::move(ap_float_copy));
+			}
+
+			EVO_NODISCARD auto mul(const GenericFloat& rhs) const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				std::ignore = ap_float_copy.multiply(rhs.ap_float, llvmint::glue::RoundingMode::TowardZero);
+				return GenericFloat(std::move(ap_float_copy));
+			}
+
+			EVO_NODISCARD auto div(const GenericFloat& rhs) const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				std::ignore = ap_float_copy.divide(rhs.ap_float, llvmint::glue::RoundingMode::TowardZero);
+				return GenericFloat(std::move(ap_float_copy));
+			}
+
+			EVO_NODISCARD auto rem(const GenericFloat& rhs) const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				std::ignore = ap_float_copy.mod(rhs.ap_float);
+				return GenericFloat(std::move(ap_float_copy));
+			}
+
+
+			//////////////////////////////////////////////////////////////////////
+			// type conversions
+
+			EVO_NODISCARD auto asF16() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				bool loses_info;
+				ap_float_copy.convert(
+					llvmint::APFloatBase::IEEEhalf(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+				);
+				return ap_float_copy;
+			}
+
+			EVO_NODISCARD auto asBF16() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				bool loses_info;
+				ap_float_copy.convert(
+					llvmint::APFloatBase::BFloat(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+				);
+				return ap_float_copy;
+			}
+
+			EVO_NODISCARD auto asF32() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				bool loses_info;
+				ap_float_copy.convert(
+					llvmint::APFloatBase::IEEEsingle(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+				);
+				return ap_float_copy;
+			}
+
+			EVO_NODISCARD auto asF64() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				bool loses_info;
+				ap_float_copy.convert(
+					llvmint::APFloatBase::IEEEdouble(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+				);
+				return ap_float_copy;
+			}
+
+			EVO_NODISCARD auto asF80() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				bool loses_info;
+				ap_float_copy.convert(
+					llvmint::APFloatBase::x87DoubleExtended(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+				);
+				return ap_float_copy;
+			}
+
+			EVO_NODISCARD auto asF128() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				bool loses_info;
+				ap_float_copy.convert(
+					llvmint::APFloatBase::IEEEquad(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+				);
+				return ap_float_copy;
+			}
+
+
 
 		private:
 			GenericFloat(const llvmint::fltSemantics& semantics, GenericInt&& value)
 				: ap_float(semantics, value.ap_int) {}
+
+			GenericFloat(llvmint::APFloat&& _ap_float) : ap_float(_ap_float) {}
 
 	
 		private:

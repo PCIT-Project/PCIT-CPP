@@ -112,6 +112,8 @@ namespace pcit::panther{
 		SemaTypeCannotBeUsedAsExpr,
 		SemaExprCannotBeUsedAsType,
 		SemaNotValidExprForTypeIDConversion,
+		SemaErrorInRunningOfFuncAtComptime,
+		SemaErrorInRunningOfIntrinsicAtComptime,
 
 		SemaWarnSingleValInMultiAssign,
 		SemaWarnEntryIsImplicitRuntime,
@@ -231,6 +233,8 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaTypeCannotBeUsedAsExpr:               return "S";
 			break; case DiagnosticCode::SemaExprCannotBeUsedAsType:               return "S";
 			break; case DiagnosticCode::SemaNotValidExprForTypeIDConversion:      return "S";
+			break; case DiagnosticCode::SemaErrorInRunningOfIntrinsicAtComptime:  return "S";
+			break; case DiagnosticCode::SemaErrorInRunningOfFuncAtComptime:       return "S";
 
 			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:           return "SW";
 			break; case DiagnosticCode::SemaWarnEntryIsImplicitRuntime:           return "SW";

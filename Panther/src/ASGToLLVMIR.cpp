@@ -23,9 +23,6 @@
 namespace pcit::panther{
 
 	auto ASGToLLVMIR::lower() -> void {
-		this->add_links();
-		if(this->config.isJIT){ this->add_links_for_JIT(); }
-
 		// lower variables
 		for(const Source::ID& source_id : this->context.getSourceManager()){
 			this->current_source = &this->context.getSourceManager()[source_id];

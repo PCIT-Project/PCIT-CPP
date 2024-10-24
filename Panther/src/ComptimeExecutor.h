@@ -32,13 +32,118 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto runFunc(
 				const ASG::Func::LinkID& link_id, evo::ArrayProxy<ASG::Expr> params, ASGBuffer& asg_buffer
-			) -> evo::SmallVector<ASG::Expr>;
+			) -> evo::Result<evo::SmallVector<ASG::Expr>>;
 
 
 			auto addFunc(const ASG::Func::LinkID& func_link_id) -> void;
 
+
+			//////////////////////////////////////////////////////////////////////
+			// intrinsics
+
+			///////////////////////////////////
+			// add
+
+			EVO_NODISCARD auto intrinAdd(
+				const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> evo::Result<core::GenericInt>;
+
+			EVO_NODISCARD auto intrinAddWrap(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt::WrapResult;
+
+			EVO_NODISCARD auto intrinAddSat(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinFAdd(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> core::GenericFloat;
+
+
+			///////////////////////////////////
+			// sub
+
+			EVO_NODISCARD auto intrinSub(
+				const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> evo::Result<core::GenericInt>;
+
+			EVO_NODISCARD auto intrinSubWrap(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt::WrapResult;
+
+			EVO_NODISCARD auto intrinSubSat(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinFSub(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> core::GenericFloat;
+
+
+			///////////////////////////////////
+			// mul
+
+			EVO_NODISCARD auto intrinMul(
+				const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> evo::Result<core::GenericInt>;
+
+			EVO_NODISCARD auto intrinMulWrap(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt::WrapResult;
+
+			EVO_NODISCARD auto intrinMulSat(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinFMul(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> core::GenericFloat;
+
+
+			///////////////////////////////////
+			// div / rem
+
+			EVO_NODISCARD auto intrinDiv(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinFDiv(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> core::GenericFloat;
+
+			EVO_NODISCARD auto intrinRem(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinRem(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> core::GenericFloat;
+
+
+
 		private:
 			auto restart_engine_if_needed() -> void;
+
+			template<class RETURN>
+			using IntrinOp = std::function<RETURN(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			)>;
+
+			template<class RETURN>
+			EVO_NODISCARD auto intrin_arithmetic(
+				const TypeInfo::ID type_id,
+				const core::GenericInt& lhs,
+				const core::GenericInt& rhs,
+				IntrinOp<RETURN> intrin_op
+			) -> RETURN;
+
+			EVO_NODISCARD auto intrin_arithmetic(
+				const TypeInfo::ID type_id,
+				const core::GenericFloat& lhs,
+				const core::GenericFloat& rhs,
+				std::function<core::GenericFloat(const core::GenericFloat&, const core::GenericFloat&)> intrin_op
+			) -> core::GenericFloat;
 
 		private:
 			class Context& context;

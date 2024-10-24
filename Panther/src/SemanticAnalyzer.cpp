@@ -2116,9 +2116,20 @@ namespace pcit::panther{
 						evo::debugAssert(asg_func_target.is_body_analyzed, "body of this function was not analyzed");
 					#endif
 
-					return this->context.comptime_executor.runFunc(
+					evo::Result<evo::SmallVector<ASG::Expr>> result = this->context.comptime_executor.runFunc(
 						func_call_target, asg_func_call.args, this->source.asg_buffer
 					);
+
+					if(result.isError()){
+						this->emit_error(
+							Diagnostic::Code::SemaErrorInRunningOfFuncAtComptime,
+							func_call,
+							"Encountered error when running function"
+						);
+						return evo::SmallVector<ASG::Expr>();
+					}
+
+					return std::move(result.value());
 
 				}else if constexpr(std::is_same_v<FuncCallTarget, Intrinsic::Kind>){
 					evo::debugFatalBreak("Cannot handle this consteval func target");
@@ -2295,139 +2306,325 @@ namespace pcit::panther{
 							return evo::SmallVector<ASG::Expr>();
 						} break;
 
+
+						///////////////////////////////////
+						// addition
+
 						case TemplatedIntrinsic::Kind::Add: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@add` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const evo::Result<core::GenericInt> result = this->context.comptime_executor.intrinAdd(
+								type_id,
+								instantiation.templateArgs[1].as<bool>(),
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							if(result.isError()){
+								this->emit_error(
+									Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
+									func_call,
+									"Integral arithmetic wrapping occured"
+								);
+								return evo::SmallVector<ASG::Expr>();
+							}
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.value(), type_id))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::AddWrap: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@addWrap` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const core::GenericInt::WrapResult result = this->context.comptime_executor.intrinAddWrap(
+								type_id,
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.result, type_id)),
+								ASG::Expr(this->source.asg_buffer.createLiteralBool(result.wrapped))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::AddSat: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@addSat` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const core::GenericInt result = this->context.comptime_executor.intrinAddSat(
+								type_id,
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::FAdd: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@fadd` is not supported yet"
+							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
+
+							const ASG::LiteralFloat& lhs_literal_float = 
+								asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
+							const TypeInfo::ID type_id = *lhs_literal_float.typeID;
+
+							const core::GenericFloat result = this->context.comptime_executor.intrinFAdd(
+								type_id,
+								lhs_literal_float.value,
+								asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
+							};
 						} break;
 
+
+						///////////////////////////////////
+						// subtraction
+
 						case TemplatedIntrinsic::Kind::Sub: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@sub` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const evo::Result<core::GenericInt> result = this->context.comptime_executor.intrinSub(
+								type_id,
+								instantiation.templateArgs[1].as<bool>(),
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							if(result.isError()){
+								this->emit_error(
+									Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
+									func_call,
+									"Integral arithmetic wrapping occured"
+								);
+								return evo::SmallVector<ASG::Expr>();
+							}
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.value(), type_id))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::SubWrap: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@subWrap` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const core::GenericInt::WrapResult result = this->context.comptime_executor.intrinSubWrap(
+								type_id,
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.result, type_id)),
+								ASG::Expr(this->source.asg_buffer.createLiteralBool(result.wrapped))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::SubSat: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@subSat` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const core::GenericInt result = this->context.comptime_executor.intrinSubSat(
+								type_id,
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::FSub: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@fsub` is not supported yet"
+							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
+
+							const ASG::LiteralFloat& lhs_literal_float = 
+								asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
+							const TypeInfo::ID type_id = *lhs_literal_float.typeID;
+
+							const core::GenericFloat result = this->context.comptime_executor.intrinFSub(
+								type_id,
+								lhs_literal_float.value,
+								asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
+							};
 						} break;
 
+
+						///////////////////////////////////
+						// multiplication
+
 						case TemplatedIntrinsic::Kind::Mul: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@mul` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const evo::Result<core::GenericInt> result = this->context.comptime_executor.intrinMul(
+								type_id,
+								instantiation.templateArgs[1].as<bool>(),
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							if(result.isError()){
+								this->emit_error(
+									Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
+									func_call,
+									"Integral arithmetic wrapping occured"
+								);
+								return evo::SmallVector<ASG::Expr>();
+							}
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.value(), type_id))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::MulWrap: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@mulWrap` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const core::GenericInt::WrapResult result = this->context.comptime_executor.intrinMulWrap(
+								type_id,
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.result, type_id)),
+								ASG::Expr(this->source.asg_buffer.createLiteralBool(result.wrapped))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::MulSat: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@mulSat` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const core::GenericInt result = this->context.comptime_executor.intrinMulSat(
+								type_id,
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::FMul: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@fmul` is not supported yet"
+							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
+
+							const ASG::LiteralFloat& lhs_literal_float = 
+								asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
+							const TypeInfo::ID type_id = *lhs_literal_float.typeID;
+
+							const core::GenericFloat result = this->context.comptime_executor.intrinFMul(
+								type_id,
+								lhs_literal_float.value,
+								asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
+							};
 						} break;
 
+						
+						///////////////////////////////////
+						// division / remainder
+
 						case TemplatedIntrinsic::Kind::Div: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@div` is not supported yet"
+							const ASG::LiteralInt& lhs_literal_int = 
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
+							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+							const core::GenericInt result = this->context.comptime_executor.intrinDiv(
+								type_id,
+								lhs_literal_int.value,
+								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::FDiv: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@fdiv` is not supported yet"
+							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
+
+							const ASG::LiteralFloat& lhs_literal_float = 
+								asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
+							const TypeInfo::ID type_id = *lhs_literal_float.typeID;
+
+							const core::GenericFloat result = this->context.comptime_executor.intrinFDiv(
+								type_id,
+								lhs_literal_float.value,
+								asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
 							);
-							return evo::SmallVector<ASG::Expr>();
+
+							return evo::SmallVector<ASG::Expr>{
+								ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
+							};
 						} break;
 
 						case TemplatedIntrinsic::Kind::Rem: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@rem` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
+							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
+
+							if(asg_func_call.args[0].kind() == ASG::Expr::Kind::LiteralInt){
+								const ASG::LiteralInt& lhs_literal_int = 
+									asg_buffer.getLiteralInt(asg_func_call.args[0].literalIntID());
+								const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+								const core::GenericInt result = this->context.comptime_executor.intrinRem(
+									type_id,
+									lhs_literal_int.value,
+									asg_buffer.getLiteralInt(asg_func_call.args[1].literalIntID()).value
+								);
+
+								return evo::SmallVector<ASG::Expr>{
+									ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
+								};
+
+							}else{
+								evo::debugAssert(
+									asg_func_call.args[0].kind() == ASG::Expr::Kind::LiteralFloat,
+									"Unknown or unsupported comptime value"
+								);
+
+								const ASG::LiteralFloat& lhs_literal_float = 
+									asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
+								const TypeInfo::ID type_id = *lhs_literal_float.typeID;
+
+								const core::GenericFloat result = this->context.comptime_executor.intrinRem(
+									type_id,
+									lhs_literal_float.value,
+									asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
+								);
+
+								return evo::SmallVector<ASG::Expr>{
+									ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
+								};
+							}
 						} break;
 
 						case TemplatedIntrinsic::Kind::_max_: {
@@ -2440,7 +2637,6 @@ namespace pcit::panther{
 			});
 
 
-			// TODO: remove when not needed any more
 			if(asg_exprs.empty()){ return evo::resultError; }
 
 			return ExprInfo(
@@ -4081,23 +4277,35 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::KeywordAs: {
-				const evo::Result<ExprInfo> lhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.lhs);
-				if(lhs_expr_info.isError()){ return evo::resultError; }
-
-				if(
-					(lhs_expr_info.value().is_ephemeral() == false && lhs_expr_info.value().is_concrete() == false) ||
-					lhs_expr_info.value().hasExpr() == false
-				){
-					this->emit_error(Diagnostic::Code::SemaInvalidAsLHS, infix.lhs, "Invalid LHS of [as] operation");
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+					this->emit_error(
+						Diagnostic::Code::MiscUnimplementedFeature,
+						infix.opTokenID,
+						"Consteval [as] is currently unsupported"
+					);
 					return evo::resultError;
+				}else{
+					const evo::Result<ExprInfo> lhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.lhs);
+					if(lhs_expr_info.isError()){ return evo::resultError; }
+
+					if(
+						(lhs_expr_info.value().is_ephemeral() == false && lhs_expr_info.value().is_concrete() == false)
+						|| lhs_expr_info.value().hasExpr() == false
+					){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidAsLHS, infix.lhs, "Invalid LHS of [as] operation"
+						);
+						return evo::resultError;
+					}
+
+					const evo::Result<TypeInfo::VoidableID> to_type_id = this->get_type_id(
+						this->source.getASTBuffer().getType(infix.rhs)
+					);
+					if(to_type_id.isError()){ return evo::resultError; }
+
+					return this->get_as_conversion(lhs_expr_info.value(), to_type_id.value(), infix);
 				}
 
-				const evo::Result<TypeInfo::VoidableID> to_type_id = this->get_type_id(
-					this->source.getASTBuffer().getType(infix.rhs)
-				);
-				if(to_type_id.isError()){ return evo::resultError; }
-
-				return this->get_as_conversion(lhs_expr_info.value(), to_type_id.value(), infix);
 			} break;
 
 			default: {
@@ -4771,6 +4979,7 @@ namespace pcit::panther{
 				case Token::Kind::TypeUI_N:
 					return TypeConversionData(TypeConversionData::Kind::UnsignedInteger, primitive_type.bitWidth());
 				case Token::Kind::TypeF16:  return TypeConversionData(TypeConversionData::Kind::Float, 16);
+				case Token::Kind::TypeBF16: return TypeConversionData(TypeConversionData::Kind::Float, 16);
 				case Token::Kind::TypeF32:  return TypeConversionData(TypeConversionData::Kind::Float, 32);
 				case Token::Kind::TypeF64:  return TypeConversionData(TypeConversionData::Kind::Float, 64);
 				case Token::Kind::TypeF80:  return TypeConversionData(TypeConversionData::Kind::Float, 80);

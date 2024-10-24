@@ -11,6 +11,8 @@
 
 #include <Evo.h>
 
+#include <csetjmp>
+
 
 #include "./class_impls/native_ptr_decls.h"
 #include "./class_impls/enums.h"
@@ -46,13 +48,27 @@ namespace pcit::llvmint{
 
 
 			template<typename T>
-			EVO_NODISCARD auto runFunctionDirectly(std::string_view func_name) -> T {
+			EVO_NODISCARD auto runFunctionDirectly(std::string_view func_name) -> evo::Result<T> {
 				const uint64_t func_addr = this->get_func_address(func_name);
 				
 				using FuncType = T(*)(void);
 				const FuncType func = (FuncType)func_addr;
+
+				#if defined(EVO_COMPILER_MSVC)
+					#pragma warning(disable:4611)
+				#endif
+
+				if(std::setjmp(this->get_panic_jump())){
+					return evo::resultError;
+				}
+
+				#if defined(EVO_COMPILER_MSVC)
+					#pragma warning(default:4611)
+				#endif
+
 				if constexpr(std::is_same_v<T, void>){
 					func();
+					return evo::Result<void>();
 				}else{
 					return func();
 				}
@@ -67,6 +83,7 @@ namespace pcit::llvmint{
 
 		private:
 			EVO_NODISCARD auto get_func_address(std::string_view func_name) const -> uint64_t;
+			static EVO_NODISCARD auto get_panic_jump() -> std::jmp_buf&;
 	
 		private:
 			llvm::ExecutionEngine* engine = nullptr;

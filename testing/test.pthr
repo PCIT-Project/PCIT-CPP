@@ -1,6 +1,15 @@
 
-
-
-func entry = () #entry -> UI8 {
-	return @rem<{F32}>(12.4, 7.6) as UI8;
+func fail = () -> UI8 {
+	return @add<{UI8, false}>(255, 6);
 }
+
+func test = () -> Void {
+	def NUM: UI8 = fail();
+	var num = NUM;
+}
+
+// func entry = () #entry -> UI8 {
+// 	def NUM: UI8 = @add<{UI8, false}>(255, 6);
+
+// 	return NUM;
+// }

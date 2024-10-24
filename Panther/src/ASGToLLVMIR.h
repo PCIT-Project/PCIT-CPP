@@ -35,7 +35,10 @@ namespace pcit::panther{
 		public:
 			ASGToLLVMIR(
 				Context& _context, llvmint::LLVMContext& llvm_context, llvmint::Module& _module, const Config& _config
-			) : context(_context), module(_module), builder(llvm_context), config(_config) {};
+			) : context(_context), module(_module), builder(llvm_context), config(_config) {
+				this->add_links();
+				if(this->config.isJIT){ this->add_links_for_JIT(); }
+			};
 
 			~ASGToLLVMIR() = default;
 

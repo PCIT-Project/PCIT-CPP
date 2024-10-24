@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.47.0
+
+### Panther
+- Added support for all arithmetic intrinsics to be run at compile-time
+- Added support for checked arithmetic in compile-time executed functions
+- Fixed fatal error when using `as` operator with type `BF16`
+
+
+<!---------------------------------->
 ## v0.0.46.0
 
 ### Panther
