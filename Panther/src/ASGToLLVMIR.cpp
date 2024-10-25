@@ -140,11 +140,11 @@ namespace pcit::panther{
 
 		if(asg_var.kind == AST::VarDecl::Kind::Def){ return; } // make sure not to emit def variables
 
-		const llvmint::Type type = this->get_type(asg_var.typeID);
+		const llvmint::Type type = this->get_type(*asg_var.typeID);
 
 		llvmint::GlobalVariable global_var = [&](){
 			if(asg_var.expr.kind() == ASG::Expr::Kind::Zeroinit) [[unlikely]] {
-				const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(asg_var.typeID);
+				const TypeInfo& var_type_info = this->context.getTypeManager().getTypeInfo(*asg_var.typeID);
 				evo::debugAssert(var_type_info.isPointer() == false, "cannot zeroinit a pointer");
 				evo::debugAssert(var_type_info.isOptionalNotPointer() == false, "not supported");
 
@@ -361,7 +361,7 @@ namespace pcit::panther{
 		if(asg_var.kind == AST::VarDecl::Kind::Def){ return; } // make sure not to emit def variables
 
 		const llvmint::Alloca var_alloca = this->builder.createAlloca(
-			this->get_type(asg_var.typeID),
+			this->get_type(*asg_var.typeID),
 			this->stmt_name("{}.alloca", this->current_source->getTokenBuffer()[asg_var.ident].getString())
 		);
 
@@ -374,7 +374,7 @@ namespace pcit::panther{
 				this->builder.createMemSetInline(
 					var_alloca.asValue(),
 					this->builder.getValueI8(0).asValue(),
-					this->get_value_size(this->context.getTypeManager().sizeOf(asg_var.typeID)).asValue(),
+					this->get_value_size(this->context.getTypeManager().sizeOf(*asg_var.typeID)).asValue(),
 					false
 				);
 			} break;
@@ -1271,7 +1271,7 @@ namespace pcit::panther{
 					const llvmint::Value wrapped_value = 
 						this->builder.createExtractValue(add_wrap_value, {1}, this->stmt_name("ADD.WRAPPED"));
 
-					this->add_assertion(wrapped_value, "ADD_CHECK", "Addition overflowed", func_call.location);
+					this->add_assertion(wrapped_value, "ADD_CHECK", "Addition wrapped", func_call.location);
 
 					return evo::SmallVector<llvmint::Value>{add_value};
 
@@ -1358,7 +1358,7 @@ namespace pcit::panther{
 					const llvmint::Value wrapped_value = 
 						this->builder.createExtractValue(sub_wrap_value, {1}, this->stmt_name("SUB.WRAPPED"));
 
-					this->add_assertion(wrapped_value, "SUB_CHECK", "Subtraction overflowed", func_call.location);
+					this->add_assertion(wrapped_value, "SUB_CHECK", "Subtraction wrapped", func_call.location);
 
 					return evo::SmallVector<llvmint::Value>{sub_value};
 
@@ -1445,7 +1445,7 @@ namespace pcit::panther{
 					const llvmint::Value wrapped_value = 
 						this->builder.createExtractValue(mul_wrap_value, {1}, this->stmt_name("MUL.WRAPPED"));
 
-					this->add_assertion(wrapped_value, "MUL_CHECK", "Multiplication overflowed", func_call.location);
+					this->add_assertion(wrapped_value, "MUL_CHECK", "Multiplication wrapped", func_call.location);
 
 					return evo::SmallVector<llvmint::Value>{mul_value};
 
@@ -1529,18 +1529,18 @@ namespace pcit::panther{
 					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
 					if(is_floatint_point){
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createFRem(args[0], args[1], this->stmt_name("Rem"))
+							this->builder.createFRem(args[0], args[1], this->stmt_name("REM"))
 						};
 					}
 
 					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 					if(is_unsigned){
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createURem(args[0], args[1], this->stmt_name("Rem"))
+							this->builder.createURem(args[0], args[1], this->stmt_name("REM"))
 						};
 					}else{
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createSRem(args[0], args[1], this->stmt_name("Rem"))
+							this->builder.createSRem(args[0], args[1], this->stmt_name("REM"))
 						};
 					}
 				} break;

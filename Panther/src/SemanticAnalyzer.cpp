@@ -303,6 +303,8 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// type checking
 
+		bool is_fluid_def = false;
+
 		if(expr_info_result.value().is_concrete()){
 			// TODO: better messaging?
 			this->emit_error(
@@ -350,17 +352,23 @@ namespace pcit::panther{
 			);
 			return true;
 
-		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::EpemeralFluid){
+		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::EphemeralFluid){
 			if(var_type_id.has_value() == false){
-				this->emit_error(
-					Diagnostic::Code::SemaCannotInferType, *var_decl.value, "Cannot infer the type of a fluid literal"
-				);
-				return false;
+				// this->emit_error(
+				// 	Diagnostic::Code::SemaCannotInferType, *var_decl.value, "Cannot infer the type of a fluid literal"
+				// );
+				// return false;
+
+				is_fluid_def = true;
+
+			}else{
+				if(this->type_check<true>(
+					*var_type_id, expr_info_result.value(), "Variable", *var_decl.value)
+				.ok == false){
+					return false;	
+				}
 			}
 
-			if(this->type_check<true>(*var_type_id, expr_info_result.value(), "Variable", *var_decl.value).ok == false){
-				return false;	
-			}
 
 		}else if(expr_info_result.value().value_type == ExprInfo::ValueType::Initializer){
 			if(var_type_id.has_value() == false){
@@ -430,7 +438,7 @@ namespace pcit::panther{
 		const ASG::Var::ID asg_var_id = this->source.asg_buffer.createVar(
 			var_decl.kind,
 			var_decl.ident,
-			*var_type_id,
+			is_fluid_def ? std::optional<TypeInfo::ID>() : var_type_id,
 			expr_info_result.value().getExpr(),
 			var_decl.kind == AST::VarDecl::Kind::Const
 		);
@@ -4137,7 +4145,8 @@ namespace pcit::panther{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_infix(const AST::Infix& infix) -> evo::Result<ExprInfo> {
-		switch(this->source.getTokenBuffer()[infix.opTokenID].kind()){
+		const Token::Kind infix_op = this->source.getTokenBuffer()[infix.opTokenID].kind();
+		switch(infix_op){
 			case Token::lookupKind("."): {
 				const evo::Result<ExprInfo> lhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.lhs);
 				if(lhs_expr_info.isError()){ return evo::resultError; }
@@ -4293,7 +4302,7 @@ namespace pcit::panther{
 						|| lhs_expr_info.value().hasExpr() == false
 					){
 						this->emit_error(
-							Diagnostic::Code::SemaInvalidAsLHS, infix.lhs, "Invalid LHS of [as] operation"
+							Diagnostic::Code::SemaInvalidInfixLHS, infix.lhs, "Invalid LHS of [as] operation"
 						);
 						return evo::resultError;
 					}
@@ -4306,6 +4315,387 @@ namespace pcit::panther{
 					return this->get_as_conversion(lhs_expr_info.value(), to_type_id.value(), infix);
 				}
 
+			} break;
+
+			case Token::lookupKind("+"): case Token::lookupKind("+%"): case Token::lookupKind("+|"):
+			case Token::lookupKind("-"): case Token::lookupKind("-%"): case Token::lookupKind("-|"):
+			case Token::lookupKind("*"): case Token::lookupKind("*%"): case Token::lookupKind("*|"):
+			case Token::lookupKind("/"): case Token::lookupKind("%"): {
+				///////////////////////////////////
+				// lhs
+
+				evo::Result<ExprInfo> lhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.lhs);
+				if(lhs_expr_info.isError()){ return evo::resultError; }
+
+				if(
+					(lhs_expr_info.value().is_ephemeral() == false && lhs_expr_info.value().is_concrete() == false)
+					|| lhs_expr_info.value().hasExpr() == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidInfixLHS,
+						infix.lhs,
+						std::format("Invalid LHS of [{}] operation", infix_op)
+					);
+					return evo::resultError;
+				}
+
+				const bool is_lhs_fluid = lhs_expr_info.value().value_type == ExprInfo::ValueType::EphemeralFluid;
+
+
+				///////////////////////////////////
+				// rhs
+
+				evo::Result<ExprInfo> rhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.rhs);
+				if(rhs_expr_info.isError()){ return evo::resultError; }
+
+				if(
+					(rhs_expr_info.value().is_ephemeral() == false && rhs_expr_info.value().is_concrete() == false)
+					|| rhs_expr_info.value().hasExpr() == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidInfixLHS,
+						infix.rhs,
+						std::format("Invalid RHS of [{}] operation", infix_op)
+					);
+					return evo::resultError;
+				}
+
+				const bool is_rhs_fluid = rhs_expr_info.value().value_type == ExprInfo::ValueType::EphemeralFluid;
+
+
+				///////////////////////////////////
+				// op
+
+				if(is_lhs_fluid && is_rhs_fluid){
+					const bool lhs_is_integral = lhs_expr_info.value().getExpr().kind() == ASG::Expr::Kind::LiteralInt;
+					const bool rhs_is_integral = rhs_expr_info.value().getExpr().kind() == ASG::Expr::Kind::LiteralInt;
+
+					if(lhs_is_integral != rhs_is_integral){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixRHS,
+							infix.rhs,
+							std::format("Invalid RHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;
+					}
+
+					if(lhs_is_integral){
+						if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+							return ExprInfo(ExprInfo::ValueType::EphemeralFluid, std::monostate(), std::nullopt);
+
+						}else{
+							const core::GenericInt& lhs_literal = this->source.getASGBuffer().getLiteralInt(
+								lhs_expr_info.value().getExpr().literalIntID()
+							).value;
+
+							const core::GenericInt& rhs_literal = this->source.getASGBuffer().getLiteralInt(
+								rhs_expr_info.value().getExpr().literalIntID()
+							).value;
+
+							const evo::Result<core::GenericInt> result = [&](){
+								switch(infix_op){
+									case Token::lookupKind("+"): {
+										const core::GenericInt::WrapResult wrap_result = lhs_literal.sadd(rhs_literal);
+
+										if(wrap_result.wrapped){ return evo::Result<core::GenericInt>::error(); }
+										return evo::Result<core::GenericInt>(wrap_result.result);
+									} break;
+
+									case Token::lookupKind("+%"): {
+										return evo::Result<core::GenericInt>(lhs_literal.sadd(rhs_literal).result);
+									} break;
+
+									case Token::lookupKind("+|"): {
+										return evo::Result<core::GenericInt>(lhs_literal.saddSat(rhs_literal));
+									} break;
+
+									case Token::lookupKind("-"): {
+										const core::GenericInt::WrapResult wrap_result = lhs_literal.ssub(rhs_literal);
+
+										if(wrap_result.wrapped){ return evo::Result<core::GenericInt>::error(); }
+										return evo::Result<core::GenericInt>(wrap_result.result);
+									} break;
+
+									case Token::lookupKind("-%"): {
+										return evo::Result<core::GenericInt>(lhs_literal.ssub(rhs_literal).result);
+									} break;
+
+									case Token::lookupKind("-|"): {
+										return evo::Result<core::GenericInt>(lhs_literal.ssubSat(rhs_literal));
+									} break;
+
+									case Token::lookupKind("*"): {
+										const core::GenericInt::WrapResult wrap_result = lhs_literal.smul(rhs_literal);
+
+										if(wrap_result.wrapped){ return evo::Result<core::GenericInt>::error(); }
+										return evo::Result<core::GenericInt>(wrap_result.result);
+									} break;
+
+									case Token::lookupKind("*%"): {
+										return evo::Result<core::GenericInt>(lhs_literal.smul(rhs_literal).result);
+									} break;
+
+									case Token::lookupKind("*|"): {
+										return evo::Result<core::GenericInt>(lhs_literal.smulSat(rhs_literal));
+									} break;
+
+									case Token::lookupKind("/"): {
+										return evo::Result<core::GenericInt>(lhs_literal.sdiv(rhs_literal));
+									} break;
+
+									case Token::lookupKind("%"): {
+										return evo::Result<core::GenericInt>(lhs_literal.srem(rhs_literal));
+									} break;
+								}
+
+								evo::debugFatalBreak("Unknown or unsupported arithmetic operator");
+							}();
+
+							if(result.isError()){
+								this->emit_error(
+									Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
+									infix,
+									"Integral arithmetic wrapping occured"
+								);
+								return evo::resultError;
+							}
+
+							const ASG::LiteralInt::ID new_literal_int
+								= this->source.asg_buffer.createLiteralInt(std::move(result.value()), std::nullopt);
+
+							return ExprInfo(
+								ExprInfo::ValueType::EphemeralFluid, std::monostate(), ASG::Expr(new_literal_int)
+							);
+						}
+
+					}else{
+						if(
+							infix_op == Token::lookupKind("+%") || infix_op == Token::lookupKind("+|") || 
+							infix_op == Token::lookupKind("-%") || infix_op == Token::lookupKind("-|") || 
+							infix_op == Token::lookupKind("*%") || infix_op == Token::lookupKind("*|")
+						){
+							this->emit_error(
+								Diagnostic::Code::SemaInvalidInfixRHS,
+								infix.rhs,
+								std::format("Invalid RHS of [{}] operator", infix_op)
+							);
+							return evo::resultError;	
+						}
+
+						if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+							return ExprInfo(ExprInfo::ValueType::EphemeralFluid, std::monostate(), std::nullopt);
+
+						}else{
+							const core::GenericFloat& lhs_literal = this->source.getASGBuffer().getLiteralFloat(
+								lhs_expr_info.value().getExpr().literalFloatID()
+							).value;
+
+							const core::GenericFloat& rhs_literal = this->source.getASGBuffer().getLiteralFloat(
+								rhs_expr_info.value().getExpr().literalFloatID()
+							).value;
+
+							const core::GenericFloat result = [&](){
+								switch(infix_op){
+									case Token::lookupKind("+"): return lhs_literal.add(rhs_literal);
+									case Token::lookupKind("-"): return lhs_literal.sub(rhs_literal);
+									case Token::lookupKind("*"): return lhs_literal.mul(rhs_literal);
+									case Token::lookupKind("/"): return lhs_literal.div(rhs_literal);
+									case Token::lookupKind("%"): return lhs_literal.rem(rhs_literal);
+								}
+
+								evo::debugFatalBreak("Unknown or unsupported float arithmetic operator");
+							}();
+
+							const ASG::LiteralFloat::ID new_literal_float
+								= this->source.asg_buffer.createLiteralFloat(result, std::nullopt);
+
+							return ExprInfo(
+								ExprInfo::ValueType::EphemeralFluid, std::monostate(), ASG::Expr(new_literal_float)
+							);
+						}
+					}
+
+				}else if(is_lhs_fluid){
+					const TypeInfo::ID rhs_type_id =
+						rhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+					const bool is_integral = this->context.getTypeManager().isIntegral(rhs_type_id);
+					const bool is_float = this->context.getTypeManager().isFloatingPoint(rhs_type_id);
+					if(!is_integral && !is_float){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixRHS,
+							infix.rhs,
+							std::format("Invalid RHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;
+					}
+
+					if(
+						is_float &&
+						(
+							infix_op == Token::lookupKind("+%") || infix_op == Token::lookupKind("+|") || 
+							infix_op == Token::lookupKind("-%") || infix_op == Token::lookupKind("-|") || 
+							infix_op == Token::lookupKind("*%") || infix_op == Token::lookupKind("*|")
+						)
+					){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixRHS,
+							infix.rhs,
+							std::format("Invalid RHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;	
+					}
+
+					if(this->type_check<true>(
+						rhs_type_id, lhs_expr_info.value(), std::format("LHS of [{}] operator", infix_op), infix.lhs
+					).ok == false){
+						return evo::resultError;
+					}
+
+
+				}else{
+					const TypeInfo::ID lhs_type_id =
+						lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+					const bool is_integral = this->context.getTypeManager().isIntegral(lhs_type_id);
+					const bool is_float = this->context.getTypeManager().isFloatingPoint(lhs_type_id);
+					if(!is_integral && !is_float){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixLHS,
+							infix.lhs,
+							std::format("Invalid LHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;
+					}
+
+					if(
+						is_float &&
+						(
+							infix_op == Token::lookupKind("+%") || infix_op == Token::lookupKind("+|") || 
+							infix_op == Token::lookupKind("-%") || infix_op == Token::lookupKind("-|") || 
+							infix_op == Token::lookupKind("*%") || infix_op == Token::lookupKind("*|")
+						)
+					){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixLHS,
+							infix.lhs,
+							std::format("Invalid LHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;	
+					}
+
+					if(this->type_check<true>(
+						lhs_type_id, rhs_expr_info.value(), std::format("RHS of [{}] operator", infix_op), infix.rhs
+					).ok == false){
+						return evo::resultError;
+					}
+				}
+
+				const TypeInfo::ID op_type_id =
+					lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+				
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral, ExprInfo::generateExprInfoTypeIDs(op_type_id), std::nullopt
+					);
+				}else{
+					auto instantiation_args = evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{
+						TypeInfo::VoidableID(op_type_id)
+					};
+
+					const TemplatedIntrinsic::Kind templated_intrinsic_kind = [&](){ 
+						switch(infix_op){
+							case Token::lookupKind("+"): {
+								if(this->context.getTypeManager().isFloatingPoint(op_type_id)){
+									return TemplatedIntrinsic::Kind::FAdd;
+								}else{
+									instantiation_args.emplace_back(false);
+									return TemplatedIntrinsic::Kind::Add;
+								}
+							} break;
+
+							case Token::lookupKind("+%"): {
+								instantiation_args.emplace_back(true);
+								return TemplatedIntrinsic::Kind::Add;
+							} break;
+
+							case Token::lookupKind("+|"): {
+								return TemplatedIntrinsic::Kind::AddSat;
+							} break;
+
+							case Token::lookupKind("-"): {
+								if(this->context.getTypeManager().isFloatingPoint(op_type_id)){
+									return TemplatedIntrinsic::Kind::FSub;
+								}else{
+									instantiation_args.emplace_back(false);
+									return TemplatedIntrinsic::Kind::Sub;
+								}
+							} break;
+
+							case Token::lookupKind("-%"): {
+								instantiation_args.emplace_back(true);
+								return TemplatedIntrinsic::Kind::Sub;
+							} break;
+
+							case Token::lookupKind("-|"): {
+								return TemplatedIntrinsic::Kind::SubSat;
+							} break;
+
+							case Token::lookupKind("*"): {
+								if(this->context.getTypeManager().isFloatingPoint(op_type_id)){
+									return TemplatedIntrinsic::Kind::FMul;
+								}else{
+									instantiation_args.emplace_back(false);
+									return TemplatedIntrinsic::Kind::Mul;
+								}
+							} break;
+
+							case Token::lookupKind("*%"): {
+								instantiation_args.emplace_back(true);
+								return TemplatedIntrinsic::Kind::Mul;
+							} break;
+
+							case Token::lookupKind("*|"): {
+								return TemplatedIntrinsic::Kind::MulSat;
+							} break;
+
+							case Token::lookupKind("/"): {
+								if(this->context.getTypeManager().isFloatingPoint(op_type_id)){
+									return TemplatedIntrinsic::Kind::FDiv;
+								}else{
+									instantiation_args.emplace_back(false);
+									return TemplatedIntrinsic::Kind::Div;
+								}
+							} break;
+
+							case Token::lookupKind("%"): {
+								return TemplatedIntrinsic::Kind::Rem;
+							} break;
+						}
+
+						evo::debugFatalBreak("Unknown or unsupported arithmetic operator");
+					}();
+
+					const ASG::TemplatedIntrinsicInstantiation::ID asg_templated_intrinsic_instantiation_id 
+						= this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+							templated_intrinsic_kind, std::move(instantiation_args)
+						);
+
+					const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
+						asg_templated_intrinsic_instantiation_id,
+						evo::SmallVector<ASG::Expr>{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()},
+						ASG::Location::fromSourceLocation(this->get_source_location(infix))
+					);
+
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(
+							lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
+						),
+						ASG::Expr(created_func_call_id)
+					);
+				}
 			} break;
 
 			default: {
@@ -4524,7 +4914,8 @@ namespace pcit::panther{
 				if(variables_in_scope){
 					const ASG::Var& asg_var = this->source.getASGBuffer().getVar(ident_id);
 
-					auto get_value_type = [&](){
+					bool is_fluid_def = false;
+					const ExprInfo::ValueType expr_value_type = [&](){
 						switch(asg_var.kind){
 							case AST::VarDecl::Kind::Var: {
 								if(is_global){
@@ -4532,17 +4923,32 @@ namespace pcit::panther{
 								}else{
 									return ExprInfo::ValueType::ConcreteMut;
 								}
-							}
-							case AST::VarDecl::Kind::Const: return ExprInfo::ValueType::ConcreteConst;
-							case AST::VarDecl::Kind::Def:   return ExprInfo::ValueType::Ephemeral;
+							} break;
+
+							case AST::VarDecl::Kind::Const: {
+								return ExprInfo::ValueType::ConcreteConst;;
+							} break;
+
+							case AST::VarDecl::Kind::Def: {
+								if(asg_var.typeID.has_value()){
+									return ExprInfo::ValueType::Ephemeral;
+								}else{
+									is_fluid_def = true;
+									return ExprInfo::ValueType::EphemeralFluid;
+								}
+							};
 						}
 
 						evo::debugFatalBreak("Unknown or unsupported AST::VarDecl::Kind");
-					};
+					}();
 
 					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 						return std::optional<ExprInfo>(
-							ExprInfo(get_value_type(), ExprInfo::generateExprInfoTypeIDs(asg_var.typeID), std::nullopt)
+							ExprInfo(
+								expr_value_type,
+								is_fluid_def ? std::monostate() : ExprInfo::generateExprInfoTypeIDs(*asg_var.typeID),
+								std::nullopt
+							)
 						);
 
 					}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
@@ -4559,8 +4965,8 @@ namespace pcit::panther{
 
 						return std::optional<ExprInfo>(
 							ExprInfo(
-								ExprInfo::ValueType::Ephemeral,
-								ExprInfo::generateExprInfoTypeIDs(asg_var.typeID),
+								expr_value_type,
+								is_fluid_def ? std::monostate() : ExprInfo::generateExprInfoTypeIDs(*asg_var.typeID),
 								/*copy*/ ASG::Expr(asg_var.expr)
 							)
 						);
@@ -4575,8 +4981,8 @@ namespace pcit::panther{
 						}();
 						return std::optional<ExprInfo>(
 							ExprInfo(
-								get_value_type(),
-								ExprInfo::generateExprInfoTypeIDs(asg_var.typeID),
+								expr_value_type,
+								is_fluid_def ? std::monostate() : ExprInfo::generateExprInfoTypeIDs(*asg_var.typeID),
 								std::move(asg_expr)
 							)
 						);
@@ -4796,7 +5202,7 @@ namespace pcit::panther{
 
 		switch(token.kind()){
 			case Token::Kind::LiteralInt: {
-				value_type = ExprInfo::ValueType::EpemeralFluid;
+				value_type = ExprInfo::ValueType::EphemeralFluid;
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr.emplace_back(
@@ -4809,7 +5215,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::LiteralFloat: {
-				value_type = ExprInfo::ValueType::EpemeralFluid;
+				value_type = ExprInfo::ValueType::EphemeralFluid;
 
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr.emplace_back(
@@ -4883,11 +5289,11 @@ namespace pcit::panther{
 		const ExprInfo& value, const TypeInfo::VoidableID to_type_id, const AST::Infix& infix_expr
 	) -> evo::Result<ExprInfo> {
 		if(to_type_id.isVoid()){
-			this->emit_error(Diagnostic::Code::SemaInvalidAsRHS, infix_expr.rhs, "Cannot convert to type `Void`");
+			this->emit_error(Diagnostic::Code::SemaInvalidInfixRHS, infix_expr.rhs, "Cannot convert to type `Void`");
 			return evo::resultError;
 		}
 
-		if(value.value_type == ExprInfo::ValueType::EpemeralFluid){
+		if(value.value_type == ExprInfo::ValueType::EphemeralFluid){
 			this->emit_error(
 				Diagnostic::Code::MiscUnimplementedFeature,
 				infix_expr.lhs,
@@ -4902,7 +5308,7 @@ namespace pcit::panther{
 			this->context.getTypeManager().getUnderlyingType(from_type_id);
 		if(from_underlying_type_id.isError()){
 			this->emit_error(
-				Diagnostic::Code::SemaInvalidAsLHS,
+				Diagnostic::Code::SemaInvalidInfixLHS,
 				infix_expr.lhs,
 				"No valid operator [as] for this type",
 				Diagnostic::Info("Type: " + this->context.getTypeManager().printType(from_type_id))
@@ -4915,7 +5321,7 @@ namespace pcit::panther{
 			this->context.getTypeManager().getUnderlyingType(to_type_id.typeID());
 		if(to_underlying_type_id.isError()){
 			// TODO: better messaging
-			this->emit_error(Diagnostic::Code::SemaInvalidAsRHS, infix_expr.rhs, "Cannot convert to this type");
+			this->emit_error(Diagnostic::Code::SemaInvalidInfixRHS, infix_expr.rhs, "Cannot convert to this type");
 			return evo::resultError;
 		}
 
@@ -4935,7 +5341,7 @@ namespace pcit::panther{
 
 			if(from_actual_type.isPointer() && to_actual_type.isPointer()){
 				// TODO: better messaging
-				this->emit_error(Diagnostic::Code::SemaInvalidAsLHS, infix_expr, "Cannot convert pointers");
+				this->emit_error(Diagnostic::Code::SemaInvalidInfixLHS, infix_expr, "Cannot convert pointers");
 				return evo::resultError;	
 			}
 
@@ -4948,12 +5354,12 @@ namespace pcit::panther{
 		}else if(from_type.kind() == Token::Kind::TypeRawPtr){
 			evo::breakpoint();
 			// TODO: better messaging
-			this->emit_error(Diagnostic::Code::SemaInvalidAsLHS, infix_expr.lhs, "Cannot convert from pointers");
+			this->emit_error(Diagnostic::Code::SemaInvalidInfixLHS, infix_expr.lhs, "Cannot convert from pointers");
 			return evo::resultError;
 
 		}else if(to_type.kind() == Token::Kind::TypeRawPtr){
 			// TODO: better messaging
-			this->emit_error(Diagnostic::Code::SemaInvalidAsRHS, infix_expr.rhs, "Cannot convert to pointers");
+			this->emit_error(Diagnostic::Code::SemaInvalidInfixRHS, infix_expr.rhs, "Cannot convert to pointers");
 			return evo::resultError;
 		}
 
@@ -5866,7 +6272,7 @@ namespace pcit::panther{
 			} break;
 
 
-			case ExprInfo::ValueType::EpemeralFluid: {
+			case ExprInfo::ValueType::EphemeralFluid: {
 				const TypeInfo& expected_type_info = this->context.getTypeManager().getTypeInfo(expected_type_id);
 
 				if(
@@ -6139,7 +6545,7 @@ namespace pcit::panther{
 			return "{IMPORT}";
 
 		}else{
-			evo::debugAssert(expr_info.value_type == ExprInfo::ValueType::EpemeralFluid, "expected fluid literal");
+			evo::debugAssert(expr_info.value_type == ExprInfo::ValueType::EphemeralFluid, "expected fluid literal");
 
 			if(expr_info.hasExpr()){
 				if(expr_info.getExpr().kind() == ASG::Expr::Kind::LiteralInt){

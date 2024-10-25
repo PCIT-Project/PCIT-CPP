@@ -58,7 +58,7 @@ namespace pcit::llvmint{
 					#pragma warning(disable:4611)
 				#endif
 
-				if(std::setjmp(this->get_panic_jump())){
+				if(setjmp(this->get_panic_jump())){
 					return evo::resultError;
 				}
 

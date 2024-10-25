@@ -1,15 +1,7 @@
 
-func fail = () -> UI8 {
-	return @add<{UI8, false}>(255, 6);
+
+func entry = () #entry -> UI8 {
+	def NUM = 9 + 3;
+	def NUM2 = NUM;
+	return NUM2 * 4;
 }
-
-func test = () -> Void {
-	def NUM: UI8 = fail();
-	var num = NUM;
-}
-
-// func entry = () #entry -> UI8 {
-// 	def NUM: UI8 = @add<{UI8, false}>(255, 6);
-
-// 	return NUM;
-// }

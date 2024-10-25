@@ -112,7 +112,7 @@ namespace pcit::panther{
 					ConcreteMut,
 					ConcreteMutGlobal,
 					Ephemeral,
-					EpemeralFluid, // only if actual type is unknown
+					EphemeralFluid, // only if actual type is unknown
 					Import,
 					Templated,
 					Initializer, // uninit / zeroinit
@@ -122,7 +122,7 @@ namespace pcit::panther{
 				};
 
 				using TypeID = evo::Variant<
-					std::monostate,                 // EpemeralFluid|Initializer
+					std::monostate,                 // EphemeralFluid|Initializer
 					evo::SmallVector<TypeInfo::ID>, // ConcreteConst|ConcreteMut|ConcreteMutGlobal
 													//	|Ephemeral|Function|Intrinsic
 					ASG::TemplatedFunc::LinkID,     // Templated
@@ -151,7 +151,7 @@ namespace pcit::panther{
 				// value type checking
 
 				EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {
-					return this->value_type == ValueType::Ephemeral || this->value_type == ValueType::EpemeralFluid;
+					return this->value_type == ValueType::Ephemeral || this->value_type == ValueType::EphemeralFluid;
 				}
 
 				EVO_NODISCARD constexpr auto is_concrete() const -> bool {

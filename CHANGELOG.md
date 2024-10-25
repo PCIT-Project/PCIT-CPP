@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.48.0
+
+### Panther
+- Added support for arithmetic operators
+- Added support for fluid `def` variables
+	- `def` variables that have the value of a fluid literal and use type-inference act as fluid
+
+
+<!---------------------------------->
 ## v0.0.47.0
 
 ### Panther

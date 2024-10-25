@@ -498,7 +498,7 @@ namespace pcit::panther::ASG{
 
 		AST::VarDecl::Kind kind;
 		Token::ID ident;
-		TypeInfo::ID typeID;
+		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		Expr expr;
 		bool isConst:1;
 	};
