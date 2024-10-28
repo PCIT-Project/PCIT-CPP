@@ -323,6 +323,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isFloatingPoint(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isFloatingPoint(BaseType::ID id) const -> bool;
 
+			EVO_NODISCARD auto isBuiltin(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isBuiltin(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isBuiltin(BaseType::ID id) const -> bool;
+
 			EVO_NODISCARD auto getUnderlyingType(TypeInfo::ID id) -> evo::Result<TypeInfo::ID>;
 			EVO_NODISCARD auto getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID>;
 

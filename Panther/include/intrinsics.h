@@ -41,6 +41,7 @@ namespace pcit::panther{
 			IsTriviallyCopyable,
 			IsTriviallyDestructable,
 			IsPrimitive,
+			IsBuiltin,
 			IsIntegral,
 			IsFloatingPoint,
 
@@ -73,6 +74,13 @@ namespace pcit::panther{
 			Div,
 			FDiv,
 			Rem,
+
+			Eq,
+			NEq,
+			LT,
+			LTE,
+			GT,
+			GTE,
 
 
 			_max_

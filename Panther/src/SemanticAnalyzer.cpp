@@ -43,6 +43,7 @@ namespace pcit::panther{
 					{"isTriviallyCopyable",     TemplatedIntrinsic::Kind::IsTriviallyCopyable},
 					{"isTriviallyDestructable", TemplatedIntrinsic::Kind::IsTriviallyDestructable},
 					{"isPrimitive",             TemplatedIntrinsic::Kind::IsPrimitive},
+					{"isBuiltin",               TemplatedIntrinsic::Kind::IsBuiltin},
 					{"isIntegral",              TemplatedIntrinsic::Kind::IsIntegral},
 					{"isFloatingPoint",         TemplatedIntrinsic::Kind::IsFloatingPoint},
 
@@ -75,6 +76,13 @@ namespace pcit::panther{
 					{"div",                     TemplatedIntrinsic::Kind::Div},
 					{"fdiv",                    TemplatedIntrinsic::Kind::FDiv},
 					{"rem",                     TemplatedIntrinsic::Kind::Rem},
+
+					{"eq",                      TemplatedIntrinsic::Kind::Eq},
+					{"neq",                     TemplatedIntrinsic::Kind::NEq},
+					{"lt",                      TemplatedIntrinsic::Kind::LT},
+					{"lte",                     TemplatedIntrinsic::Kind::LTE},
+					{"gt",                      TemplatedIntrinsic::Kind::GT},
+					{"gte",                     TemplatedIntrinsic::Kind::GTE},
 				};
 
 				this->map_end = this->map.end();
@@ -2146,501 +2154,7 @@ namespace pcit::panther{
 					const ASG::TemplatedIntrinsicInstantiation& instantiation =
 						this->source.getASGBuffer().getTemplatedIntrinsicInstantiation(func_call_target);
 
-					switch(instantiation.kind){
-						case TemplatedIntrinsic::Kind::IsSameType: {
-							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
-								instantiation.templateArgs[0].as<TypeInfo::VoidableID>() == 
-								instantiation.templateArgs[1].as<TypeInfo::VoidableID>()
-							);
-							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
-						} break;
-
-						case TemplatedIntrinsic::Kind::IsTriviallyCopyable: {
-							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
-								this->context.getTypeManager().isTriviallyCopyable(
-									instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
-								)
-							);
-							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
-						} break;
-
-						case TemplatedIntrinsic::Kind::IsTriviallyDestructable: {
-							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
-								this->context.getTypeManager().isTriviallyDestructable(
-									instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
-								)
-							);
-							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
-						} break;
-
-						case TemplatedIntrinsic::Kind::IsPrimitive: {
-							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
-								this->context.getTypeManager().isPrimitive(
-									instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
-								)
-							);
-							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
-						} break;
-
-						case TemplatedIntrinsic::Kind::IsIntegral: {
-							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
-								this->context.getTypeManager().isIntegral(
-									instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
-								)
-							);
-							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
-						} break;
-
-						case TemplatedIntrinsic::Kind::IsFloatingPoint: {
-							const ASG::LiteralBool::ID literal_bool_id = this->source.asg_buffer.createLiteralBool(
-								this->context.getTypeManager().isFloatingPoint(
-									instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
-								)
-							);
-							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_bool_id)};
-						} break;
-
-
-						case TemplatedIntrinsic::Kind::SizeOf: {
-							const size_t type_size = this->context.getTypeManager().sizeOf(
-								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
-							);
-
-							const ASG::LiteralInt::ID literal_int_id = this->source.asg_buffer.createLiteralInt(
-								core::GenericInt::create<uint64_t>(type_size),
-								TypeManager::getTypeUSize()
-							);
-							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
-						} break;
-
-						case TemplatedIntrinsic::Kind::GetTypeID: {
-							const ASG::LiteralInt::ID literal_int_id = this->source.asg_buffer.createLiteralInt(
-								core::GenericInt::create<uint32_t>(
-									instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID().get()
-								),
-								this->context.getTypeManager().getTypeTypeID()
-							);
-							return evo::SmallVector<ASG::Expr>{ASG::Expr(literal_int_id)};
-						} break;
-
-						case TemplatedIntrinsic::Kind::BitCast: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@bitCast` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-						case TemplatedIntrinsic::Kind::Trunc: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@trunc` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-						case TemplatedIntrinsic::Kind::FTrunc: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@ftrunc` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-						case TemplatedIntrinsic::Kind::SExt: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@sext` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-						case TemplatedIntrinsic::Kind::ZExt: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@zext` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-						case TemplatedIntrinsic::Kind::FExt: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@fext` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-						case TemplatedIntrinsic::Kind::IToF: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@itof` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-
-						case TemplatedIntrinsic::Kind::UIToF: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@uitof` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-						case TemplatedIntrinsic::Kind::FToI: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@ftoi` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-						case TemplatedIntrinsic::Kind::FToUI: {
-							this->emit_error(
-								Diagnostic::Code::MiscUnimplementedFeature,
-								func_call,
-								"Compile-time `@ftoui` is not supported yet"
-							);
-							return evo::SmallVector<ASG::Expr>();
-						} break;
-
-
-						///////////////////////////////////
-						// addition
-
-						case TemplatedIntrinsic::Kind::Add: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const evo::Result<core::GenericInt> result = this->context.comptime_executor.intrinAdd(
-								type_id,
-								instantiation.templateArgs[1].as<bool>(),
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							if(result.isError()){
-								this->emit_error(
-									Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
-									func_call,
-									"Integral arithmetic wrapping occured"
-								);
-								return evo::SmallVector<ASG::Expr>();
-							}
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.value(), type_id))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::AddWrap: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const core::GenericInt::WrapResult result = this->context.comptime_executor.intrinAddWrap(
-								type_id,
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.result, type_id)),
-								ASG::Expr(this->source.asg_buffer.createLiteralBool(result.wrapped))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::AddSat: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const core::GenericInt result = this->context.comptime_executor.intrinAddSat(
-								type_id,
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::FAdd: {
-							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
-
-							const ASG::LiteralFloat& lhs_literal_float = 
-								asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
-							const TypeInfo::ID type_id = *lhs_literal_float.typeID;
-
-							const core::GenericFloat result = this->context.comptime_executor.intrinFAdd(
-								type_id,
-								lhs_literal_float.value,
-								asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
-							};
-						} break;
-
-
-						///////////////////////////////////
-						// subtraction
-
-						case TemplatedIntrinsic::Kind::Sub: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const evo::Result<core::GenericInt> result = this->context.comptime_executor.intrinSub(
-								type_id,
-								instantiation.templateArgs[1].as<bool>(),
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							if(result.isError()){
-								this->emit_error(
-									Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
-									func_call,
-									"Integral arithmetic wrapping occured"
-								);
-								return evo::SmallVector<ASG::Expr>();
-							}
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.value(), type_id))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::SubWrap: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const core::GenericInt::WrapResult result = this->context.comptime_executor.intrinSubWrap(
-								type_id,
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.result, type_id)),
-								ASG::Expr(this->source.asg_buffer.createLiteralBool(result.wrapped))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::SubSat: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const core::GenericInt result = this->context.comptime_executor.intrinSubSat(
-								type_id,
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::FSub: {
-							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
-
-							const ASG::LiteralFloat& lhs_literal_float = 
-								asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
-							const TypeInfo::ID type_id = *lhs_literal_float.typeID;
-
-							const core::GenericFloat result = this->context.comptime_executor.intrinFSub(
-								type_id,
-								lhs_literal_float.value,
-								asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
-							};
-						} break;
-
-
-						///////////////////////////////////
-						// multiplication
-
-						case TemplatedIntrinsic::Kind::Mul: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const evo::Result<core::GenericInt> result = this->context.comptime_executor.intrinMul(
-								type_id,
-								instantiation.templateArgs[1].as<bool>(),
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							if(result.isError()){
-								this->emit_error(
-									Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
-									func_call,
-									"Integral arithmetic wrapping occured"
-								);
-								return evo::SmallVector<ASG::Expr>();
-							}
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.value(), type_id))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::MulWrap: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const core::GenericInt::WrapResult result = this->context.comptime_executor.intrinMulWrap(
-								type_id,
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result.result, type_id)),
-								ASG::Expr(this->source.asg_buffer.createLiteralBool(result.wrapped))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::MulSat: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const core::GenericInt result = this->context.comptime_executor.intrinMulSat(
-								type_id,
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::FMul: {
-							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
-
-							const ASG::LiteralFloat& lhs_literal_float = 
-								asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
-							const TypeInfo::ID type_id = *lhs_literal_float.typeID;
-
-							const core::GenericFloat result = this->context.comptime_executor.intrinFMul(
-								type_id,
-								lhs_literal_float.value,
-								asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
-							};
-						} break;
-
-						
-						///////////////////////////////////
-						// division / remainder
-
-						case TemplatedIntrinsic::Kind::Div: {
-							const ASG::LiteralInt& lhs_literal_int = 
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[0].literalIntID());
-							const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-							const core::GenericInt result = this->context.comptime_executor.intrinDiv(
-								type_id,
-								lhs_literal_int.value,
-								this->source.getASGBuffer().getLiteralInt(asg_func_call.args[1].literalIntID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::FDiv: {
-							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
-
-							const ASG::LiteralFloat& lhs_literal_float = 
-								asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
-							const TypeInfo::ID type_id = *lhs_literal_float.typeID;
-
-							const core::GenericFloat result = this->context.comptime_executor.intrinFDiv(
-								type_id,
-								lhs_literal_float.value,
-								asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
-							);
-
-							return evo::SmallVector<ASG::Expr>{
-								ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
-							};
-						} break;
-
-						case TemplatedIntrinsic::Kind::Rem: {
-							const ASGBuffer& asg_buffer = this->source.getASGBuffer();
-
-							if(asg_func_call.args[0].kind() == ASG::Expr::Kind::LiteralInt){
-								const ASG::LiteralInt& lhs_literal_int = 
-									asg_buffer.getLiteralInt(asg_func_call.args[0].literalIntID());
-								const TypeInfo::ID type_id = *lhs_literal_int.typeID;
-
-								const core::GenericInt result = this->context.comptime_executor.intrinRem(
-									type_id,
-									lhs_literal_int.value,
-									asg_buffer.getLiteralInt(asg_func_call.args[1].literalIntID()).value
-								);
-
-								return evo::SmallVector<ASG::Expr>{
-									ASG::Expr(this->source.asg_buffer.createLiteralInt(result, type_id))
-								};
-
-							}else{
-								evo::debugAssert(
-									asg_func_call.args[0].kind() == ASG::Expr::Kind::LiteralFloat,
-									"Unknown or unsupported comptime value"
-								);
-
-								const ASG::LiteralFloat& lhs_literal_float = 
-									asg_buffer.getLiteralFloat(asg_func_call.args[0].literalFloatID());
-								const TypeInfo::ID type_id = *lhs_literal_float.typeID;
-
-								const core::GenericFloat result = this->context.comptime_executor.intrinRem(
-									type_id,
-									lhs_literal_float.value,
-									asg_buffer.getLiteralFloat(asg_func_call.args[1].literalFloatID()).value
-								);
-
-								return evo::SmallVector<ASG::Expr>{
-									ASG::Expr(this->source.asg_buffer.createLiteralFloat(result, type_id))
-								};
-							}
-						} break;
-
-						case TemplatedIntrinsic::Kind::_max_: {
-							evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
-						} break;
-					}
-
-					evo::debugFatalBreak("Unknown or unsupported templated intrinsic kind");
+					return sema_helper::ComptimeIntrins(this).call(instantiation, asg_func_call.args, func_call);
 				}
 			});
 
@@ -3232,6 +2746,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplatedIntrinsic::Kind::IsPrimitive:     break;
+			case TemplatedIntrinsic::Kind::IsBuiltin:       break;
 			case TemplatedIntrinsic::Kind::IsIntegral:      break;
 			case TemplatedIntrinsic::Kind::IsFloatingPoint: break;
 
@@ -3896,6 +3411,49 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case TemplatedIntrinsic::Kind::Eq: case TemplatedIntrinsic::Kind::NEq: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get remander of type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(this->context.getTypeManager().isBuiltin(instantiation_type_args[0]->typeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"This intrinsic only accepts built-in types"
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::LT: case TemplatedIntrinsic::Kind::LTE: case TemplatedIntrinsic::Kind::GT:
+			case TemplatedIntrinsic::Kind::GTE: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get remander of type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				if(
+					this->context.getTypeManager().isIntegral(instantiation_type_args[0]->typeID()) == false &&
+					this->context.getTypeManager().isFloatingPoint(instantiation_type_args[0]->typeID()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"This intrinsic only accepts integrals or floating-points"
+					);
+					return evo::resultError;
+				}
+			} break;
 
 
 			case TemplatedIntrinsic::Kind::_max_: {
@@ -4314,8 +3872,8 @@ namespace pcit::panther{
 
 					return this->get_as_conversion(lhs_expr_info.value(), to_type_id.value(), infix);
 				}
-
 			} break;
+
 
 			case Token::lookupKind("+"): case Token::lookupKind("+%"): case Token::lookupKind("+|"):
 			case Token::lookupKind("-"): case Token::lookupKind("-%"): case Token::lookupKind("-|"):
@@ -4697,6 +4255,238 @@ namespace pcit::panther{
 					);
 				}
 			} break;
+
+
+			case Token::lookupKind("=="): case Token::lookupKind("!="): case Token::lookupKind("<"):
+			case Token::lookupKind("<="): case Token::lookupKind(">"): case Token::lookupKind(">="): {
+				///////////////////////////////////
+				// lhs
+
+				evo::Result<ExprInfo> lhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.lhs);
+				if(lhs_expr_info.isError()){ return evo::resultError; }
+
+				if(
+					(lhs_expr_info.value().is_ephemeral() == false && lhs_expr_info.value().is_concrete() == false)
+					|| lhs_expr_info.value().hasExpr() == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidInfixLHS,
+						infix.lhs,
+						std::format("Invalid LHS of [{}] operation", infix_op)
+					);
+					return evo::resultError;
+				}
+
+				const bool is_lhs_fluid = lhs_expr_info.value().value_type == ExprInfo::ValueType::EphemeralFluid;
+
+
+				///////////////////////////////////
+				// rhs
+
+				evo::Result<ExprInfo> rhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.rhs);
+				if(rhs_expr_info.isError()){ return evo::resultError; }
+
+				if(
+					(rhs_expr_info.value().is_ephemeral() == false && rhs_expr_info.value().is_concrete() == false)
+					|| rhs_expr_info.value().hasExpr() == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidInfixLHS,
+						infix.rhs,
+						std::format("Invalid RHS of [{}] operation", infix_op)
+					);
+					return evo::resultError;
+				}
+
+				const bool is_rhs_fluid = rhs_expr_info.value().value_type == ExprInfo::ValueType::EphemeralFluid;
+
+
+				///////////////////////////////////
+				// op
+
+				if(is_lhs_fluid && is_rhs_fluid){
+					const bool lhs_is_integral = lhs_expr_info.value().getExpr().kind() == ASG::Expr::Kind::LiteralInt;
+					const bool rhs_is_integral = rhs_expr_info.value().getExpr().kind() == ASG::Expr::Kind::LiteralInt;
+
+					if(lhs_is_integral != rhs_is_integral){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixRHS,
+							infix.rhs,
+							std::format("Invalid RHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;
+					}
+
+					if(lhs_is_integral){
+						if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+							return ExprInfo(
+								ExprInfo::ValueType::Ephemeral,
+								ExprInfo::generateExprInfoTypeIDs(TypeManager::getTypeBool()),
+								std::nullopt
+							);
+
+						}else{
+							const core::GenericInt& lhs_literal = this->source.getASGBuffer().getLiteralInt(
+								lhs_expr_info.value().getExpr().literalIntID()
+							).value;
+
+							const core::GenericInt& rhs_literal = this->source.getASGBuffer().getLiteralInt(
+								rhs_expr_info.value().getExpr().literalIntID()
+							).value;
+
+							const bool result = [&](){
+								switch(infix_op){
+									case Token::lookupKind("=="): return lhs_literal.eq(rhs_literal);
+									case Token::lookupKind("!="): return lhs_literal.neq(rhs_literal);
+									case Token::lookupKind("<"):  return lhs_literal.slt(rhs_literal);
+									case Token::lookupKind("<="): return lhs_literal.sle(rhs_literal);
+									case Token::lookupKind(">"):  return lhs_literal.sgt(rhs_literal);
+									case Token::lookupKind(">="): return lhs_literal.sge(rhs_literal);
+								}
+
+								evo::debugFatalBreak("Unknown or unsupported arithmetic operator");
+							}();
+
+							const ASG::LiteralBool::ID new_literal_bool
+								= this->source.asg_buffer.createLiteralBool(std::move(result));
+
+							return ExprInfo(
+								ExprInfo::ValueType::Ephemeral,
+								ExprInfo::generateExprInfoTypeIDs(TypeManager::getTypeBool()),
+								ASG::Expr(new_literal_bool)
+							);
+						}
+
+					}else{
+						if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+							return ExprInfo(
+								ExprInfo::ValueType::Ephemeral,
+								ExprInfo::generateExprInfoTypeIDs(TypeManager::getTypeBool()),
+								std::nullopt
+							);
+
+						}else{
+							const core::GenericFloat& lhs_literal = this->source.getASGBuffer().getLiteralFloat(
+								lhs_expr_info.value().getExpr().literalFloatID()
+							).value;
+
+							const core::GenericFloat& rhs_literal = this->source.getASGBuffer().getLiteralFloat(
+								rhs_expr_info.value().getExpr().literalFloatID()
+							).value;
+
+							const bool result = [&](){
+								switch(infix_op){
+									case Token::lookupKind("=="): return lhs_literal.eq(rhs_literal);
+									case Token::lookupKind("!="): return lhs_literal.neq(rhs_literal);
+									case Token::lookupKind("<"):  return lhs_literal.lt(rhs_literal);
+									case Token::lookupKind("<="): return lhs_literal.le(rhs_literal);
+									case Token::lookupKind(">"):  return lhs_literal.gt(rhs_literal);
+									case Token::lookupKind(">="): return lhs_literal.ge(rhs_literal);
+								}
+
+								evo::debugFatalBreak("Unknown or unsupported float arithmetic operator");
+							}();
+							const ASG::LiteralBool::ID new_literal_bool 
+								= this->source.asg_buffer.createLiteralBool(result);
+
+							return ExprInfo(
+								ExprInfo::ValueType::Ephemeral,
+								ExprInfo::generateExprInfoTypeIDs(TypeManager::getTypeBool()),
+								ASG::Expr(new_literal_bool)
+							);
+						}
+					}
+
+				}else if(is_lhs_fluid){
+					const TypeInfo::ID rhs_type_id =
+						rhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+					const bool is_integral = this->context.getTypeManager().isIntegral(rhs_type_id);
+					const bool is_float = this->context.getTypeManager().isFloatingPoint(rhs_type_id);
+					if(!is_integral && !is_float){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixRHS,
+							infix.rhs,
+							std::format("Invalid RHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;
+					}
+
+					if(this->type_check<true>(
+						rhs_type_id, lhs_expr_info.value(), std::format("LHS of [{}] operator", infix_op), infix.lhs
+					).ok == false){
+						return evo::resultError;
+					}
+
+
+				}else{
+					const TypeInfo::ID lhs_type_id =
+						lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+					if(this->context.getTypeManager().isBuiltin(lhs_type_id) == false){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixLHS,
+							infix.lhs,
+							std::format("Invalid LHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;
+					}
+
+					if(this->type_check<true>(
+						lhs_type_id, rhs_expr_info.value(), std::format("RHS of [{}] operator", infix_op), infix.rhs
+					).ok == false){
+						return evo::resultError;
+					}
+				}
+
+				const TypeInfo::ID op_type_id =
+					lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+				
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(TypeManager::getTypeBool()),
+						std::nullopt
+					);
+
+				}else{
+					auto instantiation_args = evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{
+						TypeInfo::VoidableID(op_type_id)
+					};
+
+					const TemplatedIntrinsic::Kind templated_intrinsic_kind = [&](){ 
+						switch(infix_op){
+							case Token::lookupKind("=="): return TemplatedIntrinsic::Kind::Eq;
+							case Token::lookupKind("!="): return TemplatedIntrinsic::Kind::NEq;
+							case Token::lookupKind("<"):  return TemplatedIntrinsic::Kind::LT;
+							case Token::lookupKind("<="): return TemplatedIntrinsic::Kind::LTE;
+							case Token::lookupKind(">"):  return TemplatedIntrinsic::Kind::GT;
+							case Token::lookupKind(">="): return TemplatedIntrinsic::Kind::GTE;
+						}
+
+						evo::debugFatalBreak("Unknown or unsupported arithmetic operator");
+					}();
+
+					const ASG::TemplatedIntrinsicInstantiation::ID asg_templated_intrinsic_instantiation_id 
+						= this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+							templated_intrinsic_kind, std::move(instantiation_args)
+						);
+
+					const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
+						asg_templated_intrinsic_instantiation_id,
+						evo::SmallVector<ASG::Expr>{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()},
+						ASG::Location::fromSourceLocation(this->get_source_location(infix))
+					);
+
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(TypeManager::getTypeBool()),
+						ASG::Expr(created_func_call_id)
+					);
+				}
+			} break;
+
 
 			default: {
 				this->emit_error(
@@ -6564,40 +6354,6 @@ namespace pcit::panther{
 		}
 	}
 
-
-
-	template<typename NODE_T>
-	auto SemanticAnalyzer::emit_fatal(
-		Diagnostic::Code code,
-		const NODE_T& location,
-		std::string&& msg,
-		evo::SmallVector<Diagnostic::Info>&& infos
-	) const -> void {
-		this->add_template_location_infos(infos);
-		this->context.emitFatal(code, this->get_source_location(location), std::move(msg), std::move(infos));
-	}
-
-	template<typename NODE_T>
-	auto SemanticAnalyzer::emit_error(
-		Diagnostic::Code code,
-		const NODE_T& location,
-		std::string&& msg,
-		evo::SmallVector<Diagnostic::Info>&& infos
-	) const -> void {
-		this->add_template_location_infos(infos);
-		this->context.emitError(code, this->get_source_location(location), std::move(msg), std::move(infos));
-	}
-
-	template<typename NODE_T>
-	auto SemanticAnalyzer::emit_warning(
-		Diagnostic::Code code,
-		const NODE_T& location,
-		std::string&& msg,
-		evo::SmallVector<Diagnostic::Info>&& infos
-	) const -> void {
-		this->add_template_location_infos(infos);
-		this->context.emitWarning(code, this->get_source_location(location), std::move(msg), std::move(infos));
-	}
 
 
 	auto SemanticAnalyzer::add_template_location_infos(evo::SmallVector<Diagnostic::Info>& infos) const -> void {

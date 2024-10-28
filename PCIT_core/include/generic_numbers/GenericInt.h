@@ -153,6 +153,23 @@ namespace pcit::core{
 			}
 
 
+			///////////////////////////////////
+			// logical
+
+			EVO_NODISCARD auto eq(const GenericInt& rhs)  const -> bool { return this->ap_int.eq(rhs.ap_int); }
+			EVO_NODISCARD auto neq(const GenericInt& rhs) const -> bool { return this->ap_int.ne(rhs.ap_int); }
+
+			EVO_NODISCARD auto ult(const GenericInt& rhs) const -> bool { return this->ap_int.ult(rhs.ap_int); }
+			EVO_NODISCARD auto ule(const GenericInt& rhs) const -> bool { return this->ap_int.ule(rhs.ap_int); }
+			EVO_NODISCARD auto ugt(const GenericInt& rhs) const -> bool { return this->ap_int.ugt(rhs.ap_int); }
+			EVO_NODISCARD auto uge(const GenericInt& rhs) const -> bool { return this->ap_int.uge(rhs.ap_int); }
+
+			EVO_NODISCARD auto slt(const GenericInt& rhs) const -> bool { return this->ap_int.slt(rhs.ap_int); }
+			EVO_NODISCARD auto sle(const GenericInt& rhs) const -> bool { return this->ap_int.sle(rhs.ap_int); }
+			EVO_NODISCARD auto sgt(const GenericInt& rhs) const -> bool { return this->ap_int.sgt(rhs.ap_int); }
+			EVO_NODISCARD auto sge(const GenericInt& rhs) const -> bool { return this->ap_int.sge(rhs.ap_int); }
+
+
 
 			//////////////////////////////////////////////////////////////////////
 			// type conversion

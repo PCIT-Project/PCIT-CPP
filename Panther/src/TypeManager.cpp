@@ -529,6 +529,37 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
+	// isBuiltin
+
+	auto TypeManager::isBuiltin(TypeInfo::VoidableID id) const -> bool {
+		if(id.isVoid()){ return true; }
+		return this->isBuiltin(id.typeID());
+	}
+
+	auto TypeManager::isBuiltin(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		for(auto iter = type_info.qualifiers().rbegin(); iter != type_info.qualifiers().rend(); ++iter){
+			if(iter->isPtr){ return true; }
+		}
+
+		return this->isBuiltin(type_info.baseTypeID());
+	}
+
+	auto TypeManager::isBuiltin(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::Primitive: return true;
+			case BaseType::Kind::Function:  return false;
+			case BaseType::Kind::Alias:     return this->isBuiltin(this->getAlias(id.aliasID()).aliasedType);
+
+			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
+		}
+
+		evo::debugFatalBreak("Unknown BaseType::Kind");
+	}
+
+
+	///////////////////////////////////
 	// getUnderlyingType
 
 	auto TypeManager::getUnderlyingType(TypeInfo::ID id) -> evo::Result<TypeInfo::ID> {

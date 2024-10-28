@@ -154,18 +154,28 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto createFRem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 
 
-			// createICmpEQ
-			// createICmpNE
 
-			// createICmpUGT
-			// createICmpUGE
-			// createICmpULT
-			// createICmpULE
+			EVO_NODISCARD auto createICmpEQ(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpNE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+
+			EVO_NODISCARD auto createICmpUGT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpUGE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpULT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpULE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 			
-			// createICmpSGT
-			// createICmpSGE
-			// createICmpSLT
-			// createICmpSLE
+			EVO_NODISCARD auto createICmpSGT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpSGE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpSLT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpSLE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+
+
+			EVO_NODISCARD auto createFCmpEQ(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFCmpNE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+
+			EVO_NODISCARD auto createFCmpGT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFCmpGE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFCmpLT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFCmpLE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 
 			// createNot
 

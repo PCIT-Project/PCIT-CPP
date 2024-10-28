@@ -115,13 +115,15 @@ namespace pcit::panther{
 
 		switch(func_return_base_type.kind()){
 			case Token::Kind::TypeBool: {
-				const evo::Result<bool> value = this->data->execution_engine.runFunctionDirectly<bool>(func_mangled_name);
+				const evo::Result<bool> value =
+					this->data->execution_engine.runFunctionDirectly<bool>(func_mangled_name);
 				if(value.isError()){ return evo::resultError; }
 				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralBool(value.value()))};
 			} break;
 
 			case Token::Kind::TypeChar: {
-				const evo::Result<char> value = this->data->execution_engine.runFunctionDirectly<char>(func_mangled_name);
+				const evo::Result<char> value =
+					this->data->execution_engine.runFunctionDirectly<char>(func_mangled_name);
 				if(value.isError()){ return evo::resultError; }
 				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralChar(value.value()))};
 			} break;
@@ -135,7 +137,8 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeF32: {
-				const evo::Result<float32_t> value = this->data->execution_engine.runFunctionDirectly<float32_t>(func_mangled_name);
+				const evo::Result<float32_t> value =
+					this->data->execution_engine.runFunctionDirectly<float32_t>(func_mangled_name);
 				if(value.isError()){ return evo::resultError; }
 				return evo::SmallVector<ASG::Expr>{
 					ASG::Expr(
@@ -145,7 +148,8 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeF64: {
-				const evo::Result<float64_t> value = this->data->execution_engine.runFunctionDirectly<float64_t>(func_mangled_name);
+				const evo::Result<float64_t> value =
+					this->data->execution_engine.runFunctionDirectly<float64_t>(func_mangled_name);
 				if(value.isError()){ return evo::resultError; }
 				return evo::SmallVector<ASG::Expr>{
 					ASG::Expr(
@@ -172,28 +176,32 @@ namespace pcit::panther{
 					const size_t size_of_func_return_base_type = type_manager.sizeOf(func_return_type.baseTypeID());
 
 					if(size_of_func_return_base_type == 1){
-						const evo::Result<uint8_t> value = this->data->execution_engine.runFunctionDirectly<uint8_t>(func_mangled_name);
+						const evo::Result<uint8_t> value =
+							this->data->execution_engine.runFunctionDirectly<uint8_t>(func_mangled_name);
 						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
 						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
 							core::GenericInt::create<uint8_t>(value.value()), func_return_type_id
 						));
 
 					}else if(size_of_func_return_base_type == 2){
-						const evo::Result<uint16_t> value = this->data->execution_engine.runFunctionDirectly<uint16_t>(func_mangled_name);
+						const evo::Result<uint16_t> value =
+							this->data->execution_engine.runFunctionDirectly<uint16_t>(func_mangled_name);
 						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
 						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
 							core::GenericInt::create<uint16_t>(value.value()), func_return_type_id
 						));
 
 					}else if(size_of_func_return_base_type == 4){
-						const evo::Result<uint32_t> value = this->data->execution_engine.runFunctionDirectly<uint32_t>(func_mangled_name);
+						const evo::Result<uint32_t> value =
+							this->data->execution_engine.runFunctionDirectly<uint32_t>(func_mangled_name);
 						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
 						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
 							core::GenericInt::create<uint32_t>(value.value()), func_return_type_id
 						));
 
 					}else if(size_of_func_return_base_type == 8){
-						const evo::Result<uint64_t> value = this->data->execution_engine.runFunctionDirectly<uint64_t>(func_mangled_name);
+						const evo::Result<uint64_t> value =
+							this->data->execution_engine.runFunctionDirectly<uint64_t>(func_mangled_name);
 						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
 						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
 							core::GenericInt::create<uint64_t>(value.value()), func_return_type_id
@@ -248,7 +256,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinAddWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt::WrapResult {
-		return this->intrin_arithmetic<core::GenericInt::WrapResult>(type_id, lhs, rhs,
+		return this->intrin_base_impl<core::GenericInt::WrapResult>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt::WrapResult {
 				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
@@ -263,7 +271,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinAddSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt {
-		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
@@ -278,7 +286,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinFAdd(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> core::GenericFloat {
-		return this->intrin_arithmetic(type_id, lhs, rhs, 
+		return this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.add(rhs);
 			}
@@ -301,7 +309,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinSubWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt::WrapResult {
-		return this->intrin_arithmetic<core::GenericInt::WrapResult>(type_id, lhs, rhs,
+		return this->intrin_base_impl<core::GenericInt::WrapResult>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt::WrapResult {
 				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
@@ -316,7 +324,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinSubSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt {
-		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
@@ -331,7 +339,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinFSub(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> core::GenericFloat {
-		return this->intrin_arithmetic(type_id, lhs, rhs, 
+		return this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.sub(rhs);
 			}
@@ -354,7 +362,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinMulWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt::WrapResult {
-		return this->intrin_arithmetic<core::GenericInt::WrapResult>(type_id, lhs, rhs,
+		return this->intrin_base_impl<core::GenericInt::WrapResult>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt::WrapResult {
 				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
@@ -369,7 +377,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinMulSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt {
-		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
@@ -384,7 +392,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinFMul(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> core::GenericFloat {
-		return this->intrin_arithmetic(type_id, lhs, rhs, 
+		return this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.mul(rhs);
 			}
@@ -398,7 +406,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinDiv(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt {
-		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
@@ -413,7 +421,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinFDiv(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> core::GenericFloat {
-		return this->intrin_arithmetic(type_id, lhs, rhs, 
+		return this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.div(rhs);
 			}
@@ -423,7 +431,7 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinRem(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt {
-		return this->intrin_arithmetic<core::GenericInt>(type_id, lhs, rhs,
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
@@ -438,11 +446,156 @@ namespace pcit::panther{
 	auto ComptimeExecutor::intrinRem(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> core::GenericFloat {
-		return this->intrin_arithmetic(type_id, lhs, rhs, 
+		return this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.rem(rhs);
 			}
 		);
+	}
+
+
+	///////////////////////////////////
+	// logical
+
+	auto ComptimeExecutor::intrinEQ(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID, const core::GenericInt& lhs, const core::GenericInt& rhs) -> bool {
+				return lhs.eq(rhs);
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinEQ(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> bool {
+				return lhs.eq(rhs);
+			}
+		);	
+	}
+
+
+	auto ComptimeExecutor::intrinNEQ(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID, const core::GenericInt& lhs, const core::GenericInt& rhs) -> bool {
+				return lhs.neq(rhs);
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinNEQ(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> bool {
+				return lhs.neq(rhs);
+			}
+		);	
+	}
+
+
+	auto ComptimeExecutor::intrinLT(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) -> bool {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.ult(rhs);
+				}else{
+					return lhs.slt(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinLT(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> bool {
+				return lhs.lt(rhs);
+			}
+		);	
+	}
+
+
+	auto ComptimeExecutor::intrinLTE(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) -> bool {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.ule(rhs);
+				}else{
+					return lhs.sle(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinLTE(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> bool {
+				return lhs.le(rhs);
+			}
+		);	
+	}
+
+
+	auto ComptimeExecutor::intrinGT(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) -> bool {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.ugt(rhs);
+				}else{
+					return lhs.sgt(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinGT(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> bool {
+				return lhs.gt(rhs);
+			}
+		);	
+	}
+
+
+	auto ComptimeExecutor::intrinGTE(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) -> bool {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.uge(rhs);
+				}else{
+					return lhs.sge(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinGTE(
+		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+	) -> bool {
+		return this->intrin_base_impl<bool>(type_id, lhs, rhs,
+			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> bool {
+				return lhs.ge(rhs);
+			}
+		);	
 	}
 
 
@@ -471,7 +624,7 @@ namespace pcit::panther{
 	// intrin impl
 
 	template<class RETURN>
-	auto ComptimeExecutor::intrin_arithmetic(
+	auto ComptimeExecutor::intrin_base_impl(
 		const TypeInfo::ID type_id,
 		const core::GenericInt& lhs,
 		const core::GenericInt& rhs,
@@ -496,12 +649,13 @@ namespace pcit::panther{
 		return intrin_op(type_id, lhs_converted, rhs_converted);
 	}
 
-	auto ComptimeExecutor::intrin_arithmetic(
+	template<class RETURN>
+	auto ComptimeExecutor::intrin_base_impl(
 		const TypeInfo::ID type_id,
 		const core::GenericFloat& lhs,
 		const core::GenericFloat& rhs,
-		std::function<core::GenericFloat(const core::GenericFloat&, const core::GenericFloat&)> intrin_op
-	) -> core::GenericFloat {
+		std::function<RETURN(const core::GenericFloat&, const core::GenericFloat&)> intrin_op
+	) -> RETURN {
 		const TypeManager& type_manager = this->context.getTypeManager();
 
 		const TypeInfo& type = type_manager.getTypeInfo(type_id);

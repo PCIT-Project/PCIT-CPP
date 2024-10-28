@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.49.0
+- Added logical operators:
+	- `==`
+	- `!=`
+	- `<`
+	- `<=`
+	- `>`
+	- `>=`
+- Added logical intrinsic functions:
+	- `@eq`
+	- `@neq`
+	- `@lt`
+	- `@lte`
+	- `@gt`
+	- `@gte`
+- Added type trait intrinsic function `@isBuiltin`
+	
+
+<!---------------------------------->
 ## v0.0.48.0
 
 ### Panther

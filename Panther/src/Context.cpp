@@ -612,6 +612,7 @@ namespace pcit::panther{
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyCopyable)]     = type_trait_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsTriviallyDestructable)] = type_trait_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsPrimitive)]             = type_trait_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsBuiltin)]               = type_trait_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsIntegral)]              = type_trait_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::IsFloatingPoint)]         = type_trait_func;
 
@@ -649,16 +650,16 @@ namespace pcit::panther{
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FToUI)]   = conversion_func;
 
 
-		const auto arithmetic_maybe_wrap_func = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TypeManager::getTypeBool()},
+		const auto arithmetic_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},
 			evo::SmallVector<TemplatedIntrinsic::Param>{
 				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
 				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
 			},
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0)}
 		);
-		const auto arithmetic_func = TemplatedIntrinsic(
-			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},
+		const auto arithmetic_maybe_wrap_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TypeManager::getTypeBool()},
 			evo::SmallVector<TemplatedIntrinsic::Param>{
 				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
 				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
@@ -688,6 +689,23 @@ namespace pcit::panther{
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Div)]     = arithmetic_maybe_wrap_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FDiv)]    = arithmetic_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Rem)]     = arithmetic_func;
+
+
+		const auto logical_operator = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},
+			evo::SmallVector<TemplatedIntrinsic::Param>{
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+			},
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
+		);
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Eq)]      = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::NEq)]     = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::LT)]      = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::LTE)]     = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::GT)]      = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::GTE)]     = logical_operator;
 
 
 

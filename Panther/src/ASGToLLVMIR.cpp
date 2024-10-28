@@ -1116,6 +1116,16 @@ namespace pcit::panther{
 					};
 				} break;
 
+				case TemplatedIntrinsic::Kind::IsBuiltin: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.getValueBool(
+							this->context.getTypeManager().isBuiltin(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						).asValue()
+					};
+				} break;
+
 				case TemplatedIntrinsic::Kind::IsIntegral: {
 					return evo::SmallVector<llvmint::Value>{
 						this->builder.getValueBool(
@@ -1546,6 +1556,131 @@ namespace pcit::panther{
 				} break;
 
 
+				///////////////////////////////////
+				// logical
+
+				case TemplatedIntrinsic::Kind::Eq: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floatint_point){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createFCmpEQ(args[0], args[1], this->stmt_name("EQ"))
+						};
+					}
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createICmpEQ(args[0], args[1], this->stmt_name("EQ"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::NEq: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floatint_point){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createFCmpNE(args[0], args[1], this->stmt_name("NEQ"))
+						};
+					}
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createICmpNE(args[0], args[1], this->stmt_name("NEQ"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::LT: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floatint_point){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LT"))
+						};
+					}
+
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createICmpULT(args[0], args[1], this->stmt_name("LT"))
+						};
+					}else{
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createICmpSLT(args[0], args[1], this->stmt_name("LT"))
+						};
+					}	
+				} break;
+
+				case TemplatedIntrinsic::Kind::LTE: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floatint_point){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LTE"))
+						};
+					}
+
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createICmpULT(args[0], args[1], this->stmt_name("LTE"))
+						};
+					}else{
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createICmpSLT(args[0], args[1], this->stmt_name("LTE"))
+						};
+					}	
+				} break;
+
+				case TemplatedIntrinsic::Kind::GT: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floatint_point){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GT"))
+						};
+					}
+
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createICmpUGT(args[0], args[1], this->stmt_name("GT"))
+						};
+					}else{
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createICmpSGT(args[0], args[1], this->stmt_name("GT"))
+						};
+					}	
+				} break;
+
+				case TemplatedIntrinsic::Kind::GTE: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floatint_point){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GTE"))
+						};
+					}
+
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createICmpUGT(args[0], args[1], this->stmt_name("GTE"))
+						};
+					}else{
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createICmpSGT(args[0], args[1], this->stmt_name("GTE"))
+						};
+					}	
+				} break;
+
+
+
+				///////////////////////////////////
+				// _max_
 
 				case TemplatedIntrinsic::Kind::_max_: {
 					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");

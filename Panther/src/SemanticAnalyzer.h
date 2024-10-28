@@ -18,6 +18,8 @@
 #include "../include/TypeManager.h"
 #include "../include/get_source_location.h"
 
+#include "./sema_helper/comptime_intrinsics.h"
+
 namespace pcit::panther{
 
 	auto setupIntrinsicLookupTable() -> void;
@@ -393,7 +395,10 @@ namespace pcit::panther{
 				const NODE_T& location,
 				std::string&& msg,
 				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
-			) const -> void;
+			) const -> void{
+				this->add_template_location_infos(infos);
+				this->context.emitFatal(code, this->get_source_location(location), std::move(msg), std::move(infos));
+			}
 
 			template<typename NODE_T>
 			auto emit_fatal(
@@ -409,7 +414,10 @@ namespace pcit::panther{
 				const NODE_T& location,
 				std::string&& msg,
 				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
-			) const -> void;
+			) const -> void {
+				this->add_template_location_infos(infos);
+				this->context.emitError(code, this->get_source_location(location), std::move(msg), std::move(infos));
+			}
 
 			template<typename NODE_T>
 			auto emit_error(
@@ -425,7 +433,10 @@ namespace pcit::panther{
 				const NODE_T& location,
 				std::string&& msg,
 				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
-			) const -> void;
+			) const -> void {
+				this->add_template_location_infos(infos);
+				this->context.emitWarning(code, this->get_source_location(location), std::move(msg), std::move(infos));
+			}
 
 			template<typename NODE_T>
 			auto emit_warning(
@@ -646,6 +657,19 @@ namespace pcit::panther{
 
 
 		private:
+			///////////////////////////////////
+			// for friends
+
+			EVO_NODISCARD auto get_comptime_executor() -> class ComptimeExecutor& {
+				return this->context.comptime_executor;
+			}
+
+			EVO_NODISCARD auto get_asg_buffer() -> ASGBuffer& {
+				return this->source.asg_buffer;
+			}
+
+
+		private:
 			Context& context;
 			Source& source;
 
@@ -655,6 +679,8 @@ namespace pcit::panther{
 
 			std::unordered_map<std::string_view, ExprInfo> template_arg_exprs{};
 			std::unordered_map<std::string_view, TypeInfo::VoidableID> template_arg_types{};
+
+			friend sema_helper::ComptimeIntrins;
 
 	};
 	

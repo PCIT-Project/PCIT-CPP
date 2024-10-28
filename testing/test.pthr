@@ -1,7 +1,9 @@
 
 
+
+
 func entry = () #entry -> UI8 {
-	def NUM = 9 + 3;
-	def NUM2 = NUM;
-	return NUM2 * 4;
+	var foo: Char = 'a';
+	var bar: Char = 'a';
+	return (&foo == &foo) as UI8;
 }

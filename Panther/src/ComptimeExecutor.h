@@ -121,6 +121,64 @@ namespace pcit::panther{
 			) -> core::GenericFloat;
 
 
+			///////////////////////////////////
+			// logical
+
+			EVO_NODISCARD auto intrinEQ(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> bool;
+
+			EVO_NODISCARD auto intrinEQ(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> bool;
+
+
+			EVO_NODISCARD auto intrinNEQ(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> bool;
+
+			EVO_NODISCARD auto intrinNEQ(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> bool;
+
+
+			EVO_NODISCARD auto intrinLT(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> bool;
+
+			EVO_NODISCARD auto intrinLT(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> bool;
+
+
+			EVO_NODISCARD auto intrinLTE(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> bool;
+
+			EVO_NODISCARD auto intrinLTE(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> bool;
+
+
+			EVO_NODISCARD auto intrinGT(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> bool;
+
+			EVO_NODISCARD auto intrinGT(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> bool;
+
+
+			EVO_NODISCARD auto intrinGTE(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> bool;
+
+			EVO_NODISCARD auto intrinGTE(
+				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
+			) -> bool;
+
+
+
 
 		private:
 			auto restart_engine_if_needed() -> void;
@@ -131,19 +189,20 @@ namespace pcit::panther{
 			)>;
 
 			template<class RETURN>
-			EVO_NODISCARD auto intrin_arithmetic(
+			EVO_NODISCARD auto intrin_base_impl(
 				const TypeInfo::ID type_id,
 				const core::GenericInt& lhs,
 				const core::GenericInt& rhs,
 				IntrinOp<RETURN> intrin_op
 			) -> RETURN;
 
-			EVO_NODISCARD auto intrin_arithmetic(
+			template<class RETURN>
+			EVO_NODISCARD auto intrin_base_impl(
 				const TypeInfo::ID type_id,
 				const core::GenericFloat& lhs,
 				const core::GenericFloat& rhs,
-				std::function<core::GenericFloat(const core::GenericFloat&, const core::GenericFloat&)> intrin_op
-			) -> core::GenericFloat;
+				std::function<RETURN(const core::GenericFloat&, const core::GenericFloat&)> intrin_op
+			) -> RETURN;
 
 		private:
 			class Context& context;

@@ -279,6 +279,62 @@ namespace pcit::llvmint{
 	}
 
 
+
+	auto IRBuilder::createICmpEQ(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpEQ(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createICmpNE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpNE(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+	auto IRBuilder::createICmpUGT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpUGT(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createICmpUGE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpUGE(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createICmpULT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpULT(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createICmpULE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpULE(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+	auto IRBuilder::createICmpSGT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpSGT(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createICmpSGE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpSGE(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createICmpSLT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpSLT(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createICmpSLE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateICmpSLE(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+
+	auto IRBuilder::createFCmpEQ(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFCmpOEQ(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createFCmpNE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFCmpONE(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createFCmpGT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFCmpOGT(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createFCmpGE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFCmpOGE(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createFCmpLT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFCmpOLT(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createFCmpLE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFCmpOLE(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// insertion point
 

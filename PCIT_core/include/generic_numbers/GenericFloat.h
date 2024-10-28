@@ -105,6 +105,18 @@ namespace pcit::core{
 
 
 			//////////////////////////////////////////////////////////////////////
+			// logical
+
+			EVO_NODISCARD auto eq(const GenericFloat& rhs)  const -> bool { return this->ap_float == rhs.ap_float; }
+			EVO_NODISCARD auto neq(const GenericFloat& rhs) const -> bool { return this->ap_float != rhs.ap_float; }
+			EVO_NODISCARD auto lt(const GenericFloat& rhs)  const -> bool { return this->ap_float < rhs.ap_float;  }
+			EVO_NODISCARD auto le(const GenericFloat& rhs)  const -> bool { return this->ap_float <= rhs.ap_float; }
+			EVO_NODISCARD auto gt(const GenericFloat& rhs)  const -> bool { return this->ap_float > rhs.ap_float;  }
+			EVO_NODISCARD auto ge(const GenericFloat& rhs)  const -> bool { return this->ap_float >= rhs.ap_float; }
+
+
+
+			//////////////////////////////////////////////////////////////////////
 			// type conversions
 
 			EVO_NODISCARD auto asF16() const -> GenericFloat {
