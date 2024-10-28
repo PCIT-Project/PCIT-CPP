@@ -458,6 +458,10 @@ namespace pcit::panther{
 				return std::nullopt;
 			}
 
+			EVO_NODISCARD auto get_source_location(const SourceLocation& location) const -> SourceLocation {
+				return location;
+			}
+
 			EVO_NODISCARD auto get_source_location(Token::ID token_id, const Source& src) const -> SourceLocation {
 				return pcit::panther::get_source_location(token_id, src);
 			}

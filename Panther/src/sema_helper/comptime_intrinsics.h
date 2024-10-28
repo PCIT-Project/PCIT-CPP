@@ -33,7 +33,7 @@ namespace pcit::panther::sema_helper{
 			EVO_NODISCARD auto call(
 				const ASG::TemplatedIntrinsicInstantiation& instantiation,
 				evo::ArrayProxy<ASG::Expr> args,
-				const AST::FuncCall& func_call
+				const SourceLocation& location
 			) -> evo::Result<evo::SmallVector<ASG::Expr>>;
 
 
@@ -72,19 +72,19 @@ namespace pcit::panther::sema_helper{
 			///////////////////////////////////
 			// arithmetic
 
-			EVO_NODISCARD auto add(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
+			EVO_NODISCARD auto add(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const SourceLocation& location)
 				-> evo::Result<evo::SmallVector<ASG::Expr>>;
 			EVO_NODISCARD auto addWrap(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto addSat(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto fadd(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 
-			EVO_NODISCARD auto sub(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
+			EVO_NODISCARD auto sub(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const SourceLocation& location)
 				-> evo::Result<evo::SmallVector<ASG::Expr>>;
 			EVO_NODISCARD auto subWrap(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto subSat(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto fsub(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 
-			EVO_NODISCARD auto mul(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
+			EVO_NODISCARD auto mul(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const SourceLocation& location)
 				-> evo::Result<evo::SmallVector<ASG::Expr>>;
 			EVO_NODISCARD auto mulWrap(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto mulSat(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
@@ -112,10 +112,10 @@ namespace pcit::panther::sema_helper{
 			EVO_NODISCARD auto bitwiseAnd(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto bitwiseOr(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto bitwiseXor(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
-			EVO_NODISCARD auto shl(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const AST::FuncCall& func_call)
+			EVO_NODISCARD auto shl(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const SourceLocation& location)
 				-> evo::Result<evo::SmallVector<ASG::Expr>>;
 			EVO_NODISCARD auto shlSat(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
-			EVO_NODISCARD auto shr(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const AST::FuncCall& func_call)
+			EVO_NODISCARD auto shr(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const SourceLocation& location)
 				-> evo::Result<evo::SmallVector<ASG::Expr>>;
 
 

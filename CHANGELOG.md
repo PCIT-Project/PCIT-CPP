@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.50.1
+
+### Panther
+- Fixed comptime arithmetic operators not always being precomputed correctly
+- Fixed comptime logical operators not always being precomputed correctly
+
+
+<!---------------------------------->
 ## v0.0.50.0
 
 ### Panther

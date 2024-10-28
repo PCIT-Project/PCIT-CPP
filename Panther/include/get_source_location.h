@@ -21,8 +21,7 @@ namespace pcit::panther{
 
 	// These are convinence functions to get the source locations of a specific item.
 	// It is not necesarily the fastest way of getting the source location, so don't use in performance-critical code.
-
-
+	
 
 	///////////////////////////////////
 	// Tokens

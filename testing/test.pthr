@@ -1,6 +1,7 @@
 
 
 func entry = () #entry -> UI8 {
-	def NUM: UI8 = @shl<{UI8, UInt, false}>(1, 90);
-	return NUM;
+	def LHS: UI8 = 9;
+	def COND: Bool = LHS > 200;
+	return COND as UI8;
 }

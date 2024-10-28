@@ -2168,7 +2168,9 @@ namespace pcit::panther{
 					const ASG::TemplatedIntrinsicInstantiation& instantiation =
 						this->source.getASGBuffer().getTemplatedIntrinsicInstantiation(func_call_target);
 
-					return sema_helper::ComptimeIntrins(this).call(instantiation, asg_func_call.args, func_call);
+					return sema_helper::ComptimeIntrins(this).call(
+						instantiation, asg_func_call.args, this->get_source_location(func_call)
+					);
 				}
 			});
 
@@ -4236,10 +4238,125 @@ namespace pcit::panther{
 					lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
 				
 
-				if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return ExprInfo(
 						ExprInfo::ValueType::Ephemeral, ExprInfo::generateExprInfoTypeIDs(op_type_id), std::nullopt
 					);
+
+				}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+					using ComputedResult = evo::Result<evo::SmallVector<ASG::Expr>>;
+					ComputedResult computed_result = [&](){
+						switch(infix_op){
+							case Token::lookupKind("+"): {
+								if(this->context.getTypeManager().isFloatingPoint(op_type_id)){
+									return ComputedResult(sema_helper::ComptimeIntrins(this).fadd(
+										{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+									));
+								}else{
+									return sema_helper::ComptimeIntrins(this).add(
+										{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()},
+										false,
+										this->get_source_location(infix.opTokenID)
+									);
+								}
+							} break;
+
+							case Token::lookupKind("+%"): {
+								return ComputedResult(sema_helper::ComptimeIntrins(this).addWrap(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+								));
+							} break;
+
+							case Token::lookupKind("+|"): {
+								return ComputedResult(sema_helper::ComptimeIntrins(this).addSat(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+								));
+							} break;
+
+
+							case Token::lookupKind("-"): {
+								if(this->context.getTypeManager().isFloatingPoint(op_type_id)){
+									return ComputedResult(sema_helper::ComptimeIntrins(this).fsub(
+										{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+									));
+								}else{
+									return sema_helper::ComptimeIntrins(this).sub(
+										{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()},
+										false,
+										this->get_source_location(infix.opTokenID)
+									);
+								}
+							} break;
+
+							case Token::lookupKind("-%"): {
+								return ComputedResult(sema_helper::ComptimeIntrins(this).subWrap(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+								));
+							} break;
+
+							case Token::lookupKind("-|"): {
+								return ComputedResult(sema_helper::ComptimeIntrins(this).subSat(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+								));
+							} break;
+
+
+							case Token::lookupKind("*"): {
+								if(this->context.getTypeManager().isFloatingPoint(op_type_id)){
+									return ComputedResult(sema_helper::ComptimeIntrins(this).fmul(
+										{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+									));
+								}else{
+									return sema_helper::ComptimeIntrins(this).mul(
+										{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()},
+										false,
+										this->get_source_location(infix.opTokenID)
+									);
+								}
+							} break;
+
+							case Token::lookupKind("*%"): {
+								return ComputedResult(sema_helper::ComptimeIntrins(this).mulWrap(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+								));
+							} break;
+
+							case Token::lookupKind("*|"): {
+								return ComputedResult(sema_helper::ComptimeIntrins(this).mulSat(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+								));
+							} break;
+
+							case Token::lookupKind("/"): {
+								if(this->context.getTypeManager().isFloatingPoint(op_type_id)){
+									return ComputedResult(sema_helper::ComptimeIntrins(this).fdiv(
+										{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+									));
+								}else{
+									return ComputedResult(sema_helper::ComptimeIntrins(this).div(
+										{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+									));
+								}
+							} break;
+
+							case Token::lookupKind("%"): {
+								return ComputedResult(sema_helper::ComptimeIntrins(this).rem(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()}
+								));
+							} break;
+						}
+
+						evo::debugFatalBreak("Unknown or unsupported infix arithmetic operator");
+					}(); 
+
+					if(computed_result.isError()){ return evo::resultError; }
+
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(op_type_id),
+						std::move(computed_result.value())
+					);
+
 				}else{
 					auto instantiation_args = evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{
 						TypeInfo::VoidableID(op_type_id)
@@ -4526,11 +4643,42 @@ namespace pcit::panther{
 					lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
 				
 
-				if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
 					return ExprInfo(
 						ExprInfo::ValueType::Ephemeral,
 						ExprInfo::generateExprInfoTypeIDs(TypeManager::getTypeBool()),
 						std::nullopt
+					);
+
+				}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+					evo::SmallVector<ASG::Expr> computed_result = [&](){
+						switch(infix_op){
+							case Token::lookupKind("=="): return sema_helper::ComptimeIntrins(this)
+								.eq({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind("!="): return sema_helper::ComptimeIntrins(this)
+								.neq({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind("<"):  return sema_helper::ComptimeIntrins(this)
+								.lt({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind("<="): return sema_helper::ComptimeIntrins(this)
+								.lte({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind(">"):  return sema_helper::ComptimeIntrins(this)
+								.gt({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind(">="): return sema_helper::ComptimeIntrins(this)
+								.gte({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+						}
+
+						evo::debugFatalBreak("Unknown or unsupported logical operator");
+					}();
+
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(TypeManager::getTypeBool()),
+						std::move(computed_result)
 					);
 
 				}else{

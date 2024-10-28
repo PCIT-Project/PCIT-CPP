@@ -24,7 +24,7 @@ namespace pcit::panther::sema_helper{
 	auto ComptimeIntrins::call(
 		const ASG::TemplatedIntrinsicInstantiation& instantiation,
 		evo::ArrayProxy<ASG::Expr> args,
-		const AST::FuncCall& func_call
+		const SourceLocation& location
 	) -> evo::Result<evo::SmallVector<ASG::Expr>> {
 
 		switch(instantiation.kind){
@@ -49,7 +49,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::BitCast: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@bitCast` is not supported yet"
 				);
 				return evo::resultError;
@@ -58,7 +58,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::Trunc: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@trunc` is not supported yet"
 				);
 				return evo::resultError;
@@ -67,7 +67,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::FTrunc: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@ftrunc` is not supported yet"
 				);
 				return evo::resultError;
@@ -76,7 +76,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::SExt: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@sext` is not supported yet"
 				);
 				return evo::resultError;
@@ -85,7 +85,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::ZExt: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@zext` is not supported yet"
 				);
 				return evo::resultError;
@@ -94,7 +94,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::FExt: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@fext` is not supported yet"
 				);
 				return evo::resultError;
@@ -103,7 +103,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::IToF: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@itof` is not supported yet"
 				);
 				return evo::resultError;
@@ -113,7 +113,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::UIToF: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@uitof` is not supported yet"
 				);
 				return evo::resultError;
@@ -122,7 +122,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::FToI: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@ftoi` is not supported yet"
 				);
 				return evo::resultError;
@@ -131,7 +131,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::FToUI: {
 				this->analyzer.emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					func_call,
+					location,
 					"Compile-time `@ftoui` is not supported yet"
 				);
 				return evo::resultError;
@@ -142,20 +142,20 @@ namespace pcit::panther::sema_helper{
 			// arithmetic
 
 			case TemplatedIntrinsic::Kind::Add:
-				return this->add(args, instantiation.templateArgs[1].as<bool>(), func_call);
+				return this->add(args, instantiation.templateArgs[1].as<bool>(), location);
 			case TemplatedIntrinsic::Kind::AddWrap: return this->addWrap(args);
 			case TemplatedIntrinsic::Kind::AddSat:  return this->addSat(args);
 			case TemplatedIntrinsic::Kind::FAdd:    return this->fadd(args);
 
 			case TemplatedIntrinsic::Kind::Sub: 
-				return this->sub(args, instantiation.templateArgs[1].as<bool>(), func_call);
+				return this->sub(args, instantiation.templateArgs[1].as<bool>(), location);
 			case TemplatedIntrinsic::Kind::SubWrap: return this->subWrap(args);
 			case TemplatedIntrinsic::Kind::SubSat:  return this->subSat(args);
 			case TemplatedIntrinsic::Kind::FSub:    return this->fsub(args);
 
 
 			case TemplatedIntrinsic::Kind::Mul: 
-				return this->mul(args, instantiation.templateArgs[1].as<bool>(), func_call);
+				return this->mul(args, instantiation.templateArgs[1].as<bool>(), location);
 			case TemplatedIntrinsic::Kind::MulWrap: return this->mulWrap(args);
 			case TemplatedIntrinsic::Kind::MulSat:  return this->mulSat(args);
 			case TemplatedIntrinsic::Kind::FMul:    return this->fmul(args);
@@ -183,10 +183,10 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::Or:     return this->bitwiseOr(args);
 			case TemplatedIntrinsic::Kind::Xor:    return this->bitwiseXor(args);
 			case TemplatedIntrinsic::Kind::SHL:
-				return this->shl(args, instantiation.templateArgs[2].as<bool>(), func_call);
+				return this->shl(args, instantiation.templateArgs[2].as<bool>(), location);
 			case TemplatedIntrinsic::Kind::SHLSat: return this->shlSat(args);
 			case TemplatedIntrinsic::Kind::SHR:
-				return this->shr(args, instantiation.templateArgs[2].as<bool>(), func_call);
+				return this->shr(args, instantiation.templateArgs[2].as<bool>(), location);
 
 
 
@@ -306,7 +306,7 @@ namespace pcit::panther::sema_helper{
 	///////////////////////////////////
 	// addition
 
-	auto ComptimeIntrins::add(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
+	auto ComptimeIntrins::add(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const SourceLocation& location)
 	-> evo::Result<evo::SmallVector<ASG::Expr>> {
 		const ASG::LiteralInt& lhs_literal_int = 
 			this->analyzer.source.getASGBuffer().getLiteralInt(args[0].literalIntID());
@@ -322,7 +322,7 @@ namespace pcit::panther::sema_helper{
 		if(result.isError()){
 			this->analyzer.emit_error(
 				Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
-				func_call,
+				location,
 				"Integral arithmetic wrapping occured"
 			);
 			return evo::resultError;
@@ -388,7 +388,7 @@ namespace pcit::panther::sema_helper{
 	///////////////////////////////////
 	// subtraction
 
-	auto ComptimeIntrins::sub(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
+	auto ComptimeIntrins::sub(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const SourceLocation& location)
 	-> evo::Result<evo::SmallVector<ASG::Expr>> {
 		const ASG::LiteralInt& lhs_literal_int = 
 			this->analyzer.source.getASGBuffer().getLiteralInt(args[0].literalIntID());
@@ -404,7 +404,7 @@ namespace pcit::panther::sema_helper{
 		if(result.isError()){
 			this->analyzer.emit_error(
 				Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
-				func_call,
+				location,
 				"Integral arithmetic wrapping occured"
 			);
 			return evo::resultError;
@@ -470,7 +470,7 @@ namespace pcit::panther::sema_helper{
 	///////////////////////////////////
 	// multiplication
 
-	auto ComptimeIntrins::mul(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
+	auto ComptimeIntrins::mul(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const SourceLocation& location)
 	-> evo::Result<evo::SmallVector<ASG::Expr>> {
 		const ASG::LiteralInt& lhs_literal_int = 
 			this->analyzer.source.getASGBuffer().getLiteralInt(args[0].literalIntID());
@@ -486,7 +486,7 @@ namespace pcit::panther::sema_helper{
 		if(result.isError()){
 			this->analyzer.emit_error(
 				Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
-				func_call,
+				location,
 				"Integral arithmetic wrapping occured"
 			);
 			return evo::resultError;
@@ -719,7 +719,7 @@ namespace pcit::panther::sema_helper{
 		};
 	}
 
-	auto ComptimeIntrins::shl(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const AST::FuncCall& func_call)
+	auto ComptimeIntrins::shl(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const SourceLocation& location)
 	-> evo::Result<evo::SmallVector<ASG::Expr>> {
 		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
 
@@ -734,7 +734,7 @@ namespace pcit::panther::sema_helper{
 		if(result.isError()){
 			this->analyzer.emit_error(
 				Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
-				func_call,
+				location,
 				"shift-left overflow occured"
 			);
 			return evo::resultError;
@@ -761,7 +761,7 @@ namespace pcit::panther::sema_helper{
 		};
 	}
 
-	auto ComptimeIntrins::shr(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const AST::FuncCall& func_call)
+	auto ComptimeIntrins::shr(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const SourceLocation& location)
 	-> evo::Result<evo::SmallVector<ASG::Expr>> {
 		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
 
@@ -776,7 +776,7 @@ namespace pcit::panther::sema_helper{
 		if(result.isError()){
 			this->analyzer.emit_error(
 				Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
-				func_call,
+				location,
 				"shift-right overflow occured"
 			);
 			return evo::resultError;
