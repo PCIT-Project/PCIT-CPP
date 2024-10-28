@@ -170,6 +170,54 @@ namespace pcit::core{
 			EVO_NODISCARD auto sge(const GenericInt& rhs) const -> bool { return this->ap_int.sge(rhs.ap_int); }
 
 
+			///////////////////////////////////
+			// bitsize
+
+			EVO_NODISCARD auto bitwiseAnd(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(this->ap_int & rhs.ap_int);
+			}
+
+			EVO_NODISCARD auto bitwiseOr(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(this->ap_int | rhs.ap_int);
+			}
+
+			EVO_NODISCARD auto bitwiseXor(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(this->ap_int ^ rhs.ap_int);
+			}
+
+			EVO_NODISCARD auto sshl(const GenericInt& rhs) const -> WrapResult {
+				bool wrapped;
+				llvmint::APInt result = this->ap_int.sshl_ov(rhs.ap_int, wrapped);
+				return WrapResult(GenericInt(std::move(result)), wrapped);
+			}
+
+			EVO_NODISCARD auto ushl(const GenericInt& rhs) const -> WrapResult {
+				bool wrapped;
+				llvmint::APInt result = this->ap_int.ushl_ov(rhs.ap_int, wrapped);
+				return WrapResult(GenericInt(std::move(result)), wrapped);
+			}
+
+			EVO_NODISCARD auto sshlSat(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(this->ap_int.sshl_sat(rhs.ap_int));
+			}
+
+			EVO_NODISCARD auto ushlSat(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(this->ap_int.ushl_sat(rhs.ap_int));
+			}
+
+			EVO_NODISCARD auto ashr(const GenericInt& rhs) const -> WrapResult {
+				llvmint::APInt result = this->ap_int.ashr(rhs.ap_int);
+				const bool wrapped = result.ne(this->ap_int);
+				return WrapResult(GenericInt(std::move(result)), wrapped);
+			}
+
+			EVO_NODISCARD auto lshr(const GenericInt& rhs) const -> WrapResult {
+				llvmint::APInt result = this->ap_int.lshr(rhs.ap_int);
+				const bool wrapped = result.ne(this->ap_int);
+				return WrapResult(GenericInt(std::move(result)), wrapped);
+			}
+
+
 
 			//////////////////////////////////////////////////////////////////////
 			// type conversion

@@ -42,7 +42,7 @@ namespace pcit::panther{
 				fs::path basePath;
 				
 				bool addSourceLocations = true;
-				bool checkedArithmetic  = true;
+				bool checkedMath        = true;
 
 				unsigned numThreads     = 0; // 0 for single-threaded
 				unsigned maxNumErrors   = 1;

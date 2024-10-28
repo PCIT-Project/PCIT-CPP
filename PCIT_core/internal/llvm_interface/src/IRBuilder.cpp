@@ -140,6 +140,7 @@ namespace pcit::llvmint{
 				case IntrinsicID::saddOverflow: return llvm::Intrinsic::IndependentIntrinsics::sadd_with_overflow;
 				case IntrinsicID::smulFixSat:   return llvm::Intrinsic::IndependentIntrinsics::smul_fix_sat;
 				case IntrinsicID::smulOverflow: return llvm::Intrinsic::IndependentIntrinsics::smul_with_overflow;
+				case IntrinsicID::sshlSat:      return llvm::Intrinsic::IndependentIntrinsics::sshl_sat;
 				case IntrinsicID::ssubSat:      return llvm::Intrinsic::IndependentIntrinsics::ssub_sat;
 				case IntrinsicID::ssubOverflow: return llvm::Intrinsic::IndependentIntrinsics::ssub_with_overflow;
 
@@ -147,6 +148,7 @@ namespace pcit::llvmint{
 				case IntrinsicID::uaddOverflow: return llvm::Intrinsic::IndependentIntrinsics::uadd_with_overflow;
 				case IntrinsicID::umulFixSat:   return llvm::Intrinsic::IndependentIntrinsics::umul_fix_sat;
 				case IntrinsicID::umulOverflow: return llvm::Intrinsic::IndependentIntrinsics::umul_with_overflow;
+				case IntrinsicID::ushlSat:      return llvm::Intrinsic::IndependentIntrinsics::ushl_sat;
 				case IntrinsicID::usubSat:      return llvm::Intrinsic::IndependentIntrinsics::usub_sat;
 				case IntrinsicID::usubOverflow: return llvm::Intrinsic::IndependentIntrinsics::usub_with_overflow;
 			}
@@ -331,6 +333,27 @@ namespace pcit::llvmint{
 	}
 	auto IRBuilder::createFCmpLE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
 		return Value(this->builder->CreateFCmpOLE(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+
+
+	auto IRBuilder::createAnd(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateAnd(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createOr(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateOr(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createXor(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateXor(lhs.native(), rhs.native(), name.c_str()));
+	}
+	auto IRBuilder::createSHL(const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateShl(lhs.native(), rhs.native(), name.c_str(), nuw, nsw));
+	}
+	auto IRBuilder::createASHR(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateAShr(lhs.native(), rhs.native(), name.c_str(), exact));
+	}
+	auto IRBuilder::createLSHR(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateLShr(lhs.native(), rhs.native(), name.c_str(), exact));
 	}
 
 

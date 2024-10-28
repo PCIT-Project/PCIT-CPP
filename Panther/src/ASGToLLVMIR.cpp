@@ -1252,7 +1252,7 @@ namespace pcit::panther{
 					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
 					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
-					if(may_wrap || this->config.checkedArithmetic == false){
+					if(may_wrap || this->config.checkedMath == false){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createAdd(
 								args[0],
@@ -1281,7 +1281,7 @@ namespace pcit::panther{
 					const llvmint::Value wrapped_value = 
 						this->builder.createExtractValue(add_wrap_value, {1}, this->stmt_name("ADD.WRAPPED"));
 
-					this->add_assertion(wrapped_value, "ADD_CHECK", "Addition wrapped", func_call.location);
+					this->add_fail_assertion(wrapped_value, "ADD_CHECK", "Addition wrapped", func_call.location);
 
 					return evo::SmallVector<llvmint::Value>{add_value};
 
@@ -1339,7 +1339,7 @@ namespace pcit::panther{
 					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
 					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
-					if(may_wrap || this->config.checkedArithmetic == false){
+					if(may_wrap || this->config.checkedMath == false){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createSub(
 								args[0],
@@ -1368,7 +1368,7 @@ namespace pcit::panther{
 					const llvmint::Value wrapped_value = 
 						this->builder.createExtractValue(sub_wrap_value, {1}, this->stmt_name("SUB.WRAPPED"));
 
-					this->add_assertion(wrapped_value, "SUB_CHECK", "Subtraction wrapped", func_call.location);
+					this->add_fail_assertion(wrapped_value, "SUB_CHECK", "Subtraction wrapped", func_call.location);
 
 					return evo::SmallVector<llvmint::Value>{sub_value};
 
@@ -1426,7 +1426,7 @@ namespace pcit::panther{
 					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
 					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
-					if(may_wrap || this->config.checkedArithmetic == false){
+					if(may_wrap || this->config.checkedMath == false){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createMul(
 								args[0],
@@ -1455,7 +1455,7 @@ namespace pcit::panther{
 					const llvmint::Value wrapped_value = 
 						this->builder.createExtractValue(mul_wrap_value, {1}, this->stmt_name("MUL.WRAPPED"));
 
-					this->add_assertion(wrapped_value, "MUL_CHECK", "Multiplication wrapped", func_call.location);
+					this->add_fail_assertion(wrapped_value, "MUL_CHECK", "Multiplication wrapped", func_call.location);
 
 					return evo::SmallVector<llvmint::Value>{mul_value};
 
@@ -1536,8 +1536,8 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::Rem: {
 					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					if(is_floatint_point){
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createFRem(args[0], args[1], this->stmt_name("REM"))
 						};
@@ -1562,8 +1562,8 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::Eq: {
 					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					if(is_floatint_point){
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createFCmpEQ(args[0], args[1], this->stmt_name("EQ"))
 						};
@@ -1577,8 +1577,8 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::NEq: {
 					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					if(is_floatint_point){
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createFCmpNE(args[0], args[1], this->stmt_name("NEQ"))
 						};
@@ -1592,8 +1592,8 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::LT: {
 					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					if(is_floatint_point){
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LT"))
 						};
@@ -1614,8 +1614,8 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::LTE: {
 					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					if(is_floatint_point){
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LTE"))
 						};
@@ -1636,8 +1636,8 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::GT: {
 					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					if(is_floatint_point){
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GT"))
 						};
@@ -1658,8 +1658,8 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::GTE: {
 					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					const bool is_floatint_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					if(is_floatint_point){
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
 							this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GTE"))
 						};
@@ -1677,6 +1677,111 @@ namespace pcit::panther{
 					}	
 				} break;
 
+
+				///////////////////////////////////
+				// remainder
+
+				case TemplatedIntrinsic::Kind::And: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createAnd(args[0], args[1], this->stmt_name("AND"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::Or: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createOr(args[0], args[1], this->stmt_name("OR"))
+					};	
+				} break;
+
+				case TemplatedIntrinsic::Kind::Xor: {
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createXor(args[0], args[1], this->stmt_name("XOR"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SHL: {
+					const bool may_wrap = instantiation.templateArgs[2].as<bool>();
+					if(may_wrap){
+						return evo::SmallVector<llvmint::Value>{
+							this->builder.createSHL(args[0], args[1], false, false, this->stmt_name("SHL"))
+						};
+					}
+						
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+
+					const llvmint::Value shift_value = this->builder.createSHL(
+						args[0], args[1], is_unsigned, !is_unsigned, this->stmt_name("SHL")
+					);
+
+					if(this->config.checkedMath){
+						const llvmint::Value check_value = [&](){
+							if(is_unsigned){
+								return this->builder.createLSHR(
+									shift_value, args[1], true, this->stmt_name("SHL.CHECK")
+								);
+							}else{
+								return this->builder.createASHR(
+									shift_value, args[1], true, this->stmt_name("SHL.CHECK")
+								);
+							}
+						}();
+
+						this->add_fail_assertion(
+							this->builder.createICmpNE(check_value, args[0], this->stmt_name("SHL.CHECK_NEQ")),
+							"SHL_CHECK",
+							"Bit-shift-left overflow",
+							func_call.location
+						);
+					}
+
+					return evo::SmallVector<llvmint::Value>{shift_value};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SHLSat: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned 
+						? llvmint::IRBuilder::IntrinsicID::ushlSat
+						: llvmint::IRBuilder::IntrinsicID::sshlSat;
+
+					return evo::SmallVector<llvmint::Value>{
+						this->builder.createIntrinsicCall(
+							intrinsic_id, this->get_type(arg_type), args, this->stmt_name("SHL_SAT")
+						).asValue()
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SHR: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					const bool is_exact = instantiation.templateArgs[2].as<bool>();
+
+					const llvmint::Value shift_value = [&](){
+						if(is_unsigned){
+							return this->builder.createLSHR(args[0], args[1], is_exact, this->stmt_name("SHR"));
+						}else{
+							return this->builder.createASHR(args[0], args[1], is_exact, this->stmt_name("SHR"));
+						}
+					}();
+
+					if(!is_exact && this->config.checkedMath){
+						const llvmint::Value check_value = this->builder.createSHL(
+							shift_value, args[1], true, false, this->stmt_name("SHR.CHECK")
+						);
+
+						this->add_fail_assertion(
+							this->builder.createICmpNE(check_value, args[0], this->stmt_name("SHR.CHECK_NEQ")),
+							"SHR_CHECK",
+							"Bit-shift-right overflow",
+							func_call.location
+						);
+					}
+
+					return evo::SmallVector<llvmint::Value>{shift_value};
+				} break;
 
 
 				///////////////////////////////////
@@ -1711,7 +1816,7 @@ namespace pcit::panther{
 		}
 	}
 
-	auto ASGToLLVMIR::add_assertion(
+	auto ASGToLLVMIR::add_fail_assertion(
 		const llvmint::Value& cond, std::string_view block_name, std::string_view message, const ASG::Location& location
 	) -> void {
 		const FuncInfo& current_func_info = this->get_current_func_info();

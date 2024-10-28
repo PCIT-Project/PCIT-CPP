@@ -178,6 +178,32 @@ namespace pcit::panther{
 			) -> bool;
 
 
+			///////////////////////////////////
+			// bitwise
+
+			EVO_NODISCARD auto intrinAnd(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinOr(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinXor(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinSHL(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs, bool may_overflow
+			) -> evo::Result<core::GenericInt>;
+
+			EVO_NODISCARD auto intrinSHLSat(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+			) -> core::GenericInt;
+
+			EVO_NODISCARD auto intrinSHR(
+				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs, bool may_overflow
+			) -> evo::Result<core::GenericInt>;
 
 
 		private:

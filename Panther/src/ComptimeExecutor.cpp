@@ -50,7 +50,7 @@ namespace pcit::panther{
 
 		const auto config = ASGToLLVMIR::Config{
 			.useReadableRegisters = false,
-			.checkedArithmetic    = true,
+			.checkedMath          = true,
 			.isJIT                = true,
 			.addSourceLocations   = true,
 		};
@@ -596,6 +596,98 @@ namespace pcit::panther{
 				return lhs.ge(rhs);
 			}
 		);	
+	}
+
+
+
+	///////////////////////////////////
+	// bitwise
+
+
+	auto ComptimeExecutor::intrinAnd(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			-> core::GenericInt {
+				return lhs.bitwiseAnd(rhs);
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinOr(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			-> core::GenericInt {
+				return lhs.bitwiseOr(rhs);
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinXor(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			-> core::GenericInt {
+				return lhs.bitwiseXor(rhs);
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinSHL(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs, bool may_overflow
+	) -> evo::Result<core::GenericInt> {
+		return this->intrin_base_impl<evo::Result<core::GenericInt>>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			-> evo::Result<core::GenericInt> {
+				const core::GenericInt::WrapResult result = [&](){
+					if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+						return lhs.ushl(rhs);
+					}else{
+						return lhs.sshl(rhs);
+					}
+				}();
+				if(result.wrapped && !may_overflow){ return evo::Result<core::GenericInt>::error(); }
+				return evo::Result<core::GenericInt>(result.result);
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinSHLSat(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
+	) -> core::GenericInt {
+		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			-> core::GenericInt {
+				if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+					return lhs.ushlSat(rhs);
+				}else{
+					return lhs.sshlSat(rhs);
+				}
+			}
+		);
+	}
+
+	auto ComptimeExecutor::intrinSHR(
+		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs, bool may_overflow
+	) -> evo::Result<core::GenericInt> {
+		return this->intrin_base_impl<evo::Result<core::GenericInt>>(type_id, lhs, rhs,
+			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			-> evo::Result<core::GenericInt> {
+				const core::GenericInt::WrapResult result = [&](){
+					if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+						return lhs.lshr(rhs);
+					}else{
+						return lhs.ashr(rhs);
+					}
+				}();
+				if(result.wrapped && !may_overflow){ return evo::Result<core::GenericInt>::error(); }
+				return evo::Result<core::GenericInt>(result.result);
+			}
+		);
 	}
 
 

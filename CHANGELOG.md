@@ -1,7 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.50.0
+
+### Panther
+- Added bitwise intrinsic functions:
+	- `@and`
+	- `@or`
+	- `@xor`
+	- `@shl`
+	- `@shlSat`
+	- `@shr`
+
+<!---------------------------------->
 ## v0.0.49.0
+
+### Panther
 - Added logical operators:
 	- `==`
 	- `!=`

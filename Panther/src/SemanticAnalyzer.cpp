@@ -47,42 +47,56 @@ namespace pcit::panther{
 					{"isIntegral",              TemplatedIntrinsic::Kind::IsIntegral},
 					{"isFloatingPoint",         TemplatedIntrinsic::Kind::IsFloatingPoint},
 
-					{"sizeOf",                  TemplatedIntrinsic::Kind::SizeOf},
-					{"getTypeID",               TemplatedIntrinsic::Kind::GetTypeID},
-					{"bitCast",                 TemplatedIntrinsic::Kind::BitCast},
+					{"sizeOf",    TemplatedIntrinsic::Kind::SizeOf},
+					{"getTypeID", TemplatedIntrinsic::Kind::GetTypeID},
+					{"bitCast",   TemplatedIntrinsic::Kind::BitCast},
 
-					{"trunc",                   TemplatedIntrinsic::Kind::Trunc},
-					{"ftrunc",                  TemplatedIntrinsic::Kind::FTrunc},
-					{"zext",                    TemplatedIntrinsic::Kind::ZExt},
-					{"sext",                    TemplatedIntrinsic::Kind::SExt},
-					{"fext",                    TemplatedIntrinsic::Kind::FExt},
-					{"itof",                    TemplatedIntrinsic::Kind::IToF},
-					{"uitof",                   TemplatedIntrinsic::Kind::UIToF},
-					{"ftoi",                    TemplatedIntrinsic::Kind::FToI},
-					{"ftoui",                   TemplatedIntrinsic::Kind::FToUI},
+					{"trunc",     TemplatedIntrinsic::Kind::Trunc},
+					{"ftrunc",    TemplatedIntrinsic::Kind::FTrunc},
+					{"zext",      TemplatedIntrinsic::Kind::ZExt},
+					{"sext",      TemplatedIntrinsic::Kind::SExt},
+					{"fext",      TemplatedIntrinsic::Kind::FExt},
+					{"itof",      TemplatedIntrinsic::Kind::IToF},
+					{"uitof",     TemplatedIntrinsic::Kind::UIToF},
+					{"ftoi",      TemplatedIntrinsic::Kind::FToI},
+					{"ftoui",     TemplatedIntrinsic::Kind::FToUI},
 
-					{"add",                     TemplatedIntrinsic::Kind::Add},
-					{"addWrap",                 TemplatedIntrinsic::Kind::AddWrap},
-					{"addSat",                  TemplatedIntrinsic::Kind::AddSat},
-					{"fadd",                    TemplatedIntrinsic::Kind::FAdd},
-					{"sub",                     TemplatedIntrinsic::Kind::Sub},
-					{"subWrap",                 TemplatedIntrinsic::Kind::SubWrap},
-					{"subSat",                  TemplatedIntrinsic::Kind::SubSat},
-					{"fsub",                    TemplatedIntrinsic::Kind::FSub},
-					{"mul",                     TemplatedIntrinsic::Kind::Mul},
-					{"mulWrap",                 TemplatedIntrinsic::Kind::MulWrap},
-					{"mulSat",                  TemplatedIntrinsic::Kind::MulSat},
-					{"fmul",                    TemplatedIntrinsic::Kind::FMul},
-					{"div",                     TemplatedIntrinsic::Kind::Div},
-					{"fdiv",                    TemplatedIntrinsic::Kind::FDiv},
-					{"rem",                     TemplatedIntrinsic::Kind::Rem},
+					{"add",       TemplatedIntrinsic::Kind::Add},
+					{"addWrap",   TemplatedIntrinsic::Kind::AddWrap},
+					{"addSat",    TemplatedIntrinsic::Kind::AddSat},
+					{"fadd",      TemplatedIntrinsic::Kind::FAdd},
+					{"sub",       TemplatedIntrinsic::Kind::Sub},
+					{"subWrap",   TemplatedIntrinsic::Kind::SubWrap},
+					{"subSat",    TemplatedIntrinsic::Kind::SubSat},
+					{"fsub",      TemplatedIntrinsic::Kind::FSub},
+					{"mul",       TemplatedIntrinsic::Kind::Mul},
+					{"mulWrap",   TemplatedIntrinsic::Kind::MulWrap},
+					{"mulSat",    TemplatedIntrinsic::Kind::MulSat},
+					{"fmul",      TemplatedIntrinsic::Kind::FMul},
+					{"div",       TemplatedIntrinsic::Kind::Div},
+					{"fdiv",      TemplatedIntrinsic::Kind::FDiv},
+					{"rem",       TemplatedIntrinsic::Kind::Rem},
 
-					{"eq",                      TemplatedIntrinsic::Kind::Eq},
-					{"neq",                     TemplatedIntrinsic::Kind::NEq},
-					{"lt",                      TemplatedIntrinsic::Kind::LT},
-					{"lte",                     TemplatedIntrinsic::Kind::LTE},
-					{"gt",                      TemplatedIntrinsic::Kind::GT},
-					{"gte",                     TemplatedIntrinsic::Kind::GTE},
+					{"eq",        TemplatedIntrinsic::Kind::Eq},
+					{"neq",       TemplatedIntrinsic::Kind::NEq},
+					{"lt",        TemplatedIntrinsic::Kind::LT},
+					{"lte",       TemplatedIntrinsic::Kind::LTE},
+					{"gt",        TemplatedIntrinsic::Kind::GT},
+					{"gte",       TemplatedIntrinsic::Kind::GTE},
+
+					{"eq",        TemplatedIntrinsic::Kind::Eq},
+					{"neq",       TemplatedIntrinsic::Kind::NEq},
+					{"lt",        TemplatedIntrinsic::Kind::LT},
+					{"lte",       TemplatedIntrinsic::Kind::LTE},
+					{"gt",        TemplatedIntrinsic::Kind::GT},
+					{"gte",       TemplatedIntrinsic::Kind::GTE},
+
+					{"and",       TemplatedIntrinsic::Kind::And},
+					{"or",        TemplatedIntrinsic::Kind::Or},
+					{"xor",       TemplatedIntrinsic::Kind::Xor},
+					{"shl",       TemplatedIntrinsic::Kind::SHL},
+					{"shlSat",    TemplatedIntrinsic::Kind::SHLSat},
+					{"shr",       TemplatedIntrinsic::Kind::SHR},
 				};
 
 				this->map_end = this->map.end();
@@ -2120,8 +2134,8 @@ namespace pcit::panther{
 			);
 
 
-			evo::SmallVector<ASG::Expr> asg_exprs = asg_func_call.target.visit(
-				[&](const auto& func_call_target) -> evo::SmallVector<ASG::Expr> {
+			evo::Result<evo::SmallVector<ASG::Expr>> asg_exprs = asg_func_call.target.visit(
+				[&](const auto& func_call_target) -> evo::Result<evo::SmallVector<ASG::Expr>> {
 				using FuncCallTarget = std::decay_t<decltype(func_call_target)>;
 
 				if constexpr(std::is_same_v<FuncCallTarget, ASG::Func::LinkID>){
@@ -2142,10 +2156,10 @@ namespace pcit::panther{
 							func_call,
 							"Encountered error when running function"
 						);
-						return evo::SmallVector<ASG::Expr>();
+						return evo::Result<evo::SmallVector<ASG::Expr>>::error();
 					}
 
-					return std::move(result.value());
+					return evo::Result<evo::SmallVector<ASG::Expr>>(std::move(result.value()));
 
 				}else if constexpr(std::is_same_v<FuncCallTarget, Intrinsic::Kind>){
 					evo::debugFatalBreak("Cannot handle this consteval func target");
@@ -2159,12 +2173,12 @@ namespace pcit::panther{
 			});
 
 
-			if(asg_exprs.empty()){ return evo::resultError; }
+			if(asg_exprs.isError()){ return evo::resultError; }
 
 			return ExprInfo(
 				ExprInfo::ValueType::Ephemeral,
 				ExprInfo::generateExprInfoTypeIDs(std::move(return_types)),
-				std::move(asg_exprs)
+				std::move(asg_exprs.value())
 			);
 		}
 	}
@@ -3437,7 +3451,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
 						templated_expr.args[0],
-						"Cannot get remander of type `Void`"
+						"Cannot get compare type `Void`"
 					);
 					return evo::resultError;
 				}
@@ -3452,6 +3466,75 @@ namespace pcit::panther{
 						"This intrinsic only accepts integrals or floating-points"
 					);
 					return evo::resultError;
+				}
+			} break;
+
+
+			case TemplatedIntrinsic::Kind::And: case TemplatedIntrinsic::Kind::Or: case TemplatedIntrinsic::Kind::Xor: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get bitwise operate on type `Void`"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<TypeInfo::ID> underlying_type = 
+					this->context.getTypeManager().getUnderlyingType(instantiation_type_args[0]->typeID());
+				if(
+					underlying_type.isError() ||
+					this->context.getTypeManager().isIntegral(underlying_type.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get bitwise operate on this type"
+					);
+					return evo::resultError;	
+				}
+			} break;
+
+			case TemplatedIntrinsic::Kind::SHL:  case TemplatedIntrinsic::Kind::SHLSat: 
+			case TemplatedIntrinsic::Kind::SHR: {
+				if(instantiation_type_args[0]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get shift on type `Void`"
+					);
+					return evo::resultError;
+				}
+				const evo::Result<TypeInfo::ID> underlying_lhs_type = 
+					this->context.getTypeManager().getUnderlyingType(instantiation_type_args[0]->typeID());
+				if(
+					underlying_lhs_type.isError() ||
+					this->context.getTypeManager().isIntegral(underlying_lhs_type.value()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[0],
+						"Cannot get shift on this type"
+					);
+					return evo::resultError;	
+				}
+
+
+				if(instantiation_type_args[1]->isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot get shift by type `Void`"
+					);
+					return evo::resultError;
+				}
+				if(this->context.getTypeManager().isUnsignedIntegral(instantiation_type_args[1]->typeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
+						templated_expr.args[1],
+						"Cannot get shift by this type"
+					);
+					return evo::resultError;	
 				}
 			} break;
 

@@ -59,7 +59,7 @@ struct Config{
 	bool relative_dir_set = false;
 
 	bool add_source_locations = true;
-	bool checked_arithmetic = true;
+	bool checked_math = true;
 
 	unsigned max_threads      = 0;
 	unsigned max_num_errors   = std::numeric_limits<unsigned>::max();
@@ -76,7 +76,7 @@ auto main(int argc, const char* argv[]) -> int {
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
 		// .add_source_locations = false,
-		// .checked_arithmetic = false,
+		// .checked_math = false,
 
 		// .max_threads    = panther::Context::optimalNumThreads(),
 		.max_num_errors = 10,
@@ -154,7 +154,7 @@ auto main(int argc, const char* argv[]) -> int {
 			.basePath     = config.relative_dir,
 
 			.addSourceLocations = config.add_source_locations,
-			.checkedArithmetic  = config.checked_arithmetic,
+			.checkedMath        = config.checked_math,
 
 			.numThreads   = num_threads,
 			.maxNumErrors = config.max_num_errors,

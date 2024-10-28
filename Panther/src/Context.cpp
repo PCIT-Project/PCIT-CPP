@@ -291,7 +291,7 @@ namespace pcit::panther{
 
 			const auto backend_config = ASGToLLVMIR::Config{
 				.useReadableRegisters = true,
-				.checkedArithmetic    = this->config.checkedArithmetic,
+				.checkedMath          = this->config.checkedMath,
 				.isJIT                = !add_runtime,
 				.addSourceLocations   = this->config.addSourceLocations,
 			};
@@ -343,7 +343,7 @@ namespace pcit::panther{
 
 			const auto backend_config = ASGToLLVMIR::Config{
 				.useReadableRegisters = false,
-				.checkedArithmetic    = this->config.checkedArithmetic,
+				.checkedMath          = this->config.checkedMath,
 				.isJIT                = true,
 				.addSourceLocations   = this->config.addSourceLocations,
 			};
@@ -658,7 +658,7 @@ namespace pcit::panther{
 			},
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0)}
 		);
-		const auto arithmetic_maybe_wrap_func = TemplatedIntrinsic(
+		const auto arithmetic_option_func = TemplatedIntrinsic(
 			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TypeManager::getTypeBool()},
 			evo::SmallVector<TemplatedIntrinsic::Param>{
 				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
@@ -674,19 +674,19 @@ namespace pcit::panther{
 			},
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0), TypeManager::getTypeBool()}
 		);
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Add)]     = arithmetic_maybe_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Add)]     = arithmetic_option_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::AddWrap)] = arithmetic_wrap_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::AddSat)]  = arithmetic_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FAdd)]    = arithmetic_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Sub)]     = arithmetic_maybe_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Sub)]     = arithmetic_option_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SubWrap)] = arithmetic_wrap_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SubSat)]  = arithmetic_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FSub)]    = arithmetic_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Mul)]     = arithmetic_maybe_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Mul)]     = arithmetic_option_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::MulWrap)] = arithmetic_wrap_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::MulSat)]  = arithmetic_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FMul)]    = arithmetic_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Div)]     = arithmetic_maybe_wrap_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Div)]     = arithmetic_option_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FDiv)]    = arithmetic_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Rem)]     = arithmetic_func;
 
@@ -700,12 +700,30 @@ namespace pcit::panther{
 			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{TypeManager::getTypeBool()}
 		);
 
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Eq)]      = logical_operator;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::NEq)]     = logical_operator;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::LT)]      = logical_operator;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::LTE)]     = logical_operator;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::GT)]      = logical_operator;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::GTE)]     = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Eq)]  = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::NEq)] = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::LT)]  = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::LTE)] = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::GT)]  = logical_operator;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::GTE)] = logical_operator;
+
+
+
+		const auto shift_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TYPE_ARG, TypeManager::getTypeBool()},
+			evo::SmallVector<TemplatedIntrinsic::Param>{
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(1)),
+			},
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0)}
+		);
+
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::And)]    = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Or)]     = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Xor)]    = arithmetic_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SHL)]    = shift_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SHLSat)] = shift_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SHR)]    = shift_func;
 
 
 

@@ -1,9 +1,6 @@
 
 
-
-
 func entry = () #entry -> UI8 {
-	var foo: Char = 'a';
-	var bar: Char = 'a';
-	return (&foo == &foo) as UI8;
+	def NUM: UI8 = @shl<{UI8, UInt, false}>(1, 90);
+	return NUM;
 }

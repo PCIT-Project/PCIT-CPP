@@ -30,6 +30,7 @@ namespace pcit::llvmint{
 				saddOverflow,
 				smulFixSat,
 				smulOverflow,
+				sshlSat,
 				ssubSat,
 				ssubOverflow,
 
@@ -37,6 +38,7 @@ namespace pcit::llvmint{
 				uaddOverflow,
 				umulFixSat,
 				umulOverflow,
+				ushlSat,
 				usubSat,
 				usubOverflow,
 			};
@@ -177,7 +179,18 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto createFCmpLT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 			EVO_NODISCARD auto createFCmpLE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 
-			// createNot
+			
+
+			EVO_NODISCARD auto createAnd(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createOr(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createXor(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createSHL(
+				const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name = '\0'
+			) -> Value;
+			EVO_NODISCARD auto createASHR(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name = '\0')
+				-> Value;
+			EVO_NODISCARD auto createLSHR(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name = '\0')
+				-> Value;
 
 
 			//////////////////////////////////////////////////////////////////////

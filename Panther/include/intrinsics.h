@@ -82,6 +82,13 @@ namespace pcit::panther{
 			GT,
 			GTE,
 
+			And,
+			Or,
+			Xor,
+			SHL,
+			SHLSat,
+			SHR,
+
 
 			_max_
 		};

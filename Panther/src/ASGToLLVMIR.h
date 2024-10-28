@@ -23,7 +23,7 @@ namespace pcit::panther{
 
 	struct ASGToLLVMIRConfig{
 		bool useReadableRegisters;
-		bool checkedArithmetic;
+		bool checkedMath;
 		bool isJIT;
 		bool addSourceLocations;
 	};
@@ -90,7 +90,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto add_panic(std::string_view message, const ASG::Location& location) -> void;
-			EVO_NODISCARD auto add_assertion(
+			EVO_NODISCARD auto add_fail_assertion(
 				const llvmint::Value& cond,
 				std::string_view block_name,
 				std::string_view message,

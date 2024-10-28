@@ -13,6 +13,11 @@
 // #include "../../include/ASGBuffer.h"
 #include "../SemanticAnalyzer.h"
 
+
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
 namespace pcit::panther::sema_helper{
 
 
@@ -20,7 +25,7 @@ namespace pcit::panther::sema_helper{
 		const ASG::TemplatedIntrinsicInstantiation& instantiation,
 		evo::ArrayProxy<ASG::Expr> args,
 		const AST::FuncCall& func_call
-	) -> evo::SmallVector<ASG::Expr> {
+	) -> evo::Result<evo::SmallVector<ASG::Expr>> {
 
 		switch(instantiation.kind){
 			///////////////////////////////////
@@ -34,8 +39,8 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::IsIntegral:              return this->isIntegral(instantiation);
 			case TemplatedIntrinsic::Kind::IsFloatingPoint:         return this->isFloatingPoint(instantiation);
 
-			case TemplatedIntrinsic::Kind::SizeOf:    return this->sizeOf(instantiation);
-			case TemplatedIntrinsic::Kind::GetTypeID: return this->getTypeID(instantiation);
+			case TemplatedIntrinsic::Kind::SizeOf:                  return this->sizeOf(instantiation);
+			case TemplatedIntrinsic::Kind::GetTypeID:               return this->getTypeID(instantiation);
 
 
 			///////////////////////////////////
@@ -47,7 +52,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@bitCast` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 			case TemplatedIntrinsic::Kind::Trunc: {
@@ -56,7 +61,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@trunc` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 			case TemplatedIntrinsic::Kind::FTrunc: {
@@ -65,7 +70,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@ftrunc` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 			case TemplatedIntrinsic::Kind::SExt: {
@@ -74,7 +79,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@sext` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 			case TemplatedIntrinsic::Kind::ZExt: {
@@ -83,7 +88,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@zext` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 			case TemplatedIntrinsic::Kind::FExt: {
@@ -92,7 +97,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@fext` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 			case TemplatedIntrinsic::Kind::IToF: {
@@ -101,7 +106,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@itof` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 
@@ -111,7 +116,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@uitof` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 			case TemplatedIntrinsic::Kind::FToI: {
@@ -120,7 +125,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@ftoi` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 			case TemplatedIntrinsic::Kind::FToUI: {
@@ -129,7 +134,7 @@ namespace pcit::panther::sema_helper{
 					func_call,
 					"Compile-time `@ftoui` is not supported yet"
 				);
-				return evo::SmallVector<ASG::Expr>();
+				return evo::resultError;
 			} break;
 
 
@@ -139,36 +144,50 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::Add:
 				return this->add(args, instantiation.templateArgs[1].as<bool>(), func_call);
 			case TemplatedIntrinsic::Kind::AddWrap: return this->addWrap(args);
-			case TemplatedIntrinsic::Kind::AddSat: return this->addSat(args);
-			case TemplatedIntrinsic::Kind::FAdd: return this->fadd(args);
+			case TemplatedIntrinsic::Kind::AddSat:  return this->addSat(args);
+			case TemplatedIntrinsic::Kind::FAdd:    return this->fadd(args);
 
 			case TemplatedIntrinsic::Kind::Sub: 
 				return this->sub(args, instantiation.templateArgs[1].as<bool>(), func_call);
 			case TemplatedIntrinsic::Kind::SubWrap: return this->subWrap(args);
-			case TemplatedIntrinsic::Kind::SubSat: return this->subSat(args);
-			case TemplatedIntrinsic::Kind::FSub: return this->fsub(args);
+			case TemplatedIntrinsic::Kind::SubSat:  return this->subSat(args);
+			case TemplatedIntrinsic::Kind::FSub:    return this->fsub(args);
 
 
 			case TemplatedIntrinsic::Kind::Mul: 
 				return this->mul(args, instantiation.templateArgs[1].as<bool>(), func_call);
 			case TemplatedIntrinsic::Kind::MulWrap: return this->mulWrap(args);
-			case TemplatedIntrinsic::Kind::MulSat: return this->mulSat(args);
-			case TemplatedIntrinsic::Kind::FMul: return this->fmul(args);
+			case TemplatedIntrinsic::Kind::MulSat:  return this->mulSat(args);
+			case TemplatedIntrinsic::Kind::FMul:    return this->fmul(args);
 
-			case TemplatedIntrinsic::Kind::Div: return this->div(args);
+			case TemplatedIntrinsic::Kind::Div:  return this->div(args);
 			case TemplatedIntrinsic::Kind::FDiv: return this->fdiv(args);
-			case TemplatedIntrinsic::Kind::Rem: return this->rem(args);
+			case TemplatedIntrinsic::Kind::Rem:  return this->rem(args);
 
 
 			///////////////////////////////////
 			// logical
 
-			case TemplatedIntrinsic::Kind::Eq: return this->eq(args);
+			case TemplatedIntrinsic::Kind::Eq:  return this->eq(args);
 			case TemplatedIntrinsic::Kind::NEq: return this->neq(args);
-			case TemplatedIntrinsic::Kind::LT: return this->lt(args);
+			case TemplatedIntrinsic::Kind::LT:  return this->lt(args);
 			case TemplatedIntrinsic::Kind::LTE: return this->lte(args);
-			case TemplatedIntrinsic::Kind::GT: return this->gt(args);
+			case TemplatedIntrinsic::Kind::GT:  return this->gt(args);
 			case TemplatedIntrinsic::Kind::GTE: return this->gte(args);
+
+
+			///////////////////////////////////
+			// bitwise
+
+			case TemplatedIntrinsic::Kind::And:    return this->bitwiseAnd(args);
+			case TemplatedIntrinsic::Kind::Or:     return this->bitwiseOr(args);
+			case TemplatedIntrinsic::Kind::Xor:    return this->bitwiseXor(args);
+			case TemplatedIntrinsic::Kind::SHL:
+				return this->shl(args, instantiation.templateArgs[2].as<bool>(), func_call);
+			case TemplatedIntrinsic::Kind::SHLSat: return this->shlSat(args);
+			case TemplatedIntrinsic::Kind::SHR:
+				return this->shr(args, instantiation.templateArgs[2].as<bool>(), func_call);
+
 
 
 			///////////////////////////////////
@@ -288,7 +307,7 @@ namespace pcit::panther::sema_helper{
 	// addition
 
 	auto ComptimeIntrins::add(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
-	-> evo::SmallVector<ASG::Expr> {
+	-> evo::Result<evo::SmallVector<ASG::Expr>> {
 		const ASG::LiteralInt& lhs_literal_int = 
 			this->analyzer.source.getASGBuffer().getLiteralInt(args[0].literalIntID());
 		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
@@ -306,7 +325,7 @@ namespace pcit::panther::sema_helper{
 				func_call,
 				"Integral arithmetic wrapping occured"
 			);
-			return evo::SmallVector<ASG::Expr>();
+			return evo::resultError;
 		}
 
 		return evo::SmallVector<ASG::Expr>{
@@ -370,7 +389,7 @@ namespace pcit::panther::sema_helper{
 	// subtraction
 
 	auto ComptimeIntrins::sub(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
-	-> evo::SmallVector<ASG::Expr> {
+	-> evo::Result<evo::SmallVector<ASG::Expr>> {
 		const ASG::LiteralInt& lhs_literal_int = 
 			this->analyzer.source.getASGBuffer().getLiteralInt(args[0].literalIntID());
 		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
@@ -388,7 +407,7 @@ namespace pcit::panther::sema_helper{
 				func_call,
 				"Integral arithmetic wrapping occured"
 			);
-			return evo::SmallVector<ASG::Expr>();
+			return evo::resultError;
 		}
 
 		return evo::SmallVector<ASG::Expr>{
@@ -452,7 +471,7 @@ namespace pcit::panther::sema_helper{
 	// multiplication
 
 	auto ComptimeIntrins::mul(evo::ArrayProxy<ASG::Expr> args, bool may_wrap, const AST::FuncCall& func_call)
-	-> evo::SmallVector<ASG::Expr> {
+	-> evo::Result<evo::SmallVector<ASG::Expr>> {
 		const ASG::LiteralInt& lhs_literal_int = 
 			this->analyzer.source.getASGBuffer().getLiteralInt(args[0].literalIntID());
 		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
@@ -470,7 +489,7 @@ namespace pcit::panther::sema_helper{
 				func_call,
 				"Integral arithmetic wrapping occured"
 			);
-			return evo::SmallVector<ASG::Expr>();
+			return evo::resultError;
 		}
 
 		return evo::SmallVector<ASG::Expr>{
@@ -650,6 +669,127 @@ namespace pcit::panther::sema_helper{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// bitwise
+
+	auto ComptimeIntrins::bitwiseAnd(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
+		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
+
+		const ASG::LiteralInt& lhs_literal_int = 
+			asg_buffer.getLiteralInt(args[0].literalIntID());
+		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+		const core::GenericInt result = this->analyzer.get_comptime_executor().intrinAnd(
+			type_id, lhs_literal_int.value, asg_buffer.getLiteralInt(args[1].literalIntID()).value
+		);
+
+		return evo::SmallVector<ASG::Expr>{
+			ASG::Expr(this->analyzer.get_asg_buffer().createLiteralInt(result, type_id))
+		};
+	}
+
+	auto ComptimeIntrins::bitwiseOr(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
+		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
+
+		const ASG::LiteralInt& lhs_literal_int = 
+			asg_buffer.getLiteralInt(args[0].literalIntID());
+		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+		const core::GenericInt result = this->analyzer.get_comptime_executor().intrinOr(
+			type_id, lhs_literal_int.value, asg_buffer.getLiteralInt(args[1].literalIntID()).value
+		);
+
+		return evo::SmallVector<ASG::Expr>{
+			ASG::Expr(this->analyzer.get_asg_buffer().createLiteralInt(result, type_id))
+		};
+	}
+
+	auto ComptimeIntrins::bitwiseXor(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
+		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
+
+		const ASG::LiteralInt& lhs_literal_int = 
+			asg_buffer.getLiteralInt(args[0].literalIntID());
+		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+		const core::GenericInt result = this->analyzer.get_comptime_executor().intrinXor(
+			type_id, lhs_literal_int.value, asg_buffer.getLiteralInt(args[1].literalIntID()).value
+		);
+
+		return evo::SmallVector<ASG::Expr>{
+			ASG::Expr(this->analyzer.get_asg_buffer().createLiteralInt(result, type_id))
+		};
+	}
+
+	auto ComptimeIntrins::shl(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const AST::FuncCall& func_call)
+	-> evo::Result<evo::SmallVector<ASG::Expr>> {
+		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
+
+		const ASG::LiteralInt& lhs_literal_int = 
+			asg_buffer.getLiteralInt(args[0].literalIntID());
+		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+		const evo::Result<core::GenericInt> result = this->analyzer.get_comptime_executor().intrinSHL(
+			type_id, lhs_literal_int.value, asg_buffer.getLiteralInt(args[1].literalIntID()).value, may_overflow
+		);
+
+		if(result.isError()){
+			this->analyzer.emit_error(
+				Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
+				func_call,
+				"shift-left overflow occured"
+			);
+			return evo::resultError;
+		}
+
+		return evo::SmallVector<ASG::Expr>{
+			ASG::Expr(this->analyzer.get_asg_buffer().createLiteralInt(result.value(), type_id))
+		};
+	}
+
+	auto ComptimeIntrins::shlSat(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
+		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
+
+		const ASG::LiteralInt& lhs_literal_int = 
+			asg_buffer.getLiteralInt(args[0].literalIntID());
+		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+		const core::GenericInt result = this->analyzer.get_comptime_executor().intrinSHLSat(
+			type_id, lhs_literal_int.value, asg_buffer.getLiteralInt(args[1].literalIntID()).value
+		);
+
+		return evo::SmallVector<ASG::Expr>{
+			ASG::Expr(this->analyzer.get_asg_buffer().createLiteralInt(result, type_id))
+		};
+	}
+
+	auto ComptimeIntrins::shr(evo::ArrayProxy<ASG::Expr> args, bool may_overflow, const AST::FuncCall& func_call)
+	-> evo::Result<evo::SmallVector<ASG::Expr>> {
+		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
+
+		const ASG::LiteralInt& lhs_literal_int = 
+			asg_buffer.getLiteralInt(args[0].literalIntID());
+		const TypeInfo::ID type_id = *lhs_literal_int.typeID;
+
+		const evo::Result<core::GenericInt> result = this->analyzer.get_comptime_executor().intrinSHR(
+			type_id, lhs_literal_int.value, asg_buffer.getLiteralInt(args[1].literalIntID()).value, may_overflow
+		);
+
+		if(result.isError()){
+			this->analyzer.emit_error(
+				Diagnostic::Code::SemaErrorInRunningOfIntrinsicAtComptime,
+				func_call,
+				"shift-right overflow occured"
+			);
+			return evo::resultError;
+		}
+
+		return evo::SmallVector<ASG::Expr>{
+			ASG::Expr(this->analyzer.get_asg_buffer().createLiteralInt(result.value(), type_id))
+		};
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// implementations
 
 	template<class OP>
@@ -662,7 +802,7 @@ namespace pcit::panther::sema_helper{
 			const TypeInfo::ID type_id = *lhs_literal_int.typeID;
 
 			const bool result = op(
-				type_id, lhs_literal_int.value,asg_buffer.getLiteralInt(args[1].literalIntID()).value
+				type_id, lhs_literal_int.value, asg_buffer.getLiteralInt(args[1].literalIntID()).value
 			);
 
 			return evo::SmallVector<ASG::Expr>{ASG::Expr(this->analyzer.get_asg_buffer().createLiteralBool(result))};
@@ -675,7 +815,7 @@ namespace pcit::panther::sema_helper{
 			const TypeInfo::ID type_id = *lhs_literal_float.typeID;
 
 			const bool result = op(
-				type_id, lhs_literal_float.value,asg_buffer.getLiteralFloat(args[1].literalFloatID()).value
+				type_id, lhs_literal_float.value, asg_buffer.getLiteralFloat(args[1].literalFloatID()).value
 			);
 
 			return evo::SmallVector<ASG::Expr>{ASG::Expr(this->analyzer.get_asg_buffer().createLiteralBool(result))};
