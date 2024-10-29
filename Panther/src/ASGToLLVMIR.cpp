@@ -351,6 +351,7 @@ namespace pcit::panther{
 			break; case ASG::Stmt::Kind::Unreachable: this->builder.createUnreachable();
 			break; case ASG::Stmt::Kind::Conditional:
 				this->lower_conditional(asg_buffer.getConditional(stmt.conditionalID()));
+			break; case ASG::Stmt::Kind::While:       this->lower_while(asg_buffer.getWhile(stmt.whileID()));
 		}
 	}
 
@@ -501,6 +502,29 @@ namespace pcit::panther{
 
 
 		this->builder.setInsertionPoint(*end_block);
+	}
+
+
+	auto ASGToLLVMIR::lower_while(const ASG::While& while_loop) -> void {
+		const FuncInfo& current_func_info = this->get_current_func_info();
+		
+		const llvmint::BasicBlock cond_block = this->builder.createBasicBlock(current_func_info.func, "WHILE.COND");
+		const llvmint::BasicBlock body_block = this->builder.createBasicBlock(current_func_info.func, "WHILE.BODY");
+		const llvmint::BasicBlock end_block = this->builder.createBasicBlock(current_func_info.func, "WHILE.END");
+
+		this->builder.createBranch(cond_block);
+
+		this->builder.setInsertionPoint(cond_block);
+		const llvmint::Value cond_value = this->get_value(while_loop.cond);
+		this->builder.createCondBranch(cond_value, body_block, end_block);
+
+		this->builder.setInsertionPoint(body_block);
+		for(const ASG::Stmt& stmt : while_loop.block){
+			this->lower_stmt(stmt);
+		}
+		this->builder.createBranch(cond_block);
+
+		this->builder.setInsertionPoint(end_block);
 	}
 
 

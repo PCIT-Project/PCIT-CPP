@@ -37,6 +37,7 @@ namespace pcit::panther::ASG{
 			Return,
 			Unreachable,
 			Conditional,
+			While,
 		};
 
 		explicit Stmt(VarID var_id)            : _kind(Kind::Var),        value{.var_id = var_id}             {}
@@ -46,6 +47,7 @@ namespace pcit::panther::ASG{
 			: _kind(Kind::MultiAssign), value{.multi_assign_id = multi_assign_id} {}
 		explicit Stmt(ReturnID return_id)      : _kind(Kind::Return),      value{.return_id = return_id}      {}
 		explicit Stmt(ConditionalID cond_id)   : _kind(Kind::Conditional), value{.cond_id = cond_id}          {}
+		explicit Stmt(WhileID while_id)        : _kind(Kind::While),       value{.while_id = while_id}        {}
 
 		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::Unreachable); }
 
@@ -83,8 +85,13 @@ namespace pcit::panther::ASG{
 		}
 
 		EVO_NODISCARD auto conditionalID() const -> ConditionalID {
-			evo::debugAssert(this->kind() == Kind::Conditional, "not an cond");
+			evo::debugAssert(this->kind() == Kind::Conditional, "not an conditional");
 			return this->value.cond_id;
+		}
+
+		EVO_NODISCARD auto whileID() const -> WhileID {
+			evo::debugAssert(this->kind() == Kind::While, "not an while");
+			return this->value.while_id;
 		}
 
 
@@ -102,6 +109,7 @@ namespace pcit::panther::ASG{
 				MultiAssignID multi_assign_id;
 				ReturnID return_id;
 				ConditionalID cond_id;
+				WhileID while_id;
 			} value;
 	};
 

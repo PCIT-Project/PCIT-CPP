@@ -137,6 +137,15 @@ namespace pcit::panther{
 				return this->when_conditionals[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createWhile(auto&&... args) -> AST::Node {
+				const uint32_t node_index = this->whiles.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::While, node_index);
+			}
+			EVO_NODISCARD auto getWhile(const AST::Node& node) const -> const AST::While& {
+				evo::debugAssert(node.kind() == AST::Kind::While, "Node is not a While");
+				return this->whiles[node._value.node_index];
+			}
+
 
 			EVO_NODISCARD auto createBlock(auto&&... args) -> AST::Node {
 				const uint32_t node_index = this->blocks.emplace_back(std::forward<decltype(args)>(args)...);
@@ -256,6 +265,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::Return, uint32_t> returns{};
 			core::LinearStepAlloc<AST::Conditional, uint32_t> conditionals{};
 			core::LinearStepAlloc<AST::WhenConditional, uint32_t> when_conditionals{};
+			core::LinearStepAlloc<AST::While, uint32_t> whiles{};
 
 			core::LinearStepAlloc<AST::Block, uint32_t> blocks{};
 			core::LinearStepAlloc<AST::FuncCall, uint32_t> func_calls{};

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.51.0
+
+### Panther
+- Added `while` loops
+- Fixed fatal error when printing AST of conditional (`if` and `when`)
+- Fixed `as` expressions sometimes being considered as not ephemeral
+
+
+<!---------------------------------->
 ## v0.0.50.1
 
 ### Panther
@@ -19,6 +28,7 @@
 	- `@shl`
 	- `@shlSat`
 	- `@shr`
+
 
 <!---------------------------------->
 ## v0.0.49.0

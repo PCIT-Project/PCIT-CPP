@@ -69,6 +69,7 @@ namespace pcit::panther{
 			auto lower_multi_assign(const ASG::MultiAssign& multi_assign) -> void;
 			auto lower_return(const ASG::Return& return_stmt) -> void;
 			auto lower_conditional(const ASG::Conditional& conditional_stmt) -> void;
+			auto lower_while(const ASG::While& while_loop) -> void;
 
 
 

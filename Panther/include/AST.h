@@ -32,6 +32,7 @@ namespace pcit::panther::AST{
 		Return,
 		Conditional,
 		WhenConditional,
+		While,
 		Unreachable,
 
 		Block,
@@ -190,6 +191,12 @@ namespace pcit::panther::AST{
 		Node cond;
 		Node thenBlock;
 		std::optional<Node> elseBlock;
+	};
+
+	struct While{
+		Token::ID keyword;
+		Node cond;
+		Node block;
 	};
 
 	struct Block{

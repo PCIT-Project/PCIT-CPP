@@ -242,6 +242,18 @@ namespace pthr{
 						this->print_return(this->ast_buffer.getReturn(stmt));
 					} break;
 
+					case panther::AST::Kind::Conditional: {
+						this->print_conditional(this->ast_buffer.getConditional(stmt));
+					} break;
+
+					case panther::AST::Kind::WhenConditional: {
+						this->print_conditional(this->ast_buffer.getWhenConditional(stmt));
+					} break;
+
+					case panther::AST::Kind::While: {
+						this->print_while(this->ast_buffer.getWhile(stmt));
+					} break;
+
 					case panther::AST::Kind::Infix: {
 						this->print_assignment(this->ast_buffer.getInfix(stmt));
 					} break;
@@ -542,6 +554,76 @@ namespace pthr{
 						}
 					});
 
+
+					this->indenter.pop();
+				}
+			}
+
+
+			auto print_conditional(const panther::AST::Conditional& conditional) -> void {
+				this->print_conditional_impl<false>(conditional.cond, conditional.thenBlock, conditional.elseBlock);
+			}
+
+			auto print_conditional(const panther::AST::WhenConditional& conditional) -> void {
+				this->print_conditional_impl<true>(conditional.cond, conditional.thenBlock, conditional.elseBlock);
+			}
+
+			template<bool IS_WHEN>
+			auto print_conditional_impl(
+				const panther::AST::Node& cond,
+				const panther::AST::Node& then_block,
+				const std::optional<panther::AST::Node>& else_block
+			) -> void {
+				this->indenter.print();
+				if constexpr(IS_WHEN){
+					this->print_major_header("When Conditional");
+				}else{
+					this->print_major_header("Conditional");
+				}
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Condition");
+					this->indenter.push();
+					this->printer.print("\n");
+					this->print_expr(cond);
+					this->indenter.pop();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Then");
+					this->print_block(this->source.getASTBuffer().getBlock(then_block));
+
+					this->indenter.print_end();
+					this->print_minor_header("Else");
+					if(else_block.has_value()){
+						this->print_block(this->source.getASTBuffer().getBlock(*else_block));
+					}else{
+						this->printer.printlnGray(" {NONE}");
+					}
+
+					this->indenter.pop();
+				}
+			}
+
+			auto print_while(const panther::AST::While& while_loop) -> void {
+				this->indenter.print();
+				this->print_major_header("While Loop");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Condition");
+					this->indenter.push();
+					this->printer.print("\n");
+					this->print_expr(while_loop.cond);
+					this->indenter.pop();
+
+					this->indenter.print_end();
+					this->print_minor_header("Block");
+					this->print_block(this->source.getASTBuffer().getBlock(while_loop.block));
 
 					this->indenter.pop();
 				}

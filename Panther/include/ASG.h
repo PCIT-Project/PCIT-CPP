@@ -322,6 +322,13 @@ namespace pcit::panther::ASG{
 		StmtBlock elseStmts;
 	};
 
+	struct While{
+		using ID = WhileID;
+
+		Expr cond;
+		StmtBlock block;
+	};
+
 
 	// TODO: move .scope, .body_analysis_mutex, .is_body_analyzed, and .ast_func to somewhere else
 	struct Func{

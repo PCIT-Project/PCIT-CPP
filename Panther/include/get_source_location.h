@@ -48,6 +48,9 @@ namespace pcit::panther{
 	
 	EVO_NODISCARD auto get_source_location(const AST::WhenConditional& when_cond, const class Source& src)
 		-> SourceLocation;
+
+	EVO_NODISCARD auto get_source_location(const AST::While& while_loop, const class Source& src)
+		-> SourceLocation;
 	
 	EVO_NODISCARD auto get_source_location(const AST::Block& block, const class Source& src) -> SourceLocation;
 	

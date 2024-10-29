@@ -238,11 +238,11 @@ namespace pcit::panther{
 			} break;
 
 
-			case AST::Kind::Return: case AST::Kind::Unreachable: case AST::Kind::Conditional:
-			case AST::Kind::Block:  case AST::Kind::FuncCall:    case AST::Kind::TemplatedExpr:
-			case AST::Kind::Infix:  case AST::Kind::Postfix:     case AST::Kind::MultiAssign:
-			case AST::Kind::Ident:  case AST::Kind::Intrinsic:   case AST::Kind::Literal:
-			case AST::Kind::This: {
+			case AST::Kind::Return:        case AST::Kind::Unreachable: case AST::Kind::Conditional:
+			case AST::Kind::While:         case AST::Kind::Block:       case AST::Kind::FuncCall:
+			case AST::Kind::TemplatedExpr: case AST::Kind::Infix:       case AST::Kind::Postfix:
+			case AST::Kind::MultiAssign:   case AST::Kind::Ident:       case AST::Kind::Intrinsic:
+			case AST::Kind::Literal:       case AST::Kind::This: {
 				this->emit_error(
 					Diagnostic::Code::SemaInvalidGlobalStmtKind,
 					global_stmt,
@@ -1037,8 +1037,6 @@ namespace pcit::panther{
 			}
 		}
 
-
-
 		auto then_block = ASG::StmtBlock();
 		{
 			this->push_scope_level(&then_block);
@@ -1083,6 +1081,36 @@ namespace pcit::panther{
 			return this->may_recover();
 		}
 	}
+
+
+	auto SemanticAnalyzer::analyze_while(const AST::While& while_loop) -> bool {
+		evo::Result<ExprInfo> cond = this->analyze_expr<ExprValueKind::Runtime>(while_loop.cond);
+		if(cond.isError()){ return this->may_recover(); }
+
+		const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
+		if(this->type_check<true>(bool_type_id, cond.value(), "while condition", while_loop.cond).ok == false){
+			return this->may_recover();
+		}
+
+
+		auto while_body = ASG::StmtBlock();
+		{
+			this->push_scope_level(&while_body);
+			EVO_DEFER([&](){ this->pop_scope_level(); });
+
+			const AST::Block ast_block = this->source.getASTBuffer().getBlock(while_loop.block);
+			if(this->analyze_block(ast_block) == false){ return this->may_recover(); }
+		}
+
+		const ASG::While::ID asg_while_id = this->source.asg_buffer.createWhile(
+			cond.value().getExpr(), std::move(while_body)
+		);
+		this->get_current_scope_level().stmtBlock().emplace_back(asg_while_id);
+
+		return true;
+	}
+
+
 
 
 	template<bool IS_RUNTIME>
@@ -1235,6 +1263,10 @@ namespace pcit::panther{
 
 			case AST::Kind::WhenConditional: {
     			return this->analyze_when_conditional<false>(ast_buffer.getWhenConditional(node));
+			} break;
+
+			case AST::Kind::While: {
+    			return this->analyze_while(ast_buffer.getWhile(node));
 			} break;
 
 			case AST::Kind::Block: {
@@ -5385,9 +5417,10 @@ namespace pcit::panther{
 		}
 
 		// if converting to same type, no conversion needed
-		if(from_underlying_type_id.value() == to_underlying_type_id.value()){
-			return value;
-		}
+		// evo::breakpoint();
+		// if(from_underlying_type_id.value() == to_underlying_type_id.value()){
+		// 	return value;
+		// }
 
 
 		struct TypeConversionData{

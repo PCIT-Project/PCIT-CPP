@@ -608,7 +608,7 @@ namespace pcit::panther{
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt {
 		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
-			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			[&](const TypeInfo::ID, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> core::GenericInt {
 				return lhs.bitwiseAnd(rhs);
 			}
@@ -619,7 +619,7 @@ namespace pcit::panther{
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt {
 		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
-			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			[&](const TypeInfo::ID, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> core::GenericInt {
 				return lhs.bitwiseOr(rhs);
 			}
@@ -630,7 +630,7 @@ namespace pcit::panther{
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt {
 		return this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
-			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
+			[&](const TypeInfo::ID, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> core::GenericInt {
 				return lhs.bitwiseXor(rhs);
 			}

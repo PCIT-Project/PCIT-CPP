@@ -110,6 +110,7 @@ namespace pcit::panther{
 				KeywordIf,
 				KeywordElse,
 				KeywordWhen,
+				KeywordWhile,
 
 
 				///////////////////////////////////
@@ -463,6 +464,7 @@ namespace pcit::panther{
 					break; case Kind::KeywordIf:          return "if";
 					break; case Kind::KeywordElse:        return "else";
 					break; case Kind::KeywordWhen:        return "when";
+					break; case Kind::KeywordWhile:       return "while";
 
 
 

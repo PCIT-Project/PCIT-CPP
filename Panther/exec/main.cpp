@@ -61,9 +61,9 @@ struct Config{
 	bool add_source_locations = true;
 	bool checked_math = true;
 
-	unsigned max_threads      = 0;
-	unsigned max_num_errors   = std::numeric_limits<unsigned>::max();
-	bool may_recover          = true;
+	unsigned max_threads    = 0;
+	unsigned max_num_errors = std::numeric_limits<unsigned>::max();
+	bool may_recover        = true;
 };
 
 

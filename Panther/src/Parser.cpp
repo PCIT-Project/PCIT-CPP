@@ -55,6 +55,7 @@ namespace pcit::panther{
 			case Token::Kind::KeywordUnreachable: return this->parse_unreachable();
 			case Token::Kind::KeywordIf:          return this->parse_conditional<false>();
 			case Token::Kind::KeywordWhen:        return this->parse_conditional<true>();
+			case Token::Kind::KeywordWhile:       return this->parse_while();
 		}
 
 		Result result = this->parse_assignment();
@@ -326,6 +327,25 @@ namespace pcit::panther{
 				keyword_token_id, cond.value(), then_block.value(), else_block
 			);
 		}
+	}
+
+
+	auto Parser::parse_while() -> Result {
+		const Token::ID start_location = this->reader.peek();
+		
+		if(this->assert_token_fail(Token::Kind::KeywordWhile)){ return Result::Code::Error; }
+
+		if(this->expect_token_fail(Token::lookupKind("("), "in while loop")){ return Result::Code::Error; }
+
+		const Result cond = this->parse_expr();
+		if(this->check_result_fail(cond, "condition in while loop")){ return Result::Code::Error; }
+
+		if(this->expect_token_fail(Token::lookupKind(")"), "in while loop")){ return Result::Code::Error; }
+
+		const Result block = this->parse_block(BlockLabelRequirement::Optional);
+		if(this->check_result_fail(block, "statement block in while loop")){ return Result::Code::Error; }
+
+		return this->source.ast_buffer.createWhile(start_location, cond.value(), block.value());
 	}
 
 

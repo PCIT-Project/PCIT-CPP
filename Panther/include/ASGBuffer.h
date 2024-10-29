@@ -161,6 +161,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// whiles
+
+			EVO_NODISCARD auto createWhile(auto&&... args) -> ASG::While::ID {
+				return this->whiles.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getWhile(ASG::While::ID id) const -> const ASG::While& {
+				return this->whiles[id];
+			}
+
+
+			///////////////////////////////////
 			// copies
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> ASG::Copy::ID {
@@ -308,6 +320,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<ASG::MultiAssign, ASG::MultiAssign::ID> multi_assigns{};
 			core::LinearStepAlloc<ASG::Return, ASG::Return::ID> returns{};
 			core::LinearStepAlloc<ASG::Conditional, ASG::Conditional::ID> conds{};
+			core::LinearStepAlloc<ASG::While, ASG::While::ID> whiles{};
 
 			core::LinearStepAlloc<ASG::Expr, uint32_t> misc_exprs{};
 			core::LinearStepAlloc<ASG::Deref, ASG::Deref::ID> derefs{};

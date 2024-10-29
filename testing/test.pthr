@@ -1,7 +1,11 @@
 
 
 func entry = () #entry -> UI8 {
-	def LHS: UI8 = 9;
-	def COND: Bool = LHS > 200;
-	return COND as UI8;
+	var i: UInt = 0;
+	while(i < 4){
+		@_printHelloWorld();
+		i = i + 1;
+	}
+
+	return i as UI8;
 }

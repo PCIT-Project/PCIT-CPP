@@ -45,6 +45,7 @@ namespace pcit::panther{
 			case AST::Kind::Unreachable:     return get_source_location(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::Conditional:     return get_source_location(ast_buffer.getConditional(node), src);
 			case AST::Kind::WhenConditional: return get_source_location(ast_buffer.getWhenConditional(node), src);
+			case AST::Kind::While:           return get_source_location(ast_buffer.getWhile(node), src);
 			case AST::Kind::Block:           return get_source_location(ast_buffer.getBlock(node), src);
 			case AST::Kind::FuncCall:        return get_source_location(ast_buffer.getFuncCall(node), src);
 			case AST::Kind::TemplatePack:    evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
@@ -93,6 +94,10 @@ namespace pcit::panther{
 
 	auto get_source_location(const AST::WhenConditional& when_cond, const Source& src) -> SourceLocation {
 		return get_source_location(when_cond.keyword, src);
+	}
+
+	auto get_source_location(const AST::While& while_loop, const Source& src) -> SourceLocation {
+		return get_source_location(while_loop.keyword, src);
 	}
 
 	auto get_source_location(const AST::Block& block, const Source& src) -> SourceLocation {

@@ -216,6 +216,7 @@ namespace pcit::panther{
 		{"if",          Token::Kind::KeywordIf},
 		{"else",        Token::Kind::KeywordElse},
 		{"when",        Token::Kind::KeywordWhen},
+		{"while",       Token::Kind::KeywordWhile},
 
 		// discard
 		{"_", Token::lookupKind("_")},
