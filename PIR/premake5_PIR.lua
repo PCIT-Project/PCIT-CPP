@@ -1,6 +1,6 @@
 -- premake5
 
-project "Panther"
+project "PIR"
 	kind "StaticLib"
 	-- staticruntime "On"
 	
@@ -23,7 +23,6 @@ project "Panther"
 		"Evo",
 		"PCIT_core",
 		"PCIT_llvm_interface",
-		"PIR",
 	}
 
 
@@ -33,7 +32,7 @@ project "*"
 
 
 
-project "pthr"
+project "PIRC"
 	kind "ConsoleApp"
 	-- staticruntime "On"
 	
@@ -57,8 +56,9 @@ project "pthr"
 	links{
 		"Evo",
 		"PCIT_core",
-		"Panther",
+		"PIR",
 	}
 
 
 project "*"
+

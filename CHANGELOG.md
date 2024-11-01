@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.52.0
+
+### PIR
+- Added the PIR project. General project layout has been created.
+
+### PCIT_core
+- Added `StepAlloc`
+- Added the ability to iterate over `LinearStepAlloc`
+- Added `Printer` support printing to `std::string` as an option
+- Added format arg versions of `Printer::print()` and `Printer::println()`
+
+
+<!---------------------------------->
 ## v0.0.51.0
 
 ### Panther

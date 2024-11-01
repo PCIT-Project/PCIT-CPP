@@ -92,7 +92,7 @@ auto main(int argc, const char* argv[]) -> int {
 		evo::log::setDefaultThreadSaferCallback();
 	#endif
 
-	auto printer = pcit::core::Printer(config.print_color);
+	auto printer = pcit::core::Printer::createConsole(config.print_color);
 
 
 	if(config.verbose){

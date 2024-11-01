@@ -9,16 +9,29 @@
 
 #pragma once
 
-#include "./generic_numbers/GenericInt.h"
-#include "./generic_numbers/GenericFloat.h"
-#include "./generic_numbers/GenericValue.h"
 
-#include "./Diagnostic.h"
-#include "./IterRange.h"
-#include "./LinearStepAlloc.h"
-#include "./Optional.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./StepAlloc.h"
-#include "./UniqueID.h"
-#include "./version.h"
+#include <Evo.h>
+
+#include <PCIT_core.h>
+
+
+namespace pcit::pir{
+
+
+	struct BasicBlockID : public core::UniqueID<uint32_t, struct BasicBlockID> {
+		using core::UniqueID<uint32_t, BasicBlockID>::UniqueID;
+	};
+
+
+	struct FunctionID : public core::UniqueID<uint32_t, struct FunctionID> {
+		using core::UniqueID<uint32_t, FunctionID>::UniqueID;
+	};
+
+	struct FunctionDeclID : public core::UniqueID<uint32_t, struct FunctionDeclID> {
+		using core::UniqueID<uint32_t, FunctionDeclID>::UniqueID;
+	};
+
+
+}
+
+

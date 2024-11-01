@@ -37,15 +37,15 @@ namespace pcit::core{
 			EVO_NODISCARD static auto createF32(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::IEEEsingle(), std::move(value));
 			}
-			EVO_NODISCARD static auto createF32(uint32_t value) -> GenericFloat {
-				return GenericFloat(std::bit_cast<float32_t>(value));
+			EVO_NODISCARD static auto createF32(float32_t value) -> GenericFloat {
+				return GenericFloat(value);
 			}
 
 			EVO_NODISCARD static auto createF64(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::IEEEdouble(), std::move(value));
 			}
-			EVO_NODISCARD static auto createF64(uint64_t value) -> GenericFloat {
-				return GenericFloat(std::bit_cast<float64_t>(value));
+			EVO_NODISCARD static auto createF64(float64_t value) -> GenericFloat {
+				return GenericFloat(value);
 			}
 
 			EVO_NODISCARD static auto createF80(GenericInt&& value) -> GenericFloat {
@@ -67,6 +67,13 @@ namespace pcit::core{
 
 			EVO_NODISCARD explicit operator float64_t() const { return this->ap_float.convertToDouble(); }
 			EVO_NODISCARD explicit operator float32_t() const { return this->ap_float.convertToFloat();  }
+
+
+			EVO_NODISCARD auto toString() const -> std::string {
+				auto output = std::string();
+				this->ap_float.toString(output);
+				return output;
+			}
 
 
 			//////////////////////////////////////////////////////////////////////

@@ -47,6 +47,13 @@ namespace pcit::core{
 			EVO_NODISCARD auto getBitWidth() const -> unsigned { return this->ap_int.getBitWidth(); }
 
 
+			EVO_NODISCARD auto toString(bool is_signed, unsigned base = 10) const -> std::string {
+				auto output = std::string();
+				this->ap_int.toString(output, base, is_signed);
+				return output;
+			}
+
+
 			//////////////////////////////////////////////////////////////////////
 			// arithmetic operations
 

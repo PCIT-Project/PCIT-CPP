@@ -9,16 +9,30 @@
 
 #pragma once
 
-#include "./generic_numbers/GenericInt.h"
-#include "./generic_numbers/GenericFloat.h"
-#include "./generic_numbers/GenericValue.h"
 
-#include "./Diagnostic.h"
-#include "./IterRange.h"
-#include "./LinearStepAlloc.h"
-#include "./Optional.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./StepAlloc.h"
-#include "./UniqueID.h"
-#include "./version.h"
+#include <Evo.h>
+#include <PCIT_core.h>
+
+
+
+namespace pcit::pir{
+
+	enum class CallingConvention{
+		Default, // C
+
+		C,
+		Fast,
+		Cold,
+	};
+
+
+	enum class Linkage{
+		Default, // Internal
+
+		Private,
+		Internal, // Like private, but shows up as a local symbol in the object file
+		External,
+	};
+
+}
+

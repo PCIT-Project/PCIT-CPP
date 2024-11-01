@@ -16,9 +16,35 @@ namespace pcit::core{
 
 
 	class Printer{
+		private:
+			// TODO: optimize this with templates
+			enum class Mode{
+				ConsoleColor,
+				Console,
+				String,
+
+				Uninit, // to facilitate move
+			};
+
+			Printer(Mode _mode);
+
 		public:
-			Printer(); // should print colors based on platformSupportsColor (unknown defaults to no color)
-			Printer(bool should_print_color);
+			static EVO_NODISCARD auto createConsole(bool with_color) -> Printer {
+				if(with_color){
+					return Printer(Mode::ConsoleColor);
+				}else{
+					return Printer(Mode::Console);
+				}
+			}
+
+			static EVO_NODISCARD auto createConsole() -> Printer {
+				return createConsole(platformSupportsColor() == DetectResult::Yes);
+			}
+
+			static EVO_NODISCARD auto createString() -> Printer {
+				return Printer(Mode::String);
+			}
+
 
 			~Printer();
 
@@ -34,11 +60,38 @@ namespace pcit::core{
 			EVO_NODISCARD static auto platformSupportsColor() -> DetectResult;
 
 
-			EVO_NODISCARD auto isPrintingColor() const -> bool { return this->print_color; }
+			EVO_NODISCARD auto isPrintingColor() const -> bool { return this->mode == Mode::ConsoleColor; }
+			EVO_NODISCARD auto isPrintingToConsle() const -> bool {
+				return this->mode == Mode::ConsoleColor || this->mode == Mode::Console;
+			}
+
+			EVO_NODISCARD auto isPrintingString() const -> bool { return this->mode == Mode::String; }
+
+
+			EVO_NODISCARD auto getString() const -> std::string {
+				evo::debugAssert(this->isPrintingString(), "not printing a string");
+				return this->string;
+			}
+
+
+			//////////////////////////////////////////////////////////////////////
+			// printing
 
 
 			auto print(std::string_view str) -> void;
+
+			template<class... Args>
+			auto print(std::format_string<Args...> fmt, Args&&... args) -> void {
+				this->print(std::format(fmt, std::forward<decltype(args)>(args)...));
+			}
+
+
 			auto println(std::string_view str) -> void;
+
+			template<class... Args>
+			auto println(std::format_string<Args...> fmt, Args&&... args) -> void {
+				this->println(std::format(fmt, std::forward<decltype(args)>(args)...));
+			}
 
 
 			///////////////////////////////////
@@ -46,7 +99,7 @@ namespace pcit::core{
 
 			auto printFatal(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printFatal(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printFatal(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -66,7 +119,7 @@ namespace pcit::core{
 
 			auto printError(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printError(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printError(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -86,7 +139,7 @@ namespace pcit::core{
 
 			auto printWarning(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printWarning(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printWarning(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -106,7 +159,7 @@ namespace pcit::core{
 
 			auto printInfo(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printInfo(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printInfo(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -126,7 +179,7 @@ namespace pcit::core{
 
 			auto printSuccess(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printSuccess(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printSuccess(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -147,7 +200,7 @@ namespace pcit::core{
 
 			auto printRed(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printRed(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printRed(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -167,7 +220,7 @@ namespace pcit::core{
 
 			auto printYellow(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printYellow(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printYellow(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -187,7 +240,7 @@ namespace pcit::core{
 
 			auto printGreen(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printGreen(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printGreen(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -207,7 +260,7 @@ namespace pcit::core{
 
 			auto printBlue(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printBlue(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printBlue(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -227,7 +280,7 @@ namespace pcit::core{
 
 			auto printCyan(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printCyan(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printCyan(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -247,7 +300,7 @@ namespace pcit::core{
 
 			auto printMagenta(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printMagenta(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printMagenta(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -267,7 +320,7 @@ namespace pcit::core{
 
 			auto printGray(std::string_view str) -> void;
 
-			template<class... Args >
+			template<class... Args>
 			auto printGray(std::format_string<Args...> fmt, Args&&... args) -> void {
 				this->printGray(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
@@ -281,10 +334,10 @@ namespace pcit::core{
 				this->printlnGray(std::format(fmt, std::forward<decltype(args)>(args)...));
 			}
 
-
 			
 		private:
-			bool print_color;
+			Mode mode;
+			std::string string;
 	};
 
 

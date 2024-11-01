@@ -9,16 +9,13 @@
 
 #pragma once
 
-#include "./generic_numbers/GenericInt.h"
-#include "./generic_numbers/GenericFloat.h"
-#include "./generic_numbers/GenericValue.h"
+#include "./enums.h"
+#include "./Type.h"
+#include "./Expr.h"
+#include "./BasicBlock.h"
+#include "./GlobalVar.h"
+#include "./Function.h"
+#include "./Module.h"
 
-#include "./Diagnostic.h"
-#include "./IterRange.h"
-#include "./LinearStepAlloc.h"
-#include "./Optional.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./StepAlloc.h"
-#include "./UniqueID.h"
-#include "./version.h"
+#include "./ModulePrinter.h"
+

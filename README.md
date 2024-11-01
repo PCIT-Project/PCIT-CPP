@@ -22,8 +22,8 @@ Statically typed, compiled, high-performance, general-purpose programming langua
 	- Nice / helpful error messages
 - Seamless interop with C and C++ without compromising on language design
 
-### IR
-*[Unnamed for now]*. Compiler IR / optimizing back-end.
+### PIR
+Compiler IR / optimizing back-end.
 
 ### Linker
 *[Unnamed for now]*. Linker that aims to make use between platforms (including cross-compilation) as seamless as possible.

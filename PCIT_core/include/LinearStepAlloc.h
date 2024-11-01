@@ -82,6 +82,142 @@ namespace pcit::core{
 			EVO_NODISCARD auto empty() const -> bool { return this->size() == 0; }
 
 
+
+			EVO_NODISCARD auto clear() -> void {
+				std::destroy_at(this);
+				std::construct_at(this);
+			}
+
+
+
+			//////////////////////////////////////////////////////////////////////
+			// iterators
+
+			class Iter{
+			    public:
+			        Iter(const ID& _index, LinearStepAlloc& _parent) : index(_index), parent(_parent) {};
+			        ~Iter() = default;
+
+
+			        auto operator++() -> Iter& {
+			            if constexpr(std::is_integral_v<ID>){
+			            	this->index += 1;
+			            }else{
+			            	this->index = ID(this->index.get() + 1);
+			            }
+			            return *this;
+			        }
+
+			        auto operator++(int) -> Iter {
+			            Iter iterator = *this;
+			            ++(*this);
+			            return iterator;
+			        }
+
+			        auto operator--() -> Iter& {
+			            if constexpr(std::is_integral_v<ID>){
+			            	this->index -= 1;
+			            }else{
+			            	this->index = ID(this->index.get() - 1);
+			            }
+			            return *this;
+			        }
+
+			        auto operator--(int) -> Iter {
+			            Iter iterator = *this;
+			            --(*this);
+			            return iterator;
+			        }
+
+
+			        EVO_NODISCARD auto operator*() const -> T& { return this->parent[this->index]; }
+			        EVO_NODISCARD auto operator->() const -> T* { return &this->parent[this->index]; }
+
+			        EVO_NODISCARD auto operator==(const Iter& rhs) const -> bool {
+			        	return this->index == rhs.index;
+			        }
+			        EVO_NODISCARD auto operator!=(const Iter& rhs) const -> bool {
+			        	return this->index != rhs.index;
+			        }
+
+			    private:
+			    	ID index;
+			        LinearStepAlloc& parent;
+			};
+
+
+			class ConstIter{
+			    public:
+			        ConstIter(const ID& _index, const LinearStepAlloc& _parent) : index(_index), parent(_parent) {};
+			        ~ConstIter() = default;
+
+
+			        auto operator++() -> ConstIter& {
+			            if constexpr(std::is_integral_v<ID>){
+			            	this->index += 1;
+			            }else{
+			            	this->index = ID(this->index.get() + 1);
+			            }
+			            return *this;
+			        }
+
+			        auto operator++(int) -> ConstIter {
+			            ConstIter iterator = *this;
+			            ++(*this);
+			            return iterator;
+			        }
+
+			        auto operator--() -> ConstIter& {
+			            if constexpr(std::is_integral_v<ID>){
+			            	this->index -= 1;
+			            }else{
+			            	this->index = ID(this->index.get() - 1);
+			            }
+			            return *this;
+			        }
+
+			        auto operator--(int) -> ConstIter {
+			            ConstIter iterator = *this;
+			            --(*this);
+			            return iterator;
+			        }
+
+
+			        EVO_NODISCARD auto operator*() const -> const T& { return this->parent[this->index]; }
+			        EVO_NODISCARD auto operator->() const -> const T* { return &this->parent[this->index]; }
+
+			        EVO_NODISCARD auto operator==(const ConstIter& rhs) const -> bool {
+			        	return this->index == rhs.index;
+			        }
+			        EVO_NODISCARD auto operator!=(const ConstIter& rhs) const -> bool {
+			        	return this->index != rhs.index;
+			        }
+
+			    private:
+			    	ID index;
+			        const LinearStepAlloc& parent;
+			};
+
+
+			EVO_NODISCARD auto begin()        ->     Iter { return Iter(ID(0), *this);       }
+			EVO_NODISCARD auto begin()  const -> ConstIter { return ConstIter(ID(0), *this); }
+			EVO_NODISCARD auto cbegin() const -> ConstIter { return ConstIter(ID(0), *this); }
+
+			EVO_NODISCARD auto end()        ->      Iter { return Iter(ID(uint32_t(this->size())), *this);      }
+			EVO_NODISCARD auto end()  const -> ConstIter { return ConstIter(ID(uint32_t(this->size())), *this); }
+			EVO_NODISCARD auto cend() const -> ConstIter { return ConstIter(ID(uint32_t(this->size())), *this); }
+
+
+			EVO_NODISCARD auto rbegin()        ->      Iter { return Iter(ID(uint32_t(this->size() - 1)), *this);      }
+			EVO_NODISCARD auto rbegin()  const -> ConstIter { return ConstIter(ID(uint32_t(this->size() - 1)), *this); }
+			EVO_NODISCARD auto crbegin() const -> ConstIter { return ConstIter(ID(uint32_t(this->size() - 1)), *this); }
+
+			EVO_NODISCARD auto rend()        ->      Iter { return Iter(ID(~uint32_t(0)), *this);      }
+			EVO_NODISCARD auto rend()  const -> ConstIter { return ConstIter(ID(~uint32_t(0)), *this); }
+			EVO_NODISCARD auto crend() const -> ConstIter { return ConstIter(ID(~uint32_t(0)), *this); }
+
+
+
 		private:
 			EVO_NODISCARD auto size_when_not_fully_deallocated() const -> size_t {
 				return (size_t(1) << (this->buffers.size() - 1 + STARTING_POW_OF_2)) - (1 << STARTING_POW_OF_2)

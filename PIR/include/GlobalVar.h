@@ -9,16 +9,33 @@
 
 #pragma once
 
-#include "./generic_numbers/GenericInt.h"
-#include "./generic_numbers/GenericFloat.h"
-#include "./generic_numbers/GenericValue.h"
 
-#include "./Diagnostic.h"
-#include "./IterRange.h"
-#include "./LinearStepAlloc.h"
-#include "./Optional.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./StepAlloc.h"
-#include "./UniqueID.h"
-#include "./version.h"
+#include <Evo.h>
+#include <PCIT_core.h>
+
+
+#include "./enums.h"
+#include "./Type.h"
+#include "./Expr.h"
+
+namespace pcit::pir{
+
+
+	struct GlobalVar{
+		std::string name;
+		Type type;
+		Linkage linkage;
+		std::optional<Expr> value;
+		bool isConstant;
+		bool isExternal;
+
+		// For lookup in Module
+		struct ID : public core::UniqueID<uint32_t, struct ID> {
+			using core::UniqueID<uint32_t, ID>::UniqueID;
+		};
+
+	};
+
+
+}
+
