@@ -1,10 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.53.0
+
+### PIR
+- Added `PassManager`
+- Added `passes::instCombine`
+	- `passes::instSimplify`
+	- `passes::constantFolding`
+
+### PCIT_core
+- Added `SpinLock`
+- Added `ThreadPool`
+
+
+<!---------------------------------->
 ## v0.0.52.0
 
 ### PIR
-- Added the PIR project. General project layout has been created.
+- Added the PIR project. General project layout has been created
 
 ### PCIT_core
 - Added `StepAlloc`

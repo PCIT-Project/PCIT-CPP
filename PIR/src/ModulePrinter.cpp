@@ -43,11 +43,11 @@ namespace pcit::pir{
 			this->print_global_var(global_var);
 		}
 
-		for(const FunctionDecl& function_decl : this->module.getFunctionDeclsIter()){
+		for(const FunctionDecl& function_decl : this->module.getFunctionDeclIter()){
 			this->print_function_decl(function_decl);
 		}
 
-		for(const Function& function : this->module.getFunctionsIter()){
+		for(const Function& function : this->module.getFunctionIter()){
 			this->print_function(function);
 		}
 	}
@@ -303,9 +303,14 @@ namespace pcit::pir{
 				this->printer.print("${}", global_var.name);
 			} break;
 
+			case Expr::Kind::ParamExpr: {
+				const ParamExpr param_expr = this->func->getParamExpr(expr);
+				this->printer.print("${}", this->func->getParameters()[param_expr.index].getName());
+			} break;
+
 			case Expr::Kind::CallInst: {
-				// TODO: 
-				evo::debugFatalBreak("UNIMPLEMENTED");
+				const CallInst& call_inst = this->func->getCallInst(expr);
+				this->printer.print("${}", call_inst.name);
 			} break;
 
 			case Expr::Kind::CallVoidInst: evo::debugFatalBreak("Expr::Kind::CallVoidInst is not a valid expression");
@@ -326,6 +331,7 @@ namespace pcit::pir{
 
 			case Expr::Kind::Number:      evo::debugFatalBreak("Expr::Kind::Number is not a valid statement");
 			case Expr::Kind::GlobalValue: evo::debugFatalBreak("Expr::Kind::GlobalValue is not a valid statement");
+			case Expr::Kind::ParamExpr:   evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
 
 			case Expr::Kind::CallInst: {
 				const CallInst& call_inst = this->func->getCallInst(expr);
@@ -391,6 +397,7 @@ namespace pcit::pir{
 				this->printer.print("${}", this->module.getFunctionDecl(target).name);
 				
 			}else if constexpr(std::is_same_v<ValueT, PtrCall>){
+				// TODO: 
 				evo::debugFatalBreak("UNIMPLEMENTED");
 
 			}else{

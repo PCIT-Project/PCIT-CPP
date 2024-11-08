@@ -343,16 +343,16 @@ namespace pcit::panther{
 			// TODO: improve lookup times
 
 			core::LinearStepAlloc<BaseType::Primitive, BaseType::Primitive::ID> primitives{};
-			mutable std::shared_mutex primitives_mutex{};
+			mutable core::SpinLock primitives_mutex{};
 
 			core::LinearStepAlloc<BaseType::Function, BaseType::Function::ID> functions{};
-			mutable std::shared_mutex functions_mutex{};
+			mutable core::SpinLock functions_mutex{};
 
 			core::LinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
-			mutable std::shared_mutex aliases_mutex{};
+			mutable core::SpinLock aliases_mutex{};
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
-			mutable std::shared_mutex types_mutex{};
+			mutable core::SpinLock types_mutex{};
 	};
 
 

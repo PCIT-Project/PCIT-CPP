@@ -234,7 +234,7 @@ namespace pcit::panther{
 			class Context& context;
 			core::Printer& printer;
 
-			mutable std::shared_mutex mutex{};
+			mutable core::SpinLock mutex{};
 			bool requires_engine_restart = false;
 
 			struct Data;

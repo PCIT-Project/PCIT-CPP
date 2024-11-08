@@ -383,7 +383,7 @@ namespace pcit::panther::ASG{
 
 
 		private:
-			mutable std::shared_mutex body_analysis_mutex{};
+			mutable core::SpinLock body_analysis_mutex{};
 			bool is_body_analyzed = false;
 			bool is_body_errored = false; // only need to set if func is not runtime
 			AST::FuncDecl ast_func;
@@ -495,7 +495,7 @@ namespace pcit::panther::ASG{
 			// TODO: speedup lookup?
 			// TODO: better allocation?
 			evo::SmallVector<std::unique_ptr<Instatiation>> instantiations{};
-			mutable std::mutex instance_lock{};
+			mutable core::SpinLock instance_lock{};
 	};
 
 

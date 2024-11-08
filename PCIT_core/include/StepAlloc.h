@@ -11,7 +11,9 @@
 
 
 #include <Evo.h>
+
 #include <stack>
+#include <shared_mutex>
 
 #include "./LinearStepAlloc.h"
 
@@ -37,6 +39,8 @@ namespace pcit::core{
 			
 
 			EVO_NODISCARD auto emplace_back(auto&&... args) -> ID {
+				const auto lock = std::unique_lock(this->mutex);
+
 				if(this->erased_elems.empty() == false){
 					const ID new_elem_id = this->erased_elems.top();
 					this->erased_elems.pop();
@@ -50,6 +54,8 @@ namespace pcit::core{
 
 
 			auto erase(ID id) -> void {
+				const auto lock = std::unique_lock(this->mutex);
+
 				this->linear_step_alloc[id].reset();
 				this->erased_elems.push(id);
 
@@ -61,10 +67,14 @@ namespace pcit::core{
 
 
 			auto operator[](const ID& id) const -> const T& {
+				const auto lock = std::shared_lock(this->mutex);
+
 				return *this->linear_step_alloc[id];
 			}
 
 			auto operator[](const ID& id) -> T& {
+				const auto lock = std::shared_lock(this->mutex);
+
 				return *this->linear_step_alloc[id];
 			}
 
@@ -74,6 +84,8 @@ namespace pcit::core{
 
 
 			EVO_NODISCARD auto clear() -> void {
+				const auto lock = std::unique_lock(this->mutex);
+
 				std::destroy_at(this);
 				std::construct_at(this);
 			}
@@ -238,6 +250,7 @@ namespace pcit::core{
 		private:
 			LinearStepAlloc<std::optional<T>, ID, STARTING_POW_OF_2> linear_step_alloc{};
 			std::stack<ID> erased_elems{};
+			mutable core::SpinLock mutex{};
 
 			friend Iter;
 	};

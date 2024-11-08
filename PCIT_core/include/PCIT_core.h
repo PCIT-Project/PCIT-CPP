@@ -19,6 +19,8 @@
 #include "./Optional.h"
 #include "./platform.h"
 #include "./Printer.h"
+#include "./SpinLock.h"
 #include "./StepAlloc.h"
+#include "./ThreadPool.h"
 #include "./UniqueID.h"
 #include "./version.h"

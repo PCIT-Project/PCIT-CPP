@@ -60,10 +60,10 @@ namespace pcit::pir{
 
 		public:
 			// Don't call this directly, go through Module
-			Function(const class Module& module, const FunctionDecl& declaration)
+			Function(class Module& module, const FunctionDecl& declaration)
 				: parent_module(module), func_decl(declaration) {}
 
-			Function(const class Module& module, FunctionDecl&& declaration)
+			Function(class Module& module, FunctionDecl&& declaration)
 				: parent_module(module), func_decl(std::move(declaration)) {}
 
 			~Function() = default;
@@ -89,6 +89,21 @@ namespace pcit::pir{
 			// exprs
 
 			EVO_NODISCARD auto getExprType(const Expr& expr) const -> Type;
+
+			EVO_NODISCARD auto replaceExpr(const Expr& original, const Expr& replacement) -> void;
+
+
+			///////////////////////////////////
+			// ParamExpr
+
+			EVO_NODISCARD static auto createParamExpr(uint32_t index) -> Expr {
+				return Expr(Expr::Kind::ParamExpr, index);
+			}
+
+			EVO_NODISCARD static auto getParamExpr(const Expr& expr) -> ParamExpr {
+				evo::debugAssert(expr.getKind() == Expr::Kind::ParamExpr, "not a param expr");
+				return ParamExpr(expr.index);
+			}
 
 
 			///////////////////////////////////
@@ -233,7 +248,7 @@ namespace pcit::pir{
 	
 		private:
 			FunctionDecl func_decl;
-			const Module& parent_module;
+			Module& parent_module;
 
 			evo::SmallVector<BasicBlock::ID> basic_blocks{};
 

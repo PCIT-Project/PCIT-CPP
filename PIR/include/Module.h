@@ -51,14 +51,14 @@ namespace pcit::pir{
 
 
 
-			using FunctionsIter = core::StepAlloc<Function, Function::ID>::Iter;
+			using FunctionIter = core::StepAlloc<Function, Function::ID>::Iter;
 			using FunctionsConstIter = core::StepAlloc<Function, Function::ID>::ConstIter;
 
-			EVO_NODISCARD auto getFunctionsIter() -> core::IterRange<FunctionsIter> {
-				return core::IterRange<FunctionsIter>(this->functions.begin(), this->functions.end());
+			EVO_NODISCARD auto getFunctionIter() -> core::IterRange<FunctionIter> {
+				return core::IterRange<FunctionIter>(this->functions.begin(), this->functions.end());
 			}
 
-			EVO_NODISCARD auto getFunctionsIter() const -> core::IterRange<FunctionsConstIter> {
+			EVO_NODISCARD auto getFunctionIter() const -> core::IterRange<FunctionsConstIter> {
 				return core::IterRange<FunctionsConstIter>(this->functions.cbegin(), this->functions.cend());
 			}
 
@@ -83,16 +83,16 @@ namespace pcit::pir{
 			}
 
 
-			using FunctionDeclsIter = core::StepAlloc<FunctionDecl, FunctionDecl::ID>::Iter;
+			using FunctionDeclIter = core::StepAlloc<FunctionDecl, FunctionDecl::ID>::Iter;
 			using FunctionDeclsConstIter = core::StepAlloc<FunctionDecl, FunctionDecl::ID>::ConstIter;
 
-			EVO_NODISCARD auto getFunctionDeclsIter() -> core::IterRange<FunctionDeclsIter> {
-				return core::IterRange<FunctionDeclsIter>(
+			EVO_NODISCARD auto getFunctionDeclIter() -> core::IterRange<FunctionDeclIter> {
+				return core::IterRange<FunctionDeclIter>(
 					this->function_decls.begin(), this->function_decls.end()
 				);
 			}
 
-			EVO_NODISCARD auto getFunctionDeclsIter() const -> core::IterRange<FunctionDeclsConstIter> {
+			EVO_NODISCARD auto getFunctionDeclIter() const -> core::IterRange<FunctionDeclsConstIter> {
 				return core::IterRange<FunctionDeclsConstIter>(
 					this->function_decls.cbegin(), this->function_decls.cend()
 				);
@@ -137,14 +137,14 @@ namespace pcit::pir{
 			}
 
 
-			using GlobalVarsIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::Iter;
+			using GlobalVarIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::Iter;
 			using GlobalVarsConstIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::ConstIter;
 
-			EVO_NODISCARD auto getGlobalVarsIter() -> core::IterRange<GlobalVarsIter> {
-				return core::IterRange<GlobalVarsIter>(this->global_vars.begin(), this->global_vars.end());
+			EVO_NODISCARD auto getGlobalVarIter() -> core::IterRange<GlobalVarIter> {
+				return core::IterRange<GlobalVarIter>(this->global_vars.begin(), this->global_vars.end());
 			}
 
-			EVO_NODISCARD auto getGlobalVarsIter() const -> core::IterRange<GlobalVarsConstIter> {
+			EVO_NODISCARD auto getGlobalVarIter() const -> core::IterRange<GlobalVarsConstIter> {
 				return core::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
 			}
 
@@ -214,27 +214,6 @@ namespace pcit::pir{
 				return this->getGlobalVar(GlobalVar::ID(expr.index));
 			}
 
-
-			using GlobalVarIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::Iter;
-			using GlobalVarConstIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::ConstIter;
-
-			EVO_NODISCARD auto getGlobalVarIter() -> core::IterRange<GlobalVarIter> {
-				return core::IterRange<GlobalVarIter>(
-					this->global_vars.begin(), this->global_vars.end()
-				);
-			}
-
-			EVO_NODISCARD auto getGlobalVarIter() const -> core::IterRange<GlobalVarConstIter> {
-				return core::IterRange<GlobalVarConstIter>(
-					this->global_vars.cbegin(), this->global_vars.cend()
-				);
-			}
-
-			EVO_NODISCARD auto getGlobalVarConstIter() const -> core::IterRange<GlobalVarConstIter> {
-				return core::IterRange<GlobalVarConstIter>(
-					this->global_vars.cbegin(), this->global_vars.cend()
-				);
-			}
 
 
 			///////////////////////////////////

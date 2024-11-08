@@ -102,7 +102,7 @@ auto main(int argc, const char* argv[]) -> int {
 		"test",
 		evo::SmallVector<pcit::pir::Parameter>{
 			pcit::pir::Parameter("vec2", vec2),
-			pcit::pir::Parameter("number", module.createTypeFloat(80))
+			pcit::pir::Parameter("number", module.createTypeUnsigned(64))
 		},
 		pcit::pir::CallingConvention::Fast,
 		pcit::pir::Linkage::Internal,
@@ -116,11 +116,18 @@ auto main(int argc, const char* argv[]) -> int {
 
 	const pcit::pir::Expr add = testing_func.createAdd(
 		"ADD",
-		module.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(12)),
-		module.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(75)),
+		module.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(9)),
+		module.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(3)),
 		false
 	);
 	entry_block.append(add);
+
+	const pcit::pir::Expr add2 = testing_func.createAdd("ADD2", add, module.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(0)), false);
+	entry_block.append(add2);
+
+	const pcit::pir::Expr add3 = testing_func.createAdd("ADD3", add2, testing_func.createParamExpr(1), false);
+	entry_block.append(add3);
+
 
 
 	const pcit::pir::BasicBlock::ID second_block_id = module.createBasicBlock("SECOND");
@@ -134,7 +141,7 @@ auto main(int argc, const char* argv[]) -> int {
 		puts_decl, evo::SmallVector<pcit::pir::Expr>{module.createGlobalValue(global)}
 	));
 
-	second_block.append(testing_func.createRetInst(add));
+	second_block.append(testing_func.createRetInst(add2));
 
 
 
@@ -142,6 +149,18 @@ auto main(int argc, const char* argv[]) -> int {
 	pcit::pir::printModule(module, printer);
 
 
+	printer.printlnGray("--------------------------------");
+
+	auto pass_manager = pcit::pir::PassManager(module, 12);
+
+	pass_manager.addPass(pcit::pir::passes::instCombine());
+	const bool opt_result = pass_manager.run();
+	if(opt_result == false){
+		printer.printlnError("Error occured while running pass");
+		return EXIT_FAILURE;
+	}
+
+	pcit::pir::printModule(module, printer);
 
 	// end test
 	//////////////////////////////////////////////////////////////////////

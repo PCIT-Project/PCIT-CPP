@@ -19,3 +19,5 @@
 
 #include "./ModulePrinter.h"
 
+#include "./PassManager.h"
+#include "./passes/instCombine.h"

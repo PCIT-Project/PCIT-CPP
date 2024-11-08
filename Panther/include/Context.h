@@ -63,7 +63,6 @@ namespace pcit::panther{
 			Context(const Context&) = delete;
 			auto operator=(const Context&) = delete;
 
-			// Returns 0 if number is unknown
 			EVO_NODISCARD static auto optimalNumThreads() -> unsigned;
 
 			EVO_NODISCARD auto isSingleThreaded() const -> bool { return this->config.numThreads == 0; }
@@ -193,17 +192,17 @@ namespace pcit::panther{
 			core::Printer& printer;
 
 			SourceManager src_manager;
-			mutable std::mutex src_manager_mutex{};
+			mutable core::SpinLock src_manager_mutex{};
 
 			TypeManager type_manager;
 
 			DiagnosticCallback callback;
-			mutable std::mutex callback_mutex{};
+			mutable core::SpinLock callback_mutex{};
 
 			ScopeManager scope_manager{};
 
 			std::optional<ASG::Func::LinkID> entry{};
-			mutable std::shared_mutex entry_mutex{};
+			mutable core::SpinLock entry_mutex{};
 
 			std::array<Intrinsic, size_t(Intrinsic::Kind::_max_)> intrinsics{};
 			std::array<TemplatedIntrinsic, size_t(TemplatedIntrinsic::Kind::_max_)> templated_intrinsics{};
@@ -236,6 +235,11 @@ namespace pcit::panther{
 				Source::ID source_id;
 			};
 
+			struct LoadTokenizeAndParseFileTask{
+				fs::path path;
+				int num;
+			};
+
 			struct SemaGlobalDeclsTask{
 				Source::ID source_id;
 			};
@@ -252,13 +256,14 @@ namespace pcit::panther{
 				LoadFileTask,
 				TokenizeFileTask,
 				ParseFileTask,
+				LoadTokenizeAndParseFileTask,
 				SemaGlobalDeclsTask,
 				SemaGlobalStmtsComptimeTask,
 				SemaGlobalStmtsRuntimeTask
 			>;
 
 			std::queue<std::unique_ptr<Task>> tasks{};
-			std::mutex tasks_mutex{};
+			core::SpinLock tasks_mutex{};
 
 
 			class Worker{

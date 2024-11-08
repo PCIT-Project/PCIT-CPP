@@ -27,6 +27,7 @@ namespace pcit::pir{
 				// values
 				GlobalValue,
 				Number,
+				ParamExpr,
 
 				// stmts
 				CallInst,
@@ -43,7 +44,8 @@ namespace pcit::pir{
 			EVO_NODISCARD constexpr auto getKind() const -> Kind { return this->kind; }
 
 			EVO_NODISCARD auto isValue() const -> bool {
-				return this->isConstant() || this->kind == Kind::CallInst || this->kind == Kind::Add;
+				return this->isConstant() || this->kind == Kind::ParamExpr || this->kind == Kind::CallInst ||
+					   this->kind == Kind::Add;
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
@@ -59,6 +61,15 @@ namespace pcit::pir{
 			EVO_NODISCARD auto isTerminator() const -> bool {
 				return this->kind == Kind::RetInst || this->kind == Kind::BrInst;
 			}
+
+
+			EVO_NODISCARD auto operator==(const Expr&) const -> bool = default;
+
+			constexpr auto operator=(const Expr& rhs) -> Expr& {
+				this->kind = rhs.kind;
+				this->index = rhs.index;
+				return *this;
+			}	
 
 
 		private:
@@ -133,6 +144,10 @@ namespace pcit::pir{
 			evo::Variant<core::GenericInt, core::GenericFloat> value;
 	};
 
+	struct ParamExpr{
+		uint32_t index;
+	};
+
 
 	struct PtrCall{
 		Expr location;
@@ -164,8 +179,6 @@ namespace pcit::pir{
 		Expr rhs;
 		bool mayWrap;
 	};
-
-
 
 
 }

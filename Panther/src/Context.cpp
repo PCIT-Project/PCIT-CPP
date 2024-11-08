@@ -515,7 +515,7 @@ namespace pcit::panther{
 				break;
 			}
 
-			std::this_thread::sleep_for(std::chrono::milliseconds(32));
+			std::this_thread::yield();
 		}
 
 		this->task_group_running = false;
@@ -772,7 +772,7 @@ namespace pcit::panther{
 
 		if(task == nullptr){
 			this->is_working = false;
-			std::this_thread::sleep_for(std::chrono::milliseconds(32));
+			std::this_thread::yield();
 
 		}else{
 			this->is_working = true;

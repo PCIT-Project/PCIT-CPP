@@ -188,7 +188,7 @@ namespace pcit::panther{
 	
 		private:
 			core::LinearStepAlloc<Level, Level::ID> scope_levels{};
-			mutable std::shared_mutex mutex{};
+			mutable core::SpinLock mutex{};
 	};
 
 	// just to help SemanticAnalyzer keep track of the global declarations

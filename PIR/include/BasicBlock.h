@@ -15,6 +15,8 @@
 #include "./forward_decl_ids.h"
 #include "./Expr.h"
 
+#include <iterator>
+
 namespace pcit::pir{
 
 
@@ -50,6 +52,12 @@ namespace pcit::pir{
 			}
 
 
+			auto remove(size_t index) -> void {
+				Iter remove_target = this->begin();
+				std::advance(remove_target, ptrdiff_t(index + 1));
+				this->exprs.erase(remove_target);
+			}
+
 
 
 			//////////////////////////////////////////////////////////////////////
@@ -76,6 +84,19 @@ namespace pcit::pir{
 			EVO_NODISCARD auto rend()        -> ReverseIter          { return this->exprs.rend();  };
 			EVO_NODISCARD auto rend()  const -> ConstReverseIterator { return this->exprs.rend();  };
 			EVO_NODISCARD auto crend() const -> ConstReverseIterator { return this->exprs.crend(); };
+
+
+			EVO_NODISCARD auto front() const -> const Expr& { return this->exprs.front(); }
+			EVO_NODISCARD auto front()       ->       Expr& { return this->exprs.front(); }
+
+			EVO_NODISCARD auto back() const -> const Expr& { return this->exprs.back(); }
+			EVO_NODISCARD auto back()       ->       Expr& { return this->exprs.back(); }
+
+
+			EVO_NODISCARD auto size() const -> size_t { return this->exprs.size(); }
+
+			EVO_NODISCARD auto operator[](size_t i) const -> const Expr& { return this->exprs[i]; }
+			EVO_NODISCARD auto operator[](size_t i)       ->       Expr& { return this->exprs[i]; }
 	
 		private:
 			std::string name;
