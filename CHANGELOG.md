@@ -1,6 +1,12 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.55.0
+- Updated License to Apache License v2.0 with LLVM and PCIT exceptions
+- Fixed LLVM license missing
+
+
+<!---------------------------------->
 ## v0.0.54.1
 
 ### PIR
