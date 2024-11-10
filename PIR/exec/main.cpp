@@ -141,15 +141,14 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.createRetInst(add2);
 
 
-
 	printer.printlnGray("--------------------------------");
 	pcit::pir::printModule(module, printer);
 
 
 	printer.printlnGray("--------------------------------");
 
-	// const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
-	const unsigned num_threads = 0;
+	const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
+	// const unsigned num_threads = 0;
 	auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
 	pass_manager.addPass(pcit::pir::passes::instCombine());

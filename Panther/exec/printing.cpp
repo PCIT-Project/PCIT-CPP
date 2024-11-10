@@ -316,7 +316,7 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("Value");
 					if(var_decl.value.has_value()){
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(*var_decl.value);
 						this->indenter.pop();
@@ -347,7 +347,7 @@ namespace pthr{
 						const panther::AST::TemplatePack& template_pack = 
 							this->ast_buffer.getTemplatePack(*func_decl.templatePack);
 
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						for(size_t i = 0; const panther::AST::TemplatePack::Param& param : template_pack.params){
 							if(i + 1 < template_pack.params.size()){
@@ -388,7 +388,7 @@ namespace pthr{
 					if(func_decl.params.empty()){
 						this->printer.printGray(" {NONE}\n");
 					}else{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						for(size_t i = 0; const panther::AST::FuncDecl::Param& param : func_decl.params){
 							if(i + 1 < func_decl.params.size()){
@@ -444,7 +444,7 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Returns");
-					this->printer.print("\n");
+					this->printer.println();
 					{
 						this->indenter.push();
 						for(size_t i = 0; const panther::AST::FuncDecl::Return& return_param : func_decl.returns){
@@ -542,7 +542,7 @@ namespace pthr{
 
 						}else if constexpr(std::is_same_v<ValueT, panther::AST::Node>){
 							this->indenter.push();
-							this->printer.print("\n");
+							this->printer.println();
 							this->print_expr(value);
 							this->indenter.pop();
 
@@ -587,7 +587,7 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Condition");
 					this->indenter.push();
-					this->printer.print("\n");
+					this->printer.println();
 					this->print_expr(cond);
 					this->indenter.pop();
 
@@ -617,7 +617,7 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Condition");
 					this->indenter.push();
-					this->printer.print("\n");
+					this->printer.println();
 					this->print_expr(while_loop.cond);
 					this->indenter.pop();
 
@@ -636,7 +636,7 @@ namespace pthr{
 
 				}else{
 					if(is_not_on_newline){
-						this->printer.print("\n");
+						this->printer.println();
 					}
 
 					{
@@ -664,7 +664,7 @@ namespace pthr{
 
 						this->indenter.print_end();
 						this->print_minor_header("Statements");
-						this->printer.print("\n");
+						this->printer.println();
 						{
 							this->indenter.push();
 
@@ -770,7 +770,7 @@ namespace pthr{
 				if(type.base.kind() == panther::AST::Kind::PrimitiveType){
 					this->printer.printGray(" {PRIMITIVE}\n");
 				}else{
-					this->printer.print("\n");
+					this->printer.println();
 				}
 			}
 
@@ -847,7 +847,7 @@ namespace pthr{
 							break; default: evo::debugFatalBreak("Unknown token kind");
 						}
 
-						this->printer.print("\n");
+						this->printer.println();
 					} break;
 
 
@@ -890,7 +890,7 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("RHS");
 					{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(prefix.rhs);
 						this->indenter.pop();
@@ -915,7 +915,7 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("LHS");
 					{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(infix.lhs);
 						this->indenter.pop();
@@ -924,7 +924,7 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("RHS");
 					{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(infix.rhs);
 						this->indenter.pop();
@@ -944,7 +944,7 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Assignments");
-					this->printer.print("\n");
+					this->printer.println();
 					{
 						this->indenter.push();
 						for(size_t i = 0; const panther::AST::Node& assign : multi_assign.assigns){
@@ -979,7 +979,7 @@ namespace pthr{
 
 					this->indenter.print_end();
 					this->print_minor_header("Value");
-					this->printer.print("\n");
+					this->printer.println();
 					this->indenter.push();
 					this->print_expr(multi_assign.value);
 					this->indenter.pop();
@@ -1002,7 +1002,7 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("LHS");
 					{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(infix.lhs);
 						this->indenter.pop();
@@ -1011,7 +1011,7 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("RHS");
 					{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(infix.rhs);
 						this->indenter.pop();
@@ -1034,7 +1034,7 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("LHS");
 					{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(postfix.lhs);
 						this->indenter.pop();
@@ -1054,7 +1054,7 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Target");
 					{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(func_call.target);
 						this->indenter.pop();
@@ -1065,7 +1065,7 @@ namespace pthr{
 					if(func_call.args.empty()){
 						this->printer.printGray(" {EMPTY}\n");
 					}else{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 
 						for(size_t i = 0; const panther::AST::FuncCall::Arg& arg : func_call.args){
@@ -1087,13 +1087,13 @@ namespace pthr{
 
 									this->indenter.print_end();
 									this->print_minor_header("Expression");
-									this->printer.print("\n");
+									this->printer.println();
 									this->indenter.push();
 									this->print_expr(arg.value);
 									this->indenter.pop();
 								}else{
 									// this->print_minor_header("Expression");
-									// this->printer.print("\n");
+									// this->printer.println();
 									this->print_expr(arg.value);
 								}
 
@@ -1124,7 +1124,7 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Base");
 					{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 						this->print_expr(templated_expr.base);
 						this->indenter.pop();
@@ -1135,7 +1135,7 @@ namespace pthr{
 					if(templated_expr.args.empty()){
 						this->printer.printGray(" {EMPTY}\n");
 					}else{
-						this->printer.print("\n");
+						this->printer.println();
 						this->indenter.push();
 
 						for(size_t i = 0; const panther::AST::Node& arg : templated_expr.args){
@@ -1170,7 +1170,7 @@ namespace pthr{
 				if(attr_block.attributes.empty()){
 					this->printer.printGray(" {NONE}\n");
 				}else{
-					this->printer.print("\n");
+					this->printer.println();
 
 					this->indenter.push();
 					for(size_t i = 0; const panther::AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
@@ -1196,14 +1196,14 @@ namespace pthr{
 
 							}else if(attribute.args.size() == 1){
 								this->print_minor_header("Argument");
-								this->printer.print("\n");
+								this->printer.println();
 								this->indenter.push();
 								this->print_expr(attribute.args[0]);
 								this->indenter.pop();
 
 							}else{
 								this->print_minor_header("Arguments");
-								this->printer.print("\n");
+								this->printer.println();
 								this->indenter.push();
 								for(size_t j = 0; const panther::AST::Node& arg : attribute.args){
 									if(j - 1 < attribute.args.size()){

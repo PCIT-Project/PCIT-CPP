@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.54.1
+
+### PIR
+- Made most functions of `Agent` const
+- Modified API of `PassManager` passes to `const Agent&` instead of `Agent&`
+- Removed `;`s from printing
+- Fixed printing of `@add` instruction
+- Fixed potential issues when multithreading `PassManager`
+
+
+<!---------------------------------->
 ## v0.0.54.0
 
 ### PIR

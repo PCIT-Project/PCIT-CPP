@@ -22,7 +22,7 @@ namespace pcit::pir{
 	class PassManager{
 		public:
 			struct StmtPass{
-				using Func = std::function<bool(class Expr&, class Agent&)>;
+				using Func = std::function<bool(class Expr&, const class Agent&)>;
 				Func func;
 			};
 
@@ -45,6 +45,11 @@ namespace pcit::pir{
 				}
 			}
 
+			EVO_NODISCARD static auto optimalNumThreads() -> unsigned {
+				return unsigned(core::ThreadPool<ThreadPoolItem>::optimalNumThreads());
+			}
+
+
 			auto addPass(const StmtPassGroup& pass) -> void { this->pass_groups.emplace_back(pass); }
 			auto addPass(StmtPassGroup&& pass) -> void { this->pass_groups.emplace_back(std::move(pass)); }
 
@@ -55,7 +60,6 @@ namespace pcit::pir{
 			EVO_NODISCARD auto run_multi_threaded() -> bool;
 
 			struct StmtPassGroupItem{
-				BasicBlock& basic_block;
 				Function& func;
 			};
 			EVO_NODISCARD auto run_single_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool;

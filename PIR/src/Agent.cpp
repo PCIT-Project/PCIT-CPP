@@ -36,12 +36,7 @@ namespace pcit::pir{
 		this->target_basic_block = nullptr;
 	}
 
-	auto Agent::getTargetFunction() const -> const Function& {
-		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		return *this->target_func;
-	}
-
-	auto Agent::getTargetFunction() -> Function& {
+	auto Agent::getTargetFunction() const -> Function& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		return *this->target_func;
 	}
@@ -63,12 +58,7 @@ namespace pcit::pir{
 		this->target_basic_block = nullptr;
 	}
 
-	auto Agent::getTargetBasicBlock() const -> const BasicBlock& {
-		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		return *this->target_basic_block;
-	}
-
-	auto Agent::getTargetBasicBlock() -> BasicBlock& {
+	auto Agent::getTargetBasicBlock() const -> BasicBlock& {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		return *this->target_basic_block;
 	}
@@ -86,7 +76,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::replaceExpr(Expr original, const Expr& replacement) -> void {
+	auto Agent::replaceExpr(Expr original, const Expr& replacement) const -> void {
 		evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 
 		struct OriginalLocation{
@@ -177,22 +167,22 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// basic blocks
 
-	auto Agent::createBasicBlock(std::string&& name, Function::ID func) -> BasicBlock::ID {
+	auto Agent::createBasicBlock(std::string&& name, Function::ID func) const -> BasicBlock::ID {
 		return this->createBasicBlock(std::move(name), this->module.getFunction(func));
 	}
 
-	auto Agent::createBasicBlock(std::string&& name, Function& func) -> BasicBlock::ID {
+	auto Agent::createBasicBlock(std::string&& name, Function& func) const -> BasicBlock::ID {
 		const pcit::pir::BasicBlock::ID new_block_id = this->module.basic_blocks.emplace_back(std::move(name));
 		func.append_basic_block(new_block_id);
 		return new_block_id;
 	}
 
-	auto Agent::createBasicBlock(std::string&& name) -> BasicBlock::ID {
+	auto Agent::createBasicBlock(std::string&& name) const -> BasicBlock::ID {
 		evo::debugAssert(this->hasTargetFunction(), "Cannot use this function as there is no function target set");
 		return this->createBasicBlock(std::move(name), *this->target_func);
 	}
 
-	auto Agent::getBasicBlock(BasicBlock::ID id) -> BasicBlock& {
+	auto Agent::getBasicBlock(BasicBlock::ID id) const -> BasicBlock& {
 		return this->module.basic_blocks[id];
 	}
 
@@ -200,27 +190,31 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// numbers
 
-	auto Agent::createNumber(const Type& type, core::GenericInt&& value) -> Expr {
+	auto Agent::createNumber(const Type& type, core::GenericInt&& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
 		evo::debugAssert(type.isIntegral(), "Type and value must both be integral or both be floating");
+
 		return Expr(Expr::Kind::Number, this->module.numbers.emplace_back(type, std::move(value)));
 	}
 
-	auto Agent::createNumber(const Type& type, const core::GenericInt& value) -> Expr {
+	auto Agent::createNumber(const Type& type, const core::GenericInt& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
 		evo::debugAssert(type.isIntegral(), "Type and value must both be integral or both be floating");
+
 		return Expr(Expr::Kind::Number, this->module.numbers.emplace_back(type, value));
 	}
 
-	auto Agent::createNumber(const Type& type, core::GenericFloat&& value) -> Expr {
+	auto Agent::createNumber(const Type& type, core::GenericFloat&& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
 		evo::debugAssert(type.isFloat(), "Type and value must both be integral or both be floating");
+
 		return Expr(Expr::Kind::Number, this->module.numbers.emplace_back(type, std::move(value)));
 	}
 
-	auto Agent::createNumber(const Type& type, const core::GenericFloat& value) -> Expr {
+	auto Agent::createNumber(const Type& type, const core::GenericFloat& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
 		evo::debugAssert(type.isFloat(), "Type and value must both be integral or both be floating");
+
 		return Expr(Expr::Kind::Number, this->module.numbers.emplace_back(type, value));
 	}
 
@@ -244,7 +238,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// calls
 
-	auto Agent::createCallInst(std::string&& name, Function::ID func, evo::SmallVector<Expr>&& args) -> Expr {
+	auto Agent::createCallInst(std::string&& name, Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().getKind() != Type::Kind::Void,
@@ -259,7 +253,8 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallInst(std::string&& name, Function::ID func, const evo::SmallVector<Expr>& args) -> Expr {
+	auto Agent::createCallInst(std::string&& name, Function::ID func, const evo::SmallVector<Expr>& args) const
+	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().getKind() != Type::Kind::Void,
@@ -275,7 +270,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCallInst(std::string&& name, FunctionDecl::ID func, evo::SmallVector<Expr>&& args) -> Expr {
+	auto Agent::createCallInst(std::string&& name, FunctionDecl::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionDecl(func).returnType.getKind() != Type::Kind::Void,
@@ -290,7 +285,8 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallInst(std::string&& name, FunctionDecl::ID func, const evo::SmallVector<Expr>& args) -> Expr {
+	auto Agent::createCallInst(std::string&& name, FunctionDecl::ID func, const evo::SmallVector<Expr>& args) const
+	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionDecl(func).returnType.getKind() != Type::Kind::Void,
@@ -308,7 +304,7 @@ namespace pcit::pir{
 
 	auto Agent::createCallInst(
 		std::string&& name, const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args
-	) -> Expr {
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getTypeFunction(func_type).returnType.getKind() != Type::Kind::Void,
@@ -326,7 +322,7 @@ namespace pcit::pir{
 
 	auto Agent::createCallInst(
 		std::string&& name, const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args
-	) -> Expr {
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getTypeFunction(func_type).returnType.getKind() != Type::Kind::Void,
@@ -345,7 +341,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// call voids
 
-	auto Agent::createCallVoidInst(Function::ID func, evo::SmallVector<Expr>&& args) -> Expr {
+	auto Agent::createCallVoidInst(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().getKind() == Type::Kind::Void,
@@ -360,7 +356,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallVoidInst(Function::ID func, const evo::SmallVector<Expr>& args) -> Expr {
+	auto Agent::createCallVoidInst(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().getKind() == Type::Kind::Void,
@@ -374,7 +370,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCallVoidInst(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) -> Expr {
+	auto Agent::createCallVoidInst(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionDecl(func).returnType.getKind() == Type::Kind::Void,
@@ -389,7 +385,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallVoidInst(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) -> Expr {
+	auto Agent::createCallVoidInst(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionDecl(func).returnType.getKind() == Type::Kind::Void,
@@ -403,7 +399,8 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCallVoidInst(const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args) -> Expr {
+	auto Agent::createCallVoidInst(const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args) const
+	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getTypeFunction(func_type).returnType.getKind() == Type::Kind::Void,
@@ -419,7 +416,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallVoidInst(const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args)
+	auto Agent::createCallVoidInst(const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
@@ -439,7 +436,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// ret instructions
 
-	auto Agent::createRetInst(const Expr& expr) -> Expr {
+	auto Agent::createRetInst(const Expr& expr) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Must return value");
 		evo::debugAssert(
@@ -449,7 +446,7 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::RetInst, this->target_func->rets.emplace_back(expr));
 	}
 
-	auto Agent::createRetInst() -> Expr {
+	auto Agent::createRetInst() const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->target_func->getReturnType().getKind() == Type::Kind::Void, "Return type must match"
@@ -466,7 +463,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// br instructions
 
-	auto Agent::createBrInst(BasicBlock::ID basic_block_id) -> Expr {
+	auto Agent::createBrInst(BasicBlock::ID basic_block_id) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 
 		const auto new_expr = Expr(Expr::Kind::BrInst, basic_block_id.get());
@@ -476,14 +473,13 @@ namespace pcit::pir{
 
 	auto Agent::getBrInst(const Expr& expr) -> BrInst {
 		return ReaderAgent::getBrInst(expr);
-
 	}
 
 
 	//////////////////////////////////////////////////////////////////////
 	// add
 
-	auto Agent::createAdd(std::string&& name, const Expr& lhs, const Expr& rhs, bool may_wrap) -> Expr {
+	auto Agent::createAdd(std::string&& name, const Expr& lhs, const Expr& rhs, bool may_wrap) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -504,7 +500,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// internal
 
-	auto Agent::delete_expr(const Expr& expr) -> void {
+	auto Agent::delete_expr(const Expr& expr) const -> void {
 		evo::debugAssert(this->hasTargetFunction(), "Not target function is set");
 
 		switch(expr.getKind()){

@@ -86,6 +86,8 @@ namespace pcit::core{
 			}
 
 
+			auto println() -> void { this->print("\n"); }
+
 			auto println(std::string_view str) -> void;
 
 			template<class... Args>

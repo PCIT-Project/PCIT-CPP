@@ -23,7 +23,7 @@
 namespace pcit::pir::passes{
 	
 
-	auto constant_folding_impl(Expr& stmt, Agent& agent) -> bool {
+	auto constant_folding_impl(Expr& stmt, const Agent& agent) -> bool {
 		switch(stmt.getKind()){
 			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:  return true;
@@ -63,7 +63,7 @@ namespace pcit::pir::passes{
 	}
 
 
-	auto inst_simplify_impl(Expr& stmt, Agent& agent) -> bool {
+	auto inst_simplify_impl(Expr& stmt, const Agent& agent) -> bool {
 		switch(stmt.getKind()){
 			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:  return true;
@@ -104,7 +104,7 @@ namespace pcit::pir::passes{
 	}
 
 
-	auto inst_combine_impl(Expr&, Agent&) -> bool {
+	auto inst_combine_impl(Expr&, const Agent&) -> bool {
 		return true;
 	}
 

@@ -47,8 +47,7 @@ namespace pcit::pir{
 			auto removeTargetFunction() -> void;
 
 			EVO_NODISCARD auto hasTargetFunction() const -> bool { return this->target_func != nullptr; }
-			EVO_NODISCARD auto getTargetFunction() const -> const Function&;
-			EVO_NODISCARD auto getTargetFunction()       ->       Function&;
+			EVO_NODISCARD auto getTargetFunction() const -> Function&;
 
 
 			auto setTargetBasicBlock(BasicBlock::ID id) -> void;
@@ -56,8 +55,7 @@ namespace pcit::pir{
 			auto removeTargetBasicBlock() -> void;
 
 			EVO_NODISCARD auto hasTargetBasicBlock() const -> bool { return this->target_basic_block != nullptr; }
-			EVO_NODISCARD auto getTargetBasicBlock() const -> const BasicBlock&;
-			EVO_NODISCARD auto getTargetBasicBlock()       ->       BasicBlock&;
+			EVO_NODISCARD auto getTargetBasicBlock() const -> BasicBlock&;
 
 
 			///////////////////////////////////
@@ -65,26 +63,26 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto getExprType(const Expr& expr) const -> Type;
 
-			auto replaceExpr(Expr original, const Expr& replacement) -> void;
+			auto replaceExpr(Expr original, const Expr& replacement) const -> void;
 
 
 			///////////////////////////////////
 			// basic blocks
 
-			auto createBasicBlock(std::string&& name, Function::ID func) -> BasicBlock::ID;
-			auto createBasicBlock(std::string&& name, Function& func) -> BasicBlock::ID;
-			auto createBasicBlock(std::string&& name) -> BasicBlock::ID;
+			auto createBasicBlock(std::string&& name, Function::ID func) const -> BasicBlock::ID;
+			auto createBasicBlock(std::string&& name, Function& func) const -> BasicBlock::ID;
+			auto createBasicBlock(std::string&& name) const -> BasicBlock::ID;
 
-			EVO_NODISCARD auto getBasicBlock(BasicBlock::ID id) -> BasicBlock&;
+			EVO_NODISCARD auto getBasicBlock(BasicBlock::ID id) const -> BasicBlock&;
 
 
 			///////////////////////////////////
 			// numbers
 
-			auto createNumber(const Type& type, core::GenericInt&& value) -> Expr;
-			auto createNumber(const Type& type, const core::GenericInt& value) -> Expr;
-			auto createNumber(const Type& type, core::GenericFloat&& value) -> Expr;
-			auto createNumber(const Type& type, const core::GenericFloat& value) -> Expr;
+			auto createNumber(const Type& type, core::GenericInt&& value) const -> Expr;
+			auto createNumber(const Type& type, const core::GenericInt& value) const -> Expr;
+			auto createNumber(const Type& type, core::GenericFloat&& value) const -> Expr;
+			auto createNumber(const Type& type, const core::GenericFloat& value) const -> Expr;
 
 			EVO_NODISCARD auto getNumber(const Expr& expr) const -> const Number&;
 
@@ -100,64 +98,69 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// calls
 
-			EVO_NODISCARD auto createCallInst(std::string&& name, Function::ID func, evo::SmallVector<Expr>&& args)
-				-> Expr;
-			EVO_NODISCARD auto createCallInst(std::string&& name, Function::ID func, const evo::SmallVector<Expr>& args)
-				-> Expr;
+			EVO_NODISCARD auto createCallInst(
+				std::string&& name, Function::ID func, evo::SmallVector<Expr>&& args
+			) const -> Expr;
+			EVO_NODISCARD auto createCallInst(
+				std::string&& name, Function::ID func, const evo::SmallVector<Expr>& args
+			) const -> Expr;
 
-			EVO_NODISCARD auto createCallInst(std::string&& name, FunctionDecl::ID func, evo::SmallVector<Expr>&& args)
-				-> Expr;
+			EVO_NODISCARD auto createCallInst(
+				std::string&& name, FunctionDecl::ID func, evo::SmallVector<Expr>&& args
+			) const -> Expr;
 			EVO_NODISCARD auto createCallInst(
 				std::string&& name, FunctionDecl::ID func, const evo::SmallVector<Expr>& args
-			) -> Expr;
+			) const -> Expr;
 
 			EVO_NODISCARD auto createCallInst(
 				std::string&& name, const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args
-			) -> Expr;
+			) const -> Expr;
 			EVO_NODISCARD auto createCallInst(
 				std::string&& name, const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args
-			) -> Expr;
+			) const -> Expr;
 
 
 
 			///////////////////////////////////
 			// call voids
 
-			auto createCallVoidInst(Function::ID func, evo::SmallVector<Expr>&& args) -> Expr;
-			auto createCallVoidInst(Function::ID func, const evo::SmallVector<Expr>& args) -> Expr;
+			auto createCallVoidInst(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoidInst(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoidInst(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) -> Expr;
-			auto createCallVoidInst(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) -> Expr;
+			auto createCallVoidInst(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoidInst(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoidInst(const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args) -> Expr;
-			auto createCallVoidInst(const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args)
+			auto createCallVoidInst(const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args) const
+				-> Expr;
+			auto createCallVoidInst(const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args) const
 				-> Expr;
 
 
 			///////////////////////////////////
 			// ret instructions
 
-			auto createRetInst(const Expr& expr) -> Expr;
-			auto createRetInst() -> Expr;
+			auto createRetInst(const Expr& expr) const -> Expr;
+			auto createRetInst() const -> Expr;
 			EVO_NODISCARD auto getRetInst(const Expr& expr) const -> const RetInst&;
 
 
 			///////////////////////////////////
 			// br instructions
 
-			auto createBrInst(BasicBlock::ID basic_block_id) -> Expr;
+			auto createBrInst(BasicBlock::ID basic_block_id) const -> Expr;
 			EVO_NODISCARD static auto getBrInst(const Expr& expr) -> BrInst;
 
 
 			///////////////////////////////////
 			// add
 
-			EVO_NODISCARD auto createAdd(std::string&& name, const Expr& lhs, const Expr& rhs, bool may_wrap) -> Expr;
+			EVO_NODISCARD auto createAdd(std::string&& name, const Expr& lhs, const Expr& rhs, bool may_wrap) const 
+				-> Expr;
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
 
 
 		private:
-			auto delete_expr(const Expr& expr) -> void;
+			auto delete_expr(const Expr& expr) const -> void;
 
 	
 		private:

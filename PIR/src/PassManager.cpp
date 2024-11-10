@@ -64,12 +64,8 @@ namespace pcit::pir{
 		auto agent = Agent(this->module);
 
 		for(Function& func : this->module.getFunctionIter()){
-			for(BasicBlock::ID basic_block_id : func){
-				BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
-
-				if(this->run_pass_group(stmt_pass_group, StmtPassGroupItem(basic_block, func)) == false){
-					return false;
-				}
+			if(this->run_pass_group(stmt_pass_group, StmtPassGroupItem(func)) == false){
+				return false;
 			}
 		}
 
@@ -81,11 +77,7 @@ namespace pcit::pir{
 
 		auto items = evo::SmallVector<ThreadPoolItem>();
 		for(Function& func : this->module.getFunctionIter()){
-			for(BasicBlock::ID basic_block_id : func){
-				BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
-
-				items.emplace_back(StmtPassGroupItem(basic_block, func));
-			}
+			items.emplace_back(StmtPassGroupItem(func));
 		}
 
 		this->pool.work(std::move(items), [&](ThreadPoolItem& item) -> bool {
@@ -98,24 +90,29 @@ namespace pcit::pir{
 
 
 	auto PassManager::run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item) -> bool {
-		size_t basic_block_current_size = item.basic_block.size();
+		auto agent = Agent(this->module, item.func);
 
-		auto agent = Agent(this->module, item.func, item.basic_block);
+		for(BasicBlock::ID basic_block_id : item.func){
+			BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
+			agent.setTargetBasicBlock(basic_block);
 
-		auto iter = item.basic_block.begin(); 
-		while(iter != item.basic_block.end()){
-			for(const StmtPass& stmt_pass : stmt_pass_group.passes){
-				if(stmt_pass.func(*iter, agent) == false){ return false; }
+			size_t basic_block_current_size = basic_block.size();
 
-				if(item.basic_block.size() != basic_block_current_size){ break; }
-			}
+			auto iter = basic_block.begin(); 
+			while(iter != basic_block.end()){
+				for(const StmtPass& stmt_pass : stmt_pass_group.passes){
+					if(stmt_pass.func(*iter, agent) == false){ return false; }
 
-			if(item.basic_block.size() == basic_block_current_size){
-				++iter;
-			}else{
-				// Note: don't have to worry about if was at the last elem of the block as
-				// 		 it's illegal to not have a single terminator that's at the end
-				basic_block_current_size = item.basic_block.size();
+					if(basic_block.size() != basic_block_current_size){ break; }
+				}
+
+				if(basic_block.size() == basic_block_current_size){
+					++iter;
+				}else{
+					// Note: don't have to worry about if was at the last elem of the block as
+					// 		 it's illegal to not have a single terminator that's at the end
+					basic_block_current_size = basic_block.size();
+				}
 			}
 		}
 

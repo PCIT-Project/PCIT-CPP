@@ -64,7 +64,7 @@ namespace pcit::pir{
 	};
 
 	auto ModulePrinter::print_function_decl_impl(const FuncDeclRef& func_decl) -> void {
-		this->printer.print("\n");
+		this->printer.println();
 		this->printer.printCyan("func ");
 		this->printer.printGreen("${} ", func_decl.name);
 		this->printer.printRed("= ");
@@ -163,12 +163,12 @@ namespace pcit::pir{
 				function_decl.returnType
 			)
 		);
-		this->printer.println(";");
+		this->printer.println();
 	}
 
 
 	auto ModulePrinter::print_struct_type(const StructType& struct_type) -> void {
-		this->printer.print("\n");
+		this->printer.println();
 		this->printer.printCyan("type");
 		this->printer.printGreen(" ${}", struct_type.name);
 		this->printer.printRed(" = ");
@@ -188,12 +188,12 @@ namespace pcit::pir{
 
 			i += 1;
 		}
-		this->printer.println("};");
+		this->printer.println("}");
 	}
 
 
 	auto ModulePrinter::print_global_var(const GlobalVar& global_var) -> void {
-		this->printer.print("\n");
+		this->printer.println();
 
 		if(global_var.isConstant){
 			this->printer.printCyan("const ");
@@ -236,7 +236,7 @@ namespace pcit::pir{
 			this->print_expr(*global_var.value);
 		}
 
-		this->printer.println(";");
+		this->printer.println();
 	}
 		
 
@@ -360,7 +360,7 @@ namespace pcit::pir{
 				}else{
 					this->printer.printRed("{}@ret", tabs(2));
 				}
-				this->printer.println(";");
+				this->printer.println();
 			} break;
 
 
@@ -369,19 +369,23 @@ namespace pcit::pir{
 
 				this->printer.printRed("{}@br ", tabs(2));
 				const BasicBlock::ID basic_block_id = reader.getBrInst(expr).target;
-				this->printer.println("${};", reader.getBasicBlock(basic_block_id).getName());
+				this->printer.println("${}", reader.getBasicBlock(basic_block_id).getName());
 			} break;
 
 			case Expr::Kind::Add: {
 				const Add& add = ReaderAgent(this->module, *this->func).getAdd(expr);
 
 				this->printer.print("{}${} ", tabs(2), add.name);
-				this->printer.printRed("= @add");
-				this->printer.print("(");
+				this->printer.printRed("= @add ");
+
+				if(!add.mayWrap){
+					this->printer.printRed("noWrap ");
+				}
+
 				this->print_expr(add.lhs);
 				this->printer.print(", ");
 				this->print_expr(add.rhs);
-				this->printer.println(");");
+				this->printer.println();
 			} break;
 		}
 	}
@@ -423,7 +427,7 @@ namespace pcit::pir{
 			i += 1;
 		}
 
-		this->printer.println(");");
+		this->printer.println(")");
 	}
 
 
