@@ -83,6 +83,8 @@ namespace pcit::pir{
 			friend class Function;
 			friend class Module;
 			friend struct ExprOptInterface;
+			friend class ReaderAgent;
+			friend class Agent;
 	};
 
 

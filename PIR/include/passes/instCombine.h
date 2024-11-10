@@ -19,9 +19,7 @@
 namespace pcit::pir::passes{
 
 	// 1 + 2 --> 3
-	EVO_NODISCARD auto constant_folding_impl(
-		class Expr& stmt, class BasicBlock& basic_block, class Function& func, class Module& module
-	) -> bool;
+	EVO_NODISCARD auto constant_folding_impl(class Expr& stmt, class Agent& agent) -> bool;
 
 	EVO_NODISCARD inline auto constantFolding() -> PassManager::StmtPass {
 		return PassManager::StmtPass(constant_folding_impl);
@@ -30,9 +28,7 @@ namespace pcit::pir::passes{
 
 	// x + 0 --> x
 	// x - x --> 0
-	EVO_NODISCARD auto inst_simplify_impl(
-		class Expr& stmt, class BasicBlock& basic_block, class Function& func, class Module& module
-	) -> bool;
+	EVO_NODISCARD auto inst_simplify_impl(class Expr& stmt, class Agent& agent) -> bool;
 
 	EVO_NODISCARD inline auto instSimplify() -> PassManager::StmtPass {
 		return PassManager::StmtPass(inst_simplify_impl);
@@ -40,9 +36,7 @@ namespace pcit::pir::passes{
 
 
 	// x * 4 --> x << 2
-	EVO_NODISCARD auto inst_combine_impl(
-		class Expr& stmt, class BasicBlock& basic_block, class Function& func, class Module& module
-	) -> bool;
+	EVO_NODISCARD auto inst_combine_impl(class Expr& stmt, class Agent& agent) -> bool;
 
 	EVO_NODISCARD inline auto instCombine() -> PassManager::StmtPassGroup {
 		return PassManager::StmtPassGroup({

@@ -14,7 +14,7 @@
 
 #include <PCIT_core.h>
 
-
+#include "./BasicBlock.h"
 
 namespace pcit::pir{
 
@@ -22,7 +22,7 @@ namespace pcit::pir{
 	class PassManager{
 		public:
 			struct StmtPass{
-				using Func = std::function<bool(class Expr&, class BasicBlock&, class Function&, class Module&)>;
+				using Func = std::function<bool(class Expr&, class Agent&)>;
 				Func func;
 			};
 
@@ -60,7 +60,8 @@ namespace pcit::pir{
 			};
 			EVO_NODISCARD auto run_single_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool;
 			EVO_NODISCARD auto run_multi_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool;
-			EVO_NODISCARD auto run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item) -> bool;
+			EVO_NODISCARD auto run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item)
+				-> bool;
 
 
 

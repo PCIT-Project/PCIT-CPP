@@ -154,55 +154,6 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
-			// basic block
-
-			EVO_NODISCARD auto createBasicBlock(auto&&... args) -> BasicBlock::ID {
-				return this->basic_blocks.emplace_back(std::forward<decltype(args)>(args)...);
-			}
-
-			EVO_NODISCARD auto getBasicBlock(BasicBlock::ID id) const -> const BasicBlock& {
-				return this->basic_blocks[id];
-			}
-
-			EVO_NODISCARD auto getBasicBlock(BasicBlock::ID id) -> BasicBlock& {
-				return this->basic_blocks[id];
-			}
-
-
-			///////////////////////////////////
-			// numbers
-
-			EVO_NODISCARD auto createNumber(const Type& type, core::GenericInt&& value) -> Expr {
-				evo::debugAssert(type.isNumeric(), "Number type must be numeric");
-				evo::debugAssert(type.isIntegral(), "Type and value must both be integral or both be floating");
-				return Expr(Expr::Kind::Number, this->numbers.emplace_back(type, std::move(value)));
-			}
-
-			EVO_NODISCARD auto createNumber(const Type& type, const core::GenericInt& value) -> Expr {
-				evo::debugAssert(type.isNumeric(), "Number type must be numeric");
-				evo::debugAssert(type.isIntegral(), "Type and value must both be integral or both be floating");
-				return Expr(Expr::Kind::Number, this->numbers.emplace_back(type, value));
-			}
-
-			EVO_NODISCARD auto createNumber(const Type& type, core::GenericFloat&& value) -> Expr {
-				evo::debugAssert(type.isNumeric(), "Number type must be numeric");
-				evo::debugAssert(type.isFloat(), "Type and value must both be integral or both be floating");
-				return Expr(Expr::Kind::Number, this->numbers.emplace_back(type, std::move(value)));
-			}
-
-			EVO_NODISCARD auto createNumber(const Type& type, const core::GenericFloat& value) -> Expr {
-				evo::debugAssert(type.isNumeric(), "Number type must be numeric");
-				evo::debugAssert(type.isFloat(), "Type and value must both be integral or both be floating");
-				return Expr(Expr::Kind::Number, this->numbers.emplace_back(type, value));
-			}
-
-			EVO_NODISCARD auto getNumber(const Expr& expr) const -> const Number& {
-				evo::debugAssert(expr.getKind() == Expr::Kind::Number, "Not a number");
-				return this->numbers[expr.index];
-			}
-
-
-			///////////////////////////////////
 			// global values (expr)
 
 			EVO_NODISCARD static auto createGlobalValue(const GlobalVar::ID& global_id) -> Expr {
@@ -322,6 +273,9 @@ namespace pcit::pir{
 			core::LinearStepAlloc<ArrayType, uint32_t> array_types{};
 			core::LinearStepAlloc<StructType, uint32_t> struct_types{};
 			core::LinearStepAlloc<FunctionType, uint32_t> func_types{};
+
+			friend class ReaderAgent;
+			friend class Agent;
 	};
 
 

@@ -212,9 +212,9 @@ namespace pcit::core{
 			EVO_NODISCARD auto rbegin()  const -> ConstIter { return ConstIter(ID(uint32_t(this->size() - 1)), *this); }
 			EVO_NODISCARD auto crbegin() const -> ConstIter { return ConstIter(ID(uint32_t(this->size() - 1)), *this); }
 
-			EVO_NODISCARD auto rend()        ->      Iter { return Iter(ID(~uint32_t(0)), *this);      }
-			EVO_NODISCARD auto rend()  const -> ConstIter { return ConstIter(ID(~uint32_t(0)), *this); }
-			EVO_NODISCARD auto crend() const -> ConstIter { return ConstIter(ID(~uint32_t(0)), *this); }
+			EVO_NODISCARD auto rend()        ->      Iter { return Iter(ID(~0ul), *this);      }
+			EVO_NODISCARD auto rend()  const -> ConstIter { return ConstIter(ID(~0ul), *this); }
+			EVO_NODISCARD auto crend() const -> ConstIter { return ConstIter(ID(~0ul), *this); }
 
 
 
@@ -255,7 +255,8 @@ namespace pcit::core{
 					}
 				}();
 				const uint64_t buffer_index = (sizeof(uint64_t) * 8) - std::countl_zero(index) - 1;
-				const uint64_t elem_index = index & ~(uint64_t(1) << buffer_index);
+				const uint64_t elem_index = index & ~(1ull << buffer_index);
+				// Note: doing and/not is equivalent (performance-wise) to subtracting
 
 				return BufferAndElemIndex(size_t(buffer_index) - STARTING_POW_OF_2, size_t(elem_index));
 			}

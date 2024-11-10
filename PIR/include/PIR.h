@@ -17,6 +17,9 @@
 #include "./Function.h"
 #include "./Module.h"
 
+#include "./ReaderAgent.h"
+#include "./Agent.h"
+
 #include "./ModulePrinter.h"
 
 #include "./PassManager.h"

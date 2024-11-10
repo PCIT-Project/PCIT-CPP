@@ -14,6 +14,7 @@
 #include "../../include/BasicBlock.h"
 #include "../../include/Function.h"
 #include "../../include/Module.h"
+#include "../../include/Agent.h"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
@@ -22,7 +23,7 @@
 namespace pcit::pir::passes{
 	
 
-	auto constant_folding_impl(Expr& stmt, BasicBlock&, Function& func, Module& module) -> bool {
+	auto constant_folding_impl(Expr& stmt, Agent& agent) -> bool {
 		switch(stmt.getKind()){
 			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:  return true;
@@ -34,10 +35,10 @@ namespace pcit::pir::passes{
 			case Expr::Kind::BrInst:       return true;
 
 			case Expr::Kind::Add: {
-				const Add& add = func.getAdd(stmt);
+				const Add& add = agent.getAdd(stmt);
 				if(add.lhs.getKind() != Expr::Kind::Number || add.rhs.getKind() != Expr::Kind::Number){ return true; }
-				const Number& lhs = module.getNumber(add.lhs);
-				const Number& rhs = module.getNumber(add.rhs);
+				const Number& lhs = agent.getNumber(add.lhs);
+				const Number& rhs = agent.getNumber(add.rhs);
 
 				if(lhs.type.isIntegral()){
 					core::GenericInt::WrapResult result = lhs.type.getKind() == Type::Kind::Unsigned
@@ -46,12 +47,12 @@ namespace pcit::pir::passes{
 
 					if(result.wrapped){ return false; }
 
-					const Expr result_expr = module.createNumber(lhs.type, std::move(result.result));
-					func.replaceExpr(stmt, result_expr);
+					const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
+					agent.replaceExpr(stmt, result_expr);
 
 				}else{
-					const Expr result_expr = module.createNumber(lhs.type, lhs.getFloat().add(rhs.getFloat()));
-					func.replaceExpr(stmt, result_expr);
+					const Expr result_expr = agent.createNumber(lhs.type, lhs.getFloat().add(rhs.getFloat()));
+					agent.replaceExpr(stmt, result_expr);
 				}
 
 				return true;
@@ -62,7 +63,7 @@ namespace pcit::pir::passes{
 	}
 
 
-	auto inst_simplify_impl(Expr& stmt, BasicBlock&, Function& func, Module& module) -> bool {
+	auto inst_simplify_impl(Expr& stmt, Agent& agent) -> bool {
 		switch(stmt.getKind()){
 			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:  return true;
@@ -74,23 +75,23 @@ namespace pcit::pir::passes{
 			case Expr::Kind::BrInst:       return true;
 
 			case Expr::Kind::Add: {
-				const Add& add = func.getAdd(stmt);
+				const Add& add = agent.getAdd(stmt);
 
 				if(add.lhs.getKind() == Expr::Kind::Number){
-					const Number& lhs = module.getNumber(add.lhs);
+					const Number& lhs = agent.getNumber(add.lhs);
 					if(lhs.type.isIntegral()){
 						const core::GenericInt& number = lhs.getInt();
 						if(number == core::GenericInt(number.getBitWidth(), 0)){
-							func.replaceExpr(stmt, add.rhs);
+							agent.replaceExpr(stmt, add.rhs);
 						}
 					}
 
 				}else if(add.rhs.getKind() == Expr::Kind::Number){
-					const Number& rhs = module.getNumber(add.rhs);
+					const Number& rhs = agent.getNumber(add.rhs);
 					if(rhs.type.isIntegral()){
 						const core::GenericInt& number = rhs.getInt();
 						if(number == core::GenericInt(number.getBitWidth(), 0)){
-							func.replaceExpr(stmt, add.lhs);
+							agent.replaceExpr(stmt, add.lhs);
 						}
 					}
 				}
@@ -103,7 +104,7 @@ namespace pcit::pir::passes{
 	}
 
 
-	auto inst_combine_impl(Expr&, BasicBlock&, Function&, Module&) -> bool {
+	auto inst_combine_impl(Expr&, Agent&) -> bool {
 		return true;
 	}
 

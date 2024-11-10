@@ -74,12 +74,13 @@ auto main(int argc, const char* argv[]) -> int {
 	// begin test
 
 	auto module = pcit::pir::Module("testing");
+	auto agent = pcit::pir::Agent(module);
 
 	const pcit::pir::GlobalVar::ID global = module.createGlobalVar(
 		"global",
 		module.createTypeUnsigned(17),
 		pcit::pir::Linkage::Internal,
-		module.createNumber(module.createTypeUnsigned(17), pcit::core::GenericInt::create<uint64_t>(12)),
+		agent.createNumber(module.createTypeUnsigned(17), pcit::core::GenericInt::create<uint64_t>(12)),
 		true,
 		false
 	);
@@ -108,40 +109,36 @@ auto main(int argc, const char* argv[]) -> int {
 		pcit::pir::Linkage::Internal,
 		module.createTypeUnsigned(64)
 	);
-	pcit::pir::Function& testing_func = module.getFunction(testing_func_id);
+	agent.setTargetFunction(testing_func_id);
 
-	const pcit::pir::BasicBlock::ID entry_block_id = module.createBasicBlock("ENTRY");
-	testing_func.appendBasicBlock(entry_block_id);
-	pcit::pir::BasicBlock& entry_block = module.getBasicBlock(entry_block_id);
 
-	const pcit::pir::Expr add = testing_func.createAdd(
+	const pcit::pir::BasicBlock::ID entry_block_id = agent.createBasicBlock("ENTRY");
+	agent.setTargetBasicBlock(entry_block_id);
+
+	const pcit::pir::Expr add = agent.createAdd(
 		"ADD",
-		module.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(9)),
-		module.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(3)),
+		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(9)),
+		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(3)),
 		false
 	);
-	entry_block.append(add);
 
-	const pcit::pir::Expr add2 = testing_func.createAdd("ADD2", add, module.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(0)), false);
-	entry_block.append(add2);
+	const pcit::pir::Expr add2 = agent.createAdd(
+		"ADD2",
+		add,
+		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(0)),
+		false
+	);
 
-	const pcit::pir::Expr add3 = testing_func.createAdd("ADD3", add2, testing_func.createParamExpr(1), false);
-	entry_block.append(add3);
+	const pcit::pir::Expr add3 = agent.createAdd("ADD3", add2, agent.createParamExpr(1), false);
 
 
+	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock("SECOND");
+	agent.createBrInst(second_block_id);
+	agent.setTargetBasicBlock(second_block_id);
 
-	const pcit::pir::BasicBlock::ID second_block_id = module.createBasicBlock("SECOND");
-	testing_func.appendBasicBlock(second_block_id);
-	
-	entry_block.append(testing_func.createBrInst(second_block_id));
+	agent.createCallVoidInst(puts_decl, evo::SmallVector<pcit::pir::Expr>{module.createGlobalValue(global)});
 
-	pcit::pir::BasicBlock& second_block = module.getBasicBlock(second_block_id);
-
-	second_block.append(testing_func.createCallVoidInst(
-		puts_decl, evo::SmallVector<pcit::pir::Expr>{module.createGlobalValue(global)}
-	));
-
-	second_block.append(testing_func.createRetInst(add2));
+	agent.createRetInst(add2);
 
 
 
@@ -151,7 +148,9 @@ auto main(int argc, const char* argv[]) -> int {
 
 	printer.printlnGray("--------------------------------");
 
-	auto pass_manager = pcit::pir::PassManager(module, 12);
+	// const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
+	const unsigned num_threads = 0;
+	auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
 	pass_manager.addPass(pcit::pir::passes::instCombine());
 	const bool opt_result = pass_manager.run();

@@ -9,6 +9,8 @@
 
 #include "../include/Module.h"
 
+#include "../include/ReaderAgent.h"
+
 namespace pcit::pir{
 	
 
@@ -21,7 +23,7 @@ namespace pcit::pir{
 
 		switch(expr.getKind()){
 			case Expr::Kind::GlobalValue: return this->createTypePtr();
-			case Expr::Kind::Number:      return this->getNumber(expr).type;
+			case Expr::Kind::Number:      return ReaderAgent(*this).getNumber(expr).type;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported constant expr kind");

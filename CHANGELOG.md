@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.54.0
+
+### PIR
+- Added `Agent`
+- Added `ReaderAgent`
+- Modified API of `PassManager` passes to use `Agent`s
+- Moved expr creation and reading from `Module` and `Function` to `Agent` and `ReaderAgent`
+- Replacing instructions now properly deletes the replaced instruction
+
+
+<!---------------------------------->
 ## v0.0.53.0
 
 ### PIR

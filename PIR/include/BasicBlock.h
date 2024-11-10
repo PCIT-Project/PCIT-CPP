@@ -37,29 +37,6 @@ namespace pcit::pir{
 			}
 
 
-			auto append(Expr&& expr) -> void {
-				evo::debugAssert(expr.isStmt(), "Must append stmt");
-				evo::debugAssert(this->isTerminated() == false, "Basic block already terminated");
-
-				this->exprs.emplace_back(std::move(expr));
-			}
-
-			auto append(const Expr& expr) -> void {
-				evo::debugAssert(expr.isStmt(), "Must append stmt");
-				evo::debugAssert(this->isTerminated() == false, "Basic block already terminated");
-
-				this->exprs.emplace_back(expr);
-			}
-
-
-			auto remove(size_t index) -> void {
-				Iter remove_target = this->begin();
-				std::advance(remove_target, ptrdiff_t(index + 1));
-				this->exprs.erase(remove_target);
-			}
-
-
-
 			//////////////////////////////////////////////////////////////////////
 			// iterators
 
@@ -95,8 +72,30 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto size() const -> size_t { return this->exprs.size(); }
 
-			EVO_NODISCARD auto operator[](size_t i) const -> const Expr& { return this->exprs[i]; }
-			EVO_NODISCARD auto operator[](size_t i)       ->       Expr& { return this->exprs[i]; }
+			// EVO_NODISCARD auto operator[](size_t i) const -> const Expr& { return this->exprs[i]; }
+			// EVO_NODISCARD auto operator[](size_t i)       ->       Expr& { return this->exprs[i]; }
+
+		private:
+			auto append(Expr&& expr) -> void {
+				evo::debugAssert(expr.isStmt(), "Must append stmt");
+				evo::debugAssert(this->isTerminated() == false, "Basic block already terminated");
+
+				this->exprs.emplace_back(std::move(expr));
+			}
+
+			auto append(const Expr& expr) -> void {
+				evo::debugAssert(expr.isStmt(), "Must append stmt");
+				evo::debugAssert(this->isTerminated() == false, "Basic block already terminated");
+
+				this->exprs.emplace_back(expr);
+			}
+
+
+			auto remove(size_t index) -> void {
+				Iter remove_target = this->begin();
+				std::advance(remove_target, ptrdiff_t(index + 1));
+				this->exprs.erase(remove_target);
+			}
 	
 		private:
 			std::string name;
@@ -104,6 +103,8 @@ namespace pcit::pir{
 			evo::SmallVector<Expr> exprs{};
 
 			bool is_terminated;
+
+			friend class Agent;
 	};
 
 

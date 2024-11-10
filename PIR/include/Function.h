@@ -80,131 +80,9 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getReturnType() const -> const Type& { return this->func_decl.returnType; }
 
 
-			auto appendBasicBlock(BasicBlock::ID id) -> void;
-			auto insertBasicBlockBefore(BasicBlock::ID id, BasicBlock::ID before) -> void;
-			auto insertBasicBlockAfter(BasicBlock::ID id, BasicBlock::ID after) -> void;
+			EVO_NODISCARD auto getParentModule() const -> const Module& { return this->parent_module; }
+			EVO_NODISCARD auto getParentModule()       ->       Module& { return this->parent_module; }
 
-
-			//////////////////////////////////////////////////////////////////////
-			// exprs
-
-			EVO_NODISCARD auto getExprType(const Expr& expr) const -> Type;
-
-			EVO_NODISCARD auto replaceExpr(const Expr& original, const Expr& replacement) -> void;
-
-
-			///////////////////////////////////
-			// ParamExpr
-
-			EVO_NODISCARD static auto createParamExpr(uint32_t index) -> Expr {
-				return Expr(Expr::Kind::ParamExpr, index);
-			}
-
-			EVO_NODISCARD static auto getParamExpr(const Expr& expr) -> ParamExpr {
-				evo::debugAssert(expr.getKind() == Expr::Kind::ParamExpr, "not a param expr");
-				return ParamExpr(expr.index);
-			}
-
-
-			///////////////////////////////////
-			// calls
-
-			EVO_NODISCARD auto createCallInst(
-				std::string&& name, Function::ID func, evo::SmallVector<Expr>&& args
-			) -> Expr;
-			EVO_NODISCARD auto createCallInst(
-				std::string&& name, Function::ID func, const evo::SmallVector<Expr>& args
-			) -> Expr;
-
-			EVO_NODISCARD auto createCallInst(
-				std::string&& name, FunctionDecl::ID func, evo::SmallVector<Expr>&& args
-			) -> Expr;
-			EVO_NODISCARD auto createCallInst(
-				std::string&& name, FunctionDecl::ID func, const evo::SmallVector<Expr>& args
-			) -> Expr;
-
-			EVO_NODISCARD auto createCallInst(
-				std::string&& name, const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args
-			) -> Expr;
-			EVO_NODISCARD auto createCallInst(
-				std::string&& name, const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args
-			) -> Expr;
-
-
-			EVO_NODISCARD auto getCallInst(const Expr& expr) const -> const CallInst& {
-				evo::debugAssert(expr.getKind() == Expr::Kind::CallInst, "not a call inst");
-				return this->calls[expr.index];
-			}
-
-
-			///////////////////////////////////
-			// call voids
-
-			EVO_NODISCARD auto createCallVoidInst(Function::ID func, evo::SmallVector<Expr>&& args) -> Expr;
-			EVO_NODISCARD auto createCallVoidInst(Function::ID func, const evo::SmallVector<Expr>& args) -> Expr;
-
-			EVO_NODISCARD auto createCallVoidInst(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) -> Expr;
-			EVO_NODISCARD auto createCallVoidInst(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) -> Expr;
-
-			EVO_NODISCARD auto createCallVoidInst(
-				const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args
-			) -> Expr;
-			EVO_NODISCARD auto createCallVoidInst(
-				const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args
-			) -> Expr;
-
-			EVO_NODISCARD auto getCallVoidInst(const Expr& expr) const -> const CallVoidInst& {
-				evo::debugAssert(expr.getKind() == Expr::Kind::CallVoidInst, "not a call void inst");
-				return this->call_voids[expr.index];
-			}
-
-
-			///////////////////////////////////
-			// rets
-
-			EVO_NODISCARD auto createRetInst(const Expr& expr) -> Expr {
-				evo::debugAssert(expr.isValue(), "Must return value");
-				evo::debugAssert(this->getExprType(expr) == this->getReturnType(), "Return type must match");
-				return Expr(Expr::Kind::RetInst, this->rets.emplace_back(expr));
-			}
-
-			EVO_NODISCARD auto createRetInst() -> Expr {
-				evo::debugAssert(this->getReturnType().getKind() == Type::Kind::Void, "Return type must match");
-				return Expr(Expr::Kind::RetInst, this->rets.emplace_back(std::nullopt));
-			}
-
-			EVO_NODISCARD auto getRetInst(const Expr& expr) const -> const RetInst& {
-				evo::debugAssert(expr.getKind() == Expr::Kind::RetInst, "Not a ret");
-				return this->rets[expr.index];
-			}
-
-
-			///////////////////////////////////
-			// br
-
-			EVO_NODISCARD auto createBrInst(BasicBlock::ID basic_block_id) -> Expr {
-				return Expr(Expr::Kind::BrInst, basic_block_id.get());
-			}
-
-			EVO_NODISCARD static auto getBrInst(const Expr& expr) -> BrInst {
-				evo::debugAssert(expr.getKind() == Expr::Kind::BrInst, "Not a br");
-				return BrInst(BasicBlock::ID(expr.index));
-			}
-
-
-			///////////////////////////////////
-			// add
-
-			EVO_NODISCARD auto createAdd(std::string&& name, const Expr& lhs, const Expr& rhs, bool may_wrap) -> Expr {
-				evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
-				evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-				return Expr(Expr::Kind::Add, this->adds.emplace_back(std::move(name), lhs, rhs, may_wrap));
-			}
-
-			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add& {
-				evo::debugAssert(expr.getKind() == Expr::Kind::Add, "Not an add");
-				return this->adds[expr.index];
-			}
 
 
 
@@ -235,8 +113,11 @@ namespace pcit::pir{
 
 
 		private:
-			EVO_NODISCARD auto basic_block_is_already_in(BasicBlock::ID id) const -> bool;
+			auto append_basic_block(BasicBlock::ID id) -> void;
+			auto insert_basic_block_before(BasicBlock::ID id, BasicBlock::ID before) -> void;
+			auto insert_basic_block_after(BasicBlock::ID id, BasicBlock::ID after) -> void;
 
+			EVO_NODISCARD auto basic_block_is_already_in(BasicBlock::ID id) const -> bool;
 
 
 			EVO_NODISCARD auto check_func_call_args(Function::ID id, evo::ArrayProxy<Expr> args) const -> bool;
@@ -256,6 +137,9 @@ namespace pcit::pir{
 			core::StepAlloc<CallVoidInst, uint32_t> call_voids{};
 			core::StepAlloc<RetInst, uint32_t> rets{};
 			core::StepAlloc<Add, uint32_t> adds{};
+
+			friend class ReaderAgent;
+			friend class Agent;
 	};
 
 

@@ -13,6 +13,7 @@
 #include "../include/BasicBlock.h"
 #include "../include/Function.h"
 #include "../include/Module.h"
+#include "../include/ReaderAgent.h"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
@@ -145,7 +146,7 @@ namespace pcit::pir{
 		this->printer.println(" {");
 
 		for(const BasicBlock::ID& basic_block_id : function){
-			this->print_basic_block(this->module.getBasicBlock(basic_block_id));
+			this->print_basic_block(ReaderAgent(this->module).getBasicBlock(basic_block_id));
 		}
 
 		this->printer.println("}");
@@ -286,7 +287,7 @@ namespace pcit::pir{
 			case Expr::Kind::None: evo::debugFatalBreak("Not valid expr");
 
 			case Expr::Kind::Number: {
-				const Number& number = this->module.getNumber(expr);
+				const Number& number = ReaderAgent(this->module).getNumber(expr);
 				this->print_type(number.type);
 				this->printer.print("(");
 				if(number.type.isIntegral()){
@@ -304,12 +305,12 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::ParamExpr: {
-				const ParamExpr param_expr = this->func->getParamExpr(expr);
+				const ParamExpr param_expr = ReaderAgent::getParamExpr(expr);
 				this->printer.print("${}", this->func->getParameters()[param_expr.index].getName());
 			} break;
 
 			case Expr::Kind::CallInst: {
-				const CallInst& call_inst = this->func->getCallInst(expr);
+				const CallInst& call_inst = ReaderAgent(this->module, *this->func).getCallInst(expr);
 				this->printer.print("${}", call_inst.name);
 			} break;
 
@@ -318,7 +319,7 @@ namespace pcit::pir{
 			case Expr::Kind::BrInst: evo::debugFatalBreak("Expr::Kind::BrInst is not a valid expression");
 
 			case Expr::Kind::Add: {
-				const Add& add = this->func->getAdd(expr);
+				const Add& add = ReaderAgent(this->module, *this->func).getAdd(expr);
 				this->printer.print("${}", add.name);
 			} break;
 		}
@@ -334,7 +335,7 @@ namespace pcit::pir{
 			case Expr::Kind::ParamExpr:   evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
 
 			case Expr::Kind::CallInst: {
-				const CallInst& call_inst = this->func->getCallInst(expr);
+				const CallInst& call_inst = ReaderAgent(this->module, *this->func).getCallInst(expr);
 
 				this->printer.print("{}${} ", tabs(2), call_inst.name);
 				this->printer.printRed("= ");
@@ -343,7 +344,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::CallVoidInst: {
-				const CallVoidInst& call_void_inst = this->func->getCallVoidInst(expr);
+				const CallVoidInst& call_void_inst = ReaderAgent(this->module, *this->func).getCallVoidInst(expr);
 
 				this->printer.print(tabs(2));
 
@@ -351,7 +352,8 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::RetInst: {
-				const RetInst& ret_inst = this->func->getRetInst(expr);
+				const RetInst& ret_inst = ReaderAgent(this->module, *this->func).getRetInst(expr);
+
 				if(ret_inst.value.has_value()){
 					this->printer.printRed("{}@ret ", tabs(2));
 					this->print_expr(*ret_inst.value);
@@ -363,12 +365,16 @@ namespace pcit::pir{
 
 
 			case Expr::Kind::BrInst: {
+				auto reader = ReaderAgent(this->module, *this->func);
+
 				this->printer.printRed("{}@br ", tabs(2));
-				this->printer.println("${};", this->module.getBasicBlock(this->func->getBrInst(expr).target).getName());
+				const BasicBlock::ID basic_block_id = reader.getBrInst(expr).target;
+				this->printer.println("${};", reader.getBasicBlock(basic_block_id).getName());
 			} break;
 
 			case Expr::Kind::Add: {
-				const Add& add = this->func->getAdd(expr);
+				const Add& add = ReaderAgent(this->module, *this->func).getAdd(expr);
+
 				this->printer.print("{}${} ", tabs(2), add.name);
 				this->printer.printRed("= @add");
 				this->printer.print("(");
