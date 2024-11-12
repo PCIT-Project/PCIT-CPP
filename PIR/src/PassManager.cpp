@@ -14,6 +14,8 @@
 #include "../include/Module.h"
 #include "../include/Agent.h"
 
+#include <ranges>
+
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
@@ -59,6 +61,8 @@ namespace pcit::pir{
 
 
 
+	//////////////////////////////////////////////////////////////////////
+	// stmt pass
 
 	auto PassManager::run_single_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool {
 		auto agent = Agent(this->module);
@@ -92,6 +96,26 @@ namespace pcit::pir{
 	auto PassManager::run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item) -> bool {
 		auto agent = Agent(this->module, item.func);
 
+		{
+			size_t current_allocas_range_size = item.func.getAllocasRange().size();
+
+			auto iter = item.func.getAllocasRange().begin();
+			while(iter != item.func.getAllocasRange().end()){
+				for(const StmtPass& stmt_pass : stmt_pass_group.passes){
+					if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent) == false){ return false; }
+
+					if(item.func.getAllocasRange().size() != current_allocas_range_size){ break; }
+				}
+
+				if(item.func.getAllocasRange().size() == current_allocas_range_size){
+					++iter;
+				}else{
+					current_allocas_range_size = item.func.getAllocasRange().size();
+				}
+			}
+		}
+
+
 		for(BasicBlock::ID basic_block_id : item.func){
 			BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
 			agent.setTargetBasicBlock(basic_block);
@@ -113,6 +137,87 @@ namespace pcit::pir{
 					// 		 it's illegal to not have a single terminator that's at the end
 					basic_block_current_size = basic_block.size();
 				}
+			}
+		}
+
+		return true;
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// reverse stmt pass
+
+	auto PassManager::run_single_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> bool {
+		auto agent = Agent(this->module);
+
+		for(Function& func : this->module.getFunctionIter()){
+			if(this->run_pass_group(stmt_pass_group, ReverseStmtPassGroupItem(func)) == false){
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	auto PassManager::run_multi_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> bool {
+		auto agent = Agent(this->module);
+
+		auto items = evo::SmallVector<ThreadPoolItem>();
+		for(Function& func : this->module.getFunctionIter()){
+			items.emplace_back(ReverseStmtPassGroupItem(func));
+		}
+
+		this->pool.work(std::move(items), [&](ThreadPoolItem& item) -> bool {
+			return this->run_pass_group(stmt_pass_group, item.value.as<ReverseStmtPassGroupItem>());
+		});
+
+		return this->pool.waitUntilDoneWorking();
+	}
+
+
+
+	auto PassManager::run_pass_group(
+		const ReverseStmtPassGroup& stmt_pass_group, const ReverseStmtPassGroupItem& item
+	) -> bool {
+		auto agent = Agent(this->module, item.func);
+
+		for(BasicBlock::ID basic_block_id : item.func | std::views::reverse){
+			BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
+			agent.setTargetBasicBlock(basic_block);
+
+			size_t basic_block_current_size = basic_block.size();
+
+			auto iter = basic_block.rbegin(); 
+			while(iter != basic_block.rend()){
+				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
+					if(stmt_pass.func(*iter, agent) == false){ return false; }
+
+					if(basic_block.size() != basic_block_current_size){ break; }
+				}
+
+				if(basic_block.size() != basic_block_current_size){
+					basic_block_current_size = basic_block.size();
+				}
+				++iter;
+			}
+		}
+
+		{
+			size_t current_allocas_range_size = item.func.getAllocasRange().size();
+
+			auto iter = item.func.getAllocasRange().begin();
+			while(iter != item.func.getAllocasRange().end()){
+				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
+					if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent) == false){ return false; }
+
+					if(item.func.getAllocasRange().size() != current_allocas_range_size){ break; }
+				}
+
+				if(item.func.getAllocasRange().size() != current_allocas_range_size){
+					if(iter == item.func.getAllocasRange().end()){ break; }
+					current_allocas_range_size = item.func.getAllocasRange().size();
+				}
+				++iter;
 			}
 		}
 

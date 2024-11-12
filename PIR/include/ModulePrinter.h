@@ -42,6 +42,8 @@ namespace pcit::pir{
 
 			auto print_function_decl_impl(const struct FuncDeclRef& func_decl) -> void;
 
+			auto print_non_standard_name(std::string_view) -> void;
+
 	
 		private:
 			const class Module& module;

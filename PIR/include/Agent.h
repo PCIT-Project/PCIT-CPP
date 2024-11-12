@@ -63,15 +63,17 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto getExprType(const Expr& expr) const -> Type;
 
-			auto replaceExpr(Expr original, const Expr& replacement) const -> void;
+			auto replaceStmt(Expr original, const Expr& replacement) const -> void;
+			auto replaceStmtWithValue(Expr original, const Expr& replacement) const -> void;
+			auto removeStmt(Expr stmt_to_remove) const -> void;
 
 
 			///////////////////////////////////
 			// basic blocks
 
-			auto createBasicBlock(std::string&& name, Function::ID func) const -> BasicBlock::ID;
-			auto createBasicBlock(std::string&& name, Function& func) const -> BasicBlock::ID;
-			auto createBasicBlock(std::string&& name) const -> BasicBlock::ID;
+			auto createBasicBlock(Function::ID func, std::string&& name = "") const -> BasicBlock::ID;
+			auto createBasicBlock(Function& func, std::string&& name = "") const -> BasicBlock::ID;
+			auto createBasicBlock(std::string&& name = "") const -> BasicBlock::ID;
 
 			EVO_NODISCARD auto getBasicBlock(BasicBlock::ID id) const -> BasicBlock&;
 
@@ -99,26 +101,27 @@ namespace pcit::pir{
 			// calls
 
 			EVO_NODISCARD auto createCallInst(
-				std::string&& name, Function::ID func, evo::SmallVector<Expr>&& args
+				Function::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
 			EVO_NODISCARD auto createCallInst(
-				std::string&& name, Function::ID func, const evo::SmallVector<Expr>& args
+				Function::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
 			EVO_NODISCARD auto createCallInst(
-				std::string&& name, FunctionDecl::ID func, evo::SmallVector<Expr>&& args
+				FunctionDecl::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
 			EVO_NODISCARD auto createCallInst(
-				std::string&& name, FunctionDecl::ID func, const evo::SmallVector<Expr>& args
+				FunctionDecl::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
 			EVO_NODISCARD auto createCallInst(
-				std::string&& name, const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args
+				const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
 			EVO_NODISCARD auto createCallInst(
-				std::string&& name, const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args
+				const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
+			EVO_NODISCARD auto getCallInst(const Expr& expr) const -> const CallInst&;
 
 
 			///////////////////////////////////
@@ -134,6 +137,8 @@ namespace pcit::pir{
 				-> Expr;
 			auto createCallVoidInst(const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args) const
 				-> Expr;
+
+			EVO_NODISCARD auto getCallVoidInst(const Expr& expr) const -> const CallVoidInst&;
 
 
 			///////////////////////////////////
@@ -152,15 +157,29 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// alloca
+
+			EVO_NODISCARD auto createAlloca(const Type& type, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getAlloca(const Expr& expr) const -> const Alloca&;
+
+
+			///////////////////////////////////
 			// add
 
-			EVO_NODISCARD auto createAdd(std::string&& name, const Expr& lhs, const Expr& rhs, bool may_wrap) const 
+			EVO_NODISCARD auto createAdd(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const 
 				-> Expr;
+			auto createAdd(const Expr&, const Expr&, const char*) = delete;
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
 
 
 		private:
 			auto delete_expr(const Expr& expr) const -> void;
+
+			EVO_NODISCARD auto name_exists_in_func(std::string_view) const -> bool;
+			EVO_NODISCARD auto get_stmt_name(std::string&& name) const -> std::string;
+
+			template<bool REPLACE_WITH_VALUE>
+			EVO_NODISCARD auto replace_stmt_impl(Expr original, const Expr& replacement) const -> void;
 
 	
 		private:

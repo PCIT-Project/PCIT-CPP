@@ -52,6 +52,7 @@ namespace pcit::pir{
 			case Expr::Kind::CallVoidInst: evo::unreachable();
 			case Expr::Kind::RetInst:      evo::unreachable();
 			case Expr::Kind::BrInst:       evo::unreachable();
+			case Expr::Kind::Alloca:       return this->getAlloca(expr).type;
 			case Expr::Kind::Add:          return this->getExprType(this->getAdd(expr).lhs);
 		}
 
@@ -81,14 +82,14 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(expr.getKind() == Expr::Kind::CallInst, "not a call inst");
 
-		return this->target_func->calls[expr.index];
+		return this->module.calls[expr.index];
 	}
 
 	auto ReaderAgent::getCallVoidInst(const Expr& expr) const -> const CallVoidInst& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(expr.getKind() == Expr::Kind::CallVoidInst, "not a call void inst");
 
-		return this->target_func->call_voids[expr.index];
+		return this->module.call_voids[expr.index];
 	}
 
 
@@ -98,7 +99,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(expr.getKind() == Expr::Kind::RetInst, "Not a ret");
 
-		return this->target_func->rets[expr.index];
+		return this->module.rets[expr.index];
 	}
 
 
@@ -109,12 +110,18 @@ namespace pcit::pir{
 		return BrInst(BasicBlock::ID(expr.index));
 	}
 
+	auto ReaderAgent::getAlloca(const Expr& expr) const -> const Alloca& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Alloca, "Not an alloca");
+
+		return this->target_func->allocas[expr.index];
+	}
 
 	auto ReaderAgent::getAdd(const Expr& expr) const -> const Add& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(expr.getKind() == Expr::Kind::Add, "Not an add");
 
-		return this->target_func->adds[expr.index];
+		return this->module.adds[expr.index];
 	}
 
 

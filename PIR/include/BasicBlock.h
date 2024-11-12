@@ -12,6 +12,7 @@
 
 #include <Evo.h>
 
+#include "./misc.h"
 #include "./forward_decl_ids.h"
 #include "./Expr.h"
 
@@ -26,7 +27,9 @@ namespace pcit::pir{
 			using ID = BasicBlockID;
 
 		public:
-			BasicBlock(std::string&& _name) : name(std::move(_name)) {}
+			BasicBlock(std::string&& _name) : name(std::move(_name)) {
+				evo::debugAssert(isStandardName(this->name), "Not valid name for basic block ({})", this->name);
+			}
 			~BasicBlock() = default;
 
 			EVO_NODISCARD auto getName() const -> std::string_view { return this->name; }

@@ -10,7 +10,7 @@ Panther Compiler Infrastructure and Toolchain, and the home of the Panther progr
 All tools can be used as stand-alone programs or as libraries.
 
 ### Panther / pthr
-Statically typed, compiled, high-performance, general-purpose programming language. A few goals of the language:
+Statically typed, compiled, high-performance, general-purpose systems programming language. A few goals of the language:
 - Help good programmers write good, fast code
 	- Zero-cost abstractions
 	- Give the compiler knowledge of common patterns to allow it to help you write fast code, easier
@@ -44,8 +44,8 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 - 0.1: (the first release) 
 	- `Panther`/`pthr` working enough to give to testers. Some major features will be missing. Some documentation will exist
 	- Bare-bones version of the Linker library will also be working
+	- Bare-bones version of PIR library
 - 0.2:
-	- Bare-bones version of the IR library
 	- Some missing features of Panther added
 - *in-between*:
 	- TBD

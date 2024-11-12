@@ -61,7 +61,7 @@ namespace pcit::core{
 
 				if(this->erased_elems.size() == this->linear_step_alloc.size()){
 					// if all elements were erased, reset
-					this->clear();
+					this->clear_without_lock();
 				}
 			}
 
@@ -86,8 +86,7 @@ namespace pcit::core{
 			EVO_NODISCARD auto clear() -> void {
 				const auto lock = std::unique_lock(this->mutex);
 
-				std::destroy_at(this);
-				std::construct_at(this);
+				this->clear_without_lock();
 			}
 
 
@@ -96,8 +95,26 @@ namespace pcit::core{
 
 			class Iter{
 			    public:
-			        Iter(const ID& _index, StepAlloc& _parent) : index(_index), parent(_parent) {};
+			    	using difference_type   = std::ptrdiff_t;
+			    	using value_type        = T;
+			    	using pointer           = const T*;
+			    	using reference         = const T&;
+
+			    	Iter() : index(ID(0)), parent(nullptr) {}
+			        Iter(const ID& _index, StepAlloc& _parent) : index(_index), parent(&_parent) {}
 			        ~Iter() = default;
+
+			        Iter(const Iter&) = default;
+			        auto operator=(const Iter& rhs) -> Iter& {
+			        	std::construct_at(this, rhs);
+			        	return *this;
+			        }
+
+			        Iter(Iter&&) = default;
+			        auto operator=(Iter&& rhs) -> Iter& {
+			        	std::construct_at(this, std::move(rhs));
+			        	return *this;
+			        }
 
 
 			        auto operator++() -> Iter& {
@@ -108,8 +125,8 @@ namespace pcit::core{
 			            		this->index = ID(this->index.get() + 1);
 			            	}
 			            }while(
-			            	this->parent.linear_step_alloc[this->index].has_value() == false &&
-			            	this->index != ID(uint32_t(this->parent.size()))
+			            	this->parent->linear_step_alloc[this->index].has_value() == false &&
+			            	this->index != ID(uint32_t(this->parent->size()))
 			            );
 
 			            return *this;
@@ -129,7 +146,7 @@ namespace pcit::core{
 			            		this->index = ID(this->index.get() - 1);
 			            	}
 			            }while(
-			            	this->parent.linear_step_alloc[this->index].has_value() == false &&
+			            	this->parent->linear_step_alloc[this->index].has_value() == false &&
 			            	this->index != ID(0)
 			            );
 
@@ -143,8 +160,8 @@ namespace pcit::core{
 			        }
 
 
-			        EVO_NODISCARD auto operator*() const -> T& { return this->parent[this->index]; }
-			        EVO_NODISCARD auto operator->() const -> T* { return &this->parent[this->index]; }
+			        EVO_NODISCARD auto operator*() const -> T& { return this->parent->operator[](this->index); }
+			        EVO_NODISCARD auto operator->() const -> T* { return &this->parent->operator[](this->index); }
 
 			        EVO_NODISCARD auto operator==(const Iter& rhs) const -> bool {
 			        	return this->index == rhs.index;
@@ -154,16 +171,42 @@ namespace pcit::core{
 			        }
 
 
+			        EVO_NODISCARD auto getID() const -> ID { return this->index; }
+			        EVO_NODISCARD auto getParent() const -> StepAlloc& {
+			        	evo::debugAssert(this->parent != nullptr, "Iterator was default-constructed; no parent set");
+			        	return *this->parent;
+			        }
+
 			    private:
 			    	ID index;
-			        StepAlloc& parent;
+			        StepAlloc* parent;
 			};
+
+			static_assert(std::bidirectional_iterator<Iter>);
 
 
 			class ConstIter{
 			    public:
-			        ConstIter(const ID& _index, const StepAlloc& _parent) : index(_index), parent(_parent) {};
+			    	using difference_type   = std::ptrdiff_t;
+			    	using value_type        = T;
+			    	using pointer           = const T*;
+			    	using reference         = const T&;
+
+			    	ConstIter() : index(ID(0)), parent(nullptr) {}
+			        ConstIter(const ID& _index, const StepAlloc& _parent) : index(_index), parent(&_parent) {}
 			        ~ConstIter() = default;
+
+			        ConstIter(const ConstIter&) = default;
+			        auto operator=(const ConstIter& rhs) -> ConstIter& {
+			        	std::construct_at(this, rhs);
+			        	return *this;
+			        }
+
+			        ConstIter(ConstIter&&) = default;
+			        auto operator=(ConstIter&& rhs) -> ConstIter& {
+			        	std::construct_at(this, std::move(rhs));
+			        	return *this;
+			        }
 
 
 			        auto operator++() -> ConstIter& {
@@ -174,8 +217,8 @@ namespace pcit::core{
 			            		this->index = ID(this->index.get() + 1);
 			            	}
 			            }while(
-			            	this->parent.linear_step_alloc[this->index].has_value() == false &&
-			            	this->index != ID(uint32_t(this->parent.size()))
+			            	this->parent->linear_step_alloc[this->index].has_value() == false &&
+			            	this->index != ID(uint32_t(this->parent->size()))
 			            );
 
 			            return *this;
@@ -195,7 +238,7 @@ namespace pcit::core{
 			            		this->index = ID(this->index.get() - 1);
 			            	}
 			            }while(
-			            	this->parent.linear_step_alloc[this->index].has_value() == false &&
+			            	this->parent->linear_step_alloc[this->index].has_value() == false &&
 			            	this->index != ID(0)
 			            );
 
@@ -209,8 +252,8 @@ namespace pcit::core{
 			        }
 
 
-			        EVO_NODISCARD auto operator*() const -> const T& { return this->parent[this->index]; }
-			        EVO_NODISCARD auto operator->() const -> const T* { return &this->parent[this->index]; }
+			        EVO_NODISCARD auto operator*() const -> const T& { return this->parent->operator[](this->index); }
+			        EVO_NODISCARD auto operator->() const -> const T* { return &this->parent->operator[](this->index); }
 
 			        EVO_NODISCARD auto operator==(const ConstIter& rhs) const -> bool {
 			        	return this->index == rhs.index;
@@ -220,15 +263,23 @@ namespace pcit::core{
 			        }
 
 
+			        EVO_NODISCARD auto getID() const -> ID { return this->index; }
+			        EVO_NODISCARD auto getParent() const -> const StepAlloc& {
+			        	evo::debugAssert(this->parent != nullptr, "Iterator was default-constructed; no parent set");
+			        	return *this->parent;
+			        }
+
 			    private:
 			    	ID index;
-			        const StepAlloc& parent;
+			        const StepAlloc* parent;
 			};
 
+			static_assert(std::bidirectional_iterator<ConstIter>);
 
 
 
-			EVO_NODISCARD auto begin()        ->     Iter { return Iter(ID(0), *this);       }
+
+			EVO_NODISCARD auto begin()        ->      Iter { return Iter(ID(0), *this);      }
 			EVO_NODISCARD auto begin()  const -> ConstIter { return ConstIter(ID(0), *this); }
 			EVO_NODISCARD auto cbegin() const -> ConstIter { return ConstIter(ID(0), *this); }
 
@@ -237,15 +288,11 @@ namespace pcit::core{
 			EVO_NODISCARD auto cend() const -> ConstIter { return ConstIter(ID(uint32_t(this->size())), *this); }
 
 
-			EVO_NODISCARD auto rbegin()        ->      Iter { return Iter(ID(uint32_t(this->size() - 1)), *this);      }
-			EVO_NODISCARD auto rbegin()  const -> ConstIter { return ConstIter(ID(uint32_t(this->size() - 1)), *this); }
-			EVO_NODISCARD auto crbegin() const -> ConstIter { return ConstIter(ID(uint32_t(this->size() - 1)), *this); }
-
-			EVO_NODISCARD auto rend()        ->      Iter { return Iter(ID(~uint32_t(0)), *this);      }
-			EVO_NODISCARD auto rend()  const -> ConstIter { return ConstIter(ID(~uint32_t(0)), *this); }
-			EVO_NODISCARD auto crend() const -> ConstIter { return ConstIter(ID(~uint32_t(0)), *this); }
-
-
+		private:
+			auto clear_without_lock() -> void {
+				std::destroy_at(this);
+				std::construct_at(this);
+			}
 	
 		private:
 			LinearStepAlloc<std::optional<T>, ID, STARTING_POW_OF_2> linear_step_alloc{};
@@ -254,7 +301,6 @@ namespace pcit::core{
 
 			friend Iter;
 	};
-
 
 }
 

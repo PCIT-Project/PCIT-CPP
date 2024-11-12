@@ -15,6 +15,7 @@
 #include <PCIT_core.h>
 
 #include "./BasicBlock.h"
+#include "./Expr.h"
 
 namespace pcit::pir{
 
@@ -22,7 +23,7 @@ namespace pcit::pir{
 	class PassManager{
 		public:
 			struct StmtPass{
-				using Func = std::function<bool(class Expr&, const class Agent&)>;
+				using Func = std::function<bool(Expr, const class Agent&)>;
 				Func func;
 			};
 
@@ -34,6 +35,22 @@ namespace pcit::pir{
 				StmtPassGroup(StmtPass&& pass) : passes{std::move(pass)} {}
 				StmtPassGroup(const StmtPass& pass) : passes{pass} {}
 			};
+
+
+			struct ReverseStmtPass{
+				using Func = std::function<bool(Expr, const class Agent&)>;
+				Func func;
+			};
+
+			struct ReverseStmtPassGroup{
+				evo::SmallVector<ReverseStmtPass> passes{};
+
+				ReverseStmtPassGroup(evo::SmallVector<ReverseStmtPass>&& _passes) : passes(std::move(_passes)) {}
+				ReverseStmtPassGroup(const evo::SmallVector<ReverseStmtPass>& _passes) : passes(_passes) {}
+				ReverseStmtPassGroup(ReverseStmtPass&& pass) : passes{std::move(pass)} {}
+				ReverseStmtPassGroup(const ReverseStmtPass& pass) : passes{pass} {}
+			};
+
 
 
 		public:
@@ -53,6 +70,9 @@ namespace pcit::pir{
 			auto addPass(const StmtPassGroup& pass) -> void { this->pass_groups.emplace_back(pass); }
 			auto addPass(StmtPassGroup&& pass) -> void { this->pass_groups.emplace_back(std::move(pass)); }
 
+			auto addPass(const ReverseStmtPassGroup& pass) -> void { this->pass_groups.emplace_back(pass); }
+			auto addPass(ReverseStmtPassGroup&& pass) -> void { this->pass_groups.emplace_back(std::move(pass)); }
+
 			EVO_NODISCARD auto run() -> bool;
 			EVO_NODISCARD auto runSingleThreaded() -> bool;
 
@@ -60,7 +80,7 @@ namespace pcit::pir{
 			EVO_NODISCARD auto run_multi_threaded() -> bool;
 
 			struct StmtPassGroupItem{
-				Function& func;
+				class Function& func;
 			};
 			EVO_NODISCARD auto run_single_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool;
 			EVO_NODISCARD auto run_multi_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool;
@@ -68,16 +88,26 @@ namespace pcit::pir{
 				-> bool;
 
 
+			struct ReverseStmtPassGroupItem{
+				class Function& func;
+			};
+			EVO_NODISCARD auto run_single_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> bool;
+			EVO_NODISCARD auto run_multi_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> bool;
+			EVO_NODISCARD auto run_pass_group(
+				const ReverseStmtPassGroup& stmt_pass_group, const ReverseStmtPassGroupItem& item
+			) -> bool;
+
+
 
 		private:
 			class Module& module;
 			unsigned max_threads;
 
-			using PassGroupVariant = evo::Variant<StmtPassGroup>;
+			using PassGroupVariant = evo::Variant<StmtPassGroup, ReverseStmtPassGroup>;
 			evo::SmallVector<PassGroupVariant> pass_groups{};
 
 			struct ThreadPoolItem{
-				evo::Variant<StmtPassGroupItem> value;
+				evo::Variant<StmtPassGroupItem, ReverseStmtPassGroupItem> value;
 			};
 			core::ThreadPool<ThreadPoolItem> pool{};
 	};

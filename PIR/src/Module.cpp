@@ -11,6 +11,8 @@
 
 #include "../include/ReaderAgent.h"
 
+#include <unordered_set>
+
 namespace pcit::pir{
 	
 
@@ -29,5 +31,35 @@ namespace pcit::pir{
 		evo::debugFatalBreak("Unknown or unsupported constant expr kind");
 	}
 
+
+	#if defined(PCIT_CONFIG_DEBUG)
+		auto Module::check_param_names(evo::ArrayProxy<Parameter> params) const -> void {
+			auto names_seen = std::unordered_set<std::string_view>();
+
+			for(const Parameter& param : params){
+				evo::debugAssert(param.getName().empty() == false, "Parameter must have name");
+				evo::debugAssert(
+					isStandardName(param.getName()), "Invalid name for parameter ({})", param.getName()
+				);
+				evo::debugAssert(names_seen.contains(param.getName()) == false, "Parameter name already used");
+
+				names_seen.emplace(param.getName());
+			}
+		}
+
+		auto Module::check_global_name_reusue(std::string_view global_name) const -> void {
+			for(const Function& func : this->functions){
+				evo::debugAssert(func.getName() != global_name, "global \"{}\" already used", global_name);
+			}
+
+			for(const FunctionDecl& func_decl : this->function_decls){
+				evo::debugAssert(func_decl.name != global_name, "global \"{}\" already used", global_name);
+			}
+
+			for(const GlobalVar& global_var : this->global_vars){
+				evo::debugAssert(global_var.name != global_name, "global \"{}\" already used", global_name);
+			}
+		}
+	#endif
 
 }

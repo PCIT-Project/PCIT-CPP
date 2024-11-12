@@ -21,7 +21,7 @@ namespace pcit::pir{
 
 	class Expr{
 		public:
-			enum class Kind{
+			enum class Kind : uint32_t {
 				None, // for the optional optimization
 
 				// values
@@ -34,6 +34,7 @@ namespace pcit::pir{
 				CallVoidInst, // is separated from CallInst to allow for Expr::isValue()
 				RetInst,
 				BrInst,
+				Alloca,
 
 				Add,
 			};
@@ -44,8 +45,8 @@ namespace pcit::pir{
 			EVO_NODISCARD constexpr auto getKind() const -> Kind { return this->kind; }
 
 			EVO_NODISCARD auto isValue() const -> bool {
-				return this->isConstant() || this->kind == Kind::ParamExpr || this->kind == Kind::CallInst ||
-					   this->kind == Kind::Add;
+				return this->isConstant()         || this->kind == Kind::ParamExpr || this->kind == Kind::CallInst ||
+					   this->kind == Kind::Alloca || this->kind == Kind::Add;
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
@@ -55,7 +56,7 @@ namespace pcit::pir{
 			EVO_NODISCARD auto isStmt() const -> bool {
 				return this->kind == Kind::CallInst || this->kind == Kind::CallVoidInst || 
 					   this->kind == Kind::RetInst  || this->kind == Kind::BrInst       ||
-					   this->kind == Kind::Add;
+					   this->kind == Kind::Alloca   || this->kind == Kind::Add;
 			}
 
 			EVO_NODISCARD auto isTerminator() const -> bool {
@@ -80,12 +81,14 @@ namespace pcit::pir{
 			Kind kind;
 			uint32_t index;
 
-			friend class Function;
 			friend class Module;
 			friend struct ExprOptInterface;
 			friend class ReaderAgent;
 			friend class Agent;
+			friend class PassManager;
 	};
+
+	static_assert(sizeof(Expr) == 8);
 
 
 	struct ExprOptInterface{
@@ -99,11 +102,19 @@ namespace pcit::pir{
 	};
 
 
+
+
 }
 
 
-
 namespace std{
+
+	template<>
+	struct hash<pcit::pir::Expr>{
+		auto operator()(const pcit::pir::Expr& expr) const noexcept -> size_t {
+			return hash<uint64_t>{}(evo::bitCast<uint64_t>(expr));
+		}
+	};
 
 
 	template<>
@@ -173,6 +184,11 @@ namespace pcit::pir{
 
 	struct BrInst{
 		BasicBlockID target;
+	};
+
+	struct Alloca{
+		std::string name;
+		Type type;
 	};
 
 	struct Add{

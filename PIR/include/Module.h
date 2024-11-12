@@ -17,6 +17,7 @@
 #include "./Function.h"
 #include "./GlobalVar.h"
 
+
 namespace pcit::pir{
 
 
@@ -37,8 +38,22 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// function
 
-			EVO_NODISCARD auto createFunction(auto&&... args) -> Function::ID {
-				return this->functions.emplace_back(*this, FunctionDecl(std::forward<decltype(args)>(args)...));
+			EVO_NODISCARD auto createFunction(
+				std::string&& func_name,
+				evo::SmallVector<Parameter>&& parameters,
+				CallingConvention callingConvention,
+				Linkage linkage,
+				Type returnType
+			) -> Function::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_param_names(parameters);
+					this->check_global_name_reusue(func_name);
+				#endif
+
+				return this->functions.emplace_back(
+					*this,
+					FunctionDecl(std::move(func_name), std::move(parameters), callingConvention, linkage, returnType)
+				);
 			}
 
 			EVO_NODISCARD auto getFunction(Function::ID id) const -> const Function& {
@@ -70,8 +85,21 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// function declaration
 
-			EVO_NODISCARD auto createFunctionDecl(auto&&... args) -> FunctionDecl::ID {
-				return this->function_decls.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto createFunctionDecl(
+				std::string&& func_name,
+				evo::SmallVector<Parameter>&& parameters,
+				CallingConvention callingConvention,
+				Linkage linkage,
+				Type returnType
+			) -> FunctionDecl::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_param_names(parameters);
+					this->check_global_name_reusue(func_name);
+				#endif
+
+				return this->function_decls.emplace_back(
+					std::move(func_name), std::move(parameters), callingConvention, linkage, returnType
+				);
 			}
 
 			EVO_NODISCARD auto getFunctionDecl(FunctionDecl::ID id) const -> const FunctionDecl& {
@@ -121,6 +149,7 @@ namespace pcit::pir{
 						evo::debugAssert(type == this->getExprType(*value), "Type and value must match");
 						evo::debugAssert(value->isConstant(), "Global can only have a constant value");
 					}
+					this->check_global_name_reusue(global_name);
 				#endif
 
 				return this->global_vars.emplace_back(
@@ -214,9 +243,15 @@ namespace pcit::pir{
 
 
 
-			EVO_NODISCARD auto createTypeStruct(auto&&... args) -> Type {
+			EVO_NODISCARD auto createTypeStruct(
+				std::string&& struct_name, evo::SmallVector<Type> members, bool is_packed
+			) -> Type {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_global_name_reusue(struct_name);
+				#endif
+
 				const uint32_t struct_type_index = this->struct_types.emplace_back(
-					std::forward<decltype(args)>(args)...
+					std::move(struct_name), members, is_packed
 				);
 				return Type(Type::Kind::Struct, struct_type_index);
 			}
@@ -259,6 +294,13 @@ namespace pcit::pir{
 				evo::debugAssert(func_type.getKind() == Type::Kind::Function, "Not an array");
 				return this->func_types[func_type.number];
 			}
+
+		private:
+			#if defined(PCIT_CONFIG_DEBUG)
+				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
+
+				auto check_global_name_reusue(std::string_view global_name) const -> void;
+			#endif
 	
 		private:
 			std::string name;
@@ -273,6 +315,12 @@ namespace pcit::pir{
 			core::LinearStepAlloc<ArrayType, uint32_t> array_types{};
 			core::LinearStepAlloc<StructType, uint32_t> struct_types{};
 			core::LinearStepAlloc<FunctionType, uint32_t> func_types{};
+
+			// exprs
+			core::StepAlloc<CallInst, uint32_t> calls{};
+			core::StepAlloc<CallVoidInst, uint32_t> call_voids{};
+			core::StepAlloc<RetInst, uint32_t> rets{};
+			core::StepAlloc<Add, uint32_t> adds{};
 
 			friend class ReaderAgent;
 			friend class Agent;

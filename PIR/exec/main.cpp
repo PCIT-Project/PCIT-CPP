@@ -100,7 +100,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	const pcit::pir::Function::ID testing_func_id = module.createFunction(
-		"test",
+		"test()",
 		evo::SmallVector<pcit::pir::Parameter>{
 			pcit::pir::Parameter("vec2", vec2),
 			pcit::pir::Parameter("number", module.createTypeUnsigned(64))
@@ -112,33 +112,37 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.setTargetFunction(testing_func_id);
 
 
-	const pcit::pir::BasicBlock::ID entry_block_id = agent.createBasicBlock("ENTRY");
+
+	const pcit::pir::BasicBlock::ID entry_block_id = agent.createBasicBlock();
 	agent.setTargetBasicBlock(entry_block_id);
 
+
 	const pcit::pir::Expr add = agent.createAdd(
-		"ADD",
 		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(9)),
 		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(3)),
-		false
+		false,
+		"ADD"
 	);
 
-	const pcit::pir::Expr add2 = agent.createAdd(
-		"ADD2",
-		add,
+	const pcit::pir::Expr add2 = agent.createAdd(add, agent.createParamExpr(1), false, "ADD");
+	const pcit::pir::Expr val_alloca = agent.createAlloca(module.createTypeUnsigned(64), "VAL");
+
+	const pcit::pir::Expr add3 = agent.createAdd(
+		add2,
 		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(0)),
-		false
+		false,
+		"ADD"
 	);
 
-	const pcit::pir::Expr add3 = agent.createAdd("ADD3", add2, agent.createParamExpr(1), false);
+	std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
-
-	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock("SECOND");
+	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock();
 	agent.createBrInst(second_block_id);
 	agent.setTargetBasicBlock(second_block_id);
 
 	agent.createCallVoidInst(puts_decl, evo::SmallVector<pcit::pir::Expr>{module.createGlobalValue(global)});
 
-	agent.createRetInst(add2);
+	agent.createRetInst(add3);
 
 
 	printer.printlnGray("--------------------------------");
@@ -151,6 +155,7 @@ auto main(int argc, const char* argv[]) -> int {
 	// const unsigned num_threads = 0;
 	auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
+	pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
 	pass_manager.addPass(pcit::pir::passes::instCombine());
 	const bool opt_result = pass_manager.run();
 	if(opt_result == false){

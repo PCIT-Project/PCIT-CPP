@@ -33,10 +33,14 @@ namespace pcit::core{
 			~SpinLock() = default;
 
 			auto lock() -> void {
+				unsigned wait_threshold = 8;
 				for(size_t i = 0; !this->try_lock(); i+=1){
-					if(i == 8){
+					if(i == wait_threshold){
 						i = 0;
 						std::this_thread::yield();
+
+						wait_threshold -= 1;
+						if(wait_threshold == 0){ wait_threshold = 1; }
 					}
 				}
 			}
@@ -54,7 +58,7 @@ namespace pcit::core{
 			auto lock_shared() -> void { this->lock(); }
 	
 		private:
-			std::atomic<uint32_t> flag = 0;
+			std::atomic<unsigned> flag = 0;
 	};
 
 

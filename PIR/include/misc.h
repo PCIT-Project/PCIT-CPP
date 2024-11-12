@@ -9,21 +9,24 @@
 
 #pragma once
 
-#include "./misc.h"
 
-#include "./enums.h"
-#include "./Type.h"
-#include "./Expr.h"
-#include "./BasicBlock.h"
-#include "./GlobalVar.h"
-#include "./Function.h"
-#include "./Module.h"
+#include <Evo.h>
 
-#include "./ReaderAgent.h"
-#include "./Agent.h"
 
-#include "./ModulePrinter.h"
+namespace pcit::pir{
 
-#include "./PassManager.h"
-#include "./passes/instCombine.h"
-#include "./passes/removeUnusedStmts.h"
+
+	EVO_NODISCARD inline auto isStandardName(std::string_view name) -> bool {
+		if(name.empty()){ return false; }
+
+		for(char c : name){
+			if(!evo::isAlphaNumeric(c) && c != '.' && c != '_'){ return false; }
+		}
+
+		return true;
+	}
+
+
+}
+
+

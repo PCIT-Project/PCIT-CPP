@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.56.0
+
+### PIR
+- Added `alloca` statements
+- Added `passes::removeUnusedStmts`
+- Added reverse stmt passes to `PassManager`
+- Added local name collision (registers, basic blocks, params) prevention and automatic naming of statements and blocks
+- Added checking for name collisions of globals
+- Added checking of valid names
+- Added printing of non-standard function and global names
+- Fixed `Agent::createRetInst()` not appending to the target basic block
+
+
+<!---------------------------------->
 ## v0.0.55.0
 - Updated License to Apache License v2.0 with LLVM and PCIT exceptions
 - Fixed LLVM license missing

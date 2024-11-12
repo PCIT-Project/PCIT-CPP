@@ -14,6 +14,7 @@
 
 #include <PCIT_core.h>
 
+#include "./forward_decl_ids.h"
 #include "./Type.h"
 #include "./BasicBlock.h"
 #include "./Expr.h"
@@ -112,6 +113,13 @@ namespace pcit::pir{
 			EVO_NODISCARD auto crend() const -> ConstReverseIterator { return this->basic_blocks.crend(); };
 
 
+			using AllocasRange = core::IterRange<core::StepAlloc<Alloca, uint32_t>::ConstIter>;
+			EVO_NODISCARD auto getAllocasRange() const -> AllocasRange {
+				return AllocasRange(this->allocas.begin(), this->allocas.end());
+			}
+
+
+
 		private:
 			auto append_basic_block(BasicBlock::ID id) -> void;
 			auto insert_basic_block_before(BasicBlock::ID id, BasicBlock::ID before) -> void;
@@ -132,11 +140,7 @@ namespace pcit::pir{
 			Module& parent_module;
 
 			evo::SmallVector<BasicBlock::ID> basic_blocks{};
-
-			core::StepAlloc<CallInst, uint32_t> calls{};
-			core::StepAlloc<CallVoidInst, uint32_t> call_voids{};
-			core::StepAlloc<RetInst, uint32_t> rets{};
-			core::StepAlloc<Add, uint32_t> adds{};
+			core::StepAlloc<Alloca, uint32_t> allocas{}; // TODO: make this a std::vector?
 
 			friend class ReaderAgent;
 			friend class Agent;

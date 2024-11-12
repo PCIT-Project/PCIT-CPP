@@ -23,7 +23,7 @@
 namespace pcit::pir::passes{
 	
 
-	auto constant_folding_impl(Expr& stmt, const Agent& agent) -> bool {
+	auto constant_folding_impl(Expr stmt, const Agent& agent) -> bool {
 		switch(stmt.getKind()){
 			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:  return true;
@@ -33,6 +33,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::CallVoidInst: return true;
 			case Expr::Kind::RetInst:      return true;
 			case Expr::Kind::BrInst:       return true;
+			case Expr::Kind::Alloca:       return true;
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
@@ -48,11 +49,11 @@ namespace pcit::pir::passes{
 					if(result.wrapped){ return false; }
 
 					const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
-					agent.replaceExpr(stmt, result_expr);
+					agent.replaceStmtWithValue(stmt, result_expr);
 
 				}else{
 					const Expr result_expr = agent.createNumber(lhs.type, lhs.getFloat().add(rhs.getFloat()));
-					agent.replaceExpr(stmt, result_expr);
+					agent.replaceStmtWithValue(stmt, result_expr);
 				}
 
 				return true;
@@ -63,7 +64,7 @@ namespace pcit::pir::passes{
 	}
 
 
-	auto inst_simplify_impl(Expr& stmt, const Agent& agent) -> bool {
+	auto inst_simplify_impl(Expr stmt, const Agent& agent) -> bool {
 		switch(stmt.getKind()){
 			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:  return true;
@@ -73,6 +74,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::CallVoidInst: return true;
 			case Expr::Kind::RetInst:      return true;
 			case Expr::Kind::BrInst:       return true;
+			case Expr::Kind::Alloca:       return true;
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
@@ -82,7 +84,7 @@ namespace pcit::pir::passes{
 					if(lhs.type.isIntegral()){
 						const core::GenericInt& number = lhs.getInt();
 						if(number == core::GenericInt(number.getBitWidth(), 0)){
-							agent.replaceExpr(stmt, add.rhs);
+							agent.replaceStmtWithValue(stmt, add.rhs);
 						}
 					}
 
@@ -91,7 +93,7 @@ namespace pcit::pir::passes{
 					if(rhs.type.isIntegral()){
 						const core::GenericInt& number = rhs.getInt();
 						if(number == core::GenericInt(number.getBitWidth(), 0)){
-							agent.replaceExpr(stmt, add.lhs);
+							agent.replaceStmtWithValue(stmt, add.lhs);
 						}
 					}
 				}
@@ -104,7 +106,7 @@ namespace pcit::pir::passes{
 	}
 
 
-	auto inst_combine_impl(Expr&, const Agent&) -> bool {
+	auto inst_combine_impl(Expr, const Agent&) -> bool {
 		return true;
 	}
 

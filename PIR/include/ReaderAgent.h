@@ -42,10 +42,11 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getNumber(const Expr& expr) const -> const Number&;
 			EVO_NODISCARD static auto getParamExpr(const Expr& expr) -> ParamExpr;
 
-			EVO_NODISCARD auto getCallVoidInst(const Expr& expr) const -> const CallVoidInst&;
 			EVO_NODISCARD auto getCallInst(const Expr& expr) const -> const CallInst&;
+			EVO_NODISCARD auto getCallVoidInst(const Expr& expr) const -> const CallVoidInst&;
 			EVO_NODISCARD auto getRetInst(const Expr& expr) const -> const RetInst&;
 			EVO_NODISCARD static auto getBrInst(const Expr& expr) -> BrInst;
+			EVO_NODISCARD auto getAlloca(const Expr& expr) const -> const Alloca&;
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
 
 

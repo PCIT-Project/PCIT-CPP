@@ -10,6 +10,9 @@
 
 #include <Evo.h>
 
+#include <iterator>
+
+
 namespace pcit::core{
 
 
@@ -21,6 +24,8 @@ namespace pcit::core{
 		
 			EVO_NODISCARD auto begin() const -> const T& { return this->_begin; }
 			EVO_NODISCARD auto end() const -> const T& { return this->_end; }
+
+			EVO_NODISCARD auto size() const -> size_t { return std::distance(this->_begin, this->_end); }
 
 
 		private:
