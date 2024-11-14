@@ -46,10 +46,10 @@ namespace pcit::pir::passes{
 					case Expr::Kind::GlobalValue:  break;
 					case Expr::Kind::Number:       break;
 					case Expr::Kind::ParamExpr:    break;
-					case Expr::Kind::CallInst:     func_metadata.emplace(expr);
-					case Expr::Kind::CallVoidInst: break;
-					case Expr::Kind::RetInst:      break;
-					case Expr::Kind::BrInst:       break;
+					case Expr::Kind::Call:         func_metadata.emplace(expr);
+					case Expr::Kind::CallVoid:     break;
+					case Expr::Kind::Ret:          break;
+					case Expr::Kind::Branch:       break;
 					case Expr::Kind::Alloca:       func_metadata.emplace(expr);
 					case Expr::Kind::Add:          func_metadata.emplace(expr);
 				}
@@ -61,14 +61,14 @@ namespace pcit::pir::passes{
 				case Expr::Kind::Number:      return true;
 				case Expr::Kind::ParamExpr:   return true;
 
-				case Expr::Kind::CallInst: {
+				case Expr::Kind::Call: {
 					// TODO: remove if func has no side-effects
 					// if(func_metadata.contains(stmt) == false){
 					// 	agent.removeStmt(stmt);
 					// 	return true;
 					// }
 
-					const CallInst& call_inst = agent.getCallInst(stmt);
+					const Call& call_inst = agent.getCall(stmt);
 
 					if(call_inst.target.is<PtrCall>()){
 						see_expr(call_inst.target.as<PtrCall>().location);
@@ -79,8 +79,8 @@ namespace pcit::pir::passes{
 					}
 				} break;
 
-				case Expr::Kind::CallVoidInst: {
-					const CallVoidInst& call_void_inst = agent.getCallVoidInst(stmt);
+				case Expr::Kind::CallVoid: {
+					const CallVoid& call_void_inst = agent.getCallVoid(stmt);
 
 					if(call_void_inst.target.is<PtrCall>()){
 						see_expr(call_void_inst.target.as<PtrCall>().location);
@@ -91,15 +91,15 @@ namespace pcit::pir::passes{
 					}
 				} break;
 
-				case Expr::Kind::RetInst: {
-					const RetInst& ret_inst = agent.getRetInst(stmt);
+				case Expr::Kind::Ret: {
+					const Ret& ret_inst = agent.getRet(stmt);
 
 					if(ret_inst.value.has_value()){
 						see_expr(*ret_inst.value);
 					}
 				} break;
 
-				case Expr::Kind::BrInst: return true;
+				case Expr::Kind::Branch: return true;
 
 				case Expr::Kind::Alloca: {
 					if(func_metadata.contains(stmt) == false){

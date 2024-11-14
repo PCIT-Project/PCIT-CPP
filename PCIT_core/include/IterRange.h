@@ -26,6 +26,7 @@ namespace pcit::core{
 			EVO_NODISCARD auto end() const -> const T& { return this->_end; }
 
 			EVO_NODISCARD auto size() const -> size_t { return std::distance(this->_begin, this->_end); }
+			EVO_NODISCARD auto empty() const -> bool { return this->size() == 0; }
 
 
 		private:

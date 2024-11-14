@@ -49,6 +49,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto printer = pcit::core::Printer::createConsole(print_color);
 
 	printer.printlnCyan("PIRC");
+	printer.printlnGray("TESTING...");
 
 	#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
 		if(::IsDebuggerPresent()){
@@ -73,14 +74,14 @@ auto main(int argc, const char* argv[]) -> int {
 	//////////////////////////////////////////////////////////////////////
 	// begin test
 
-	auto module = pcit::pir::Module("testing");
+	auto module = pcit::pir::Module("PIR testing");
 	auto agent = pcit::pir::Agent(module);
 
 	const pcit::pir::GlobalVar::ID global = module.createGlobalVar(
 		"global",
 		module.createTypeUnsigned(17),
 		pcit::pir::Linkage::Internal,
-		agent.createNumber(module.createTypeUnsigned(17), pcit::core::GenericInt::create<uint64_t>(12)),
+		agent.createNumber(module.createTypeUnsigned(17), pcit::core::GenericInt::create<uint64_t>(18)),
 		true,
 		false
 	);
@@ -137,15 +138,17 @@ auto main(int argc, const char* argv[]) -> int {
 	std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
 	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock();
-	agent.createBrInst(second_block_id);
+	agent.createBranch(second_block_id);
 	agent.setTargetBasicBlock(second_block_id);
 
-	agent.createCallVoidInst(puts_decl, evo::SmallVector<pcit::pir::Expr>{module.createGlobalValue(global)});
+	agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{agent.createGlobalValue(global)});
+	agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
-	agent.createRetInst(add3);
+	agent.createRet(add3);
 
 
 	printer.printlnGray("--------------------------------");
+
 	pcit::pir::printModule(module, printer);
 
 
@@ -165,8 +168,21 @@ auto main(int argc, const char* argv[]) -> int {
 
 	pcit::pir::printModule(module, printer);
 
+
+
+	printer.printlnGray("--------------------------------");
+
+	auto lowered = pcit::pir::lowerToLLVMIR(module);
+	if(lowered.has_value()){
+		printer.printlnCyan(lowered.value());
+	}else{
+		printer.printlnError("ERROR in LLVM: \"{}\"", lowered.error());
+	}
+
+
 	// end test
 	//////////////////////////////////////////////////////////////////////
+
 
 
 	return EXIT_SUCCESS;

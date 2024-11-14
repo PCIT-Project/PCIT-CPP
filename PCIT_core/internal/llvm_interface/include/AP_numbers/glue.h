@@ -28,6 +28,7 @@ namespace pcit::llvmint::glue{
 
 	#define LLVM_READONLY
 	#define LLVM_READNONE
+	#undef LLVM_UNLIKELY
 	#define LLVM_UNLIKELY(x) x
 
 

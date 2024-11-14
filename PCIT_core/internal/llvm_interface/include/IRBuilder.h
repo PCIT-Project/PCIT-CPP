@@ -17,8 +17,13 @@
 #include "./class_impls/values.h"
 #include "./Function.h"
 
-namespace pcit::llvmint{
 
+namespace pcit::core{
+	class GenericInt;
+	class GenericFloat;
+}
+
+namespace pcit::llvmint{
 
 	
 	class IRBuilder{
@@ -84,6 +89,9 @@ namespace pcit::llvmint{
 
 			auto createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0') 
 				-> CallInst;
+			auto createCall(
+				const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0'
+			)  -> CallInst;
 			auto createIntrinsicCall(
 				IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0'
 			) -> CallInst;
@@ -215,6 +223,9 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getValueI128(uint64_t value) const -> ConstantInt;
 			
 			EVO_NODISCARD auto getValueI_N(unsigned bitwidth, uint64_t value) const -> ConstantInt;
+			EVO_NODISCARD auto getValueI_N(
+				unsigned bitwidth, bool is_unsigned, const class core::GenericInt& value
+			) const -> ConstantInt;
 
 			EVO_NODISCARD auto getValueIntegral(const IntegerType& type, uint64_t value) const -> ConstantInt;
 
@@ -226,6 +237,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getValueF128(float64_t value) const -> Constant;
 
 			EVO_NODISCARD auto getValueFloat(const Type& type, float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueFloat(const Type& type, const class core::GenericFloat& value) const -> Constant;
 
 			EVO_NODISCARD auto getNaNF16() const -> Constant;
 			EVO_NODISCARD auto getNaNBF16() const -> Constant;

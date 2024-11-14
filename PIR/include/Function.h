@@ -70,7 +70,7 @@ namespace pcit::pir{
 			~Function() = default;
 
 
-			EVO_NODISCARD auto getName() const -> std::string_view { return this->func_decl.name; }
+			EVO_NODISCARD auto getName() const -> const std::string& { return this->func_decl.name; }
 			EVO_NODISCARD auto getParameters() const -> evo::ArrayProxy<Parameter> {
 				return this->func_decl.parameters;
 			}

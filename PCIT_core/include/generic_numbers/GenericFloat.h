@@ -76,6 +76,9 @@ namespace pcit::core{
 			}
 
 
+			EVO_NODISCARD auto getNative() const -> const llvmint::APFloat& { return this->ap_float; }
+
+
 			//////////////////////////////////////////////////////////////////////
 			// Arithmetic operations
 

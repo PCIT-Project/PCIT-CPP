@@ -32,7 +32,7 @@ namespace pcit::pir{
 			}
 			~BasicBlock() = default;
 
-			EVO_NODISCARD auto getName() const -> std::string_view { return this->name; }
+			EVO_NODISCARD auto getName() const -> const std::string& { return this->name; }
 
 			EVO_NODISCARD auto isTerminated() const -> bool {
 				if(this->exprs.empty()){ return false; }

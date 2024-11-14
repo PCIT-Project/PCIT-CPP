@@ -972,8 +972,7 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Cannot get constant value from this ASG::Expr kind");
 		}
 
-		// to statisfy MSVC warning C4715
-		evo::unreachable();
+		evo::debugFatalBreak("Unknown or unsupported ASG::Expr::Kind");
 	}
 
 

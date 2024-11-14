@@ -11,7 +11,6 @@
 
 #include <Evo.h>
 
-#include "./class_impls/native_ptr_decls.h"
 
 namespace pcit::llvmint{
 

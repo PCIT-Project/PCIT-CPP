@@ -24,6 +24,9 @@ namespace pcit::llvmint{
 	ConstantInt::operator Constant() const { return Constant(static_cast<llvm::Constant*>(this->native()));	}
 	ConstantInt::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
+	auto CallInst::setCallingConv(CallingConv calling_conv) -> void {
+		this->native()->setCallingConv(evo::to_underlying(calling_conv));
+	}
 	CallInst::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
 	LoadInst::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}

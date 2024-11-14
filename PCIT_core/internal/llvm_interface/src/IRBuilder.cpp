@@ -13,6 +13,10 @@
 
 #include "../include/LLVMContext.h"
 
+#include "../../../include/generic_numbers/GenericInt.h"
+#include "../../../include/generic_numbers/GenericFloat.h"
+
+
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
@@ -125,6 +129,12 @@ namespace pcit::llvmint{
 
 	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
 		return this->builder->CreateCall(func.native(), createArrayRef<llvm::Value>(params), name.c_str());
+	}
+
+	auto IRBuilder::createCall(const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
+		return this->builder->CreateCall(
+			type.native(), value.native(), createArrayRef<llvm::Value>(params), name.c_str()
+		);
 	}
 
 	auto IRBuilder::createIntrinsicCall(
@@ -408,6 +418,19 @@ namespace pcit::llvmint{
 		return ConstantInt(this->builder->getIntN(bitwidth, value));
 	}
 
+	auto IRBuilder::getValueI_N(
+		unsigned bitwidth, bool is_unsigned, const pcit::core::GenericInt& value
+	) const -> ConstantInt {
+		return ConstantInt(
+			static_cast<llvm::ConstantInt*>(
+				llvm::ConstantInt::get(
+					this->getTypeI_N(bitwidth).native(),
+					evo::unsafeBitCast<llvm::APInt>(value.extOrTrunc(bitwidth, is_unsigned).getNative())
+				)
+			)
+		);
+	}
+
 	auto IRBuilder::getValueIntegral(const IntegerType& type, uint64_t value) const -> ConstantInt {
 		return ConstantInt(llvm::ConstantInt::get(type.native(), value));
 	}
@@ -440,6 +463,10 @@ namespace pcit::llvmint{
 
 	auto IRBuilder::getValueFloat(const Type& type, float64_t value) const -> Constant {
 		return Constant(llvm::ConstantFP::get(type.native(), value));
+	}
+
+	auto IRBuilder::getValueFloat(const Type& type, const core::GenericFloat& value) const -> Constant {
+		return Constant(llvm::ConstantFP::get(type.native(), evo::unsafeBitCast<llvm::APFloat>(value.getNative())));
 	}
 
 

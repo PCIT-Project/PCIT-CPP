@@ -30,10 +30,10 @@ namespace pcit::pir{
 				ParamExpr,
 
 				// stmts
-				CallInst,
-				CallVoidInst, // is separated from CallInst to allow for Expr::isValue()
-				RetInst,
-				BrInst,
+				Call,
+				CallVoid, // is separated from Call to allow for Expr::isValue()
+				Ret,
+				Branch,
 				Alloca,
 
 				Add,
@@ -45,7 +45,7 @@ namespace pcit::pir{
 			EVO_NODISCARD constexpr auto getKind() const -> Kind { return this->kind; }
 
 			EVO_NODISCARD auto isValue() const -> bool {
-				return this->isConstant()         || this->kind == Kind::ParamExpr || this->kind == Kind::CallInst ||
+				return this->isConstant()         || this->kind == Kind::ParamExpr || this->kind == Kind::Call ||
 					   this->kind == Kind::Alloca || this->kind == Kind::Add;
 			}
 
@@ -54,13 +54,13 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto isStmt() const -> bool {
-				return this->kind == Kind::CallInst || this->kind == Kind::CallVoidInst || 
-					   this->kind == Kind::RetInst  || this->kind == Kind::BrInst       ||
-					   this->kind == Kind::Alloca   || this->kind == Kind::Add;
+				return this->kind == Kind::Call   || this->kind == Kind::CallVoid || 
+					   this->kind == Kind::Ret    || this->kind == Kind::Branch   ||
+					   this->kind == Kind::Alloca || this->kind == Kind::Add;
 			}
 
 			EVO_NODISCARD auto isTerminator() const -> bool {
-				return this->kind == Kind::RetInst || this->kind == Kind::BrInst;
+				return this->kind == Kind::Ret || this->kind == Kind::Branch;
 			}
 
 
@@ -167,22 +167,22 @@ namespace pcit::pir{
 		Type funcType;
 	};
 
-	struct CallInst{
+	struct Call{
 		std::string name;
 		evo::Variant<FunctionID, FunctionDeclID, PtrCall> target;
 		evo::SmallVector<Expr> args;
 	};
 
-	struct CallVoidInst{
+	struct CallVoid{
 		evo::Variant<FunctionID, FunctionDeclID, PtrCall> target;
 		evo::SmallVector<Expr> args;
 	};
 
-	struct RetInst{
+	struct Ret{
 		std::optional<Expr> value;
 	};
 
-	struct BrInst{
+	struct Branch{
 		BasicBlockID target;
 	};
 

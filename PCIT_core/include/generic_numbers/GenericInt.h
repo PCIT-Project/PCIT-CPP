@@ -53,6 +53,9 @@ namespace pcit::core{
 				return output;
 			}
 
+			EVO_NODISCARD auto getNative() const -> const llvmint::APInt& { return this->ap_int; }
+			
+
 
 			//////////////////////////////////////////////////////////////////////
 			// arithmetic operations
@@ -256,6 +259,7 @@ namespace pcit::core{
 					return this->sextOrTrunc(width);
 				}
 			}
+
 
 		private:
 			GenericInt(llvmint::APInt&& _ap_int) : ap_int(std::move(_ap_int)) {}

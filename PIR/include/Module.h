@@ -140,14 +140,14 @@ namespace pcit::pir{
 				std::string&& global_name,
 				Type type,
 				Linkage linkage,
-				std::optional<Expr> value,
+				evo::Variant<Expr, GlobalVar::Zeroinit, GlobalVar::Uninit> value,
 				bool isConstant,
 				bool isExternal
 			) -> GlobalVar::ID {
 				#if defined(EVO_CONFIG_DEBUG)
-					if(value.has_value()){
-						evo::debugAssert(type == this->getExprType(*value), "Type and value must match");
-						evo::debugAssert(value->isConstant(), "Global can only have a constant value");
+					if(value.is<Expr>()){
+						evo::debugAssert(type == this->getExprType(value.as<Expr>()), "Type and value must match");
+						evo::debugAssert(value.as<Expr>().isConstant(), "Global can only have a constant value");
 					}
 					this->check_global_name_reusue(global_name);
 				#endif
@@ -181,18 +181,6 @@ namespace pcit::pir{
 				return core::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
 			}
 
-
-			///////////////////////////////////
-			// global values (expr)
-
-			EVO_NODISCARD static auto createGlobalValue(const GlobalVar::ID& global_id) -> Expr {
-				return Expr(Expr::Kind::GlobalValue, global_id.get());
-			}
-
-			EVO_NODISCARD auto getGlobalValue(const Expr& expr) const -> const GlobalVar& {
-				evo::debugAssert(expr.getKind() == Expr::Kind::GlobalValue, "Not global");
-				return this->getGlobalVar(GlobalVar::ID(expr.index));
-			}
 
 
 
@@ -285,13 +273,13 @@ namespace pcit::pir{
 
 
 
-			EVO_NODISCARD auto createTypeFunction(auto&&... args) -> Type {
+			EVO_NODISCARD auto createFunctionType(auto&&... args) -> Type {
 				const uint32_t array_type_index = this->func_types.emplace_back(std::forward<decltype(args)>(args)...);
 				return Type(Type::Kind::Function, array_type_index);
 			}
 
-			EVO_NODISCARD auto getTypeFunction(const Type& func_type) const -> const FunctionType& {
-				evo::debugAssert(func_type.getKind() == Type::Kind::Function, "Not an array");
+			EVO_NODISCARD auto getFunctionType(const Type& func_type) const -> const FunctionType& {
+				evo::debugAssert(func_type.getKind() == Type::Kind::Function, "Not an function");
 				return this->func_types[func_type.number];
 			}
 
@@ -317,9 +305,9 @@ namespace pcit::pir{
 			core::LinearStepAlloc<FunctionType, uint32_t> func_types{};
 
 			// exprs
-			core::StepAlloc<CallInst, uint32_t> calls{};
-			core::StepAlloc<CallVoidInst, uint32_t> call_voids{};
-			core::StepAlloc<RetInst, uint32_t> rets{};
+			core::StepAlloc<Call, uint32_t> calls{};
+			core::StepAlloc<CallVoid, uint32_t> call_voids{};
+			core::StepAlloc<Ret, uint32_t> rets{};
 			core::StepAlloc<Add, uint32_t> adds{};
 
 			friend class ReaderAgent;

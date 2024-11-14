@@ -91,7 +91,7 @@ namespace pcit::pir{
 	}
 
 	auto Function::check_func_call_args(Type func_type, evo::ArrayProxy<Expr> args) const -> bool {
-		return this->check_func_call_args(this->parent_module.getTypeFunction(func_type).parameters, args);
+		return this->check_func_call_args(this->parent_module.getFunctionType(func_type).parameters, args);
 	}
 
 	auto Function::check_func_call_args(evo::ArrayProxy<Type> param_types, evo::ArrayProxy<Expr> args) const -> bool {

@@ -29,10 +29,10 @@ namespace pcit::pir::passes{
 			case Expr::Kind::GlobalValue:  return true;
 			case Expr::Kind::Number:       return true;
 			case Expr::Kind::ParamExpr:    return true;
-			case Expr::Kind::CallInst:     return true;
-			case Expr::Kind::CallVoidInst: return true;
-			case Expr::Kind::RetInst:      return true;
-			case Expr::Kind::BrInst:       return true;
+			case Expr::Kind::Call:         return true;
+			case Expr::Kind::CallVoid:     return true;
+			case Expr::Kind::Ret:          return true;
+			case Expr::Kind::Branch:       return true;
 			case Expr::Kind::Alloca:       return true;
 
 			case Expr::Kind::Add: {
@@ -70,10 +70,10 @@ namespace pcit::pir::passes{
 			case Expr::Kind::GlobalValue:  return true;
 			case Expr::Kind::Number:       return true;
 			case Expr::Kind::ParamExpr:    return true;
-			case Expr::Kind::CallInst:     return true;
-			case Expr::Kind::CallVoidInst: return true;
-			case Expr::Kind::RetInst:      return true;
-			case Expr::Kind::BrInst:       return true;
+			case Expr::Kind::Call:         return true;
+			case Expr::Kind::CallVoid:     return true;
+			case Expr::Kind::Ret:          return true;
+			case Expr::Kind::Branch:       return true;
 			case Expr::Kind::Alloca:       return true;
 
 			case Expr::Kind::Add: {

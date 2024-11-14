@@ -537,16 +537,16 @@ namespace pthr{
 					ret.value.visit([&](auto value) -> void {
 						using ValueT = std::decay_t<decltype(value)>;
 
-						if constexpr(std::is_same_v<ValueT, std::monostate>){
+						if constexpr(std::is_same<ValueT, std::monostate>()){
 							this->printer.printlnGray(" {NONE}");
 
-						}else if constexpr(std::is_same_v<ValueT, panther::AST::Node>){
+						}else if constexpr(std::is_same<ValueT, panther::AST::Node>()){
 							this->indenter.push();
 							this->printer.println();
 							this->print_expr(value);
 							this->indenter.pop();
 
-						}else if constexpr(std::is_same_v<ValueT, panther::Token::ID>){
+						}else if constexpr(std::is_same<ValueT, panther::Token::ID>()){
 							this->printer.printlnGray(" [...]");
 
 						}else{

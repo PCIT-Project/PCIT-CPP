@@ -34,6 +34,9 @@ namespace pcit::pir{
 			~ReaderAgent() = default;
 
 			EVO_NODISCARD auto hasTargetFunction() const -> bool { return this->target_func != nullptr; }
+			EVO_NODISCARD auto setTargetFunction(const Function& func) -> void { this->target_func = &func; }
+			EVO_NODISCARD auto clearTargetFunction() -> void { this->target_func = nullptr; }
+
 
 			EVO_NODISCARD auto getExprType(const Expr& expr) const -> Type;
 
@@ -41,11 +44,12 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto getNumber(const Expr& expr) const -> const Number&;
 			EVO_NODISCARD static auto getParamExpr(const Expr& expr) -> ParamExpr;
+			EVO_NODISCARD auto getGlobalValue(const Expr& expr) const -> const GlobalVar&;
 
-			EVO_NODISCARD auto getCallInst(const Expr& expr) const -> const CallInst&;
-			EVO_NODISCARD auto getCallVoidInst(const Expr& expr) const -> const CallVoidInst&;
-			EVO_NODISCARD auto getRetInst(const Expr& expr) const -> const RetInst&;
-			EVO_NODISCARD static auto getBrInst(const Expr& expr) -> BrInst;
+			EVO_NODISCARD auto getCall(const Expr& expr) const -> const Call&;
+			EVO_NODISCARD auto getCallVoid(const Expr& expr) const -> const CallVoid&;
+			EVO_NODISCARD auto getRet(const Expr& expr) const -> const Ret&;
+			EVO_NODISCARD static auto getBranch(const Expr& expr) -> Branch;
 			EVO_NODISCARD auto getAlloca(const Expr& expr) const -> const Alloca&;
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
 

@@ -98,62 +98,70 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// global values (expr)
+
+			EVO_NODISCARD static auto createGlobalValue(const GlobalVar::ID& global_id) -> Expr;
+
+			EVO_NODISCARD auto getGlobalValue(const Expr& expr) const -> const GlobalVar&;
+
+
+			///////////////////////////////////
 			// calls
 
-			EVO_NODISCARD auto createCallInst(
+			EVO_NODISCARD auto createCall(
 				Function::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
-			EVO_NODISCARD auto createCallInst(
+			EVO_NODISCARD auto createCall(
 				Function::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
-			EVO_NODISCARD auto createCallInst(
+			EVO_NODISCARD auto createCall(
 				FunctionDecl::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
-			EVO_NODISCARD auto createCallInst(
+			EVO_NODISCARD auto createCall(
 				FunctionDecl::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
-			EVO_NODISCARD auto createCallInst(
+			EVO_NODISCARD auto createCall(
 				const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
-			EVO_NODISCARD auto createCallInst(
+			EVO_NODISCARD auto createCall(
 				const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
-			EVO_NODISCARD auto getCallInst(const Expr& expr) const -> const CallInst&;
+			EVO_NODISCARD auto getCall(const Expr& expr) const -> const Call&;
 
 
 			///////////////////////////////////
 			// call voids
 
-			auto createCallVoidInst(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallVoidInst(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallVoid(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoid(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoidInst(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallVoidInst(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallVoid(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoid(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoidInst(const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args) const
+			auto createCallVoid(const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args) const
 				-> Expr;
-			auto createCallVoidInst(const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args) const
+			auto createCallVoid(const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args) const
 				-> Expr;
 
-			EVO_NODISCARD auto getCallVoidInst(const Expr& expr) const -> const CallVoidInst&;
+			EVO_NODISCARD auto getCallVoid(const Expr& expr) const -> const CallVoid&;
 
 
 			///////////////////////////////////
 			// ret instructions
 
-			auto createRetInst(const Expr& expr) const -> Expr;
-			auto createRetInst() const -> Expr;
-			EVO_NODISCARD auto getRetInst(const Expr& expr) const -> const RetInst&;
+			auto createRet(const Expr& expr) const -> Expr;
+			auto createRet() const -> Expr;
+			EVO_NODISCARD auto getRet(const Expr& expr) const -> const Ret&;
 
 
 			///////////////////////////////////
-			// br instructions
+			// branch instructions
 
-			auto createBrInst(BasicBlock::ID basic_block_id) const -> Expr;
-			EVO_NODISCARD static auto getBrInst(const Expr& expr) -> BrInst;
+			auto createBranch(BasicBlock::ID basic_block_id) const -> Expr;
+			EVO_NODISCARD static auto getBranch(const Expr& expr) -> Branch;
 
 
 			///////////////////////////////////

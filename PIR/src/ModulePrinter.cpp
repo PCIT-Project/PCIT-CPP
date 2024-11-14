@@ -248,10 +248,24 @@ namespace pcit::pir{
 			this->printer.printRed("#external ");
 		}
 
-		if(global_var.value.has_value()){
-			this->printer.printRed("= ");
-			this->print_expr(*global_var.value);
-		}
+
+		global_var.value.visit([&](const auto& value) -> void {
+			using ValueT = std::decay_t<decltype(value)>;
+
+			if constexpr(std::is_same_v<ValueT, Expr>){
+				this->printer.printRed("= ");
+				this->print_expr(value);
+
+			}else if constexpr(std::is_same_v<ValueT, GlobalVar::Zeroinit>){
+				this->printer.printRed("= zeroinit");
+
+			}else if constexpr(std::is_same_v<ValueT, GlobalVar::Uninit>){
+				this->printer.printRed("= uninit");
+				
+			}else{
+				static_assert(false, "Unsupported global var kind");
+			}
+		});
 
 		this->printer.println();
 	}
@@ -317,7 +331,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::GlobalValue: {
-				const GlobalVar& global_var = this->module.getGlobalValue(expr);
+				const GlobalVar& global_var = ReaderAgent(this->module).getGlobalValue(expr);
 				this->printer.print("${}", global_var.name);
 			} break;
 
@@ -326,14 +340,14 @@ namespace pcit::pir{
 				this->printer.print("${}", this->func->getParameters()[param_expr.index].getName());
 			} break;
 
-			case Expr::Kind::CallInst: {
-				const CallInst& call_inst = ReaderAgent(this->module, *this->func).getCallInst(expr);
+			case Expr::Kind::Call: {
+				const Call& call_inst = ReaderAgent(this->module, *this->func).getCall(expr);
 				this->printer.print("${}", call_inst.name);
 			} break;
 
-			case Expr::Kind::CallVoidInst: evo::debugFatalBreak("Expr::Kind::CallVoidInst is not a valid expression");
-			case Expr::Kind::RetInst: evo::debugFatalBreak("Expr::Kind::RetInst is not a valid expression");
-			case Expr::Kind::BrInst: evo::debugFatalBreak("Expr::Kind::BrInst is not a valid expression");
+			case Expr::Kind::CallVoid: evo::debugFatalBreak("Expr::Kind::CallVoid is not a valid expression");
+			case Expr::Kind::Ret: evo::debugFatalBreak("Expr::Kind::Ret is not a valid expression");
+			case Expr::Kind::Branch: evo::debugFatalBreak("Expr::Kind::Branch is not a valid expression");
 
 			case Expr::Kind::Alloca: {
 				const Alloca& alloca = ReaderAgent(this->module, *this->func).getAlloca(expr);
@@ -356,8 +370,8 @@ namespace pcit::pir{
 			case Expr::Kind::GlobalValue: evo::debugFatalBreak("Expr::Kind::GlobalValue is not a valid statement");
 			case Expr::Kind::ParamExpr:   evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
 
-			case Expr::Kind::CallInst: {
-				const CallInst& call_inst = ReaderAgent(this->module, *this->func).getCallInst(expr);
+			case Expr::Kind::Call: {
+				const Call& call_inst = ReaderAgent(this->module, *this->func).getCall(expr);
 
 				this->printer.print("{}${} ", tabs(2), call_inst.name);
 				this->printer.printRed("= ");
@@ -365,16 +379,16 @@ namespace pcit::pir{
 				this->print_function_call_impl(call_inst.target, call_inst.args);
 			} break;
 
-			case Expr::Kind::CallVoidInst: {
-				const CallVoidInst& call_void_inst = ReaderAgent(this->module, *this->func).getCallVoidInst(expr);
+			case Expr::Kind::CallVoid: {
+				const CallVoid& call_void_inst = ReaderAgent(this->module, *this->func).getCallVoid(expr);
 
 				this->printer.print(tabs(2));
 
 				this->print_function_call_impl(call_void_inst.target, call_void_inst.args);
 			} break;
 
-			case Expr::Kind::RetInst: {
-				const RetInst& ret_inst = ReaderAgent(this->module, *this->func).getRetInst(expr);
+			case Expr::Kind::Ret: {
+				const Ret& ret_inst = ReaderAgent(this->module, *this->func).getRet(expr);
 
 				if(ret_inst.value.has_value()){
 					this->printer.printRed("{}@ret ", tabs(2));
@@ -386,11 +400,11 @@ namespace pcit::pir{
 			} break;
 
 
-			case Expr::Kind::BrInst: {
+			case Expr::Kind::Branch: {
 				auto reader = ReaderAgent(this->module, *this->func);
 
-				this->printer.printRed("{}@br ", tabs(2));
-				const BasicBlock::ID basic_block_id = reader.getBrInst(expr).target;
+				this->printer.printRed("{}@branch ", tabs(2));
+				const BasicBlock::ID basic_block_id = reader.getBranch(expr).target;
 				this->printer.println("${}", reader.getBasicBlock(basic_block_id).getName());
 			} break;
 

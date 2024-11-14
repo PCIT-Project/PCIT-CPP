@@ -13,6 +13,7 @@
 
 #include "./types.h"
 #include "./native_ptr_decls.h"
+#include "./enums.h"
 
 namespace pcit::llvmint{
 	
@@ -87,6 +88,8 @@ namespace pcit::llvmint{
 		public:
 			CallInst(llvm::CallInst* native_type) : _native(native_type) {};
 			~CallInst() = default;
+
+			auto setCallingConv(CallingConv calling_conv) -> void;
 
 			EVO_NODISCARD explicit operator Value() const;
 			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }

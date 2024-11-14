@@ -27,32 +27,32 @@ namespace pcit::pir{
 				const ParamExpr param_expr = this->getParamExpr(expr);
 				return this->target_func->getParameters()[param_expr.index].getType();
 			} break;
-			case Expr::Kind::CallInst: {
+			case Expr::Kind::Call: {
 				evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 
-				const CallInst& call_inst = this->getCallInst(expr);
+				const Call& call_inst = this->getCall(expr);
 
 				return call_inst.target.visit([&](const auto& target) -> Type {
 					using ValueT = std::decay_t<decltype(target)>;
 
-					if constexpr(std::is_same_v<ValueT, Function::ID>){
+					if constexpr(std::is_same<ValueT, Function::ID>()){
 						return this->module.getFunction(target).getReturnType();
 
-					}else if constexpr(std::is_same_v<ValueT, FunctionDecl::ID>){
+					}else if constexpr(std::is_same<ValueT, FunctionDecl::ID>()){
 						return this->module.getFunctionDecl(target).returnType;
 						
-					}else if constexpr(std::is_same_v<ValueT, PtrCall>){
-						return this->module.getTypeFunction(target.funcType).returnType;
+					}else if constexpr(std::is_same<ValueT, PtrCall>()){
+						return this->module.getFunctionType(target.funcType).returnType;
 
 					}else{
 						static_assert(false, "Unsupported call inst target");
 					}
 				});
 			} break;
-			case Expr::Kind::CallVoidInst: evo::unreachable();
-			case Expr::Kind::RetInst:      evo::unreachable();
-			case Expr::Kind::BrInst:       evo::unreachable();
-			case Expr::Kind::Alloca:       return this->getAlloca(expr).type;
+			case Expr::Kind::CallVoid:     evo::unreachable();
+			case Expr::Kind::Ret:          evo::unreachable();
+			case Expr::Kind::Branch:       evo::unreachable();
+			case Expr::Kind::Alloca:       return this->module.createTypePtr();
 			case Expr::Kind::Add:          return this->getExprType(this->getAdd(expr).lhs);
 		}
 
@@ -76,18 +76,23 @@ namespace pcit::pir{
 		return ParamExpr(expr.index);
 	}
 
+	auto ReaderAgent::getGlobalValue(const Expr& expr) const -> const GlobalVar& {
+		evo::debugAssert(expr.getKind() == Expr::Kind::GlobalValue, "Not global");
+		return this->module.getGlobalVar(GlobalVar::ID(expr.index));
+	}
 
 
-	auto ReaderAgent::getCallInst(const Expr& expr) const -> const CallInst& {
+
+	auto ReaderAgent::getCall(const Expr& expr) const -> const Call& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::CallInst, "not a call inst");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Call, "not a call inst");
 
 		return this->module.calls[expr.index];
 	}
 
-	auto ReaderAgent::getCallVoidInst(const Expr& expr) const -> const CallVoidInst& {
+	auto ReaderAgent::getCallVoid(const Expr& expr) const -> const CallVoid& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::CallVoidInst, "not a call void inst");
+		evo::debugAssert(expr.getKind() == Expr::Kind::CallVoid, "not a call void inst");
 
 		return this->module.call_voids[expr.index];
 	}
@@ -95,19 +100,19 @@ namespace pcit::pir{
 
 
 
-	auto ReaderAgent::getRetInst(const Expr& expr) const -> const RetInst& {
+	auto ReaderAgent::getRet(const Expr& expr) const -> const Ret& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::RetInst, "Not a ret");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Ret, "Not a ret");
 
 		return this->module.rets[expr.index];
 	}
 
 
 
-	auto ReaderAgent::getBrInst(const Expr& expr) -> BrInst {
-		evo::debugAssert(expr.getKind() == Expr::Kind::BrInst, "Not a br");
+	auto ReaderAgent::getBranch(const Expr& expr) -> Branch {
+		evo::debugAssert(expr.getKind() == Expr::Kind::Branch, "Not a br");
 
-		return BrInst(BasicBlock::ID(expr.index));
+		return Branch(BasicBlock::ID(expr.index));
 	}
 
 	auto ReaderAgent::getAlloca(const Expr& expr) const -> const Alloca& {

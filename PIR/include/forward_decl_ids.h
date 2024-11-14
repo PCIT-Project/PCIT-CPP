@@ -35,4 +35,31 @@ namespace pcit::pir{
 }
 
 
+namespace std{
+
+	template<>
+	struct hash<pcit::pir::BasicBlockID>{
+		auto operator()(const pcit::pir::BasicBlockID& expr) const noexcept -> size_t {
+			return hash<uint32_t>{}(expr.get());
+		}
+	};
+
+
+	template<>
+	struct hash<pcit::pir::FunctionID>{
+		auto operator()(const pcit::pir::FunctionID& expr) const noexcept -> size_t {
+			return hash<uint32_t>{}(expr.get());
+		}
+	};
+
+
+	template<>
+	struct hash<pcit::pir::FunctionDeclID>{
+		auto operator()(const pcit::pir::FunctionDeclID& expr) const noexcept -> size_t {
+			return hash<uint32_t>{}(expr.get());
+		}
+	};
+	
+}
+
 

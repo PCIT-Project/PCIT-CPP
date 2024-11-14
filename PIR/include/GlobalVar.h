@@ -22,10 +22,13 @@ namespace pcit::pir{
 
 
 	struct GlobalVar{
+		struct Zeroinit{};
+		struct Uninit{};
+
 		std::string name;
 		Type type;
 		Linkage linkage;
-		std::optional<Expr> value;
+		evo::Variant<Expr, Zeroinit, Uninit> value;
 		bool isConstant;
 		bool isExternal;
 
