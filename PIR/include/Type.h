@@ -83,6 +83,10 @@ namespace pcit::pir{
 				return this->isNumeric();
 			}
 
+			EVO_NODISCARD auto isComposite() const -> bool {
+				return this->kind == Kind::Array || this->kind == Kind::Struct;
+			}
+
 			EVO_NODISCARD auto hasWidth() const -> bool {
 				return this->kind == Kind::Signed || this->kind == Kind::Unsigned || this->kind == Kind::Float;
 			}

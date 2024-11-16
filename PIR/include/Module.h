@@ -18,17 +18,21 @@
 #include "./GlobalVar.h"
 
 
+
 namespace pcit::pir{
 
 
 	class Module{
 		public:
 			// Module(std::string_view _name) : name(_name) {}
-			Module(std::string&& _name) : name(std::move(_name)) {}
+			Module(
+				std::string&& _name, core::OS _os, core::Architecture _arch
+			) : name(std::move(_name)), os(_os), arch(_arch) {}
 			~Module() = default;
 
-
 			EVO_NODISCARD auto getName() const -> std::string_view { return this->name; }
+			EVO_NODISCARD auto getOS() const -> core::OS { return this->os; }
+			EVO_NODISCARD auto getArchitecture() const -> core::Architecture { return this->arch; }
 
 
 			// Only supports constants
@@ -187,11 +191,11 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// types
 
-			EVO_NODISCARD static auto createTypeVoid() -> Type { return Type(Type::Kind::Void); }
+			EVO_NODISCARD static auto createVoidType() -> Type { return Type(Type::Kind::Void); }
 
-			EVO_NODISCARD static auto createTypePtr() -> Type { return Type(Type::Kind::Ptr); }
+			EVO_NODISCARD static auto createPtrType() -> Type { return Type(Type::Kind::Ptr); }
 
-			EVO_NODISCARD static auto createTypeSigned(uint32_t width) -> Type {
+			EVO_NODISCARD static auto createSignedType(uint32_t width) -> Type {
 				evo::debugAssert(
 					width != 0 && width < 1 << 23,
 					"Invalid width for a signed ({})", width
@@ -199,7 +203,7 @@ namespace pcit::pir{
 				return Type(Type::Kind::Signed, width);
 			}
 
-			EVO_NODISCARD static auto createTypeUnsigned(uint32_t width) -> Type {
+			EVO_NODISCARD static auto createUnsignedType(uint32_t width) -> Type {
 				evo::debugAssert(
 					width != 0 && width < 1 << 23,
 					"Invalid width for an unsigned ({})", width
@@ -207,7 +211,7 @@ namespace pcit::pir{
 				return Type(Type::Kind::Unsigned, width);
 			}
 
-			EVO_NODISCARD static auto createTypeFloat(uint32_t width) -> Type {
+			EVO_NODISCARD static auto createFloatType(uint32_t width) -> Type {
 				evo::debugAssert(
 					width == 16 || width == 32 || width == 64 || width == 80 || width == 128,
 					"Invalid width for a float ({})", width
@@ -215,23 +219,23 @@ namespace pcit::pir{
 				return Type(Type::Kind::Float, width);
 			}
 
-			EVO_NODISCARD static auto createTypeBFloat() -> Type { return Type(Type::Kind::BFloat); }
+			EVO_NODISCARD static auto createBFloatType() -> Type { return Type(Type::Kind::BFloat); }
 
 
 
-			EVO_NODISCARD auto createTypeArray(auto&&... args) -> Type {
+			EVO_NODISCARD auto createArrayType(auto&&... args) -> Type {
 				const uint32_t array_type_index = this->array_types.emplace_back(std::forward<decltype(args)>(args)...);
 				return Type(Type::Kind::Array, array_type_index);
 			}
 
-			EVO_NODISCARD auto getTypeArray(const Type& arr_type) const -> const ArrayType& {
+			EVO_NODISCARD auto getArrayType(const Type& arr_type) const -> const ArrayType& {
 				evo::debugAssert(arr_type.getKind() == Type::Kind::Array, "Not an array");
 				return this->array_types[arr_type.number];
 			}
 
 
 
-			EVO_NODISCARD auto createTypeStruct(
+			EVO_NODISCARD auto createStructType(
 				std::string&& struct_name, evo::SmallVector<Type> members, bool is_packed
 			) -> Type {
 				#if defined(PCIT_CONFIG_DEBUG)
@@ -244,7 +248,7 @@ namespace pcit::pir{
 				return Type(Type::Kind::Struct, struct_type_index);
 			}
 
-			EVO_NODISCARD auto getTypeStruct(const Type& struct_type) const -> const StructType& {
+			EVO_NODISCARD auto getStructType(const Type& struct_type) const -> const StructType& {
 				evo::debugAssert(struct_type.getKind() == Type::Kind::Struct, "Not a struct");
 				return this->struct_types[struct_type.number];
 			}
@@ -283,6 +287,19 @@ namespace pcit::pir{
 				return this->func_types[func_type.number];
 			}
 
+
+			///////////////////////////////////
+			// type traits
+
+			EVO_NODISCARD auto sizeOfPtr() const -> size_t;
+			EVO_NODISCARD auto alignmentOfPtr() const -> size_t;
+			EVO_NODISCARD auto sizeOfGeneralRegister() const -> size_t;
+
+			EVO_NODISCARD auto getSize(const Type& type) const -> size_t;
+			EVO_NODISCARD auto getAlignment(const Type& type) const -> size_t;
+
+
+
 		private:
 			#if defined(PCIT_CONFIG_DEBUG)
 				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
@@ -292,6 +309,8 @@ namespace pcit::pir{
 	
 		private:
 			std::string name;
+			core::OS os;
+			core::Architecture arch;
 
 			core::StepAlloc<Function, Function::ID> functions{};
 			core::StepAlloc<FunctionDecl, FunctionDecl::ID> function_decls{};

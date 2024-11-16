@@ -81,7 +81,6 @@ namespace pcit::pir{
 			Kind kind;
 			uint32_t index;
 
-			friend class Module;
 			friend struct ExprOptInterface;
 			friend class ReaderAgent;
 			friend class Agent;

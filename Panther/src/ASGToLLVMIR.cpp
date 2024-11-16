@@ -610,7 +610,7 @@ namespace pcit::panther{
 				return this->builder.getTypeI16().asType();
 
 			case Token::Kind::TypeCInt: case Token::Kind::TypeCUInt: {
-				if(this->context.getTypeManager().platform() == core::Platform::Windows){
+				if(this->context.getTypeManager().getOS() == core::OS::Windows){
 					return this->builder.getTypeI32().asType();
 				}else{
 					return this->builder.getTypeI64().asType();
@@ -624,7 +624,7 @@ namespace pcit::panther{
 				return this->builder.getTypeI64().asType();
 
 			case Token::Kind::TypeCLongDouble: {
-				if(this->context.getTypeManager().platform() == core::Platform::Windows){
+				if(this->context.getTypeManager().getOS() == core::OS::Windows){
 					return this->builder.getTypeF64();
 				}else{
 					return this->builder.getTypeF80();

@@ -13,8 +13,8 @@
 
 #include "../include/LLVMContext.h"
 
-#include "../../../include/generic_numbers/GenericInt.h"
-#include "../../../include/generic_numbers/GenericFloat.h"
+#include "../../../include/generic_values/GenericInt.h"
+#include "../../../include/generic_values/GenericFloat.h"
 
 
 

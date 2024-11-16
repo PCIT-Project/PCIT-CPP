@@ -9,24 +9,14 @@
 
 #pragma once
 
-#include "./misc.h"
 
-#include "./enums.h"
-#include "./Type.h"
-#include "./Expr.h"
-#include "./BasicBlock.h"
-#include "./GlobalVar.h"
-#include "./Function.h"
-#include "./Module.h"
+#include <Evo.h>
+#include <PCIT_core.h>
 
-#include "./ReaderAgent.h"
-#include "./Agent.h"
 
-#include "./ModulePrinter.h"
+namespace pcit::pir{
 
-#include "./PassManager.h"
-#include "./passes/instCombine.h"
-#include "./passes/removeUnusedStmts.h"
+	auto lowerToLLVMIR(const class Module& module) -> evo::Expected<std::string, std::string>;
 
-#include "./llvmir.h"
-#include "./JITEngine.h"
+}
+

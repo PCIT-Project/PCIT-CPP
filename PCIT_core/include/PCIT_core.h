@@ -9,9 +9,9 @@
 
 #pragma once
 
-#include "./generic_numbers/GenericInt.h"
-#include "./generic_numbers/GenericFloat.h"
-#include "./generic_numbers/GenericValue.h"
+#include "./generic_values/GenericInt.h"
+#include "./generic_values/GenericFloat.h"
+#include "./generic_values/GenericValue.h"
 
 #include "./Diagnostic.h"
 #include "./IterRange.h"

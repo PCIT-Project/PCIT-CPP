@@ -13,8 +13,13 @@
 
 #include <unordered_set>
 
+
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
 namespace pcit::pir{
-	
+
 
 	auto Module::getExprType(const Expr& expr) const -> Type {
 		evo::debugAssert(
@@ -24,11 +29,10 @@ namespace pcit::pir{
 		);
 
 		switch(expr.getKind()){
-			case Expr::Kind::GlobalValue: return this->createTypePtr();
+			case Expr::Kind::GlobalValue: return this->createPtrType();
 			case Expr::Kind::Number:      return ReaderAgent(*this).getNumber(expr).type;
+			default: evo::unreachable();
 		}
-
-		evo::debugFatalBreak("Unknown or unsupported constant expr kind");
 	}
 
 
@@ -61,5 +65,122 @@ namespace pcit::pir{
 			}
 		}
 	#endif
+
+
+	//////////////////////////////////////////////////////////////////////
+	// type traits
+
+	static constexpr auto round_up_to_nearest_multiple(size_t num, size_t multiple) -> size_t {
+		return (num + (multiple - 1)) & ~(multiple - 1);
+	}
+
+
+	auto Module::sizeOfPtr() const -> size_t {
+		return 8;
+	}
+
+	auto Module::alignmentOfPtr() const -> size_t {
+		return 8;
+	}
+
+	auto Module::sizeOfGeneralRegister() const -> size_t {
+		return 8;
+	}
+
+
+	auto Module::getSize(const Type& type) const -> size_t {
+		switch(type.getKind()){
+			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
+
+			case Type::Kind::Signed: return round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
+			case Type::Kind::Unsigned: return round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
+
+			case Type::Kind::Float: {
+				switch(type.getWidth()){
+					case 16: return 2;
+					case 32: return 4;
+					case 64: return 8;
+					case 80: return 16;
+					case 128: return 16;
+				}
+			} break;
+
+			case Type::Kind::BFloat: return 2;
+			case Type::Kind::Ptr: return this->sizeOfPtr();
+
+			case Type::Kind::Array: {
+				const ArrayType& array_type = this->getArrayType(type);
+				return this->getSize(array_type.elemType) * array_type.length;
+			} break;
+
+			case Type::Kind::Struct: {
+				const StructType& struct_type = this->getStructType(type);
+
+				size_t size = 0;
+
+				for(const Type& member : struct_type.members){
+					if(struct_type.isPacked){
+						size += this->getSize(member);
+					}else{
+						size += this->getSize(member);
+						size = round_up_to_nearest_multiple(size, this->getAlignment(member));
+					}
+				}
+
+				return round_up_to_nearest_multiple(size, this->getAlignment(type));
+			} break;
+
+			case Type::Kind::Function: return this->sizeOfPtr();
+		}
+
+		evo::unreachable();
+	}
+
+
+	auto Module::getAlignment(const Type& type) const -> size_t {
+		switch(type.getKind()){
+			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
+
+			case Type::Kind::Signed:
+				return std::min<size_t>(round_up_to_nearest_multiple(type.getWidth(), 8) / 8, this->sizeOfPtr());
+
+			case Type::Kind::Unsigned:
+				return std::min<size_t>(round_up_to_nearest_multiple(type.getWidth(), 8) / 8, this->sizeOfPtr());
+
+			case Type::Kind::Float: {
+				switch(type.getWidth()){
+					case 16: return 2;
+					case 32: return 4;
+					case 64: return 8;
+					case 80: return 8;
+					case 128: return 8;
+				}
+			} break;
+
+			case Type::Kind::BFloat: return 2;
+			case Type::Kind::Ptr: return this->sizeOfPtr();
+
+			case Type::Kind::Array: {
+				const ArrayType& array_type = this->getArrayType(type);
+				return this->getAlignment(array_type.elemType);
+			} break;
+
+			case Type::Kind::Struct: {
+				const StructType& struct_type = this->getStructType(type);
+
+				size_t max_align = 0;
+
+				for(const Type& member : struct_type.members){
+					max_align = std::max(max_align, this->getAlignment(member));
+				}
+
+				return max_align;
+			} break;
+
+			case Type::Kind::Function: return this->sizeOfPtr();
+		}
+
+		evo::unreachable();
+	}
 
 }

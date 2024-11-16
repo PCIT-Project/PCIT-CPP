@@ -32,11 +32,75 @@ namespace pcit::llvmint{
 		return llvm::sys::getDefaultTargetTriple();
 	}
 
+	auto Module::generateTargetTriple(core::OS os, core::Architecture arch) -> std::string {
+		const llvm::Triple::ArchType triple_arch = [&](){
+			switch(arch){
+				case core::Architecture::Unknown: return llvm::Triple::ArchType::UnknownArch;
+				case core::Architecture::X86_64:  return llvm::Triple::ArchType::x86_64;
+			}
+
+			evo::unreachable();
+		}();
+
+		const llvm::Triple::SubArchType triple_sub_arch = llvm::Triple::SubArchType::NoSubArch;
+
+		const llvm::Triple::OSType triple_os = [&](){
+			switch(os){
+				case core::OS::Unknown: return llvm::Triple::OSType::UnknownOS;
+				case core::OS::Windows: return llvm::Triple::OSType::Win32;
+				case core::OS::Linux:   return llvm::Triple::OSType::Linux;
+			}
+
+			evo::unreachable();
+		}();
+
+		const llvm::Triple::VendorType triple_vendor = [&](){
+			switch(os){
+				case core::OS::Unknown: return llvm::Triple::VendorType::UnknownVendor;
+				case core::OS::Windows: return llvm::Triple::VendorType::PC;
+				case core::OS::Linux:   return llvm::Triple::VendorType::UnknownVendor;
+			}
+
+			evo::unreachable();
+		}();
+
+		const llvm::Triple::EnvironmentType triple_enviroment = [&](){
+			switch(os){
+				case core::OS::Unknown: return llvm::Triple::EnvironmentType::UnknownEnvironment;
+				case core::OS::Windows: return llvm::Triple::EnvironmentType::MSVC;
+				case core::OS::Linux:   return llvm::Triple::EnvironmentType::GNU;
+			}
+
+			evo::unreachable();
+		}();
+
+		// const llvm::Triple::ObjectFormatType triple_object_format = [&](){
+		// 	switch(os){
+		// 		case core::OS::Unknown: return llvm::Triple::ObjectFormatType::UnknownObjectFormat;
+		// 		case core::OS::Windows: return llvm::Triple::ObjectFormatType::COFF;
+		// 		case core::OS::Linux:   return llvm::Triple::ObjectFormatType::ELF;
+		// 	}
+
+		// 	evo::unreachable();
+		// }();
+
+		auto triple = llvm::Triple();
+		triple.setArch(triple_arch, triple_sub_arch);
+		triple.setVendor(triple_vendor);
+		triple.setOS(triple_os);
+		triple.setEnvironment(triple_enviroment);
+		// triple.setObjectFormat(triple_object_format);
+
+		return triple.getTriple();
+	}
 
 	auto Module::setTargetTriple(const std::string& target_triple) -> void {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 		this->_native->setTargetTriple(target_triple);
 	}
+
+
+
 
 	auto Module::setDataLayout(
 		std::string_view target_triple,

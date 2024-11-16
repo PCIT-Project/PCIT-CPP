@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.58.0
+
+### PIR
+- Added `JITEngine`
+- Added setting of OS and Architecture
+- Fixed fatal error when a function doesn't have any allocas
+
+
+<!---------------------------------->
 ## v0.0.57.0
 
 ### PIR

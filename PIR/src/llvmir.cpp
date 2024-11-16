@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/lowerToLLVMIR.h"
+#include "../include/llvmir.h"
 
 
 #include "../include/Module.h"
@@ -33,7 +33,7 @@ namespace pcit::pir{
 		auto llvm_module = llvmint::Module();
 		llvm_module.init(module.getName(), llvm_context);
 
-		const std::string target_triple = llvm_module.getDefaultTargetTriple();
+		const std::string target_triple = llvm_module.generateTargetTriple(module.getOS(), module.getArchitecture());
 
 		const std::string data_layout_error = llvm_module.setDataLayout(
 			target_triple,

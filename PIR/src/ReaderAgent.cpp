@@ -20,7 +20,7 @@ namespace pcit::pir{
 		switch(expr.getKind()){
 			case Expr::Kind::None:         evo::unreachable();
 			case Expr::Kind::Number:       return this->getNumber(expr).type;
-			case Expr::Kind::GlobalValue:  return this->module.createTypePtr();
+			case Expr::Kind::GlobalValue:  return this->module.createPtrType();
 			case Expr::Kind::ParamExpr: {
 				evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 
@@ -52,7 +52,7 @@ namespace pcit::pir{
 			case Expr::Kind::CallVoid:     evo::unreachable();
 			case Expr::Kind::Ret:          evo::unreachable();
 			case Expr::Kind::Branch:       evo::unreachable();
-			case Expr::Kind::Alloca:       return this->module.createTypePtr();
+			case Expr::Kind::Alloca:       return this->module.createPtrType();
 			case Expr::Kind::Add:          return this->getExprType(this->getAdd(expr).lhs);
 		}
 

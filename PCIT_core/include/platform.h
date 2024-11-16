@@ -14,25 +14,49 @@
 
 namespace pcit::core{
 
-	enum class Platform{
+	enum class OS{
+		Unknown,
+
 		Windows,
 		Linux,
 	};
 
+	EVO_NODISCARD constexpr auto getCurrentOS() -> OS {
+		#if defined(EVO_PLATFORM_WINDOWS)
+			return OS::Windows;
+		#elif defined(EVO_PLATFORM_LINUX)
+			return OS::Linux;
+		#else
+			return OS::Unknown;
+		#endif
+	}
+
+
+
 	enum class Architecture{
-		x86,
+		Unknown,
+
+		X86_64,
 	};
+
+	EVO_NODISCARD constexpr auto getCurrentArchitecture() -> Architecture {
+		#if defined(EVO_ARCH_X86_64)
+			return Architecture::X86_64;
+		#else
+			return Architecture::Unknown;
+		#endif
+	}
 
 }
 
 
 template<>
-struct std::formatter<pcit::core::Platform> : std::formatter<std::string_view> {
-    auto format(const pcit::core::Platform& platform, std::format_context& ctx) const -> std::format_context::iterator {
-        switch(platform){
-        	case pcit::core::Platform::Windows: return std::formatter<std::string_view>::format("Windows", ctx);
-        	case pcit::core::Platform::Linux:   return std::formatter<std::string_view>::format("Linux", ctx);
-        	default: evo::debugFatalBreak("Unknown or unsupported platform");
+struct std::formatter<pcit::core::OS> : std::formatter<std::string_view> {
+    auto format(const pcit::core::OS& os, std::format_context& ctx) const -> std::format_context::iterator {
+        switch(os){
+        	case pcit::core::OS::Windows: return std::formatter<std::string_view>::format("Windows", ctx);
+        	case pcit::core::OS::Linux:   return std::formatter<std::string_view>::format("Linux", ctx);
+        	default: evo::debugFatalBreak("Unknown or unsupported OS");
         }
     }
 };
@@ -40,10 +64,10 @@ struct std::formatter<pcit::core::Platform> : std::formatter<std::string_view> {
 
 template<>
 struct std::formatter<pcit::core::Architecture> : std::formatter<std::string_view> {
-    auto format(const pcit::core::Architecture& architecture, std::format_context& ctx) const
+    auto format(const pcit::core::Architecture& arch, std::format_context& ctx) const
     -> std::format_context::iterator {
-        switch(architecture){
-        	case pcit::core::Architecture::x86: return std::formatter<std::string_view>::format("x86", ctx);
+        switch(arch){
+        	case pcit::core::Architecture::X86_64: return std::formatter<std::string_view>::format("x86_64", ctx);
         	default: evo::debugFatalBreak("Unknown or unsupported architecture");
         }
     }

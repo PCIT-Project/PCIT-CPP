@@ -28,8 +28,8 @@ namespace pcit::panther{
 	auto ComptimeExecutor::init() -> std::string {
 		this->data = new Data();
 
-		this->data->llvm_context.init();	
-		this->data->module.init("testing", this->data->llvm_context);
+		this->data->llvm_context.init();
+		this->data->module.init("PTHR-ComptimeExecutor", this->data->llvm_context);
 
 
 		const std::string target_triple = this->data->module.getDefaultTargetTriple();

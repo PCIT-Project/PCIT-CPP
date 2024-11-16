@@ -211,7 +211,9 @@ namespace pcit::pir{
 			basic_block_map.emplace(basic_block_id, llvm_basic_block);
 		}
 
-		this->builder.createBranch(basic_block_map.at(*func.begin()));
+		if(func.getAllocasRange().empty() == false){
+			this->builder.createBranch(basic_block_map.at(*func.begin()));
+		}
 
 		for(const BasicBlock::ID basic_block_id : func){
 			const BasicBlock& basic_block = this->reader.getBasicBlock(basic_block_id);
@@ -483,7 +485,7 @@ namespace pcit::pir{
 			case Type::Kind::Array: evo::debugFatalBreak("Type::Kind::Array unsupported");
 
 			case Type::Kind::Struct: {
-				const StructType& struct_type = this->module.getTypeStruct(type);
+				const StructType& struct_type = this->module.getStructType(type);
 				return this->struct_types.at(struct_type.name);
 			} break;
 

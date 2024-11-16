@@ -32,6 +32,15 @@
 
 #include <PIR.h>
 
+template<typename... T, typename Callable>
+auto wrapCallable(Callable const&) -> void (*)(T..., void*) {
+    return +[](T... data, void* context)
+    {
+        (*static_cast<Callable*>(context))(data...);
+    };
+}
+
+
 
 auto main(int argc, const char* argv[]) -> int {
 	auto args = std::vector<std::string_view>(argv, argv + argc);
@@ -74,14 +83,14 @@ auto main(int argc, const char* argv[]) -> int {
 	//////////////////////////////////////////////////////////////////////
 	// begin test
 
-	auto module = pcit::pir::Module("PIR testing");
+	auto module = pcit::pir::Module("PIR testing", pcit::core::getCurrentOS(), pcit::core::getCurrentArchitecture());
 	auto agent = pcit::pir::Agent(module);
 
 	const pcit::pir::GlobalVar::ID global = module.createGlobalVar(
 		"global",
-		module.createTypeUnsigned(17),
+		module.createUnsignedType(17),
 		pcit::pir::Linkage::Internal,
-		agent.createNumber(module.createTypeUnsigned(17), pcit::core::GenericInt::create<uint64_t>(18)),
+		agent.createNumber(module.createUnsignedType(17), pcit::core::GenericInt::create<uint64_t>(18)),
 		true,
 		false
 	);
@@ -89,28 +98,28 @@ auto main(int argc, const char* argv[]) -> int {
 
 	const pcit::pir::FunctionDecl::ID puts_decl = module.createFunctionDecl(
 		"puts",
-		evo::SmallVector<pcit::pir::Parameter>{pcit::pir::Parameter("str", module.createTypePtr())},
+		evo::SmallVector<pcit::pir::Parameter>{pcit::pir::Parameter("str", module.createPtrType())},
 		pcit::pir::CallingConvention::C,
 		pcit::pir::Linkage::External,
-		module.createTypeVoid()
+		module.createVoidType()
 	);
 
-	const pcit::pir::Type vec2 = module.createTypeStruct(
-		"Vec2", evo::SmallVector<pcit::pir::Type>{module.createTypeFloat(32), module.createTypeFloat(32)}, true
+	const pcit::pir::Type vec2 = module.createStructType(
+		"Vec2", evo::SmallVector<pcit::pir::Type>{module.createFloatType(32), module.createFloatType(32)}, true
 	);
 
 
-	const pcit::pir::Function::ID testing_func_id = module.createFunction(
-		"test()",
+	const pcit::pir::Function::ID entry_func_id = module.createFunction(
+		"entry",
 		evo::SmallVector<pcit::pir::Parameter>{
-			pcit::pir::Parameter("vec2", vec2),
-			pcit::pir::Parameter("number", module.createTypeUnsigned(64))
+			// pcit::pir::Parameter("vec2", vec2),
+			// pcit::pir::Parameter("number", module.createUnsignedType(64))
 		},
 		pcit::pir::CallingConvention::Fast,
 		pcit::pir::Linkage::Internal,
-		module.createTypeUnsigned(64)
+		module.createUnsignedType(64)
 	);
-	agent.setTargetFunction(testing_func_id);
+	agent.setTargetFunction(entry_func_id);
 
 
 
@@ -119,30 +128,30 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	const pcit::pir::Expr add = agent.createAdd(
-		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(9)),
-		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(3)),
+		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(9)),
+		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(3)),
 		false,
 		"ADD"
 	);
 
-	const pcit::pir::Expr add2 = agent.createAdd(add, agent.createParamExpr(1), false, "ADD");
-	const pcit::pir::Expr val_alloca = agent.createAlloca(module.createTypeUnsigned(64), "VAL");
+	// const pcit::pir::Expr add2 = agent.createAdd(add, agent.createParamExpr(1), false, "ADD");
+	const pcit::pir::Expr val_alloca = agent.createAlloca(module.createUnsignedType(64), "VAL");
 
 	const pcit::pir::Expr add3 = agent.createAdd(
-		add2,
-		agent.createNumber(module.createTypeUnsigned(64), pcit::core::GenericInt::create<uint64_t>(0)),
+		add,
+		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(0)),
 		false,
 		"ADD"
 	);
 
-	std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
+	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
 	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock();
 	agent.createBranch(second_block_id);
 	agent.setTargetBasicBlock(second_block_id);
 
 	agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{agent.createGlobalValue(global)});
-	agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
+	// agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
 	agent.createRet(add3);
 
@@ -178,6 +187,27 @@ auto main(int argc, const char* argv[]) -> int {
 	}else{
 		printer.printlnError("ERROR in LLVM: \"{}\"", lowered.error());
 	}
+
+
+	printer.printlnGray("--------------------------------");
+
+
+	auto jit_engine = pcit::pir::JITEngine();
+	jit_engine.init(module);
+
+
+
+	
+	jit_engine.registerFunction(puts_decl, []() -> void {
+		evo::printlnYellow("Hello from PIR");
+	});
+
+	const evo::Result<pcit::core::GenericValue> result = jit_engine.runFunc(entry_func_id);
+	if(result.isSuccess()){
+		printer.printlnSuccess("value returned from entry: {}", result.value());
+	}
+
+	jit_engine.deinit();
 
 
 	// end test

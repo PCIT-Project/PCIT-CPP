@@ -285,7 +285,7 @@ namespace pcit::panther{
 					    return 2;
 
 					case Token::Kind::TypeCInt: case Token::Kind::TypeCUInt:
-						return this->platform() == core::Platform::Windows ? 4 : 8;
+						return this->getOS() == core::OS::Windows ? 4 : 8;
 
 					case Token::Kind::TypeCLong: case Token::Kind::TypeCULong:
 						return 4;
@@ -293,7 +293,7 @@ namespace pcit::panther{
 					case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
 						return 8;
 
-					case Token::Kind::TypeCLongDouble: return this->platform() == core::Platform::Windows ? 8 : 16;
+					case Token::Kind::TypeCLongDouble: return this->getOS() == core::OS::Windows ? 8 : 16;
 
 					default: evo::debugFatalBreak("Unknown or unsupported built-in type");
 				}
@@ -694,7 +694,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeCLongDouble: {
-				if(this->platform() == core::Platform::Windows){
+				if(this->getOS() == core::OS::Windows){
 					return this->getOrCreateTypeInfo(
 						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeF64))
 					);

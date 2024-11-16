@@ -25,7 +25,7 @@ namespace pcit::panther{
 		printer(_printer),
 		callback(diagnostic_callback),
 		config(_config),
-		type_manager(core::Platform::Windows, core::Architecture::x86)
+		type_manager(core::OS::Windows, core::Architecture::X86_64)
 	{
 		evo::debugAssert(this->config.maxNumErrors > 0, "Max num errors cannot be 0");
 	}

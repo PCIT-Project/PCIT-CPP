@@ -23,7 +23,16 @@ namespace pcit::panther{
 	class ComptimeExecutor{
 		public:
 			ComptimeExecutor(class Context& _context, core::Printer& _printer) : context(_context), printer(_printer) {}
-			~ComptimeExecutor() = default;
+			
+			#if defined(PCIT_CONFIG_DEBUG)
+				~ComptimeExecutor(){
+					evo::debugAssert(
+						this->isInitialized() == false, "Didn't deinit ComptimeExecutor before destructor"
+					);
+				}
+			#else
+				~ComptimeExecutor() = default;
+			#endif
 
 			auto init() -> std::string; // string is error message if initalization fails (empty if successful)
 			auto deinit() -> void;

@@ -11,11 +11,14 @@
 
 #include <Evo.h>
 
+
 #include "./class_impls/native_ptr_decls.h"
 #include "./class_impls/types.h"
 #include "./class_impls/enums.h"
 #include "./Function.h"
 #include "./ExecutionEngine.h"
+
+#include "../../../include/platform.h"
 
 namespace pcit::llvmint{
 
@@ -63,8 +66,8 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->_native != nullptr; }
 
 
-			EVO_NODISCARD auto getDefaultTargetTriple() -> std::string;
-
+			EVO_NODISCARD static auto getDefaultTargetTriple() -> std::string;
+			EVO_NODISCARD static auto generateTargetTriple(core::OS os, core::Architecture arch) -> std::string;
 			auto setTargetTriple(const std::string& target_triple) -> void;
 
 			EVO_NODISCARD auto setDataLayout(

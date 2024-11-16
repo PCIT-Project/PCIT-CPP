@@ -254,8 +254,7 @@ namespace pcit::panther{
 
 	class TypeManager{
 		public:
-			TypeManager(core::Platform target_platform, core::Architecture target_arch)
-				: _platform(target_platform), _architecture(target_arch) {};
+			TypeManager(core::OS target_os, core::Architecture target_arch) : _os(target_os), _arch(target_arch) {};
 			~TypeManager() = default;
 
 
@@ -263,8 +262,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto primitivesInitialized() const -> bool; // single-threaded
 
 
-			EVO_NODISCARD auto platform() const -> core::Platform { return this->_platform; }
-			EVO_NODISCARD auto architecture() const -> core::Architecture { return this->_architecture; }
+			EVO_NODISCARD auto getOS() const -> core::OS { return this->_os; }
+			EVO_NODISCARD auto getArchitecture() const -> core::Architecture { return this->_arch; }
 
 
 			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
@@ -336,8 +335,8 @@ namespace pcit::panther{
 
 
 		private:
-			core::Platform _platform;
-			core::Architecture _architecture;
+			core::OS _os;
+			core::Architecture _arch;
 
 
 			// TODO: improve lookup times

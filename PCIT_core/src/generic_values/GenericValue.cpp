@@ -7,17 +7,15 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#pragma once
-
-
-#include <Evo.h>
-#include <PCIT_core.h>
+#include "../../include/generic_values/GenericValue.h"
 
 
 
-namespace pcit::pir{
+namespace pcit::core{
 
-	auto lowerToLLVMIR(const class Module& module) -> evo::Expected<std::string, std::string>;
 
+	GenericValue::GenericValue(GenericAggregateBuilder&& builder) : value(std::move(builder.values)) {}
+
+
+	
 }
-

@@ -291,7 +291,7 @@ namespace pcit::pir{
 			case Type::Kind::Ptr:      { this->printer.printCyan("Ptr");                   } break;
 
 			case Type::Kind::Array: {
-				const ArrayType& array_type = this->module.getTypeArray(type);
+				const ArrayType& array_type = this->module.getArrayType(type);
 
 				printer.print("[");
 				this->print_type(array_type.elemType);
@@ -301,7 +301,7 @@ namespace pcit::pir{
 			} break;
 
 			case Type::Kind::Struct: {
-				const StructType& struct_type = this->module.getTypeStruct(type);
+				const StructType& struct_type = this->module.getStructType(type);
 				
 				printer.print("&{}", struct_type.name);
 			} break;

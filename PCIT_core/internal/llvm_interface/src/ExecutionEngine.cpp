@@ -54,39 +54,38 @@ namespace pcit::llvmint{
 	}
 
 
-	static std::jmp_buf panic_jump;
-	auto ExecutionEngine::get_panic_jump() -> std::jmp_buf& {
-		return panic_jump;
-	}
-	
 
 	//////////////////////////////////////////////////////////////////////
 	// linked functions
 
 	static core::Printer* runtime_funcs_printer = nullptr;
+	static std::jmp_buf panic_jump;
 
-
-	static auto print_hello_world() -> void {
-		runtime_funcs_printer->println("Hello world, I'm Panther!");
+	auto ExecutionEngine::get_panic_jump() -> std::jmp_buf& {
+		return panic_jump;
 	}
-
-	static auto runtime_panic(const char* msg) -> void {
-		runtime_funcs_printer->printlnRed("<PTHR> Execution Panic: \"{}\"", msg);
-		std::longjmp(panic_jump, true);
-	}
-
-	static auto runtime_panic_with_location(const char* msg, uint32_t source_id, uint32_t line, uint32_t collumn)
-	-> void {
-		runtime_funcs_printer->printlnRed("<PTHR> Execution Panic ({}:{}:{}): \"{}\"", source_id, line, collumn, msg);
-		std::longjmp(panic_jump, true);
-	}
-
 
 	auto ExecutionEngine::setupLinkedFuncs(core::Printer& printer) -> void {
 		runtime_funcs_printer = &printer;
-		this->registerFunction("PTHR._printHelloWorld", &print_hello_world);
-		this->registerFunction("PTHR.panic", &runtime_panic);
-		this->registerFunction("PTHR.panic_with_location", &runtime_panic_with_location);
+
+		this->registerFunction("PTHR._printHelloWorld", []() -> void {
+			runtime_funcs_printer->println("Hello world, I'm Panther!");
+		});
+
+		this->registerFunction("PTHR.panic", [](const char* msg) -> void {
+			runtime_funcs_printer->printlnRed("<PTHR> Execution Panic: \"{}\"", msg);
+			std::longjmp(panic_jump, true);
+		});
+
+		this->registerFunction(
+			"PTHR.panic_with_location",
+			[](const char* msg, uint32_t source_id, uint32_t line, uint32_t collumn) -> void {
+				runtime_funcs_printer->printlnRed(
+					"<PTHR> Execution Panic ({}:{}:{}): \"{}\"", source_id, line, collumn, msg
+				);
+				std::longjmp(panic_jump, true);
+			}
+		);
 	}
 
 
