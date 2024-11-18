@@ -20,6 +20,7 @@ namespace pcit::pir{
 		switch(expr.getKind()){
 			case Expr::Kind::None:         evo::unreachable();
 			case Expr::Kind::Number:       return this->getNumber(expr).type;
+			case Expr::Kind::Boolean:      return this->module.createBoolType();
 			case Expr::Kind::GlobalValue:  return this->module.createPtrType();
 			case Expr::Kind::ParamExpr: {
 				evo::debugAssert(this->hasTargetFunction(), "No target function is set");
@@ -49,14 +50,17 @@ namespace pcit::pir{
 					}
 				});
 			} break;
-			case Expr::Kind::CallVoid:     evo::unreachable();
-			case Expr::Kind::Ret:          evo::unreachable();
-			case Expr::Kind::Branch:       evo::unreachable();
-			case Expr::Kind::Alloca:       return this->module.createPtrType();
-			case Expr::Kind::Add:          return this->getExprType(this->getAdd(expr).lhs);
+			case Expr::Kind::CallVoid:       evo::unreachable();
+			case Expr::Kind::Ret:            evo::unreachable();
+			case Expr::Kind::Branch:         evo::unreachable();
+			case Expr::Kind::Alloca:         return this->module.createPtrType();
+			case Expr::Kind::Add:            return this->getExprType(this->getAdd(expr).lhs);
+			case Expr::Kind::AddWrap:        evo::unreachable();
+			case Expr::Kind::AddWrapResult:  return this->getExprType(this->getAddWrap(expr).lhs);
+			case Expr::Kind::AddWrapWrapped: return this->module.createBoolType();
 		}
 
-		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
+		evo::unreachable();
 	}
 
 	
@@ -68,6 +72,11 @@ namespace pcit::pir{
 	auto ReaderAgent::getNumber(const Expr& expr) const -> const Number& {
 		evo::debugAssert(expr.getKind() == Expr::Kind::Number, "Not a number");
 		return this->module.numbers[expr.index];
+	}
+
+	auto ReaderAgent::getBoolean(const Expr& expr) -> bool {
+		evo::debugAssert(expr.getKind() == Expr::Kind::Boolean, "Not a Boolean");
+		return bool(expr.index);
 	}
 
 
@@ -127,6 +136,27 @@ namespace pcit::pir{
 		evo::debugAssert(expr.getKind() == Expr::Kind::Add, "Not an add");
 
 		return this->module.adds[expr.index];
+	}
+
+
+	auto ReaderAgent::getAddWrap(const Expr& expr) const -> const AddWrap& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(
+			expr.getKind() == Expr::Kind::AddWrap
+				|| expr.getKind() == Expr::Kind::AddWrapResult
+				|| expr.getKind() == Expr::Kind::AddWrapWrapped,
+			"Not an add wrap"
+		);
+
+		return this->module.add_wraps[expr.index];
+	}
+
+	auto ReaderAgent::extractAddWrapResult(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::AddWrapResult, expr.index);
+	}
+
+	auto ReaderAgent::extractAddWrapWrapped(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::AddWrapWrapped, expr.index);
 	}
 
 

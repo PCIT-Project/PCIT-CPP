@@ -25,7 +25,8 @@ namespace pcit::pir{
 
 
 	// A unified way to interact with things like exprs and basic blocks
-	// 	Called "Agent" as it's sort of a go-between and manages menial stuff for yous
+	// 	Called "Agent" as it's sort of a go-between and manages menial stuff for you
+	// 	I would have picked "Interface" but I didn't want to overload the term
 
 	class Agent{
 		public:
@@ -87,6 +88,15 @@ namespace pcit::pir{
 			auto createNumber(const Type& type, const core::GenericFloat& value) const -> Expr;
 
 			EVO_NODISCARD auto getNumber(const Expr& expr) const -> const Number&;
+
+
+			///////////////////////////////////
+			// booleans
+
+			EVO_NODISCARD static auto createBoolean(bool value) -> Expr;
+
+			EVO_NODISCARD static auto getBoolean(const Expr& expr) -> bool;
+
 
 
 			///////////////////////////////////
@@ -178,6 +188,19 @@ namespace pcit::pir{
 				-> Expr;
 			auto createAdd(const Expr&, const Expr&, const char*) = delete;
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
+
+
+			///////////////////////////////////
+			// add wrap
+
+			EVO_NODISCARD auto createAddWrap(
+				const Expr& lhs, const Expr& rhs, std::string&& result_name = "", std::string&& wrapped_name = ""
+			) -> Expr;
+
+			EVO_NODISCARD auto getAddWrap(const Expr& expr) const -> const AddWrap&;
+
+			EVO_NODISCARD static auto extractAddWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractAddWrapWrapped(const Expr& expr) -> Expr;
 
 
 		private:

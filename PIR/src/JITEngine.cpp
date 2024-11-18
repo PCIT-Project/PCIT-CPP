@@ -191,6 +191,13 @@ namespace pcit::pir{
 				}
 			} break;
 
+			case Type::Kind::Bool: {
+				const evo::Result<bool> result =
+					this->data->execution_engine.runFunctionDirectly<bool>(func.getName());
+				if(result.isError()){ return evo::resultError; }
+				return core::GenericValue(result.value());
+			} break;
+
 
 			case Type::Kind::Float: {
 				switch(func.getReturnType().getWidth()){

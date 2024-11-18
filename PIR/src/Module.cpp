@@ -21,20 +21,6 @@
 namespace pcit::pir{
 
 
-	auto Module::getExprType(const Expr& expr) const -> Type {
-		evo::debugAssert(
-			expr.isConstant(),
-			"Module can only get value of expr that is a constant. Use Function::getExprType() instead "
-			"(where Function is the function the expr is from"
-		);
-
-		switch(expr.getKind()){
-			case Expr::Kind::GlobalValue: return this->createPtrType();
-			case Expr::Kind::Number:      return ReaderAgent(*this).getNumber(expr).type;
-			default: evo::unreachable();
-		}
-	}
-
 
 	#if defined(PCIT_CONFIG_DEBUG)
 		auto Module::check_param_names(evo::ArrayProxy<Parameter> params) const -> void {
@@ -95,6 +81,8 @@ namespace pcit::pir{
 			case Type::Kind::Signed: return round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
 			case Type::Kind::Unsigned: return round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
 
+			case Type::Kind::Bool: return 1;
+
 			case Type::Kind::Float: {
 				switch(type.getWidth()){
 					case 16: return 2;
@@ -147,6 +135,8 @@ namespace pcit::pir{
 			case Type::Kind::Unsigned:
 				return std::min<size_t>(round_up_to_nearest_multiple(type.getWidth(), 8) / 8, this->sizeOfPtr());
 
+			case Type::Kind::Bool: return 1;
+
 			case Type::Kind::Float: {
 				switch(type.getWidth()){
 					case 16: return 2;
@@ -182,5 +172,11 @@ namespace pcit::pir{
 
 		evo::unreachable();
 	}
+
+
+	auto Module::check_expr_type_match(Type type, const Expr& expr) const -> void {
+		evo::debugAssert(type == ReaderAgent(*this).getExprType(expr), "Type and value must match");
+	}
+
 
 }

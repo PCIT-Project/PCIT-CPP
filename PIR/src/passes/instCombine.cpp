@@ -28,6 +28,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:  return true;
 			case Expr::Kind::Number:       return true;
+			case Expr::Kind::Boolean:      return true;
 			case Expr::Kind::ParamExpr:    return true;
 			case Expr::Kind::Call:         return true;
 			case Expr::Kind::CallVoid:     return true;
@@ -58,6 +59,36 @@ namespace pcit::pir::passes{
 
 				return true;
 			} break;
+
+			case Expr::Kind::AddWrap: {
+				const AddWrap& add_wrap = agent.getAddWrap(stmt);
+				if(add_wrap.lhs.getKind() != Expr::Kind::Number || add_wrap.rhs.getKind() != Expr::Kind::Number){
+					return true;
+				}
+
+				const Expr result_original_expr = agent.extractAddWrapResult(stmt);
+				const Expr wrapped_original_expr = agent.extractAddWrapWrapped(stmt);
+
+				const Number& lhs = agent.getNumber(add_wrap.lhs);
+				const Number& rhs = agent.getNumber(add_wrap.rhs);
+
+				core::GenericInt::WrapResult result = lhs.type.getKind() == Type::Kind::Unsigned
+					? lhs.getInt().uadd(rhs.getInt())
+					: lhs.getInt().sadd(rhs.getInt());
+
+				const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
+				agent.replaceStmtWithValue(result_original_expr, result_expr);
+
+				const Expr wrapped_expr = agent.createBoolean(result.wrapped);
+				agent.replaceStmtWithValue(wrapped_original_expr, wrapped_expr);
+
+				agent.removeStmt(stmt);
+
+				return true;
+			} break;
+
+			case Expr::Kind::AddWrapResult:  return true;
+			case Expr::Kind::AddWrapWrapped: return true;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -69,6 +100,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:  return true;
 			case Expr::Kind::Number:       return true;
+			case Expr::Kind::Boolean:      return true;
 			case Expr::Kind::ParamExpr:    return true;
 			case Expr::Kind::Call:         return true;
 			case Expr::Kind::CallVoid:     return true;
@@ -100,6 +132,34 @@ namespace pcit::pir::passes{
 
 				return true;
 			} break;
+
+			case Expr::Kind::AddWrap: {
+				const AddWrap& add_wrap = agent.getAddWrap(stmt);
+
+				if(add_wrap.lhs.getKind() == Expr::Kind::Number){
+					const Number& lhs = agent.getNumber(add_wrap.lhs);
+					const core::GenericInt& number = lhs.getInt();
+					if(number == core::GenericInt(number.getBitWidth(), 0)){
+						agent.replaceStmtWithValue(agent.extractAddWrapResult(stmt), add_wrap.rhs);
+						agent.replaceStmtWithValue(agent.extractAddWrapWrapped(stmt), agent.createBoolean(false));
+						agent.removeStmt(stmt);
+					}
+
+				}else if(add_wrap.rhs.getKind() == Expr::Kind::Number){
+					const Number& rhs = agent.getNumber(add_wrap.rhs);
+					const core::GenericInt& number = rhs.getInt();
+					if(number == core::GenericInt(number.getBitWidth(), 0)){
+						agent.replaceStmtWithValue(agent.extractAddWrapResult(stmt), add_wrap.lhs);
+						agent.replaceStmtWithValue(agent.extractAddWrapWrapped(stmt), agent.createBoolean(false));
+						agent.removeStmt(stmt);
+					}
+				}
+
+				return true;
+			} break;
+
+			case Expr::Kind::AddWrapResult:  return true;
+			case Expr::Kind::AddWrapWrapped: return true;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

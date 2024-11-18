@@ -26,6 +26,7 @@ namespace pcit::pir{
 				Void,
 				Signed,
 				Unsigned,
+				Bool,
 				Float,
 				BFloat,
 				Ptr,
@@ -80,7 +81,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
-				return this->isNumeric();
+				return this->isNumeric() || this->kind == Kind::Bool;
 			}
 
 			EVO_NODISCARD auto isComposite() const -> bool {

@@ -225,6 +225,7 @@ namespace pcit::pir{
 					case Expr::Kind::None: evo::debugFatalBreak("Not a valid expr");
 					case Expr::Kind::GlobalValue: evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::Number: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::Boolean: evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::ParamExpr: evo::debugFatalBreak("Not a valid stmt");
 
 					case Expr::Kind::Call: {
@@ -358,6 +359,39 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, add_value);
 					} break;
 
+					case Expr::Kind::AddWrap: {
+						const AddWrap& add_wrap = this->reader.getAddWrap(stmt);
+						const Type& add_type = this->reader.getExprType(add_wrap.lhs);
+						const bool is_unsigned = add_type.getKind() == Type::Kind::Unsigned;
+
+						const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+							? llvmint::IRBuilder::IntrinsicID::uaddOverflow
+							: llvmint::IRBuilder::IntrinsicID::saddOverflow;
+
+						const llvmint::Type return_type = this->builder.getStructType(
+							{this->get_type(add_type), this->builder.getTypeBool().asType()}
+						).asType();
+
+						const llvmint::Value add_value = this->builder.createIntrinsicCall(
+							intrinsic_id,
+							return_type,
+							{this->get_value(add_wrap.lhs), this->get_value(add_wrap.rhs)},
+							"ADD_WRAP"
+						).asValue();
+
+						this->stmt_values.emplace(
+							this->reader.extractAddWrapResult(stmt),
+							this->builder.createExtractValue(add_value, {0}, add_wrap.resultName)
+						);
+
+						this->stmt_values.emplace(
+							this->reader.extractAddWrapWrapped(stmt),
+							this->builder.createExtractValue(add_value, {0}, add_wrap.wrappedName)
+						);
+					} break;
+
+					case Expr::Kind::AddWrapResult:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::AddWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
 				}
 			}
 		}
@@ -370,7 +404,13 @@ namespace pcit::pir{
 
 
 	auto PIRToLLVMIR::get_constant_value(const Expr& expr) -> llvmint::Constant {
-		evo::debugAssert(expr.getKind() == Expr::Kind::Number, "Not a valid constant");
+		evo::debugAssert(
+			expr.getKind() == Expr::Kind::Number || expr.getKind() == Expr::Kind::Boolean, "Not a valid constant"
+		);
+
+		if(expr.getKind() == Expr::Kind::Boolean){
+			return this->builder.getValueBool(this->reader.getBoolean(expr)).asConstant();
+		}
 
 		const Number& number = this->reader.getNumber(expr);
 
@@ -438,6 +478,10 @@ namespace pcit::pir{
 				}
 			} break;
 
+			case Expr::Kind::Boolean: {
+				return this->builder.getValueBool(this->reader.getBoolean(expr)).asValue();
+			} break;
+
 			case Expr::Kind::ParamExpr: {
 				const ParamExpr& param = this->reader.getParamExpr(expr);
 				return this->args[param.index].asValue();
@@ -459,6 +503,16 @@ namespace pcit::pir{
 			case Expr::Kind::Add: {
 				return this->stmt_values.at(expr);
 			} break;
+
+			case Expr::Kind::AddWrap: evo::debugFatalBreak("Not a value");
+
+			case Expr::Kind::AddWrapResult: {
+				return this->stmt_values.at(this->reader.extractAddWrapResult(expr));
+			} break;
+
+			case Expr::Kind::AddWrapWrapped: {
+				return this->stmt_values.at(this->reader.extractAddWrapWrapped(expr));
+			} break;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -470,6 +524,7 @@ namespace pcit::pir{
 			case Type::Kind::Void:     return this->builder.getTypeVoid();
 			case Type::Kind::Signed:   return this->builder.getTypeI_N(type.getWidth()).asType();
 			case Type::Kind::Unsigned: return this->builder.getTypeI_N(type.getWidth()).asType();
+			case Type::Kind::Bool:     return this->builder.getTypeBool().asType();
 			case Type::Kind::Float: {
 				switch(type.getWidth()){
 					case 16:  return this->builder.getTypeF16();

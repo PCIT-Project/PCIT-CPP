@@ -27,6 +27,7 @@ namespace pcit::pir{
 				// values
 				GlobalValue,
 				Number,
+				Boolean,
 				ParamExpr,
 
 				// stmts
@@ -37,6 +38,9 @@ namespace pcit::pir{
 				Alloca,
 
 				Add,
+				AddWrap,
+				AddWrapResult,
+				AddWrapWrapped,
 			};
 
 		public:
@@ -45,18 +49,21 @@ namespace pcit::pir{
 			EVO_NODISCARD constexpr auto getKind() const -> Kind { return this->kind; }
 
 			EVO_NODISCARD auto isValue() const -> bool {
-				return this->isConstant()         || this->kind == Kind::ParamExpr || this->kind == Kind::Call ||
-					   this->kind == Kind::Alloca || this->kind == Kind::Add;
+				return this->isConstant()                || this->kind == Kind::GlobalValue    ||
+				       this->kind == Kind::ParamExpr     || this->kind == Kind::Call           ||
+				       this->kind == Kind::Alloca        || this->kind == Kind::Add            ||
+				       this->kind == Kind::AddWrapResult || this->kind == Kind::AddWrapWrapped;
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
-				return this->kind == Kind::Number || this->kind == Kind::GlobalValue;
+				return this->kind == Kind::Number || this->kind == Kind::Boolean;
 			}
 
 			EVO_NODISCARD auto isStmt() const -> bool {
-				return this->kind == Kind::Call   || this->kind == Kind::CallVoid || 
-					   this->kind == Kind::Ret    || this->kind == Kind::Branch   ||
-					   this->kind == Kind::Alloca || this->kind == Kind::Add;
+				return this->kind == Kind::Call    || this->kind == Kind::CallVoid || 
+					   this->kind == Kind::Ret     || this->kind == Kind::Branch   ||
+					   this->kind == Kind::Alloca  || this->kind == Kind::Add      ||
+					   this->kind == Kind::AddWrap;
 			}
 
 			EVO_NODISCARD auto isTerminator() const -> bool {
@@ -195,6 +202,14 @@ namespace pcit::pir{
 		Expr lhs;
 		Expr rhs;
 		bool mayWrap;
+	};
+
+
+	struct AddWrap{
+		std::string resultName;
+		std::string wrappedName;
+		Expr lhs;
+		Expr rhs;
 	};
 
 

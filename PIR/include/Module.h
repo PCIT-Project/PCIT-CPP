@@ -35,9 +35,6 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getArchitecture() const -> core::Architecture { return this->arch; }
 
 
-			// Only supports constants
-			EVO_NODISCARD auto getExprType(const Expr& expr) const -> Type;
-
 
 			///////////////////////////////////
 			// function
@@ -150,7 +147,7 @@ namespace pcit::pir{
 			) -> GlobalVar::ID {
 				#if defined(EVO_CONFIG_DEBUG)
 					if(value.is<Expr>()){
-						evo::debugAssert(type == this->getExprType(value.as<Expr>()), "Type and value must match");
+						this->check_expr_type_match(type, value.as<Expr>());
 						evo::debugAssert(value.as<Expr>().isConstant(), "Global can only have a constant value");
 					}
 					this->check_global_name_reusue(global_name);
@@ -197,7 +194,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD static auto createSignedType(uint32_t width) -> Type {
 				evo::debugAssert(
-					width != 0 && width < 1 << 23,
+					width > 1 && width < 1 << 23,
 					"Invalid width for a signed ({})", width
 				);
 				return Type(Type::Kind::Signed, width);
@@ -210,6 +207,9 @@ namespace pcit::pir{
 				);
 				return Type(Type::Kind::Unsigned, width);
 			}
+
+			EVO_NODISCARD static auto createBoolType() -> Type { return Type(Type::Kind::Bool); }
+
 
 			EVO_NODISCARD static auto createFloatType(uint32_t width) -> Type {
 				evo::debugAssert(
@@ -305,6 +305,8 @@ namespace pcit::pir{
 				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
 
 				auto check_global_name_reusue(std::string_view global_name) const -> void;
+
+				auto check_expr_type_match(Type type, const Expr& expr) const -> void;
 			#endif
 	
 		private:
@@ -328,6 +330,7 @@ namespace pcit::pir{
 			core::StepAlloc<CallVoid, uint32_t> call_voids{};
 			core::StepAlloc<Ret, uint32_t> rets{};
 			core::StepAlloc<Add, uint32_t> adds{};
+			core::StepAlloc<AddWrap, uint32_t> add_wraps{};
 
 			friend class ReaderAgent;
 			friend class Agent;

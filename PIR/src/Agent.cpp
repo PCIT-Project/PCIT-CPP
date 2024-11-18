@@ -169,6 +169,16 @@ namespace pcit::pir{
 						if(add.lhs == original){ add.lhs = replacement; }
 						if(add.rhs == original){ add.rhs = replacement; }
 					} break;
+
+					case Expr::Kind::AddWrap: {
+						AddWrap& add_wrap = this->module.add_wraps[stmt.index];
+
+						if(add_wrap.lhs == original){ add_wrap.lhs = replacement; }
+						if(add_wrap.rhs == original){ add_wrap.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::AddWrapResult: continue;
+					case Expr::Kind::AddWrapWrapped: continue;
 				}
 			}
 		}
@@ -268,6 +278,18 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// booleans
+
+	auto Agent::createBoolean(bool value) -> Expr {
+		return Expr(Expr::Kind::Boolean, uint32_t(value));
+	}
+
+	auto Agent::getBoolean(const Expr& expr) -> bool {
+		return ReaderAgent::getBoolean(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
 	// param exprs
 
 	auto Agent::createParamExpr(uint32_t index) -> Expr {
@@ -279,7 +301,7 @@ namespace pcit::pir{
 	}
 
 
-	///////////////////////////////////
+	//////////////////////////////////////////////////////////////////////
 	// global values (expr)
 
 	auto Agent::createGlobalValue(const GlobalVar::ID& global_id) -> Expr {
@@ -576,6 +598,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isNumeric(), "Can only add numerics");
 
 		const auto new_expr = Expr(
 			Expr::Kind::Add,
@@ -590,6 +613,39 @@ namespace pcit::pir{
 	}
 
 
+	//////////////////////////////////////////////////////////////////////
+	// add wrap
+
+	auto Agent::createAddWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isIntegral(), "Can only add wrap integrals");
+
+		const auto new_expr = Expr(
+			Expr::Kind::AddWrap,
+			this->module.add_wraps.emplace_back(
+				this->get_stmt_name(std::move(result_name)), this->get_stmt_name(std::move(wrapped_name)), lhs, rhs
+			)
+		);
+		this->target_basic_block->append(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getAddWrap(const Expr& expr) const -> const AddWrap& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getAddWrap(expr);
+	}
+
+
+	auto Agent::extractAddWrapResult(const Expr& expr) -> Expr {
+		return ReaderAgent::extractAddWrapResult(expr);
+	}
+
+	auto Agent::extractAddWrapWrapped(const Expr& expr) -> Expr {
+		return ReaderAgent::extractAddWrapWrapped(expr);
+	}
+
 
 	//////////////////////////////////////////////////////////////////////
 	// internal
@@ -598,16 +654,20 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetFunction(), "Not target function is set");
 
 		switch(expr.getKind()){
-			break; case Expr::Kind::None:         evo::debugFatalBreak("Invalid expr");
-			break; case Expr::Kind::GlobalValue:  return;
-			break; case Expr::Kind::Number:       this->module.numbers.erase(expr.index);
-			break; case Expr::Kind::ParamExpr:    return;
-			break; case Expr::Kind::Call:         this->module.calls.erase(expr.index);
-			break; case Expr::Kind::CallVoid:     this->module.call_voids.erase(expr.index);
-			break; case Expr::Kind::Ret:          this->module.rets.erase(expr.index);
-			break; case Expr::Kind::Branch:       return;
-			break; case Expr::Kind::Alloca:       this->target_func->allocas.erase(expr.index);
-			break; case Expr::Kind::Add:          this->module.adds.erase(expr.index);
+			break; case Expr::Kind::None:           evo::debugFatalBreak("Invalid expr");
+			break; case Expr::Kind::GlobalValue:    return;
+			break; case Expr::Kind::Number:         this->module.numbers.erase(expr.index);
+			break; case Expr::Kind::Boolean:        return;
+			break; case Expr::Kind::ParamExpr:      return;
+			break; case Expr::Kind::Call:           this->module.calls.erase(expr.index);
+			break; case Expr::Kind::CallVoid:       this->module.call_voids.erase(expr.index);
+			break; case Expr::Kind::Ret:            this->module.rets.erase(expr.index);
+			break; case Expr::Kind::Branch:         return;
+			break; case Expr::Kind::Alloca:         this->target_func->allocas.erase(expr.index);
+			break; case Expr::Kind::Add:            this->module.adds.erase(expr.index);
+			break; case Expr::Kind::AddWrap:        this->module.add_wraps.erase(expr.index);
+			break; case Expr::Kind::AddWrapResult:  return;
+			break; case Expr::Kind::AddWrapWrapped: return;
 		}
 	}
 
@@ -626,10 +686,11 @@ namespace pcit::pir{
 
 			for(const Expr& stmt : basic_block){
 				switch(stmt.getKind()){
-					break; case Expr::Kind::None:         evo::debugFatalBreak("Invalid expr");
-					break; case Expr::Kind::GlobalValue:  continue;
-					break; case Expr::Kind::Number:       continue;
-					break; case Expr::Kind::ParamExpr:    continue;
+					break; case Expr::Kind::None:        evo::debugFatalBreak("Invalid expr");
+					break; case Expr::Kind::GlobalValue: continue;
+					break; case Expr::Kind::Number:      continue;
+					break; case Expr::Kind::Boolean:     continue;
+					break; case Expr::Kind::ParamExpr:   continue;
 					break; case Expr::Kind::Call:
 						if(this->getCall(stmt).name == name){ return true; }
 					break; case Expr::Kind::CallVoid: continue;
@@ -639,6 +700,13 @@ namespace pcit::pir{
 						if(this->getAlloca(stmt).name == name){ return true; }
 					break; case Expr::Kind::Add:
 						if(this->getAdd(stmt).name == name){ return true; }
+					break; case Expr::Kind::AddWrap: {
+						const AddWrap& add_wrap = this->getAddWrap(stmt);
+						if(add_wrap.resultName == name){ return true; }
+						if(add_wrap.wrappedName == name){ return true; }
+					} break;
+					break; case Expr::Kind::AddWrapResult:  continue;
+					break; case Expr::Kind::AddWrapWrapped: continue;
 				}
 			}
 		}

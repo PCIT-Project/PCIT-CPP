@@ -42,16 +42,20 @@ namespace pcit::pir::passes{
 
 			auto see_expr = [&](const Expr& expr) -> void {
 				switch(expr.getKind()){
-					case Expr::Kind::None:         evo::debugFatalBreak("Invalid expr");
-					case Expr::Kind::GlobalValue:  break;
-					case Expr::Kind::Number:       break;
-					case Expr::Kind::ParamExpr:    break;
-					case Expr::Kind::Call:         func_metadata.emplace(expr);
-					case Expr::Kind::CallVoid:     break;
-					case Expr::Kind::Ret:          break;
-					case Expr::Kind::Branch:       break;
-					case Expr::Kind::Alloca:       func_metadata.emplace(expr);
-					case Expr::Kind::Add:          func_metadata.emplace(expr);
+					case Expr::Kind::None:           evo::debugFatalBreak("Invalid expr");
+					case Expr::Kind::GlobalValue:    break;
+					case Expr::Kind::Number:         break;
+					case Expr::Kind::Boolean:        break;
+					case Expr::Kind::ParamExpr:      break;
+					case Expr::Kind::Call:           func_metadata.emplace(expr);
+					case Expr::Kind::CallVoid:       break;
+					case Expr::Kind::Ret:            break;
+					case Expr::Kind::Branch:         break;
+					case Expr::Kind::Alloca:         func_metadata.emplace(expr);
+					case Expr::Kind::Add:            func_metadata.emplace(expr);
+					case Expr::Kind::AddWrap:        break;
+					case Expr::Kind::AddWrapResult:  func_metadata.emplace(expr);
+					case Expr::Kind::AddWrapWrapped: func_metadata.emplace(expr);
 				}
 			};
 
@@ -59,6 +63,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::None:        evo::debugFatalBreak("Invalid expr");
 				case Expr::Kind::GlobalValue: return true;
 				case Expr::Kind::Number:      return true;
+				case Expr::Kind::Boolean:     return true;
 				case Expr::Kind::ParamExpr:   return true;
 
 				case Expr::Kind::Call: {
@@ -118,6 +123,24 @@ namespace pcit::pir::passes{
 					see_expr(add.lhs);
 					see_expr(add.rhs);
 				} break;
+
+				case Expr::Kind::AddWrap: {
+					if(func_metadata.contains(agent.extractAddWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(agent.extractAddWrapResult(stmt)) == false){
+							agent.removeStmt(stmt);
+							return true;		
+						}
+
+						// TODO: if wrapped is never used, replace addWrap with just an add
+					}
+
+					const AddWrap& add_wrap = agent.getAddWrap(stmt);
+					see_expr(add_wrap.lhs);
+					see_expr(add_wrap.rhs);
+				} break;
+
+				case Expr::Kind::AddWrapResult:  return true;
+				case Expr::Kind::AddWrapWrapped: return true;
 			}
 
 			return true;

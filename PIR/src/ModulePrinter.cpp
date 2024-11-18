@@ -286,6 +286,7 @@ namespace pcit::pir{
 			case Type::Kind::Void:     { this->printer.printCyan("Void");                  } break;
 			case Type::Kind::Signed:   { this->printer.printCyan("I{}", type.getWidth());  } break;
 			case Type::Kind::Unsigned: { this->printer.printCyan("UI{}", type.getWidth()); } break;
+			case Type::Kind::Bool:     { this->printer.printCyan("Bool");                  } break;
 			case Type::Kind::Float:    { this->printer.printCyan("F{}", type.getWidth());  } break;
 			case Type::Kind::BFloat:   { this->printer.printCyan("BF16");                  } break;
 			case Type::Kind::Ptr:      { this->printer.printCyan("Ptr");                   } break;
@@ -330,6 +331,10 @@ namespace pcit::pir{
 				this->printer.print(")");
 			} break;
 
+			case Expr::Kind::Boolean: {
+				this->printer.printMagenta(evo::boolStr(ReaderAgent::getBoolean(expr)));
+			} break;
+
 			case Expr::Kind::GlobalValue: {
 				const GlobalVar& global_var = ReaderAgent(this->module).getGlobalValue(expr);
 				this->printer.print("${}", global_var.name);
@@ -358,20 +363,33 @@ namespace pcit::pir{
 				const Add& add = ReaderAgent(this->module, *this->func).getAdd(expr);
 				this->printer.print("${}", add.name);
 			} break;
+
+			case Expr::Kind::AddWrap: evo::debugFatalBreak("Expr::Kind::AddWrap is not a valid expression");
+
+			case Expr::Kind::AddWrapResult: {
+				const AddWrap& add_wrap = ReaderAgent(this->module, *this->func).getAddWrap(expr);
+				this->printer.print("${}", add_wrap.resultName);
+			} break;
+
+			case Expr::Kind::AddWrapWrapped: {
+				const AddWrap& add_wrap = ReaderAgent(this->module, *this->func).getAddWrap(expr);
+				this->printer.print("${}", add_wrap.wrappedName);
+			} break;
 		}
 	}
 
 
-	auto ModulePrinter::print_expr_stmt(const Expr& expr) -> void {
-		switch(expr.getKind()){
+	auto ModulePrinter::print_expr_stmt(const Expr& stmt) -> void {
+		switch(stmt.getKind()){
 			case Expr::Kind::None: evo::debugFatalBreak("Not valid expr");
 
 			case Expr::Kind::Number:      evo::debugFatalBreak("Expr::Kind::Number is not a valid statement");
+			case Expr::Kind::Boolean:     evo::debugFatalBreak("Expr::Kind::Boolean is not a valid statement");
 			case Expr::Kind::GlobalValue: evo::debugFatalBreak("Expr::Kind::GlobalValue is not a valid statement");
 			case Expr::Kind::ParamExpr:   evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
 
 			case Expr::Kind::Call: {
-				const Call& call_inst = ReaderAgent(this->module, *this->func).getCall(expr);
+				const Call& call_inst = ReaderAgent(this->module, *this->func).getCall(stmt);
 
 				this->printer.print("{}${} ", tabs(2), call_inst.name);
 				this->printer.printRed("= ");
@@ -380,7 +398,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::CallVoid: {
-				const CallVoid& call_void_inst = ReaderAgent(this->module, *this->func).getCallVoid(expr);
+				const CallVoid& call_void_inst = ReaderAgent(this->module, *this->func).getCallVoid(stmt);
 
 				this->printer.print(tabs(2));
 
@@ -388,7 +406,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::Ret: {
-				const Ret& ret_inst = ReaderAgent(this->module, *this->func).getRet(expr);
+				const Ret& ret_inst = ReaderAgent(this->module, *this->func).getRet(stmt);
 
 				if(ret_inst.value.has_value()){
 					this->printer.printRed("{}@ret ", tabs(2));
@@ -404,14 +422,14 @@ namespace pcit::pir{
 				auto reader = ReaderAgent(this->module, *this->func);
 
 				this->printer.printRed("{}@branch ", tabs(2));
-				const BasicBlock::ID basic_block_id = reader.getBranch(expr).target;
+				const BasicBlock::ID basic_block_id = reader.getBranch(stmt).target;
 				this->printer.println("${}", reader.getBasicBlock(basic_block_id).getName());
 			} break;
 
 			case Expr::Kind::Alloca: evo::debugFatalBreak("Expr::Kind::Alloca should not be printed through this func");
 
 			case Expr::Kind::Add: {
-				const Add& add = ReaderAgent(this->module, *this->func).getAdd(expr);
+				const Add& add = ReaderAgent(this->module, *this->func).getAdd(stmt);
 
 				this->printer.print("{}${} ", tabs(2), add.name);
 				this->printer.printRed("= @add ");
@@ -425,6 +443,24 @@ namespace pcit::pir{
 				this->print_expr(add.rhs);
 				this->printer.println();
 			} break;
+
+
+			case Expr::Kind::AddWrap: {
+				const AddWrap& add_wrap = ReaderAgent(this->module, *this->func).getAddWrap(stmt);
+
+				this->printer.print("{}${}, ${} ", tabs(2), add_wrap.resultName, add_wrap.wrappedName);
+				this->printer.printRed("= @addWrap ");
+
+				this->print_expr(add_wrap.lhs);
+				this->printer.print(", ");
+				this->print_expr(add_wrap.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::AddWrapResult:  evo::debugFatalBreak("Expr::Kind::AddWrapResult is not a valid statement");
+			case Expr::Kind::AddWrapWrapped:
+				evo::debugFatalBreak("Expr::Kind::AddWrapWrapped is not a valid statement");
+
 		}
 	}
 

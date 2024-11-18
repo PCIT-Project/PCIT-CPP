@@ -127,21 +127,21 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.setTargetBasicBlock(entry_block_id);
 
 
-	const pcit::pir::Expr add = agent.createAdd(
+	const pcit::pir::Expr add = agent.createAddWrap(
 		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(9)),
 		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(3)),
-		false,
-		"ADD"
+		"ADD_WRAP.RESULT",
+		"ADD_WRAP.WRAPPED"
 	);
 
 	// const pcit::pir::Expr add2 = agent.createAdd(add, agent.createParamExpr(1), false, "ADD");
 	const pcit::pir::Expr val_alloca = agent.createAlloca(module.createUnsignedType(64), "VAL");
 
-	const pcit::pir::Expr add3 = agent.createAdd(
-		add,
+	const pcit::pir::Expr add3 = agent.createAddWrap(
+		agent.extractAddWrapResult(add),
 		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(0)),
-		false,
-		"ADD"
+		"ADD_WRAP.RESULT",
+		"ADD_WRAP.WRAPPED"
 	);
 
 	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
@@ -153,7 +153,7 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{agent.createGlobalValue(global)});
 	// agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
-	agent.createRet(add3);
+	agent.createRet(agent.extractAddWrapResult(add3));
 
 
 	printer.printlnGray("--------------------------------");
