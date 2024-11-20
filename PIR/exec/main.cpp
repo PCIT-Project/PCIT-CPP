@@ -60,6 +60,20 @@ auto main(int argc, const char* argv[]) -> int {
 	printer.printlnCyan("PIRC");
 	printer.printlnGray("TESTING...");
 
+	#if defined(PCIT_BUILD_DEBUG)
+		printer.printlnMagenta("v{} (debug)", pcit::core::version);
+	#elif defined(PCIT_BUILD_DEV)
+		printer.printlnMagenta("v{} (dev)", pcit::core::version);
+	#elif defined(PCIT_BUILD_OPTIMIZE)
+		printer.printlnMagenta("v{} (optimize)", pcit::core::version);
+	#elif defined(PCIT_BUILD_RELEASE)
+		printer.printlnMagenta("v{} (release)", pcit::core::version);
+	#elif defined(PCIT_BUILD_DIST)
+		printer.printlnMagenta("v{}", pcit::core::version);
+	#else
+		#error Unknown or unsupported build
+	#endif
+
 	#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
 		if(::IsDebuggerPresent()){
 			static auto at_exit_call = [&]() -> void {
@@ -96,8 +110,8 @@ auto main(int argc, const char* argv[]) -> int {
 	);
 
 
-	const pcit::pir::FunctionDecl::ID puts_decl = module.createFunctionDecl(
-		"puts",
+	const pcit::pir::FunctionDecl::ID print_hello_decl = module.createFunctionDecl(
+		"print_hello",
 		evo::SmallVector<pcit::pir::Parameter>{pcit::pir::Parameter("str", module.createPtrType())},
 		pcit::pir::CallingConvention::C,
 		pcit::pir::Linkage::External,
@@ -150,8 +164,8 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.createBranch(second_block_id);
 	agent.setTargetBasicBlock(second_block_id);
 
-	agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{agent.createGlobalValue(global)});
-	// agent.createCallVoid(puts_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
+	agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{agent.createGlobalValue(global)});
+	// agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
 	agent.createRet(agent.extractAddWrapResult(add3));
 
@@ -198,7 +212,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	
-	jit_engine.registerFunction(puts_decl, []() -> void {
+	jit_engine.registerFunction(print_hello_decl, []() -> void {
 		evo::printlnYellow("Hello from PIR");
 	});
 

@@ -50,11 +50,11 @@ namespace pcit::pir::passes{
 					if(result.wrapped){ return false; }
 
 					const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
-					agent.replaceStmtWithValue(stmt, result_expr);
+					agent.replaceExpr(stmt, result_expr);
 
 				}else{
 					const Expr result_expr = agent.createNumber(lhs.type, lhs.getFloat().add(rhs.getFloat()));
-					agent.replaceStmtWithValue(stmt, result_expr);
+					agent.replaceExpr(stmt, result_expr);
 				}
 
 				return true;
@@ -77,10 +77,10 @@ namespace pcit::pir::passes{
 					: lhs.getInt().sadd(rhs.getInt());
 
 				const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
-				agent.replaceStmtWithValue(result_original_expr, result_expr);
+				agent.replaceExpr(result_original_expr, result_expr);
 
 				const Expr wrapped_expr = agent.createBoolean(result.wrapped);
-				agent.replaceStmtWithValue(wrapped_original_expr, wrapped_expr);
+				agent.replaceExpr(wrapped_original_expr, wrapped_expr);
 
 				agent.removeStmt(stmt);
 
@@ -97,16 +97,16 @@ namespace pcit::pir::passes{
 
 	auto inst_simplify_impl(Expr stmt, const Agent& agent) -> bool {
 		switch(stmt.getKind()){
-			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
-			case Expr::Kind::GlobalValue:  return true;
-			case Expr::Kind::Number:       return true;
-			case Expr::Kind::Boolean:      return true;
-			case Expr::Kind::ParamExpr:    return true;
-			case Expr::Kind::Call:         return true;
-			case Expr::Kind::CallVoid:     return true;
-			case Expr::Kind::Ret:          return true;
-			case Expr::Kind::Branch:       return true;
-			case Expr::Kind::Alloca:       return true;
+			case Expr::Kind::None:        evo::debugFatalBreak("Not valid expr");
+			case Expr::Kind::GlobalValue: return true;
+			case Expr::Kind::Number:      return true;
+			case Expr::Kind::Boolean:     return true;
+			case Expr::Kind::ParamExpr:   return true;
+			case Expr::Kind::Call:        return true;
+			case Expr::Kind::CallVoid:    return true;
+			case Expr::Kind::Ret:         return true;
+			case Expr::Kind::Branch:      return true;
+			case Expr::Kind::Alloca:      return true;
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
@@ -116,7 +116,7 @@ namespace pcit::pir::passes{
 					if(lhs.type.isIntegral()){
 						const core::GenericInt& number = lhs.getInt();
 						if(number == core::GenericInt(number.getBitWidth(), 0)){
-							agent.replaceStmtWithValue(stmt, add.rhs);
+							agent.replaceExpr(stmt, add.rhs);
 						}
 					}
 
@@ -125,7 +125,7 @@ namespace pcit::pir::passes{
 					if(rhs.type.isIntegral()){
 						const core::GenericInt& number = rhs.getInt();
 						if(number == core::GenericInt(number.getBitWidth(), 0)){
-							agent.replaceStmtWithValue(stmt, add.lhs);
+							agent.replaceExpr(stmt, add.lhs);
 						}
 					}
 				}
@@ -140,8 +140,8 @@ namespace pcit::pir::passes{
 					const Number& lhs = agent.getNumber(add_wrap.lhs);
 					const core::GenericInt& number = lhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
-						agent.replaceStmtWithValue(agent.extractAddWrapResult(stmt), add_wrap.rhs);
-						agent.replaceStmtWithValue(agent.extractAddWrapWrapped(stmt), agent.createBoolean(false));
+						agent.replaceExpr(agent.extractAddWrapResult(stmt), add_wrap.rhs);
+						agent.replaceExpr(agent.extractAddWrapWrapped(stmt), agent.createBoolean(false));
 						agent.removeStmt(stmt);
 					}
 
@@ -149,8 +149,8 @@ namespace pcit::pir::passes{
 					const Number& rhs = agent.getNumber(add_wrap.rhs);
 					const core::GenericInt& number = rhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
-						agent.replaceStmtWithValue(agent.extractAddWrapResult(stmt), add_wrap.lhs);
-						agent.replaceStmtWithValue(agent.extractAddWrapWrapped(stmt), agent.createBoolean(false));
+						agent.replaceExpr(agent.extractAddWrapResult(stmt), add_wrap.lhs);
+						agent.replaceExpr(agent.extractAddWrapWrapped(stmt), agent.createBoolean(false));
 						agent.removeStmt(stmt);
 					}
 				}

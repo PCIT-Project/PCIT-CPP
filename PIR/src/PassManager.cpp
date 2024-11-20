@@ -100,7 +100,8 @@ namespace pcit::pir{
 			size_t current_allocas_range_size = item.func.getAllocasRange().size();
 
 			auto iter = item.func.getAllocasRange().begin();
-			while(iter != item.func.getAllocasRange().end()){
+			size_t i = 0; 
+			while(i < current_allocas_range_size){
 				for(const StmtPass& stmt_pass : stmt_pass_group.passes){
 					if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent) == false){ return false; }
 
@@ -109,6 +110,7 @@ namespace pcit::pir{
 
 				if(item.func.getAllocasRange().size() == current_allocas_range_size){
 					++iter;
+					i += 1;
 				}else{
 					current_allocas_range_size = item.func.getAllocasRange().size();
 				}
@@ -122,8 +124,11 @@ namespace pcit::pir{
 
 			size_t basic_block_current_size = basic_block.size();
 
-			auto iter = basic_block.begin(); 
-			while(iter != basic_block.end()){
+			auto iter = basic_block.begin();
+			size_t i = 0;
+			while(i < basic_block_current_size){
+				agent.setInsertIndex(i);
+
 				for(const StmtPass& stmt_pass : stmt_pass_group.passes){
 					if(stmt_pass.func(*iter, agent) == false){ return false; }
 
@@ -132,11 +137,14 @@ namespace pcit::pir{
 
 				if(basic_block.size() == basic_block_current_size){
 					++iter;
+
 				}else{
 					// Note: don't have to worry about if was at the last elem of the block as
 					// 		 it's illegal to not have a single terminator that's at the end
 					basic_block_current_size = basic_block.size();
 				}
+
+				i += 1;
 			}
 		}
 
@@ -188,7 +196,9 @@ namespace pcit::pir{
 			size_t basic_block_current_size = basic_block.size();
 
 			auto iter = basic_block.rbegin(); 
-			while(iter != basic_block.rend()){
+			size_t i = basic_block.size() - 1;
+			while(true){
+				agent.setInsertIndex(i);
 				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
 					if(stmt_pass.func(*iter, agent) == false){ return false; }
 
@@ -199,8 +209,12 @@ namespace pcit::pir{
 					basic_block_current_size = basic_block.size();
 				}
 				++iter;
+				if(i == 0){ break; }
+				i -= 1;
 			}
 		}
+
+		agent.removeTargetBasicBlock();
 
 		{
 			size_t current_allocas_range_size = item.func.getAllocasRange().size();

@@ -27,6 +27,8 @@ namespace pcit::pir{
 	// A unified way to interact with things like exprs and basic blocks
 	// 	Called "Agent" as it's sort of a go-between and manages menial stuff for you
 	// 	I would have picked "Interface" but I didn't want to overload the term
+	// Note: a const Agent has all the power to get and create expressions / statements, but the insert target cannot be 
+	// 	modified. If you want an Agent that can only get but not create, use a ReaderAgent instead
 
 	class Agent{
 		public:
@@ -34,6 +36,8 @@ namespace pcit::pir{
 			Agent(Module& _module, Function& func) : module(_module), target_func(&func), target_basic_block(nullptr) {}
 			Agent(Module& _module, Function& func, BasicBlock& basic_block)
 				: module(_module), target_func(&func), target_basic_block(&basic_block) {}
+			Agent(Module& _module, Function& func, BasicBlock& basic_block, size_t _insert_index)
+				: module(_module), target_func(&func), target_basic_block(&basic_block), insert_index(_insert_index) {}
 
 			~Agent() = default;
 
@@ -41,7 +45,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// targets
 
-			EVO_NODISCARD auto getModule() -> Module& { return this->module; }
+			EVO_NODISCARD auto getModule() const -> Module& { return this->module; }
 
 			auto setTargetFunction(Function::ID id) -> void;
 			auto setTargetFunction(Function& func) -> void;
@@ -59,13 +63,17 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getTargetBasicBlock() const -> BasicBlock&;
 
 
+			auto setInsertIndex(size_t index) -> void;
+			auto setInsertIndexAtEnd() -> void;
+			auto getInsertIndexAtEnd() const -> bool { return this->insert_index == std::numeric_limits<size_t>::max();}
+
+
 			///////////////////////////////////
 			// misc expr stuff
 
 			EVO_NODISCARD auto getExprType(const Expr& expr) const -> Type;
 
-			auto replaceStmt(Expr original, const Expr& replacement) const -> void;
-			auto replaceStmtWithValue(Expr original, const Expr& replacement) const -> void;
+			auto replaceExpr(Expr original, const Expr& replacement) const -> void;
 			auto removeStmt(Expr stmt_to_remove) const -> void;
 
 
@@ -186,7 +194,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto createAdd(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const 
 				-> Expr;
-			auto createAdd(const Expr&, const Expr&, const char*) = delete;
+			auto createAdd(const Expr&, const Expr&, const char*) = delete; // prevent forgetting may_wrap
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
 
 
@@ -204,6 +212,7 @@ namespace pcit::pir{
 
 
 		private:
+			auto insert_stmt(const Expr& stmt) const -> void;
 			auto delete_expr(const Expr& expr) const -> void;
 
 			EVO_NODISCARD auto name_exists_in_func(std::string_view) const -> bool;
@@ -217,6 +226,8 @@ namespace pcit::pir{
 			Module& module;
 			Function* target_func;
 			BasicBlock* target_basic_block;
+			mutable size_t insert_index = std::numeric_limits<size_t>::max();
+			// `insert_index` is mutable to allow for it to move when inserting / deleting stmts
 	};
 
 

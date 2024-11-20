@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.60.0
+
+### PIR
+- Added the ability for `Agent` to insert at any index within the basic block
+- Added optimization to convert `@addWrap` to `@add` if wrapped value isn't used
+- Added various debug asserts
+- Fixed fatal error when adding statements during a statement pass
+- Fixed various compiler warnings
+
+
+<!---------------------------------->
 ## v0.0.59.0
 
 ### PIR

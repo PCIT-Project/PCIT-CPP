@@ -94,10 +94,28 @@ namespace pcit::pir{
 			}
 
 
+			auto insert(Expr&& expr, size_t index) -> void {
+				evo::debugAssert(expr.isStmt(), "Must append stmt");
+				
+				this->exprs.insert(this->index_to_iter(index), std::move(expr));
+			}
+
+			auto insert(const Expr& expr, size_t index) -> void {
+				evo::debugAssert(expr.isStmt(), "Must append stmt");
+				
+				this->exprs.insert(this->index_to_iter(index), expr);
+			}
+
+
 			auto remove(size_t index) -> void {
-				Iter remove_target = this->begin();
-				std::advance(remove_target, ptrdiff_t(index + 1));
-				this->exprs.erase(remove_target);
+				this->exprs.erase(this->index_to_iter(index));
+			}
+
+
+			auto index_to_iter(size_t index) -> Iter {
+				Iter iter = this->begin();
+				std::advance(iter, ptrdiff_t(index + 1));
+				return iter;
 			}
 	
 		private:

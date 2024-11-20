@@ -84,7 +84,7 @@ namespace pcit::panther{
 
 
 	auto ComptimeExecutor::runFunc(
-		const ASG::Func::LinkID& link_id, evo::ArrayProxy<ASG::Expr> params, ASGBuffer& asg_buffer
+		const ASG::Func::LinkID& link_id, evo::ArrayProxy<ASG::Expr>, ASGBuffer& asg_buffer
 	) -> evo::Result<evo::SmallVector<ASG::Expr>> {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 

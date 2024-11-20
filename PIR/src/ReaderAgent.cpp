@@ -26,6 +26,10 @@ namespace pcit::pir{
 				evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 
 				const ParamExpr param_expr = this->getParamExpr(expr);
+				evo::debugAssert(
+					this->target_func->getParameters().size() > param_expr.index,
+					"This function does not have a parameter of index {}", param_expr.index
+				);
 				return this->target_func->getParameters()[param_expr.index].getType();
 			} break;
 			case Expr::Kind::Call: {

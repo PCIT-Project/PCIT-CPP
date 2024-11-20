@@ -66,6 +66,10 @@ namespace pcit::pir{
 					   this->kind == Kind::AddWrap;
 			}
 
+			EVO_NODISCARD auto isMultiValueStmt() const -> bool {
+				return this->kind == Kind::AddWrap;
+			}
+
 			EVO_NODISCARD auto isTerminator() const -> bool {
 				return this->kind == Kind::Ret || this->kind == Kind::Branch;
 			}

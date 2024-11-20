@@ -131,7 +131,17 @@ namespace pcit::pir::passes{
 							return true;		
 						}
 
-						// TODO: if wrapped is never used, replace addWrap with just an add
+						// if wrapped value is never used, replace addWrap with just an add
+						const AddWrap& add_wrap = agent.getAddWrap(stmt);
+						see_expr(add_wrap.lhs);
+						see_expr(add_wrap.rhs);
+
+						const Expr new_add = agent.createAdd(
+							add_wrap.lhs, add_wrap.rhs, true, std::string(add_wrap.resultName)
+						);
+						agent.replaceExpr(agent.extractAddWrapResult(stmt), new_add);
+						agent.removeStmt(stmt);
+						return true;
 					}
 
 					const AddWrap& add_wrap = agent.getAddWrap(stmt);
