@@ -1,11 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.61.0
+
+### PIR
+- Added `@load` and `@store` instructions
+- Adjusted positioning of statement attributes
+- Fixed statement automatic naming for `@addWrap` when result and wrapped names are the same not being unique
+
+
+<!---------------------------------->
 ## v0.0.60.1
 
 ### PIR
 - Fixed various bugs and fatal errors around stmt passes and reverse stmt passes in `PassManager`
-- Fixed fatal error around erasing exprs
+- Fixed fatal error around erasing `Expr`s
 
 
 <!---------------------------------->

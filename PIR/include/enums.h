@@ -34,5 +34,54 @@ namespace pcit::pir{
 		External,
 	};
 
+
+	// Note: if you want a good default (that's not None), use SequentiallyConsistent
+	struct AtomicOrdering{
+		enum class Value{
+			None, // not atomic
+			Monotonic, // allows reordering of reads or writes
+			Acquire, // (only load) no reordering of reads or writes to before
+			Release, // (only store) no reordering of reads or writes to after
+			AcquireRelease, // (only read-modify-write) an acquire and release 
+			                //   only works if both threads use the same atomic variable
+			SequentiallyConsistent, // load = aquire, store = release, rmw = AcquireRelease 
+				                    //   however it works with multiple atomic variables
+			                        //   (slower than raw acquire, release, AcquireRelease)
+		};
+		using enum class Value;
+
+		constexpr AtomicOrdering(const Value& value) : _value(value) {}
+		EVO_NODISCARD constexpr operator Value() const { return this->_value; }
+
+		EVO_NODISCARD constexpr auto isValidForLoad() const -> bool {
+			switch(*this){
+				case AtomicOrdering::None:                   return true;
+				case AtomicOrdering::Monotonic:              return true;
+				case AtomicOrdering::Acquire:                return true;
+				case AtomicOrdering::Release:                return false;
+				case AtomicOrdering::AcquireRelease:         return false;
+				case AtomicOrdering::SequentiallyConsistent: return true;
+			}
+
+			evo::unreachable();
+		}
+
+		EVO_NODISCARD constexpr auto isValidForStore() const -> bool {
+			switch(*this){
+				case AtomicOrdering::None:                   return true;
+				case AtomicOrdering::Monotonic:              return true;
+				case AtomicOrdering::Acquire:                return false;
+				case AtomicOrdering::Release:                return true;
+				case AtomicOrdering::AcquireRelease:         return false;
+				case AtomicOrdering::SequentiallyConsistent: return true;
+			}
+
+			evo::unreachable();
+		}
+
+		private:
+			Value _value;
+	};
+
 }
 

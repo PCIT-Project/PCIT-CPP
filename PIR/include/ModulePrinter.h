@@ -44,6 +44,8 @@ namespace pcit::pir{
 
 			auto print_non_standard_name(std::string_view) -> void;
 
+			auto print_atomic_ordering(AtomicOrdering ordering) -> void;
+
 	
 		private:
 			const class Module& module;

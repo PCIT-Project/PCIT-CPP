@@ -51,6 +51,8 @@ namespace pcit::pir{
 			EVO_NODISCARD auto get_func_type(const Type& type) -> llvmint::FunctionType;
 			EVO_NODISCARD static auto get_linkage(const Linkage& linkage) -> llvmint::LinkageType;
 			EVO_NODISCARD static auto get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv;
+			EVO_NODISCARD static auto get_atomic_ordering(const AtomicOrdering& atomic_ordering)
+				-> llvmint::AtomicOrdering;
 	
 		private:
 			const Module& module;

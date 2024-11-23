@@ -42,20 +42,22 @@ namespace pcit::pir::passes{
 
 			auto see_expr = [&](const Expr& expr) -> void {
 				switch(expr.getKind()){
-					case Expr::Kind::None:           evo::debugFatalBreak("Invalid expr");
-					case Expr::Kind::GlobalValue:    break;
-					case Expr::Kind::Number:         break;
-					case Expr::Kind::Boolean:        break;
-					case Expr::Kind::ParamExpr:      break;
-					case Expr::Kind::Call:           func_metadata.emplace(expr);
-					case Expr::Kind::CallVoid:       break;
-					case Expr::Kind::Ret:            break;
-					case Expr::Kind::Branch:         break;
-					case Expr::Kind::Alloca:         func_metadata.emplace(expr);
-					case Expr::Kind::Add:            func_metadata.emplace(expr);
-					case Expr::Kind::AddWrap:        break;
-					case Expr::Kind::AddWrapResult:  func_metadata.emplace(expr);
-					case Expr::Kind::AddWrapWrapped: func_metadata.emplace(expr);
+					break; case Expr::Kind::None:           evo::debugFatalBreak("Invalid expr");
+					break; case Expr::Kind::GlobalValue:    break;
+					break; case Expr::Kind::Number:         break;
+					break; case Expr::Kind::Boolean:        break;
+					break; case Expr::Kind::ParamExpr:      break;
+					break; case Expr::Kind::Call:           func_metadata.emplace(expr);
+					break; case Expr::Kind::CallVoid:       evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Ret:            evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Branch:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Alloca:         func_metadata.emplace(expr);
+					break; case Expr::Kind::Load:           func_metadata.emplace(expr);
+					break; case Expr::Kind::Store:          evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Add:            func_metadata.emplace(expr);
+					break; case Expr::Kind::AddWrap:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::AddWrapResult:  func_metadata.emplace(expr);
+					break; case Expr::Kind::AddWrapWrapped: func_metadata.emplace(expr);
 				}
 			};
 
@@ -121,9 +123,30 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
+
+				case Expr::Kind::Load: {
+					if(func_metadata.contains(stmt) == false){
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+					const Load& load = agent.getLoad(stmt);
+					see_expr(load.source);
+
+					return false;
+				} break;
+
+				case Expr::Kind::Store: {
+					const Store& store = agent.getStore(stmt);
+					see_expr(store.destination);
+					see_expr(store.value);
+
+					return false;
+				} break;
+
 				case Expr::Kind::Add: {
 					if(func_metadata.contains(stmt) == false){
-						// agent.removeStmt(stmt);
+						agent.removeStmt(stmt);
 						return true;
 					}
 
@@ -164,6 +187,8 @@ namespace pcit::pir::passes{
 				case Expr::Kind::AddWrapResult:  return false;
 				case Expr::Kind::AddWrapWrapped: return false;
 			}
+
+			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.getKind()));
 		};
 
 		return PassManager::ReverseStmtPass(impl);

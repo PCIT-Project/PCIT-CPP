@@ -172,6 +172,19 @@ namespace pcit::pir{
 					
 					case Expr::Kind::Branch: continue;
 					case Expr::Kind::Alloca: continue;
+
+					case Expr::Kind::Load: {
+						Load& load = this->module.loads[stmt.index];
+
+						if(load.source == original){ load.source = replacement; }
+					} break;
+
+					case Expr::Kind::Store: {
+						Store& store = this->module.stores[stmt.index];
+
+						if(store.destination == original){ store.destination = replacement; }
+						if(store.value == original){ store.value = replacement; }
+					} break;
 					
 					case Expr::Kind::Add: {
 						Add& add = this->module.adds[stmt.index];
@@ -603,6 +616,54 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// load
+
+	auto Agent::createLoad(
+		const Expr& source, const Type& type, bool is_volatile, AtomicOrdering atomic_ordering, std::string&& name
+	) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(atomic_ordering.isValidForLoad(), "This atomic ordering is not valid for a load");
+		evo::debugAssert(this->getExprType(source).getKind() == Type::Kind::Ptr, "Source must be of type Ptr");
+
+		const auto new_stmt = Expr(
+			Expr::Kind::Load,
+			this->module.loads.emplace_back(
+				this->get_stmt_name(std::move(name)), source, type, is_volatile, atomic_ordering
+			)
+		);
+		this->insert_stmt(new_stmt);
+		return new_stmt;
+	}
+
+	auto Agent::getLoad(const Expr& expr) const -> const Load& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getLoad(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// store
+
+	auto Agent::createStore(
+		const Expr& destination, const Expr& value, bool is_volatile, AtomicOrdering atomic_ordering
+	) const -> void {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(atomic_ordering.isValidForStore(), "This atomic ordering is not valid for a store");
+		evo::debugAssert(
+			this->getExprType(destination).getKind() == Type::Kind::Ptr, "Destination must be of type Ptr"
+		);
+
+		const auto new_stmt = Expr(
+			Expr::Kind::Store, this->module.stores.emplace_back(destination, value, is_volatile, atomic_ordering)
+		);
+		this->insert_stmt(new_stmt);
+	}
+
+	auto Agent::getStore(const Expr& expr) const -> const Store& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getStore(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
 	// add
 
 	auto Agent::createAdd(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name) const -> Expr {
@@ -634,11 +695,14 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(this->getExprType(lhs).isIntegral(), "Can only add wrap integrals");
 
+		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+			std::move(wrapped_name), {result_stmt_name}
+		);
+
 		const auto new_expr = Expr(
 			Expr::Kind::AddWrap,
-			this->module.add_wraps.emplace_back(
-				this->get_stmt_name(std::move(result_name)), this->get_stmt_name(std::move(wrapped_name)), lhs, rhs
-			)
+			this->module.add_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -688,6 +752,8 @@ namespace pcit::pir{
 			break; case Expr::Kind::Ret:            this->module.rets.erase(expr.index);
 			break; case Expr::Kind::Branch:         return;
 			break; case Expr::Kind::Alloca:         this->target_func->allocas.erase(expr.index);
+			break; case Expr::Kind::Load:           this->module.loads.erase(expr.index);
+			break; case Expr::Kind::Store:          this->module.stores.erase(expr.index);
 			break; case Expr::Kind::Add:            this->module.adds.erase(expr.index);
 			break; case Expr::Kind::AddWrap:        this->module.add_wraps.erase(expr.index);
 			break; case Expr::Kind::AddWrapResult:  return;
@@ -714,27 +780,27 @@ namespace pcit::pir{
 
 			for(const Expr& stmt : basic_block){
 				switch(stmt.getKind()){
-					break; case Expr::Kind::None:        evo::debugFatalBreak("Invalid expr");
-					break; case Expr::Kind::GlobalValue: continue;
-					break; case Expr::Kind::Number:      continue;
-					break; case Expr::Kind::Boolean:     continue;
-					break; case Expr::Kind::ParamExpr:   continue;
-					break; case Expr::Kind::Call:
-						if(this->getCall(stmt).name == name){ return true; }
-					break; case Expr::Kind::CallVoid: continue;
-					break; case Expr::Kind::Ret:      continue;
-					break; case Expr::Kind::Branch:       continue;
-					break; case Expr::Kind::Alloca:
-						if(this->getAlloca(stmt).name == name){ return true; }
-					break; case Expr::Kind::Add:
-						if(this->getAdd(stmt).name == name){ return true; }
-					break; case Expr::Kind::AddWrap: {
+					case Expr::Kind::None:        evo::debugFatalBreak("Invalid expr");
+					case Expr::Kind::GlobalValue: continue;
+					case Expr::Kind::Number:      continue;
+					case Expr::Kind::Boolean:     continue;
+					case Expr::Kind::ParamExpr:   continue;
+					case Expr::Kind::Call:        if(this->getCall(stmt).name == name){ return true; } continue;
+					case Expr::Kind::CallVoid:    continue;
+					case Expr::Kind::Ret:         continue;
+					case Expr::Kind::Branch:      continue;
+					case Expr::Kind::Alloca:      if(this->getAlloca(stmt).name == name){ return true; } continue;
+					case Expr::Kind::Load:        if(this->getLoad(stmt).name == name){ return true; } continue;
+					case Expr::Kind::Store:       continue;
+					case Expr::Kind::Add:         if(this->getAdd(stmt).name == name){ return true; } continue;
+					case Expr::Kind::AddWrap: {
 						const AddWrap& add_wrap = this->getAddWrap(stmt);
 						if(add_wrap.resultName == name){ return true; }
 						if(add_wrap.wrappedName == name){ return true; }
+						continue;
 					} break;
-					break; case Expr::Kind::AddWrapResult:  continue;
-					break; case Expr::Kind::AddWrapWrapped: continue;
+					case Expr::Kind::AddWrapResult:  continue;
+					case Expr::Kind::AddWrapWrapped: continue;
 				}
 			}
 		}
@@ -744,6 +810,13 @@ namespace pcit::pir{
 
 
 	auto Agent::get_stmt_name(std::string&& name) const -> std::string {
+		return this->get_stmt_name_with_forward_include(std::move(name), {});
+	}
+
+
+	auto Agent::get_stmt_name_with_forward_include(
+		std::string&& name, evo::ArrayProxy<std::string_view> forward_includes
+	) const -> std::string {
 		evo::debugAssert(this->hasTargetFunction(), "Not target function is set");
 		evo::debugAssert(name.empty() || isStandardName(name), "Not a valid stmt name ({})", name);
 
@@ -757,8 +830,15 @@ namespace pcit::pir{
 			}
 		}();
 
+		auto name_exists_in_forward_includes = [&](const std::string& name_check) -> bool {
+			for(std::string_view forward_include : forward_includes){
+				if(name_check == forward_include){ return true; }
+			}
 
-		while(this->name_exists_in_func(converted_name)){
+			return false;
+		};
+
+		while(this->name_exists_in_func(converted_name) || name_exists_in_forward_includes(converted_name)){
 			converted_name = std::format("{}.{}", name, suffix_num);
 			suffix_num += 1;
 		}

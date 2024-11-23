@@ -97,5 +97,19 @@ namespace pcit::llvmint{
 		MaxID = 1023,
 	};
 
+
+
+	enum class AtomicOrdering : unsigned {
+		NotAtomic = 0,
+		Unordered = 1,
+		Monotonic = 2, // Equivalent to C++'s relaxed.
+		// Consume = 3,  // Not specified yet.
+		Acquire = 4,
+		Release = 5,
+		AcquireRelease = 6,
+		SequentiallyConsistent = 7,
+		LAST = SequentiallyConsistent
+	};
+
 	
 }

@@ -329,6 +329,8 @@ namespace pcit::pir{
 			core::StepAlloc<Call, uint32_t> calls{};
 			core::StepAlloc<CallVoid, uint32_t> call_voids{};
 			core::StepAlloc<Ret, uint32_t> rets{};
+			core::StepAlloc<Load, uint32_t> loads{};
+			core::StepAlloc<Store, uint32_t> stores{};
 			core::StepAlloc<Add, uint32_t> adds{};
 			core::StepAlloc<AddWrap, uint32_t> add_wraps{};
 

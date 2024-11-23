@@ -128,12 +128,30 @@ namespace pcit::pir{
 		return Branch(BasicBlock::ID(expr.index));
 	}
 
+
+
 	auto ReaderAgent::getAlloca(const Expr& expr) const -> const Alloca& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(expr.getKind() == Expr::Kind::Alloca, "Not an alloca");
 
 		return this->target_func->allocas[expr.index];
 	}
+
+	auto ReaderAgent::getLoad(const Expr& expr) const -> const Load& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Load, "Not a load");
+
+		return this->module.loads[expr.index];
+	}
+
+	auto ReaderAgent::getStore(const Expr& expr) const -> const Store& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Store, "Not a store");
+
+		return this->module.stores[expr.index];
+	}
+
+
 
 	auto ReaderAgent::getAdd(const Expr& expr) const -> const Add& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");

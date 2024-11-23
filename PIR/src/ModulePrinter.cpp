@@ -359,6 +359,13 @@ namespace pcit::pir{
 				this->printer.print("${}", alloca.name);
 			} break;
 
+			case Expr::Kind::Load: {
+				const Load& load = ReaderAgent(this->module, *this->func).getLoad(expr);
+				this->printer.print("${}", load.name);
+			} break;
+
+			case Expr::Kind::Store: evo::debugFatalBreak("Expr::Kind::Store is not a valid expression");
+
 			case Expr::Kind::Add: {
 				const Add& add = ReaderAgent(this->module, *this->func).getAdd(expr);
 				this->printer.print("${}", add.name);
@@ -428,19 +435,40 @@ namespace pcit::pir{
 
 			case Expr::Kind::Alloca: evo::debugFatalBreak("Expr::Kind::Alloca should not be printed through this func");
 
+			case Expr::Kind::Load: {
+				const Load& load = ReaderAgent(this->module, *this->func).getLoad(stmt);
+
+				this->printer.print("{}${} ", tabs(2), load.name);
+				this->printer.printRed("= @load ");
+				this->print_type(load.type);
+				this->printer.print(" ");
+				this->print_expr(load.source);
+				this->print_atomic_ordering(load.atomicOrdering);
+				if(load.isVolatile){ this->printer.printRed(" #volatile"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::Store: {
+				const Store& store = ReaderAgent(this->module, *this->func).getStore(stmt);
+
+				this->printer.printRed("{}@store ", tabs(2));
+				this->print_expr(store.destination);
+				this->printer.print(", ");
+				this->print_expr(store.value);
+				this->print_atomic_ordering(store.atomicOrdering);
+				if(store.isVolatile){ this->printer.printRed(" #volatile"); }
+				this->printer.println();
+			} break;
+
 			case Expr::Kind::Add: {
 				const Add& add = ReaderAgent(this->module, *this->func).getAdd(stmt);
 
 				this->printer.print("{}${} ", tabs(2), add.name);
 				this->printer.printRed("= @add ");
-
-				if(!add.mayWrap){
-					this->printer.printRed("noWrap ");
-				}
-
 				this->print_expr(add.lhs);
 				this->printer.print(", ");
 				this->print_expr(add.rhs);
+				if(add.mayWrap){ this->printer.printRed(" #mayWrap"); }
 				this->printer.println();
 			} break;
 
@@ -538,6 +566,41 @@ namespace pcit::pir{
 		}
 
 		this->printer.printYellow("\"{}\"", converted_name);
+	}
+
+
+	auto ModulePrinter::print_atomic_ordering(AtomicOrdering ordering) -> void {
+		switch(ordering){
+			case AtomicOrdering::None: {
+				// none
+			} break;
+
+			case AtomicOrdering::Monotonic: {
+				this->printer.printRed(" #atomic");
+				this->printer.print("(monotonic)");
+			} break;
+
+			case AtomicOrdering::Acquire: {
+				this->printer.printRed(" #atomic");
+				this->printer.print("(acquire)");
+			} break;
+
+			case AtomicOrdering::Release: {
+				this->printer.printRed(" #atomic");
+				this->printer.print("(release)");
+			} break;
+
+			case AtomicOrdering::AcquireRelease: {
+				this->printer.printRed(" #atomic");
+				this->printer.print("(acquireRelease)");
+			} break;
+
+			case AtomicOrdering::SequentiallyConsistent: {
+				this->printer.printRed(" #atomic");
+				this->printer.print("(sequentiallyConsistent)");
+			} break;
+
+		}
 	}
 
 

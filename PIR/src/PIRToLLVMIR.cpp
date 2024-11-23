@@ -337,6 +337,31 @@ namespace pcit::pir{
 
 					case Expr::Kind::Alloca: evo::debugFatalBreak("Not a valid stmt");
 
+					case Expr::Kind::Load: {
+						const Load& load = this->reader.getLoad(stmt);
+
+						const llvmint::LoadInst load_inst = this->builder.createLoad(
+							this->get_value(load.source),
+							this->get_type(load.type),
+							load.isVolatile,
+							this->get_atomic_ordering(load.atomicOrdering),
+							load.name
+						);
+
+						this->stmt_values.emplace(stmt, load_inst);
+					} break;
+
+					case Expr::Kind::Store: {
+						const Store& store = this->reader.getStore(stmt);
+
+						this->builder.createStore(
+							this->get_value(store.destination),
+							this->get_value(store.value),
+							store.isVolatile,
+							this->get_atomic_ordering(store.atomicOrdering)
+						);
+					} break;
+
 					case Expr::Kind::Add: {
 						const Add& add = this->reader.getAdd(stmt);
 						const Type& add_type = this->reader.getExprType(add.lhs);
@@ -500,6 +525,12 @@ namespace pcit::pir{
 				return this->allocas.at(&alloca_info).asValue();
 			} break;
 
+			case Expr::Kind::Load: {
+				return this->stmt_values.at(expr);
+			} break;
+
+			case Expr::Kind::Store: evo::debugFatalBreak("Not a value");
+
 			case Expr::Kind::Add: {
 				return this->stmt_values.at(expr);
 			} break;
@@ -586,6 +617,19 @@ namespace pcit::pir{
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported linkage kind");
+	}
+
+	auto PIRToLLVMIR::get_atomic_ordering(const AtomicOrdering& atomic_ordering) -> llvmint::AtomicOrdering {
+		switch(atomic_ordering){
+			case AtomicOrdering::None:                   return llvmint::AtomicOrdering::NotAtomic;
+			case AtomicOrdering::Monotonic:              return llvmint::AtomicOrdering::Monotonic;
+			case AtomicOrdering::Acquire:                return llvmint::AtomicOrdering::Acquire;
+			case AtomicOrdering::Release:                return llvmint::AtomicOrdering::Release;
+			case AtomicOrdering::AcquireRelease:         return llvmint::AtomicOrdering::AcquireRelease;
+			case AtomicOrdering::SequentiallyConsistent: return llvmint::AtomicOrdering::SequentiallyConsistent;
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported atomic ordering");
 	}
 
 }

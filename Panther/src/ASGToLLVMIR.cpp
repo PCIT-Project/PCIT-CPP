@@ -291,7 +291,9 @@ namespace pcit::panther{
 					}
 				}();
 
-				this->builder.createStore(param_alloca, llvm_func.getArg(i).asValue(), false);
+				this->builder.createStore(
+					param_alloca, llvm_func.getArg(i).asValue(), false, llvmint::AtomicOrdering::NotAtomic
+				);
 
 				this->param_infos.emplace(
 					ASG::Param::LinkID(asg_func_link_id, func.params[i]),
@@ -381,7 +383,9 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->builder.createStore(var_alloca, this->get_value(asg_var.expr), false);
+				this->builder.createStore(
+					var_alloca, this->get_value(asg_var.expr), false, llvmint::AtomicOrdering::NotAtomic
+				);
 			} break;
 		}
 
@@ -399,7 +403,7 @@ namespace pcit::panther{
 		const llvmint::Value lhs = this->get_concrete_value(assign.lhs);
 		const llvmint::Value rhs = this->get_value(assign.rhs);
 
-		this->builder.createStore(lhs, rhs, false);
+		this->builder.createStore(lhs, rhs, false, llvmint::AtomicOrdering::NotAtomic);
 	}
 
 
@@ -424,7 +428,7 @@ namespace pcit::panther{
 
 			if(assign_target.has_value() == false){ continue; }
 
-			this->builder.createStore(assign_target.value(), values[i], false);
+			this->builder.createStore(assign_target.value(), values[i], false, llvmint::AtomicOrdering::NotAtomic);
 		}
 	}
 
@@ -717,7 +721,10 @@ namespace pcit::panther{
 
 				}else{
 					return this->builder.createLoad(
-						param_info.alloca, false, this->stmt_name("param.ptr_lookup")
+						param_info.alloca,
+						false,
+						llvmint::AtomicOrdering::NotAtomic,
+						this->stmt_name("param.ptr_lookup")
 					).asValue();
 				}
 			} break;
@@ -755,7 +762,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return value.asValue(); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(literal_type);
-				this->builder.createStore(alloca, value.asValue(), false);
+				this->builder.createStore(alloca, value.asValue(), false, llvmint::AtomicOrdering::NotAtomic);
 				return alloca.asValue();
 			} break;
 
@@ -770,7 +777,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return value.asValue(); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(literal_type);
-				this->builder.createStore(alloca, value.asValue(), false);
+				this->builder.createStore(alloca, value.asValue(), false, llvmint::AtomicOrdering::NotAtomic);
 				return alloca.asValue();
 			} break;
 
@@ -782,7 +789,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return value.asValue(); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypeI8().asType());
-				this->builder.createStore(alloca, value.asValue(), false);
+				this->builder.createStore(alloca, value.asValue(), false, llvmint::AtomicOrdering::NotAtomic);
 				return alloca.asValue();
 			} break;
 
@@ -794,7 +801,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return value.asValue(); }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypeI8().asType());
-				this->builder.createStore(alloca, value.asValue(), false);
+				this->builder.createStore(alloca, value.asValue(), false, llvmint::AtomicOrdering::NotAtomic);
 				return alloca.asValue();
 			} break;
 
@@ -822,7 +829,11 @@ namespace pcit::panther{
 				if(get_pointer_to_value){ return value; }
 
 				return this->builder.createLoad(
-					value, this->get_type(deref_expr.typeID), false, this->stmt_name("DEREF")
+					value,
+					this->get_type(deref_expr.typeID),
+					false,
+					llvmint::AtomicOrdering::NotAtomic,
+					this->stmt_name("DEREF")
 				).asValue();
 			} break;
 
@@ -832,7 +843,7 @@ namespace pcit::panther{
 				if(get_pointer_to_value == false){ return address; }
 
 				const llvmint::Alloca alloca = this->builder.createAlloca(this->builder.getTypePtr().asType());
-				this->builder.createStore(alloca, address, false);
+				this->builder.createStore(alloca, address, false, llvmint::AtomicOrdering::NotAtomic);
 				return alloca.asValue();
 			} break;
 
@@ -860,7 +871,9 @@ namespace pcit::panther{
 				}
 
 				const llvmint::LoadInst load_inst = var_info.value.visit([&](auto value) -> llvmint::LoadInst {
-					return this->builder.createLoad(value, false, this->stmt_name("VAR.load"));
+					return this->builder.createLoad(
+						value, false, llvmint::AtomicOrdering::NotAtomic, this->stmt_name("VAR.load")
+					);
 				});
 				return load_inst.asValue();
 			} break;
@@ -883,20 +896,27 @@ namespace pcit::panther{
 						return param_info.alloca.asValue();
 					}else{
 						return this->builder.createLoad(
-							param_info.alloca, false, this->stmt_name("PARAM.load")
+							param_info.alloca, false, llvmint::AtomicOrdering::NotAtomic, this->stmt_name("PARAM.load")
 						).asValue();
 					}
 
 				}else{
 					const llvmint::LoadInst load_inst = this->builder.createLoad(
-						param_info.alloca, false, this->stmt_name("PARAM.ptr_lookup")
+						param_info.alloca,
+						false,
+						llvmint::AtomicOrdering::NotAtomic,
+						this->stmt_name("PARAM.ptr_lookup")
 					);
 
 					if(get_pointer_to_value) [[unlikely]] {
 						return load_inst.asValue();
 					}else{
 						return this->builder.createLoad(
-							load_inst.asValue(), param_info.type, false, this->stmt_name("PARAM.load")
+							load_inst.asValue(),
+							param_info.type,
+							false,
+							llvmint::AtomicOrdering::NotAtomic,
+							this->stmt_name("PARAM.load")
 						).asValue();
 					}
 				}
@@ -909,7 +929,11 @@ namespace pcit::panther{
 					return ret_param_info.arg.asValue();
 				}else{
 					const llvmint::LoadInst load_inst = this->builder.createLoad(
-						ret_param_info.arg.asValue(), ret_param_info.type, false, this->stmt_name("RET_PARAM.load")
+						ret_param_info.arg.asValue(),
+						ret_param_info.type,
+						false,
+						llvmint::AtomicOrdering::NotAtomic,
+						this->stmt_name("RET_PARAM.load")
 					);
 					return load_inst.asValue();
 				}
@@ -1028,7 +1052,10 @@ namespace pcit::panther{
 			for(size_t i = func_type.params.size(); i < args.size(); i+=1){
 				return_values.emplace_back(
 					this->builder.createLoad(
-						args[i], this->get_type(func_type.returnParams.front().typeID), false
+						args[i],
+						this->get_type(func_type.returnParams.front().typeID),
+						false,
+						llvmint::AtomicOrdering::NotAtomic
 					).asValue()
 				);
 			}
@@ -1045,7 +1072,7 @@ namespace pcit::panther{
 			const llvmint::Type return_type = this->get_type(func_type.returnParams[0].typeID);
 
 			const llvmint::Alloca alloca = this->builder.createAlloca(return_type);
-			this->builder.createStore(alloca, func_call_value, false);
+			this->builder.createStore(alloca, func_call_value, false, llvmint::AtomicOrdering::NotAtomic);
 
 			return_values.emplace_back(alloca.asValue());
 			return return_values;

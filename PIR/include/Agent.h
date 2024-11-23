@@ -190,6 +190,31 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// load
+
+			EVO_NODISCARD auto createLoad(
+				const Expr& source,
+				const Type& type,
+				bool is_volatile,
+				AtomicOrdering atomic_ordering = AtomicOrdering::None,
+				std::string&& name = ""
+			) const -> Expr;
+			EVO_NODISCARD auto getLoad(const Expr& expr) const -> const Load&;
+
+
+			///////////////////////////////////
+			// alloca
+
+			EVO_NODISCARD auto createStore(
+				const Expr& destination,
+				const Expr& value,
+				bool is_volatile,
+				AtomicOrdering atomic_ordering = AtomicOrdering::None
+			) const -> void;
+			EVO_NODISCARD auto getStore(const Expr& expr) const -> const Store&;
+
+
+			///////////////////////////////////
 			// add
 
 			EVO_NODISCARD auto createAdd(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const 
@@ -217,6 +242,9 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto name_exists_in_func(std::string_view) const -> bool;
 			EVO_NODISCARD auto get_stmt_name(std::string&& name) const -> std::string;
+			EVO_NODISCARD auto get_stmt_name_with_forward_include(
+				std::string&& name, evo::ArrayProxy<std::string_view> forward_includes
+			) const -> std::string;
 
 			template<bool REPLACE_WITH_VALUE>
 			EVO_NODISCARD auto replace_stmt_impl(Expr original, const Expr& replacement) const -> void;

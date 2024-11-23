@@ -14,7 +14,7 @@
 
 #include "./forward_decl_ids.h"
 #include "./Type.h"
-
+#include "./enums.h"
 
 namespace pcit::pir{
 
@@ -35,7 +35,10 @@ namespace pcit::pir{
 				CallVoid, // is separated from Call to allow for Expr::isValue()
 				Ret,
 				Branch,
+
 				Alloca,
+				Load,
+				Store,
 
 				Add,
 				AddWrap,
@@ -49,29 +52,42 @@ namespace pcit::pir{
 			EVO_NODISCARD constexpr auto getKind() const -> Kind { return this->kind; }
 
 			EVO_NODISCARD auto isValue() const -> bool {
-				return this->isConstant()                || this->kind == Kind::GlobalValue    ||
-				       this->kind == Kind::ParamExpr     || this->kind == Kind::Call           ||
-				       this->kind == Kind::Alloca        || this->kind == Kind::Add            ||
-				       this->kind == Kind::AddWrapResult || this->kind == Kind::AddWrapWrapped;
+
+                switch(this->kind){
+					case Kind::Number:        case Kind::Boolean:        case Kind::GlobalValue: case Kind::ParamExpr:
+					case Kind::Call:          case Kind::Alloca:         case Kind::Load:        case Kind::Add:
+					case Kind::AddWrapResult: case Kind::AddWrapWrapped: return true;
+					default: return false;
+                }
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
-				return this->kind == Kind::Number || this->kind == Kind::Boolean;
+				switch(this->kind){
+					case Kind::Number: case Kind::Boolean: return true;
+					default: return false;
+				}
 			}
 
 			EVO_NODISCARD auto isStmt() const -> bool {
-				return this->kind == Kind::Call    || this->kind == Kind::CallVoid || 
-					   this->kind == Kind::Ret     || this->kind == Kind::Branch   ||
-					   this->kind == Kind::Alloca  || this->kind == Kind::Add      ||
-					   this->kind == Kind::AddWrap;
+				switch(this->kind){
+					case Kind::Call: case Kind::CallVoid: case Kind::Ret: case Kind::Branch:  case Kind::Alloca:
+					case Kind::Load: case Kind::Store:    case Kind::Add: case Kind::AddWrap: return true;
+					default: return false;
+				}
 			}
 
 			EVO_NODISCARD auto isMultiValueStmt() const -> bool {
-				return this->kind == Kind::AddWrap;
+				switch(this->kind){
+					case Kind::AddWrap: return true;
+					default: return false;
+				}
 			}
 
 			EVO_NODISCARD auto isTerminator() const -> bool {
-				return this->kind == Kind::Ret || this->kind == Kind::Branch;
+				switch(this->kind){
+					case Kind::Ret: case Kind::Branch: return true;
+					default: return false;
+				}
 			}
 
 
@@ -199,6 +215,22 @@ namespace pcit::pir{
 	struct Alloca{
 		std::string name;
 		Type type;
+	};
+
+
+	struct Load{
+		std::string name;
+		Expr source;
+		Type type;
+		bool isVolatile;
+		AtomicOrdering atomicOrdering;
+	};
+
+	struct Store{
+		Expr destination;
+		Expr value;
+		bool isVolatile;
+		AtomicOrdering atomicOrdering;
 	};
 
 	struct Add{

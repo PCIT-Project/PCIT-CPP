@@ -43,10 +43,10 @@ namespace pcit::pir{
 			//////////////////////////////////////////////////////////////////////
 			// iterators
 
-			using Iter                 = std::vector<Expr>::iterator;
-			using ConstIter            = std::vector<Expr>::const_iterator;
-			using ReverseIter          = std::vector<Expr>::reverse_iterator;
-			using ConstReverseIterator = std::vector<Expr>::const_reverse_iterator;
+			using Iter                 = evo::SmallVector<Expr>::iterator;
+			using ConstIter            = evo::SmallVector<Expr>::const_iterator;
+			using ReverseIter          = evo::SmallVector<Expr>::reverse_iterator;
+			using ConstReverseIterator = evo::SmallVector<Expr>::const_reverse_iterator;
 
 			EVO_NODISCARD auto begin()        -> Iter      { return this->exprs.begin();  };
 			EVO_NODISCARD auto begin()  const -> ConstIter { return this->exprs.begin();  };
@@ -121,7 +121,7 @@ namespace pcit::pir{
 		private:
 			std::string name;
 
-			std::vector<Expr> exprs{};
+			evo::SmallVector<Expr> exprs{};
 
 			bool is_terminated;
 

@@ -56,24 +56,10 @@ namespace pcit::llvmint{
 			//////////////////////////////////////////////////////////////////////
 			// create
 
+			///////////////////////////////////
+			// control flow
+
 			auto createBasicBlock(const Function& func, evo::CStrProxy name = '\0') -> BasicBlock;
-
-			EVO_NODISCARD auto createAlloca(const Type& type, evo::CStrProxy name = '\0') -> Alloca;
-			EVO_NODISCARD auto createAlloca(const Type& type, const Value& array_length, evo::CStrProxy name = '\0') 
-			-> Alloca;
-			
-			EVO_NODISCARD auto createLoad(
-				const Value& value, const Type& type, bool is_volatile, evo::CStrProxy name = '\0'
-			) -> LoadInst;
-			EVO_NODISCARD auto createLoad(
-				const Alloca& alloca, bool is_volatile, evo::CStrProxy name = '\0'
-			) -> LoadInst;
-			EVO_NODISCARD auto createLoad(
-				const GlobalVariable& global_var, bool is_volatile, evo::CStrProxy name = '\0'
-			) -> LoadInst;
-
-			auto createStore(const Alloca& dst, const Value& source, bool is_volatile) -> void;
-			auto createStore(const Value& dst, const Value& source, bool is_volatile) -> void;
 
 			auto createRet() -> void;
 			auto createRet(const Value& value) -> void;
@@ -87,6 +73,7 @@ namespace pcit::llvmint{
 
 			// createPhi
 
+
 			auto createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0') 
 				-> CallInst;
 			auto createCall(
@@ -97,6 +84,52 @@ namespace pcit::llvmint{
 			) -> CallInst;
 
 			auto createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile) -> void;
+
+
+			///////////////////////////////////
+			// memory
+
+			EVO_NODISCARD auto createAlloca(const Type& type, evo::CStrProxy name = '\0') -> Alloca;
+
+			EVO_NODISCARD auto createAlloca(const Type& type, const Value& array_length, evo::CStrProxy name = '\0') 
+			-> Alloca;
+			
+			EVO_NODISCARD auto createLoad(
+				const Value& value,
+				const Type& type,
+				bool is_volatile,
+				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic,
+				evo::CStrProxy name = '\0'
+			) -> LoadInst;
+
+			EVO_NODISCARD auto createLoad(
+				const Alloca& alloca,
+				bool is_volatile,
+				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic,
+				evo::CStrProxy name = '\0'
+			) -> LoadInst;
+
+			EVO_NODISCARD auto createLoad(
+				const GlobalVariable& global_var,
+				bool is_volatile,
+				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic,
+				evo::CStrProxy name = '\0'
+			) -> LoadInst;
+
+
+			auto createStore(
+				const Alloca& dst,
+				const Value& source,
+				bool is_volatile,
+				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic
+			) -> void;
+
+			auto createStore(
+				const Value& dst,
+				const Value& source,
+				bool is_volatile,
+				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic
+			) -> void;
 
 
 			///////////////////////////////////

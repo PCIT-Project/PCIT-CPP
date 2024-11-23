@@ -163,6 +163,14 @@ auto main(int argc, const char* argv[]) -> int {
 		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(2))
 	);
 
+	agent.createStore(
+		val_alloca,
+		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(2)),
+		false,
+		pcit::pir::AtomicOrdering::Release
+	);
+	std::ignore = agent.createLoad(val_alloca, module.createUnsignedType(64), true, pcit::pir::AtomicOrdering::Acquire);
+
 	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
 	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock();
@@ -186,7 +194,7 @@ auto main(int argc, const char* argv[]) -> int {
 	// const unsigned num_threads = 0;
 	auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
-	pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
+	// pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
 	// pass_manager.addPass(pcit::pir::passes::instCombine());
 	const bool opt_result = pass_manager.run();
 	if(opt_result == false){

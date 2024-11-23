@@ -63,44 +63,11 @@ namespace pcit::llvmint{
 
 
 	//////////////////////////////////////////////////////////////////////
-	// create
+	// control flow
 
 	auto IRBuilder::createBasicBlock(const Function& func, evo::CStrProxy name) -> BasicBlock {
 		return BasicBlock(llvm::BasicBlock::Create(this->get_native_context(), name.c_str(), func.native()));
 	}
-
-
-	auto IRBuilder::createAlloca(const Type& type, evo::CStrProxy name) -> Alloca {
-		return Alloca(this->builder->CreateAlloca(type.native(), nullptr, name.c_str()));
-	}
-
-	auto IRBuilder::createAlloca(const Type& type, const Value& array_length, evo::CStrProxy name) -> Alloca {
-		return Alloca(this->builder->CreateAlloca(type.native(), array_length.native(), name.c_str()));
-	}
-	
-	
-	auto IRBuilder::createLoad(const Value& value, const Type& type, bool is_volatile, evo::CStrProxy name)
-	-> LoadInst {
-		return this->builder->CreateLoad(type.native(), value.native(), is_volatile, name.c_str());
-	}
-
-	auto IRBuilder::createLoad(const Alloca& alloca, bool is_volatile, evo::CStrProxy name) -> LoadInst {
-		return this->createLoad(alloca.asValue(), alloca.getAllocatedType(), is_volatile, name);
-	}
-
-	auto IRBuilder::createLoad(const GlobalVariable& global_var, bool is_volatile, evo::CStrProxy name) -> LoadInst {
-		return this->createLoad(global_var.asValue(), global_var.getType(), is_volatile, name);
-	}
-
-
-	auto IRBuilder::createStore(const Alloca& dst, const Value& source, bool is_volatile) -> void {
-		this->builder->CreateStore(source.native(), dst.native(), is_volatile);
-	}
-
-	auto IRBuilder::createStore(const Value& dst, const Value& source, bool is_volatile) -> void {
-		this->builder->CreateStore(source.native(), dst.native(), is_volatile);
-	}
-
 
 	auto IRBuilder::createRet() -> void {
 		this->builder->CreateRetVoid();
@@ -175,6 +142,55 @@ namespace pcit::llvmint{
 	auto IRBuilder::createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile)
 	-> void {
 		this->builder->CreateMemSetInline(dst.native(), llvm::MaybeAlign(), value.native(), size.native(), is_volatile);
+	}
+
+
+	auto IRBuilder::createAlloca(const Type& type, evo::CStrProxy name) -> Alloca {
+		return Alloca(this->builder->CreateAlloca(type.native(), nullptr, name.c_str()));
+	}
+
+	auto IRBuilder::createAlloca(const Type& type, const Value& array_length, evo::CStrProxy name) -> Alloca {
+		return Alloca(this->builder->CreateAlloca(type.native(), array_length.native(), name.c_str()));
+	}
+	
+
+
+	//////////////////////////////////////////////////////////////////////
+	// memory
+
+	auto IRBuilder::createLoad(
+		const Value& value, const Type& type, bool is_volatile, AtomicOrdering atomic_ordering, evo::CStrProxy name
+	) -> LoadInst {
+		llvm::LoadInst* load_inst = this->builder->CreateLoad(type.native(), value.native(), is_volatile, name.c_str());
+		load_inst->setAtomic(static_cast<llvm::AtomicOrdering>(atomic_ordering));
+		return LoadInst(load_inst);
+	}
+
+	auto IRBuilder::createLoad(
+		const Alloca& alloca, bool is_volatile, AtomicOrdering atomic_ordering, evo::CStrProxy name
+	) -> LoadInst {
+		return this->createLoad(alloca.asValue(), alloca.getAllocatedType(), is_volatile, atomic_ordering, name);
+	}
+
+	auto IRBuilder::createLoad(
+		const GlobalVariable& global_var, bool is_volatile, AtomicOrdering atomic_ordering, evo::CStrProxy name
+	) -> LoadInst {
+		return this->createLoad(global_var.asValue(), global_var.getType(), is_volatile, atomic_ordering, name);
+	}
+
+
+	auto IRBuilder::createStore(
+		const Alloca& dst, const Value& source, bool is_volatile, AtomicOrdering atomic_ordering
+	) -> void {
+		llvm::StoreInst* store_inst = this->builder->CreateStore(source.native(), dst.native(), is_volatile);
+		store_inst->setAtomic(static_cast<llvm::AtomicOrdering>(atomic_ordering));
+	}
+
+	auto IRBuilder::createStore(
+		const Value& dst, const Value& source, bool is_volatile, AtomicOrdering atomic_ordering
+	) -> void {
+		llvm::StoreInst* store_inst = this->builder->CreateStore(source.native(), dst.native(), is_volatile);
+		store_inst->setAtomic(static_cast<llvm::AtomicOrdering>(atomic_ordering));
 	}
 
 

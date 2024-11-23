@@ -25,16 +25,19 @@ namespace pcit::pir::passes{
 
 	auto constant_folding_impl(Expr stmt, const Agent& agent) -> bool {
 		switch(stmt.getKind()){
-			case Expr::Kind::None:         evo::debugFatalBreak("Not valid expr");
-			case Expr::Kind::GlobalValue:  return false;
-			case Expr::Kind::Number:       return false;
-			case Expr::Kind::Boolean:      return false;
-			case Expr::Kind::ParamExpr:    return false;
-			case Expr::Kind::Call:         return false;
-			case Expr::Kind::CallVoid:     return false;
-			case Expr::Kind::Ret:          return false;
-			case Expr::Kind::Branch:       return false;
-			case Expr::Kind::Alloca:       return false;
+			case Expr::Kind::None:        evo::debugFatalBreak("Not valid expr");
+			case Expr::Kind::GlobalValue: return false;
+			case Expr::Kind::Number:      return false;
+			case Expr::Kind::Boolean:     return false;
+			case Expr::Kind::ParamExpr:   return false;
+			case Expr::Kind::Call:        return false;
+			case Expr::Kind::CallVoid:    return false;
+			case Expr::Kind::Ret:         return false;
+			case Expr::Kind::Branch:      return false;
+			case Expr::Kind::Alloca:      return false;
+			case Expr::Kind::Load:        return false;
+			case Expr::Kind::Store:       return false;
+
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
@@ -107,6 +110,8 @@ namespace pcit::pir::passes{
 			case Expr::Kind::Ret:         return false;
 			case Expr::Kind::Branch:      return false;
 			case Expr::Kind::Alloca:      return false;
+			case Expr::Kind::Load:        return false;
+			case Expr::Kind::Store:       return false;
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
