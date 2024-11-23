@@ -68,12 +68,22 @@ namespace pcit::core{
 
 			auto operator[](const ID& id) const -> const T& {
 				const auto lock = std::shared_lock(this->mutex);
+				if constexpr(std::is_integral_v<ID>){
+					evo::debugAssert(this->linear_step_alloc[id].has_value(), "This element ({}) was erased", id);
+				}else{
+					evo::debugAssert(this->linear_step_alloc[id].has_value(), "This element ({}) was erased", id.get());
+				}
 
 				return *this->linear_step_alloc[id];
 			}
 
 			auto operator[](const ID& id) -> T& {
 				const auto lock = std::shared_lock(this->mutex);
+				if constexpr(std::is_integral_v<ID>){
+					evo::debugAssert(this->linear_step_alloc[id].has_value(), "This element ({}) was erased", id);
+				}else{
+					evo::debugAssert(this->linear_step_alloc[id].has_value(), "This element ({}) was erased", id.get());
+				}
 
 				return *this->linear_step_alloc[id];
 			}

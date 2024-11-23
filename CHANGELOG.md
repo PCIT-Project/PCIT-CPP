@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.60.1
+
+### PIR
+- Fixed various bugs and fatal errors around stmt passes and reverse stmt passes in `PassManager`
+- Fixed fatal error around erasing exprs
+
+
+<!---------------------------------->
 ## v0.0.60.0
 
 ### PIR

@@ -92,28 +92,12 @@ namespace pcit::pir{
 	}
 
 
-
 	auto PassManager::run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item) -> bool {
 		auto agent = Agent(this->module, item.func);
 
-		{
-			size_t current_allocas_range_size = item.func.getAllocasRange().size();
-
-			auto iter = item.func.getAllocasRange().begin();
-			size_t i = 0; 
-			while(i < current_allocas_range_size){
-				for(const StmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent) == false){ return false; }
-
-					if(item.func.getAllocasRange().size() != current_allocas_range_size){ break; }
-				}
-
-				if(item.func.getAllocasRange().size() == current_allocas_range_size){
-					++iter;
-					i += 1;
-				}else{
-					current_allocas_range_size = item.func.getAllocasRange().size();
-				}
+		for(auto iter = item.func.getAllocasRange().begin(); iter != item.func.getAllocasRange().end(); ++iter){
+			for(const StmtPass& stmt_pass : stmt_pass_group.passes){
+				if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent)){ break; }
 			}
 		}
 
@@ -122,31 +106,45 @@ namespace pcit::pir{
 			BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
 			agent.setTargetBasicBlock(basic_block);
 
-			size_t basic_block_current_size = basic_block.size();
-
-			auto iter = basic_block.begin();
 			size_t i = 0;
-			while(i < basic_block_current_size){
+			auto iter = basic_block.begin();
+			size_t basic_block_saved_size = basic_block.size();
+			while(i < basic_block_saved_size){
 				agent.setInsertIndex(i);
 
+				bool made_transformation = false;
 				for(const StmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(*iter, agent) == false){ return false; }
-
-					if(basic_block.size() != basic_block_current_size){ break; }
+					if(stmt_pass.func(*iter, agent)){
+						made_transformation = true;
+						break;
+					}
 				}
 
-				if(basic_block.size() == basic_block_current_size){
-					++iter;
+
+				if(made_transformation){
+					const size_t new_size = basic_block.size();
+
+					if(new_size < basic_block_saved_size){ // removal
+						basic_block_saved_size = new_size;
+
+					}else if(new_size == basic_block_saved_size){ // replacement
+						// do nothing...
+
+					}else{ // addition
+						i += basic_block_saved_size - new_size + 1;
+						basic_block_saved_size = new_size;
+					}
+
+					iter = basic_block.begin();
+					std::advance(iter, i);
 
 				}else{
-					// Note: don't have to worry about if was at the last elem of the block as
-					// 		 it's illegal to not have a single terminator that's at the end
-					basic_block_current_size = basic_block.size();
+					i += 1;
+					std::advance(iter, 1);
 				}
-
-				i += 1;
 			}
 		}
+
 
 		return true;
 	}
@@ -183,7 +181,6 @@ namespace pcit::pir{
 	}
 
 
-
 	auto PassManager::run_pass_group(
 		const ReverseStmtPassGroup& stmt_pass_group, const ReverseStmtPassGroupItem& item
 	) -> bool {
@@ -193,28 +190,15 @@ namespace pcit::pir{
 			BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
 			agent.setTargetBasicBlock(basic_block);
 
-			size_t basic_block_current_size = basic_block.size();
-
-			auto iter = basic_block.rbegin(); 
-			size_t i = basic_block.size() - 1;
-			while(true){
+			for(ptrdiff_t i = basic_block.size() - 1; i >= 0; i-=1){
 				agent.setInsertIndex(i);
+
 				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(*iter, agent) == false){ return false; }
-
-					if(basic_block.size() != basic_block_current_size){ break; }
+					if(stmt_pass.func(basic_block[i], agent)){ break; }
 				}
-
-				if(basic_block.size() != basic_block_current_size){
-					basic_block_current_size = basic_block.size();
-				}
-				++iter;
-				if(i == 0){ break; }
-				i -= 1;
 			}
 		}
 
-		agent.removeTargetBasicBlock();
 
 		{
 			size_t current_allocas_range_size = item.func.getAllocasRange().size();
@@ -222,9 +206,7 @@ namespace pcit::pir{
 			auto iter = item.func.getAllocasRange().begin();
 			while(iter != item.func.getAllocasRange().end()){
 				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent) == false){ return false; }
-
-					if(item.func.getAllocasRange().size() != current_allocas_range_size){ break; }
+					if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent)){ break; }
 				}
 
 				if(item.func.getAllocasRange().size() != current_allocas_range_size){

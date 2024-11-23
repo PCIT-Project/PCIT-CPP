@@ -111,7 +111,6 @@ namespace pcit::pir{
 			"type of original and replacement do not match"
 		);
 
-
 		struct OriginalLocation{
 			BasicBlock::ID basic_block_id;
 			size_t index;

@@ -43,10 +43,10 @@ namespace pcit::pir{
 			//////////////////////////////////////////////////////////////////////
 			// iterators
 
-			using Iter                 = evo::SmallVector<Expr>::iterator;
-			using ConstIter            = evo::SmallVector<Expr>::const_iterator;
-			using ReverseIter          = evo::SmallVector<Expr>::reverse_iterator;
-			using ConstReverseIterator = evo::SmallVector<Expr>::const_reverse_iterator;
+			using Iter                 = std::vector<Expr>::iterator;
+			using ConstIter            = std::vector<Expr>::const_iterator;
+			using ReverseIter          = std::vector<Expr>::reverse_iterator;
+			using ConstReverseIterator = std::vector<Expr>::const_reverse_iterator;
 
 			EVO_NODISCARD auto begin()        -> Iter      { return this->exprs.begin();  };
 			EVO_NODISCARD auto begin()  const -> ConstIter { return this->exprs.begin();  };
@@ -75,8 +75,8 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto size() const -> size_t { return this->exprs.size(); }
 
-			// EVO_NODISCARD auto operator[](size_t i) const -> const Expr& { return this->exprs[i]; }
-			// EVO_NODISCARD auto operator[](size_t i)       ->       Expr& { return this->exprs[i]; }
+			EVO_NODISCARD auto operator[](size_t i) const -> const Expr& { return this->exprs[i]; }
+			EVO_NODISCARD auto operator[](size_t i)       ->       Expr& { return this->exprs[i]; }
 
 		private:
 			auto append(Expr&& expr) -> void {
@@ -97,13 +97,13 @@ namespace pcit::pir{
 			auto insert(Expr&& expr, size_t index) -> void {
 				evo::debugAssert(expr.isStmt(), "Must append stmt");
 				
-				this->exprs.insert(this->index_to_iter(index), std::move(expr));
+				this->exprs.insert(this->index_to_iter(index + 1), std::move(expr));
 			}
 
 			auto insert(const Expr& expr, size_t index) -> void {
 				evo::debugAssert(expr.isStmt(), "Must append stmt");
 				
-				this->exprs.insert(this->index_to_iter(index), expr);
+				this->exprs.insert(this->index_to_iter(index + 1), expr);
 			}
 
 
@@ -114,14 +114,14 @@ namespace pcit::pir{
 
 			auto index_to_iter(size_t index) -> Iter {
 				Iter iter = this->begin();
-				std::advance(iter, ptrdiff_t(index + 1));
+				std::advance(iter, ptrdiff_t(index));
 				return iter;
 			}
 	
 		private:
 			std::string name;
 
-			evo::SmallVector<Expr> exprs{};
+			std::vector<Expr> exprs{};
 
 			bool is_terminated;
 

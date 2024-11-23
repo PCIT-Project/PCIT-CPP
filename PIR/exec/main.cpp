@@ -158,6 +158,11 @@ auto main(int argc, const char* argv[]) -> int {
 		"ADD_WRAP.WRAPPED"
 	);
 
+	std::ignore = agent.createAddWrap(
+		agent.extractAddWrapResult(add),
+		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(2))
+	);
+
 	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
 	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock();
@@ -182,7 +187,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
 	pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
-	pass_manager.addPass(pcit::pir::passes::instCombine());
+	// pass_manager.addPass(pcit::pir::passes::instCombine());
 	const bool opt_result = pass_manager.run();
 	if(opt_result == false){
 		printer.printlnError("Error occured while running pass");

@@ -61,16 +61,16 @@ namespace pcit::pir::passes{
 
 			switch(stmt.getKind()){
 				case Expr::Kind::None:        evo::debugFatalBreak("Invalid expr");
-				case Expr::Kind::GlobalValue: return true;
-				case Expr::Kind::Number:      return true;
-				case Expr::Kind::Boolean:     return true;
-				case Expr::Kind::ParamExpr:   return true;
+				case Expr::Kind::GlobalValue: return false;
+				case Expr::Kind::Number:      return false;
+				case Expr::Kind::Boolean:     return false;
+				case Expr::Kind::ParamExpr:   return false;
 
 				case Expr::Kind::Call: {
 					// TODO: remove if func has no side-effects
 					// if(func_metadata.contains(stmt) == false){
 					// 	agent.removeStmt(stmt);
-					// 	return true;
+					// 	return false;
 					// }
 
 					const Call& call_inst = agent.getCall(stmt);
@@ -82,6 +82,8 @@ namespace pcit::pir::passes{
 					for(const Expr& arg : call_inst.args){
 						see_expr(arg);
 					}
+
+					return false;
 				} break;
 
 				case Expr::Kind::CallVoid: {
@@ -94,6 +96,8 @@ namespace pcit::pir::passes{
 					for(const Expr& arg : call_void_inst.args){
 						see_expr(arg);
 					}
+
+					return false;
 				} break;
 
 				case Expr::Kind::Ret: {
@@ -102,26 +106,32 @@ namespace pcit::pir::passes{
 					if(ret_inst.value.has_value()){
 						see_expr(*ret_inst.value);
 					}
+
+					return false;
 				} break;
 
-				case Expr::Kind::Branch: return true;
+				case Expr::Kind::Branch: return false;
 
 				case Expr::Kind::Alloca: {
 					if(func_metadata.contains(stmt) == false){
 						agent.removeStmt(stmt);
 						return true;
 					}
+
+					return false;
 				} break;
 
 				case Expr::Kind::Add: {
 					if(func_metadata.contains(stmt) == false){
-						agent.removeStmt(stmt);
+						// agent.removeStmt(stmt);
 						return true;
 					}
 
 					const Add& add = agent.getAdd(stmt);
 					see_expr(add.lhs);
 					see_expr(add.rhs);
+
+					return false;
 				} break;
 
 				case Expr::Kind::AddWrap: {
@@ -147,13 +157,13 @@ namespace pcit::pir::passes{
 					const AddWrap& add_wrap = agent.getAddWrap(stmt);
 					see_expr(add_wrap.lhs);
 					see_expr(add_wrap.rhs);
+
+					return false;
 				} break;
 
-				case Expr::Kind::AddWrapResult:  return true;
-				case Expr::Kind::AddWrapWrapped: return true;
+				case Expr::Kind::AddWrapResult:  return false;
+				case Expr::Kind::AddWrapWrapped: return false;
 			}
-
-			return true;
 		};
 
 		return PassManager::ReverseStmtPass(impl);
