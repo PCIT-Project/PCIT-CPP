@@ -74,12 +74,23 @@ namespace pcit::pir{
 	}
 
 
-	auto Module::getSize(const Type& type) const -> size_t {
+	auto Module::getSize(const Type& type, bool packed) const -> size_t {
 		switch(type.getKind()){
 			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
 
-			case Type::Kind::Signed: return round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
-			case Type::Kind::Unsigned: return round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
+			case Type::Kind::Signed: case Type::Kind::Unsigned: {
+				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
+
+				if(packed){
+					return unpadded_num_bytes;
+
+				}else if(unpadded_num_bytes < this->sizeOfPtr() * 8){
+					return std::bit_ceil(unpadded_num_bytes);
+					
+				}else{
+					return round_up_to_nearest_multiple(unpadded_num_bytes, this->sizeOfPtr());
+				}
+			} break;
 
 			case Type::Kind::Bool: return 1;
 
@@ -108,14 +119,18 @@ namespace pcit::pir{
 
 				for(const Type& member : struct_type.members){
 					if(struct_type.isPacked){
-						size += this->getSize(member);
+						size += this->getSize(member, true);
 					}else{
 						size += this->getSize(member);
 						size = round_up_to_nearest_multiple(size, this->getAlignment(member));
 					}
 				}
 
-				return round_up_to_nearest_multiple(size, this->getAlignment(type));
+				if(packed){
+					return size;
+				}else{
+					return round_up_to_nearest_multiple(size, this->getAlignment(type));
+				}
 			} break;
 
 			case Type::Kind::Function: return this->sizeOfPtr();
@@ -129,11 +144,10 @@ namespace pcit::pir{
 		switch(type.getKind()){
 			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
 
-			case Type::Kind::Signed:
-				return std::min<size_t>(round_up_to_nearest_multiple(type.getWidth(), 8) / 8, this->sizeOfPtr());
-
-			case Type::Kind::Unsigned:
-				return std::min<size_t>(round_up_to_nearest_multiple(type.getWidth(), 8) / 8, this->sizeOfPtr());
+			case Type::Kind::Signed: case Type::Kind::Unsigned: {
+				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
+				return std::min<size_t>(std::bit_ceil(unpadded_num_bytes), this->sizeOfPtr());
+			} break;
 
 			case Type::Kind::Bool: return 1;
 

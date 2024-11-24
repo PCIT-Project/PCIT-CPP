@@ -125,6 +125,8 @@ namespace pcit::llvmint{
 			GlobalVariable(llvm::GlobalVariable* native_type) : _native(native_type) {};
 			~GlobalVariable() = default;
 
+			auto setAlignment(unsigned alignment) -> void;
+
 			EVO_NODISCARD auto getType() const -> Type;
 
 			EVO_NODISCARD explicit operator Value() const;

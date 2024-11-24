@@ -31,9 +31,13 @@ namespace pcit::llvmint{
 
 	LoadInst::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
-	GlobalVariable::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
+	auto GlobalVariable::setAlignment(unsigned alignment) -> void {
+		this->native()->setAlignment(llvm::Align(alignment));
+	}
+
 	auto GlobalVariable::getType() const -> Type {
 		return Type(this->native()->getValueType());
 	}
+	GlobalVariable::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 		
 }

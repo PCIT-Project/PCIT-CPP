@@ -99,6 +99,10 @@ namespace pcit::llvmint{
 				const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
 			) -> GlobalVariable;
 
+			EVO_NODISCARD auto createGlobalString(
+				std::string value, LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
+			) -> GlobalVariable;
+
 
 
 			EVO_NODISCARD auto print() const -> std::string;

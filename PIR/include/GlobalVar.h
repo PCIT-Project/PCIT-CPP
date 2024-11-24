@@ -28,9 +28,8 @@ namespace pcit::pir{
 		std::string name;
 		Type type;
 		Linkage linkage;
-		evo::Variant<Expr, Zeroinit, Uninit> value;
+		evo::Variant<Expr, Zeroinit, Uninit, std::string> value;
 		bool isConstant;
-		bool isExternal;
 
 		// For lookup in Module
 		struct ID : public core::UniqueID<uint32_t, struct ID> {

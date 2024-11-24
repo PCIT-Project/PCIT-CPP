@@ -96,10 +96,12 @@ auto main(int argc, const char* argv[]) -> int {
 		module.createUnsignedType(17),
 		pcit::pir::Linkage::Internal,
 		agent.createNumber(module.createUnsignedType(17), pcit::core::GenericInt::create<uint64_t>(18)),
-		true,
-		false
+		true
 	);
 
+	const pcit::pir::GlobalVar::ID global_str = module.createGlobalVarString(
+		"string", pcit::pir::Linkage::Private, "Hello World, I'm PIR!", true
+	);
 
 	const pcit::pir::FunctionDecl::ID print_hello_decl = module.createFunctionDecl(
 		"print_hello",
@@ -168,7 +170,7 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.createBranch(second_block_id);
 	agent.setTargetBasicBlock(second_block_id);
 
-	agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{agent.createGlobalValue(global)});
+	agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{agent.createGlobalValue(global_str)});
 	// agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
 	agent.createRet(agent.extractAddWrapResult(add3));
@@ -181,8 +183,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 	printer.printlnGray("--------------------------------");
 
-	// const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
-	const unsigned num_threads = 0;
+	const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
+	// const unsigned num_threads = 0;
 	auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
 	pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
@@ -216,8 +218,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	
-	jit_engine.registerFunction(print_hello_decl, []() -> void {
-		evo::printlnYellow("Hello from PIR");
+	jit_engine.registerFunction(print_hello_decl, [](const char* msg) -> void {
+		evo::printlnYellow("Message: \"{}\"", msg);
 	});
 
 	const evo::Result<pcit::core::GenericValue> result = jit_engine.runFunc(entry_func_id);

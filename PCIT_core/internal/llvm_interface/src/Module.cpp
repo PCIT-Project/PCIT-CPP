@@ -168,7 +168,7 @@ namespace pcit::llvmint{
 
 
 	auto Module::createFunction(
-		evo::CStrProxy name, const FunctionType& prototype, llvmint::LinkageType linkage
+		evo::CStrProxy name, const FunctionType& prototype, LinkageType linkage
 	) -> Function {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
@@ -179,12 +179,8 @@ namespace pcit::llvmint{
 
 
 	auto Module::createGlobal(
-		const llvmint::Constant& value,
-		const llvmint::Type& type,
-		llvmint::LinkageType linkage,
-		bool is_constant,
-		evo::CStrProxy name
-	) -> llvmint::GlobalVariable {
+		const Constant& value, const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name
+	) -> GlobalVariable {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		// this gets freed automatically in the destructor of the module
@@ -198,23 +194,33 @@ namespace pcit::llvmint{
 		);
 
 
-		return llvmint::GlobalVariable(global);
+		return GlobalVariable(global);
 	}
 
-	auto Module::createGlobalUninit(
-		const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name
-	) -> llvmint::GlobalVariable {
+	auto Module::createGlobalUninit(const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name)
+	-> GlobalVariable {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		return this->createGlobal(llvm::UndefValue::get(type.native()), type, linkage, is_constant, name);
 	}
 
-	auto Module::createGlobalZeroinit(
-		const llvmint::Type& type, llvmint::LinkageType linkage, bool is_constant, evo::CStrProxy name
-	) -> llvmint::GlobalVariable {
+	auto Module::createGlobalZeroinit(const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name)
+	-> GlobalVariable {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		return this->createGlobal(llvm::ConstantAggregateZero::get(type.native()), type, linkage, is_constant, name);
+	}
+
+
+	auto Module::createGlobalString(std::string value, LinkageType linkage, bool is_constant, evo::CStrProxy name)
+	-> GlobalVariable {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
+		llvm::Constant* str_constant = llvm::ConstantDataArray::getString(this->native()->getContext(), value);
+		GlobalVariable new_var = this->createGlobal(str_constant, str_constant->getType(), linkage, is_constant, name);
+		new_var.native()->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+		new_var.native()->setAlignment(llvm::Align(1));
+		return new_var;
 	}
 
 

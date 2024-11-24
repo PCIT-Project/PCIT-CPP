@@ -141,20 +141,37 @@ namespace pcit::pir{
 				std::string&& global_name,
 				Type type,
 				Linkage linkage,
-				evo::Variant<Expr, GlobalVar::Zeroinit, GlobalVar::Uninit> value,
-				bool isConstant,
-				bool isExternal
+				evo::Variant<Expr, GlobalVar::Zeroinit, GlobalVar::Uninit, std::string> value,
+				bool isConstant
 			) -> GlobalVar::ID {
 				#if defined(EVO_CONFIG_DEBUG)
 					if(value.is<Expr>()){
 						this->check_expr_type_match(type, value.as<Expr>());
 						evo::debugAssert(value.as<Expr>().isConstant(), "Global can only have a constant value");
+
+					}else if(value.is<std::string>()){
+						evo::debugAssert(type.getKind() == Type::Kind::Array, "Incorrect type for global string");
+
+						const ArrayType& array_type = this->getArrayType(type);
+						evo::debugAssert(
+							array_type.elemType.getKind() == Type::Kind::Signed, "Incorrect type for global string"
+						);
+						evo::debugAssert(array_type.elemType.getWidth() == 8, "Incorrect type for global string");
 					}
+					
 					this->check_global_name_reusue(global_name);
 				#endif
 
+				return this->global_vars.emplace_back(std::move(global_name), type, linkage, value, isConstant);
+			}
+
+
+			EVO_NODISCARD auto createGlobalVarString(
+				std::string&& global_name, Linkage linkage, std::string&& value, bool isConstant
+			) -> GlobalVar::ID {
+				const Type str_type = this->createArrayType(this->createSignedType(8), value.size() + 1);
 				return this->global_vars.emplace_back(
-					std::move(global_name), type, linkage, value, isConstant, isExternal
+					std::move(global_name), str_type, linkage, std::move(value), isConstant
 				);
 			}
 
@@ -295,7 +312,7 @@ namespace pcit::pir{
 			EVO_NODISCARD auto alignmentOfPtr() const -> size_t;
 			EVO_NODISCARD auto sizeOfGeneralRegister() const -> size_t;
 
-			EVO_NODISCARD auto getSize(const Type& type) const -> size_t;
+			EVO_NODISCARD auto getSize(const Type& type, bool packed = false) const -> size_t;
 			EVO_NODISCARD auto getAlignment(const Type& type) const -> size_t;
 
 

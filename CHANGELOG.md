@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.62.0
+
+### PIR
+- Added string values for global vars
+- Added alignment to global variables in LLVM-IR output
+- Fixed some size and alignment calculations
+
+
+<!---------------------------------->
 ## v0.0.61.1
 
 ### PIR

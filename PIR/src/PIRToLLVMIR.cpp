@@ -58,7 +58,6 @@ namespace pcit::pir{
 	}
 
 	auto PIRToLLVMIR::lower_global_var(const GlobalVar& global) -> void {
-		const llvmint::Type global_type = this->get_type(global.type);
 		const llvmint::LinkageType linkage = this->get_linkage(global.linkage);
 
 		const llvmint::GlobalVariable llvm_global_var = global.value.visit(
@@ -66,12 +65,17 @@ namespace pcit::pir{
 				using ValueT = std::decay_t<decltype(value)>;
 
 				if constexpr(std::is_same<ValueT, Expr>()){
+					const llvmint::Type global_type = this->get_type(global.type);
 
-					return this->llvm_module.createGlobal(
+					llvmint::GlobalVariable new_var = this->llvm_module.createGlobal(
 						this->get_constant_value(value), global_type, linkage, global.isConstant, global.name
 					);
+					new_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
+					return new_var;
 
 				}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
+					const llvmint::Type global_type = this->get_type(global.type);
+
 					switch(global.type.getKind()){
 						case Type::Kind::Signed: case Type::Kind::Unsigned: {
 							return this->llvm_module.createGlobal(
@@ -119,9 +123,14 @@ namespace pcit::pir{
 					}
 					
 				}else if constexpr(std::is_same<ValueT, GlobalVar::Uninit>()){
+					const llvmint::Type global_type = this->get_type(global.type);
+
 					return this->llvm_module.createGlobalUninit(
 						global_type, linkage, global.isConstant, global.name
 					);
+
+				}else if constexpr(std::is_same<ValueT, std::string>()){
+					return this->llvm_module.createGlobalString(value, linkage, global.isConstant, global.name);
 
 				}else{
 					static_assert(false, "Unsupported global var value kind");

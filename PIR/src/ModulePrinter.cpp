@@ -244,24 +244,70 @@ namespace pcit::pir{
 			} break;
 		}
 
-		if(global_var.isExternal){
-			this->printer.printRed("#external ");
-		}
-
 
 		global_var.value.visit([&](const auto& value) -> void {
 			using ValueT = std::decay_t<decltype(value)>;
 
-			if constexpr(std::is_same_v<ValueT, Expr>){
+			if constexpr(std::is_same<ValueT, Expr>()){
 				this->printer.printRed("= ");
 				this->print_expr(value);
 
-			}else if constexpr(std::is_same_v<ValueT, GlobalVar::Zeroinit>){
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
 				this->printer.printRed("= zeroinit");
 
-			}else if constexpr(std::is_same_v<ValueT, GlobalVar::Uninit>){
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Uninit>()){
 				this->printer.printRed("= uninit");
-				
+
+			}else if constexpr(std::is_same<ValueT, std::string>()){
+				this->printer.printRed("= ");
+				this->printer.printYellow("\"");
+
+				auto char_str = evo::StaticString<2>();
+				char_str.resize(2);
+
+				auto hex_str = evo::StaticString<3>();
+				hex_str.resize(3);
+				hex_str[0] = '\\';
+
+				for(char c : value){
+					if(c > 31 && c < 127){
+						char_str[0] = c;
+						this->printer.printYellow(char_str);
+					}else{
+						const uint8_t char_num = uint8_t(c);
+						uint8_t char_ones_place = char_num % 16;
+
+						const auto num_to_hex_char = [](uint8_t num) -> char {
+							switch(num){
+								case 0: return '0';
+								case 1: return '1';
+								case 2: return '2';
+								case 3: return '3';
+								case 4: return '4';
+								case 5: return '5';
+								case 6: return '6';
+								case 7: return '7';
+								case 8: return '8';
+								case 9: return '9';
+								case 10: return 'A';
+								case 11: return 'B';
+								case 12: return 'C';
+								case 13: return 'D';
+								case 14: return 'E';
+								case 15: return 'F';
+							}
+							evo::debugFatalBreak("Not a valid hex decimal ({})", num);
+						};
+
+						hex_str[1] = num_to_hex_char((char_num - char_ones_place) / 16);
+						hex_str[2] = num_to_hex_char(char_ones_place);
+						this->printer.printMagenta(hex_str);
+					}
+				}
+
+				this->printer.printMagenta("\\00");
+				this->printer.printYellow("\"");
+
 			}else{
 				static_assert(false, "Unsupported global var kind");
 			}
