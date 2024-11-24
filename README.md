@@ -5,31 +5,12 @@ Panther Compiler Infrastructure and Toolchain, and the home of the Panther progr
 > [!NOTE]
 > This is in the very early stages and as such is not usable yet. If you really want to try it now (without any documentation), you can modify `pthr/main.cpp`.
 
-
 ## Tools
-All tools can be used as stand-alone programs or as libraries.
+Check out the [PCIT website](https://pcit-project.github.io) for more information about all of the tools in the PCIT-Project.
+- [Panther](https://pcit-project.github.io/Panther.html): Statically typed, compiled, high-performance, general-purpose programming language
+- PIR: Compiler IR / optimizing back-end
+- Linker: Linker that aims to make use between platforms (including cross-compilation) as seamless as possible.
 
-### Panther / pthr
-Statically typed, compiled, high-performance, general-purpose systems programming language. A few goals of the language:
-- Help good programmers write good, fast code
-	- Zero-cost abstractions
-	- Give the compiler knowledge of common patterns to allow it to help you write fast code, easier
-	- Allow as much compile-time computation as possible
-	- Powerful generics without needing to be an expert
-- Enjoyable to use
-	- Fast compile times
-	- Build system for Panther *in* Panther
-	- Nice / helpful error messages
-- Seamless interop with C and C++ without compromising on language design
-
-### PIR
-Compiler IR / optimizing back-end.
-
-### Linker
-*[Unnamed for now]*. Linker that aims to make use between platforms (including cross-compilation) as seamless as possible.
-
-### Other compilers
-Will also be able to compile C and hopefully C++ code. The main intent is for this to allow seamless interoperability with Panther, but these frontends will be able to be used stand-alone.
 
 ## Building:
 The build instructions can be found [here](BUILDING.md).
@@ -55,6 +36,3 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 
 ## Updates:
 List of changes for each version can be found [here](CHANGELOG.md). Note: very small changes may not be listed.
-
-## Panther Example
-To see some example Panther code, go to the [Panther page](https://pcit-project.github.io/Panther.html) of the PCIT website.

@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.62.1
+
+### Misc
+- Updated the README to point to the [PCIT website](pcit-project.github.io).
+
+
+<!---------------------------------->
 ## v0.0.62.0
 
 ### PIR
@@ -944,7 +951,7 @@ Added LLVM to the build
 ### pthr
 - Added `max_num_errors` to config
 
-### misc
+### Misc
 - Fixed links in [contributing policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md) and [security policy](https://github.com/PCIT-Project/PCIT-CPP/blob/main/SECURITY.md) to point to the correct headings
 
 
