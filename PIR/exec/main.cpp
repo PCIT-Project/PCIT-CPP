@@ -32,15 +32,6 @@
 
 #include <PIR.h>
 
-template<typename... T, typename Callable>
-auto wrapCallable(Callable const&) -> void (*)(T..., void*) {
-    return +[](T... data, void* context)
-    {
-        (*static_cast<Callable*>(context))(data...);
-    };
-}
-
-
 
 auto main(int argc, const char* argv[]) -> int {
 	auto args = std::vector<std::string_view>(argv, argv + argc);
@@ -190,12 +181,12 @@ auto main(int argc, const char* argv[]) -> int {
 
 	printer.printlnGray("--------------------------------");
 
-	const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
-	// const unsigned num_threads = 0;
+	// const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
+	const unsigned num_threads = 0;
 	auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
-	// pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
-	// pass_manager.addPass(pcit::pir::passes::instCombine());
+	pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
+	pass_manager.addPass(pcit::pir::passes::instCombine());
 	const bool opt_result = pass_manager.run();
 	if(opt_result == false){
 		printer.printlnError("Error occured while running pass");
