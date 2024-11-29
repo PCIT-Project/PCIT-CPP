@@ -99,8 +99,9 @@ auto main(int argc, const char* argv[]) -> int {
 		true
 	);
 
-	const pcit::pir::GlobalVar::ID global_str = module.createGlobalVarString(
-		"string", pcit::pir::Linkage::Private, "Hello World, I'm PIR!", true
+	const pcit::pir::GlobalVar::String::ID global_str_value = module.createGlobalString("Hello World, I'm PIR!");
+	const pcit::pir::GlobalVar::ID global_str = module.createGlobalVar(
+		"string", module.getGlobalString(global_str_value).type, pcit::pir::Linkage::Private, global_str_value, true
 	);
 
 	const pcit::pir::FunctionDecl::ID print_hello_decl = module.createFunctionDecl(
@@ -113,6 +114,13 @@ auto main(int argc, const char* argv[]) -> int {
 
 	const pcit::pir::Type vec2 = module.createStructType(
 		"Vec2", evo::SmallVector<pcit::pir::Type>{module.createFloatType(32), module.createFloatType(32)}, true
+	);
+
+	const pcit::pir::GlobalVar::ID vec2_value = module.createGlobalVar(
+		"vec2", vec2, pcit::pir::Linkage::Private, module.createGlobalStruct(vec2, {
+			agent.createNumber(module.createFloatType(32), pcit::core::GenericFloat::createF32(12)),
+			agent.createNumber(module.createFloatType(32), pcit::core::GenericFloat::createF32(19)),
+		}), true
 	);
 
 

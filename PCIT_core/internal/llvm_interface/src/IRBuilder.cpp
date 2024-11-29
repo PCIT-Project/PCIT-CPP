@@ -30,8 +30,13 @@ namespace pcit::llvmint{
 
 
 	template<class LLVM_TYPE, class LLVMINT_TYPE>
-	static auto createArrayRef(evo::ArrayProxy<LLVMINT_TYPE> arr_proxy) -> llvm::ArrayRef<LLVM_TYPE*> {
+	EVO_NODISCARD static auto createArrayRef(evo::ArrayProxy<LLVMINT_TYPE> arr_proxy) -> llvm::ArrayRef<LLVM_TYPE*> {
 		return llvm::ArrayRef((LLVM_TYPE**)arr_proxy.data(), arr_proxy.size());
+	}
+
+
+	EVO_NODISCARD static auto convertGenericFloatToAPFloat(const core::GenericFloat& value) -> llvm::APFloat {
+		return evo::bitCast<llvm::APFloat>(value.copyToLLVMNative());
 	}
 
 
@@ -482,7 +487,7 @@ namespace pcit::llvmint{
 	}
 
 	auto IRBuilder::getValueFloat(const Type& type, const core::GenericFloat& value) const -> Constant {
-		return Constant(llvm::ConstantFP::get(type.native(), evo::unsafeBitCast<llvm::APFloat>(value.getNative())));
+		return Constant(llvm::ConstantFP::get(type.native(), convertGenericFloatToAPFloat(value)));
 	}
 
 
@@ -540,6 +545,27 @@ namespace pcit::llvmint{
 	auto IRBuilder::getValueGlobalStrPtr(std::string_view str, evo::CStrProxy name) const -> Constant {
 		return Constant(this->builder->CreateGlobalStringPtr(str, name.c_str()));
 	}
+
+	auto IRBuilder::getValueGlobalStr(const std::string& value) const -> Constant {
+		return llvm::ConstantDataArray::getString(this->builder->getContext(), value);
+	}
+
+	auto IRBuilder::getValueGlobalUndefValue(const Type& type) const -> Constant {
+		return llvm::UndefValue::get(type.native());
+	}
+
+	auto IRBuilder::getValueGlobalAggregateZero(const Type& type) const -> Constant {
+		return llvm::ConstantAggregateZero::get(type.native());
+	}
+
+	auto IRBuilder::getValueGlobalArray(evo::ArrayProxy<Constant> values) const -> Constant {
+		return llvm::ConstantDataArray::get(this->builder->getContext(), createArrayRef<llvm::Constant>(values));
+	}
+
+	auto IRBuilder::getValueGlobalStruct(const StructType& type, evo::ArrayProxy<Constant> values) const -> Constant {
+		return llvm::ConstantStruct::get(type.native(), createArrayRef<llvm::Constant>(values));
+	}
+
 
 	
 

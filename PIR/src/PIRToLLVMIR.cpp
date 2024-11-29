@@ -58,85 +58,14 @@ namespace pcit::pir{
 	}
 
 	auto PIRToLLVMIR::lower_global_var(const GlobalVar& global) -> void {
-		const llvmint::LinkageType linkage = this->get_linkage(global.linkage);
+		const llvmint::Constant constant_value = this->get_global_var_value(global.value, global.type);
+		const llvmint::Type constant_type = constant_value.getType();
 
-		const llvmint::GlobalVariable llvm_global_var = global.value.visit(
-			[&](const auto& value) -> llvmint::GlobalVariable {
-				using ValueT = std::decay_t<decltype(value)>;
-
-				if constexpr(std::is_same<ValueT, Expr>()){
-					const llvmint::Type global_type = this->get_type(global.type);
-
-					llvmint::GlobalVariable new_var = this->llvm_module.createGlobal(
-						this->get_constant_value(value), global_type, linkage, global.isConstant, global.name
-					);
-					new_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
-					return new_var;
-
-				}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
-					const llvmint::Type global_type = this->get_type(global.type);
-
-					switch(global.type.getKind()){
-						case Type::Kind::Signed: case Type::Kind::Unsigned: {
-							return this->llvm_module.createGlobal(
-								this->builder.getValueI_N(global.type.getWidth(), 0).asConstant(),
-								global_type,
-								linkage,
-								global.isConstant,
-								global.name
-							);
-						} break;
-
-						case Type::Kind::Float: {
-							const llvmint::Constant zero_value = [&](){
-								switch(global.type.getWidth()){
-									case 16:  return this->builder.getValueF16(0);
-									case 32:  return this->builder.getValueF32(0);
-									case 64:  return this->builder.getValueF64(0);
-									case 80:  return this->builder.getValueF80(0);
-									case 128: return this->builder.getValueF128(0);
-								}
-
-								evo::debugFatalBreak("Unknown float width");
-							}();
-
-							return this->llvm_module.createGlobal(
-								zero_value, global_type, linkage, global.isConstant, global.name
-							);
-						} break;
-
-						case Type::Kind::BFloat: {
-							return this->llvm_module.createGlobal(
-								this->builder.getValueBF16(0),
-								global_type,
-								linkage,
-								global.isConstant,
-								global.name
-							);
-						} break;
-
-						default: {
-							return this->llvm_module.createGlobalZeroinit(
-								global_type, linkage, global.isConstant, global.name
-							);
-						} break;
-					}
-					
-				}else if constexpr(std::is_same<ValueT, GlobalVar::Uninit>()){
-					const llvmint::Type global_type = this->get_type(global.type);
-
-					return this->llvm_module.createGlobalUninit(
-						global_type, linkage, global.isConstant, global.name
-					);
-
-				}else if constexpr(std::is_same<ValueT, std::string>()){
-					return this->llvm_module.createGlobalString(value, linkage, global.isConstant, global.name);
-
-				}else{
-					static_assert(false, "Unsupported global var value kind");
-				}
-			}
+		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
+			constant_value, constant_type, this->get_linkage(global.linkage), global.isConstant, global.name
 		);
+
+		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
 
 		this->global_vars.emplace(global.name, llvm_global_var);
 	}
@@ -471,6 +400,80 @@ namespace pcit::pir{
 	}
 
 
+	auto PIRToLLVMIR::get_global_var_value(const GlobalVar::Value& global_var_value, const Type& type)
+	-> llvmint::Constant {
+		return global_var_value.visit([&](const auto& value) -> llvmint::Constant {
+			using ValueT = std::decay_t<decltype(value)>;
+
+			if constexpr(std::is_same<ValueT, Expr>()){
+				return this->get_constant_value(value);
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
+				switch(type.getKind()){
+					case Type::Kind::Signed: case Type::Kind::Unsigned: {
+						return this->builder.getValueI_N(type.getWidth(), 0).asConstant();
+					} break;
+
+					case Type::Kind::Float: {
+						switch(type.getWidth()){
+							case 16:  return this->builder.getValueF16(0);
+							case 32:  return this->builder.getValueF32(0);
+							case 64:  return this->builder.getValueF64(0);
+							case 80:  return this->builder.getValueF80(0);
+							case 128: return this->builder.getValueF128(0);
+						}
+
+						evo::debugFatalBreak("Unknown float width");
+					} break;
+
+					case Type::Kind::BFloat: {
+						return this->builder.getValueBF16(0);
+					} break;
+
+					default: {
+						return this->builder.getValueGlobalAggregateZero(this->get_type(type));
+					} break;
+				}
+
+			}else if constexpr(std::is_same<ValueT,GlobalVar::Uninit>()){
+				return this->builder.getValueGlobalUndefValue(this->get_type(type));
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
+				return this->builder.getValueGlobalStr(this->module.getGlobalString(value).value);
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
+				const GlobalVar::Array& array = this->module.getGlobalArray(value);
+				const Type& array_elem_type = this->module.getArrayType(type).elemType;
+
+				auto values = std::vector<llvmint::Constant>();
+				values.reserve(array.values.size());
+				for(const GlobalVar::Value& arr_value : array.values){
+					values.emplace_back(this->get_global_var_value(arr_value, array_elem_type));
+				}
+
+				return this->builder.getValueGlobalArray(values);
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
+				const GlobalVar::Struct& global_struct = this->module.getGlobalStruct(value);
+				const StructType& struct_type = this->module.getStructType(type);
+
+				auto values = std::vector<llvmint::Constant>();
+				values.reserve(global_struct.values.size());
+				for(size_t i = 0; const GlobalVar::Value& arr_value : global_struct.values){
+					values.emplace_back(this->get_global_var_value(arr_value, struct_type.members[i]));
+
+					i += 1;
+				}
+
+				return this->builder.getValueGlobalStruct(this->get_struct_type(type), values);
+
+			}else{
+				static_assert(false, "Unknown GlobalVar::Value");
+			}
+		});
+	}
+
+
 	auto PIRToLLVMIR::get_value(const Expr& expr) -> llvmint::Value {
 		switch(expr.getKind()){
 			case Expr::Kind::None: evo::debugFatalBreak("Not a valid expr");
@@ -580,8 +583,7 @@ namespace pcit::pir{
 			case Type::Kind::Array: evo::debugFatalBreak("Type::Kind::Array unsupported");
 
 			case Type::Kind::Struct: {
-				const StructType& struct_type = this->module.getStructType(type);
-				return this->struct_types.at(struct_type.name);
+				return this->get_struct_type(type).asType();
 			} break;
 
 			case Type::Kind::Function: {
@@ -590,6 +592,12 @@ namespace pcit::pir{
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Type::Kind");
+	}
+
+
+	auto PIRToLLVMIR::get_struct_type(const Type& type) -> llvmint::StructType {
+		const StructType& struct_type = this->module.getStructType(type);
+		return this->struct_types.at(struct_type.name);
 	}
 
 

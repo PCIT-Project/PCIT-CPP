@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.63.0
+
+### PIR
+- Added struct and array values for global vars
+
+
+<!---------------------------------->
 ## v0.0.62.1
 
 ### Misc

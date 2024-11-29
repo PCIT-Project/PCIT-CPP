@@ -185,6 +185,19 @@ namespace pcit::core{
 
 
 
+			EVO_NODISCARD auto bitCastToGenericInt() -> GenericInt {
+				return this->ap_float.bitcastToAPInt();
+			}
+
+
+			// Since LLVM native declaration is not accessable (purposely), you'll neet o bitcast it yourself
+			// It is safe to do so.
+			EVO_NODISCARD auto copyToLLVMNative() const -> std::array<std::byte, sizeof(llvmint::APFloat)> {
+				return this->ap_float.copyToLLVMNative();
+			}
+
+
+
 		private:
 			GenericFloat(const llvmint::fltSemantics& semantics, GenericInt&& value)
 				: ap_float(semantics, value.ap_int) {}

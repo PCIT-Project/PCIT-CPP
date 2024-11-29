@@ -15,6 +15,7 @@
 
 #include "./forward_decl_ids.h"
 #include "./Expr.h"
+#include "./GlobalVar.h"
 
 namespace pcit::pir{
 
@@ -31,6 +32,7 @@ namespace pcit::pir{
 			auto print_function_decl(const struct FunctionDecl& function_decl) -> void;
 			auto print_struct_type(const struct StructType& struct_type) -> void;
 			auto print_global_var(const struct GlobalVar& global_var) -> void;
+			auto print_global_var_value(const GlobalVar::Value& global_var_value) -> void;
 			auto print_basic_block(const class BasicBlock& basic_block) -> void;
 			auto print_type(const class Type& type) -> void;
 			auto print_expr(const Expr& expr) -> void;

@@ -1343,6 +1343,12 @@ namespace pcit::llvmint{
 			APFLOAT_DISPATCH_ON_SEMANTICS(getExactLog2());
 		}
 
+
+		// Since LLVM native declaration is not accessable (purposely), you'll neet o bitcast it yourself
+		// It is safe to do so.
+		auto copyToLLVMNative() const -> std::array<std::byte, sizeof(Storage)>;
+
+
 		// friend hash_code hash_value(const APFloat &Arg);
 		friend int ilogb(const APFloat &Arg) { return ilogb(Arg.getIEEE()); }
 		friend APFloat scalbn(APFloat X, int Exp, roundingMode RM);

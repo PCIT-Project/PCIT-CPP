@@ -25,17 +25,56 @@ namespace pcit::pir{
 		struct Zeroinit{};
 		struct Uninit{};
 
+		struct String{
+			// For lookup in Module
+			struct ID : public core::UniqueID<uint32_t, struct ID> {
+				using core::UniqueID<uint32_t, ID>::UniqueID;
+			};
+
+			std::string value;
+			Type type; // TODO: remove this?
+		};
+
+		// Forward declaration
+		struct ArrayID : public core::UniqueID<uint32_t, struct ArrayID> {
+			using core::UniqueID<uint32_t, ArrayID>::UniqueID;
+		};
+
+		// Forward declaration
+		struct StructID : public core::UniqueID<uint32_t, struct StructID> {
+			using core::UniqueID<uint32_t, StructID>::UniqueID;
+		};
+
+		using Value = evo::Variant<Expr, Zeroinit, Uninit, String::ID, ArrayID, StructID>;
+
+		struct Array{
+			// For lookup in Module
+			using ID = ArrayID;
+
+			Type type; // TODO: remove this?
+			std::vector<Value> values;
+		};
+
+		struct Struct{
+			// For lookup in Module
+			using ID = StructID;
+
+			Type type; // TODO: remove this?
+			std::vector<Value> values;
+		};
+
+
+
 		std::string name;
 		Type type;
 		Linkage linkage;
-		evo::Variant<Expr, Zeroinit, Uninit, std::string> value;
+		Value value;
 		bool isConstant;
 
 		// For lookup in Module
 		struct ID : public core::UniqueID<uint32_t, struct ID> {
 			using core::UniqueID<uint32_t, ID>::UniqueID;
 		};
-
 	};
 
 

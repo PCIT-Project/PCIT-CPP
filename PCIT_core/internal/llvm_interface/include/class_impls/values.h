@@ -53,6 +53,8 @@ namespace pcit::llvmint{
 			Constant(llvm::Constant* native_type) : _native(native_type) {};
 			~Constant() = default;
 
+			EVO_NODISCARD auto getType() const -> Type;
+
 			EVO_NODISCARD explicit operator Value() const;
 			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
 

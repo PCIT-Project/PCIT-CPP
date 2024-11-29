@@ -46,8 +46,11 @@ namespace pcit::pir{
 			auto lower_func_body(const Function& func, const llvmint::Function& llvm_func) -> void;
 
 			EVO_NODISCARD auto get_constant_value(const Expr& expr) -> llvmint::Constant;
+			EVO_NODISCARD auto get_global_var_value(const GlobalVar::Value& global_var_value, const Type& type)
+				-> llvmint::Constant;
 			EVO_NODISCARD auto get_value(const Expr& expr) -> llvmint::Value;
 			EVO_NODISCARD auto get_type(const Type& type) -> llvmint::Type;
+			EVO_NODISCARD auto get_struct_type(const Type& type) -> llvmint::StructType;
 			EVO_NODISCARD auto get_func_type(const Type& type) -> llvmint::FunctionType;
 			EVO_NODISCARD static auto get_linkage(const Linkage& linkage) -> llvmint::LinkageType;
 			EVO_NODISCARD static auto get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv;
@@ -61,7 +64,7 @@ namespace pcit::pir{
 
 			ReaderAgent reader;
 
-			std::unordered_map<std::string_view, llvmint::Type> struct_types{};
+			std::unordered_map<std::string_view, llvmint::StructType> struct_types{};
 			std::unordered_map<std::string_view, llvmint::Function> funcs{};
 			std::unordered_map<std::string_view, llvmint::GlobalVariable> global_vars{};
 			std::unordered_map<Expr, llvmint::Value> stmt_values{};

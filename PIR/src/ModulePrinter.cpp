@@ -40,13 +40,19 @@ namespace pcit::pir{
 			this->print_struct_type(struct_type);
 		}
 
+		this->printer.println();
+
 		for(const GlobalVar& global_var : this->module.getGlobalVarIter()){
 			this->print_global_var(global_var);
 		}
 
+		this->printer.println();
+
 		for(const FunctionDecl& function_decl : this->module.getFunctionDeclIter()){
 			this->print_function_decl(function_decl);
 		}
+
+		this->printer.println();
 
 		for(const Function& function : this->module.getFunctionIter()){
 			this->print_function(function);
@@ -64,7 +70,6 @@ namespace pcit::pir{
 	};
 
 	auto ModulePrinter::print_function_decl_impl(const FuncDeclRef& func_decl) -> void {
-		this->printer.println();
 		this->printer.printCyan("func ");
 		if(isStandardName(func_decl.name)){
 			this->printer.printGreen("&{} ", func_decl.name);
@@ -181,7 +186,6 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_struct_type(const StructType& struct_type) -> void {
-		this->printer.println();
 		this->printer.printCyan("type");
 		this->printer.printGreen(" &{}", struct_type.name);
 		this->printer.printRed(" = ");
@@ -206,8 +210,6 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_global_var(const GlobalVar& global_var) -> void {
-		this->printer.println();
-
 		if(global_var.isConstant){
 			this->printer.printCyan("const ");
 		}else{
@@ -244,22 +246,30 @@ namespace pcit::pir{
 			} break;
 		}
 
+		this->printer.printRed("= ");
 
-		global_var.value.visit([&](const auto& value) -> void {
+		this->print_global_var_value(global_var.value);
+
+		this->printer.println();
+	}
+
+
+	auto ModulePrinter::print_global_var_value(const GlobalVar::Value& global_var_value) -> void {
+		global_var_value.visit([&](const auto& value) -> void {
 			using ValueT = std::decay_t<decltype(value)>;
 
 			if constexpr(std::is_same<ValueT, Expr>()){
-				this->printer.printRed("= ");
 				this->print_expr(value);
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
-				this->printer.printRed("= zeroinit");
+				this->printer.printRed("zeroinit");
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Uninit>()){
-				this->printer.printRed("= uninit");
+				this->printer.printRed("uninit");
 
-			}else if constexpr(std::is_same<ValueT, std::string>()){
-				this->printer.printRed("= ");
+			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
+				const GlobalVar::String& string_value = this->module.getGlobalString(value);
+
 				this->printer.printYellow("\"");
 
 				auto char_str = evo::StaticString<2>();
@@ -269,7 +279,7 @@ namespace pcit::pir{
 				hex_str.resize(3);
 				hex_str[0] = '\\';
 
-				for(char c : value){
+				for(char c : string_value.value){
 					if(c > 31 && c < 127){
 						char_str[0] = c;
 						this->printer.printYellow(char_str);
@@ -308,12 +318,40 @@ namespace pcit::pir{
 				this->printer.printMagenta("\\00");
 				this->printer.printYellow("\"");
 
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
+				const GlobalVar::Array& array = this->module.getGlobalArray(value);
+
+				this->printer.print("[");
+				for(size_t i = 0; const GlobalVar::Value& array_elem : array.values){
+					this->print_global_var_value(array_elem);
+					
+					if(i + 1 < array.values.size()){
+						this->printer.print(", ");
+					}
+
+					i += 1;
+				}
+				this->printer.print("]");
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
+				const GlobalVar::Struct& struct_value = this->module.getGlobalStruct(value);
+
+				this->printer.print("{");
+				for(size_t i = 0; const GlobalVar::Value& struct_elem : struct_value.values){
+					this->print_global_var_value(struct_elem);
+					
+					if(i + 1 < struct_value.values.size()){
+						this->printer.print(", ");
+					}
+
+					i += 1;
+				}
+				this->printer.print("}");
+
 			}else{
 				static_assert(false, "Unsupported global var kind");
 			}
 		});
-
-		this->printer.println();
 	}
 		
 
@@ -570,7 +608,7 @@ namespace pcit::pir{
 				
 			}else if constexpr(std::is_same_v<ValueT, PtrCall>){
 				// TODO: 
-				evo::debugFatalBreak("UNIMPLEMENTED");
+				evo::debugFatalBreak("UNIMPLEMENTED (printing of pointer call)");
 
 			}else{
 				static_assert(false, "Unsupported call inst target");

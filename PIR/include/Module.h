@@ -135,45 +135,186 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// global values
+
+			EVO_NODISCARD auto createGlobalString(std::string&& string) -> GlobalVar::String::ID {
+				const Type str_type = this->createArrayType(this->createSignedType(8), string.size() + 1);
+				return this->global_strings.emplace_back(std::move(string), str_type);
+			}
+
+
+			EVO_NODISCARD auto getGlobalString(GlobalVar::String::ID id) const -> const GlobalVar::String& {
+				return this->global_strings[id];
+			}
+
+
+
+			EVO_NODISCARD auto createGlobalArray(
+				Type element_type, std::vector<GlobalVar::Value> values
+			) -> GlobalVar::Array::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					for(const GlobalVar::Value& value : values){
+						value.visit([&](const auto& element) -> void {
+							using ValueT = std::decay_t<decltype(element)>;
+
+							if constexpr(std::is_same<ValueT, Expr>()){
+								evo::debugAssert(element.isConstant(), "Array element must be a constant");
+								this->check_expr_type_match(element_type, element);
+
+							}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
+								// Do nothing...
+
+							}else if constexpr(std::is_same<ValueT, GlobalVar::Uninit>()){
+								// Do nothing...
+
+							}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
+								evo::debugAssert(
+									element_type == this->getGlobalString(element).type,
+									"Array element must match type"
+								);
+
+							}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
+								evo::debugAssert(
+									element_type == this->getGlobalArray(element).type,
+									"Array element must match type"
+								);
+
+							}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
+								evo::debugAssert(
+									element_type == this->getGlobalStruct(element).type,
+									"Array element must match type"
+								);
+
+							}else{
+								static_assert(false, "Unknown Global value kind");
+							}
+						});
+					}
+				#endif
+
+				const Type array_type = this->createArrayType(element_type, values.size());
+				return this->global_arrays.emplace_back(array_type, std::move(values));
+			}
+
+
+			EVO_NODISCARD auto getGlobalArray(GlobalVar::Array::ID id) const -> const GlobalVar::Array& {
+				return this->global_arrays[id];
+			}
+
+
+
+
+			EVO_NODISCARD auto createGlobalStruct(
+				Type type, std::vector<GlobalVar::Value> values
+			) -> GlobalVar::Struct::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const StructType& struct_type = this->getStructType(type);
+
+					for(size_t i = 0; const GlobalVar::Value& value : values){
+						EVO_DEFER([&](){ i += 1; });
+
+						const Type& member_type = struct_type.members[i];
+
+			 			value.visit([&](const auto& member_value) -> void {
+			 				using MemberValueT = std::decay_t<decltype(member_value)>;
+
+			 				if constexpr(std::is_same<MemberValueT, Expr>()){
+			 					this->check_expr_type_match(member_type, member_value);
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
+			 					// Do nothing...
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Uninit>()){
+			 					// Do nothing...
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::String::ID>()){
+			 					evo::debugAssert(
+			 						member_type == this->getGlobalString(member_value).type,
+			 						"Struct member value must match type"
+			 					);
+			 					
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Array::ID>()){
+			 					evo::debugAssert(
+			 						member_type == this->getGlobalArray(member_value).type,
+			 						"Struct member value must match type"
+			 					);
+			 					
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
+			 					evo::debugAssert(
+			 						member_type == this->getGlobalStruct(member_value).type,
+			 						"Struct member value must match type"
+			 					);
+
+			 				}else{
+			 					static_assert(false, "Unknown Global value kind");
+			 				}
+			 			});
+					}
+				#endif
+
+				return this->global_structs.emplace_back(type, std::move(values));
+			}
+
+
+			EVO_NODISCARD auto getGlobalStruct(GlobalVar::Struct::ID id) const -> const GlobalVar::Struct& {
+				return this->global_structs[id];
+			}
+
+
+			///////////////////////////////////
 			// global
 
 			EVO_NODISCARD auto createGlobalVar(
 				std::string&& global_name,
 				Type type,
 				Linkage linkage,
-				evo::Variant<Expr, GlobalVar::Zeroinit, GlobalVar::Uninit, std::string> value,
+				GlobalVar::Value value,
 				bool isConstant
 			) -> GlobalVar::ID {
 				#if defined(EVO_CONFIG_DEBUG)
-					if(value.is<Expr>()){
-						this->check_expr_type_match(type, value.as<Expr>());
-						evo::debugAssert(value.as<Expr>().isConstant(), "Global can only have a constant value");
+					value.visit([&](const auto& member_value) -> void {
+						using MemberValueT = std::decay_t<decltype(member_value)>;
 
-					}else if(value.is<std::string>()){
-						evo::debugAssert(type.getKind() == Type::Kind::Array, "Incorrect type for global string");
+						if constexpr(std::is_same<MemberValueT, Expr>()){
+							this->check_expr_type_match(type, member_value);
 
-						const ArrayType& array_type = this->getArrayType(type);
-						evo::debugAssert(
-							array_type.elemType.getKind() == Type::Kind::Signed, "Incorrect type for global string"
-						);
-						evo::debugAssert(array_type.elemType.getWidth() == 8, "Incorrect type for global string");
-					}
-					
+						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
+							// Do nothing...
+
+						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Uninit>()){
+							// Do nothing...
+
+						}else if constexpr(std::is_same<MemberValueT, GlobalVar::String::ID>()){
+							evo::debugAssert(
+								type == this->getGlobalString(member_value).type,
+								"Global variable value must match type"
+							);
+							
+						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Array::ID>()){
+							evo::debugAssert(
+								type == this->getGlobalArray(member_value).type,
+								"Global variable value must match type"
+							);
+							
+
+						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
+							evo::debugAssert(
+								type == this->getGlobalStruct(member_value).type,
+								"Global variable value must match type"
+							);
+
+						}else{
+							static_assert(false, "Unknown Global value kind");
+						}
+					});
+						
 					this->check_global_name_reusue(global_name);
 				#endif
 
 				return this->global_vars.emplace_back(std::move(global_name), type, linkage, value, isConstant);
 			}
 
-
-			EVO_NODISCARD auto createGlobalVarString(
-				std::string&& global_name, Linkage linkage, std::string&& value, bool isConstant
-			) -> GlobalVar::ID {
-				const Type str_type = this->createArrayType(this->createSignedType(8), value.size() + 1);
-				return this->global_vars.emplace_back(
-					std::move(global_name), str_type, linkage, std::move(value), isConstant
-				);
-			}
 
 			EVO_NODISCARD auto getGlobalVar(GlobalVar::ID id) const -> const GlobalVar& {
 				return this->global_vars[id];
@@ -350,6 +491,12 @@ namespace pcit::pir{
 			core::StepAlloc<Store, uint32_t> stores{};
 			core::StepAlloc<Add, uint32_t> adds{};
 			core::StepAlloc<AddWrap, uint32_t> add_wraps{};
+
+			// global values
+			core::StepAlloc<GlobalVar::String, GlobalVar::String::ID> global_strings{};
+			core::StepAlloc<GlobalVar::Array, GlobalVar::Array::ID> global_arrays{};
+			core::StepAlloc<GlobalVar::Struct, GlobalVar::Struct::ID> global_structs{};
+
 
 			friend class ReaderAgent;
 			friend class Agent;

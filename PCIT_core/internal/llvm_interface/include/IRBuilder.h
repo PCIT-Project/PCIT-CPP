@@ -289,6 +289,13 @@ namespace pcit::llvmint{
 
 			EVO_NODISCARD auto getValueGlobalStrPtr(std::string_view str, evo::CStrProxy name = '\0') const -> Constant;
 
+			EVO_NODISCARD auto getValueGlobalStr(const std::string& value) const -> Constant;
+			EVO_NODISCARD auto getValueGlobalUndefValue(const Type& type) const -> Constant;
+			EVO_NODISCARD auto getValueGlobalAggregateZero(const Type& type) const -> Constant;
+			EVO_NODISCARD auto getValueGlobalArray(evo::ArrayProxy<Constant> values) const -> Constant;
+			EVO_NODISCARD auto getValueGlobalStruct(const StructType& type, evo::ArrayProxy<Constant> values) const
+				-> Constant;
+
 
 			//////////////////////////////////////////////////////////////////////
 			// types

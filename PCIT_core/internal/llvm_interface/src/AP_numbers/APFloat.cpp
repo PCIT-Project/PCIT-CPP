@@ -35,7 +35,7 @@
 	#pragma warning(push, 0)
 #endif
 
-// #include "llvm/ADT/APFloat.h"
+#include <llvm/ADT/APFloat.h>
 // #include "llvm/ADT/APSInt.h"
 // #include "llvm/ADT/ArrayRef.h"
 // #include "llvm/ADT/FloatingPointMode.h"
@@ -5292,6 +5292,29 @@ namespace pcit::llvmint{
 		evo::debugAssert(!(St & opInexact) && !LosesInfo, "Unexpected imprecision");
 		(void)St;
 		return Temp.getIEEE().convertToFloat();
+	}
+
+
+
+	auto APFloat::copyToLLVMNative() const -> std::array<std::byte, sizeof(Storage)> {
+		APFloat copy = APFloat(*this);
+
+		if(&this->getSemantics() == &semIEEEhalf){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::IEEEhalf(); }
+		else if(&this->getSemantics() == &semBFloat){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::BFloat(); }
+		else if(&this->getSemantics() == &semIEEEsingle){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::IEEEsingle(); }
+		else if(&this->getSemantics() == &semIEEEdouble){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::IEEEdouble(); }
+		else if(&this->getSemantics() == &semX87DoubleExtended){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::x87DoubleExtended(); }
+		else if(&this->getSemantics() == &semIEEEquad){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::IEEEquad(); }
+		else if(&this->getSemantics() == &semPPCDoubleDouble){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::PPCDoubleDouble(); }
+		else if(&this->getSemantics() == &semFloat8E5M2){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::Float8E5M2(); }
+		else if(&this->getSemantics() == &semFloat8E5M2FNUZ){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::Float8E5M2FNUZ(); }
+		else if(&this->getSemantics() == &semFloat8E4M3FN){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::Float8E4M3FN(); }
+		else if(&this->getSemantics() == &semFloat8E4M3FNUZ){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::Float8E4M3FNUZ(); }
+		else if(&this->getSemantics() == &semFloat8E4M3B11FNUZ){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::Float8E4M3B11FNUZ(); }
+		else if(&this->getSemantics() == &semFloatTF32){ copy.U.semantics = (fltSemantics*)&llvm::APFloat::FloatTF32(); }
+
+
+		return *(std::array<std::byte, sizeof(Storage)>*)&copy;
 	}
 
 }
