@@ -23,38 +23,87 @@
 
 
 namespace pcit::pir{
-	
 
-	auto lowerToLLVMIR(const Module& module) -> evo::Expected<std::string, std::string> {
-		auto llvm_context = llvmint::LLVMContext();
-		llvm_context.init();
-		EVO_DEFER([&](){ llvm_context.deinit(); });
+	struct LoweringData{
+		llvmint::LLVMContext context{};
+		llvmint::Module module{};
 
-		auto llvm_module = llvmint::Module();
-		llvm_module.init(module.getName(), llvm_context);
+		~LoweringData(){
+			if(this->context.isInitialized()){
+				this->context.deinit();
+			}
+		}
+	};
 
-		const std::string target_triple = llvm_module.generateTargetTriple(module.getOS(), module.getArchitecture());
+	static auto setup_lowering_data(const Module& module, OptMode opt_mode) -> LoweringData {
+		auto lowering_data = LoweringData();
 
-		const std::string data_layout_error = llvm_module.setDataLayout(
+		lowering_data.context.init();
+
+		lowering_data.module.init(module.getName(), lowering_data.context);
+
+		const std::string target_triple = lowering_data.module.generateTargetTriple(
+			module.getOS(), module.getArchitecture()
+		);
+
+
+		const llvmint::Module::OptLevel opt_level = [&](){
+			switch(opt_mode){
+				case OptMode::O0: return llvmint::Module::OptLevel::None;
+				case OptMode::O1: return llvmint::Module::OptLevel::Less;
+				case OptMode::O2: return llvmint::Module::OptLevel::Default;
+				case OptMode::O3: return llvmint::Module::OptLevel::Aggressive;
+				case OptMode::Os: return llvmint::Module::OptLevel::Default;
+				case OptMode::Oz: return llvmint::Module::OptLevel::Default;
+			}
+
+			evo::unreachable();
+		}();
+
+		const std::string data_layout_error = lowering_data.module.setDataLayout(
 			target_triple,
 			llvmint::Module::Relocation::Default,
 			llvmint::Module::CodeSize::Default,
-			llvmint::Module::OptLevel::None,
-			false
+			opt_level,
+			false // is_jit
 		);
 
-		if(!data_layout_error.empty()){
-			return evo::Unexpected<std::string>(data_layout_error);
-		}
+		evo::debugAssert(data_layout_error.empty(), data_layout_error);
 
-		llvm_module.setTargetTriple(target_triple);
+		lowering_data.module.setTargetTriple(target_triple);
 
-		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
+		auto lowerer = PIRToLLVMIR(module, lowering_data.context, lowering_data.module);
 		lowerer.lower();
 
-		std::string output = llvm_module.print();
+		switch(opt_mode){
+			break; case OptMode::O0: // do nothing...
+			break; case OptMode::O1: lowering_data.module.optimize(llvmint::Module::OptMode::O1);
+			break; case OptMode::O2: lowering_data.module.optimize(llvmint::Module::OptMode::O2);
+			break; case OptMode::O3: lowering_data.module.optimize(llvmint::Module::OptMode::O3);
+			break; case OptMode::Os: lowering_data.module.optimize(llvmint::Module::OptMode::Os);
+			break; case OptMode::Oz: lowering_data.module.optimize(llvmint::Module::OptMode::Oz);
+		}
 
-		return output;
+		return lowering_data;
+	}
+
+
+	
+
+	auto lowerToLLVMIR(const Module& module, OptMode opt_mode) -> std::string {
+		LoweringData lowering_data = setup_lowering_data(module, opt_mode);
+		return lowering_data.module.print();
+	}
+
+
+	auto lowerToAssembly(const Module& module, OptMode opt_mode) -> evo::Result<std::string> {
+		LoweringData lowering_data = setup_lowering_data(module, opt_mode);
+		return lowering_data.module.lowerToAssembly();
+	}
+
+	auto lowerToObject(const Module& module, OptMode opt_mode) -> evo::Result<std::vector<evo::byte>> {
+		LoweringData lowering_data = setup_lowering_data(module, opt_mode);
+		return lowering_data.module.lowerToObject();
 	}
 	
 

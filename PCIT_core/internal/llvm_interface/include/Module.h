@@ -26,6 +26,7 @@ namespace pcit::llvmint{
 	class Module{
 		public:
 			// thanks to https://doc.rust-lang.org/rustc/codegen-options/index.html for this info
+			// used for target triple
 			enum class Relocation{
 				Default,
 				Static, // absolute addressing mode
@@ -40,6 +41,7 @@ namespace pcit::llvmint{
 				ROPI_RWPI, // combination of the above 2
 			};
 
+			// used for target triple
 			enum class CodeSize{
 				Default,
 				// Tiny, // seems to cause a crash within LLVM
@@ -49,11 +51,23 @@ namespace pcit::llvmint{
 				Large,
 			};
 
+			// used for target triple
 			enum class OptLevel{
 				None,       // O0
 				Less,       // O1
 				Default,    // O2 / Os
 				Aggressive, // O3
+			};
+
+			// used for optimization pass
+			enum class OptMode{
+				None,
+				O0 = None,
+				O1,
+				O2,
+				O3,
+				Os,
+				Oz,
 			};
 
 		public:
@@ -106,6 +120,10 @@ namespace pcit::llvmint{
 
 
 			EVO_NODISCARD auto print() const -> std::string;
+			EVO_NODISCARD auto lowerToObject() -> evo::Result<std::vector<evo::byte>>;
+			EVO_NODISCARD auto lowerToAssembly() -> evo::Result<std::string>;
+
+			auto optimize(OptMode opt_mode) -> void;
 
 
 			template<typename ReturnType>

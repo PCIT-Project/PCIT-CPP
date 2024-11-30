@@ -131,7 +131,7 @@ auto main(int argc, const char* argv[]) -> int {
 			// pcit::pir::Parameter("number", module.createUnsignedType(64))
 		},
 		pcit::pir::CallingConvention::Fast,
-		pcit::pir::Linkage::Internal,
+		pcit::pir::Linkage::External,
 		module.createUnsignedType(64)
 	);
 	agent.setTargetFunction(entry_func_id);
@@ -209,12 +209,12 @@ auto main(int argc, const char* argv[]) -> int {
 
 	printer.printlnGray("--------------------------------");
 
-	auto lowered = pcit::pir::lowerToLLVMIR(module);
-	if(lowered.has_value()){
-		printer.printlnCyan(lowered.value());
-	}else{
-		printer.printlnError("ERROR in LLVM: \"{}\"", lowered.error());
-	}
+	printer.printlnCyan(pcit::pir::lowerToLLVMIR(module, pcit::pir::OptMode::O3));
+
+
+	printer.printlnGray("--------------------------------");
+
+	printer.printlnCyan(pcit::pir::lowerToAssembly(module, pcit::pir::OptMode::O3).value());
 
 
 	printer.printlnGray("--------------------------------");

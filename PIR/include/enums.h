@@ -83,5 +83,17 @@ namespace pcit::pir{
 			Value _value;
 	};
 
+
+
+	enum class OptMode{
+		None,
+		O0 = None,
+		O1,
+		O2,
+		O3,
+		Os,
+		Oz,
+	};
+
 }
 

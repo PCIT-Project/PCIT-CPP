@@ -13,10 +13,17 @@
 #include <Evo.h>
 #include <PCIT_core.h>
 
+#include "./enums.h"
+
 
 namespace pcit::pir{
 
-	auto lowerToLLVMIR(const class Module& module) -> evo::Expected<std::string, std::string>;
+	auto lowerToLLVMIR(const class Module& module, OptMode opt_mode = OptMode::None) -> std::string;
+
+	auto lowerToAssembly(const class Module& module, OptMode opt_mode = OptMode::None) -> evo::Result<std::string>;
+
+	auto lowerToObject(const class Module& module, OptMode opt_mode = OptMode::None)
+		-> evo::Result<std::vector<evo::byte>>;
 
 }
 

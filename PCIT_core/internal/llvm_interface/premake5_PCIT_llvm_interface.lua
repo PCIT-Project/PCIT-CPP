@@ -64,11 +64,11 @@ project "PCIT_llvm_interface"
 		-- platform: Exegesis
 		LLVM.libs.Extensions,
 		LLVM.libs.FileCheck,
-		-- LLVM.libs.FrontendDriver,
-		-- LLVM.libs.FrontendHLSL,
-		-- LLVM.libs.FrontendOffloading,
-		-- LLVM.libs.FrontendOpenACC,
-		-- LLVM.libs.FrontendOpenMP,
+		LLVM.libs.FrontendDriver,
+		LLVM.libs.FrontendHLSL,
+		LLVM.libs.FrontendOffloading,
+		LLVM.libs.FrontendOpenACC,
+		LLVM.libs.FrontendOpenMP,
 		LLVM.libs.FuzzerCLI,
 		LLVM.libs.FuzzMutate,
 		LLVM.libs.GlobalISel,
@@ -78,7 +78,7 @@ project "PCIT_llvm_interface"
 		LLVM.libs.Instrumentation,
 		LLVM.libs.InterfaceStub,
 		LLVM.libs.Interpreter,
-		-- LLVM.libs.ipo,
+		LLVM.libs.ipo,
 		LLVM.libs.IRPrinter,
 		LLVM.libs.IRReader,
 		LLVM.libs.JITLink,
@@ -133,13 +133,16 @@ project "PCIT_llvm_interface"
 		LLVM.libs.VEDesc,
 		LLVM.libs.VEDisassembler,
 		LLVM.libs.VEInfo,
-		-- platform: WASM
+		-- platform: WebAssembly
 		LLVM.libs.WindowsDriver,
 		LLVM.libs.WindowsManifest,
-		-- platform: X86
+		-- platform: x86
+		LLVM.libs.X86TargetMCA,
 		-- platform: XCore
 		LLVM.libs.XRay,
 	}
+
+	LLVM.link.X86();
 
 
 project "*"

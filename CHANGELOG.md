@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.64.0
+
+### PIR
+- Added lowering to assembly
+- Added lowering to object file
+- Added LLVM default optimization passes
+
+
+<!---------------------------------->
 ## v0.0.63.0
 
 ### PIR

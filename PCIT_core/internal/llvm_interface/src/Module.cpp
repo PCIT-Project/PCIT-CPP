@@ -236,6 +236,104 @@ namespace pcit::llvmint{
 		return str_ref.str();
 	}
 
+
+	auto Module::lowerToObject() -> evo::Result<std::vector<evo::byte>> {
+		auto data = llvm::SmallVector<char>();
+		auto stream = llvm::raw_svector_ostream(data);
+
+		auto pass = llvm::legacy::PassManager();
+		static constexpr auto file_type = llvm::CodeGenFileType::ObjectFile;
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			static constexpr bool disable_verify = false;
+		#else
+			static constexpr bool disable_verify = true;
+		#endif
+
+		if(this->target_machine->addPassesToEmitFile(pass, stream, nullptr, file_type, disable_verify)){
+			return evo::resultError;
+		}
+
+		pass.run(*this->native());
+
+
+		auto output = std::vector<evo::byte>();
+		output.resize(data.size());
+
+		std::memcpy(output.data(), data.data(), data.size());
+
+		return output;
+	}
+
+	auto Module::lowerToAssembly() -> evo::Result<std::string> {
+		auto data = llvm::SmallVector<char>();
+		auto stream = llvm::raw_svector_ostream(data);
+
+		auto pass = llvm::legacy::PassManager();
+		static constexpr auto file_type = llvm::CodeGenFileType::AssemblyFile;
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			static constexpr bool disable_verify = false;
+		#else
+			static constexpr bool disable_verify = true;
+		#endif
+
+		if(this->target_machine->addPassesToEmitFile(pass, stream, nullptr, file_type, disable_verify)){
+			return evo::resultError;
+		}
+
+		pass.run(*this->native());
+
+
+		auto output = std::string();
+		output.resize(data.size());
+
+		std::memcpy(output.data(), data.data(), data.size());
+
+		return output;
+	}
+
+
+	auto Module::optimize(OptMode opt_mode) -> void {
+		if(opt_mode == OptMode::None){ return; }
+
+		// DO NOT RE-ORDER THESE (destructors must be called in this order)
+		auto loop_analysis_manager = llvm::LoopAnalysisManager();
+		auto function_analysis_manager = llvm::FunctionAnalysisManager();
+		auto cgscc_analysis_manager = llvm::CGSCCAnalysisManager();
+		auto module_analysis_manager = llvm::ModuleAnalysisManager();
+
+		// TODO: check options of pipeline_tuning_options
+		//       (https://llvm.org/doxygen/classllvm_1_1PipelineTuningOptions.html)
+		auto pipeline_tuning_options = llvm::PipelineTuningOptions();
+
+		auto pass_builder = llvm::PassBuilder(this->target_machine, pipeline_tuning_options);
+
+		pass_builder.registerModuleAnalyses(module_analysis_manager);
+		pass_builder.registerCGSCCAnalyses(cgscc_analysis_manager);
+		pass_builder.registerFunctionAnalyses(function_analysis_manager);
+		pass_builder.registerLoopAnalyses(loop_analysis_manager);
+		pass_builder.crossRegisterProxies(
+			loop_analysis_manager, function_analysis_manager, cgscc_analysis_manager, module_analysis_manager
+		);
+
+		const llvm::OptimizationLevel llvm_opt_level = [&](){
+			switch(opt_mode){
+				case OptMode::O0: evo::unreachable();
+				case OptMode::O1: return llvm::OptimizationLevel::O1;
+				case OptMode::O2: return llvm::OptimizationLevel::O2;
+				case OptMode::O3: return llvm::OptimizationLevel::O3;
+				case OptMode::Os: return llvm::OptimizationLevel::Os;
+				case OptMode::Oz: return llvm::OptimizationLevel::Oz;
+			}
+
+			evo::unreachable();
+		}();
+
+		llvm::ModulePassManager module_pass_manager = pass_builder.buildPerModuleDefaultPipeline(llvm_opt_level);
+		module_pass_manager.run(*this->native(), module_analysis_manager);
+	}
+
 		
 	auto Module::get_clone() const -> std::unique_ptr<llvm::Module> {
 		evo::debugAssert(this->isInitialized(), "not initialized");
