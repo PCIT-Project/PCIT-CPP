@@ -12,31 +12,26 @@
 
 #include <Evo.h>
 
-namespace pcit::core{
+#include "./Options.h"
 
-	struct Version{
-		uint16_t major;
-		uint16_t release;
-		uint16_t minor;
-		uint16_t patch;
+#include <filesystem>
+
+namespace pcit::plnk{
+
+
+	struct LinkResult{
+		int returnCode;
+		bool mayRunAgain;
+		std::vector<std::string> messages;
+		std::vector<std::string> errMessages;
+
+		EVO_NODISCARD constexpr auto success() const -> bool { return returnCode == 0; }
 	};
 
-	constexpr auto version = Version{
-		.major   = 0,
-		.release = 0,
-		.minor   = 65,
-		.patch   = 0,
-	};
+
+	EVO_NODISCARD auto link(
+		evo::ArrayProxy<std::filesystem::path> object_file_paths, const Options& options = Options()
+	) -> LinkResult;
+
 
 }
- 	
-
-template<>
-struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
-    auto format(const pcit::core::Version& version, std::format_context& ctx) const -> std::format_context::iterator {
-        return std::formatter<std::string>::format(
-        	std::format("{}.{}.{}.{}", version.major, version.release, version.minor, version.patch),
-        	ctx
-        );
-    }
-};

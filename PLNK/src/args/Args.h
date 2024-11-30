@@ -12,31 +12,35 @@
 
 #include <Evo.h>
 
-namespace pcit::core{
 
-	struct Version{
-		uint16_t major;
-		uint16_t release;
-		uint16_t minor;
-		uint16_t patch;
-	};
+namespace pcit::plnk{
 
-	constexpr auto version = Version{
-		.major   = 0,
-		.release = 0,
-		.minor   = 65,
-		.patch   = 0,
+	
+	class Args{
+		public:
+			Args() = default;
+			~Args() = default;
+
+			auto addArg(std::string&& string) -> void {
+				const std::string& added_string = this->string_holder.emplace_back(std::move(string));
+				this->args.emplace_back(added_string.c_str());
+			}
+
+			auto addArg(const std::string& string) -> void = delete;
+
+			auto addArg(const char* string) -> void {
+				this->args.emplace_back(string);	
+			}
+
+			EVO_NODISCARD auto getArgs() const -> evo::ArrayProxy<const char*> {
+				return this->args;
+			}
+	
+		private:
+			std::vector<std::string> string_holder{};
+			std::vector<const char*> args{};
 	};
 
 }
- 	
 
-template<>
-struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
-    auto format(const pcit::core::Version& version, std::format_context& ctx) const -> std::format_context::iterator {
-        return std::formatter<std::string>::format(
-        	std::format("{}.{}.{}.{}", version.major, version.release, version.minor, version.patch),
-        	ctx
-        );
-    }
-};
+
