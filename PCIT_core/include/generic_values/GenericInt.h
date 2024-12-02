@@ -40,8 +40,10 @@ namespace pcit::core{
 
 			EVO_NODISCARD auto operator==(const GenericInt& rhs) const -> bool { return this->ap_int == rhs.ap_int; }
 
-			EVO_NODISCARD explicit operator uint64_t() const { return *this->ap_int.getRawData(); }
+			EVO_NODISCARD explicit operator uint64_t() const { return *this->ap_int.getRawData();           }
+			EVO_NODISCARD explicit operator int64_t() const  { return int64_t(*this->ap_int.getRawData());  }
 			EVO_NODISCARD explicit operator uint32_t() const { return uint32_t(*this->ap_int.getRawData()); }
+			EVO_NODISCARD explicit operator int32_t() const  { return int32_t(*this->ap_int.getRawData());  }
 
 
 			EVO_NODISCARD auto getBitWidth() const -> unsigned { return this->ap_int.getBitWidth(); }

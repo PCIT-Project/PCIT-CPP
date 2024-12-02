@@ -84,7 +84,7 @@ namespace pcit::pir{
 				return this->isNumeric() || this->kind == Kind::Bool;
 			}
 
-			EVO_NODISCARD auto isComposite() const -> bool {
+			EVO_NODISCARD auto isAggregate() const -> bool {
 				return this->kind == Kind::Array || this->kind == Kind::Struct;
 			}
 
@@ -108,7 +108,7 @@ namespace pcit::pir{
 
 	struct ArrayType{
 		Type elemType;
-		size_t length;
+		uint64_t length;
 	};
 
 	struct StructType{

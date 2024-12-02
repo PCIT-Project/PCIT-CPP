@@ -146,6 +146,7 @@ include "libs/premake5_Evo.lua"
 language "C++"
 cppdialect "C++20"
 exceptionhandling "Off"
+rtti "Off"
 allmodulespublic "Off"
 
 

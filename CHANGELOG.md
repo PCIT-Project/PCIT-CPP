@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.66.0
+
+### PIR
+- Added `@calcPtr` instruction
+- Fixed fatal error when compiling an array type into LLVM-IR
+
+
+<!---------------------------------->
 ## v0.0.65.0
 
 ### PLNK

@@ -9,6 +9,9 @@
 
 #include "../include/ReaderAgent.h"
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
 
 
 namespace pcit::pir{
@@ -58,6 +61,9 @@ namespace pcit::pir{
 			case Expr::Kind::Ret:            evo::unreachable();
 			case Expr::Kind::Branch:         evo::unreachable();
 			case Expr::Kind::Alloca:         return this->module.createPtrType();
+			case Expr::Kind::Load:           return this->getLoad(expr).type;
+			case Expr::Kind::Store:          evo::unreachable();
+			case Expr::Kind::CalcPtr:        return this->module.createPtrType();
 			case Expr::Kind::Add:            return this->getExprType(this->getAdd(expr).lhs);
 			case Expr::Kind::AddWrap:        evo::unreachable();
 			case Expr::Kind::AddWrapResult:  return this->getExprType(this->getAddWrap(expr).lhs);
@@ -149,6 +155,14 @@ namespace pcit::pir{
 		evo::debugAssert(expr.getKind() == Expr::Kind::Store, "Not a store");
 
 		return this->module.stores[expr.index];
+	}
+
+
+	auto ReaderAgent::getCalcPtr(const Expr& expr) const -> const CalcPtr& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::CalcPtr, "Not a calc ptr");
+
+		return this->module.calc_ptrs[expr.index];
 	}
 
 

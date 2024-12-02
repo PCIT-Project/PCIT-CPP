@@ -83,7 +83,7 @@ namespace pcit::plnk{
 
 		private:
 			Target target;
-			evo::Variant<WindowsSpecific, UnixSpecific, DarwinSpecific, WebAssemblySpecificN> specific{};
+			evo::Variant<WindowsSpecific, UnixSpecific, DarwinSpecific, WebAssemblySpecific> specific{};
 	};
 
 

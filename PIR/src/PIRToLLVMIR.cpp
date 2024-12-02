@@ -300,6 +300,28 @@ namespace pcit::pir{
 						);
 					} break;
 
+					case Expr::Kind::CalcPtr: {
+						const CalcPtr& calc_ptr = this->reader.getCalcPtr(stmt);
+
+						auto indices = evo::SmallVector<llvmint::Value>();
+						for(const CalcPtr::Index& index : calc_ptr.indices){
+							if(index.is<int64_t>()){
+								indices.emplace_back(this->builder.getValueI32(int32_t(index.as<int64_t>())));
+							}else{
+								indices.emplace_back(this->get_value(index.as<Expr>()));
+							}
+						}
+
+						const llvmint::Value gep = this->builder.createGetElementPtr(
+							this->get_type(calc_ptr.ptrType),
+							this->get_value(calc_ptr.basePtr),
+							indices,
+							calc_ptr.name
+						);
+
+						this->stmt_values.emplace(stmt, gep);
+					} break;
+
 					case Expr::Kind::Add: {
 						const Add& add = this->reader.getAdd(stmt);
 						const Type& add_type = this->reader.getExprType(add.lhs);
@@ -543,6 +565,10 @@ namespace pcit::pir{
 
 			case Expr::Kind::Store: evo::debugFatalBreak("Not a value");
 
+			case Expr::Kind::CalcPtr: {
+				return this->stmt_values.at(expr);
+			} break;
+
 			case Expr::Kind::Add: {
 				return this->stmt_values.at(expr);
 			} break;
@@ -580,7 +606,10 @@ namespace pcit::pir{
 			case Type::Kind::BFloat: return this->builder.getTypeBF16();
 			case Type::Kind::Ptr:    return this->builder.getTypePtr().asType();
 
-			case Type::Kind::Array: evo::debugFatalBreak("Type::Kind::Array unsupported");
+			case Type::Kind::Array: {
+				const ArrayType& array_type = this->module.getArrayType(type);
+				return this->builder.getArrayType(this->get_type(array_type.elemType), array_type.length).asType();
+			} break;
 
 			case Type::Kind::Struct: {
 				return this->get_struct_type(type).asType();

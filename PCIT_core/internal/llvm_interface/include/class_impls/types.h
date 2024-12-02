@@ -72,6 +72,21 @@ namespace pcit::llvmint{
 	};
 
 
+	class ArrayType{
+		public:
+			ArrayType(llvm::ArrayType* native_type) : _native(native_type) {};
+			~ArrayType() = default;
+
+			EVO_NODISCARD explicit operator Type() const;
+			EVO_NODISCARD auto asType() const -> Type { return static_cast<Type>(*this); }
+
+			EVO_NODISCARD auto native() const -> llvm::ArrayType* { return this->_native; }
+	
+		private:
+			llvm::ArrayType* _native;
+	};
+
+
 	class StructType{
 		public:
 			StructType(llvm::StructType* native_type) : _native(native_type) {};

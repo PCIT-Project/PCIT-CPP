@@ -54,6 +54,7 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::Alloca:         func_metadata.emplace(expr);
 					break; case Expr::Kind::Load:           func_metadata.emplace(expr);
 					break; case Expr::Kind::Store:          evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::CalcPtr:        func_metadata.emplace(expr);
 					break; case Expr::Kind::Add:            func_metadata.emplace(expr);
 					break; case Expr::Kind::AddWrap:        evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::AddWrapResult:  func_metadata.emplace(expr);
@@ -140,6 +141,22 @@ namespace pcit::pir::passes{
 					const Store& store = agent.getStore(stmt);
 					see_expr(store.destination);
 					see_expr(store.value);
+
+					return false;
+				} break;
+
+				case Expr::Kind::CalcPtr: {
+					if(func_metadata.contains(stmt) == false){
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+					const CalcPtr& calc_ptr = agent.getCalcPtr(stmt);
+					see_expr(calc_ptr.basePtr);
+
+					for(const CalcPtr::Index& index : calc_ptr.indices){
+						if(index.is<Expr>()){ see_expr(index.as<Expr>()); }
+					}
 
 					return false;
 				} break;

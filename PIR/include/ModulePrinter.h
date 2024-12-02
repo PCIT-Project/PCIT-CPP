@@ -16,13 +16,14 @@
 #include "./forward_decl_ids.h"
 #include "./Expr.h"
 #include "./GlobalVar.h"
+#include "./ReaderAgent.h"
 
 namespace pcit::pir{
 
 
 	class ModulePrinter{
 		public:
-			ModulePrinter(const class Module& _module, core::Printer& _printer) : module(_module), printer(_printer) {}
+			ModulePrinter(const class Module& module, core::Printer& _printer) : reader(module), printer(_printer) {}
 			~ModulePrinter() = default;
 
 			auto print() -> void;
@@ -48,12 +49,13 @@ namespace pcit::pir{
 
 			auto print_atomic_ordering(AtomicOrdering ordering) -> void;
 
+
+			EVO_NODISCARD auto get_module() const -> const Module& { return this->reader.getModule(); }
+			EVO_NODISCARD auto get_current_func() const -> const Function& { return this->reader.getTargetFunction(); }
 	
 		private:
-			const class Module& module;
+			ReaderAgent reader;
 			core::Printer& printer;
-
-			const class Function* func = nullptr;
 	};
 
 

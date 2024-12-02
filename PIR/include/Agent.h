@@ -203,7 +203,7 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
-			// alloca
+			// store
 
 			EVO_NODISCARD auto createStore(
 				const Expr& destination,
@@ -212,6 +212,19 @@ namespace pcit::pir{
 				AtomicOrdering atomic_ordering = AtomicOrdering::None
 			) const -> void;
 			EVO_NODISCARD auto getStore(const Expr& expr) const -> const Store&;
+
+
+			///////////////////////////////////
+			// calc ptr
+
+			EVO_NODISCARD auto createCalcPtr(
+				const Expr& base_ptr,
+				const Type& ptr_type,
+				evo::SmallVector<CalcPtr::Index>&& indices,
+				std::string&& name = ""
+			) const -> Expr;
+			EVO_NODISCARD auto getCalcPtr(const Expr& expr) const -> const CalcPtr&;
+
 
 
 			///////////////////////////////////

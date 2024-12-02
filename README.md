@@ -7,7 +7,7 @@ Panther Compiler Infrastructure and Toolchain, and the home of the Panther progr
 
 ## Tools
 Check out the [PCIT website](https://pcit-project.github.io) for more information about all of the tools in the PCIT-Project.
-- [Panther](https://pcit-project.github.io/Panther.html): Statically typed, compiled, high-performance, general-purpose programming language
+- [Panther](https://pcit-project.github.io/site/Panther.html): Statically typed, compiled, high-performance, general-purpose programming language
 - PIR: Compiler IR / optimizing back-end
 - PLNK: Linker that aims to make use between platforms (including cross-compilation) as seamless as possible.
 

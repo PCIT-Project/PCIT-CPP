@@ -116,7 +116,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
 
 		evo::debugAssert(
-			func.getReturnType().isComposite() == false, "Cannot run functions that return a composite value"
+			func.getReturnType().isAggregate() == false, "Cannot run functions that return a aggregate value"
 		);
 
 		evo::debugAssert(

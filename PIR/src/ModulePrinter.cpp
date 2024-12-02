@@ -13,7 +13,6 @@
 #include "../include/BasicBlock.h"
 #include "../include/Function.h"
 #include "../include/Module.h"
-#include "../include/ReaderAgent.h"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
@@ -34,27 +33,27 @@ namespace pcit::pir{
 	
 
 	auto ModulePrinter::print() -> void {
-		this->printer.printlnGray("// module: {}", this->module.getName());
+		this->printer.printlnGray("// module: {}", this->get_module().getName());
 
-		for(const StructType& struct_type : this->module.getStructTypeIter()){
+		for(const StructType& struct_type : this->get_module().getStructTypeIter()){
 			this->print_struct_type(struct_type);
 		}
 
 		this->printer.println();
 
-		for(const GlobalVar& global_var : this->module.getGlobalVarIter()){
+		for(const GlobalVar& global_var : this->get_module().getGlobalVarIter()){
 			this->print_global_var(global_var);
 		}
 
 		this->printer.println();
 
-		for(const FunctionDecl& function_decl : this->module.getFunctionDeclIter()){
+		for(const FunctionDecl& function_decl : this->get_module().getFunctionDeclIter()){
 			this->print_function_decl(function_decl);
 		}
 
 		this->printer.println();
 
-		for(const Function& function : this->module.getFunctionIter()){
+		for(const Function& function : this->get_module().getFunctionIter()){
 			this->print_function(function);
 		}
 	}
@@ -141,7 +140,7 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_function(const Function& function) -> void {
-		this->func = &function;
+		this->reader.setTargetFunction(function);
 
 		this->print_function_decl_impl(
 			FuncDeclRef(
@@ -164,7 +163,7 @@ namespace pcit::pir{
 		}
 
 		for(const BasicBlock::ID& basic_block_id : function){
-			this->print_basic_block(ReaderAgent(this->module).getBasicBlock(basic_block_id));
+			this->print_basic_block(this->reader.getBasicBlock(basic_block_id));
 		}
 
 		this->printer.println("}");
@@ -268,7 +267,7 @@ namespace pcit::pir{
 				this->printer.printRed("uninit");
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
-				const GlobalVar::String& string_value = this->module.getGlobalString(value);
+				const GlobalVar::String& string_value = this->get_module().getGlobalString(value);
 
 				this->printer.printYellow("\"");
 
@@ -319,7 +318,7 @@ namespace pcit::pir{
 				this->printer.printYellow("\"");
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
-				const GlobalVar::Array& array = this->module.getGlobalArray(value);
+				const GlobalVar::Array& array = this->get_module().getGlobalArray(value);
 
 				this->printer.print("[");
 				for(size_t i = 0; const GlobalVar::Value& array_elem : array.values){
@@ -334,7 +333,7 @@ namespace pcit::pir{
 				this->printer.print("]");
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
-				const GlobalVar::Struct& struct_value = this->module.getGlobalStruct(value);
+				const GlobalVar::Struct& struct_value = this->get_module().getGlobalStruct(value);
 
 				this->printer.print("{");
 				for(size_t i = 0; const GlobalVar::Value& struct_elem : struct_value.values){
@@ -376,7 +375,7 @@ namespace pcit::pir{
 			case Type::Kind::Ptr:      { this->printer.printCyan("Ptr");                   } break;
 
 			case Type::Kind::Array: {
-				const ArrayType& array_type = this->module.getArrayType(type);
+				const ArrayType& array_type = this->get_module().getArrayType(type);
 
 				printer.print("[");
 				this->print_type(array_type.elemType);
@@ -386,7 +385,7 @@ namespace pcit::pir{
 			} break;
 
 			case Type::Kind::Struct: {
-				const StructType& struct_type = this->module.getStructType(type);
+				const StructType& struct_type = this->get_module().getStructType(type);
 				
 				printer.print("&{}", struct_type.name);
 			} break;
@@ -403,7 +402,7 @@ namespace pcit::pir{
 			case Expr::Kind::None: evo::debugFatalBreak("Not valid expr");
 
 			case Expr::Kind::Number: {
-				const Number& number = ReaderAgent(this->module).getNumber(expr);
+				const Number& number = this->reader.getNumber(expr);
 				this->print_type(number.type);
 				this->printer.print("(");
 				if(number.type.isIntegral()){
@@ -416,21 +415,23 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::Boolean: {
-				this->printer.printMagenta(evo::boolStr(ReaderAgent::getBoolean(expr)));
+				this->printer.printMagenta(evo::boolStr(this->reader.getBoolean(expr)));
 			} break;
 
 			case Expr::Kind::GlobalValue: {
-				const GlobalVar& global_var = ReaderAgent(this->module).getGlobalValue(expr);
+				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
 				this->printer.print("${}", global_var.name);
 			} break;
 
 			case Expr::Kind::ParamExpr: {
-				const ParamExpr param_expr = ReaderAgent::getParamExpr(expr);
-				this->printer.print("${}", this->func->getParameters()[param_expr.index].getName());
+				const ParamExpr param_expr = this->reader.getParamExpr(expr);
+				this->printer.print(
+					"${}", this->get_current_func().getParameters()[param_expr.index].getName()
+				);
 			} break;
 
 			case Expr::Kind::Call: {
-				const Call& call_inst = ReaderAgent(this->module, *this->func).getCall(expr);
+				const Call& call_inst = this->reader.getCall(expr);
 				this->printer.print("${}", call_inst.name);
 			} break;
 
@@ -439,31 +440,36 @@ namespace pcit::pir{
 			case Expr::Kind::Branch: evo::debugFatalBreak("Expr::Kind::Branch is not a valid expression");
 
 			case Expr::Kind::Alloca: {
-				const Alloca& alloca = ReaderAgent(this->module, *this->func).getAlloca(expr);
+				const Alloca& alloca = this->reader.getAlloca(expr);
 				this->printer.print("${}", alloca.name);
 			} break;
 
 			case Expr::Kind::Load: {
-				const Load& load = ReaderAgent(this->module, *this->func).getLoad(expr);
+				const Load& load = this->reader.getLoad(expr);
 				this->printer.print("${}", load.name);
 			} break;
 
 			case Expr::Kind::Store: evo::debugFatalBreak("Expr::Kind::Store is not a valid expression");
 
+			case Expr::Kind::CalcPtr: {
+				const CalcPtr& calc_ptr = this->reader.getCalcPtr(expr);
+				this->printer.print("${}", calc_ptr.name);
+			} break;
+
 			case Expr::Kind::Add: {
-				const Add& add = ReaderAgent(this->module, *this->func).getAdd(expr);
+				const Add& add = this->reader.getAdd(expr);
 				this->printer.print("${}", add.name);
 			} break;
 
 			case Expr::Kind::AddWrap: evo::debugFatalBreak("Expr::Kind::AddWrap is not a valid expression");
 
 			case Expr::Kind::AddWrapResult: {
-				const AddWrap& add_wrap = ReaderAgent(this->module, *this->func).getAddWrap(expr);
+				const AddWrap& add_wrap = this->reader.getAddWrap(expr);
 				this->printer.print("${}", add_wrap.resultName);
 			} break;
 
 			case Expr::Kind::AddWrapWrapped: {
-				const AddWrap& add_wrap = ReaderAgent(this->module, *this->func).getAddWrap(expr);
+				const AddWrap& add_wrap = this->reader.getAddWrap(expr);
 				this->printer.print("${}", add_wrap.wrappedName);
 			} break;
 		}
@@ -480,7 +486,7 @@ namespace pcit::pir{
 			case Expr::Kind::ParamExpr:   evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
 
 			case Expr::Kind::Call: {
-				const Call& call_inst = ReaderAgent(this->module, *this->func).getCall(stmt);
+				const Call& call_inst = this->reader.getCall(stmt);
 
 				this->printer.print("{}${} ", tabs(2), call_inst.name);
 				this->printer.printRed("= ");
@@ -489,7 +495,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::CallVoid: {
-				const CallVoid& call_void_inst = ReaderAgent(this->module, *this->func).getCallVoid(stmt);
+				const CallVoid& call_void_inst = this->reader.getCallVoid(stmt);
 
 				this->printer.print(tabs(2));
 
@@ -497,7 +503,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::Ret: {
-				const Ret& ret_inst = ReaderAgent(this->module, *this->func).getRet(stmt);
+				const Ret& ret_inst = this->reader.getRet(stmt);
 
 				if(ret_inst.value.has_value()){
 					this->printer.printRed("{}@ret ", tabs(2));
@@ -510,8 +516,6 @@ namespace pcit::pir{
 
 
 			case Expr::Kind::Branch: {
-				auto reader = ReaderAgent(this->module, *this->func);
-
 				this->printer.printRed("{}@branch ", tabs(2));
 				const BasicBlock::ID basic_block_id = reader.getBranch(stmt).target;
 				this->printer.println("${}", reader.getBasicBlock(basic_block_id).getName());
@@ -520,7 +524,7 @@ namespace pcit::pir{
 			case Expr::Kind::Alloca: evo::debugFatalBreak("Expr::Kind::Alloca should not be printed through this func");
 
 			case Expr::Kind::Load: {
-				const Load& load = ReaderAgent(this->module, *this->func).getLoad(stmt);
+				const Load& load = this->reader.getLoad(stmt);
 
 				this->printer.print("{}${} ", tabs(2), load.name);
 				this->printer.printRed("= @load ");
@@ -533,7 +537,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::Store: {
-				const Store& store = ReaderAgent(this->module, *this->func).getStore(stmt);
+				const Store& store = this->reader.getStore(stmt);
 
 				this->printer.printRed("{}@store ", tabs(2));
 				this->print_expr(store.destination);
@@ -544,8 +548,30 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
+			case Expr::Kind::CalcPtr: {
+				const CalcPtr& calc_ptr = this->reader.getCalcPtr(stmt);
+
+				this->printer.print("{}${} ", tabs(2), calc_ptr.name);
+				this->printer.printRed("= @calcPtr ");
+				this->print_type(calc_ptr.ptrType);
+				this->printer.print(" ");
+				for(size_t i = 0; const CalcPtr::Index& index : calc_ptr.indices){
+					if(index.is<int64_t>()){
+						this->printer.printMagenta("{}", index.as<int64_t>());
+					}else{
+						this->print_expr(index.as<Expr>());
+					}
+
+					if(i + 1 < calc_ptr.indices.size()){
+						this->printer.print(", ");
+					}
+					i += 1;
+				}
+				this->printer.println();
+			} break;
+
 			case Expr::Kind::Add: {
-				const Add& add = ReaderAgent(this->module, *this->func).getAdd(stmt);
+				const Add& add = this->reader.getAdd(stmt);
 
 				this->printer.print("{}${} ", tabs(2), add.name);
 				this->printer.printRed("= @add ");
@@ -558,7 +584,7 @@ namespace pcit::pir{
 
 
 			case Expr::Kind::AddWrap: {
-				const AddWrap& add_wrap = ReaderAgent(this->module, *this->func).getAddWrap(stmt);
+				const AddWrap& add_wrap = this->reader.getAddWrap(stmt);
 
 				this->printer.print("{}${}, ${} ", tabs(2), add_wrap.resultName, add_wrap.wrappedName);
 				this->printer.printRed("= @addWrap ");
@@ -569,7 +595,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::AddWrapResult:  evo::debugFatalBreak("Expr::Kind::AddWrapResult is not a valid statement");
+			case Expr::Kind::AddWrapResult: evo::debugFatalBreak("Expr::Kind::AddWrapResult is not a valid statement");
 			case Expr::Kind::AddWrapWrapped:
 				evo::debugFatalBreak("Expr::Kind::AddWrapWrapped is not a valid statement");
 
@@ -587,7 +613,7 @@ namespace pcit::pir{
 			using ValueT = std::decay_t<decltype(target)>;
 
 			if constexpr(std::is_same_v<ValueT, Function::ID>){
-				const std::string_view name = this->module.getFunction(target).getName();
+				const std::string_view name = this->get_module().getFunction(target).getName();
 				if(isStandardName(name)){
 					this->printer.print("&{}", name);
 				}else{
@@ -596,7 +622,7 @@ namespace pcit::pir{
 				}
 
 			}else if constexpr(std::is_same_v<ValueT, FunctionDecl::ID>){
-				const std::string_view name = this->module.getFunctionDecl(target).name;
+				const std::string_view name = this->get_module().getFunctionDecl(target).name;
 
 				if(isStandardName(name)){
 					this->printer.print("&{}", name);

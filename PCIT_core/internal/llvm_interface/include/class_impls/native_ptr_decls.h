@@ -30,6 +30,7 @@ namespace llvm{
 	class FunctionType;
 	class IntegerType;
 	class PointerType;
+	class ArrayType;
 	class StructType;
 
 	// stmts

@@ -37,7 +37,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::Alloca:      return false;
 			case Expr::Kind::Load:        return false;
 			case Expr::Kind::Store:       return false;
-
+			case Expr::Kind::CalcPtr:     return false;
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
@@ -112,6 +112,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::Alloca:      return false;
 			case Expr::Kind::Load:        return false;
 			case Expr::Kind::Store:       return false;
+			case Expr::Kind::CalcPtr:     return false;
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);

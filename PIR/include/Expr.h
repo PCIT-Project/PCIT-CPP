@@ -39,6 +39,7 @@ namespace pcit::pir{
 				Alloca,
 				Load,
 				Store,
+				CalcPtr,
 
 				Add,
 				AddWrap,
@@ -54,9 +55,12 @@ namespace pcit::pir{
 			EVO_NODISCARD auto isValue() const -> bool {
 
                 switch(this->kind){
-					case Kind::Number:        case Kind::Boolean:        case Kind::GlobalValue: case Kind::ParamExpr:
-					case Kind::Call:          case Kind::Alloca:         case Kind::Load:        case Kind::Add:
-					case Kind::AddWrapResult: case Kind::AddWrapWrapped: return true;
+					case Kind::Number:        case Kind::Boolean:        case Kind::GlobalValue:
+					case Kind::ParamExpr:     case Kind::Call:           case Kind::Alloca:
+					case Kind::Load:          case Kind::CalcPtr:        case Kind::Add:
+					case Kind::AddWrapResult: case Kind::AddWrapWrapped: {
+						return true;
+					} break;
 					default: return false;
                 }
 			}
@@ -70,8 +74,10 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isStmt() const -> bool {
 				switch(this->kind){
-					case Kind::Call: case Kind::CallVoid: case Kind::Ret: case Kind::Branch:  case Kind::Alloca:
-					case Kind::Load: case Kind::Store:    case Kind::Add: case Kind::AddWrap: return true;
+					case Kind::Call: case Kind::CallVoid: case Kind::Ret:     case Kind::Branch:  case Kind::Alloca:
+					case Kind::Load: case Kind::Store:    case Kind::CalcPtr: case Kind::Add:     case Kind::AddWrap: {
+						return true;
+					} break;
 					default: return false;
 				}
 			}
@@ -232,6 +238,16 @@ namespace pcit::pir{
 		bool isVolatile;
 		AtomicOrdering atomicOrdering;
 	};
+
+	struct CalcPtr{
+		using Index = evo::Variant<Expr, int64_t>;
+
+		std::string name;
+		Type ptrType;
+		Expr basePtr;
+		evo::SmallVector<Index> indices;
+	};
+
 
 	struct Add{
 		std::string name;

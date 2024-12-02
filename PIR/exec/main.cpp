@@ -33,6 +33,13 @@
 #include <PIR.h>
 
 
+struct Config{
+	bool optimize = false;
+	bool print_assembly = false;
+} config;
+
+
+
 auto main(int argc, const char* argv[]) -> int {
 	auto args = std::vector<std::string_view>(argv, argv + argc);
 
@@ -99,7 +106,9 @@ auto main(int argc, const char* argv[]) -> int {
 		true
 	);
 
-	const pcit::pir::GlobalVar::String::ID global_str_value = module.createGlobalString("Hello World, I'm PIR!");
+	const pcit::pir::GlobalVar::String::ID global_str_value = module.createGlobalString(
+		"[NOT PRINTED] Hello World, I'm PIR!"
+	);
 	const pcit::pir::GlobalVar::ID global_str = module.createGlobalVar(
 		"string", module.getGlobalString(global_str_value).type, pcit::pir::Linkage::Private, global_str_value, true
 	);
@@ -135,7 +144,6 @@ auto main(int argc, const char* argv[]) -> int {
 		module.createUnsignedType(64)
 	);
 	agent.setTargetFunction(entry_func_id);
-
 
 
 	const pcit::pir::BasicBlock::ID entry_block_id = agent.createBasicBlock();
@@ -178,7 +186,12 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.createBranch(second_block_id);
 	agent.setTargetBasicBlock(second_block_id);
 
-	agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{agent.createGlobalValue(global_str)});
+
+	pcit::pir::Expr str_ptr = agent.createCalcPtr(
+		agent.createGlobalValue(global_str), module.getGlobalString(global_str_value).type, {0, 14}
+	);
+
+	agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{str_ptr});
 	// agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
 	agent.createRet(agent.extractAddWrapResult(add3));
@@ -188,33 +201,38 @@ auto main(int argc, const char* argv[]) -> int {
 
 	pcit::pir::printModule(module, printer);
 
+	if(config.optimize){
+		printer.printlnGray("--------------------------------");
 
-	printer.printlnGray("--------------------------------");
+		const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
+		// const unsigned num_threads = 0;
+		auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
-	const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
-	// const unsigned num_threads = 0;
-	auto pass_manager = pcit::pir::PassManager(module, num_threads);
+		pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
+		pass_manager.addPass(pcit::pir::passes::instCombine());
+		const bool opt_result = pass_manager.run();
+		if(opt_result == false){
+			printer.printlnError("Error occured while running pass");
+			return EXIT_FAILURE;
+		}
 
-	pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
-	pass_manager.addPass(pcit::pir::passes::instCombine());
-	const bool opt_result = pass_manager.run();
-	if(opt_result == false){
-		printer.printlnError("Error occured while running pass");
-		return EXIT_FAILURE;
+		pcit::pir::printModule(module, printer);		
 	}
 
-	pcit::pir::printModule(module, printer);
 
-
-
-	printer.printlnGray("--------------------------------");
-
-	printer.printlnCyan(pcit::pir::lowerToLLVMIR(module, pcit::pir::OptMode::O3));
+	const pcit::pir::OptMode opt_mode = config.optimize ? pcit::pir::OptMode::O3 : pcit::pir::OptMode::None;
 
 
 	printer.printlnGray("--------------------------------");
 
-	printer.printlnCyan(pcit::pir::lowerToAssembly(module, pcit::pir::OptMode::O3).value());
+	printer.printlnCyan(pcit::pir::lowerToLLVMIR(module, opt_mode));
+
+
+	if(config.print_assembly){
+		printer.printlnGray("--------------------------------");
+
+		printer.printlnCyan(pcit::pir::lowerToAssembly(module, opt_mode).value());
+	}
 
 
 	printer.printlnGray("--------------------------------");
@@ -224,8 +242,6 @@ auto main(int argc, const char* argv[]) -> int {
 	jit_engine.init(module);
 
 
-
-	
 	jit_engine.registerFunction(print_hello_decl, [](const char* msg) -> void {
 		evo::printlnYellow("Message: \"{}\"", msg);
 	});

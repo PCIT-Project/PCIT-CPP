@@ -168,6 +168,11 @@ namespace pcit::llvmint{
 			) -> Value;
 
 
+			EVO_NODISCARD auto createGetElementPtr(
+				const Type& type, const Value& value, evo::ArrayProxy<Value> indices, evo::CStrProxy name = '\0'
+			) -> Value;
+
+
 			///////////////////////////////////
 			// operators
 
@@ -303,6 +308,8 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getFuncProto(
 				const Type& return_type, evo::ArrayProxy<Type> params, bool is_var_args
 			) const -> FunctionType;
+
+			EVO_NODISCARD auto getArrayType(const Type& elem_type, uint64_t length) const -> ArrayType;
 
 			EVO_NODISCARD auto getStructType(evo::ArrayProxy<Type> members) -> StructType;
 			EVO_NODISCARD auto createStructType(

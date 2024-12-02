@@ -256,6 +256,18 @@ namespace pcit::llvmint{
 	}
 
 
+	auto IRBuilder::createGetElementPtr(
+		const Type& type, const Value& value, evo::ArrayProxy<Value> indices, evo::CStrProxy name
+	) -> Value {
+		return Value(
+			this->builder->CreateGEP(
+				type.native(), value.native(), createArrayRef<llvm::Value>(indices), name.c_str(), true
+			)
+		);
+	}
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// operators
 
@@ -579,6 +591,11 @@ namespace pcit::llvmint{
 			llvm::FunctionType::get(return_type.native(), createArrayRef<llvm::Type>(params), is_var_args)
 		);
 	};
+
+
+	auto IRBuilder::getArrayType(const Type& elem_type, uint64_t length) const -> ArrayType {
+		return ArrayType(llvm::ArrayType::get(elem_type.native(), length));
+	}
 
 
 	auto IRBuilder::getStructType(evo::ArrayProxy<Type> members) -> StructType {

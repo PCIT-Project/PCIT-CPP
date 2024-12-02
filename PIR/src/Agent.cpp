@@ -185,6 +185,18 @@ namespace pcit::pir{
 						if(store.destination == original){ store.destination = replacement; }
 						if(store.value == original){ store.value = replacement; }
 					} break;
+
+					case Expr::Kind::CalcPtr: {
+						CalcPtr& calc_ptr = this->module.calc_ptrs[stmt.index];
+
+						if(calc_ptr.basePtr == original){
+							calc_ptr.basePtr = replacement;
+						}else{
+							for(CalcPtr::Index& index : calc_ptr.indices){
+								if(index.is<Expr>() && index.as<Expr>() == original){ index.as<Expr>() = replacement; }
+							}
+						}
+					} break;
 					
 					case Expr::Kind::Add: {
 						Add& add = this->module.adds[stmt.index];
@@ -664,6 +676,76 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// store
+
+
+	EVO_NODISCARD auto Agent::createCalcPtr(
+		const Expr& base_ptr, const Type& ptr_type, evo::SmallVector<CalcPtr::Index>&& indices, std::string&& name
+	) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(this->getExprType(base_ptr).getKind() == Type::Kind::Ptr, "Base ptr must be of type Ptr");
+		evo::debugAssert(!indices.empty(), "There must be at least one index");
+		#if defined(PCIT_CONFIG_DEBUG)
+			Type target_type = ptr_type;
+			
+			for(size_t i = 1; i < indices.size(); i+=1){
+				const CalcPtr::Index& index = indices[i];
+
+				evo::debugAssert(target_type.isAggregate(), "ptr type must be an aggregate type");
+				evo::debugAssert(
+					index.is<int64_t>() || this->getExprType(index.as<Expr>()).isIntegral(), "Index must be integral"
+				);
+
+				if(target_type.getKind() == Type::Kind::Array){
+					const ArrayType& array_type = this->module.getArrayType(target_type);
+
+					if(index.is<int64_t>()){
+						evo::debugAssert(
+							index.as<int64_t>() >= 0 && size_t(index.as<int64_t>()) < array_type.length,
+							"indexing into an array must be a valid index"
+						);
+						
+					}else if(index.as<Expr>().getKind() == Expr::Kind::Number){
+						const int64_t member_index = static_cast<int64_t>(this->getNumber(index.as<Expr>()).getInt());
+						evo::debugAssert(
+							member_index >= 0 && size_t(member_index) < array_type.length,
+							"indexing into an array must be a valid index"
+						);
+					}
+
+					target_type = array_type.elemType;
+
+				}else{
+					evo::debugAssert(index.is<int64_t>(), "Cannot index into a struct with a pcit::pir::Expr");
+
+					const StructType& struct_type = this->module.getStructType(target_type);
+
+					evo::debugAssert(
+						index.as<int64_t>() >= 0 && size_t(index.as<int64_t>()) < struct_type.members.size(),
+						"indexing into a struct must be a valid member index"
+					);
+					target_type = struct_type.members[size_t(index.as<int64_t>())];
+				}
+			}
+		#endif
+
+		const auto new_stmt = Expr(
+			Expr::Kind::CalcPtr,
+			this->module.calc_ptrs.emplace_back(
+				this->get_stmt_name(std::move(name)), ptr_type, base_ptr, std::move(indices)
+			)
+		);
+		this->insert_stmt(new_stmt);
+		return new_stmt;
+	}
+
+	EVO_NODISCARD auto Agent::getCalcPtr(const Expr& expr) const -> const CalcPtr& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getCalcPtr(expr);
+	}
+	
+
+
+	//////////////////////////////////////////////////////////////////////
 	// add
 
 	auto Agent::createAdd(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name) const -> Expr {
@@ -754,6 +836,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::Alloca:         this->target_func->allocas.erase(expr.index);
 			break; case Expr::Kind::Load:           this->module.loads.erase(expr.index);
 			break; case Expr::Kind::Store:          this->module.stores.erase(expr.index);
+			break; case Expr::Kind::CalcPtr:        this->module.calc_ptrs.erase(expr.index);
 			break; case Expr::Kind::Add:            this->module.adds.erase(expr.index);
 			break; case Expr::Kind::AddWrap:        this->module.add_wraps.erase(expr.index);
 			break; case Expr::Kind::AddWrapResult:  return;
@@ -792,6 +875,7 @@ namespace pcit::pir{
 					case Expr::Kind::Alloca:      if(this->getAlloca(stmt).name == name){ return true; } continue;
 					case Expr::Kind::Load:        if(this->getLoad(stmt).name == name){ return true; } continue;
 					case Expr::Kind::Store:       continue;
+					case Expr::Kind::CalcPtr:     if(this->getCalcPtr(stmt).name == name){ return true; } continue;
 					case Expr::Kind::Add:         if(this->getAdd(stmt).name == name){ return true; } continue;
 					case Expr::Kind::AddWrap: {
 						const AddWrap& add_wrap = this->getAddWrap(stmt);
