@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.67.0
+
+### PIR
+- Added `@breakpoint` instruction
+- Added `@unreachable` instruction
+- Added `@condBranch` instruction
+
+
+<!---------------------------------->
 ## v0.0.66.0
 
 ### PIR

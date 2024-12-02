@@ -29,7 +29,7 @@ namespace pcit::pir::passes{
 		using FuncMetadata = std::unordered_set<Expr>;
 		auto metadata = std::unordered_map<Function*, FuncMetadata>();
 
-		auto impl = [metadata](Expr stmt, const Agent& agent) mutable -> bool {
+		auto impl = [metadata](Expr stmt, const Agent& agent) mutable -> PassManager::MadeTransformation {
 			FuncMetadata& func_metadata = [&]() -> FuncMetadata& {
 				auto func_metadata_iter = metadata.find(&agent.getTargetFunction());
 
@@ -49,8 +49,11 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::ParamExpr:      break;
 					break; case Expr::Kind::Call:           func_metadata.emplace(expr);
 					break; case Expr::Kind::CallVoid:       evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Breakpoint:     evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::Ret:            evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::Branch:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::CondBranch:     evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Unreachable:    evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::Alloca:         func_metadata.emplace(expr);
 					break; case Expr::Kind::Load:           func_metadata.emplace(expr);
 					break; case Expr::Kind::Store:          evo::debugFatalBreak("Should never see this expr kind");
@@ -103,6 +106,8 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
+				case Expr::Kind::Breakpoint: return false;
+
 				case Expr::Kind::Ret: {
 					const Ret& ret_inst = agent.getRet(stmt);
 
@@ -113,7 +118,9 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::Branch: return false;
+				case Expr::Kind::Branch:      return false;
+				case Expr::Kind::CondBranch:  return false;
+				case Expr::Kind::Unreachable: return false;
 
 				case Expr::Kind::Alloca: {
 					if(func_metadata.contains(stmt) == false){

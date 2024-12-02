@@ -23,7 +23,7 @@
 namespace pcit::pir::passes{
 	
 
-	auto constant_folding_impl(Expr stmt, const Agent& agent) -> bool {
+	auto constant_folding_impl(Expr stmt, const Agent& agent) -> PassManager::MadeTransformation {
 		switch(stmt.getKind()){
 			case Expr::Kind::None:        evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue: return false;
@@ -32,8 +32,11 @@ namespace pcit::pir::passes{
 			case Expr::Kind::ParamExpr:   return false;
 			case Expr::Kind::Call:        return false;
 			case Expr::Kind::CallVoid:    return false;
+			case Expr::Kind::Breakpoint:  return false;
 			case Expr::Kind::Ret:         return false;
 			case Expr::Kind::Branch:      return false;
+			case Expr::Kind::CondBranch:  return false;
+			case Expr::Kind::Unreachable: return false;
 			case Expr::Kind::Alloca:      return false;
 			case Expr::Kind::Load:        return false;
 			case Expr::Kind::Store:       return false;
@@ -98,7 +101,7 @@ namespace pcit::pir::passes{
 	}
 
 
-	auto inst_simplify_impl(Expr stmt, const Agent& agent) -> bool {
+	auto inst_simplify_impl(Expr stmt, const Agent& agent) -> PassManager::MadeTransformation {
 		switch(stmt.getKind()){
 			case Expr::Kind::None:        evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue: return false;
@@ -107,8 +110,29 @@ namespace pcit::pir::passes{
 			case Expr::Kind::ParamExpr:   return false;
 			case Expr::Kind::Call:        return false;
 			case Expr::Kind::CallVoid:    return false;
+			case Expr::Kind::Breakpoint:  return false;
 			case Expr::Kind::Ret:         return false;
 			case Expr::Kind::Branch:      return false;
+
+			case Expr::Kind::CondBranch: {
+				const CondBranch& cond_branch = agent.getCondBranch(stmt);
+
+				if(cond_branch.cond.getKind() != Expr::Kind::Boolean){ return false; }
+
+				if(agent.getBoolean(cond_branch.cond)){
+					const BasicBlock::ID then_block = cond_branch.thenBlock;
+					agent.removeStmt(stmt);
+					agent.createBranch(then_block);
+				}else{
+					const BasicBlock::ID else_block = cond_branch.elseBlock;
+					agent.removeStmt(stmt);
+					agent.createBranch(else_block);
+				}
+
+				return true;
+			} break;
+
+			case Expr::Kind::Unreachable: return false;
 			case Expr::Kind::Alloca:      return false;
 			case Expr::Kind::Load:        return false;
 			case Expr::Kind::Store:       return false;
@@ -176,7 +200,7 @@ namespace pcit::pir::passes{
 	}
 
 
-	auto inst_combine_impl(Expr, const Agent&) -> bool {
+	auto inst_combine_impl(Expr, const Agent&) -> PassManager::MadeTransformation {
 		return false;
 	}
 

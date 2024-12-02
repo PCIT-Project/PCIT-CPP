@@ -33,8 +33,12 @@ namespace pcit::pir{
 				// stmts
 				Call,
 				CallVoid, // is separated from Call to allow for Expr::isValue()
+				Breakpoint,
+
 				Ret,
 				Branch,
+				CondBranch,
+				Unreachable,
 
 				Alloca,
 				Load,
@@ -74,8 +78,10 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isStmt() const -> bool {
 				switch(this->kind){
-					case Kind::Call: case Kind::CallVoid: case Kind::Ret:     case Kind::Branch:  case Kind::Alloca:
-					case Kind::Load: case Kind::Store:    case Kind::CalcPtr: case Kind::Add:     case Kind::AddWrap: {
+					case Kind::Call:   case Kind::CallVoid:    case Kind::Breakpoint:  case Kind::Ret:
+					case Kind::Branch: case Kind::CondBranch:  case Kind::Unreachable: case Kind::Alloca:
+					case Kind::Load:   case Kind::Store:       case Kind::CalcPtr:     case Kind::Add:
+					case Kind::AddWrap: {
 						return true;
 					} break;
 					default: return false;
@@ -91,7 +97,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isTerminator() const -> bool {
 				switch(this->kind){
-					case Kind::Ret: case Kind::Branch: return true;
+					case Kind::Ret: case Kind::Branch: case Kind::CondBranch: case Kind::Unreachable: return true;
 					default: return false;
 				}
 			}
@@ -216,6 +222,12 @@ namespace pcit::pir{
 
 	struct Branch{
 		BasicBlockID target;
+	};
+
+	struct CondBranch{
+		Expr cond;
+		BasicBlockID thenBlock;
+		BasicBlockID elseBlock;
 	};
 
 	struct Alloca{

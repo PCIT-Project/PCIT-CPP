@@ -58,8 +58,11 @@ namespace pcit::pir{
 				});
 			} break;
 			case Expr::Kind::CallVoid:       evo::unreachable();
+			case Expr::Kind::Breakpoint:     evo::unreachable();
 			case Expr::Kind::Ret:            evo::unreachable();
 			case Expr::Kind::Branch:         evo::unreachable();
+			case Expr::Kind::CondBranch:     evo::unreachable();
+			case Expr::Kind::Unreachable:    evo::unreachable();
 			case Expr::Kind::Alloca:         return this->module.createPtrType();
 			case Expr::Kind::Load:           return this->getLoad(expr).type;
 			case Expr::Kind::Store:          evo::unreachable();
@@ -134,6 +137,13 @@ namespace pcit::pir{
 		return Branch(BasicBlock::ID(expr.index));
 	}
 
+
+	auto ReaderAgent::getCondBranch(const Expr& expr) const -> const CondBranch& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::CondBranch, "Not an cond branch");
+
+		return this->module.cond_branches[expr.index];
+	}
 
 
 	auto ReaderAgent::getAlloca(const Expr& expr) const -> const Alloca& {

@@ -128,7 +128,7 @@ namespace pcit::pir{
 						basic_block_saved_size = new_size;
 
 					}else if(new_size == basic_block_saved_size){ // replacement
-						// do nothing...
+						i += 1;
 
 					}else{ // addition
 						i += basic_block_saved_size - new_size + 1;

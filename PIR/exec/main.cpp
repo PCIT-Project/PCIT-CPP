@@ -34,7 +34,7 @@
 
 
 struct Config{
-	bool optimize = false;
+	bool optimize = true;
 	bool print_assembly = false;
 } config;
 
@@ -183,7 +183,7 @@ auto main(int argc, const char* argv[]) -> int {
 	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
 	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock();
-	agent.createBranch(second_block_id);
+	agent.createCondBranch(agent.createBoolean(true), second_block_id, entry_block_id);
 	agent.setTargetBasicBlock(second_block_id);
 
 

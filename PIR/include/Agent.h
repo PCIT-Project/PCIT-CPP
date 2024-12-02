@@ -168,6 +168,12 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// breakpoint
+
+			auto createBreakpoint() const -> Expr;
+
+
+			///////////////////////////////////
 			// ret instructions
 
 			auto createRet(const Expr& expr) const -> Expr;
@@ -180,6 +186,19 @@ namespace pcit::pir{
 
 			auto createBranch(BasicBlock::ID basic_block_id) const -> Expr;
 			EVO_NODISCARD static auto getBranch(const Expr& expr) -> Branch;
+
+
+			///////////////////////////////////
+			// condiitonal branch instructions
+
+			auto createCondBranch(const Expr& cond, BasicBlock::ID then_block, BasicBlock::ID else_block) const -> Expr;
+			EVO_NODISCARD auto getCondBranch(const Expr& expr) const -> CondBranch;
+
+
+			///////////////////////////////////
+			// unreachable
+
+			auto createUnreachable() const -> Expr;
 
 
 			///////////////////////////////////

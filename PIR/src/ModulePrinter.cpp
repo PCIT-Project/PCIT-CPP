@@ -435,9 +435,12 @@ namespace pcit::pir{
 				this->printer.print("${}", call_inst.name);
 			} break;
 
-			case Expr::Kind::CallVoid: evo::debugFatalBreak("Expr::Kind::CallVoid is not a valid expression");
-			case Expr::Kind::Ret: evo::debugFatalBreak("Expr::Kind::Ret is not a valid expression");
-			case Expr::Kind::Branch: evo::debugFatalBreak("Expr::Kind::Branch is not a valid expression");
+			case Expr::Kind::CallVoid:    evo::debugFatalBreak("Expr::Kind::CallVoid is not a valid expression");
+			case Expr::Kind::Breakpoint:  evo::debugFatalBreak("Expr::Kind::Breakpoint is not a valid expression");
+			case Expr::Kind::Ret:         evo::debugFatalBreak("Expr::Kind::Ret is not a valid expression");
+			case Expr::Kind::Branch:      evo::debugFatalBreak("Expr::Kind::Branch is not a valid expression");
+			case Expr::Kind::CondBranch:  evo::debugFatalBreak("Expr::Kind::CondBranch is not a valid expression");
+			case Expr::Kind::Unreachable: evo::debugFatalBreak("Expr::Kind::Unreachable is not a valid expression");
 
 			case Expr::Kind::Alloca: {
 				const Alloca& alloca = this->reader.getAlloca(expr);
@@ -502,6 +505,10 @@ namespace pcit::pir{
 				this->print_function_call_impl(call_void_inst.target, call_void_inst.args);
 			} break;
 
+			case Expr::Kind::Breakpoint: {
+				this->printer.printlnRed("{}@breakpoint", tabs(2));
+			} break;
+
 			case Expr::Kind::Ret: {
 				const Ret& ret_inst = this->reader.getRet(stmt);
 
@@ -519,6 +526,22 @@ namespace pcit::pir{
 				this->printer.printRed("{}@branch ", tabs(2));
 				const BasicBlock::ID basic_block_id = reader.getBranch(stmt).target;
 				this->printer.println("${}", reader.getBasicBlock(basic_block_id).getName());
+			} break;
+
+			case Expr::Kind::CondBranch: {
+				const CondBranch& cond_branch = this->reader.getCondBranch(stmt);
+
+				this->printer.printRed("{}@condBranch ", tabs(2));
+				this->print_expr(cond_branch.cond);
+				this->printer.println(
+					", ${}, ${}", 
+					reader.getBasicBlock(cond_branch.thenBlock).getName(),
+					reader.getBasicBlock(cond_branch.elseBlock).getName()
+				);
+			} break;
+
+			case Expr::Kind::Unreachable: {
+				this->printer.printlnRed("{}@unreachable", tabs(2));
 			} break;
 
 			case Expr::Kind::Alloca: evo::debugFatalBreak("Expr::Kind::Alloca should not be printed through this func");
@@ -557,7 +580,10 @@ namespace pcit::pir{
 				this->printer.print(" ");
 				for(size_t i = 0; const CalcPtr::Index& index : calc_ptr.indices){
 					if(index.is<int64_t>()){
+						this->printer.printCyan("UI64");
+						this->printer.print("(");
 						this->printer.printMagenta("{}", index.as<int64_t>());
+						this->printer.print(")");
 					}else{
 						this->print_expr(index.as<Expr>());
 					}

@@ -259,6 +259,12 @@ namespace pcit::pir{
 						});
 					} break;
 
+					case Expr::Kind::Breakpoint: {
+						this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::debugtrap, this->builder.getTypeVoid(), nullptr
+						);
+					} break;
+
 					case Expr::Kind::Ret: {
 						const Ret& ret = this->reader.getRet(stmt);
 						if(ret.value.has_value()){
@@ -271,6 +277,19 @@ namespace pcit::pir{
 					case Expr::Kind::Branch: {
 						const Branch& branch = this->reader.getBranch(stmt);
 						this->builder.createBranch(basic_block_map.at(branch.target));
+					} break;
+
+					case Expr::Kind::CondBranch: {
+						const CondBranch& branch = this->reader.getCondBranch(stmt);
+						this->builder.createCondBranch(
+							this->get_value(branch.cond),
+							basic_block_map.at(branch.thenBlock),
+							basic_block_map.at(branch.elseBlock)
+						);
+					} break;
+
+					case Expr::Kind::Unreachable: {
+						this->builder.createUnreachable();
 					} break;
 
 					case Expr::Kind::Alloca: evo::debugFatalBreak("Not a valid stmt");
@@ -550,9 +569,12 @@ namespace pcit::pir{
 				return this->stmt_values.at(expr);
 			} break;
 
-			case Expr::Kind::CallVoid: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::Ret: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::Branch: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::CallVoid:    evo::debugFatalBreak("Not a value");
+			case Expr::Kind::Breakpoint:  evo::debugFatalBreak("Not a value");
+			case Expr::Kind::Ret:         evo::debugFatalBreak("Not a value");
+			case Expr::Kind::Branch:      evo::debugFatalBreak("Not a value");
+			case Expr::Kind::CondBranch:  evo::debugFatalBreak("Not a value");
+			case Expr::Kind::Unreachable: evo::debugFatalBreak("Not a value");
 
 			case Expr::Kind::Alloca: {
 				const Alloca& alloca_info = this->reader.getAlloca(expr);

@@ -161,7 +161,9 @@ namespace pcit::pir{
 							if(arg == original){ arg = replacement; }
 						}
 					} break;
-					
+
+					case Expr::Kind::Breakpoint: continue;
+	
 					case Expr::Kind::Ret: {
 						Ret& ret_inst = this->module.rets[stmt.index];
 
@@ -171,7 +173,15 @@ namespace pcit::pir{
 					} break;
 					
 					case Expr::Kind::Branch: continue;
-					case Expr::Kind::Alloca: continue;
+
+					case Expr::Kind::CondBranch: {
+						CondBranch& cond_branch = this->module.cond_branches[stmt.index];
+
+						if(cond_branch.cond == original){ cond_branch.cond = replacement; }
+					} break;
+
+					case Expr::Kind::Unreachable: continue;
+					case Expr::Kind::Alloca:      continue;
 
 					case Expr::Kind::Load: {
 						Load& load = this->module.loads[stmt.index];
@@ -565,6 +575,16 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// breakpoint
+
+	auto Agent::createBreakpoint() const -> Expr {
+		const auto new_expr = Expr(Expr::Kind::Breakpoint);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
 	// ret instructions
 
 	auto Agent::createRet(const Expr& expr) const -> Expr {
@@ -608,6 +628,35 @@ namespace pcit::pir{
 
 	auto Agent::getBranch(const Expr& expr) -> Branch {
 		return ReaderAgent::getBranch(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// conditional branch instructions
+
+	auto Agent::createCondBranch(const Expr& cond, BasicBlock::ID then_block, BasicBlock::ID else_block) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(this->getExprType(cond).getKind() == Type::Kind::Bool, "Cond must be of type Bool");
+
+		const auto new_expr = Expr(
+			Expr::Kind::CondBranch, this->module.cond_branches.emplace_back(cond, then_block, else_block)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getCondBranch(const Expr& expr) const -> CondBranch {
+		return ReaderAgent(this->module, this->getTargetFunction()).getCondBranch(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// unreachable
+
+	auto Agent::createUnreachable() const -> Expr {
+		const auto new_expr = Expr(Expr::Kind::Unreachable);
+		this->insert_stmt(new_expr);
+		return new_expr;
 	}
 
 
@@ -831,8 +880,11 @@ namespace pcit::pir{
 			break; case Expr::Kind::ParamExpr:      return;
 			break; case Expr::Kind::Call:           this->module.calls.erase(expr.index);
 			break; case Expr::Kind::CallVoid:       this->module.call_voids.erase(expr.index);
+			break; case Expr::Kind::Breakpoint:     return;
 			break; case Expr::Kind::Ret:            this->module.rets.erase(expr.index);
 			break; case Expr::Kind::Branch:         return;
+			break; case Expr::Kind::CondBranch:     this->module.cond_branches.erase(expr.index);
+			break; case Expr::Kind::Unreachable:    return;
 			break; case Expr::Kind::Alloca:         this->target_func->allocas.erase(expr.index);
 			break; case Expr::Kind::Load:           this->module.loads.erase(expr.index);
 			break; case Expr::Kind::Store:          this->module.stores.erase(expr.index);
@@ -870,8 +922,11 @@ namespace pcit::pir{
 					case Expr::Kind::ParamExpr:   continue;
 					case Expr::Kind::Call:        if(this->getCall(stmt).name == name){ return true; } continue;
 					case Expr::Kind::CallVoid:    continue;
+					case Expr::Kind::Breakpoint:  continue;
 					case Expr::Kind::Ret:         continue;
 					case Expr::Kind::Branch:      continue;
+					case Expr::Kind::CondBranch:  continue;
+					case Expr::Kind::Unreachable: continue;
 					case Expr::Kind::Alloca:      if(this->getAlloca(stmt).name == name){ return true; } continue;
 					case Expr::Kind::Load:        if(this->getLoad(stmt).name == name){ return true; } continue;
 					case Expr::Kind::Store:       continue;
