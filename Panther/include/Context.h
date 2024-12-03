@@ -40,6 +40,9 @@ namespace pcit::panther{
 
 			struct Config{
 				fs::path basePath;
+
+				core::OS os             = core::getCurrentOS();
+				core::Architecture arch = core::getCurrentArchitecture();
 				
 				bool addSourceLocations = true;
 				bool checkedMath        = true;
@@ -82,6 +85,7 @@ namespace pcit::panther{
 			auto parseLoadedFiles() -> void;
 			auto semanticAnalysisLoadedFiles() -> void;
 
+			EVO_NODISCARD auto printPIR() -> bool;
 			EVO_NODISCARD auto printLLVMIR(bool add_runtime) -> evo::Result<std::string>;
 			EVO_NODISCARD auto run() -> evo::Result<uint8_t>;
 

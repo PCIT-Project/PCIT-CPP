@@ -234,7 +234,7 @@ project("PLNK_lib").group = "Libs"
 project("PCIT_llvm_interface").group = "Libs"
 
 project("pthr").group = "Executables"
-project("PIRC").group = "Executables"
+project("pirc").group = "Executables"
 
 
 

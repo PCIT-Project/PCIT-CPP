@@ -39,6 +39,21 @@ struct Config{
 } config;
 
 
+auto print_title(pcit::core::Printer& printer) -> void {
+	// https://www.asciiart.eu/text-to-ascii-art
+	// modified from the `Slant` font with the `Fitted` horizontal layout
+
+	printer.printlnCyan(R"(            _            
+    ____   (_)_____ _____
+   / __ \ / // ___// ___/
+  / /_/ // // /   / /__  (PCIT Intermediate Representation Compiler)
+ / ____//_//_/    \___/  
+/_/)");
+
+	printer.printlnGray("--------------------------------------------------------------------");
+}
+
+
 
 auto main(int argc, const char* argv[]) -> int {
 	auto args = std::vector<std::string_view>(argv, argv + argc);
@@ -55,8 +70,7 @@ auto main(int argc, const char* argv[]) -> int {
 	const bool print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes;
 	auto printer = pcit::core::Printer::createConsole(print_color);
 
-	printer.printlnCyan("PIRC");
-	printer.printlnGray("TESTING...");
+	print_title(printer);
 
 	#if defined(PCIT_BUILD_DEBUG)
 		printer.printlnMagenta("v{} (debug)", pcit::core::version);

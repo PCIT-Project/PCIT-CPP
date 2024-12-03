@@ -44,8 +44,9 @@ namespace panther = pcit::panther;
 struct Config{
 	enum class Target{
 		Run,
-		LLVMIR,
-		PrintLLVMIR,
+		LLVMIR,      // not guaranteed to remain
+		PrintLLVMIR, // not guaranteed to remain
+		PrintPIR,
 		SemanticAnalysis,
 		Parse,
 		PrintAST,
@@ -71,7 +72,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
 
 	auto config = Config{
-		.target      = Config::Target::PrintLLVMIR,
+		.target      = Config::Target::Run,
 		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
 
@@ -117,6 +118,7 @@ auto main(int argc, const char* argv[]) -> int {
 			break; case Config::Target::PrintAST:         printer.printlnMagenta("Target: PrintAST");
 			break; case Config::Target::Parse:            printer.printlnMagenta("Target: Parse");
 			break; case Config::Target::SemanticAnalysis: printer.printlnMagenta("Target: SemanticAnalysis");
+			break; case Config::Target::PrintPIR:         printer.printlnMagenta("Target: PrintPIR");
 			break; case Config::Target::PrintLLVMIR:      printer.printlnMagenta("Target: PrintLLVMIR");
 			break; case Config::Target::LLVMIR:           printer.printlnMagenta("Target: LLVMIR");
 			break; case Config::Target::Run:              printer.printlnMagenta("Target: Run");
@@ -335,6 +337,17 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	if(config.target == Config::Target::SemanticAnalysis){
+
+		return EXIT_SUCCESS;
+	}
+
+
+
+	///////////////////////////////////
+	// print PIR
+
+	if(config.target == Config::Target::PrintPIR){
+		if(context.printPIR() == false){ return EXIT_FAILURE; }
 
 		return EXIT_SUCCESS;
 	}

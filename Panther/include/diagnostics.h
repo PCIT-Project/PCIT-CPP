@@ -81,7 +81,7 @@ namespace pcit::panther{
 		SemaAssignmentDstGlobalInRuntimeFunc,
 		SemaAssignmentValueNotEphemeral,
 		SemaCopyExprNotConcrete,
-		SemaMoveExprNotConcrete,
+		SemaMoveInvalidValueType,
 		SemaReturnNotEphemeral,
 		SemaStmtAfterScopeTerminated,
 		SemaIncorrectReturnStmtKind,
@@ -203,7 +203,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaAssignmentDstGlobalInRuntimeFunc:     return "S";
 			break; case DiagnosticCode::SemaAssignmentValueNotEphemeral:          return "S";
 			break; case DiagnosticCode::SemaCopyExprNotConcrete:                  return "S";
-			break; case DiagnosticCode::SemaMoveExprNotConcrete:                  return "S";
+			break; case DiagnosticCode::SemaMoveInvalidValueType:                 return "S";
 			break; case DiagnosticCode::SemaReturnNotEphemeral:                   return "S";
 			break; case DiagnosticCode::SemaStmtAfterScopeTerminated:             return "S";
 			break; case DiagnosticCode::SemaIncorrectReturnStmtKind:              return "S";

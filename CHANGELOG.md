@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.68.0
+
+### Panther
+- Added printing PIR
+	- Not all features are completely supported
+- Added checking for moving a non-mutable value
+
+### pthr
+- Added the `PrintPIR` build target
+
+### PIR
+- Fixed fatal errors when lowering to LLVM-IR when multiple functions are defined
+
+### pirc
+- Added logo to output
+
+
+<!---------------------------------->
 ## v0.0.67.0
 
 ### PIR
@@ -20,8 +38,8 @@
 <!---------------------------------->
 ## v0.0.65.0
 
-### PLNK
-- Added the PLNK project. General project layout has been created
+### plnk
+- Added the plnk project. General project layout has been created
 - Added basic linking for Windows
 
 

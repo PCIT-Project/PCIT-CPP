@@ -176,7 +176,6 @@ namespace pcit::pir{
 	}
 
 
-
 	auto ReaderAgent::getAdd(const Expr& expr) const -> const Add& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(expr.getKind() == Expr::Kind::Add, "Not an add");

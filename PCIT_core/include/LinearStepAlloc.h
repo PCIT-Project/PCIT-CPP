@@ -95,8 +95,25 @@ namespace pcit::core{
 
 			class Iter{
 			    public:
-			        Iter(const ID& _index, LinearStepAlloc& _parent) : index(_index), parent(_parent) {};
+			    	using difference_type   = std::ptrdiff_t;
+			    	using value_type        = T;
+			    	using pointer           = const T*;
+			    	using reference         = const T&;
+
+			        Iter() : index(), parent(nullptr) {};
+			        Iter(const ID& _index, LinearStepAlloc& _parent) : index(_index), parent(&_parent) {};
 			        ~Iter() = default;
+
+			        Iter(const Iter&) = default;
+			        auto operator=(const Iter& rhs) -> Iter& {
+			        	std::construct_at(this, rhs);
+			        	return *this;
+			        };
+			        Iter(Iter&&) = default;
+			        auto operator=(Iter&& rhs) -> Iter& {
+			        	std::construct_at(this, std::move(rhs));
+			        	return *this;
+			        };
 
 
 			        auto operator++() -> Iter& {
@@ -130,8 +147,8 @@ namespace pcit::core{
 			        }
 
 
-			        EVO_NODISCARD auto operator*() const -> T& { return this->parent[this->index]; }
-			        EVO_NODISCARD auto operator->() const -> T* { return &this->parent[this->index]; }
+			        EVO_NODISCARD auto operator*() const -> T& { return this->parent->operator[](this->index); }
+			        EVO_NODISCARD auto operator->() const -> T* { return &this->parent->operator[](this->index); }
 
 			        EVO_NODISCARD auto operator==(const Iter& rhs) const -> bool {
 			        	return this->index == rhs.index;
@@ -142,14 +159,31 @@ namespace pcit::core{
 
 			    private:
 			    	ID index;
-			        LinearStepAlloc& parent;
+			        LinearStepAlloc* parent;
 			};
 
 
 			class ConstIter{
 			    public:
-			        ConstIter(const ID& _index, const LinearStepAlloc& _parent) : index(_index), parent(_parent) {};
+			    	using difference_type   = std::ptrdiff_t;
+			    	using value_type        = T;
+			    	using pointer           = const T*;
+			    	using reference         = const T&;
+
+			        ConstIter() : index(), parent(nullptr) {};
+			        ConstIter(const ID& _index, const LinearStepAlloc& _parent) : index(_index), parent(&_parent) {};
 			        ~ConstIter() = default;
+
+			        ConstIter(const ConstIter&) = default;
+			        auto operator=(const ConstIter& rhs) -> ConstIter& {
+			        	std::construct_at(this, rhs);
+			        	return *this;
+			        };
+			        ConstIter(ConstIter&&) = default;
+			        auto operator=(ConstIter&& rhs) -> ConstIter& {
+			        	std::construct_at(this, std::move(rhs));
+			        	return *this;
+			        };
 
 
 			        auto operator++() -> ConstIter& {
@@ -183,8 +217,8 @@ namespace pcit::core{
 			        }
 
 
-			        EVO_NODISCARD auto operator*() const -> const T& { return this->parent[this->index]; }
-			        EVO_NODISCARD auto operator->() const -> const T* { return &this->parent[this->index]; }
+			        EVO_NODISCARD auto operator*() const -> const T& { return this->parent->operator[](this->index); }
+			        EVO_NODISCARD auto operator->() const -> const T* { return &this->parent->operator[](this->index); }
 
 			        EVO_NODISCARD auto operator==(const ConstIter& rhs) const -> bool {
 			        	return this->index == rhs.index;
@@ -195,7 +229,7 @@ namespace pcit::core{
 
 			    private:
 			    	ID index;
-			        const LinearStepAlloc& parent;
+			        const LinearStepAlloc* parent;
 			};
 
 

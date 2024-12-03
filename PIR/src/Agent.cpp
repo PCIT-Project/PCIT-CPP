@@ -62,6 +62,13 @@ namespace pcit::pir{
 		this->insert_index = std::numeric_limits<size_t>::max();
 	}
 
+	auto Agent::setTargetBasicBlockAtEnd() -> void {
+		evo::debugAssert(this->hasTargetFunction(), "No target function is set");
+
+		this->setTargetBasicBlock(this->target_func->basic_blocks.back());
+	}
+
+
 	auto Agent::removeTargetBasicBlock() -> void {
 		this->target_basic_block = nullptr;
 		this->insert_index = std::numeric_limits<size_t>::max();
@@ -725,8 +732,7 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
-	// store
-
+	// calc ptr
 
 	EVO_NODISCARD auto Agent::createCalcPtr(
 		const Expr& base_ptr, const Type& ptr_type, evo::SmallVector<CalcPtr::Index>&& indices, std::string&& name
@@ -791,7 +797,7 @@ namespace pcit::pir{
 	EVO_NODISCARD auto Agent::getCalcPtr(const Expr& expr) const -> const CalcPtr& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCalcPtr(expr);
 	}
-	
+
 
 
 	//////////////////////////////////////////////////////////////////////

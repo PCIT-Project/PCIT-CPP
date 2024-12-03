@@ -32,7 +32,7 @@ project "*"
 
 
 
-project "PIRC"
+project "pirc"
 	kind "ConsoleApp"
 	-- staticruntime "On"
 	

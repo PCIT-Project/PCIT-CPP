@@ -116,6 +116,18 @@ namespace pcit::pir{
 			i += 1;
 		}
 
+
+		this->funcs.emplace(func.getName(), llvm_func);
+
+		return FuncLoweredSetup(func, llvm_func);
+	}
+
+
+	auto PIRToLLVMIR::lower_func_body(const Function& func, const llvmint::Function& llvm_func) -> void {
+		auto basic_block_map = std::unordered_map<BasicBlock::ID, llvmint::BasicBlock>();
+
+		this->reader.setTargetFunction(func);
+		
 		if(func.getAllocasRange().empty() == false){
 			const llvmint::BasicBlock setup_block = this->builder.createBasicBlock(llvm_func, "_ALLOCAS_");
 
@@ -129,17 +141,6 @@ namespace pcit::pir{
 				this->allocas.emplace(&alloca_info, llvm_alloca);
 			}
 		}
-
-		this->funcs.emplace(func.getName(), llvm_func);
-
-		return FuncLoweredSetup(func, llvm_func);
-	}
-
-
-	auto PIRToLLVMIR::lower_func_body(const Function& func, const llvmint::Function& llvm_func) -> void {
-		auto basic_block_map = std::unordered_map<BasicBlock::ID, llvmint::BasicBlock>();
-
-		this->reader.setTargetFunction(func);
 
 		for(const BasicBlock::ID basic_block_id : func){
 			const BasicBlock& basic_block = this->reader.getBasicBlock(basic_block_id);
@@ -399,6 +400,7 @@ namespace pcit::pir{
 				}
 			}
 		}
+
 
 		this->reader.clearTargetFunction();
 		this->stmt_values.clear();

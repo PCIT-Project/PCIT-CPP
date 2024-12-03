@@ -138,6 +138,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::Store:       return false;
 			case Expr::Kind::CalcPtr:     return false;
 
+
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
 

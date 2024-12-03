@@ -57,6 +57,7 @@ namespace pcit::pir{
 
 			auto setTargetBasicBlock(BasicBlock::ID id) -> void;
 			auto setTargetBasicBlock(BasicBlock& func) -> void;
+			auto setTargetBasicBlockAtEnd() -> void;
 			auto removeTargetBasicBlock() -> void;
 
 			EVO_NODISCARD auto hasTargetBasicBlock() const -> bool { return this->target_basic_block != nullptr; }

@@ -3649,20 +3649,20 @@ namespace pcit::panther{
 
 			case Token::Kind::KeywordMove: {
 				if(rhs_info.value().is_concrete() == false){
-					if(rhs_info.value().value_type == ExprInfo::ValueType::Function){
-						this->emit_error(
-							Diagnostic::Code::SemaMoveExprNotConcrete,
-							prefix.rhs,
-							"rhs of [move] expression cannot be a function",
-							Diagnostic::Info("To get a function pointer, use the address-of operator ([&])")
-						);
-					}else{
-						this->emit_error(
-							Diagnostic::Code::SemaMoveExprNotConcrete,
-							prefix.rhs,
-							"rhs of [move] expression must be concrete"
-						);
-					}
+					this->emit_error(
+						Diagnostic::Code::SemaMoveInvalidValueType,
+						prefix.rhs,
+						"rhs of [move] expression must be concrete"
+					);
+					return evo::resultError;
+				}
+
+				if(rhs_info.value().is_const()){
+					this->emit_error(
+						Diagnostic::Code::SemaMoveInvalidValueType,
+						prefix.rhs,
+						"rhs of [move] expression must be mutable"
+					);
 					return evo::resultError;
 				}
 

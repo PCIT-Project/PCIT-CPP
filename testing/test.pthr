@@ -1,11 +1,21 @@
 
+// func entry = () #entry -> UI8 {
+// 	var i: UInt = 0;
+// 	while(i < 4){
+// 		@_printHelloWorld();
+// 		i = i + 1;
+// 	}
+
+// 	return i as UI8;
+// }
+
+func test = (num: Int) -> Int {
+	var num_ptr: Int*| = &num;
+	return copy num_ptr.*;
+}
 
 func entry = () #entry -> UI8 {
-	var i: UInt = 0;
-	while(i < 4){
-		@_printHelloWorld();
-		i = i + 1;
-	}
+	var foo: UI8 = 12;
 
-	return i as UI8;
+	return copy (&foo).*;
 }

@@ -14,6 +14,7 @@ project "Panther"
 
 	
 	includedirs{
+		(config.location .. "/PIR/include"),
 		(config.location .. "/PCIT_core/include"),
 		(config.location .. "/PCIT_core/internal/llvm_interface/include"),
 		(config.location .. "/libs"),
@@ -57,6 +58,7 @@ project "pthr"
 	links{
 		"Evo",
 		"PCIT_core",
+		"PIR",
 		"Panther",
 	}
 

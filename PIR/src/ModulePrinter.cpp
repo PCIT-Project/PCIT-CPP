@@ -35,26 +35,41 @@ namespace pcit::pir{
 	auto ModulePrinter::print() -> void {
 		this->printer.printlnGray("// module: {}", this->get_module().getName());
 
-		for(const StructType& struct_type : this->get_module().getStructTypeIter()){
-			this->print_struct_type(struct_type);
+		if(this->get_module().getStructTypeIter().empty() == false){
+			this->printer.println();
+
+			for(const StructType& struct_type : this->get_module().getStructTypeIter()){
+				this->print_struct_type(struct_type);
+			}
 		}
 
-		this->printer.println();
+		if(this->get_module().getGlobalVarIter().empty() == false){
+			this->printer.println();
 
-		for(const GlobalVar& global_var : this->get_module().getGlobalVarIter()){
-			this->print_global_var(global_var);
+			for(const GlobalVar& global_var : this->get_module().getGlobalVarIter()){
+				this->print_global_var(global_var);
+			}
 		}
 
-		this->printer.println();
+		if(this->get_module().getFunctionDeclIter().empty() == false){
+			this->printer.println();
 
-		for(const FunctionDecl& function_decl : this->get_module().getFunctionDeclIter()){
-			this->print_function_decl(function_decl);
+			for(const FunctionDecl& function_decl : this->get_module().getFunctionDeclIter()){
+				this->print_function_decl(function_decl);
+			}
 		}
 
-		this->printer.println();
+		if(this->get_module().getFunctionIter().empty() == false){
+			this->printer.println();
 
-		for(const Function& function : this->get_module().getFunctionIter()){
-			this->print_function(function);
+			for(size_t i = 0; const Function& function : this->get_module().getFunctionIter()){
+				this->print_function(function);
+
+				if(i + 1 < this->get_module().getFunctionIter().size()){
+					this->printer.println();
+				}
+				i += 1;
+			}
 		}
 	}
 
@@ -596,6 +611,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
+
 			case Expr::Kind::Add: {
 				const Add& add = this->reader.getAdd(stmt);
 
@@ -607,7 +623,6 @@ namespace pcit::pir{
 				if(add.mayWrap){ this->printer.printRed(" #mayWrap"); }
 				this->printer.println();
 			} break;
-
 
 			case Expr::Kind::AddWrap: {
 				const AddWrap& add_wrap = this->reader.getAddWrap(stmt);

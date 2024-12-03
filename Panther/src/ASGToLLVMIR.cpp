@@ -823,18 +823,11 @@ namespace pcit::panther{
 				return this->get_value(move_expr, get_pointer_to_value);
 			} break;
 
-			case ASG::Expr::Kind::Deref: {
-				const ASG::Deref& deref_expr = this->current_source->getASGBuffer().getDeref(expr.derefID());
-				const llvmint::Value value = this->get_value(deref_expr.expr, false);
-				if(get_pointer_to_value){ return value; }
-
-				return this->builder.createLoad(
-					value,
-					this->get_type(deref_expr.typeID),
-					false,
-					llvmint::AtomicOrdering::NotAtomic,
-					this->stmt_name("DEREF")
-				).asValue();
+			case ASG::Expr::Kind::FuncCall: {
+				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
+				const ASG::FuncCall& func_call = asg_buffer.getFuncCall(expr.funcCallID());
+				
+				return this->lower_returning_func_call(func_call, get_pointer_to_value).front();
 			} break;
 
 			case ASG::Expr::Kind::AddrOf: {
@@ -847,11 +840,18 @@ namespace pcit::panther{
 				return alloca.asValue();
 			} break;
 
-			case ASG::Expr::Kind::FuncCall: {
-				const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
-				const ASG::FuncCall& func_call = asg_buffer.getFuncCall(expr.funcCallID());
-				
-				return this->lower_returning_func_call(func_call, get_pointer_to_value).front();
+			case ASG::Expr::Kind::Deref: {
+				const ASG::Deref& deref_expr = this->current_source->getASGBuffer().getDeref(expr.derefID());
+				const llvmint::Value value = this->get_value(deref_expr.expr, false);
+				if(get_pointer_to_value){ return value; }
+
+				return this->builder.createLoad(
+					value,
+					this->get_type(deref_expr.typeID),
+					false,
+					llvmint::AtomicOrdering::NotAtomic,
+					this->stmt_name("DEREF")
+				).asValue();
 			} break;
 
 			case ASG::Expr::Kind::Var: {

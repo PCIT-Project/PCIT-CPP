@@ -16,7 +16,7 @@ namespace pthr{
 
 	auto printTitle(pcit::core::Printer& printer) -> void {
 		// https://www.asciiart.eu/text-to-ascii-art
-		// modified from the `Slant` font
+		// modified from the `Slant` font with the `Fitted` horizontal layout
 
 		printer.printlnCyan(R"(            __   __         
     ____   / /_ / /_   _____
