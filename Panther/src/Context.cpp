@@ -274,23 +274,6 @@ namespace pcit::panther{
 	}
 
 
-	auto Context::printLLVMIR(bool add_runtime) -> evo::Result<std::string> {
-		auto module = pir::Module("testing", this->config.os, this->config.arch);
-
-		auto asg_to_pir_config = ASGToPIR::Config{
-			.useReadableRegisters = true,
-			.checkedMath          = this->config.checkedMath,
-			// .isJIT                = !add_runtime,
-			.addSourceLocations   = this->config.addSourceLocations,
-		};
-		auto asg_to_pir = ASGToPIR(*this, module, asg_to_pir_config);
-		asg_to_pir.lower();
-		if(add_runtime){ asg_to_pir.addRuntime(); }
-
-		return pcit::pir::lowerToLLVMIR(module);
-	}
-
-
 	// auto Context::printLLVMIR(bool add_runtime) -> evo::Result<std::string> {
 	// 	auto llvm_context = llvmint::LLVMContext();
 	// 	llvm_context.init();
@@ -341,6 +324,23 @@ namespace pcit::panther{
 	// 	return printed_llvm_ir;
 	// }
 
+
+
+	auto Context::printLLVMIR(bool add_runtime) -> evo::Result<std::string> {
+		auto module = pir::Module("testing", this->config.os, this->config.arch);
+
+		auto asg_to_pir_config = ASGToPIR::Config{
+			.useReadableRegisters = true,
+			.checkedMath          = this->config.checkedMath,
+			// .isJIT                = !add_runtime,
+			.addSourceLocations   = this->config.addSourceLocations,
+		};
+		auto asg_to_pir = ASGToPIR(*this, module, asg_to_pir_config);
+		asg_to_pir.lower();
+		if(add_runtime){ asg_to_pir.addRuntime(); }
+
+		return pcit::pir::lowerToLLVMIR(module);
+	}
 
 
 	// auto Context::run() -> evo::Result<uint8_t> {

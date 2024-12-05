@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.69.0
+
+### PIR
+- Added the `@fAdd` instruction
+	- can no longer use the `@add` instruction for floats
+- Condensed Signed and Unsigned into Integer
+- Split `@addWrap` into `@sAddWrap` and `@uAddWrap`
+
+
+<!---------------------------------->
 ## v0.0.68.0
 
 ### Panther

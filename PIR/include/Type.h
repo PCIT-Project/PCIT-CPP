@@ -24,8 +24,7 @@ namespace pcit::pir{
 		public:
 			enum class Kind{
 				Void,
-				Signed,
-				Unsigned,
+				Integer,
 				Bool,
 				Float,
 				BFloat,
@@ -68,16 +67,13 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// property checking
 
-			EVO_NODISCARD auto isIntegral() const -> bool {
-				return this->kind == Kind::Signed || this->kind == Kind::Unsigned;
-			}
 
 			EVO_NODISCARD auto isFloat() const -> bool {
 				return this->kind == Kind::Float || this->kind == Kind::BFloat;
 			}
 
 			EVO_NODISCARD auto isNumeric() const -> bool {
-				return this->isIntegral() || this->isFloat();
+				return this->kind == Kind::Integer || this->isFloat();
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
@@ -89,7 +85,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto hasWidth() const -> bool {
-				return this->kind == Kind::Signed || this->kind == Kind::Unsigned || this->kind == Kind::Float;
+				return this->kind == Kind::Integer || this->kind == Kind::Float;
 			}
 
 

@@ -344,59 +344,83 @@ namespace pcit::pir{
 
 					case Expr::Kind::Add: {
 						const Add& add = this->reader.getAdd(stmt);
-						const Type& add_type = this->reader.getExprType(add.lhs);
 
 						const llvmint::Value lhs = this->get_value(add.lhs);
 						const llvmint::Value rhs = this->get_value(add.rhs);
 
-						const llvmint::Value add_value = [&](){
-							switch(add_type.getKind()){
-								case Type::Kind::Signed:
-									return this->builder.createAdd(lhs, rhs, false, !add.mayWrap, add.name);
-								case Type::Kind::Unsigned:
-									return this->builder.createAdd(lhs, rhs, !add.mayWrap, false, add.name);
-								case Type::Kind::Float:  return this->builder.createFAdd(lhs, rhs, add.name);
-								case Type::Kind::BFloat: return this->builder.createFAdd(lhs, rhs, add.name);
-								default: evo::debugFatalBreak("Unknown or unsupported add types");
-							}
-						}();
+						bool no_wrap = !add.mayWrap;
 
+						const llvmint::Value add_value = this->builder.createAdd(lhs, rhs, no_wrap, no_wrap, add.name);
 						this->stmt_values.emplace(stmt, add_value);
 					} break;
 
-					case Expr::Kind::AddWrap: {
-						const AddWrap& add_wrap = this->reader.getAddWrap(stmt);
-						const Type& add_type = this->reader.getExprType(add_wrap.lhs);
-						const bool is_unsigned = add_type.getKind() == Type::Kind::Unsigned;
+					case Expr::Kind::FAdd: {
+						const FAdd& add = this->reader.getFAdd(stmt);
 
-						const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
-							? llvmint::IRBuilder::IntrinsicID::uaddOverflow
-							: llvmint::IRBuilder::IntrinsicID::saddOverflow;
+						const llvmint::Value lhs = this->get_value(add.lhs);
+						const llvmint::Value rhs = this->get_value(add.rhs);
+
+						const llvmint::Value add_value = this->builder.createFAdd(lhs, rhs, add.name);
+						this->stmt_values.emplace(stmt, add_value);
+					} break;
+
+					case Expr::Kind::SAddWrap: {
+						const SAddWrap& sadd_wrap = this->reader.getSAddWrap(stmt);
+						const Type& sadd_type = this->reader.getExprType(sadd_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type(add_type), this->builder.getTypeBool().asType()}
+							{this->get_type(sadd_type), this->builder.getTypeBool().asType()}
 						).asType();
 
-						const llvmint::Value add_value = this->builder.createIntrinsicCall(
-							intrinsic_id,
+						const llvmint::Value sadd_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::saddOverflow,
 							return_type,
-							{this->get_value(add_wrap.lhs), this->get_value(add_wrap.rhs)},
+							{this->get_value(sadd_wrap.lhs), this->get_value(sadd_wrap.rhs)},
 							"ADD_WRAP"
 						).asValue();
 
 						this->stmt_values.emplace(
-							this->reader.extractAddWrapResult(stmt),
-							this->builder.createExtractValue(add_value, {0}, add_wrap.resultName)
+							this->reader.extractSAddWrapResult(stmt),
+							this->builder.createExtractValue(sadd_value, {0}, sadd_wrap.resultName)
 						);
 
 						this->stmt_values.emplace(
-							this->reader.extractAddWrapWrapped(stmt),
-							this->builder.createExtractValue(add_value, {0}, add_wrap.wrappedName)
+							this->reader.extractSAddWrapWrapped(stmt),
+							this->builder.createExtractValue(sadd_value, {0}, sadd_wrap.wrappedName)
 						);
 					} break;
 
-					case Expr::Kind::AddWrapResult:  evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::AddWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SAddWrapResult:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SAddWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+
+					case Expr::Kind::UAddWrap: {
+						const UAddWrap& uadd_wrap = this->reader.getUAddWrap(stmt);
+						const Type& uadd_type = this->reader.getExprType(uadd_wrap.lhs);
+
+						const llvmint::Type return_type = this->builder.getStructType(
+							{this->get_type(uadd_type), this->builder.getTypeBool().asType()}
+						).asType();
+
+						const llvmint::Value uadd_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::saddOverflow,
+							return_type,
+							{this->get_value(uadd_wrap.lhs), this->get_value(uadd_wrap.rhs)},
+							"ADD_WRAP"
+						).asValue();
+
+						this->stmt_values.emplace(
+							this->reader.extractUAddWrapResult(stmt),
+							this->builder.createExtractValue(uadd_value, {0}, uadd_wrap.resultName)
+						);
+
+						this->stmt_values.emplace(
+							this->reader.extractUAddWrapWrapped(stmt),
+							this->builder.createExtractValue(uadd_value, {0}, uadd_wrap.wrappedName)
+						);
+					} break;
+
+					case Expr::Kind::UAddWrapResult:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::UAddWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
 				}
 			}
 		}
@@ -421,12 +445,8 @@ namespace pcit::pir{
 		const Number& number = this->reader.getNumber(expr);
 
 		switch(number.type.getKind()){
-			case Type::Kind::Signed: {
+			case Type::Kind::Integer: {
 				return this->builder.getValueI_N(number.type.getWidth(), false, number.getInt()).asConstant();
-			} break;
-
-			case Type::Kind::Unsigned: {
-				return this->builder.getValueI_N(number.type.getWidth(), true, number.getInt()).asConstant();
 			} break;
 
 			case Type::Kind::Float: {
@@ -453,7 +473,7 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
 				switch(type.getKind()){
-					case Type::Kind::Signed: case Type::Kind::Unsigned: {
+					case Type::Kind::Integer: {
 						return this->builder.getValueI_N(type.getWidth(), 0).asConstant();
 					} break;
 
@@ -530,22 +550,12 @@ namespace pcit::pir{
 				const Number& number = this->reader.getNumber(expr);
 
 				switch(number.type.getKind()){
-					case Type::Kind::Signed: {
-						return this->builder.getValueI_N(
-							number.type.getWidth(), false, number.getInt()
-						).asValue();
-					} break;
-
-					case Type::Kind::Unsigned: {
-						return this->builder.getValueI_N(
-							number.type.getWidth(), true, number.getInt()
-						).asValue();
+					case Type::Kind::Integer: {
+						return this->builder.getValueI_N(number.type.getWidth(), true, number.getInt()).asValue();
 					} break;
 
 					case Type::Kind::Float: {
-						return this->builder.getValueFloat(
-							this->get_type(number.type), number.getFloat()
-						).asValue();
+						return this->builder.getValueFloat(this->get_type(number.type), number.getFloat()).asValue();
 					} break;
 
 					case Type::Kind::BFloat: {
@@ -597,14 +607,28 @@ namespace pcit::pir{
 				return this->stmt_values.at(expr);
 			} break;
 
-			case Expr::Kind::AddWrap: evo::debugFatalBreak("Not a value");
-
-			case Expr::Kind::AddWrapResult: {
-				return this->stmt_values.at(this->reader.extractAddWrapResult(expr));
+			case Expr::Kind::FAdd: {
+				return this->stmt_values.at(expr);
 			} break;
 
-			case Expr::Kind::AddWrapWrapped: {
-				return this->stmt_values.at(this->reader.extractAddWrapWrapped(expr));
+			case Expr::Kind::SAddWrap: evo::debugFatalBreak("Not a value");
+
+			case Expr::Kind::SAddWrapResult: {
+				return this->stmt_values.at(this->reader.extractSAddWrapResult(expr));
+			} break;
+
+			case Expr::Kind::SAddWrapWrapped: {
+				return this->stmt_values.at(this->reader.extractSAddWrapWrapped(expr));
+			} break;
+
+			case Expr::Kind::UAddWrap: evo::debugFatalBreak("Not a value");
+
+			case Expr::Kind::UAddWrapResult: {
+				return this->stmt_values.at(this->reader.extractUAddWrapResult(expr));
+			} break;
+
+			case Expr::Kind::UAddWrapWrapped: {
+				return this->stmt_values.at(this->reader.extractUAddWrapWrapped(expr));
 			} break;
 		}
 
@@ -615,8 +639,7 @@ namespace pcit::pir{
 	auto PIRToLLVMIR::get_type(const Type& type) -> llvmint::Type {
 		switch(type.getKind()){
 			case Type::Kind::Void:     return this->builder.getTypeVoid();
-			case Type::Kind::Signed:   return this->builder.getTypeI_N(type.getWidth()).asType();
-			case Type::Kind::Unsigned: return this->builder.getTypeI_N(type.getWidth()).asType();
+			case Type::Kind::Integer:  return this->builder.getTypeI_N(type.getWidth()).asType();
 			case Type::Kind::Bool:     return this->builder.getTypeBool().asType();
 			case Type::Kind::Float: {
 				switch(type.getWidth()){

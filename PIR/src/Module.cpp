@@ -78,7 +78,7 @@ namespace pcit::pir{
 		switch(type.getKind()){
 			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
 
-			case Type::Kind::Signed: case Type::Kind::Unsigned: {
+			case Type::Kind::Integer: {
 				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
 
 				if(packed){
@@ -144,7 +144,7 @@ namespace pcit::pir{
 		switch(type.getKind()){
 			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
 
-			case Type::Kind::Signed: case Type::Kind::Unsigned: {
+			case Type::Kind::Integer: {
 				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
 				return std::min<size_t>(std::bit_ceil(unpadded_num_bytes), this->sizeOfPtr());
 			} break;

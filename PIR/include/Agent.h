@@ -257,16 +257,36 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
-			// add wrap
+			// fadd
 
-			EVO_NODISCARD auto createAddWrap(
+			EVO_NODISCARD auto createFAdd(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getFAdd(const Expr& expr) const -> const FAdd&;
+
+
+			///////////////////////////////////
+			// signed add wrap
+
+			EVO_NODISCARD auto createSAddWrap(
 				const Expr& lhs, const Expr& rhs, std::string&& result_name = "", std::string&& wrapped_name = ""
 			) -> Expr;
 
-			EVO_NODISCARD auto getAddWrap(const Expr& expr) const -> const AddWrap&;
+			EVO_NODISCARD auto getSAddWrap(const Expr& expr) const -> const SAddWrap&;
 
-			EVO_NODISCARD static auto extractAddWrapResult(const Expr& expr) -> Expr;
-			EVO_NODISCARD static auto extractAddWrapWrapped(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractSAddWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractSAddWrapWrapped(const Expr& expr) -> Expr;
+
+
+			///////////////////////////////////
+			// signed add wrap
+
+			EVO_NODISCARD auto createUAddWrap(
+				const Expr& lhs, const Expr& rhs, std::string&& result_name = "", std::string&& wrapped_name = ""
+			) -> Expr;
+
+			EVO_NODISCARD auto getUAddWrap(const Expr& expr) const -> const UAddWrap&;
+
+			EVO_NODISCARD static auto extractUAddWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractUAddWrapWrapped(const Expr& expr) -> Expr;
 
 
 		private:

@@ -138,7 +138,7 @@ namespace pcit::pir{
 			// global values
 
 			EVO_NODISCARD auto createGlobalString(std::string&& string) -> GlobalVar::String::ID {
-				const Type str_type = this->createArrayType(this->createSignedType(8), string.size() + 1);
+				const Type str_type = this->createArrayType(this->createIntegerType(8), string.size() + 1);
 				return this->global_strings.emplace_back(std::move(string), str_type);
 			}
 
@@ -350,20 +350,9 @@ namespace pcit::pir{
 
 			EVO_NODISCARD static auto createPtrType() -> Type { return Type(Type::Kind::Ptr); }
 
-			EVO_NODISCARD static auto createSignedType(uint32_t width) -> Type {
-				evo::debugAssert(
-					width > 1 && width < 1 << 23,
-					"Invalid width for a signed ({})", width
-				);
-				return Type(Type::Kind::Signed, width);
-			}
-
-			EVO_NODISCARD static auto createUnsignedType(uint32_t width) -> Type {
-				evo::debugAssert(
-					width != 0 && width < 1 << 23,
-					"Invalid width for an unsigned ({})", width
-				);
-				return Type(Type::Kind::Unsigned, width);
+			EVO_NODISCARD static auto createIntegerType(uint32_t width) -> Type {
+				evo::debugAssert(width != 0 && width < 1 << 23, "Invalid width for an integer ({})", width);
+				return Type(Type::Kind::Integer, width);
 			}
 
 			EVO_NODISCARD static auto createBoolType() -> Type { return Type(Type::Kind::Bool); }
@@ -492,7 +481,9 @@ namespace pcit::pir{
 			core::StepAlloc<Store, uint32_t> stores{};
 			core::StepAlloc<CalcPtr, uint32_t> calc_ptrs{};
 			core::StepAlloc<Add, uint32_t> adds{};
-			core::StepAlloc<AddWrap, uint32_t> add_wraps{};
+			core::StepAlloc<FAdd, uint32_t> fadds{};
+			core::StepAlloc<SAddWrap, uint32_t> sadd_wraps{};
+			core::StepAlloc<UAddWrap, uint32_t> uadd_wraps{};
 
 			// global values
 			core::StepAlloc<GlobalVar::String, GlobalVar::String::ID> global_strings{};

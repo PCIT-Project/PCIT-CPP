@@ -46,9 +46,13 @@ namespace pcit::pir{
 				CalcPtr,
 
 				Add,
-				AddWrap,
-				AddWrapResult,
-				AddWrapWrapped,
+				FAdd,
+				SAddWrap,
+				SAddWrapResult,
+				SAddWrapWrapped,
+				UAddWrap,
+				UAddWrapResult,
+				UAddWrapWrapped,
 			};
 
 		public:
@@ -59,10 +63,11 @@ namespace pcit::pir{
 			EVO_NODISCARD auto isValue() const -> bool {
 
                 switch(this->kind){
-					case Kind::Number:        case Kind::Boolean:        case Kind::GlobalValue:
-					case Kind::ParamExpr:     case Kind::Call:           case Kind::Alloca:
-					case Kind::Load:          case Kind::CalcPtr:        case Kind::Add:
-					case Kind::AddWrapResult: case Kind::AddWrapWrapped: {
+					case Kind::Number:         case Kind::Boolean:         case Kind::GlobalValue:
+					case Kind::ParamExpr:      case Kind::Call:            case Kind::Alloca:
+					case Kind::Load:           case Kind::CalcPtr:         case Kind::Add:
+					case Kind::FAdd:           case Kind::SAddWrapResult:  case Kind::SAddWrapWrapped:
+					case Kind::UAddWrapResult: case Kind::UAddWrapWrapped: {
 						return true;
 					} break;
 					default: return false;
@@ -78,10 +83,10 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isStmt() const -> bool {
 				switch(this->kind){
-					case Kind::Call:   case Kind::CallVoid:    case Kind::Breakpoint:  case Kind::Ret:
-					case Kind::Branch: case Kind::CondBranch:  case Kind::Unreachable: case Kind::Alloca:
-					case Kind::Load:   case Kind::Store:       case Kind::CalcPtr:     case Kind::Add:
-					case Kind::AddWrap: {
+					case Kind::Call:   case Kind::CallVoid:   case Kind::Breakpoint:  case Kind::Ret:
+					case Kind::Branch: case Kind::CondBranch: case Kind::Unreachable: case Kind::Alloca:
+					case Kind::Load:   case Kind::Store:      case Kind::CalcPtr:     case Kind::Add:
+					case Kind::FAdd:   case Kind::SAddWrap:   case Kind::UAddWrap: {
 						return true;
 					} break;
 					default: return false;
@@ -90,7 +95,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isMultiValueStmt() const -> bool {
 				switch(this->kind){
-					case Kind::AddWrap: return true;
+					case Kind::SAddWrap: case Kind::UAddWrap: return true;
 					default: return false;
 				}
 			}
@@ -177,7 +182,7 @@ namespace pcit::pir{
 		Type type;
 
 		EVO_NODISCARD auto getInt() const -> const core::GenericInt& {
-			evo::debugAssert(this->type.isIntegral(), "This number is not integral");
+			evo::debugAssert(this->type.getKind() == Type::Kind::Integer, "This number is not integral");
 			return this->value.as<core::GenericInt>();
 		}
 
@@ -268,8 +273,21 @@ namespace pcit::pir{
 		bool mayWrap;
 	};
 
+	struct FAdd{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
 
-	struct AddWrap{
+
+	struct SAddWrap{
+		std::string resultName;
+		std::string wrappedName;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct UAddWrap{
 		std::string resultName;
 		std::string wrappedName;
 		Expr lhs;

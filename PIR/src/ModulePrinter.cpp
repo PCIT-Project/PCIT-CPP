@@ -381,13 +381,12 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_type(const Type& type) -> void {
 		switch(type.getKind()){
-			case Type::Kind::Void:     { this->printer.printCyan("Void");                  } break;
-			case Type::Kind::Signed:   { this->printer.printCyan("I{}", type.getWidth());  } break;
-			case Type::Kind::Unsigned: { this->printer.printCyan("UI{}", type.getWidth()); } break;
-			case Type::Kind::Bool:     { this->printer.printCyan("Bool");                  } break;
-			case Type::Kind::Float:    { this->printer.printCyan("F{}", type.getWidth());  } break;
-			case Type::Kind::BFloat:   { this->printer.printCyan("BF16");                  } break;
-			case Type::Kind::Ptr:      { this->printer.printCyan("Ptr");                   } break;
+			case Type::Kind::Void:     { this->printer.printCyan("Void");                 } break;
+			case Type::Kind::Integer:  { this->printer.printCyan("I{}", type.getWidth()); } break;
+			case Type::Kind::Bool:     { this->printer.printCyan("Bool");                 } break;
+			case Type::Kind::Float:    { this->printer.printCyan("F{}", type.getWidth()); } break;
+			case Type::Kind::BFloat:   { this->printer.printCyan("BF16");                 } break;
+			case Type::Kind::Ptr:      { this->printer.printCyan("Ptr");                  } break;
 
 			case Type::Kind::Array: {
 				const ArrayType& array_type = this->get_module().getArrayType(type);
@@ -420,9 +419,8 @@ namespace pcit::pir{
 				const Number& number = this->reader.getNumber(expr);
 				this->print_type(number.type);
 				this->printer.print("(");
-				if(number.type.isIntegral()){
-					const bool is_signed = number.type.getKind() == Type::Kind::Signed;
-					this->printer.printMagenta(number.getInt().toString(is_signed));
+				if(number.type.getKind() == Type::Kind::Integer){
+					this->printer.printMagenta(number.getInt().toString(true));
 				}else{
 					this->printer.printMagenta(number.getFloat().toString());
 				}
@@ -479,16 +477,34 @@ namespace pcit::pir{
 				this->printer.print("${}", add.name);
 			} break;
 
-			case Expr::Kind::AddWrap: evo::debugFatalBreak("Expr::Kind::AddWrap is not a valid expression");
-
-			case Expr::Kind::AddWrapResult: {
-				const AddWrap& add_wrap = this->reader.getAddWrap(expr);
-				this->printer.print("${}", add_wrap.resultName);
+			case Expr::Kind::FAdd: {
+				const FAdd& fadd = this->reader.getFAdd(expr);
+				this->printer.print("${}", fadd.name);
 			} break;
 
-			case Expr::Kind::AddWrapWrapped: {
-				const AddWrap& add_wrap = this->reader.getAddWrap(expr);
-				this->printer.print("${}", add_wrap.wrappedName);
+			case Expr::Kind::SAddWrap: evo::debugFatalBreak("Expr::Kind::SAddWrap is not a valid expression");
+
+			case Expr::Kind::SAddWrapResult: {
+				const SAddWrap& sadd_wrap = this->reader.getSAddWrap(expr);
+				this->printer.print("${}", sadd_wrap.resultName);
+			} break;
+
+			case Expr::Kind::SAddWrapWrapped: {
+				const SAddWrap& sadd_wrap = this->reader.getSAddWrap(expr);
+				this->printer.print("${}", sadd_wrap.wrappedName);
+			} break;
+
+
+			case Expr::Kind::UAddWrap: evo::debugFatalBreak("Expr::Kind::UAddWrap is not a valid expression");
+
+			case Expr::Kind::UAddWrapResult: {
+				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(expr);
+				this->printer.print("${}", uadd_wrap.resultName);
+			} break;
+
+			case Expr::Kind::UAddWrapWrapped: {
+				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(expr);
+				this->printer.print("${}", uadd_wrap.wrappedName);
 			} break;
 		}
 	}
@@ -624,21 +640,53 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::AddWrap: {
-				const AddWrap& add_wrap = this->reader.getAddWrap(stmt);
+			case Expr::Kind::FAdd: {
+				const FAdd& fadd = this->reader.getFAdd(stmt);
 
-				this->printer.print("{}${}, ${} ", tabs(2), add_wrap.resultName, add_wrap.wrappedName);
-				this->printer.printRed("= @addWrap ");
-
-				this->print_expr(add_wrap.lhs);
+				this->printer.print("{}${} ", tabs(2), fadd.name);
+				this->printer.printRed("= @fAdd ");
+				this->print_expr(fadd.lhs);
 				this->printer.print(", ");
-				this->print_expr(add_wrap.rhs);
+				this->print_expr(fadd.rhs);
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::AddWrapResult: evo::debugFatalBreak("Expr::Kind::AddWrapResult is not a valid statement");
-			case Expr::Kind::AddWrapWrapped:
-				evo::debugFatalBreak("Expr::Kind::AddWrapWrapped is not a valid statement");
+			case Expr::Kind::SAddWrap: {
+				const SAddWrap& sadd_wrap = this->reader.getSAddWrap(stmt);
+
+				this->printer.print("{}${}, ${} ", tabs(2), sadd_wrap.resultName, sadd_wrap.wrappedName);
+				this->printer.printRed("= @sAddWrap ");
+
+				this->print_expr(sadd_wrap.lhs);
+				this->printer.print(", ");
+				this->print_expr(sadd_wrap.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SAddWrapResult:
+				evo::debugFatalBreak("Expr::Kind::SAddWrapResult is not a valid statement");
+
+			case Expr::Kind::SAddWrapWrapped:
+				evo::debugFatalBreak("Expr::Kind::SAddWrapWrapped is not a valid statement");
+
+
+			case Expr::Kind::UAddWrap: {
+				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(stmt);
+
+				this->printer.print("{}${}, ${} ", tabs(2), uadd_wrap.resultName, uadd_wrap.wrappedName);
+				this->printer.printRed("= @sAddWrap ");
+
+				this->print_expr(uadd_wrap.lhs);
+				this->printer.print(", ");
+				this->print_expr(uadd_wrap.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::UAddWrapResult:
+				evo::debugFatalBreak("Expr::Kind::UAddWrapResult is not a valid statement");
+
+			case Expr::Kind::UAddWrapWrapped:
+				evo::debugFatalBreak("Expr::Kind::UAddWrapWrapped is not a valid statement");
 
 		}
 	}

@@ -48,39 +48,38 @@ namespace pcit::pir::passes{
 				const Number& lhs = agent.getNumber(add.lhs);
 				const Number& rhs = agent.getNumber(add.rhs);
 
-				if(lhs.type.isIntegral()){
-					core::GenericInt::WrapResult result = lhs.type.getKind() == Type::Kind::Unsigned
-						? lhs.getInt().uadd(rhs.getInt())
-						: lhs.getInt().sadd(rhs.getInt());
-
-					if(result.wrapped){ return false; }
-
-					const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
-					agent.replaceExpr(stmt, result_expr);
-					return true;
-
-				}else{
-					const Expr result_expr = agent.createNumber(lhs.type, lhs.getFloat().add(rhs.getFloat()));
-					agent.replaceExpr(stmt, result_expr);
-					return true;
-				}
+				core::GenericInt::WrapResult result = lhs.getInt().sadd(rhs.getInt());
+				const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
 			} break;
 
-			case Expr::Kind::AddWrap: {
-				const AddWrap& add_wrap = agent.getAddWrap(stmt);
-				if(add_wrap.lhs.getKind() != Expr::Kind::Number || add_wrap.rhs.getKind() != Expr::Kind::Number){
+			case Expr::Kind::FAdd: {
+				const FAdd& fadd = agent.getFAdd(stmt);
+				if(fadd.lhs.getKind() != Expr::Kind::Number || fadd.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(fadd.lhs);
+				const Number& rhs = agent.getNumber(fadd.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getFloat().add(rhs.getFloat()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::SAddWrap: {
+				const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
+				if(sadd_wrap.lhs.getKind() != Expr::Kind::Number || sadd_wrap.rhs.getKind() != Expr::Kind::Number){
 					return false;
 				}
 
-				const Expr result_original_expr = agent.extractAddWrapResult(stmt);
-				const Expr wrapped_original_expr = agent.extractAddWrapWrapped(stmt);
+				const Expr result_original_expr = agent.extractSAddWrapResult(stmt);
+				const Expr wrapped_original_expr = agent.extractSAddWrapWrapped(stmt);
 
-				const Number& lhs = agent.getNumber(add_wrap.lhs);
-				const Number& rhs = agent.getNumber(add_wrap.rhs);
+				const Number& lhs = agent.getNumber(sadd_wrap.lhs);
+				const Number& rhs = agent.getNumber(sadd_wrap.rhs);
 
-				core::GenericInt::WrapResult result = lhs.type.getKind() == Type::Kind::Unsigned
-					? lhs.getInt().uadd(rhs.getInt())
-					: lhs.getInt().sadd(rhs.getInt());
+				core::GenericInt::WrapResult result = lhs.getInt().sadd(rhs.getInt());
 
 				const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
 				agent.replaceExpr(result_original_expr, result_expr);
@@ -93,8 +92,36 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::AddWrapResult:  return false;
-			case Expr::Kind::AddWrapWrapped: return false;
+			case Expr::Kind::SAddWrapResult:  return false;
+			case Expr::Kind::SAddWrapWrapped: return false;
+
+			case Expr::Kind::UAddWrap: {
+				const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
+				if(uadd_wrap.lhs.getKind() != Expr::Kind::Number || uadd_wrap.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+
+				const Expr result_original_expr = agent.extractUAddWrapResult(stmt);
+				const Expr wrapped_original_expr = agent.extractUAddWrapWrapped(stmt);
+
+				const Number& lhs = agent.getNumber(uadd_wrap.lhs);
+				const Number& rhs = agent.getNumber(uadd_wrap.rhs);
+
+				core::GenericInt::WrapResult result = lhs.getInt().uadd(rhs.getInt());
+
+				const Expr result_expr = agent.createNumber(lhs.type, std::move(result.result));
+				agent.replaceExpr(result_original_expr, result_expr);
+
+				const Expr wrapped_expr = agent.createBoolean(result.wrapped);
+				agent.replaceExpr(wrapped_original_expr, wrapped_expr);
+
+				agent.removeStmt(stmt);
+
+				return true;
+			} break;
+
+			case Expr::Kind::UAddWrapResult:  return false;
+			case Expr::Kind::UAddWrapWrapped: return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -138,53 +165,50 @@ namespace pcit::pir::passes{
 			case Expr::Kind::Store:       return false;
 			case Expr::Kind::CalcPtr:     return false;
 
-
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
 
 				if(add.lhs.getKind() == Expr::Kind::Number){
 					const Number& lhs = agent.getNumber(add.lhs);
-					if(lhs.type.isIntegral()){
-						const core::GenericInt& number = lhs.getInt();
-						if(number == core::GenericInt(number.getBitWidth(), 0)){
-							agent.replaceExpr(stmt, add.rhs);
-							return true;
-						}
+					const core::GenericInt& lhs_number = lhs.getInt();
+					if(lhs_number == core::GenericInt(lhs_number.getBitWidth(), 0)){
+						agent.replaceExpr(stmt, add.rhs);
+						return true;
 					}
 
 				}else if(add.rhs.getKind() == Expr::Kind::Number){
 					const Number& rhs = agent.getNumber(add.rhs);
-					if(rhs.type.isIntegral()){
-						const core::GenericInt& number = rhs.getInt();
-						if(number == core::GenericInt(number.getBitWidth(), 0)){
-							agent.replaceExpr(stmt, add.lhs);
-							return true;
-						}
+					const core::GenericInt& rhs_number = rhs.getInt();
+					if(rhs_number == core::GenericInt(rhs_number.getBitWidth(), 0)){
+						agent.replaceExpr(stmt, add.lhs);
+						return true;
 					}
 				}
 
 				return false;
 			} break;
 
-			case Expr::Kind::AddWrap: {
-				const AddWrap& add_wrap = agent.getAddWrap(stmt);
+			case Expr::Kind::FAdd: return true;
 
-				if(add_wrap.lhs.getKind() == Expr::Kind::Number){
-					const Number& lhs = agent.getNumber(add_wrap.lhs);
+			case Expr::Kind::SAddWrap: {
+				const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
+
+				if(sadd_wrap.lhs.getKind() == Expr::Kind::Number){
+					const Number& lhs = agent.getNumber(sadd_wrap.lhs);
 					const core::GenericInt& number = lhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
-						agent.replaceExpr(agent.extractAddWrapResult(stmt), add_wrap.rhs);
-						agent.replaceExpr(agent.extractAddWrapWrapped(stmt), agent.createBoolean(false));
+						agent.replaceExpr(agent.extractSAddWrapResult(stmt), sadd_wrap.rhs);
+						agent.replaceExpr(agent.extractSAddWrapWrapped(stmt), agent.createBoolean(false));
 						agent.removeStmt(stmt);
 						return true;
 					}
 
-				}else if(add_wrap.rhs.getKind() == Expr::Kind::Number){
-					const Number& rhs = agent.getNumber(add_wrap.rhs);
+				}else if(sadd_wrap.rhs.getKind() == Expr::Kind::Number){
+					const Number& rhs = agent.getNumber(sadd_wrap.rhs);
 					const core::GenericInt& number = rhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
-						agent.replaceExpr(agent.extractAddWrapResult(stmt), add_wrap.lhs);
-						agent.replaceExpr(agent.extractAddWrapWrapped(stmt), agent.createBoolean(false));
+						agent.replaceExpr(agent.extractSAddWrapResult(stmt), sadd_wrap.lhs);
+						agent.replaceExpr(agent.extractSAddWrapWrapped(stmt), agent.createBoolean(false));
 						agent.removeStmt(stmt);
 						return true;
 					}
@@ -193,8 +217,38 @@ namespace pcit::pir::passes{
 				return false;
 			} break;
 
-			case Expr::Kind::AddWrapResult:  return false;
-			case Expr::Kind::AddWrapWrapped: return false;
+			case Expr::Kind::SAddWrapResult:  return false;
+			case Expr::Kind::SAddWrapWrapped: return false;
+
+			case Expr::Kind::UAddWrap: {
+				const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
+
+				if(uadd_wrap.lhs.getKind() == Expr::Kind::Number){
+					const Number& lhs = agent.getNumber(uadd_wrap.lhs);
+					const core::GenericInt& number = lhs.getInt();
+					if(number == core::GenericInt(number.getBitWidth(), 0)){
+						agent.replaceExpr(agent.extractUAddWrapResult(stmt), uadd_wrap.rhs);
+						agent.replaceExpr(agent.extractUAddWrapWrapped(stmt), agent.createBoolean(false));
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+				}else if(uadd_wrap.rhs.getKind() == Expr::Kind::Number){
+					const Number& rhs = agent.getNumber(uadd_wrap.rhs);
+					const core::GenericInt& number = rhs.getInt();
+					if(number == core::GenericInt(number.getBitWidth(), 0)){
+						agent.replaceExpr(agent.extractUAddWrapResult(stmt), uadd_wrap.lhs);
+						agent.replaceExpr(agent.extractUAddWrapWrapped(stmt), agent.createBoolean(false));
+						agent.removeStmt(stmt);
+						return true;
+					}
+				}
+
+				return false;
+			} break;
+
+			case Expr::Kind::UAddWrapResult:  return false;
+			case Expr::Kind::UAddWrapWrapped: return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

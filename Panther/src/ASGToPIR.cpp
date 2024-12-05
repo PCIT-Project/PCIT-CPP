@@ -59,15 +59,15 @@ namespace pcit::panther{
 		const FuncInfo& entry_func_info = this->get_func_info(*this->context.getEntry());
 
 		// TODO: make return int
-		// const pir::Type int_type = this->module.createSignedType(
+		// const pir::Type int_type = this->module.createIntegerType(
 		// 	this->context.getConfig().os == core::OS::Windows ? 32 : 64
 		// );
 
-		const pir::Function::ID created_func_id = module.createFunction(
-			"main", {}, pir::CallingConvention::Fast, pir::Linkage::Internal, this->module.createUnsignedType(8)
+		const pir::Function::ID main_func_id = module.createFunction(
+			"main", {}, pir::CallingConvention::Fast, pir::Linkage::Internal, this->module.createIntegerType(8)
 		);
 
-		this->agent.setTargetFunction(created_func_id);
+		this->agent.setTargetFunction(main_func_id);
 
 		const pir::BasicBlock::ID begin_block = this->agent.createBasicBlock("begin");
 		this->agent.setTargetBasicBlock(begin_block);
@@ -385,32 +385,18 @@ namespace pcit::panther{
 
 	auto ASGToPIR::get_type(const BaseType::Primitive& primitive) const -> pir::Type {
 		switch(primitive.kind()){
-			case Token::Kind::TypeInt: {
-				return this->module.createSignedType(
+			case Token::Kind::TypeInt: case Token::Kind::TypeUInt: {
+				return this->module.createIntegerType(
 					uint32_t(this->context.getTypeManager().sizeOfGeneralRegister() * 8)
 				);
 			} break;
 
-			case Token::Kind::TypeUInt: {
-				return this->module.createUnsignedType(
-					uint32_t(this->context.getTypeManager().sizeOfGeneralRegister() * 8)
-				);
+			case Token::Kind::TypeISize: case Token::Kind::TypeUSize: {
+				return this->module.createIntegerType(uint32_t(this->context.getTypeManager().sizeOfPtr() * 8));
 			} break;
 
-			case Token::Kind::TypeISize: {
-				return this->module.createSignedType(uint32_t(this->context.getTypeManager().sizeOfPtr() * 8));
-			} break;
-
-			case Token::Kind::TypeUSize:{
-				return this->module.createUnsignedType(uint32_t(this->context.getTypeManager().sizeOfPtr() * 8));
-			} break;
-
-			case Token::Kind::TypeI_N: {
-				return this->module.createSignedType(unsigned(primitive.bitWidth()));
-			} break;
-
-			case Token::Kind::TypeUI_N: {
-				return this->module.createUnsignedType(unsigned(primitive.bitWidth()));
+			case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
+				return this->module.createIntegerType(unsigned(primitive.bitWidth()));
 			} break;
 
 			case Token::Kind::TypeF16: return this->module.createFloatType(16);
@@ -419,35 +405,28 @@ namespace pcit::panther{
 			case Token::Kind::TypeF64: return this->module.createFloatType(64);
 			case Token::Kind::TypeF80: return this->module.createFloatType(80);
 			case Token::Kind::TypeF128: return this->module.createFloatType(128);
-			case Token::Kind::TypeByte: return this->module.createUnsignedType(8);
+			case Token::Kind::TypeByte: return this->module.createIntegerType(8);
 			case Token::Kind::TypeBool: return this->module.createBoolType();
-			case Token::Kind::TypeChar: return this->module.createSignedType(8);
+			case Token::Kind::TypeChar: return this->module.createIntegerType(8);
 			case Token::Kind::TypeRawPtr: return this->module.createPtrType();
-			case Token::Kind::TypeTypeID: return this->module.createUnsignedType(32);
+			case Token::Kind::TypeTypeID: return this->module.createIntegerType(32);
 
-			case Token::Kind::TypeCShort:  return this->module.createSignedType(16);
-			case Token::Kind::TypeCUShort: return this->module.createUnsignedType(16);
+			case Token::Kind::TypeCShort: case Token::Kind::TypeCUShort: 
+				return this->module.createIntegerType(16);
 
-			case Token::Kind::TypeCInt: {
+			case Token::Kind::TypeCInt: case Token::Kind::TypeCUInt:  {
 				if(this->context.getTypeManager().getOS() == core::OS::Windows){
-					return this->module.createSignedType(32);
+					return this->module.createIntegerType(32);
 				}else{
-					return this->module.createSignedType(64);
+					return this->module.createIntegerType(64);
 				}
 			} break;
 
-			case Token::Kind::TypeCUInt: {
-				if(this->context.getTypeManager().getOS() == core::OS::Windows){
-					return this->module.createUnsignedType(32);
-				}else{
-					return this->module.createUnsignedType(64);
-				}
-			} break;
+			case Token::Kind::TypeCLong: case Token::Kind::TypeCULong: 
+				return this->module.createIntegerType(32);
 
-			case Token::Kind::TypeCLong:  return this->module.createSignedType(32);
-			case Token::Kind::TypeCULong: return this->module.createUnsignedType(32);
-			case Token::Kind::TypeCLongLong: return this->module.createSignedType(64);
-			case Token::Kind::TypeCULongLong: return this->module.createUnsignedType(64);
+			case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
+				return this->module.createIntegerType(64);
 
 			case Token::Kind::TypeCLongDouble: {
 				if(this->context.getTypeManager().getOS() == core::OS::Windows){
@@ -525,7 +504,7 @@ namespace pcit::panther{
 			case ASG::Expr::Kind::LiteralChar: {
 				const ASG::LiteralChar& literal_char = asg_buffer.getLiteralChar(expr.literalCharID());
 
-				const pir::Type char_type = this->module.createSignedType(8);
+				const pir::Type char_type = this->module.createIntegerType(8);
 				const pir::Expr pir_char = this->agent.createNumber(
 					char_type, core::GenericInt::create<char>(literal_char.value)
 				);
@@ -744,7 +723,7 @@ namespace pcit::panther{
 				const ASG::LiteralChar& literal_char = asg_buffer.getLiteralChar(expr.literalCharID());
 
 				return this->agent.createNumber(
-					this->module.createSignedType(8), core::GenericInt::create<char>(literal_char.value)
+					this->module.createIntegerType(8), core::GenericInt::create<char>(literal_char.value)
 				);
 			} break;
 

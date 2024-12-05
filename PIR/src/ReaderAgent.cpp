@@ -58,19 +58,23 @@ namespace pcit::pir{
 				});
 			} break;
 			case Expr::Kind::CallVoid:       evo::unreachable();
-			case Expr::Kind::Breakpoint:     evo::unreachable();
-			case Expr::Kind::Ret:            evo::unreachable();
-			case Expr::Kind::Branch:         evo::unreachable();
-			case Expr::Kind::CondBranch:     evo::unreachable();
-			case Expr::Kind::Unreachable:    evo::unreachable();
-			case Expr::Kind::Alloca:         return this->module.createPtrType();
-			case Expr::Kind::Load:           return this->getLoad(expr).type;
-			case Expr::Kind::Store:          evo::unreachable();
-			case Expr::Kind::CalcPtr:        return this->module.createPtrType();
-			case Expr::Kind::Add:            return this->getExprType(this->getAdd(expr).lhs);
-			case Expr::Kind::AddWrap:        evo::unreachable();
-			case Expr::Kind::AddWrapResult:  return this->getExprType(this->getAddWrap(expr).lhs);
-			case Expr::Kind::AddWrapWrapped: return this->module.createBoolType();
+			case Expr::Kind::Breakpoint:      evo::unreachable();
+			case Expr::Kind::Ret:             evo::unreachable();
+			case Expr::Kind::Branch:          evo::unreachable();
+			case Expr::Kind::CondBranch:      evo::unreachable();
+			case Expr::Kind::Unreachable:     evo::unreachable();
+			case Expr::Kind::Alloca:          return this->module.createPtrType();
+			case Expr::Kind::Load:            return this->getLoad(expr).type;
+			case Expr::Kind::Store:           evo::unreachable();
+			case Expr::Kind::CalcPtr:         return this->module.createPtrType();
+			case Expr::Kind::Add:             return this->getExprType(this->getAdd(expr).lhs);
+			case Expr::Kind::FAdd:            return this->getExprType(this->getFAdd(expr).lhs);
+			case Expr::Kind::SAddWrap:        evo::unreachable();
+			case Expr::Kind::SAddWrapResult:  return this->getExprType(this->getSAddWrap(expr).lhs);
+			case Expr::Kind::SAddWrapWrapped: return this->module.createBoolType();
+			case Expr::Kind::UAddWrap:        evo::unreachable();
+			case Expr::Kind::UAddWrapResult:  return this->getExprType(this->getUAddWrap(expr).lhs);
+			case Expr::Kind::UAddWrapWrapped: return this->module.createBoolType();
 		}
 
 		evo::unreachable();
@@ -184,24 +188,54 @@ namespace pcit::pir{
 	}
 
 
-	auto ReaderAgent::getAddWrap(const Expr& expr) const -> const AddWrap& {
+	auto ReaderAgent::getFAdd(const Expr& expr) const -> const FAdd& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FAdd, "Not an fadd");
+
+		return this->module.fadds[expr.index];
+	}
+
+
+	auto ReaderAgent::getSAddWrap(const Expr& expr) const -> const SAddWrap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(
-			expr.getKind() == Expr::Kind::AddWrap
-				|| expr.getKind() == Expr::Kind::AddWrapResult
-				|| expr.getKind() == Expr::Kind::AddWrapWrapped,
-			"Not an add wrap"
+			expr.getKind() == Expr::Kind::SAddWrap
+				|| expr.getKind() == Expr::Kind::SAddWrapResult
+				|| expr.getKind() == Expr::Kind::SAddWrapWrapped,
+			"Not a signed add wrap"
 		);
 
-		return this->module.add_wraps[expr.index];
+		return this->module.sadd_wraps[expr.index];
 	}
 
-	auto ReaderAgent::extractAddWrapResult(const Expr& expr) -> Expr {
-		return Expr(Expr::Kind::AddWrapResult, expr.index);
+	auto ReaderAgent::extractSAddWrapResult(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::SAddWrapResult, expr.index);
 	}
 
-	auto ReaderAgent::extractAddWrapWrapped(const Expr& expr) -> Expr {
-		return Expr(Expr::Kind::AddWrapWrapped, expr.index);
+	auto ReaderAgent::extractSAddWrapWrapped(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::SAddWrapWrapped, expr.index);
+	}
+
+
+
+	auto ReaderAgent::getUAddWrap(const Expr& expr) const -> const UAddWrap& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(
+			expr.getKind() == Expr::Kind::UAddWrap
+				|| expr.getKind() == Expr::Kind::UAddWrapResult
+				|| expr.getKind() == Expr::Kind::UAddWrapWrapped,
+			"Not an unsigned add wrap"
+		);
+
+		return this->module.uadd_wraps[expr.index];
+	}
+
+	auto ReaderAgent::extractUAddWrapResult(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::UAddWrapResult, expr.index);
+	}
+
+	auto ReaderAgent::extractUAddWrapWrapped(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::UAddWrapWrapped, expr.index);
 	}
 
 

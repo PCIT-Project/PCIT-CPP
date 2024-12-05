@@ -114,9 +114,9 @@ auto main(int argc, const char* argv[]) -> int {
 
 	const pcit::pir::GlobalVar::ID global = module.createGlobalVar(
 		"global",
-		module.createUnsignedType(17),
+		module.createIntegerType(17),
 		pcit::pir::Linkage::Internal,
-		agent.createNumber(module.createUnsignedType(17), pcit::core::GenericInt::create<uint64_t>(18)),
+		agent.createNumber(module.createIntegerType(17), pcit::core::GenericInt::create<uint64_t>(18)),
 		true
 	);
 
@@ -151,11 +151,11 @@ auto main(int argc, const char* argv[]) -> int {
 		"entry",
 		evo::SmallVector<pcit::pir::Parameter>{
 			// pcit::pir::Parameter("vec2", vec2),
-			// pcit::pir::Parameter("number", module.createUnsignedType(64))
+			// pcit::pir::Parameter("number", module.createIntegerType(64))
 		},
 		pcit::pir::CallingConvention::Fast,
 		pcit::pir::Linkage::External,
-		module.createUnsignedType(64)
+		module.createIntegerType(64)
 	);
 	agent.setTargetFunction(entry_func_id);
 
@@ -164,35 +164,35 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.setTargetBasicBlock(entry_block_id);
 
 
-	const pcit::pir::Expr add = agent.createAddWrap(
-		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(9)),
-		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(3)),
+	const pcit::pir::Expr add = agent.createUAddWrap(
+		agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(9)),
+		agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(3)),
 		"ADD_WRAP.RESULT",
 		"ADD_WRAP.WRAPPED"
 	);
 
 	// const pcit::pir::Expr add2 = agent.createAdd(add, agent.createParamExpr(1), false, "ADD");
-	const pcit::pir::Expr val_alloca = agent.createAlloca(module.createUnsignedType(64), "VAL");
+	const pcit::pir::Expr val_alloca = agent.createAlloca(module.createIntegerType(64), "VAL");
 
-	const pcit::pir::Expr add3 = agent.createAddWrap(
-		agent.extractAddWrapResult(add),
-		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(0)),
+	const pcit::pir::Expr add3 = agent.createUAddWrap(
+		agent.extractUAddWrapResult(add),
+		agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(0)),
 		"ADD_WRAP.RESULT",
 		"ADD_WRAP.WRAPPED"
 	);
 
-	std::ignore = agent.createAddWrap(
-		agent.extractAddWrapResult(add),
-		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(2))
+	std::ignore = agent.createUAddWrap(
+		agent.extractUAddWrapResult(add),
+		agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(2))
 	);
 
 	agent.createStore(
 		val_alloca,
-		agent.createNumber(module.createUnsignedType(64), pcit::core::GenericInt::create<uint64_t>(2)),
+		agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(2)),
 		false,
 		pcit::pir::AtomicOrdering::Release
 	);
-	std::ignore = agent.createLoad(val_alloca, module.createUnsignedType(64), true, pcit::pir::AtomicOrdering::Acquire);
+	std::ignore = agent.createLoad(val_alloca, module.createIntegerType(64), true, pcit::pir::AtomicOrdering::Acquire);
 
 	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
@@ -208,7 +208,7 @@ auto main(int argc, const char* argv[]) -> int {
 	agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{str_ptr});
 	// agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
-	agent.createRet(agent.extractAddWrapResult(add3));
+	agent.createRet(agent.extractUAddWrapResult(add3));
 
 
 	printer.printlnGray("--------------------------------");

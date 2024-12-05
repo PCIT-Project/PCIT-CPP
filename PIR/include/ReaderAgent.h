@@ -64,9 +64,13 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getCalcPtr(const Expr& expr) const -> const CalcPtr&;
 
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
-			EVO_NODISCARD auto getAddWrap(const Expr& expr) const -> const AddWrap&;
-			EVO_NODISCARD static auto extractAddWrapResult(const Expr& expr) -> Expr;
-			EVO_NODISCARD static auto extractAddWrapWrapped(const Expr& expr) -> Expr;
+			EVO_NODISCARD auto getFAdd(const Expr& expr) const -> const FAdd&;
+			EVO_NODISCARD auto getSAddWrap(const Expr& expr) const -> const SAddWrap&;
+			EVO_NODISCARD static auto extractSAddWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractSAddWrapWrapped(const Expr& expr) -> Expr;
+			EVO_NODISCARD auto getUAddWrap(const Expr& expr) const -> const UAddWrap&;
+			EVO_NODISCARD static auto extractUAddWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractUAddWrapWrapped(const Expr& expr) -> Expr;
 
 
 

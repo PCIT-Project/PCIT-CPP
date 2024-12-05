@@ -131,7 +131,7 @@ namespace pcit::pir{
 				return core::GenericValue();
 			} break;
 
-			case Type::Kind::Unsigned: case Type::Kind::Signed: {
+			case Type::Kind::Integer: {
 				const size_t size_of_func_return_base_type = this->module->getSize(func.getReturnType());
 
 				switch(size_of_func_return_base_type){
@@ -140,10 +140,7 @@ namespace pcit::pir{
 							this->data->execution_engine.runFunctionDirectly<uint8_t>(func.getName());
 						if(result.isError()){ return evo::resultError; }
 						return core::GenericValue(
-							core::GenericInt(
-								func.getReturnType().getWidth(), result.value(),
-								func.getReturnType().getKind() == Type::Kind::Signed
-							)
+							core::GenericInt(func.getReturnType().getWidth(), result.value(), true)
 						);
 					} break;
 
@@ -152,10 +149,7 @@ namespace pcit::pir{
 							this->data->execution_engine.runFunctionDirectly<uint16_t>(func.getName());
 						if(result.isError()){ return evo::resultError; }
 						return core::GenericValue(
-							core::GenericInt(
-								func.getReturnType().getWidth(), result.value(),
-								func.getReturnType().getKind() == Type::Kind::Signed
-							)
+							core::GenericInt(func.getReturnType().getWidth(), result.value(), true)
 						);
 					} break;
 
@@ -164,10 +158,7 @@ namespace pcit::pir{
 							this->data->execution_engine.runFunctionDirectly<uint32_t>(func.getName());
 						if(result.isError()){ return evo::resultError; }
 						return core::GenericValue(
-							core::GenericInt(
-								func.getReturnType().getWidth(), result.value(),
-								func.getReturnType().getKind() == Type::Kind::Signed
-							)
+							core::GenericInt(func.getReturnType().getWidth(), result.value(), true)
 						);
 					} break;
 
@@ -176,10 +167,7 @@ namespace pcit::pir{
 							this->data->execution_engine.runFunctionDirectly<uint64_t>(func.getName());
 						if(result.isError()){ return evo::resultError; }
 						return core::GenericValue(
-							core::GenericInt(
-								func.getReturnType().getWidth(), result.value(),
-								func.getReturnType().getKind() == Type::Kind::Signed
-							)
+							core::GenericInt(func.getReturnType().getWidth(), result.value(), true)
 						);
 					} break;
 

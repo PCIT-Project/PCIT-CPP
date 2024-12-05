@@ -42,26 +42,30 @@ namespace pcit::pir::passes{
 
 			auto see_expr = [&](const Expr& expr) -> void {
 				switch(expr.getKind()){
-					break; case Expr::Kind::None:           evo::debugFatalBreak("Invalid expr");
-					break; case Expr::Kind::GlobalValue:    break;
-					break; case Expr::Kind::Number:         break;
-					break; case Expr::Kind::Boolean:        break;
-					break; case Expr::Kind::ParamExpr:      break;
-					break; case Expr::Kind::Call:           func_metadata.emplace(expr);
-					break; case Expr::Kind::CallVoid:       evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Breakpoint:     evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Ret:            evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Branch:         evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::CondBranch:     evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Unreachable:    evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Alloca:         func_metadata.emplace(expr);
-					break; case Expr::Kind::Load:           func_metadata.emplace(expr);
-					break; case Expr::Kind::Store:          evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::CalcPtr:        func_metadata.emplace(expr);
-					break; case Expr::Kind::Add:            func_metadata.emplace(expr);
-					break; case Expr::Kind::AddWrap:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::AddWrapResult:  func_metadata.emplace(expr);
-					break; case Expr::Kind::AddWrapWrapped: func_metadata.emplace(expr);
+					break; case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
+					break; case Expr::Kind::GlobalValue:     break;
+					break; case Expr::Kind::Number:          break;
+					break; case Expr::Kind::Boolean:         break;
+					break; case Expr::Kind::ParamExpr:       break;
+					break; case Expr::Kind::Call:            func_metadata.emplace(expr);
+					break; case Expr::Kind::CallVoid:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Breakpoint:      evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Ret:             evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Branch:          evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::CondBranch:      evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Unreachable:     evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::Alloca:          func_metadata.emplace(expr);
+					break; case Expr::Kind::Load:            func_metadata.emplace(expr);
+					break; case Expr::Kind::Store:           evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::CalcPtr:         func_metadata.emplace(expr);
+					break; case Expr::Kind::Add:             func_metadata.emplace(expr);
+					break; case Expr::Kind::FAdd:            func_metadata.emplace(expr);
+					break; case Expr::Kind::SAddWrap:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::SAddWrapResult:  func_metadata.emplace(expr);
+					break; case Expr::Kind::SAddWrapWrapped: func_metadata.emplace(expr);
+					break; case Expr::Kind::UAddWrap:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::UAddWrapResult:  func_metadata.emplace(expr);
+					break; case Expr::Kind::UAddWrapWrapped: func_metadata.emplace(expr);
 				}
 			};
 
@@ -181,35 +185,78 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::AddWrap: {
-					if(func_metadata.contains(agent.extractAddWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(agent.extractAddWrapResult(stmt)) == false){
+				case Expr::Kind::FAdd: {
+					if(func_metadata.contains(stmt) == false){
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+					const FAdd& fadd = agent.getFAdd(stmt);
+					see_expr(fadd.lhs);
+					see_expr(fadd.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SAddWrap: {
+					if(func_metadata.contains(agent.extractSAddWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(agent.extractSAddWrapResult(stmt)) == false){
 							agent.removeStmt(stmt);
 							return true;		
 						}
 
 						// if wrapped value is never used, replace addWrap with just an add
-						const AddWrap& add_wrap = agent.getAddWrap(stmt);
-						see_expr(add_wrap.lhs);
-						see_expr(add_wrap.rhs);
+						const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
+						see_expr(sadd_wrap.lhs);
+						see_expr(sadd_wrap.rhs);
 
 						const Expr new_add = agent.createAdd(
-							add_wrap.lhs, add_wrap.rhs, true, std::string(add_wrap.resultName)
+							sadd_wrap.lhs, sadd_wrap.rhs, true, std::string(sadd_wrap.resultName)
 						);
-						agent.replaceExpr(agent.extractAddWrapResult(stmt), new_add);
+						agent.replaceExpr(agent.extractSAddWrapResult(stmt), new_add);
 						agent.removeStmt(stmt);
 						return true;
 					}
 
-					const AddWrap& add_wrap = agent.getAddWrap(stmt);
-					see_expr(add_wrap.lhs);
-					see_expr(add_wrap.rhs);
+					const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
+					see_expr(sadd_wrap.lhs);
+					see_expr(sadd_wrap.rhs);
 
 					return false;
 				} break;
 
-				case Expr::Kind::AddWrapResult:  return false;
-				case Expr::Kind::AddWrapWrapped: return false;
+				case Expr::Kind::SAddWrapResult:  return false;
+				case Expr::Kind::SAddWrapWrapped: return false;
+
+				case Expr::Kind::UAddWrap: {
+					if(func_metadata.contains(agent.extractUAddWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(agent.extractUAddWrapResult(stmt)) == false){
+							agent.removeStmt(stmt);
+							return true;		
+						}
+
+						// if wrapped value is never used, replace addWrap with just an add
+						const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
+						see_expr(uadd_wrap.lhs);
+						see_expr(uadd_wrap.rhs);
+
+						const Expr new_add = agent.createAdd(
+							uadd_wrap.lhs, uadd_wrap.rhs, true, std::string(uadd_wrap.resultName)
+						);
+						agent.replaceExpr(agent.extractUAddWrapResult(stmt), new_add);
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+					const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
+					see_expr(uadd_wrap.lhs);
+					see_expr(uadd_wrap.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::UAddWrapResult:  return false;
+				case Expr::Kind::UAddWrapWrapped: return false;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.getKind()));
