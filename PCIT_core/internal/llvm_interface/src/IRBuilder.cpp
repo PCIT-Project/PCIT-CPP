@@ -208,7 +208,7 @@ namespace pcit::llvmint{
 	-> Value {
 		return Value(this->builder->CreateTrunc(value.native(), dst_type.native(), name.c_str()));
 	}
-	auto IRBuilder::createFPTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name)
+	auto IRBuilder::createFTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name)
 	-> Value {
 		return Value(this->builder->CreateFPTrunc(value.native(), dst_type.native(), name.c_str()));
 	}
@@ -219,22 +219,22 @@ namespace pcit::llvmint{
 	auto IRBuilder::createSExt(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
 		return Value(this->builder->CreateSExt(value.native(), dst_type.native(), name.c_str()));
 	}
-	auto IRBuilder::createFPExt(const Value& value, const Type& dst_type, evo::CStrProxy name)
+	auto IRBuilder::createFExt(const Value& value, const Type& dst_type, evo::CStrProxy name)
 	-> Value {
 		return Value(this->builder->CreateFPExt(value.native(), dst_type.native(), name.c_str()));
 	}
 
 
-	auto IRBuilder::createSIToFP(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
+	auto IRBuilder::createIToF(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
 		return Value(this->builder->CreateSIToFP(value.native(), dst_type.native(), name.c_str()));
 	}
-	auto IRBuilder::createUIToFP(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
+	auto IRBuilder::createUIToF(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
 		return Value(this->builder->CreateUIToFP(value.native(), dst_type.native(), name.c_str()));
 	}
-	auto IRBuilder::createFPToSI(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
+	auto IRBuilder::createFToI(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
 		return Value(this->builder->CreateFPToSI(value.native(), dst_type.native(), name.c_str()));
 	}
-	auto IRBuilder::createFPToUI(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
+	auto IRBuilder::createFToUI(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
 		return Value(this->builder->CreateFPToUI(value.native(), dst_type.native(), name.c_str()));
 	}
 	

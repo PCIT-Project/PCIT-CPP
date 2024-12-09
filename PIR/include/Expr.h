@@ -45,6 +45,17 @@ namespace pcit::pir{
 				Store,
 				CalcPtr,
 
+				BitCast,
+				Trunc,
+				FTrunc,
+				SExt,
+				ZExt,
+				FExt,
+				IToF,
+				UIToF,
+				FToI,
+				FToUI,
+
 				Add,
 				FAdd,
 				SAddWrap,
@@ -63,11 +74,14 @@ namespace pcit::pir{
 			EVO_NODISCARD auto isValue() const -> bool {
 
                 switch(this->kind){
-					case Kind::Number:         case Kind::Boolean:         case Kind::GlobalValue:
-					case Kind::ParamExpr:      case Kind::Call:            case Kind::Alloca:
-					case Kind::Load:           case Kind::CalcPtr:         case Kind::Add:
-					case Kind::FAdd:           case Kind::SAddWrapResult:  case Kind::SAddWrapWrapped:
-					case Kind::UAddWrapResult: case Kind::UAddWrapWrapped: {
+					case Kind::Number:          case Kind::Boolean:        case Kind::GlobalValue:
+					case Kind::ParamExpr:       case Kind::Call:           case Kind::Alloca:
+					case Kind::Load:            case Kind::CalcPtr:        case Kind::BitCast:
+					case Kind::Trunc:           case Kind::FTrunc:         case Kind::SExt:
+					case Kind::ZExt:            case Kind::FExt:           case Kind::IToF:
+					case Kind::UIToF:           case Kind::FToI:           case Kind::FToUI:
+					case Kind::Add:             case Kind::FAdd:           case Kind::SAddWrapResult:
+					case Kind::SAddWrapWrapped: case Kind::UAddWrapResult: case Kind::UAddWrapWrapped: {
 						return true;
 					} break;
 					default: return false;
@@ -85,8 +99,11 @@ namespace pcit::pir{
 				switch(this->kind){
 					case Kind::Call:   case Kind::CallVoid:   case Kind::Breakpoint:  case Kind::Ret:
 					case Kind::Branch: case Kind::CondBranch: case Kind::Unreachable: case Kind::Alloca:
-					case Kind::Load:   case Kind::Store:      case Kind::CalcPtr:     case Kind::Add:
-					case Kind::FAdd:   case Kind::SAddWrap:   case Kind::UAddWrap: {
+					case Kind::Load:   case Kind::Store:      case Kind::CalcPtr:     case Kind::BitCast:
+					case Kind::Trunc:  case Kind::FTrunc:     case Kind::SExt:        case Kind::ZExt:
+					case Kind::FExt:   case Kind::IToF:       case Kind::UIToF:       case Kind::FToI:
+					case Kind::FToUI:  case Kind::Add:        case Kind::FAdd:        case Kind::SAddWrap:
+					case Kind::UAddWrap: {
 						return true;
 					} break;
 					default: return false;
@@ -264,6 +281,68 @@ namespace pcit::pir{
 		Expr basePtr;
 		evo::SmallVector<Index> indices;
 	};
+
+
+	struct BitCast{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct Trunc{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct FTrunc{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct SExt{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct ZExt{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct FExt{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct IToF{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct UIToF{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct FToI{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
+	struct FToUI{
+		std::string name;
+		Expr fromValue;
+		Type toType;
+	};
+
 
 
 	struct Add{

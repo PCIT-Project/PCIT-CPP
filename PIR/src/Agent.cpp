@@ -105,7 +105,7 @@ namespace pcit::pir{
 
 
 
-	auto Agent::replaceExpr(Expr original, const Expr& replacement) const -> void {
+	auto Agent::replaceExpr(Expr original, Expr replacement) const -> void {
 		evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 		evo::debugAssert(
 			!original.isMultiValueStmt(), "Cannot replace multi-value statement (extract values and manually remove)"
@@ -214,6 +214,57 @@ namespace pcit::pir{
 							}
 						}
 					} break;
+
+					case Expr::Kind::BitCast: {
+						BitCast& bitcast = this->module.bitcasts[stmt.index];
+						if(bitcast.fromValue == original){ bitcast.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::Trunc: {
+						Trunc& trunc = this->module.truncs[stmt.index];
+						if(trunc.fromValue == original){ trunc.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::FTrunc: {
+						FTrunc& ftrunc = this->module.ftruncs[stmt.index];
+						if(ftrunc.fromValue == original){ ftrunc.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::SExt: {
+						SExt& sext = this->module.sexts[stmt.index];
+						if(sext.fromValue == original){ sext.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::ZExt: {
+						ZExt& zext = this->module.zexts[stmt.index];
+						if(zext.fromValue == original){ zext.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::FExt: {
+						FExt& fext = this->module.fexts[stmt.index];
+						if(fext.fromValue == original){ fext.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::IToF: {
+						IToF& itof = this->module.itofs[stmt.index];
+						if(itof.fromValue == original){ itof.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::UIToF: {
+						UIToF& uitof = this->module.uitofs[stmt.index];
+						if(uitof.fromValue == original){ uitof.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::FToI: {
+						FToI& ftoi = this->module.ftois[stmt.index];
+						if(ftoi.fromValue == original){ ftoi.fromValue = replacement; }
+					} break;
+
+					case Expr::Kind::FToUI: {
+						FToUI& ftoui = this->module.ftouis[stmt.index];
+						if(ftoui.fromValue == original){ ftoui.fromValue = replacement; }
+					} break;
+
 					
 					case Expr::Kind::Add: {
 						Add& add = this->module.adds[stmt.index];
@@ -821,6 +872,241 @@ namespace pcit::pir{
 	}
 
 
+	//////////////////////////////////////////////////////////////////////
+	// BitCast
+	
+	EVO_NODISCARD auto Agent::createBitCast(const Expr& fromValue, const Type& toType, std::string&& name) const
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getSize(this->getExprType(fromValue)) == this->module.getSize(toType),
+			"Cannot convert to a type of a different size"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::BitCast,
+			this->module.bitcasts.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getBitCast(const Expr& expr) const -> const BitCast& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getBitCast(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// Trunc
+	
+	EVO_NODISCARD auto Agent::createTrunc(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getSize(this->getExprType(fromValue)) >= this->module.getSize(toType),
+			"Cannot convert to a type of a greater size"
+		);
+		evo::debugAssert(this->getExprType(fromValue).getKind() == Type::Kind::Integer, "can only convert integers");
+		evo::debugAssert(toType.getKind() == Type::Kind::Integer, "can only convert to integers");
+
+		const auto new_expr = Expr(
+			Expr::Kind::Trunc,
+			this->module.truncs.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getTrunc(const Expr& expr) const -> const Trunc& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getTrunc(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// FTrunc
+	
+	EVO_NODISCARD auto Agent::createFTrunc(const Expr& fromValue, const Type& toType, std::string&& name) const
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getSize(this->getExprType(fromValue)) >= this->module.getSize(toType),
+			"Cannot convert to a type of a greater size"
+		);
+		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
+		evo::debugAssert(toType.isFloat(), "can only convert to floats");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FTrunc,
+			this->module.ftruncs.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getFTrunc(const Expr& expr) const -> const FTrunc& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFTrunc(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// SExt
+	
+	EVO_NODISCARD auto Agent::createSExt(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
+			"Cannot convert to a type of a smaller size"
+		);
+		evo::debugAssert(this->getExprType(fromValue).getKind() == Type::Kind::Integer, "can only convert integers");
+		evo::debugAssert(toType.getKind() == Type::Kind::Integer, "can only convert to integers");
+
+		const auto new_expr = Expr(
+			Expr::Kind::SExt,
+			this->module.sexts.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getSExt(const Expr& expr) const -> const SExt& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSExt(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// ZExt
+	
+	EVO_NODISCARD auto Agent::createZExt(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
+			"Cannot convert to a type of a smaller size"
+		);
+		evo::debugAssert(this->getExprType(fromValue).getKind() == Type::Kind::Integer, "can only convert integers");
+		evo::debugAssert(toType.getKind() == Type::Kind::Integer, "can only convert to integers");
+
+		const auto new_expr = Expr(
+			Expr::Kind::ZExt,
+			this->module.zexts.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getZExt(const Expr& expr) const -> const ZExt& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getZExt(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// FExt
+	
+	EVO_NODISCARD auto Agent::createFExt(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
+			"Cannot convert to a type of a smaller size"
+		);
+		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
+		evo::debugAssert(toType.isFloat(), "can only convert to floats");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FExt,
+			this->module.fexts.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getFExt(const Expr& expr) const -> const FExt& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFExt(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// IToF
+	
+	EVO_NODISCARD auto Agent::createIToF(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(this->getExprType(fromValue).getKind() == Type::Kind::Integer, "can only convert integers");
+		evo::debugAssert(toType.isFloat(), "can only convert to floats");
+
+		const auto new_expr = Expr(
+			Expr::Kind::IToF,
+			this->module.itofs.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getIToF(const Expr& expr) const -> const IToF& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getIToF(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// UIToF
+	
+	EVO_NODISCARD auto Agent::createUIToF(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(this->getExprType(fromValue).getKind() == Type::Kind::Integer, "can only convert integers");
+		evo::debugAssert(toType.isFloat(), "can only convert to floats");
+
+		const auto new_expr = Expr(
+			Expr::Kind::UIToF,
+			this->module.uitofs.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getUIToF(const Expr& expr) const -> const UIToF& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUIToF(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// FToI
+	
+	EVO_NODISCARD auto Agent::createFToI(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
+		evo::debugAssert(toType.getKind() == Type::Kind::Integer, "can only convert to integers");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FToI,
+			this->module.ftois.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getFToI(const Expr& expr) const -> const FToI& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFToI(expr);
+	}
+
+	
+	//////////////////////////////////////////////////////////////////////
+	// FToUI
+	
+	EVO_NODISCARD auto Agent::createFToUI(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
+		evo::debugAssert(toType.getKind() == Type::Kind::Integer, "can only convert to integers");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FToUI,
+			this->module.ftouis.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	EVO_NODISCARD auto Agent::getFToUI(const Expr& expr) const -> const FToUI& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFToUI(expr);
+	}
+
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// add
@@ -978,6 +1264,16 @@ namespace pcit::pir{
 			break; case Expr::Kind::Load:            this->module.loads.erase(expr.index);
 			break; case Expr::Kind::Store:           this->module.stores.erase(expr.index);
 			break; case Expr::Kind::CalcPtr:         this->module.calc_ptrs.erase(expr.index);
+			break; case Expr::Kind::BitCast:         this->module.bitcasts.erase(expr.index);
+			break; case Expr::Kind::Trunc:           this->module.truncs.erase(expr.index);
+			break; case Expr::Kind::FTrunc:          this->module.ftruncs.erase(expr.index);
+			break; case Expr::Kind::SExt:            this->module.sexts.erase(expr.index);
+			break; case Expr::Kind::ZExt:            this->module.zexts.erase(expr.index);
+			break; case Expr::Kind::FExt:            this->module.fexts.erase(expr.index);
+			break; case Expr::Kind::IToF:            this->module.itofs.erase(expr.index);
+			break; case Expr::Kind::UIToF:           this->module.uitofs.erase(expr.index);
+			break; case Expr::Kind::FToI:            this->module.ftois.erase(expr.index);
+			break; case Expr::Kind::FToUI:           this->module.ftouis.erase(expr.index);
 			break; case Expr::Kind::Add:             this->module.adds.erase(expr.index);
 			break; case Expr::Kind::FAdd:            this->module.fadds.erase(expr.index);
 			break; case Expr::Kind::SAddWrap:        this->module.sadd_wraps.erase(expr.index);
@@ -1024,6 +1320,16 @@ namespace pcit::pir{
 					case Expr::Kind::Load:        if(this->getLoad(stmt).name == name){ return true; } continue;
 					case Expr::Kind::Store:       continue;
 					case Expr::Kind::CalcPtr:     if(this->getCalcPtr(stmt).name == name){ return true; } continue;
+					case Expr::Kind::BitCast:     if(this->getBitCast(stmt).name == name){ return true; } continue;
+					case Expr::Kind::Trunc:       if(this->getTrunc(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FTrunc:      if(this->getFTrunc(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SExt:        if(this->getSExt(stmt).name == name){ return true; } continue;
+					case Expr::Kind::ZExt:        if(this->getZExt(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FExt:        if(this->getFExt(stmt).name == name){ return true; } continue;
+					case Expr::Kind::IToF:        if(this->getIToF(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UIToF:       if(this->getUIToF(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FToI:        if(this->getFToI(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FToUI:       if(this->getFToUI(stmt).name == name){ return true; } continue;
 					case Expr::Kind::Add:         if(this->getAdd(stmt).name == name){ return true; } continue;
 					case Expr::Kind::FAdd:        if(this->getFAdd(stmt).name == name){ return true; } continue;
 					case Expr::Kind::SAddWrap: {

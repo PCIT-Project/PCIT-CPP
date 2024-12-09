@@ -342,6 +342,108 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, gep);
 					} break;
 
+					case Expr::Kind::BitCast:{
+						const BitCast& bitcast = this->reader.getBitCast(stmt);
+
+						const llvmint::Value from_value = this->get_value(bitcast.fromValue);
+						const llvmint::Type to_type = this->get_type(bitcast.toType);
+
+						const llvmint::Value llvm_bitcast = 
+							this->builder.createBitCast(from_value, to_type, bitcast.name);
+						this->stmt_values.emplace(stmt, llvm_bitcast);
+					} break;
+
+					case Expr::Kind::Trunc:{
+						const Trunc& trunc = this->reader.getTrunc(stmt);
+
+						const llvmint::Value from_value = this->get_value(trunc.fromValue);
+						const llvmint::Type to_type = this->get_type(trunc.toType);
+
+						const llvmint::Value llvm_trunc = this->builder.createTrunc(from_value, to_type, trunc.name);
+						this->stmt_values.emplace(stmt, llvm_trunc);
+					} break;
+
+					case Expr::Kind::FTrunc:{
+						const FTrunc& ftrunc = this->reader.getFTrunc(stmt);
+
+						const llvmint::Value from_value = this->get_value(ftrunc.fromValue);
+						const llvmint::Type to_type = this->get_type(ftrunc.toType);
+
+						const llvmint::Value llvm_ftrunc = this->builder.createFTrunc(from_value, to_type, ftrunc.name);
+						this->stmt_values.emplace(stmt, llvm_ftrunc);
+					} break;
+
+					case Expr::Kind::SExt:{
+						const SExt& sext = this->reader.getSExt(stmt);
+
+						const llvmint::Value from_value = this->get_value(sext.fromValue);
+						const llvmint::Type to_type = this->get_type(sext.toType);
+
+						const llvmint::Value llvm_sext = this->builder.createSExt(from_value, to_type, sext.name);
+						this->stmt_values.emplace(stmt, llvm_sext);
+					} break;
+
+					case Expr::Kind::ZExt:{
+						const ZExt& zext = this->reader.getZExt(stmt);
+
+						const llvmint::Value from_value = this->get_value(zext.fromValue);
+						const llvmint::Type to_type = this->get_type(zext.toType);
+
+						const llvmint::Value llvm_zext = this->builder.createZExt(from_value, to_type, zext.name);
+						this->stmt_values.emplace(stmt, llvm_zext);
+					} break;
+
+					case Expr::Kind::FExt:{
+						const FExt& fext = this->reader.getFExt(stmt);
+
+						const llvmint::Value from_value = this->get_value(fext.fromValue);
+						const llvmint::Type to_type = this->get_type(fext.toType);
+
+						const llvmint::Value llvm_fext = this->builder.createFExt(from_value, to_type, fext.name);
+						this->stmt_values.emplace(stmt, llvm_fext);
+					} break;
+
+					case Expr::Kind::IToF:{
+						const IToF& itof = this->reader.getIToF(stmt);
+
+						const llvmint::Value from_value = this->get_value(itof.fromValue);
+						const llvmint::Type to_type = this->get_type(itof.toType);
+
+						const llvmint::Value llvm_itof = this->builder.createIToF(from_value, to_type, itof.name);
+						this->stmt_values.emplace(stmt, llvm_itof);
+					} break;
+
+					case Expr::Kind::UIToF:{
+						const UIToF& uitof = this->reader.getUIToF(stmt);
+
+						const llvmint::Value from_value = this->get_value(uitof.fromValue);
+						const llvmint::Type to_type = this->get_type(uitof.toType);
+
+						const llvmint::Value llvm_uitof = this->builder.createUIToF(from_value, to_type, uitof.name);
+						this->stmt_values.emplace(stmt, llvm_uitof);
+					} break;
+
+					case Expr::Kind::FToI:{
+						const FToI& ftoi = this->reader.getFToI(stmt);
+
+						const llvmint::Value from_value = this->get_value(ftoi.fromValue);
+						const llvmint::Type to_type = this->get_type(ftoi.toType);
+
+						const llvmint::Value llvm_ftoi = this->builder.createFToI(from_value, to_type, ftoi.name);
+						this->stmt_values.emplace(stmt, llvm_ftoi);
+					} break;
+
+					case Expr::Kind::FToUI:{
+						const FToUI& ftoui = this->reader.getFToUI(stmt);
+
+						const llvmint::Value from_value = this->get_value(ftoui.fromValue);
+						const llvmint::Type to_type = this->get_type(ftoui.toType);
+
+						const llvmint::Value llvm_ftoui = this->builder.createFToUI(from_value, to_type, ftoui.name);
+						this->stmt_values.emplace(stmt, llvm_ftoui);
+					} break;
+
+
 					case Expr::Kind::Add: {
 						const Add& add = this->reader.getAdd(stmt);
 
@@ -599,17 +701,19 @@ namespace pcit::pir{
 
 			case Expr::Kind::Store: evo::debugFatalBreak("Not a value");
 
-			case Expr::Kind::CalcPtr: {
-				return this->stmt_values.at(expr);
-			} break;
-
-			case Expr::Kind::Add: {
-				return this->stmt_values.at(expr);
-			} break;
-
-			case Expr::Kind::FAdd: {
-				return this->stmt_values.at(expr);
-			} break;
+			case Expr::Kind::CalcPtr: return this->stmt_values.at(expr);
+			case Expr::Kind::BitCast: return this->stmt_values.at(expr);
+			case Expr::Kind::Trunc:   return this->stmt_values.at(expr);
+			case Expr::Kind::FTrunc:  return this->stmt_values.at(expr);
+			case Expr::Kind::SExt:    return this->stmt_values.at(expr);
+			case Expr::Kind::ZExt:    return this->stmt_values.at(expr);
+			case Expr::Kind::FExt:    return this->stmt_values.at(expr);
+			case Expr::Kind::IToF:    return this->stmt_values.at(expr);
+			case Expr::Kind::UIToF:   return this->stmt_values.at(expr);
+			case Expr::Kind::FToI:    return this->stmt_values.at(expr);
+			case Expr::Kind::FToUI:   return this->stmt_values.at(expr);
+			case Expr::Kind::Add:     return this->stmt_values.at(expr);
+			case Expr::Kind::FAdd:    return this->stmt_values.at(expr);
 
 			case Expr::Kind::SAddWrap: evo::debugFatalBreak("Not a value");
 

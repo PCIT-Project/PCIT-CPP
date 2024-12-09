@@ -80,14 +80,14 @@ namespace pcit::pir{
 
 		private:
 			auto append(Expr&& expr) -> void {
-				evo::debugAssert(expr.isStmt(), "Must append stmt");
+				evo::debugAssert(expr.isStmt(), "Can only append stmt");
 				evo::debugAssert(this->isTerminated() == false, "Basic block already terminated");
 
 				this->exprs.emplace_back(std::move(expr));
 			}
 
 			auto append(const Expr& expr) -> void {
-				evo::debugAssert(expr.isStmt(), "Must append stmt");
+				evo::debugAssert(expr.isStmt(), "Can only append stmt");
 				evo::debugAssert(this->isTerminated() == false, "Basic block already terminated");
 
 				this->exprs.emplace_back(expr);
@@ -95,13 +95,13 @@ namespace pcit::pir{
 
 
 			auto insert(Expr&& expr, size_t index) -> void {
-				evo::debugAssert(expr.isStmt(), "Must append stmt");
+				evo::debugAssert(expr.isStmt(), "Can only insert stmt");
 				
 				this->exprs.insert(this->index_to_iter(index + 1), std::move(expr));
 			}
 
 			auto insert(const Expr& expr, size_t index) -> void {
-				evo::debugAssert(expr.isStmt(), "Must append stmt");
+				evo::debugAssert(expr.isStmt(), "Can only insert stmt");
 				
 				this->exprs.insert(this->index_to_iter(index + 1), expr);
 			}

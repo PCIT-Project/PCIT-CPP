@@ -35,7 +35,7 @@
 
 struct Config{
 	bool optimize = true;
-	bool print_assembly = false;
+	bool print_assembly = true;
 } config;
 
 

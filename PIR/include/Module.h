@@ -480,6 +480,16 @@ namespace pcit::pir{
 			core::StepAlloc<Load, uint32_t> loads{};
 			core::StepAlloc<Store, uint32_t> stores{};
 			core::StepAlloc<CalcPtr, uint32_t> calc_ptrs{};
+			core::StepAlloc<BitCast, uint32_t> bitcasts{};
+			core::StepAlloc<Trunc, uint32_t> truncs{};
+			core::StepAlloc<FTrunc, uint32_t> ftruncs{};
+			core::StepAlloc<SExt, uint32_t> sexts{};
+			core::StepAlloc<ZExt, uint32_t> zexts{};
+			core::StepAlloc<FExt, uint32_t> fexts{};
+			core::StepAlloc<IToF, uint32_t> itofs{};
+			core::StepAlloc<UIToF, uint32_t> uitofs{};
+			core::StepAlloc<FToI, uint32_t> ftois{};
+			core::StepAlloc<FToUI, uint32_t> ftouis{};
 			core::StepAlloc<Add, uint32_t> adds{};
 			core::StepAlloc<FAdd, uint32_t> fadds{};
 			core::StepAlloc<SAddWrap, uint32_t> sadd_wraps{};

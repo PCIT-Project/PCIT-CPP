@@ -58,6 +58,16 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::Load:            func_metadata.emplace(expr);
 					break; case Expr::Kind::Store:           evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::CalcPtr:         func_metadata.emplace(expr);
+					break; case Expr::Kind::BitCast:         func_metadata.emplace(expr);
+					break; case Expr::Kind::Trunc:           func_metadata.emplace(expr);
+					break; case Expr::Kind::FTrunc:          func_metadata.emplace(expr);
+					break; case Expr::Kind::SExt:            func_metadata.emplace(expr);
+					break; case Expr::Kind::ZExt:            func_metadata.emplace(expr);
+					break; case Expr::Kind::FExt:            func_metadata.emplace(expr);
+					break; case Expr::Kind::IToF:            func_metadata.emplace(expr);
+					break; case Expr::Kind::UIToF:           func_metadata.emplace(expr);
+					break; case Expr::Kind::FToI:            func_metadata.emplace(expr);
+					break; case Expr::Kind::FToUI:           func_metadata.emplace(expr);
 					break; case Expr::Kind::Add:             func_metadata.emplace(expr);
 					break; case Expr::Kind::FAdd:            func_metadata.emplace(expr);
 					break; case Expr::Kind::SAddWrap:        evo::debugFatalBreak("Should never see this expr kind");
@@ -69,6 +79,15 @@ namespace pcit::pir::passes{
 				}
 			};
 
+			const auto remove_unused_stmt = [&]() -> bool {
+				if(func_metadata.contains(stmt) == false){
+					agent.removeStmt(stmt);
+					return true;
+				}
+
+				return false;
+			};
+
 			switch(stmt.getKind()){
 				case Expr::Kind::None:        evo::debugFatalBreak("Invalid expr");
 				case Expr::Kind::GlobalValue: return false;
@@ -78,10 +97,7 @@ namespace pcit::pir::passes{
 
 				case Expr::Kind::Call: {
 					// TODO: remove if func has no side-effects
-					// if(func_metadata.contains(stmt) == false){
-					// 	agent.removeStmt(stmt);
-					// 	return false;
-					// }
+					// if(remove_unused_stmt(stmt)){ return true; }
 
 					const Call& call_inst = agent.getCall(stmt);
 
@@ -127,20 +143,14 @@ namespace pcit::pir::passes{
 				case Expr::Kind::Unreachable: return false;
 
 				case Expr::Kind::Alloca: {
-					if(func_metadata.contains(stmt) == false){
-						agent.removeStmt(stmt);
-						return true;
-					}
+					if(remove_unused_stmt()){ return true; }
 
 					return false;
 				} break;
 
 
 				case Expr::Kind::Load: {
-					if(func_metadata.contains(stmt) == false){
-						agent.removeStmt(stmt);
-						return true;
-					}
+					if(remove_unused_stmt()){ return true; }
 
 					const Load& load = agent.getLoad(stmt);
 					see_expr(load.source);
@@ -157,10 +167,7 @@ namespace pcit::pir::passes{
 				} break;
 
 				case Expr::Kind::CalcPtr: {
-					if(func_metadata.contains(stmt) == false){
-						agent.removeStmt(stmt);
-						return true;
-					}
+					if(remove_unused_stmt()){ return true; }
 
 					const CalcPtr& calc_ptr = agent.getCalcPtr(stmt);
 					see_expr(calc_ptr.basePtr);
@@ -172,11 +179,80 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
+
+				case Expr::Kind::BitCast: {
+					if(remove_unused_stmt()){ return true; }
+
+					const BitCast& bitcast = agent.getBitCast(stmt);
+					see_expr(bitcast.fromValue);
+				} break;
+
+				case Expr::Kind::Trunc: {
+					if(remove_unused_stmt()){ return true; }
+
+					const Trunc& trunc = agent.getTrunc(stmt);
+					see_expr(trunc.fromValue);
+				} break;
+
+				case Expr::Kind::FTrunc: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FTrunc& ftrunc = agent.getFTrunc(stmt);
+					see_expr(ftrunc.fromValue);
+				} break;
+
+				case Expr::Kind::SExt: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SExt& sext = agent.getSExt(stmt);
+					see_expr(sext.fromValue);
+				} break;
+
+				case Expr::Kind::ZExt: {
+					if(remove_unused_stmt()){ return true; }
+
+					const ZExt& zext = agent.getZExt(stmt);
+					see_expr(zext.fromValue);
+				} break;
+
+				case Expr::Kind::FExt: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FExt& fext = agent.getFExt(stmt);
+					see_expr(fext.fromValue);
+				} break;
+
+				case Expr::Kind::IToF: {
+					if(remove_unused_stmt()){ return true; }
+
+					const IToF& itof = agent.getIToF(stmt);
+					see_expr(itof.fromValue);
+				} break;
+
+				case Expr::Kind::UIToF: {
+					if(remove_unused_stmt()){ return true; }
+
+					const UIToF& uitof = agent.getUIToF(stmt);
+					see_expr(uitof.fromValue);
+				} break;
+
+				case Expr::Kind::FToI: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FToI& ftoi = agent.getFToI(stmt);
+					see_expr(ftoi.fromValue);
+				} break;
+
+				case Expr::Kind::FToUI: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FToUI& ftoui = agent.getFToUI(stmt);
+					see_expr(ftoui.fromValue);
+				} break;
+
+
 				case Expr::Kind::Add: {
-					if(func_metadata.contains(stmt) == false){
-						agent.removeStmt(stmt);
-						return true;
-					}
+					if(remove_unused_stmt()){ return true; }
 
 					const Add& add = agent.getAdd(stmt);
 					see_expr(add.lhs);
@@ -186,10 +262,7 @@ namespace pcit::pir::passes{
 				} break;
 
 				case Expr::Kind::FAdd: {
-					if(func_metadata.contains(stmt) == false){
-						agent.removeStmt(stmt);
-						return true;
-					}
+					if(remove_unused_stmt()){ return true; }
 
 					const FAdd& fadd = agent.getFAdd(stmt);
 					see_expr(fadd.lhs);

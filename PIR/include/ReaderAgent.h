@@ -63,6 +63,17 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getStore(const Expr& expr) const -> const Store&;
 			EVO_NODISCARD auto getCalcPtr(const Expr& expr) const -> const CalcPtr&;
 
+			EVO_NODISCARD auto getBitCast(const Expr& expr) const -> const BitCast&;
+			EVO_NODISCARD auto getTrunc(const Expr& expr) const -> const Trunc&;
+			EVO_NODISCARD auto getFTrunc(const Expr& expr) const -> const FTrunc&;
+			EVO_NODISCARD auto getSExt(const Expr& expr) const -> const SExt&;
+			EVO_NODISCARD auto getZExt(const Expr& expr) const -> const ZExt&;
+			EVO_NODISCARD auto getFExt(const Expr& expr) const -> const FExt&;
+			EVO_NODISCARD auto getIToF(const Expr& expr) const -> const IToF&;
+			EVO_NODISCARD auto getUIToF(const Expr& expr) const -> const UIToF&;
+			EVO_NODISCARD auto getFToI(const Expr& expr) const -> const FToI&;
+			EVO_NODISCARD auto getFToUI(const Expr& expr) const -> const FToUI&;
+
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
 			EVO_NODISCARD auto getFAdd(const Expr& expr) const -> const FAdd&;
 			EVO_NODISCARD auto getSAddWrap(const Expr& expr) const -> const SAddWrap&;

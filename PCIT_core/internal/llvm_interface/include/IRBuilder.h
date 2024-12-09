@@ -137,23 +137,23 @@ namespace pcit::llvmint{
 
 			EVO_NODISCARD auto createTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
-			EVO_NODISCARD auto createFPTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createFTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
 
 			EVO_NODISCARD auto createZExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
 			EVO_NODISCARD auto createSExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
-			EVO_NODISCARD auto createFPExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createFExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
 
-			EVO_NODISCARD auto createSIToFP(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createIToF(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
-			EVO_NODISCARD auto createUIToFP(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createUIToF(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
-			EVO_NODISCARD auto createFPToSI(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createFToI(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
-			EVO_NODISCARD auto createFPToUI(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createFToUI(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
 				-> Value;
 
 			EVO_NODISCARD auto createBitCast(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')

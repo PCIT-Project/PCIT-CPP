@@ -74,7 +74,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto getExprType(const Expr& expr) const -> Type;
 
-			auto replaceExpr(Expr original, const Expr& replacement) const -> void;
+			auto replaceExpr(Expr original, Expr replacement) const -> void;
 			auto removeStmt(Expr stmt_to_remove) const -> void;
 
 
@@ -246,6 +246,94 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getCalcPtr(const Expr& expr) const -> const CalcPtr&;
 
 
+
+			//////////////////////////////////////////////////////////////////////
+			// type conversion
+
+			
+			///////////////////////////////////
+			// BitCast
+
+			EVO_NODISCARD auto createBitCast(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getBitCast(const Expr& expr) const -> const BitCast&;
+
+			
+			///////////////////////////////////
+			// Trunc
+
+			EVO_NODISCARD auto createTrunc(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getTrunc(const Expr& expr) const -> const Trunc&;
+
+			
+			///////////////////////////////////
+			// FTrunc
+
+			EVO_NODISCARD auto createFTrunc(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getFTrunc(const Expr& expr) const -> const FTrunc&;
+
+			
+			///////////////////////////////////
+			// SExt
+
+			EVO_NODISCARD auto createSExt(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getSExt(const Expr& expr) const -> const SExt&;
+
+			
+			///////////////////////////////////
+			// ZExt
+
+			EVO_NODISCARD auto createZExt(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getZExt(const Expr& expr) const -> const ZExt&;
+
+			
+			///////////////////////////////////
+			// FExt
+
+			EVO_NODISCARD auto createFExt(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getFExt(const Expr& expr) const -> const FExt&;
+
+			
+			///////////////////////////////////
+			// IToF
+
+			EVO_NODISCARD auto createIToF(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getIToF(const Expr& expr) const -> const IToF&;
+
+			
+			///////////////////////////////////
+			// UIToF
+
+			EVO_NODISCARD auto createUIToF(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getUIToF(const Expr& expr) const -> const UIToF&;
+
+			
+			///////////////////////////////////
+			// FToI
+
+			EVO_NODISCARD auto createFToI(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getFToI(const Expr& expr) const -> const FToI&;
+
+			
+			///////////////////////////////////
+			// FToUI
+
+			EVO_NODISCARD auto createFToUI(const Expr& fromValue, const Type& toType, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getFToUI(const Expr& expr) const -> const FToUI&;
+
+
+
+			//////////////////////////////////////////////////////////////////////
+			// arithmetic
 
 			///////////////////////////////////
 			// add

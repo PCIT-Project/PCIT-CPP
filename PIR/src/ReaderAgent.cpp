@@ -57,7 +57,7 @@ namespace pcit::pir{
 					}
 				});
 			} break;
-			case Expr::Kind::CallVoid:       evo::unreachable();
+			case Expr::Kind::CallVoid:        evo::unreachable();
 			case Expr::Kind::Breakpoint:      evo::unreachable();
 			case Expr::Kind::Ret:             evo::unreachable();
 			case Expr::Kind::Branch:          evo::unreachable();
@@ -67,6 +67,16 @@ namespace pcit::pir{
 			case Expr::Kind::Load:            return this->getLoad(expr).type;
 			case Expr::Kind::Store:           evo::unreachable();
 			case Expr::Kind::CalcPtr:         return this->module.createPtrType();
+			case Expr::Kind::BitCast:         return this->getBitCast(expr).toType;
+			case Expr::Kind::Trunc:           return this->getTrunc(expr).toType;
+			case Expr::Kind::FTrunc:          return this->getFTrunc(expr).toType;
+			case Expr::Kind::SExt:            return this->getSExt(expr).toType;
+			case Expr::Kind::ZExt:            return this->getZExt(expr).toType;
+			case Expr::Kind::FExt:            return this->getFExt(expr).toType;
+			case Expr::Kind::IToF:            return this->getIToF(expr).toType;
+			case Expr::Kind::UIToF:           return this->getUIToF(expr).toType;
+			case Expr::Kind::FToI:            return this->getFToI(expr).toType;
+			case Expr::Kind::FToUI:           return this->getFToUI(expr).toType;
 			case Expr::Kind::Add:             return this->getExprType(this->getAdd(expr).lhs);
 			case Expr::Kind::FAdd:            return this->getExprType(this->getFAdd(expr).lhs);
 			case Expr::Kind::SAddWrap:        evo::unreachable();
@@ -178,6 +188,80 @@ namespace pcit::pir{
 
 		return this->module.calc_ptrs[expr.index];
 	}
+
+
+
+	auto ReaderAgent::getBitCast(const Expr& expr) const -> const BitCast& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::BitCast, "Not a BitCast");
+
+		return this->module.bitcasts[expr.index];
+	}
+
+	auto ReaderAgent::getTrunc(const Expr& expr) const -> const Trunc& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Trunc, "Not a Trunc");
+
+		return this->module.truncs[expr.index];
+	}
+
+	auto ReaderAgent::getFTrunc(const Expr& expr) const -> const FTrunc& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FTrunc, "Not a FTrunc");
+
+		return this->module.ftruncs[expr.index];
+	}
+
+	auto ReaderAgent::getSExt(const Expr& expr) const -> const SExt& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SExt, "Not a SExt");
+
+		return this->module.sexts[expr.index];
+	}
+
+	auto ReaderAgent::getZExt(const Expr& expr) const -> const ZExt& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::ZExt, "Not a ZExt");
+
+		return this->module.zexts[expr.index];
+	}
+
+	auto ReaderAgent::getFExt(const Expr& expr) const -> const FExt& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FExt, "Not a FExt");
+
+		return this->module.fexts[expr.index];
+	}
+
+	auto ReaderAgent::getIToF(const Expr& expr) const -> const IToF& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::IToF, "Not a IToF");
+
+		return this->module.itofs[expr.index];
+	}
+
+	auto ReaderAgent::getUIToF(const Expr& expr) const -> const UIToF& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::UIToF, "Not a UIToF");
+
+		return this->module.uitofs[expr.index];
+	}
+
+	auto ReaderAgent::getFToI(const Expr& expr) const -> const FToI& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FToI, "Not a FToI");
+
+		return this->module.ftois[expr.index];
+	}
+
+	auto ReaderAgent::getFToUI(const Expr& expr) const -> const FToUI& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FToUI, "Not a FToUI");
+
+		return this->module.ftouis[expr.index];
+	}
+
+
 
 
 	auto ReaderAgent::getAdd(const Expr& expr) const -> const Add& {

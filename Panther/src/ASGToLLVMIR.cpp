@@ -1240,7 +1240,7 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::FTrunc: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
-						this->builder.createFPTrunc(args[0], this->get_type(to_type), this->stmt_name("FPTRUNC"))
+						this->builder.createFTrunc(args[0], this->get_type(to_type), this->stmt_name("FTRUNC"))
 					};
 				} break;
 
@@ -1261,35 +1261,35 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::FExt: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
-						this->builder.createFPExt(args[0], this->get_type(to_type), this->stmt_name("FPEXT"))
+						this->builder.createFExt(args[0], this->get_type(to_type), this->stmt_name("FEXT"))
 					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::IToF: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
-						this->builder.createSIToFP(args[0], this->get_type(to_type), this->stmt_name("SITOFP"))
+						this->builder.createIToF(args[0], this->get_type(to_type), this->stmt_name("ITOF"))
 					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::UIToF: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
-						this->builder.createUIToFP(args[0], this->get_type(to_type), this->stmt_name("UITOFP"))
+						this->builder.createUIToF(args[0], this->get_type(to_type), this->stmt_name("UITOF"))
 					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::FToI: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
-						this->builder.createFPToSI(args[0], this->get_type(to_type), this->stmt_name("FPTOSI"))
+						this->builder.createFToI(args[0], this->get_type(to_type), this->stmt_name("FTOI"))
 					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::FToUI: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
 					return evo::SmallVector<llvmint::Value>{
-						this->builder.createFPToUI(args[0], this->get_type(to_type), this->stmt_name("FPTOUI"))
+						this->builder.createFToUI(args[0], this->get_type(to_type), this->stmt_name("FTOUI"))
 					};
 				} break;
 

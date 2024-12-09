@@ -59,12 +59,12 @@ namespace pcit::panther{
 		const FuncInfo& entry_func_info = this->get_func_info(*this->context.getEntry());
 
 		// TODO: make return int
-		// const pir::Type int_type = this->module.createIntegerType(
-		// 	this->context.getConfig().os == core::OS::Windows ? 32 : 64
-		// );
+		const pir::Type int_type = this->module.createIntegerType(
+			this->context.getConfig().os == core::OS::Windows ? 32 : 64
+		);
 
 		const pir::Function::ID main_func_id = module.createFunction(
-			"main", {}, pir::CallingConvention::Fast, pir::Linkage::Internal, this->module.createIntegerType(8)
+			"main", {}, pir::CallingConvention::Fast, pir::Linkage::Internal, int_type
 		);
 
 		this->agent.setTargetFunction(main_func_id);
@@ -73,7 +73,7 @@ namespace pcit::panther{
 		this->agent.setTargetBasicBlock(begin_block);
 
 		const pir::Expr call_to_entry = this->agent.createCall(entry_func_info.func, {}, "");
-		this->agent.createRet(call_to_entry);
+		this->agent.createRet(this->agent.createZExt(call_to_entry, int_type));
 	}
 
 

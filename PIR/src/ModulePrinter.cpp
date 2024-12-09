@@ -472,6 +472,57 @@ namespace pcit::pir{
 				this->printer.print("${}", calc_ptr.name);
 			} break;
 
+			case Expr::Kind::BitCast: {
+				const BitCast& bitcast = this->reader.getBitCast(expr);
+				this->printer.print("${}", bitcast.name);
+			} break;
+
+			case Expr::Kind::Trunc: {
+				const Trunc& trunc = this->reader.getTrunc(expr);
+				this->printer.print("${}", trunc.name);
+			} break;
+
+			case Expr::Kind::FTrunc: {
+				const FTrunc& ftrunc = this->reader.getFTrunc(expr);
+				this->printer.print("${}", ftrunc.name);
+			} break;
+
+			case Expr::Kind::SExt: {
+				const SExt& sext = this->reader.getSExt(expr);
+				this->printer.print("${}", sext.name);
+			} break;
+
+			case Expr::Kind::ZExt: {
+				const ZExt& zext = this->reader.getZExt(expr);
+				this->printer.print("${}", zext.name);
+			} break;
+
+			case Expr::Kind::FExt: {
+				const FExt& fext = this->reader.getFExt(expr);
+				this->printer.print("${}", fext.name);
+			} break;
+
+			case Expr::Kind::IToF: {
+				const IToF& itof = this->reader.getIToF(expr);
+				this->printer.print("${}", itof.name);
+			} break;
+
+			case Expr::Kind::UIToF: {
+				const UIToF& uitof = this->reader.getUIToF(expr);
+				this->printer.print("${}", uitof.name);
+			} break;
+
+			case Expr::Kind::FToI: {
+				const FToI& ftoi = this->reader.getFToI(expr);
+				this->printer.print("${}", ftoi.name);
+			} break;
+
+			case Expr::Kind::FToUI: {
+				const FToUI& ftoui = this->reader.getFToUI(expr);
+				this->printer.print("${}", ftoui.name);
+			} break;
+
+
 			case Expr::Kind::Add: {
 				const Add& add = this->reader.getAdd(expr);
 				this->printer.print("${}", add.name);
@@ -611,7 +662,7 @@ namespace pcit::pir{
 				this->printer.print(" ");
 				for(size_t i = 0; const CalcPtr::Index& index : calc_ptr.indices){
 					if(index.is<int64_t>()){
-						this->printer.printCyan("UI64");
+						this->printer.printCyan("I64");
 						this->printer.print("(");
 						this->printer.printMagenta("{}", index.as<int64_t>());
 						this->printer.print(")");
@@ -624,6 +675,116 @@ namespace pcit::pir{
 					}
 					i += 1;
 				}
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::BitCast:{
+				const BitCast& bitcast = this->reader.getBitCast(stmt);
+
+				this->printer.print("{}${} ", tabs(2), bitcast.name);
+				this->printer.printRed(" = @bitCast ");
+				this->print_type(bitcast.toType);
+				this->printer.print(" ");
+				this->print_expr(bitcast.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::Trunc:{
+				const Trunc& trunc = this->reader.getTrunc(stmt);
+
+				this->printer.print("{}${} ", tabs(2), trunc.name);
+				this->printer.printRed(" = @trunc ");
+				this->print_type(trunc.toType);
+				this->printer.print(" ");
+				this->print_expr(trunc.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FTrunc:{
+				const FTrunc& ftrunc = this->reader.getFTrunc(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ftrunc.name);
+				this->printer.printRed(" = @ftrunc ");
+				this->print_type(ftrunc.toType);
+				this->printer.print(" ");
+				this->print_expr(ftrunc.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SExt:{
+				const SExt& sext = this->reader.getSExt(stmt);
+
+				this->printer.print("{}${} ", tabs(2), sext.name);
+				this->printer.printRed(" = @sext ");
+				this->print_type(sext.toType);
+				this->printer.print(" ");
+				this->print_expr(sext.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::ZExt:{
+				const ZExt& zext = this->reader.getZExt(stmt);
+
+				this->printer.print("{}${} ", tabs(2), zext.name);
+				this->printer.printRed(" = @zext ");
+				this->print_type(zext.toType);
+				this->printer.print(" ");
+				this->print_expr(zext.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FExt:{
+				const FExt& fext = this->reader.getFExt(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fext.name);
+				this->printer.printRed(" = @fext ");
+				this->print_type(fext.toType);
+				this->printer.print(" ");
+				this->print_expr(fext.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::IToF:{
+				const IToF& itof = this->reader.getIToF(stmt);
+
+				this->printer.print("{}${} ", tabs(2), itof.name);
+				this->printer.printRed(" = @itof ");
+				this->print_type(itof.toType);
+				this->printer.print(" ");
+				this->print_expr(itof.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::UIToF:{
+				const UIToF& uitof = this->reader.getUIToF(stmt);
+
+				this->printer.print("{}${} ", tabs(2), uitof.name);
+				this->printer.printRed(" = @uitof ");
+				this->print_type(uitof.toType);
+				this->printer.print(" ");
+				this->print_expr(uitof.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FToI:{
+				const FToI& ftoi = this->reader.getFToI(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ftoi.name);
+				this->printer.printRed(" = @ftoi ");
+				this->print_type(ftoi.toType);
+				this->printer.print(" ");
+				this->print_expr(ftoi.fromValue);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FToUI:{
+				const FToUI& ftoui = this->reader.getFToUI(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ftoui.name);
+				this->printer.printRed(" = @ftoui ");
+				this->print_type(ftoui.toType);
+				this->printer.print(" ");
+				this->print_expr(ftoui.fromValue);
 				this->printer.println();
 			} break;
 

@@ -1,6 +1,26 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.70.0
+
+### Panther
+- when emitting `main` function, it now correctly returns `CInt`
+
+### PIR
+- Added type conversion instructions
+	- `@bitCast`
+	- `@trunc`
+	- `@ftrunc`
+	- `@sext`
+	- `@zext`
+	- `@fext`
+	- `@itof`
+	- `@uitof`
+	- `@ftoi`
+	- `@ftoui`
+
+
+<!---------------------------------->
 ## v0.0.69.0
 
 ### PIR

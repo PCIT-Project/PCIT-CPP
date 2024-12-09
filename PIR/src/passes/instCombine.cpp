@@ -41,6 +41,16 @@ namespace pcit::pir::passes{
 			case Expr::Kind::Load:        return false;
 			case Expr::Kind::Store:       return false;
 			case Expr::Kind::CalcPtr:     return false;
+			case Expr::Kind::BitCast:     return false;
+			case Expr::Kind::Trunc:       return false;
+			case Expr::Kind::FTrunc:      return false;
+			case Expr::Kind::SExt:        return false;
+			case Expr::Kind::ZExt:        return false;
+			case Expr::Kind::FExt:        return false;
+			case Expr::Kind::IToF:        return false;
+			case Expr::Kind::UIToF:       return false;
+			case Expr::Kind::FToI:        return false;
+			case Expr::Kind::FToUI:       return false;
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
@@ -163,7 +173,115 @@ namespace pcit::pir::passes{
 			case Expr::Kind::Alloca:      return false;
 			case Expr::Kind::Load:        return false;
 			case Expr::Kind::Store:       return false;
-			case Expr::Kind::CalcPtr:     return false;
+
+			case Expr::Kind::CalcPtr: {
+				const CalcPtr& calc_ptr = agent.getCalcPtr(stmt);
+
+				for(const CalcPtr::Index& index : calc_ptr.indices){
+					if(index.is<int64_t>()){
+						if(index.as<int64_t>() != 0){ return false; }
+					}else{
+						const Expr& expr = index.as<Expr>();
+
+						if(expr.getKind() != Expr::Kind::Number){ return false; }
+						if(static_cast<uint64_t>(agent.getNumber(expr).getInt()) != 0){ return false; }
+					}
+				}
+
+				agent.replaceExpr(stmt, calc_ptr.basePtr);
+				return true;
+			} break;
+
+			case Expr::Kind::BitCast: {
+				const BitCast& bitcast = agent.getBitCast(stmt);
+				
+				if(agent.getExprType(bitcast.fromValue) == bitcast.toType){
+					agent.replaceExpr(stmt, bitcast.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::Trunc: {
+				const Trunc& trunc = agent.getTrunc(stmt);
+				
+				if(agent.getExprType(trunc.fromValue) == trunc.toType){
+					agent.replaceExpr(stmt, trunc.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::FTrunc: {
+				const FTrunc& ftrunc = agent.getFTrunc(stmt);
+				
+				if(agent.getExprType(ftrunc.fromValue) == ftrunc.toType){
+					agent.replaceExpr(stmt, ftrunc.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::SExt: {
+				const SExt& sext = agent.getSExt(stmt);
+				
+				if(agent.getExprType(sext.fromValue) == sext.toType){
+					agent.replaceExpr(stmt, sext.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::ZExt: {
+				const ZExt& zext = agent.getZExt(stmt);
+				
+				if(agent.getExprType(zext.fromValue) == zext.toType){
+					agent.replaceExpr(stmt, zext.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::FExt: {
+				const FExt& fext = agent.getFExt(stmt);
+				
+				if(agent.getExprType(fext.fromValue) == fext.toType){
+					agent.replaceExpr(stmt, fext.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::IToF: {
+				const IToF& itof = agent.getIToF(stmt);
+				
+				if(agent.getExprType(itof.fromValue) == itof.toType){
+					agent.replaceExpr(stmt, itof.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::UIToF: {
+				const UIToF& uitof = agent.getUIToF(stmt);
+				
+				if(agent.getExprType(uitof.fromValue) == uitof.toType){
+					agent.replaceExpr(stmt, uitof.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::FToI: {
+				const FToI& ftoi = agent.getFToI(stmt);
+				
+				if(agent.getExprType(ftoi.fromValue) == ftoi.toType){
+					agent.replaceExpr(stmt, ftoi.fromValue);
+					return true;
+				}
+			} break;
+
+			case Expr::Kind::FToUI: {
+				const FToUI& ftoui = agent.getFToUI(stmt);
+				
+				if(agent.getExprType(ftoui.fromValue) == ftoui.toType){
+					agent.replaceExpr(stmt, ftoui.fromValue);
+					return true;
+				}
+			} break;
+
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
