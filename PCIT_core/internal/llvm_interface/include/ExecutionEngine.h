@@ -58,7 +58,7 @@ namespace pcit::llvmint{
 					#pragma warning(disable:4611)
 				#endif
 
-				if(setjmp(this->get_panic_jump())){
+				if(setjmp(this->getPanicJump())){
 					return evo::resultError;
 				}
 
@@ -81,10 +81,10 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto hasCreatedEngine() const -> bool { return this->engine != nullptr; };
 
 
+			static EVO_NODISCARD auto getPanicJump() -> std::jmp_buf&;
 
 		private:
 			EVO_NODISCARD auto get_func_address(std::string_view func_name) const -> uint64_t;
-			static EVO_NODISCARD auto get_panic_jump() -> std::jmp_buf&;
 	
 		private:
 			llvm::ExecutionEngine* engine = nullptr;

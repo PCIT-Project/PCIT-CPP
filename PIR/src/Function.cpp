@@ -41,11 +41,43 @@ namespace pcit::pir{
 		evo::debugFatalBreak("Before basic block is not in this function");
 	}
 
+	auto Function::insert_basic_block_before(BasicBlock::ID id, const BasicBlock& before) -> void {
+		evo::debugAssert(!this->basic_block_is_already_in(id), "Basic block is already in this funciton");
+
+		auto reader = ReaderAgent(this->getParentModule());
+
+		for(auto iter = this->basic_blocks.begin(); iter != this->basic_blocks.end(); ++iter){
+			if(&reader.getBasicBlock(*iter) == &before){
+				this->basic_blocks.insert(iter, id);
+				return;
+			}
+		}
+
+		evo::debugFatalBreak("Before basic block is not in this function");
+	}
+
+
 	auto Function::insert_basic_block_after(BasicBlock::ID id, BasicBlock::ID after) -> void {
 		evo::debugAssert(!this->basic_block_is_already_in(id), "Basic block is already in this funciton");
 		
 		for(auto iter = this->basic_blocks.begin(); iter != this->basic_blocks.end(); ++iter){
 			if(*iter == after){
+				this->basic_blocks.insert(++iter, id);
+				return;
+			}
+		}
+
+		evo::debugFatalBreak("After basic block is not in this function");
+	}
+
+
+	auto Function::insert_basic_block_after(BasicBlock::ID id, const BasicBlock& after) -> void {
+		evo::debugAssert(!this->basic_block_is_already_in(id), "Basic block is already in this funciton");
+		
+		auto reader = ReaderAgent(this->getParentModule());
+
+		for(auto iter = this->basic_blocks.begin(); iter != this->basic_blocks.end(); ++iter){
+			if(&reader.getBasicBlock(*iter) == &after){
 				this->basic_blocks.insert(++iter, id);
 				return;
 			}

@@ -353,8 +353,17 @@ namespace pcit::pir{
 	}
 
 	auto Agent::createBasicBlock(std::string&& name) const -> BasicBlock::ID {
-		evo::debugAssert(this->hasTargetFunction(), "Cannot use this function as there is no function target set");
+		evo::debugAssert(this->hasTargetFunction(), "Cannot use this function as there is no target function set");
 		return this->createBasicBlock(*this->target_func, std::move(name));
+	}
+
+	auto Agent::createBasicBlockInline(std::string&& name) const -> BasicBlock::ID {
+		evo::debugAssert(this->hasTargetBasicBlock(), "Cannot use this function as there is no target basic block set");
+
+		const pcit::pir::BasicBlock::ID new_block_id =
+			this->module.basic_blocks.emplace_back(this->get_stmt_name(std::move(name)));
+		this->target_func->insert_basic_block_after(new_block_id, this->getTargetBasicBlock());
+		return new_block_id;
 	}
 
 	auto Agent::getBasicBlock(BasicBlock::ID id) const -> BasicBlock& {
@@ -1142,7 +1151,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fAdd instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FAdd, this->module.adds.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+			Expr::Kind::FAdd, this->module.fadds.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;

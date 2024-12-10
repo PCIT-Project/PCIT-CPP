@@ -9,13 +9,44 @@
 // 	return i as UI8;
 // }
 
-func test = (num: Int) -> Int {
-	var num_ptr: Int*| = &num;
-	return copy num_ptr.*;
+
+//////////////////////////////////////////////////////////////////////
+// 
+
+func test = (num: UI32) -> (output: UI32, bool: Bool) {
+	var num_ptr: UI32*| = &num;
+	output = copy num_ptr.*;
+	bool = true;
+	return...;
 }
 
-func entry = () #entry -> UI8 {
-	var foo: UI8 = 12;
 
-	return copy (&foo).*;
+func set = (num: UI32 mut) -> Void {
+	def WRAP_FAIL: Bool = true;
+
+	when(WRAP_FAIL){
+		num = num + 4294967292;
+	}else{
+		num = num + 5;
+	}
+
+}
+
+
+func entry = () #entry -> UI8 {
+	var foo: UI32 = uninit;
+	var bar: Bool = uninit;
+
+	[foo, bar] = test(12);
+
+	if(bar){
+		set(foo);
+	}else if(false){
+		foo = 95;
+		@breakpoint();
+	}
+
+	@_printHelloWorld();
+
+	return foo as UI8;
 }

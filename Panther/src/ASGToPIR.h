@@ -25,7 +25,7 @@ namespace pcit::panther{
 	struct ASGToPIRConfig{
 		bool useReadableRegisters;
 		bool checkedMath;
-		// bool isJIT;
+		bool isJIT;
 		bool addSourceLocations;
 	};
 
@@ -55,13 +55,12 @@ namespace pcit::panther{
 			auto lower_stmt(const ASG::Stmt& stmt) -> void;
 			auto lower_var(const ASG::Var::ID& var_id) -> void;
 			auto lower_func_call(const ASG::FuncCall& func_call) -> void;
+			auto lower_intrinsic_call(const ASG::FuncCall& func_call) -> void;
 			auto lower_assign(const ASG::Assign& assign) -> void;
 			auto lower_multi_assign(const ASG::MultiAssign& multi_assign) -> void;
 			auto lower_return(const ASG::Return& return_stmt) -> void;
 			auto lower_conditional(const ASG::Conditional& conditional_stmt) -> void;
 			auto lower_while(const ASG::While& while_loop) -> void;
-
-
 
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID& type_info_voidable_id) const -> pir::Type;
 			EVO_NODISCARD auto get_type(const TypeInfo::ID& type_info_id) const -> pir::Type;
@@ -69,10 +68,25 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_type(const BaseType::Primitive& primitive) const -> pir::Type;
 
 			template<bool GET_POINTER_TO_VALUE>
-			EVO_NODISCARD auto get_value(const ASG::Expr& expr) const -> pir::Expr;
+			EVO_NODISCARD auto get_value(const ASG::Expr& expr) -> pir::Expr;
 
 			EVO_NODISCARD auto get_global_var_value(const pir::Type& type, const ASG::Expr& expr) const
 				-> pir::GlobalVar::Value;
+
+			template<bool GET_POINTER_TO_VALUE>
+			EVO_NODISCARD auto lower_returning_func_call(const ASG::FuncCall& func_call) -> evo::SmallVector<pir::Expr>;
+
+			template<bool GET_POINTER_TO_VALUE>
+			EVO_NODISCARD auto lower_returning_intrinsic_call(const ASG::FuncCall& func_call)
+				-> evo::SmallVector<pir::Expr>;
+
+			EVO_NODISCARD auto add_panic(std::string_view message, const ASG::Location& location) -> void;
+			EVO_NODISCARD auto add_fail_assertion(
+				const pir::Expr& cond,
+				std::string_view block_name,
+				std::string_view message,
+				const ASG::Location& location
+			) -> void;
 
 
 			EVO_NODISCARD auto mangle_name(const ASG::Func& func) const -> std::string;
@@ -113,6 +127,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_return_param_info(ASG::ReturnParam::LinkID link_id) const -> const ReturnParamInfo&;
 
 
+			auto link_jit_std_out_if_needed() -> void;
+			auto link_jit_std_err_if_needed() -> void;
+			auto link_libc_puts_if_needed() -> void;
+
+
 		private:
 			const Context& context;
 			pir::Module& module;
@@ -128,6 +147,26 @@ namespace pcit::panther{
 			std::unordered_map<ASG::Var::LinkID, VarInfo> var_infos{};
 			std::unordered_map<ASG::Param::LinkID, ParamInfo> param_infos{};
 			std::unordered_map<ASG::ReturnParam::LinkID, ReturnParamInfo> return_param_infos{};
+
+
+			struct /* jit_links */ {
+				std::optional<pir::FunctionDecl::ID> std_out{};
+				std::optional<pir::FunctionDecl::ID> std_err{};
+				std::optional<pir::FunctionDecl::ID> panic{};
+			} jit_links;
+
+			struct /* libc_links */ {
+				std::optional<pir::FunctionDecl::ID> puts{};
+			} libc_links;
+
+			struct /* non_jit_runtime */ {
+				std::optional<pir::Function::ID> panic{};
+			} non_jit_runtime;
+
+			struct /* globals */ {
+				std::optional<pir::GlobalVar::ID> hello_world_str{};
+				std::unordered_map<std::string, pir::GlobalVar::ID> panic_messages{};
+			} globals;
 	};
 
 	

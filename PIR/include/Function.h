@@ -123,7 +123,9 @@ namespace pcit::pir{
 		private:
 			auto append_basic_block(BasicBlock::ID id) -> void;
 			auto insert_basic_block_before(BasicBlock::ID id, BasicBlock::ID before) -> void;
+			auto insert_basic_block_before(BasicBlock::ID id, const BasicBlock& before) -> void;
 			auto insert_basic_block_after(BasicBlock::ID id, BasicBlock::ID after) -> void;
+			auto insert_basic_block_after(BasicBlock::ID id, const BasicBlock& after) -> void;
 
 			EVO_NODISCARD auto basic_block_is_already_in(BasicBlock::ID id) const -> bool;
 

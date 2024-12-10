@@ -15,8 +15,6 @@
 #include "./ASGToLLVMIR.h"
 #include "./ASGToPIR.h"
 
-
-#include <llvm_interface.h>
 #include <PIR.h>
 
 
@@ -263,66 +261,15 @@ namespace pcit::panther{
 		auto asg_to_pir_config = ASGToPIR::Config{
 			.useReadableRegisters = true,
 			.checkedMath          = this->config.checkedMath,
-			// .isJIT                = !add_runtime,
+			.isJIT                = true,
 			.addSourceLocations   = this->config.addSourceLocations,
 		};
 		auto asg_to_pir = ASGToPIR(*this, module, asg_to_pir_config);
 		asg_to_pir.lower();
 
-		pcit::pir::printModule(module, this->printer);
+		pir::printModule(module, this->printer);
 		return true;
 	}
-
-
-	// auto Context::printLLVMIR(bool add_runtime) -> evo::Result<std::string> {
-	// 	auto llvm_context = llvmint::LLVMContext();
-	// 	llvm_context.init();
-
-	// 	const evo::Result<std::string> printed_llvm_ir = [&](){
-	// 		auto module = llvmint::Module();
-	// 		module.init("testing", llvm_context);
-	// 		EVO_DEFER([&](){ module.deinit(); });
-
-	// 		const std::string target_triple = module.getDefaultTargetTriple();
-
-	// 		const std::string data_layout_error = module.setDataLayout(
-	// 			target_triple,
-	// 			llvmint::Module::Relocation::Default,
-	// 			llvmint::Module::CodeSize::Default,
-	// 			llvmint::Module::OptLevel::None,
-	// 			false
-	// 		);
-
-	// 		if(!data_layout_error.empty()){
-	// 			this->emitFatal(
-	// 				Diagnostic::Code::LLLVMDataLayoutError,
-	// 				std::nullopt,
-	// 				Diagnostic::createFatalMessage(
-	// 					std::format("Failed to set data layout with message: {}", data_layout_error)
-	// 				)
-	// 			);
-	// 			return evo::Result<std::string>(evo::resultError);
-	// 		}
-
-	// 		module.setTargetTriple(target_triple);
-
-	// 		const auto backend_config = ASGToLLVMIR::Config{
-	// 			.useReadableRegisters = true,
-	// 			.checkedMath          = this->config.checkedMath,
-	// 			.isJIT                = !add_runtime,
-	// 			.addSourceLocations   = this->config.addSourceLocations,
-	// 		};
-	// 		if(this->lower_to_llvmir(llvm_context, module, add_runtime, backend_config) == false){
-	// 			return evo::Result<std::string>(evo::resultError);
-	// 		}
-
-	// 		return evo::Result<std::string>(module.print());
-	// 	}();
-
-	// 	llvm_context.deinit();
-
-	// 	return printed_llvm_ir;
-	// }
 
 
 
@@ -332,67 +279,25 @@ namespace pcit::panther{
 		auto asg_to_pir_config = ASGToPIR::Config{
 			.useReadableRegisters = true,
 			.checkedMath          = this->config.checkedMath,
-			// .isJIT                = !add_runtime,
+			.isJIT                = true,
 			.addSourceLocations   = this->config.addSourceLocations,
 		};
 		auto asg_to_pir = ASGToPIR(*this, module, asg_to_pir_config);
 		asg_to_pir.lower();
 		if(add_runtime){ asg_to_pir.addRuntime(); }
 
-		return pcit::pir::lowerToLLVMIR(module);
+		return pir::lowerToLLVMIR(module);
 	}
 
 
-	// auto Context::run() -> evo::Result<uint8_t> {
-	// 	auto llvm_context = llvmint::LLVMContext();
-	// 	llvm_context.init();
+	struct JITEngineContext{
+		std::mutex lock{};
 
-	// 	const evo::Result<uint8_t> result = [&](){
-	// 		auto module = llvmint::Module();
-	// 		module.init("testing", llvm_context);
-	// 		EVO_DEFER([&](){ module.deinit(); });
+		core::Printer* printer = nullptr;
+		Context* context = nullptr;
+	};
 
-	// 		const std::string target_triple = module.getDefaultTargetTriple();
-
-	// 		const std::string data_layout_error = module.setDataLayout(
-	// 			target_triple,
-	// 			llvmint::Module::Relocation::Default,
-	// 			llvmint::Module::CodeSize::Default,
-	// 			llvmint::Module::OptLevel::None,
-	// 			true
-	// 		);
-
-	// 		if(!data_layout_error.empty()){
-	// 			this->emitFatal(
-	// 				Diagnostic::Code::LLLVMDataLayoutError,
-	// 				std::nullopt,
-	// 				Diagnostic::createFatalMessage(
-	// 					std::format("Failed to set data layout with message: {}", data_layout_error)
-	// 				)
-	// 			);
-	// 			return evo::Result<uint8_t>(evo::resultError);
-	// 		}
-
-	// 		module.setTargetTriple(target_triple);
-
-	// 		const auto backend_config = ASGToLLVMIR::Config{
-	// 			.useReadableRegisters = false,
-	// 			.checkedMath          = this->config.checkedMath,
-	// 			.isJIT                = true,
-	// 			.addSourceLocations   = this->config.addSourceLocations,
-	// 		};
-	// 		if(this->lower_to_llvmir(llvm_context, module, true, backend_config) == false){
-	// 			return evo::Result<uint8_t>(evo::resultError);
-	// 		}
-
-	// 		return evo::Result<uint8_t>(module.run<uint8_t>("main", this->printer));
-	// 	}();
-
-	// 	llvm_context.deinit();
-
-	// 	return result;
-	// }
-
+	static auto jit_engine_context = JITEngineContext();
 
 
 	auto Context::run() -> evo::Result<uint8_t> {
@@ -401,18 +306,56 @@ namespace pcit::panther{
 		auto asg_to_pir_config = ASGToPIR::Config{
 			.useReadableRegisters = true,
 			.checkedMath          = this->config.checkedMath,
-			// .isJIT                = !add_runtime,
+			.isJIT                = true,
 			.addSourceLocations   = this->config.addSourceLocations,
 		};
 		auto asg_to_pir = ASGToPIR(*this, module, asg_to_pir_config);
 		asg_to_pir.lower();
 		asg_to_pir.addRuntime();
 
-		auto jit_engine = pcit::pir::JITEngine();
+		auto jit_engine = pir::JITEngine();
 		jit_engine.init(module);
 		EVO_DEFER([&](){ jit_engine.deinit(); });
 
-		const evo::Result<core::GenericValue> result = jit_engine.runFunc("main");
+		jit_engine.registerFunction("PTHR.stdout", [](const char* msg) -> void {
+			jit_engine_context.printer->print(msg);
+		});
+
+		jit_engine.registerFunction("PTHR.stderr", [](const char* msg) -> void {
+			jit_engine_context.printer->printError(msg);
+		});
+
+		if(this->config.addSourceLocations){
+			jit_engine.registerFunction(
+				"PTHR.panic",
+				[](const char* msg, uint32_t source_id, uint32_t line, uint32_t collumn) -> void {
+					jit_engine_context.context->emitError(
+						Diagnostic::Code::MiscRuntimePanic,
+						Source::Location(Source::ID(source_id), line, collumn),
+						std::format("Execution Panic: \"{}\"", msg)
+					);
+					pir::JITEngine::panicJump();
+				}
+			);
+		}else{
+			jit_engine.registerFunction("PTHR.panic", [](const char* msg) -> void {
+				jit_engine_context.context->emitError(
+					Diagnostic::Code::MiscRuntimePanic,
+					std::nullopt,
+					std::format("Execution Panic: \"{}\"", msg)
+				);
+				pir::JITEngine::panicJump();
+			});
+		}
+
+		const evo::Result<core::GenericValue> result = [&](){
+			const auto lock = std::scoped_lock(jit_engine_context.lock);
+
+			jit_engine_context.printer = &this->printer;
+			jit_engine_context.context = this;
+
+			return jit_engine.runFunc("main");
+		}();
 		if(result.isError()){ return evo::resultError; }
 
 		return uint8_t(static_cast<int>(result.value().as<core::GenericInt>()));
@@ -516,34 +459,6 @@ namespace pcit::panther{
 
 		return this->templated_intrinsics[size_t(kind)];
 	}
-
-
-
-	auto Context::lower_to_llvmir(
-		llvmint::LLVMContext& llvm_context,
-		llvmint::Module& module,
-		bool add_runtime,
-		const ASGToLLVMIR::Config& backend_config
-	)-> bool {
-		auto asg_to_llvmir = ASGToLLVMIR(*this, llvm_context, module, backend_config);
-		asg_to_llvmir.lower();
-
-		if(add_runtime){
-			if(this->entry.has_value() == false){
-				this->emitError(
-					Diagnostic::Code::MiscNoEntrySet,
-					std::nullopt,
-					"No entry function was declared"
-				);
-				return false;
-			}
-
-			asg_to_llvmir.addRuntime();
-		}
-
-		return true;
-	}
-
 
 
 

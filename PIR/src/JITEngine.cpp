@@ -235,4 +235,9 @@ namespace pcit::pir{
 
 
 
+	auto JITEngine::panicJump() -> void {
+		std::longjmp(llvmint::ExecutionEngine::getPanicJump(), true);
+	}
+
+
 }

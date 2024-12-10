@@ -61,7 +61,7 @@ namespace pcit::llvmint{
 	static core::Printer* runtime_funcs_printer = nullptr;
 	static std::jmp_buf panic_jump;
 
-	auto ExecutionEngine::get_panic_jump() -> std::jmp_buf& {
+	auto ExecutionEngine::getPanicJump() -> std::jmp_buf& {
 		return panic_jump;
 	}
 

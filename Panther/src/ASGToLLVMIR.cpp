@@ -394,8 +394,7 @@ namespace pcit::panther{
 
 
 	auto ASGToLLVMIR::lower_func_call(const ASG::FuncCall& func_call) -> void {
-		// TODO: optimize the generated ouput
-		[[maybe_unused]] const evo::SmallVector<llvmint::Value> ret_vals = lower_returning_func_call(func_call, false);
+		std::ignore = this->lower_returning_func_call(func_call, false);
 	}
 
 

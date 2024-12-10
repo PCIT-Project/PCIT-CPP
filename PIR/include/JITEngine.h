@@ -47,6 +47,8 @@ namespace pcit::pir{
 			EVO_NODISCARD auto runFunc(Function::ID func_id) const -> evo::Result<core::GenericValue>;
 			EVO_NODISCARD auto runFunc(const Function& func) const -> evo::Result<core::GenericValue>;
 
+			// only for use by registered functions
+			static auto panicJump() -> void;
 
 		private:
 			const class Module* module = nullptr;

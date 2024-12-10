@@ -227,8 +227,8 @@ namespace pcit::core{
 			            		this->index = ID(this->index.get() + 1);
 			            	}
 			            }while(
-			            	this->parent->linear_step_alloc[this->index].has_value() == false &&
-			            	this->index != ID(uint32_t(this->parent->size()))
+			            	this->index != ID(uint32_t(this->parent->size())) &&
+			            	this->parent->linear_step_alloc[this->index].has_value() == false
 			            );
 
 			            return *this;

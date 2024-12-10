@@ -84,6 +84,7 @@ namespace pcit::pir{
 			auto createBasicBlock(Function::ID func, std::string&& name = "") const -> BasicBlock::ID;
 			auto createBasicBlock(Function& func, std::string&& name = "") const -> BasicBlock::ID;
 			auto createBasicBlock(std::string&& name = "") const -> BasicBlock::ID;
+			auto createBasicBlockInline(std::string&& name = "") const -> BasicBlock::ID;
 
 			EVO_NODISCARD auto getBasicBlock(BasicBlock::ID id) const -> BasicBlock&;
 
@@ -91,10 +92,10 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// numbers
 
-			auto createNumber(const Type& type, core::GenericInt&& value) const -> Expr;
-			auto createNumber(const Type& type, const core::GenericInt& value) const -> Expr;
-			auto createNumber(const Type& type, core::GenericFloat&& value) const -> Expr;
-			auto createNumber(const Type& type, const core::GenericFloat& value) const -> Expr;
+			EVO_NODISCARD auto createNumber(const Type& type, core::GenericInt&& value) const -> Expr;
+			EVO_NODISCARD auto createNumber(const Type& type, const core::GenericInt& value) const -> Expr;
+			EVO_NODISCARD auto createNumber(const Type& type, core::GenericFloat&& value) const -> Expr;
+			EVO_NODISCARD auto createNumber(const Type& type, const core::GenericFloat& value) const -> Expr;
 
 			EVO_NODISCARD auto getNumber(const Expr& expr) const -> const Number&;
 

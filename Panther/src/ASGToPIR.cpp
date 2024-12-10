@@ -58,7 +58,6 @@ namespace pcit::panther{
 	auto ASGToPIR::addRuntime() -> void {
 		const FuncInfo& entry_func_info = this->get_func_info(*this->context.getEntry());
 
-		// TODO: make return int
 		const pir::Type int_type = this->module.createIntegerType(
 			this->context.getConfig().os == core::OS::Windows ? 32 : 64
 		);
@@ -295,11 +294,163 @@ namespace pcit::panther{
 		this->var_infos.emplace(ASG::Var::LinkID(this->current_source->getID(), var_id), VarInfo(var_alloca));
 	}
 
+
 	auto ASGToPIR::lower_func_call(const ASG::FuncCall& func_call) -> void {
-		// TODO: 
-		evo::log::fatal("UNIMPLEMENTED (ASG::FuncCall)");
-		evo::breakpoint();
+		if(func_call.target.is<ASG::Func::LinkID>() == false){
+			this->lower_intrinsic_call(func_call);
+			return;
+		}
+
+		const ASG::Func::LinkID& func_link_id = func_call.target.as<ASG::Func::LinkID>();
+		const FuncInfo& func_info = this->get_func_info(func_link_id);
+
+		const Source& linked_source = this->context.getSourceManager()[func_link_id.sourceID()];
+		const ASG::Func& asg_func = linked_source.getASGBuffer().getFunc(func_link_id.funcID());
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
+
+
+		auto args = evo::SmallVector<pir::Expr>();
+		args.reserve(func_call.args.size());
+		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
+			const bool optimize_with_copy = func_type.params[i].optimizeWithCopy;
+			if(optimize_with_copy){
+				args.emplace_back(this->get_value<false>(arg));
+			}else{
+				args.emplace_back(this->get_value<true>(arg));
+			}
+
+			i += 1;
+		}
+
+		this->agent.createCallVoid(func_info.func, args);
 	}
+
+
+	auto ASGToPIR::lower_intrinsic_call(const ASG::FuncCall& func_call) -> void {
+		auto args = evo::SmallVector<pir::Expr>();
+		args.reserve(func_call.args.size());
+		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
+			args.emplace_back(this->get_value<false>(arg));
+
+			i += 1;
+		}
+
+
+		if(func_call.target.is<Intrinsic::Kind>()){
+			switch(func_call.target.as<Intrinsic::Kind>()){
+				case Intrinsic::Kind::Breakpoint: {
+					this->agent.createBreakpoint();
+				} break;
+
+				case Intrinsic::Kind::_printHelloWorld: {
+					if(this->globals.hello_world_str.has_value() == false){
+						const pir::GlobalVar::String::ID str = 
+							this->module.createGlobalString("Hello World, I'm Panther!\n");
+
+						this->globals.hello_world_str = this->module.createGlobalVar(
+							"PTHR.print_hello_world_str",
+							this->module.getGlobalString(str).type,
+							pir::Linkage::Private,
+							str,
+							true
+						);
+
+					}
+
+					if(this->config.isJIT){
+						this->link_jit_std_out_if_needed();
+
+						this->agent.createCallVoid(*this->jit_links.std_out, evo::SmallVector<pcit::pir::Expr>{
+							this->agent.createGlobalValue(*this->globals.hello_world_str)
+						});
+
+					}else{
+						this->link_libc_puts_if_needed();
+
+						this->agent.createCallVoid(
+							*this->libc_links.puts,
+							evo::SmallVector<pcit::pir::Expr>{
+								this->agent.createGlobalValue(*this->globals.hello_world_str)
+							}
+						);
+					}
+				} break;
+
+				case Intrinsic::Kind::_max_: {
+					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
+				} break;
+			}
+			
+		}else{
+			evo::debugAssert(
+				func_call.target.is<ASG::TemplatedIntrinsicInstantiation::ID>(),
+				"cannot lower intrinsic for FuncLink::ID"
+			);
+
+			const ASG::TemplatedIntrinsicInstantiation& instantiation = 
+				this->current_source->getASGBuffer().getTemplatedIntrinsicInstantiation(
+					func_call.target.as<ASG::TemplatedIntrinsicInstantiation::ID>()
+				);
+
+			switch(instantiation.kind){
+				case TemplatedIntrinsic::Kind::IsSameType: 
+				case TemplatedIntrinsic::Kind::IsTriviallyCopyable:
+				case TemplatedIntrinsic::Kind::IsTriviallyDestructable: 
+				case TemplatedIntrinsic::Kind::IsPrimitive: 
+				case TemplatedIntrinsic::Kind::IsBuiltin:
+				case TemplatedIntrinsic::Kind::IsIntegral:
+				case TemplatedIntrinsic::Kind::IsFloatingPoint:
+				case TemplatedIntrinsic::Kind::SizeOf:
+				case TemplatedIntrinsic::Kind::GetTypeID:
+				case TemplatedIntrinsic::Kind::BitCast:
+				case TemplatedIntrinsic::Kind::Trunc:
+				case TemplatedIntrinsic::Kind::FTrunc:
+				case TemplatedIntrinsic::Kind::SExt:
+				case TemplatedIntrinsic::Kind::ZExt:
+				case TemplatedIntrinsic::Kind::FExt:
+				case TemplatedIntrinsic::Kind::IToF:
+				case TemplatedIntrinsic::Kind::UIToF:
+				case TemplatedIntrinsic::Kind::FToI:
+				case TemplatedIntrinsic::Kind::FToUI:
+				case TemplatedIntrinsic::Kind::Add:
+				case TemplatedIntrinsic::Kind::AddWrap:
+				case TemplatedIntrinsic::Kind::AddSat:
+				case TemplatedIntrinsic::Kind::FAdd:
+				case TemplatedIntrinsic::Kind::Sub:
+				case TemplatedIntrinsic::Kind::SubWrap:
+				case TemplatedIntrinsic::Kind::SubSat:
+				case TemplatedIntrinsic::Kind::FSub:
+				case TemplatedIntrinsic::Kind::Mul:
+				case TemplatedIntrinsic::Kind::MulWrap:
+				case TemplatedIntrinsic::Kind::MulSat:
+				case TemplatedIntrinsic::Kind::FMul:
+				case TemplatedIntrinsic::Kind::Div:
+				case TemplatedIntrinsic::Kind::FDiv:
+				case TemplatedIntrinsic::Kind::Rem:
+				case TemplatedIntrinsic::Kind::Eq:
+				case TemplatedIntrinsic::Kind::NEq:
+				case TemplatedIntrinsic::Kind::LT:
+				case TemplatedIntrinsic::Kind::LTE:
+				case TemplatedIntrinsic::Kind::GT:
+				case TemplatedIntrinsic::Kind::GTE:
+				case TemplatedIntrinsic::Kind::And:
+				case TemplatedIntrinsic::Kind::Or:
+				case TemplatedIntrinsic::Kind::Xor:
+				case TemplatedIntrinsic::Kind::SHL:
+				case TemplatedIntrinsic::Kind::SHLSat:
+				case TemplatedIntrinsic::Kind::SHR: {
+					evo::debugFatalBreak("This intrinsic returns a value");
+				} break;
+
+				case TemplatedIntrinsic::Kind::_max_: {
+					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown or unsupported templated intrinsic kind");
+		}
+	}
+
 
 	auto ASGToPIR::lower_assign(const ASG::Assign& assign) -> void {
 		const pir::Expr lhs = this->get_value<true>(assign.lhs);
@@ -308,11 +459,32 @@ namespace pcit::panther{
 		this->agent.createStore(lhs, rhs, false, pir::AtomicOrdering::None);
 	}
 
+
 	auto ASGToPIR::lower_multi_assign(const ASG::MultiAssign& multi_assign) -> void {
-		// TODO: 
-		evo::log::fatal("UNIMPLEMENTED (ASG::MultiAssign)");
-		evo::breakpoint();
+		auto assign_targets = evo::SmallVector<std::optional<pir::Expr>>();
+		assign_targets.reserve(multi_assign.targets.size());
+
+		for(const std::optional<ASG::Expr>& target : multi_assign.targets){
+			if(target.has_value()){
+				assign_targets.emplace_back(this->get_value<true>(*target));
+			}else{
+				assign_targets.emplace_back();
+			}
+		}
+
+		const evo::SmallVector<pir::Expr> values = this->lower_returning_func_call<false>(
+			this->current_source->getASGBuffer().getFuncCall(multi_assign.value.funcCallID())
+		);
+
+		for(size_t i = 0; const std::optional<pir::Expr>& assign_target : assign_targets){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(assign_target.has_value() == false){ continue; }
+
+			this->agent.createStore(assign_target.value(), values[i], false, pir::AtomicOrdering::None);
+		}
 	}
+
 
 	auto ASGToPIR::lower_return(const ASG::Return& return_stmt) -> void {
 		if(return_stmt.value.has_value() == false){
@@ -323,16 +495,88 @@ namespace pcit::panther{
 		this->agent.createRet(this->get_value<false>(*return_stmt.value));
 	}
 
+
 	auto ASGToPIR::lower_conditional(const ASG::Conditional& conditional_stmt) -> void {
-		// TODO: 
-		evo::log::fatal("UNIMPLEMENTED (ASG::Conditional)");
-		evo::breakpoint();
+		const pir::BasicBlock::ID then_block = this->agent.createBasicBlock("IF.THEN");
+		auto end_block = std::optional<pir::BasicBlock::ID>();
+
+		const pir::Expr cond_value = this->get_value<false>(conditional_stmt.cond);
+
+		if(conditional_stmt.elseStmts.empty()){
+			end_block = this->agent.createBasicBlock("IF.END");
+
+			this->agent.createCondBranch(cond_value, then_block, *end_block);
+
+			this->agent.setTargetBasicBlock(then_block);
+			for(const ASG::Stmt& stmt : conditional_stmt.thenStmts){
+				this->lower_stmt(stmt);
+			}
+
+			if(conditional_stmt.thenStmts.isTerminated() == false){
+				this->agent.setTargetBasicBlock(then_block);
+				this->agent.createBranch(*end_block);
+			}
+		}else{
+			const pir::BasicBlock::ID else_block = this->agent.createBasicBlock("IF.ELSE");
+
+			this->agent.createCondBranch(cond_value, then_block, else_block);
+
+			// then block
+			this->agent.setTargetBasicBlock(then_block);
+			for(const ASG::Stmt& stmt : conditional_stmt.thenStmts){
+				this->lower_stmt(stmt);
+			}
+
+			// required because stuff in the then block might add basic blocks
+			pir::BasicBlock& then_block_end = this->agent.getTargetBasicBlock();
+
+			// else block
+			this->agent.setTargetBasicBlock(else_block);
+			for(const ASG::Stmt& stmt : conditional_stmt.elseStmts){
+				this->lower_stmt(stmt);
+			}
+
+			// end block
+			const bool then_terminated = conditional_stmt.thenStmts.isTerminated();
+			const bool else_terminated = conditional_stmt.elseStmts.isTerminated();
+
+			if(else_terminated && then_terminated){ return; }
+
+			end_block = this->agent.createBasicBlock("IF.END");
+
+			if(!else_terminated){
+				this->agent.createBranch(*end_block);
+			}
+
+			if(!then_terminated){
+				this->agent.setTargetBasicBlock(then_block_end);
+				this->agent.createBranch(*end_block);
+			}
+		}
+
+
+		this->agent.setTargetBasicBlock(*end_block);
 	}
 
+
 	auto ASGToPIR::lower_while(const ASG::While& while_loop) -> void {
-		// TODO: 
-		evo::log::fatal("UNIMPLEMENTED (ASG::While)");
-		evo::breakpoint();
+		const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock("WHILE.COND");
+		this->agent.createBranch(cond_block);
+		const pir::BasicBlock::ID body_block = this->agent.createBasicBlock("WHILE.BODY");
+		const pir::BasicBlock::ID end_block = this->agent.createBasicBlock("WHILE.END");
+
+
+		this->agent.setTargetBasicBlock(cond_block);
+		const pir::Expr cond_value = this->get_value<false>(while_loop.cond);
+		this->agent.createCondBranch(cond_value, body_block, end_block);
+
+		this->agent.setTargetBasicBlock(body_block);
+		for(const ASG::Stmt& stmt : while_loop.block){
+			this->lower_stmt(stmt);
+		}
+		this->agent.createBranch(cond_block);
+
+		this->agent.setTargetBasicBlock(end_block);
 	}
 
 
@@ -445,7 +689,7 @@ namespace pcit::panther{
 
 
 	template<bool GET_POINTER_TO_VALUE>
-	auto ASGToPIR::get_value(const ASG::Expr& expr) const -> pir::Expr {
+	auto ASGToPIR::get_value(const ASG::Expr& expr) -> pir::Expr {
 		const ASGBuffer& asg_buffer = this->current_source->getASGBuffer();
 
 		switch(expr.kind()){
@@ -537,9 +781,8 @@ namespace pcit::panther{
 			} break;
 
 			case ASG::Expr::Kind::FuncCall: {
-				// TODO: 
-				evo::log::fatal("UNIMPLEMENTED (ASG::Expr::Kind::FuncCall)");
-				evo::breakpoint();
+				const ASG::FuncCall& func_call = asg_buffer.getFuncCall(expr.funcCallID());
+				return this->lower_returning_func_call<GET_POINTER_TO_VALUE>(func_call).front();
 			} break;
 
 			case ASG::Expr::Kind::AddrOf: {
@@ -601,7 +844,7 @@ namespace pcit::panther{
 						if constexpr(std::is_same<ValueT, pir::Expr>()){
 							return this->agent.createLoad(
 								value,
-								this->agent.getExprType(value),
+								this->agent.getAlloca(value).type,
 								false,
 								pir::AtomicOrdering::None,
 								this->stmt_name("VAR.load")
@@ -655,7 +898,7 @@ namespace pcit::panther{
 				}else{
 					const pir::Expr load = this->agent.createLoad(
 						param_info.alloca,
-						param_info.type,
+						this->module.createPtrType(),
 						false,
 						pir::AtomicOrdering::None,
 						this->stmt_name("PARAM.ptr_lookup")
@@ -740,6 +983,1053 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported expr kind");
 	}
 
+
+	template<bool GET_POINTER_TO_VALUE>
+	auto ASGToPIR::lower_returning_func_call(const ASG::FuncCall& func_call) -> evo::SmallVector<pir::Expr> {
+		if(func_call.target.is<ASG::Func::LinkID>() == false){
+			return this->lower_returning_intrinsic_call<GET_POINTER_TO_VALUE>(func_call);
+		}
+
+		const ASG::Func::LinkID& func_link_id = func_call.target.as<ASG::Func::LinkID>();
+		const FuncInfo& func_info = this->get_func_info(func_link_id);
+
+		const Source& linked_source = this->context.getSourceManager()[func_link_id.sourceID()];
+		const ASG::Func& asg_func = linked_source.getASGBuffer().getFunc(func_link_id.funcID());
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(asg_func.baseTypeID.funcID());
+
+
+		auto args = evo::SmallVector<pir::Expr>();
+		args.reserve(func_call.args.size());
+		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
+			const bool optimize_with_copy = func_type.params[i].optimizeWithCopy;
+			if(optimize_with_copy){
+				args.emplace_back(this->get_value<false>(arg));
+			}else{
+				args.emplace_back(this->get_value<true>(arg));
+			}
+
+			i += 1;
+		}
+
+
+		auto return_values = evo::SmallVector<pir::Expr>();
+		if(func_type.hasNamedReturns()){
+			for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams){
+				const pir::Expr alloca = this->agent.createAlloca(
+					this->get_type(return_param.typeID),
+					this->stmt_name(
+						"RET_PARAM.{}.alloca",
+						this->current_source->getTokenBuffer()[*return_param.ident].getString()
+					)
+				);
+
+				args.emplace_back(alloca);
+			}
+
+			this->agent.createCallVoid(func_info.func, args);
+
+			if constexpr(GET_POINTER_TO_VALUE){
+				for(size_t i = func_type.params.size(); i < args.size(); i+=1){
+					return_values.emplace_back(args[i]);
+				}
+
+				return return_values;
+			}else{
+				for(size_t i = func_type.params.size(); i < args.size(); i+=1){
+					return_values.emplace_back(
+						this->agent.createLoad(
+							args[i],
+							this->get_type(func_type.returnParams[i - func_type.params.size()].typeID),
+							false,
+							pir::AtomicOrdering::None
+						)
+					);
+				}
+
+				return return_values;
+			}
+
+		}else{
+			const pir::Expr func_call_value = this->agent.createCall(func_info.func, args);
+			if constexpr(GET_POINTER_TO_VALUE == false){
+				return_values.emplace_back(func_call_value);
+				return return_values;
+			}else{
+				const pir::Type return_type = this->get_type(func_type.returnParams[0].typeID);
+
+				const pir::Expr alloca = this->agent.createAlloca(return_type);
+				this->agent.createStore(alloca, func_call_value, false, pir::AtomicOrdering::None);
+
+				return_values.emplace_back(alloca);
+				return return_values;
+			}
+		}
+	}
+
+
+	template<bool GET_POINTER_TO_VALUE>
+	auto ASGToPIR::lower_returning_intrinsic_call(const ASG::FuncCall& func_call) -> evo::SmallVector<pir::Expr> {
+		auto args = evo::SmallVector<pir::Expr>();
+		args.reserve(func_call.args.size());
+		for(size_t i = 0; const ASG::Expr& arg : func_call.args){
+			args.emplace_back(this->get_value<false>(arg));
+
+			i += 1;
+		}
+
+
+		if(func_call.target.is<Intrinsic::Kind>()){
+			switch(func_call.target.as<Intrinsic::Kind>()){
+				case Intrinsic::Kind::Breakpoint: case Intrinsic::Kind::_printHelloWorld:  {
+					evo::debugFatalBreak("This instrinsic does not return");
+				} break;
+
+				case Intrinsic::Kind::_max_: {
+					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown or unsupported intrinsic kind");
+			
+		}else{
+			evo::debugAssert(
+				func_call.target.is<ASG::TemplatedIntrinsicInstantiation::ID>(),
+				"cannot lower intrinsic for FuncLink::ID"
+			);
+
+			const ASG::TemplatedIntrinsicInstantiation& instantiation = 
+				this->current_source->getASGBuffer().getTemplatedIntrinsicInstantiation(
+					func_call.target.as<ASG::TemplatedIntrinsicInstantiation::ID>()
+				);
+
+			switch(instantiation.kind){
+				case TemplatedIntrinsic::Kind::IsSameType: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createBoolean(
+							instantiation.templateArgs[0].as<TypeInfo::VoidableID>() == 
+							instantiation.templateArgs[1].as<TypeInfo::VoidableID>()
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsTriviallyCopyable: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createBoolean(
+							this->context.getTypeManager().isTriviallyCopyable(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsTriviallyDestructable: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createBoolean(
+							this->context.getTypeManager().isTriviallyDestructable(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsPrimitive: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createBoolean(
+							this->context.getTypeManager().isPrimitive(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsBuiltin: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createBoolean(
+							this->context.getTypeManager().isBuiltin(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+							)
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsIntegral: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createBoolean(
+							this->context.getTypeManager().isIntegral(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
+							)
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IsFloatingPoint: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createBoolean(
+							this->context.getTypeManager().isFloatingPoint(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
+							)
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SizeOf: {
+					const size_t ptr_bits = this->context.getTypeManager().sizeOfPtr() * 8;
+					const size_t size_of_value = this->context.getTypeManager().sizeOf(
+						instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID()
+					);
+
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createNumber(
+							this->module.createIntegerType(uint32_t(ptr_bits)),
+							core::GenericInt(uint32_t(ptr_bits), size_of_value, false)
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::GetTypeID: {
+					const pir::Type type_id_type = this->get_type(TypeManager::getTypeTypeID());
+					const uint32_t type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID().get();
+
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createNumber(
+							this->module.createIntegerType(32), core::GenericInt(32, type_id, false)
+						)
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::BitCast: {
+					const TypeInfo::ID from_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const TypeInfo::ID to_type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+
+					if(from_type_id == to_type_id){ return args; }
+
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createBitCast(args[0], this->get_type(to_type_id), this->stmt_name("BITCAST"))
+					};
+				} break;
+
+
+				case TemplatedIntrinsic::Kind::Trunc: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createTrunc(args[0], this->get_type(to_type), this->stmt_name("TRUNC"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FTrunc: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFTrunc(args[0], this->get_type(to_type), this->stmt_name("FTRUNC"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SExt: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createSExt(args[0], this->get_type(to_type), this->stmt_name("SEXT"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::ZExt: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createZExt(args[0], this->get_type(to_type), this->stmt_name("ZEXT"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FExt: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFExt(args[0], this->get_type(to_type), this->stmt_name("FEXT"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::IToF: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createIToF(args[0], this->get_type(to_type), this->stmt_name("ITOF"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::UIToF: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createUIToF(args[0], this->get_type(to_type), this->stmt_name("UITOF"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FToI: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFToI(args[0], this->get_type(to_type), this->stmt_name("FTOI"))
+					};
+				} break;
+
+				case TemplatedIntrinsic::Kind::FToUI: {
+					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFToUI(args[0], this->get_type(to_type), this->stmt_name("FTOUI"))
+					};
+				} break;
+
+
+				///////////////////////////////////
+				// addition
+
+				case TemplatedIntrinsic::Kind::Add: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
+					if(may_wrap || this->config.checkedMath == false){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createAdd(args[0], args[1], may_wrap, this->stmt_name("ADD"))
+						};
+					}
+
+					if(is_unsigned){
+						const pir::Expr add_wrap_inst = this->agent.createUAddWrap(
+							args[0], args[1], this->stmt_name("ADD.VALUE"), this->stmt_name("ADD.WRAPPED")
+						);
+
+						this->add_fail_assertion(
+							this->agent.extractUAddWrapWrapped(add_wrap_inst),
+							"ADD_CHECK",
+							"Addition wrapped",
+							func_call.location
+						);
+
+						return evo::SmallVector<pir::Expr>{this->agent.extractUAddWrapResult(add_wrap_inst)};
+					}else{
+						const pir::Expr add_wrap_inst = this->agent.createSAddWrap(
+							args[0], args[1], this->stmt_name("ADD.VALUE"), this->stmt_name("ADD.WRAPPED")
+						);
+
+						this->add_fail_assertion(
+							this->agent.extractSAddWrapWrapped(add_wrap_inst),
+							"ADD_CHECK",
+							"Addition wrapped",
+							func_call.location
+						);
+
+						return evo::SmallVector<pir::Expr>{this->agent.extractSAddWrapResult(add_wrap_inst)};
+					}
+				} break;
+
+				case TemplatedIntrinsic::Kind::AddWrap: {
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					if(is_unsigned){
+						const pir::Expr add_wrap_inst = this->agent.createUAddWrap(
+							args[0], args[1], this->stmt_name("ADD.VALUE"), this->stmt_name("ADD.WRAPPED")
+						);
+
+						return evo::SmallVector<pir::Expr>{
+							this->agent.extractUAddWrapResult(add_wrap_inst),
+							this->agent.extractUAddWrapWrapped(add_wrap_inst)
+						};
+					}else{
+						const pir::Expr add_wrap_inst = this->agent.createSAddWrap(
+							args[0], args[1], this->stmt_name("ADD.VALUE"), this->stmt_name("ADD.WRAPPED")
+						);
+
+						return evo::SmallVector<pir::Expr>{
+							this->agent.extractSAddWrapResult(add_wrap_inst),
+							this->agent.extractSAddWrapWrapped(add_wrap_inst)
+						};
+					}
+				} break;
+
+				case TemplatedIntrinsic::Kind::AddSat: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@addSat)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+					// 	? llvmint::IRBuilder::IntrinsicID::uaddSat
+					// 	: llvmint::IRBuilder::IntrinsicID::saddSat;
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createIntrinsicCall(
+					// 		intrinsic_id, this->get_type(arg_type), args, this->stmt_name("ADD_SAT")
+					// 	).asValue()
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::FAdd: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFAdd(args[0], args[1], this->stmt_name("FADD"))
+					};
+				} break;
+
+
+				///////////////////////////////////
+				// subtraction
+
+				case TemplatedIntrinsic::Kind::Sub: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@sub)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// const bool may_wrap = instantiation.templateArgs[1].as<bool>();
+					// if(may_wrap || this->config.checkedMath == false){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createSub(
+					// 			args[0],
+					// 			args[1],
+					// 			is_unsigned & !may_wrap,
+					// 			!is_unsigned & !may_wrap,
+					// 			this->stmt_name("SUB")
+					// 		)
+					// 	};
+					// }
+
+					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+					// 	? llvmint::IRBuilder::IntrinsicID::usubOverflow
+					// 	: llvmint::IRBuilder::IntrinsicID::ssubOverflow;
+
+					// const llvmint::Type return_type = this->builder.getStructType(
+					// 	{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					// ).asType();
+
+					// const llvmint::Value sub_wrap_value = this->builder.createIntrinsicCall(
+					// 	intrinsic_id, return_type, args, this->stmt_name("SUB")
+					// ).asValue();
+
+					// const llvmint::Value sub_value = 
+					// 	this->builder.createExtractValue(sub_wrap_value, {0}, this->stmt_name("SUB.VALUE"));
+					// const llvmint::Value wrapped_value = 
+					// 	this->builder.createExtractValue(sub_wrap_value, {1}, this->stmt_name("SUB.WRAPPED"));
+
+					// this->add_fail_assertion(wrapped_value, "SUB_CHECK", "Subtraction wrapped", func_call.location);
+
+					// return evo::SmallVector<llvmint::Value>{sub_value};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SubWrap: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@subWrap)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+					// 	? llvmint::IRBuilder::IntrinsicID::usubOverflow
+					// 	: llvmint::IRBuilder::IntrinsicID::ssubOverflow;
+
+					// const llvmint::Type return_type = this->builder.getStructType(
+					// 	{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					// ).asType();
+
+					// const llvmint::Value sub_value = this->builder.createIntrinsicCall(
+					// 	intrinsic_id, return_type, args, this->stmt_name("SUB_WRAP")
+					// ).asValue();
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createExtractValue(sub_value, {0}, this->stmt_name("SUB_WRAP.VALUE")),
+					// 	this->builder.createExtractValue(sub_value, {1}, this->stmt_name("SUB_WRAP.WRAPPED")),
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::SubSat: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@subSat)");
+					evo::breakpoint();
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+					// 	? llvmint::IRBuilder::IntrinsicID::usubSat
+					// 	: llvmint::IRBuilder::IntrinsicID::ssubSat;
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createIntrinsicCall(
+					// 		intrinsic_id, this->get_type(arg_type), args, this->stmt_name("SUB_SAT")
+					// 	).asValue()
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::FSub: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@fsub)");
+					evo::breakpoint();
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createFSub(args[0], args[1], this->stmt_name("FSUB"))
+					// };
+				} break;
+
+
+				///////////////////////////////////
+				// multiplication
+
+				case TemplatedIntrinsic::Kind::Mul: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@mul)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// const bool may_wrap = instantiation.templateArgs[1].as<bool>();
+					// if(may_wrap || this->config.checkedMath == false){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createMul(
+					// 			args[0],
+					// 			args[1],
+					// 			is_unsigned & !may_wrap,
+					// 			!is_unsigned & !may_wrap,
+					// 			this->stmt_name("MUL")
+					// 		)
+					// 	};
+					// }
+
+					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+					// 	? llvmint::IRBuilder::IntrinsicID::umulOverflow
+					// 	: llvmint::IRBuilder::IntrinsicID::smulOverflow;
+
+					// const llvmint::Type return_type = this->builder.getStructType(
+					// 	{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					// ).asType();
+
+					// const llvmint::Value mul_wrap_value = this->builder.createIntrinsicCall(
+					// 	intrinsic_id, return_type, args, this->stmt_name("MUL")
+					// ).asValue();
+
+					// const llvmint::Value mul_value = 
+					// 	this->builder.createExtractValue(mul_wrap_value, {0}, this->stmt_name("MUL.VALUE"));
+					// const llvmint::Value wrapped_value = 
+					// 	this->builder.createExtractValue(mul_wrap_value, {1}, this->stmt_name("MUL.WRAPPED"));
+
+					// this->add_fail_assertion(wrapped_value, "MUL_CHECK", "Multiplication wrapped", func_call.location);
+
+					// return evo::SmallVector<llvmint::Value>{mul_value};
+				} break;
+
+				case TemplatedIntrinsic::Kind::MulWrap: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@mulWrap)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+					// 	? llvmint::IRBuilder::IntrinsicID::umulOverflow
+					// 	: llvmint::IRBuilder::IntrinsicID::smulOverflow;
+
+					// const llvmint::Type return_type = this->builder.getStructType(
+					// 	{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
+					// ).asType();
+
+					// const llvmint::Value mul_value = this->builder.createIntrinsicCall(
+					// 	intrinsic_id, return_type, args, this->stmt_name("MUL_WRAP")
+					// ).asValue();
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createExtractValue(mul_value, {0}, this->stmt_name("MUL_WRAP.VALUE")),
+					// 	this->builder.createExtractValue(mul_value, {1}, this->stmt_name("MUL_WRAP.WRAPPED")),
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::MulSat: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@mulSat)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
+					// 	? llvmint::IRBuilder::IntrinsicID::umulFixSat
+					// 	: llvmint::IRBuilder::IntrinsicID::smulFixSat;
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createIntrinsicCall(
+					// 		intrinsic_id,
+					// 		this->get_type(arg_type),
+					// 		{args[0], args[1], this->builder.getValueI32(0).asValue()},
+					// 		this->stmt_name("MUL_SAT")
+					// 	).asValue()
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::FMul: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@fmul)");
+					evo::breakpoint();
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createFMul(args[0], args[1], this->stmt_name("FMUL"))
+					// };
+				} break;
+
+
+				///////////////////////////////////
+				// division / remainder
+
+				case TemplatedIntrinsic::Kind::Div: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@div)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_exact = instantiation.templateArgs[1].as<bool>();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// if(is_unsigned){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createUDiv(args[0], args[1], is_exact, this->stmt_name("DIV"))
+					// 	};
+					// }else{
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createSDiv(args[0], args[1], is_exact, this->stmt_name("DIV"))
+					// 	};
+					// }
+				} break;
+
+				case TemplatedIntrinsic::Kind::FDiv: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@fdiv)");
+					evo::breakpoint();
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createFDiv(args[0], args[1], this->stmt_name("FDIV"))
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::Rem: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@rem)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					// if(is_floating_point){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createFRem(args[0], args[1], this->stmt_name("REM"))
+					// 	};
+					// }
+
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					// if(is_unsigned){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createURem(args[0], args[1], this->stmt_name("REM"))
+					// 	};
+					// }else{
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createSRem(args[0], args[1], this->stmt_name("REM"))
+					// 	};
+					// }
+				} break;
+
+
+				///////////////////////////////////
+				// logical
+
+				case TemplatedIntrinsic::Kind::Eq: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@eq)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					// if(is_floating_point){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createFCmpEQ(args[0], args[1], this->stmt_name("EQ"))
+					// 	};
+					// }
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createICmpEQ(args[0], args[1], this->stmt_name("EQ"))
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::NEq: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@neq)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					// if(is_floating_point){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createFCmpNE(args[0], args[1], this->stmt_name("NEQ"))
+					// 	};
+					// }
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createICmpNE(args[0], args[1], this->stmt_name("NEQ"))
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::LT: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@lt)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					// if(is_floating_point){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LT"))
+					// 	};
+					// }
+
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					// if(is_unsigned){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createICmpULT(args[0], args[1], this->stmt_name("LT"))
+					// 	};
+					// }else{
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createICmpSLT(args[0], args[1], this->stmt_name("LT"))
+					// 	};
+					// }	
+				} break;
+
+				case TemplatedIntrinsic::Kind::LTE: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@lte)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					// if(is_floating_point){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LTE"))
+					// 	};
+					// }
+
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					// if(is_unsigned){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createICmpULT(args[0], args[1], this->stmt_name("LTE"))
+					// 	};
+					// }else{
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createICmpSLT(args[0], args[1], this->stmt_name("LTE"))
+					// 	};
+					// }	
+				} break;
+
+				case TemplatedIntrinsic::Kind::GT: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@gt)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					// if(is_floating_point){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GT"))
+					// 	};
+					// }
+
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					// if(is_unsigned){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createICmpUGT(args[0], args[1], this->stmt_name("GT"))
+					// 	};
+					// }else{
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createICmpSGT(args[0], args[1], this->stmt_name("GT"))
+					// 	};
+					// }	
+				} break;
+
+				case TemplatedIntrinsic::Kind::GTE: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@gte)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					// if(is_floating_point){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GTE"))
+					// 	};
+					// }
+
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					// if(is_unsigned){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createICmpUGT(args[0], args[1], this->stmt_name("GTE"))
+					// 	};
+					// }else{
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createICmpSGT(args[0], args[1], this->stmt_name("GTE"))
+					// 	};
+					// }	
+				} break;
+
+
+				///////////////////////////////////
+				// remainder
+
+				case TemplatedIntrinsic::Kind::And: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@and)");
+					evo::breakpoint();
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createAnd(args[0], args[1], this->stmt_name("AND"))
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::Or: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@or)");
+					evo::breakpoint();
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createOr(args[0], args[1], this->stmt_name("OR"))
+					// };	
+				} break;
+
+				case TemplatedIntrinsic::Kind::Xor: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@xor)");
+					evo::breakpoint();
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createXor(args[0], args[1], this->stmt_name("XOR"))
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::SHL: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@shl)");
+					evo::breakpoint();
+
+					// const bool may_wrap = instantiation.templateArgs[2].as<bool>();
+					// if(may_wrap){
+					// 	return evo::SmallVector<llvmint::Value>{
+					// 		this->builder.createSHL(args[0], args[1], false, false, this->stmt_name("SHL"))
+					// 	};
+					// }
+						
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+
+					// const llvmint::Value shift_value = this->builder.createSHL(
+					// 	args[0], args[1], is_unsigned, !is_unsigned, this->stmt_name("SHL")
+					// );
+
+					// if(this->config.checkedMath){
+					// 	const llvmint::Value check_value = [&](){
+					// 		if(is_unsigned){
+					// 			return this->builder.createLSHR(
+					// 				shift_value, args[1], true, this->stmt_name("SHL.CHECK")
+					// 			);
+					// 		}else{
+					// 			return this->builder.createASHR(
+					// 				shift_value, args[1], true, this->stmt_name("SHL.CHECK")
+					// 			);
+					// 		}
+					// 	}();
+
+					// 	this->add_fail_assertion(
+					// 		this->builder.createICmpNE(check_value, args[0], this->stmt_name("SHL.CHECK_NEQ")),
+					// 		"SHL_CHECK",
+					// 		"Bit-shift-left overflow",
+					// 		func_call.location
+					// 	);
+					// }
+
+					// return evo::SmallVector<llvmint::Value>{shift_value};
+				} break;
+
+				case TemplatedIntrinsic::Kind::SHLSat: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@shlSat)");
+					evo::breakpoint();
+
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+
+					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned 
+					// 	? llvmint::IRBuilder::IntrinsicID::ushlSat
+					// 	: llvmint::IRBuilder::IntrinsicID::sshlSat;
+
+					// return evo::SmallVector<llvmint::Value>{
+					// 	this->builder.createIntrinsicCall(
+					// 		intrinsic_id, this->get_type(arg_type), args, this->stmt_name("SHL_SAT")
+					// 	).asValue()
+					// };
+				} break;
+
+				case TemplatedIntrinsic::Kind::SHR: {
+					// TODO: 
+					evo::log::fatal("UNIMPLEMENTED (@shr)");
+					evo::breakpoint();
+					
+					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					// const bool is_exact = instantiation.templateArgs[2].as<bool>();
+
+					// const llvmint::Value shift_value = [&](){
+					// 	if(is_unsigned){
+					// 		return this->builder.createLSHR(args[0], args[1], is_exact, this->stmt_name("SHR"));
+					// 	}else{
+					// 		return this->builder.createASHR(args[0], args[1], is_exact, this->stmt_name("SHR"));
+					// 	}
+					// }();
+
+					// if(!is_exact && this->config.checkedMath){
+					// 	const llvmint::Value check_value = this->builder.createSHL(
+					// 		shift_value, args[1], true, false, this->stmt_name("SHR.CHECK")
+					// 	);
+
+					// 	this->add_fail_assertion(
+					// 		this->builder.createICmpNE(check_value, args[0], this->stmt_name("SHR.CHECK_NEQ")),
+					// 		"SHR_CHECK",
+					// 		"Bit-shift-right overflow",
+					// 		func_call.location
+					// 	);
+					// }
+
+					// return evo::SmallVector<llvmint::Value>{shift_value};
+				} break;
+
+
+				///////////////////////////////////
+				// _max_
+
+				case TemplatedIntrinsic::Kind::_max_: {
+					evo::debugFatalBreak("Intrinsic::Kind::_max_ is not an actual intrinsic");
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown or unsupported templated intrinsic kind");
+		}
+	}
+
+
+
+	auto ASGToPIR::add_panic(std::string_view message, const ASG::Location& location) -> void {
+		const pir::GlobalVar::ID panic_message = [&](){
+			auto str_message = std::string(message);
+
+			const auto message_find = this->globals.panic_messages.find(str_message);
+			if(message_find != this->globals.panic_messages.end()){ return message_find->second; }
+
+			const pir::GlobalVar::String::ID str_value = this->module.createGlobalString(std::move(str_message));
+
+			const pir::GlobalVar::ID str_global = this->module.createGlobalVar(
+				"PTHR.panic_message",
+				this->module.getGlobalString(str_value).type,
+				pir::Linkage::Private,
+				str_value,
+				true
+			);
+
+			this->globals.panic_messages.emplace(std::string(message), str_global);
+			return str_global;
+		}();
+
+		if(this->config.addSourceLocations){
+			auto args = evo::SmallVector<pir::Expr>{
+				this->agent.createGlobalValue(panic_message),
+				this->agent.createNumber(
+					this->module.createIntegerType(32),
+					core::GenericInt::create<uint32_t>(this->current_source->getID().get())
+				),
+				this->agent.createNumber(
+					this->module.createIntegerType(32),
+					core::GenericInt::create<uint32_t>(location.line)
+				),
+				this->agent.createNumber(
+					this->module.createIntegerType(32),
+					core::GenericInt::create<uint32_t>(location.collumn)
+				),
+			};
+
+			if(this->config.isJIT){
+				if(this->jit_links.panic.has_value() == false){
+					this->jit_links.panic = this->module.createFunctionDecl(
+						"PTHR.panic",
+						evo::SmallVector<pcit::pir::Parameter>{
+							pcit::pir::Parameter("str", this->module.createPtrType()),
+							pcit::pir::Parameter("source_id", this->module.createIntegerType(32)),
+							pcit::pir::Parameter("line", this->module.createIntegerType(32)),
+							pcit::pir::Parameter("collumn", this->module.createIntegerType(32)),
+						},
+						pcit::pir::CallingConvention::C,
+						pcit::pir::Linkage::External,
+						this->module.createVoidType()
+					);
+				}
+
+				this->agent.createCallVoid(*this->jit_links.panic, args);
+
+			}else{
+				// TODO: 
+				evo::log::fatal("UNIMPLEMENTED (non-jit panic)");
+				evo::breakpoint();
+
+				// this->agent.createCallVoid(*this->non_jit_runtime.panic, args);
+			}
+		}else{
+			if(this->config.isJIT){
+				if(this->jit_links.panic.has_value() == false){
+					this->jit_links.panic = this->module.createFunctionDecl(
+						"PTHR.panic",
+						evo::SmallVector<pcit::pir::Parameter>{
+							pcit::pir::Parameter("str", this->module.createPtrType()),
+						},
+						pcit::pir::CallingConvention::C,
+						pcit::pir::Linkage::External,
+						this->module.createVoidType()
+					);
+				}
+
+				this->agent.createCallVoid(*this->jit_links.panic, {this->agent.createGlobalValue(panic_message)});
+
+			}else{
+				// TODO: 
+				evo::log::fatal("UNIMPLEMENTED (non-jit panic)");
+				evo::breakpoint();
+
+				// this->agent.createCallVoid(
+				// 	*this->non_jit_runtime.panic, {this->agent.createGlobalValue(panic_message)}
+				// );
+			}
+		}
+	}
+
+	auto ASGToPIR::add_fail_assertion(
+		const pir::Expr& cond, std::string_view block_name, std::string_view message, const ASG::Location& location
+	) -> void {
+		const pir::BasicBlock::ID succeed_block = 
+			this->agent.createBasicBlockInline(std::format("{}.SUCCEED", block_name));
+		const pir::BasicBlock::ID fail_block = this->agent.createBasicBlockInline(std::format("{}.FAIL", block_name));
+
+
+		this->agent.createCondBranch(cond, fail_block, succeed_block);
+
+		this->agent.setTargetBasicBlock(fail_block);
+		this->add_panic(message, location);
+		this->agent.createBranch(succeed_block);
+
+		this->agent.setTargetBasicBlock(succeed_block);
+	}
 
 
 
@@ -841,6 +2131,50 @@ namespace pcit::panther{
 		return info_find->second;
 	}
 
+
+
+	auto ASGToPIR::link_jit_std_out_if_needed() -> void {
+		if(this->jit_links.std_out.has_value() == false){
+			this->jit_links.std_out = this->module.createFunctionDecl(
+				"PTHR.stdout",
+				evo::SmallVector<pcit::pir::Parameter>{
+					pcit::pir::Parameter("str", this->module.createPtrType())
+				},
+				pcit::pir::CallingConvention::C,
+				pcit::pir::Linkage::External,
+				this->module.createVoidType()
+			);
+		}
+	}
+
+	auto ASGToPIR::link_jit_std_err_if_needed() -> void {
+		if(this->jit_links.std_out.has_value() == false){
+			this->jit_links.std_out = this->module.createFunctionDecl(
+				"PTHR.stderr",
+				evo::SmallVector<pcit::pir::Parameter>{
+					pcit::pir::Parameter("str", this->module.createPtrType())
+				},
+				pcit::pir::CallingConvention::C,
+				pcit::pir::Linkage::External,
+				this->module.createVoidType()
+			);
+		}
+	}
+
+
+	auto ASGToPIR::link_libc_puts_if_needed() -> void {
+		if(this->libc_links.puts.has_value() == false){
+			this->libc_links.puts = this->module.createFunctionDecl(
+				"puts",
+				evo::SmallVector<pcit::pir::Parameter>{
+					pcit::pir::Parameter("str", this->module.createPtrType())
+				},
+				pcit::pir::CallingConvention::C,
+				pcit::pir::Linkage::External,
+				this->module.createVoidType()
+			);
+		}
+	}
 
 	
 }

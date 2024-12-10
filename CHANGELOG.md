@@ -1,10 +1,40 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.71.0
+
+### Panther
+- Added support for lowering of:
+	- function calls
+	- type conversion intrinsics
+	- type traits intrinsics
+	- multi-assign
+	- conditionals
+	- `@breakpoint`
+	- `@_printHelloWorld`
+	- `@add`, `@addWrap`, `@fadd`
+- Fixed lowering of loading local variables
+- Panic messages when executing the `Run` build target are now emitted as a diagnostic instead of going directly to stdout
+
+### PIR
+- Fixed fatal errors caused by lowering a function to LLVM-IR with parameters when multiple functions exist in the module
+- Fixed fatal errors when lowering a float value when the `core::GenericFloat` didn't match the width of the type
+- Fixed `@fadd` instructions not being created correctly
+- Fixed formatting issue when printing type conversion instructions
+- Fixed `@uAddWrap` incorrectly being printed as `@sAddWrap`
+- Fixed `@uAddWrap` being lowered to LLVM-IR as `@llvm.sadd.with.overflow()`
+- Fixed `@uAddWrap` and `@sAddWrap` wrapped values when lowered to LLVM-IR being the result
+- Fixed compile-error that would occur when building an optimized build
+
+### PCIT_core
+- Fixed fatal errors around iteration of `StepAlloc`
+
+
+<!---------------------------------->
 ## v0.0.70.0
 
 ### Panther
-- when emitting `main` function, it now correctly returns `CInt`
+- When emitting `main` function, it now correctly returns `CInt`
 
 ### PIR
 - Added type conversion instructions
@@ -18,6 +48,7 @@
 	- `@uitof`
 	- `@ftoi`
 	- `@ftoui`
+- Added removal of `@calcPtr` instructions when all indices are 0 in the instCombine pass
 
 
 <!---------------------------------->

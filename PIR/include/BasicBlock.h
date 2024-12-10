@@ -27,7 +27,7 @@ namespace pcit::pir{
 			using ID = BasicBlockID;
 
 		public:
-			BasicBlock(std::string&& _name) : name(std::move(_name)) {
+			BasicBlock(std::string&& _name) : name(std::move(_name)){
 				evo::debugAssert(isStandardName(this->name), "Not valid name for basic block ({})", this->name);
 			}
 			~BasicBlock() = default;

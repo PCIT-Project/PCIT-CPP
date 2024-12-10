@@ -171,8 +171,8 @@ namespace pcit::pir{
 		this->printer.println(" {");
 
 		for(const Alloca& alloca : function.getAllocasRange()){
-			this->printer.print("{}${}", tabs(1), alloca.name);
-			this->printer.printRed(" = @alloca ");
+			this->printer.print("{}${} ", tabs(1), alloca.name);
+			this->printer.printRed("= @alloca ");
 			this->print_type(alloca.type);
 			this->printer.println();
 		}
@@ -201,8 +201,8 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_struct_type(const StructType& struct_type) -> void {
 		this->printer.printCyan("type");
-		this->printer.printGreen(" &{}", struct_type.name);
-		this->printer.printRed(" = ");
+		this->printer.printGreen(" &{} ", struct_type.name);
+		this->printer.printRed("= ");
 		this->printer.printCyan("struct ");
 
 		if(struct_type.isPacked){
@@ -682,7 +682,7 @@ namespace pcit::pir{
 				const BitCast& bitcast = this->reader.getBitCast(stmt);
 
 				this->printer.print("{}${} ", tabs(2), bitcast.name);
-				this->printer.printRed(" = @bitCast ");
+				this->printer.printRed("= @bitCast ");
 				this->print_type(bitcast.toType);
 				this->printer.print(" ");
 				this->print_expr(bitcast.fromValue);
@@ -693,7 +693,7 @@ namespace pcit::pir{
 				const Trunc& trunc = this->reader.getTrunc(stmt);
 
 				this->printer.print("{}${} ", tabs(2), trunc.name);
-				this->printer.printRed(" = @trunc ");
+				this->printer.printRed("= @trunc ");
 				this->print_type(trunc.toType);
 				this->printer.print(" ");
 				this->print_expr(trunc.fromValue);
@@ -704,7 +704,7 @@ namespace pcit::pir{
 				const FTrunc& ftrunc = this->reader.getFTrunc(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftrunc.name);
-				this->printer.printRed(" = @ftrunc ");
+				this->printer.printRed("= @ftrunc ");
 				this->print_type(ftrunc.toType);
 				this->printer.print(" ");
 				this->print_expr(ftrunc.fromValue);
@@ -715,7 +715,7 @@ namespace pcit::pir{
 				const SExt& sext = this->reader.getSExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), sext.name);
-				this->printer.printRed(" = @sext ");
+				this->printer.printRed("= @sext ");
 				this->print_type(sext.toType);
 				this->printer.print(" ");
 				this->print_expr(sext.fromValue);
@@ -726,7 +726,7 @@ namespace pcit::pir{
 				const ZExt& zext = this->reader.getZExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), zext.name);
-				this->printer.printRed(" = @zext ");
+				this->printer.printRed("= @zext ");
 				this->print_type(zext.toType);
 				this->printer.print(" ");
 				this->print_expr(zext.fromValue);
@@ -737,7 +737,7 @@ namespace pcit::pir{
 				const FExt& fext = this->reader.getFExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fext.name);
-				this->printer.printRed(" = @fext ");
+				this->printer.printRed("= @fext ");
 				this->print_type(fext.toType);
 				this->printer.print(" ");
 				this->print_expr(fext.fromValue);
@@ -748,7 +748,7 @@ namespace pcit::pir{
 				const IToF& itof = this->reader.getIToF(stmt);
 
 				this->printer.print("{}${} ", tabs(2), itof.name);
-				this->printer.printRed(" = @itof ");
+				this->printer.printRed("= @itof ");
 				this->print_type(itof.toType);
 				this->printer.print(" ");
 				this->print_expr(itof.fromValue);
@@ -759,7 +759,7 @@ namespace pcit::pir{
 				const UIToF& uitof = this->reader.getUIToF(stmt);
 
 				this->printer.print("{}${} ", tabs(2), uitof.name);
-				this->printer.printRed(" = @uitof ");
+				this->printer.printRed("= @uitof ");
 				this->print_type(uitof.toType);
 				this->printer.print(" ");
 				this->print_expr(uitof.fromValue);
@@ -770,7 +770,7 @@ namespace pcit::pir{
 				const FToI& ftoi = this->reader.getFToI(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftoi.name);
-				this->printer.printRed(" = @ftoi ");
+				this->printer.printRed("= @ftoi ");
 				this->print_type(ftoi.toType);
 				this->printer.print(" ");
 				this->print_expr(ftoi.fromValue);
@@ -781,7 +781,7 @@ namespace pcit::pir{
 				const FToUI& ftoui = this->reader.getFToUI(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftoui.name);
-				this->printer.printRed(" = @ftoui ");
+				this->printer.printRed("= @ftoui ");
 				this->print_type(ftoui.toType);
 				this->printer.print(" ");
 				this->print_expr(ftoui.fromValue);
@@ -835,7 +835,7 @@ namespace pcit::pir{
 				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(stmt);
 
 				this->printer.print("{}${}, ${} ", tabs(2), uadd_wrap.resultName, uadd_wrap.wrappedName);
-				this->printer.printRed("= @sAddWrap ");
+				this->printer.printRed("= @uAddWrap ");
 
 				this->print_expr(uadd_wrap.lhs);
 				this->printer.print(", ");

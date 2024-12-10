@@ -32,7 +32,6 @@ namespace pcit::pir{
 			this->lower_function_decl(function_decl);
 		}
 
-
 		auto func_setups = std::vector<FuncLoweredSetup>();
 		for(const Function& function : this->module.getFunctionIter()){
 			func_setups.emplace_back(this->lower_function_setup(function));
@@ -111,14 +110,11 @@ namespace pcit::pir{
 		for(unsigned i = 0; const Parameter& param : func.getParameters()){
 			llvmint::Argument arg = llvm_func.getArg(i);
 			arg.setName(param.getName());
-			this->args.emplace_back(arg);
 
 			i += 1;
 		}
 
-
 		this->funcs.emplace(func.getName(), llvm_func);
-
 		return FuncLoweredSetup(func, llvm_func);
 	}
 
@@ -140,6 +136,10 @@ namespace pcit::pir{
 
 				this->allocas.emplace(&alloca_info, llvm_alloca);
 			}
+		}
+
+		for(unsigned i = 0; i < func.getParameters().size(); i+=1){
+			this->args.emplace_back(llvm_func.getArg(i));
 		}
 
 		for(const BasicBlock::ID basic_block_id : func){
@@ -488,7 +488,7 @@ namespace pcit::pir{
 
 						this->stmt_values.emplace(
 							this->reader.extractSAddWrapWrapped(stmt),
-							this->builder.createExtractValue(sadd_value, {0}, sadd_wrap.wrappedName)
+							this->builder.createExtractValue(sadd_value, {1}, sadd_wrap.wrappedName)
 						);
 					} break;
 
@@ -504,7 +504,7 @@ namespace pcit::pir{
 						).asType();
 
 						const llvmint::Value uadd_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::saddOverflow,
+							llvmint::IRBuilder::IntrinsicID::uaddOverflow,
 							return_type,
 							{this->get_value(uadd_wrap.lhs), this->get_value(uadd_wrap.rhs)},
 							"ADD_WRAP"
@@ -517,7 +517,7 @@ namespace pcit::pir{
 
 						this->stmt_values.emplace(
 							this->reader.extractUAddWrapWrapped(stmt),
-							this->builder.createExtractValue(uadd_value, {0}, uadd_wrap.wrappedName)
+							this->builder.createExtractValue(uadd_value, {1}, uadd_wrap.wrappedName)
 						);
 					} break;
 
@@ -657,12 +657,22 @@ namespace pcit::pir{
 					} break;
 
 					case Type::Kind::Float: {
-						return this->builder.getValueFloat(this->get_type(number.type), number.getFloat()).asValue();
+						core::GenericFloat float_value = [&](){
+							switch(number.type.getWidth()){
+								case 16: return number.getFloat().asF16();
+								case 32: return number.getFloat().asF32();
+								case 64: return number.getFloat().asF64();
+								case 80: return number.getFloat().asF80();
+								case 128: return number.getFloat().asF128();
+								default: evo::debugFatalBreak("Unsupported float width ({})", number.type.getWidth());
+							}
+						}();
+						return this->builder.getValueFloat(this->get_type(number.type), float_value).asValue();
 					} break;
 
 					case Type::Kind::BFloat: {
 						return this->builder.getValueFloat(
-							this->builder.getTypeBF16(), number.getFloat()
+							this->builder.getTypeBF16(), number.getFloat().asBF16()
 						).asValue();
 					} break;
 

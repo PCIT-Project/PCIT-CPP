@@ -127,6 +127,7 @@ namespace pcit::panther{
 		MiscUnknownFatal,                     // M4
 		MiscNoEntrySet,                       // M5
 		MiscInvalidKind,                      // M6
+		MiscRuntimePanic,                     // M7
 	};
 
 	using Diagnostic = core::DiagnosticImpl<DiagnosticCode, Source::Location>;
@@ -249,6 +250,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::MiscUnknownFatal:                         return "M4";
 			break; case DiagnosticCode::MiscNoEntrySet:                           return "M5";
 			break; case DiagnosticCode::MiscInvalidKind:                          return "M6";
+			break; case DiagnosticCode::MiscRuntimePanic:                         return "M7";
 		}
 		
 		evo::debugFatalBreak("Unknown or unsupported pcit::panther::DiagnosticCode");

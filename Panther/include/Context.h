@@ -26,12 +26,6 @@ namespace fs = std::filesystem;
 #include "../src/ComptimeExecutor.h"
 
 
-namespace pcit::llvmint{
-	class LLVMContext;
-	class Module;
-}
-
-
 namespace pcit::panther{
 
 	class Context{
@@ -170,13 +164,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getScopeManager()       ->       ScopeManager& { return this->scope_manager; }
 
 		private:
-			auto lower_to_llvmir(
-				llvmint::LLVMContext& llvm_context,
-				llvmint::Module& module,
-				bool add_runtime,
-				const struct ASGToLLVMIRConfig& backend_config
-			) -> bool;
-
 			auto wait_for_all_current_tasks() -> void;
 
 			auto emit_diagnostic_internal(auto&&... args) -> void {
