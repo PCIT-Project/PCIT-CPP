@@ -5,10 +5,12 @@ testing/local
 libs/LLVM_build
 
 # outputs
-*.o
-*.exe
-*.pdb
-*.ll
+testing/*.o
+testing/*.exe
+testing/*.pdb
+testing/*.ll
+testing/*.S
+
 
 # sublime
 *.sublime-project

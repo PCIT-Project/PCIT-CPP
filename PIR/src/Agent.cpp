@@ -273,13 +273,6 @@ namespace pcit::pir{
 						if(add.rhs == original){ add.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FAdd: {
-						FAdd& fadd = this->module.fadds[stmt.index];
-
-						if(fadd.lhs == original){ fadd.lhs = replacement; }
-						if(fadd.rhs == original){ fadd.rhs = replacement; }
-					} break;
-
 					case Expr::Kind::SAddWrap: {
 						SAddWrap& sadd_wrap = this->module.sadd_wraps[stmt.index];
 
@@ -299,6 +292,167 @@ namespace pcit::pir{
 
 					case Expr::Kind::UAddWrapResult: continue;
 					case Expr::Kind::UAddWrapWrapped: continue;
+
+					case Expr::Kind::SAddSat: {
+						SAddSat& sadd_wrap = this->module.sadd_sats[stmt.index];
+
+						if(sadd_wrap.lhs == original){ sadd_wrap.lhs = replacement; }
+						if(sadd_wrap.rhs == original){ sadd_wrap.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::UAddSat: {
+						UAddSat& uadd_wrap = this->module.uadd_sats[stmt.index];
+
+						if(uadd_wrap.lhs == original){ uadd_wrap.lhs = replacement; }
+						if(uadd_wrap.rhs == original){ uadd_wrap.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FAdd: {
+						FAdd& fadd = this->module.fadds[stmt.index];
+
+						if(fadd.lhs == original){ fadd.lhs = replacement; }
+						if(fadd.rhs == original){ fadd.rhs = replacement; }
+					} break;
+
+
+					case Expr::Kind::Sub: {
+						Sub& sub = this->module.subs[stmt.index];
+
+						if(sub.lhs == original){ sub.lhs = replacement; }
+						if(sub.rhs == original){ sub.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SSubWrap: {
+						SSubWrap& ssub_wrap = this->module.ssub_wraps[stmt.index];
+
+						if(ssub_wrap.lhs == original){ ssub_wrap.lhs = replacement; }
+						if(ssub_wrap.rhs == original){ ssub_wrap.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SSubWrapResult: continue;
+					case Expr::Kind::SSubWrapWrapped: continue;
+
+					case Expr::Kind::USubWrap: {
+						USubWrap& usub_wrap = this->module.usub_wraps[stmt.index];
+
+						if(usub_wrap.lhs == original){ usub_wrap.lhs = replacement; }
+						if(usub_wrap.rhs == original){ usub_wrap.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::USubWrapResult: continue;
+					case Expr::Kind::USubWrapWrapped: continue;
+
+					case Expr::Kind::SSubSat: {
+						SSubSat& ssub_sat = this->module.ssub_sats[stmt.index];
+
+						if(ssub_sat.lhs == original){ ssub_sat.lhs = replacement; }
+						if(ssub_sat.rhs == original){ ssub_sat.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::USubSat: {
+						USubSat& usub_sat = this->module.usub_sats[stmt.index];
+
+						if(usub_sat.lhs == original){ usub_sat.lhs = replacement; }
+						if(usub_sat.rhs == original){ usub_sat.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FSub: {
+						FSub& fsub = this->module.fsubs[stmt.index];
+
+						if(fsub.lhs == original){ fsub.lhs = replacement; }
+						if(fsub.rhs == original){ fsub.rhs = replacement; }
+					} break;
+
+
+					case Expr::Kind::Mul: {
+						Mul& mul = this->module.muls[stmt.index];
+
+						if(mul.lhs == original){ mul.lhs = replacement; }
+						if(mul.rhs == original){ mul.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SMulWrap: {
+						SMulWrap& smul_wrap = this->module.smul_wraps[stmt.index];
+
+						if(smul_wrap.lhs == original){ smul_wrap.lhs = replacement; }
+						if(smul_wrap.rhs == original){ smul_wrap.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SMulWrapResult: continue;
+					case Expr::Kind::SMulWrapWrapped: continue;
+
+					case Expr::Kind::UMulWrap: {
+						UMulWrap& umul_wrap = this->module.umul_wraps[stmt.index];
+
+						if(umul_wrap.lhs == original){ umul_wrap.lhs = replacement; }
+						if(umul_wrap.rhs == original){ umul_wrap.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::UMulWrapResult: continue;
+					case Expr::Kind::UMulWrapWrapped: continue;
+
+					case Expr::Kind::SMulSat: {
+						SMulSat& smul_sat = this->module.smul_sats[stmt.index];
+
+						if(smul_sat.lhs == original){ smul_sat.lhs = replacement; }
+						if(smul_sat.rhs == original){ smul_sat.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::UMulSat: {
+						UMulSat& umul_sat = this->module.umul_sats[stmt.index];
+
+						if(umul_sat.lhs == original){ umul_sat.lhs = replacement; }
+						if(umul_sat.rhs == original){ umul_sat.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FMul: {
+						FMul& fmul = this->module.fmuls[stmt.index];
+
+						if(fmul.lhs == original){ fmul.lhs = replacement; }
+						if(fmul.rhs == original){ fmul.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SDiv: {
+						SDiv& sdiv = this->module.sdivs[stmt.index];
+
+						if(sdiv.lhs == original){ sdiv.lhs = replacement; }
+						if(sdiv.rhs == original){ sdiv.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::UDiv: {
+						UDiv& udiv = this->module.udivs[stmt.index];
+
+						if(udiv.lhs == original){ udiv.lhs = replacement; }
+						if(udiv.rhs == original){ udiv.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FDiv: {
+						FDiv& fdiv = this->module.fdivs[stmt.index];
+
+						if(fdiv.lhs == original){ fdiv.lhs = replacement; }
+						if(fdiv.rhs == original){ fdiv.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SRem: {
+						SRem& srem = this->module.srems[stmt.index];
+
+						if(srem.lhs == original){ srem.lhs = replacement; }
+						if(srem.rhs == original){ srem.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::URem: {
+						URem& urem = this->module.urems[stmt.index];
+
+						if(urem.lhs == original){ urem.lhs = replacement; }
+						if(urem.rhs == original){ urem.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FRem: {
+						FRem& frem = this->module.frems[stmt.index];
+
+						if(frem.lhs == original){ frem.lhs = replacement; }
+						if(frem.rhs == original){ frem.rhs = replacement; }
+					} break;
 				}
 			}
 		}
@@ -1141,26 +1295,6 @@ namespace pcit::pir{
 	}
 
 
-	//////////////////////////////////////////////////////////////////////
-	// fadd
-
-	auto Agent::createFAdd(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
-		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
-		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fAdd instruction only supports float values");
-
-		const auto new_expr = Expr(
-			Expr::Kind::FAdd, this->module.fadds.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
-		);
-		this->insert_stmt(new_expr);
-		return new_expr;
-	}
-
-	auto Agent::getFAdd(const Expr& expr) const -> const FAdd& {
-		return ReaderAgent(this->module, this->getTargetFunction()).getFAdd(expr);
-	}
-
 
 	//////////////////////////////////////////////////////////////////////
 	// signed add wrap
@@ -1238,6 +1372,560 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// saddSat
+
+	auto Agent::createSAddSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @saddSat instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SAddSat,
+			this->module.sadd_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSAddSat(const Expr& expr) const -> const SAddSat& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSAddSat(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// uaddSat
+
+	auto Agent::createUAddSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @uaddSat instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::UAddSat,
+			this->module.uadd_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUAddSat(const Expr& expr) const -> const UAddSat& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUAddSat(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// fadd
+
+	auto Agent::createFAdd(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fAdd instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FAdd, this->module.fadds.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFAdd(const Expr& expr) const -> const FAdd& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFAdd(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// sub
+
+	auto Agent::createSub(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @sub instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::Sub,
+			this->module.subs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, may_wrap)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSub(const Expr& expr) const -> const Sub& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSub(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// signed sub wrap
+
+	auto Agent::createSSubWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).getKind() == Type::Kind::Integer, "Can only sub wrap integers");
+
+		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+			std::move(wrapped_name), {result_stmt_name}
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SSubWrap,
+			this->module.ssub_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSSubWrap(const Expr& expr) const -> const SSubWrap& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSSubWrap(expr);
+	}
+
+
+	auto Agent::extractSSubWrapResult(const Expr& expr) -> Expr {
+		return ReaderAgent::extractSSubWrapResult(expr);
+	}
+
+	auto Agent::extractSSubWrapWrapped(const Expr& expr) -> Expr {
+		return ReaderAgent::extractSSubWrapWrapped(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// unsigned sub wrap
+
+	auto Agent::createUSubWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).getKind() == Type::Kind::Integer, "Can only sub wrap integers");
+
+		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+			std::move(wrapped_name), {result_stmt_name}
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::USubWrap,
+			this->module.usub_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUSubWrap(const Expr& expr) const -> const USubWrap& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUSubWrap(expr);
+	}
+
+
+	auto Agent::extractUSubWrapResult(const Expr& expr) -> Expr {
+		return ReaderAgent::extractUSubWrapResult(expr);
+	}
+
+	auto Agent::extractUSubWrapWrapped(const Expr& expr) -> Expr {
+		return ReaderAgent::extractUSubWrapWrapped(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// ssubSat
+
+	auto Agent::createSSubSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ssubSat instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SSubSat,
+			this->module.ssub_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSSubSat(const Expr& expr) const -> const SSubSat& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSSubSat(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// usubSat
+
+	auto Agent::createUSubSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @usubSat instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::USubSat,
+			this->module.usub_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUSubSat(const Expr& expr) const -> const USubSat& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUSubSat(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// fsub
+
+	auto Agent::createFSub(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fSub instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FSub, this->module.fsubs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFSub(const Expr& expr) const -> const FSub& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFSub(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// mul
+
+	auto Agent::createMul(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @mul instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::Mul,
+			this->module.muls.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, may_wrap)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getMul(const Expr& expr) const -> const Mul& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getMul(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// signed mul wrap
+
+	auto Agent::createSMulWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).getKind() == Type::Kind::Integer, "Can only mul wrap integers");
+
+		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+			std::move(wrapped_name), {result_stmt_name}
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SMulWrap,
+			this->module.smul_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSMulWrap(const Expr& expr) const -> const SMulWrap& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSMulWrap(expr);
+	}
+
+
+	auto Agent::extractSMulWrapResult(const Expr& expr) -> Expr {
+		return ReaderAgent::extractSMulWrapResult(expr);
+	}
+
+	auto Agent::extractSMulWrapWrapped(const Expr& expr) -> Expr {
+		return ReaderAgent::extractSMulWrapWrapped(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// unsigned mul wrap
+
+	auto Agent::createUMulWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).getKind() == Type::Kind::Integer, "Can only mul wrap integers");
+
+		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+			std::move(wrapped_name), {result_stmt_name}
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::UMulWrap,
+			this->module.umul_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUMulWrap(const Expr& expr) const -> const UMulWrap& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUMulWrap(expr);
+	}
+
+
+	auto Agent::extractUMulWrapResult(const Expr& expr) -> Expr {
+		return ReaderAgent::extractUMulWrapResult(expr);
+	}
+
+	auto Agent::extractUMulWrapWrapped(const Expr& expr) -> Expr {
+		return ReaderAgent::extractUMulWrapWrapped(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// smulSat
+
+	auto Agent::createSMulSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @smulSat instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SMulSat,
+			this->module.smul_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSMulSat(const Expr& expr) const -> const SMulSat& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSMulSat(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// umulSat
+
+	auto Agent::createUMulSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @umulSat instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::UMulSat,
+			this->module.umul_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUMulSat(const Expr& expr) const -> const UMulSat& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUMulSat(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// fmul
+
+	auto Agent::createFMul(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fMul instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FMul, this->module.fmuls.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFMul(const Expr& expr) const -> const FMul& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFMul(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// sdiv
+
+	auto Agent::createSDiv(const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @sdiv instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SDiv,
+			this->module.sdivs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, is_exact)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSDiv(const Expr& expr) const -> const SDiv& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSDiv(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// udiv
+
+	auto Agent::createUDiv(const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @udiv instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::UDiv,
+			this->module.udivs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, is_exact)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUDiv(const Expr& expr) const -> const UDiv& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUDiv(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// fdiv
+
+	auto Agent::createFDiv(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fMul instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FDiv, this->module.fdivs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFDiv(const Expr& expr) const -> const FDiv& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFDiv(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// srem
+
+	auto Agent::createSRem(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @srem instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SRem,
+			this->module.srems.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSRem(const Expr& expr) const -> const SRem& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSRem(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// urem
+
+	auto Agent::createURem(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @urem instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::URem,
+			this->module.urems.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getURem(const Expr& expr) const -> const URem& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getURem(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// frem
+
+	auto Agent::createFRem(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fMul instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FRem, this->module.frems.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFRem(const Expr& expr) const -> const FRem& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFRem(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// internal
 
 
@@ -1284,13 +1972,41 @@ namespace pcit::pir{
 			break; case Expr::Kind::FToI:            this->module.ftois.erase(expr.index);
 			break; case Expr::Kind::FToUI:           this->module.ftouis.erase(expr.index);
 			break; case Expr::Kind::Add:             this->module.adds.erase(expr.index);
-			break; case Expr::Kind::FAdd:            this->module.fadds.erase(expr.index);
 			break; case Expr::Kind::SAddWrap:        this->module.sadd_wraps.erase(expr.index);
 			break; case Expr::Kind::SAddWrapResult:  return;
 			break; case Expr::Kind::SAddWrapWrapped: return;
 			break; case Expr::Kind::UAddWrap:        this->module.uadd_wraps.erase(expr.index);
 			break; case Expr::Kind::UAddWrapResult:  return;
 			break; case Expr::Kind::UAddWrapWrapped: return;
+			break; case Expr::Kind::SAddSat:         this->module.sadd_sats.erase(expr.index);
+			break; case Expr::Kind::UAddSat:         this->module.uadd_sats.erase(expr.index);
+			break; case Expr::Kind::FAdd:            this->module.fadds.erase(expr.index);
+			break; case Expr::Kind::Sub:             this->module.subs.erase(expr.index);
+			break; case Expr::Kind::SSubWrap:        this->module.ssub_wraps.erase(expr.index);
+			break; case Expr::Kind::SSubWrapResult:  return;
+			break; case Expr::Kind::SSubWrapWrapped: return;
+			break; case Expr::Kind::USubWrap:        this->module.usub_wraps.erase(expr.index);
+			break; case Expr::Kind::USubWrapResult:  return;
+			break; case Expr::Kind::USubWrapWrapped: return;
+			break; case Expr::Kind::SSubSat:         this->module.ssub_sats.erase(expr.index);
+			break; case Expr::Kind::USubSat:         this->module.usub_sats.erase(expr.index);
+			break; case Expr::Kind::FSub:            this->module.fsubs.erase(expr.index);
+			break; case Expr::Kind::Mul:             this->module.muls.erase(expr.index);
+			break; case Expr::Kind::SMulWrap:        this->module.smul_wraps.erase(expr.index);
+			break; case Expr::Kind::SMulWrapResult:  return;
+			break; case Expr::Kind::SMulWrapWrapped: return;
+			break; case Expr::Kind::UMulWrap:        this->module.umul_wraps.erase(expr.index);
+			break; case Expr::Kind::UMulWrapResult:  return;
+			break; case Expr::Kind::UMulWrapWrapped: return;
+			break; case Expr::Kind::SMulSat:         this->module.smul_sats.erase(expr.index);
+			break; case Expr::Kind::UMulSat:         this->module.umul_sats.erase(expr.index);
+			break; case Expr::Kind::FMul:            this->module.fmuls.erase(expr.index);
+			break; case Expr::Kind::SDiv:            this->module.sdivs.erase(expr.index);
+			break; case Expr::Kind::UDiv:            this->module.udivs.erase(expr.index);
+			break; case Expr::Kind::FDiv:            this->module.fdivs.erase(expr.index);
+			break; case Expr::Kind::SRem:            this->module.srems.erase(expr.index);
+			break; case Expr::Kind::URem:            this->module.urems.erase(expr.index);
+			break; case Expr::Kind::FRem:            this->module.frems.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -1340,7 +2056,6 @@ namespace pcit::pir{
 					case Expr::Kind::FToI:        if(this->getFToI(stmt).name == name){ return true; } continue;
 					case Expr::Kind::FToUI:       if(this->getFToUI(stmt).name == name){ return true; } continue;
 					case Expr::Kind::Add:         if(this->getAdd(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FAdd:        if(this->getFAdd(stmt).name == name){ return true; } continue;
 					case Expr::Kind::SAddWrap: {
 						const SAddWrap& sadd_wrap = this->getSAddWrap(stmt);
 						if(sadd_wrap.resultName == name){ return true; }
@@ -1357,6 +2072,55 @@ namespace pcit::pir{
 					} break;
 					case Expr::Kind::UAddWrapResult:  continue;
 					case Expr::Kind::UAddWrapWrapped: continue;
+					case Expr::Kind::SAddSat:         if(this->getSAddSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UAddSat:         if(this->getUAddSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FAdd:            if(this->getFAdd(stmt).name == name){ return true; } continue;
+					case Expr::Kind::Sub:             if(this->getSub(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SSubWrap: {
+						const SSubWrap& ssub_wrap = this->getSSubWrap(stmt);
+						if(ssub_wrap.resultName == name){ return true; }
+						if(ssub_wrap.wrappedName == name){ return true; }
+						continue;
+					} break;
+					case Expr::Kind::SSubWrapResult:  continue;
+					case Expr::Kind::SSubWrapWrapped: continue;
+					case Expr::Kind::USubWrap: {
+						const USubWrap& usub_wrap = this->getUSubWrap(stmt);
+						if(usub_wrap.resultName == name){ return true; }
+						if(usub_wrap.wrappedName == name){ return true; }
+						continue;
+					} break;
+					case Expr::Kind::USubWrapResult:  continue;
+					case Expr::Kind::USubWrapWrapped: continue;
+					case Expr::Kind::SSubSat:         if(this->getSSubSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::USubSat:         if(this->getUSubSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FSub:            if(this->getFSub(stmt).name == name){ return true; } continue;
+					case Expr::Kind::Mul:             if(this->getMul(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SMulWrap: {
+						const SMulWrap& smul_wrap = this->getSMulWrap(stmt);
+						if(smul_wrap.resultName == name){ return true; }
+						if(smul_wrap.wrappedName == name){ return true; }
+						continue;
+					} break;
+					case Expr::Kind::SMulWrapResult:  continue;
+					case Expr::Kind::SMulWrapWrapped: continue;
+					case Expr::Kind::UMulWrap: {
+						const UMulWrap& umul_wrap = this->getUMulWrap(stmt);
+						if(umul_wrap.resultName == name){ return true; }
+						if(umul_wrap.wrappedName == name){ return true; }
+						continue;
+					} break;
+					case Expr::Kind::UMulWrapResult:  continue;
+					case Expr::Kind::UMulWrapWrapped: continue;
+					case Expr::Kind::SMulSat:         if(this->getSMulSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UMulSat:         if(this->getUMulSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FMul:            if(this->getFMul(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SDiv:            if(this->getSDiv(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UDiv:            if(this->getUDiv(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FDiv:            if(this->getFDiv(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SRem:            if(this->getSRem(stmt).name == name){ return true; } continue;
+					case Expr::Kind::URem:            if(this->getURem(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FRem:            if(this->getFRem(stmt).name == name){ return true; } continue;
 				}
 			}
 		}

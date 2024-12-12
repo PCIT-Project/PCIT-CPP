@@ -78,13 +78,42 @@ namespace pcit::pir{
 			case Expr::Kind::FToI:            return this->getFToI(expr).toType;
 			case Expr::Kind::FToUI:           return this->getFToUI(expr).toType;
 			case Expr::Kind::Add:             return this->getExprType(this->getAdd(expr).lhs);
-			case Expr::Kind::FAdd:            return this->getExprType(this->getFAdd(expr).lhs);
 			case Expr::Kind::SAddWrap:        evo::unreachable();
 			case Expr::Kind::SAddWrapResult:  return this->getExprType(this->getSAddWrap(expr).lhs);
 			case Expr::Kind::SAddWrapWrapped: return this->module.createBoolType();
 			case Expr::Kind::UAddWrap:        evo::unreachable();
 			case Expr::Kind::UAddWrapResult:  return this->getExprType(this->getUAddWrap(expr).lhs);
 			case Expr::Kind::UAddWrapWrapped: return this->module.createBoolType();
+			case Expr::Kind::SAddSat:         return this->getExprType(this->getSAddSat(expr).lhs);
+			case Expr::Kind::UAddSat:         return this->getExprType(this->getUAddSat(expr).lhs);
+			case Expr::Kind::FAdd:            return this->getExprType(this->getFAdd(expr).lhs);
+			case Expr::Kind::Sub:             return this->getExprType(this->getSub(expr).lhs);
+			case Expr::Kind::SSubWrap:        evo::unreachable();
+			case Expr::Kind::SSubWrapResult:  return this->getExprType(this->getSSubWrap(expr).lhs);
+			case Expr::Kind::SSubWrapWrapped: return this->module.createBoolType();
+			case Expr::Kind::USubWrap:        evo::unreachable();
+			case Expr::Kind::USubWrapResult:  return this->getExprType(this->getUSubWrap(expr).lhs);
+			case Expr::Kind::USubWrapWrapped: return this->module.createBoolType();
+			case Expr::Kind::SSubSat:         return this->getExprType(this->getSSubSat(expr).lhs);
+			case Expr::Kind::USubSat:         return this->getExprType(this->getUSubSat(expr).lhs);
+			case Expr::Kind::FSub:            return this->getExprType(this->getFSub(expr).lhs);
+			case Expr::Kind::Mul:             return this->getExprType(this->getMul(expr).lhs);
+			case Expr::Kind::SMulWrap:        evo::unreachable();
+			case Expr::Kind::SMulWrapResult:  return this->getExprType(this->getSMulWrap(expr).lhs);
+			case Expr::Kind::SMulWrapWrapped: return this->module.createBoolType();
+			case Expr::Kind::UMulWrap:        evo::unreachable();
+			case Expr::Kind::UMulWrapResult:  return this->getExprType(this->getUMulWrap(expr).lhs);
+			case Expr::Kind::UMulWrapWrapped: return this->module.createBoolType();
+			case Expr::Kind::SMulSat:         return this->getExprType(this->getSMulSat(expr).lhs);
+			case Expr::Kind::UMulSat:         return this->getExprType(this->getUMulSat(expr).lhs);
+			case Expr::Kind::FMul:            return this->getExprType(this->getFMul(expr).lhs);
+			case Expr::Kind::SDiv:            return this->getExprType(this->getSDiv(expr).lhs);
+			case Expr::Kind::UDiv:            return this->getExprType(this->getUDiv(expr).lhs);
+			case Expr::Kind::FDiv:            return this->getExprType(this->getFDiv(expr).lhs);
+			case Expr::Kind::SRem:            return this->getExprType(this->getSRem(expr).lhs);
+			case Expr::Kind::URem:            return this->getExprType(this->getURem(expr).lhs);
+			case Expr::Kind::FRem:            return this->getExprType(this->getFRem(expr).lhs);
+
 		}
 
 		evo::unreachable();
@@ -272,14 +301,6 @@ namespace pcit::pir{
 	}
 
 
-	auto ReaderAgent::getFAdd(const Expr& expr) const -> const FAdd& {
-		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FAdd, "Not an fadd");
-
-		return this->module.fadds[expr.index];
-	}
-
-
 	auto ReaderAgent::getSAddWrap(const Expr& expr) const -> const SAddWrap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(
@@ -320,6 +341,219 @@ namespace pcit::pir{
 
 	auto ReaderAgent::extractUAddWrapWrapped(const Expr& expr) -> Expr {
 		return Expr(Expr::Kind::UAddWrapWrapped, expr.index);
+	}
+
+	auto ReaderAgent::getSAddSat(const Expr& expr) const -> const SAddSat& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SAddSat, "Not an saddSat");
+
+		return this->module.sadd_sats[expr.index];
+	}
+
+	auto ReaderAgent::getUAddSat(const Expr& expr) const -> const UAddSat& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::UAddSat, "Not an uaddSat");
+
+		return this->module.uadd_sats[expr.index];
+	}
+
+	auto ReaderAgent::getFAdd(const Expr& expr) const -> const FAdd& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FAdd, "Not an fadd");
+
+		return this->module.fadds[expr.index];
+	}
+
+
+
+
+	auto ReaderAgent::getSub(const Expr& expr) const -> const Sub& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Sub, "Not a sub");
+
+		return this->module.subs[expr.index];
+	}
+
+
+	auto ReaderAgent::getSSubWrap(const Expr& expr) const -> const SSubWrap& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(
+			expr.getKind() == Expr::Kind::SSubWrap
+				|| expr.getKind() == Expr::Kind::SSubWrapResult
+				|| expr.getKind() == Expr::Kind::SSubWrapWrapped,
+			"Not a signed sub wrap"
+		);
+
+		return this->module.ssub_wraps[expr.index];
+	}
+
+	auto ReaderAgent::extractSSubWrapResult(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::SSubWrapResult, expr.index);
+	}
+
+	auto ReaderAgent::extractSSubWrapWrapped(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::SSubWrapWrapped, expr.index);
+	}
+
+
+
+	auto ReaderAgent::getUSubWrap(const Expr& expr) const -> const USubWrap& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(
+			expr.getKind() == Expr::Kind::USubWrap
+				|| expr.getKind() == Expr::Kind::USubWrapResult
+				|| expr.getKind() == Expr::Kind::USubWrapWrapped,
+			"Not an unsigned sub wrap"
+		);
+
+		return this->module.usub_wraps[expr.index];
+	}
+
+	auto ReaderAgent::extractUSubWrapResult(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::USubWrapResult, expr.index);
+	}
+
+	auto ReaderAgent::extractUSubWrapWrapped(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::USubWrapWrapped, expr.index);
+	}
+
+	auto ReaderAgent::getSSubSat(const Expr& expr) const -> const SSubSat& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SSubSat, "Not a ssubSat");
+
+		return this->module.ssub_sats[expr.index];
+	}
+
+	auto ReaderAgent::getUSubSat(const Expr& expr) const -> const USubSat& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::USubSat, "Not a usubSat");
+
+		return this->module.usub_sats[expr.index];
+	}
+
+	auto ReaderAgent::getFSub(const Expr& expr) const -> const FSub& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FSub, "Not an fsub");
+
+		return this->module.fsubs[expr.index];
+	}
+
+
+
+
+	auto ReaderAgent::getMul(const Expr& expr) const -> const Mul& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Mul, "Not a mul");
+
+		return this->module.muls[expr.index];
+	}
+
+
+	auto ReaderAgent::getSMulWrap(const Expr& expr) const -> const SMulWrap& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(
+			expr.getKind() == Expr::Kind::SMulWrap
+				|| expr.getKind() == Expr::Kind::SMulWrapResult
+				|| expr.getKind() == Expr::Kind::SMulWrapWrapped,
+			"Not a signed mul wrap"
+		);
+
+		return this->module.smul_wraps[expr.index];
+	}
+
+	auto ReaderAgent::extractSMulWrapResult(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::SMulWrapResult, expr.index);
+	}
+
+	auto ReaderAgent::extractSMulWrapWrapped(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::SMulWrapWrapped, expr.index);
+	}
+
+
+
+	auto ReaderAgent::getUMulWrap(const Expr& expr) const -> const UMulWrap& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(
+			expr.getKind() == Expr::Kind::UMulWrap
+				|| expr.getKind() == Expr::Kind::UMulWrapResult
+				|| expr.getKind() == Expr::Kind::UMulWrapWrapped,
+			"Not an unsigned mul wrap"
+		);
+
+		return this->module.umul_wraps[expr.index];
+	}
+
+	auto ReaderAgent::extractUMulWrapResult(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::UMulWrapResult, expr.index);
+	}
+
+	auto ReaderAgent::extractUMulWrapWrapped(const Expr& expr) -> Expr {
+		return Expr(Expr::Kind::UMulWrapWrapped, expr.index);
+	}
+
+	auto ReaderAgent::getSMulSat(const Expr& expr) const -> const SMulSat& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SMulSat, "Not a smulSat");
+
+		return this->module.smul_sats[expr.index];
+	}
+
+	auto ReaderAgent::getUMulSat(const Expr& expr) const -> const UMulSat& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::UMulSat, "Not a umulSat");
+
+		return this->module.umul_sats[expr.index];
+	}
+
+	auto ReaderAgent::getFMul(const Expr& expr) const -> const FMul& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FMul, "Not an fmul");
+
+		return this->module.fmuls[expr.index];
+	}
+
+
+
+	auto ReaderAgent::getSDiv(const Expr& expr) const -> const SDiv& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SDiv, "Not an sdiv");
+
+		return this->module.sdivs[expr.index];
+	}
+
+	auto ReaderAgent::getUDiv(const Expr& expr) const -> const UDiv& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::UDiv, "Not an udiv");
+
+		return this->module.udivs[expr.index];
+	}
+
+	auto ReaderAgent::getFDiv(const Expr& expr) const -> const FDiv& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FDiv, "Not an fdiv");
+
+		return this->module.fdivs[expr.index];
+	}
+
+	auto ReaderAgent::getSRem(const Expr& expr) const -> const SRem& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SRem, "Not an srem");
+
+		return this->module.srems[expr.index];
+	}
+
+	auto ReaderAgent::getURem(const Expr& expr) const -> const URem& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::URem, "Not an urem");
+
+		return this->module.urems[expr.index];
+	}
+
+	auto ReaderAgent::getFRem(const Expr& expr) const -> const FRem& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FRem, "Not an frem");
+
+		return this->module.frems[expr.index];
 	}
 
 

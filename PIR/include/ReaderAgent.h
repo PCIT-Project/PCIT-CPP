@@ -75,14 +75,41 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getFToUI(const Expr& expr) const -> const FToUI&;
 
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
-			EVO_NODISCARD auto getFAdd(const Expr& expr) const -> const FAdd&;
 			EVO_NODISCARD auto getSAddWrap(const Expr& expr) const -> const SAddWrap&;
 			EVO_NODISCARD static auto extractSAddWrapResult(const Expr& expr) -> Expr;
 			EVO_NODISCARD static auto extractSAddWrapWrapped(const Expr& expr) -> Expr;
 			EVO_NODISCARD auto getUAddWrap(const Expr& expr) const -> const UAddWrap&;
 			EVO_NODISCARD static auto extractUAddWrapResult(const Expr& expr) -> Expr;
 			EVO_NODISCARD static auto extractUAddWrapWrapped(const Expr& expr) -> Expr;
-
+			EVO_NODISCARD auto getSAddSat(const Expr& expr) const -> const SAddSat&;
+			EVO_NODISCARD auto getUAddSat(const Expr& expr) const -> const UAddSat&;
+			EVO_NODISCARD auto getFAdd(const Expr& expr) const -> const FAdd&;
+			EVO_NODISCARD auto getSub(const Expr& expr) const -> const Sub&;
+			EVO_NODISCARD auto getSSubWrap(const Expr& expr) const -> const SSubWrap&;
+			EVO_NODISCARD static auto extractSSubWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractSSubWrapWrapped(const Expr& expr) -> Expr;
+			EVO_NODISCARD auto getUSubWrap(const Expr& expr) const -> const USubWrap&;
+			EVO_NODISCARD static auto extractUSubWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractUSubWrapWrapped(const Expr& expr) -> Expr;
+			EVO_NODISCARD auto getSSubSat(const Expr& expr) const -> const SSubSat&;
+			EVO_NODISCARD auto getUSubSat(const Expr& expr) const -> const USubSat&;
+			EVO_NODISCARD auto getFSub(const Expr& expr) const -> const FSub&;
+			EVO_NODISCARD auto getMul(const Expr& expr) const -> const Mul&;
+			EVO_NODISCARD auto getSMulWrap(const Expr& expr) const -> const SMulWrap&;
+			EVO_NODISCARD static auto extractSMulWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractSMulWrapWrapped(const Expr& expr) -> Expr;
+			EVO_NODISCARD auto getUMulWrap(const Expr& expr) const -> const UMulWrap&;
+			EVO_NODISCARD static auto extractUMulWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractUMulWrapWrapped(const Expr& expr) -> Expr;
+			EVO_NODISCARD auto getSMulSat(const Expr& expr) const -> const SMulSat&;
+			EVO_NODISCARD auto getUMulSat(const Expr& expr) const -> const UMulSat&;
+			EVO_NODISCARD auto getFMul(const Expr& expr) const -> const FMul&;
+			EVO_NODISCARD auto getSDiv(const Expr& expr) const -> const SDiv&;
+			EVO_NODISCARD auto getUDiv(const Expr& expr) const -> const UDiv&;
+			EVO_NODISCARD auto getFDiv(const Expr& expr) const -> const FDiv&;
+			EVO_NODISCARD auto getSRem(const Expr& expr) const -> const SRem&;
+			EVO_NODISCARD auto getURem(const Expr& expr) const -> const URem&;
+			EVO_NODISCARD auto getFRem(const Expr& expr) const -> const FRem&;
 
 
 		private:

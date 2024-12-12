@@ -69,13 +69,41 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::FToI:            func_metadata.emplace(expr);
 					break; case Expr::Kind::FToUI:           func_metadata.emplace(expr);
 					break; case Expr::Kind::Add:             func_metadata.emplace(expr);
-					break; case Expr::Kind::FAdd:            func_metadata.emplace(expr);
 					break; case Expr::Kind::SAddWrap:        evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::SAddWrapResult:  func_metadata.emplace(expr);
 					break; case Expr::Kind::SAddWrapWrapped: func_metadata.emplace(expr);
 					break; case Expr::Kind::UAddWrap:        evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::UAddWrapResult:  func_metadata.emplace(expr);
 					break; case Expr::Kind::UAddWrapWrapped: func_metadata.emplace(expr);
+					break; case Expr::Kind::SAddSat:         func_metadata.emplace(expr);
+					break; case Expr::Kind::UAddSat:         func_metadata.emplace(expr);
+					break; case Expr::Kind::FAdd:            func_metadata.emplace(expr);
+					break; case Expr::Kind::Sub:             func_metadata.emplace(expr);
+					break; case Expr::Kind::SSubWrap:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::SSubWrapResult:  func_metadata.emplace(expr);
+					break; case Expr::Kind::SSubWrapWrapped: func_metadata.emplace(expr);
+					break; case Expr::Kind::USubWrap:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::USubWrapResult:  func_metadata.emplace(expr);
+					break; case Expr::Kind::USubWrapWrapped: func_metadata.emplace(expr);
+					break; case Expr::Kind::SSubSat:         func_metadata.emplace(expr);
+					break; case Expr::Kind::USubSat:         func_metadata.emplace(expr);
+					break; case Expr::Kind::FSub:            func_metadata.emplace(expr);
+					break; case Expr::Kind::Mul:             func_metadata.emplace(expr);
+					break; case Expr::Kind::SMulWrap:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::SMulWrapResult:  func_metadata.emplace(expr);
+					break; case Expr::Kind::SMulWrapWrapped: func_metadata.emplace(expr);
+					break; case Expr::Kind::UMulWrap:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::UMulWrapResult:  func_metadata.emplace(expr);
+					break; case Expr::Kind::UMulWrapWrapped: func_metadata.emplace(expr);
+					break; case Expr::Kind::SMulSat:         func_metadata.emplace(expr);
+					break; case Expr::Kind::UMulSat:         func_metadata.emplace(expr);
+					break; case Expr::Kind::FMul:            func_metadata.emplace(expr);
+					break; case Expr::Kind::SDiv:            func_metadata.emplace(expr);
+					break; case Expr::Kind::UDiv:            func_metadata.emplace(expr);
+					break; case Expr::Kind::FDiv:            func_metadata.emplace(expr);
+					break; case Expr::Kind::SRem:            func_metadata.emplace(expr);
+					break; case Expr::Kind::URem:            func_metadata.emplace(expr);
+					break; case Expr::Kind::FRem:            func_metadata.emplace(expr);
 				}
 			};
 
@@ -261,16 +289,6 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FAdd: {
-					if(remove_unused_stmt()){ return true; }
-
-					const FAdd& fadd = agent.getFAdd(stmt);
-					see_expr(fadd.lhs);
-					see_expr(fadd.rhs);
-
-					return false;
-				} break;
-
 				case Expr::Kind::SAddWrap: {
 					if(func_metadata.contains(agent.extractSAddWrapWrapped(stmt)) == false){
 						if(func_metadata.contains(agent.extractSAddWrapResult(stmt)) == false){
@@ -330,6 +348,299 @@ namespace pcit::pir::passes{
 
 				case Expr::Kind::UAddWrapResult:  return false;
 				case Expr::Kind::UAddWrapWrapped: return false;
+
+				case Expr::Kind::SAddSat: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SAddSat& sadd_sat = agent.getSAddSat(stmt);
+					see_expr(sadd_sat.lhs);
+					see_expr(sadd_sat.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::UAddSat: {
+					if(remove_unused_stmt()){ return true; }
+
+					const UAddSat& uadd_sat = agent.getUAddSat(stmt);
+					see_expr(uadd_sat.lhs);
+					see_expr(uadd_sat.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FAdd: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FAdd& fadd = agent.getFAdd(stmt);
+					see_expr(fadd.lhs);
+					see_expr(fadd.rhs);
+
+					return false;
+				} break;
+
+
+				case Expr::Kind::Sub: {
+					if(remove_unused_stmt()){ return true; }
+
+					const Sub& sub = agent.getSub(stmt);
+					see_expr(sub.lhs);
+					see_expr(sub.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SSubWrap: {
+					if(func_metadata.contains(agent.extractSSubWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(agent.extractSSubWrapResult(stmt)) == false){
+							agent.removeStmt(stmt);
+							return true;		
+						}
+
+						// if wrapped value is never used, replace subWrap with just an sub
+						const SSubWrap& ssub_wrap = agent.getSSubWrap(stmt);
+						see_expr(ssub_wrap.lhs);
+						see_expr(ssub_wrap.rhs);
+
+						const Expr new_sub = agent.createSub(
+							ssub_wrap.lhs, ssub_wrap.rhs, true, std::string(ssub_wrap.resultName)
+						);
+						agent.replaceExpr(agent.extractSSubWrapResult(stmt), new_sub);
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+					const SSubWrap& ssub_wrap = agent.getSSubWrap(stmt);
+					see_expr(ssub_wrap.lhs);
+					see_expr(ssub_wrap.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SSubWrapResult:  return false;
+				case Expr::Kind::SSubWrapWrapped: return false;
+
+				case Expr::Kind::USubWrap: {
+					if(func_metadata.contains(agent.extractUSubWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(agent.extractUSubWrapResult(stmt)) == false){
+							agent.removeStmt(stmt);
+							return true;		
+						}
+
+						// if wrapped value is never used, replace subWrap with just an sub
+						const USubWrap& usub_wrap = agent.getUSubWrap(stmt);
+						see_expr(usub_wrap.lhs);
+						see_expr(usub_wrap.rhs);
+
+						const Expr new_sub = agent.createSub(
+							usub_wrap.lhs, usub_wrap.rhs, true, std::string(usub_wrap.resultName)
+						);
+						agent.replaceExpr(agent.extractUSubWrapResult(stmt), new_sub);
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+					const USubWrap& usub_wrap = agent.getUSubWrap(stmt);
+					see_expr(usub_wrap.lhs);
+					see_expr(usub_wrap.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::USubWrapResult:  return false;
+				case Expr::Kind::USubWrapWrapped: return false;
+
+				case Expr::Kind::SSubSat: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SSubSat& ssub_sat = agent.getSSubSat(stmt);
+					see_expr(ssub_sat.lhs);
+					see_expr(ssub_sat.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::USubSat: {
+					if(remove_unused_stmt()){ return true; }
+
+					const USubSat& usub_sat = agent.getUSubSat(stmt);
+					see_expr(usub_sat.lhs);
+					see_expr(usub_sat.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FSub: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FSub& fsub = agent.getFSub(stmt);
+					see_expr(fsub.lhs);
+					see_expr(fsub.rhs);
+
+					return false;
+				} break;
+
+
+				case Expr::Kind::Mul: {
+					if(remove_unused_stmt()){ return true; }
+
+					const Mul& mul = agent.getMul(stmt);
+					see_expr(mul.lhs);
+					see_expr(mul.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SMulWrap: {
+					if(func_metadata.contains(agent.extractSMulWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(agent.extractSMulWrapResult(stmt)) == false){
+							agent.removeStmt(stmt);
+							return true;		
+						}
+
+						// if wrapped value is never used, replace mulWrap with just an mul
+						const SMulWrap& smul_wrap = agent.getSMulWrap(stmt);
+						see_expr(smul_wrap.lhs);
+						see_expr(smul_wrap.rhs);
+
+						const Expr new_mul = agent.createMul(
+							smul_wrap.lhs, smul_wrap.rhs, true, std::string(smul_wrap.resultName)
+						);
+						agent.replaceExpr(agent.extractSMulWrapResult(stmt), new_mul);
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+					const SMulWrap& smul_wrap = agent.getSMulWrap(stmt);
+					see_expr(smul_wrap.lhs);
+					see_expr(smul_wrap.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SMulWrapResult:  return false;
+				case Expr::Kind::SMulWrapWrapped: return false;
+
+				case Expr::Kind::UMulWrap: {
+					if(func_metadata.contains(agent.extractUMulWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(agent.extractUMulWrapResult(stmt)) == false){
+							agent.removeStmt(stmt);
+							return true;		
+						}
+
+						// if wrapped value is never used, replace mulWrap with just an mul
+						const UMulWrap& umul_wrap = agent.getUMulWrap(stmt);
+						see_expr(umul_wrap.lhs);
+						see_expr(umul_wrap.rhs);
+
+						const Expr new_mul = agent.createMul(
+							umul_wrap.lhs, umul_wrap.rhs, true, std::string(umul_wrap.resultName)
+						);
+						agent.replaceExpr(agent.extractUMulWrapResult(stmt), new_mul);
+						agent.removeStmt(stmt);
+						return true;
+					}
+
+					const UMulWrap& umul_wrap = agent.getUMulWrap(stmt);
+					see_expr(umul_wrap.lhs);
+					see_expr(umul_wrap.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::UMulWrapResult:  return false;
+				case Expr::Kind::UMulWrapWrapped: return false;
+
+				case Expr::Kind::SMulSat: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SMulSat& smul_sat = agent.getSMulSat(stmt);
+					see_expr(smul_sat.lhs);
+					see_expr(smul_sat.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::UMulSat: {
+					if(remove_unused_stmt()){ return true; }
+
+					const UMulSat& umul_sat = agent.getUMulSat(stmt);
+					see_expr(umul_sat.lhs);
+					see_expr(umul_sat.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FMul: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FMul& fmul = agent.getFMul(stmt);
+					see_expr(fmul.lhs);
+					see_expr(fmul.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SDiv: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SDiv& sdiv = agent.getSDiv(stmt);
+					see_expr(sdiv.lhs);
+					see_expr(sdiv.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::UDiv: {
+					if(remove_unused_stmt()){ return true; }
+
+					const UDiv udiv = agent.getUDiv(stmt);
+					see_expr(udiv.lhs);
+					see_expr(udiv.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FDiv: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FDiv& fdiv = agent.getFDiv(stmt);
+					see_expr(fdiv.lhs);
+					see_expr(fdiv.rhs);
+
+					return false;
+				} break;
+
+
+				case Expr::Kind::SRem: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SRem& srem = agent.getSRem(stmt);
+					see_expr(srem.lhs);
+					see_expr(srem.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::URem: {
+					if(remove_unused_stmt()){ return true; }
+
+					const URem urem = agent.getURem(stmt);
+					see_expr(urem.lhs);
+					see_expr(urem.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FRem: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FRem& frem = agent.getFRem(stmt);
+					see_expr(frem.lhs);
+					see_expr(frem.rhs);
+
+					return false;
+				} break;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.getKind()));

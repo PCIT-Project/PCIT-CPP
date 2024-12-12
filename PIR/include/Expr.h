@@ -57,13 +57,41 @@ namespace pcit::pir{
 				FToUI,
 
 				Add,
-				FAdd,
 				SAddWrap,
 				SAddWrapResult,
 				SAddWrapWrapped,
 				UAddWrap,
 				UAddWrapResult,
 				UAddWrapWrapped,
+				SAddSat,
+				UAddSat,
+				FAdd,
+				Sub,
+				SSubWrap,
+				SSubWrapResult,
+				SSubWrapWrapped,
+				USubWrap,
+				USubWrapResult,
+				USubWrapWrapped,
+				SSubSat,
+				USubSat,
+				FSub,
+				Mul,
+				SMulWrap,
+				SMulWrapResult,
+				SMulWrapWrapped,
+				UMulWrap,
+				UMulWrapResult,
+				UMulWrapWrapped,
+				SMulSat,
+				UMulSat,
+				FMul,
+				SDiv,
+				UDiv,
+				FDiv,
+				SRem,
+				URem,
+				FRem,
 			};
 
 		public:
@@ -74,14 +102,24 @@ namespace pcit::pir{
 			EVO_NODISCARD auto isValue() const -> bool {
 
                 switch(this->kind){
-					case Kind::Number:          case Kind::Boolean:        case Kind::GlobalValue:
-					case Kind::ParamExpr:       case Kind::Call:           case Kind::Alloca:
-					case Kind::Load:            case Kind::CalcPtr:        case Kind::BitCast:
-					case Kind::Trunc:           case Kind::FTrunc:         case Kind::SExt:
-					case Kind::ZExt:            case Kind::FExt:           case Kind::IToF:
-					case Kind::UIToF:           case Kind::FToI:           case Kind::FToUI:
-					case Kind::Add:             case Kind::FAdd:           case Kind::SAddWrapResult:
-					case Kind::SAddWrapWrapped: case Kind::UAddWrapResult: case Kind::UAddWrapWrapped: {
+					case Kind::Number:          case Kind::Boolean:         case Kind::GlobalValue:
+					case Kind::ParamExpr:       case Kind::Call:            case Kind::Alloca:
+					case Kind::Load:            case Kind::CalcPtr:         case Kind::BitCast:
+					case Kind::Trunc:           case Kind::FTrunc:          case Kind::SExt:
+					case Kind::ZExt:            case Kind::FExt:            case Kind::IToF:
+					case Kind::UIToF:           case Kind::FToI:            case Kind::FToUI:
+					case Kind::Add:             case Kind::SAddWrap:        case Kind::SAddWrapResult:
+					case Kind::SAddWrapWrapped: case Kind::UAddWrap:        case Kind::UAddWrapResult:
+					case Kind::UAddWrapWrapped: case Kind::SAddSat:         case Kind::UAddSat:
+					case Kind::FAdd:            case Kind::Sub:             case Kind::SSubWrap:
+					case Kind::SSubWrapResult:  case Kind::SSubWrapWrapped: case Kind::USubWrap:
+					case Kind::USubWrapResult:  case Kind::USubWrapWrapped: case Kind::SSubSat:
+					case Kind::USubSat:         case Kind::FSub:            case Kind::Mul:
+					case Kind::SMulWrap:        case Kind::SMulWrapResult:  case Kind::SMulWrapWrapped:
+					case Kind::UMulWrap:        case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped:
+					case Kind::SMulSat:         case Kind::UMulSat:         case Kind::FMul:
+					case Kind::SDiv:            case Kind::UDiv:            case Kind::FDiv:
+					case Kind::SRem:            case Kind::URem:            case Kind::FRem: {
 						return true;
 					} break;
 					default: return false;
@@ -97,13 +135,25 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isStmt() const -> bool {
 				switch(this->kind){
-					case Kind::Call:   case Kind::CallVoid:   case Kind::Breakpoint:  case Kind::Ret:
-					case Kind::Branch: case Kind::CondBranch: case Kind::Unreachable: case Kind::Alloca:
-					case Kind::Load:   case Kind::Store:      case Kind::CalcPtr:     case Kind::BitCast:
-					case Kind::Trunc:  case Kind::FTrunc:     case Kind::SExt:        case Kind::ZExt:
-					case Kind::FExt:   case Kind::IToF:       case Kind::UIToF:       case Kind::FToI:
-					case Kind::FToUI:  case Kind::Add:        case Kind::FAdd:        case Kind::SAddWrap:
-					case Kind::UAddWrap: {
+					case Kind::Call:            case Kind::CallVoid:        case Kind::Breakpoint:
+					case Kind::Ret:             case Kind::Branch:          case Kind::CondBranch:
+					case Kind::Unreachable:     case Kind::Alloca:          case Kind::Load:
+					case Kind::Store:           case Kind::CalcPtr:         case Kind::BitCast:
+					case Kind::Trunc:           case Kind::FTrunc:          case Kind::SExt:
+					case Kind::ZExt:            case Kind::FExt:            case Kind::IToF:
+					case Kind::UIToF:           case Kind::FToI:            case Kind::FToUI:
+					case Kind::Add:             case Kind::SAddWrap:        case Kind::SAddWrapResult:
+					case Kind::SAddWrapWrapped: case Kind::UAddWrap:        case Kind::UAddWrapResult:
+					case Kind::UAddWrapWrapped: case Kind::SAddSat:         case Kind::UAddSat:
+					case Kind::FAdd:            case Kind::Sub:             case Kind::SSubWrap:
+					case Kind::SSubWrapResult:  case Kind::SSubWrapWrapped: case Kind::USubWrap:
+					case Kind::USubWrapResult:  case Kind::USubWrapWrapped: case Kind::SSubSat:
+					case Kind::USubSat:         case Kind::FSub:            case Kind::Mul:
+					case Kind::SMulWrap:        case Kind::SMulWrapResult:  case Kind::SMulWrapWrapped:
+					case Kind::UMulWrap:        case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped:
+					case Kind::SMulSat:         case Kind::UMulSat:         case Kind::FMul:
+					case Kind::SDiv:            case Kind::UDiv:            case Kind::FDiv:
+					case Kind::SRem:            case Kind::URem:            case Kind::FRem: {
 						return true;
 					} break;
 					default: return false;
@@ -112,7 +162,10 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isMultiValueStmt() const -> bool {
 				switch(this->kind){
-					case Kind::SAddWrap: case Kind::UAddWrap: return true;
+					case Kind::SAddWrap: case Kind::UAddWrap: case Kind::SSubWrap: case Kind::USubWrap:
+					case Kind::SMulWrap: case Kind::UMulWrap: {
+						return true;
+					} break;
 					default: return false;
 				}
 			}
@@ -238,6 +291,10 @@ namespace pcit::pir{
 		evo::SmallVector<Expr> args;
 	};
 
+
+	//////////////////////////////////////////////////////////////////////
+	// control flow
+
 	struct Ret{
 		std::optional<Expr> value;
 	};
@@ -252,11 +309,15 @@ namespace pcit::pir{
 		BasicBlockID elseBlock;
 	};
 
+
+
+	//////////////////////////////////////////////////////////////////////
+	// memory
+
 	struct Alloca{
 		std::string name;
 		Type type;
 	};
-
 
 	struct Load{
 		std::string name;
@@ -282,6 +343,10 @@ namespace pcit::pir{
 		evo::SmallVector<Index> indices;
 	};
 
+
+
+	//////////////////////////////////////////////////////////////////////
+	// type conversion
 
 	struct BitCast{
 		std::string name;
@@ -344,6 +409,11 @@ namespace pcit::pir{
 	};
 
 
+	//////////////////////////////////////////////////////////////////////
+	// arithmetic
+
+	///////////////////////////////////
+	// add
 
 	struct Add{
 		std::string name;
@@ -351,13 +421,6 @@ namespace pcit::pir{
 		Expr rhs;
 		bool mayWrap;
 	};
-
-	struct FAdd{
-		std::string name;
-		Expr lhs;
-		Expr rhs;
-	};
-
 
 	struct SAddWrap{
 		std::string resultName;
@@ -372,6 +435,153 @@ namespace pcit::pir{
 		Expr lhs;
 		Expr rhs;
 	};
+
+	struct UAddSat{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SAddSat{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FAdd{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+
+	///////////////////////////////////
+	// sub
+
+	struct Sub{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+		bool mayWrap;
+	};
+
+	struct SSubWrap{
+		std::string resultName;
+		std::string wrappedName;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct USubWrap{
+		std::string resultName;
+		std::string wrappedName;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct USubSat{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SSubSat{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FSub{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+
+	///////////////////////////////////
+	// mul
+
+	struct Mul{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+		bool mayWrap;
+	};
+
+	struct SMulWrap{
+		std::string resultName;
+		std::string wrappedName;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct UMulWrap{
+		std::string resultName;
+		std::string wrappedName;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct UMulSat{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SMulSat{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FMul{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+
+	///////////////////////////////////
+	// div / rem
+
+	struct SDiv{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+		bool isExact;
+	};
+
+	struct UDiv{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+		bool isExact;
+	};
+
+	struct FDiv{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SRem{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct URem{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FRem{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
 
 
 }

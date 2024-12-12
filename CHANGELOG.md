@@ -1,6 +1,30 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.72.0
+
+### Panther
+- Added support for lowering of:
+	- `@addSat`
+	- `@sub`, `@subWrap`, `@subSat`, `@fsub`
+	- `@mul`, `@mulWrap`, `@mulSat`, `@fmul`
+	- `@div`, `@fdiv`, `@rem`
+- Fixed fatal error when compiling an if statement that requires branches in the block
+
+### pthr
+- Added the `PrintAssembly` build target
+- Added the `Assembly` build target
+
+### PIR
+- Added arithmetit instructions
+	- `@saddSat`, `@uaddSat`
+	- `@sub`, `@ssubWrap`, `@usubWrap`, `@ssubSat`, `@usubSat`, `@fsub`
+	- `@mul`, `@smulWrap`, `@umulWrap`, `@smulSat`, `@umulSat`, `@fmul`
+	- `@sdiv`, `@udiv`, `@fdiv`
+	- `@srem`, `@urem`, `@frem`
+
+
+<!---------------------------------->
 ## v0.0.71.0
 
 ### Panther
@@ -39,15 +63,9 @@
 ### PIR
 - Added type conversion instructions
 	- `@bitCast`
-	- `@trunc`
-	- `@ftrunc`
-	- `@sext`
-	- `@zext`
-	- `@fext`
-	- `@itof`
-	- `@uitof`
-	- `@ftoi`
-	- `@ftoui`
+	- `@trunc`, `@ftrunc`
+	- `@sext`, `@zext`, `@fext`
+	- `@itof`, `@uitof`, `@ftoi`, `@ftoui`
 - Added removal of `@calcPtr` instructions when all indices are 0 in the instCombine pass
 
 

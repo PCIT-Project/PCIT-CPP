@@ -513,7 +513,7 @@ namespace pcit::panther{
 			}
 
 			if(conditional_stmt.thenStmts.isTerminated() == false){
-				this->agent.setTargetBasicBlock(then_block);
+				// this->agent.setTargetBasicBlock(then_block);
 				this->agent.createBranch(*end_block);
 			}
 		}else{
@@ -1342,22 +1342,18 @@ namespace pcit::panther{
 				} break;
 
 				case TemplatedIntrinsic::Kind::AddSat: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@addSat)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-
-					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
-					// 	? llvmint::IRBuilder::IntrinsicID::uaddSat
-					// 	: llvmint::IRBuilder::IntrinsicID::saddSat;
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createIntrinsicCall(
-					// 		intrinsic_id, this->get_type(arg_type), args, this->stmt_name("ADD_SAT")
-					// 	).asValue()
-					// };
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createUAddSat(args[0], args[1], this->stmt_name("ADD_SAT"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSAddSat(args[0], args[1], this->stmt_name("ADD_SAT"))
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::FAdd: {
@@ -1371,100 +1367,89 @@ namespace pcit::panther{
 				// subtraction
 
 				case TemplatedIntrinsic::Kind::Sub: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@sub)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
+					if(may_wrap || this->config.checkedMath == false){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSub(args[0], args[1], may_wrap, this->stmt_name("SUB"))
+						};
+					}
 
-					// const bool may_wrap = instantiation.templateArgs[1].as<bool>();
-					// if(may_wrap || this->config.checkedMath == false){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createSub(
-					// 			args[0],
-					// 			args[1],
-					// 			is_unsigned & !may_wrap,
-					// 			!is_unsigned & !may_wrap,
-					// 			this->stmt_name("SUB")
-					// 		)
-					// 	};
-					// }
+					if(is_unsigned){
+						const pir::Expr sub_wrap_inst = this->agent.createUSubWrap(
+							args[0], args[1], this->stmt_name("SUB.VALUE"), this->stmt_name("SUB.WRAPPED")
+						);
 
-					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
-					// 	? llvmint::IRBuilder::IntrinsicID::usubOverflow
-					// 	: llvmint::IRBuilder::IntrinsicID::ssubOverflow;
+						this->add_fail_assertion(
+							this->agent.extractUSubWrapWrapped(sub_wrap_inst),
+							"SUB_CHECK",
+							"Subtraction wrapped",
+							func_call.location
+						);
 
-					// const llvmint::Type return_type = this->builder.getStructType(
-					// 	{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
-					// ).asType();
+						return evo::SmallVector<pir::Expr>{this->agent.extractUSubWrapResult(sub_wrap_inst)};
+					}else{
+						const pir::Expr sub_wrap_inst = this->agent.createSSubWrap(
+							args[0], args[1], this->stmt_name("SUB.VALUE"), this->stmt_name("SUB.WRAPPED")
+						);
 
-					// const llvmint::Value sub_wrap_value = this->builder.createIntrinsicCall(
-					// 	intrinsic_id, return_type, args, this->stmt_name("SUB")
-					// ).asValue();
+						this->add_fail_assertion(
+							this->agent.extractSSubWrapWrapped(sub_wrap_inst),
+							"SUB_CHECK",
+							"Subtraction wrapped",
+							func_call.location
+						);
 
-					// const llvmint::Value sub_value = 
-					// 	this->builder.createExtractValue(sub_wrap_value, {0}, this->stmt_name("SUB.VALUE"));
-					// const llvmint::Value wrapped_value = 
-					// 	this->builder.createExtractValue(sub_wrap_value, {1}, this->stmt_name("SUB.WRAPPED"));
-
-					// this->add_fail_assertion(wrapped_value, "SUB_CHECK", "Subtraction wrapped", func_call.location);
-
-					// return evo::SmallVector<llvmint::Value>{sub_value};
+						return evo::SmallVector<pir::Expr>{this->agent.extractSSubWrapResult(sub_wrap_inst)};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::SubWrap: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@subWrap)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						const pir::Expr sub_wrap_inst = this->agent.createUSubWrap(
+							args[0], args[1], this->stmt_name("SUB.VALUE"), this->stmt_name("SUB.WRAPPED")
+						);
 
-					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
-					// 	? llvmint::IRBuilder::IntrinsicID::usubOverflow
-					// 	: llvmint::IRBuilder::IntrinsicID::ssubOverflow;
+						return evo::SmallVector<pir::Expr>{
+							this->agent.extractUSubWrapResult(sub_wrap_inst),
+							this->agent.extractUSubWrapWrapped(sub_wrap_inst)
+						};
+					}else{
+						const pir::Expr sub_wrap_inst = this->agent.createSSubWrap(
+							args[0], args[1], this->stmt_name("SUB.VALUE"), this->stmt_name("SUB.WRAPPED")
+						);
 
-					// const llvmint::Type return_type = this->builder.getStructType(
-					// 	{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
-					// ).asType();
-
-					// const llvmint::Value sub_value = this->builder.createIntrinsicCall(
-					// 	intrinsic_id, return_type, args, this->stmt_name("SUB_WRAP")
-					// ).asValue();
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createExtractValue(sub_value, {0}, this->stmt_name("SUB_WRAP.VALUE")),
-					// 	this->builder.createExtractValue(sub_value, {1}, this->stmt_name("SUB_WRAP.WRAPPED")),
-					// };
+						return evo::SmallVector<pir::Expr>{
+							this->agent.extractSSubWrapResult(sub_wrap_inst),
+							this->agent.extractSSubWrapWrapped(sub_wrap_inst)
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::SubSat: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@subSat)");
-					evo::breakpoint();
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
-					// 	? llvmint::IRBuilder::IntrinsicID::usubSat
-					// 	: llvmint::IRBuilder::IntrinsicID::ssubSat;
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createIntrinsicCall(
-					// 		intrinsic_id, this->get_type(arg_type), args, this->stmt_name("SUB_SAT")
-					// 	).asValue()
-					// };
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createUSubSat(args[0], args[1], this->stmt_name("SUB_SAT"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSSubSat(args[0], args[1], this->stmt_name("SUB_SAT"))
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::FSub: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@fsub)");
-					evo::breakpoint();
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createFSub(args[0], args[1], this->stmt_name("FSUB"))
-					// };
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFSub(args[0], args[1], this->stmt_name("FSUB"))
+					};
 				} break;
 
 
@@ -1472,104 +1457,89 @@ namespace pcit::panther{
 				// multiplication
 
 				case TemplatedIntrinsic::Kind::Mul: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@mul)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
+					if(may_wrap || this->config.checkedMath == false){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createMul(args[0], args[1], may_wrap, this->stmt_name("MUL"))
+						};
+					}
 
-					// const bool may_wrap = instantiation.templateArgs[1].as<bool>();
-					// if(may_wrap || this->config.checkedMath == false){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createMul(
-					// 			args[0],
-					// 			args[1],
-					// 			is_unsigned & !may_wrap,
-					// 			!is_unsigned & !may_wrap,
-					// 			this->stmt_name("MUL")
-					// 		)
-					// 	};
-					// }
+					if(is_unsigned){
+						const pir::Expr add_wrap_inst = this->agent.createUMulWrap(
+							args[0], args[1], this->stmt_name("MUL.VALUE"), this->stmt_name("MUL.WRAPPED")
+						);
 
-					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
-					// 	? llvmint::IRBuilder::IntrinsicID::umulOverflow
-					// 	: llvmint::IRBuilder::IntrinsicID::smulOverflow;
+						this->add_fail_assertion(
+							this->agent.extractUMulWrapWrapped(add_wrap_inst),
+							"MUL_CHECK",
+							"Mulition wrapped",
+							func_call.location
+						);
 
-					// const llvmint::Type return_type = this->builder.getStructType(
-					// 	{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
-					// ).asType();
+						return evo::SmallVector<pir::Expr>{this->agent.extractUMulWrapResult(add_wrap_inst)};
+					}else{
+						const pir::Expr add_wrap_inst = this->agent.createSMulWrap(
+							args[0], args[1], this->stmt_name("MUL.VALUE"), this->stmt_name("MUL.WRAPPED")
+						);
 
-					// const llvmint::Value mul_wrap_value = this->builder.createIntrinsicCall(
-					// 	intrinsic_id, return_type, args, this->stmt_name("MUL")
-					// ).asValue();
+						this->add_fail_assertion(
+							this->agent.extractSMulWrapWrapped(add_wrap_inst),
+							"MUL_CHECK",
+							"Mulition wrapped",
+							func_call.location
+						);
 
-					// const llvmint::Value mul_value = 
-					// 	this->builder.createExtractValue(mul_wrap_value, {0}, this->stmt_name("MUL.VALUE"));
-					// const llvmint::Value wrapped_value = 
-					// 	this->builder.createExtractValue(mul_wrap_value, {1}, this->stmt_name("MUL.WRAPPED"));
-
-					// this->add_fail_assertion(wrapped_value, "MUL_CHECK", "Multiplication wrapped", func_call.location);
-
-					// return evo::SmallVector<llvmint::Value>{mul_value};
+						return evo::SmallVector<pir::Expr>{this->agent.extractSMulWrapResult(add_wrap_inst)};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::MulWrap: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@mulWrap)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						const pir::Expr add_wrap_inst = this->agent.createUMulWrap(
+							args[0], args[1], this->stmt_name("MUL.VALUE"), this->stmt_name("MUL.WRAPPED")
+						);
 
-					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
-					// 	? llvmint::IRBuilder::IntrinsicID::umulOverflow
-					// 	: llvmint::IRBuilder::IntrinsicID::smulOverflow;
+						return evo::SmallVector<pir::Expr>{
+							this->agent.extractUMulWrapResult(add_wrap_inst),
+							this->agent.extractUMulWrapWrapped(add_wrap_inst)
+						};
+					}else{
+						const pir::Expr add_wrap_inst = this->agent.createSMulWrap(
+							args[0], args[1], this->stmt_name("MUL.VALUE"), this->stmt_name("MUL.WRAPPED")
+						);
 
-					// const llvmint::Type return_type = this->builder.getStructType(
-					// 	{this->get_type(arg_type), this->get_type(TypeManager::getTypeBool())}
-					// ).asType();
-
-					// const llvmint::Value mul_value = this->builder.createIntrinsicCall(
-					// 	intrinsic_id, return_type, args, this->stmt_name("MUL_WRAP")
-					// ).asValue();
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createExtractValue(mul_value, {0}, this->stmt_name("MUL_WRAP.VALUE")),
-					// 	this->builder.createExtractValue(mul_value, {1}, this->stmt_name("MUL_WRAP.WRAPPED")),
-					// };
+						return evo::SmallVector<pir::Expr>{
+							this->agent.extractSMulWrapResult(add_wrap_inst),
+							this->agent.extractSMulWrapWrapped(add_wrap_inst)
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::MulSat: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@mulSat)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-
-					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned
-					// 	? llvmint::IRBuilder::IntrinsicID::umulFixSat
-					// 	: llvmint::IRBuilder::IntrinsicID::smulFixSat;
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createIntrinsicCall(
-					// 		intrinsic_id,
-					// 		this->get_type(arg_type),
-					// 		{args[0], args[1], this->builder.getValueI32(0).asValue()},
-					// 		this->stmt_name("MUL_SAT")
-					// 	).asValue()
-					// };
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createUMulSat(args[0], args[1], this->stmt_name("MUL_SAT"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSMulSat(args[0], args[1], this->stmt_name("MUL_SAT"))
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::FMul: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@fmul)");
-					evo::breakpoint();
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createFMul(args[0], args[1], this->stmt_name("FMUL"))
-					// };
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFMul(args[0], args[1], this->stmt_name("FMUL"))
+					};
 				} break;
 
 
@@ -1577,59 +1547,47 @@ namespace pcit::panther{
 				// division / remainder
 
 				case TemplatedIntrinsic::Kind::Div: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@div)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_exact = instantiation.templateArgs[1].as<bool>();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_exact = instantiation.templateArgs[1].as<bool>();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-
-					// if(is_unsigned){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createUDiv(args[0], args[1], is_exact, this->stmt_name("DIV"))
-					// 	};
-					// }else{
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createSDiv(args[0], args[1], is_exact, this->stmt_name("DIV"))
-					// 	};
-					// }
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createUDiv(args[0], args[1], is_exact, this->stmt_name("DIV"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSDiv(args[0], args[1], is_exact, this->stmt_name("DIV"))
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::FDiv: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@fdiv)");
-					evo::breakpoint();
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createFDiv(args[0], args[1], this->stmt_name("FDIV"))
-					// };
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFDiv(args[0], args[1], this->stmt_name("FDIV"))
+					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::Rem: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@rem)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFRem(args[0], args[1], this->stmt_name("REM"))
+						};
+					}
 
-					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					// if(is_floating_point){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createFRem(args[0], args[1], this->stmt_name("REM"))
-					// 	};
-					// }
-
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-					// if(is_unsigned){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createURem(args[0], args[1], this->stmt_name("REM"))
-					// 	};
-					// }else{
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createSRem(args[0], args[1], this->stmt_name("REM"))
-					// 	};
-					// }
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createURem(args[0], args[1], this->stmt_name("REM"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSRem(args[0], args[1], this->stmt_name("REM"))
+						};
+					}
 				} break;
 
 

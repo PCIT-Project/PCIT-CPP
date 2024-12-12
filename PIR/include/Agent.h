@@ -346,13 +346,6 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
-			// fadd
-
-			EVO_NODISCARD auto createFAdd(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
-			EVO_NODISCARD auto getFAdd(const Expr& expr) const -> const FAdd&;
-
-
-			///////////////////////////////////
 			// signed add wrap
 
 			EVO_NODISCARD auto createSAddWrap(
@@ -376,6 +369,189 @@ namespace pcit::pir{
 
 			EVO_NODISCARD static auto extractUAddWrapResult(const Expr& expr) -> Expr;
 			EVO_NODISCARD static auto extractUAddWrapWrapped(const Expr& expr) -> Expr;
+
+
+			///////////////////////////////////
+			// saddSat
+
+			EVO_NODISCARD auto createSAddSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getSAddSat(const Expr& expr) const -> const SAddSat&;
+
+
+			///////////////////////////////////
+			// uaddSat
+
+			EVO_NODISCARD auto createUAddSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getUAddSat(const Expr& expr) const -> const UAddSat&;
+
+
+			///////////////////////////////////
+			// fadd
+
+			EVO_NODISCARD auto createFAdd(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getFAdd(const Expr& expr) const -> const FAdd&;
+
+
+
+			///////////////////////////////////
+			// sub
+
+			EVO_NODISCARD auto createSub(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const 
+				-> Expr;
+			auto createSub(const Expr&, const Expr&, const char*) = delete; // prevent forgetting may_wrap
+			EVO_NODISCARD auto getSub(const Expr& expr) const -> const Sub&;
+
+
+			///////////////////////////////////
+			// signed sub wrap
+
+			EVO_NODISCARD auto createSSubWrap(
+				const Expr& lhs, const Expr& rhs, std::string&& result_name = "", std::string&& wrapped_name = ""
+			) -> Expr;
+
+			EVO_NODISCARD auto getSSubWrap(const Expr& expr) const -> const SSubWrap&;
+
+			EVO_NODISCARD static auto extractSSubWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractSSubWrapWrapped(const Expr& expr) -> Expr;
+
+
+			///////////////////////////////////
+			// signed sub wrap
+
+			EVO_NODISCARD auto createUSubWrap(
+				const Expr& lhs, const Expr& rhs, std::string&& result_name = "", std::string&& wrapped_name = ""
+			) -> Expr;
+
+			EVO_NODISCARD auto getUSubWrap(const Expr& expr) const -> const USubWrap&;
+
+			EVO_NODISCARD static auto extractUSubWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractUSubWrapWrapped(const Expr& expr) -> Expr;
+
+
+			///////////////////////////////////
+			// ssubSat
+
+			EVO_NODISCARD auto createSSubSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getSSubSat(const Expr& expr) const -> const SSubSat&;
+
+
+			///////////////////////////////////
+			// usubSat
+
+			EVO_NODISCARD auto createUSubSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getUSubSat(const Expr& expr) const -> const USubSat&;
+
+
+			///////////////////////////////////
+			// fsub
+
+			EVO_NODISCARD auto createFSub(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getFSub(const Expr& expr) const -> const FSub&;
+
+
+
+			///////////////////////////////////
+			// mul
+
+			EVO_NODISCARD auto createMul(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const 
+				-> Expr;
+			auto createMul(const Expr&, const Expr&, const char*) = delete; // prevent forgetting may_wrap
+			EVO_NODISCARD auto getMul(const Expr& expr) const -> const Mul&;
+
+
+			///////////////////////////////////
+			// signed mul wrap
+
+			EVO_NODISCARD auto createSMulWrap(
+				const Expr& lhs, const Expr& rhs, std::string&& result_name = "", std::string&& wrapped_name = ""
+			) -> Expr;
+
+			EVO_NODISCARD auto getSMulWrap(const Expr& expr) const -> const SMulWrap&;
+
+			EVO_NODISCARD static auto extractSMulWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractSMulWrapWrapped(const Expr& expr) -> Expr;
+
+
+			///////////////////////////////////
+			// signed mul wrap
+
+			EVO_NODISCARD auto createUMulWrap(
+				const Expr& lhs, const Expr& rhs, std::string&& result_name = "", std::string&& wrapped_name = ""
+			) -> Expr;
+
+			EVO_NODISCARD auto getUMulWrap(const Expr& expr) const -> const UMulWrap&;
+
+			EVO_NODISCARD static auto extractUMulWrapResult(const Expr& expr) -> Expr;
+			EVO_NODISCARD static auto extractUMulWrapWrapped(const Expr& expr) -> Expr;
+
+
+			///////////////////////////////////
+			// smulSat
+
+			EVO_NODISCARD auto createSMulSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getSMulSat(const Expr& expr) const -> const SMulSat&;
+
+
+			///////////////////////////////////
+			// umulSat
+
+			EVO_NODISCARD auto createUMulSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getUMulSat(const Expr& expr) const -> const UMulSat&;
+
+
+			///////////////////////////////////
+			// fmul
+
+			EVO_NODISCARD auto createFMul(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getFMul(const Expr& expr) const -> const FMul&;
+
+
+			///////////////////////////////////
+			// sdiv
+
+			EVO_NODISCARD auto createSDiv(
+				const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name = ""
+			) const -> Expr;
+			EVO_NODISCARD auto getSDiv(const Expr& expr) const -> const SDiv&;
+
+			
+			///////////////////////////////////
+			// udiv
+
+			EVO_NODISCARD auto createUDiv(
+				const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name = ""
+			) const -> Expr;
+			EVO_NODISCARD auto getUDiv(const Expr& expr) const -> const UDiv&;
+
+
+			///////////////////////////////////
+			// fdiv
+
+			EVO_NODISCARD auto createFDiv(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getFDiv(const Expr& expr) const -> const FDiv&;
+
+
+			///////////////////////////////////
+			// srem
+
+			EVO_NODISCARD auto createSRem(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getSRem(const Expr& expr) const -> const SRem&;
+
+
+			///////////////////////////////////
+			// urem
+
+			EVO_NODISCARD auto createURem(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getURem(const Expr& expr) const -> const URem&;
+
+
+			///////////////////////////////////
+			// frem
+
+			EVO_NODISCARD auto createFRem(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getFRem(const Expr& expr) const -> const FRem&;
+
+
 
 
 		private:

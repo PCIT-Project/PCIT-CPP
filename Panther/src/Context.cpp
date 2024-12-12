@@ -272,6 +272,22 @@ namespace pcit::panther{
 	}
 
 
+	auto Context::printAssembly(bool add_runtime) -> evo::Result<std::string> {
+		auto module = pir::Module("testing", this->config.os, this->config.arch);
+
+		auto asg_to_pir_config = ASGToPIR::Config{
+			.useReadableRegisters = true,
+			.checkedMath          = this->config.checkedMath,
+			.isJIT                = true,
+			.addSourceLocations   = this->config.addSourceLocations,
+		};
+		auto asg_to_pir = ASGToPIR(*this, module, asg_to_pir_config);
+		asg_to_pir.lower();
+		if(add_runtime){ asg_to_pir.addRuntime(); }
+
+		return pir::lowerToAssembly(module);
+	}
+
 
 	auto Context::printLLVMIR(bool add_runtime) -> evo::Result<std::string> {
 		auto module = pir::Module("testing", this->config.os, this->config.arch);

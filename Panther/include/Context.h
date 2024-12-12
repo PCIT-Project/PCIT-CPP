@@ -80,6 +80,7 @@ namespace pcit::panther{
 			auto semanticAnalysisLoadedFiles() -> void;
 
 			EVO_NODISCARD auto printPIR() -> bool;
+			EVO_NODISCARD auto printAssembly(bool add_runtime) -> evo::Result<std::string>;
 			EVO_NODISCARD auto printLLVMIR(bool add_runtime) -> evo::Result<std::string>;
 			EVO_NODISCARD auto run() -> evo::Result<uint8_t>;
 

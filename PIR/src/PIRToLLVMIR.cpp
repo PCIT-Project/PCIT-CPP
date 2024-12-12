@@ -456,16 +456,6 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, add_value);
 					} break;
 
-					case Expr::Kind::FAdd: {
-						const FAdd& add = this->reader.getFAdd(stmt);
-
-						const llvmint::Value lhs = this->get_value(add.lhs);
-						const llvmint::Value rhs = this->get_value(add.rhs);
-
-						const llvmint::Value add_value = this->builder.createFAdd(lhs, rhs, add.name);
-						this->stmt_values.emplace(stmt, add_value);
-					} break;
-
 					case Expr::Kind::SAddWrap: {
 						const SAddWrap& sadd_wrap = this->reader.getSAddWrap(stmt);
 						const Type& sadd_type = this->reader.getExprType(sadd_wrap.lhs);
@@ -523,6 +513,315 @@ namespace pcit::pir{
 
 					case Expr::Kind::UAddWrapResult:  evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::UAddWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+
+					case Expr::Kind::SAddSat: {
+						const SAddSat& sadd_sat = this->reader.getSAddSat(stmt);
+						const Type& sadd_sat_type = this->reader.getExprType(sadd_sat.lhs);
+
+						const llvmint::Value sadd_sat_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::saddSat,
+							this->get_type(sadd_sat_type),
+							{this->get_value(sadd_sat.lhs), this->get_value(sadd_sat.rhs)},
+							sadd_sat.name
+						).asValue();
+						this->stmt_values.emplace(stmt, sadd_sat_value);
+					} break;
+
+					case Expr::Kind::UAddSat: {
+						const UAddSat& uadd_sat = this->reader.getUAddSat(stmt);
+						const Type& uadd_sat_type = this->reader.getExprType(uadd_sat.lhs);
+
+						const llvmint::Value uadd_sat_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::uaddSat,
+							this->get_type(uadd_sat_type),
+							{this->get_value(uadd_sat.lhs), this->get_value(uadd_sat.rhs)},
+							uadd_sat.name
+						).asValue();
+						this->stmt_values.emplace(stmt, uadd_sat_value);
+					} break;
+
+					case Expr::Kind::FAdd: {
+						const FAdd& add = this->reader.getFAdd(stmt);
+
+						const llvmint::Value lhs = this->get_value(add.lhs);
+						const llvmint::Value rhs = this->get_value(add.rhs);
+
+						const llvmint::Value add_value = this->builder.createFAdd(lhs, rhs, add.name);
+						this->stmt_values.emplace(stmt, add_value);
+					} break;
+
+
+					case Expr::Kind::Sub: {
+						const Sub& sub = this->reader.getSub(stmt);
+
+						const llvmint::Value lhs = this->get_value(sub.lhs);
+						const llvmint::Value rhs = this->get_value(sub.rhs);
+
+						bool no_wrap = !sub.mayWrap;
+
+						const llvmint::Value sub_value = this->builder.createSub(lhs, rhs, no_wrap, no_wrap, sub.name);
+						this->stmt_values.emplace(stmt, sub_value);
+					} break;
+
+					case Expr::Kind::SSubWrap: {
+						const SSubWrap& ssub_wrap = this->reader.getSSubWrap(stmt);
+						const Type& ssub_type = this->reader.getExprType(ssub_wrap.lhs);
+
+						const llvmint::Type return_type = this->builder.getStructType(
+							{this->get_type(ssub_type), this->builder.getTypeBool().asType()}
+						).asType();
+
+						const llvmint::Value ssub_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::ssubOverflow,
+							return_type,
+							{this->get_value(ssub_wrap.lhs), this->get_value(ssub_wrap.rhs)},
+							"ADD_WRAP"
+						).asValue();
+
+						this->stmt_values.emplace(
+							this->reader.extractSSubWrapResult(stmt),
+							this->builder.createExtractValue(ssub_value, {0}, ssub_wrap.resultName)
+						);
+
+						this->stmt_values.emplace(
+							this->reader.extractSSubWrapWrapped(stmt),
+							this->builder.createExtractValue(ssub_value, {1}, ssub_wrap.wrappedName)
+						);
+					} break;
+
+					case Expr::Kind::SSubWrapResult:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SSubWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+
+					case Expr::Kind::USubWrap: {
+						const USubWrap& usub_wrap = this->reader.getUSubWrap(stmt);
+						const Type& usub_type = this->reader.getExprType(usub_wrap.lhs);
+
+						const llvmint::Type return_type = this->builder.getStructType(
+							{this->get_type(usub_type), this->builder.getTypeBool().asType()}
+						).asType();
+
+						const llvmint::Value usub_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::usubOverflow,
+							return_type,
+							{this->get_value(usub_wrap.lhs), this->get_value(usub_wrap.rhs)},
+							"ADD_WRAP"
+						).asValue();
+
+						this->stmt_values.emplace(
+							this->reader.extractUSubWrapResult(stmt),
+							this->builder.createExtractValue(usub_value, {0}, usub_wrap.resultName)
+						);
+
+						this->stmt_values.emplace(
+							this->reader.extractUSubWrapWrapped(stmt),
+							this->builder.createExtractValue(usub_value, {1}, usub_wrap.wrappedName)
+						);
+					} break;
+
+					case Expr::Kind::USubWrapResult:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::USubWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+
+					case Expr::Kind::SSubSat: {
+						const SSubSat& ssub_sat = this->reader.getSSubSat(stmt);
+						const Type& ssub_sat_type = this->reader.getExprType(ssub_sat.lhs);
+
+						const llvmint::Value ssub_sat_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::ssubSat,
+							this->get_type(ssub_sat_type),
+							{this->get_value(ssub_sat.lhs), this->get_value(ssub_sat.rhs)},
+							ssub_sat.name
+						).asValue();
+						this->stmt_values.emplace(stmt, ssub_sat_value);
+					} break;
+
+					case Expr::Kind::USubSat: {
+						const USubSat& usub_sat = this->reader.getUSubSat(stmt);
+						const Type& usub_sat_type = this->reader.getExprType(usub_sat.lhs);
+
+						const llvmint::Value usub_sat_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::usubSat,
+							this->get_type(usub_sat_type),
+							{this->get_value(usub_sat.lhs), this->get_value(usub_sat.rhs)},
+							usub_sat.name
+						).asValue();
+						this->stmt_values.emplace(stmt, usub_sat_value);
+					} break;
+
+					case Expr::Kind::FSub: {
+						const FSub& add = this->reader.getFSub(stmt);
+
+						const llvmint::Value lhs = this->get_value(add.lhs);
+						const llvmint::Value rhs = this->get_value(add.rhs);
+
+						const llvmint::Value add_value = this->builder.createFSub(lhs, rhs, add.name);
+						this->stmt_values.emplace(stmt, add_value);
+					} break;
+
+					case Expr::Kind::Mul: {
+						const Mul& mul = this->reader.getMul(stmt);
+
+						const llvmint::Value lhs = this->get_value(mul.lhs);
+						const llvmint::Value rhs = this->get_value(mul.rhs);
+
+						bool no_wrap = !mul.mayWrap;
+
+						const llvmint::Value mul_value = this->builder.createMul(lhs, rhs, no_wrap, no_wrap, mul.name);
+						this->stmt_values.emplace(stmt, mul_value);
+					} break;
+
+					case Expr::Kind::SMulWrap: {
+						const SMulWrap& smul_wrap = this->reader.getSMulWrap(stmt);
+						const Type& smul_type = this->reader.getExprType(smul_wrap.lhs);
+
+						const llvmint::Type return_type = this->builder.getStructType(
+							{this->get_type(smul_type), this->builder.getTypeBool().asType()}
+						).asType();
+
+						const llvmint::Value smul_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::smulOverflow,
+							return_type,
+							{this->get_value(smul_wrap.lhs), this->get_value(smul_wrap.rhs)},
+							"ADD_WRAP"
+						).asValue();
+
+						this->stmt_values.emplace(
+							this->reader.extractSMulWrapResult(stmt),
+							this->builder.createExtractValue(smul_value, {0}, smul_wrap.resultName)
+						);
+
+						this->stmt_values.emplace(
+							this->reader.extractSMulWrapWrapped(stmt),
+							this->builder.createExtractValue(smul_value, {1}, smul_wrap.wrappedName)
+						);
+					} break;
+
+					case Expr::Kind::SMulWrapResult:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SMulWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+
+					case Expr::Kind::UMulWrap: {
+						const UMulWrap& umul_wrap = this->reader.getUMulWrap(stmt);
+						const Type& umul_type = this->reader.getExprType(umul_wrap.lhs);
+
+						const llvmint::Type return_type = this->builder.getStructType(
+							{this->get_type(umul_type), this->builder.getTypeBool().asType()}
+						).asType();
+
+						const llvmint::Value umul_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::umulOverflow,
+							return_type,
+							{this->get_value(umul_wrap.lhs), this->get_value(umul_wrap.rhs)},
+							"ADD_WRAP"
+						).asValue();
+
+						this->stmt_values.emplace(
+							this->reader.extractUMulWrapResult(stmt),
+							this->builder.createExtractValue(umul_value, {0}, umul_wrap.resultName)
+						);
+
+						this->stmt_values.emplace(
+							this->reader.extractUMulWrapWrapped(stmt),
+							this->builder.createExtractValue(umul_value, {1}, umul_wrap.wrappedName)
+						);
+					} break;
+
+					case Expr::Kind::UMulWrapResult:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::UMulWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+
+					case Expr::Kind::SMulSat: {
+						const SMulSat& smul_sat = this->reader.getSMulSat(stmt);
+						const Type& smul_sat_type = this->reader.getExprType(smul_sat.lhs);
+
+						const llvmint::Value smul_sat_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::smulFixSat,
+							this->get_type(smul_sat_type),
+							{this->get_value(smul_sat.lhs), this->get_value(smul_sat.rhs)},
+							smul_sat.name
+						).asValue();
+						this->stmt_values.emplace(stmt, smul_sat_value);
+					} break;
+
+					case Expr::Kind::UMulSat: {
+						const UMulSat& umul_sat = this->reader.getUMulSat(stmt);
+						const Type& umul_sat_type = this->reader.getExprType(umul_sat.lhs);
+
+						const llvmint::Value umul_sat_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::umulFixSat,
+							this->get_type(umul_sat_type),
+							{this->get_value(umul_sat.lhs), this->get_value(umul_sat.rhs)},
+							umul_sat.name
+						).asValue();
+						this->stmt_values.emplace(stmt, umul_sat_value);
+					} break;
+
+					case Expr::Kind::FMul: {
+						const FMul& fmul = this->reader.getFMul(stmt);
+
+						const llvmint::Value lhs = this->get_value(fmul.lhs);
+						const llvmint::Value rhs = this->get_value(fmul.rhs);
+
+						const llvmint::Value fmul_value = this->builder.createFMul(lhs, rhs, fmul.name);
+						this->stmt_values.emplace(stmt, fmul_value);
+					} break;
+
+					case Expr::Kind::SDiv: {
+						const SDiv& sdiv = this->reader.getSDiv(stmt);
+
+						const llvmint::Value lhs = this->get_value(sdiv.lhs);
+						const llvmint::Value rhs = this->get_value(sdiv.rhs);
+
+						const llvmint::Value sdiv_value = this->builder.createSDiv(lhs, rhs, sdiv.isExact, sdiv.name);
+						this->stmt_values.emplace(stmt, sdiv_value);
+					} break;
+
+					case Expr::Kind::UDiv: {
+						const UDiv& udiv = this->reader.getUDiv(stmt);
+
+						const llvmint::Value lhs = this->get_value(udiv.lhs);
+						const llvmint::Value rhs = this->get_value(udiv.rhs);
+
+						const llvmint::Value udiv_value = this->builder.createUDiv(lhs, rhs, udiv.isExact, udiv.name);
+						this->stmt_values.emplace(stmt, udiv_value);
+					} break;
+
+					case Expr::Kind::FDiv: {
+						const FDiv& fdiv = this->reader.getFDiv(stmt);
+
+						const llvmint::Value lhs = this->get_value(fdiv.lhs);
+						const llvmint::Value rhs = this->get_value(fdiv.rhs);
+
+						const llvmint::Value fdiv_value = this->builder.createFDiv(lhs, rhs, fdiv.name);
+						this->stmt_values.emplace(stmt, fdiv_value);
+					} break;
+
+					case Expr::Kind::SRem: {
+						const SRem& srem = this->reader.getSRem(stmt);
+
+						const llvmint::Value lhs = this->get_value(srem.lhs);
+						const llvmint::Value rhs = this->get_value(srem.rhs);
+
+						const llvmint::Value srem_value = this->builder.createSRem(lhs, rhs, srem.name);
+						this->stmt_values.emplace(stmt, srem_value);
+					} break;
+
+					case Expr::Kind::URem: {
+						const URem& urem = this->reader.getURem(stmt);
+
+						const llvmint::Value lhs = this->get_value(urem.lhs);
+						const llvmint::Value rhs = this->get_value(urem.rhs);
+
+						const llvmint::Value urem_value = this->builder.createURem(lhs, rhs, urem.name);
+						this->stmt_values.emplace(stmt, urem_value);
+					} break;
+
+					case Expr::Kind::FRem: {
+						const FRem& frem = this->reader.getFRem(stmt);
+
+						const llvmint::Value lhs = this->get_value(frem.lhs);
+						const llvmint::Value rhs = this->get_value(frem.rhs);
+
+						const llvmint::Value frem_value = this->builder.createFRem(lhs, rhs, frem.name);
+						this->stmt_values.emplace(stmt, frem_value);
+					} break;
 				}
 			}
 		}
@@ -722,28 +1021,71 @@ namespace pcit::pir{
 			case Expr::Kind::UIToF:   return this->stmt_values.at(expr);
 			case Expr::Kind::FToI:    return this->stmt_values.at(expr);
 			case Expr::Kind::FToUI:   return this->stmt_values.at(expr);
+
 			case Expr::Kind::Add:     return this->stmt_values.at(expr);
-			case Expr::Kind::FAdd:    return this->stmt_values.at(expr);
-
 			case Expr::Kind::SAddWrap: evo::debugFatalBreak("Not a value");
-
 			case Expr::Kind::SAddWrapResult: {
 				return this->stmt_values.at(this->reader.extractSAddWrapResult(expr));
 			} break;
-
 			case Expr::Kind::SAddWrapWrapped: {
 				return this->stmt_values.at(this->reader.extractSAddWrapWrapped(expr));
 			} break;
-
 			case Expr::Kind::UAddWrap: evo::debugFatalBreak("Not a value");
-
 			case Expr::Kind::UAddWrapResult: {
 				return this->stmt_values.at(this->reader.extractUAddWrapResult(expr));
 			} break;
-
 			case Expr::Kind::UAddWrapWrapped: {
 				return this->stmt_values.at(this->reader.extractUAddWrapWrapped(expr));
 			} break;
+			case Expr::Kind::SAddSat: return this->stmt_values.at(expr);
+			case Expr::Kind::UAddSat: return this->stmt_values.at(expr);
+			case Expr::Kind::FAdd:    return this->stmt_values.at(expr);
+
+			case Expr::Kind::Sub:     return this->stmt_values.at(expr);
+			case Expr::Kind::SSubWrap: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::SSubWrapResult: {
+				return this->stmt_values.at(this->reader.extractSSubWrapResult(expr));
+			} break;
+			case Expr::Kind::SSubWrapWrapped: {
+				return this->stmt_values.at(this->reader.extractSSubWrapWrapped(expr));
+			} break;
+			case Expr::Kind::USubWrap: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::USubWrapResult: {
+				return this->stmt_values.at(this->reader.extractUSubWrapResult(expr));
+			} break;
+			case Expr::Kind::USubWrapWrapped: {
+				return this->stmt_values.at(this->reader.extractUSubWrapWrapped(expr));
+			} break;
+			case Expr::Kind::SSubSat: return this->stmt_values.at(expr);
+			case Expr::Kind::USubSat: return this->stmt_values.at(expr);
+			case Expr::Kind::FSub:    return this->stmt_values.at(expr);
+
+			case Expr::Kind::Mul:     return this->stmt_values.at(expr);
+			case Expr::Kind::SMulWrap: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::SMulWrapResult: {
+				return this->stmt_values.at(this->reader.extractSMulWrapResult(expr));
+			} break;
+			case Expr::Kind::SMulWrapWrapped: {
+				return this->stmt_values.at(this->reader.extractSMulWrapWrapped(expr));
+			} break;
+			case Expr::Kind::UMulWrap: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::UMulWrapResult: {
+				return this->stmt_values.at(this->reader.extractUMulWrapResult(expr));
+			} break;
+			case Expr::Kind::UMulWrapWrapped: {
+				return this->stmt_values.at(this->reader.extractUMulWrapWrapped(expr));
+			} break;
+			case Expr::Kind::SMulSat: return this->stmt_values.at(expr);
+			case Expr::Kind::UMulSat: return this->stmt_values.at(expr);
+			case Expr::Kind::FMul:    return this->stmt_values.at(expr);
+
+			case Expr::Kind::SDiv:    return this->stmt_values.at(expr);
+			case Expr::Kind::UDiv:    return this->stmt_values.at(expr);
+			case Expr::Kind::FDiv:    return this->stmt_values.at(expr);
+			case Expr::Kind::SRem:    return this->stmt_values.at(expr);
+			case Expr::Kind::URem:    return this->stmt_values.at(expr);
+			case Expr::Kind::FRem:    return this->stmt_values.at(expr);
+
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

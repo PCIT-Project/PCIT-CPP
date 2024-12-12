@@ -13,40 +13,11 @@
 //////////////////////////////////////////////////////////////////////
 // 
 
-func test = (num: UI32) -> (output: UI32, bool: Bool) {
-	var num_ptr: UI32*| = &num;
-	output = copy num_ptr.*;
-	bool = true;
-	return...;
-}
 
-
-func set = (num: UI32 mut) -> Void {
-	def WRAP_FAIL: Bool = true;
-
-	when(WRAP_FAIL){
-		num = num + 4294967292;
-	}else{
-		num = num + 5;
-	}
-
-}
 
 
 func entry = () #entry -> UI8 {
-	var foo: UI32 = uninit;
-	var bar: Bool = uninit;
-
-	[foo, bar] = test(12);
-
-	if(bar){
-		set(foo);
-	}else if(false){
-		foo = 95;
-		@breakpoint();
-	}
-
-	@_printHelloWorld();
-
+	var foo: UI32 = 12;
+	foo = foo % 5;
 	return foo as UI8;
 }

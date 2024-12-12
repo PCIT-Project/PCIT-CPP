@@ -528,11 +528,6 @@ namespace pcit::pir{
 				this->printer.print("${}", add.name);
 			} break;
 
-			case Expr::Kind::FAdd: {
-				const FAdd& fadd = this->reader.getFAdd(expr);
-				this->printer.print("${}", fadd.name);
-			} break;
-
 			case Expr::Kind::SAddWrap: evo::debugFatalBreak("Expr::Kind::SAddWrap is not a valid expression");
 
 			case Expr::Kind::SAddWrapResult: {
@@ -545,7 +540,6 @@ namespace pcit::pir{
 				this->printer.print("${}", sadd_wrap.wrappedName);
 			} break;
 
-
 			case Expr::Kind::UAddWrap: evo::debugFatalBreak("Expr::Kind::UAddWrap is not a valid expression");
 
 			case Expr::Kind::UAddWrapResult: {
@@ -556,6 +550,139 @@ namespace pcit::pir{
 			case Expr::Kind::UAddWrapWrapped: {
 				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(expr);
 				this->printer.print("${}", uadd_wrap.wrappedName);
+			} break;
+
+			case Expr::Kind::SAddSat: {
+				const SAddSat& sadd_sat = this->reader.getSAddSat(expr);
+				this->printer.print("${}", sadd_sat.name);
+			} break;
+
+			case Expr::Kind::UAddSat: {
+				const UAddSat& uadd_sat = this->reader.getUAddSat(expr);
+				this->printer.print("${}", uadd_sat.name);
+			} break;
+
+			case Expr::Kind::FAdd: {
+				const FAdd& fadd = this->reader.getFAdd(expr);
+				this->printer.print("${}", fadd.name);
+			} break;
+
+			case Expr::Kind::Sub: {
+				const Sub& sub = this->reader.getSub(expr);
+				this->printer.print("${}", sub.name);
+			} break;
+
+			case Expr::Kind::SSubWrap: evo::debugFatalBreak("Expr::Kind::SSubWrap is not a valid expression");
+
+			case Expr::Kind::SSubWrapResult: {
+				const SSubWrap& ssub_wrap = this->reader.getSSubWrap(expr);
+				this->printer.print("${}", ssub_wrap.resultName);
+			} break;
+
+			case Expr::Kind::SSubWrapWrapped: {
+				const SSubWrap& ssub_wrap = this->reader.getSSubWrap(expr);
+				this->printer.print("${}", ssub_wrap.wrappedName);
+			} break;
+
+			case Expr::Kind::USubWrap: evo::debugFatalBreak("Expr::Kind::USubWrap is not a valid expression");
+
+			case Expr::Kind::USubWrapResult: {
+				const USubWrap& usub_wrap = this->reader.getUSubWrap(expr);
+				this->printer.print("${}", usub_wrap.resultName);
+			} break;
+
+			case Expr::Kind::USubWrapWrapped: {
+				const USubWrap& usub_wrap = this->reader.getUSubWrap(expr);
+				this->printer.print("${}", usub_wrap.wrappedName);
+			} break;
+
+			case Expr::Kind::SSubSat: {
+				const SSubSat& ssub_sat = this->reader.getSSubSat(expr);
+				this->printer.print("${}", ssub_sat.name);
+			} break;
+
+			case Expr::Kind::USubSat: {
+				const USubSat& usub_sat = this->reader.getUSubSat(expr);
+				this->printer.print("${}", usub_sat.name);
+			} break;
+
+			case Expr::Kind::FSub: {
+				const FSub& fsub = this->reader.getFSub(expr);
+				this->printer.print("${}", fsub.name);
+			} break;
+
+			case Expr::Kind::Mul: {
+				const Mul& mul = this->reader.getMul(expr);
+				this->printer.print("${}", mul.name);
+			} break;
+
+			case Expr::Kind::SMulWrap: evo::debugFatalBreak("Expr::Kind::SMulWrap is not a valid expression");
+
+			case Expr::Kind::SMulWrapResult: {
+				const SMulWrap& smul_wrap = this->reader.getSMulWrap(expr);
+				this->printer.print("${}", smul_wrap.resultName);
+			} break;
+
+			case Expr::Kind::SMulWrapWrapped: {
+				const SMulWrap& smul_wrap = this->reader.getSMulWrap(expr);
+				this->printer.print("${}", smul_wrap.wrappedName);
+			} break;
+
+			case Expr::Kind::UMulWrap: evo::debugFatalBreak("Expr::Kind::UMulWrap is not a valid expression");
+
+			case Expr::Kind::UMulWrapResult: {
+				const UMulWrap& umul_wrap = this->reader.getUMulWrap(expr);
+				this->printer.print("${}", umul_wrap.resultName);
+			} break;
+
+			case Expr::Kind::UMulWrapWrapped: {
+				const UMulWrap& umul_wrap = this->reader.getUMulWrap(expr);
+				this->printer.print("${}", umul_wrap.wrappedName);
+			} break;
+
+			case Expr::Kind::SMulSat: {
+				const SMulSat& smul_sat = this->reader.getSMulSat(expr);
+				this->printer.print("${}", smul_sat.name);
+			} break;
+
+			case Expr::Kind::UMulSat: {
+				const UMulSat& umul_sat = this->reader.getUMulSat(expr);
+				this->printer.print("${}", umul_sat.name);
+			} break;
+
+			case Expr::Kind::FMul: {
+				const FMul& fmul = this->reader.getFMul(expr);
+				this->printer.print("${}", fmul.name);
+			} break;
+
+			case Expr::Kind::SDiv: {
+				const SDiv& sdiv = this->reader.getSDiv(expr);
+				this->printer.print("${}", sdiv.name);
+			} break;
+
+			case Expr::Kind::UDiv: {
+				const UDiv& udiv = this->reader.getUDiv(expr);
+				this->printer.print("${}", udiv.name);
+			} break;
+
+			case Expr::Kind::FDiv: {
+				const FDiv& fdiv = this->reader.getFDiv(expr);
+				this->printer.print("${}", fdiv.name);
+			} break;
+
+			case Expr::Kind::SRem: {
+				const SRem& srem = this->reader.getSRem(expr);
+				this->printer.print("${}", srem.name);
+			} break;
+
+			case Expr::Kind::URem: {
+				const URem& urem = this->reader.getURem(expr);
+				this->printer.print("${}", urem.name);
+			} break;
+
+			case Expr::Kind::FRem: {
+				const FRem& frem = this->reader.getFRem(expr);
+				this->printer.print("${}", frem.name);
 			} break;
 		}
 	}
@@ -801,17 +928,6 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FAdd: {
-				const FAdd& fadd = this->reader.getFAdd(stmt);
-
-				this->printer.print("{}${} ", tabs(2), fadd.name);
-				this->printer.printRed("= @fAdd ");
-				this->print_expr(fadd.lhs);
-				this->printer.print(", ");
-				this->print_expr(fadd.rhs);
-				this->printer.println();
-			} break;
-
 			case Expr::Kind::SAddWrap: {
 				const SAddWrap& sadd_wrap = this->reader.getSAddWrap(stmt);
 
@@ -849,6 +965,270 @@ namespace pcit::pir{
 			case Expr::Kind::UAddWrapWrapped:
 				evo::debugFatalBreak("Expr::Kind::UAddWrapWrapped is not a valid statement");
 
+			case Expr::Kind::SAddSat: {
+				const SAddSat& sadd_sat = this->reader.getSAddSat(stmt);
+
+				this->printer.print("{}${} ", tabs(2), sadd_sat.name);
+				this->printer.printRed("= @saddSat ");
+				this->print_expr(sadd_sat.lhs);
+				this->printer.print(", ");
+				this->print_expr(sadd_sat.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::UAddSat: {
+				const UAddSat& uadd_sat = this->reader.getUAddSat(stmt);
+
+				this->printer.print("{}${} ", tabs(2), uadd_sat.name);
+				this->printer.printRed("= @uaddSat ");
+				this->print_expr(uadd_sat.lhs);
+				this->printer.print(", ");
+				this->print_expr(uadd_sat.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FAdd: {
+				const FAdd& fadd = this->reader.getFAdd(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fadd.name);
+				this->printer.printRed("= @fadd ");
+				this->print_expr(fadd.lhs);
+				this->printer.print(", ");
+				this->print_expr(fadd.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::Sub: {
+				const Sub& sub = this->reader.getSub(stmt);
+
+				this->printer.print("{}${} ", tabs(2), sub.name);
+				this->printer.printRed("= @sub ");
+				this->print_expr(sub.lhs);
+				this->printer.print(", ");
+				this->print_expr(sub.rhs);
+				if(sub.mayWrap){ this->printer.printRed(" #mayWrap"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SSubWrap: {
+				const SSubWrap& ssub_wrap = this->reader.getSSubWrap(stmt);
+
+				this->printer.print("{}${}, ${} ", tabs(2), ssub_wrap.resultName, ssub_wrap.wrappedName);
+				this->printer.printRed("= @sSubWrap ");
+
+				this->print_expr(ssub_wrap.lhs);
+				this->printer.print(", ");
+				this->print_expr(ssub_wrap.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SSubWrapResult:
+				evo::debugFatalBreak("Expr::Kind::SSubWrapResult is not a valid statement");
+
+			case Expr::Kind::SSubWrapWrapped:
+				evo::debugFatalBreak("Expr::Kind::SSubWrapWrapped is not a valid statement");
+
+
+			case Expr::Kind::USubWrap: {
+				const USubWrap& usub_wrap = this->reader.getUSubWrap(stmt);
+
+				this->printer.print("{}${}, ${} ", tabs(2), usub_wrap.resultName, usub_wrap.wrappedName);
+				this->printer.printRed("= @uSubWrap ");
+
+				this->print_expr(usub_wrap.lhs);
+				this->printer.print(", ");
+				this->print_expr(usub_wrap.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::USubWrapResult:
+				evo::debugFatalBreak("Expr::Kind::USubWrapResult is not a valid statement");
+
+			case Expr::Kind::USubWrapWrapped:
+				evo::debugFatalBreak("Expr::Kind::USubWrapWrapped is not a valid statement");
+
+			case Expr::Kind::SSubSat: {
+				const SSubSat& ssub_sat = this->reader.getSSubSat(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ssub_sat.name);
+				this->printer.printRed("= @ssubSat ");
+				this->print_expr(ssub_sat.lhs);
+				this->printer.print(", ");
+				this->print_expr(ssub_sat.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::USubSat: {
+				const USubSat& usub_sat = this->reader.getUSubSat(stmt);
+
+				this->printer.print("{}${} ", tabs(2), usub_sat.name);
+				this->printer.printRed("= @usubSat ");
+				this->print_expr(usub_sat.lhs);
+				this->printer.print(", ");
+				this->print_expr(usub_sat.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FSub: {
+				const FSub& fsub = this->reader.getFSub(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fsub.name);
+				this->printer.printRed("= @fsub ");
+				this->print_expr(fsub.lhs);
+				this->printer.print(", ");
+				this->print_expr(fsub.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::Mul: {
+				const Mul& mul = this->reader.getMul(stmt);
+
+				this->printer.print("{}${} ", tabs(2), mul.name);
+				this->printer.printRed("= @mul ");
+				this->print_expr(mul.lhs);
+				this->printer.print(", ");
+				this->print_expr(mul.rhs);
+				if(mul.mayWrap){ this->printer.printRed(" #mayWrap"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SMulWrap: {
+				const SMulWrap& smul_wrap = this->reader.getSMulWrap(stmt);
+
+				this->printer.print("{}${}, ${} ", tabs(2), smul_wrap.resultName, smul_wrap.wrappedName);
+				this->printer.printRed("= @sMulWrap ");
+
+				this->print_expr(smul_wrap.lhs);
+				this->printer.print(", ");
+				this->print_expr(smul_wrap.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SMulWrapResult:
+				evo::debugFatalBreak("Expr::Kind::SMulWrapResult is not a valid statement");
+
+			case Expr::Kind::SMulWrapWrapped:
+				evo::debugFatalBreak("Expr::Kind::SMulWrapWrapped is not a valid statement");
+
+
+			case Expr::Kind::UMulWrap: {
+				const UMulWrap& umul_wrap = this->reader.getUMulWrap(stmt);
+
+				this->printer.print("{}${}, ${} ", tabs(2), umul_wrap.resultName, umul_wrap.wrappedName);
+				this->printer.printRed("= @uMulWrap ");
+
+				this->print_expr(umul_wrap.lhs);
+				this->printer.print(", ");
+				this->print_expr(umul_wrap.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::UMulWrapResult:
+				evo::debugFatalBreak("Expr::Kind::UMulWrapResult is not a valid statement");
+
+			case Expr::Kind::UMulWrapWrapped:
+				evo::debugFatalBreak("Expr::Kind::UMulWrapWrapped is not a valid statement");
+
+			case Expr::Kind::SMulSat: {
+				const SMulSat& smul_sat = this->reader.getSMulSat(stmt);
+
+				this->printer.print("{}${} ", tabs(2), smul_sat.name);
+				this->printer.printRed("= @smulSat ");
+				this->print_expr(smul_sat.lhs);
+				this->printer.print(", ");
+				this->print_expr(smul_sat.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::UMulSat: {
+				const UMulSat& umul_sat = this->reader.getUMulSat(stmt);
+
+				this->printer.print("{}${} ", tabs(2), umul_sat.name);
+				this->printer.printRed("= @umulSat ");
+				this->print_expr(umul_sat.lhs);
+				this->printer.print(", ");
+				this->print_expr(umul_sat.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FMul: {
+				const FMul& fmul = this->reader.getFMul(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fmul.name);
+				this->printer.printRed("= @fmul ");
+				this->print_expr(fmul.lhs);
+				this->printer.print(", ");
+				this->print_expr(fmul.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SDiv: {
+				const SDiv& sdiv = this->reader.getSDiv(stmt);
+
+				this->printer.print("{}${} ", tabs(2), sdiv.name);
+				this->printer.printRed("= @sdiv ");
+				this->print_expr(sdiv.lhs);
+				this->printer.print(", ");
+				this->print_expr(sdiv.rhs);
+				if(sdiv.isExact){ this->printer.printRed(" #exact"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::UDiv: {
+				const UDiv& udiv = this->reader.getUDiv(stmt);
+
+				this->printer.print("{}${} ", tabs(2), udiv.name);
+				this->printer.printRed("= @udiv ");
+				this->print_expr(udiv.lhs);
+				this->printer.print(", ");
+				this->print_expr(udiv.rhs);
+				if(udiv.isExact){ this->printer.printRed(" #exact"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FDiv: {
+				const FDiv& fdiv = this->reader.getFDiv(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fdiv.name);
+				this->printer.printRed("= @fdiv ");
+				this->print_expr(fdiv.lhs);
+				this->printer.print(", ");
+				this->print_expr(fdiv.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SRem: {
+				const SRem& srem = this->reader.getSRem(stmt);
+
+				this->printer.print("{}${} ", tabs(2), srem.name);
+				this->printer.printRed("= @srem ");
+				this->print_expr(srem.lhs);
+				this->printer.print(", ");
+				this->print_expr(srem.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::URem: {
+				const URem& urem = this->reader.getURem(stmt);
+
+				this->printer.print("{}${} ", tabs(2), urem.name);
+				this->printer.printRed("= @urem ");
+				this->print_expr(urem.lhs);
+				this->printer.print(", ");
+				this->print_expr(urem.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FRem: {
+				const FRem& frem = this->reader.getFRem(stmt);
+
+				this->printer.print("{}${} ", tabs(2), frem.name);
+				this->printer.printRed("= @frem ");
+				this->print_expr(frem.lhs);
+				this->printer.print(", ");
+				this->print_expr(frem.rhs);
+				this->printer.println();
+			} break;
 		}
 	}
 

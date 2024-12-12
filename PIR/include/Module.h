@@ -490,10 +490,32 @@ namespace pcit::pir{
 			core::StepAlloc<UIToF, uint32_t> uitofs{};
 			core::StepAlloc<FToI, uint32_t> ftois{};
 			core::StepAlloc<FToUI, uint32_t> ftouis{};
+
 			core::StepAlloc<Add, uint32_t> adds{};
-			core::StepAlloc<FAdd, uint32_t> fadds{};
 			core::StepAlloc<SAddWrap, uint32_t> sadd_wraps{};
 			core::StepAlloc<UAddWrap, uint32_t> uadd_wraps{};
+			core::StepAlloc<SAddSat, uint32_t> sadd_sats{};
+			core::StepAlloc<UAddSat, uint32_t> uadd_sats{};
+			core::StepAlloc<FAdd, uint32_t> fadds{};
+			core::StepAlloc<Sub, uint32_t> subs{};
+			core::StepAlloc<SSubWrap, uint32_t> ssub_wraps{};
+			core::StepAlloc<USubWrap, uint32_t> usub_wraps{};
+			core::StepAlloc<SSubSat, uint32_t> ssub_sats{};
+			core::StepAlloc<USubSat, uint32_t> usub_sats{};
+			core::StepAlloc<FSub, uint32_t> fsubs{};
+			core::StepAlloc<Mul, uint32_t> muls{};
+			core::StepAlloc<SMulWrap, uint32_t> smul_wraps{};
+			core::StepAlloc<UMulWrap, uint32_t> umul_wraps{};
+			core::StepAlloc<SMulSat, uint32_t> smul_sats{};
+			core::StepAlloc<UMulSat, uint32_t> umul_sats{};
+			core::StepAlloc<FMul, uint32_t> fmuls{};
+			core::StepAlloc<SDiv, uint32_t> sdivs{};
+			core::StepAlloc<UDiv, uint32_t> udivs{};
+			core::StepAlloc<FDiv, uint32_t> fdivs{};
+			core::StepAlloc<SRem, uint32_t> srems{};
+			core::StepAlloc<URem, uint32_t> urems{};
+			core::StepAlloc<FRem, uint32_t> frems{};
+
 
 			// global values
 			core::StepAlloc<GlobalVar::String, GlobalVar::String::ID> global_strings{};

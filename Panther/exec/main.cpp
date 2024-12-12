@@ -44,6 +44,8 @@ namespace panther = pcit::panther;
 struct Config{
 	enum class Target{
 		Run,
+		Assembly,
+		PrintAssembly,
 		LLVMIR,      // not guaranteed to remain
 		PrintLLVMIR, // not guaranteed to remain
 		PrintPIR,
@@ -121,6 +123,8 @@ auto main(int argc, const char* argv[]) -> int {
 			break; case Config::Target::PrintPIR:         printer.printlnMagenta("Target: PrintPIR");
 			break; case Config::Target::PrintLLVMIR:      printer.printlnMagenta("Target: PrintLLVMIR");
 			break; case Config::Target::LLVMIR:           printer.printlnMagenta("Target: LLVMIR");
+			break; case Config::Target::PrintAssembly:    printer.printlnMagenta("Target: PrintAssembly");
+			break; case Config::Target::Assembly:         printer.printlnMagenta("Target: Assembly");
 			break; case Config::Target::Run:              printer.printlnMagenta("Target: Run");
 			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
 		}
@@ -382,8 +386,45 @@ auto main(int argc, const char* argv[]) -> int {
 		}
 
 		return EXIT_SUCCESS;
+	}
 
-	}else if(config.target == Config::Target::Run){
+
+	///////////////////////////////////
+	// print Assembly
+
+	if(config.target == Config::Target::PrintAssembly){
+		const evo::Result<std::string> assembly = context.printAssembly(false);
+
+		if(assembly.isError()){
+			return EXIT_FAILURE;			
+		}
+
+		printer.printlnCyan(assembly.value());
+
+		return EXIT_SUCCESS;
+
+	}else if(config.target == Config::Target::Assembly){
+		const evo::Result<std::string> assembly = context.printAssembly(true);
+
+		if(assembly.isError()){
+			return EXIT_FAILURE;			
+		}
+
+		if(evo::fs::writeFile("a.S", assembly.value()) == false){
+			printer.printlnError("Failed to write file: \"a.S\"");
+
+		}else if(config.verbose){
+			printer.printlnSuccess("Successfully write Assembly file \"a.S\"");
+		}
+
+		return EXIT_SUCCESS;
+	}
+
+
+	///////////////////////////////////
+	// run
+
+	if(config.target == Config::Target::Run){
 		if(config.verbose){ printer.printlnGray("------------------------------\nRunning:"); }
 
 		const evo::Result<uint8_t> run_result = context.run();
