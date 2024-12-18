@@ -104,6 +104,22 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::SRem:            func_metadata.emplace(expr);
 					break; case Expr::Kind::URem:            func_metadata.emplace(expr);
 					break; case Expr::Kind::FRem:            func_metadata.emplace(expr);
+					break; case Expr::Kind::IEq:             func_metadata.emplace(expr);
+					break; case Expr::Kind::FEq:             func_metadata.emplace(expr);
+					break; case Expr::Kind::INeq:            func_metadata.emplace(expr);
+					break; case Expr::Kind::FNeq:            func_metadata.emplace(expr);
+					break; case Expr::Kind::SLT:             func_metadata.emplace(expr);
+					break; case Expr::Kind::ULT:             func_metadata.emplace(expr);
+					break; case Expr::Kind::FLT:             func_metadata.emplace(expr);
+					break; case Expr::Kind::SLTE:            func_metadata.emplace(expr);
+					break; case Expr::Kind::ULTE:            func_metadata.emplace(expr);
+					break; case Expr::Kind::FLTE:            func_metadata.emplace(expr);
+					break; case Expr::Kind::SGT:             func_metadata.emplace(expr);
+					break; case Expr::Kind::UGT:             func_metadata.emplace(expr);
+					break; case Expr::Kind::FGT:             func_metadata.emplace(expr);
+					break; case Expr::Kind::SGTE:            func_metadata.emplace(expr);
+					break; case Expr::Kind::UGTE:            func_metadata.emplace(expr);
+					break; case Expr::Kind::FGTE:            func_metadata.emplace(expr);
 				}
 			};
 
@@ -641,6 +657,167 @@ namespace pcit::pir::passes{
 
 					return false;
 				} break;
+
+				case Expr::Kind::IEq: {
+					if(remove_unused_stmt()){ return true; }
+
+					const IEq& ieq = agent.getIEq(stmt);
+					see_expr(ieq.lhs);
+					see_expr(ieq.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FEq: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FEq& feq = agent.getFEq(stmt);
+					see_expr(feq.lhs);
+					see_expr(feq.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::INeq: {
+					if(remove_unused_stmt()){ return true; }
+
+					const INeq& ineq = agent.getINeq(stmt);
+					see_expr(ineq.lhs);
+					see_expr(ineq.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FNeq: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FNeq& fneq = agent.getFNeq(stmt);
+					see_expr(fneq.lhs);
+					see_expr(fneq.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SLT: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SLT& slt = agent.getSLT(stmt);
+					see_expr(slt.lhs);
+					see_expr(slt.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::ULT: {
+					if(remove_unused_stmt()){ return true; }
+
+					const ULT& ult = agent.getULT(stmt);
+					see_expr(ult.lhs);
+					see_expr(ult.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FLT: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FLT& flt = agent.getFLT(stmt);
+					see_expr(flt.lhs);
+					see_expr(flt.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SLTE: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SLTE& slte = agent.getSLTE(stmt);
+					see_expr(slte.lhs);
+					see_expr(slte.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::ULTE: {
+					if(remove_unused_stmt()){ return true; }
+
+					const ULTE& ulte = agent.getULTE(stmt);
+					see_expr(ulte.lhs);
+					see_expr(ulte.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FLTE: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FLTE& flte = agent.getFLTE(stmt);
+					see_expr(flte.lhs);
+					see_expr(flte.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SGT: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SGT& sgt = agent.getSGT(stmt);
+					see_expr(sgt.lhs);
+					see_expr(sgt.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::UGT: {
+					if(remove_unused_stmt()){ return true; }
+
+					const UGT& ugt = agent.getUGT(stmt);
+					see_expr(ugt.lhs);
+					see_expr(ugt.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FGT: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FGT& fgt = agent.getFGT(stmt);
+					see_expr(fgt.lhs);
+					see_expr(fgt.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SGTE: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SGTE& sgte = agent.getSGTE(stmt);
+					see_expr(sgte.lhs);
+					see_expr(sgte.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::UGTE: {
+					if(remove_unused_stmt()){ return true; }
+
+					const UGTE& ugte = agent.getUGTE(stmt);
+					see_expr(ugte.lhs);
+					see_expr(ugte.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FGTE: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FGTE& fgte = agent.getFGTE(stmt);
+					see_expr(fgte.lhs);
+					see_expr(fgte.rhs);
+
+					return false;
+				} break;
+
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.getKind()));

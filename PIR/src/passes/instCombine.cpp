@@ -458,6 +458,215 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
+			case Expr::Kind::IEq: {
+				const IEq& ieq = agent.getIEq(stmt);
+				if(ieq.lhs.getKind() != Expr::Kind::Number || ieq.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(ieq.lhs);
+				const Number& rhs = agent.getNumber(ieq.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().eq(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::FEq: {
+				const FEq& feq = agent.getFEq(stmt);
+				if(feq.lhs.getKind() != Expr::Kind::Number || feq.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(feq.lhs);
+				const Number& rhs = agent.getNumber(feq.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getFloat().eq(rhs.getFloat()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::INeq: {
+				const INeq& ineq = agent.getINeq(stmt);
+				if(ineq.lhs.getKind() != Expr::Kind::Number || ineq.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(ineq.lhs);
+				const Number& rhs = agent.getNumber(ineq.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().neq(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::FNeq: {
+				const FNeq& fneq = agent.getFNeq(stmt);
+				if(fneq.lhs.getKind() != Expr::Kind::Number || fneq.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(fneq.lhs);
+				const Number& rhs = agent.getNumber(fneq.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getFloat().neq(rhs.getFloat()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::SLT: {
+				const SLT& slt = agent.getSLT(stmt);
+				if(slt.lhs.getKind() != Expr::Kind::Number || slt.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(slt.lhs);
+				const Number& rhs = agent.getNumber(slt.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().slt(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::ULT: {
+				const ULT& ult = agent.getULT(stmt);
+				if(ult.lhs.getKind() != Expr::Kind::Number || ult.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(ult.lhs);
+				const Number& rhs = agent.getNumber(ult.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().ult(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::FLT: {
+				const FLT& flt = agent.getFLT(stmt);
+				if(flt.lhs.getKind() != Expr::Kind::Number || flt.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(flt.lhs);
+				const Number& rhs = agent.getNumber(flt.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getFloat().lt(rhs.getFloat()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::SLTE: {
+				const SLTE& slte = agent.getSLTE(stmt);
+				if(slte.lhs.getKind() != Expr::Kind::Number || slte.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(slte.lhs);
+				const Number& rhs = agent.getNumber(slte.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().sle(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::ULTE: {
+				const ULTE& ulte = agent.getULTE(stmt);
+				if(ulte.lhs.getKind() != Expr::Kind::Number || ulte.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(ulte.lhs);
+				const Number& rhs = agent.getNumber(ulte.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().ule(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::FLTE: {
+				const FLTE& flte = agent.getFLTE(stmt);
+				if(flte.lhs.getKind() != Expr::Kind::Number || flte.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(flte.lhs);
+				const Number& rhs = agent.getNumber(flte.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getFloat().le(rhs.getFloat()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::SGT: {
+				const SGT& sgt = agent.getSGT(stmt);
+				if(sgt.lhs.getKind() != Expr::Kind::Number || sgt.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(sgt.lhs);
+				const Number& rhs = agent.getNumber(sgt.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().sgt(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::UGT: {
+				const UGT& ugt = agent.getUGT(stmt);
+				if(ugt.lhs.getKind() != Expr::Kind::Number || ugt.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(ugt.lhs);
+				const Number& rhs = agent.getNumber(ugt.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().ugt(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::FGT: {
+				const FGT& fgt = agent.getFGT(stmt);
+				if(fgt.lhs.getKind() != Expr::Kind::Number || fgt.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(fgt.lhs);
+				const Number& rhs = agent.getNumber(fgt.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getFloat().gt(rhs.getFloat()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::SGTE: {
+				const SGTE& sgte = agent.getSGTE(stmt);
+				if(sgte.lhs.getKind() != Expr::Kind::Number || sgte.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(sgte.lhs);
+				const Number& rhs = agent.getNumber(sgte.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().sge(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::UGTE: {
+				const UGTE& ugte = agent.getUGTE(stmt);
+				if(ugte.lhs.getKind() != Expr::Kind::Number || ugte.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(ugte.lhs);
+				const Number& rhs = agent.getNumber(ugte.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getInt().uge(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::FGTE: {
+				const FGTE& fgte = agent.getFGTE(stmt);
+				if(fgte.lhs.getKind() != Expr::Kind::Number || fgte.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(fgte.lhs);
+				const Number& rhs = agent.getNumber(fgte.rhs);
+
+				const Expr result_expr = agent.createBoolean(lhs.getFloat().ge(rhs.getFloat()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -768,6 +977,24 @@ namespace pcit::pir::passes{
 			case Expr::Kind::SRem: return false;
 			case Expr::Kind::URem: return false;
 			case Expr::Kind::FRem: return false;
+
+			// TODO:
+			case Expr::Kind::IEq: return false;
+			case Expr::Kind::FEq: return false;
+			case Expr::Kind::INeq: return false;
+			case Expr::Kind::FNeq: return false;
+			case Expr::Kind::SLT: return false;
+			case Expr::Kind::ULT: return false;
+			case Expr::Kind::FLT: return false;
+			case Expr::Kind::SLTE: return false;
+			case Expr::Kind::ULTE: return false;
+			case Expr::Kind::FLTE: return false;
+			case Expr::Kind::SGT: return false;
+			case Expr::Kind::UGT: return false;
+			case Expr::Kind::FGT: return false;
+			case Expr::Kind::SGTE: return false;
+			case Expr::Kind::UGTE: return false;
+			case Expr::Kind::FGTE: return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

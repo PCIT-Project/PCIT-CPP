@@ -342,7 +342,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, gep);
 					} break;
 
-					case Expr::Kind::BitCast:{
+					case Expr::Kind::BitCast: {
 						const BitCast& bitcast = this->reader.getBitCast(stmt);
 
 						const llvmint::Value from_value = this->get_value(bitcast.fromValue);
@@ -353,7 +353,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_bitcast);
 					} break;
 
-					case Expr::Kind::Trunc:{
+					case Expr::Kind::Trunc: {
 						const Trunc& trunc = this->reader.getTrunc(stmt);
 
 						const llvmint::Value from_value = this->get_value(trunc.fromValue);
@@ -363,7 +363,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_trunc);
 					} break;
 
-					case Expr::Kind::FTrunc:{
+					case Expr::Kind::FTrunc: {
 						const FTrunc& ftrunc = this->reader.getFTrunc(stmt);
 
 						const llvmint::Value from_value = this->get_value(ftrunc.fromValue);
@@ -373,7 +373,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_ftrunc);
 					} break;
 
-					case Expr::Kind::SExt:{
+					case Expr::Kind::SExt: {
 						const SExt& sext = this->reader.getSExt(stmt);
 
 						const llvmint::Value from_value = this->get_value(sext.fromValue);
@@ -383,7 +383,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_sext);
 					} break;
 
-					case Expr::Kind::ZExt:{
+					case Expr::Kind::ZExt: {
 						const ZExt& zext = this->reader.getZExt(stmt);
 
 						const llvmint::Value from_value = this->get_value(zext.fromValue);
@@ -393,7 +393,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_zext);
 					} break;
 
-					case Expr::Kind::FExt:{
+					case Expr::Kind::FExt: {
 						const FExt& fext = this->reader.getFExt(stmt);
 
 						const llvmint::Value from_value = this->get_value(fext.fromValue);
@@ -403,7 +403,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_fext);
 					} break;
 
-					case Expr::Kind::IToF:{
+					case Expr::Kind::IToF: {
 						const IToF& itof = this->reader.getIToF(stmt);
 
 						const llvmint::Value from_value = this->get_value(itof.fromValue);
@@ -413,7 +413,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_itof);
 					} break;
 
-					case Expr::Kind::UIToF:{
+					case Expr::Kind::UIToF: {
 						const UIToF& uitof = this->reader.getUIToF(stmt);
 
 						const llvmint::Value from_value = this->get_value(uitof.fromValue);
@@ -423,7 +423,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_uitof);
 					} break;
 
-					case Expr::Kind::FToI:{
+					case Expr::Kind::FToI: {
 						const FToI& ftoi = this->reader.getFToI(stmt);
 
 						const llvmint::Value from_value = this->get_value(ftoi.fromValue);
@@ -433,7 +433,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_ftoi);
 					} break;
 
-					case Expr::Kind::FToUI:{
+					case Expr::Kind::FToUI: {
 						const FToUI& ftoui = this->reader.getFToUI(stmt);
 
 						const llvmint::Value from_value = this->get_value(ftoui.fromValue);
@@ -822,6 +822,167 @@ namespace pcit::pir{
 						const llvmint::Value frem_value = this->builder.createFRem(lhs, rhs, frem.name);
 						this->stmt_values.emplace(stmt, frem_value);
 					} break;
+
+
+					case Expr::Kind::IEq: {
+						const IEq& ieq = this->reader.getIEq(stmt);
+
+						const llvmint::Value lhs = this->get_value(ieq.lhs);
+						const llvmint::Value rhs = this->get_value(ieq.rhs);
+
+						const llvmint::Value ieq_value = this->builder.createICmpEQ(lhs, rhs, ieq.name);
+						this->stmt_values.emplace(stmt, ieq_value);
+					} break;
+					
+					case Expr::Kind::FEq: {
+						const FEq& feq = this->reader.getFEq(stmt);
+
+						const llvmint::Value lhs = this->get_value(feq.lhs);
+						const llvmint::Value rhs = this->get_value(feq.rhs);
+
+						const llvmint::Value feq_value = this->builder.createFCmpEQ(lhs, rhs, feq.name);
+						this->stmt_values.emplace(stmt, feq_value);
+					} break;
+					
+					case Expr::Kind::INeq: {
+						const INeq& ineq = this->reader.getINeq(stmt);
+
+						const llvmint::Value lhs = this->get_value(ineq.lhs);
+						const llvmint::Value rhs = this->get_value(ineq.rhs);
+
+						const llvmint::Value ineq_value = this->builder.createICmpNE(lhs, rhs, ineq.name);
+						this->stmt_values.emplace(stmt, ineq_value);
+					} break;
+					
+					case Expr::Kind::FNeq: {
+						const FNeq& fneq = this->reader.getFNeq(stmt);
+
+						const llvmint::Value lhs = this->get_value(fneq.lhs);
+						const llvmint::Value rhs = this->get_value(fneq.rhs);
+
+						const llvmint::Value fneq_value = this->builder.createFCmpNE(lhs, rhs, fneq.name);
+						this->stmt_values.emplace(stmt, fneq_value);
+					} break;
+					
+					case Expr::Kind::SLT: {
+						const SLT& slt = this->reader.getSLT(stmt);
+
+						const llvmint::Value lhs = this->get_value(slt.lhs);
+						const llvmint::Value rhs = this->get_value(slt.rhs);
+
+						const llvmint::Value slt_value = this->builder.createICmpSLT(lhs, rhs, slt.name);
+						this->stmt_values.emplace(stmt, slt_value);
+					} break;
+					
+					case Expr::Kind::ULT: {
+						const ULT& ult = this->reader.getULT(stmt);
+
+						const llvmint::Value lhs = this->get_value(ult.lhs);
+						const llvmint::Value rhs = this->get_value(ult.rhs);
+
+						const llvmint::Value ult_value = this->builder.createICmpULT(lhs, rhs, ult.name);
+						this->stmt_values.emplace(stmt, ult_value);
+					} break;
+					
+					case Expr::Kind::FLT: {
+						const FLT& flt = this->reader.getFLT(stmt);
+
+						const llvmint::Value lhs = this->get_value(flt.lhs);
+						const llvmint::Value rhs = this->get_value(flt.rhs);
+
+						const llvmint::Value flt_value = this->builder.createFCmpLT(lhs, rhs, flt.name);
+						this->stmt_values.emplace(stmt, flt_value);
+					} break;
+					
+					case Expr::Kind::SLTE: {
+						const SLTE& slte = this->reader.getSLTE(stmt);
+
+						const llvmint::Value lhs = this->get_value(slte.lhs);
+						const llvmint::Value rhs = this->get_value(slte.rhs);
+
+						const llvmint::Value slte_value = this->builder.createICmpSLE(lhs, rhs, slte.name);
+						this->stmt_values.emplace(stmt, slte_value);
+					} break;
+					
+					case Expr::Kind::ULTE: {
+						const ULTE& ulte = this->reader.getULTE(stmt);
+
+						const llvmint::Value lhs = this->get_value(ulte.lhs);
+						const llvmint::Value rhs = this->get_value(ulte.rhs);
+
+						const llvmint::Value ulte_value = this->builder.createICmpULE(lhs, rhs, ulte.name);
+						this->stmt_values.emplace(stmt, ulte_value);
+					} break;
+					
+					case Expr::Kind::FLTE: {
+						const FLTE& flte = this->reader.getFLTE(stmt);
+
+						const llvmint::Value lhs = this->get_value(flte.lhs);
+						const llvmint::Value rhs = this->get_value(flte.rhs);
+
+						const llvmint::Value flte_value = this->builder.createFCmpLE(lhs, rhs, flte.name);
+						this->stmt_values.emplace(stmt, flte_value);
+					} break;
+					
+					case Expr::Kind::SGT: {
+						const SGT& sgt = this->reader.getSGT(stmt);
+
+						const llvmint::Value lhs = this->get_value(sgt.lhs);
+						const llvmint::Value rhs = this->get_value(sgt.rhs);
+
+						const llvmint::Value sgt_value = this->builder.createICmpSGT(lhs, rhs, sgt.name);
+						this->stmt_values.emplace(stmt, sgt_value);
+					} break;
+					
+					case Expr::Kind::UGT: {
+						const UGT& ugt = this->reader.getUGT(stmt);
+
+						const llvmint::Value lhs = this->get_value(ugt.lhs);
+						const llvmint::Value rhs = this->get_value(ugt.rhs);
+
+						const llvmint::Value ugt_value = this->builder.createICmpUGT(lhs, rhs, ugt.name);
+						this->stmt_values.emplace(stmt, ugt_value);
+					} break;
+					
+					case Expr::Kind::FGT: {
+						const FGT& fgt = this->reader.getFGT(stmt);
+
+						const llvmint::Value lhs = this->get_value(fgt.lhs);
+						const llvmint::Value rhs = this->get_value(fgt.rhs);
+
+						const llvmint::Value fgt_value = this->builder.createFCmpGT(lhs, rhs, fgt.name);
+						this->stmt_values.emplace(stmt, fgt_value);
+					} break;
+					
+					case Expr::Kind::SGTE: {
+						const SGTE& sgte = this->reader.getSGTE(stmt);
+
+						const llvmint::Value lhs = this->get_value(sgte.lhs);
+						const llvmint::Value rhs = this->get_value(sgte.rhs);
+
+						const llvmint::Value sgte_value = this->builder.createICmpSGE(lhs, rhs, sgte.name);
+						this->stmt_values.emplace(stmt, sgte_value);
+					} break;
+					
+					case Expr::Kind::UGTE: {
+						const UGTE& ugte = this->reader.getUGTE(stmt);
+
+						const llvmint::Value lhs = this->get_value(ugte.lhs);
+						const llvmint::Value rhs = this->get_value(ugte.rhs);
+
+						const llvmint::Value ugte_value = this->builder.createICmpUGE(lhs, rhs, ugte.name);
+						this->stmt_values.emplace(stmt, ugte_value);
+					} break;
+					
+					case Expr::Kind::FGTE: {
+						const FGTE& fgte = this->reader.getFGTE(stmt);
+
+						const llvmint::Value lhs = this->get_value(fgte.lhs);
+						const llvmint::Value rhs = this->get_value(fgte.rhs);
+
+						const llvmint::Value fgte_value = this->builder.createFCmpGE(lhs, rhs, fgte.name);
+						this->stmt_values.emplace(stmt, fgte_value);
+					} break;
 				}
 			}
 		}
@@ -1086,6 +1247,22 @@ namespace pcit::pir{
 			case Expr::Kind::URem:    return this->stmt_values.at(expr);
 			case Expr::Kind::FRem:    return this->stmt_values.at(expr);
 
+			case Expr::Kind::IEq:     return this->stmt_values.at(expr);
+			case Expr::Kind::FEq:     return this->stmt_values.at(expr);
+			case Expr::Kind::INeq:    return this->stmt_values.at(expr);
+			case Expr::Kind::FNeq:    return this->stmt_values.at(expr);
+			case Expr::Kind::SLT:     return this->stmt_values.at(expr);
+			case Expr::Kind::ULT:     return this->stmt_values.at(expr);
+			case Expr::Kind::FLT:     return this->stmt_values.at(expr);
+			case Expr::Kind::SLTE:    return this->stmt_values.at(expr);
+			case Expr::Kind::ULTE:    return this->stmt_values.at(expr);
+			case Expr::Kind::FLTE:    return this->stmt_values.at(expr);
+			case Expr::Kind::SGT:     return this->stmt_values.at(expr);
+			case Expr::Kind::UGT:     return this->stmt_values.at(expr);
+			case Expr::Kind::FGT:     return this->stmt_values.at(expr);
+			case Expr::Kind::SGTE:    return this->stmt_values.at(expr);
+			case Expr::Kind::UGTE:    return this->stmt_values.at(expr);
+			case Expr::Kind::FGTE:    return this->stmt_values.at(expr);
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

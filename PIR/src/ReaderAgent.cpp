@@ -113,6 +113,22 @@ namespace pcit::pir{
 			case Expr::Kind::SRem:            return this->getExprType(this->getSRem(expr).lhs);
 			case Expr::Kind::URem:            return this->getExprType(this->getURem(expr).lhs);
 			case Expr::Kind::FRem:            return this->getExprType(this->getFRem(expr).lhs);
+			case Expr::Kind::IEq:             return this->module.createBoolType();
+			case Expr::Kind::FEq:             return this->module.createBoolType();
+			case Expr::Kind::INeq:            return this->module.createBoolType();
+			case Expr::Kind::FNeq:            return this->module.createBoolType();
+			case Expr::Kind::SLT:             return this->module.createBoolType();
+			case Expr::Kind::ULT:             return this->module.createBoolType();
+			case Expr::Kind::FLT:             return this->module.createBoolType();
+			case Expr::Kind::SLTE:            return this->module.createBoolType();
+			case Expr::Kind::ULTE:            return this->module.createBoolType();
+			case Expr::Kind::FLTE:            return this->module.createBoolType();
+			case Expr::Kind::SGT:             return this->module.createBoolType();
+			case Expr::Kind::UGT:             return this->module.createBoolType();
+			case Expr::Kind::FGT:             return this->module.createBoolType();
+			case Expr::Kind::SGTE:            return this->module.createBoolType();
+			case Expr::Kind::UGTE:            return this->module.createBoolType();
+			case Expr::Kind::FGTE:            return this->module.createBoolType();
 
 		}
 
@@ -555,6 +571,120 @@ namespace pcit::pir{
 
 		return this->module.frems[expr.index];
 	}
+
+
+	auto ReaderAgent::getIEq(const Expr& expr) const -> const IEq& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::IEq, "Not an ieq");
+
+		return this->module.ieqs[expr.index];
+	}
+
+	auto ReaderAgent::getFEq(const Expr& expr) const -> const FEq& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FEq, "Not an feq");
+
+		return this->module.feqs[expr.index];
+	}
+
+	auto ReaderAgent::getINeq(const Expr& expr) const -> const INeq& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::INeq, "Not an ineq");
+
+		return this->module.ineqs[expr.index];
+	}
+
+	auto ReaderAgent::getFNeq(const Expr& expr) const -> const FNeq& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FNeq, "Not an fneq");
+
+		return this->module.fneqs[expr.index];
+	}
+
+	auto ReaderAgent::getSLT(const Expr& expr) const -> const SLT& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SLT, "Not an slt");
+
+		return this->module.slts[expr.index];
+	}
+
+	auto ReaderAgent::getULT(const Expr& expr) const -> const ULT& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::ULT, "Not an ult");
+
+		return this->module.ults[expr.index];
+	}
+
+	auto ReaderAgent::getFLT(const Expr& expr) const -> const FLT& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FLT, "Not an flt");
+
+		return this->module.flts[expr.index];
+	}
+
+	auto ReaderAgent::getSLTE(const Expr& expr) const -> const SLTE& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SLTE, "Not an slte");
+
+		return this->module.sltes[expr.index];
+	}
+
+	auto ReaderAgent::getULTE(const Expr& expr) const -> const ULTE& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::ULTE, "Not an ulte");
+
+		return this->module.ultes[expr.index];
+	}
+
+	auto ReaderAgent::getFLTE(const Expr& expr) const -> const FLTE& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FLTE, "Not an flte");
+
+		return this->module.fltes[expr.index];
+	}
+
+	auto ReaderAgent::getSGT(const Expr& expr) const -> const SGT& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SGT, "Not an sgt");
+
+		return this->module.sgts[expr.index];
+	}
+
+	auto ReaderAgent::getUGT(const Expr& expr) const -> const UGT& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::UGT, "Not an ugt");
+
+		return this->module.ugts[expr.index];
+	}
+
+	auto ReaderAgent::getFGT(const Expr& expr) const -> const FGT& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FGT, "Not an fgt");
+
+		return this->module.fgts[expr.index];
+	}
+
+	auto ReaderAgent::getSGTE(const Expr& expr) const -> const SGTE& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::SGTE, "Not an sgte");
+
+		return this->module.sgtes[expr.index];
+	}
+
+	auto ReaderAgent::getUGTE(const Expr& expr) const -> const UGTE& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::UGTE, "Not an ugte");
+
+		return this->module.ugtes[expr.index];
+	}
+
+	auto ReaderAgent::getFGTE(const Expr& expr) const -> const FGTE& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FGTE, "Not an fgte");
+
+		return this->module.fgtes[expr.index];
+	}
+
 
 
 }

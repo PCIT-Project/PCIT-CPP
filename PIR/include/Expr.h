@@ -92,6 +92,23 @@ namespace pcit::pir{
 				SRem,
 				URem,
 				FRem,
+
+				IEq,
+				FEq,
+				INeq,
+				FNeq,
+				SLT,
+				ULT,
+				FLT,
+				SLTE,
+				ULTE,
+				FLTE,
+				SGT,
+				UGT,
+				FGT,
+				SGTE,
+				UGTE,
+				FGTE,
 			};
 
 		public:
@@ -119,7 +136,13 @@ namespace pcit::pir{
 					case Kind::UMulWrap:        case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped:
 					case Kind::SMulSat:         case Kind::UMulSat:         case Kind::FMul:
 					case Kind::SDiv:            case Kind::UDiv:            case Kind::FDiv:
-					case Kind::SRem:            case Kind::URem:            case Kind::FRem: {
+					case Kind::SRem:            case Kind::URem:            case Kind::FRem:
+					case Kind::IEq:             case Kind::FEq:             case Kind::INeq:
+					case Kind::FNeq:            case Kind::SLT:             case Kind::ULT:
+					case Kind::FLT:             case Kind::SLTE:            case Kind::ULTE:
+					case Kind::FLTE:            case Kind::SGT:             case Kind::UGT:
+					case Kind::FGT:             case Kind::SGTE:            case Kind::UGTE:
+					case Kind::FGTE: {
 						return true;
 					} break;
 					default: return false;
@@ -153,7 +176,13 @@ namespace pcit::pir{
 					case Kind::UMulWrap:        case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped:
 					case Kind::SMulSat:         case Kind::UMulSat:         case Kind::FMul:
 					case Kind::SDiv:            case Kind::UDiv:            case Kind::FDiv:
-					case Kind::SRem:            case Kind::URem:            case Kind::FRem: {
+					case Kind::SRem:            case Kind::URem:            case Kind::FRem:
+					case Kind::IEq:             case Kind::FEq:             case Kind::INeq:
+					case Kind::FNeq:            case Kind::SLT:             case Kind::ULT:
+					case Kind::FLT:             case Kind::SLTE:            case Kind::ULTE:
+					case Kind::FLTE:            case Kind::SGT:             case Kind::UGT:
+					case Kind::FGT:             case Kind::SGTE:            case Kind::UGTE:
+					case Kind::FGTE: {
 						return true;
 					} break;
 					default: return false;
@@ -582,6 +611,106 @@ namespace pcit::pir{
 		Expr rhs;
 	};
 
+
+
+	//////////////////////////////////////////////////////////////////////
+	// logical
+
+	struct IEq{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FEq{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct INeq{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FNeq{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SLT{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct ULT{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FLT{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SLTE{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct ULTE{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FLTE{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SGT{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct UGT{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FGT{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SGTE{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct UGTE{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct FGTE{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
 
 
 }

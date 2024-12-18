@@ -111,6 +111,22 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getURem(const Expr& expr) const -> const URem&;
 			EVO_NODISCARD auto getFRem(const Expr& expr) const -> const FRem&;
 
+			EVO_NODISCARD auto getIEq(const Expr& expr) const -> const IEq&;
+			EVO_NODISCARD auto getFEq(const Expr& expr) const -> const FEq&;
+			EVO_NODISCARD auto getINeq(const Expr& expr) const -> const INeq&;
+			EVO_NODISCARD auto getFNeq(const Expr& expr) const -> const FNeq&;
+			EVO_NODISCARD auto getSLT(const Expr& expr) const -> const SLT&;
+			EVO_NODISCARD auto getULT(const Expr& expr) const -> const ULT&;
+			EVO_NODISCARD auto getFLT(const Expr& expr) const -> const FLT&;
+			EVO_NODISCARD auto getSLTE(const Expr& expr) const -> const SLTE&;
+			EVO_NODISCARD auto getULTE(const Expr& expr) const -> const ULTE&;
+			EVO_NODISCARD auto getFLTE(const Expr& expr) const -> const FLTE&;
+			EVO_NODISCARD auto getSGT(const Expr& expr) const -> const SGT&;
+			EVO_NODISCARD auto getUGT(const Expr& expr) const -> const UGT&;
+			EVO_NODISCARD auto getFGT(const Expr& expr) const -> const FGT&;
+			EVO_NODISCARD auto getSGTE(const Expr& expr) const -> const SGTE&;
+			EVO_NODISCARD auto getUGTE(const Expr& expr) const -> const UGTE&;
+			EVO_NODISCARD auto getFGTE(const Expr& expr) const -> const FGTE&;
 
 		private:
 			const Module& module;

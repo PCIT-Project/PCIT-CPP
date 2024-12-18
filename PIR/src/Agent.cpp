@@ -453,6 +453,117 @@ namespace pcit::pir{
 						if(frem.lhs == original){ frem.lhs = replacement; }
 						if(frem.rhs == original){ frem.rhs = replacement; }
 					} break;
+
+
+
+					case Expr::Kind::IEq: {
+						IEq& ieq = this->module.ieqs[stmt.index];
+
+						if(ieq.lhs == original){ ieq.lhs = replacement; }
+						if(ieq.rhs == original){ ieq.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FEq: {
+						FEq& feq = this->module.feqs[stmt.index];
+
+						if(feq.lhs == original){ feq.lhs = replacement; }
+						if(feq.rhs == original){ feq.rhs = replacement; }
+					} break;
+					
+					case Expr::Kind::INeq: {
+						INeq& ineq = this->module.ineqs[stmt.index];
+
+						if(ineq.lhs == original){ ineq.lhs = replacement; }
+						if(ineq.rhs == original){ ineq.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FNeq: {
+						FNeq& fneq = this->module.fneqs[stmt.index];
+
+						if(fneq.lhs == original){ fneq.lhs = replacement; }
+						if(fneq.rhs == original){ fneq.rhs = replacement; }
+					} break;
+					
+					case Expr::Kind::SLT: {
+						SLT& slt = this->module.slts[stmt.index];
+
+						if(slt.lhs == original){ slt.lhs = replacement; }
+						if(slt.rhs == original){ slt.rhs = replacement; }
+					} break;
+					
+					case Expr::Kind::ULT: {
+						ULT& ult = this->module.ults[stmt.index];
+
+						if(ult.lhs == original){ ult.lhs = replacement; }
+						if(ult.rhs == original){ ult.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FLT: {
+						FLT& flt = this->module.flts[stmt.index];
+
+						if(flt.lhs == original){ flt.lhs = replacement; }
+						if(flt.rhs == original){ flt.rhs = replacement; }
+					} break;
+					case Expr::Kind::SLTE: {
+						SLTE& slte = this->module.sltes[stmt.index];
+
+						if(slte.lhs == original){ slte.lhs = replacement; }
+						if(slte.rhs == original){ slte.rhs = replacement; }
+					} break;
+					
+					case Expr::Kind::ULTE: {
+						ULTE& ulte = this->module.ultes[stmt.index];
+
+						if(ulte.lhs == original){ ulte.lhs = replacement; }
+						if(ulte.rhs == original){ ulte.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FLTE: {
+						FLTE& flte = this->module.fltes[stmt.index];
+
+						if(flte.lhs == original){ flte.lhs = replacement; }
+						if(flte.rhs == original){ flte.rhs = replacement; }
+					} break;
+					case Expr::Kind::SGT: {
+						SGT& sgt = this->module.sgts[stmt.index];
+
+						if(sgt.lhs == original){ sgt.lhs = replacement; }
+						if(sgt.rhs == original){ sgt.rhs = replacement; }
+					} break;
+					
+					case Expr::Kind::UGT: {
+						UGT& ugt = this->module.ugts[stmt.index];
+
+						if(ugt.lhs == original){ ugt.lhs = replacement; }
+						if(ugt.rhs == original){ ugt.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FGT: {
+						FGT& fgt = this->module.fgts[stmt.index];
+
+						if(fgt.lhs == original){ fgt.lhs = replacement; }
+						if(fgt.rhs == original){ fgt.rhs = replacement; }
+					} break;
+					case Expr::Kind::SGTE: {
+						SGTE& sgte = this->module.sgtes[stmt.index];
+
+						if(sgte.lhs == original){ sgte.lhs = replacement; }
+						if(sgte.rhs == original){ sgte.rhs = replacement; }
+					} break;
+					
+					case Expr::Kind::UGTE: {
+						UGTE& ugte = this->module.ugtes[stmt.index];
+
+						if(ugte.lhs == original){ ugte.lhs = replacement; }
+						if(ugte.rhs == original){ ugte.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::FGTE: {
+						FGTE& fgte = this->module.fgtes[stmt.index];
+
+						if(fgte.lhs == original){ fgte.lhs = replacement; }
+						if(fgte.rhs == original){ fgte.rhs = replacement; }
+					} break;
 				}
 			}
 		}
@@ -1926,6 +2037,354 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// equal
+
+	auto Agent::createIEq(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ieq instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::IEq,
+			this->module.ieqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getIEq(const Expr& expr) const -> const IEq& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getIEq(expr);
+	}
+
+
+	auto Agent::createFEq(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @feq instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FEq, this->module.feqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFEq(const Expr& expr) const -> const FEq& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFEq(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// not equal
+
+	auto Agent::createINeq(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ineq instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::INeq,
+			this->module.ineqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getINeq(const Expr& expr) const -> const INeq& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getINeq(expr);
+	}
+
+
+	auto Agent::createFNeq(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fneq instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FNeq, this->module.fneqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFNeq(const Expr& expr) const -> const FNeq& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFNeq(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// less than
+
+	auto Agent::createSLT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @slt instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SLT,
+			this->module.slts.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSLT(const Expr& expr) const -> const SLT& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSLT(expr);
+	}
+
+
+	auto Agent::createULT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ult instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::ULT,
+			this->module.ults.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getULT(const Expr& expr) const -> const ULT& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getULT(expr);
+	}
+
+
+	auto Agent::createFLT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @flt instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FLT, this->module.flts.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFLT(const Expr& expr) const -> const FLT& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFLT(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// less than or equal to
+
+	auto Agent::createSLTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @slte instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SLTE,
+			this->module.sltes.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSLTE(const Expr& expr) const -> const SLTE& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSLTE(expr);
+	}
+
+
+	auto Agent::createULTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ulte instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::ULTE,
+			this->module.ultes.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getULTE(const Expr& expr) const -> const ULTE& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getULTE(expr);
+	}
+
+
+	auto Agent::createFLTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @flte instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FLTE, this->module.fltes.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFLTE(const Expr& expr) const -> const FLTE& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFLTE(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// greater than
+
+	auto Agent::createSGT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @sgt instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SGT,
+			this->module.sgts.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSGT(const Expr& expr) const -> const SGT& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSGT(expr);
+	}
+
+
+	auto Agent::createUGT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ugt instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::UGT,
+			this->module.ugts.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUGT(const Expr& expr) const -> const UGT& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUGT(expr);
+	}
+
+
+	auto Agent::createFGT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fgt instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FGT, this->module.fgts.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFGT(const Expr& expr) const -> const FGT& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFGT(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// greater than or equal to
+
+	auto Agent::createSGTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @sgte instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SGTE,
+			this->module.sgtes.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSGTE(const Expr& expr) const -> const SGTE& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSGTE(expr);
+	}
+
+
+	auto Agent::createUGTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ugte instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::UGTE,
+			this->module.ugtes.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUGTE(const Expr& expr) const -> const UGTE& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUGTE(expr);
+	}
+
+
+	auto Agent::createFGTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fgte instruction only supports float values");
+
+		const auto new_expr = Expr(
+			Expr::Kind::FGTE, this->module.fgtes.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getFGTE(const Expr& expr) const -> const FGTE& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getFGTE(expr);
+	}
+
+
+
+
+
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// internal
 
 
@@ -2007,6 +2466,22 @@ namespace pcit::pir{
 			break; case Expr::Kind::SRem:            this->module.srems.erase(expr.index);
 			break; case Expr::Kind::URem:            this->module.urems.erase(expr.index);
 			break; case Expr::Kind::FRem:            this->module.frems.erase(expr.index);
+			break; case Expr::Kind::IEq:             this->module.ieqs.erase(expr.index);
+			break; case Expr::Kind::FEq:             this->module.feqs.erase(expr.index);
+			break; case Expr::Kind::INeq:            this->module.ineqs.erase(expr.index);
+			break; case Expr::Kind::FNeq:            this->module.fneqs.erase(expr.index);
+			break; case Expr::Kind::SLT:             this->module.slts.erase(expr.index);
+			break; case Expr::Kind::ULT:             this->module.ults.erase(expr.index);
+			break; case Expr::Kind::FLT:             this->module.flts.erase(expr.index);
+			break; case Expr::Kind::SLTE:            this->module.sltes.erase(expr.index);
+			break; case Expr::Kind::ULTE:            this->module.ultes.erase(expr.index);
+			break; case Expr::Kind::FLTE:            this->module.fltes.erase(expr.index);
+			break; case Expr::Kind::SGT:             this->module.sgts.erase(expr.index);
+			break; case Expr::Kind::UGT:             this->module.ugts.erase(expr.index);
+			break; case Expr::Kind::FGT:             this->module.fgts.erase(expr.index);
+			break; case Expr::Kind::SGTE:            this->module.sgtes.erase(expr.index);
+			break; case Expr::Kind::UGTE:            this->module.ugtes.erase(expr.index);
+			break; case Expr::Kind::FGTE:            this->module.fgtes.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -2121,6 +2596,22 @@ namespace pcit::pir{
 					case Expr::Kind::SRem:            if(this->getSRem(stmt).name == name){ return true; } continue;
 					case Expr::Kind::URem:            if(this->getURem(stmt).name == name){ return true; } continue;
 					case Expr::Kind::FRem:            if(this->getFRem(stmt).name == name){ return true; } continue;
+					case Expr::Kind::IEq:             if(this->getIEq(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FEq:             if(this->getFEq(stmt).name == name){ return true; } continue;
+					case Expr::Kind::INeq:            if(this->getINeq(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FNeq:            if(this->getFNeq(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SLT:             if(this->getSLT(stmt).name == name){ return true; } continue;
+					case Expr::Kind::ULT:             if(this->getULT(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FLT:             if(this->getFLT(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SLTE:            if(this->getSLTE(stmt).name == name){ return true; } continue;
+					case Expr::Kind::ULTE:            if(this->getULTE(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FLTE:            if(this->getFLTE(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SGT:             if(this->getSGT(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UGT:             if(this->getUGT(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FGT:             if(this->getFGT(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SGTE:            if(this->getSGTE(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UGTE:            if(this->getUGTE(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FGTE:            if(this->getFGTE(stmt).name == name){ return true; } continue;
 				}
 			}
 		}

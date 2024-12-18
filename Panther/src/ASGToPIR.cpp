@@ -1595,145 +1595,121 @@ namespace pcit::panther{
 				// logical
 
 				case TemplatedIntrinsic::Kind::Eq: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@eq)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFEq(args[0], args[1], this->stmt_name("EQ"))
+						};
+					}
 
-					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					// if(is_floating_point){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createFCmpEQ(args[0], args[1], this->stmt_name("EQ"))
-					// 	};
-					// }
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createICmpEQ(args[0], args[1], this->stmt_name("EQ"))
-					// };
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createIEq(args[0], args[1], this->stmt_name("EQ"))
+					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::NEq: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@neq)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFNeq(args[0], args[1], this->stmt_name("NEQ"))
+						};
+					}
 
-					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					// if(is_floating_point){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createFCmpNE(args[0], args[1], this->stmt_name("NEQ"))
-					// 	};
-					// }
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createICmpNE(args[0], args[1], this->stmt_name("NEQ"))
-					// };
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createINeq(args[0], args[1], this->stmt_name("NEQ"))
+					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::LT: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@lt)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFLT(args[0], args[1], this->stmt_name("LT"))
+						};
+					}
 
-					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					// if(is_floating_point){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LT"))
-					// 	};
-					// }
-
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-					// if(is_unsigned){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createICmpULT(args[0], args[1], this->stmt_name("LT"))
-					// 	};
-					// }else{
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createICmpSLT(args[0], args[1], this->stmt_name("LT"))
-					// 	};
-					// }	
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createULT(args[0], args[1], this->stmt_name("LT"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSLT(args[0], args[1], this->stmt_name("LT"))
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::LTE: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@lte)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFLT(args[0], args[1], this->stmt_name("LTE"))
+						};
+					}
 
-					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					// if(is_floating_point){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LTE"))
-					// 	};
-					// }
-
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-					// if(is_unsigned){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createICmpULT(args[0], args[1], this->stmt_name("LTE"))
-					// 	};
-					// }else{
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createICmpSLT(args[0], args[1], this->stmt_name("LTE"))
-					// 	};
-					// }	
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createULTE(args[0], args[1], this->stmt_name("LTE"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSLTE(args[0], args[1], this->stmt_name("LTE"))
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::GT: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@gt)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFGT(args[0], args[1], this->stmt_name("GT"))
+						};
+					}
 
-					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					// if(is_floating_point){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GT"))
-					// 	};
-					// }
-
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-					// if(is_unsigned){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createICmpUGT(args[0], args[1], this->stmt_name("GT"))
-					// 	};
-					// }else{
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createICmpSGT(args[0], args[1], this->stmt_name("GT"))
-					// 	};
-					// }	
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createUGT(args[0], args[1], this->stmt_name("GT"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSGT(args[0], args[1], this->stmt_name("GT"))
+						};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::GTE: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@gte)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
+					if(is_floating_point){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFGTE(args[0], args[1], this->stmt_name("GTE"))
+						};
+					}
 
-					// const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
-					// if(is_floating_point){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GTE"))
-					// 	};
-					// }
-
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-					// if(is_unsigned){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createICmpUGT(args[0], args[1], this->stmt_name("GTE"))
-					// 	};
-					// }else{
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createICmpSGT(args[0], args[1], this->stmt_name("GTE"))
-					// 	};
-					// }	
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createUGTE(args[0], args[1], this->stmt_name("GTE"))
+						};
+					}else{
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSGTE(args[0], args[1], this->stmt_name("GTE"))
+						};
+					}
 				} break;
 
 
@@ -1804,7 +1780,7 @@ namespace pcit::panther{
 					// 	}();
 
 					// 	this->add_fail_assertion(
-					// 		this->builder.createICmpNE(check_value, args[0], this->stmt_name("SHL.CHECK_NEQ")),
+					// 		this->builder.createINE(check_value, args[0], this->stmt_name("SHL.CHECK_NEQ")),
 					// 		"SHL_CHECK",
 					// 		"Bit-shift-left overflow",
 					// 		func_call.location
@@ -1856,7 +1832,7 @@ namespace pcit::panther{
 					// 	);
 
 					// 	this->add_fail_assertion(
-					// 		this->builder.createICmpNE(check_value, args[0], this->stmt_name("SHR.CHECK_NEQ")),
+					// 		this->builder.createINE(check_value, args[0], this->stmt_name("SHR.CHECK_NEQ")),
 					// 		"SHR_CHECK",
 					// 		"Bit-shift-right overflow",
 					// 		func_call.location

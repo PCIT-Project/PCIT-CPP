@@ -684,6 +684,87 @@ namespace pcit::pir{
 				const FRem& frem = this->reader.getFRem(expr);
 				this->printer.print("${}", frem.name);
 			} break;
+
+			case Expr::Kind::IEq: {
+				const IEq& ieq = this->reader.getIEq(expr);
+				this->printer.print("${}", ieq.name);
+			} break;
+
+			case Expr::Kind::FEq: {
+				const FEq& feq = this->reader.getFEq(expr);
+				this->printer.print("${}", feq.name);
+			} break;
+
+			case Expr::Kind::INeq: {
+				const INeq& ineq = this->reader.getINeq(expr);
+				this->printer.print("${}", ineq.name);
+			} break;
+
+			case Expr::Kind::FNeq: {
+				const FNeq& fneq = this->reader.getFNeq(expr);
+				this->printer.print("${}", fneq.name);
+			} break;
+
+			case Expr::Kind::SLT: {
+				const SLT& slt = this->reader.getSLT(expr);
+				this->printer.print("${}", slt.name);
+			} break;
+
+			case Expr::Kind::ULT: {
+				const ULT& ult = this->reader.getULT(expr);
+				this->printer.print("${}", ult.name);
+			} break;
+
+			case Expr::Kind::FLT: {
+				const FLT& flt = this->reader.getFLT(expr);
+				this->printer.print("${}", flt.name);
+			} break;
+
+			case Expr::Kind::SLTE: {
+				const SLTE& slte = this->reader.getSLTE(expr);
+				this->printer.print("${}", slte.name);
+			} break;
+
+			case Expr::Kind::ULTE: {
+				const ULTE& ulte = this->reader.getULTE(expr);
+				this->printer.print("${}", ulte.name);
+			} break;
+
+			case Expr::Kind::FLTE: {
+				const FLTE& flte = this->reader.getFLTE(expr);
+				this->printer.print("${}", flte.name);
+			} break;
+
+			case Expr::Kind::SGT: {
+				const SGT& sgt = this->reader.getSGT(expr);
+				this->printer.print("${}", sgt.name);
+			} break;
+
+			case Expr::Kind::UGT: {
+				const UGT& ugt = this->reader.getUGT(expr);
+				this->printer.print("${}", ugt.name);
+			} break;
+
+			case Expr::Kind::FGT: {
+				const FGT& fgt = this->reader.getFGT(expr);
+				this->printer.print("${}", fgt.name);
+			} break;
+
+			case Expr::Kind::SGTE: {
+				const SGTE& sgte = this->reader.getSGTE(expr);
+				this->printer.print("${}", sgte.name);
+			} break;
+
+			case Expr::Kind::UGTE: {
+				const UGTE& ugte = this->reader.getUGTE(expr);
+				this->printer.print("${}", ugte.name);
+			} break;
+
+			case Expr::Kind::FGTE: {
+				const FGTE& fgte = this->reader.getFGTE(expr);
+				this->printer.print("${}", fgte.name);
+			} break;
+
 		}
 	}
 
@@ -1227,6 +1308,182 @@ namespace pcit::pir{
 				this->print_expr(frem.lhs);
 				this->printer.print(", ");
 				this->print_expr(frem.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::IEq: {
+				const IEq& ieq = this->reader.getIEq(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ieq.name);
+				this->printer.printRed("= @ieq ");
+				this->print_expr(ieq.lhs);
+				this->printer.print(", ");
+				this->print_expr(ieq.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FEq: {
+				const FEq& feq = this->reader.getFEq(stmt);
+
+				this->printer.print("{}${} ", tabs(2), feq.name);
+				this->printer.printRed("= @feq ");
+				this->print_expr(feq.lhs);
+				this->printer.print(", ");
+				this->print_expr(feq.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::INeq: {
+				const INeq& ineq = this->reader.getINeq(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ineq.name);
+				this->printer.printRed("= @ineq ");
+				this->print_expr(ineq.lhs);
+				this->printer.print(", ");
+				this->print_expr(ineq.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FNeq: {
+				const FNeq& fneq = this->reader.getFNeq(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fneq.name);
+				this->printer.printRed("= @fneq ");
+				this->print_expr(fneq.lhs);
+				this->printer.print(", ");
+				this->print_expr(fneq.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SLT: {
+				const SLT& slt = this->reader.getSLT(stmt);
+
+				this->printer.print("{}${} ", tabs(2), slt.name);
+				this->printer.printRed("= @slt ");
+				this->print_expr(slt.lhs);
+				this->printer.print(", ");
+				this->print_expr(slt.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::ULT: {
+				const ULT& ult = this->reader.getULT(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ult.name);
+				this->printer.printRed("= @ult ");
+				this->print_expr(ult.lhs);
+				this->printer.print(", ");
+				this->print_expr(ult.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FLT: {
+				const FLT& flt = this->reader.getFLT(stmt);
+
+				this->printer.print("{}${} ", tabs(2), flt.name);
+				this->printer.printRed("= @flt ");
+				this->print_expr(flt.lhs);
+				this->printer.print(", ");
+				this->print_expr(flt.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SLTE: {
+				const SLTE& slte = this->reader.getSLTE(stmt);
+
+				this->printer.print("{}${} ", tabs(2), slte.name);
+				this->printer.printRed("= @slte ");
+				this->print_expr(slte.lhs);
+				this->printer.print(", ");
+				this->print_expr(slte.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::ULTE: {
+				const ULTE& ulte = this->reader.getULTE(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ulte.name);
+				this->printer.printRed("= @ulte ");
+				this->print_expr(ulte.lhs);
+				this->printer.print(", ");
+				this->print_expr(ulte.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FLTE: {
+				const FLTE& flte = this->reader.getFLTE(stmt);
+
+				this->printer.print("{}${} ", tabs(2), flte.name);
+				this->printer.printRed("= @flte ");
+				this->print_expr(flte.lhs);
+				this->printer.print(", ");
+				this->print_expr(flte.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SGT: {
+				const SGT& sgt = this->reader.getSGT(stmt);
+
+				this->printer.print("{}${} ", tabs(2), sgt.name);
+				this->printer.printRed("= @sgt ");
+				this->print_expr(sgt.lhs);
+				this->printer.print(", ");
+				this->print_expr(sgt.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::UGT: {
+				const UGT& ugt = this->reader.getUGT(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ugt.name);
+				this->printer.printRed("= @ugt ");
+				this->print_expr(ugt.lhs);
+				this->printer.print(", ");
+				this->print_expr(ugt.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FGT: {
+				const FGT& fgt = this->reader.getFGT(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fgt.name);
+				this->printer.printRed("= @fgt ");
+				this->print_expr(fgt.lhs);
+				this->printer.print(", ");
+				this->print_expr(fgt.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SGTE: {
+				const SGTE& sgte = this->reader.getSGTE(stmt);
+
+				this->printer.print("{}${} ", tabs(2), sgte.name);
+				this->printer.printRed("= @sgte ");
+				this->print_expr(sgte.lhs);
+				this->printer.print(", ");
+				this->print_expr(sgte.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::UGTE: {
+				const UGTE& ugte = this->reader.getUGTE(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ugte.name);
+				this->printer.printRed("= @ugte ");
+				this->print_expr(ugte.lhs);
+				this->printer.print(", ");
+				this->print_expr(ugte.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FGTE: {
+				const FGTE& fgte = this->reader.getFGTE(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fgte.name);
+				this->printer.printRed("= @fgte ");
+				this->print_expr(fgte.lhs);
+				this->printer.print(", ");
+				this->print_expr(fgte.rhs);
 				this->printer.println();
 			} break;
 		}

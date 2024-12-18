@@ -516,6 +516,23 @@ namespace pcit::pir{
 			core::StepAlloc<URem, uint32_t> urems{};
 			core::StepAlloc<FRem, uint32_t> frems{};
 
+			core::StepAlloc<IEq, uint32_t> ieqs{};
+			core::StepAlloc<FEq, uint32_t> feqs{};
+			core::StepAlloc<INeq, uint32_t> ineqs{};
+			core::StepAlloc<FNeq, uint32_t> fneqs{};
+			core::StepAlloc<SLT, uint32_t> slts{};
+			core::StepAlloc<ULT, uint32_t> ults{};
+			core::StepAlloc<FLT, uint32_t> flts{};
+			core::StepAlloc<SLTE, uint32_t> sltes{};
+			core::StepAlloc<ULTE, uint32_t> ultes{};
+			core::StepAlloc<FLTE, uint32_t> fltes{};
+			core::StepAlloc<SGT, uint32_t> sgts{};
+			core::StepAlloc<UGT, uint32_t> ugts{};
+			core::StepAlloc<FGT, uint32_t> fgts{};
+			core::StepAlloc<SGTE, uint32_t> sgtes{};
+			core::StepAlloc<UGTE, uint32_t> ugtes{};
+			core::StepAlloc<FGTE, uint32_t> fgtes{};
+
 
 			// global values
 			core::StepAlloc<GlobalVar::String, GlobalVar::String::ID> global_strings{};

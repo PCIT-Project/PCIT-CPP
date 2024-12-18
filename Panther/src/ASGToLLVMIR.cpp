@@ -1666,18 +1666,18 @@ namespace pcit::panther{
 					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
 					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createFCmpLT(args[0], args[1], this->stmt_name("LTE"))
+							this->builder.createFCmpLE(args[0], args[1], this->stmt_name("LTE"))
 						};
 					}
 
 					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 					if(is_unsigned){
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createICmpULT(args[0], args[1], this->stmt_name("LTE"))
+							this->builder.createICmpULE(args[0], args[1], this->stmt_name("LTE"))
 						};
 					}else{
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createICmpSLT(args[0], args[1], this->stmt_name("LTE"))
+							this->builder.createICmpSLE(args[0], args[1], this->stmt_name("LTE"))
 						};
 					}	
 				} break;
@@ -1710,18 +1710,18 @@ namespace pcit::panther{
 					const bool is_floating_point = this->context.getTypeManager().isFloatingPoint(arg_type);
 					if(is_floating_point){
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createFCmpGT(args[0], args[1], this->stmt_name("GTE"))
+							this->builder.createFCmpGE(args[0], args[1], this->stmt_name("GTE"))
 						};
 					}
 
 					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 					if(is_unsigned){
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createICmpUGT(args[0], args[1], this->stmt_name("GTE"))
+							this->builder.createICmpUGE(args[0], args[1], this->stmt_name("GTE"))
 						};
 					}else{
 						return evo::SmallVector<llvmint::Value>{
-							this->builder.createICmpSGT(args[0], args[1], this->stmt_name("GTE"))
+							this->builder.createICmpSGE(args[0], args[1], this->stmt_name("GTE"))
 						};
 					}	
 				} break;

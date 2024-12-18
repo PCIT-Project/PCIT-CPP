@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.73.0
+
+### Panther
+- Added support of lowering of:
+	- `@eq`, `@neq`
+	- `@lt`, `@lte`
+	- `@gt`, `@gte`
+
+### PIR
+- Added comparison instructions
+	- `@ieq`, `@feq`
+	- `@ineq`, `@fneq`
+	- `@slt`, `@ult`, `@flt`
+	- `@slte`, `@ulte`, `@flte`
+	- `@sgt`, `@ugt`, `@fgt`
+	- `@sgte`, `@ugte`, `@fgte`
+
+
+<!---------------------------------->
 ## v0.0.72.0
 
 ### Panther
@@ -16,7 +35,7 @@
 - Added the `Assembly` build target
 
 ### PIR
-- Added arithmetit instructions
+- Added arithmetic instructions
 	- `@saddSat`, `@uaddSat`
 	- `@sub`, `@ssubWrap`, `@usubWrap`, `@ssubSat`, `@usubSat`, `@fsub`
 	- `@mul`, `@smulWrap`, `@umulWrap`, `@smulSat`, `@umulSat`, `@fmul`

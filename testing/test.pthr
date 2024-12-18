@@ -1,23 +1,10 @@
 
-// func entry = () #entry -> UI8 {
-// 	var i: UInt = 0;
-// 	while(i < 4){
-// 		@_printHelloWorld();
-// 		i = i + 1;
-// 	}
-
-// 	return i as UI8;
-// }
-
-
-//////////////////////////////////////////////////////////////////////
-// 
-
-
-
-
 func entry = () #entry -> UI8 {
-	var foo: UI32 = 12;
-	foo = foo % 5;
-	return foo as UI8;
+	var i: UInt = 0;
+	while(i <= 4){
+		@_printHelloWorld();
+		i = i + 1;
+	}
+
+	return i as UI8;
 }
