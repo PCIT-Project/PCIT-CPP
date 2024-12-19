@@ -537,6 +537,40 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getFGTE(const Expr& expr) const -> const FGTE&;
 
 
+			//////////////////////////////////////////////////////////////////////
+			// bitwise
+
+			EVO_NODISCARD auto createAnd(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getAnd(const Expr& expr) const -> const And&;
+
+			EVO_NODISCARD auto createOr(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getOr(const Expr& expr) const -> const Or&;
+
+			EVO_NODISCARD auto createXor(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getXor(const Expr& expr) const -> const Xor&;
+
+			EVO_NODISCARD auto createSHL(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const
+				-> Expr;
+			EVO_NODISCARD auto getSHL(const Expr& expr) const -> const SHL&;
+
+			EVO_NODISCARD auto createSSHLSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getSSHLSat(const Expr& expr) const -> const SSHLSat&;
+
+			EVO_NODISCARD auto createUSHLSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getUSHLSat(const Expr& expr) const -> const USHLSat&;
+
+			EVO_NODISCARD auto createSSHR(
+				const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name = ""
+			) const -> Expr;
+			EVO_NODISCARD auto getSSHR(const Expr& expr) const -> const SSHR&;
+
+			EVO_NODISCARD auto createUSHR(
+				const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name = ""
+			) const -> Expr;
+			EVO_NODISCARD auto getUSHR(const Expr& expr) const -> const USHR&;
+
+
+
 
 		private:
 			auto insert_stmt(const Expr& stmt) const -> void;

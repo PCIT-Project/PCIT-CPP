@@ -1,6 +1,37 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.74.0
+
+### Panther
+- Added operators:
+	- `&`
+	- `|`
+	- `^`
+	- `<<`
+	- `<<|`
+	- `>>`
+- Added support of lowering of:
+	- `@and`
+	- `@or`
+	- `@xor`
+	- `@shl`
+	- `@shlSat`
+	- `@shr`
+- Fixed `@shlSat` having unused boolean template parameter
+- Fixed fatal error when using multiple different checked math operations
+
+### PIR
+- Added bitwise instructions:
+	- `@and`
+	- `@or`
+	- `@xor`
+	- `@shl`
+	- `@sshlsat`, `@ushlsat`
+	- `@sshr`, `@ushr`
+
+
+<!---------------------------------->
 ## v0.0.73.0
 
 ### Panther
@@ -10,7 +41,7 @@
 	- `@gt`, `@gte`
 
 ### PIR
-- Added comparison instructions
+- Added comparison instructions:
 	- `@ieq`, `@feq`
 	- `@ineq`, `@fneq`
 	- `@slt`, `@ult`, `@flt`
@@ -35,7 +66,7 @@
 - Added the `Assembly` build target
 
 ### PIR
-- Added arithmetic instructions
+- Added arithmetic instructions:
 	- `@saddSat`, `@uaddSat`
 	- `@sub`, `@ssubWrap`, `@usubWrap`, `@ssubSat`, `@usubSat`, `@fsub`
 	- `@mul`, `@smulWrap`, `@umulWrap`, `@smulSat`, `@umulSat`, `@fmul`

@@ -666,6 +666,109 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
+			case Expr::Kind::And: {
+				const And& and_stmt = agent.getAnd(stmt);
+				if(and_stmt.lhs.getKind() != Expr::Kind::Number || and_stmt.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(and_stmt.lhs);
+				const Number& rhs = agent.getNumber(and_stmt.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getInt().bitwiseAnd(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::Or: {
+				const Or& or_stmt = agent.getOr(stmt);
+				if(or_stmt.lhs.getKind() != Expr::Kind::Number || or_stmt.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(or_stmt.lhs);
+				const Number& rhs = agent.getNumber(or_stmt.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getInt().bitwiseOr(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::Xor: {
+				const Xor& xor_stmt = agent.getXor(stmt);
+				if(xor_stmt.lhs.getKind() != Expr::Kind::Number || xor_stmt.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(xor_stmt.lhs);
+				const Number& rhs = agent.getNumber(xor_stmt.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getInt().bitwiseXor(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::SHL: {
+				const SHL& shl = agent.getSHL(stmt);
+				if(shl.lhs.getKind() != Expr::Kind::Number || shl.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(shl.lhs);
+				const Number& rhs = agent.getNumber(shl.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getInt().ushl(rhs.getInt()).result);
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::SSHLSat: {
+				const SSHLSat& sshlsat = agent.getSSHLSat(stmt);
+				if(sshlsat.lhs.getKind() != Expr::Kind::Number || sshlsat.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(sshlsat.lhs);
+				const Number& rhs = agent.getNumber(sshlsat.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getInt().sshlSat(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::USHLSat: {
+				const USHLSat& ushlsat = agent.getUSHLSat(stmt);
+				if(ushlsat.lhs.getKind() != Expr::Kind::Number || ushlsat.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(ushlsat.lhs);
+				const Number& rhs = agent.getNumber(ushlsat.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getInt().ushlSat(rhs.getInt()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::SSHR: {
+				const SSHR& sshr = agent.getSSHR(stmt);
+				if(sshr.lhs.getKind() != Expr::Kind::Number || sshr.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(sshr.lhs);
+				const Number& rhs = agent.getNumber(sshr.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getInt().sshr(rhs.getInt()).result);
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::USHR: {
+				const USHR& ushr = agent.getUSHR(stmt);
+				if(ushr.lhs.getKind() != Expr::Kind::Number || ushr.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+				const Number& lhs = agent.getNumber(ushr.lhs);
+				const Number& rhs = agent.getNumber(ushr.rhs);
+
+				const Expr result_expr = agent.createNumber(lhs.type, lhs.getInt().ushr(rhs.getInt()).result);
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
 
 		}
 
@@ -951,50 +1054,60 @@ namespace pcit::pir::passes{
 			case Expr::Kind::FAdd: return false;
 
 			// TODO: 
-			case Expr::Kind::Sub: return false;
-			case Expr::Kind::SSubWrap: return false;
-			case Expr::Kind::SSubWrapResult: return false;
+			case Expr::Kind::Sub:             return false;
+			case Expr::Kind::SSubWrap:        return false;
+			case Expr::Kind::SSubWrapResult:  return false;
 			case Expr::Kind::SSubWrapWrapped: return false;
-			case Expr::Kind::USubWrap: return false;
-			case Expr::Kind::USubWrapResult: return false;
+			case Expr::Kind::USubWrap:        return false;
+			case Expr::Kind::USubWrapResult:  return false;
 			case Expr::Kind::USubWrapWrapped: return false;
-			case Expr::Kind::SSubSat: return false;
-			case Expr::Kind::USubSat: return false;
-			case Expr::Kind::FSub: return false;
-			case Expr::Kind::Mul: return false;
-			case Expr::Kind::SMulWrap: return false;
-			case Expr::Kind::SMulWrapResult: return false;
+			case Expr::Kind::SSubSat:         return false;
+			case Expr::Kind::USubSat:         return false;
+			case Expr::Kind::FSub:            return false;
+			case Expr::Kind::Mul:             return false;
+			case Expr::Kind::SMulWrap:        return false;
+			case Expr::Kind::SMulWrapResult:  return false;
 			case Expr::Kind::SMulWrapWrapped: return false;
-			case Expr::Kind::UMulWrap: return false;
-			case Expr::Kind::UMulWrapResult: return false;
+			case Expr::Kind::UMulWrap:        return false;
+			case Expr::Kind::UMulWrapResult:  return false;
 			case Expr::Kind::UMulWrapWrapped: return false;
-			case Expr::Kind::SMulSat: return false;
-			case Expr::Kind::UMulSat: return false;
-			case Expr::Kind::FMul: return false;
-			case Expr::Kind::SDiv: return false;
-			case Expr::Kind::UDiv: return false;
-			case Expr::Kind::FDiv: return false;
-			case Expr::Kind::SRem: return false;
-			case Expr::Kind::URem: return false;
-			case Expr::Kind::FRem: return false;
+			case Expr::Kind::SMulSat:         return false;
+			case Expr::Kind::UMulSat:         return false;
+			case Expr::Kind::FMul:            return false;
+			case Expr::Kind::SDiv:            return false;
+			case Expr::Kind::UDiv:            return false;
+			case Expr::Kind::FDiv:            return false;
+			case Expr::Kind::SRem:            return false;
+			case Expr::Kind::URem:            return false;
+			case Expr::Kind::FRem:            return false;
 
 			// TODO:
-			case Expr::Kind::IEq: return false;
-			case Expr::Kind::FEq: return false;
+			case Expr::Kind::IEq:  return false;
+			case Expr::Kind::FEq:  return false;
 			case Expr::Kind::INeq: return false;
 			case Expr::Kind::FNeq: return false;
-			case Expr::Kind::SLT: return false;
-			case Expr::Kind::ULT: return false;
-			case Expr::Kind::FLT: return false;
+			case Expr::Kind::SLT:  return false;
+			case Expr::Kind::ULT:  return false;
+			case Expr::Kind::FLT:  return false;
 			case Expr::Kind::SLTE: return false;
 			case Expr::Kind::ULTE: return false;
 			case Expr::Kind::FLTE: return false;
-			case Expr::Kind::SGT: return false;
-			case Expr::Kind::UGT: return false;
-			case Expr::Kind::FGT: return false;
+			case Expr::Kind::SGT:  return false;
+			case Expr::Kind::UGT:  return false;
+			case Expr::Kind::FGT:  return false;
 			case Expr::Kind::SGTE: return false;
 			case Expr::Kind::UGTE: return false;
 			case Expr::Kind::FGTE: return false;
+
+			// TODO:
+			case Expr::Kind::And:     return false;
+			case Expr::Kind::Or:      return false;
+			case Expr::Kind::Xor:     return false;
+			case Expr::Kind::SHL:     return false;
+			case Expr::Kind::SSHLSat: return false;
+			case Expr::Kind::USHLSat: return false;
+			case Expr::Kind::SSHR:    return false;
+			case Expr::Kind::USHR:    return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

@@ -533,6 +533,15 @@ namespace pcit::pir{
 			core::StepAlloc<UGTE, uint32_t> ugtes{};
 			core::StepAlloc<FGTE, uint32_t> fgtes{};
 
+			core::StepAlloc<And, uint32_t> ands{};
+			core::StepAlloc<Or, uint32_t> ors{};
+			core::StepAlloc<Xor, uint32_t> xors{};
+			core::StepAlloc<SHL, uint32_t> shls{};
+			core::StepAlloc<SSHLSat, uint32_t> sshlsats{};
+			core::StepAlloc<USHLSat, uint32_t> ushlsats{};
+			core::StepAlloc<SSHR, uint32_t> sshrs{};
+			core::StepAlloc<USHR, uint32_t> ushrs{};
+
 
 			// global values
 			core::StepAlloc<GlobalVar::String, GlobalVar::String::ID> global_strings{};

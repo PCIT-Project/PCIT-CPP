@@ -109,6 +109,15 @@ namespace pcit::pir{
 				SGTE,
 				UGTE,
 				FGTE,
+
+				And,
+				Or,
+				Xor,
+				SHL,
+				SSHLSat,
+				USHLSat,
+				SSHR,
+				USHR,
 			};
 
 		public:
@@ -142,7 +151,9 @@ namespace pcit::pir{
 					case Kind::FLT:             case Kind::SLTE:            case Kind::ULTE:
 					case Kind::FLTE:            case Kind::SGT:             case Kind::UGT:
 					case Kind::FGT:             case Kind::SGTE:            case Kind::UGTE:
-					case Kind::FGTE: {
+					case Kind::FGTE:            case Kind::And:             case Kind::Or:
+					case Kind::Xor:             case Kind::SHL:             case Kind::SSHLSat:
+					case Kind::USHLSat:         case Kind::SSHR:            case Kind::USHR: {
 						return true;
 					} break;
 					default: return false;
@@ -182,7 +193,9 @@ namespace pcit::pir{
 					case Kind::FLT:             case Kind::SLTE:            case Kind::ULTE:
 					case Kind::FLTE:            case Kind::SGT:             case Kind::UGT:
 					case Kind::FGT:             case Kind::SGTE:            case Kind::UGTE:
-					case Kind::FGTE: {
+					case Kind::FGTE:            case Kind::And:             case Kind::Or:
+					case Kind::Xor:             case Kind::SHL:             case Kind::SSHLSat:
+					case Kind::USHLSat:         case Kind::SSHR:            case Kind::USHR: {
 						return true;
 					} break;
 					default: return false;
@@ -710,6 +723,62 @@ namespace pcit::pir{
 		std::string name;
 		Expr lhs;
 		Expr rhs;
+	};
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// bitwise
+
+	struct And{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct Or{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct Xor{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SHL{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+		bool mayWrap;
+	};
+
+	struct SSHLSat{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct USHLSat{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+	};
+
+	struct SSHR{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+		bool isExact;
+	};
+
+	struct USHR{
+		std::string name;
+		Expr lhs;
+		Expr rhs;
+		bool isExact;
 	};
 
 

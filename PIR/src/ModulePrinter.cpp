@@ -765,6 +765,46 @@ namespace pcit::pir{
 				this->printer.print("${}", fgte.name);
 			} break;
 
+			case Expr::Kind::And: {
+				const And& and_stmt = this->reader.getAnd(expr);
+				this->printer.print("${}", and_stmt.name);
+			} break;
+
+			case Expr::Kind::Or: {
+				const Or& or_stmt = this->reader.getOr(expr);
+				this->printer.print("${}", or_stmt.name);
+			} break;
+
+			case Expr::Kind::Xor: {
+				const Xor& xor_stmt = this->reader.getXor(expr);
+				this->printer.print("${}", xor_stmt.name);
+			} break;
+
+			case Expr::Kind::SHL: {
+				const SHL& shl = this->reader.getSHL(expr);
+				this->printer.print("${}", shl.name);
+			} break;
+
+			case Expr::Kind::SSHLSat: {
+				const SSHLSat& sshlsat = this->reader.getSSHLSat(expr);
+				this->printer.print("${}", sshlsat.name);
+			} break;
+
+			case Expr::Kind::USHLSat: {
+				const USHLSat& ushlsat = this->reader.getUSHLSat(expr);
+				this->printer.print("${}", ushlsat.name);
+			} break;
+
+			case Expr::Kind::SSHR: {
+				const SSHR& sshr = this->reader.getSSHR(expr);
+				this->printer.print("${}", sshr.name);
+			} break;
+
+			case Expr::Kind::USHR: {
+				const USHR& ushr = this->reader.getUSHR(expr);
+				this->printer.print("${}", ushr.name);
+			} break;
+
 		}
 	}
 
@@ -1486,6 +1526,98 @@ namespace pcit::pir{
 				this->print_expr(fgte.rhs);
 				this->printer.println();
 			} break;
+
+			case Expr::Kind::And: {
+				const And& and_stmt = this->reader.getAnd(stmt);
+
+				this->printer.print("{}${} ", tabs(2), and_stmt.name);
+				this->printer.printRed("= @and_stmt ");
+				this->print_expr(and_stmt.lhs);
+				this->printer.print(", ");
+				this->print_expr(and_stmt.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::Or: {
+				const Or& or_stmt = this->reader.getOr(stmt);
+
+				this->printer.print("{}${} ", tabs(2), or_stmt.name);
+				this->printer.printRed("= @or_stmt ");
+				this->print_expr(or_stmt.lhs);
+				this->printer.print(", ");
+				this->print_expr(or_stmt.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::Xor: {
+				const Xor& xor_stmt = this->reader.getXor(stmt);
+
+				this->printer.print("{}${} ", tabs(2), xor_stmt.name);
+				this->printer.printRed("= @xor_stmt ");
+				this->print_expr(xor_stmt.lhs);
+				this->printer.print(", ");
+				this->print_expr(xor_stmt.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SHL: {
+				const SHL& shl = this->reader.getSHL(stmt);
+
+				this->printer.print("{}${} ", tabs(2), shl.name);
+				this->printer.printRed("= @shl ");
+				this->print_expr(shl.lhs);
+				this->printer.print(", ");
+				this->print_expr(shl.rhs);
+				if(shl.mayWrap){ this->printer.printRed(" #mayWrap"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SSHLSat: {
+				const SSHLSat& sshlsat = this->reader.getSSHLSat(stmt);
+
+				this->printer.print("{}${} ", tabs(2), sshlsat.name);
+				this->printer.printRed("= @sshlSat ");
+				this->print_expr(sshlsat.lhs);
+				this->printer.print(", ");
+				this->print_expr(sshlsat.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::USHLSat: {
+				const USHLSat& ushlsat = this->reader.getUSHLSat(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ushlsat.name);
+				this->printer.printRed("= @ushlSat ");
+				this->print_expr(ushlsat.lhs);
+				this->printer.print(", ");
+				this->print_expr(ushlsat.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::SSHR: {
+				const SSHR& sshr = this->reader.getSSHR(stmt);
+
+				this->printer.print("{}${} ", tabs(2), sshr.name);
+				this->printer.printRed("= @sshr ");
+				this->print_expr(sshr.lhs);
+				this->printer.print(", ");
+				this->print_expr(sshr.rhs);
+				if(sshr.isExact){ this->printer.printRed(" #exact"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::USHR: {
+				const USHR& ushr = this->reader.getUSHR(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ushr.name);
+				this->printer.printRed("= @ushr ");
+				this->print_expr(ushr.lhs);
+				this->printer.print(", ");
+				this->print_expr(ushr.rhs);
+				if(ushr.isExact){ this->printer.printRed(" #exact"); }
+				this->printer.println();
+			} break;
+
 		}
 	}
 

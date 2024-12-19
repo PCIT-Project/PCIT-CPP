@@ -564,6 +564,63 @@ namespace pcit::pir{
 						if(fgte.lhs == original){ fgte.lhs = replacement; }
 						if(fgte.rhs == original){ fgte.rhs = replacement; }
 					} break;
+
+					case Expr::Kind::And: {
+						And& and_stmt = this->module.ands[stmt.index];
+
+						if(and_stmt.lhs == original){ and_stmt.lhs = replacement; }
+						if(and_stmt.rhs == original){ and_stmt.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::Or: {
+						Or& or_stmt = this->module.ors[stmt.index];
+
+						if(or_stmt.lhs == original){ or_stmt.lhs = replacement; }
+						if(or_stmt.rhs == original){ or_stmt.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::Xor: {
+						Xor& xor_stmt = this->module.xors[stmt.index];
+
+						if(xor_stmt.lhs == original){ xor_stmt.lhs = replacement; }
+						if(xor_stmt.rhs == original){ xor_stmt.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SHL: {
+						SHL& shl = this->module.shls[stmt.index];
+
+						if(shl.lhs == original){ shl.lhs = replacement; }
+						if(shl.rhs == original){ shl.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SSHLSat: {
+						SSHLSat& sshlsat = this->module.sshlsats[stmt.index];
+
+						if(sshlsat.lhs == original){ sshlsat.lhs = replacement; }
+						if(sshlsat.rhs == original){ sshlsat.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::USHLSat: {
+						USHLSat& ushlsat = this->module.ushlsats[stmt.index];
+
+						if(ushlsat.lhs == original){ ushlsat.lhs = replacement; }
+						if(ushlsat.rhs == original){ ushlsat.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::SSHR: {
+						SSHR& sshr = this->module.sshrs[stmt.index];
+
+						if(sshr.lhs == original){ sshr.lhs = replacement; }
+						if(sshr.rhs == original){ sshr.rhs = replacement; }
+					} break;
+
+					case Expr::Kind::USHR: {
+						USHR& ushr = this->module.ushrs[stmt.index];
+
+						if(ushr.lhs == original){ ushr.lhs = replacement; }
+						if(ushr.rhs == original){ ushr.rhs = replacement; }
+					} break;
+
 				}
 			}
 		}
@@ -2378,7 +2435,176 @@ namespace pcit::pir{
 
 
 
+	//////////////////////////////////////////////////////////////////////
+	// bitwise
 
+
+	auto Agent::createAnd(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @and instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::And,
+			this->module.ands.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getAnd(const Expr& expr) const -> const And& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getAnd(expr);
+	}
+
+
+	auto Agent::createOr(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @or instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::Or,
+			this->module.ors.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getOr(const Expr& expr) const -> const Or& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getOr(expr);
+	}
+
+
+	auto Agent::createXor(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @xor instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::Xor,
+			this->module.xors.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getXor(const Expr& expr) const -> const Xor& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getXor(expr);
+	}
+
+
+	auto Agent::createSHL(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @shl instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SHL,
+			this->module.shls.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, may_wrap)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSHL(const Expr& expr) const -> const SHL& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSHL(expr);
+	}
+
+
+	auto Agent::createSSHLSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @sshlsat instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SSHLSat,
+			this->module.sshlsats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSSHLSat(const Expr& expr) const -> const SSHLSat& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSSHLSat(expr);
+	}
+
+
+	auto Agent::createUSHLSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ushlsat instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::USHLSat,
+			this->module.ushlsats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUSHLSat(const Expr& expr) const -> const USHLSat& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUSHLSat(expr);
+	}
+
+
+	auto Agent::createSSHR(const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @sshr instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::SSHR,
+			this->module.sshrs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, is_exact)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSSHR(const Expr& expr) const -> const SSHR& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSSHR(expr);
+	}
+
+
+	auto Agent::createUSHR(const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
+		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
+		evo::debugAssert(
+			this->getExprType(lhs).getKind() == Type::Kind::Integer, "The @ushr instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::USHR,
+			this->module.ushrs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, is_exact)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getUSHR(const Expr& expr) const -> const USHR& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getUSHR(expr);
+	}
 
 
 
@@ -2482,6 +2708,14 @@ namespace pcit::pir{
 			break; case Expr::Kind::SGTE:            this->module.sgtes.erase(expr.index);
 			break; case Expr::Kind::UGTE:            this->module.ugtes.erase(expr.index);
 			break; case Expr::Kind::FGTE:            this->module.fgtes.erase(expr.index);
+			break; case Expr::Kind::And:             this->module.ands.erase(expr.index);
+			break; case Expr::Kind::Or:              this->module.ors.erase(expr.index);
+			break; case Expr::Kind::Xor:             this->module.xors.erase(expr.index);
+			break; case Expr::Kind::SHL:             this->module.shls.erase(expr.index);
+			break; case Expr::Kind::SSHLSat:         this->module.sshlsats.erase(expr.index);
+			break; case Expr::Kind::USHLSat:         this->module.ushlsats.erase(expr.index);
+			break; case Expr::Kind::SSHR:            this->module.sshrs.erase(expr.index);
+			break; case Expr::Kind::USHR:            this->module.ushrs.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -2612,6 +2846,14 @@ namespace pcit::pir{
 					case Expr::Kind::SGTE:            if(this->getSGTE(stmt).name == name){ return true; } continue;
 					case Expr::Kind::UGTE:            if(this->getUGTE(stmt).name == name){ return true; } continue;
 					case Expr::Kind::FGTE:            if(this->getFGTE(stmt).name == name){ return true; } continue;
+					case Expr::Kind::And:             if(this->getAnd(stmt).name == name){ return true; } continue;
+					case Expr::Kind::Or:              if(this->getOr(stmt).name == name){ return true; } continue;
+					case Expr::Kind::Xor:             if(this->getXor(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SHL:             if(this->getSHL(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SSHLSat:         if(this->getSSHLSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::USHLSat:         if(this->getUSHLSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SSHR:            if(this->getSSHR(stmt).name == name){ return true; } continue;
+					case Expr::Kind::USHR:            if(this->getUSHR(stmt).name == name){ return true; } continue;
 				}
 			}
 		}

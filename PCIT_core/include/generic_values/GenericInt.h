@@ -221,13 +221,13 @@ namespace pcit::core{
 				return GenericInt(this->ap_int.ushl_sat(rhs.ap_int));
 			}
 
-			EVO_NODISCARD auto ashr(const GenericInt& rhs) const -> WrapResult {
+			EVO_NODISCARD auto sshr(const GenericInt& rhs) const -> WrapResult {
 				llvmint::APInt result = this->ap_int.ashr(rhs.ap_int);
 				const bool wrapped = result.ne(this->ap_int);
 				return WrapResult(GenericInt(std::move(result)), wrapped);
 			}
 
-			EVO_NODISCARD auto lshr(const GenericInt& rhs) const -> WrapResult {
+			EVO_NODISCARD auto ushr(const GenericInt& rhs) const -> WrapResult {
 				llvmint::APInt result = this->ap_int.lshr(rhs.ap_int);
 				const bool wrapped = result.ne(this->ap_int);
 				return WrapResult(GenericInt(std::move(result)), wrapped);

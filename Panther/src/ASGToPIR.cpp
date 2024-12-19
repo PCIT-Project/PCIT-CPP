@@ -1714,132 +1714,103 @@ namespace pcit::panther{
 
 
 				///////////////////////////////////
-				// remainder
+				// bitwise
 
 				case TemplatedIntrinsic::Kind::And: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@and)");
-					evo::breakpoint();
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createAnd(args[0], args[1], this->stmt_name("AND"))
-					// };
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createAnd(args[0], args[1], this->stmt_name("AND"))
+					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::Or: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@or)");
-					evo::breakpoint();
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createOr(args[0], args[1], this->stmt_name("OR"))
-					// };	
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createOr(args[0], args[1], this->stmt_name("OR"))
+					};	
 				} break;
 
 				case TemplatedIntrinsic::Kind::Xor: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@xor)");
-					evo::breakpoint();
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createXor(args[0], args[1], this->stmt_name("XOR"))
-					// };
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createXor(args[0], args[1], this->stmt_name("XOR"))
+					};
 				} break;
 
 				case TemplatedIntrinsic::Kind::SHL: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@shl)");
-					evo::breakpoint();
-
-					// const bool may_wrap = instantiation.templateArgs[2].as<bool>();
-					// if(may_wrap){
-					// 	return evo::SmallVector<llvmint::Value>{
-					// 		this->builder.createSHL(args[0], args[1], false, false, this->stmt_name("SHL"))
-					// 	};
-					// }
+					const bool may_wrap = instantiation.templateArgs[2].as<bool>();
+					if(may_wrap){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createSHL(args[0], args[1], true, this->stmt_name("SHL"))
+						};
+					}
 						
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
+					const pir::Expr shift_value = this->agent.createSHL(
+						args[0], args[1], false, this->stmt_name("SHL")
+					);
 
-					// const llvmint::Value shift_value = this->builder.createSHL(
-					// 	args[0], args[1], is_unsigned, !is_unsigned, this->stmt_name("SHL")
-					// );
+					if(this->config.checkedMath){
+						const pir::Expr check_value = [&](){
+							if(is_unsigned){
+								return this->agent.createUSHR(
+									shift_value, args[1], false, this->stmt_name("SHL.CHECK")
+								);
+							}else{
+								return this->agent.createSSHR(
+									shift_value, args[1], false, this->stmt_name("SHL.CHECK")
+								);
+							}
+						}();
 
-					// if(this->config.checkedMath){
-					// 	const llvmint::Value check_value = [&](){
-					// 		if(is_unsigned){
-					// 			return this->builder.createLSHR(
-					// 				shift_value, args[1], true, this->stmt_name("SHL.CHECK")
-					// 			);
-					// 		}else{
-					// 			return this->builder.createASHR(
-					// 				shift_value, args[1], true, this->stmt_name("SHL.CHECK")
-					// 			);
-					// 		}
-					// 	}();
+						this->add_fail_assertion(
+							this->agent.createINeq(check_value, args[0], this->stmt_name("SHL.CHECK_NEQ")),
+							"SHL_CHECK",
+							"Shift-Left overflow",
+							func_call.location
+						);
+					}
 
-					// 	this->add_fail_assertion(
-					// 		this->builder.createINE(check_value, args[0], this->stmt_name("SHL.CHECK_NEQ")),
-					// 		"SHL_CHECK",
-					// 		"Bit-shift-left overflow",
-					// 		func_call.location
-					// 	);
-					// }
-
-					// return evo::SmallVector<llvmint::Value>{shift_value};
+					return evo::SmallVector<pir::Expr>{shift_value};
 				} break;
 
 				case TemplatedIntrinsic::Kind::SHLSat: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@shlSat)");
-					evo::breakpoint();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-
-					// const llvmint::IRBuilder::IntrinsicID intrinsic_id = is_unsigned 
-					// 	? llvmint::IRBuilder::IntrinsicID::ushlSat
-					// 	: llvmint::IRBuilder::IntrinsicID::sshlSat;
-
-					// return evo::SmallVector<llvmint::Value>{
-					// 	this->builder.createIntrinsicCall(
-					// 		intrinsic_id, this->get_type(arg_type), args, this->stmt_name("SHL_SAT")
-					// 	).asValue()
-					// };
+					if(is_unsigned){
+						return evo::SmallVector<pir::Expr>{this->agent.createUSHLSat(args[0], args[1], "SHL_SAT")};
+					}else{
+						return evo::SmallVector<pir::Expr>{this->agent.createSSHLSat(args[0], args[1], "SHL_SAT")};
+					}
 				} break;
 
 				case TemplatedIntrinsic::Kind::SHR: {
-					// TODO: 
-					evo::log::fatal("UNIMPLEMENTED (@shr)");
-					evo::breakpoint();
-					
-					// const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
-					// const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
-					// const bool is_exact = instantiation.templateArgs[2].as<bool>();
+					const TypeInfo::ID arg_type = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
+					const bool is_exact = instantiation.templateArgs[2].as<bool>();
 
-					// const llvmint::Value shift_value = [&](){
-					// 	if(is_unsigned){
-					// 		return this->builder.createLSHR(args[0], args[1], is_exact, this->stmt_name("SHR"));
-					// 	}else{
-					// 		return this->builder.createASHR(args[0], args[1], is_exact, this->stmt_name("SHR"));
-					// 	}
-					// }();
+					const pir::Expr shift_value = [&](){
+						if(is_unsigned){
+							return this->agent.createUSHR(args[0], args[1], is_exact, this->stmt_name("SHR"));
+						}else{
+							return this->agent.createSSHR(args[0], args[1], is_exact, this->stmt_name("SHR"));
+						}
+					}();
 
-					// if(!is_exact && this->config.checkedMath){
-					// 	const llvmint::Value check_value = this->builder.createSHL(
-					// 		shift_value, args[1], true, false, this->stmt_name("SHR.CHECK")
-					// 	);
+					if(!is_exact && this->config.checkedMath){
+						const pir::Expr check_value = this->agent.createSHL(
+							shift_value, args[1], false, this->stmt_name("SHR.CHECK")
+						);
 
-					// 	this->add_fail_assertion(
-					// 		this->builder.createINE(check_value, args[0], this->stmt_name("SHR.CHECK_NEQ")),
-					// 		"SHR_CHECK",
-					// 		"Bit-shift-right overflow",
-					// 		func_call.location
-					// 	);
-					// }
+						this->add_fail_assertion(
+							this->agent.createINeq(check_value, args[0], this->stmt_name("SHR.CHECK_NEQ")),
+							"SHR_CHECK",
+							"Shift-Right overflow",
+							func_call.location
+						);
+					}
 
-					// return evo::SmallVector<llvmint::Value>{shift_value};
+					return evo::SmallVector<pir::Expr>{shift_value};
 				} break;
 
 
@@ -1867,7 +1838,7 @@ namespace pcit::panther{
 			const pir::GlobalVar::String::ID str_value = this->module.createGlobalString(std::move(str_message));
 
 			const pir::GlobalVar::ID str_global = this->module.createGlobalVar(
-				"PTHR.panic_message",
+				std::format("PTHR.panic_message.{}", this->globals.panic_messages.size()),
 				this->module.getGlobalString(str_value).type,
 				pir::Linkage::Private,
 				str_value,

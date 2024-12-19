@@ -4751,6 +4751,230 @@ namespace pcit::panther{
 			} break;
 
 
+			case Token::lookupKind("&"):  case Token::lookupKind("|"):   case Token::lookupKind("^"):
+			case Token::lookupKind("<<"): case Token::lookupKind("<<|"): case Token::lookupKind(">>"): {
+				///////////////////////////////////
+				// lhs
+
+				evo::Result<ExprInfo> lhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.lhs);
+				if(lhs_expr_info.isError()){ return evo::resultError; }
+
+				if(
+					(lhs_expr_info.value().is_ephemeral() == false && lhs_expr_info.value().is_concrete() == false)
+					|| lhs_expr_info.value().hasExpr() == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidInfixLHS,
+						infix.lhs,
+						std::format("Invalid LHS of [{}] operation", infix_op)
+					);
+					return evo::resultError;
+				}
+
+				const bool is_lhs_fluid = lhs_expr_info.value().value_type == ExprInfo::ValueType::EphemeralFluid;
+
+
+				///////////////////////////////////
+				// rhs
+
+				evo::Result<ExprInfo> rhs_expr_info = this->analyze_expr<EXPR_VALUE_KIND>(infix.rhs);
+				if(rhs_expr_info.isError()){ return evo::resultError; }
+
+				if(
+					(rhs_expr_info.value().is_ephemeral() == false && rhs_expr_info.value().is_concrete() == false)
+					|| rhs_expr_info.value().hasExpr() == false
+				){
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidInfixLHS,
+						infix.rhs,
+						std::format("Invalid RHS of [{}] operation", infix_op)
+					);
+					return evo::resultError;
+				}
+
+				const bool is_rhs_fluid = rhs_expr_info.value().value_type == ExprInfo::ValueType::EphemeralFluid;
+
+
+				///////////////////////////////////
+				// op
+
+				if(is_lhs_fluid && is_rhs_fluid){
+					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+						return ExprInfo(ExprInfo::ValueType::EphemeralFluid, std::monostate(), std::nullopt);
+
+					}else{
+						const core::GenericInt& lhs_literal = this->source.getASGBuffer().getLiteralInt(
+							lhs_expr_info.value().getExpr().literalIntID()
+						).value;
+
+						const core::GenericInt& rhs_literal = this->source.getASGBuffer().getLiteralInt(
+							rhs_expr_info.value().getExpr().literalIntID()
+						).value;
+
+						const core::GenericInt result = [&](){
+							switch(infix_op){
+								case Token::lookupKind("&"):   return lhs_literal.bitwiseAnd(rhs_literal);
+								case Token::lookupKind("|"):   return lhs_literal.bitwiseOr(rhs_literal);
+								case Token::lookupKind("^"):   return lhs_literal.bitwiseXor(rhs_literal);
+								case Token::lookupKind("<<"):  return lhs_literal.sshl(rhs_literal).result;
+								case Token::lookupKind("<<|"): return lhs_literal.sshlSat(rhs_literal);
+								case Token::lookupKind(">>"):  return lhs_literal.sshr(rhs_literal).result;
+							}
+
+							evo::debugFatalBreak("Unknown or unsupported arithmetic operator");
+						}();
+
+						const ASG::LiteralInt::ID new_literal_int
+							= this->source.asg_buffer.createLiteralInt(std::move(result), std::nullopt);
+
+						return ExprInfo(
+							ExprInfo::ValueType::EphemeralFluid, std::monostate(), ASG::Expr(new_literal_int)
+						);
+					}
+
+				}else if(is_lhs_fluid){
+					const TypeInfo::ID rhs_type_id =
+						rhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+					const bool is_integral = this->context.getTypeManager().isIntegral(rhs_type_id);
+					if(!is_integral){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixRHS,
+							infix.rhs,
+							std::format("Invalid RHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;
+					}
+
+					if(this->type_check<true>(
+						rhs_type_id, lhs_expr_info.value(), std::format("LHS of [{}] operator", infix_op), infix.lhs
+					).ok == false){
+						return evo::resultError;
+					}
+
+
+				}else{
+					const TypeInfo::ID lhs_type_id =
+						lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+					if(this->context.getTypeManager().isBuiltin(lhs_type_id) == false){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidInfixLHS,
+							infix.lhs,
+							std::format("Invalid LHS of [{}] operator", infix_op)
+						);
+						return evo::resultError;
+					}
+
+					if(this->type_check<true>(
+						lhs_type_id, rhs_expr_info.value(), std::format("RHS of [{}] operator", infix_op), infix.rhs
+					).ok == false){
+						return evo::resultError;
+					}
+				}
+
+				const TypeInfo::ID op_type_id =
+					lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(ExprInfo::ValueType::EphemeralFluid, std::monostate(), std::nullopt);
+
+				}else if constexpr(EXPR_VALUE_KIND == ExprValueKind::ConstEval){
+					evo::SmallVector<ASG::Expr> computed_result = [&](){
+						switch(infix_op){
+							case Token::lookupKind("&"): return sema_helper::ComptimeIntrins(this)
+								.bitwiseAnd({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind("|"): return sema_helper::ComptimeIntrins(this)
+								.bitwiseOr({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind("^"): return sema_helper::ComptimeIntrins(this)
+								.bitwiseXor({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind("<<"):
+								return sema_helper::ComptimeIntrins(this).shl(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()},
+									true,
+									this->get_source_location(infix.opTokenID)
+								).value();
+
+							case Token::lookupKind("<<|"): return sema_helper::ComptimeIntrins(this)
+								.shlSat({lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()});
+
+							case Token::lookupKind(">>"):
+								return sema_helper::ComptimeIntrins(this).shr(
+									{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()},
+									true,
+									this->get_source_location(infix.opTokenID)
+								).value();
+						}
+
+						evo::debugFatalBreak("Unknown or unsupported logical operator");
+					}();
+
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(op_type_id),
+						std::move(computed_result)
+					);
+
+				}else{
+					auto instantiation_args = evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{
+						TypeInfo::VoidableID(op_type_id)
+					};
+
+					const TemplatedIntrinsic::Kind templated_intrinsic_kind = [&](){ 
+						switch(infix_op){
+							case Token::lookupKind("&"):   return TemplatedIntrinsic::Kind::And;
+							case Token::lookupKind("|"):   return TemplatedIntrinsic::Kind::Or;
+							case Token::lookupKind("^"):   return TemplatedIntrinsic::Kind::Xor;
+							case Token::lookupKind("<<"): {
+								instantiation_args.emplace_back(
+									rhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
+								);
+								instantiation_args.emplace_back(false);
+								return TemplatedIntrinsic::Kind::SHL;
+							} break;
+							case Token::lookupKind("<<|"): {
+								instantiation_args.emplace_back(
+									rhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
+								);
+								return TemplatedIntrinsic::Kind::SHLSat;
+							} break;
+							case Token::lookupKind(">>"): {
+								instantiation_args.emplace_back(
+									rhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
+								);
+								instantiation_args.emplace_back(false);
+								return TemplatedIntrinsic::Kind::SHR;
+							} break;
+						}
+
+						evo::debugFatalBreak("Unknown or unsupported arithmetic operator");
+					}();
+
+					const ASG::TemplatedIntrinsicInstantiation::ID asg_templated_intrinsic_instantiation_id 
+						= this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+							templated_intrinsic_kind, std::move(instantiation_args)
+						);
+
+					const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
+						asg_templated_intrinsic_instantiation_id,
+						evo::SmallVector<ASG::Expr>{lhs_expr_info.value().getExpr(), rhs_expr_info.value().getExpr()},
+						ASG::Location::fromSourceLocation(this->get_source_location(infix))
+					);
+
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral,
+						ExprInfo::generateExprInfoTypeIDs(
+							lhs_expr_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front()
+						),
+						ASG::Expr(created_func_call_id)
+					);
+				}
+			} break;
+
 			default: {
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,

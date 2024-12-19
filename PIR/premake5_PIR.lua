@@ -12,6 +12,10 @@ project "PIR"
 		"./src/**.cpp",
 	}
 
+	filter "action:vs*"
+		buildoptions { "/bigobj" }
+	filter {}
+
 	
 	includedirs{
 		(config.location .. "/PCIT_core/include"),

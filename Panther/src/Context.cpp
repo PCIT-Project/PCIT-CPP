@@ -699,8 +699,17 @@ namespace pcit::panther{
 
 
 
-		const auto shift_func = TemplatedIntrinsic(
+		const auto shift_func_with_bool = TemplatedIntrinsic(
 			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TYPE_ARG, TypeManager::getTypeBool()},
+			evo::SmallVector<TemplatedIntrinsic::Param>{
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(1)),
+			},
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0)}
+		);
+
+		const auto shift_func = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG, TYPE_ARG},
 			evo::SmallVector<TemplatedIntrinsic::Param>{
 				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
 				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(1)),
@@ -711,9 +720,9 @@ namespace pcit::panther{
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::And)]    = arithmetic_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Or)]     = arithmetic_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Xor)]    = arithmetic_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SHL)]    = shift_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SHL)]    = shift_func_with_bool;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SHLSat)] = shift_func;
-		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SHR)]    = shift_func;
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::SHR)]    = shift_func_with_bool;
 
 
 

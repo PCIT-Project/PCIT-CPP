@@ -128,6 +128,15 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getUGTE(const Expr& expr) const -> const UGTE&;
 			EVO_NODISCARD auto getFGTE(const Expr& expr) const -> const FGTE&;
 
+			EVO_NODISCARD auto getAnd(const Expr& expr) const -> const And&;
+			EVO_NODISCARD auto getOr(const Expr& expr) const -> const Or&;
+			EVO_NODISCARD auto getXor(const Expr& expr) const -> const Xor&;
+			EVO_NODISCARD auto getSHL(const Expr& expr) const -> const SHL&;
+			EVO_NODISCARD auto getSSHLSat(const Expr& expr) const -> const SSHLSat&;
+			EVO_NODISCARD auto getUSHLSat(const Expr& expr) const -> const USHLSat&;
+			EVO_NODISCARD auto getSSHR(const Expr& expr) const -> const SSHR&;
+			EVO_NODISCARD auto getUSHR(const Expr& expr) const -> const USHR&;
+
 		private:
 			const Module& module;
 			const Function* target_func;

@@ -679,9 +679,9 @@ namespace pcit::panther{
 			-> evo::Result<core::GenericInt> {
 				const core::GenericInt::WrapResult result = [&](){
 					if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
-						return lhs.lshr(rhs);
+						return lhs.ushr(rhs);
 					}else{
-						return lhs.ashr(rhs);
+						return lhs.sshr(rhs);
 					}
 				}();
 				if(result.wrapped && !may_overflow){ return evo::Result<core::GenericInt>::error(); }

@@ -120,6 +120,14 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::SGTE:            func_metadata.emplace(expr);
 					break; case Expr::Kind::UGTE:            func_metadata.emplace(expr);
 					break; case Expr::Kind::FGTE:            func_metadata.emplace(expr);
+					break; case Expr::Kind::And:             func_metadata.emplace(expr);
+					break; case Expr::Kind::Or:              func_metadata.emplace(expr);
+					break; case Expr::Kind::Xor:             func_metadata.emplace(expr);
+					break; case Expr::Kind::SHL:             func_metadata.emplace(expr);
+					break; case Expr::Kind::SSHLSat:         func_metadata.emplace(expr);
+					break; case Expr::Kind::USHLSat:         func_metadata.emplace(expr);
+					break; case Expr::Kind::SSHR:            func_metadata.emplace(expr);
+					break; case Expr::Kind::USHR:            func_metadata.emplace(expr);
 				}
 			};
 
@@ -814,6 +822,86 @@ namespace pcit::pir::passes{
 					const FGTE& fgte = agent.getFGTE(stmt);
 					see_expr(fgte.lhs);
 					see_expr(fgte.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::And: {
+					if(remove_unused_stmt()){ return true; }
+
+					const And& and_stmt = agent.getAnd(stmt);
+					see_expr(and_stmt.lhs);
+					see_expr(and_stmt.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::Or: {
+					if(remove_unused_stmt()){ return true; }
+
+					const Or& or_stmt = agent.getOr(stmt);
+					see_expr(or_stmt.lhs);
+					see_expr(or_stmt.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::Xor: {
+					if(remove_unused_stmt()){ return true; }
+
+					const Xor& xor_stmt = agent.getXor(stmt);
+					see_expr(xor_stmt.lhs);
+					see_expr(xor_stmt.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SHL: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SHL& shl = agent.getSHL(stmt);
+					see_expr(shl.lhs);
+					see_expr(shl.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SSHLSat: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SSHLSat& sshlsat = agent.getSSHLSat(stmt);
+					see_expr(sshlsat.lhs);
+					see_expr(sshlsat.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::USHLSat: {
+					if(remove_unused_stmt()){ return true; }
+
+					const USHLSat& ushlsat = agent.getUSHLSat(stmt);
+					see_expr(ushlsat.lhs);
+					see_expr(ushlsat.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::SSHR: {
+					if(remove_unused_stmt()){ return true; }
+
+					const SSHR& sshr = agent.getSSHR(stmt);
+					see_expr(sshr.lhs);
+					see_expr(sshr.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::USHR: {
+					if(remove_unused_stmt()){ return true; }
+
+					const USHR& ushr = agent.getUSHR(stmt);
+					see_expr(ushr.lhs);
+					see_expr(ushr.rhs);
 
 					return false;
 				} break;

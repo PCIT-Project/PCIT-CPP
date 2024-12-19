@@ -983,6 +983,101 @@ namespace pcit::pir{
 						const llvmint::Value fgte_value = this->builder.createFCmpGE(lhs, rhs, fgte.name);
 						this->stmt_values.emplace(stmt, fgte_value);
 					} break;
+
+					case Expr::Kind::And: {
+						const And& and_stmt = this->reader.getAnd(stmt);
+
+						const llvmint::Value lhs = this->get_value(and_stmt.lhs);
+						const llvmint::Value rhs = this->get_value(and_stmt.rhs);
+
+						const llvmint::Value and_value = this->builder.createAnd(lhs, rhs, and_stmt.name);
+						this->stmt_values.emplace(stmt, and_value);
+					} break;
+
+					case Expr::Kind::Or: {
+						const Or& or_stmt = this->reader.getOr(stmt);
+
+						const llvmint::Value lhs = this->get_value(or_stmt.lhs);
+						const llvmint::Value rhs = this->get_value(or_stmt.rhs);
+
+						const llvmint::Value or_value = this->builder.createOr(lhs, rhs, or_stmt.name);
+						this->stmt_values.emplace(stmt, or_value);
+					} break;
+
+					case Expr::Kind::Xor: {
+						const Xor& xor_stmt = this->reader.getXor(stmt);
+
+						const llvmint::Value lhs = this->get_value(xor_stmt.lhs);
+						const llvmint::Value rhs = this->get_value(xor_stmt.rhs);
+
+						const llvmint::Value xor_value = this->builder.createXor(lhs, rhs, xor_stmt.name);
+						this->stmt_values.emplace(stmt, xor_value);
+					} break;
+
+					case Expr::Kind::SHL: {
+						const SHL& shl = this->reader.getSHL(stmt);
+
+						const llvmint::Value lhs = this->get_value(shl.lhs);
+						const llvmint::Value rhs = this->get_value(shl.rhs);
+
+						const llvmint::Value shl_value = this->builder.createSHL(
+							lhs, rhs, !shl.mayWrap, !shl.mayWrap, shl.name
+						);
+						this->stmt_values.emplace(stmt, shl_value);
+					} break;
+
+					case Expr::Kind::SSHLSat: {
+						const SSHLSat& sshl_sat = this->reader.getSSHLSat(stmt);
+						const Type& sshlsat_type = this->reader.getExprType(sshl_sat.lhs);
+
+						const llvmint::Value lhs = this->get_value(sshl_sat.lhs);
+						const llvmint::Value rhs = this->get_value(sshl_sat.rhs);
+
+						const llvmint::Value sshl_sat_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::sshlSat,
+							this->get_type(sshlsat_type),
+							{this->get_value(sshl_sat.lhs), this->get_value(sshl_sat.rhs)},
+							sshl_sat.name
+						).asValue();
+						this->stmt_values.emplace(stmt, sshl_sat_value);
+					} break;
+
+					case Expr::Kind::USHLSat: {
+						const USHLSat& ushl_sat = this->reader.getUSHLSat(stmt);
+						const Type& ushlsat_type = this->reader.getExprType(ushl_sat.lhs);
+
+						const llvmint::Value lhs = this->get_value(ushl_sat.lhs);
+						const llvmint::Value rhs = this->get_value(ushl_sat.rhs);
+
+						const llvmint::Value ushl_sat_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::ushlSat,
+							this->get_type(ushlsat_type),
+							{this->get_value(ushl_sat.lhs), this->get_value(ushl_sat.rhs)},
+							ushl_sat.name
+						).asValue();
+						this->stmt_values.emplace(stmt, ushl_sat_value);
+					} break;
+
+					case Expr::Kind::SSHR: {
+						const SSHR& sshr = this->reader.getSSHR(stmt);
+
+						const llvmint::Value lhs = this->get_value(sshr.lhs);
+						const llvmint::Value rhs = this->get_value(sshr.rhs);
+
+						const llvmint::Value sshr_value = this->builder.createASHR(lhs, rhs, sshr.isExact, sshr.name);
+						this->stmt_values.emplace(stmt, sshr_value);
+					} break;
+
+					case Expr::Kind::USHR: {
+						const USHR& ushr = this->reader.getUSHR(stmt);
+
+						const llvmint::Value lhs = this->get_value(ushr.lhs);
+						const llvmint::Value rhs = this->get_value(ushr.rhs);
+
+						const llvmint::Value ushr_value = this->builder.createLSHR(lhs, rhs, ushr.isExact, ushr.name);
+						this->stmt_values.emplace(stmt, ushr_value);
+					} break;
+
 				}
 			}
 		}
@@ -1263,6 +1358,14 @@ namespace pcit::pir{
 			case Expr::Kind::SGTE:    return this->stmt_values.at(expr);
 			case Expr::Kind::UGTE:    return this->stmt_values.at(expr);
 			case Expr::Kind::FGTE:    return this->stmt_values.at(expr);
+			case Expr::Kind::And:     return this->stmt_values.at(expr);
+			case Expr::Kind::Or:      return this->stmt_values.at(expr);
+			case Expr::Kind::Xor:     return this->stmt_values.at(expr);
+			case Expr::Kind::SHL:     return this->stmt_values.at(expr);
+			case Expr::Kind::SSHLSat: return this->stmt_values.at(expr);
+			case Expr::Kind::USHLSat: return this->stmt_values.at(expr);
+			case Expr::Kind::SSHR:    return this->stmt_values.at(expr);
+			case Expr::Kind::USHR:    return this->stmt_values.at(expr);
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
