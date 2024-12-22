@@ -44,6 +44,7 @@ namespace pcit::pir::passes{
 				switch(expr.getKind()){
 					break; case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
 					break; case Expr::Kind::GlobalValue:     break;
+					break; case Expr::Kind::FunctionPointer: break;
 					break; case Expr::Kind::Number:          break;
 					break; case Expr::Kind::Boolean:         break;
 					break; case Expr::Kind::ParamExpr:       break;
@@ -58,6 +59,8 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::Load:            func_metadata.emplace(expr);
 					break; case Expr::Kind::Store:           evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::CalcPtr:         func_metadata.emplace(expr);
+					break; case Expr::Kind::Memcpy:          func_metadata.emplace(expr);
+					break; case Expr::Kind::Memset:          func_metadata.emplace(expr);
 					break; case Expr::Kind::BitCast:         func_metadata.emplace(expr);
 					break; case Expr::Kind::Trunc:           func_metadata.emplace(expr);
 					break; case Expr::Kind::FTrunc:          func_metadata.emplace(expr);
@@ -104,6 +107,7 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::SRem:            func_metadata.emplace(expr);
 					break; case Expr::Kind::URem:            func_metadata.emplace(expr);
 					break; case Expr::Kind::FRem:            func_metadata.emplace(expr);
+					break; case Expr::Kind::FNeg:            func_metadata.emplace(expr);
 					break; case Expr::Kind::IEq:             func_metadata.emplace(expr);
 					break; case Expr::Kind::FEq:             func_metadata.emplace(expr);
 					break; case Expr::Kind::INeq:            func_metadata.emplace(expr);
@@ -141,11 +145,12 @@ namespace pcit::pir::passes{
 			};
 
 			switch(stmt.getKind()){
-				case Expr::Kind::None:        evo::debugFatalBreak("Invalid expr");
-				case Expr::Kind::GlobalValue: return false;
-				case Expr::Kind::Number:      return false;
-				case Expr::Kind::Boolean:     return false;
-				case Expr::Kind::ParamExpr:   return false;
+				case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
+				case Expr::Kind::GlobalValue:     return false;
+				case Expr::Kind::FunctionPointer: return false;
+				case Expr::Kind::Number:          return false;
+				case Expr::Kind::Boolean:         return false;
+				case Expr::Kind::ParamExpr:       return false;
 
 				case Expr::Kind::Call: {
 					// TODO: remove if func has no side-effects
@@ -229,6 +234,21 @@ namespace pcit::pir::passes{
 					}
 
 					return false;
+				} break;
+
+
+				case Expr::Kind::Memcpy: {
+					const Memcpy& memcpy = agent.getMemcpy(stmt);
+					see_expr(memcpy.dst);
+					see_expr(memcpy.src);
+					see_expr(memcpy.numBytes);
+				} break;
+
+				case Expr::Kind::Memset: {
+					const Memset& memset = agent.getMemset(stmt);
+					see_expr(memset.dst);
+					see_expr(memset.value);
+					see_expr(memset.numBytes);
 				} break;
 
 
@@ -326,7 +346,7 @@ namespace pcit::pir::passes{
 						see_expr(sadd_wrap.rhs);
 
 						const Expr new_add = agent.createAdd(
-							sadd_wrap.lhs, sadd_wrap.rhs, true, std::string(sadd_wrap.resultName)
+							sadd_wrap.lhs, sadd_wrap.rhs, false, false, std::string(sadd_wrap.resultName)
 						);
 						agent.replaceExpr(agent.extractSAddWrapResult(stmt), new_add);
 						agent.removeStmt(stmt);
@@ -356,7 +376,7 @@ namespace pcit::pir::passes{
 						see_expr(uadd_wrap.rhs);
 
 						const Expr new_add = agent.createAdd(
-							uadd_wrap.lhs, uadd_wrap.rhs, true, std::string(uadd_wrap.resultName)
+							uadd_wrap.lhs, uadd_wrap.rhs, false, false, std::string(uadd_wrap.resultName)
 						);
 						agent.replaceExpr(agent.extractUAddWrapResult(stmt), new_add);
 						agent.removeStmt(stmt);
@@ -427,7 +447,7 @@ namespace pcit::pir::passes{
 						see_expr(ssub_wrap.rhs);
 
 						const Expr new_sub = agent.createSub(
-							ssub_wrap.lhs, ssub_wrap.rhs, true, std::string(ssub_wrap.resultName)
+							ssub_wrap.lhs, ssub_wrap.rhs, false, false, std::string(ssub_wrap.resultName)
 						);
 						agent.replaceExpr(agent.extractSSubWrapResult(stmt), new_sub);
 						agent.removeStmt(stmt);
@@ -457,7 +477,7 @@ namespace pcit::pir::passes{
 						see_expr(usub_wrap.rhs);
 
 						const Expr new_sub = agent.createSub(
-							usub_wrap.lhs, usub_wrap.rhs, true, std::string(usub_wrap.resultName)
+							usub_wrap.lhs, usub_wrap.rhs, false, false, std::string(usub_wrap.resultName)
 						);
 						agent.replaceExpr(agent.extractUSubWrapResult(stmt), new_sub);
 						agent.removeStmt(stmt);
@@ -528,7 +548,7 @@ namespace pcit::pir::passes{
 						see_expr(smul_wrap.rhs);
 
 						const Expr new_mul = agent.createMul(
-							smul_wrap.lhs, smul_wrap.rhs, true, std::string(smul_wrap.resultName)
+							smul_wrap.lhs, smul_wrap.rhs, false, false, std::string(smul_wrap.resultName)
 						);
 						agent.replaceExpr(agent.extractSMulWrapResult(stmt), new_mul);
 						agent.removeStmt(stmt);
@@ -558,7 +578,7 @@ namespace pcit::pir::passes{
 						see_expr(umul_wrap.rhs);
 
 						const Expr new_mul = agent.createMul(
-							umul_wrap.lhs, umul_wrap.rhs, true, std::string(umul_wrap.resultName)
+							umul_wrap.lhs, umul_wrap.rhs, false, false, std::string(umul_wrap.resultName)
 						);
 						agent.replaceExpr(agent.extractUMulWrapResult(stmt), new_mul);
 						agent.removeStmt(stmt);
@@ -662,6 +682,15 @@ namespace pcit::pir::passes{
 					const FRem& frem = agent.getFRem(stmt);
 					see_expr(frem.lhs);
 					see_expr(frem.rhs);
+
+					return false;
+				} break;
+
+				case Expr::Kind::FNeg: {
+					if(remove_unused_stmt()){ return true; }
+
+					const FNeg& fneg = agent.getFNeg(stmt);
+					see_expr(fneg.rhs);
 
 					return false;
 				} break;

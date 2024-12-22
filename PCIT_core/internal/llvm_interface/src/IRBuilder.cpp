@@ -144,6 +144,12 @@ namespace pcit::llvmint{
 	};
 
 
+	auto IRBuilder::createMemCpyInline(const Value& dst, const Value& src, const Value& size, bool is_volatile)-> void {
+		this->builder->CreateMemCpyInline(
+			dst.native(), llvm::MaybeAlign(), src.native(), llvm::MaybeAlign(), size.native(), is_volatile
+		);
+	}
+
 	auto IRBuilder::createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile)
 	-> void {
 		this->builder->CreateMemSetInline(dst.native(), llvm::MaybeAlign(), value.native(), size.native(), is_volatile);
@@ -321,6 +327,10 @@ namespace pcit::llvmint{
 
 	auto IRBuilder::createFRem(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
 		return Value(this->builder->CreateFRem(lhs.native(), rhs.native(), name.c_str()));
+	}
+
+	auto IRBuilder::createFNeg(const Value& rhs, evo::CStrProxy name) -> Value {
+		return Value(this->builder->CreateFNeg(rhs.native(), name.c_str()));
 	}
 
 

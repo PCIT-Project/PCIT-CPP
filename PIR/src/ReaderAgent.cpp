@@ -21,10 +21,11 @@ namespace pcit::pir{
 		evo::debugAssert(expr.isValue(), "Expr must be a value in order to get the type");
 
 		switch(expr.getKind()){
-			case Expr::Kind::None:         evo::unreachable();
-			case Expr::Kind::Number:       return this->getNumber(expr).type;
-			case Expr::Kind::Boolean:      return this->module.createBoolType();
-			case Expr::Kind::GlobalValue:  return this->module.createPtrType();
+			case Expr::Kind::None:            evo::unreachable();
+			case Expr::Kind::Number:          return this->getNumber(expr).type;
+			case Expr::Kind::Boolean:         return this->module.createBoolType();
+			case Expr::Kind::GlobalValue:     return this->module.createPtrType();
+			case Expr::Kind::FunctionPointer: return this->module.createPtrType();
 			case Expr::Kind::ParamExpr: {
 				evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 
@@ -67,6 +68,8 @@ namespace pcit::pir{
 			case Expr::Kind::Load:            return this->getLoad(expr).type;
 			case Expr::Kind::Store:           evo::unreachable();
 			case Expr::Kind::CalcPtr:         return this->module.createPtrType();
+			case Expr::Kind::Memcpy:          evo::unreachable();
+			case Expr::Kind::Memset:          evo::unreachable();
 			case Expr::Kind::BitCast:         return this->getBitCast(expr).toType;
 			case Expr::Kind::Trunc:           return this->getTrunc(expr).toType;
 			case Expr::Kind::FTrunc:          return this->getFTrunc(expr).toType;
@@ -113,6 +116,7 @@ namespace pcit::pir{
 			case Expr::Kind::SRem:            return this->getExprType(this->getSRem(expr).lhs);
 			case Expr::Kind::URem:            return this->getExprType(this->getURem(expr).lhs);
 			case Expr::Kind::FRem:            return this->getExprType(this->getFRem(expr).lhs);
+			case Expr::Kind::FNeg:            return this->getExprType(this->getFNeg(expr).rhs);
 			case Expr::Kind::IEq:             return this->module.createBoolType();
 			case Expr::Kind::FEq:             return this->module.createBoolType();
 			case Expr::Kind::INeq:            return this->module.createBoolType();
@@ -165,8 +169,13 @@ namespace pcit::pir{
 	}
 
 	auto ReaderAgent::getGlobalValue(const Expr& expr) const -> const GlobalVar& {
-		evo::debugAssert(expr.getKind() == Expr::Kind::GlobalValue, "Not global");
+		evo::debugAssert(expr.getKind() == Expr::Kind::GlobalValue, "Not a global");
 		return this->module.getGlobalVar(GlobalVar::ID(expr.index));
+	}
+
+	auto ReaderAgent::getFunctionPointer(const Expr& expr) const -> const Function& {
+		evo::debugAssert(expr.getKind() == Expr::Kind::FunctionPointer, "Not a function pointer");
+		return this->module.getFunction(Function::ID(expr.index));
 	}
 
 
@@ -239,6 +248,21 @@ namespace pcit::pir{
 		evo::debugAssert(expr.getKind() == Expr::Kind::CalcPtr, "Not a calc ptr");
 
 		return this->module.calc_ptrs[expr.index];
+	}
+
+
+	auto ReaderAgent::getMemcpy(const Expr& expr) const -> const Memcpy& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Memcpy, "Not a memcpy");
+
+		return this->module.memcpys[expr.index];
+	}
+
+	auto ReaderAgent::getMemset(const Expr& expr) const -> const Memset& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::Memset, "Not a memset");
+
+		return this->module.memsets[expr.index];
 	}
 
 
@@ -576,6 +600,13 @@ namespace pcit::pir{
 		evo::debugAssert(expr.getKind() == Expr::Kind::FRem, "Not an frem");
 
 		return this->module.frems[expr.index];
+	}
+
+	auto ReaderAgent::getFNeg(const Expr& expr) const -> const FNeg& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.getKind() == Expr::Kind::FNeg, "Not an fneg");
+
+		return this->module.fnegs[expr.index];
 	}
 
 

@@ -51,9 +51,15 @@ namespace pcit::core{
 			EVO_NODISCARD static auto createF80(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::x87DoubleExtended(), std::move(value));
 			}
+			EVO_NODISCARD static auto createF80(float64_t value) -> GenericFloat {
+				return GenericFloat::createF64(value).asF80();
+			}
 
 			EVO_NODISCARD static auto createF128(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::IEEEquad(), std::move(value));
+			}
+			EVO_NODISCARD static auto createF128(float64_t value) -> GenericFloat {
+				return GenericFloat::createF64(value).asF128();
 			}
 
 
@@ -110,6 +116,12 @@ namespace pcit::core{
 			EVO_NODISCARD auto rem(const GenericFloat& rhs) const -> GenericFloat {
 				llvmint::APFloat ap_float_copy = this->ap_float;
 				std::ignore = ap_float_copy.mod(rhs.ap_float);
+				return GenericFloat(std::move(ap_float_copy));
+			}
+
+			EVO_NODISCARD auto neg() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				ap_float_copy.changeSign();
 				return GenericFloat(std::move(ap_float_copy));
 			}
 

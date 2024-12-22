@@ -161,11 +161,12 @@ namespace pcit::pir{
 			
 			for(const Expr& stmt : basic_block){
 				switch(stmt.getKind()){
-					case Expr::Kind::None: evo::debugFatalBreak("Not a valid expr");
-					case Expr::Kind::GlobalValue: evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::Number: evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::Boolean: evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::ParamExpr: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::None:            evo::debugFatalBreak("Not a valid expr");
+					case Expr::Kind::GlobalValue:     evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::FunctionPointer: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::Number:          evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::Boolean:         evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::ParamExpr:       evo::debugFatalBreak("Not a valid stmt");
 
 					case Expr::Kind::Call: {
 						const Call& call = this->reader.getCall(stmt);
@@ -342,6 +343,28 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, gep);
 					} break;
 
+					case Expr::Kind::Memcpy: {
+						const Memcpy& memcpy = this->reader.getMemcpy(stmt);
+
+						this->builder.createMemCpyInline(
+							this->get_value(memcpy.dst),
+							this->get_value(memcpy.src),
+							this->get_value(memcpy.numBytes),
+							memcpy.isVolatile
+						);
+					} break;
+
+					case Expr::Kind::Memset: {
+						const Memset& memset = this->reader.getMemset(stmt);
+
+						this->builder.createMemSetInline(
+							this->get_value(memset.dst),
+							this->get_value(memset.value),
+							this->get_value(memset.numBytes),
+							memset.isVolatile
+						);
+					} break;
+
 					case Expr::Kind::BitCast: {
 						const BitCast& bitcast = this->reader.getBitCast(stmt);
 
@@ -450,9 +473,7 @@ namespace pcit::pir{
 						const llvmint::Value lhs = this->get_value(add.lhs);
 						const llvmint::Value rhs = this->get_value(add.rhs);
 
-						bool no_wrap = !add.mayWrap;
-
-						const llvmint::Value add_value = this->builder.createAdd(lhs, rhs, no_wrap, no_wrap, add.name);
+						const llvmint::Value add_value = this->builder.createAdd(lhs, rhs, add.nuw, add.nsw, add.name);
 						this->stmt_values.emplace(stmt, add_value);
 					} break;
 
@@ -557,9 +578,7 @@ namespace pcit::pir{
 						const llvmint::Value lhs = this->get_value(sub.lhs);
 						const llvmint::Value rhs = this->get_value(sub.rhs);
 
-						bool no_wrap = !sub.mayWrap;
-
-						const llvmint::Value sub_value = this->builder.createSub(lhs, rhs, no_wrap, no_wrap, sub.name);
+						const llvmint::Value sub_value = this->builder.createSub(lhs, rhs, sub.nuw, sub.nsw, sub.name);
 						this->stmt_values.emplace(stmt, sub_value);
 					} break;
 
@@ -663,9 +682,7 @@ namespace pcit::pir{
 						const llvmint::Value lhs = this->get_value(mul.lhs);
 						const llvmint::Value rhs = this->get_value(mul.rhs);
 
-						bool no_wrap = !mul.mayWrap;
-
-						const llvmint::Value mul_value = this->builder.createMul(lhs, rhs, no_wrap, no_wrap, mul.name);
+						const llvmint::Value mul_value = this->builder.createMul(lhs, rhs, mul.nuw, mul.nsw, mul.name);
 						this->stmt_values.emplace(stmt, mul_value);
 					} break;
 
@@ -821,6 +838,15 @@ namespace pcit::pir{
 
 						const llvmint::Value frem_value = this->builder.createFRem(lhs, rhs, frem.name);
 						this->stmt_values.emplace(stmt, frem_value);
+					} break;
+
+					case Expr::Kind::FNeg: {
+						const FNeg& fneg = this->reader.getFNeg(stmt);
+
+						const llvmint::Value rhs = this->get_value(fneg.rhs);
+
+						const llvmint::Value fneg_value = this->builder.createFNeg(rhs, fneg.name);
+						this->stmt_values.emplace(stmt, fneg_value);
 					} break;
 
 
@@ -1020,9 +1046,7 @@ namespace pcit::pir{
 						const llvmint::Value lhs = this->get_value(shl.lhs);
 						const llvmint::Value rhs = this->get_value(shl.rhs);
 
-						const llvmint::Value shl_value = this->builder.createSHL(
-							lhs, rhs, !shl.mayWrap, !shl.mayWrap, shl.name
-						);
+						const llvmint::Value shl_value = this->builder.createSHL(lhs, rhs, shl.nuw, shl.nsw, shl.name);
 						this->stmt_values.emplace(stmt, shl_value);
 					} break;
 
@@ -1203,6 +1227,11 @@ namespace pcit::pir{
 				return this->global_vars.at(global_var.name).asValue();
 			} break;
 
+			case Expr::Kind::FunctionPointer: {
+				const Function& func = this->reader.getFunctionPointer(expr);
+				return this->funcs.at(func.getName()).asValue();
+			} break;
+
 			case Expr::Kind::Number: {
 				const Number& number = this->reader.getNumber(expr);
 
@@ -1267,6 +1296,8 @@ namespace pcit::pir{
 			case Expr::Kind::Store: evo::debugFatalBreak("Not a value");
 
 			case Expr::Kind::CalcPtr: return this->stmt_values.at(expr);
+			case Expr::Kind::Memcpy: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::Memset: evo::debugFatalBreak("Not a value");
 			case Expr::Kind::BitCast: return this->stmt_values.at(expr);
 			case Expr::Kind::Trunc:   return this->stmt_values.at(expr);
 			case Expr::Kind::FTrunc:  return this->stmt_values.at(expr);
@@ -1341,6 +1372,7 @@ namespace pcit::pir{
 			case Expr::Kind::SRem:    return this->stmt_values.at(expr);
 			case Expr::Kind::URem:    return this->stmt_values.at(expr);
 			case Expr::Kind::FRem:    return this->stmt_values.at(expr);
+			case Expr::Kind::FNeg:    return this->stmt_values.at(expr);
 
 			case Expr::Kind::IEq:     return this->stmt_values.at(expr);
 			case Expr::Kind::FEq:     return this->stmt_values.at(expr);

@@ -285,10 +285,10 @@ namespace pcit::panther{
 					    return 2;
 
 					case Token::Kind::TypeCInt: case Token::Kind::TypeCUInt:
-						return this->getOS() == core::OS::Windows ? 4 : 8;
+						return 4;
 
 					case Token::Kind::TypeCLong: case Token::Kind::TypeCULong:
-						return 4;
+						return this->getOS() == core::OS::Windows ? 4 : 8;
 
 					case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong:
 						return 8;
@@ -679,17 +679,29 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case Token::Kind::TypeCShort: case Token::Kind::TypeCInt: case Token::Kind::TypeCLong:
-			case Token::Kind::TypeCLongLong: {
+			case Token::Kind::TypeCShort: case Token::Kind::TypeCInt: {
 				return this->getOrCreateTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeI_N, uint32_t(this->sizeOf(id))))
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeI_N, 32))
 				);
 			} break;
 
-			case Token::Kind::TypeCUShort: case Token::Kind::TypeCUInt: case Token::Kind::TypeCULong:
-			case Token::Kind::TypeCULongLong: {
+			case Token::Kind::TypeCLong: case Token::Kind::TypeCLongLong: {
+				const uint32_t size = this->_os == core::OS::Windows ? 32 : 64;
 				return this->getOrCreateTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, uint32_t(this->sizeOf(id))))
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeI_N, size))
+				);
+			} break;
+
+			case Token::Kind::TypeCUShort: case Token::Kind::TypeCUInt: {
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, 32))
+				);
+			} break;
+
+			case Token::Kind::TypeCULong: case Token::Kind::TypeCULongLong: {
+				const uint32_t size = this->_os == core::OS::Windows ? 32 : 64;
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeUI_N, size))
 				);
 			} break;
 
@@ -701,6 +713,249 @@ namespace pcit::panther{
 				}else{
 					return this->getOrCreateTypeInfo(
 						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TypeF128))
+					);
+				}
+			} break;
+
+			default: evo::debugFatalBreak("Not a type");
+		}
+	}
+
+
+
+	///////////////////////////////////
+	// min / max
+
+	static auto calc_min_signed(size_t width) -> core::GenericInt {
+		return core::GenericInt(unsigned(width), 1, false).ushl(core::GenericInt::create(unsigned(width) - 1)).result;
+	}
+
+	static auto calc_max_signed(size_t width) -> core::GenericInt {
+		return calc_min_signed(unsigned(width)).usub(core::GenericInt(unsigned(width), 1)).result;
+	}
+
+	static auto calc_max_unsigned(size_t width) -> core::GenericInt {
+		return core::GenericInt(unsigned(width), 0, false).usub(core::GenericInt(unsigned(width), 1, false)).result;
+	}
+
+	static auto float_data_from_exponent(unsigned width, int exponent, unsigned precision) -> core::GenericInt {
+		return core::GenericInt(width, unsigned(exponent), false).ushl(core::GenericInt(width, precision)).result;
+	}
+
+
+
+	auto TypeManager::getLowest(TypeInfo::ID id) const -> core::GenericValue {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+		evo::debugAssert(type_info.qualifiers().empty(), "Can only get min of primitive");
+
+		return this->getLowest(type_info.baseTypeID());
+	}
+
+	auto TypeManager::getLowest(BaseType::ID id) const -> core::GenericValue {
+		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+		switch(primitive.kind()){
+			case Token::Kind::TypeInt:   return core::GenericValue(calc_min_signed(this->sizeOfGeneralRegister()));
+			case Token::Kind::TypeISize: return core::GenericValue(calc_min_signed(this->sizeOfPtr()));
+			case Token::Kind::TypeI_N:   return core::GenericValue(calc_min_signed(primitive.bitWidth()));
+
+			case Token::Kind::TypeUInt:
+				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfGeneralRegister()), 0));
+
+			case Token::Kind::TypeUSize: return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr()), 0));
+			case Token::Kind::TypeUI_N:  return core::GenericValue(core::GenericInt(primitive.bitWidth(), 0));
+
+			case Token::Kind::TypeF16:
+				return core::GenericValue(core::GenericFloat::createF16(float_data_from_exponent(16, 15, 11)).neg());
+
+			case Token::Kind::TypeBF16:
+				return core::GenericValue(core::GenericFloat::createBF16(float_data_from_exponent(16, 127, 8)).neg());
+
+			case Token::Kind::TypeF32:
+				return core::GenericValue(core::GenericFloat::createF32(float_data_from_exponent(32, 127, 24)).neg());
+
+			case Token::Kind::TypeF64:
+				return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1023, 53)).neg());
+
+			case Token::Kind::TypeF80:
+				return core::GenericValue(core::GenericFloat::createF80(float_data_from_exponent(80, 16383, 64)).neg());
+
+			case Token::Kind::TypeF128:
+				return core::GenericValue(core::GenericFloat::createF128(float_data_from_exponent(128, 16388, 113)).neg());
+
+
+			case Token::Kind::TypeByte:   return core::GenericValue(core::GenericInt(8, 0));
+			case Token::Kind::TypeBool:   return core::GenericValue(false);
+			case Token::Kind::TypeChar:   return core::GenericValue(calc_min_signed(8));
+			case Token::Kind::TypeRawPtr: return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr()), 0));
+			case Token::Kind::TypeTypeID: return core::GenericValue(core::GenericInt(32, 0));
+			case Token::Kind::TypeCShort: return core::GenericValue(calc_min_signed(16));
+			case Token::Kind::TypeCInt:   return core::GenericValue(calc_min_signed(32));
+				
+			case Token::Kind::TypeCLong:
+				return core::GenericValue(calc_min_signed(this->_os == core::OS::Windows ? 32 : 64));
+
+			case Token::Kind::TypeCLongLong: return core::GenericValue(calc_min_signed(32));
+			case Token::Kind::TypeCUShort:   return core::GenericValue(core::GenericInt(16, 0));
+			case Token::Kind::TypeCUInt:     return core::GenericValue(core::GenericInt(32, 0));
+
+			case Token::Kind::TypeCULong:     
+				 return core::GenericValue(core::GenericInt(this->_os == core::OS::Windows ? 32 : 64, 0));
+
+			case Token::Kind::TypeCULongLong: return core::GenericValue(core::GenericInt(64, 0));
+
+			case Token::Kind::TypeCLongDouble: {
+				if(this->_os == core::OS::Windows){
+					return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, -1022, 53)));
+				}else{
+					return core::GenericValue(
+						core::GenericFloat::createF128(float_data_from_exponent(128, -16382, 113))
+					);
+				}
+			} break;
+
+			default: evo::debugFatalBreak("Not a type");
+		}
+	}
+
+
+
+	auto TypeManager::getMin(TypeInfo::ID id) const -> core::GenericValue {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+		evo::debugAssert(type_info.qualifiers().empty(), "Can only get min of primitive");
+
+		return this->getMin(type_info.baseTypeID());
+	}
+
+	auto TypeManager::getMin(BaseType::ID id) const -> core::GenericValue {
+		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+		switch(primitive.kind()){
+			case Token::Kind::TypeInt:   return core::GenericValue(calc_min_signed(this->sizeOfGeneralRegister()));
+			case Token::Kind::TypeISize: return core::GenericValue(calc_min_signed(this->sizeOfPtr()));
+			case Token::Kind::TypeI_N:   return core::GenericValue(calc_min_signed(primitive.bitWidth()));
+
+			case Token::Kind::TypeUInt:
+				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfGeneralRegister()), 0));
+
+			case Token::Kind::TypeUSize: return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr()), 0));
+			case Token::Kind::TypeUI_N:  return core::GenericValue(core::GenericInt(primitive.bitWidth(), 0));
+
+			case Token::Kind::TypeF16:
+				return core::GenericValue(core::GenericFloat::createF16(float_data_from_exponent(16, 1, 11)));
+
+			case Token::Kind::TypeBF16:
+				return core::GenericValue(core::GenericFloat::createBF16(float_data_from_exponent(16, 1, 8)));
+
+			case Token::Kind::TypeF32:
+				return core::GenericValue(core::GenericFloat::createF32(float_data_from_exponent(32, 1, 24)));
+
+			case Token::Kind::TypeF64:
+				return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1, 53)));
+
+			case Token::Kind::TypeF80:
+				return core::GenericValue(core::GenericFloat::createF80(float_data_from_exponent(80, 1, 64)));
+
+			case Token::Kind::TypeF128:
+				return core::GenericValue(core::GenericFloat::createF128(float_data_from_exponent(128, 1, 113)));
+
+
+			case Token::Kind::TypeByte:   return core::GenericValue(core::GenericInt(8, 0));
+			case Token::Kind::TypeBool:   return core::GenericValue(false);
+			case Token::Kind::TypeChar:   return core::GenericValue(calc_min_signed(8));
+			case Token::Kind::TypeRawPtr: return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr()), 0));
+			case Token::Kind::TypeTypeID: return core::GenericValue(core::GenericInt(32, 0));
+			case Token::Kind::TypeCShort: return core::GenericValue(calc_min_signed(16));
+			case Token::Kind::TypeCInt:   return core::GenericValue(calc_min_signed(32));
+				
+			case Token::Kind::TypeCLong:
+				return core::GenericValue(calc_min_signed(this->_os == core::OS::Windows ? 32 : 64));
+
+			case Token::Kind::TypeCLongLong: return core::GenericValue(calc_min_signed(32));
+			case Token::Kind::TypeCUShort:   return core::GenericValue(core::GenericInt(16, 0));
+			case Token::Kind::TypeCUInt:     return core::GenericValue(core::GenericInt(32, 0));
+
+			case Token::Kind::TypeCULong:     
+				 return core::GenericValue(core::GenericInt(this->_os == core::OS::Windows ? 32 : 64, 0));
+
+			case Token::Kind::TypeCULongLong: return core::GenericValue(core::GenericInt(64, 0));
+
+			case Token::Kind::TypeCLongDouble: {
+				if(this->_os == core::OS::Windows){
+					return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, -1022, 53)));
+				}else{
+					return core::GenericValue(
+						core::GenericFloat::createF128(float_data_from_exponent(128, -16382, 113))
+					);
+				}
+			} break;
+
+			default: evo::debugFatalBreak("Not a type");
+		}
+	}
+
+
+
+	auto TypeManager::getMax(TypeInfo::ID id) const -> core::GenericValue {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+		evo::debugAssert(type_info.qualifiers().empty(), "Can only get max of primitive");
+
+		return this->getMax(type_info.baseTypeID());
+	}
+
+	auto TypeManager::getMax(BaseType::ID id) const -> core::GenericValue {
+		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+		switch(primitive.kind()){
+			case Token::Kind::TypeInt:   return core::GenericValue(calc_max_signed(this->sizeOfGeneralRegister()));
+			case Token::Kind::TypeISize: return core::GenericValue(calc_max_signed(this->sizeOfPtr()));
+			case Token::Kind::TypeI_N:   return core::GenericValue(calc_max_signed(primitive.bitWidth()));
+			case Token::Kind::TypeUInt:  return core::GenericValue(calc_max_unsigned(this->sizeOfGeneralRegister()));
+			case Token::Kind::TypeUSize: return core::GenericValue(calc_max_unsigned(this->sizeOfPtr()));
+			case Token::Kind::TypeUI_N:  return core::GenericValue(calc_max_unsigned(primitive.bitWidth()));
+
+			case Token::Kind::TypeF16:
+				return core::GenericValue(core::GenericFloat::createF16(float_data_from_exponent(16, 15, 11)));
+
+			case Token::Kind::TypeBF16:
+				return core::GenericValue(core::GenericFloat::createBF16(float_data_from_exponent(16, 127, 8)));
+
+			case Token::Kind::TypeF32:
+				return core::GenericValue(core::GenericFloat::createF32(float_data_from_exponent(32, 127, 24)));
+
+			case Token::Kind::TypeF64:
+				return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1023, 53)));
+
+			case Token::Kind::TypeF80:
+				return core::GenericValue(core::GenericFloat::createF80(float_data_from_exponent(80, 16383, 64)));
+
+			case Token::Kind::TypeF128:
+				return core::GenericValue(core::GenericFloat::createF128(float_data_from_exponent(128, 16388, 113)));
+
+
+			case Token::Kind::TypeByte:   return core::GenericValue(calc_max_unsigned(8));
+			case Token::Kind::TypeBool:   return core::GenericValue(true);
+			case Token::Kind::TypeChar:   return core::GenericValue(calc_max_signed(8));
+			case Token::Kind::TypeRawPtr: return core::GenericValue(calc_max_unsigned(this->sizeOfPtr()));
+			case Token::Kind::TypeTypeID: return core::GenericValue(calc_max_unsigned(32));
+			case Token::Kind::TypeCShort: return core::GenericValue(calc_max_signed(16));
+			case Token::Kind::TypeCInt:   return core::GenericValue(calc_max_signed(32));
+
+			case Token::Kind::TypeCLong:      
+				return core::GenericValue(calc_max_signed(this->_os == core::OS::Windows ? 32 : 64));
+
+			case Token::Kind::TypeCLongLong:  return core::GenericValue(calc_max_signed(32));
+			case Token::Kind::TypeCUShort:    return core::GenericValue(calc_max_unsigned(16));
+			case Token::Kind::TypeCUInt:      return core::GenericValue(calc_max_unsigned(32));
+
+			case Token::Kind::TypeCULong:     
+				return core::GenericValue(calc_max_unsigned(this->_os == core::OS::Windows ? 32 : 64));
+				
+			case Token::Kind::TypeCULongLong: return core::GenericValue(calc_max_unsigned(64));
+
+			case Token::Kind::TypeCLongDouble: {
+				if(this->_os == core::OS::Windows){
+					return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1023, 53)));
+				}else{
+					return core::GenericValue(
+						core::GenericFloat::createF128(float_data_from_exponent(128, 16383, 113))
 					);
 				}
 			} break;

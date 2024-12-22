@@ -93,6 +93,8 @@ namespace pcit::panther::sema_helper{
 			EVO_NODISCARD auto div(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto fdiv(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 			EVO_NODISCARD auto rem(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
+			
+			EVO_NODISCARD auto fneg(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr>;
 
 
 			///////////////////////////////////

@@ -201,6 +201,10 @@ namespace pcit::core{
 				return GenericInt(this->ap_int ^ rhs.ap_int);
 			}
 
+			EVO_NODISCARD auto bitwiseNot() const -> GenericInt {
+				return GenericInt(~this->ap_int);
+			}
+
 			EVO_NODISCARD auto sshl(const GenericInt& rhs) const -> WrapResult {
 				bool wrapped;
 				llvmint::APInt result = this->ap_int.sshl_ov(rhs.ap_int, wrapped);

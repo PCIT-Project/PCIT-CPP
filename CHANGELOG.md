@@ -1,6 +1,28 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.75.0
+
+### Panther
+- Added `!` operator
+- Added `-` (negate) operator
+- Added `~` operator
+- Added checking that implicit conversion of fluid values is valid (no truncation required)
+- Fixed `@trunc` converting to `Bool` (and by extension `as` operator from integers)
+- Fixed `@ftoui` converting to `Bool` (and by extension `as` operator from floats)
+- Fixed `CInt` and `CLong` being switched
+
+### pthr
+- Diagnostic messages now show filepaths as relative
+
+### PIR
+- Added function pointers
+- Fixed printing of `@and`, `@or`, and `@xor`
+- Fixed printing of global var expressions
+- Replaced the `#mayWrap` attribute with `#nsw` (no signed wrap) and `#nuw` (no unsigned wrap)
+
+
+<!---------------------------------->
 ## v0.0.74.0
 
 ### Panther

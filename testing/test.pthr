@@ -1,12 +1,9 @@
 
+
+
 func entry = () #entry -> UI8 {
-	const cmp_val: UInt = 1;
+	var foo: I8 = zeroinit;
+	foo = ~foo;
 
-	var i: UInt = 0;
-	while(i <= (cmp_val << 2)){
-		@_printHelloWorld();
-		i = i + 1;
-	}
-
-	return i as UI8;
+	return foo as UI8;
 }

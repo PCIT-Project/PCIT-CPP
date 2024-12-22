@@ -1604,6 +1604,10 @@ namespace pcit::panther{
 					}
 				} break;
 
+				case TemplatedIntrinsic::Kind::FNeg: {
+					evo::debugFatalBreak("UNSUPPORTED"); // not implementing here
+				} break;
+
 
 				///////////////////////////////////
 				// logical

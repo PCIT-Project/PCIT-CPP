@@ -15,10 +15,14 @@
 
 #include "./Context.h"
 
+#include <filesystem>
+
 namespace pcit::panther{
 
 
-	auto createDefaultDiagnosticCallback(pcit::core::Printer& printer_ref) -> Context::DiagnosticCallback;
+	EVO_NODISCARD auto createDefaultDiagnosticCallback(
+		pcit::core::Printer& printer_ref, const std::filesystem::path& relative_dir
+	) -> Context::DiagnosticCallback;
 
 
 }

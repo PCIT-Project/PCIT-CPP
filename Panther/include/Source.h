@@ -53,6 +53,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getLocationPath() const -> const fs::path&;
 			EVO_NODISCARD auto getLocationString() const -> const std::string&;
 			EVO_NODISCARD auto getLocationAsString() const -> std::string;
+			EVO_NODISCARD auto getLocationAsPath() const -> fs::path;
 
 			EVO_NODISCARD auto getTokenBuffer() const -> const TokenBuffer& { return this->token_buffer; }
 			EVO_NODISCARD auto getASTBuffer() const -> const ASTBuffer& { return this->ast_buffer; }

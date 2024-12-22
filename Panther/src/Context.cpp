@@ -680,6 +680,15 @@ namespace pcit::panther{
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FDiv)]    = arithmetic_func;
 		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::Rem)]     = arithmetic_func;
 
+		this->templated_intrinsics[size_t(TemplatedIntrinsic::Kind::FNeg)] = TemplatedIntrinsic(
+			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},
+			evo::SmallVector<TemplatedIntrinsic::Param>{
+				TemplatedIntrinsic::Param(strings::StringCode::Value, AST::FuncDecl::Param::Kind::Read, uint32_t(0)),
+			},
+			evo::SmallVector<TemplatedIntrinsic::ReturnParam>{uint32_t(0)}
+		);
+
+
 
 		const auto logical_operator = TemplatedIntrinsic(
 			evo::SmallVector<std::optional<TypeInfo::ID>>{TYPE_ARG},

@@ -76,6 +76,7 @@ namespace pcit::panther{
 					{"div",       TemplatedIntrinsic::Kind::Div},
 					{"fdiv",      TemplatedIntrinsic::Kind::FDiv},
 					{"rem",       TemplatedIntrinsic::Kind::Rem},
+					{"fneg",      TemplatedIntrinsic::Kind::FNeg},
 
 					{"eq",        TemplatedIntrinsic::Kind::Eq},
 					{"neq",       TemplatedIntrinsic::Kind::NEq},
@@ -385,8 +386,8 @@ namespace pcit::panther{
 
 			}else{
 				if(this->type_check<true>(
-					*var_type_id, expr_info_result.value(), "Variable", *var_decl.value)
-				.ok == false){
+					*var_type_id, expr_info_result.value(), "Variable", *var_decl.value
+				).ok == false){
 					return false;	
 				}
 			}
@@ -3396,16 +3397,7 @@ namespace pcit::panther{
 			case TemplatedIntrinsic::Kind::SubWrap: case TemplatedIntrinsic::Kind::SubSat:
 			case TemplatedIntrinsic::Kind::Mul:     case TemplatedIntrinsic::Kind::MulWrap:
 			case TemplatedIntrinsic::Kind::MulSat:  case TemplatedIntrinsic::Kind::Div: {
-				if(instantiation_type_args[0]->isVoid()){
-					this->emit_error(
-						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
-						templated_expr.args[0],
-						"Cannot add type `Void`"
-					);
-					return evo::resultError;
-				}
-
-				if(this->context.getTypeManager().isIntegral(instantiation_type_args[0]->typeID()) == false){
+				if(this->context.getTypeManager().isIntegral(*instantiation_type_args[0]) == false){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
 						templated_expr.args[0],
@@ -3417,16 +3409,7 @@ namespace pcit::panther{
 
 			case TemplatedIntrinsic::Kind::FAdd:  case TemplatedIntrinsic::Kind::FSub:
 			case TemplatedIntrinsic::Kind::FMul:  case TemplatedIntrinsic::Kind::FDiv: {
-				if(instantiation_type_args[0]->isVoid()){
-					this->emit_error(
-						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
-						templated_expr.args[0],
-						"Cannot add type `Void`"
-					);
-					return evo::resultError;
-				}
-
-				if(this->context.getTypeManager().isFloatingPoint(instantiation_type_args[0]->typeID()) == false){
+				if(this->context.getTypeManager().isFloatingPoint(*instantiation_type_args[0]) == false){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
 						templated_expr.args[0],
@@ -3437,17 +3420,9 @@ namespace pcit::panther{
 			} break;
 
 			case TemplatedIntrinsic::Kind::Rem: {
-				if(instantiation_type_args[0]->isVoid()){
-					this->emit_error(
-						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
-						templated_expr.args[0],
-						"Cannot get remander of type `Void`"
-					);
-					return evo::resultError;
-				}
-
 				if(
-					this->context.getTypeManager().isIntegral(instantiation_type_args[0]->typeID()) == false &&
+					// first check doubles as a check for Void
+					this->context.getTypeManager().isIntegral(*instantiation_type_args[0]) == false &&
 					this->context.getTypeManager().isFloatingPoint(instantiation_type_args[0]->typeID()) == false
 				){
 					this->emit_error(
@@ -3459,17 +3434,19 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case TemplatedIntrinsic::Kind::Eq: case TemplatedIntrinsic::Kind::NEq: {
-				if(instantiation_type_args[0]->isVoid()){
+			case TemplatedIntrinsic::Kind::FNeg: {
+				if(this->context.getTypeManager().isFloatingPoint(*instantiation_type_args[0]) == false){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
 						templated_expr.args[0],
-						"Cannot get remander of type `Void`"
+						"This intrinsic only accepts floating-points"
 					);
 					return evo::resultError;
 				}
+			} break;
 
-				if(this->context.getTypeManager().isBuiltin(instantiation_type_args[0]->typeID()) == false){
+			case TemplatedIntrinsic::Kind::Eq: case TemplatedIntrinsic::Kind::NEq: {
+				if(this->context.getTypeManager().isBuiltin(*instantiation_type_args[0]) == false){
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
 						templated_expr.args[0],
@@ -3481,17 +3458,9 @@ namespace pcit::panther{
 
 			case TemplatedIntrinsic::Kind::LT: case TemplatedIntrinsic::Kind::LTE: case TemplatedIntrinsic::Kind::GT:
 			case TemplatedIntrinsic::Kind::GTE: {
-				if(instantiation_type_args[0]->isVoid()){
-					this->emit_error(
-						Diagnostic::Code::SemaInvalidIntrinsicTemplateArg,
-						templated_expr.args[0],
-						"Cannot get compare type `Void`"
-					);
-					return evo::resultError;
-				}
-
 				if(
-					this->context.getTypeManager().isIntegral(instantiation_type_args[0]->typeID()) == false &&
+					// first check doubles as a check for Void
+					this->context.getTypeManager().isIntegral(*instantiation_type_args[0]) == false &&
 					this->context.getTypeManager().isFloatingPoint(instantiation_type_args[0]->typeID()) == false
 				){
 					this->emit_error(
@@ -3609,7 +3578,7 @@ namespace pcit::panther{
 
 	template<SemanticAnalyzer::ExprValueKind EXPR_VALUE_KIND>
 	auto SemanticAnalyzer::analyze_expr_prefix(const AST::Prefix& prefix) -> evo::Result<ExprInfo> {
-		const evo::Result<ExprInfo> rhs_info = this->analyze_expr<EXPR_VALUE_KIND>(prefix.rhs);
+		evo::Result<ExprInfo> rhs_info = this->analyze_expr<EXPR_VALUE_KIND>(prefix.rhs);
 		if(rhs_info.isError()){ return evo::resultError; }
 
 		switch(this->source.getTokenBuffer()[prefix.opTokenID].kind()){
@@ -3676,24 +3645,227 @@ namespace pcit::panther{
 			} break;
 
 			case Token::lookupKind("-"): {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [-] expression is currently unsupported"
-				);
-				return evo::resultError;
+				if(
+					(rhs_info.value().is_ephemeral() == false && rhs_info.value().is_concrete() == false)
+					|| rhs_info.value().hasExpr() == false
+				){
+					this->emit_error(Diagnostic::Code::SemaInvalidNegateRHS, prefix.rhs, "Invalid RHS of [-] operator");
+					return evo::resultError;
+				}
+
+
+				if(rhs_info.value().value_type == ExprInfo::ValueType::EphemeralFluid){
+					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+						return ExprInfo(ExprInfo::ValueType::EphemeralFluid, std::monostate(), std::nullopt);
+					}else{
+						if(rhs_info.value().getExpr().kind() == ASG::Expr::Kind::LiteralInt){
+							const core::GenericInt& rhs_int_value = this->source.asg_buffer.getLiteralInt(
+								rhs_info.value().getExpr().literalIntID()
+							).value;
+
+							const ASG::LiteralInt::ID asg_literal_id = this->source.asg_buffer.createLiteralInt(
+								core::GenericInt(rhs_int_value.getBitWidth(), 0).ssub(rhs_int_value).result,
+								std::nullopt
+							);
+
+							return ExprInfo(
+								ExprInfo::ValueType::EphemeralFluid, std::monostate(), ASG::Expr(asg_literal_id)
+							);
+							
+						}else{
+							const core::GenericFloat& rhs_float_value = this->source.asg_buffer.getLiteralFloat(
+								rhs_info.value().getExpr().literalFloatID()
+							).value;
+
+							const ASG::LiteralFloat::ID asg_literal_id = this->source.asg_buffer.createLiteralFloat(
+								rhs_float_value.neg(),
+								std::nullopt
+							);
+
+							return ExprInfo(
+								ExprInfo::ValueType::EphemeralFluid, std::monostate(), ASG::Expr(asg_literal_id)
+							);
+						}
+
+					}
+				}
+
+				const TypeInfo::ID& rhs_type_id = rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+				if(this->context.getTypeManager().isIntegral(rhs_type_id)){
+					if(this->context.getTypeManager().isUnsignedIntegral(rhs_type_id)){
+						this->emit_error(
+							Diagnostic::Code::SemaInvalidNegateRHS,
+							prefix.rhs,
+							"Invalid type of RHS of [-] operator",
+							Diagnostic::Info("May only be floating or signed integral")
+						);
+						return evo::resultError;	
+					}
+
+					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+						return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, std::nullopt);
+					}else{
+						const TypeInfo& rhs_type_info = this->context.getTypeManager().getTypeInfo(rhs_type_id);
+						const BaseType::Primitive& rhs_primitive_type = this->context.getTypeManager()
+							.getPrimitive(rhs_type_info.baseTypeID().primitiveID());
+
+						const ASG::LiteralInt::ID zero = this->source.asg_buffer.createLiteralInt(
+							core::GenericInt(rhs_primitive_type.bitWidth(), 0), rhs_type_id
+						);
+
+						const ASG::TemplatedIntrinsicInstantiation::ID sub_instantiation_id 
+							= this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+								TemplatedIntrinsic::Kind::Sub,
+								evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{rhs_type_id, true}
+							);
+
+						const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
+							sub_instantiation_id,
+							evo::SmallVector<ASG::Expr>{ASG::Expr(zero), rhs_info.value().getExpr()},
+							ASG::Location::fromSourceLocation(this->get_source_location(prefix))
+						);
+
+						return ExprInfo(
+							ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, ASG::Expr(created_func_call_id)
+						);
+					}
+					
+				}else if(this->context.getTypeManager().isFloatingPoint(rhs_type_id)){
+					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+						return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, std::nullopt);
+					}else{
+						const ASG::TemplatedIntrinsicInstantiation::ID fneg_instantiation_id 
+							= this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+								TemplatedIntrinsic::Kind::FNeg,
+								evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{rhs_type_id}
+							);
+
+						const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
+							fneg_instantiation_id,
+							evo::SmallVector<ASG::Expr>{rhs_info.value().getExpr()},
+							ASG::Location::fromSourceLocation(this->get_source_location(prefix))
+						);
+
+						return ExprInfo(
+							ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, ASG::Expr(created_func_call_id)
+						);
+					}
+					
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SemaInvalidNegateRHS,
+						prefix.rhs,
+						"Invalid type of RHS of [-] operator",
+						Diagnostic::Info("May only be floating or signed integral")
+					);
+					return evo::resultError;
+				}
+
 			} break;
 
 			case Token::lookupKind("!"): {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [!] expression is currently unsupported"
+				const TypeInfo::ID bool_type_id = this->context.getTypeManager().getTypeBool();
+
+				if(this->type_check<true>(
+					bool_type_id, rhs_info.value(), "RHS of [!] operator", prefix.rhs
+				).ok == false){
+					return evo::resultError;
+				}
+
+				const ASG::TemplatedIntrinsicInstantiation::ID xor_instantiation_id 
+					= this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+						TemplatedIntrinsic::Kind::Xor,
+						evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{bool_type_id}
+					);
+
+				const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
+					xor_instantiation_id,
+					evo::SmallVector<ASG::Expr>{
+						rhs_info.value().getExpr(), ASG::Expr(this->source.asg_buffer.createLiteralBool(true))
+					},
+					ASG::Location::fromSourceLocation(this->get_source_location(prefix))
 				);
-				return evo::resultError;
+
+				return ExprInfo(
+					ExprInfo::ValueType::Ephemeral,
+					ExprInfo::generateExprInfoTypeIDs(bool_type_id),
+					ASG::Expr(created_func_call_id)
+				);
 			} break;
 
 			case Token::lookupKind("~"): {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature, prefix, "prefix [~] expression is currently unsupported"
-				);
-				return evo::resultError;
+				if(
+					(rhs_info.value().is_ephemeral() == false && rhs_info.value().is_concrete() == false)
+					|| rhs_info.value().hasExpr() == false
+				){
+					this->emit_error(Diagnostic::Code::SemaInvalidNegateRHS, prefix.rhs, "Invalid RHS of [~] operator");
+					return evo::resultError;
+				}
+
+
+				if(rhs_info.value().value_type == ExprInfo::ValueType::EphemeralFluid){
+					if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+						return ExprInfo(ExprInfo::ValueType::EphemeralFluid, std::monostate(), std::nullopt);
+					}else{
+						if(rhs_info.value().getExpr().kind() != ASG::Expr::Kind::LiteralInt){
+							this->emit_error(
+								Diagnostic::Code::SemaInvalidNegateRHS, prefix.rhs, "Invalid RHS of [~] operator"
+							);
+							return evo::resultError;
+						}
+
+						const core::GenericInt& rhs_int_value = this->source.asg_buffer.getLiteralInt(
+							rhs_info.value().getExpr().literalIntID()
+						).value;
+
+						const ASG::LiteralInt::ID asg_literal_id = this->source.asg_buffer.createLiteralInt(
+							rhs_int_value.bitwiseNot(),
+							std::nullopt
+						);
+
+						return ExprInfo(
+							ExprInfo::ValueType::EphemeralFluid, std::monostate(), ASG::Expr(asg_literal_id)
+						);
+					}
+				}
+
+				const TypeInfo::ID& rhs_type_id = rhs_info.value().type_id.as<evo::SmallVector<TypeInfo::ID>>().front();
+
+				if(this->context.getTypeManager().isIntegral(rhs_type_id) == false){
+					this->emit_error(Diagnostic::Code::SemaInvalidNegateRHS, prefix.rhs, "Invalid RHS of [~] operator");
+					return evo::resultError;
+				}
+
+				if constexpr(EXPR_VALUE_KIND == ExprValueKind::None){
+					return ExprInfo(ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, std::nullopt);
+				}else{
+					const TypeInfo& rhs_type_info = this->context.getTypeManager().getTypeInfo(rhs_type_id);
+					const BaseType::Primitive& rhs_primitive_type = this->context.getTypeManager()
+						.getPrimitive(rhs_type_info.baseTypeID().primitiveID());
+
+					const ASG::LiteralInt::ID max = this->source.asg_buffer.createLiteralInt(
+						core::GenericInt(rhs_primitive_type.bitWidth(), 0)
+							.usub(core::GenericInt(rhs_primitive_type.bitWidth(), 1)).result, 
+						rhs_type_id
+					);
+
+					const ASG::TemplatedIntrinsicInstantiation::ID sub_instantiation_id 
+						= this->source.asg_buffer.createTemplatedIntrinsicInstantiation(
+							TemplatedIntrinsic::Kind::Xor,
+							evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{rhs_type_id}
+						);
+
+					const ASG::FuncCall::ID created_func_call_id = this->source.asg_buffer.createFuncCall(
+						sub_instantiation_id,
+						evo::SmallVector<ASG::Expr>{rhs_info.value().getExpr(), ASG::Expr(max)},
+						ASG::Location::fromSourceLocation(this->get_source_location(prefix))
+					);
+
+					return ExprInfo(
+						ExprInfo::ValueType::Ephemeral, rhs_info.value().type_id, ASG::Expr(created_func_call_id)
+					);
+				}
 			} break;
 
 
@@ -3977,7 +4149,7 @@ namespace pcit::panther{
 						|| lhs_expr_info.value().hasExpr() == false
 					){
 						this->emit_error(
-							Diagnostic::Code::SemaInvalidInfixLHS, infix.lhs, "Invalid LHS of [as] operation"
+							Diagnostic::Code::SemaInvalidInfixLHS, infix.lhs, "Invalid LHS of [as] operator"
 						);
 						return evo::resultError;
 					}
@@ -4009,7 +4181,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidInfixLHS,
 						infix.lhs,
-						std::format("Invalid LHS of [{}] operation", infix_op)
+						std::format("Invalid LHS of [{}] operator", infix_op)
 					);
 					return evo::resultError;
 				}
@@ -4030,7 +4202,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidInfixLHS,
 						infix.rhs,
-						std::format("Invalid RHS of [{}] operation", infix_op)
+						std::format("Invalid RHS of [{}] operator", infix_op)
 					);
 					return evo::resultError;
 				}
@@ -4504,7 +4676,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidInfixLHS,
 						infix.lhs,
-						std::format("Invalid LHS of [{}] operation", infix_op)
+						std::format("Invalid LHS of [{}] operator", infix_op)
 					);
 					return evo::resultError;
 				}
@@ -4525,7 +4697,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidInfixLHS,
 						infix.rhs,
-						std::format("Invalid RHS of [{}] operation", infix_op)
+						std::format("Invalid RHS of [{}] operator", infix_op)
 					);
 					return evo::resultError;
 				}
@@ -4766,7 +4938,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidInfixLHS,
 						infix.lhs,
-						std::format("Invalid LHS of [{}] operation", infix_op)
+						std::format("Invalid LHS of [{}] operator", infix_op)
 					);
 					return evo::resultError;
 				}
@@ -4787,7 +4959,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SemaInvalidInfixLHS,
 						infix.rhs,
-						std::format("Invalid RHS of [{}] operation", infix_op)
+						std::format("Invalid RHS of [{}] operator", infix_op)
 					);
 					return evo::resultError;
 				}
@@ -5484,7 +5656,7 @@ namespace pcit::panther{
 				if constexpr(EXPR_VALUE_KIND != ExprValueKind::None){
 					expr.emplace_back(
 						this->source.asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint64_t>(token.getInt()),
+							core::GenericInt(256, token.getInt(), true),
 							std::nullopt
 						)
 					);
@@ -5740,7 +5912,7 @@ namespace pcit::panther{
 			intrinsic_kind,
 			evo::SmallVector<ASG::TemplatedIntrinsicInstantiation::TemplateArg>{
 				from_underlying_type_id.value(),
-				to_underlying_type_id.value()
+				to_type_id.typeID() == TypeManager::getTypeBool() ? to_type_id.typeID() : to_underlying_type_id.value()
 			}
 		);
 
@@ -6570,23 +6742,27 @@ namespace pcit::panther{
 					this->context.getTypeManager().getPrimitive(expected_type_primitive_id);
 
 				if(got_expr.getExpr().kind() == ASG::Expr::Kind::LiteralInt){
+					bool is_unsigned = true;
+
 					switch(expected_type_primitive.kind()){
 						case Token::Kind::TypeInt:
 						case Token::Kind::TypeISize:
 						case Token::Kind::TypeI_N:
+						case Token::Kind::TypeCShort:
+						case Token::Kind::TypeCInt:
+						case Token::Kind::TypeCLong:
+						case Token::Kind::TypeCLongLong:
+							is_unsigned = false;
+							break;
+
 						case Token::Kind::TypeUInt:
 						case Token::Kind::TypeUSize:
 						case Token::Kind::TypeUI_N:
 						case Token::Kind::TypeByte:
-						case Token::Kind::TypeCShort:
 						case Token::Kind::TypeCUShort:
-						case Token::Kind::TypeCInt:
 						case Token::Kind::TypeCUInt:
-						case Token::Kind::TypeCLong:
 						case Token::Kind::TypeCULong:
-						case Token::Kind::TypeCLongLong:
 						case Token::Kind::TypeCULongLong:
-						case Token::Kind::TypeCLongDouble:
 							break;
 
 						default: {
@@ -6598,10 +6774,54 @@ namespace pcit::panther{
 					}
 
 					if constexpr(IMPLICITLY_CONVERT){
-						const ASG::LiteralInt::ID literal_int_id = got_expr.getExpr().literalIntID();
-						this->source.asg_buffer.literal_ints[literal_int_id].typeID = expected_type_id;
-					}
+						const TypeManager& type_manager = this->context.getTypeManager();
 
+						const ASG::LiteralInt::ID literal_int_id = got_expr.getExpr().literalIntID();
+						ASG::LiteralInt& literal_int = this->source.asg_buffer.literal_ints[literal_int_id];
+
+						if(is_unsigned){
+							if(literal_int.value.slt(core::GenericInt(256, 0, true))){
+								this->emit_error(
+									Diagnostic::Code::SemaCannotConvertFluidValue,
+									location,
+									"Cannot implicitly convert this fluid value to the target type",
+									Diagnostic::Info("Fluid value is negative and target type is unsigned")
+								);
+								return TypeCheckInfo(false, false);
+							}
+						}
+
+						const core::GenericInt target_min = type_manager.getMin(expected_type_info.baseTypeID())
+							.as<core::GenericInt>().extOrTrunc(literal_int.value.getBitWidth(), is_unsigned);
+
+						const core::GenericInt target_max = type_manager.getMax(expected_type_info.baseTypeID())
+							.as<core::GenericInt>().extOrTrunc(literal_int.value.getBitWidth(), is_unsigned);
+
+
+						if(is_unsigned){
+							if(literal_int.value.ult(target_min) || literal_int.value.ugt(target_max)){
+								this->emit_error(
+									Diagnostic::Code::SemaCannotConvertFluidValue,
+									location,
+									"Cannot implicitly convert this fluid value to the target type",
+									Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+								);
+								return TypeCheckInfo(false, false);
+							}
+						}else{
+							if(literal_int.value.slt(target_min) || literal_int.value.sgt(target_max)){
+								this->emit_error(
+									Diagnostic::Code::SemaCannotConvertFluidValue,
+									location,
+									"Cannot implicitly convert this fluid value to the target type",
+									Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+								);
+								return TypeCheckInfo(false, false);
+							}
+						}
+
+						literal_int.typeID = expected_type_id;
+					}
 
 				}else{
 					evo::debugAssert(
@@ -6615,6 +6835,7 @@ namespace pcit::panther{
 						case Token::Kind::TypeF64:
 						case Token::Kind::TypeF80:
 						case Token::Kind::TypeF128:
+						case Token::Kind::TypeCLongDouble:
 							break;
 
 						default: {
@@ -6626,8 +6847,32 @@ namespace pcit::panther{
 					}
 
 					if constexpr(IMPLICITLY_CONVERT){
+						const TypeManager& type_manager = this->context.getTypeManager();
+
 						const ASG::LiteralFloat::ID literal_float_id = got_expr.getExpr().literalFloatID();
-						this->source.asg_buffer.literal_floats[literal_float_id].typeID = expected_type_id;
+						ASG::LiteralFloat& literal_float = this->source.asg_buffer.literal_floats[literal_float_id];
+
+
+						const core::GenericFloat target_lowest = type_manager.getLowest(expected_type_info.baseTypeID())
+							.as<core::GenericFloat>().asF128();
+
+						const core::GenericFloat target_max = type_manager.getMax(expected_type_info.baseTypeID())
+							.as<core::GenericFloat>().asF128();
+
+
+						const core::GenericFloat converted_literal = literal_float.value.asF128();
+
+						if(converted_literal.lt(target_lowest) || converted_literal.gt(target_max)){
+							this->emit_error(
+								Diagnostic::Code::SemaCannotConvertFluidValue,
+								location,
+								"Cannot implicitly convert this fluid value to the target type",
+								Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+							);
+							return TypeCheckInfo(false, false);
+						}
+
+						literal_float.typeID = expected_type_id;
 					}
 				}
 

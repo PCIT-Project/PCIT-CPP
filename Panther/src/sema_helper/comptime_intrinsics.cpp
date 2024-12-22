@@ -163,6 +163,7 @@ namespace pcit::panther::sema_helper{
 			case TemplatedIntrinsic::Kind::Div:  return this->div(args);
 			case TemplatedIntrinsic::Kind::FDiv: return this->fdiv(args);
 			case TemplatedIntrinsic::Kind::Rem:  return this->rem(args);
+			case TemplatedIntrinsic::Kind::FNeg: return this->fneg(args);
 
 
 			///////////////////////////////////
@@ -369,8 +370,7 @@ namespace pcit::panther::sema_helper{
 	auto ComptimeIntrins::fadd(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
 		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
 
-		const ASG::LiteralFloat& lhs_literal_float = 
-			asg_buffer.getLiteralFloat(args[0].literalFloatID());
+		const ASG::LiteralFloat& lhs_literal_float = asg_buffer.getLiteralFloat(args[0].literalFloatID());
 		const TypeInfo::ID type_id = *lhs_literal_float.typeID;
 
 		const core::GenericFloat result = this->analyzer.get_comptime_executor().intrinFAdd(
@@ -451,8 +451,7 @@ namespace pcit::panther::sema_helper{
 	auto ComptimeIntrins::fsub(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
 		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
 
-		const ASG::LiteralFloat& lhs_literal_float = 
-			asg_buffer.getLiteralFloat(args[0].literalFloatID());
+		const ASG::LiteralFloat& lhs_literal_float = asg_buffer.getLiteralFloat(args[0].literalFloatID());
 		const TypeInfo::ID type_id = *lhs_literal_float.typeID;
 
 		const core::GenericFloat result = this->analyzer.get_comptime_executor().intrinFSub(
@@ -533,8 +532,7 @@ namespace pcit::panther::sema_helper{
 	auto ComptimeIntrins::fmul(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
 		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
 
-		const ASG::LiteralFloat& lhs_literal_float = 
-			asg_buffer.getLiteralFloat(args[0].literalFloatID());
+		const ASG::LiteralFloat& lhs_literal_float = asg_buffer.getLiteralFloat(args[0].literalFloatID());
 		const TypeInfo::ID type_id = *lhs_literal_float.typeID;
 
 		const core::GenericFloat result = this->analyzer.get_comptime_executor().intrinFMul(
@@ -573,8 +571,7 @@ namespace pcit::panther::sema_helper{
 	auto ComptimeIntrins::fdiv(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
 		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
 
-		const ASG::LiteralFloat& lhs_literal_float = 
-			asg_buffer.getLiteralFloat(args[0].literalFloatID());
+		const ASG::LiteralFloat& lhs_literal_float = asg_buffer.getLiteralFloat(args[0].literalFloatID());
 		const TypeInfo::ID type_id = *lhs_literal_float.typeID;
 
 		const core::GenericFloat result = this->analyzer.get_comptime_executor().intrinFDiv(
@@ -593,8 +590,7 @@ namespace pcit::panther::sema_helper{
 		const ASGBuffer& asg_buffer = this->analyzer.source.getASGBuffer();
 
 		if(args[0].kind() == ASG::Expr::Kind::LiteralInt){
-			const ASG::LiteralInt& lhs_literal_int = 
-				asg_buffer.getLiteralInt(args[0].literalIntID());
+			const ASG::LiteralInt& lhs_literal_int = asg_buffer.getLiteralInt(args[0].literalIntID());
 			const TypeInfo::ID type_id = *lhs_literal_int.typeID;
 
 			const core::GenericInt result = this->analyzer.get_comptime_executor().intrinRem(
@@ -610,8 +606,7 @@ namespace pcit::panther::sema_helper{
 		}else{
 			evo::debugAssert(args[0].kind() == ASG::Expr::Kind::LiteralFloat, "Unknown or unsupported comptime value");
 
-			const ASG::LiteralFloat& lhs_literal_float = 
-				asg_buffer.getLiteralFloat(args[0].literalFloatID());
+			const ASG::LiteralFloat& lhs_literal_float = asg_buffer.getLiteralFloat(args[0].literalFloatID());
 			const TypeInfo::ID type_id = *lhs_literal_float.typeID;
 
 			const core::GenericFloat result = this->analyzer.get_comptime_executor().intrinRem(
@@ -625,6 +620,21 @@ namespace pcit::panther::sema_helper{
 			};
 		}
 	}
+
+
+
+	auto ComptimeIntrins::fneg(evo::ArrayProxy<ASG::Expr> args) -> evo::SmallVector<ASG::Expr> {
+		const ASG::LiteralFloat& rhs_literal_float =
+			this->analyzer.source.getASGBuffer().getLiteralFloat(args[0].literalFloatID());
+		const TypeInfo::ID type_id = *rhs_literal_float.typeID;
+
+		const core::GenericFloat result = rhs_literal_float.value.neg();
+
+		return evo::SmallVector<ASG::Expr>{
+			ASG::Expr(this->analyzer.get_asg_buffer().createLiteralFloat(result, type_id))
+		};
+	}
+
 
 
 	

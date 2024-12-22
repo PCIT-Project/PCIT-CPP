@@ -481,6 +481,8 @@ namespace pcit::pir{
 			core::StepAlloc<Store, uint32_t> stores{};
 			core::StepAlloc<CalcPtr, uint32_t> calc_ptrs{};
 			core::StepAlloc<BitCast, uint32_t> bitcasts{};
+			core::StepAlloc<Memcpy, uint32_t> memcpys{};
+			core::StepAlloc<Memset, uint32_t> memsets{};
 			core::StepAlloc<Trunc, uint32_t> truncs{};
 			core::StepAlloc<FTrunc, uint32_t> ftruncs{};
 			core::StepAlloc<SExt, uint32_t> sexts{};
@@ -515,6 +517,7 @@ namespace pcit::pir{
 			core::StepAlloc<SRem, uint32_t> srems{};
 			core::StepAlloc<URem, uint32_t> urems{};
 			core::StepAlloc<FRem, uint32_t> frems{};
+			core::StepAlloc<FNeg, uint32_t> fnegs{};
 
 			core::StepAlloc<IEq, uint32_t> ieqs{};
 			core::StepAlloc<FEq, uint32_t> feqs{};

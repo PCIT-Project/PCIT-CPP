@@ -51,6 +51,7 @@ namespace pcit::pir{
 			EVO_NODISCARD static auto getBoolean(const Expr& expr) -> bool;
 			EVO_NODISCARD static auto getParamExpr(const Expr& expr) -> ParamExpr;
 			EVO_NODISCARD auto getGlobalValue(const Expr& expr) const -> const GlobalVar&;
+			EVO_NODISCARD auto getFunctionPointer(const Expr& expr) const -> const Function&;
 
 			EVO_NODISCARD auto getCall(const Expr& expr) const -> const Call&;
 			EVO_NODISCARD auto getCallVoid(const Expr& expr) const -> const CallVoid&;
@@ -62,6 +63,8 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getLoad(const Expr& expr) const -> const Load&;
 			EVO_NODISCARD auto getStore(const Expr& expr) const -> const Store&;
 			EVO_NODISCARD auto getCalcPtr(const Expr& expr) const -> const CalcPtr&;
+			EVO_NODISCARD auto getMemcpy(const Expr& expr) const -> const Memcpy&;
+			EVO_NODISCARD auto getMemset(const Expr& expr) const -> const Memset&;
 
 			EVO_NODISCARD auto getBitCast(const Expr& expr) const -> const BitCast&;
 			EVO_NODISCARD auto getTrunc(const Expr& expr) const -> const Trunc&;
@@ -110,6 +113,7 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getSRem(const Expr& expr) const -> const SRem&;
 			EVO_NODISCARD auto getURem(const Expr& expr) const -> const URem&;
 			EVO_NODISCARD auto getFRem(const Expr& expr) const -> const FRem&;
+			EVO_NODISCARD auto getFNeg(const Expr& expr) const -> const FNeg&;
 
 			EVO_NODISCARD auto getIEq(const Expr& expr) const -> const IEq&;
 			EVO_NODISCARD auto getFEq(const Expr& expr) const -> const FEq&;

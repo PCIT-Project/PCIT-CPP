@@ -41,4 +41,13 @@ namespace pcit::panther{
 	}
 
 
+	auto Source::getLocationAsPath() const -> fs::path {
+		if(this->location.is<std::string>()){
+			return this->location.as<std::string>();
+		}else{
+			return this->location.as<fs::path>();
+		}
+	}
+
+
 }

@@ -55,10 +55,10 @@ struct Config{
 		PrintTokens,
 	} target;
 
-	bool verbose;
 	bool print_color;
 
 	fs::path relative_dir{};
+	bool verbose;
 	bool relative_dir_set = false;
 
 	bool add_source_locations = true;
@@ -75,8 +75,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 	auto config = Config{
 		.target      = Config::Target::Run,
-		.verbose     = true,
 		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
+		.verbose     = true,
 
 		// .add_source_locations = false,
 		// .checked_math = false,
@@ -155,9 +155,9 @@ auto main(int argc, const char* argv[]) -> int {
 
 	auto context = panther::Context(
 		printer,
-		panther::createDefaultDiagnosticCallback(printer),
+		panther::createDefaultDiagnosticCallback(printer, config.relative_dir),
 		panther::Context::Config{
-			.basePath     = config.relative_dir,
+			.basePath = config.relative_dir,
 
 			.addSourceLocations = config.add_source_locations,
 			.checkedMath        = config.checked_math,

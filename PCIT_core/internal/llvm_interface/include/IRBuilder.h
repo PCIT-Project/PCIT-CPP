@@ -83,6 +83,7 @@ namespace pcit::llvmint{
 				IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0'
 			) -> CallInst;
 
+			auto createMemCpyInline(const Value& dst, const Value& src, const Value& size, bool is_volatile) -> void;
 			auto createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile) -> void;
 
 
@@ -200,6 +201,8 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto createURem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 			EVO_NODISCARD auto createSRem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 			EVO_NODISCARD auto createFRem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+
+			EVO_NODISCARD auto createFNeg(const Value& rhs, evo::CStrProxy name = '\0') -> Value;
 
 
 

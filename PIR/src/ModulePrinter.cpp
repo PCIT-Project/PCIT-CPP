@@ -433,7 +433,12 @@ namespace pcit::pir{
 
 			case Expr::Kind::GlobalValue: {
 				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
-				this->printer.print("${}", global_var.name);
+				this->printer.print("@{}", global_var.name);
+			} break;
+
+			case Expr::Kind::FunctionPointer: {
+				const Function& function = this->reader.getFunctionPointer(expr);
+				this->printer.print("@{}", function.getName());
 			} break;
 
 			case Expr::Kind::ParamExpr: {
@@ -471,6 +476,9 @@ namespace pcit::pir{
 				const CalcPtr& calc_ptr = this->reader.getCalcPtr(expr);
 				this->printer.print("${}", calc_ptr.name);
 			} break;
+
+			case Expr::Kind::Memcpy: evo::debugFatalBreak("Expr::Kind::Memcpy is not a valid expression");
+			case Expr::Kind::Memset: evo::debugFatalBreak("Expr::Kind::Memset is not a valid expression");
 
 			case Expr::Kind::BitCast: {
 				const BitCast& bitcast = this->reader.getBitCast(expr);
@@ -685,6 +693,11 @@ namespace pcit::pir{
 				this->printer.print("${}", frem.name);
 			} break;
 
+			case Expr::Kind::FNeg: {
+				const FNeg& fneg = this->reader.getFNeg(expr);
+				this->printer.print("${}", fneg.name);
+			} break;
+
 			case Expr::Kind::IEq: {
 				const IEq& ieq = this->reader.getIEq(expr);
 				this->printer.print("${}", ieq.name);
@@ -804,7 +817,6 @@ namespace pcit::pir{
 				const USHR& ushr = this->reader.getUSHR(expr);
 				this->printer.print("${}", ushr.name);
 			} break;
-
 		}
 	}
 
@@ -816,7 +828,9 @@ namespace pcit::pir{
 			case Expr::Kind::Number:      evo::debugFatalBreak("Expr::Kind::Number is not a valid statement");
 			case Expr::Kind::Boolean:     evo::debugFatalBreak("Expr::Kind::Boolean is not a valid statement");
 			case Expr::Kind::GlobalValue: evo::debugFatalBreak("Expr::Kind::GlobalValue is not a valid statement");
-			case Expr::Kind::ParamExpr:   evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
+			case Expr::Kind::FunctionPointer: 
+				evo::debugFatalBreak("Expr::Kind::FunctionPointer is not a valid statement");
+			case Expr::Kind::ParamExpr: evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
 
 			case Expr::Kind::Call: {
 				const Call& call_inst = this->reader.getCall(stmt);
@@ -926,7 +940,33 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::BitCast:{
+			case Expr::Kind::Memcpy: {
+				const Memcpy& memcpy = this->reader.getMemcpy(stmt);
+
+				this->printer.printRed("{}@memcpy ", tabs(2));
+				this->print_expr(memcpy.dst);
+				this->printer.print(", ");
+				this->print_expr(memcpy.src);
+				this->printer.print(", ");
+				this->print_expr(memcpy.numBytes);
+				if(memcpy.isVolatile){ this->printer.printRed(" #volatile"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::Memset: {
+				const Memset& memset = this->reader.getMemset(stmt);
+
+				this->printer.printRed("{}@memset ", tabs(2));
+				this->print_expr(memset.dst);
+				this->printer.print(", ");
+				this->print_expr(memset.value);
+				this->printer.print(", ");
+				this->print_expr(memset.numBytes);
+				if(memset.isVolatile){ this->printer.printRed(" #volatile"); }
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::BitCast: {
 				const BitCast& bitcast = this->reader.getBitCast(stmt);
 
 				this->printer.print("{}${} ", tabs(2), bitcast.name);
@@ -937,7 +977,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Trunc:{
+			case Expr::Kind::Trunc: {
 				const Trunc& trunc = this->reader.getTrunc(stmt);
 
 				this->printer.print("{}${} ", tabs(2), trunc.name);
@@ -948,7 +988,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FTrunc:{
+			case Expr::Kind::FTrunc: {
 				const FTrunc& ftrunc = this->reader.getFTrunc(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftrunc.name);
@@ -959,7 +999,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SExt:{
+			case Expr::Kind::SExt: {
 				const SExt& sext = this->reader.getSExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), sext.name);
@@ -970,7 +1010,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::ZExt:{
+			case Expr::Kind::ZExt: {
 				const ZExt& zext = this->reader.getZExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), zext.name);
@@ -981,7 +1021,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FExt:{
+			case Expr::Kind::FExt: {
 				const FExt& fext = this->reader.getFExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fext.name);
@@ -992,7 +1032,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::IToF:{
+			case Expr::Kind::IToF: {
 				const IToF& itof = this->reader.getIToF(stmt);
 
 				this->printer.print("{}${} ", tabs(2), itof.name);
@@ -1003,7 +1043,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::UIToF:{
+			case Expr::Kind::UIToF: {
 				const UIToF& uitof = this->reader.getUIToF(stmt);
 
 				this->printer.print("{}${} ", tabs(2), uitof.name);
@@ -1014,7 +1054,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FToI:{
+			case Expr::Kind::FToI: {
 				const FToI& ftoi = this->reader.getFToI(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftoi.name);
@@ -1025,7 +1065,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FToUI:{
+			case Expr::Kind::FToUI: {
 				const FToUI& ftoui = this->reader.getFToUI(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftoui.name);
@@ -1045,7 +1085,8 @@ namespace pcit::pir{
 				this->print_expr(add.lhs);
 				this->printer.print(", ");
 				this->print_expr(add.rhs);
-				if(add.mayWrap){ this->printer.printRed(" #mayWrap"); }
+				if(add.nsw){ this->printer.printRed(" #nsw"); }
+				if(add.nuw){ this->printer.printRed(" #nuw"); }
 				this->printer.println();
 			} break;
 
@@ -1127,7 +1168,8 @@ namespace pcit::pir{
 				this->print_expr(sub.lhs);
 				this->printer.print(", ");
 				this->print_expr(sub.rhs);
-				if(sub.mayWrap){ this->printer.printRed(" #mayWrap"); }
+				if(sub.nsw){ this->printer.printRed(" #nsw"); }
+				if(sub.nuw){ this->printer.printRed(" #nuw"); }
 				this->printer.println();
 			} break;
 
@@ -1209,7 +1251,8 @@ namespace pcit::pir{
 				this->print_expr(mul.lhs);
 				this->printer.print(", ");
 				this->print_expr(mul.rhs);
-				if(mul.mayWrap){ this->printer.printRed(" #mayWrap"); }
+				if(mul.nsw){ this->printer.printRed(" #nsw"); }
+				if(mul.nuw){ this->printer.printRed(" #nuw"); }
 				this->printer.println();
 			} break;
 
@@ -1348,6 +1391,15 @@ namespace pcit::pir{
 				this->print_expr(frem.lhs);
 				this->printer.print(", ");
 				this->print_expr(frem.rhs);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::FNeg: {
+				const FNeg& fneg = this->reader.getFNeg(stmt);
+
+				this->printer.print("{}${} ", tabs(2), fneg.name);
+				this->printer.printRed("= @fneg ");
+				this->print_expr(fneg.rhs);
 				this->printer.println();
 			} break;
 
@@ -1531,7 +1583,7 @@ namespace pcit::pir{
 				const And& and_stmt = this->reader.getAnd(stmt);
 
 				this->printer.print("{}${} ", tabs(2), and_stmt.name);
-				this->printer.printRed("= @and_stmt ");
+				this->printer.printRed("= @and ");
 				this->print_expr(and_stmt.lhs);
 				this->printer.print(", ");
 				this->print_expr(and_stmt.rhs);
@@ -1542,7 +1594,7 @@ namespace pcit::pir{
 				const Or& or_stmt = this->reader.getOr(stmt);
 
 				this->printer.print("{}${} ", tabs(2), or_stmt.name);
-				this->printer.printRed("= @or_stmt ");
+				this->printer.printRed("= @or ");
 				this->print_expr(or_stmt.lhs);
 				this->printer.print(", ");
 				this->print_expr(or_stmt.rhs);
@@ -1553,7 +1605,7 @@ namespace pcit::pir{
 				const Xor& xor_stmt = this->reader.getXor(stmt);
 
 				this->printer.print("{}${} ", tabs(2), xor_stmt.name);
-				this->printer.printRed("= @xor_stmt ");
+				this->printer.printRed("= @xor ");
 				this->print_expr(xor_stmt.lhs);
 				this->printer.print(", ");
 				this->print_expr(xor_stmt.rhs);
@@ -1568,7 +1620,8 @@ namespace pcit::pir{
 				this->print_expr(shl.lhs);
 				this->printer.print(", ");
 				this->print_expr(shl.rhs);
-				if(shl.mayWrap){ this->printer.printRed(" #mayWrap"); }
+				if(shl.nsw){ this->printer.printRed(" #nsw"); }
+				if(shl.nuw){ this->printer.printRed(" #nuw"); }
 				this->printer.println();
 			} break;
 

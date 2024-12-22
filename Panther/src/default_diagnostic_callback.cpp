@@ -14,6 +14,7 @@ namespace pcit::panther{
 
 	static auto print_location(
 		core::Printer& printer,
+		const std::filesystem::path& rel_dir,
 		const Source& source,
 		Diagnostic::Level level,
 		const Source::Location& location,
@@ -27,17 +28,20 @@ namespace pcit::panther{
 			printer.print("\t");
 		}
 
+		std::error_code ec;
 
 		// https://stackoverflow.com/a/66814614
 		printer.printGray(
 			std::format(
 				"\x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\:{}:{}\n", 
 				source.getLocationAsString(),
-				source.getLocationAsString(),
+				std::filesystem::relative(source.getLocationAsPath(), rel_dir, ec).string(),
 				location.lineStart,
 				location.collumnStart
 			)
 		);
+
+		evo::debugAssert(ec.value() == 0, "Error getting relative path");
 
 		const std::string line_number_str = std::to_string(location.lineStart);
 
@@ -144,7 +148,11 @@ namespace pcit::panther{
 
 
 	static auto print_info(
-		core::Printer& printer, const Context& context, const Diagnostic::Info& info, unsigned depth
+		core::Printer& printer,
+		const std::filesystem::path& rel_dir,
+		const Context& context,
+		const Diagnostic::Info& info,
+		unsigned depth
 	) -> void {
 		for(size_t i = 0; i < depth; i+=1){
 			printer.print("\t");
@@ -154,18 +162,20 @@ namespace pcit::panther{
 
 		if(info.location.has_value()){
 			const Source& source = context.getSourceManager().getSource(info.location->sourceID);
-			print_location(printer, source, Diagnostic::Level::Info, *info.location, depth + 1);
+			print_location(printer, rel_dir, source, Diagnostic::Level::Info, *info.location, depth + 1);
 		}
 
 		for(const Diagnostic::Info& sub_info : info.sub_infos){
-			print_info(printer, context, sub_info, depth + 1);
+			print_info(printer, rel_dir, context, sub_info, depth + 1);
 		}
 	}
 
 	
 
-	auto createDefaultDiagnosticCallback(core::Printer& printer_ref) -> Context::DiagnosticCallback {
-		return [&printer = printer_ref](const Context& context, const Diagnostic& diagnostic) -> void {
+	auto createDefaultDiagnosticCallback(core::Printer& printer_ref, const std::filesystem::path& relative_dir)
+	-> Context::DiagnosticCallback {
+		return [&printer = printer_ref, &rel_dir = relative_dir](const Context& context, const Diagnostic& diagnostic) 
+		-> void {
 
 			const std::string diagnostic_message = std::format(
 				"<{}|{}> {}\n", diagnostic.level, diagnostic.code, diagnostic.message
@@ -181,11 +191,11 @@ namespace pcit::panther{
 				const Source::Location& location = *diagnostic.location;
 				const Source& source = context.getSourceManager().getSource(location.sourceID);
 
-				print_location(printer, source, diagnostic.level, location, 1);
+				print_location(printer, rel_dir, source, diagnostic.level, location, 1);
 			}
 
 			for(const Diagnostic::Info& info : diagnostic.infos){
-				print_info(printer, context, info, 1);
+				print_info(printer, rel_dir, context, info, 1);
 			}
 
 

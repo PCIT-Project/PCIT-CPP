@@ -329,6 +329,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getUnderlyingType(TypeInfo::ID id) -> evo::Result<TypeInfo::ID>;
 			EVO_NODISCARD auto getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID>;
 
+			EVO_NODISCARD auto getLowest(TypeInfo::ID id) const -> core::GenericValue;
+			EVO_NODISCARD auto getLowest(BaseType::ID id) const -> core::GenericValue;
+
+			EVO_NODISCARD auto getMin(TypeInfo::ID id) const -> core::GenericValue;
+			EVO_NODISCARD auto getMin(BaseType::ID id) const -> core::GenericValue;
+
+			EVO_NODISCARD auto getMax(TypeInfo::ID id) const -> core::GenericValue;
+			EVO_NODISCARD auto getMax(BaseType::ID id) const -> core::GenericValue;
+
+
 		private:
 			EVO_NODISCARD auto get_or_create_primitive_base_type_impl(const BaseType::Primitive& lookup_type)
 				-> BaseType::ID;

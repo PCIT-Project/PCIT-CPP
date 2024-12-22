@@ -126,6 +126,17 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// function pointers
+
+
+			EVO_NODISCARD static auto createFunctionPointer(const Function::ID& global_id) -> Expr;
+
+			EVO_NODISCARD auto getFunctionPointer(const Expr& expr) const -> const Function&;
+
+
+
+
+			///////////////////////////////////
 			// calls
 
 			EVO_NODISCARD auto createCall(
@@ -247,6 +258,22 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getCalcPtr(const Expr& expr) const -> const CalcPtr&;
 
 
+			///////////////////////////////////
+			// memcpy
+
+			auto createMemcpy(const Expr& dst, const Expr& src, const Expr& num_bytes, bool is_volatile) const -> Expr;
+
+			EVO_NODISCARD auto getMemcpy(const Expr&) const -> const Memcpy&;
+
+
+			///////////////////////////////////
+			// memset
+
+			auto createMemset(const Expr& dst, const Expr& value, const Expr& num_bytes, bool is_volatile) const
+				-> Expr;
+
+			EVO_NODISCARD auto getMemset(const Expr&) const -> const Memset&;
+
 
 			//////////////////////////////////////////////////////////////////////
 			// type conversion
@@ -339,9 +366,9 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// add
 
-			EVO_NODISCARD auto createAdd(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const 
-				-> Expr;
-			auto createAdd(const Expr&, const Expr&, const char*) = delete; // prevent forgetting may_wrap
+			EVO_NODISCARD auto createAdd(
+				const Expr& lhs, const Expr& rhs, bool nsw, bool nuw, std::string&& name = ""
+			) const -> Expr;
 			EVO_NODISCARD auto getAdd(const Expr& expr) const -> const Add&;
 
 			EVO_NODISCARD auto createSAddWrap(
@@ -371,9 +398,9 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// sub
 
-			EVO_NODISCARD auto createSub(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const 
-				-> Expr;
-			auto createSub(const Expr&, const Expr&, const char*) = delete; // prevent forgetting may_wrap
+			EVO_NODISCARD auto createSub(
+				const Expr& lhs, const Expr& rhs, bool nsw, bool nuw, std::string&& name = ""
+			) const -> Expr;
 			EVO_NODISCARD auto getSub(const Expr& expr) const -> const Sub&;
 
 			EVO_NODISCARD auto createSSubWrap(
@@ -403,9 +430,9 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// mul
 
-			EVO_NODISCARD auto createMul(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const 
-				-> Expr;
-			auto createMul(const Expr&, const Expr&, const char*) = delete; // prevent forgetting may_wrap
+			EVO_NODISCARD auto createMul(
+				const Expr& lhs, const Expr& rhs, bool nsw, bool nuw, std::string&& name = ""
+			) const -> Expr;
 			EVO_NODISCARD auto getMul(const Expr& expr) const -> const Mul&;
 
 			EVO_NODISCARD auto createSMulWrap(
@@ -460,6 +487,13 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto createFRem(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
 			EVO_NODISCARD auto getFRem(const Expr& expr) const -> const FRem&;
+
+
+			///////////////////////////////////
+			// neg
+
+			EVO_NODISCARD auto createFNeg(const Expr& rhs, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getFNeg(const Expr& expr) const -> const FNeg&;
 
 
 			//////////////////////////////////////////////////////////////////////
@@ -549,8 +583,9 @@ namespace pcit::pir{
 			EVO_NODISCARD auto createXor(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;
 			EVO_NODISCARD auto getXor(const Expr& expr) const -> const Xor&;
 
-			EVO_NODISCARD auto createSHL(const Expr& lhs, const Expr& rhs, bool may_wrap, std::string&& name = "") const
-				-> Expr;
+			EVO_NODISCARD auto createSHL(
+				const Expr& lhs, const Expr& rhs, bool nsw, bool nuw, std::string&& name = ""
+			) const -> Expr;
 			EVO_NODISCARD auto getSHL(const Expr& expr) const -> const SHL&;
 
 			EVO_NODISCARD auto createSSHLSat(const Expr& lhs, const Expr& rhs, std::string&& name = "") const -> Expr;

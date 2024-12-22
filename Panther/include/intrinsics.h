@@ -74,6 +74,7 @@ namespace pcit::panther{
 			Div,
 			FDiv,
 			Rem,
+			FNeg,
 
 			Eq,
 			NEq,

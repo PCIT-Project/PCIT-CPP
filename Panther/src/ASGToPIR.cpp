@@ -273,15 +273,15 @@ namespace pcit::panther{
 			} break;
 
 			case ASG::Expr::Kind::Zeroinit: {
-				// TODO: 
-				evo::log::fatal("UNIMPLEMENTED (var value of [zeroinit])");
-				evo::breakpoint();
-				// this->builder.createMemSetInline(
-				// 	var_alloca.asValue(),
-				// 	this->builder.getValueI8(0).asValue(),
-				// 	this->get_value_size(this->context.getTypeManager().sizeOf(*asg_var.typeID)).asValue(),
-				// 	false
-				// );
+				this->agent.createMemset(
+					var_alloca,
+					this->agent.createNumber(this->module.createIntegerType(8), core::GenericInt::create(0)),
+					this->agent.createNumber(
+						this->module.createIntegerType(uint32_t(this->context.getTypeManager().sizeOfPtr())),
+						core::GenericInt::create(this->context.getTypeManager().sizeOf(*asg_var.typeID))
+					),
+					false
+				);
 			} break;
 
 			default: {
@@ -427,6 +427,7 @@ namespace pcit::panther{
 				case TemplatedIntrinsic::Kind::Div:
 				case TemplatedIntrinsic::Kind::FDiv:
 				case TemplatedIntrinsic::Kind::Rem:
+				case TemplatedIntrinsic::Kind::FNeg:
 				case TemplatedIntrinsic::Kind::Eq:
 				case TemplatedIntrinsic::Kind::NEq:
 				case TemplatedIntrinsic::Kind::LT:
@@ -868,9 +869,8 @@ namespace pcit::panther{
 			} break;
 
 			case ASG::Expr::Kind::Func: {
-				// TODO: 
-				evo::log::fatal("UNIMPLEMENTED (ASG::Expr::Kind::Func)");
-				evo::breakpoint();
+				const FuncInfo& func_info = this->get_func_info(expr.funcLinkID());
+				return this->agent.createFunctionPointer(func_info.func);
 			} break;
 
 			case ASG::Expr::Kind::Param: {
@@ -1211,9 +1211,25 @@ namespace pcit::panther{
 
 				case TemplatedIntrinsic::Kind::Trunc: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
-					return evo::SmallVector<pir::Expr>{
-						this->agent.createTrunc(args[0], this->get_type(to_type), this->stmt_name("TRUNC"))
-					};
+
+					if(to_type != this->context.getTypeManager().getTypeBool()){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createTrunc(args[0], this->get_type(to_type), this->stmt_name("TRUNC"))
+						};
+
+					}else{
+						const TypeInfo::ID from_type = 
+							instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+
+						const pir::Expr zero = this->agent.createNumber(
+							this->get_type(from_type), core::GenericInt::create(0)
+						);
+
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createUGT(args[0], zero, this->stmt_name("TRUNC"))
+						};
+					}
+
 				} break;
 
 				case TemplatedIntrinsic::Kind::FTrunc: {
@@ -1267,9 +1283,42 @@ namespace pcit::panther{
 
 				case TemplatedIntrinsic::Kind::FToUI: {
 					const TypeInfo::ID to_type = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().typeID();
-					return evo::SmallVector<pir::Expr>{
-						this->agent.createFToUI(args[0], this->get_type(to_type), this->stmt_name("FTOUI"))
-					};
+
+					if(to_type != this->context.getTypeManager().getTypeBool()){
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFToUI(args[0], this->get_type(to_type), this->stmt_name("FTOUI"))
+						};
+
+					}else{
+						const TypeManager& type_manager = this->context.getTypeManager(); 
+
+						const TypeInfo::ID from_type_id = 
+							instantiation.templateArgs[0].as<TypeInfo::VoidableID>().typeID();
+						const TypeInfo& from_type_info = type_manager.getTypeInfo(from_type_id);
+
+						const BaseType::Primitive& from_type_primitive = 
+							type_manager.getPrimitive(from_type_info.baseTypeID().primitiveID());
+
+						const core::GenericFloat generic_float_zero = [&](){
+							switch(from_type_primitive.kind()){
+								case Token::Kind::TypeF16:  return core::GenericFloat::createF16(0);
+								case Token::Kind::TypeBF16: return core::GenericFloat::createBF16(0);
+								case Token::Kind::TypeF32:  return core::GenericFloat::createF32(0);
+								case Token::Kind::TypeF64:  return core::GenericFloat::createF64(0);
+								case Token::Kind::TypeF80:  return core::GenericFloat::createF80(0);
+								case Token::Kind::TypeF128: return core::GenericFloat::createF128(0);
+								default: evo::unreachable();
+							}
+						}();
+
+						const pir::Expr zero = this->agent.createNumber(
+							this->get_type(from_type_id), generic_float_zero
+						);
+
+						return evo::SmallVector<pir::Expr>{
+							this->agent.createFGT(args[0], zero, this->stmt_name("FTOUI"))
+						};
+					}
 				} break;
 
 
@@ -1283,7 +1332,13 @@ namespace pcit::panther{
 					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
 					if(may_wrap || this->config.checkedMath == false){
 						return evo::SmallVector<pir::Expr>{
-							this->agent.createAdd(args[0], args[1], may_wrap, this->stmt_name("ADD"))
+							this->agent.createAdd(
+								args[0],
+								args[1],
+								!is_unsigned & !may_wrap,
+								is_unsigned & !may_wrap,
+								this->stmt_name("ADD")
+							)
 						};
 					}
 
@@ -1373,7 +1428,13 @@ namespace pcit::panther{
 					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
 					if(may_wrap || this->config.checkedMath == false){
 						return evo::SmallVector<pir::Expr>{
-							this->agent.createSub(args[0], args[1], may_wrap, this->stmt_name("SUB"))
+							this->agent.createSub(
+								args[0],
+								args[1],
+								!is_unsigned & !may_wrap,
+								is_unsigned & !may_wrap,
+								this->stmt_name("SUB")
+							)
 						};
 					}
 
@@ -1463,7 +1524,13 @@ namespace pcit::panther{
 					const bool may_wrap = instantiation.templateArgs[1].as<bool>();
 					if(may_wrap || this->config.checkedMath == false){
 						return evo::SmallVector<pir::Expr>{
-							this->agent.createMul(args[0], args[1], may_wrap, this->stmt_name("MUL"))
+							this->agent.createMul(
+								args[0],
+								args[1],
+								!is_unsigned & !may_wrap,
+								is_unsigned & !may_wrap,
+								this->stmt_name("MUL")
+							)
 						};
 					}
 
@@ -1588,6 +1655,12 @@ namespace pcit::panther{
 							this->agent.createSRem(args[0], args[1], this->stmt_name("REM"))
 						};
 					}
+				} break;
+
+				case TemplatedIntrinsic::Kind::FNeg: {
+					return evo::SmallVector<pir::Expr>{
+						this->agent.createFNeg(args[0], this->stmt_name("FNEG"))
+					};
 				} break;
 
 
@@ -1738,7 +1811,9 @@ namespace pcit::panther{
 					const bool may_wrap = instantiation.templateArgs[2].as<bool>();
 					if(may_wrap){
 						return evo::SmallVector<pir::Expr>{
-							this->agent.createSHL(args[0], args[1], true, this->stmt_name("SHL"))
+							this->agent.createSHL(
+								args[0], args[1], false, false, this->stmt_name("SHL")
+							)
 						};
 					}
 						
@@ -1746,7 +1821,7 @@ namespace pcit::panther{
 					const bool is_unsigned = this->context.getTypeManager().isUnsignedIntegral(arg_type);
 
 					const pir::Expr shift_value = this->agent.createSHL(
-						args[0], args[1], false, this->stmt_name("SHL")
+						args[0], args[1], false, false, this->stmt_name("SHL")
 					);
 
 					if(this->config.checkedMath){
@@ -1799,7 +1874,7 @@ namespace pcit::panther{
 
 					if(!is_exact && this->config.checkedMath){
 						const pir::Expr check_value = this->agent.createSHL(
-							shift_value, args[1], false, this->stmt_name("SHR.CHECK")
+							shift_value, args[1], false, true, this->stmt_name("SHR.CHECK")
 						);
 
 						this->add_fail_assertion(

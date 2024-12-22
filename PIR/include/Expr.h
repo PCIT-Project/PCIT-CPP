@@ -26,6 +26,7 @@ namespace pcit::pir{
 
 				// values
 				GlobalValue,
+				FunctionPointer,
 				Number,
 				Boolean,
 				ParamExpr,
@@ -44,6 +45,8 @@ namespace pcit::pir{
 				Load,
 				Store,
 				CalcPtr,
+				Memcpy,
+				Memset,
 
 				BitCast,
 				Trunc,
@@ -92,6 +95,7 @@ namespace pcit::pir{
 				SRem,
 				URem,
 				FRem,
+				FNeg,
 
 				IEq,
 				FEq,
@@ -126,7 +130,6 @@ namespace pcit::pir{
 			EVO_NODISCARD constexpr auto getKind() const -> Kind { return this->kind; }
 
 			EVO_NODISCARD auto isValue() const -> bool {
-
                 switch(this->kind){
 					case Kind::Number:          case Kind::Boolean:         case Kind::GlobalValue:
 					case Kind::ParamExpr:       case Kind::Call:            case Kind::Alloca:
@@ -146,14 +149,15 @@ namespace pcit::pir{
 					case Kind::SMulSat:         case Kind::UMulSat:         case Kind::FMul:
 					case Kind::SDiv:            case Kind::UDiv:            case Kind::FDiv:
 					case Kind::SRem:            case Kind::URem:            case Kind::FRem:
-					case Kind::IEq:             case Kind::FEq:             case Kind::INeq:
-					case Kind::FNeq:            case Kind::SLT:             case Kind::ULT:
-					case Kind::FLT:             case Kind::SLTE:            case Kind::ULTE:
-					case Kind::FLTE:            case Kind::SGT:             case Kind::UGT:
-					case Kind::FGT:             case Kind::SGTE:            case Kind::UGTE:
-					case Kind::FGTE:            case Kind::And:             case Kind::Or:
-					case Kind::Xor:             case Kind::SHL:             case Kind::SSHLSat:
-					case Kind::USHLSat:         case Kind::SSHR:            case Kind::USHR: {
+					case Kind::FNeg:            case Kind::IEq:             case Kind::FEq:
+					case Kind::INeq:            case Kind::FNeq:            case Kind::SLT:
+					case Kind::ULT:             case Kind::FLT:             case Kind::SLTE:
+					case Kind::ULTE:            case Kind::FLTE:            case Kind::SGT:
+					case Kind::UGT:             case Kind::FGT:             case Kind::SGTE:
+					case Kind::UGTE:            case Kind::FGTE:            case Kind::And:
+					case Kind::Or:              case Kind::Xor:             case Kind::SHL:
+					case Kind::SSHLSat:         case Kind::USHLSat:         case Kind::SSHR:
+					case Kind::USHR: {
 						return true;
 					} break;
 					default: return false;
@@ -169,33 +173,34 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isStmt() const -> bool {
 				switch(this->kind){
-					case Kind::Call:            case Kind::CallVoid:        case Kind::Breakpoint:
-					case Kind::Ret:             case Kind::Branch:          case Kind::CondBranch:
-					case Kind::Unreachable:     case Kind::Alloca:          case Kind::Load:
-					case Kind::Store:           case Kind::CalcPtr:         case Kind::BitCast:
-					case Kind::Trunc:           case Kind::FTrunc:          case Kind::SExt:
-					case Kind::ZExt:            case Kind::FExt:            case Kind::IToF:
-					case Kind::UIToF:           case Kind::FToI:            case Kind::FToUI:
-					case Kind::Add:             case Kind::SAddWrap:        case Kind::SAddWrapResult:
-					case Kind::SAddWrapWrapped: case Kind::UAddWrap:        case Kind::UAddWrapResult:
-					case Kind::UAddWrapWrapped: case Kind::SAddSat:         case Kind::UAddSat:
-					case Kind::FAdd:            case Kind::Sub:             case Kind::SSubWrap:
-					case Kind::SSubWrapResult:  case Kind::SSubWrapWrapped: case Kind::USubWrap:
-					case Kind::USubWrapResult:  case Kind::USubWrapWrapped: case Kind::SSubSat:
-					case Kind::USubSat:         case Kind::FSub:            case Kind::Mul:
-					case Kind::SMulWrap:        case Kind::SMulWrapResult:  case Kind::SMulWrapWrapped:
-					case Kind::UMulWrap:        case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped:
-					case Kind::SMulSat:         case Kind::UMulSat:         case Kind::FMul:
-					case Kind::SDiv:            case Kind::UDiv:            case Kind::FDiv:
-					case Kind::SRem:            case Kind::URem:            case Kind::FRem:
-					case Kind::IEq:             case Kind::FEq:             case Kind::INeq:
-					case Kind::FNeq:            case Kind::SLT:             case Kind::ULT:
-					case Kind::FLT:             case Kind::SLTE:            case Kind::ULTE:
-					case Kind::FLTE:            case Kind::SGT:             case Kind::UGT:
-					case Kind::FGT:             case Kind::SGTE:            case Kind::UGTE:
-					case Kind::FGTE:            case Kind::And:             case Kind::Or:
-					case Kind::Xor:             case Kind::SHL:             case Kind::SSHLSat:
-					case Kind::USHLSat:         case Kind::SSHR:            case Kind::USHR: {
+					case Kind::Call:            case Kind::CallVoid:         case Kind::Breakpoint:
+					case Kind::Ret:             case Kind::Branch:           case Kind::CondBranch:
+					case Kind::Unreachable:     case Kind::Alloca:           case Kind::Load:
+					case Kind::Store:           case Kind::CalcPtr:        	 case Kind::Memcpy:
+					case Kind::Memset:          case Kind::BitCast:          case Kind::Trunc:
+					case Kind::FTrunc:          case Kind::SExt:             case Kind::ZExt:
+					case Kind::FExt:            case Kind::IToF:             case Kind::UIToF:
+					case Kind::FToI:            case Kind::FToUI:            case Kind::Add:
+					case Kind::SAddWrap:        case Kind::SAddWrapResult:   case Kind::SAddWrapWrapped:
+					case Kind::UAddWrap:        case Kind::UAddWrapResult:   case Kind::UAddWrapWrapped:
+					case Kind::SAddSat:         case Kind::UAddSat:          case Kind::FAdd:
+					case Kind::Sub:             case Kind::SSubWrap:         case Kind::SSubWrapResult:
+					case Kind::SSubWrapWrapped: case Kind::USubWrap:         case Kind::USubWrapResult:
+					case Kind::USubWrapWrapped: case Kind::SSubSat:          case Kind::USubSat:
+					case Kind::FSub:            case Kind::Mul:              case Kind::SMulWrap:
+					case Kind::SMulWrapResult:  case Kind::SMulWrapWrapped:  case Kind::UMulWrap:
+					case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped:  case Kind::SMulSat:
+					case Kind::UMulSat:         case Kind::FMul:             case Kind::SDiv:
+					case Kind::UDiv:            case Kind::FDiv:             case Kind::SRem:
+					case Kind::URem:            case Kind::FRem:             case Kind::FNeg:
+					case Kind::IEq:             case Kind::FEq:              case Kind::INeq:
+					case Kind::FNeq:            case Kind::SLT:              case Kind::ULT:
+					case Kind::FLT:             case Kind::SLTE:             case Kind::ULTE:
+					case Kind::FLTE:            case Kind::SGT:              case Kind::UGT:
+					case Kind::FGT:             case Kind::SGTE:             case Kind::UGTE:
+					case Kind::FGTE:            case Kind::And:              case Kind::Or:
+					case Kind::Xor:             case Kind::SHL:              case Kind::SSHLSat:
+					case Kind::USHLSat:         case Kind::SSHR:             case Kind::USHR: {
 						return true;
 					} break;
 					default: return false;
@@ -385,6 +390,20 @@ namespace pcit::pir{
 		evo::SmallVector<Index> indices;
 	};
 
+	struct Memcpy{
+		Expr dst;
+		Expr src;
+		Expr numBytes;
+		bool isVolatile;
+	};
+
+	struct Memset{
+		Expr dst;
+		Expr value;
+		Expr numBytes;
+		bool isVolatile;
+	};
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -461,7 +480,8 @@ namespace pcit::pir{
 		std::string name;
 		Expr lhs;
 		Expr rhs;
-		bool mayWrap;
+		bool nsw;
+		bool nuw;
 	};
 
 	struct SAddWrap{
@@ -504,7 +524,8 @@ namespace pcit::pir{
 		std::string name;
 		Expr lhs;
 		Expr rhs;
-		bool mayWrap;
+		bool nsw;
+		bool nuw;
 	};
 
 	struct SSubWrap{
@@ -547,7 +568,8 @@ namespace pcit::pir{
 		std::string name;
 		Expr lhs;
 		Expr rhs;
-		bool mayWrap;
+		bool nsw;
+		bool nuw;
 	};
 
 	struct SMulWrap{
@@ -624,6 +646,11 @@ namespace pcit::pir{
 		Expr rhs;
 	};
 
+
+	struct FNeg{
+		std::string name;
+		Expr rhs;
+	};
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -752,7 +779,8 @@ namespace pcit::pir{
 		std::string name;
 		Expr lhs;
 		Expr rhs;
-		bool mayWrap;
+		bool nsw;
+		bool nuw;
 	};
 
 	struct SSHLSat{

@@ -94,6 +94,7 @@ namespace pcit::panther{
 		SemaInvalidDerefRHS,
 		SemaInvalidInfixLHS,
 		SemaInvalidInfixRHS,
+		SemaInvalidNegateRHS,
 		SemaInvalidInfixArgTypes,
 		SemaInvalidTypeQualifiers,
 		SemaParamTypeVoid,
@@ -115,6 +116,7 @@ namespace pcit::panther{
 		SemaNotValidExprForTypeIDConversion,
 		SemaErrorInRunningOfFuncAtComptime,
 		SemaErrorInRunningOfIntrinsicAtComptime,
+		SemaCannotConvertFluidValue,
 
 		SemaWarnSingleValInMultiAssign,
 		SemaWarnEntryIsImplicitRuntime,
@@ -217,6 +219,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaInvalidDerefRHS:                      return "S";
 			break; case DiagnosticCode::SemaInvalidInfixLHS:                      return "S";
 			break; case DiagnosticCode::SemaInvalidInfixRHS:                      return "S";
+			break; case DiagnosticCode::SemaInvalidNegateRHS:                     return "S";
 			break; case DiagnosticCode::SemaInvalidInfixArgTypes:                 return "S";
 			break; case DiagnosticCode::SemaInvalidTypeQualifiers:                return "S";
 			break; case DiagnosticCode::SemaParamTypeVoid:                        return "S";
@@ -238,6 +241,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaNotValidExprForTypeIDConversion:      return "S";
 			break; case DiagnosticCode::SemaErrorInRunningOfIntrinsicAtComptime:  return "S";
 			break; case DiagnosticCode::SemaErrorInRunningOfFuncAtComptime:       return "S";
+			break; case DiagnosticCode::SemaCannotConvertFluidValue:              return "S";
 
 			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:           return "SW";
 			break; case DiagnosticCode::SemaWarnEntryIsImplicitRuntime:           return "SW";

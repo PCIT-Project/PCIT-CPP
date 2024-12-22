@@ -25,32 +25,35 @@ namespace pcit::pir::passes{
 
 	auto constant_folding_impl(Expr stmt, const Agent& agent) -> PassManager::MadeTransformation {
 		switch(stmt.getKind()){
-			case Expr::Kind::None:        evo::debugFatalBreak("Not valid expr");
-			case Expr::Kind::GlobalValue: return false;
-			case Expr::Kind::Number:      return false;
-			case Expr::Kind::Boolean:     return false;
-			case Expr::Kind::ParamExpr:   return false;
-			case Expr::Kind::Call:        return false;
-			case Expr::Kind::CallVoid:    return false;
-			case Expr::Kind::Breakpoint:  return false;
-			case Expr::Kind::Ret:         return false;
-			case Expr::Kind::Branch:      return false;
-			case Expr::Kind::CondBranch:  return false;
-			case Expr::Kind::Unreachable: return false;
-			case Expr::Kind::Alloca:      return false;
-			case Expr::Kind::Load:        return false;
-			case Expr::Kind::Store:       return false;
-			case Expr::Kind::CalcPtr:     return false;
-			case Expr::Kind::BitCast:     return false;
-			case Expr::Kind::Trunc:       return false;
-			case Expr::Kind::FTrunc:      return false;
-			case Expr::Kind::SExt:        return false;
-			case Expr::Kind::ZExt:        return false;
-			case Expr::Kind::FExt:        return false;
-			case Expr::Kind::IToF:        return false;
-			case Expr::Kind::UIToF:       return false;
-			case Expr::Kind::FToI:        return false;
-			case Expr::Kind::FToUI:       return false;
+			case Expr::Kind::None:            evo::debugFatalBreak("Not valid expr");
+			case Expr::Kind::GlobalValue:     return false;
+			case Expr::Kind::FunctionPointer: return false;
+			case Expr::Kind::Number:          return false;
+			case Expr::Kind::Boolean:         return false;
+			case Expr::Kind::ParamExpr:       return false;
+			case Expr::Kind::Call:            return false;
+			case Expr::Kind::CallVoid:        return false;
+			case Expr::Kind::Breakpoint:      return false;
+			case Expr::Kind::Ret:             return false;
+			case Expr::Kind::Branch:          return false;
+			case Expr::Kind::CondBranch:      return false;
+			case Expr::Kind::Unreachable:     return false;
+			case Expr::Kind::Alloca:          return false;
+			case Expr::Kind::Load:            return false;
+			case Expr::Kind::Store:           return false;
+			case Expr::Kind::CalcPtr:         return false;
+			case Expr::Kind::Memcpy:          return false;
+			case Expr::Kind::Memset:          return false;
+			case Expr::Kind::BitCast:         return false;
+			case Expr::Kind::Trunc:           return false;
+			case Expr::Kind::FTrunc:          return false;
+			case Expr::Kind::SExt:            return false;
+			case Expr::Kind::ZExt:            return false;
+			case Expr::Kind::FExt:            return false;
+			case Expr::Kind::IToF:            return false;
+			case Expr::Kind::UIToF:           return false;
+			case Expr::Kind::FToI:            return false;
+			case Expr::Kind::FToUI:           return false;
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
@@ -458,6 +461,32 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
+			case Expr::Kind::FNeg: {
+				const FNeg& fneg = agent.getFNeg(stmt);
+				if(fneg.rhs.getKind() != Expr::Kind::Number){
+					return false;
+				}
+
+				const Number& rhs = agent.getNumber(fneg.rhs);
+
+				const core::GenericFloat zero = [&](){
+					if(rhs.type.getKind() == Type::Kind::BFloat){ return core::GenericFloat::createBF16(0); }
+
+					switch(rhs.type.getWidth()){
+						case 16: return core::GenericFloat::createF16(0);
+						case 32: return core::GenericFloat::createF32(0);
+						case 64: return core::GenericFloat::createF64(0);
+						case 80: return core::GenericFloat::createF80(0);
+						case 128: return core::GenericFloat::createF128(0);
+					}
+					evo::unreachable();
+				}();
+
+				const Expr result_expr = agent.createNumber(rhs.type, zero.sub(rhs.getFloat()));
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
 			case Expr::Kind::IEq: {
 				const IEq& ieq = agent.getIEq(stmt);
 				if(ieq.lhs.getKind() != Expr::Kind::Number || ieq.rhs.getKind() != Expr::Kind::Number){
@@ -778,16 +807,17 @@ namespace pcit::pir::passes{
 
 	auto inst_simplify_impl(Expr stmt, const Agent& agent) -> PassManager::MadeTransformation {
 		switch(stmt.getKind()){
-			case Expr::Kind::None:        evo::debugFatalBreak("Not valid expr");
-			case Expr::Kind::GlobalValue: return false;
-			case Expr::Kind::Number:      return false;
-			case Expr::Kind::Boolean:     return false;
-			case Expr::Kind::ParamExpr:   return false;
-			case Expr::Kind::Call:        return false;
-			case Expr::Kind::CallVoid:    return false;
-			case Expr::Kind::Breakpoint:  return false;
-			case Expr::Kind::Ret:         return false;
-			case Expr::Kind::Branch:      return false;
+			case Expr::Kind::None:            evo::debugFatalBreak("Not valid expr");
+			case Expr::Kind::GlobalValue:     return false;
+			case Expr::Kind::FunctionPointer: return false;
+			case Expr::Kind::Number:          return false;
+			case Expr::Kind::Boolean:         return false;
+			case Expr::Kind::ParamExpr:       return false;
+			case Expr::Kind::Call:            return false;
+			case Expr::Kind::CallVoid:        return false;
+			case Expr::Kind::Breakpoint:      return false;
+			case Expr::Kind::Ret:             return false;
+			case Expr::Kind::Branch:          return false;
 
 			case Expr::Kind::CondBranch: {
 				const CondBranch& cond_branch = agent.getCondBranch(stmt);
@@ -829,6 +859,10 @@ namespace pcit::pir::passes{
 				agent.replaceExpr(stmt, calc_ptr.basePtr);
 				return true;
 			} break;
+
+			// TODO: 
+			case Expr::Kind::Memcpy: return false;
+			case Expr::Kind::Memset: return false;
 
 			case Expr::Kind::BitCast: {
 				const BitCast& bitcast = agent.getBitCast(stmt);
@@ -1080,6 +1114,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::SRem:            return false;
 			case Expr::Kind::URem:            return false;
 			case Expr::Kind::FRem:            return false;
+			case Expr::Kind::FNeg:            return false;
 
 			// TODO:
 			case Expr::Kind::IEq:  return false;
