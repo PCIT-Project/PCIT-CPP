@@ -11,7 +11,7 @@
 
 
 #include <PCIT_core.h>
-
+#include <PIR.h>
 
 #include "./diagnostics.h"
 #include "./Source.h"

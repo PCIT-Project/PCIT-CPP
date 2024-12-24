@@ -42,8 +42,14 @@ namespace pcit::panther{
 		
 
 			auto lower() -> void;
+			auto lowerFunc(const ASG::Func::LinkID& func_link_id) -> void;
+
 
 			auto addRuntime() -> void;
+
+			EVO_NODISCARD auto getPIRFunctionID(const ASG::Func::LinkID& link_id) const -> const pir::Function::ID& {
+				return this->get_func_info(link_id).func;
+			}
 
 
 		private:

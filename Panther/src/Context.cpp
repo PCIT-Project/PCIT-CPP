@@ -12,7 +12,6 @@
 #include "./Tokenizer.h"
 #include "./Parser.h"
 #include "./SemanticAnalyzer.h"
-#include "./ASGToLLVMIR.h"
 #include "./ASGToPIR.h"
 
 #include <PIR.h>
@@ -208,17 +207,8 @@ namespace pcit::panther{
 		}
 		
 
-		const std::string error_msg = this->comptime_executor.init();
+		this->comptime_executor.init();
 		EVO_DEFER([&](){ this->comptime_executor.deinit(); });
-
-		if(error_msg.empty() == false){
-			this->emitFatal(
-				Diagnostic::Code::LLLVMDataLayoutError,
-				std::nullopt,
-				Diagnostic::createFatalMessage(error_msg)
-			);
-			return;
-		}
 
 
 		{ // global stmts comptime

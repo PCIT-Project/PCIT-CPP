@@ -54,6 +54,15 @@ namespace pcit::panther{
 		this->current_source = nullptr;
 	}
 
+	auto ASGToPIR::lowerFunc(const ASG::Func::LinkID& func_link_id) -> void {
+		this->current_source = &this->context.getSourceManager()[func_link_id.sourceID()];
+
+		this->lower_func_decl(func_link_id.funcID());
+		this->lower_func_body(func_link_id.funcID());
+
+		this->current_source = nullptr;
+	}
+
 
 	auto ASGToPIR::addRuntime() -> void {
 		const FuncInfo& entry_func_info = this->get_func_info(*this->context.getEntry());
@@ -140,8 +149,8 @@ namespace pcit::panther{
 		const pir::Function::ID created_func_id = module.createFunction(
 			std::string(mangled_name),
 			std::move(params),
-			pir::CallingConvention::Fast,
-			pir::Linkage::Private,
+			this->config.isJIT ? pir::CallingConvention::C : pir::CallingConvention::Fast,
+			this->config.isJIT ? pir::Linkage::External : pir::Linkage::Private,
 			return_type
 		);
 

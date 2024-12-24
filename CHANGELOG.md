@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.75.1
+
+### Panther
+- Updated comptime executor to use PIR
+- Fixed generating linkage and calling convention functions when lowering to PIR for JITing
+
+
+<!---------------------------------->
 ## v0.0.75.0
 
 ### Panther

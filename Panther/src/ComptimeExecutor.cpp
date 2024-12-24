@@ -9,76 +9,39 @@
 
 #include "./ComptimeExecutor.h"
 
-#include <llvm_interface.h>
-
 #include "../include/Context.h"
-#include "./ASGToLLVMIR.h"
+#include "./ASGToPIR.h"
 
 
 namespace pcit::panther{
 
-	struct ComptimeExecutor::Data{
-		llvmint::LLVMContext llvm_context{};
-		llvmint::Module module{};
-		llvmint::ExecutionEngine execution_engine{};
-		ASGToLLVMIR* asg_to_llvmir{};
-	};
+	ComptimeExecutor::ComptimeExecutor(Context& _context, core::Printer& _printer) 
+		: context(_context),
+		printer(_printer), 
+		module("PTHR-ComptimeExecutor", this->context.getConfig().os, this->context.getConfig().arch)
+		{}
 
 
-	auto ComptimeExecutor::init() -> std::string {
-		this->data = new Data();
 
-		this->data->llvm_context.init();
-		this->data->module.init("PTHR-ComptimeExecutor", this->data->llvm_context);
-
-
-		const std::string target_triple = this->data->module.getDefaultTargetTriple();
-
-		const std::string data_layout_error = this->data->module.setDataLayout(
-			target_triple,
-			llvmint::Module::Relocation::Default,
-			llvmint::Module::CodeSize::Default,
-			llvmint::Module::OptLevel::None,
-			false
-		);
-
-		if(!data_layout_error.empty()){
-			return std::format("Failed to set data layout with message: {}", data_layout_error);
-		}
-
-		this->data->module.setTargetTriple(target_triple);
-
-		const auto config = ASGToLLVMIR::Config{
+	auto ComptimeExecutor::init() -> void {
+		const auto config = ASGToPIR::Config{
 			.useReadableRegisters = false,
 			.checkedMath          = true,
 			.isJIT                = true,
 			.addSourceLocations   = true,
 		};
 
-		this->data->asg_to_llvmir = new ASGToLLVMIR(
-			this->context, this->data->llvm_context, this->data->module, config
-		);
-
-		// this->data->asg_to_llvmir->addRuntimeLinks();
-		// this->data->asg_to_llvmir->lower();
-
-		return std::string();
+		this->asg_to_pir = new ASGToPIR(this->context, this->module, config);
 	}
 
 
 	auto ComptimeExecutor::deinit() -> void {
-		if(this->data->execution_engine.hasCreatedEngine()){
-			this->data->execution_engine.shutdownEngine();
+		delete this->asg_to_pir;
+		this->asg_to_pir = nullptr;
+
+		if(this->jit_engine.isInitialized()){
+			this->jit_engine.deinit();
 		}
-
-		delete this->data->asg_to_llvmir;
-		this->data->asg_to_llvmir = nullptr;
-
-		this->data->module.deinit();
-		this->data->llvm_context.deinit();
-
-		delete this->data;
-		this->data = nullptr;
 	}
 
 
@@ -101,7 +64,7 @@ namespace pcit::panther{
 		const TypeInfo::ID func_return_type_id = func_type.returnParams.front().typeID.typeID();
 		const TypeInfo& func_return_type = type_manager.getTypeInfo(func_return_type_id);
 
-		const std::string_view func_mangled_name = this->data->asg_to_llvmir->getFuncMangledName(link_id);
+		const pir::Function::ID& func_pir_id = this->asg_to_pir->getPIRFunctionID(link_id);
 
 
 		evo::debugAssert(
@@ -115,17 +78,15 @@ namespace pcit::panther{
 
 		switch(func_return_base_type.kind()){
 			case Token::Kind::TypeBool: {
-				const evo::Result<bool> value =
-					this->data->execution_engine.runFunctionDirectly<bool>(func_mangled_name);
+				const evo::Result<core::GenericValue> value = this->jit_engine.runFunc(func_pir_id);
 				if(value.isError()){ return evo::resultError; }
-				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralBool(value.value()))};
+				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralBool(value.value().as<bool>()))};
 			} break;
 
 			case Token::Kind::TypeChar: {
-				const evo::Result<char> value =
-					this->data->execution_engine.runFunctionDirectly<char>(func_mangled_name);
+				const evo::Result<core::GenericValue> value = this->jit_engine.runFunc(func_pir_id);
 				if(value.isError()){ return evo::resultError; }
-				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralChar(value.value()))};
+				return evo::SmallVector<ASG::Expr>{ASG::Expr(asg_buffer.createLiteralChar(value.value().as<char>()))};
 			} break;
 
 			case Token::Kind::TypeF16: {
@@ -137,23 +98,21 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TypeF32: {
-				const evo::Result<float32_t> value =
-					this->data->execution_engine.runFunctionDirectly<float32_t>(func_mangled_name);
+				const evo::Result<core::GenericValue> value = this->jit_engine.runFunc(func_pir_id);
 				if(value.isError()){ return evo::resultError; }
 				return evo::SmallVector<ASG::Expr>{
 					ASG::Expr(
-						asg_buffer.createLiteralFloat(core::GenericFloat(value.value()), func_return_type_id)
+						asg_buffer.createLiteralFloat(value.value().as<core::GenericFloat>(), func_return_type_id)
 					)
 				};
 			} break;
 
 			case Token::Kind::TypeF64: {
-				const evo::Result<float64_t> value =
-					this->data->execution_engine.runFunctionDirectly<float64_t>(func_mangled_name);
+				const evo::Result<core::GenericValue> value = this->jit_engine.runFunc(func_pir_id);
 				if(value.isError()){ return evo::resultError; }
 				return evo::SmallVector<ASG::Expr>{
 					ASG::Expr(
-						asg_buffer.createLiteralFloat(core::GenericFloat(value.value()), func_return_type_id)
+						asg_buffer.createLiteralFloat(value.value().as<core::GenericFloat>(), func_return_type_id)
 					)
 				};
 			} break;
@@ -176,35 +135,31 @@ namespace pcit::panther{
 					const size_t size_of_func_return_base_type = type_manager.sizeOf(func_return_type.baseTypeID());
 
 					if(size_of_func_return_base_type == 1){
-						const evo::Result<uint8_t> value =
-							this->data->execution_engine.runFunctionDirectly<uint8_t>(func_mangled_name);
+						const evo::Result<core::GenericValue> value = this->jit_engine.runFunc(func_pir_id);
 						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
 						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint8_t>(value.value()), func_return_type_id
+							value.value().as<core::GenericInt>(), func_return_type_id
 						));
 
 					}else if(size_of_func_return_base_type == 2){
-						const evo::Result<uint16_t> value =
-							this->data->execution_engine.runFunctionDirectly<uint16_t>(func_mangled_name);
+						const evo::Result<core::GenericValue> value = this->jit_engine.runFunc(func_pir_id);
 						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
 						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint16_t>(value.value()), func_return_type_id
+							value.value().as<core::GenericInt>(), func_return_type_id
 						));
 
 					}else if(size_of_func_return_base_type == 4){
-						const evo::Result<uint32_t> value =
-							this->data->execution_engine.runFunctionDirectly<uint32_t>(func_mangled_name);
+						const evo::Result<core::GenericValue> value = this->jit_engine.runFunc(func_pir_id);
 						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
 						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint32_t>(value.value()), func_return_type_id
+							value.value().as<core::GenericInt>(), func_return_type_id
 						));
 
 					}else if(size_of_func_return_base_type == 8){
-						const evo::Result<uint64_t> value =
-							this->data->execution_engine.runFunctionDirectly<uint64_t>(func_mangled_name);
+						const evo::Result<core::GenericValue> value = this->jit_engine.runFunc(func_pir_id);
 						if(value.isError()){ return evo::Result<ASG::LiteralInt::ID>::error(); }
 						return evo::Result<ASG::LiteralInt::ID>(asg_buffer.createLiteralInt(
-							core::GenericInt::create<uint64_t>(value.value()), func_return_type_id
+							value.value().as<core::GenericInt>(), func_return_type_id
 						));
 
 					}else{
@@ -233,7 +188,7 @@ namespace pcit::panther{
 		const auto lock = std::unique_lock(this->mutex);
 		this->requires_engine_restart = true;
 
-		this->data->asg_to_llvmir->lowerFunc(func_link_id);
+		this->asg_to_pir->lowerFunc(func_link_id);
 	}
 
 
@@ -703,12 +658,11 @@ namespace pcit::panther{
 		if(this->requires_engine_restart == false){ return; }
 		this->requires_engine_restart = false;
 
-		if(this->data->execution_engine.hasCreatedEngine()){
-			this->data->execution_engine.shutdownEngine();
+		if(this->jit_engine.isInitialized()){
+			this->jit_engine.deinit();
 		}
 
-		this->data->execution_engine.createEngine(this->data->module);
-		this->data->execution_engine.setupLinkedFuncs(this->printer);
+		this->jit_engine.init(this->module);
 	}
 
 

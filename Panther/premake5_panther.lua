@@ -50,6 +50,7 @@ project "pthr"
 
 	includedirs{
 		(config.location .. "/libs"),
+		(config.location .. "/PIR/include"),
 		(config.location .. "/PCIT_core/include"),		
 
 		"./include/",

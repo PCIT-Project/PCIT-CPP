@@ -50,6 +50,7 @@ namespace pcit::llvmint{
 			template<typename T>
 			EVO_NODISCARD auto runFunctionDirectly(std::string_view func_name) -> evo::Result<T> {
 				const uint64_t func_addr = this->get_func_address(func_name);
+				evo::debugAssert(func_addr != 0, "This function ({}) does not exist", func_name);
 				
 				using FuncType = T(*)(void);
 				const FuncType func = (FuncType)func_addr;

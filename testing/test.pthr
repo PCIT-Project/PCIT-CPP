@@ -1,9 +1,15 @@
 
+func comptime_test = () -> I8 {
+	return 4;
+}
 
 
 func entry = () #entry -> UI8 {
 	var foo: I8 = zeroinit;
 	foo = ~foo;
+
+	def FOUR = comptime_test();
+	foo = foo - FOUR;
 
 	return foo as UI8;
 }

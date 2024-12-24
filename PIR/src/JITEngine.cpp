@@ -221,10 +221,7 @@ namespace pcit::pir{
 				evo::debugFatalBreak("JITEngine currently cannot run functions that return BFloat (bugged in LLVM)");
 			} break;
 
-			case Type::Kind::Ptr: {
-				return core::GenericValue();
-			} break;
-
+			case Type::Kind::Ptr:      evo::debugFatalBreak("JITEngine cannot run functions that return a pointer");
 			case Type::Kind::Array:    evo::debugFatalBreak("JITEngine cannot run functions that return an array");
 			case Type::Kind::Struct:   evo::debugFatalBreak("JITEngine cannot run functions that return a struct");
 			case Type::Kind::Function: evo::debugFatalBreak("JITEngine cannot run functions that return a function");

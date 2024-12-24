@@ -12,6 +12,7 @@
 
 #include <Evo.h>
 #include <PCIT_core.h>
+#include <PIR.h>
 
 #include "../include/ASG.h"
 #include "../include/ASGBuffer.h"
@@ -22,7 +23,7 @@ namespace pcit::panther{
 
 	class ComptimeExecutor{
 		public:
-			ComptimeExecutor(class Context& _context, core::Printer& _printer) : context(_context), printer(_printer) {}
+			ComptimeExecutor(class Context& _context, core::Printer& _printer);
 			
 			#if defined(PCIT_CONFIG_DEBUG)
 				~ComptimeExecutor(){
@@ -34,10 +35,10 @@ namespace pcit::panther{
 				~ComptimeExecutor() = default;
 			#endif
 
-			auto init() -> std::string; // string is error message if initalization fails (empty if successful)
+			auto init() -> void;
 			auto deinit() -> void;
 
-			EVO_NODISCARD auto isInitialized() const -> bool { return this->data != nullptr; }
+			EVO_NODISCARD auto isInitialized() const -> bool { return this->asg_to_pir != nullptr; }
 
 			EVO_NODISCARD auto runFunc(
 				const ASG::Func::LinkID& link_id, evo::ArrayProxy<ASG::Expr> params, ASGBuffer& asg_buffer
@@ -246,8 +247,9 @@ namespace pcit::panther{
 			mutable core::SpinLock mutex{};
 			bool requires_engine_restart = false;
 
-			struct Data;
-			Data* data = nullptr;
+			pir::Module module;
+			pir::JITEngine jit_engine{};
+			class ASGToPIR* asg_to_pir = nullptr;
 	};
 
 
