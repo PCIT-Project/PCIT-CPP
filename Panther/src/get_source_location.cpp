@@ -41,6 +41,7 @@ namespace pcit::panther{
 			case AST::Kind::VarDecl:         return get_source_location(ast_buffer.getVarDecl(node), src);
 			case AST::Kind::FuncDecl:        return get_source_location(ast_buffer.getFuncDecl(node), src);
 			case AST::Kind::AliasDecl:       return get_source_location(ast_buffer.getAliasDecl(node), src);
+			case AST::Kind::TypedefDecl:     return get_source_location(ast_buffer.getTypedefDecl(node), src);
 			case AST::Kind::Return:          return get_source_location(ast_buffer.getReturn(node), src);
 			case AST::Kind::Unreachable:     return get_source_location(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::Conditional:     return get_source_location(ast_buffer.getConditional(node), src);
@@ -54,6 +55,7 @@ namespace pcit::panther{
 			case AST::Kind::Infix:           return get_source_location(ast_buffer.getInfix(node), src);
 			case AST::Kind::Postfix:         return get_source_location(ast_buffer.getPostfix(node), src);
 			case AST::Kind::MultiAssign:     return get_source_location(ast_buffer.getMultiAssign(node), src);
+			case AST::Kind::New:             return get_source_location(ast_buffer.getNew(node), src);
 			case AST::Kind::Type:            return get_source_location(ast_buffer.getType(node), src);
 			case AST::Kind::TypeIDConverter: return get_source_location(ast_buffer.getTypeIDConverter(node), src);
 			case AST::Kind::AttributeBlock:  evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
@@ -82,6 +84,10 @@ namespace pcit::panther{
 
 	auto get_source_location(const AST::AliasDecl& alias_decl, const Source& src) -> SourceLocation {
 		return get_source_location(alias_decl.ident, src);
+	}
+
+	auto get_source_location(const AST::TypedefDecl& typedef_decl, const Source& src) -> SourceLocation {
+		return get_source_location(typedef_decl.ident, src);
 	}
 
 	auto get_source_location(const AST::Return& return_stmt, const Source& src) -> SourceLocation {
@@ -131,6 +137,10 @@ namespace pcit::panther{
 
 	auto get_source_location(const AST::MultiAssign& multi_assign, const Source& src) -> SourceLocation {
 		return get_source_location(multi_assign.openBracketLocation, src);
+	}
+
+	auto get_source_location(const AST::New& new_expr, const Source& src) -> SourceLocation {
+		return get_source_location(new_expr.type, src);
 	}
 
 	auto get_source_location(const AST::Type& type, const Source& src) -> SourceLocation {
@@ -206,6 +216,12 @@ namespace pcit::panther{
 	-> SourceLocation {
 		const BaseType::Alias& alias = type_manager.getAlias(alias_id);
 		return get_source_location(alias.identTokenID, src);
+	}
+
+	auto get_source_location(BaseType::Typedef::ID typedef_id, const Source& src, const TypeManager& type_manager)
+	-> SourceLocation {
+		const BaseType::Typedef& typedef_info = type_manager.getTypedef(typedef_id);
+		return get_source_location(typedef_info.identTokenID, src);
 	}
 
 

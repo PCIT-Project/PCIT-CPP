@@ -202,9 +202,9 @@ namespace pcit::panther{
 			if(diagnostic.level == Diagnostic::Level::Fatal){
 				printer.printFatal(
 					"\tThis is a bug in the compiler.\n"
-					"\tPlease report it on Github: \"https://github.com/PCIT-Project/PCIT-CPP/issues\"\n"
+					"\tPlease report it on Github: https://github.com/PCIT-Project/PCIT-CPP/issues\n"
 					"\tGuidelines for creating issues: "
-						"\"https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md#issues\"\n"
+						"https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md#issues\n"
 				);
 			}
 

@@ -630,6 +630,12 @@ namespace pcit::panther{
 				return this->get_type(alias.aliasedType);
 			} break;
 
+			case BaseType::Kind::Typedef: {
+				const BaseType::Typedef::ID typedef_id = type_info.baseTypeID().typedefID();
+				const BaseType::Typedef& typedef_info = this->context.getTypeManager().getTypedef(typedef_id);
+				return this->get_type(typedef_info.underlyingType);
+			} break;
+
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Cannot get a dummy type");
 		}
 

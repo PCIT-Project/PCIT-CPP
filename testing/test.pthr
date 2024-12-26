@@ -1,15 +1,14 @@
 
-func comptime_test = () -> I8 {
-	return 4;
-}
-
-
 func entry = () #entry -> UI8 {
 	var foo: I8 = zeroinit;
 	foo = ~foo;
 
-	def FOUR = comptime_test();
-	foo = foo - FOUR;
+	type int8_t = I8;
+	alias i8 = int8_t;
+
+	const four: I8 = new I8(4);
+	const four_: i8 = four as int8_t;
+	foo = foo - (four_ as I8);
 
 	return foo as UI8;
 }

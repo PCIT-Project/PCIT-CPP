@@ -92,6 +92,7 @@ namespace pcit::panther{
 			Primitive,
 			Function,
 			Alias,
+			Typedef,
 		};
 
 
@@ -181,6 +182,17 @@ namespace pcit::panther{
 		};
 
 
+		struct Typedef{
+			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+
+			SourceID sourceID;
+			Token::ID identTokenID;
+			TypeInfoID underlyingType;
+			
+			EVO_NODISCARD auto operator==(const Typedef&) const -> bool = default;
+		};
+
+
 
 		struct ID{
 			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -200,6 +212,11 @@ namespace pcit::panther{
 				return Alias::ID(this->_id);
 			}
 
+			EVO_NODISCARD auto typedefID() const -> Typedef::ID {
+				evo::debugAssert(this->kind() == Kind::Typedef, "not an Typedef");
+				return Typedef::ID(this->_id);
+			}
+
 
 			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
 
@@ -207,6 +224,12 @@ namespace pcit::panther{
 			EVO_NODISCARD static constexpr auto dummy() -> ID {
 				return ID(Kind::Dummy, std::numeric_limits<uint32_t>::max());
 			}
+
+
+			explicit ID(Primitive::ID id) : _kind(Kind::Primitive), _id(id.get()) {}
+			explicit ID(Function::ID id)  : _kind(Kind::Function),  _id(id.get()) {}
+			explicit ID(Alias::ID id)     : _kind(Kind::Alias),     _id(id.get()) {}
+			explicit ID(Typedef::ID id)   : _kind(Kind::Typedef),   _id(id.get()) {}
 
 			private:
 				constexpr ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
@@ -269,8 +292,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
 			EVO_NODISCARD auto getOrCreateTypeInfo(TypeInfo&& lookup_type_info) -> TypeInfo::ID;
 				
-			EVO_NODISCARD auto printType(TypeInfo::VoidableID type_info_id) const -> std::string;
-			EVO_NODISCARD auto printType(TypeInfo::ID type_info_id) const -> std::string;
+			EVO_NODISCARD auto printType(
+				TypeInfo::VoidableID type_info_id, const class SourceManager& source_manager
+			) const -> std::string;
+			EVO_NODISCARD auto printType(
+				TypeInfo::ID type_info_id, const class SourceManager& source_manager
+			) const -> std::string;
 
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id) const -> const BaseType::Function&;
 			EVO_NODISCARD auto getOrCreateFunction(BaseType::Function&& lookup_func) -> BaseType::ID;
@@ -281,6 +308,9 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getAlias(BaseType::Alias::ID id) const -> const BaseType::Alias&;
 			EVO_NODISCARD auto getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID;
+
+			EVO_NODISCARD auto getTypedef(BaseType::Typedef::ID id) const -> const BaseType::Typedef&;
+			EVO_NODISCARD auto getOrCreateTypedef(BaseType::Typedef&& lookup_type) -> BaseType::ID;
 
 
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0); }
@@ -359,6 +389,9 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
 			mutable core::SpinLock aliases_mutex{};
+
+			core::LinearStepAlloc<BaseType::Typedef, BaseType::Typedef::ID> typedefs{};
+			mutable core::SpinLock typedefs_mutex{};
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable core::SpinLock types_mutex{};

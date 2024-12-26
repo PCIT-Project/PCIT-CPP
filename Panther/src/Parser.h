@@ -79,6 +79,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto parse_func_decl() -> Result;
 			EVO_NODISCARD auto parse_alias_decl() -> Result;
+			EVO_NODISCARD auto parse_type_decl() -> Result;
 			EVO_NODISCARD auto parse_return() -> Result;
 			EVO_NODISCARD auto parse_unreachable() -> Result;
 			template<bool IS_WHEN> EVO_NODISCARD auto parse_conditional() -> Result;
@@ -98,7 +99,7 @@ namespace pcit::panther{
 			
 			enum class TypeKind{
 				Explicit,
-				Expr,
+				Expr, // For use with `as`
 				TemplateArg,
 			};
 			template<TypeKind KIND>
@@ -109,6 +110,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_infix_expr() -> Result;
 			EVO_NODISCARD auto parse_infix_expr_impl(AST::Node lhs, int prec_level) -> Result;
 			EVO_NODISCARD auto parse_prefix_expr() -> Result;
+			EVO_NODISCARD auto parse_new_expr() -> Result;
 
 			enum class IsTypeTerm{
 				Yes,
@@ -135,6 +137,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>>;
 			EVO_NODISCARD auto parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;
+			EVO_NODISCARD auto parse_func_call_args() -> evo::Result<evo::SmallVector<AST::FuncCall::Arg>>;
 
 
 			///////////////////////////////////

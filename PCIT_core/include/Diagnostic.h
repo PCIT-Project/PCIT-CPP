@@ -92,11 +92,16 @@ namespace pcit::core{
 
 
 		static auto createFatalMessage(
-			std::string_view msg, std::source_location source_location = std::source_location::current()
+			std::string_view msg,
+			[[maybe_unused]] std::source_location source_location = std::source_location::current()
 		) -> std::string {
-			return std::format(
-				"{} (error location: {} | {})", msg, source_location.function_name(), source_location.line()
-			);
+			#if defined(PCIT_CONFIG_DEBUG)
+				return std::format(
+					"{} (error location: {} | {})", msg, source_location.function_name(), source_location.line()
+				);
+			#else
+				return msg;
+			#endif
 		}
 	};
 

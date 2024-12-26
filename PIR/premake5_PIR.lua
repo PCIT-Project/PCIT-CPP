@@ -11,11 +11,6 @@ project "PIR"
 	files {
 		"./src/**.cpp",
 	}
-
-	filter "action:vs*"
-		buildoptions { "/bigobj" }
-	filter {}
-
 	
 	includedirs{
 		(config.location .. "/PCIT_core/include"),
@@ -29,6 +24,10 @@ project "PIR"
 		"PCIT_llvm_interface",
 	}
 
+
+	filter "action:vs*"
+		buildoptions { "/bigobj" }
+	filter {}
 
 project "*"
 

@@ -9,6 +9,11 @@
 
 #include "./printing.h"
 
+
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
 namespace pthr{
 
 	//////////////////////////////////////////////////////////////////////
@@ -236,6 +241,10 @@ namespace pthr{
 
 					case panther::AST::Kind::AliasDecl: {
 						this->print_alias_decl(this->ast_buffer.getAliasDecl(stmt));
+					} break;
+
+					case panther::AST::Kind::TypedefDecl: {
+						this->print_type_decl(this->ast_buffer.getTypedefDecl(stmt));
 					} break;
 
 					case panther::AST::Kind::Return: {
@@ -509,6 +518,30 @@ namespace pthr{
 					this->print_minor_header("Type");
 					this->printer.print(" ");
 					this->print_type(this->ast_buffer.getType(alias_decl.type));
+
+					this->indenter.pop();
+				}
+			}
+
+			auto print_type_decl(const panther::AST::TypedefDecl& type_decl) -> void {
+				this->indenter.print();
+				this->print_major_header("Type Declaration");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.print(" ");
+					this->print_ident(type_decl.ident);
+
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(type_decl.attributeBlock));
+
+					this->indenter.print_end();
+					this->print_minor_header("Type");
+					this->printer.print(" ");
+					this->print_type(this->ast_buffer.getType(type_decl.type));
 
 					this->indenter.pop();
 				}
@@ -808,6 +841,9 @@ namespace pthr{
 						this->print_type(this->ast_buffer.getType(node));
 					} break;
 
+					case panther::AST::Kind::New: {
+						this->print_new(this->ast_buffer.getNew(node));
+					} break;
 
 					case panther::AST::Kind::Literal: {
 						const panther::Token::ID token_id = this->ast_buffer.getLiteral(node);
@@ -861,6 +897,10 @@ namespace pthr{
 
 					case panther::AST::Kind::Uninit: {
 						this->printer.printMagenta("[uninit]\n");
+					} break;
+
+					case panther::AST::Kind::Zeroinit: {
+						this->printer.printMagenta("[zeroinit]\n");
 					} break;
 
 					case panther::AST::Kind::This: {
@@ -1062,52 +1102,55 @@ namespace pthr{
 
 					this->indenter.print_end();
 					this->print_minor_header("Arguments");
-					if(func_call.args.empty()){
-						this->printer.printGray(" {EMPTY}\n");
-					}else{
-						this->printer.println();
-						this->indenter.push();
+					this->print_func_call_args(func_call.args);
 
-						for(size_t i = 0; const panther::AST::FuncCall::Arg& arg : func_call.args){
-							if(i + 1 < func_call.args.size()){
-								this->indenter.print_arrow();
-							}else{
-								this->indenter.print_end();
-							}
+					this->indenter.pop();
+				}
+			}
 
-							this->print_major_header(std::format("Argument {}", i));
-							{
-								this->indenter.push();
 
-								if(arg.explicitIdent.has_value()){
-									this->indenter.print_arrow();
-									this->print_minor_header("Explicit Identifier");
-									this->printer.print(" ");
-									this->print_ident(*arg.explicitIdent);
+			auto print_func_call_args(const evo::SmallVector<panther::AST::FuncCall::Arg>& args) -> void {
+				if(args.empty()){
+					this->printer.printGray(" {EMPTY}\n");
+				}else{
+					this->printer.println();
+					this->indenter.push();
 
-									this->indenter.print_end();
-									this->print_minor_header("Expression");
-									this->printer.println();
-									this->indenter.push();
-									this->print_expr(arg.value);
-									this->indenter.pop();
-								}else{
-									// this->print_minor_header("Expression");
-									// this->printer.println();
-									this->print_expr(arg.value);
-								}
-
-								this->indenter.pop();
-							}
-
-						
-							i += 1;
+					for(size_t i = 0; const panther::AST::FuncCall::Arg& arg : args){
+						if(i + 1 < args.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
 						}
 
+						this->print_major_header(std::format("Argument {}", i));
+						{
+							this->indenter.push();
 
-						this->indenter.pop();
+							if(arg.label.has_value()){
+								this->indenter.print_arrow();
+								this->print_minor_header("Label");
+								this->printer.print(" ");
+								this->print_ident(*arg.label);
+
+								this->indenter.print_end();
+								this->print_minor_header("Expression");
+								this->printer.println();
+								this->indenter.push();
+								this->print_expr(arg.value);
+								this->indenter.pop();
+							}else{
+								// this->print_minor_header("Expression");
+								// this->printer.println();
+								this->print_expr(arg.value);
+							}
+
+							this->indenter.pop();
+						}
+
+					
+						i += 1;
 					}
-
 
 
 					this->indenter.pop();
@@ -1160,6 +1203,24 @@ namespace pthr{
 
 					this->indenter.pop();
 				}
+			}
+
+
+			auto print_new(const panther::AST::New& new_expr) -> void {
+				this->print_major_header("New");
+
+				this->indenter.push();
+
+				this->indenter.print_arrow();
+				this->print_minor_header("Type");
+				this->printer.print(" ");
+				this->print_type(this->ast_buffer.getType(new_expr.type));
+
+				this->indenter.print_end();
+				this->print_minor_header("Arguments");
+				this->print_func_call_args(new_expr.args);
+
+				this->indenter.pop();
 			}
 
 

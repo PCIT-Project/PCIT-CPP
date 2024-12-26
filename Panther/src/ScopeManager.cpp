@@ -110,6 +110,12 @@ namespace pcit::panther{
 		this->ids.emplace(ident, id);
 	}
 
+	auto ScopeManager::Level::addTypedef(std::string_view ident, BaseType::Typedef::ID id) -> void {
+		evo::debugAssert(this->lookupIdent(ident) == nullptr, "Scope already has ident \"{}\"", ident);
+
+		this->ids.emplace(ident, id);
+	}
+
 
 
 	auto ScopeManager::Level::lookupIdent(std::string_view ident) const -> const IdentID* {

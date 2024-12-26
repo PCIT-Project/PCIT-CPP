@@ -196,6 +196,7 @@ namespace pcit::panther{
 		{"def",         Token::Kind::KeywordDef},
 		{"func",        Token::Kind::KeywordFunc},
 		{"alias",       Token::Kind::KeywordAlias},
+		{"type",        Token::Kind::KeywordType},
 
 		{"return",      Token::Kind::KeywordReturn},
 		{"unreachable", Token::Kind::KeywordUnreachable},
@@ -211,6 +212,7 @@ namespace pcit::panther{
 
 		{"copy",        Token::Kind::KeywordCopy},
 		{"move",        Token::Kind::KeywordMove},
+		{"new",         Token::Kind::KeywordNew},
 		{"as",          Token::Kind::KeywordAs},
 
 		{"if",          Token::Kind::KeywordIf},

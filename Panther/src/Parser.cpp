@@ -51,6 +51,7 @@ namespace pcit::panther{
 			case Token::Kind::KeywordDef:         return this->parse_var_decl<AST::VarDecl::Kind::Def>();
 			case Token::Kind::KeywordFunc:        return this->parse_func_decl();
 			case Token::Kind::KeywordAlias:       return this->parse_alias_decl();
+			case Token::Kind::KeywordType:        return this->parse_type_decl();
 			case Token::Kind::KeywordReturn:      return this->parse_return();
 			case Token::Kind::KeywordUnreachable: return this->parse_unreachable();
 			case Token::Kind::KeywordIf:          return this->parse_conditional<false>();
@@ -193,6 +194,29 @@ namespace pcit::panther{
 		if(this->expect_token_fail(Token::lookupKind(";"), "at end of alias declaration")){ return Result::Code::Error;}
 
 		return this->source.ast_buffer.createAliasDecl(
+			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
+		);
+	}
+
+
+	// TODO: check EOF
+	auto Parser::parse_type_decl() -> Result {
+		if(this->assert_token_fail(Token::Kind::KeywordType)){ return Result::Code::Error; }
+
+		const Result ident = this->parse_ident();
+		if(this->check_result_fail(ident, "identifier in type declaration")){ return Result::Code::Error; }
+
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::Error){ return Result::Code::Error; }
+
+		if(this->expect_token_fail(Token::lookupKind("="), "in type declaration")){ return Result::Code::Error; }
+
+		const Result type = this->parse_type<TypeKind::Explicit>();
+		if(this->check_result_fail(type, "type in alias declaration")){ return Result::Code::Error; }
+
+		if(this->expect_token_fail(Token::lookupKind(";"), "at end of alias declaration")){ return Result::Code::Error;}
+
+		return this->source.ast_buffer.createTypedefDecl(
 			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
 		);
 	}
@@ -663,10 +687,17 @@ namespace pcit::panther{
 				return Result(this->source.ast_buffer.createTypeIDConverter(type_id_expr.value()));
 
 			}else{
-				if constexpr(KIND == TypeKind::TemplateArg){
-					return this->parse_term<IsTypeTerm::Maybe>();
-				}else{
+				if constexpr(KIND == TypeKind::Explicit){
+					return this->parse_term<IsTypeTerm::Yes>();
+
+				}else if constexpr(KIND == TypeKind::Expr){
 					return this->parse_term<IsTypeTerm::YesAs>();
+
+				}else if constexpr(KIND == TypeKind::TemplateArg){
+					return this->parse_term<IsTypeTerm::Maybe>();
+
+				}else{
+					static_assert(false, "Unknown TypeKind");
 				}
 			}
 		}();
@@ -906,6 +937,9 @@ namespace pcit::panther{
 			case Token::lookupKind("~"):
 				break;
 
+			case Token::Kind::KeywordNew:
+				return this->parse_new_expr();
+
 			default:
 				return this->parse_term<IsTypeTerm::No>();
 		}
@@ -921,6 +955,21 @@ namespace pcit::panther{
 
 		return this->source.ast_buffer.createPrefix(op_token_id, rhs.value());
 	}
+
+
+	auto Parser::parse_new_expr() -> Result {
+		if(this->assert_token_fail(Token::Kind::KeywordNew)){ return Result::Code::Error; }
+			
+		const Result type = this->parse_type<TypeKind::Explicit>();
+		if(this->check_result_fail(type, "type in new expression")){ return Result::Code::Error; }
+
+		evo::Result<evo::SmallVector<AST::FuncCall::Arg>> args = this->parse_func_call_args();
+		if(args.isError()){ return Result::Code::Error; }
+
+		return this->source.ast_buffer.createNew(type.value(), std::move(args.value()));
+	}
+
+
 
 	// TODO: check EOF
 	template<Parser::IsTypeTerm IS_TYPE_TERM>
@@ -972,7 +1021,7 @@ namespace pcit::panther{
 							Diagnostic::Code::ParserDereferenceOrUnwrapOnType,
 							this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 							"A dereference operator ([.*]) should not follow a type",
-							evo::SmallVector<Diagnostic::Info>{diagnostics_info}
+							evo::SmallVector<Diagnostic::Info>{std::move(diagnostics_info)}
 						);
 						return Result::Code::Error;
 
@@ -1062,50 +1111,16 @@ namespace pcit::panther{
 
 
 				case Token::lookupKind("("): {
-					if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::Error; }
-					
-					auto args = evo::SmallVector<AST::FuncCall::Arg>();
+					if constexpr(IS_TYPE_TERM == IsTypeTerm::Yes || IS_TYPE_TERM == IsTypeTerm::YesAs){
+						should_continue = false;
+						break;
 
-					while(true){
-						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
-							if(this->assert_token_fail(Token::lookupKind(")"))){ return Result::Code::Error; }
-							break;
-						}
+					}else{
+						evo::Result<evo::SmallVector<AST::FuncCall::Arg>> args = this->parse_func_call_args();
+						if(args.isError()){ return Result::Code::Error; }
 
-						auto arg_ident = std::optional<Token::ID>();
-
-						if(
-							this->reader[this->reader.peek()].kind() == Token::Kind::Ident &&
-							this->reader[this->reader.peek(1)].kind() == Token::lookupKind(":")
-						){
-							arg_ident = this->reader.next();
-							if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::Error; }
-						}
-
-						const Result expr_result = this->parse_expr();
-						if(this->check_result_fail(expr_result, "expression argument inside function call")){
-							return Result::Code::Error;
-						}
-
-						args.emplace_back(arg_ident, expr_result.value());
-
-						// check if ending or should continue
-						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
-						if(after_arg_next_token_kind != Token::lookupKind(",")){
-							if(after_arg_next_token_kind != Token::lookupKind(")")){
-								this->expected_but_got(
-									"[,] at end of function call argument"
-									" or [)] at end of function call argument block",
-									this->reader.peek(-1)
-								);
-								return Result::Code::Error;
-							}
-
-							break;
-						}
+						output = this->source.ast_buffer.createFuncCall(output.value(), std::move(args.value()));
 					}
-
-					output = this->source.ast_buffer.createFuncCall(output.value(), std::move(args));
 				} break;
 
 				default: {
@@ -1457,7 +1472,6 @@ namespace pcit::panther{
 		return params;
 	}
 
-	#include <optional>
 
 	auto Parser::parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>> {
 		auto returns = evo::SmallVector<AST::FuncDecl::Return>();
@@ -1545,6 +1559,55 @@ namespace pcit::panther{
 
 
 		return returns;
+	}
+
+
+
+	auto Parser::parse_func_call_args() -> evo::Result<evo::SmallVector<AST::FuncCall::Arg>> {
+		if(this->assert_token_fail(Token::lookupKind("("))){ return evo::resultError; }
+		
+		auto args = evo::SmallVector<AST::FuncCall::Arg>();
+
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
+				if(this->assert_token_fail(Token::lookupKind(")"))){ return evo::resultError; }
+				break;
+			}
+
+			auto arg_ident = std::optional<Token::ID>();
+
+			if(
+				this->reader[this->reader.peek()].kind() == Token::Kind::Ident &&
+				this->reader[this->reader.peek(1)].kind() == Token::lookupKind(":")
+			){
+				arg_ident = this->reader.next();
+				if(this->assert_token_fail(Token::lookupKind(":"))){ return evo::resultError; }
+			}
+
+			const Result expr_result = this->parse_expr();
+			if(this->check_result_fail(expr_result, "expression argument inside function call")){
+				return evo::resultError;
+			}
+
+			args.emplace_back(arg_ident, expr_result.value());
+
+			// check if ending or should continue
+			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+			if(after_arg_next_token_kind != Token::lookupKind(",")){
+				if(after_arg_next_token_kind != Token::lookupKind(")")){
+					this->expected_but_got(
+						"[,] at end of function call argument"
+						" or [)] at end of function call argument block",
+						this->reader.peek(-1)
+					);
+					return evo::resultError;
+				}
+
+				break;
+			}
+		}
+
+		return args;
 	}
 
 

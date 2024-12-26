@@ -282,3 +282,19 @@ namespace pcit::core{
 	};
 	
 }
+
+
+namespace std{
+
+	template<>
+	struct formatter<pcit::core::GenericInt>{
+	    constexpr auto parse(format_parse_context& ctx) const -> auto {
+	        return ctx.begin();
+	    }
+
+	    auto format(const pcit::core::GenericInt& generic_int, format_context& ctx) const -> auto {
+	        return format_to(ctx.out(), "{}", generic_int.toString(false));
+	    }
+	};
+	
+}

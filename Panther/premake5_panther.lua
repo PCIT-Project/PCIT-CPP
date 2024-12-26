@@ -11,7 +11,6 @@ project "Panther"
 	files {
 		"./src/**.cpp",
 	}
-
 	
 	includedirs{
 		(config.location .. "/PIR/include"),
@@ -27,6 +26,9 @@ project "Panther"
 		"PIR",
 	}
 
+	filter "action:vs*"
+		buildoptions { "/bigobj" }
+	filter {}
 
 project "*"
 

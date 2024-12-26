@@ -28,6 +28,7 @@ namespace pcit::panther::AST{
 		VarDecl,
 		FuncDecl,
 		AliasDecl,
+		TypedefDecl,
 
 		Return,
 		Conditional,
@@ -45,6 +46,8 @@ namespace pcit::panther::AST{
 		Postfix,
 
 		MultiAssign,
+
+		New,
 
 		Type,
 		TypeIDConverter,
@@ -172,6 +175,12 @@ namespace pcit::panther::AST{
 		Node type;
 	};
 
+	struct TypedefDecl{
+		Token::ID ident;
+		Node attributeBlock;
+		Node type;
+	};
+
 
 	struct Return{
 		Token::ID keyword;
@@ -208,7 +217,7 @@ namespace pcit::panther::AST{
 
 	struct FuncCall{
 		struct Arg{
-			std::optional<Token::ID> explicitIdent;
+			std::optional<Token::ID> label;
 			Node value;
 		};
 
@@ -250,6 +259,11 @@ namespace pcit::panther::AST{
 		Token::ID openBracketLocation;
 		evo::SmallVector<Node> assigns;
 		Node value;
+	};
+
+	struct New{
+		Node type;
+		evo::SmallVector<FuncCall::Arg> args;
 	};
 
 

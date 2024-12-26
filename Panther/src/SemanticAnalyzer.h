@@ -67,6 +67,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_alias_decl(const AST::AliasDecl& alias_decl) -> bool;
 
 			template<bool IS_GLOBAL>
+			EVO_NODISCARD auto analyze_typedef_decl(const AST::TypedefDecl& typedef_decl) -> bool;
+
+			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto analyze_when_conditional(const AST::WhenConditional& when_conditional) -> bool;
 			EVO_NODISCARD auto analyze_conditional(const AST::Conditional& conditional) -> bool;
 
@@ -104,6 +107,7 @@ namespace pcit::panther{
 			template<bool IS_GLOBAL>
 			EVO_NODISCARD auto get_parent() const -> ASG::Parent;
 
+			EVO_NODISCARD auto is_in_function() const -> bool;
 			EVO_NODISCARD auto get_current_func() const -> ASG::Func&;
 
 
@@ -274,6 +278,17 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_expr_postfix(const AST::Postfix& postfix) -> evo::Result<ExprInfo>;
 
 			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_new(const AST::New& new_expr) -> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_new_impl(const AST::New& new_expr, TypeInfo::VoidableID type_id) 
+				-> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
+			EVO_NODISCARD auto analyze_expr_new_impl(const AST::New& new_expr, TypeInfo::ID type_id) 
+				-> evo::Result<ExprInfo>;
+
+			template<ExprValueKind EXPR_VALUE_KIND>
 			EVO_NODISCARD auto analyze_expr_ident(const Token::ID& ident) -> evo::Result<ExprInfo>;
 
 			// TODO: does this need to be separate function
@@ -398,6 +413,7 @@ namespace pcit::panther{
 				std::string&& msg,
 				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
 			) const -> void{
+				if(this->is_in_function()){ this->get_current_func().is_body_errored = true; }
 				this->add_template_location_infos(infos);
 				this->context.emitFatal(code, this->get_source_location(location), std::move(msg), std::move(infos));
 			}
@@ -417,6 +433,7 @@ namespace pcit::panther{
 				std::string&& msg,
 				evo::SmallVector<Diagnostic::Info>&& infos = evo::SmallVector<Diagnostic::Info>()
 			) const -> void {
+				if(this->is_in_function()){ this->get_current_func().is_body_errored = true; }
 				this->add_template_location_infos(infos);
 				this->context.emitError(code, this->get_source_location(location), std::move(msg), std::move(infos));
 			}
@@ -502,6 +519,14 @@ namespace pcit::panther{
 				return pcit::panther::get_source_location(alias_decl, this->source);
 			}
 
+			EVO_NODISCARD auto get_source_location(const AST::TypedefDecl& typedef_decl, const Source& src) const
+			-> SourceLocation {
+				return pcit::panther::get_source_location(typedef_decl, src);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::TypedefDecl& typedef_decl) const -> SourceLocation {
+				return pcit::panther::get_source_location(typedef_decl, this->source);
+			}
+
 			EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt, const Source& src) const
 			-> SourceLocation {
 				return pcit::panther::get_source_location(return_stmt, src);
@@ -578,6 +603,14 @@ namespace pcit::panther{
 			}
 			EVO_NODISCARD auto get_source_location(const AST::MultiAssign& multi_assign) const -> SourceLocation {
 				return pcit::panther::get_source_location(multi_assign, this->source);
+			}
+
+			EVO_NODISCARD auto get_source_location(const AST::New& new_expr, const Source& src) const
+			-> SourceLocation {
+				return pcit::panther::get_source_location(new_expr, src);
+			}
+			EVO_NODISCARD auto get_source_location(const AST::New& new_expr) const -> SourceLocation {
+				return pcit::panther::get_source_location(new_expr, this->source);
 			}
 
 			EVO_NODISCARD auto get_source_location(const AST::Type& type, const Source& src) const -> SourceLocation {
@@ -659,6 +692,14 @@ namespace pcit::panther{
 			}
 			EVO_NODISCARD auto get_source_location(BaseType::Alias::ID alias_id) const -> SourceLocation {
 				return pcit::panther::get_source_location(alias_id, this->source, this->context.getTypeManager());
+			}
+
+			EVO_NODISCARD auto get_source_location(BaseType::Typedef::ID typedef_id, const Source& src) const
+			-> SourceLocation {
+				return pcit::panther::get_source_location(typedef_id, src, this->context.getTypeManager());
+			}
+			EVO_NODISCARD auto get_source_location(BaseType::Typedef::ID typedef_id) const -> SourceLocation {
+				return pcit::panther::get_source_location(typedef_id, this->source, this->context.getTypeManager());
 			}
 
 

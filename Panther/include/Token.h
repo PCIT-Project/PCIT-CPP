@@ -90,6 +90,7 @@ namespace pcit::panther{
 				KeywordDef,
 				KeywordFunc,
 				KeywordAlias,
+				KeywordType,
 
 				KeywordReturn,
 				KeywordUnreachable,
@@ -105,6 +106,7 @@ namespace pcit::panther{
 				
 				KeywordCopy,
 				KeywordMove,
+				KeywordNew,
 				KeywordAs,
 
 				KeywordIf,
@@ -444,6 +446,7 @@ namespace pcit::panther{
 					break; case Kind::KeywordDef:         return "def";
 					break; case Kind::KeywordFunc:        return "func";
 					break; case Kind::KeywordAlias:       return "alias";
+					break; case Kind::KeywordType:        return "type";
 
 					break; case Kind::KeywordReturn:      return "return";
 					break; case Kind::KeywordUnreachable: return "unreachable";
@@ -459,6 +462,7 @@ namespace pcit::panther{
 
 					break; case Kind::KeywordCopy:        return "copy";
 					break; case Kind::KeywordMove:        return "move";
+					break; case Kind::KeywordNew:         return "new";
 					break; case Kind::KeywordAs:          return "as";
 
 					break; case Kind::KeywordIf:          return "if";

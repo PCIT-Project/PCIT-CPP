@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.76.0
+
+### Panther
+- Added typedef declarations
+- Added operator `new`
+- Fixed fatal error when printing AST `zeroinit`
+- Fixed implicit conversion of fluid values checking for `USize`, `ISize`, `Int`, `UInt`
+
+
+<!---------------------------------->
 ## v0.0.75.1
 
 ### Panther
@@ -15,7 +25,7 @@
 - Added `!` operator
 - Added `-` (negate) operator
 - Added `~` operator
-- Added checking that implicit conversion of fluid values is valid (no truncation required)
+- Added checking that implicit conversion of fluid values is valid (checking that no truncation required)
 - Fixed `@trunc` converting to `Bool` (and by extension `as` operator from integers)
 - Fixed `@ftoui` converting to `Bool` (and by extension `as` operator from floats)
 - Fixed `CInt` and `CLong` being switched

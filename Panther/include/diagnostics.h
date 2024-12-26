@@ -43,6 +43,7 @@ namespace pcit::panther{
 		ParserAssumedTokenNotPreset,          // P6
 		ParserEmptyMultiAssign,               // P7
 		ParserEmptyFuncReturnBlock,           // P8
+		ParserInvalidNewExpr,                 // P9
 
 		SemaEncounteredASTKindNone,
 		SemaInvalidGlobalStmtKind,
@@ -117,6 +118,10 @@ namespace pcit::panther{
 		SemaErrorInRunningOfFuncAtComptime,
 		SemaErrorInRunningOfIntrinsicAtComptime,
 		SemaCannotConvertFluidValue,
+		SemaCannotTypedefVoid,
+		SemaCannotNewVoid,
+		SemaIncorrectNumArgsForPrimitiveOpNew,
+		SemaArgHasLabelInrimitiveOpNew,
 
 		SemaWarnSingleValInMultiAssign,
 		SemaWarnEntryIsImplicitRuntime,
@@ -168,6 +173,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::ParserAssumedTokenNotPreset:              return "P6";
 			break; case DiagnosticCode::ParserEmptyMultiAssign:                   return "P7";
 			break; case DiagnosticCode::ParserEmptyFuncReturnBlock:               return "P8";
+			break; case DiagnosticCode::ParserInvalidNewExpr:                     return "P9";
 
 			break; case DiagnosticCode::SemaEncounteredASTKindNone:               return "S";
 			break; case DiagnosticCode::SemaInvalidGlobalStmtKind:                return "S";
@@ -242,6 +248,10 @@ namespace pcit::panther{
 			break; case DiagnosticCode::SemaErrorInRunningOfIntrinsicAtComptime:  return "S";
 			break; case DiagnosticCode::SemaErrorInRunningOfFuncAtComptime:       return "S";
 			break; case DiagnosticCode::SemaCannotConvertFluidValue:              return "S";
+			break; case DiagnosticCode::SemaCannotTypedefVoid:                    return "S";
+			break; case DiagnosticCode::SemaCannotNewVoid:                        return "S";
+			break; case DiagnosticCode::SemaIncorrectNumArgsForPrimitiveOpNew:    return "S";
+			break; case DiagnosticCode::SemaArgHasLabelInrimitiveOpNew:           return "S";
 
 			break; case DiagnosticCode::SemaWarnSingleValInMultiAssign:           return "SW";
 			break; case DiagnosticCode::SemaWarnEntryIsImplicitRuntime:           return "SW";

@@ -40,6 +40,9 @@ namespace pcit::panther{
 	EVO_NODISCARD auto get_source_location(const AST::FuncDecl& func_decl, const class Source& src) -> SourceLocation;
 	
 	EVO_NODISCARD auto get_source_location(const AST::AliasDecl& alias_decl, const class Source& src) -> SourceLocation;
+
+	EVO_NODISCARD auto get_source_location(const AST::TypedefDecl& typedef_decl, const class Source& src) 
+		-> SourceLocation;
 	
 	EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt, const class Source& src) -> SourceLocation;
 	
@@ -67,6 +70,8 @@ namespace pcit::panther{
 	
 	EVO_NODISCARD auto get_source_location(const AST::MultiAssign& multi_assign, const class Source& src)
 		-> SourceLocation;
+
+	EVO_NODISCARD auto get_source_location(const AST::New& new_expr, const class Source& src) -> SourceLocation;
 	
 	EVO_NODISCARD auto get_source_location(const AST::Type& type, const class Source& src) -> SourceLocation;
 	
@@ -104,6 +109,10 @@ namespace pcit::panther{
 
 	EVO_NODISCARD auto get_source_location(
 		BaseType::Alias::ID alias_id, const class Source& src, const class TypeManager& type_manager
+	) -> SourceLocation;
+
+	EVO_NODISCARD auto get_source_location(
+		BaseType::Typedef::ID typedef_id, const class Source& src, const class TypeManager& type_manager
 	) -> SourceLocation;
 
 }

@@ -110,6 +110,16 @@ namespace pcit::panther{
 			}
 
 
+			EVO_NODISCARD auto createTypedefDecl(auto&&... args) -> AST::Node {
+				const uint32_t node_index = this->typedefs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::TypedefDecl, node_index);
+			}
+			EVO_NODISCARD auto getTypedefDecl(const AST::Node& node) const -> const AST::TypedefDecl& {
+				evo::debugAssert(node.kind() == AST::Kind::TypedefDecl, "Node is not a TypedefDecl");
+				return this->typedefs[node._value.node_index];
+			}
+
+
 			EVO_NODISCARD auto createReturn(auto&&... args) -> AST::Node {
 				const uint32_t node_index = this->returns.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Return, node_index);
@@ -222,6 +232,16 @@ namespace pcit::panther{
 			}
 
 
+			EVO_NODISCARD auto createNew(auto&&... args) -> AST::Node {
+				const uint32_t node_index = this->news.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::New, node_index);
+			}
+			EVO_NODISCARD auto getNew(const AST::Node& node) const -> const AST::New& {
+				evo::debugAssert(node.kind() == AST::Kind::New, "Node is not a New");
+				return this->news[node._value.node_index];
+			}
+
+
 
 			EVO_NODISCARD auto createType(auto&&... args) -> AST::Node {
 				const uint32_t node_index = this->types.emplace_back(std::forward<decltype(args)>(args)...);
@@ -261,6 +281,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::VarDecl, uint32_t> var_decls{};
 			core::LinearStepAlloc<AST::FuncDecl, uint32_t> func_decls{};
 			core::LinearStepAlloc<AST::AliasDecl, uint32_t> alias_decls{};
+			core::LinearStepAlloc<AST::TypedefDecl, uint32_t> typedefs{};
 
 			core::LinearStepAlloc<AST::Return, uint32_t> returns{};
 			core::LinearStepAlloc<AST::Conditional, uint32_t> conditionals{};
@@ -277,6 +298,8 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::Postfix, uint32_t> postfixes{};
 
 			core::LinearStepAlloc<AST::MultiAssign, uint32_t> multi_assigns{};
+
+			core::LinearStepAlloc<AST::New, uint32_t> news{};
 
 			core::LinearStepAlloc<AST::Type, uint32_t> types{};
 			core::LinearStepAlloc<AST::TypeIDConverter, uint32_t> type_id_converters{};

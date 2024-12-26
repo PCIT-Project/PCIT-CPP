@@ -13,6 +13,7 @@
 	#pragma warning(default : 4062)
 #endif
 
+#include "../include/SourceManager.h"
 
 namespace pcit::panther{
 
@@ -89,15 +90,16 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::printType(TypeInfo::VoidableID type_info_id) const -> std::string {
+	auto TypeManager::printType(TypeInfo::VoidableID type_info_id, const SourceManager& source_manager) const 
+	-> std::string {
 		if(type_info_id.isVoid()) [[unlikely]] {
 			return "Void";
 		}else{
-			return this->printType(type_info_id.typeID());
+			return this->printType(type_info_id.typeID(), source_manager);
 		}
 	}
 
-	auto TypeManager::printType(TypeInfo::ID type_info_id) const -> std::string {
+	auto TypeManager::printType(TypeInfo::ID type_info_id, const SourceManager& source_manager) const -> std::string {
 		const TypeInfo& type_info = this->getTypeInfo(type_info_id);
 
 		auto get_base_str = [&]() -> std::string {
@@ -125,7 +127,16 @@ namespace pcit::panther{
 				case BaseType::Kind::Alias: {
 					const BaseType::Alias::ID alias_id = type_info.baseTypeID().aliasID();
 					const BaseType::Alias& alias = this->getAlias(alias_id);
-					return this->printType(alias.aliasedType);
+					return this->printType(alias.aliasedType, source_manager);
+				} break;
+
+				case BaseType::Kind::Typedef: {
+					const BaseType::Typedef::ID typedef_id = type_info.baseTypeID().typedefID();
+					const BaseType::Typedef& typedef_info = this->getTypedef(typedef_id);
+
+					return std::string(
+						source_manager[typedef_info.sourceID].getTokenBuffer()[typedef_info.identTokenID].getString()
+					);
 				} break;
 
 				case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
@@ -233,6 +244,29 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// typedefs
+
+	auto TypeManager::getTypedef(BaseType::Typedef::ID id) const -> const BaseType::Typedef& {
+		const auto lock = std::shared_lock(this->typedefs_mutex);
+		return this->typedefs[id];
+	}
+
+
+	auto TypeManager::getOrCreateTypedef(BaseType::Typedef&& lookup_type) -> BaseType::ID {
+		const auto lock = std::shared_lock(this->typedefs_mutex);
+		
+		for(uint32_t i = 0; i < this->typedefs.size(); i+=1){
+			if(this->typedefs[BaseType::Typedef::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::Typedef, i);
+			}
+		}
+
+		const BaseType::Typedef::ID new_typedef = this->typedefs.emplace_back(lookup_type);
+		return BaseType::ID(BaseType::Kind::Typedef, new_typedef.get());
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
 	// type traits
 
 	// https://stackoverflow.com/a/1766566
@@ -307,6 +341,11 @@ namespace pcit::panther{
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.isVoid() == false, "cannot get sizeof type `Void`");
 				return this->sizeOf(alias.aliasedType.typeID());
+			} break;
+
+			case BaseType::Kind::Typedef: {
+				const BaseType::Typedef& alias = this->getTypedef(id.typedefID());
+				return this->sizeOf(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
@@ -551,6 +590,7 @@ namespace pcit::panther{
 			case BaseType::Kind::Primitive: return true;
 			case BaseType::Kind::Function:  return false;
 			case BaseType::Kind::Alias:     return this->isBuiltin(this->getAlias(id.aliasID()).aliasedType);
+			case BaseType::Kind::Typedef:   return false;
 
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
 		}
@@ -582,6 +622,10 @@ namespace pcit::panther{
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				if(alias.aliasedType.isVoid()){ return evo::resultError; }
 				return this->getUnderlyingType(alias.aliasedType.typeID());
+			} break;
+			case BaseType::Kind::Typedef: {
+				const BaseType::Typedef& typedef_info = this->getTypedef(id.typedefID());
+				return this->getUnderlyingType(typedef_info.underlyingType);
 			} break;
 		}
 
@@ -754,14 +798,16 @@ namespace pcit::panther{
 	auto TypeManager::getLowest(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TypeInt:   return core::GenericValue(calc_min_signed(this->sizeOfGeneralRegister()));
-			case Token::Kind::TypeISize: return core::GenericValue(calc_min_signed(this->sizeOfPtr()));
+			case Token::Kind::TypeInt:   return core::GenericValue(calc_min_signed(this->sizeOfGeneralRegister() * 8));
+			case Token::Kind::TypeISize: return core::GenericValue(calc_min_signed(this->sizeOfPtr() * 8));
 			case Token::Kind::TypeI_N:   return core::GenericValue(calc_min_signed(primitive.bitWidth()));
 
 			case Token::Kind::TypeUInt:
-				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfGeneralRegister()), 0));
+				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfGeneralRegister() * 8), 0));
 
-			case Token::Kind::TypeUSize: return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr()), 0));
+			case Token::Kind::TypeUSize: 
+				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr() * 8), 0));
+
 			case Token::Kind::TypeUI_N:  return core::GenericValue(core::GenericInt(primitive.bitWidth(), 0));
 
 			case Token::Kind::TypeF16:
@@ -780,13 +826,18 @@ namespace pcit::panther{
 				return core::GenericValue(core::GenericFloat::createF80(float_data_from_exponent(80, 16383, 64)).neg());
 
 			case Token::Kind::TypeF128:
-				return core::GenericValue(core::GenericFloat::createF128(float_data_from_exponent(128, 16388, 113)).neg());
+				return core::GenericValue(
+					core::GenericFloat::createF128(float_data_from_exponent(128, 16388, 113)).neg()
+				);
 
 
 			case Token::Kind::TypeByte:   return core::GenericValue(core::GenericInt(8, 0));
 			case Token::Kind::TypeBool:   return core::GenericValue(false);
 			case Token::Kind::TypeChar:   return core::GenericValue(calc_min_signed(8));
-			case Token::Kind::TypeRawPtr: return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr()), 0));
+
+			case Token::Kind::TypeRawPtr:
+				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr() * 8), 0));
+
 			case Token::Kind::TypeTypeID: return core::GenericValue(core::GenericInt(32, 0));
 			case Token::Kind::TypeCShort: return core::GenericValue(calc_min_signed(16));
 			case Token::Kind::TypeCInt:   return core::GenericValue(calc_min_signed(32));
@@ -829,15 +880,17 @@ namespace pcit::panther{
 	auto TypeManager::getMin(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TypeInt:   return core::GenericValue(calc_min_signed(this->sizeOfGeneralRegister()));
-			case Token::Kind::TypeISize: return core::GenericValue(calc_min_signed(this->sizeOfPtr()));
+			case Token::Kind::TypeInt:   return core::GenericValue(calc_min_signed(this->sizeOfGeneralRegister() * 8));
+			case Token::Kind::TypeISize: return core::GenericValue(calc_min_signed(this->sizeOfPtr() * 8));
 			case Token::Kind::TypeI_N:   return core::GenericValue(calc_min_signed(primitive.bitWidth()));
 
 			case Token::Kind::TypeUInt:
-				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfGeneralRegister()), 0));
+				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfGeneralRegister() * 8), 0));
 
-			case Token::Kind::TypeUSize: return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr()), 0));
-			case Token::Kind::TypeUI_N:  return core::GenericValue(core::GenericInt(primitive.bitWidth(), 0));
+			case Token::Kind::TypeUSize:
+				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr() * 8), 0));
+				
+			case Token::Kind::TypeUI_N: return core::GenericValue(core::GenericInt(primitive.bitWidth(), 0));
 
 			case Token::Kind::TypeF16:
 				return core::GenericValue(core::GenericFloat::createF16(float_data_from_exponent(16, 1, 11)));
@@ -861,7 +914,10 @@ namespace pcit::panther{
 			case Token::Kind::TypeByte:   return core::GenericValue(core::GenericInt(8, 0));
 			case Token::Kind::TypeBool:   return core::GenericValue(false);
 			case Token::Kind::TypeChar:   return core::GenericValue(calc_min_signed(8));
-			case Token::Kind::TypeRawPtr: return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr()), 0));
+
+			case Token::Kind::TypeRawPtr:
+				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr() * 8), 0));
+
 			case Token::Kind::TypeTypeID: return core::GenericValue(core::GenericInt(32, 0));
 			case Token::Kind::TypeCShort: return core::GenericValue(calc_min_signed(16));
 			case Token::Kind::TypeCInt:   return core::GenericValue(calc_min_signed(32));
@@ -904,11 +960,14 @@ namespace pcit::panther{
 	auto TypeManager::getMax(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TypeInt:   return core::GenericValue(calc_max_signed(this->sizeOfGeneralRegister()));
-			case Token::Kind::TypeISize: return core::GenericValue(calc_max_signed(this->sizeOfPtr()));
+			case Token::Kind::TypeInt:   return core::GenericValue(calc_max_signed(this->sizeOfGeneralRegister() * 8));
+			case Token::Kind::TypeISize: return core::GenericValue(calc_max_signed(this->sizeOfPtr() * 8));
 			case Token::Kind::TypeI_N:   return core::GenericValue(calc_max_signed(primitive.bitWidth()));
-			case Token::Kind::TypeUInt:  return core::GenericValue(calc_max_unsigned(this->sizeOfGeneralRegister()));
-			case Token::Kind::TypeUSize: return core::GenericValue(calc_max_unsigned(this->sizeOfPtr()));
+
+			case Token::Kind::TypeUInt:
+				return core::GenericValue(calc_max_unsigned(this->sizeOfGeneralRegister() * 8));
+
+			case Token::Kind::TypeUSize: return core::GenericValue(calc_max_unsigned(this->sizeOfPtr() * 8));
 			case Token::Kind::TypeUI_N:  return core::GenericValue(calc_max_unsigned(primitive.bitWidth()));
 
 			case Token::Kind::TypeF16:
@@ -933,7 +992,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeByte:   return core::GenericValue(calc_max_unsigned(8));
 			case Token::Kind::TypeBool:   return core::GenericValue(true);
 			case Token::Kind::TypeChar:   return core::GenericValue(calc_max_signed(8));
-			case Token::Kind::TypeRawPtr: return core::GenericValue(calc_max_unsigned(this->sizeOfPtr()));
+			case Token::Kind::TypeRawPtr: return core::GenericValue(calc_max_unsigned(this->sizeOfPtr() * 8));
 			case Token::Kind::TypeTypeID: return core::GenericValue(calc_max_unsigned(32));
 			case Token::Kind::TypeCShort: return core::GenericValue(calc_max_signed(16));
 			case Token::Kind::TypeCInt:   return core::GenericValue(calc_max_signed(32));
