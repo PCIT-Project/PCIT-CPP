@@ -43,6 +43,10 @@ namespace pcit::panther{
 
 	EVO_NODISCARD auto get_source_location(const AST::TypedefDecl& typedef_decl, const class Source& src) 
 		-> SourceLocation;
+
+	EVO_NODISCARD auto get_source_location(const AST::StructDecl& struct_decl, const class Source& src)
+		-> SourceLocation;
+
 	
 	EVO_NODISCARD auto get_source_location(const AST::Return& return_stmt, const class Source& src) -> SourceLocation;
 	

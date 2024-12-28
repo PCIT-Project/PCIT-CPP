@@ -236,6 +236,15 @@ namespace pcit::panther{
 				return this->analyze_typedef_decl<true>(this->source.getASTBuffer().getTypedefDecl(global_stmt));
 			} break;
 
+			case AST::Kind::StructDecl: {
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					global_stmt,
+					"Struct declarations are currently unsupported"
+				);
+				return false;
+			} break;
+
 			case AST::Kind::WhenConditional: {
 				return this->analyze_when_conditional<true>(
 					this->source.getASTBuffer().getWhenConditional(global_stmt)
@@ -1281,6 +1290,13 @@ namespace pcit::panther{
             	return this->analyze_typedef_decl<false>(ast_buffer.getTypedefDecl(node));
         	} break;
 
+        	case AST::Kind::StructDecl: {
+        		this->emit_error(
+        			Diagnostic::Code::MiscUnimplementedFeature, node, "Struct declarations are currently unsupported"
+        		);
+        		return false;
+        	} break;
+
         	case AST::Kind::FuncCall: {
         		return this->analyze_func_call(ast_buffer.getFuncCall(node));
     		} break;
@@ -2048,7 +2064,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::is_in_function() const -> bool {
-		return this->scope.getCurrentObjectScope().is<ASG::Func::ID>();
+		return this->scope.inObjectScope() && this->scope.getCurrentObjectScope().is<ASG::Func::ID>();
 	}
 
 

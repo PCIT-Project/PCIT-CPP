@@ -42,6 +42,7 @@ namespace pcit::panther{
 			case AST::Kind::FuncDecl:        return get_source_location(ast_buffer.getFuncDecl(node), src);
 			case AST::Kind::AliasDecl:       return get_source_location(ast_buffer.getAliasDecl(node), src);
 			case AST::Kind::TypedefDecl:     return get_source_location(ast_buffer.getTypedefDecl(node), src);
+			case AST::Kind::StructDecl:      return get_source_location(ast_buffer.getStructDecl(node), src);
 			case AST::Kind::Return:          return get_source_location(ast_buffer.getReturn(node), src);
 			case AST::Kind::Unreachable:     return get_source_location(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::Conditional:     return get_source_location(ast_buffer.getConditional(node), src);
@@ -88,6 +89,10 @@ namespace pcit::panther{
 
 	auto get_source_location(const AST::TypedefDecl& typedef_decl, const Source& src) -> SourceLocation {
 		return get_source_location(typedef_decl.ident, src);
+	}
+
+	auto get_source_location(const AST::StructDecl& struct_decl, const Source& src) -> SourceLocation {
+		return get_source_location(struct_decl.name, src);
 	}
 
 	auto get_source_location(const AST::Return& return_stmt, const Source& src) -> SourceLocation {
@@ -177,6 +182,7 @@ namespace pcit::panther{
 		const ASG::TemplatedFunc& asg_templated_func = src.getASGBuffer().getTemplatedFunc(templated_func_id);
 		return get_source_location(asg_templated_func.funcDecl.name, src);
 	}
+
 
 
 	auto get_source_location(ASG::Var::ID var_id, const Source& src) -> SourceLocation {

@@ -135,6 +135,18 @@ namespace pcit::panther{
 			return Result::Code::Error;
 		}
 
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::Attribute){
+			this->context.emitError(
+				Diagnostic::Code::ParserDiagnosticsInWrongPlace,
+				this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+				"Attributes for function declaration in the wrong place",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("Attributes should be after the parameters block")
+				}
+			);
+			return Result::Code::Error;
+		}
+
 		if(this->expect_token_fail(Token::lookupKind("="), "after identifier in function declaration")){
 			return Result::Code::Error;
 		}
@@ -198,7 +210,6 @@ namespace pcit::panther{
 		);
 	}
 
-
 	// TODO: check EOF
 	auto Parser::parse_type_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KeywordType)){ return Result::Code::Error; }
@@ -211,6 +222,10 @@ namespace pcit::panther{
 
 		if(this->expect_token_fail(Token::lookupKind("="), "in type declaration")){ return Result::Code::Error; }
 
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::KeywordStruct){
+			return this->parse_struct_decl(ident.value(), attributes.value());
+		}
+
 		const Result type = this->parse_type<TypeKind::Explicit>();
 		if(this->check_result_fail(type, "type in alias declaration")){ return Result::Code::Error; }
 
@@ -218,6 +233,48 @@ namespace pcit::panther{
 
 		return this->source.ast_buffer.createTypedefDecl(
 			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
+		);
+	}
+
+
+	// TODO: check EOF
+	auto Parser::parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+		if(this->assert_token_fail(Token::Kind::KeywordStruct)){ return Result::Code::Error; }
+
+		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
+			this->context.emitError(
+				Diagnostic::Code::ParserDiagnosticsInWrongPlace,
+				this->source.getTokenBuffer().getSourceLocation(
+					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
+					this->source.getID()
+				),
+				"Attributes for struct declaration in the wrong place",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("Attributes should be after the [struct] keyword"
+						" and after the template parameter block (if there is one)")
+				}
+			);
+			return Result::Code::Error;
+		}
+
+		auto template_pack_node = std::optional<AST::Node>();
+		const Result template_pack_result = this->parse_template_pack();
+		switch(template_pack_result.code()){
+			case Result::Code::Success:   template_pack_node = template_pack_result.value(); break;
+			case Result::Code::WrongType: break;
+			case Result::Code::Error:     return Result::Code::Error;	
+		}
+
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::Error){ return Result::Code::Error; }
+
+		const Result block = this->parse_block(BlockLabelRequirement::NotAllowed);
+		if(this->check_result_fail(block, "statement block in struct declaration")){ // TODO: better messaging 
+			return Result::Code::Error;
+		}
+
+		return this->source.ast_buffer.createStructDecl(
+			ident, template_pack_node, std::move(attributes.value()), block.value()
 		);
 	}
 
@@ -518,12 +575,13 @@ namespace pcit::panther{
 			}
 
 			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::Error; }
+			if(this->expect_token_fail(Token::lookupKind("("), "[(] around block label")){ return Result::Code::Error; }
 
 			const Result label_result = this->parse_ident();
 			if(this->check_result_fail(label_result, "identifier in block label")){ return Result::Code::Error; }
 			label = label_result.value();
 
-			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<{")){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(":")){
 				if(label_requirement == BlockLabelRequirement::Optional){
 					this->context.emitError(
 						Diagnostic::Code::ParserIncorrectStmtContinuation,
@@ -536,20 +594,20 @@ namespace pcit::panther{
 					return Result::Code::Error;
 				}
 
-				if(this->assert_token_fail(Token::lookupKind("<{"))){ return Result::Code::Error; }
+				if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::Error; }
 
 				const Result type_result = this->parse_type<TypeKind::Explicit>();
 				if(this->check_result_fail(type_result, "type in explicitly-typed labeled expression block")){
 					return Result::Code::Error;
 				}
 
-				if(this->expect_token_fail(
-					Token::lookupKind("}>"), "after type in explicitly-typed labeled expression block")
-				){ return Result::Code::Error; }
 
 				label_type = type_result.value();
 			}
 
+			if(this->expect_token_fail(
+				Token::lookupKind(")"), "after type in explicitly-typed labeled expression block")
+			){ return Result::Code::Error; }
 
 		}else if(label_requirement == BlockLabelRequirement::Required){
 			this->reader.go_back(start_location);
@@ -963,10 +1021,28 @@ namespace pcit::panther{
 		const Result type = this->parse_type<TypeKind::Explicit>();
 		if(this->check_result_fail(type, "type in new expression")){ return Result::Code::Error; }
 
-		evo::Result<evo::SmallVector<AST::FuncCall::Arg>> args = this->parse_func_call_args();
-		if(args.isError()){ return Result::Code::Error; }
+		switch(this->reader[this->reader.peek()].kind()){
+			case Token::lookupKind("("): {
+				evo::Result<evo::SmallVector<AST::FuncCall::Arg>> args = this->parse_func_call_args();
+				if(args.isError()){ return Result::Code::Error; }
 
-		return this->source.ast_buffer.createNew(type.value(), std::move(args.value()));
+				return this->source.ast_buffer.createNew(type.value(), std::move(args.value()));
+			} break;
+
+			case Token::lookupKind("{"): {
+				this->context.emitError(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+					"Struct initializer lists are currently unsupported"
+				);
+				return Result::Code::Error;
+			} break;
+		}
+
+		this->expected_but_got(
+			"function call arguments or struct initializer list after type in operator [new]", this->reader.peek()
+		);
+		return Result::Code::Error;
 	}
 
 

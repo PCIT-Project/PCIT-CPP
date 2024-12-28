@@ -44,6 +44,7 @@ namespace pcit::panther{
 		ParserEmptyMultiAssign,               // P7
 		ParserEmptyFuncReturnBlock,           // P8
 		ParserInvalidNewExpr,                 // P9
+		ParserDiagnosticsInWrongPlace,        // P10
 
 		SemaEncounteredASTKindNone,
 		SemaInvalidGlobalStmtKind,
@@ -174,6 +175,7 @@ namespace pcit::panther{
 			break; case DiagnosticCode::ParserEmptyMultiAssign:                   return "P7";
 			break; case DiagnosticCode::ParserEmptyFuncReturnBlock:               return "P8";
 			break; case DiagnosticCode::ParserInvalidNewExpr:                     return "P9";
+			break; case DiagnosticCode::ParserDiagnosticsInWrongPlace:            return "P10";
 
 			break; case DiagnosticCode::SemaEncounteredASTKindNone:               return "S";
 			break; case DiagnosticCode::SemaInvalidGlobalStmtKind:                return "S";

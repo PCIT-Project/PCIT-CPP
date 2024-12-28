@@ -80,6 +80,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_func_decl() -> Result;
 			EVO_NODISCARD auto parse_alias_decl() -> Result;
 			EVO_NODISCARD auto parse_type_decl() -> Result;
+			EVO_NODISCARD auto parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
 			EVO_NODISCARD auto parse_return() -> Result;
 			EVO_NODISCARD auto parse_unreachable() -> Result;
 			template<bool IS_WHEN> EVO_NODISCARD auto parse_conditional() -> Result;
@@ -144,7 +145,7 @@ namespace pcit::panther{
 			// checking
 
 			auto expected_but_got(
-				std::string_view location_str, Token::ID token, evo::SmallVector<Diagnostic::Info>&& infos = {}
+				std::string_view expected_str, Token::ID got_token, evo::SmallVector<Diagnostic::Info>&& infos = {}
 			) -> void;
 
 			EVO_NODISCARD auto check_result_fail(const Result& result, std::string_view location_str) -> bool;

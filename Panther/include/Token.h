@@ -91,6 +91,7 @@ namespace pcit::panther{
 				KeywordFunc,
 				KeywordAlias,
 				KeywordType,
+				KeywordStruct,
 
 				KeywordReturn,
 				KeywordUnreachable,
@@ -186,7 +187,7 @@ namespace pcit::panther{
 				Dereference, // .*
 				Unwrap,      // .?
 
-				// Templates
+				// Template
 				OpenTemplate,  // <{
 				CloseTemplate, // }>
 				
@@ -447,6 +448,7 @@ namespace pcit::panther{
 					break; case Kind::KeywordFunc:        return "func";
 					break; case Kind::KeywordAlias:       return "alias";
 					break; case Kind::KeywordType:        return "type";
+					break; case Kind::KeywordStruct:      return "struct";
 
 					break; case Kind::KeywordReturn:      return "return";
 					break; case Kind::KeywordUnreachable: return "unreachable";

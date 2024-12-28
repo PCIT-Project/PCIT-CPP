@@ -197,6 +197,7 @@ namespace pcit::panther{
 		{"func",        Token::Kind::KeywordFunc},
 		{"alias",       Token::Kind::KeywordAlias},
 		{"type",        Token::Kind::KeywordType},
+		{"struct",      Token::Kind::KeywordStruct},
 
 		{"return",      Token::Kind::KeywordReturn},
 		{"unreachable", Token::Kind::KeywordUnreachable},

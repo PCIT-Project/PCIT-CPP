@@ -29,6 +29,7 @@ namespace pcit::panther::AST{
 		FuncDecl,
 		AliasDecl,
 		TypedefDecl,
+		StructDecl,
 
 		Return,
 		Conditional,
@@ -179,6 +180,14 @@ namespace pcit::panther::AST{
 		Token::ID ident;
 		Node attributeBlock;
 		Node type;
+	};
+
+
+	struct StructDecl{
+		Node name;
+		std::optional<Node> templatePack;
+		Node attributeBlock;
+		Node block;
 	};
 
 

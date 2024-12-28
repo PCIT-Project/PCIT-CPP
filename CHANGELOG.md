@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.77.0
+
+### Panther
+- Added parsing of struct declarations
+- Changed sytax of labeled block
+	-  from `{->IDENT /*...*/ }` to `{->(IDENT) /*...*/ }`
+	-  from `{->IDENT<{TYPE}> /*...*/ }` to `{->(IDENT: TYPE) /*...*/ }`
+
+### pthr
+- Fixed printing of AST statement block when empty
+
+
+<!---------------------------------->
 ## v0.0.76.0
 
 ### Panther

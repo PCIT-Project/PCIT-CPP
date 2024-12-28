@@ -247,6 +247,10 @@ namespace pthr{
 						this->print_type_decl(this->ast_buffer.getTypedefDecl(stmt));
 					} break;
 
+					case panther::AST::Kind::StructDecl: {
+						this->print_struct_decl(this->ast_buffer.getStructDecl(stmt));
+					} break;
+
 					case panther::AST::Kind::Return: {
 						this->print_return(this->ast_buffer.getReturn(stmt));
 					} break;
@@ -350,47 +354,7 @@ namespace pthr{
 					this->printer.print(" ");
 					this->print_ident(func_decl.name);
 
-					this->indenter.print_arrow();
-					this->print_minor_header("Template Pack");
-					if(func_decl.templatePack.has_value()){
-						const panther::AST::TemplatePack& template_pack = 
-							this->ast_buffer.getTemplatePack(*func_decl.templatePack);
-
-						this->printer.println();
-						this->indenter.push();
-						for(size_t i = 0; const panther::AST::TemplatePack::Param& param : template_pack.params){
-							if(i + 1 < template_pack.params.size()){
-								this->indenter.print_arrow();
-							}else{
-								this->indenter.print_end();
-							}
-
-							this->print_major_header(std::format("Parameter {}", i));
-
-							{
-								this->indenter.push();
-
-								this->indenter.print_arrow();
-								this->print_minor_header("Identifier");
-								this->printer.print(" ");
-								this->print_ident(param.ident);
-
-								this->indenter.print_end();
-								this->print_minor_header("Type");
-								this->printer.print(" ");
-								this->print_type(this->ast_buffer.getType(param.type));
-
-								this->indenter.pop();
-							}
-
-							i += 1;
-						}
-						this->indenter.pop();
-						
-					}else{
-						this->printer.printGray(" {NONE}\n");
-					}
-
+					this->print_template_pack(func_decl.templatePack);
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Parameters");
@@ -548,6 +512,32 @@ namespace pthr{
 			}
 
 
+			auto print_struct_decl(const panther::AST::StructDecl& struct_decl) -> void {
+				this->indenter.print();
+				this->print_major_header("Struct Declaration");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.print(" ");
+					this->print_ident(struct_decl.name);
+
+					this->indenter.print_arrow();
+					this->print_template_pack(struct_decl.templatePack);
+
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
+
+					this->indenter.print_end();
+					this->print_minor_header("Statement Block");
+					this->print_block(this->ast_buffer.getBlock(struct_decl.block));
+
+					this->indenter.pop();
+				}
+			}
+
+
 			auto print_return(const panther::AST::Return& ret) -> void {
 				this->indenter.print();
 				this->print_major_header("Return");
@@ -664,61 +654,59 @@ namespace pthr{
 
 
 			auto print_block(const panther::AST::Block& block, bool is_not_on_newline = true) -> void {
-				if(block.stmts.empty()){
-					this->printer.printGray(" {EMPTY}\n");
+				if(is_not_on_newline){
+					this->printer.println();
+				}
+
+				this->indenter.push();
+
+				this->indenter.print_arrow();
+				this->print_minor_header("Label");
+				if(block.label.has_value()){
+					this->printer.print(" ");
+					this->print_ident(*block.label);
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Label Explicit Type");
+					this->printer.print(" ");
+					if(block.labelExplicitType.has_value()){
+						this->print_type(this->source.getASTBuffer().getType(*block.labelExplicitType));
+					}else{
+						this->printer.printlnGray("{NONE}");
+					}
 
 				}else{
-					if(is_not_on_newline){
-						this->printer.println();
-					}
-
-					{
-						this->indenter.push();
-
-						this->indenter.print_arrow();
-						this->print_minor_header("Label");
-						if(block.label.has_value()){
-							this->printer.print(" ");
-							this->print_ident(*block.label);
-
-							this->indenter.print_arrow();
-							this->print_minor_header("Label Explicit Type");
-							this->printer.print(" ");
-							if(block.labelExplicitType.has_value()){
-								this->print_type(this->source.getASTBuffer().getType(*block.labelExplicitType));
-							}else{
-								this->printer.printlnGray("{NONE}");
-							}
-
-						}else{
-							this->printer.printGray(" {NONE}\n");
-						}
-
-
-						this->indenter.print_end();
-						this->print_minor_header("Statements");
-						this->printer.println();
-						{
-							this->indenter.push();
-
-							for(size_t i = 0; const panther::AST::Node& stmt : block.stmts){
-								if(i + 1 < block.stmts.size()){
-									this->indenter.set_arrow();
-								}else{
-									this->indenter.set_end();
-								}
-
-								this->print_stmt(stmt);
-
-								i += 1;
-							}
-
-							this->indenter.pop();
-						}
-
-						this->indenter.pop();
-					}
+					this->printer.printGray(" {NONE}\n");
 				}
+
+
+				this->indenter.print_end();
+				this->print_minor_header("Statements");
+
+				if(block.stmts.empty()){
+					this->printer.printGray(" {EMPTY}\n");
+					
+				}else{
+					this->printer.println();
+					this->indenter.push();
+
+					for(size_t i = 0; const panther::AST::Node& stmt : block.stmts){
+						if(i + 1 < block.stmts.size()){
+							this->indenter.set_arrow();
+						}else{
+							this->indenter.set_end();
+						}
+
+						this->print_stmt(stmt);
+
+						i += 1;
+					}
+
+					this->indenter.pop();
+				}
+
+
+				this->indenter.pop();
 			}
 
 
@@ -1154,6 +1142,50 @@ namespace pthr{
 
 
 					this->indenter.pop();
+				}
+			}
+
+
+			auto print_template_pack(const std::optional<panther::AST::Node>& template_pack_node) -> void {
+				this->indenter.print_arrow();
+				this->print_minor_header("Template Pack");
+				if(template_pack_node.has_value()){
+					const panther::AST::TemplatePack& template_pack = 
+						this->ast_buffer.getTemplatePack(*template_pack_node);
+
+					this->printer.println();
+					this->indenter.push();
+					for(size_t i = 0; const panther::AST::TemplatePack::Param& param : template_pack.params){
+						if(i + 1 < template_pack.params.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
+						}
+
+						this->print_major_header(std::format("Parameter {}", i));
+
+						{
+							this->indenter.push();
+
+							this->indenter.print_arrow();
+							this->print_minor_header("Identifier");
+							this->printer.print(" ");
+							this->print_ident(param.ident);
+
+							this->indenter.print_end();
+							this->print_minor_header("Type");
+							this->printer.print(" ");
+							this->print_type(this->ast_buffer.getType(param.type));
+
+							this->indenter.pop();
+						}
+
+						i += 1;
+					}
+					this->indenter.pop();
+					
+				}else{
+					this->printer.printGray(" {NONE}\n");
 				}
 			}
 

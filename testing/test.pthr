@@ -1,14 +1,21 @@
 
-func entry = () #entry -> UI8 {
-	var foo: I8 = zeroinit;
-	foo = ~foo;
 
-	type int8_t = I8;
-	alias i8 = int8_t;
 
-	const four: I8 = new I8(4);
-	const four_: i8 = four as int8_t;
-	foo = foo - (four_ as I8);
-
-	return foo as UI8;
+type Test = struct #noReorder #packed #extern {
+	var x: Int;
+	var some_default: Bool = false;
+	var y: Int;
 }
+
+
+// func entry = () #entry -> UI8 {
+// 	var foo: Test = new Test<{Int}>(12, true, 14);
+
+// 	var bar: Test = new Test<{12, asdf}>{
+// 		x = 42,
+// 		// some_default = true,
+// 		y = 19,
+// 	};
+
+// 	return ((foo.x == bar.y) & bar.some_default) as UI8;
+// }

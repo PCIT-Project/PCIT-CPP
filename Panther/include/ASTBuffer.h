@@ -120,6 +120,16 @@ namespace pcit::panther{
 			}
 
 
+			EVO_NODISCARD auto createStructDecl(auto&&... args) -> AST::Node {
+				const uint32_t node_index = this->struct_decls.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::StructDecl, node_index);
+			}
+			EVO_NODISCARD auto getStructDecl(const AST::Node& node) const -> const AST::StructDecl& {
+				evo::debugAssert(node.kind() == AST::Kind::StructDecl, "Node is not a StructDecl");
+				return this->struct_decls[node._value.node_index];
+			}
+
+
 			EVO_NODISCARD auto createReturn(auto&&... args) -> AST::Node {
 				const uint32_t node_index = this->returns.emplace_back(std::forward<decltype(args)>(args)...);
 				return AST::Node(AST::Kind::Return, node_index);
@@ -282,6 +292,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::FuncDecl, uint32_t> func_decls{};
 			core::LinearStepAlloc<AST::AliasDecl, uint32_t> alias_decls{};
 			core::LinearStepAlloc<AST::TypedefDecl, uint32_t> typedefs{};
+			core::LinearStepAlloc<AST::StructDecl, uint32_t> struct_decls{};
 
 			core::LinearStepAlloc<AST::Return, uint32_t> returns{};
 			core::LinearStepAlloc<AST::Conditional, uint32_t> conditionals{};
