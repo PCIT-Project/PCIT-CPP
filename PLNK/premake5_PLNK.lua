@@ -15,8 +15,8 @@ project "PLNK_lib"
 	
 	includedirs{
 		(config.location .. "/PCIT_core/include"),
-		(config.location .. "/libs/LLVM_build/include"),
-		(config.location .. "/libs"),
+		(config.location .. "/dependencies/LLVM_build/include"),
+		(config.location .. "/dependencies"),
 	}
 
 	links{

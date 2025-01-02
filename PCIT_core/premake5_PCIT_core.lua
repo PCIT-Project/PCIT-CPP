@@ -14,7 +14,7 @@ project "PCIT_core"
 
 	
 	includedirs{
-		(config.location .. "/libs"),
+		(config.location .. "/dependencies"),
 	}
 
 	links{

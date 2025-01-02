@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+## v0.0.78.0
+Renamed "Panther" to "Panther-old" and started a new Panther project. This is because adding the dependency analysis stage and supporting the build system (the differing in the way `@import` needs to work) requires a rework of the semantic analysis as well as the work management system in `Context`.
+
+### Panther
+- Added tokenization
+- Added parsing
+- Added standard library
+
+### PCIT_core
+- Added `ThreadQueue`
+- Fixed issue with `ThreadPool` never registering as finished working when it is given more data than it has workers
+
+### misc
+- Updated README to have correct path to main of `pthr`
+
+
+<!---------------------------------->
 ## v0.0.77.0
 
 ### Panther

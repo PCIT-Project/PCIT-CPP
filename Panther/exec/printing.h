@@ -9,20 +9,24 @@
 
 #pragma once
 
+#include <filesystem>
+namespace fs = std::filesystem;
 
 #include <Evo.h>
-
+#include <PCIT_core.h>
 #include <Panther.h>
+namespace core = pcit::core;
 namespace panther = pcit::panther;
 
 
 namespace pthr{
 
-	auto printTitle(pcit::core::Printer& printer) -> void;
 
-	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) -> void;
+	auto print_logo(core::Printer& printer) -> void;
 
-	auto printAST(pcit::core::Printer& printer, const panther::Source& source) -> void;
+	auto print_tokens(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
 
+	auto print_AST(pcit::core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
 
+	
 }

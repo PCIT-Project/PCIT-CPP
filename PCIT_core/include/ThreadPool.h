@@ -45,6 +45,8 @@ namespace pcit::core{
 			}
 
 			auto startup(unsigned num_threads = optimalNumThreads()) -> void {
+				evo::debugAssert(this->isRunning() == false, "Already running");
+				
 				this->num_threads_still_running = num_threads;
 
 				this->workers.reserve(num_threads);
@@ -72,14 +74,17 @@ namespace pcit::core{
 				this->data = std::move(run_data);
 				this->work_func = func;	
 
-				this->num_threads_still_working = unsigned(this->data.size());
 
 				if(this->data.size() < this->workers.size()){
+					this->num_threads_still_working = unsigned(this->data.size());
+
 					for(size_t i = 0; i < this->data.size(); i+=1){
 						this->workers[i].start_working(i, i);
 					}
 
 				}else{
+					this->num_threads_still_working = this->getNumThreads();
+
 					const size_t num_elements_per_worker = this->data.size() / this->workers.size();
 					const size_t num_workers_with_extra = this->data.size() % this->workers.size();
 
@@ -101,9 +106,10 @@ namespace pcit::core{
 			EVO_NODISCARD auto isWorking() const -> bool { return this->num_threads_still_working != 0; }
 			EVO_NODISCARD auto isRunning() const -> bool { return this->workers.empty() == false; }
 			EVO_NODISCARD auto taskFailed() const -> bool { return this->worker_failed; }
+			EVO_NODISCARD auto getNumThreads() const -> unsigned { return unsigned(this->workers.size()); }
 
 			// returns if all tasks ran successfully
-			EVO_NODISCARD auto waitUntilDoneWorking() -> bool {
+			auto waitUntilDoneWorking() -> bool {
 				while(this->isWorking()){
 					std::this_thread::yield();
 				}
@@ -111,7 +117,7 @@ namespace pcit::core{
 				return !this->taskFailed();
 			}
 
-			EVO_NODISCARD auto waitUntilNotRunning() -> void {
+			auto waitUntilNotRunning() -> void {
 				while(this->isRunning()){
 					std::this_thread::yield();
 				}

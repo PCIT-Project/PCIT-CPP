@@ -14,8 +14,8 @@ project "PCIT_llvm_interface"
 
 	
 	includedirs{
-		(config.location .. "/libs/LLVM_build/include"),
-		(config.location .. "/libs"),
+		(config.location .. "/dependencies/LLVM_build/include"),
+		(config.location .. "/dependencies"),
 	}
 
 

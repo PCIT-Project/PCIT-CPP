@@ -1,0 +1,7 @@
+
+
+func entry = () #entry -> UI8 {
+	
+	
+	return 0;
+}

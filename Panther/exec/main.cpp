@@ -8,98 +8,86 @@
 
 
 #include <iostream>
-#include <filesystem>
-namespace fs = std::filesystem;
 
 #include <Evo.h>
-
 #include <Panther.h>
+namespace core = pcit::core;
 namespace panther = pcit::panther;
 
 #include "./printing.h"
 
 
-#if defined(EVO_PLATFORM_WINDOWS)
-	#if !defined(WIN32_LEAN_AND_MEAN)
-		#define WIN32_LEAN_AND_MEAN
-	#endif
+namespace pthr{
 
-	#if !defined(NOCOMM)
-		#define NOCOMM
-	#endif
+	struct Config{
+		enum class Verbosity{
+			None = 0,
+			Some = 1,
+			Full = 2,
+		};
 
-	#if !defined(NOMINMAX)
-		#define NOMINMAX
-	#endif
-
-	#include <Windows.h>
-#endif
+		Verbosity verbosity  = Verbosity::Full;
+		bool print_color     = core::Printer::platformSupportsColor() == core::Printer::DetectResult::Yes;
+		unsigned max_threads = panther::Context::optimalNumThreads();
+	};
 
 
-#if defined(EVO_COMPILER_MSVC)
-	#pragma warning(default : 4062)
-#endif
+	static auto setup_env(bool print_color) -> void {
+		core::windows::setConsoleToUTF8Mode();
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			evo::log::setDefaultThreadSaferCallback();
+		#endif
+
+		#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
+			if(core::windows::isDebuggerPresent()){
+				static auto at_exit_call = [print_color]() -> void {
+					// not using printer because it should always go to stdout
+					if(print_color){
+						evo::printGray("Press [Enter] to close...");
+					}else{
+						evo::print("Press [Enter] to close...");
+					}
+
+					std::cin.get();
+					evo::println();
+				};
+				std::atexit([]() -> void {
+					at_exit_call();
+				});
+			}
+		#endif
+	}
+
+}
 
 
-struct Config{
-	enum class Target{
-		Run,
-		Assembly,
-		PrintAssembly,
-		LLVMIR,      // not guaranteed to remain
-		PrintLLVMIR, // not guaranteed to remain
-		PrintPIR,
-		SemanticAnalysis,
-		Parse,
-		PrintAST,
-		PrintTokens,
-	} target;
 
-	bool print_color;
+static auto get_current_path(core::Printer& printer) -> evo::Result<std::filesystem::path> {
+	std::error_code ec;
+	const std::filesystem::path current_path = std::filesystem::current_path(ec);
+	if(ec){
+		printer.printlnError("Failed to get relative directory");
+		printer.printlnError("\tcode: \"{}\"", ec.value());
+		printer.printlnError("\tmessage: \"{}\"", ec.message());
 
-	fs::path relative_dir{};
-	bool verbose;
-	bool relative_dir_set = false;
+		return evo::resultError;
+	}
 
-	bool add_source_locations = true;
-	bool checked_math = true;
-
-	unsigned max_threads    = 0;
-	unsigned max_num_errors = std::numeric_limits<unsigned>::max();
-	bool may_recover        = true;
-};
+	return current_path;
+}
 
 
 auto main(int argc, const char* argv[]) -> int {
-	auto args = evo::SmallVector<std::string_view>(argv, argv + argc);
+	auto args = std::vector<std::string_view>(argv, argv + argc);
 
-	auto config = Config{
-		.target      = Config::Target::SemanticAnalysis,
-		.print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes,
-		.verbose     = true,
-
-		// .add_source_locations = false,
-		// .checked_math = false,
-
-		// .max_threads    = panther::Context::optimalNumThreads(),
-		.max_num_errors = 10,
-		// .may_recover    = false,
-	};
-
-	// print UTF-8 characters on windows
-	#if defined(EVO_PLATFORM_WINDOWS)
-		::SetConsoleOutputCP(CP_UTF8);
-	#endif
-
-	#if defined(PCIT_CONFIG_DEBUG)
-		evo::log::setDefaultThreadSaferCallback();
-	#endif
-
-	auto printer = pcit::core::Printer::createConsole(config.print_color);
+	auto config = pthr::Config();
+	pthr::setup_env(config.print_color);
+	auto printer = core::Printer::createConsole(config.print_color);
 
 
-	if(config.verbose){
-		pthr::printTitle(printer);
+	if(config.verbosity == pthr::Config::Verbosity::Full){
+		pthr::print_logo(printer);
 
 		#if defined(PCIT_BUILD_DEBUG)
 			printer.printlnMagenta("v{} (debug)", pcit::core::version);
@@ -114,334 +102,51 @@ auto main(int argc, const char* argv[]) -> int {
 		#else
 			#error Unknown or unsupported build
 		#endif
-
-		switch(config.target){
-			break; case Config::Target::PrintTokens:      printer.printlnMagenta("Target: PrintTokens");
-			break; case Config::Target::PrintAST:         printer.printlnMagenta("Target: PrintAST");
-			break; case Config::Target::Parse:            printer.printlnMagenta("Target: Parse");
-			break; case Config::Target::SemanticAnalysis: printer.printlnMagenta("Target: SemanticAnalysis");
-			break; case Config::Target::PrintPIR:         printer.printlnMagenta("Target: PrintPIR");
-			break; case Config::Target::PrintLLVMIR:      printer.printlnMagenta("Target: PrintLLVMIR");
-			break; case Config::Target::LLVMIR:           printer.printlnMagenta("Target: LLVMIR");
-			break; case Config::Target::PrintAssembly:    printer.printlnMagenta("Target: PrintAssembly");
-			break; case Config::Target::Assembly:         printer.printlnMagenta("Target: Assembly");
-			break; case Config::Target::Run:              printer.printlnMagenta("Target: Run");
-			break; default: evo::debugFatalBreak("Unknown or unsupported config target (cannot print target)");
-		}
-
 	}
 
+	using ContextConfig = panther::Context::Config;
+	const auto context_config = ContextConfig{
+		.mode         = ContextConfig::Mode::BuildSystem,
+		.os           = core::getCurrentOS(),
+		.architecture = core::getCurrentArchitecture(),
 
-	const unsigned num_threads = config.max_threads;
+		.numThreads = config.max_threads,
+	};
 
-	if(config.relative_dir_set == false){
-		config.relative_dir_set = true;
-
-		std::error_code ec;
-		config.relative_dir = fs::current_path(ec);
-		if(ec){
-			printer.printlnError("Failed to get relative directory");
-			printer.printlnError("\tcode: \"{}\"", ec.value());
-			printer.printlnError("\tmessage: \"{}\"", ec.message());
-
-			return EXIT_FAILURE;
-		}
-	}
-
-
-	if(config.verbose){
-		printer.printlnMagenta("Relative Directory: \"{}\"", config.relative_dir.string());
-	}
+	const evo::Result<std::filesystem::path> current_path = get_current_path(printer);
+	if(current_path.isError()){ return EXIT_FAILURE; }
 
 	auto context = panther::Context(
-		printer,
-		panther::createDefaultDiagnosticCallback(printer, config.relative_dir),
-		panther::Context::Config{
-			.basePath = config.relative_dir,
-
-			.addSourceLocations = config.add_source_locations,
-			.checkedMath        = config.checked_math,
-
-			.numThreads   = num_threads,
-			.maxNumErrors = config.max_num_errors,
-			.mayRecover   = config.may_recover,
-		}
+		panther::createDefaultDiagnosticCallback(printer, current_path.value()), context_config
 	);
 
 
-	const auto exit_defer = evo::Defer([&]() -> void {
-		if(context.isMultiThreaded() && context.threadsRunning()){
-			context.shutdownThreads();
+	std::ignore = context.addStdLib(current_path.value() / "../lib/std");
+
+
+	const panther::Source::CompilationConfig::ID comp_config = context.getSourceManager().createSourceCompilationConfig(
+		panther::Source::CompilationConfig{
+			.basePath = current_path.value(),
 		}
-	});
+	);
+
+	std::ignore = context.addSourceFile("build.pthr", comp_config);
 
 
-	#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
-		if(::IsDebuggerPresent()){
-			static auto at_exit_call = [&]() -> void {
-				// not using printer because it should always go to stdout
-				if(config.print_color){
-					evo::printGray("Press [Enter] to close...");
-				}else{
-					evo::print("Press [Enter] to close...");
-				}
-
-				std::cin.get();
-				evo::println();
-			};
-			std::atexit([]() -> void {
-				at_exit_call();
-			});
-		}
-	#endif
-
-
-	if(context.isMultiThreaded()){
-		if(config.verbose){
-			if(num_threads > 1){
-				printer.printlnMagenta(std::format("Running multi-threaded ({} worker threads)", num_threads));
-			}else{
-				printer.printlnMagenta("Running multi-threaded (1 worker thread)");				
-			}
-		}
-
-		context.startupThreads();
-	}else{
-		if(config.verbose){
-			printer.printlnMagenta("Running single-threaded");
-		}
-	}
-
-
-	///////////////////////////////////
-	// load files
-
-	context.loadFiles({
-		config.relative_dir / "test.pthr",
-		// config.relative_dir / "test2.pthr",
-		
-		// "./local/big_test.pthr",
-		// "./local/big_test_with_params.pthr",
-	});
-
-	if(context.isMultiThreaded()){
-		context.waitForAllTasks();
-	}
-
-	if(context.errored()){
-		if(config.verbose){ printer.printlnError("Encountered an error loading files"); }
-
+	if(context.parse() == false){
+		printer.printlnError("Failed to parse");
 		return EXIT_FAILURE;
 	}
 
-
-	if(config.verbose){ printer.printlnSuccess("Successfully loaded all files"); }
-
-
-
-	///////////////////////////////////
-	// tokenize
-
-	const auto tokenize_start = evo::time::now();
-
-	context.tokenizeLoadedFiles();
-
-	if(context.isMultiThreaded()){
-		context.waitForAllTasks();
-	}
-
-	if(context.errored()){
-		if(config.verbose){ printer.printlnError("Encountered an error tokenizing files"); }
-
-		return EXIT_FAILURE;
+	if(config.verbosity >= pthr::Config::Verbosity::Some){
+		printer.printlnSuccess("Successfully parsed");
 	}
 
 
-	if(config.verbose){ printer.printlnSuccess("Successfully tokenized all files"); }
-
-	if(config.target == Config::Target::PrintTokens){
-		const panther::SourceManager& source_manager = context.getSourceManager();
-
-		for(panther::Source::ID source_id : source_manager){
-			const panther::Source& source = source_manager.getSource(source_id);
-
-			pthr::printTokens(printer, source);
-		}
-
-		return EXIT_SUCCESS;
+	for(const panther::Source::ID& source_id : context.getSourceManager()){
+		pthr::print_AST(printer, context.getSourceManager()[source_id], current_path.value());
 	}
 
 
-	///////////////////////////////////
-	// parse
-
-	context.parseLoadedFiles();
-
-	if(context.isMultiThreaded()){
-		context.waitForAllTasks();
-	}
-
-	if(context.errored()){
-		if(config.verbose){ printer.printlnError("Encountered an error parsing files"); }
-
-		return EXIT_FAILURE;
-	}
-
-
-	if(config.verbose){ printer.printlnSuccess("Successfully parsed all files"); }
-
-	if(config.target == Config::Target::PrintAST){
-		const panther::SourceManager& source_manager = context.getSourceManager();
-
-		for(panther::Source::ID source_id : source_manager){
-			const panther::Source& source = source_manager.getSource(source_id);
-
-			pthr::printAST(printer, source);
-		}
-
-		return EXIT_SUCCESS;
-
-	}else if(config.target == Config::Target::Parse){
-		if(config.verbose){
-			const evo::time::Nanoseconds time_diff = evo::time::now() - tokenize_start;
-
-			if(time_diff < static_cast<evo::time::Nanoseconds>(evo::time::Milliseconds(10))){
-				printer.printlnInfo(
-					"Completed tokenizing and parsing in {:.3}ms",
-					static_cast<float32_t>(time_diff) / 10e6
-				);
-			}else{
-				printer.printlnInfo(
-					"Completed tokenizing and parsing in {}ms",
-					static_cast<evo::time::Milliseconds>(time_diff)
-				);
-			}
-		}
-
-		return EXIT_SUCCESS;
-	}
-
-
-	///////////////////////////////////
-	// semantic analysis
-
-	context.semanticAnalysisLoadedFiles();
-
-	if(context.isMultiThreaded()){
-		context.waitForAllTasks();
-	}
-
-	if(context.errored()){
-		if(config.verbose){ printer.printlnError("Encountered an error doing semantic analysis"); }
-
-		return EXIT_FAILURE;
-	}
-
-	if(config.verbose){ printer.printlnSuccess("Successfully analyzed semantics all files"); }
-
-
-	if(config.target == Config::Target::SemanticAnalysis){
-
-		return EXIT_SUCCESS;
-	}
-
-
-
-	///////////////////////////////////
-	// print PIR
-
-	if(config.target == Config::Target::PrintPIR){
-		if(context.printPIR() == false){ return EXIT_FAILURE; }
-
-		return EXIT_SUCCESS;
-	}
-
-
-	///////////////////////////////////
-	// print llvmir
-
-	if(config.target == Config::Target::PrintLLVMIR){
-		const evo::Result<std::string> llvm_ir = context.printLLVMIR(false);
-
-		if(llvm_ir.isError()){
-			return EXIT_FAILURE;			
-		}
-
-		printer.printlnCyan(llvm_ir.value());
-
-		return EXIT_SUCCESS;
-
-	}else if(config.target == Config::Target::LLVMIR){
-		const evo::Result<std::string> llvm_ir = context.printLLVMIR(true);
-
-		if(llvm_ir.isError()){
-			return EXIT_FAILURE;			
-		}
-
-		if(evo::fs::writeFile("a.ll", llvm_ir.value()) == false){
-			printer.printlnError("Failed to write file: \"a.ll\"");
-
-		}else if(config.verbose){
-			printer.printlnSuccess("Successfully write LLVMIR file \"a.ll\"");
-		}
-
-		return EXIT_SUCCESS;
-	}
-
-
-	///////////////////////////////////
-	// print Assembly
-
-	if(config.target == Config::Target::PrintAssembly){
-		const evo::Result<std::string> assembly = context.printAssembly(false);
-
-		if(assembly.isError()){
-			return EXIT_FAILURE;			
-		}
-
-		printer.printlnCyan(assembly.value());
-
-		return EXIT_SUCCESS;
-
-	}else if(config.target == Config::Target::Assembly){
-		const evo::Result<std::string> assembly = context.printAssembly(true);
-
-		if(assembly.isError()){
-			return EXIT_FAILURE;			
-		}
-
-		if(evo::fs::writeFile("a.S", assembly.value()) == false){
-			printer.printlnError("Failed to write file: \"a.S\"");
-
-		}else if(config.verbose){
-			printer.printlnSuccess("Successfully write Assembly file \"a.S\"");
-		}
-
-		return EXIT_SUCCESS;
-	}
-
-
-	///////////////////////////////////
-	// run
-
-	if(config.target == Config::Target::Run){
-		if(config.verbose){ printer.printlnGray("------------------------------\nRunning:"); }
-
-		const evo::Result<uint8_t> run_result = context.run();
-
-		if(run_result.isError()){
-			return EXIT_FAILURE;			
-		}
-
-		if(config.verbose){ printer.printlnInfo("Return Code: {}", run_result.value()); }
-
-		return EXIT_SUCCESS;
-	}
-
-
-
-	///////////////////////////////////
-	// done
-
-	evo::debugFatalBreak("Unknown or unsupported config target");
+	return EXIT_SUCCESS;
 }

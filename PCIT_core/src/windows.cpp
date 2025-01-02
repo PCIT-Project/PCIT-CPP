@@ -7,23 +7,43 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#pragma once
+#include "../include/windows.h"
 
-#include "./generic_values/GenericInt.h"
-#include "./generic_values/GenericFloat.h"
-#include "./generic_values/GenericValue.h"
 
-#include "./Diagnostic.h"
-#include "./IterRange.h"
-#include "./LinearStepAlloc.h"
-#include "./Optional.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./SingleThreadedWorkQueue.h"
-#include "./SpinLock.h"
-#include "./StepAlloc.h"
-#include "./ThreadPool.h"
-#include "./ThreadQueue.h"
-#include "./UniqueID.h"
-#include "./version.h"
-#include "./windows.h"
+#if defined(EVO_PLATFORM_WINDOWS)
+	#if !defined(WIN32_LEAN_AND_MEAN)
+		#define WIN32_LEAN_AND_MEAN
+	#endif
+
+	#if !defined(NOCOMM)
+		#define NOCOMM
+	#endif
+
+	#if !defined(NOMINMAX)
+		#define NOMINMAX
+	#endif
+
+	#include <Windows.h>
+#endif
+
+
+namespace pcit::core::windows{
+
+
+	auto setConsoleToUTF8Mode() -> void {
+		#if defined(EVO_PLATFORM_WINDOWS)
+			::SetConsoleOutputCP(CP_UTF8);
+		#endif
+	}
+
+
+	#if defined(EVO_PLATFORM_WINDOWS)
+
+		auto isDebuggerPresent() -> bool {
+			return ::IsDebuggerPresent();
+		}
+		
+	#endif
+
+	
+}

@@ -1,5 +1,5 @@
 
-local LLVM_libs_loc = (config.location .. "/libs/LLVM_build/lib/")
+local LLVM_libs_loc = (config.location .. "/dependencies/LLVM_build/lib/")
 
 
 ------------------------------------------------------------------------------

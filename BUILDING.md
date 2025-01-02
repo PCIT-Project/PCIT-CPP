@@ -123,7 +123,7 @@ Run `setup_llvm`. This may take awhile.
 
 
 ## Adding LLVM to the PCIT Project:
-Once you've successfully built the LLVM Project, you will need to go into `./llvm-project/llvm/build-output`. Copy `include` and `lib` into the directory `PCIT-CPP/libs/LLVM` (the libs directory already exists, but you need to create the LLVM directory inside).
+Once you've successfully built the LLVM Project, you will need to go into `./llvm-project/llvm/build-output`. Copy `include` and `lib` into the directory `PCIT-CPP/dependencies/LLVM` (the `dependencies` directory already exists, but you need to create the `LLVM` directory inside).
 
 
 ## Building

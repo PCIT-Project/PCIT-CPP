@@ -9,21 +9,15 @@
 
 #pragma once
 
-#include "./generic_values/GenericInt.h"
-#include "./generic_values/GenericFloat.h"
-#include "./generic_values/GenericValue.h"
 
-#include "./Diagnostic.h"
-#include "./IterRange.h"
-#include "./LinearStepAlloc.h"
-#include "./Optional.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./SingleThreadedWorkQueue.h"
-#include "./SpinLock.h"
-#include "./StepAlloc.h"
-#include "./ThreadPool.h"
-#include "./ThreadQueue.h"
-#include "./UniqueID.h"
-#include "./version.h"
-#include "./windows.h"
+#include <PCIT_core.h>
+#include <PIR.h>
+
+#include "./diagnostics.h"
+#include "./Source.h"
+#include "./SourceManager.h"
+#include "./Context.h"
+#include "./Token.h"
+#include "./TokenBuffer.h"
+
+#include "./default_diagnostic_callback.h"

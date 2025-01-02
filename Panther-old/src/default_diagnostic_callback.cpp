@@ -12,39 +12,11 @@
 namespace pcit::panther{
 
 
-	enum class DiagnosticLevel{
-		Fatal,
-		Error,
-		Warning,
-		Info,
-	};
-
-	EVO_NODISCARD static auto print_diagnostic_level(Diagnostic::Level level) -> std::string_view {
-		switch(level){
-			case Diagnostic::Level::Fatal:   return "Fatal";
-			case Diagnostic::Level::Error:   return "Error";
-			case Diagnostic::Level::Warning: return "Warning";
-		}
-
-		evo::debugFatalBreak("Unknown or unsupported diagnostic level");
-	}
-
-	EVO_NODISCARD static auto get_diagnostic_level(Diagnostic::Level level) -> DiagnosticLevel {
-		switch(level){
-			case Diagnostic::Level::Fatal:   return DiagnosticLevel::Fatal;
-			case Diagnostic::Level::Error:   return DiagnosticLevel::Error;
-			case Diagnostic::Level::Warning: return DiagnosticLevel::Warning;
-		}
-
-		evo::debugFatalBreak("Unknown or unsupported diagnostic level");
-	}
-
-
 	static auto print_location(
 		core::Printer& printer,
 		const std::filesystem::path& rel_dir,
 		const Source& source,
-		DiagnosticLevel level,
+		Diagnostic::Level level,
 		const Source::Location& location,
 		unsigned depth
 	) -> void {
@@ -62,8 +34,8 @@ namespace pcit::panther{
 		printer.printGray(
 			std::format(
 				"\x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\:{}:{}\n", 
-				source.getPath().string(),
-				std::filesystem::relative(source.getPath(), rel_dir, ec).string(),
+				source.getLocationAsString(),
+				std::filesystem::relative(source.getLocationAsPath(), rel_dir, ec).string(),
 				location.lineStart,
 				location.collumnStart
 			)
@@ -119,7 +91,7 @@ namespace pcit::panther{
 			cursor += 1;
 		}
 
-		if(level == DiagnosticLevel::Info){
+		if(level == Diagnostic::Level::Info){
 			printer.printGray(std::format("\t\t{} | {}\n", line_number_str, line_str));
 		}else{
 			printer.printGray(std::format("\t{} | {}\n", line_number_str, line_str));
@@ -134,7 +106,7 @@ namespace pcit::panther{
 			line_space_str += ' ';
 		}
 
-		if(level == DiagnosticLevel::Info){
+		if(level == Diagnostic::Level::Info){
 			printer.printGray(std::format("\t\t{} | ", line_space_str));
 		}else{
 			printer.printGray(std::format("\t{} | ", line_space_str));
@@ -167,10 +139,10 @@ namespace pcit::panther{
 		pointer_str += '\n';
 
 		switch(level){
-			break; case DiagnosticLevel::Fatal:   printer.printError(pointer_str);
-			break; case DiagnosticLevel::Error:   printer.printError(pointer_str);
-			break; case DiagnosticLevel::Warning: printer.printWarning(pointer_str);
-			break; case DiagnosticLevel::Info:    printer.printInfo(pointer_str);
+			break; case Diagnostic::Level::Fatal:   printer.printError(pointer_str);
+			break; case Diagnostic::Level::Error:   printer.printError(pointer_str);
+			break; case Diagnostic::Level::Warning: printer.printWarning(pointer_str);
+			break; case Diagnostic::Level::Info:    printer.printInfo(pointer_str);
 		}
 	}
 
@@ -188,11 +160,9 @@ namespace pcit::panther{
 
 		printer.printCyan(std::format("<Info> {}\n", info.message));
 
-		if(info.location.is<Source::Location>()){
-			const Source& source = context.getSourceManager()[info.location.as<Source::Location>().sourceID];
-			print_location(
-				printer, rel_dir, source, DiagnosticLevel::Info, info.location.as<Source::Location>(), depth + 1
-			);
+		if(info.location.has_value()){
+			const Source& source = context.getSourceManager().getSource(info.location->sourceID);
+			print_location(printer, rel_dir, source, Diagnostic::Level::Info, *info.location, depth + 1);
 		}
 
 		for(const Diagnostic::Info& sub_info : info.sub_infos){
@@ -208,7 +178,7 @@ namespace pcit::panther{
 		-> void {
 
 			const std::string diagnostic_message = std::format(
-				"<{}|{}> {}\n", print_diagnostic_level(diagnostic.level), diagnostic.code, diagnostic.message
+				"<{}|{}> {}\n", diagnostic.level, diagnostic.code, diagnostic.message
 			);
 
 			switch(diagnostic.level){
@@ -217,11 +187,11 @@ namespace pcit::panther{
 				break; case Diagnostic::Level::Warning: printer.printWarning(diagnostic_message);
 			}
 
-			if(diagnostic.location.is<Source::Location>()){
-				const Source::Location& location = diagnostic.location.as<Source::Location>();
-				const Source& source = context.getSourceManager()[location.sourceID];
+			if(diagnostic.location.has_value()){
+				const Source::Location& location = *diagnostic.location;
+				const Source& source = context.getSourceManager().getSource(location.sourceID);
 
-				print_location(printer, rel_dir, source, get_diagnostic_level(diagnostic.level), location, 1);
+				print_location(printer, rel_dir, source, diagnostic.level, location, 1);
 			}
 
 			for(const Diagnostic::Info& info : diagnostic.infos){

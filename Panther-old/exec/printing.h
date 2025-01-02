@@ -9,21 +9,20 @@
 
 #pragma once
 
-#include "./generic_values/GenericInt.h"
-#include "./generic_values/GenericFloat.h"
-#include "./generic_values/GenericValue.h"
 
-#include "./Diagnostic.h"
-#include "./IterRange.h"
-#include "./LinearStepAlloc.h"
-#include "./Optional.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./SingleThreadedWorkQueue.h"
-#include "./SpinLock.h"
-#include "./StepAlloc.h"
-#include "./ThreadPool.h"
-#include "./ThreadQueue.h"
-#include "./UniqueID.h"
-#include "./version.h"
-#include "./windows.h"
+#include <Evo.h>
+
+#include <Panther.h>
+namespace panther = pcit::panther;
+
+
+namespace pthr{
+
+	auto printTitle(pcit::core::Printer& printer) -> void;
+
+	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) -> void;
+
+	auto printAST(pcit::core::Printer& printer, const panther::Source& source) -> void;
+
+
+}

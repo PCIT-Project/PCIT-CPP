@@ -17,6 +17,7 @@ namespace pcit::core{
 
 	// Step allocator that guarantees that adding new elements does not invalidate pointers
 	// Allows lookups with an ID
+	// Allows for construction of types that have private constructors iff they are friends with LinearStepAlloc
 
 	// Note: ID must inherit from UniqueID, or be an integral
 
@@ -55,7 +56,9 @@ namespace pcit::core{
 				if(this->need_to_create_new_buffer()){ this->create_new_buffer(); }
 
 				T* new_elem_ptr = &this->buffers.back()[this->current_end_of_buffer];
-				std::construct_at(new_elem_ptr, std::forward<decltype(args)>(args)...);
+
+				// using placement new to allow for construction of type that have private constructors but are friends
+				::new (static_cast<void*>(new_elem_ptr)) T(std::forward<decltype(args)>(args)...);
 
 				EVO_DEFER([&](){ this->current_end_of_buffer += 1; });
 

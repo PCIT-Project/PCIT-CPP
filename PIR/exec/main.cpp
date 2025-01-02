@@ -58,10 +58,7 @@ auto print_title(pcit::core::Printer& printer) -> void {
 auto main(int argc, const char* argv[]) -> int {
 	auto args = std::vector<std::string_view>(argv, argv + argc);
 
-	// print UTF-8 characters on windows
-	#if defined(EVO_PLATFORM_WINDOWS)
-		::SetConsoleOutputCP(CP_UTF8);
-	#endif
+	pcit::core::windows::setConsoleToUTF8Mode();
 
 	#if defined(PCIT_CONFIG_DEBUG)
 		evo::log::setDefaultThreadSaferCallback();
@@ -87,7 +84,7 @@ auto main(int argc, const char* argv[]) -> int {
 	#endif
 
 	#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
-		if(::IsDebuggerPresent()){
+		if(pcit::core::windows::isDebuggerPresent()){
 			static auto at_exit_call = [&]() -> void {
 				// not using printer because it should always go to stdout
 				if(print_color){

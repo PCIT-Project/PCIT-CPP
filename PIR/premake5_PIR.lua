@@ -15,7 +15,7 @@ project "PIR"
 	includedirs{
 		(config.location .. "/PCIT_core/include"),
 		(config.location .. "/PCIT_core/internal/llvm_interface/include"),
-		(config.location .. "/libs"),
+		(config.location .. "/dependencies"),
 	}
 
 	links{
@@ -50,7 +50,7 @@ project "pirc"
 	
 
 	includedirs{
-		(config.location .. "/libs"),
+		(config.location .. "/dependencies"),
 		(config.location .. "/PCIT_core/include"),		
 
 		"./include/",

@@ -10,11 +10,16 @@
 #include "./printing.h"
 
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
 
 namespace pthr{
 
+	//////////////////////////////////////////////////////////////////////
+	// title
 
-	auto print_logo(pcit::core::Printer& printer) -> void {
+	auto printTitle(pcit::core::Printer& printer) -> void {
 		// https://www.asciiart.eu/text-to-ascii-art
 		// modified from the `Slant` font with the `Fitted` horizontal layout
 
@@ -26,29 +31,30 @@ namespace pthr{
 /_/)");
 
 		printer.printlnGray("-----------------------------------------------");
-
 	}
 
+	
+	//////////////////////////////////////////////////////////////////////
+	// tokens
 
-
-	auto print_tokens(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void {
+	auto printTokens(pcit::core::Printer& printer, const panther::Source& source) -> void {
 		const panther::TokenBuffer& token_buffer = source.getTokenBuffer();
 
 		///////////////////////////////////
 		// print header
 
-		printer.printlnGray("------------------------------");
+		printer.printGray("------------------------------\n");
 
-		printer.printlnCyan("Tokens: \"{}\"", fs::relative(source.getPath(), relative_dir).string());
+		printer.printCyan("Tokens: {}\n", source.getLocationAsString());
 
 		if(token_buffer.size() == 0){
-			printer.printlnGray("(NONE)");
+			printer.printGray("(NONE)\n");
 
 		}else if(token_buffer.size() == 1){
-			printer.printlnGray("(1 token)");
+			printer.printGray("(1 token)\n");
 
 		}else{
-			printer.printlnGray("({} tokens)", token_buffer.size());
+			printer.printGray("({} tokens)\n", token_buffer.size());
 		}
 
 
@@ -101,17 +107,15 @@ namespace pthr{
 					break; case panther::Token::Kind::LiteralChar:   return std::format(" \'{}\'", token.getString());
 					break; case panther::Token::Kind::LiteralString: return std::format(" \"{}\"", token.getString());
 
-					break; case panther::Token::Kind::TypeI_N: return std::format(" {}", token.getBitWidth());
-					break; case panther::Token::Kind::TypeUI_N: return std::format(" {}", token.getBitWidth());
-
 					break; default: return std::string();
 				}
 			}();
 
-			printer.printlnMagenta(data_str);
+			printer.printMagenta(data_str + '\n');
 
 			i += 1;
 		}
+		
 	}
 
 
@@ -196,20 +200,15 @@ namespace pthr{
 
 	class ASTPrinter{
 		public:
-			ASTPrinter(pcit::core::Printer& _printer, const panther::Source& _source, const fs::path& _relative_dir) 
-				: printer(_printer),
-				source(_source),
-				relative_dir(_relative_dir),
-				ast_buffer(this->source.getASTBuffer()),
-				indenter(_printer)
-				{}
+			ASTPrinter(pcit::core::Printer& _printer, const panther::Source& _source) 
+				: printer(_printer), source(_source), ast_buffer(this->source.getASTBuffer()), indenter(_printer) {}
 			~ASTPrinter() = default;
 
 
 			auto print_header() -> void {
 				this->printer.printGray("------------------------------\n");
 
-				this->printer.printCyan("AST: \"{}\"\n", fs::relative(source.getPath(), this->relative_dir).string());
+				this->printer.printCyan("AST: {}\n", source.getLocationAsString());
 
 				if(ast_buffer.numGlobalStmts() == 0){
 					this->printer.printGray("(NONE)\n");
@@ -1360,7 +1359,6 @@ namespace pthr{
 		private:
 			pcit::core::Printer& printer;
 			const panther::Source& source;
-			const fs::path& relative_dir;
 			const panther::ASTBuffer& ast_buffer;
 
 			Indenter indenter;
@@ -1370,13 +1368,13 @@ namespace pthr{
 
 
 
-	auto print_AST(pcit::core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void {
-		auto ast_printer = ASTPrinter(printer, source, relative_dir);
+	auto printAST(pcit::core::Printer& printer, const panther::Source& source) -> void {
+		auto ast_printer = ASTPrinter(printer, source);
 
 		ast_printer.print_header();
 		ast_printer.print_globals();
 	}
 
 
-	
+
 }

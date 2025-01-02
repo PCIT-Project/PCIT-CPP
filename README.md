@@ -1,15 +1,14 @@
 # PCIT-CPP
 
-Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. PCIT (pronounced "P-Kit") relies on the [LLVM-Project](https://github.com/llvm/llvm-project), but that is not guaranteed forever. It is written entirely in C++, but a self-hosted version (written entirely in Panther) is planned.
+PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the [PCIT website](https://pcit-project.github.io) for more information about the PCIT-Project.
 
 > [!NOTE]
-> This is in the very early stages and as such is not usable yet. If you really want to try it now (without any documentation), you can modify `pthr/main.cpp`.
+> This is in the very early stages and as such is not usable yet. If you really want to try it now (without any documentation), you can modify `Panther-old/exec/main.cpp`.
 
 ## Tools
-Check out the [PCIT website](https://pcit-project.github.io) for more information about all of the tools in the PCIT-Project.
 - [Panther](https://pcit-project.github.io/site/Panther.html): Statically typed, compiled, high-performance, general-purpose programming language
-- PIR: Compiler IR / optimizing back-end
-- PLNK: Linker that aims to make use between platforms (including cross-compilation) as seamless as possible.
+- PIR: Pronounced "P I R". Compiler IR and SSA-based optimizing back-end.
+- PLNK: Pronounced "plink". Linker that aims to make use between platforms (including cross-compilation and linking against libc) as seamless as possible.
 
 
 ## Building:

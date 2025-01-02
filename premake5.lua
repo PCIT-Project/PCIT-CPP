@@ -137,7 +137,7 @@ target = {
 -- extern lib projects
 
 
-include "libs/premake5_Evo.lua"
+include "dependencies/premake5_Evo.lua"
 
 
 ------------------------------------------------------------------------------
@@ -213,13 +213,15 @@ filter {}
 ------------------------------------------------------------------------------
 -- projects
 
-include "./libs/premake5_LLVM.lua"
+include "./dependencies/premake5_LLVM.lua"
 
 include "./PCIT_core/internal/llvm_interface/premake5_PCIT_llvm_interface.lua"
 include "./PCIT_core/premake5_PCIT_core.lua"
 include "./PIR/premake5_PIR.lua"
 include "./PLNK/premake5_PLNK.lua"
 include "./Panther/premake5_panther.lua"
+-- include "./Panther-old/premake5_panther_old.lua"
+
 
 
 ------------------------------------------------------------------------------
@@ -229,11 +231,13 @@ project("Evo").group = "External Libs"
 
 project("PCIT_core").group = "Libs"
 project("Panther").group = "Libs"
+-- project("Panther-old").group = "Libs"
 project("PIR").group = "Libs"
 project("PLNK_lib").group = "Libs"
 project("PCIT_llvm_interface").group = "Libs"
 
 project("pthr").group = "Executables"
+-- project("pthr-old").group = "Executables"
 project("pirc").group = "Executables"
 
 

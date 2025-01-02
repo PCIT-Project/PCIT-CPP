@@ -1,6 +1,6 @@
 -- premake5
 
-project "Panther"
+project "Panther_old"
 	kind "StaticLib"
 	-- staticruntime "On"
 	
@@ -25,14 +25,18 @@ project "Panther"
 		"PCIT_llvm_interface",
 		"PIR",
 	}
-	
+
+	filter "action:vs*"
+		buildoptions { "/bigobj" }
+	filter {}
 
 project "*"
 
 
 
 
-project "pthr"
+
+project "pthr_old"
 	kind "ConsoleApp"
 	-- staticruntime "On"
 	

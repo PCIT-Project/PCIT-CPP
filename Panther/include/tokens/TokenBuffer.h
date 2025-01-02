@@ -14,7 +14,7 @@
 #include <Evo.h>
 #include <PCIT_core.h>
 
-#include "./source_data.h"
+#include "../source/source_data.h"
 #include "./Token.h"
 
 namespace pcit::panther{

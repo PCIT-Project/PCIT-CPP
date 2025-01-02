@@ -9,21 +9,17 @@
 
 #pragma once
 
-#include "./generic_values/GenericInt.h"
-#include "./generic_values/GenericFloat.h"
-#include "./generic_values/GenericValue.h"
 
-#include "./Diagnostic.h"
-#include "./IterRange.h"
-#include "./LinearStepAlloc.h"
-#include "./Optional.h"
-#include "./platform.h"
-#include "./Printer.h"
-#include "./SingleThreadedWorkQueue.h"
-#include "./SpinLock.h"
-#include "./StepAlloc.h"
-#include "./ThreadPool.h"
-#include "./ThreadQueue.h"
-#include "./UniqueID.h"
-#include "./version.h"
-#include "./windows.h"
+#include <Evo.h>
+
+namespace pcit::core::windows{
+
+	// no-op when not on windows
+	auto setConsoleToUTF8Mode() -> void;
+
+	#if defined(EVO_PLATFORM_WINDOWS)
+		EVO_NODISCARD auto isDebuggerPresent() -> bool;
+	#endif
+
+
+}
