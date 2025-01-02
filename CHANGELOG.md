@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.78.1"></a>
+## v0.0.78.1
+- Added custom anchors to CHANGELOG
+
+
+<!---------------------------------->
+<a name="v0.0.78.0"></a>
 ## v0.0.78.0
 Renamed "Panther" to "Panther-old" and started a new Panther project. This is because adding the dependency analysis stage and supporting the build system (the differing in the way `@import` needs to work) requires a rework of the semantic analysis as well as the work management system in `Context`.
 
@@ -18,6 +25,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.77.0"></a>
 ## v0.0.77.0
 
 ### Panther
@@ -31,6 +39,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.76.0"></a>
 ## v0.0.76.0
 
 ### Panther
@@ -41,6 +50,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.75.1"></a>
 ## v0.0.75.1
 
 ### Panther
@@ -49,6 +59,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.75.0"></a>
 ## v0.0.75.0
 
 ### Panther
@@ -71,6 +82,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.74.0"></a>
 ## v0.0.74.0
 
 ### Panther
@@ -102,6 +114,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.73.0"></a>
 ## v0.0.73.0
 
 ### Panther
@@ -121,6 +134,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.72.0"></a>
 ## v0.0.72.0
 
 ### Panther
@@ -145,6 +159,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.71.0"></a>
 ## v0.0.71.0
 
 ### Panther
@@ -175,6 +190,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.70.0"></a>
 ## v0.0.70.0
 
 ### Panther
@@ -190,6 +206,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.69.0"></a>
 ## v0.0.69.0
 
 ### PIR
@@ -200,6 +217,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.68.0"></a>
 ## v0.0.68.0
 
 ### Panther
@@ -218,6 +236,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.67.0"></a>
 ## v0.0.67.0
 
 ### PIR
@@ -227,6 +246,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.66.0"></a>
 ## v0.0.66.0
 
 ### PIR
@@ -235,6 +255,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.65.0"></a>
 ## v0.0.65.0
 
 ### plnk
@@ -243,6 +264,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.64.0"></a>
 ## v0.0.64.0
 
 ### PIR
@@ -252,6 +274,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.63.0"></a>
 ## v0.0.63.0
 
 ### PIR
@@ -259,6 +282,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.62.1"></a>
 ## v0.0.62.1
 
 ### Misc
@@ -266,6 +290,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.62.0"></a>
 ## v0.0.62.0
 
 ### PIR
@@ -275,6 +300,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.61.1"></a>
 ## v0.0.61.1
 
 ### PIR
@@ -282,6 +308,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.61.0"></a>
 ## v0.0.61.0
 
 ### PIR
@@ -291,6 +318,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.60.1"></a>
 ## v0.0.60.1
 
 ### PIR
@@ -299,6 +327,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.60.0"></a>
 ## v0.0.60.0
 
 ### PIR
@@ -310,6 +339,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.59.0"></a>
 ## v0.0.59.0
 
 ### PIR
@@ -317,6 +347,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.58.0"></a>
 ## v0.0.58.0
 
 ### PIR
@@ -326,6 +357,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.57.0"></a>
 ## v0.0.57.0
 
 ### PIR
@@ -334,6 +366,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.56.0"></a>
 ## v0.0.56.0
 
 ### PIR
@@ -348,12 +381,14 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.55.0"></a>
 ## v0.0.55.0
 - Updated License to Apache License v2.0 with LLVM and PCIT exceptions
 - Fixed LLVM license missing
 
 
 <!---------------------------------->
+<a name="v0.0.54.1"></a>
 ## v0.0.54.1
 
 ### PIR
@@ -365,6 +400,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.54.0"></a>
 ## v0.0.54.0
 
 ### PIR
@@ -376,6 +412,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.53.0"></a>
 ## v0.0.53.0
 
 ### PIR
@@ -390,6 +427,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.52.0"></a>
 ## v0.0.52.0
 
 ### PIR
@@ -403,6 +441,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.51.0"></a>
 ## v0.0.51.0
 
 ### Panther
@@ -412,6 +451,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.50.1"></a>
 ## v0.0.50.1
 
 ### Panther
@@ -420,6 +460,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.50.0"></a>
 ## v0.0.50.0
 
 ### Panther
@@ -433,6 +474,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.49.0"></a>
 ## v0.0.49.0
 
 ### Panther
@@ -454,6 +496,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 	
 
 <!---------------------------------->
+<a name="v0.0.48.0"></a>
 ## v0.0.48.0
 
 ### Panther
@@ -463,6 +506,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.47.0"></a>
 ## v0.0.47.0
 
 ### Panther
@@ -472,6 +516,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.46.0"></a>
 ## v0.0.46.0
 
 ### Panther
@@ -506,6 +551,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.45.0"></a>
 ## v0.0.45.0
 
 ### Panther
@@ -516,6 +562,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.44.0"></a>
 ## v0.0.44.0
 
 ### Panther
@@ -532,6 +579,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.43.0"></a>
 ## v0.0.43.0
 
 ### Panther
@@ -550,6 +598,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.42.0"></a>
 ## v0.0.42.0
 
 ### Panther
@@ -567,6 +616,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.41.2"></a>
 ## v0.0.41.2
 
 ### Panther
@@ -576,6 +626,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.41.1"></a>
 ## v0.0.41.1
 
 ### Panther
@@ -584,6 +635,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.41.0"></a>
 ## v0.0.41.0
 
 ### Panther
@@ -599,6 +651,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.40.1"></a>
 ## v0.0.40.1
 
 ### Panther
@@ -606,6 +659,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.40.0"></a>
 ## v0.0.40.0
 
 ### Panther
@@ -618,6 +672,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.39.0"></a>
 ## v0.0.39.0
 
 ### Panther
@@ -637,6 +692,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.38.0"></a>
 ## v0.0.38.0
 
 ### Panther
@@ -650,6 +706,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.37.2"></a>
 ## v0.0.37.2
 
 ### Panther
@@ -658,6 +715,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.37.1"></a>
 ## v0.0.37.1
 
 ### Panther
@@ -668,6 +726,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.37.0"></a>
 ## v0.0.37.0
 
 ### Panther
@@ -677,6 +736,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.36.1"></a>
 ## v0.0.36.1
 
 ### Panther
@@ -684,6 +744,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.36.0"></a>
 ## v0.0.36.0
 
 ### Panther
@@ -695,6 +756,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.35.0"></a>
 ## v0.0.35.0
 
 ### Panther
@@ -706,6 +768,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.34.0"></a>
 ## v0.0.34.0
 
 ### Panther
@@ -714,6 +777,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.33.0"></a>
 ## v0.0.33.0
 
 ### Panther
@@ -730,6 +794,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.32.0"></a>
 ## v0.0.32.0
 
 ### Panther
@@ -740,6 +805,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.31.1"></a>
 ## v0.0.31.1
 
 ### Panther
@@ -748,6 +814,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.31.0"></a>
 ## v0.0.31.0
 
 ### Panther
@@ -757,6 +824,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.30.1"></a>
 ## v0.0.30.1
 
 ### Panther
@@ -764,6 +832,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.30.0"></a>
 ## v0.0.30.0
 
 ### Panther
@@ -773,6 +842,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.29.0"></a>
 ## v0.0.29.0
 
 ### Panther
@@ -782,6 +852,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.28.0"></a>
 ## v0.0.28.0
 
 ### Panther
@@ -793,6 +864,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.27.0"></a>
 ## v0.0.27.0
 
 ### Panther
@@ -806,6 +878,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.26.0"></a>
 ## v0.0.26.0
 
 ### Panther
@@ -817,6 +890,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.25.0"></a>
 ## v0.0.25.0
 
 ### Panther
@@ -827,6 +901,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 
 
 <!---------------------------------->
+<a name="v0.0.24.0"></a>
 ## v0.0.24.0
 Added the ability to run compiled Panther code
 
@@ -843,6 +918,7 @@ Added the ability to run compiled Panther code
 
 
 <!---------------------------------->
+<a name="v0.0.23.0"></a>
 ## v0.0.23.0
 
 ### Panther
@@ -851,6 +927,7 @@ Added the ability to run compiled Panther code
 
 
 <!---------------------------------->
+<a name="v0.0.22.0"></a>
 ## v0.0.22.0
 
 ### Panther
@@ -863,6 +940,7 @@ Added the ability to run compiled Panther code
 
 
 <!---------------------------------->
+<a name="v0.0.21.0"></a>
 ## v0.0.21.0
 
 ### Panther
@@ -877,6 +955,7 @@ Added the ability to run compiled Panther code
 
 
 <!---------------------------------->
+<a name="v0.0.20.0"></a>
 ## v0.0.20.0
 
 ### Panther
@@ -884,6 +963,7 @@ Added the ability to run compiled Panther code
 
 
 <!---------------------------------->
+<a name="v0.0.19.0"></a>
 ## v0.0.19.0
 
 ### Panther
@@ -897,6 +977,7 @@ Added the ability to run compiled Panther code
 
 
 <!---------------------------------->
+<a name="v0.0.18.0"></a>
 ## v0.0.18.0
 
 ### Panther
@@ -908,6 +989,7 @@ Added the ability to run compiled Panther code
 
 
 <!---------------------------------->
+<a name="v0.0.17.0"></a>
 ## v0.0.17.0
 
 ### Panther
@@ -919,6 +1001,7 @@ Added the ability to run compiled Panther code
 
 
 <!---------------------------------->
+<a name="v0.0.16.0"></a>
 ## v0.0.16.0
 Added LLVM to the build
 
@@ -935,6 +1018,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.15.0"></a>
 ## v0.0.15.0
 
 ### Panther
@@ -946,6 +1030,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.14.2"></a>
 ## v0.0.14.2
 
 ### Panther
@@ -955,6 +1040,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.14.1"></a>
 ## v0.0.14.1
 
 ### Panther
@@ -969,6 +1055,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.14.0"></a>
 ## v0.0.14.0
 
 ### Panther
@@ -982,6 +1069,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.13.0"></a>
 ## v0.0.13.0
 
 ### Panther
@@ -992,6 +1080,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.12.1"></a>
 ## v0.0.12.1
 
 ### Panther
@@ -999,6 +1088,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.12.0"></a>
 ## v0.0.12.0
 
 ### Panther
@@ -1007,6 +1097,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.11.0"></a>
 ## v0.0.11.0
 
 ### Panther
@@ -1016,6 +1107,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.10.3"></a>
 ## v0.0.10.3
 
 ### Panther
@@ -1023,6 +1115,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.10.2"></a>
 ## v0.0.10.2
 
 ### Panther
@@ -1034,12 +1127,14 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.10.1"></a>
 ## v0.0.10.1
 - Fixed various compile errors caused by update to MSVC
 - Minor tweaks to coding style
 
 
 <!---------------------------------->
+<a name="v0.0.10.0"></a>
 ## v0.0.10.0
 
 ### Panther
@@ -1054,6 +1149,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.9.1"></a>
 ## v0.0.9.1
 
 ### Panther
@@ -1062,6 +1158,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.9.0"></a>
 ## v0.0.9.0
 
 ### Panther
@@ -1075,6 +1172,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.8.0"></a>
 ## v0.0.8.0
 
 ### Panther
@@ -1112,6 +1210,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.7.0"></a>
 ## v0.0.7.0
 
 ### Panther
@@ -1149,6 +1248,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.6.0"></a>
 ## v0.0.6.0
 
 ### Panther
@@ -1200,6 +1300,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.5.0"></a>
 ## v0.0.5.0
 
 ### Panther
@@ -1214,6 +1315,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.4.0"></a>
 ## v0.0.4.0
 
 ### Panther
@@ -1231,6 +1333,7 @@ Added LLVM to the build
 
 
 <!---------------------------------->
+<a name="v0.0.3.0"></a>
 ## v0.0.3.0
 Added Tokenization and improved diagnostics
 
@@ -1245,6 +1348,7 @@ Added Tokenization and improved diagnostics
 
 
 <!---------------------------------->
+<a name="v0.0.2.0"></a>
 ## v0.0.2.0
 Setup the threading system for Panther `Context`. Allows for both single-threading and multi-threading
 
@@ -1260,6 +1364,7 @@ Setup the threading system for Panther `Context`. Allows for both single-threadi
 
 
 <!---------------------------------->
+<a name="v0.0.1.0"></a>
 ## v0.0.1.0
 Setting up basic frameworks
 
@@ -1276,6 +1381,7 @@ Setting up basic frameworks
 
 
 <!---------------------------------->
+<a name="v0.0.0.0"></a>
 ## v0.0.0.0
 - Initial commit
 - Setup build system for Evo, Panther, and pthr
