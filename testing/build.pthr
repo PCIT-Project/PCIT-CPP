@@ -1,7 +1,16 @@
 
 
-func entry = () #entry -> UI8 {
+def NUM: UI8 = 12;
+var num_var: UI8 = 14;
+
+type Foo = struct {
+	alias uint8_t = UI8;
 	
-	
-	return 0;
 }
+
+func entry = () #entry -> UI8 {	
+	def NUM_2: Foo.uint8_t = NUM;
+
+	return /*copy*/ num_var;
+}
+

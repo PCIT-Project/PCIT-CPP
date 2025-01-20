@@ -151,8 +151,8 @@ namespace pcit::panther::AST{
 				In,
 			};
 
-			Node name;
-			std::optional<Node> type; // no type given if name is `this`
+			Node name; // either identifier or `this`
+			std::optional<Node> type; // no type given if ident is `this`
 			Kind kind;
 			Node attributeBlock;
 		};
@@ -162,7 +162,7 @@ namespace pcit::panther::AST{
 			Node type;
 		};
 
-		Node name;
+		Node name; // either identifier or operator
 		std::optional<Node> templatePack;
 		evo::SmallVector<Param> params;
 		Node attributeBlock;
@@ -184,7 +184,7 @@ namespace pcit::panther::AST{
 
 
 	struct StructDecl{
-		Node name;
+		Token::ID ident;
 		std::optional<Node> templatePack;
 		Node attributeBlock;
 		Node block;
@@ -201,14 +201,14 @@ namespace pcit::panther::AST{
 		Token::ID keyword;
 		Node cond;
 		Node thenBlock;
-		std::optional<Node> elseBlock;
+		std::optional<Node> elseBlock;  // either `Block` or `Conditional`
 	};
 
 	struct WhenConditional{
 		Token::ID keyword;
 		Node cond;
 		Node thenBlock;
-		std::optional<Node> elseBlock;
+		std::optional<Node> elseBlock; // either `Block` or `WhenConditional`
 	};
 
 	struct While{

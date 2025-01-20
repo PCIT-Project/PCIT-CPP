@@ -18,6 +18,7 @@
 #include "./source_data.h"
 #include "../tokens/TokenBuffer.h"
 #include "../AST/ASTBuffer.h"
+#include "../DG/DGBuffer.h"
 
 
 namespace pcit::panther{
@@ -47,7 +48,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getTokenBuffer() const -> const TokenBuffer& { return this->token_buffer; }
 			EVO_NODISCARD auto getASTBuffer() const -> const ASTBuffer& { return this->ast_buffer; }
-
+			
 
 			Source(const Source&) = delete;
 
@@ -65,10 +66,14 @@ namespace pcit::panther{
 			TokenBuffer token_buffer{};
 			ASTBuffer ast_buffer{};
 
+			std::optional<DGBuffer::Scope::ID> dg_scope_id{};
+			evo::SmallVector<DG::Node::ID> dg_node_ids{};
+
 			friend class SourceManager;
 			friend core::LinearStepAlloc;
 			friend class Tokenizer;
 			friend class Parser;
+			friend class DependencyAnalysis;
 	};
 
 	

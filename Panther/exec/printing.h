@@ -26,7 +26,10 @@ namespace pthr{
 
 	auto print_tokens(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
 
-	auto print_AST(pcit::core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
+	auto print_AST(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
 
+	#if defined(PCIT_CONFIG_DEBUG)
+		auto print_DG(core::Printer& printer, const panther::Context& context, const fs::path& relative_dir) -> void;
+	#endif
 	
 }

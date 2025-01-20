@@ -376,7 +376,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto getArrayType(const Type& arr_type) const -> const ArrayType& {
-				evo::debugAssert(arr_type.getKind() == Type::Kind::Array, "Not an array");
+				evo::debugAssert(arr_type.kind() == Type::Kind::Array, "Not an array");
 				return this->array_types[arr_type.number];
 			}
 
@@ -396,7 +396,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto getStructType(const Type& struct_type) const -> const StructType& {
-				evo::debugAssert(struct_type.getKind() == Type::Kind::Struct, "Not a struct");
+				evo::debugAssert(struct_type.kind() == Type::Kind::Struct, "Not a struct");
 				return this->struct_types[struct_type.number];
 			}
 
@@ -430,7 +430,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto getFunctionType(const Type& func_type) const -> const FunctionType& {
-				evo::debugAssert(func_type.getKind() == Type::Kind::Function, "Not an function");
+				evo::debugAssert(func_type.kind() == Type::Kind::Function, "Not an function");
 				return this->func_types[func_type.number];
 			}
 

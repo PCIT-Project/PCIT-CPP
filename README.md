@@ -6,7 +6,7 @@ PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, 
 > This is in the very early stages and as such is not usable yet. If you really want to try it now (without any documentation), you can modify `Panther-old/exec/main.cpp`.
 
 ## Tools
-- [Panther](https://pcit-project.github.io/site/Panther.html): Statically typed, compiled, high-performance, general-purpose programming language
+- [Panther](https://pcit-project.github.io/site/Panther.html): Statically-typed, high-performance, general-purpose programming language
 - PIR: Pronounced "P I R". Compiler IR and SSA-based optimizing back-end.
 - PLNK: Pronounced "plink". Linker that aims to make use between platforms (including cross-compilation and linking against libc) as seamless as possible.
 

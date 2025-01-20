@@ -56,7 +56,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// get values
 
-			EVO_NODISCARD auto getKind() const -> Kind { return this->kind; }
+			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
 
 			EVO_NODISCARD auto getWidth() const -> uint32_t {
 				evo::debugAssert(this->hasWidth(), "This type does not have a width");
@@ -69,32 +69,32 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto isFloat() const -> bool {
-				return this->kind == Kind::Float || this->kind == Kind::BFloat;
+				return this->_kind == Kind::Float || this->_kind == Kind::BFloat;
 			}
 
 			EVO_NODISCARD auto isNumeric() const -> bool {
-				return this->kind == Kind::Integer || this->isFloat();
+				return this->_kind == Kind::Integer || this->isFloat();
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
-				return this->isNumeric() || this->kind == Kind::Bool;
+				return this->isNumeric() || this->_kind == Kind::Bool;
 			}
 
 			EVO_NODISCARD auto isAggregate() const -> bool {
-				return this->kind == Kind::Array || this->kind == Kind::Struct;
+				return this->_kind == Kind::Array || this->_kind == Kind::Struct;
 			}
 
 			EVO_NODISCARD auto hasWidth() const -> bool {
-				return this->kind == Kind::Integer || this->kind == Kind::Float;
+				return this->_kind == Kind::Integer || this->_kind == Kind::Float;
 			}
 
 
 		private:
-			Type(Kind _kind, uint32_t _number) : kind(_kind), number(_number) {}
-			Type(Kind _kind) : kind(_kind), number(0) {}
+			Type(Kind type_kind, uint32_t _number) : _kind(type_kind), number(_number) {}
+			Type(Kind type_kind) : _kind(type_kind), number(0) {}
 	
 		private:
-			Kind kind;
+			Kind _kind;
 			uint32_t number; // might be width, might be ID, might be nothing
 
 			friend class Module;
@@ -106,7 +106,7 @@ namespace pcit::pir{
 		Type elemType;
 		uint64_t length;
 	};
-
+ 
 	struct StructType{
 		std::string name;
 		evo::SmallVector<Type> members;

@@ -40,6 +40,10 @@ namespace pcit::core{
 				this->tasks.emplace_front(task);
 			}
 
+			auto addTask(auto&&... args) -> void {
+				this->tasks.emplace_front(std::forward<decltype(args)>(args)...);
+			}
+
 			auto run() -> bool {
 				while(this->tasks.empty() == false){
 					const bool work_res = this->_work_func(this->tasks.back());

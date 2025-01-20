@@ -24,7 +24,7 @@ namespace pcit::pir::passes{
 	
 
 	auto constant_folding_impl(Expr stmt, const Agent& agent) -> PassManager::MadeTransformation {
-		switch(stmt.getKind()){
+		switch(stmt.kind()){
 			case Expr::Kind::None:            evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:     return false;
 			case Expr::Kind::FunctionPointer: return false;
@@ -57,7 +57,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
-				if(add.lhs.getKind() != Expr::Kind::Number || add.rhs.getKind() != Expr::Kind::Number){ return false; }
+				if(add.lhs.kind() != Expr::Kind::Number || add.rhs.kind() != Expr::Kind::Number){ return false; }
 				const Number& lhs = agent.getNumber(add.lhs);
 				const Number& rhs = agent.getNumber(add.rhs);
 
@@ -69,7 +69,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SAddWrap: {
 				const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
-				if(sadd_wrap.lhs.getKind() != Expr::Kind::Number || sadd_wrap.rhs.getKind() != Expr::Kind::Number){
+				if(sadd_wrap.lhs.kind() != Expr::Kind::Number || sadd_wrap.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 
@@ -97,7 +97,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UAddWrap: {
 				const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
-				if(uadd_wrap.lhs.getKind() != Expr::Kind::Number || uadd_wrap.rhs.getKind() != Expr::Kind::Number){
+				if(uadd_wrap.lhs.kind() != Expr::Kind::Number || uadd_wrap.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 
@@ -125,7 +125,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SAddSat: {
 				const SAddSat& sadd_sat = agent.getSAddSat(stmt);
-				if(sadd_sat.lhs.getKind() != Expr::Kind::Number || sadd_sat.rhs.getKind() != Expr::Kind::Number){
+				if(sadd_sat.lhs.kind() != Expr::Kind::Number || sadd_sat.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sadd_sat.lhs);
@@ -139,7 +139,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UAddSat: {
 				const UAddSat& uadd_sat = agent.getUAddSat(stmt);
-				if(uadd_sat.lhs.getKind() != Expr::Kind::Number || uadd_sat.rhs.getKind() != Expr::Kind::Number){
+				if(uadd_sat.lhs.kind() != Expr::Kind::Number || uadd_sat.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(uadd_sat.lhs);
@@ -153,7 +153,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FAdd: {
 				const FAdd& fadd = agent.getFAdd(stmt);
-				if(fadd.lhs.getKind() != Expr::Kind::Number || fadd.rhs.getKind() != Expr::Kind::Number){
+				if(fadd.lhs.kind() != Expr::Kind::Number || fadd.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fadd.lhs);
@@ -167,7 +167,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::Sub: {
 				const Sub& sub = agent.getSub(stmt);
-				if(sub.lhs.getKind() != Expr::Kind::Number || sub.rhs.getKind() != Expr::Kind::Number){ return false; }
+				if(sub.lhs.kind() != Expr::Kind::Number || sub.rhs.kind() != Expr::Kind::Number){ return false; }
 				const Number& lhs = agent.getNumber(sub.lhs);
 				const Number& rhs = agent.getNumber(sub.rhs);
 
@@ -179,7 +179,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SSubWrap: {
 				const SSubWrap& ssub_wrap = agent.getSSubWrap(stmt);
-				if(ssub_wrap.lhs.getKind() != Expr::Kind::Number || ssub_wrap.rhs.getKind() != Expr::Kind::Number){
+				if(ssub_wrap.lhs.kind() != Expr::Kind::Number || ssub_wrap.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 
@@ -207,7 +207,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::USubWrap: {
 				const USubWrap& usub_wrap = agent.getUSubWrap(stmt);
-				if(usub_wrap.lhs.getKind() != Expr::Kind::Number || usub_wrap.rhs.getKind() != Expr::Kind::Number){
+				if(usub_wrap.lhs.kind() != Expr::Kind::Number || usub_wrap.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 
@@ -235,7 +235,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SSubSat: {
 				const SSubSat& ssub_sat = agent.getSSubSat(stmt);
-				if(ssub_sat.lhs.getKind() != Expr::Kind::Number || ssub_sat.rhs.getKind() != Expr::Kind::Number){
+				if(ssub_sat.lhs.kind() != Expr::Kind::Number || ssub_sat.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ssub_sat.lhs);
@@ -249,7 +249,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::USubSat: {
 				const USubSat& usub_sat = agent.getUSubSat(stmt);
-				if(usub_sat.lhs.getKind() != Expr::Kind::Number || usub_sat.rhs.getKind() != Expr::Kind::Number){
+				if(usub_sat.lhs.kind() != Expr::Kind::Number || usub_sat.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(usub_sat.lhs);
@@ -263,7 +263,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FSub: {
 				const FSub& fsub = agent.getFSub(stmt);
-				if(fsub.lhs.getKind() != Expr::Kind::Number || fsub.rhs.getKind() != Expr::Kind::Number){
+				if(fsub.lhs.kind() != Expr::Kind::Number || fsub.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fsub.lhs);
@@ -276,7 +276,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::Mul: {
 				const Mul& mul = agent.getMul(stmt);
-				if(mul.lhs.getKind() != Expr::Kind::Number || mul.rhs.getKind() != Expr::Kind::Number){ return false; }
+				if(mul.lhs.kind() != Expr::Kind::Number || mul.rhs.kind() != Expr::Kind::Number){ return false; }
 				const Number& lhs = agent.getNumber(mul.lhs);
 				const Number& rhs = agent.getNumber(mul.rhs);
 
@@ -288,7 +288,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SMulWrap: {
 				const SMulWrap& smul_wrap = agent.getSMulWrap(stmt);
-				if(smul_wrap.lhs.getKind() != Expr::Kind::Number || smul_wrap.rhs.getKind() != Expr::Kind::Number){
+				if(smul_wrap.lhs.kind() != Expr::Kind::Number || smul_wrap.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 
@@ -316,7 +316,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UMulWrap: {
 				const UMulWrap& umul_wrap = agent.getUMulWrap(stmt);
-				if(umul_wrap.lhs.getKind() != Expr::Kind::Number || umul_wrap.rhs.getKind() != Expr::Kind::Number){
+				if(umul_wrap.lhs.kind() != Expr::Kind::Number || umul_wrap.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 
@@ -344,7 +344,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SMulSat: {
 				const SMulSat& smul_sat = agent.getSMulSat(stmt);
-				if(smul_sat.lhs.getKind() != Expr::Kind::Number || smul_sat.rhs.getKind() != Expr::Kind::Number){
+				if(smul_sat.lhs.kind() != Expr::Kind::Number || smul_sat.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(smul_sat.lhs);
@@ -358,7 +358,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UMulSat: {
 				const UMulSat& umul_sat = agent.getUMulSat(stmt);
-				if(umul_sat.lhs.getKind() != Expr::Kind::Number || umul_sat.rhs.getKind() != Expr::Kind::Number){
+				if(umul_sat.lhs.kind() != Expr::Kind::Number || umul_sat.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(umul_sat.lhs);
@@ -372,7 +372,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FMul: {
 				const FMul& fmul = agent.getFMul(stmt);
-				if(fmul.lhs.getKind() != Expr::Kind::Number || fmul.rhs.getKind() != Expr::Kind::Number){
+				if(fmul.lhs.kind() != Expr::Kind::Number || fmul.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fmul.lhs);
@@ -385,7 +385,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SDiv: {
 				const SDiv& sdiv = agent.getSDiv(stmt);
-				if(sdiv.lhs.getKind() != Expr::Kind::Number || sdiv.rhs.getKind() != Expr::Kind::Number){
+				if(sdiv.lhs.kind() != Expr::Kind::Number || sdiv.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sdiv.lhs);
@@ -398,7 +398,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UDiv: {
 				const UDiv& udiv = agent.getUDiv(stmt);
-				if(udiv.lhs.getKind() != Expr::Kind::Number || udiv.rhs.getKind() != Expr::Kind::Number){
+				if(udiv.lhs.kind() != Expr::Kind::Number || udiv.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(udiv.lhs);
@@ -411,7 +411,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FDiv: {
 				const FDiv& fdiv = agent.getFDiv(stmt);
-				if(fdiv.lhs.getKind() != Expr::Kind::Number || fdiv.rhs.getKind() != Expr::Kind::Number){
+				if(fdiv.lhs.kind() != Expr::Kind::Number || fdiv.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fdiv.lhs);
@@ -424,7 +424,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SRem: {
 				const SRem& srem = agent.getSRem(stmt);
-				if(srem.lhs.getKind() != Expr::Kind::Number || srem.rhs.getKind() != Expr::Kind::Number){
+				if(srem.lhs.kind() != Expr::Kind::Number || srem.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(srem.lhs);
@@ -437,7 +437,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::URem: {
 				const URem& urem = agent.getURem(stmt);
-				if(urem.lhs.getKind() != Expr::Kind::Number || urem.rhs.getKind() != Expr::Kind::Number){
+				if(urem.lhs.kind() != Expr::Kind::Number || urem.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(urem.lhs);
@@ -450,7 +450,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FRem: {
 				const FRem& frem = agent.getFRem(stmt);
-				if(frem.lhs.getKind() != Expr::Kind::Number || frem.rhs.getKind() != Expr::Kind::Number){
+				if(frem.lhs.kind() != Expr::Kind::Number || frem.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(frem.lhs);
@@ -463,14 +463,14 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FNeg: {
 				const FNeg& fneg = agent.getFNeg(stmt);
-				if(fneg.rhs.getKind() != Expr::Kind::Number){
+				if(fneg.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 
 				const Number& rhs = agent.getNumber(fneg.rhs);
 
 				const core::GenericFloat zero = [&](){
-					if(rhs.type.getKind() == Type::Kind::BFloat){ return core::GenericFloat::createBF16(0); }
+					if(rhs.type.kind() == Type::Kind::BFloat){ return core::GenericFloat::createBF16(0); }
 
 					switch(rhs.type.getWidth()){
 						case 16: return core::GenericFloat::createF16(0);
@@ -489,7 +489,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::IEq: {
 				const IEq& ieq = agent.getIEq(stmt);
-				if(ieq.lhs.getKind() != Expr::Kind::Number || ieq.rhs.getKind() != Expr::Kind::Number){
+				if(ieq.lhs.kind() != Expr::Kind::Number || ieq.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ieq.lhs);
@@ -502,7 +502,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FEq: {
 				const FEq& feq = agent.getFEq(stmt);
-				if(feq.lhs.getKind() != Expr::Kind::Number || feq.rhs.getKind() != Expr::Kind::Number){
+				if(feq.lhs.kind() != Expr::Kind::Number || feq.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(feq.lhs);
@@ -515,7 +515,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::INeq: {
 				const INeq& ineq = agent.getINeq(stmt);
-				if(ineq.lhs.getKind() != Expr::Kind::Number || ineq.rhs.getKind() != Expr::Kind::Number){
+				if(ineq.lhs.kind() != Expr::Kind::Number || ineq.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ineq.lhs);
@@ -528,7 +528,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FNeq: {
 				const FNeq& fneq = agent.getFNeq(stmt);
-				if(fneq.lhs.getKind() != Expr::Kind::Number || fneq.rhs.getKind() != Expr::Kind::Number){
+				if(fneq.lhs.kind() != Expr::Kind::Number || fneq.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fneq.lhs);
@@ -541,7 +541,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SLT: {
 				const SLT& slt = agent.getSLT(stmt);
-				if(slt.lhs.getKind() != Expr::Kind::Number || slt.rhs.getKind() != Expr::Kind::Number){
+				if(slt.lhs.kind() != Expr::Kind::Number || slt.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(slt.lhs);
@@ -554,7 +554,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::ULT: {
 				const ULT& ult = agent.getULT(stmt);
-				if(ult.lhs.getKind() != Expr::Kind::Number || ult.rhs.getKind() != Expr::Kind::Number){
+				if(ult.lhs.kind() != Expr::Kind::Number || ult.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ult.lhs);
@@ -567,7 +567,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FLT: {
 				const FLT& flt = agent.getFLT(stmt);
-				if(flt.lhs.getKind() != Expr::Kind::Number || flt.rhs.getKind() != Expr::Kind::Number){
+				if(flt.lhs.kind() != Expr::Kind::Number || flt.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(flt.lhs);
@@ -580,7 +580,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SLTE: {
 				const SLTE& slte = agent.getSLTE(stmt);
-				if(slte.lhs.getKind() != Expr::Kind::Number || slte.rhs.getKind() != Expr::Kind::Number){
+				if(slte.lhs.kind() != Expr::Kind::Number || slte.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(slte.lhs);
@@ -593,7 +593,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::ULTE: {
 				const ULTE& ulte = agent.getULTE(stmt);
-				if(ulte.lhs.getKind() != Expr::Kind::Number || ulte.rhs.getKind() != Expr::Kind::Number){
+				if(ulte.lhs.kind() != Expr::Kind::Number || ulte.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ulte.lhs);
@@ -606,7 +606,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FLTE: {
 				const FLTE& flte = agent.getFLTE(stmt);
-				if(flte.lhs.getKind() != Expr::Kind::Number || flte.rhs.getKind() != Expr::Kind::Number){
+				if(flte.lhs.kind() != Expr::Kind::Number || flte.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(flte.lhs);
@@ -619,7 +619,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SGT: {
 				const SGT& sgt = agent.getSGT(stmt);
-				if(sgt.lhs.getKind() != Expr::Kind::Number || sgt.rhs.getKind() != Expr::Kind::Number){
+				if(sgt.lhs.kind() != Expr::Kind::Number || sgt.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sgt.lhs);
@@ -632,7 +632,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UGT: {
 				const UGT& ugt = agent.getUGT(stmt);
-				if(ugt.lhs.getKind() != Expr::Kind::Number || ugt.rhs.getKind() != Expr::Kind::Number){
+				if(ugt.lhs.kind() != Expr::Kind::Number || ugt.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ugt.lhs);
@@ -645,7 +645,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FGT: {
 				const FGT& fgt = agent.getFGT(stmt);
-				if(fgt.lhs.getKind() != Expr::Kind::Number || fgt.rhs.getKind() != Expr::Kind::Number){
+				if(fgt.lhs.kind() != Expr::Kind::Number || fgt.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fgt.lhs);
@@ -658,7 +658,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SGTE: {
 				const SGTE& sgte = agent.getSGTE(stmt);
-				if(sgte.lhs.getKind() != Expr::Kind::Number || sgte.rhs.getKind() != Expr::Kind::Number){
+				if(sgte.lhs.kind() != Expr::Kind::Number || sgte.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sgte.lhs);
@@ -671,7 +671,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UGTE: {
 				const UGTE& ugte = agent.getUGTE(stmt);
-				if(ugte.lhs.getKind() != Expr::Kind::Number || ugte.rhs.getKind() != Expr::Kind::Number){
+				if(ugte.lhs.kind() != Expr::Kind::Number || ugte.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ugte.lhs);
@@ -684,7 +684,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FGTE: {
 				const FGTE& fgte = agent.getFGTE(stmt);
-				if(fgte.lhs.getKind() != Expr::Kind::Number || fgte.rhs.getKind() != Expr::Kind::Number){
+				if(fgte.lhs.kind() != Expr::Kind::Number || fgte.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fgte.lhs);
@@ -697,7 +697,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::And: {
 				const And& and_stmt = agent.getAnd(stmt);
-				if(and_stmt.lhs.getKind() != Expr::Kind::Number || and_stmt.rhs.getKind() != Expr::Kind::Number){
+				if(and_stmt.lhs.kind() != Expr::Kind::Number || and_stmt.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(and_stmt.lhs);
@@ -710,7 +710,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::Or: {
 				const Or& or_stmt = agent.getOr(stmt);
-				if(or_stmt.lhs.getKind() != Expr::Kind::Number || or_stmt.rhs.getKind() != Expr::Kind::Number){
+				if(or_stmt.lhs.kind() != Expr::Kind::Number || or_stmt.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(or_stmt.lhs);
@@ -723,7 +723,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::Xor: {
 				const Xor& xor_stmt = agent.getXor(stmt);
-				if(xor_stmt.lhs.getKind() != Expr::Kind::Number || xor_stmt.rhs.getKind() != Expr::Kind::Number){
+				if(xor_stmt.lhs.kind() != Expr::Kind::Number || xor_stmt.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(xor_stmt.lhs);
@@ -736,7 +736,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SHL: {
 				const SHL& shl = agent.getSHL(stmt);
-				if(shl.lhs.getKind() != Expr::Kind::Number || shl.rhs.getKind() != Expr::Kind::Number){
+				if(shl.lhs.kind() != Expr::Kind::Number || shl.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(shl.lhs);
@@ -749,7 +749,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SSHLSat: {
 				const SSHLSat& sshlsat = agent.getSSHLSat(stmt);
-				if(sshlsat.lhs.getKind() != Expr::Kind::Number || sshlsat.rhs.getKind() != Expr::Kind::Number){
+				if(sshlsat.lhs.kind() != Expr::Kind::Number || sshlsat.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sshlsat.lhs);
@@ -762,7 +762,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::USHLSat: {
 				const USHLSat& ushlsat = agent.getUSHLSat(stmt);
-				if(ushlsat.lhs.getKind() != Expr::Kind::Number || ushlsat.rhs.getKind() != Expr::Kind::Number){
+				if(ushlsat.lhs.kind() != Expr::Kind::Number || ushlsat.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ushlsat.lhs);
@@ -775,7 +775,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SSHR: {
 				const SSHR& sshr = agent.getSSHR(stmt);
-				if(sshr.lhs.getKind() != Expr::Kind::Number || sshr.rhs.getKind() != Expr::Kind::Number){
+				if(sshr.lhs.kind() != Expr::Kind::Number || sshr.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sshr.lhs);
@@ -788,7 +788,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::USHR: {
 				const USHR& ushr = agent.getUSHR(stmt);
-				if(ushr.lhs.getKind() != Expr::Kind::Number || ushr.rhs.getKind() != Expr::Kind::Number){
+				if(ushr.lhs.kind() != Expr::Kind::Number || ushr.rhs.kind() != Expr::Kind::Number){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ushr.lhs);
@@ -806,7 +806,7 @@ namespace pcit::pir::passes{
 
 
 	auto inst_simplify_impl(Expr stmt, const Agent& agent) -> PassManager::MadeTransformation {
-		switch(stmt.getKind()){
+		switch(stmt.kind()){
 			case Expr::Kind::None:            evo::debugFatalBreak("Not valid expr");
 			case Expr::Kind::GlobalValue:     return false;
 			case Expr::Kind::FunctionPointer: return false;
@@ -822,7 +822,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::CondBranch: {
 				const CondBranch& cond_branch = agent.getCondBranch(stmt);
 
-				if(cond_branch.cond.getKind() != Expr::Kind::Boolean){ return false; }
+				if(cond_branch.cond.kind() != Expr::Kind::Boolean){ return false; }
 
 				if(agent.getBoolean(cond_branch.cond)){
 					const BasicBlock::ID then_block = cond_branch.thenBlock;
@@ -851,7 +851,7 @@ namespace pcit::pir::passes{
 					}else{
 						const Expr& expr = index.as<Expr>();
 
-						if(expr.getKind() != Expr::Kind::Number){ return false; }
+						if(expr.kind() != Expr::Kind::Number){ return false; }
 						if(static_cast<uint64_t>(agent.getNumber(expr).getInt()) != 0){ return false; }
 					}
 				}
@@ -958,7 +958,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::Add: {
 				const Add& add = agent.getAdd(stmt);
 
-				if(add.lhs.getKind() == Expr::Kind::Number){
+				if(add.lhs.kind() == Expr::Kind::Number){
 					const Number& lhs = agent.getNumber(add.lhs);
 					const core::GenericInt& lhs_number = lhs.getInt();
 					if(lhs_number == core::GenericInt(lhs_number.getBitWidth(), 0)){
@@ -966,7 +966,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(add.rhs.getKind() == Expr::Kind::Number){
+				}else if(add.rhs.kind() == Expr::Kind::Number){
 					const Number& rhs = agent.getNumber(add.rhs);
 					const core::GenericInt& rhs_number = rhs.getInt();
 					if(rhs_number == core::GenericInt(rhs_number.getBitWidth(), 0)){
@@ -982,7 +982,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::SAddWrap: {
 				const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
 
-				if(sadd_wrap.lhs.getKind() == Expr::Kind::Number){
+				if(sadd_wrap.lhs.kind() == Expr::Kind::Number){
 					const Number& lhs = agent.getNumber(sadd_wrap.lhs);
 					const core::GenericInt& number = lhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
@@ -992,7 +992,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(sadd_wrap.rhs.getKind() == Expr::Kind::Number){
+				}else if(sadd_wrap.rhs.kind() == Expr::Kind::Number){
 					const Number& rhs = agent.getNumber(sadd_wrap.rhs);
 					const core::GenericInt& number = rhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
@@ -1012,7 +1012,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::UAddWrap: {
 				const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
 
-				if(uadd_wrap.lhs.getKind() == Expr::Kind::Number){
+				if(uadd_wrap.lhs.kind() == Expr::Kind::Number){
 					const Number& lhs = agent.getNumber(uadd_wrap.lhs);
 					const core::GenericInt& number = lhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
@@ -1022,7 +1022,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(uadd_wrap.rhs.getKind() == Expr::Kind::Number){
+				}else if(uadd_wrap.rhs.kind() == Expr::Kind::Number){
 					const Number& rhs = agent.getNumber(uadd_wrap.rhs);
 					const core::GenericInt& number = rhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
@@ -1042,7 +1042,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::SAddSat: {
 				const SAddSat& sadd_sat = agent.getSAddSat(stmt);
 
-				if(sadd_sat.lhs.getKind() == Expr::Kind::Number){
+				if(sadd_sat.lhs.kind() == Expr::Kind::Number){
 					const Number& lhs = agent.getNumber(sadd_sat.lhs);
 					const core::GenericInt& lhs_number = lhs.getInt();
 					if(lhs_number == core::GenericInt(lhs_number.getBitWidth(), 0)){
@@ -1050,7 +1050,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(sadd_sat.rhs.getKind() == Expr::Kind::Number){
+				}else if(sadd_sat.rhs.kind() == Expr::Kind::Number){
 					const Number& rhs = agent.getNumber(sadd_sat.rhs);
 					const core::GenericInt& rhs_number = rhs.getInt();
 					if(rhs_number == core::GenericInt(rhs_number.getBitWidth(), 0)){
@@ -1065,7 +1065,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::UAddSat: {
 				const UAddSat& uadd_sat = agent.getUAddSat(stmt);
 
-				if(uadd_sat.lhs.getKind() == Expr::Kind::Number){
+				if(uadd_sat.lhs.kind() == Expr::Kind::Number){
 					const Number& lhs = agent.getNumber(uadd_sat.lhs);
 					const core::GenericInt& lhs_number = lhs.getInt();
 					if(lhs_number == core::GenericInt(lhs_number.getBitWidth(), 0)){
@@ -1073,7 +1073,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(uadd_sat.rhs.getKind() == Expr::Kind::Number){
+				}else if(uadd_sat.rhs.kind() == Expr::Kind::Number){
 					const Number& rhs = agent.getNumber(uadd_sat.rhs);
 					const core::GenericInt& rhs_number = rhs.getInt();
 					if(rhs_number == core::GenericInt(rhs_number.getBitWidth(), 0)){

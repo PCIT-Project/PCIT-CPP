@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.79.0"></a>
+## v0.0.79.0
+
+### Panther
+- Added dependency analysis
+- Added framework of semantic analysis
+
+### PCIT_core
+- Fixed various issues with `ThreadQueue`
+- Fixed race condition in `SyncLinearStepAlloc`
+
+### misc
+- Updated README to remove the word `compiled` from the Panther tagline
+- Fixed pthr_old not compiling
+
+
+<!---------------------------------->
 <a name="v0.0.78.1"></a>
 ## v0.0.78.1
 - Added custom anchors to CHANGELOG

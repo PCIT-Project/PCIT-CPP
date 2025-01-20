@@ -15,13 +15,6 @@
 #include <atomic>
 #include <thread>
 
-#if defined(EVO_ARCH_X86_64) || defined(EVO_ARCH_X86_32)
-	#include <emmintrin.h>
-
-#elif defined(EVO_ARCH_ARM)
-	#include <arm_acle.h>
-#endif
-
 
 
 namespace pcit::core{
@@ -33,14 +26,13 @@ namespace pcit::core{
 			~SpinLock() = default;
 
 			auto lock() -> void {
-				unsigned wait_threshold = 8;
-				for(size_t i = 0; !this->try_lock(); i+=1){
+				int wait_threshold = 8;
+				for(int i = 0; !this->try_lock(); i+=1){
 					if(i == wait_threshold){
-						i = 0;
 						std::this_thread::yield();
 
-						wait_threshold -= 1;
-						if(wait_threshold == 0){ wait_threshold = 1; }
+						i = -1;
+						if(wait_threshold < 0){ wait_threshold -= 1; }
 					}
 				}
 			}

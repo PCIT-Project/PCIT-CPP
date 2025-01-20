@@ -10,13 +10,14 @@
 #pragma once
 
 
+#include <filesystem>
+
 #include <Evo.h>
 #include <PCIT_core.h>
 
 #include "./source/SourceManager.h"
 #include "./Diagnostic.h"
-
-#include <filesystem>
+#include "./DG/DGBuffer.h"
 
 
 namespace pcit::panther{
@@ -64,7 +65,7 @@ namespace pcit::panther{
 				evo::debugAssert(config.architecture != core::Architecture::Unknown, "Architecture must be known");
 			}
 
-			~Context();
+			~Context() = default;
 
 
 			EVO_NODISCARD static auto optimalNumThreads() -> unsigned;
@@ -82,10 +83,12 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// getters
 
-			EVO_NODISCARD auto getConfig() const -> const Config& { return this->_config; }
+			EVO_NODISCARD auto getNumErrors() const -> unsigned { return this->num_errors.load(); }
 
 			EVO_NODISCARD auto getSourceManager() const -> const SourceManager& { return this->source_manager; }
 			EVO_NODISCARD auto getSourceManager()       ->       SourceManager& { return this->source_manager; }
+
+			EVO_NODISCARD auto getConfig() const -> const Config& { return this->_config; }
 
 
 			///////////////////////////////////
@@ -93,8 +96,8 @@ namespace pcit::panther{
 
 			auto tokenize() -> bool;
 			auto parse() -> bool; 
-			// auto analyzeDependencies() -> bool;
-			// auto analyzeSemantics() -> bool;
+			auto analyzeDependencies() -> bool;
+			auto analyzeSemantics() -> bool;
 
 
 
@@ -160,15 +163,60 @@ namespace pcit::panther{
 				#endif
 			}
 
+			#if defined(PCIT_CONFIG_DEBUG)
+				EVO_NODISCARD auto getDGBuffer() const -> const DGBuffer& { return this->dg_buffer; }
+			#endif
 
 		private:
 			EVO_NODISCARD auto load_source(
 				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
 			) -> evo::Result<Source::ID>;
 
+			auto tokenize_impl(
+				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+			) -> void;
+
+			auto parse_impl(
+				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+			) -> void;
+			
+			auto dependency_analysis_impl(
+				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+			) -> evo::Result<Source::ID>;
+
 
 			auto emit_diagnostic_impl(const Diagnostic& diagnostic) -> void;
 
+
+			struct FileToLoad{
+				std::filesystem::path path;
+				Source::CompilationConfig::ID compilation_config_id;
+			};
+
+			struct SemaDecl{    DG::Node::ID dg_node_id; };
+			struct SemaDef{     DG::Node::ID dg_node_id; };
+			struct SemaDeclDef{ DG::Node::ID dg_node_id; };
+
+			using Task = evo::Variant<FileToLoad, SemaDecl, SemaDef, SemaDeclDef>;
+
+			auto add_task_to_work_manager(auto&&... args) -> void {
+				this->work_manager.visit([&](auto& work_manager) -> void {
+					using WorkManager = std::decay_t<decltype(work_manager)>;
+
+					if constexpr(std::is_same<WorkManager, std::monostate>()){
+						evo::debugFatalBreak("Cannot add task to work manager as none is running");
+
+					}else if constexpr(std::is_same<WorkManager, core::ThreadQueue<Task>>()){
+						work_manager.addTask(std::forward<decltype(args)>(args)...);
+
+					}else if constexpr(std::is_same<WorkManager, core::SingleThreadedWorkQueue<Task>>()){
+						work_manager.addTask(std::forward<decltype(args)>(args)...);
+
+					}else{
+						static_assert(false, "Unsupported work manager");
+					}
+				});
+			}
 	
 		private:
 			const Config& _config;
@@ -179,22 +227,18 @@ namespace pcit::panther{
 			std::atomic<unsigned> num_errors = 0;
 			bool added_std_lib = false;
 
-			struct FileToLoad{
-				std::filesystem::path path;
-				Source::CompilationConfig::ID compilation_config_id;
-			};
 			std::vector<FileToLoad> files_to_load{};
 
-			struct Task{
-				FileToLoad file_to_load;
-			};
-			core::ThreadPool<Task> thread_pool{};
-			evo::Variant<
-				std::monostate, core::SingleThreadedWorkQueue<Task>, core::ThreadPool<Task>, core::ThreadQueue<Task>
-			> work_manager{};
 
+			// Only used for semantic analysis
+			// std::monostate is used as uninitialized state
+			evo::Variant<std::monostate, core::ThreadQueue<Task>, core::SingleThreadedWorkQueue<Task>> work_manager{};
 
 			SourceManager source_manager{};
+			DGBuffer dg_buffer{};
+
+			friend class DependencyAnalysis;
+			friend class SemanticAnalyzer;
 	};
 
 	

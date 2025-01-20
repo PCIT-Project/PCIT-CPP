@@ -127,10 +127,10 @@ namespace pcit::pir{
 		public:
 			~Expr() = default;
 
-			EVO_NODISCARD constexpr auto getKind() const -> Kind { return this->kind; }
+			EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
 
 			EVO_NODISCARD auto isValue() const -> bool {
-                switch(this->kind){
+                switch(this->_kind){
 					case Kind::Number:          case Kind::Boolean:         case Kind::GlobalValue:
 					case Kind::ParamExpr:       case Kind::Call:            case Kind::Alloca:
 					case Kind::Load:            case Kind::CalcPtr:         case Kind::BitCast:
@@ -165,42 +165,42 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
-				switch(this->kind){
+				switch(this->_kind){
 					case Kind::Number: case Kind::Boolean: return true;
 					default: return false;
 				}
 			}
 
 			EVO_NODISCARD auto isStmt() const -> bool {
-				switch(this->kind){
-					case Kind::Call:            case Kind::CallVoid:         case Kind::Breakpoint:
-					case Kind::Ret:             case Kind::Branch:           case Kind::CondBranch:
-					case Kind::Unreachable:     case Kind::Alloca:           case Kind::Load:
-					case Kind::Store:           case Kind::CalcPtr:        	 case Kind::Memcpy:
-					case Kind::Memset:          case Kind::BitCast:          case Kind::Trunc:
-					case Kind::FTrunc:          case Kind::SExt:             case Kind::ZExt:
-					case Kind::FExt:            case Kind::IToF:             case Kind::UIToF:
-					case Kind::FToI:            case Kind::FToUI:            case Kind::Add:
-					case Kind::SAddWrap:        case Kind::SAddWrapResult:   case Kind::SAddWrapWrapped:
-					case Kind::UAddWrap:        case Kind::UAddWrapResult:   case Kind::UAddWrapWrapped:
-					case Kind::SAddSat:         case Kind::UAddSat:          case Kind::FAdd:
-					case Kind::Sub:             case Kind::SSubWrap:         case Kind::SSubWrapResult:
-					case Kind::SSubWrapWrapped: case Kind::USubWrap:         case Kind::USubWrapResult:
-					case Kind::USubWrapWrapped: case Kind::SSubSat:          case Kind::USubSat:
-					case Kind::FSub:            case Kind::Mul:              case Kind::SMulWrap:
-					case Kind::SMulWrapResult:  case Kind::SMulWrapWrapped:  case Kind::UMulWrap:
-					case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped:  case Kind::SMulSat:
-					case Kind::UMulSat:         case Kind::FMul:             case Kind::SDiv:
-					case Kind::UDiv:            case Kind::FDiv:             case Kind::SRem:
-					case Kind::URem:            case Kind::FRem:             case Kind::FNeg:
-					case Kind::IEq:             case Kind::FEq:              case Kind::INeq:
-					case Kind::FNeq:            case Kind::SLT:              case Kind::ULT:
-					case Kind::FLT:             case Kind::SLTE:             case Kind::ULTE:
-					case Kind::FLTE:            case Kind::SGT:              case Kind::UGT:
-					case Kind::FGT:             case Kind::SGTE:             case Kind::UGTE:
-					case Kind::FGTE:            case Kind::And:              case Kind::Or:
-					case Kind::Xor:             case Kind::SHL:              case Kind::SSHLSat:
-					case Kind::USHLSat:         case Kind::SSHR:             case Kind::USHR: {
+				switch(this->_kind){
+					case Kind::Call:            case Kind::CallVoid:        case Kind::Breakpoint:
+					case Kind::Ret:             case Kind::Branch:          case Kind::CondBranch:
+					case Kind::Unreachable:     case Kind::Alloca:          case Kind::Load:
+					case Kind::Store:           case Kind::CalcPtr:        	case Kind::Memcpy:
+					case Kind::Memset:          case Kind::BitCast:         case Kind::Trunc:
+					case Kind::FTrunc:          case Kind::SExt:            case Kind::ZExt:
+					case Kind::FExt:            case Kind::IToF:            case Kind::UIToF:
+					case Kind::FToI:            case Kind::FToUI:           case Kind::Add:
+					case Kind::SAddWrap:        case Kind::SAddWrapResult:  case Kind::SAddWrapWrapped:
+					case Kind::UAddWrap:        case Kind::UAddWrapResult:  case Kind::UAddWrapWrapped:
+					case Kind::SAddSat:         case Kind::UAddSat:         case Kind::FAdd:
+					case Kind::Sub:             case Kind::SSubWrap:        case Kind::SSubWrapResult:
+					case Kind::SSubWrapWrapped: case Kind::USubWrap:        case Kind::USubWrapResult:
+					case Kind::USubWrapWrapped: case Kind::SSubSat:         case Kind::USubSat:
+					case Kind::FSub:            case Kind::Mul:             case Kind::SMulWrap:
+					case Kind::SMulWrapResult:  case Kind::SMulWrapWrapped: case Kind::UMulWrap:
+					case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped: case Kind::SMulSat:
+					case Kind::UMulSat:         case Kind::FMul:            case Kind::SDiv:
+					case Kind::UDiv:            case Kind::FDiv:            case Kind::SRem:
+					case Kind::URem:            case Kind::FRem:            case Kind::FNeg:
+					case Kind::IEq:             case Kind::FEq:             case Kind::INeq:
+					case Kind::FNeq:            case Kind::SLT:             case Kind::ULT:
+					case Kind::FLT:             case Kind::SLTE:            case Kind::ULTE:
+					case Kind::FLTE:            case Kind::SGT:             case Kind::UGT:
+					case Kind::FGT:             case Kind::SGTE:            case Kind::UGTE:
+					case Kind::FGTE:            case Kind::And:             case Kind::Or:
+					case Kind::Xor:             case Kind::SHL:             case Kind::SSHLSat:
+					case Kind::USHLSat:         case Kind::SSHR:            case Kind::USHR: {
 						return true;
 					} break;
 					default: return false;
@@ -208,7 +208,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto isMultiValueStmt() const -> bool {
-				switch(this->kind){
+				switch(this->_kind){
 					case Kind::SAddWrap: case Kind::UAddWrap: case Kind::SSubWrap: case Kind::USubWrap:
 					case Kind::SMulWrap: case Kind::UMulWrap: {
 						return true;
@@ -218,7 +218,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto isTerminator() const -> bool {
-				switch(this->kind){
+				switch(this->_kind){
 					case Kind::Ret: case Kind::Branch: case Kind::CondBranch: case Kind::Unreachable: return true;
 					default: return false;
 				}
@@ -228,18 +228,18 @@ namespace pcit::pir{
 			EVO_NODISCARD auto operator==(const Expr&) const -> bool = default;
 
 			constexpr auto operator=(const Expr& rhs) -> Expr& {
-				this->kind = rhs.kind;
+				this->_kind = rhs._kind;
 				this->index = rhs.index;
 				return *this;
 			}	
 
 
 		private:
-			constexpr Expr(Kind _kind, uint32_t _index) : kind(_kind), index(_index) {}
-			constexpr Expr(Kind _kind) : kind(_kind), index(0) {}
+			constexpr Expr(Kind expr_kind, uint32_t _index) : _kind(expr_kind), index(_index) {}
+			constexpr Expr(Kind expr_kind) : _kind(expr_kind), index(0) {}
 	
 		private:
-			Kind kind;
+			Kind _kind;
 			uint32_t index;
 
 			friend struct ExprOptInterface;
@@ -257,7 +257,7 @@ namespace pcit::pir{
 		}
 
 		static constexpr auto has_value(const Expr& expr) -> bool {
-			return expr.getKind() != Expr::Kind::None;
+			return expr.kind() != Expr::Kind::None;
 		}
 	};
 
@@ -299,7 +299,7 @@ namespace pcit::pir{
 		Type type;
 
 		EVO_NODISCARD auto getInt() const -> const core::GenericInt& {
-			evo::debugAssert(this->type.getKind() == Type::Kind::Integer, "This number is not integral");
+			evo::debugAssert(this->type.kind() == Type::Kind::Integer, "This number is not integral");
 			return this->value.as<core::GenericInt>();
 		}
 

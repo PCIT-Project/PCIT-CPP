@@ -276,7 +276,7 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createStructDecl(
-			ident, template_pack_node, std::move(attributes.value()), block.value()
+			ASTBuffer::getIdent(ident), template_pack_node, std::move(attributes.value()), block.value()
 		);
 	}
 

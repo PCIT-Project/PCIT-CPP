@@ -86,10 +86,7 @@ auto main(int argc, const char* argv[]) -> int {
 		// .may_recover    = false,
 	};
 
-	// print UTF-8 characters on windows
-	#if defined(EVO_PLATFORM_WINDOWS)
-		::SetConsoleOutputCP(CP_UTF8);
-	#endif
+	pcit::core::windows::setConsoleToUTF8Mode();
 
 	#if defined(PCIT_CONFIG_DEBUG)
 		evo::log::setDefaultThreadSaferCallback();
@@ -177,7 +174,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
-		if(::IsDebuggerPresent()){
+		if(pcit::core::windows::isDebuggerPresent()){
 			static auto at_exit_call = [&]() -> void {
 				// not using printer because it should always go to stdout
 				if(config.print_color){

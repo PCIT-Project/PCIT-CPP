@@ -53,7 +53,7 @@ project "pthr_old"
 	includedirs{
 		(config.location .. "/dependencies"),
 		(config.location .. "/PIR/include"),
-		(config.location .. "/PCIT_core/include"),		
+		(config.location .. "/PCIT_core/include"),
 
 		"./include/",
 	}
@@ -62,7 +62,7 @@ project "pthr_old"
 		"Evo",
 		"PCIT_core",
 		"PIR",
-		"Panther",
+		"Panther_old",
 	}
 
 

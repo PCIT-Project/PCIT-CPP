@@ -11,6 +11,8 @@
 
 #include "./tokens/Tokenizer.h"
 #include "./AST/Parser.h"
+#include "./DG/DependencyAnalysis.h"
+#include "./ASG/SemanticAnalyzer.h"
 
 namespace pcit::panther{
 
@@ -36,11 +38,6 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// misc
 
-	Context::~Context(){
-		if(this->thread_pool.isRunning()){
-			this->thread_pool.shutdown();
-		}
-	}
 
 	auto Context::optimalNumThreads() -> unsigned {
 		return unsigned(core::ThreadPool<Task>::optimalNumThreads());
@@ -52,45 +49,36 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// build targets
 
+	// TODO: force shutdown when hit fail condition
 	auto Context::tokenize() -> bool {
-		auto worker = [&](Task& task) -> bool {
-			const evo::Result<Source::ID> new_source = this->load_source(
-				std::move(task.file_to_load.path), task.file_to_load.compilation_config_id
-			);
-			if(new_source.isError()){ return true; }
-
-			this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
-			if(panther::tokenize(*this, new_source.value()) == false){ return true; }
-
-			this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
+		const auto worker = [&](Task& task) -> bool {
+			this->tokenize_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id);
 			return true;
 		};
 
 		if(this->_config.isMultiThreaded()){
-			this->work_manager.emplace<core::ThreadPool<Task>>();
+			auto local_work_manager = core::ThreadPool<Task>();
 
 			auto tasks = evo::SmallVector<Task>();
 			for(FileToLoad& file_to_load : this->files_to_load){
 				tasks.emplace_back(std::move(file_to_load));
 			}
 
-			this->work_manager.as<core::ThreadPool<Task>>().startup(this->_config.numThreads);
-			this->work_manager.as<core::ThreadPool<Task>>().work(std::move(tasks), worker);
-			this->work_manager.as<core::ThreadPool<Task>>().waitUntilDoneWorking();
-			this->work_manager.as<core::ThreadPool<Task>>().shutdown();
+			local_work_manager.startup(this->_config.numThreads);
+			local_work_manager.work(std::move(tasks), worker);
+			local_work_manager.waitUntilDoneWorking();
+			local_work_manager.shutdown();
 
 		}else{
-			this->work_manager.emplace<core::SingleThreadedWorkQueue<Task>>(worker);
+			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
 
 			for(FileToLoad& file_to_load : this->files_to_load){
-				this->work_manager.as<core::SingleThreadedWorkQueue<Task>>().emplaceTask(std::move(file_to_load));
+				local_work_manager.emplaceTask(std::move(file_to_load));
 			}
 
 			this->files_to_load.clear();
 
-			this->work_manager.as<core::SingleThreadedWorkQueue<Task>>().run();
+			local_work_manager.run();
 		}
 
 		return this->num_errors == 0;
@@ -99,46 +87,148 @@ namespace pcit::panther{
 
 
 	auto Context::parse() -> bool {
-		auto worker = [&](Task& task) -> bool {
-			const evo::Result<Source::ID> new_source = this->load_source(
-				std::move(task.file_to_load.path), task.file_to_load.compilation_config_id
-			);
-			if(new_source.isError()){ return true; }
-
-			this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
-			if(panther::tokenize(*this, new_source.value()) == false){ return true; }
-			this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
-			if(panther::parse(*this, new_source.value()) == false){ return true; }
-			this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
+		const auto worker = [&](Task& task) -> bool {
+			this->parse_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id);
 			return true;
 		};
 
 		if(this->_config.isMultiThreaded()){
-			this->work_manager.emplace<core::ThreadPool<Task>>();
+			auto local_work_manager = core::ThreadPool<Task>();
 
 			auto tasks = evo::SmallVector<Task>();
 			for(FileToLoad& file_to_load : this->files_to_load){
 				tasks.emplace_back(std::move(file_to_load));
 			}
 
-			this->work_manager.as<core::ThreadPool<Task>>().startup(this->_config.numThreads);
-			this->work_manager.as<core::ThreadPool<Task>>().work(std::move(tasks), worker);
-			this->work_manager.as<core::ThreadPool<Task>>().waitUntilDoneWorking();
-			this->work_manager.as<core::ThreadPool<Task>>().shutdown();
+			local_work_manager.startup(this->_config.numThreads);
+			local_work_manager.work(std::move(tasks), worker);
+			local_work_manager.waitUntilDoneWorking();
+			local_work_manager.shutdown();
 
 		}else{
-			this->work_manager.emplace<core::SingleThreadedWorkQueue<Task>>(worker);
+			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
 
 			for(FileToLoad& file_to_load : this->files_to_load){
-				this->work_manager.as<core::SingleThreadedWorkQueue<Task>>().emplaceTask(std::move(file_to_load));
+				local_work_manager.emplaceTask(std::move(file_to_load));
 			}
 
 			this->files_to_load.clear();
 
-			this->work_manager.as<core::SingleThreadedWorkQueue<Task>>().run();
+			local_work_manager.run();
+		}
+
+		return this->num_errors == 0;
+	}
+
+
+	auto Context::analyzeDependencies() -> bool {
+		const auto worker = [&](Task& task) -> bool {
+			this->dependency_analysis_impl(
+				std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id
+			);
+			return true;
+		};
+
+		if(this->_config.isMultiThreaded()){
+			auto local_work_manager = core::ThreadPool<Task>();
+
+			auto tasks = evo::SmallVector<Task>();
+			for(FileToLoad& file_to_load : this->files_to_load){
+				tasks.emplace_back(std::move(file_to_load));
+			}
+
+			local_work_manager.startup(this->_config.numThreads);
+			local_work_manager.work(std::move(tasks), worker);
+			local_work_manager.waitUntilDoneWorking();
+			local_work_manager.shutdown();
+
+		}else{
+			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
+
+			for(FileToLoad& file_to_load : this->files_to_load){
+				local_work_manager.emplaceTask(std::move(file_to_load));
+			}
+
+			this->files_to_load.clear();
+
+			local_work_manager.run();
+		}
+
+		return this->num_errors == 0;
+	}
+
+
+
+	auto Context::analyzeSemantics() -> bool {
+		if(this->analyzeDependencies() == false){ return false; }
+
+		const auto worker = [&](Task& task_variant) -> bool {
+			task_variant.visit([&](auto& task) -> void {
+				using TaskType = std::decay_t<decltype(task)>;
+
+				if constexpr(std::is_same<TaskType, FileToLoad>()){
+					evo::debugFatalBreak("Should never hit this task");
+
+				}else if constexpr(std::is_same<TaskType, SemaDecl>()){
+					analyze_semantics_decl(*this, task.dg_node_id);
+
+				}else if constexpr(std::is_same<TaskType, SemaDef>()){
+					analyze_semantics_def(*this, task.dg_node_id);
+
+				}else if constexpr(std::is_same<TaskType, SemaDeclDef>()){
+					analyze_semantics_decl_def(*this, task.dg_node_id);
+
+				}else{
+					static_assert(false, "Unsupported task type");
+				}
+			});
+
+			return !this->hasHitFailCondition();
+		};
+
+
+		if(this->_config.isMultiThreaded()){
+			auto& work_manager_inst = this->work_manager.emplace<core::ThreadQueue<Task>>(worker);
+
+			for(uint32_t i = 0; DG::Node& dg_node : this->dg_buffer){
+				if(dg_node.hasNoDeclDeps()){ // has decl deps
+					dg_node.declSemaStatus = DG::Node::SemaStatus::InQueue;
+					if(dg_node.hasNoDefDeps()){
+						dg_node.defSemaStatus = DG::Node::SemaStatus::InQueue;
+						work_manager_inst.addTask(SemaDeclDef(DG::Node::ID(i)));
+					}else{
+						work_manager_inst.addTask(SemaDecl(DG::Node::ID(i)));
+					}
+				}
+
+				i += 1;
+			}
+
+			work_manager_inst.startup(this->_config.numThreads);
+			while(this->dg_buffer.num_nodes_sema_status_not_done > 0){
+				std::this_thread::yield();
+			}
+			work_manager_inst.waitUntilDoneWorking(); // probably not needed, but I think the safety is worth it
+			work_manager_inst.shutdown();
+
+		}else{
+			auto& work_manager_inst = this->work_manager.emplace<core::SingleThreadedWorkQueue<Task>>(worker);
+
+			for(uint32_t i = 0; DG::Node& dg_node : this->dg_buffer){
+				if(dg_node.hasNoDeclDeps()){
+					dg_node.declSemaStatus = DG::Node::SemaStatus::InQueue;
+					if(dg_node.hasNoDefDeps()){
+						dg_node.defSemaStatus = DG::Node::SemaStatus::InQueue;
+						work_manager_inst.addTask(SemaDeclDef(DG::Node::ID(i)));
+					}else{
+						work_manager_inst.addTask(SemaDecl(DG::Node::ID(i)));
+					}
+				}
+
+				i += 1;
+			}
+
+			work_manager_inst.run();
 		}
 
 		return this->num_errors == 0;
@@ -247,7 +337,7 @@ namespace pcit::panther{
 		if(std::filesystem::exists(path) == false){
 			this->emitError(
 				Diagnostic::Code::MiscFileDoesNotExist,
-				Diagnostic::noLocation,
+				Diagnostic::Location::NONE,
 				std::format("File \"{}\" does not exist", path.string())
 			);
 			return evo::resultError;
@@ -257,13 +347,62 @@ namespace pcit::panther{
 		if(file_data.isError()){
 			this->emitError(
 				Diagnostic::Code::MiscLoadFileFailed,
-				Diagnostic::noLocation,
+				Diagnostic::Location::NONE,
 				std::format("Failed to load file: \"{}\"", path.string())	
 			);
 			return evo::resultError;
 		}
 
 		return this->source_manager.create_source(std::move(path), std::move(file_data.value()), compilation_config_id);
+	}
+
+
+	auto Context::tokenize_impl(std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id)
+	-> void {
+		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
+		if(new_source.isError()){ return; }
+
+		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
+
+		if(panther::tokenize(*this, new_source.value()) == false){ return; }
+		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
+	}
+
+
+	auto Context::parse_impl(std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id)
+	-> void {
+		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
+		if(new_source.isError()){ return; }
+
+		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
+
+		if(panther::tokenize(*this, new_source.value()) == false){ return; }
+		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
+
+		if(panther::parse(*this, new_source.value()) == false){ return; }
+		this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
+	}
+
+	auto Context::dependency_analysis_impl(
+		std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+	) -> evo::Result<Source::ID> {
+		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
+		if(new_source.isError()){ return evo::resultError; }
+
+		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
+
+		if(panther::tokenize(*this, new_source.value()) == false){ return evo::resultError; }
+		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
+
+		if(panther::parse(*this, new_source.value()) == false){ return evo::resultError; }
+		this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
+
+		if(panther::analyzeDependencies(*this, new_source.value()) == false){ return evo::resultError; }
+		this->trace(
+			"Analyzed dependencies of file: \"{}\"", this->source_manager[new_source.value()].getPath().string()
+		);
+
+		return new_source.value();
 	}
 
 

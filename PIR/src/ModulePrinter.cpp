@@ -380,7 +380,7 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_type(const Type& type) -> void {
-		switch(type.getKind()){
+		switch(type.kind()){
 			case Type::Kind::Void:     { this->printer.printCyan("Void");                 } break;
 			case Type::Kind::Integer:  { this->printer.printCyan("I{}", type.getWidth()); } break;
 			case Type::Kind::Bool:     { this->printer.printCyan("Bool");                 } break;
@@ -412,14 +412,14 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_expr(const Expr& expr) -> void {
-		switch(expr.getKind()){
+		switch(expr.kind()){
 			case Expr::Kind::None: evo::debugFatalBreak("Not valid expr");
 
 			case Expr::Kind::Number: {
 				const Number& number = this->reader.getNumber(expr);
 				this->print_type(number.type);
 				this->printer.print("(");
-				if(number.type.getKind() == Type::Kind::Integer){
+				if(number.type.kind() == Type::Kind::Integer){
 					this->printer.printMagenta(number.getInt().toString(true));
 				}else{
 					this->printer.printMagenta(number.getFloat().toString());
@@ -822,7 +822,7 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_expr_stmt(const Expr& stmt) -> void {
-		switch(stmt.getKind()){
+		switch(stmt.kind()){
 			case Expr::Kind::None: evo::debugFatalBreak("Not valid expr");
 
 			case Expr::Kind::Number:      evo::debugFatalBreak("Expr::Kind::Number is not a valid statement");

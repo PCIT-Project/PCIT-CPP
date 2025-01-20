@@ -20,7 +20,7 @@ namespace pcit::pir{
 	auto ReaderAgent::getExprType(const Expr& expr) const -> Type {		
 		evo::debugAssert(expr.isValue(), "Expr must be a value in order to get the type");
 
-		switch(expr.getKind()){
+		switch(expr.kind()){
 			case Expr::Kind::None:            evo::unreachable();
 			case Expr::Kind::Number:          return this->getNumber(expr).type;
 			case Expr::Kind::Boolean:         return this->module.createBoolType();
@@ -153,28 +153,28 @@ namespace pcit::pir{
 
 
 	auto ReaderAgent::getNumber(const Expr& expr) const -> const Number& {
-		evo::debugAssert(expr.getKind() == Expr::Kind::Number, "Not a number");
+		evo::debugAssert(expr.kind() == Expr::Kind::Number, "Not a number");
 		return this->module.numbers[expr.index];
 	}
 
 	auto ReaderAgent::getBoolean(const Expr& expr) -> bool {
-		evo::debugAssert(expr.getKind() == Expr::Kind::Boolean, "Not a Boolean");
+		evo::debugAssert(expr.kind() == Expr::Kind::Boolean, "Not a Boolean");
 		return bool(expr.index);
 	}
 
 
 	auto ReaderAgent::getParamExpr(const Expr& expr) -> ParamExpr {
-		evo::debugAssert(expr.getKind() == Expr::Kind::ParamExpr, "not a param expr");
+		evo::debugAssert(expr.kind() == Expr::Kind::ParamExpr, "not a param expr");
 		return ParamExpr(expr.index);
 	}
 
 	auto ReaderAgent::getGlobalValue(const Expr& expr) const -> const GlobalVar& {
-		evo::debugAssert(expr.getKind() == Expr::Kind::GlobalValue, "Not a global");
+		evo::debugAssert(expr.kind() == Expr::Kind::GlobalValue, "Not a global");
 		return this->module.getGlobalVar(GlobalVar::ID(expr.index));
 	}
 
 	auto ReaderAgent::getFunctionPointer(const Expr& expr) const -> const Function& {
-		evo::debugAssert(expr.getKind() == Expr::Kind::FunctionPointer, "Not a function pointer");
+		evo::debugAssert(expr.kind() == Expr::Kind::FunctionPointer, "Not a function pointer");
 		return this->module.getFunction(Function::ID(expr.index));
 	}
 
@@ -182,14 +182,14 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getCall(const Expr& expr) const -> const Call& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Call, "not a call inst");
+		evo::debugAssert(expr.kind() == Expr::Kind::Call, "not a call inst");
 
 		return this->module.calls[expr.index];
 	}
 
 	auto ReaderAgent::getCallVoid(const Expr& expr) const -> const CallVoid& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::CallVoid, "not a call void inst");
+		evo::debugAssert(expr.kind() == Expr::Kind::CallVoid, "not a call void inst");
 
 		return this->module.call_voids[expr.index];
 	}
@@ -199,7 +199,7 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getRet(const Expr& expr) const -> const Ret& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Ret, "Not a ret");
+		evo::debugAssert(expr.kind() == Expr::Kind::Ret, "Not a ret");
 
 		return this->module.rets[expr.index];
 	}
@@ -207,7 +207,7 @@ namespace pcit::pir{
 
 
 	auto ReaderAgent::getBranch(const Expr& expr) -> Branch {
-		evo::debugAssert(expr.getKind() == Expr::Kind::Branch, "Not a br");
+		evo::debugAssert(expr.kind() == Expr::Kind::Branch, "Not a br");
 
 		return Branch(BasicBlock::ID(expr.index));
 	}
@@ -215,7 +215,7 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getCondBranch(const Expr& expr) const -> const CondBranch& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::CondBranch, "Not an cond branch");
+		evo::debugAssert(expr.kind() == Expr::Kind::CondBranch, "Not an cond branch");
 
 		return this->module.cond_branches[expr.index];
 	}
@@ -223,21 +223,21 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getAlloca(const Expr& expr) const -> const Alloca& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Alloca, "Not an alloca");
+		evo::debugAssert(expr.kind() == Expr::Kind::Alloca, "Not an alloca");
 
 		return this->target_func->allocas[expr.index];
 	}
 
 	auto ReaderAgent::getLoad(const Expr& expr) const -> const Load& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Load, "Not a load");
+		evo::debugAssert(expr.kind() == Expr::Kind::Load, "Not a load");
 
 		return this->module.loads[expr.index];
 	}
 
 	auto ReaderAgent::getStore(const Expr& expr) const -> const Store& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Store, "Not a store");
+		evo::debugAssert(expr.kind() == Expr::Kind::Store, "Not a store");
 
 		return this->module.stores[expr.index];
 	}
@@ -245,7 +245,7 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getCalcPtr(const Expr& expr) const -> const CalcPtr& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::CalcPtr, "Not a calc ptr");
+		evo::debugAssert(expr.kind() == Expr::Kind::CalcPtr, "Not a calc ptr");
 
 		return this->module.calc_ptrs[expr.index];
 	}
@@ -253,14 +253,14 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getMemcpy(const Expr& expr) const -> const Memcpy& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Memcpy, "Not a memcpy");
+		evo::debugAssert(expr.kind() == Expr::Kind::Memcpy, "Not a memcpy");
 
 		return this->module.memcpys[expr.index];
 	}
 
 	auto ReaderAgent::getMemset(const Expr& expr) const -> const Memset& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Memset, "Not a memset");
+		evo::debugAssert(expr.kind() == Expr::Kind::Memset, "Not a memset");
 
 		return this->module.memsets[expr.index];
 	}
@@ -269,70 +269,70 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getBitCast(const Expr& expr) const -> const BitCast& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::BitCast, "Not a BitCast");
+		evo::debugAssert(expr.kind() == Expr::Kind::BitCast, "Not a BitCast");
 
 		return this->module.bitcasts[expr.index];
 	}
 
 	auto ReaderAgent::getTrunc(const Expr& expr) const -> const Trunc& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Trunc, "Not a Trunc");
+		evo::debugAssert(expr.kind() == Expr::Kind::Trunc, "Not a Trunc");
 
 		return this->module.truncs[expr.index];
 	}
 
 	auto ReaderAgent::getFTrunc(const Expr& expr) const -> const FTrunc& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FTrunc, "Not a FTrunc");
+		evo::debugAssert(expr.kind() == Expr::Kind::FTrunc, "Not a FTrunc");
 
 		return this->module.ftruncs[expr.index];
 	}
 
 	auto ReaderAgent::getSExt(const Expr& expr) const -> const SExt& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SExt, "Not a SExt");
+		evo::debugAssert(expr.kind() == Expr::Kind::SExt, "Not a SExt");
 
 		return this->module.sexts[expr.index];
 	}
 
 	auto ReaderAgent::getZExt(const Expr& expr) const -> const ZExt& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::ZExt, "Not a ZExt");
+		evo::debugAssert(expr.kind() == Expr::Kind::ZExt, "Not a ZExt");
 
 		return this->module.zexts[expr.index];
 	}
 
 	auto ReaderAgent::getFExt(const Expr& expr) const -> const FExt& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FExt, "Not a FExt");
+		evo::debugAssert(expr.kind() == Expr::Kind::FExt, "Not a FExt");
 
 		return this->module.fexts[expr.index];
 	}
 
 	auto ReaderAgent::getIToF(const Expr& expr) const -> const IToF& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::IToF, "Not a IToF");
+		evo::debugAssert(expr.kind() == Expr::Kind::IToF, "Not a IToF");
 
 		return this->module.itofs[expr.index];
 	}
 
 	auto ReaderAgent::getUIToF(const Expr& expr) const -> const UIToF& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::UIToF, "Not a UIToF");
+		evo::debugAssert(expr.kind() == Expr::Kind::UIToF, "Not a UIToF");
 
 		return this->module.uitofs[expr.index];
 	}
 
 	auto ReaderAgent::getFToI(const Expr& expr) const -> const FToI& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FToI, "Not a FToI");
+		evo::debugAssert(expr.kind() == Expr::Kind::FToI, "Not a FToI");
 
 		return this->module.ftois[expr.index];
 	}
 
 	auto ReaderAgent::getFToUI(const Expr& expr) const -> const FToUI& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FToUI, "Not a FToUI");
+		evo::debugAssert(expr.kind() == Expr::Kind::FToUI, "Not a FToUI");
 
 		return this->module.ftouis[expr.index];
 	}
@@ -342,7 +342,7 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getAdd(const Expr& expr) const -> const Add& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Add, "Not an add");
+		evo::debugAssert(expr.kind() == Expr::Kind::Add, "Not an add");
 
 		return this->module.adds[expr.index];
 	}
@@ -351,9 +351,9 @@ namespace pcit::pir{
 	auto ReaderAgent::getSAddWrap(const Expr& expr) const -> const SAddWrap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(
-			expr.getKind() == Expr::Kind::SAddWrap
-				|| expr.getKind() == Expr::Kind::SAddWrapResult
-				|| expr.getKind() == Expr::Kind::SAddWrapWrapped,
+			expr.kind() == Expr::Kind::SAddWrap
+				|| expr.kind() == Expr::Kind::SAddWrapResult
+				|| expr.kind() == Expr::Kind::SAddWrapWrapped,
 			"Not a signed add wrap"
 		);
 
@@ -373,9 +373,9 @@ namespace pcit::pir{
 	auto ReaderAgent::getUAddWrap(const Expr& expr) const -> const UAddWrap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(
-			expr.getKind() == Expr::Kind::UAddWrap
-				|| expr.getKind() == Expr::Kind::UAddWrapResult
-				|| expr.getKind() == Expr::Kind::UAddWrapWrapped,
+			expr.kind() == Expr::Kind::UAddWrap
+				|| expr.kind() == Expr::Kind::UAddWrapResult
+				|| expr.kind() == Expr::Kind::UAddWrapWrapped,
 			"Not an unsigned add wrap"
 		);
 
@@ -392,21 +392,21 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getSAddSat(const Expr& expr) const -> const SAddSat& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SAddSat, "Not an saddSat");
+		evo::debugAssert(expr.kind() == Expr::Kind::SAddSat, "Not an saddSat");
 
 		return this->module.sadd_sats[expr.index];
 	}
 
 	auto ReaderAgent::getUAddSat(const Expr& expr) const -> const UAddSat& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::UAddSat, "Not an uaddSat");
+		evo::debugAssert(expr.kind() == Expr::Kind::UAddSat, "Not an uaddSat");
 
 		return this->module.uadd_sats[expr.index];
 	}
 
 	auto ReaderAgent::getFAdd(const Expr& expr) const -> const FAdd& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FAdd, "Not an fadd");
+		evo::debugAssert(expr.kind() == Expr::Kind::FAdd, "Not an fadd");
 
 		return this->module.fadds[expr.index];
 	}
@@ -416,7 +416,7 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getSub(const Expr& expr) const -> const Sub& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Sub, "Not a sub");
+		evo::debugAssert(expr.kind() == Expr::Kind::Sub, "Not a sub");
 
 		return this->module.subs[expr.index];
 	}
@@ -425,9 +425,9 @@ namespace pcit::pir{
 	auto ReaderAgent::getSSubWrap(const Expr& expr) const -> const SSubWrap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(
-			expr.getKind() == Expr::Kind::SSubWrap
-				|| expr.getKind() == Expr::Kind::SSubWrapResult
-				|| expr.getKind() == Expr::Kind::SSubWrapWrapped,
+			expr.kind() == Expr::Kind::SSubWrap
+				|| expr.kind() == Expr::Kind::SSubWrapResult
+				|| expr.kind() == Expr::Kind::SSubWrapWrapped,
 			"Not a signed sub wrap"
 		);
 
@@ -447,9 +447,9 @@ namespace pcit::pir{
 	auto ReaderAgent::getUSubWrap(const Expr& expr) const -> const USubWrap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(
-			expr.getKind() == Expr::Kind::USubWrap
-				|| expr.getKind() == Expr::Kind::USubWrapResult
-				|| expr.getKind() == Expr::Kind::USubWrapWrapped,
+			expr.kind() == Expr::Kind::USubWrap
+				|| expr.kind() == Expr::Kind::USubWrapResult
+				|| expr.kind() == Expr::Kind::USubWrapWrapped,
 			"Not an unsigned sub wrap"
 		);
 
@@ -466,21 +466,21 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getSSubSat(const Expr& expr) const -> const SSubSat& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SSubSat, "Not a ssubSat");
+		evo::debugAssert(expr.kind() == Expr::Kind::SSubSat, "Not a ssubSat");
 
 		return this->module.ssub_sats[expr.index];
 	}
 
 	auto ReaderAgent::getUSubSat(const Expr& expr) const -> const USubSat& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::USubSat, "Not a usubSat");
+		evo::debugAssert(expr.kind() == Expr::Kind::USubSat, "Not a usubSat");
 
 		return this->module.usub_sats[expr.index];
 	}
 
 	auto ReaderAgent::getFSub(const Expr& expr) const -> const FSub& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FSub, "Not an fsub");
+		evo::debugAssert(expr.kind() == Expr::Kind::FSub, "Not an fsub");
 
 		return this->module.fsubs[expr.index];
 	}
@@ -490,7 +490,7 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getMul(const Expr& expr) const -> const Mul& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Mul, "Not a mul");
+		evo::debugAssert(expr.kind() == Expr::Kind::Mul, "Not a mul");
 
 		return this->module.muls[expr.index];
 	}
@@ -499,9 +499,9 @@ namespace pcit::pir{
 	auto ReaderAgent::getSMulWrap(const Expr& expr) const -> const SMulWrap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(
-			expr.getKind() == Expr::Kind::SMulWrap
-				|| expr.getKind() == Expr::Kind::SMulWrapResult
-				|| expr.getKind() == Expr::Kind::SMulWrapWrapped,
+			expr.kind() == Expr::Kind::SMulWrap
+				|| expr.kind() == Expr::Kind::SMulWrapResult
+				|| expr.kind() == Expr::Kind::SMulWrapWrapped,
 			"Not a signed mul wrap"
 		);
 
@@ -521,9 +521,9 @@ namespace pcit::pir{
 	auto ReaderAgent::getUMulWrap(const Expr& expr) const -> const UMulWrap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(
-			expr.getKind() == Expr::Kind::UMulWrap
-				|| expr.getKind() == Expr::Kind::UMulWrapResult
-				|| expr.getKind() == Expr::Kind::UMulWrapWrapped,
+			expr.kind() == Expr::Kind::UMulWrap
+				|| expr.kind() == Expr::Kind::UMulWrapResult
+				|| expr.kind() == Expr::Kind::UMulWrapWrapped,
 			"Not an unsigned mul wrap"
 		);
 
@@ -540,21 +540,21 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getSMulSat(const Expr& expr) const -> const SMulSat& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SMulSat, "Not a smulSat");
+		evo::debugAssert(expr.kind() == Expr::Kind::SMulSat, "Not a smulSat");
 
 		return this->module.smul_sats[expr.index];
 	}
 
 	auto ReaderAgent::getUMulSat(const Expr& expr) const -> const UMulSat& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::UMulSat, "Not a umulSat");
+		evo::debugAssert(expr.kind() == Expr::Kind::UMulSat, "Not a umulSat");
 
 		return this->module.umul_sats[expr.index];
 	}
 
 	auto ReaderAgent::getFMul(const Expr& expr) const -> const FMul& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FMul, "Not an fmul");
+		evo::debugAssert(expr.kind() == Expr::Kind::FMul, "Not an fmul");
 
 		return this->module.fmuls[expr.index];
 	}
@@ -562,49 +562,49 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getSDiv(const Expr& expr) const -> const SDiv& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SDiv, "Not an sdiv");
+		evo::debugAssert(expr.kind() == Expr::Kind::SDiv, "Not an sdiv");
 
 		return this->module.sdivs[expr.index];
 	}
 
 	auto ReaderAgent::getUDiv(const Expr& expr) const -> const UDiv& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::UDiv, "Not an udiv");
+		evo::debugAssert(expr.kind() == Expr::Kind::UDiv, "Not an udiv");
 
 		return this->module.udivs[expr.index];
 	}
 
 	auto ReaderAgent::getFDiv(const Expr& expr) const -> const FDiv& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FDiv, "Not an fdiv");
+		evo::debugAssert(expr.kind() == Expr::Kind::FDiv, "Not an fdiv");
 
 		return this->module.fdivs[expr.index];
 	}
 
 	auto ReaderAgent::getSRem(const Expr& expr) const -> const SRem& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SRem, "Not an srem");
+		evo::debugAssert(expr.kind() == Expr::Kind::SRem, "Not an srem");
 
 		return this->module.srems[expr.index];
 	}
 
 	auto ReaderAgent::getURem(const Expr& expr) const -> const URem& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::URem, "Not an urem");
+		evo::debugAssert(expr.kind() == Expr::Kind::URem, "Not an urem");
 
 		return this->module.urems[expr.index];
 	}
 
 	auto ReaderAgent::getFRem(const Expr& expr) const -> const FRem& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FRem, "Not an frem");
+		evo::debugAssert(expr.kind() == Expr::Kind::FRem, "Not an frem");
 
 		return this->module.frems[expr.index];
 	}
 
 	auto ReaderAgent::getFNeg(const Expr& expr) const -> const FNeg& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FNeg, "Not an fneg");
+		evo::debugAssert(expr.kind() == Expr::Kind::FNeg, "Not an fneg");
 
 		return this->module.fnegs[expr.index];
 	}
@@ -612,112 +612,112 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getIEq(const Expr& expr) const -> const IEq& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::IEq, "Not an ieq");
+		evo::debugAssert(expr.kind() == Expr::Kind::IEq, "Not an ieq");
 
 		return this->module.ieqs[expr.index];
 	}
 
 	auto ReaderAgent::getFEq(const Expr& expr) const -> const FEq& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FEq, "Not an feq");
+		evo::debugAssert(expr.kind() == Expr::Kind::FEq, "Not an feq");
 
 		return this->module.feqs[expr.index];
 	}
 
 	auto ReaderAgent::getINeq(const Expr& expr) const -> const INeq& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::INeq, "Not an ineq");
+		evo::debugAssert(expr.kind() == Expr::Kind::INeq, "Not an ineq");
 
 		return this->module.ineqs[expr.index];
 	}
 
 	auto ReaderAgent::getFNeq(const Expr& expr) const -> const FNeq& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FNeq, "Not an fneq");
+		evo::debugAssert(expr.kind() == Expr::Kind::FNeq, "Not an fneq");
 
 		return this->module.fneqs[expr.index];
 	}
 
 	auto ReaderAgent::getSLT(const Expr& expr) const -> const SLT& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SLT, "Not an slt");
+		evo::debugAssert(expr.kind() == Expr::Kind::SLT, "Not an slt");
 
 		return this->module.slts[expr.index];
 	}
 
 	auto ReaderAgent::getULT(const Expr& expr) const -> const ULT& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::ULT, "Not an ult");
+		evo::debugAssert(expr.kind() == Expr::Kind::ULT, "Not an ult");
 
 		return this->module.ults[expr.index];
 	}
 
 	auto ReaderAgent::getFLT(const Expr& expr) const -> const FLT& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FLT, "Not an flt");
+		evo::debugAssert(expr.kind() == Expr::Kind::FLT, "Not an flt");
 
 		return this->module.flts[expr.index];
 	}
 
 	auto ReaderAgent::getSLTE(const Expr& expr) const -> const SLTE& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SLTE, "Not an slte");
+		evo::debugAssert(expr.kind() == Expr::Kind::SLTE, "Not an slte");
 
 		return this->module.sltes[expr.index];
 	}
 
 	auto ReaderAgent::getULTE(const Expr& expr) const -> const ULTE& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::ULTE, "Not an ulte");
+		evo::debugAssert(expr.kind() == Expr::Kind::ULTE, "Not an ulte");
 
 		return this->module.ultes[expr.index];
 	}
 
 	auto ReaderAgent::getFLTE(const Expr& expr) const -> const FLTE& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FLTE, "Not an flte");
+		evo::debugAssert(expr.kind() == Expr::Kind::FLTE, "Not an flte");
 
 		return this->module.fltes[expr.index];
 	}
 
 	auto ReaderAgent::getSGT(const Expr& expr) const -> const SGT& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SGT, "Not an sgt");
+		evo::debugAssert(expr.kind() == Expr::Kind::SGT, "Not an sgt");
 
 		return this->module.sgts[expr.index];
 	}
 
 	auto ReaderAgent::getUGT(const Expr& expr) const -> const UGT& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::UGT, "Not an ugt");
+		evo::debugAssert(expr.kind() == Expr::Kind::UGT, "Not an ugt");
 
 		return this->module.ugts[expr.index];
 	}
 
 	auto ReaderAgent::getFGT(const Expr& expr) const -> const FGT& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FGT, "Not an fgt");
+		evo::debugAssert(expr.kind() == Expr::Kind::FGT, "Not an fgt");
 
 		return this->module.fgts[expr.index];
 	}
 
 	auto ReaderAgent::getSGTE(const Expr& expr) const -> const SGTE& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SGTE, "Not an sgte");
+		evo::debugAssert(expr.kind() == Expr::Kind::SGTE, "Not an sgte");
 
 		return this->module.sgtes[expr.index];
 	}
 
 	auto ReaderAgent::getUGTE(const Expr& expr) const -> const UGTE& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::UGTE, "Not an ugte");
+		evo::debugAssert(expr.kind() == Expr::Kind::UGTE, "Not an ugte");
 
 		return this->module.ugtes[expr.index];
 	}
 
 	auto ReaderAgent::getFGTE(const Expr& expr) const -> const FGTE& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::FGTE, "Not an fgte");
+		evo::debugAssert(expr.kind() == Expr::Kind::FGTE, "Not an fgte");
 
 		return this->module.fgtes[expr.index];
 	}
@@ -727,56 +727,56 @@ namespace pcit::pir{
 
 	auto ReaderAgent::getAnd(const Expr& expr) const -> const And& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::And, "Not an and");
+		evo::debugAssert(expr.kind() == Expr::Kind::And, "Not an and");
 
 		return this->module.ands[expr.index];
 	}
 
 	auto ReaderAgent::getOr(const Expr& expr) const -> const Or& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Or, "Not an or");
+		evo::debugAssert(expr.kind() == Expr::Kind::Or, "Not an or");
 
 		return this->module.ors[expr.index];
 	}
 
 	auto ReaderAgent::getXor(const Expr& expr) const -> const Xor& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::Xor, "Not an xor");
+		evo::debugAssert(expr.kind() == Expr::Kind::Xor, "Not an xor");
 
 		return this->module.xors[expr.index];
 	}
 
 	auto ReaderAgent::getSHL(const Expr& expr) const -> const SHL& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SHL, "Not an shl");
+		evo::debugAssert(expr.kind() == Expr::Kind::SHL, "Not an shl");
 
 		return this->module.shls[expr.index];
 	}
 
 	auto ReaderAgent::getSSHLSat(const Expr& expr) const -> const SSHLSat& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SSHLSat, "Not an sshlsat");
+		evo::debugAssert(expr.kind() == Expr::Kind::SSHLSat, "Not an sshlsat");
 
 		return this->module.sshlsats[expr.index];
 	}
 
 	auto ReaderAgent::getUSHLSat(const Expr& expr) const -> const USHLSat& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::USHLSat, "Not an ushlsat");
+		evo::debugAssert(expr.kind() == Expr::Kind::USHLSat, "Not an ushlsat");
 
 		return this->module.ushlsats[expr.index];
 	}
 
 	auto ReaderAgent::getSSHR(const Expr& expr) const -> const SSHR& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::SSHR, "Not an sshr");
+		evo::debugAssert(expr.kind() == Expr::Kind::SSHR, "Not an sshr");
 
 		return this->module.sshrs[expr.index];
 	}
 
 	auto ReaderAgent::getUSHR(const Expr& expr) const -> const USHR& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.getKind() == Expr::Kind::USHR, "Not an ushr");
+		evo::debugAssert(expr.kind() == Expr::Kind::USHR, "Not an ushr");
 
 		return this->module.ushrs[expr.index];
 	}

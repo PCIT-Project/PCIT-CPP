@@ -13,8 +13,19 @@
 
 namespace pthr{
 
+	//////////////////////////////////////////////////////////////////////
+	// helpers
 
-	auto print_logo(pcit::core::Printer& printer) -> void {
+	static auto print_file_header(
+		core::Printer& printer, const panther::Source& source, const fs::path& relative_dir, std::string_view title
+	) -> void {
+		printer.printlnGray("------------------------------");
+		printer.printlnCyan("{}: \"{}\"", title, fs::relative(source.getPath(), relative_dir).string());
+	}
+
+
+
+	auto print_logo(core::Printer& printer) -> void {
 		// https://www.asciiart.eu/text-to-ascii-art
 		// modified from the `Slant` font with the `Fitted` horizontal layout
 
@@ -31,15 +42,89 @@ namespace pthr{
 
 
 
+	class Indenter{
+		public:
+			Indenter(core::Printer& _printer) : printer(_printer) {}
+			~Indenter() = default;
+
+			auto push() -> void {
+				this->indents.emplace_back(IndenterType::EndArrow);
+			}
+
+
+			auto pop() -> void {
+				this->indents.pop_back();
+			}
+
+			auto set_arrow() -> void {
+				this->indents.back() = IndenterType::Arrow;
+			}
+
+			auto set_end() -> void {
+				this->indents.back() = IndenterType::EndArrow;		
+			}
+
+
+			auto print() -> void {
+				auto print_string = std::string{};
+
+				for(const IndenterType& indent : this->indents){
+					switch(indent){
+						break; case IndenterType::Line:     print_string += "|   ";
+						break; case IndenterType::Arrow:    print_string += "|-> ";
+						break; case IndenterType::EndArrow: print_string += "\\-> ";
+						break; case IndenterType::None:     print_string += "    ";
+					}
+				}
+
+				this->printer.printGray(print_string);
+
+				if(this->indents.empty() == false){
+					if(this->indents.back() == IndenterType::Arrow){
+					    this->indents.back() = IndenterType::Line; 
+
+					}else if(this->indents.back() == IndenterType::EndArrow){
+						this->indents.back() = IndenterType::None;
+					}
+				}
+			}
+
+
+			auto print_arrow() -> void {
+				this->set_arrow();
+				this->print();
+			}
+
+			auto print_end() -> void {
+				this->set_end();
+				this->print();
+			}
+
+	
+		private:
+			core::Printer& printer;
+
+			enum class IndenterType : uint8_t {
+				Line,
+				Arrow,
+				EndArrow,
+				None,
+			};
+			evo::SmallVector<IndenterType> indents{};
+	};
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// tokens
+
 	auto print_tokens(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void {
 		const panther::TokenBuffer& token_buffer = source.getTokenBuffer();
 
 		///////////////////////////////////
 		// print header
 
-		printer.printlnGray("------------------------------");
-
-		printer.printlnCyan("Tokens: \"{}\"", fs::relative(source.getPath(), relative_dir).string());
+		print_file_header(printer, source, relative_dir, "Tokens");
 
 		if(token_buffer.size() == 0){
 			printer.printlnGray("(NONE)");
@@ -120,83 +205,9 @@ namespace pthr{
 	// ast
 
 
-	class Indenter{
-		public:
-			Indenter(pcit::core::Printer& _printer) : printer(_printer) {}
-			~Indenter() = default;
-
-			auto push() -> void {
-				this->indents.emplace_back(IndenterType::EndArrow);
-			}
-
-
-			auto pop() -> void {
-				this->indents.pop_back();
-			}
-
-			auto set_arrow() -> void {
-				this->indents.back() = IndenterType::Arrow;
-			}
-
-			auto set_end() -> void {
-				this->indents.back() = IndenterType::EndArrow;		
-			}
-
-
-			auto print() -> void {
-				auto print_string = std::string{};
-
-				for(const IndenterType& indent : this->indents){
-					switch(indent){
-						break; case IndenterType::Line:     print_string += "|   ";
-						break; case IndenterType::Arrow:    print_string += "|-> ";
-						break; case IndenterType::EndArrow: print_string += "\\-> ";
-						break; case IndenterType::None:     print_string += "    ";
-					}
-				}
-
-				this->printer.printGray(print_string);
-
-				if(this->indents.empty() == false){
-					if(this->indents.back() == IndenterType::Arrow){
-					    this->indents.back() = IndenterType::Line; 
-
-					}else if(this->indents.back() == IndenterType::EndArrow){
-						this->indents.back() = IndenterType::None;
-					}
-				}
-			}
-
-
-			auto print_arrow() -> void {
-				this->set_arrow();
-				this->print();
-			}
-
-			auto print_end() -> void {
-				this->set_end();
-				this->print();
-			}
-
-	
-		private:
-			pcit::core::Printer& printer;
-
-			enum class IndenterType{
-				Line,
-				Arrow,
-				EndArrow,
-				None,
-			};
-			evo::SmallVector<IndenterType> indents{};
-	};
-
-
-
-
 	class ASTPrinter{
 		public:
-			ASTPrinter(pcit::core::Printer& _printer, const panther::Source& _source, const fs::path& _relative_dir) 
+			ASTPrinter(core::Printer& _printer, const panther::Source& _source, const fs::path& _relative_dir) 
 				: printer(_printer),
 				source(_source),
 				relative_dir(_relative_dir),
@@ -207,9 +218,7 @@ namespace pthr{
 
 
 			auto print_header() -> void {
-				this->printer.printGray("------------------------------\n");
-
-				this->printer.printCyan("AST: \"{}\"\n", fs::relative(source.getPath(), this->relative_dir).string());
+				print_file_header(this->printer, this->source, this->relative_dir, "AST");
 
 				if(ast_buffer.numGlobalStmts() == 0){
 					this->printer.printGray("(NONE)\n");
@@ -523,7 +532,7 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					this->print_ident(struct_decl.name);
+					this->print_ident(struct_decl.ident);
 
 					this->indenter.print_arrow();
 					this->print_template_pack(struct_decl.templatePack);
@@ -1346,19 +1355,19 @@ namespace pthr{
 
 
 			auto print_major_header(std::string_view title) -> void {
-				this->printer.printCyan("{}", title);
+				this->printer.printCyan(title);
 				this->printer.printGray(":\n");
 			}
 
 			auto print_minor_header(std::string_view title) -> void {
-				this->printer.printBlue("{}", title);
+				this->printer.printBlue(title);
 				this->printer.printGray(":");
 			}
 
 
 	
 		private:
-			pcit::core::Printer& printer;
+			core::Printer& printer;
 			const panther::Source& source;
 			const fs::path& relative_dir;
 			const panther::ASTBuffer& ast_buffer;
@@ -1368,14 +1377,219 @@ namespace pthr{
 
 
 
-
-
-	auto print_AST(pcit::core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void {
+	auto print_AST(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void {
 		auto ast_printer = ASTPrinter(printer, source, relative_dir);
 
 		ast_printer.print_header();
 		ast_printer.print_globals();
 	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// DG
+
+	#if defined(PCIT_CONFIG_DEBUG)
+
+		auto print_DG(core::Printer& printer, const panther::Context& context, const fs::path& relative_dir) -> void {
+			const panther::SourceManager& source_manager = context.getSourceManager();
+			const panther::DGBuffer& dg_buffer = context.getDGBuffer();
+
+			auto indenter = Indenter(printer);
+
+
+			for(const panther::DG::Node& dg_node : dg_buffer){
+				const panther::Source& source = source_manager[dg_node.sourceID];
+				const panther::TokenBuffer& token_buffer = source.getTokenBuffer();
+				const panther::ASTBuffer& ast_buffer = source.getASTBuffer();
+
+				print_file_header(printer, source, relative_dir, "DG Node in");
+
+				indenter.push();
+				indenter.print_arrow();
+
+				printer.printCyan("Kind");
+				printer.printGray(": ");
+
+				switch(dg_node.astNode.kind()){
+					case panther::AST::Kind::None: {
+						evo::debugFatalBreak("Invalid AST node");
+					} break;
+					
+					case panther::AST::Kind::VarDecl: {
+						const panther::AST::VarDecl& var_decl = ast_buffer.getVarDecl(dg_node.astNode);
+						printer.printlnGray("VarDecl");
+						
+						indenter.print_arrow();
+						printer.printCyan("Name");
+						printer.printGray(": ");
+						printer.printlnGray(token_buffer[var_decl.ident].getString());
+					} break;
+
+					case panther::AST::Kind::FuncDecl: {
+						const panther::AST::FuncDecl& func_decl = ast_buffer.getFuncDecl(dg_node.astNode);
+						printer.printlnGray("FuncDecl");
+						if(func_decl.name.kind() == panther::AST::Kind::Ident){
+							
+							indenter.print_arrow();
+							printer.printCyan("Name");
+							printer.printGray(": ");
+							printer.printlnGray(token_buffer[ast_buffer.getIdent(func_decl.name)].getString());
+						}else{
+							evo::debugFatalBreak("UNIMPLEMENTED");
+						}
+					} break;
+
+					case panther::AST::Kind::AliasDecl: {
+						const panther::AST::AliasDecl& alias_decl = ast_buffer.getAliasDecl(dg_node.astNode);
+						printer.printlnGray("AliasDecl");
+						
+						indenter.print_arrow();
+						printer.printCyan("Name");
+						printer.printGray(": ");
+						printer.printlnGray(token_buffer[alias_decl.ident].getString());
+					} break;
+
+					case panther::AST::Kind::TypedefDecl: {
+						const panther::AST::TypedefDecl& typedef_decl = ast_buffer.getTypedefDecl(dg_node.astNode);
+						printer.printlnGray("TypedefDecl");
+						
+						indenter.print_arrow();
+						printer.printCyan("Name");
+						printer.printGray(": ");
+						printer.printlnGray(token_buffer[typedef_decl.ident].getString());
+					} break;
+
+					case panther::AST::Kind::StructDecl: {
+						const panther::AST::StructDecl& struct_decl = ast_buffer.getStructDecl(dg_node.astNode);
+						printer.printlnGray("StructDecl");
+						
+						indenter.print_arrow();
+						printer.printCyan("Name");
+						printer.printGray(": ");
+						printer.printlnGray(token_buffer[struct_decl.ident].getString());
+					} break;
+
+					case panther::AST::Kind::WhenConditional: {
+						// const panther::AST::WhenConditional& when_conditional = 
+						// 	ast_buffer.getWhenConditional(dg_node.astNode);
+						printer.printlnGray("WhenConditional");
+					} break;
+
+					default: evo::debugFatalBreak("Unknown DG node kind");
+				}
+
+				indenter.print_arrow();
+				printer.printCyan("Usage Kind");
+				printer.printGray(": ");
+				switch(dg_node.usageKind){
+					break; case panther::DG::Node::UsageKind::Comptime:  printer.printlnGray("Comptime");
+					break; case panther::DG::Node::UsageKind::Constexpr: printer.printlnGray("SafeInComptime");
+					break; case panther::DG::Node::UsageKind::Runtime:   printer.printlnGray("Runtime");
+					break; case panther::DG::Node::UsageKind::Unknown:   printer.printlnGray("Unknown");
+				}
+
+
+				auto print_ids = [&](std::string_view title, const auto& container, bool print_title_cyan) -> void {
+					indenter.print();
+
+					if(print_title_cyan){
+						printer.printCyan(title);
+					}else{
+						printer.printBlue(title);
+					}
+					printer.printlnGray(": {}", std::to_string(container.size()));
+
+					indenter.push();
+
+					for(size_t i = 0; const panther::DG::Node::ID& required_by_id : container){
+						EVO_DEFER([&](){ i += 1; });
+
+						if(i + 1 < container.size()){
+							indenter.print_arrow();
+						}else{
+							indenter.print_end();
+						}
+
+						const panther::DG::Node& required_by_node = dg_buffer[required_by_id];
+						
+						switch(required_by_node.astNode.kind()){
+							case panther::AST::Kind::None: {
+								evo::debugFatalBreak("Invalid AST node");
+							} break;
+							
+							case panther::AST::Kind::VarDecl: {
+								const panther::AST::VarDecl& var_decl = ast_buffer.getVarDecl(required_by_node.astNode);
+								printer.printlnGray("VarDecl: {}", token_buffer[var_decl.ident].getString());
+							} break;
+
+							case panther::AST::Kind::FuncDecl: {
+								const panther::AST::FuncDecl& func_decl = 
+									ast_buffer.getFuncDecl(required_by_node.astNode);
+								if(func_decl.name.kind() == panther::AST::Kind::Ident){
+									printer.printlnGray(
+										"FuncDecl: {}", token_buffer[ast_buffer.getIdent(func_decl.name)].getString()
+									);
+								}else{
+									evo::debugFatalBreak("UNIMPLEMENTED");
+								}
+							} break;
+
+							case panther::AST::Kind::AliasDecl: {
+								const panther::AST::AliasDecl& alias_decl =
+									ast_buffer.getAliasDecl(required_by_node.astNode);
+								printer.printCyan("AliasDecl: {}", token_buffer[alias_decl.ident].getString());
+							} break;
+
+							case panther::AST::Kind::TypedefDecl: {
+								const panther::AST::TypedefDecl& typedef_decl =
+									ast_buffer.getTypedefDecl(required_by_node.astNode);
+								printer.printCyan("TypedefDecl: {}", token_buffer[typedef_decl.ident].getString());
+							} break;
+
+							case panther::AST::Kind::StructDecl: {
+								const panther::AST::StructDecl& struct_decl =
+									ast_buffer.getStructDecl(required_by_node.astNode);
+								printer.printCyan("StructDecl: {}", token_buffer[struct_decl.ident].getString());
+							} break;
+
+							case panther::AST::Kind::WhenConditional: {
+								// const panther::AST::WhenConditional& when_conditional = 
+								// 	ast_buffer.getWhenConditional(required_by_node.astNode);
+								printer.printlnGray("WhenConditional");
+							} break;
+
+							default: evo::debugFatalBreak("Unknown DG node kind");
+						}
+					}
+
+					indenter.pop();
+				};
+
+
+				indenter.print_arrow();
+				printer.printCyan("Deps");
+				printer.printlnGray(": ");
+				indenter.push();
+
+				indenter.set_arrow();
+				print_ids("declDeps.decls", dg_node.declDeps.decls, false);
+				indenter.set_arrow();
+				print_ids("declDeps.defs", dg_node.declDeps.defs, false);
+				indenter.set_arrow();
+				print_ids("defDeps.decls", dg_node.defDeps.decls, false);
+				indenter.set_end();
+				print_ids("defDeps.defs", dg_node.defDeps.defs, false);
+
+				indenter.pop();
+
+				indenter.set_end();
+				print_ids("requiredBy", dg_node.requiredBy, true);
+
+				indenter.pop();
+			}
+		}
+	#endif
 
 
 	

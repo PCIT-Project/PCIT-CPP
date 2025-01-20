@@ -7,6 +7,13 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
+//////////////////////////////////////////////////////////////////////
+// 
+// TODO: remove this entire file when no longer need Panther-old
+// 
+//////////////////////////////////////////////////////////////////////
+
+
 #pragma once
 
 
@@ -100,7 +107,7 @@ namespace pcit::core{
 					"{} (error location: {} | {})", msg, source_location.function_name(), source_location.line()
 				);
 			#else
-				return msg;
+				return std::string(msg);
 			#endif
 		}
 	};

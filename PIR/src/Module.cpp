@@ -40,7 +40,7 @@ namespace pcit::pir{
 
 
 	auto Module::getSize(const Type& type, bool packed) const -> size_t {
-		switch(type.getKind()){
+		switch(type.kind()){
 			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
 
 			case Type::Kind::Integer: {
@@ -106,7 +106,7 @@ namespace pcit::pir{
 
 
 	auto Module::getAlignment(const Type& type) const -> size_t {
-		switch(type.getKind()){
+		switch(type.kind()){
 			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
 
 			case Type::Kind::Integer: {

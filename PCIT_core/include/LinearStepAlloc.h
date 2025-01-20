@@ -86,7 +86,7 @@ namespace pcit::core{
 
 
 
-			EVO_NODISCARD auto clear() -> void {
+			auto clear() -> void {
 				std::destroy_at(this);
 				std::construct_at(this);
 			}
@@ -236,7 +236,7 @@ namespace pcit::core{
 			};
 
 
-			EVO_NODISCARD auto begin()        ->     Iter { return Iter(ID(0), *this);       }
+			EVO_NODISCARD auto begin()        ->      Iter { return Iter(ID(0), *this);      }
 			EVO_NODISCARD auto begin()  const -> ConstIter { return ConstIter(ID(0), *this); }
 			EVO_NODISCARD auto cbegin() const -> ConstIter { return ConstIter(ID(0), *this); }
 

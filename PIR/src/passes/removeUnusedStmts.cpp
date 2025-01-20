@@ -41,7 +41,7 @@ namespace pcit::pir::passes{
 			}();
 
 			auto see_expr = [&](const Expr& expr) -> void {
-				switch(expr.getKind()){
+				switch(expr.kind()){
 					break; case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
 					break; case Expr::Kind::GlobalValue:     break;
 					break; case Expr::Kind::FunctionPointer: break;
@@ -144,7 +144,7 @@ namespace pcit::pir::passes{
 				return false;
 			};
 
-			switch(stmt.getKind()){
+			switch(stmt.kind()){
 				case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
 				case Expr::Kind::GlobalValue:     return false;
 				case Expr::Kind::FunctionPointer: return false;
@@ -937,7 +937,7 @@ namespace pcit::pir::passes{
 
 			}
 
-			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.getKind()));
+			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.kind()));
 		};
 
 		return PassManager::ReverseStmtPass(impl);

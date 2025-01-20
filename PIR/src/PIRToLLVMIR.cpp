@@ -160,7 +160,7 @@ namespace pcit::pir{
 			this->builder.setInsertionPoint(basic_block_map.at(basic_block_id));
 			
 			for(const Expr& stmt : basic_block){
-				switch(stmt.getKind()){
+				switch(stmt.kind()){
 					case Expr::Kind::None:            evo::debugFatalBreak("Not a valid expr");
 					case Expr::Kind::GlobalValue:     evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::FunctionPointer: evo::debugFatalBreak("Not a valid stmt");
@@ -1116,16 +1116,16 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_constant_value(const Expr& expr) -> llvmint::Constant {
 		evo::debugAssert(
-			expr.getKind() == Expr::Kind::Number || expr.getKind() == Expr::Kind::Boolean, "Not a valid constant"
+			expr.kind() == Expr::Kind::Number || expr.kind() == Expr::Kind::Boolean, "Not a valid constant"
 		);
 
-		if(expr.getKind() == Expr::Kind::Boolean){
+		if(expr.kind() == Expr::Kind::Boolean){
 			return this->builder.getValueBool(this->reader.getBoolean(expr)).asConstant();
 		}
 
 		const Number& number = this->reader.getNumber(expr);
 
-		switch(number.type.getKind()){
+		switch(number.type.kind()){
 			case Type::Kind::Integer: {
 				return this->builder.getValueI_N(number.type.getWidth(), false, number.getInt()).asConstant();
 			} break;
@@ -1153,7 +1153,7 @@ namespace pcit::pir{
 				return this->get_constant_value(value);
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
-				switch(type.getKind()){
+				switch(type.kind()){
 					case Type::Kind::Integer: {
 						return this->builder.getValueI_N(type.getWidth(), 0).asConstant();
 					} break;
@@ -1219,7 +1219,7 @@ namespace pcit::pir{
 
 
 	auto PIRToLLVMIR::get_value(const Expr& expr) -> llvmint::Value {
-		switch(expr.getKind()){
+		switch(expr.kind()){
 			case Expr::Kind::None: evo::debugFatalBreak("Not a valid expr");
 
 			case Expr::Kind::GlobalValue: {
@@ -1235,7 +1235,7 @@ namespace pcit::pir{
 			case Expr::Kind::Number: {
 				const Number& number = this->reader.getNumber(expr);
 
-				switch(number.type.getKind()){
+				switch(number.type.kind()){
 					case Type::Kind::Integer: {
 						return this->builder.getValueI_N(number.type.getWidth(), true, number.getInt()).asValue();
 					} break;
@@ -1405,7 +1405,7 @@ namespace pcit::pir{
 
 
 	auto PIRToLLVMIR::get_type(const Type& type) -> llvmint::Type {
-		switch(type.getKind()){
+		switch(type.kind()){
 			case Type::Kind::Void:     return this->builder.getTypeVoid();
 			case Type::Kind::Integer:  return this->builder.getTypeI_N(type.getWidth()).asType();
 			case Type::Kind::Bool:     return this->builder.getTypeBool().asType();

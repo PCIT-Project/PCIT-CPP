@@ -28,7 +28,11 @@ namespace pthr{
 
 		Verbosity verbosity  = Verbosity::Full;
 		bool print_color     = core::Printer::platformSupportsColor() == core::Printer::DetectResult::Yes;
-		unsigned max_threads = panther::Context::optimalNumThreads();
+		
+		unsigned num_threads = panther::Context::optimalNumThreads();
+		// unsigned num_threads = 0;
+
+		bool use_std_lib     = false;
 	};
 
 
@@ -102,6 +106,14 @@ auto main(int argc, const char* argv[]) -> int {
 		#else
 			#error Unknown or unsupported build
 		#endif
+
+		if(config.num_threads == 0){
+			printer.printlnMagenta("Running build single-threaded");
+		}else if(config.num_threads == 1){
+			printer.printlnMagenta("Running build multi-threaded (1 worker thread)");
+		}else{
+			printer.printlnMagenta("Running build multi-threaded ({} worker threads)", config.num_threads);
+		}
 	}
 
 	using ContextConfig = panther::Context::Config;
@@ -110,7 +122,7 @@ auto main(int argc, const char* argv[]) -> int {
 		.os           = core::getCurrentOS(),
 		.architecture = core::getCurrentArchitecture(),
 
-		.numThreads = config.max_threads,
+		.numThreads = config.num_threads,
 	};
 
 	const evo::Result<std::filesystem::path> current_path = get_current_path(printer);
@@ -121,7 +133,9 @@ auto main(int argc, const char* argv[]) -> int {
 	);
 
 
-	std::ignore = context.addStdLib(current_path.value() / "../lib/std");
+	if(config.use_std_lib){
+		std::ignore = context.addStdLib(current_path.value() / "../lib/std");
+	}
 
 
 	const panther::Source::CompilationConfig::ID comp_config = context.getSourceManager().createSourceCompilationConfig(
@@ -133,18 +147,23 @@ auto main(int argc, const char* argv[]) -> int {
 	std::ignore = context.addSourceFile("build.pthr", comp_config);
 
 
-	if(context.parse() == false){
-		printer.printlnError("Failed to parse");
+	if(context.analyzeSemantics() == false){
+		const unsigned num_errors = context.getNumErrors();
+		if(num_errors == 1){
+			printer.printlnError("Failed with 1 error");
+		}else{
+			printer.printlnError("Failed with {} errors", context.getNumErrors());
+		}
 		return EXIT_FAILURE;
 	}
 
+	// #if defined(PCIT_CONFIG_DEBUG)
+	// 	pthr::print_DG(printer, context, current_path.value());
+	// #endif
+
+
 	if(config.verbosity >= pthr::Config::Verbosity::Some){
-		printer.printlnSuccess("Successfully parsed");
-	}
-
-
-	for(const panther::Source::ID& source_id : context.getSourceManager()){
-		pthr::print_AST(printer, context.getSourceManager()[source_id], current_path.value());
+		printer.printlnSuccess("Successfully completed");
 	}
 
 

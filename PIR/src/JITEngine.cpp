@@ -120,11 +120,11 @@ namespace pcit::pir{
 		);
 
 		evo::debugAssert(
-			func.getReturnType().getKind() != Type::Kind::Function, "Cannot run functions that return a function"
+			func.getReturnType().kind() != Type::Kind::Function, "Cannot run functions that return a function"
 		);
 
 
-		switch(func.getReturnType().getKind()){
+		switch(func.getReturnType().kind()){
 			case Type::Kind::Void: {
 				const evo::Result<void> result = this->data->execution_engine.runFunctionDirectly<void>(func.getName());
 				if(result.isError()){ return evo::resultError; }

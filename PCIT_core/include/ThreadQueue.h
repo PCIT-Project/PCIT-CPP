@@ -59,7 +59,7 @@ namespace pcit::core{
 			auto shutdown() -> void {
 				evo::debugAssert(this->isRunning(), "Should not shutdown if not running");
 
-				for(Worker& worker : this->workers){
+				for(Worker& worker : this->priv.workers){
 					worker.request_stop();
 				}
 
@@ -68,28 +68,36 @@ namespace pcit::core{
 
 
 			auto addTask(TASK&& task) -> void {
-				evo::debugAssert(this->isRunning(), "Thread Queue not running");
+				// evo::debugAssert(this->isRunning(), "Thread Queue not running");
 
-				const auto lock = std::lock_guard(this->priv.tasks_lock);
+				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
+				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::move(task));
 			}
 
 			auto addTask(const TASK& task) -> void {
-				evo::debugAssert(this->isRunning(), "Thread Queue not running");
+				// evo::debugAssert(this->isRunning(), "Thread Queue not running");
 
-				const auto lock = std::lock_guard(this->priv.tasks_lock);
+				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
+				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(task);
 			}
 
+			auto addTask(auto&&... args) -> void {
+				// evo::debugAssert(this->isRunning(), "Thread Queue not running");
 
+				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
+				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
+				this->priv.tasks.emplace_front(std::forward<decltype(args)>(args)...);
+			}
 
 			EVO_NODISCARD auto isWorking() const -> bool { 
 				if(this->priv.tasks.empty()){ return false; }
 
-				const auto lock = std::lock_guard(this->priv.tasks_lock);
-				if(this->priv.tasks.empty()){ return std::nullopt; }
+				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
+				if(this->priv.tasks.empty()){ return false; }
 
-				for(Worker& worker : this->priv.workers){
+				for(const Worker& worker : this->priv.workers){
 					if(worker.is_working()){ return true; }
 				}
 
@@ -101,7 +109,7 @@ namespace pcit::core{
 
 
 			// returns if all tasks ran successfully
-			EVO_NODISCARD auto waitUntilDoneWorking() -> bool {
+			auto waitUntilDoneWorking() -> bool {
 				while(this->isWorking()){
 					std::this_thread::yield();
 				}
@@ -109,7 +117,7 @@ namespace pcit::core{
 				return !this->taskFailed();
 			}
 
-			EVO_NODISCARD auto waitUntilNotRunning() -> void {
+			auto waitUntilNotRunning() -> void {
 				while(this->isRunning()){
 					std::this_thread::yield();
 				}
@@ -122,7 +130,7 @@ namespace pcit::core{
 					Worker(ThreadQueue& _thread_queue) 
 						: thread_queue(_thread_queue), thread([this](std::stop_token stop) -> void {
 							while(stop.stop_requested() == false){
-								const std::optional<TASK> task = this->thread_queue.get_task();
+								std::optional<TASK> task = this->thread_queue.get_task();
 								if(task.has_value() == false){
 									this->_is_working = false;
 									std::this_thread::yield();
@@ -167,6 +175,10 @@ namespace pcit::core{
 
 				const auto lock = std::lock_guard(this->priv.tasks_lock);
 				if(this->priv.tasks.empty()){ return std::nullopt; }
+
+				const TASK task = this->priv.tasks.back();
+				this->priv.tasks.pop_back();
+				return task;
 			}
 
 
@@ -179,8 +191,7 @@ namespace pcit::core{
 
 			auto signal_worker_shutdown() -> void {
 				if(this->priv.num_workers_running.fetch_sub(1) == 1){
-					this->data.clear();
-					this->work_func.reset();
+					this->priv.workers.clear();
 				}
 			}
 
@@ -193,6 +204,7 @@ namespace pcit::core{
 
 					std::deque<TASK> tasks{};
 					mutable core::SpinLock tasks_lock{};
+					mutable core::SpinLock add_tasks_lock{};
 
 					std::atomic<uint32_t> num_workers_running = 0;
 					bool task_failed = false;
