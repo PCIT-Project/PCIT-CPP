@@ -1,0 +1,4 @@
+
+
+// purposeful error
+def FOO: Void = 12;

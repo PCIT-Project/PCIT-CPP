@@ -5570,7 +5570,7 @@ namespace pcit::panther{
 							} break;
 
 							case AST::VarDecl::Kind::Const: {
-								return ExprInfo::ValueType::ConcreteConst;;
+								return ExprInfo::ValueType::ConcreteConst;
 							} break;
 
 							case AST::VarDecl::Kind::Def: {

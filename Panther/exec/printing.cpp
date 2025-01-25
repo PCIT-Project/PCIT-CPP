@@ -1387,23 +1387,23 @@ namespace pthr{
 
 
 	//////////////////////////////////////////////////////////////////////
-	// DG
+	// deps
 
 	#if defined(PCIT_CONFIG_DEBUG)
 
-		auto print_DG(core::Printer& printer, const panther::Context& context, const fs::path& relative_dir) -> void {
+		auto print_deps(core::Printer& printer, const panther::Context& context, const fs::path& relative_dir) -> void {
 			const panther::SourceManager& source_manager = context.getSourceManager();
-			const panther::DGBuffer& dg_buffer = context.getDGBuffer();
+			const panther::DepsBuffer& dg_buffer = context.getDepsBuffer();
 
 			auto indenter = Indenter(printer);
 
 
-			for(const panther::DG::Node& dg_node : dg_buffer){
+			for(const panther::deps::Node& dg_node : dg_buffer){
 				const panther::Source& source = source_manager[dg_node.sourceID];
 				const panther::TokenBuffer& token_buffer = source.getTokenBuffer();
 				const panther::ASTBuffer& ast_buffer = source.getASTBuffer();
 
-				print_file_header(printer, source, relative_dir, "DG Node in");
+				print_file_header(printer, source, relative_dir, "deps Node in");
 
 				indenter.push();
 				indenter.print_arrow();
@@ -1476,17 +1476,17 @@ namespace pthr{
 						printer.printlnGray("WhenConditional");
 					} break;
 
-					default: evo::debugFatalBreak("Unknown DG node kind");
+					default: evo::debugFatalBreak("Unknown deps node kind");
 				}
 
 				indenter.print_arrow();
-				printer.printCyan("Usage Kind");
+				printer.printCyan("Value Stage");
 				printer.printGray(": ");
-				switch(dg_node.usageKind){
-					break; case panther::DG::Node::UsageKind::Comptime:  printer.printlnGray("Comptime");
-					break; case panther::DG::Node::UsageKind::Constexpr: printer.printlnGray("SafeInComptime");
-					break; case panther::DG::Node::UsageKind::Runtime:   printer.printlnGray("Runtime");
-					break; case panther::DG::Node::UsageKind::Unknown:   printer.printlnGray("Unknown");
+				switch(dg_node.valueStage){
+					break; case panther::deps::Node::ValueStage::Comptime:  printer.printlnGray("Comptime");
+					break; case panther::deps::Node::ValueStage::Constexpr: printer.printlnGray("SafeInComptime");
+					break; case panther::deps::Node::ValueStage::Runtime:   printer.printlnGray("Runtime");
+					break; case panther::deps::Node::ValueStage::Unknown:   printer.printlnGray("Unknown");
 				}
 
 
@@ -1502,7 +1502,7 @@ namespace pthr{
 
 					indenter.push();
 
-					for(size_t i = 0; const panther::DG::Node::ID& required_by_id : container){
+					for(size_t i = 0; const panther::deps::Node::ID& required_by_id : container){
 						EVO_DEFER([&](){ i += 1; });
 
 						if(i + 1 < container.size()){
@@ -1511,7 +1511,7 @@ namespace pthr{
 							indenter.print_end();
 						}
 
-						const panther::DG::Node& required_by_node = dg_buffer[required_by_id];
+						const panther::deps::Node& required_by_node = dg_buffer[required_by_id];
 						
 						switch(required_by_node.astNode.kind()){
 							case panther::AST::Kind::None: {
@@ -1559,7 +1559,7 @@ namespace pthr{
 								printer.printlnGray("WhenConditional");
 							} break;
 
-							default: evo::debugFatalBreak("Unknown DG node kind");
+							default: evo::debugFatalBreak("Unknown deps node kind");
 						}
 					}
 

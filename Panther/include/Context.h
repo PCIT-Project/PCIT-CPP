@@ -17,7 +17,9 @@
 
 #include "./source/SourceManager.h"
 #include "./Diagnostic.h"
-#include "./DG/DGBuffer.h"
+#include "./TypeManager.h"
+#include "./deps/DepsBuffer.h"
+#include "./sema/SemaBuffer.h"
 
 
 namespace pcit::panther{
@@ -54,13 +56,17 @@ namespace pcit::panther{
 
 		public:
 			Context(const DiagnosticCallback& diagnostic_callback, const Config& config)
-				: _diagnostic_callback(diagnostic_callback), _config(config) {
+				: _diagnostic_callback(diagnostic_callback),
+				_config(config),
+				type_manager(config.os, config.architecture) {
 				evo::debugAssert(config.os != core::OS::Unknown, "OS must be known");
 				evo::debugAssert(config.architecture != core::Architecture::Unknown, "Architecture must be known");
 			}
 
 			Context(DiagnosticCallback&& diagnostic_callback, const Config& config)
-				: _diagnostic_callback(std::move(diagnostic_callback)), _config(config) {
+				: _diagnostic_callback(std::move(diagnostic_callback)),
+				_config(config),
+				type_manager(config.os, config.architecture) {
 				evo::debugAssert(config.os != core::OS::Unknown, "OS must be known");
 				evo::debugAssert(config.architecture != core::Architecture::Unknown, "Architecture must be known");
 			}
@@ -87,6 +93,10 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getSourceManager() const -> const SourceManager& { return this->source_manager; }
 			EVO_NODISCARD auto getSourceManager()       ->       SourceManager& { return this->source_manager; }
+
+			EVO_NODISCARD auto getTypeManager() const -> const TypeManager& { return this->type_manager; }
+
+			EVO_NODISCARD auto getSemaBuffer() const -> const SemaBuffer& { return this->sema_buffer; }
 
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->_config; }
 
@@ -164,7 +174,7 @@ namespace pcit::panther{
 			}
 
 			#if defined(PCIT_CONFIG_DEBUG)
-				EVO_NODISCARD auto getDGBuffer() const -> const DGBuffer& { return this->dg_buffer; }
+				EVO_NODISCARD auto getDepsBuffer() const -> const DepsBuffer& { return this->deps_buffer; }
 			#endif
 
 		private:
@@ -193,9 +203,9 @@ namespace pcit::panther{
 				Source::CompilationConfig::ID compilation_config_id;
 			};
 
-			struct SemaDecl{    DG::Node::ID dg_node_id; };
-			struct SemaDef{     DG::Node::ID dg_node_id; };
-			struct SemaDeclDef{ DG::Node::ID dg_node_id; };
+			struct SemaDecl{    deps::Node::ID deps_node_id; };
+			struct SemaDef{     deps::Node::ID deps_node_id; };
+			struct SemaDeclDef{ deps::Node::ID deps_node_id; };
 
 			using Task = evo::Variant<FileToLoad, SemaDecl, SemaDef, SemaDeclDef>;
 
@@ -235,7 +245,9 @@ namespace pcit::panther{
 			evo::Variant<std::monostate, core::ThreadQueue<Task>, core::SingleThreadedWorkQueue<Task>> work_manager{};
 
 			SourceManager source_manager{};
-			DGBuffer dg_buffer{};
+			TypeManager type_manager;
+			DepsBuffer deps_buffer{};
+			SemaBuffer sema_buffer{};
 
 			friend class DependencyAnalysis;
 			friend class SemanticAnalyzer;

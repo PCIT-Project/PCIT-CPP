@@ -19,7 +19,7 @@
 #include "./source/source_data.h"
 #include "./tokens/Token.h"
 #include "./AST/AST.h"
-#include "./DG/DG.h"
+#include "./deps/deps.h"
 
 namespace pcit::panther{
 
@@ -32,6 +32,9 @@ namespace pcit::panther{
 		};
 
 		enum class Code{
+			//////////////////
+			// tokens
+
 			TokUnrecognizedCharacter,
 			TokUnterminatedMultilineComment,
 			TokUnterminatedTextLiteral,
@@ -48,6 +51,10 @@ namespace pcit::panther{
 			TokFileLocationLimitOOB,
 			TokDoubleUnderscoreNotAllowed,
 
+
+			//////////////////
+			// parser
+
 			ParserUnknownStmtStart,
 			ParserIncorrectStmtContinuation,
 			ParserUnexpectedEOF,
@@ -59,10 +66,51 @@ namespace pcit::panther{
 			ParserInvalidNewExpr,
 			ParserDiagnosticsInWrongPlace,
 
+
+			//////////////////
+			// deps
+
 			DepInalidGlobalStmtKind,
 			DepInvalidBaseType,
 			DepRequiredComptime,
 			DepInvalidStmtKind,
+			DepGlobalIdentAlreadyDefined,
+
+
+			//////////////////
+			// sema
+
+			// types
+			SemaInvalidBaseType,
+			SemaVoidWithQualifiers,
+			SemaInvalidTypeQualifiers,
+			SemaGenericTypeNotInTemplatePackDecl,
+
+			// idents
+			SemaIdentNotInScope,
+			SemaIdentAlreadyInScope,
+
+			// vars
+			SemaVarTypeVoid,
+			SemaVarWithNoValue,
+			SemaVarDefNotEphemeral,
+
+			// exprs
+			SemaTypeUsedAsExpr,
+			SemaInvalidExprKind,
+
+			// value stages
+			SemaInvalidStageForConstexpr,
+			SemaInvalidStageForComptime,
+
+			// type checking
+			SemaMultiReturnIntoSingleValue,
+			SemaCannotConvertFluidValue,
+			SemaTypeMismatch,
+			
+
+			//////////////////
+			// misc
 
 			MiscFileDoesNotExist,
 			MiscLoadFileFailed,
@@ -131,8 +179,8 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::AttributeBlock::Attribute& attr, const class Source& src)
 					-> Location;
 
-				// DG
-				EVO_NODISCARD static auto get(const DG::Node::ID& id, const class Context& context) -> Location;
+				// deps
+				EVO_NODISCARD static auto get(const deps::Node::ID& id, const class Context& context) -> Location;
 		
 			private:
 				evo::Variant<None, SourceLocation> variant;
@@ -272,6 +320,26 @@ namespace pcit::panther{
 				case Code::DepInvalidBaseType:                 return "D2";
 				case Code::DepRequiredComptime:                return "D3";
 				case Code::DepInvalidStmtKind:                 return "D4";
+				case Code::DepGlobalIdentAlreadyDefined:       return "D5";
+
+				// TODO: give individual codes and put in correct order
+				case Code::SemaInvalidBaseType:
+				case Code::SemaVoidWithQualifiers:
+				case Code::SemaInvalidTypeQualifiers:
+				case Code::SemaGenericTypeNotInTemplatePackDecl:
+				case Code::SemaIdentNotInScope:
+				case Code::SemaIdentAlreadyInScope:
+				case Code::SemaVarTypeVoid:
+				case Code::SemaVarWithNoValue:
+				case Code::SemaVarDefNotEphemeral:
+				case Code::SemaTypeUsedAsExpr:
+				case Code::SemaInvalidExprKind:
+				case Code::SemaInvalidStageForConstexpr:
+				case Code::SemaInvalidStageForComptime:
+				case Code::SemaMultiReturnIntoSingleValue:
+				case Code::SemaCannotConvertFluidValue:
+				case Code::SemaTypeMismatch:
+					return "S";
 
 				case Code::MiscFileDoesNotExist:               return "M1";
 				case Code::MiscLoadFileFailed:                 return "M2";

@@ -212,7 +212,7 @@ namespace pcit::panther{
 		{"in",          Token::Kind::KeywordIn},
 
 		{"copy",        Token::Kind::KeywordCopy},
-		{"move",        Token::Kind::KeywordMove},
+		{"forward",     Token::Kind::KeywordForward},
 		{"new",         Token::Kind::KeywordNew},
 		{"as",          Token::Kind::KeywordAs},
 
@@ -272,6 +272,15 @@ namespace pcit::panther{
 
 			}else if(ident_name == "false") [[unlikely]] {
 				this->create_token(Token::Kind::LiteralBool, false);
+
+			}else if(ident_name == "move") [[unlikely]] {
+				if(this->char_stream.peek() == '!'){
+					this->create_token(Token::Kind::KeywordDestructiveMove);
+				}else{
+					this->create_token(Token::Kind::KeywordMove);
+				}
+
+				return true;
 
 			}else{
 				bool is_integer = false;
@@ -352,6 +361,7 @@ namespace pcit::panther{
 
 				if(this->can_continue == false){ return false; }
 
+				// TODO: should keyword lookup be earlier?
 				if(is_integer == false){
 					const auto keyword_map_iter = keyword_map.find(ident_name);
 
@@ -1274,7 +1284,7 @@ namespace pcit::panther{
 				return true;
 			}
 
-			this->create_token(Token::Kind::LiteralChar, literal_value);
+			this->create_token(Token::Kind::LiteralChar, literal_value[0]);
 		}else{
 			this->create_token(Token::Kind::LiteralString, literal_value);
 		}

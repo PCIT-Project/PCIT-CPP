@@ -1,12 +1,12 @@
 # PCIT-CPP
 
-PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the [PCIT website](https://pcit-project.github.io) for more information about the PCIT-Project.
+PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the PCIT Project website ([www.pcitproject.org](https://www.pcitproject.org)) for more information.
 
 > [!NOTE]
 > This is in the very early stages and as such is not usable yet. If you really want to try it now (without any documentation), you can modify `Panther-old/exec/main.cpp`.
 
 ## Tools
-- [Panther](https://pcit-project.github.io/site/Panther.html): Statically-typed, high-performance, general-purpose programming language
+- [Panther](https://www.pcitproject.org/site/Panther.html): Statically-typed, high-performance, general-purpose programming language
 - PIR: Pronounced "P I R". Compiler IR and SSA-based optimizing back-end.
 - PLNK: Pronounced "plink". Linker that aims to make use between platforms (including cross-compilation and linking against libc) as seamless as possible.
 

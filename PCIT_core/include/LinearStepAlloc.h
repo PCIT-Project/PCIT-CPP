@@ -24,13 +24,13 @@ namespace pcit::core{
 
 	// picks either the size of a cache-line or 4 elements (whichever makes more sense for the size of the type)
 	template<class T>
-	EVO_NODISCARD consteval auto get_optimal_starting_pow_of_2_for_linear_step_alloc() -> size_t {
+	EVO_NODISCARD consteval auto get_optimal_start_pow_of_2_for_linear_step_alloc() -> size_t {
 		const size_t num_bits = std::bit_ceil(std::hardware_destructive_interference_size / sizeof(T));
 		return std::max(size_t(2), size_t(std::countr_zero(num_bits)));
 	}
 
 
-	template<class T, class ID, size_t STARTING_POW_OF_2 = get_optimal_starting_pow_of_2_for_linear_step_alloc<T>()>
+	template<class T, class ID, size_t STARTING_POW_OF_2 = get_optimal_start_pow_of_2_for_linear_step_alloc<T>()>
 	class LinearStepAlloc{
 		public:
 			LinearStepAlloc() = default;
@@ -291,9 +291,9 @@ namespace pcit::core{
 						return uint64_t(id.get()) + (1 << STARTING_POW_OF_2);
 					}
 				}();
-				const uint64_t buffer_index = (sizeof(uint64_t) * 8) - std::countl_zero(index) - 1;
+				
+				const uint64_t buffer_index = std::bit_width(index) - 1;
 				const uint64_t elem_index = index & ~(1ull << buffer_index);
-				// Note: doing and/not is equivalent (performance-wise) to subtracting
 
 				return BufferAndElemIndex(size_t(buffer_index) - STARTING_POW_OF_2, size_t(elem_index));
 			}

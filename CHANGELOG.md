@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.80.0"></a>
+## v0.0.80.0
+
+### Panther
+- Added `move!` and `forward`
+- Added semantic analysis of global variables
+
+### misc
+- Updated README with the new domain for the website ([www.pcitproject.org](https://www.pcitproject.org))
+
+
+<!---------------------------------->
 <a name="v0.0.79.0"></a>
 ## v0.0.79.0
 

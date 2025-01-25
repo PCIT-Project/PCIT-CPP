@@ -79,6 +79,11 @@ namespace pcit::panther::AST{
 
 			EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
 
+
+			auto operator==(const Node& rhs) const -> bool {
+				return this->_kind == rhs._kind && this->_value.node_index == rhs._value.node_index;
+			}
+
 		
 		private:
 			Kind _kind;
@@ -92,8 +97,8 @@ namespace pcit::panther::AST{
 
 
 			friend ASTBuffer;
-			friend std::optional<Node>;
 			friend struct NodeOptInterface;
+			friend std::hash<Node>;
 	};
 
 	struct NodeOptInterface{
@@ -308,3 +313,17 @@ namespace pcit::panther::AST{
 
 }
 
+
+
+namespace std{
+	
+	template<>
+	struct hash<pcit::panther::AST::Node>{
+		auto operator()(const pcit::panther::AST::Node& node) const -> size_t {
+			return evo::hashCombine(
+				std::hash<uint32_t>{}(evo::to_underlying(node.kind())), std::hash<uint32_t>{}(node._value.node_index)
+			);
+		}
+	};
+
+}

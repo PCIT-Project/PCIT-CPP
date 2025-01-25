@@ -728,7 +728,6 @@ namespace pcit::panther{
 			std::unordered_map<std::string_view, TypeInfo::VoidableID> template_arg_types{};
 
 			friend sema_helper::ComptimeIntrins;
-
 	};
 	
 	

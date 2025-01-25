@@ -108,20 +108,20 @@ namespace pcit::core{
 			///////////////////////////////////
 			// observers
 
-			constexpr auto operator->() const  noexcept -> const T*  {
+			constexpr auto operator->() const noexcept -> const T* {
 				evo::debugAssert(this->has_value(), "optional does not contain value");
 				return &this->_value.held;
 			}
-			constexpr auto operator->()        noexcept ->       T*  {
+			constexpr auto operator->() noexcept -> T* {
 				evo::debugAssert(this->has_value(), "optional does not contain value");
 				return &this->_value.held;
 			}
 
-			constexpr auto operator*() const&  noexcept -> const T&  {
+			constexpr auto operator*() const& noexcept -> const T& {
 				evo::debugAssert(this->has_value(), "optional does not contain value");
 				return this->_value.held;
 			}
-			constexpr auto operator*()      &  noexcept ->       T&  {
+			constexpr auto operator*() & noexcept -> T& {
 				evo::debugAssert(this->has_value(), "optional does not contain value");
 				return this->_value.held;
 			}
@@ -130,7 +130,7 @@ namespace pcit::core{
 				evo::debugAssert(this->has_value(), "optional does not contain value");
 				return std::move(this->_value.held);
 			}
-			constexpr auto operator*()      && noexcept ->       T&& {
+			constexpr auto operator*() && noexcept -> T&& {
 				evo::debugAssert(this->has_value(), "optional does not contain value");
 				return std::move(this->_value.held);
 			}

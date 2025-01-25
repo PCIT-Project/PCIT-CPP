@@ -9,27 +9,28 @@
 
 #pragma once
 
-#include <filesystem>
-namespace fs = std::filesystem;
-
 #include <Evo.h>
 #include <PCIT_core.h>
-#include <Panther.h>
-namespace core = pcit::core;
-namespace panther = pcit::panther;
+
+namespace pcit::panther::strings{
+
+	enum class StringCode : uint32_t {
+		Num,   // num
+		LHS,   // lhs
+		RHS,   // rhs
+		Value, // value
+	};
+
+	EVO_NODISCARD constexpr auto toStringView(StringCode str) -> std::string_view {
+		switch(str){
+			case StringCode::Num:   return "num";
+			case StringCode::LHS:   return "lhs";
+			case StringCode::RHS:   return "rhs";
+			case StringCode::Value: return "value";
+		}
+
+		evo::debugFatalBreak("Unknown string code");
+	}
 
 
-namespace pthr{
-
-
-	auto print_logo(core::Printer& printer) -> void;
-
-	auto print_tokens(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
-
-	auto print_AST(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
-
-	#if defined(PCIT_CONFIG_DEBUG)
-		auto print_deps(core::Printer& printer, const panther::Context& context, const fs::path& relative_dir) -> void;
-	#endif
-	
 }

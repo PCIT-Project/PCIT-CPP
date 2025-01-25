@@ -11,8 +11,8 @@
 
 #include "./tokens/Tokenizer.h"
 #include "./AST/Parser.h"
-#include "./DG/DependencyAnalysis.h"
-#include "./ASG/SemanticAnalyzer.h"
+#include "./deps/DependencyAnalysis.h"
+#include "./sema/SemanticAnalyzer.h"
 
 namespace pcit::panther{
 
@@ -162,6 +162,17 @@ namespace pcit::panther{
 	auto Context::analyzeSemantics() -> bool {
 		if(this->analyzeDependencies() == false){ return false; }
 
+		if(this->type_manager.primitivesInitialized() == false){
+			this->type_manager.initPrimitives();
+		}
+
+		for(const Source::ID& source_id : this->source_manager){
+			this->source_manager[source_id].sema_scope_id = this->sema_buffer.scope_manager.createScope();
+			this->sema_buffer.scope_manager
+				.getScope(*this->source_manager[source_id].sema_scope_id)
+				.pushLevel(this->sema_buffer.scope_manager.createLevel());
+		}
+
 		const auto worker = [&](Task& task_variant) -> bool {
 			task_variant.visit([&](auto& task) -> void {
 				using TaskType = std::decay_t<decltype(task)>;
@@ -170,13 +181,13 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Should never hit this task");
 
 				}else if constexpr(std::is_same<TaskType, SemaDecl>()){
-					analyze_semantics_decl(*this, task.dg_node_id);
+					analyze_semantics_decl(*this, task.deps_node_id);
 
 				}else if constexpr(std::is_same<TaskType, SemaDef>()){
-					analyze_semantics_def(*this, task.dg_node_id);
+					analyze_semantics_def(*this, task.deps_node_id);
 
 				}else if constexpr(std::is_same<TaskType, SemaDeclDef>()){
-					analyze_semantics_decl_def(*this, task.dg_node_id);
+					analyze_semantics_decl_def(*this, task.deps_node_id);
 
 				}else{
 					static_assert(false, "Unsupported task type");
@@ -190,14 +201,14 @@ namespace pcit::panther{
 		if(this->_config.isMultiThreaded()){
 			auto& work_manager_inst = this->work_manager.emplace<core::ThreadQueue<Task>>(worker);
 
-			for(uint32_t i = 0; DG::Node& dg_node : this->dg_buffer){
-				if(dg_node.hasNoDeclDeps()){ // has decl deps
-					dg_node.declSemaStatus = DG::Node::SemaStatus::InQueue;
-					if(dg_node.hasNoDefDeps()){
-						dg_node.defSemaStatus = DG::Node::SemaStatus::InQueue;
-						work_manager_inst.addTask(SemaDeclDef(DG::Node::ID(i)));
+			for(uint32_t i = 0; deps::Node& deps_node : this->deps_buffer){
+				if(deps_node.hasNoDeclDeps()){ // has decl deps
+					deps_node.declSemaStatus = deps::Node::SemaStatus::InQueue;
+					if(deps_node.hasNoDefDeps()){
+						deps_node.defSemaStatus = deps::Node::SemaStatus::InQueue;
+						work_manager_inst.addTask(SemaDeclDef(deps::Node::ID(i)));
 					}else{
-						work_manager_inst.addTask(SemaDecl(DG::Node::ID(i)));
+						work_manager_inst.addTask(SemaDecl(deps::Node::ID(i)));
 					}
 				}
 
@@ -205,7 +216,10 @@ namespace pcit::panther{
 			}
 
 			work_manager_inst.startup(this->_config.numThreads);
-			while(this->dg_buffer.num_nodes_sema_status_not_done > 0){
+			while(this->getNumErrors() == 0 && this->deps_buffer.num_nodes_sema_status_not_done > 0){
+				// TODO: different amount of yields?
+				std::this_thread::yield();
+				std::this_thread::yield();
 				std::this_thread::yield();
 			}
 			work_manager_inst.waitUntilDoneWorking(); // probably not needed, but I think the safety is worth it
@@ -214,14 +228,14 @@ namespace pcit::panther{
 		}else{
 			auto& work_manager_inst = this->work_manager.emplace<core::SingleThreadedWorkQueue<Task>>(worker);
 
-			for(uint32_t i = 0; DG::Node& dg_node : this->dg_buffer){
-				if(dg_node.hasNoDeclDeps()){
-					dg_node.declSemaStatus = DG::Node::SemaStatus::InQueue;
-					if(dg_node.hasNoDefDeps()){
-						dg_node.defSemaStatus = DG::Node::SemaStatus::InQueue;
-						work_manager_inst.addTask(SemaDeclDef(DG::Node::ID(i)));
+			for(uint32_t i = 0; deps::Node& deps_node : this->deps_buffer){
+				if(deps_node.hasNoDeclDeps()){
+					deps_node.declSemaStatus = deps::Node::SemaStatus::InQueue;
+					if(deps_node.hasNoDefDeps()){
+						deps_node.defSemaStatus = deps::Node::SemaStatus::InQueue;
+						work_manager_inst.addTask(SemaDeclDef(deps::Node::ID(i)));
 					}else{
-						work_manager_inst.addTask(SemaDecl(DG::Node::ID(i)));
+						work_manager_inst.addTask(SemaDecl(deps::Node::ID(i)));
 					}
 				}
 

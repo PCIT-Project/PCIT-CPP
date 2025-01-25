@@ -19,7 +19,7 @@
 
 namespace pcit::core{
 
-	// https://www.youtube.com/watch?v=rmGJc9PXpuE
+	// adapted from: https://www.youtube.com/watch?v=rmGJc9PXpuE
 	class SpinLock{
 		public:
 			SpinLock() = default;
@@ -27,19 +27,23 @@ namespace pcit::core{
 
 			auto lock() -> void {
 				int wait_threshold = 8;
-				for(int i = 0; !this->try_lock(); i+=1){
-					if(i == wait_threshold){
+				int wait_iter = 0;
+
+				while(this->try_lock() == false){
+					if(wait_iter == wait_threshold){
 						std::this_thread::yield();
 
-						i = -1;
+						wait_iter = 0;
 						if(wait_threshold < 0){ wait_threshold -= 1; }
+					}else{
+						wait_iter += 1;
 					}
 				}
 			}
 
 			auto try_lock() -> bool {
-				return !this->flag.load(std::memory_order_relaxed) && 
-					!this->flag.exchange(1, std::memory_order_acquire);
+				return !this->flag.load(std::memory_order_relaxed) 
+					&& !this->flag.exchange(1, std::memory_order_acquire);
 			}
 
 			auto unlock() -> void {
@@ -50,7 +54,7 @@ namespace pcit::core{
 			auto lock_shared() -> void { this->lock(); }
 	
 		private:
-			std::atomic<unsigned> flag = 0;
+			std::atomic<uint32_t> flag = 0;
 	};
 
 

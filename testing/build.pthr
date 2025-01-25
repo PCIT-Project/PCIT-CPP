@@ -1,16 +1,7 @@
 
+// def build2 = @import("build2.pthr");
 
-def NUM: UI8 = 12;
-var num_var: UI8 = 14;
+def FOO = 12;
+def BAR = FOO;
 
-type Foo = struct {
-	alias uint8_t = UI8;
-	
-}
-
-func entry = () #entry -> UI8 {	
-	def NUM_2: Foo.uint8_t = NUM;
-
-	return /*copy*/ num_var;
-}
 

@@ -18,7 +18,7 @@
 #include "../../include/AST/AST.h"
 #include "../ScopeManager.h"
 
-namespace pcit::panther::DG{
+namespace pcit::panther::deps{
 
 	struct StructID : public core::UniqueID<uint32_t, struct StructID> {
 		using core::UniqueID<uint32_t, StructID>::UniqueID;
@@ -33,12 +33,12 @@ namespace pcit::panther::DG{
 	// TODO: reorgamize and optimize ordering
 	// TODO: move everything not used by all AST Kinds to `extraData`
 	struct Node{
-		// for lookup in Context::getDGBuffer()
+		// for lookup in Context::getDepsBuffer()
 		struct ID : public core::UniqueID<uint32_t, struct ID> {
 			using core::UniqueID<uint32_t, ID>::UniqueID;
 		};
 
-		enum class UsageKind{
+		enum class ValueStage{
 			Comptime,
 			Constexpr,
 			Runtime,
@@ -47,6 +47,7 @@ namespace pcit::panther::DG{
 
 		enum class SemaStatus : uint8_t {
 			NotYet,
+			ReadyWhenDeclDone,
 			InQueue,
 			Done,
 		};
@@ -57,7 +58,7 @@ namespace pcit::panther::DG{
 
 		AST::Node astNode; // may only be VarDecl, FuncDecl, AliasDecl, TypedefDecl, StructDecl, WhenConditional
 		SourceID sourceID;
-		UsageKind usageKind;
+		ValueStage valueStage;
 		ExtraData extraData;
 
 		bool usedInComptime = false; // this being true doesn't mean it's allowed to be
@@ -65,9 +66,9 @@ namespace pcit::panther::DG{
 		mutable core::SpinLock lock{};
 
 
-		// This is required for some reason (specializing std::hash for DG::Node::ID causes redefinition errors)
+		// This is required for some reason (specializing std::hash for deps::Node::ID causes redefinition errors)
 		struct IDHash{
-			auto operator()(const ID& id) const noexcept -> size_t { return std::hash<uint32_t>{}(id.get()); };
+			auto operator()(const ID& id) const -> size_t { return std::hash<uint32_t>{}(id.get()); };
 		};
 
 		// declaration dependencies
@@ -97,8 +98,8 @@ namespace pcit::panther::DG{
 		}
 
 
-		Node(const AST::Node& ast_node, SourceID source_id, UsageKind usage_kind, ExtraData extra_data) 
-			: astNode(ast_node), sourceID(source_id), usageKind(usage_kind), extraData(extra_data) {}
+		Node(const AST::Node& ast_node, SourceID source_id, ValueStage value_stage, ExtraData extra_data) 
+			: astNode(ast_node), sourceID(source_id), valueStage(value_stage), extraData(extra_data) {}
 	};
 
 

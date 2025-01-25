@@ -160,11 +160,11 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
-	// DG
+	// deps
 
-	auto Diagnostic::Location::get(const DG::Node::ID& id, const Context& context) -> Location {
-		const DG::Node& dg_node = context.getDGBuffer()[id];
-		return Location::get(dg_node.astNode, context.getSourceManager()[dg_node.sourceID]);
+	auto Diagnostic::Location::get(const deps::Node::ID& id, const Context& context) -> Location {
+		const deps::Node& deps_node = context.getDepsBuffer()[id];
+		return Location::get(deps_node.astNode, context.getSourceManager()[deps_node.sourceID]);
 	}
 
 

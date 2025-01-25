@@ -107,6 +107,8 @@ namespace pcit::panther{
 				
 				KeywordCopy,
 				KeywordMove,
+				KeywordDestructiveMove,
+				KeywordForward,
 				KeywordNew,
 				KeywordAs,
 
@@ -222,17 +224,10 @@ namespace pcit::panther{
 		public:
 			Token(Kind token_kind) : _kind(token_kind) {}
 
-			Token(Kind token_kind, bool val) : _kind(token_kind) {
-				this->get_value<bool>() = val;
-			}
-
-			Token(Kind token_kind, uint64_t val) : _kind(token_kind) {
-				this->get_value<uint64_t>() = val;
-			}
-
-			Token(Kind token_kind, float64_t val) : _kind(token_kind) {
-				this->get_value<float64_t>() = val;
-			}
+			Token(Kind token_kind, bool val) : _kind(token_kind) { this->get_value<bool>() = val; }
+			Token(Kind token_kind, char val) : _kind(token_kind) { this->get_value<char>() = val; }
+			Token(Kind token_kind, uint64_t val) : _kind(token_kind) { this->get_value<uint64_t>() = val; }
+			Token(Kind token_kind, float64_t val) : _kind(token_kind) { this->get_value<float64_t>() = val; }
 
 			Token(Kind token_kind, std::string_view val) : _kind(token_kind) {
 				SmallStringView& value_str = this->get_value<SmallStringView>();
@@ -249,6 +244,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getBool() const -> bool {
 				evo::debugAssert(this->_kind == Kind::LiteralBool, "Token does not have a bool value");
 				return this->get_value<bool>();
+			}
+
+			EVO_NODISCARD auto getChar() const -> char {
+				evo::debugAssert(this->_kind == Kind::LiteralChar, "Token does not have a char value");
+				return this->get_value<char>();
 			}
 
 			EVO_NODISCARD auto getInt() const -> uint64_t {
@@ -574,6 +574,9 @@ namespace pcit::panther{
 
 			template<> EVO_NODISCARD auto get_value<bool>() const -> const bool& { return *(bool*)&this->value; }
 			template<> EVO_NODISCARD auto get_value<bool>()       ->       bool& { return *(bool*)&this->value; }
+
+			template<> EVO_NODISCARD auto get_value<char>() const -> const char& { return *(char*)&this->value; }
+			template<> EVO_NODISCARD auto get_value<char>()       ->       char& { return *(char*)&this->value; }
 
 			template<> EVO_NODISCARD auto get_value<uint64_t>() const -> const uint64_t& {
 				return *(uint64_t*)&this->value;

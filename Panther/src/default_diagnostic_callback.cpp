@@ -58,10 +58,10 @@ namespace pcit::panther{
 
 		std::error_code ec;
 
-		// https://stackoverflow.com/a/66814614
+		// clickable link in terminal: https://stackoverflow.com/a/66814614
 		printer.printGray(
 			std::format(
-				"\x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\:{}:{}\n", 
+				"\x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\({}:{})\n", 
 				source.getPath().string(),
 				std::filesystem::relative(source.getPath(), rel_dir, ec).string(),
 				location.lineStart,

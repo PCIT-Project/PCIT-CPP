@@ -28,7 +28,7 @@ namespace pcit::core{
 	// Note: ID must inherit from UniqueID, or be an integral
 
 
-	template<class T, class ID, size_t STARTING_POW_OF_2 = get_optimal_starting_pow_of_2_for_linear_step_alloc<T>()>
+	template<class T, class ID, size_t STARTING_POW_OF_2 = get_optimal_start_pow_of_2_for_linear_step_alloc<T>()>
 	class StepAlloc{
 		public:
 			StepAlloc() = default;

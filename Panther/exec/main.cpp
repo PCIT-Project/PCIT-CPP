@@ -158,7 +158,7 @@ auto main(int argc, const char* argv[]) -> int {
 	}
 
 	// #if defined(PCIT_CONFIG_DEBUG)
-	// 	pthr::print_DG(printer, context, current_path.value());
+	// 	pthr::print_deps(printer, context, current_path.value());
 	// #endif
 
 

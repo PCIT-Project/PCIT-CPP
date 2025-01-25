@@ -992,6 +992,8 @@ namespace pcit::panther{
 			case Token::lookupKind("&|"):
 			case Token::Kind::KeywordCopy:
 			case Token::Kind::KeywordMove:
+			case Token::Kind::KeywordDestructiveMove:
+			case Token::Kind::KeywordForward:
 			case Token::lookupKind("-"):
 			case Token::lookupKind("!"):
 			case Token::lookupKind("~"):
