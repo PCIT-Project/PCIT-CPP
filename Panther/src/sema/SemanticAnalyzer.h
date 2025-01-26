@@ -276,6 +276,11 @@ namespace pcit::panther{
 				evo::unimplemented();
 			}
 
+			EVO_NODISCARD auto get_location(const sema::StructID& struct_id) const -> Diagnostic::Location {
+				std::ignore = struct_id;
+				evo::unimplemented();
+			}
+
 			EVO_NODISCARD auto get_location(const sema::ParamID& param) const -> Diagnostic::Location {
 				std::ignore = param;
 				evo::unimplemented();

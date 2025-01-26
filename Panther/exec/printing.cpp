@@ -1538,19 +1538,19 @@ namespace pthr{
 							case panther::AST::Kind::AliasDecl: {
 								const panther::AST::AliasDecl& alias_decl =
 									ast_buffer.getAliasDecl(required_by_node.astNode);
-								printer.printCyan("AliasDecl: {}", token_buffer[alias_decl.ident].getString());
+								printer.printlnGray("AliasDecl: {}", token_buffer[alias_decl.ident].getString());
 							} break;
 
 							case panther::AST::Kind::TypedefDecl: {
 								const panther::AST::TypedefDecl& typedef_decl =
 									ast_buffer.getTypedefDecl(required_by_node.astNode);
-								printer.printCyan("TypedefDecl: {}", token_buffer[typedef_decl.ident].getString());
+								printer.printlnGray("TypedefDecl: {}", token_buffer[typedef_decl.ident].getString());
 							} break;
 
 							case panther::AST::Kind::StructDecl: {
 								const panther::AST::StructDecl& struct_decl =
 									ast_buffer.getStructDecl(required_by_node.astNode);
-								printer.printCyan("StructDecl: {}", token_buffer[struct_decl.ident].getString());
+								printer.printlnGray("StructDecl: {}", token_buffer[struct_decl.ident].getString());
 							} break;
 
 							case panther::AST::Kind::WhenConditional: {

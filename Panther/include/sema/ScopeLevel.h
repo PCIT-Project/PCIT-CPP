@@ -38,6 +38,7 @@ namespace pcit::panther::sema{
 				evo::SmallVector<sema::FuncID>,
 				sema::TemplatedFuncID,
 				sema::VarID,
+				sema::StructID,
 				sema::ParamID,
 				sema::ReturnParamID,
 				ModuleInfo,
@@ -65,6 +66,7 @@ namespace pcit::panther::sema{
 			auto setFunc(std::string_view ident, sema::FuncID id) -> void;
 			auto setTemplatedFunc(std::string_view ident, sema::TemplatedFuncID id) -> void;
 			auto setVar(std::string_view ident, sema::VarID id) -> void;
+			auto setStruct(std::string_view ident, sema::StructID id) -> void;
 			auto setParam(std::string_view ident, sema::ParamID id) -> void;
 			auto setReturnParam(std::string_view ident, sema::ReturnParamID id) -> void;
 			auto setModule(std::string_view ident, SourceID id, Token::ID location) -> void;

@@ -24,6 +24,7 @@
 namespace pcit::panther{
 
 
+
 	struct Diagnostic{
 		enum class Level{
 			Fatal,
@@ -75,6 +76,7 @@ namespace pcit::panther{
 			DepRequiredComptime,
 			DepInvalidStmtKind,
 			DepGlobalIdentAlreadyDefined,
+			DepCircularDep,
 
 
 			//////////////////
@@ -193,13 +195,19 @@ namespace pcit::panther{
 			Location location;
 			std::vector<Info> sub_infos;
 
-			Info(std::string&& _message) : message(std::move(_message)), location(), sub_infos() {};
+			Info(std::string&& _message) : message(std::move(_message)), location(), sub_infos() {
+				_debug_analyze_message(this->message);
+			}
 			Info(std::string&& _message, Location loc) 
-				: message(std::move(_message)), location(loc), sub_infos() {};
+				: message(std::move(_message)), location(loc), sub_infos() {
+				_debug_analyze_message(this->message);
+			}
 			Info(std::string&& _message, Location loc, std::vector<Info>&& _sub_infos)
-				: message(std::move(_message)), location(loc), sub_infos(std::move(_sub_infos)) {};
+				: message(std::move(_message)), location(loc), sub_infos(std::move(_sub_infos)) {
+				_debug_analyze_message(this->message);
+			}
 
-			Info(const Info& rhs) : message(rhs.message), location(rhs.location), sub_infos(rhs.sub_infos) {};
+			Info(const Info& rhs) : message(rhs.message), location(rhs.location), sub_infos(rhs.sub_infos) {}
 
 			auto operator=(const Info& rhs) -> Info& {
 				this->message = rhs.message;
@@ -210,7 +218,7 @@ namespace pcit::panther{
 			}
 
 			Info(Info&& rhs)
-				: message(std::move(rhs.message)), location(rhs.location), sub_infos(std::move(rhs.sub_infos)) {};
+				: message(std::move(rhs.message)), location(rhs.location), sub_infos(std::move(rhs.sub_infos)) {}
 		};
 
 		Level level;
@@ -226,7 +234,9 @@ namespace pcit::panther{
 			const Location& _location,
 			const std::string& _message,
 			const evo::SmallVector<Info>& _infos = {}
-		) : level(_level), code(_code), location(_location), message(_message), infos(_infos) {}
+		) : level(_level), code(_code), location(_location), message(_message), infos(_infos) {
+			_debug_analyze_message(this->message);
+		}
 
 		Diagnostic(
 			Level _level,
@@ -234,7 +244,9 @@ namespace pcit::panther{
 			const Location& _location,
 			std::string&& _message,
 			const evo::SmallVector<Info>& _infos
-		) : level(_level), code(_code), location(_location), message(std::move(_message)), infos(_infos) {}
+		) : level(_level), code(_code), location(_location), message(std::move(_message)), infos(_infos) {
+			_debug_analyze_message(this->message);
+		}
 
 		Diagnostic(
 			Level _level,
@@ -242,7 +254,9 @@ namespace pcit::panther{
 			const Location& _location,
 			const std::string& _message,
 			evo::SmallVector<Info>&& _infos = {}
-		) : level(_level), code(_code), location(_location), message(_message), infos(std::move(_infos)) {}
+		) : level(_level), code(_code), location(_location), message(_message), infos(std::move(_infos)) {
+			_debug_analyze_message(this->message);
+		}
 
 		Diagnostic(
 			Level _level,
@@ -250,7 +264,9 @@ namespace pcit::panther{
 			const Location& _location,
 			std::string&& _message,
 			evo::SmallVector<Info>&& _infos = {}
-		) : level(_level), code(_code), location(_location), message(std::move(_message)), infos(std::move(_infos)) {}
+		) : level(_level), code(_code), location(_location), message(std::move(_message)), infos(std::move(_infos)) {
+			_debug_analyze_message(this->message);
+		}
 
 
 		Diagnostic(
@@ -259,7 +275,9 @@ namespace pcit::panther{
 			const Location& _location,
 			const std::string& _message,
 			const Info& info
-		) : level(_level), code(_code), location(_location), message(_message), infos{info} {}
+		) : level(_level), code(_code), location(_location), message(_message), infos{info} {
+			_debug_analyze_message(this->message);
+		}
 
 		Diagnostic(
 			Level _level,
@@ -267,7 +285,9 @@ namespace pcit::panther{
 			const Location& _location,
 			std::string&& _message,
 			const Info& info
-		) : level(_level), code(_code), location(_location), message(std::move(_message)), infos{info} {}
+		) : level(_level), code(_code), location(_location), message(std::move(_message)), infos{info} {
+			_debug_analyze_message(this->message);
+		}
 
 		Diagnostic(
 			Level _level,
@@ -275,7 +295,9 @@ namespace pcit::panther{
 			const Location& _location,
 			const std::string& _message,
 			Info&& info
-		) : level(_level), code(_code), location(_location), message(_message), infos{std::move(info)} {}
+		) : level(_level), code(_code), location(_location), message(_message), infos{std::move(info)} {
+			_debug_analyze_message(this->message);
+		}
 
 		Diagnostic(
 			Level _level,
@@ -283,7 +305,9 @@ namespace pcit::panther{
 			const Location& _location,
 			std::string&& _message,
 			Info&& info
-		) : level(_level), code(_code), location(_location), message(std::move(_message)), infos{std::move(info)} {}
+		) : level(_level), code(_code), location(_location), message(std::move(_message)), infos{std::move(info)} {
+			_debug_analyze_message(this->message);
+		}
 
 
 
@@ -321,6 +345,7 @@ namespace pcit::panther{
 				case Code::DepRequiredComptime:                return "D3";
 				case Code::DepInvalidStmtKind:                 return "D4";
 				case Code::DepGlobalIdentAlreadyDefined:       return "D5";
+				case Code::DepCircularDep:                     return "D6";
 
 				// TODO: give individual codes and put in correct order
 				case Code::SemaInvalidBaseType:
@@ -366,6 +391,15 @@ namespace pcit::panther{
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::core::Diagnostic::Level");
+		}
+
+
+
+		EVO_NODISCARD static auto _debug_analyze_message(std::string_view message) -> void {
+			#if defined(PCIT_CONFIG_DEBUG)
+				evo::debugAssert(message.empty() == false, "Diagnostic message cannot be empty");
+				evo::debugAssert(std::isupper(int(message[0])), "Diagnostic message cannot be empty");
+			#endif
 		}
 	};
 

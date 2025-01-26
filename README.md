@@ -1,6 +1,6 @@
 # PCIT-CPP
 
-PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the PCIT Project website ([www.pcitproject.org](https://www.pcitproject.org)) for more information.
+PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the PCIT Project website ([www.pcitproject.org](https://www.pcitproject.org/site/home.html)) for more information.
 
 > [!NOTE]
 > This is in the very early stages and as such is not usable yet. If you really want to try it now (without any documentation), you can modify `Panther-old/exec/main.cpp`.

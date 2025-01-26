@@ -1,7 +1,20 @@
 
 // def build2 = @import("build2.pthr");
 
-def FOO = 12;
-def BAR = FOO;
+
+type Bar = struct {
+	var bar: Foo.ID;
+}
+
+type Foo = struct {
+	type ID = UI32;
+	var foo: Bar;
+}
+
+
+
+
+// def TEST_FOO: Foo = false;
+// def BAR: Int = FOO;
 
 

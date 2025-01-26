@@ -18,6 +18,11 @@
 #include "../../include/AST/AST.h"
 #include "../ScopeManager.h"
 
+#if defined(PCIT_CONFIG_DEBUG)
+	#include "../../include/tokens/TokenBuffer.h"
+	#include "../../include/AST/ASTBuffer.h"
+#endif
+
 namespace pcit::panther::deps{
 
 	struct StructID : public core::UniqueID<uint32_t, struct StructID> {
@@ -96,6 +101,42 @@ namespace pcit::panther::deps{
 		EVO_NODISCARD auto hasNoDefDeps() const -> bool {
 			return this->defDeps.decls.empty() && this->defDeps.defs.empty();
 		}
+
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			EVO_NODISCARD auto get_name(const TokenBuffer& token_buffer, const ASTBuffer& ast_buffer) const 
+			-> std::string {
+				switch(this->astNode.kind()){
+					case AST::Kind::VarDecl: { 
+						return std::string(
+							token_buffer[ast_buffer.getVarDecl(this->astNode).ident].getString()
+						);
+					} break;
+					case AST::Kind::FuncDecl: { 
+						return std::string(
+							token_buffer[ast_buffer.getIdent(ast_buffer.getFuncDecl(this->astNode).name)].getString()
+						);
+					} break;
+					case AST::Kind::AliasDecl: { 
+						return std::string(
+							token_buffer[ast_buffer.getAliasDecl(this->astNode).ident].getString()
+						);
+					} break;
+					case AST::Kind::TypedefDecl: { 
+						return std::string(
+							token_buffer[ast_buffer.getTypedefDecl(this->astNode).ident].getString()
+						);
+					} break;
+					case AST::Kind::StructDecl: { 
+						return std::string(
+							token_buffer[ast_buffer.getStructDecl(this->astNode).ident].getString()
+						);
+					} break;
+
+					default: evo::unreachable();
+				}
+			}
+		#endif
 
 
 		Node(const AST::Node& ast_node, SourceID source_id, ValueStage value_stage, ExtraData extra_data) 

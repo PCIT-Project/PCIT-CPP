@@ -67,13 +67,6 @@ namespace pcit::panther{
 			"Incorrect status for node to analyze semantics of def"
 		);
 
-		// hack to prevent definition analysis from happening during decl
-		// TODO: improve this somehow
-		while(this->deps_node.declSemaStatus != deps::Node::SemaStatus::Done){
-			if(this->context.hasHitFailCondition()){ return false; }
-			std::this_thread::yield();
-		}
-
 		const Source::SemaID decl_sema_id = [&](){
 			const auto lock = std::scoped_lock(this->source.symbol_map_lock);
 			return this->source.symbol_map.at(this->deps_node.astNode);
@@ -1009,6 +1002,14 @@ namespace pcit::panther{
 				}
 
 				evo::debugFatalBreak("Unknown or unsupported AST::VarDecl::Kind");
+
+			}else if constexpr(std::is_same<IdentIDType, sema::StructID>()){
+				this->emit_error(
+					Diagnostic::Code::SemaTypeUsedAsExpr,
+					ident,
+					"struct cannot be used as an expression"
+				);
+				return evo::resultError;
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ParamID>()){
 				this->emit_error(

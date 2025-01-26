@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.81.0"></a>
+## v0.0.81.0
+
+### Panther
+- Added circular dependency detection
+- Fixed dependency analysis of struct members
+- Fixed printing of dependencies that are a struct, alias, or typedef
+
+
+<!---------------------------------->
 <a name="v0.0.80.0"></a>
 ## v0.0.80.0
 
@@ -9,7 +19,7 @@
 - Added semantic analysis of global variables
 
 ### misc
-- Updated README with the new domain for the website ([www.pcitproject.org](https://www.pcitproject.org))
+- Updated README with the new domain for the website ([www.pcitproject.org](https://www.pcitproject.org/home/site.html))
 
 
 <!---------------------------------->

@@ -109,6 +109,15 @@ namespace pcit::panther::sema{
 		this->ids.at(ident).emplace<sema::VarID>(id);
 	}
 
+	auto ScopeLevel::setStruct(std::string_view ident, sema::StructID id) -> void {
+		const auto lock = std::scoped_lock(this->ids_lock);
+
+		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
+		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
+
+		this->ids.at(ident).emplace<sema::StructID>(id);
+	}
+
 	auto ScopeLevel::setParam(std::string_view ident, sema::ParamID id) -> void {
 		const auto lock = std::scoped_lock(this->ids_lock);
 

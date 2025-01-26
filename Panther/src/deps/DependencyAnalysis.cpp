@@ -9,6 +9,8 @@
 
 #include "./DependencyAnalysis.h"
 
+#include <queue>
+
 namespace pcit::panther{
 	
 
@@ -76,7 +78,8 @@ namespace pcit::panther{
 
 				const deps::Node::ID deps_node_id = this->create_node(node, value_stage);
 				if(parent.has_value()){
-					this->add_deps(this->context.deps_buffer[deps_node_id].declDeps.decls, *parent);
+					this->add_decl_deps_decl(this->context.deps_buffer[deps_node_id], *parent);
+					this->add_def_deps_def(this->context.deps_buffer[*parent], deps_node_id);
 				}
 
 				this->add_symbol(ident, deps_node_id);
@@ -102,7 +105,8 @@ namespace pcit::panther{
 
 				const deps::Node::ID deps_node_id = this->create_node(node, deps::Node::ValueStage::Unknown);
 				if(parent.has_value()){
-					this->add_deps(this->context.deps_buffer[deps_node_id].declDeps.decls, *parent);
+					this->add_decl_deps_decl(this->context.deps_buffer[deps_node_id], *parent);
+					this->add_def_deps_def(this->context.deps_buffer[*parent], deps_node_id);
 				}
 				this->add_symbol(ident, deps_node_id);
 				if(when_cond_parent_deps_list != nullptr){ when_cond_parent_deps_list->emplace_back(deps_node_id); }
@@ -120,7 +124,8 @@ namespace pcit::panther{
 
 				const deps::Node::ID deps_node_id = this->create_node(node, deps::Node::ValueStage::Comptime);
 				if(parent.has_value()){
-					this->add_deps(this->context.deps_buffer[deps_node_id].declDeps.decls, *parent);
+					this->add_decl_deps_decl(this->context.deps_buffer[deps_node_id], *parent);
+					this->add_def_deps_def(this->context.deps_buffer[*parent], deps_node_id);
 				}
 				this->add_symbol(ident, deps_node_id);
 				if(when_cond_parent_deps_list != nullptr){ when_cond_parent_deps_list->emplace_back(deps_node_id); }
@@ -134,7 +139,8 @@ namespace pcit::panther{
 
 				const deps::Node::ID deps_node_id = this->create_node(node, deps::Node::ValueStage::Comptime);
 				if(parent.has_value()){
-					this->add_deps(this->context.deps_buffer[deps_node_id].declDeps.decls, *parent);
+					this->add_decl_deps_decl(this->context.deps_buffer[deps_node_id], *parent);
+					this->add_def_deps_def(this->context.deps_buffer[*parent], deps_node_id);
 				}
 				this->add_symbol(ident, deps_node_id);
 				if(when_cond_parent_deps_list != nullptr){ when_cond_parent_deps_list->emplace_back(deps_node_id); }
@@ -152,7 +158,8 @@ namespace pcit::panther{
 				const deps::Node::ID deps_node_id = 
 					this->create_node(node, deps::Node::ValueStage::Comptime, deps_struct_id);
 				if(parent.has_value()){
-					this->add_deps(this->context.deps_buffer[deps_node_id].declDeps.decls, *parent);
+					this->add_decl_deps_decl(this->context.deps_buffer[deps_node_id], *parent);
+					this->add_def_deps_def(this->context.deps_buffer[*parent], deps_node_id);
 				}
 				this->add_symbol(ident, deps_node_id);
 				if(when_cond_parent_deps_list != nullptr){ when_cond_parent_deps_list->emplace_back(deps_node_id); }
@@ -215,10 +222,9 @@ namespace pcit::panther{
 		const deps::Node::ID new_deps_node_id = this->create_node(
 			node, deps::Node::ValueStage::Comptime, new_deps_node_when_cond_id
 		);
-		deps::Node& deps_node = this->context.deps_buffer[new_deps_node_id];
 		deps::WhenCond& deps_when_cond = this->context.deps_buffer.getWhenCond(new_deps_node_when_cond_id);
 
-		if(parent.has_value()){ this->add_deps(deps_node.declDeps.decls, *parent); }
+		if(parent.has_value()){ this->add_decl_deps_decl(this->context.deps_buffer[new_deps_node_id], *parent); }
 		if(when_cond_parent_deps_list != nullptr){ when_cond_parent_deps_list->emplace_back(new_deps_node_id); }
 
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
@@ -266,7 +272,8 @@ namespace pcit::panther{
 				if(var_decl.type.has_value()){
 					const evo::Result<DepsSet> type_deps = this->analyze_type_deps(ast_buffer.getType(*var_decl.type));
 					if(type_deps.isError()){ return false; }
-					if(this->add_deps(deps_node.declDeps.decls, type_deps.value()) == false){ return false; }
+					if(this->add_decl_deps_decl(deps_node, type_deps.value()) == false){ return false; }
+					if(this->add_def_deps_def(deps_node, type_deps.value()) == false){ return false; }
 				}
 
 
@@ -275,7 +282,7 @@ namespace pcit::panther{
 					ast_buffer.getAttributeBlock(var_decl.attributeBlock)
 				);
 				if(attribute_deps.isError()){ return false; }
-				if(this->add_deps(deps_node.declDeps.defs, attribute_deps.value()) == false){ return false; }
+				if(this->add_decl_deps_def(deps_node, attribute_deps.value()) == false){ return false; }
 
 
 				// value 
@@ -302,11 +309,11 @@ namespace pcit::panther{
 					}
 
 					if(var_decl.type.has_value()){
-						if(this->add_deps(deps_node.defDeps.defs, value_deps.value().defs) == false){ return false; }
-						if(this->add_deps(deps_node.defDeps.decls, value_deps.value().decls) == false){ return false; }
+						if(this->add_def_deps_def(deps_node, value_deps.value().defs) == false){ return false; }
+						if(this->add_def_deps_decl(deps_node, value_deps.value().decls) == false){ return false; }
 					}else{
-						if(this->add_deps(deps_node.declDeps.decls, value_deps.value().decls) == false){ return false; }
-						if(this->add_deps(deps_node.declDeps.defs, value_deps.value().defs) == false){ return false; }
+						if(this->add_decl_deps_decl(deps_node, value_deps.value().decls) == false){ return false; }
+						if(this->add_decl_deps_def(deps_node, value_deps.value().defs) == false){ return false; }
 					}
 				}
 			} break;
@@ -320,8 +327,8 @@ namespace pcit::panther{
 					const evo::Result<DepsInfo> stmt_res = this->analyze_stmt(func_body_stmt);
 					if(stmt_res.isError()){ return false; }
 
-					if(this->add_deps(deps_node.defDeps.decls, stmt_res.value().decls) == false){ return false; }
-					if(this->add_deps(deps_node.defDeps.defs, stmt_res.value().defs) == false){ return false; }
+					if(this->add_def_deps_decl(deps_node, stmt_res.value().decls) == false){ return false; }
+					if(this->add_def_deps_def(deps_node, stmt_res.value().defs) == false){ return false; }
 				}
 				this->leave_scope();
 			} break;
@@ -334,12 +341,12 @@ namespace pcit::panther{
 					ast_buffer.getAttributeBlock(alias_decl.attributeBlock)
 				);
 				if(attribute_deps.isError()){ return false; }
-				if(this->add_deps(deps_node.declDeps.defs, attribute_deps.value()) == false){ return false; }
+				if(this->add_decl_deps_def(deps_node, attribute_deps.value()) == false){ return false; }
 
 				// type
 				const evo::Result<DepsSet> type_deps = this->analyze_type_deps(ast_buffer.getType(alias_decl.type));
 				if(type_deps.isError()){ return false; }
-				if(this->add_deps(deps_node.defDeps.defs, type_deps.value()) == false){ return false; }
+				if(this->add_def_deps_def(deps_node, type_deps.value()) == false){ return false; }
 			} break;
 
 			case AST::Kind::TypedefDecl: {
@@ -350,12 +357,12 @@ namespace pcit::panther{
 					ast_buffer.getAttributeBlock(typedef_decl.attributeBlock)
 				);
 				if(attribute_deps.isError()){ return false; }
-				if(this->add_deps(deps_node.declDeps.defs, attribute_deps.value()) == false){ return false; }
+				if(this->add_decl_deps_def(deps_node, attribute_deps.value()) == false){ return false; }
 
 				// type
 				const evo::Result<DepsSet> type_deps = this->analyze_type_deps(ast_buffer.getType(typedef_decl.type));
 				if(type_deps.isError()){ return false; }
-				if(this->add_deps(deps_node.defDeps.defs, type_deps.value()) == false){ return false; }
+				if(this->add_def_deps_def(deps_node, type_deps.value()) == false){ return false; }
 			} break;
 
 			case AST::Kind::StructDecl: {
@@ -378,8 +385,8 @@ namespace pcit::panther{
 				const evo::Result<DepsInfo> value_deps = this->analyze_expr(when_cond_decl.cond);
 				if(value_deps.isError()){ return false; }
 
-				if(this->add_deps(deps_node.declDeps.decls, value_deps.value().decls) == false){ return false; }
-				if(this->add_deps(deps_node.declDeps.defs, value_deps.value().defs) == false){ return false; }
+				if(this->add_decl_deps_decl(deps_node, value_deps.value().decls) == false){ return false; }
+				if(this->add_decl_deps_def(deps_node, value_deps.value().defs) == false){ return false; }
 
 				for(const deps::Node::ID& dep_id : value_deps.value().decls){
 					this->context.deps_buffer[dep_id].usedInComptime = true;
@@ -945,18 +952,108 @@ namespace pcit::panther{
 	}
 
 
-	auto DependencyAnalysis::add_deps(DepsSet& target, const DepsSet& deps) const -> bool {
-		target.reserve(target.size() + deps.size());
-		for(const deps::Node::ID& dep : deps){
-			if(this->add_deps(target, dep) == false){ return false; }
+	auto DependencyAnalysis::add_decl_deps_decl(deps::Node& deps_node, const DepsSet& deps) -> bool {
+		return this->add_deps_impl(deps_node, deps_node.declDeps.decls, deps, false);
+	}
+
+	auto DependencyAnalysis::add_decl_deps_decl(deps::Node& deps_node, const deps::Node::ID& dep) -> bool {
+		return this->add_deps_impl(deps_node, deps_node.declDeps.decls, dep, false);
+	}
+
+
+	auto DependencyAnalysis::add_decl_deps_def(deps::Node& deps_node, const DepsSet& deps) -> bool {
+		return this->add_deps_impl(deps_node, deps_node.declDeps.defs, deps, false);
+	}
+
+	auto DependencyAnalysis::add_decl_deps_def(deps::Node& deps_node, const deps::Node::ID& dep) -> bool {
+		return this->add_deps_impl(deps_node, deps_node.declDeps.defs, dep, false);
+	}
+
+
+	auto DependencyAnalysis::add_def_deps_decl(deps::Node& deps_node, const DepsSet& deps) -> bool {
+		return this->add_deps_impl(deps_node, deps_node.defDeps.decls, deps, true);
+	}
+
+	auto DependencyAnalysis::add_def_deps_decl(deps::Node& deps_node, const deps::Node::ID& dep) -> bool {
+		return this->add_deps_impl(deps_node, deps_node.defDeps.decls, dep, true);
+	}
+
+
+	auto DependencyAnalysis::add_def_deps_def(deps::Node& deps_node, const DepsSet& deps) -> bool {
+		return this->add_deps_impl(deps_node, deps_node.defDeps.defs, deps, true);
+	}
+
+	auto DependencyAnalysis::add_def_deps_def(deps::Node& deps_node, const deps::Node::ID& dep) -> bool {
+		return this->add_deps_impl(deps_node, deps_node.defDeps.defs, dep, true);
+	}
+
+
+
+	auto DependencyAnalysis::add_deps_impl(
+		const deps::Node& deps_node, DepsSet& target, const DepsSet& deps_to_add, bool is_defs
+	) -> bool {
+		target.reserve(target.size() + deps_to_add.size());
+		for(const deps::Node::ID& dep : deps_to_add){
+			if(this->add_deps_impl(deps_node, target, dep, is_defs) == false){ return false; }
 		}
 		return true;
 	}
 
 
-	auto DependencyAnalysis::add_deps(DepsSet& target, const deps::Node::ID& dep) const -> bool {
-		// TODO: check for circular dependencies
-		target.emplace(dep);
+	auto DependencyAnalysis::add_deps_impl(
+		const deps::Node& deps_node, DepsSet& target, const deps::Node::ID& dep_to_add, bool is_defs
+	) -> bool {
+		struct VisitedNode{
+			const deps::Node* node;
+			bool is_defs;
+		};
+
+		auto visited_queue = std::queue<VisitedNode>();
+
+		visited_queue.emplace(&deps_node, is_defs);
+		visited_queue.emplace(&this->context.deps_buffer[dep_to_add], is_defs);
+
+
+		bool first = true;
+		while(visited_queue.empty() == false){
+			const VisitedNode visited_node = visited_queue.front();
+			visited_queue.pop();
+
+			if(!first && visited_node.node == &deps_node && is_defs <= visited_node.is_defs){
+				this->emit_error(
+					Diagnostic::Code::DepCircularDep,
+					deps_node.astNode,
+					"Detected a circular dependency when analyzing this symbol:",
+					Diagnostic::Info(
+						std::format("Requires the {} of this symbol:", is_defs ? "declaration" : "definition"),
+						Diagnostic::Location::get(this->context.deps_buffer[dep_to_add].astNode, this->source)
+					)
+				);
+				return false;
+			}
+			first = false;
+
+			if(visited_node.is_defs){
+				for(const deps::Node::ID& dep : visited_node.node->defDeps.decls){
+					visited_queue.emplace(&this->context.deps_buffer[dep], false);
+				}
+
+				for(const deps::Node::ID& dep : visited_node.node->defDeps.defs){
+					visited_queue.emplace(&this->context.deps_buffer[dep], true);
+				}
+
+			}else{
+				for(const deps::Node::ID& dep : visited_node.node->declDeps.decls){
+					visited_queue.emplace(&this->context.deps_buffer[dep], false);
+				}
+
+				for(const deps::Node::ID& dep : visited_node.node->declDeps.defs){
+					visited_queue.emplace(&this->context.deps_buffer[dep], true);
+				}
+			}
+		}
+
+		target.emplace(dep_to_add);
 		return true;
 	}
 

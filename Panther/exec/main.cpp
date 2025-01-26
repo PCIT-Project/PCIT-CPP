@@ -147,7 +147,7 @@ auto main(int argc, const char* argv[]) -> int {
 	std::ignore = context.addSourceFile("build.pthr", comp_config);
 
 
-	if(context.analyzeSemantics() == false){
+	if(context.analyzeDependencies() == false){
 		const unsigned num_errors = context.getNumErrors();
 		if(num_errors == 1){
 			printer.printlnError("Failed with 1 error");
@@ -157,9 +157,9 @@ auto main(int argc, const char* argv[]) -> int {
 		return EXIT_FAILURE;
 	}
 
-	// #if defined(PCIT_CONFIG_DEBUG)
-	// 	pthr::print_deps(printer, context, current_path.value());
-	// #endif
+	#if defined(PCIT_CONFIG_DEBUG)
+		pthr::print_deps(printer, context, current_path.value());
+	#endif
 
 
 	if(config.verbosity >= pthr::Config::Verbosity::Some){

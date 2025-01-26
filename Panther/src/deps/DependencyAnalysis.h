@@ -126,8 +126,25 @@ namespace pcit::panther{
 			auto add_global_symbol(std::string_view ident, Token::ID location, bool is_func, bool is_in_when_cond)
 				-> bool;
 
-			auto add_deps(DepsSet& target, const DepsSet& deps) const -> bool;
-			auto add_deps(DepsSet& target, const deps::Node::ID& dep) const -> bool;
+
+			auto add_decl_deps_decl(deps::Node& deps_node, const DepsSet& deps_to_add) -> bool;
+			auto add_decl_deps_decl(deps::Node& deps_node, const deps::Node::ID& dep_to_add) -> bool;
+			
+			auto add_decl_deps_def(deps::Node& deps_node, const DepsSet& deps_to_add) -> bool;
+			auto add_decl_deps_def(deps::Node& deps_node, const deps::Node::ID& dep_to_add) -> bool;
+
+			auto add_def_deps_decl(deps::Node& deps_node, const DepsSet& deps_to_add) -> bool;
+			auto add_def_deps_decl(deps::Node& deps_node, const deps::Node::ID& dep_to_add) -> bool;
+
+			auto add_def_deps_def(deps::Node& deps_node, const DepsSet& deps_to_add) -> bool;
+			auto add_def_deps_def(deps::Node& deps_node, const deps::Node::ID& dep_to_add) -> bool;
+
+			auto add_deps_impl(
+				const deps::Node& deps_node, DepsSet& target, const DepsSet& deps_to_add, bool is_defs
+			) -> bool;
+			auto add_deps_impl(
+				const deps::Node& deps_node, DepsSet& target, const deps::Node::ID& dep_to_add, bool is_defs
+			) -> bool;
 
 			auto emit_fatal(Diagnostic::Code code, Diagnostic::Location::None, auto&&... args) -> void {
 				this->context.emitError(code, Diagnostic::Location::NONE, std::forward<decltype(args)>(args)...);
