@@ -32,7 +32,7 @@ namespace pthr{
 		unsigned num_threads = panther::Context::optimalNumThreads();
 		// unsigned num_threads = 0;
 
-		bool use_std_lib     = false;
+		bool use_std_lib     = true;
 	};
 
 
@@ -147,7 +147,7 @@ auto main(int argc, const char* argv[]) -> int {
 	std::ignore = context.addSourceFile("build.pthr", comp_config);
 
 
-	if(context.analyzeDependencies() == false){
+	if(context.analyzeSemantics() == false){
 		const unsigned num_errors = context.getNumErrors();
 		if(num_errors == 1){
 			printer.printlnError("Failed with 1 error");
@@ -157,9 +157,9 @@ auto main(int argc, const char* argv[]) -> int {
 		return EXIT_FAILURE;
 	}
 
-	#if defined(PCIT_CONFIG_DEBUG)
-		pthr::print_deps(printer, context, current_path.value());
-	#endif
+	// for(const panther::Source::ID& source_id : context.getSourceManager()){
+	// 	pthr::print_AST(printer, context.getSourceManager()[source_id], current_path.value());
+	// }
 
 
 	if(config.verbosity >= pthr::Config::Verbosity::Some){

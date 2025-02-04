@@ -68,38 +68,35 @@ namespace pcit::core{
 
 
 			auto addTask(TASK&& task) -> void {
-				// evo::debugAssert(this->isRunning(), "Thread Queue not running");
-
 				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
 				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::move(task));
 			}
 
 			auto addTask(const TASK& task) -> void {
-				// evo::debugAssert(this->isRunning(), "Thread Queue not running");
-
 				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
 				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(task);
 			}
 
 			auto addTask(auto&&... args) -> void {
-				// evo::debugAssert(this->isRunning(), "Thread Queue not running");
-
 				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
 				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::forward<decltype(args)>(args)...);
 			}
 
-			EVO_NODISCARD auto isWorking() const -> bool { 
-				if(this->priv.tasks.empty()){ return false; }
+			EVO_NODISCARD auto isWorking() const -> bool {
+				for(const Worker& worker : this->priv.workers){
+					if(worker.is_working()){ return true; }
+				}
 
 				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
-				if(this->priv.tasks.empty()){ return false; }
 
 				for(const Worker& worker : this->priv.workers){
 					if(worker.is_working()){ return true; }
 				}
+
+				if(this->priv.tasks.empty()){ return false; }
 
 				return false;
 			}

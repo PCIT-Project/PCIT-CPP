@@ -9,9 +9,12 @@
 
 #include "../include/Context.h"
 
+#include <filesystem>
+namespace fs = std::filesystem;
+
 #include "./tokens/Tokenizer.h"
 #include "./AST/Parser.h"
-#include "./deps/DependencyAnalysis.h"
+#include "./symbol_proc/SymbolProcBuilder.h"
 #include "./sema/SemanticAnalyzer.h"
 
 namespace pcit::panther{
@@ -20,17 +23,16 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// path helpers
 
-	EVO_NODISCARD static auto path_exitsts(const std::filesystem::path& path) -> bool {
+	EVO_NODISCARD static auto path_exitsts(const fs::path& path) -> bool {
 		auto ec = std::error_code();
 		return std::filesystem::exists(path, ec) && (ec.value() == 0);
 	}
 
-	EVO_NODISCARD static auto path_is_pthr_file(const std::filesystem::path& path) -> bool {
+	EVO_NODISCARD static auto path_is_pthr_file(const fs::path& path) -> bool {
 		return path_exitsts(path) && path.extension() == ".pthr";
 	}
 
-	EVO_NODISCARD static auto normalize_path(const std::filesystem::path& path, const std::filesystem::path& base_path)
-	-> std::filesystem::path {
+	EVO_NODISCARD static auto normalize_path(const fs::path& path, const fs::path& base_path) -> fs::path {
 		return (base_path / path).lexically_normal();
 	}
 
@@ -121,9 +123,9 @@ namespace pcit::panther{
 	}
 
 
-	auto Context::analyzeDependencies() -> bool {
+	auto Context::buildSymbolProcs() -> bool {
 		const auto worker = [&](Task& task) -> bool {
-			this->dependency_analysis_impl(
+			this->build_symbol_procs_impl(
 				std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id
 			);
 			return true;
@@ -158,19 +160,21 @@ namespace pcit::panther{
 	}
 
 
-
 	auto Context::analyzeSemantics() -> bool {
-		if(this->analyzeDependencies() == false){ return false; }
+		if(this->buildSymbolProcs() == false){ return false; }
 
 		if(this->type_manager.primitivesInitialized() == false){
 			this->type_manager.initPrimitives();
 		}
 
 		for(const Source::ID& source_id : this->source_manager){
-			this->source_manager[source_id].sema_scope_id = this->sema_buffer.scope_manager.createScope();
-			this->sema_buffer.scope_manager
-				.getScope(*this->source_manager[source_id].sema_scope_id)
+			Source& source = this->source_manager[source_id];
+
+			source.sema_scope_id = this->sema_buffer.scope_manager.createScope();
+			this->sema_buffer.scope_manager.getScope(*source.sema_scope_id)
 				.pushLevel(this->sema_buffer.scope_manager.createLevel());
+
+			source.is_ready_for_sema = true;
 		}
 
 		const auto worker = [&](Task& task_variant) -> bool {
@@ -180,14 +184,8 @@ namespace pcit::panther{
 				if constexpr(std::is_same<TaskType, FileToLoad>()){
 					evo::debugFatalBreak("Should never hit this task");
 
-				}else if constexpr(std::is_same<TaskType, SemaDecl>()){
-					analyze_semantics_decl(*this, task.deps_node_id);
-
-				}else if constexpr(std::is_same<TaskType, SemaDef>()){
-					analyze_semantics_def(*this, task.deps_node_id);
-
-				}else if constexpr(std::is_same<TaskType, SemaDeclDef>()){
-					analyze_semantics_decl_def(*this, task.deps_node_id);
+				}else if constexpr(std::is_same<TaskType, SymbolProc::ID>()){
+					analyze_semantics(*this, task);
 
 				}else{
 					static_assert(false, "Unsupported task type");
@@ -198,51 +196,42 @@ namespace pcit::panther{
 		};
 
 
+		auto setup_tasks = [this](auto& work_manager_inst) -> void {
+			for(uint32_t i = 0; const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
+				EVO_DEFER([&](){ i += 1; });
+
+				if(symbol_proc.isWaiting() == false){
+					work_manager_inst.addTask(SymbolProc::ID(i));
+				}
+			}
+		};
+
+
 		if(this->_config.isMultiThreaded()){
 			auto& work_manager_inst = this->work_manager.emplace<core::ThreadQueue<Task>>(worker);
 
-			for(uint32_t i = 0; deps::Node& deps_node : this->deps_buffer){
-				if(deps_node.hasNoDeclDeps()){ // has decl deps
-					deps_node.declSemaStatus = deps::Node::SemaStatus::InQueue;
-					if(deps_node.hasNoDefDeps()){
-						deps_node.defSemaStatus = deps::Node::SemaStatus::InQueue;
-						work_manager_inst.addTask(SemaDeclDef(deps::Node::ID(i)));
-					}else{
-						work_manager_inst.addTask(SemaDecl(deps::Node::ID(i)));
-					}
-				}
-
-				i += 1;
-			}
+			setup_tasks(work_manager_inst);
 
 			work_manager_inst.startup(this->_config.numThreads);
-			while(this->getNumErrors() == 0 && this->deps_buffer.num_nodes_sema_status_not_done > 0){
-				// TODO: different amount of yields?
-				std::this_thread::yield();
-				std::this_thread::yield();
-				std::this_thread::yield();
-			}
 			work_manager_inst.waitUntilDoneWorking(); // probably not needed, but I think the safety is worth it
 			work_manager_inst.shutdown();
 
 		}else{
 			auto& work_manager_inst = this->work_manager.emplace<core::SingleThreadedWorkQueue<Task>>(worker);
 
-			for(uint32_t i = 0; deps::Node& deps_node : this->deps_buffer){
-				if(deps_node.hasNoDeclDeps()){
-					deps_node.declSemaStatus = deps::Node::SemaStatus::InQueue;
-					if(deps_node.hasNoDefDeps()){
-						deps_node.defSemaStatus = deps::Node::SemaStatus::InQueue;
-						work_manager_inst.addTask(SemaDeclDef(deps::Node::ID(i)));
-					}else{
-						work_manager_inst.addTask(SemaDecl(deps::Node::ID(i)));
-					}
-				}
-
-				i += 1;
-			}
+			setup_tasks(work_manager_inst);
 
 			work_manager_inst.run();
+		}
+
+		if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
+			this->emitFatal(
+				Diagnostic::Code::MiscStallDetected,
+				Diagnostic::Location::NONE,
+				"Stall detected while compiling",
+				Diagnostic::Info("This may have been caused by an uncaught circular dependency")
+			);
+			return false;
 		}
 
 		return this->num_errors == 0;
@@ -255,7 +244,7 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// adding sources
 
-	auto Context::addSourceFile(const std::filesystem::path& path, Source::CompilationConfig::ID compilation_config_id)
+	auto Context::addSourceFile(const fs::path& path, Source::CompilationConfig::ID compilation_config_id)
 	-> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 		if(path_exitsts(path) == false){ return AddSourceResult::DoesntExist; }
@@ -270,7 +259,7 @@ namespace pcit::panther{
 	}
 
 	auto Context::addSourceDirectory(
-		const std::filesystem::path& directory, Source::CompilationConfig::ID compilation_config_id
+		const fs::path& directory, Source::CompilationConfig::ID compilation_config_id
 	) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 		if(path_exitsts(directory) == false){ return AddSourceResult::DoesntExist; }
@@ -279,7 +268,7 @@ namespace pcit::panther{
 		const Source::CompilationConfig& compilation_config =
 			this->source_manager.getSourceCompilationConfig(compilation_config_id);
 
-		for(const std::filesystem::path& file_path : std::filesystem::directory_iterator(directory)){
+		for(const fs::path& file_path : std::filesystem::directory_iterator(directory)){
 			if(path_is_pthr_file(file_path)){
 				this->files_to_load.emplace_back(
 					normalize_path(file_path, compilation_config.basePath), compilation_config_id
@@ -291,7 +280,7 @@ namespace pcit::panther{
 	}
 
 	auto Context::addSourceDirectoryRecursive(
-		const std::filesystem::path& directory, Source::CompilationConfig::ID compilation_config_id
+		const fs::path& directory, Source::CompilationConfig::ID compilation_config_id
 	) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 		if(path_exitsts(directory) == false){ return AddSourceResult::DoesntExist; }
@@ -300,7 +289,7 @@ namespace pcit::panther{
 		const Source::CompilationConfig& compilation_config =
 			this->source_manager.getSourceCompilationConfig(compilation_config_id);
 
-		for(const std::filesystem::path& file_path : std::filesystem::recursive_directory_iterator(directory)){
+		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(directory)){
 			if(path_is_pthr_file(file_path)){
 				this->files_to_load.emplace_back(
 					normalize_path(file_path, compilation_config.basePath), compilation_config_id
@@ -311,7 +300,7 @@ namespace pcit::panther{
 		return AddSourceResult::Success;
 	}
 
-	auto Context::addStdLib(const std::filesystem::path& directory) -> AddSourceResult {
+	auto Context::addStdLib(const fs::path& directory) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 		evo::debugAssert(directory.is_absolute(), "std lib directory must be absolute");
 		evo::debugAssert(this->added_std_lib == false, "already added std lib");
@@ -324,14 +313,13 @@ namespace pcit::panther{
 		const Source::CompilationConfig& compilation_config =
 			this->source_manager.getSourceCompilationConfig(compilation_config_id);
 
-		for(const std::filesystem::path& file_path : std::filesystem::recursive_directory_iterator(directory)){
+		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(directory)){
 			if(path_is_pthr_file(file_path)){
-				if(file_path.stem() == "std"){  this->source_manager.add_special_name_path("std", file_path);  }
-				if(file_path.stem() == "math"){ this->source_manager.add_special_name_path("math", file_path); }
+				const fs::path normalized_path = normalize_path(file_path, compilation_config.basePath);
+				if(file_path.stem() == "std"){  this->source_manager.add_special_name_path("std", normalized_path);  }
+				if(file_path.stem() == "math"){ this->source_manager.add_special_name_path("math", normalized_path); }
 
-				this->files_to_load.emplace_back(
-					normalize_path(file_path, compilation_config.basePath), compilation_config_id
-				);
+				this->files_to_load.emplace_back(normalized_path, compilation_config_id);
 			}
 		}
 
@@ -346,7 +334,7 @@ namespace pcit::panther{
 	// task 
 
 	EVO_NODISCARD auto Context::load_source(
-		std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+		fs::path&& path, Source::CompilationConfig::ID compilation_config_id
 	) -> evo::Result<Source::ID> {
 		if(std::filesystem::exists(path) == false){
 			this->emitError(
@@ -371,7 +359,7 @@ namespace pcit::panther{
 	}
 
 
-	auto Context::tokenize_impl(std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id)
+	auto Context::tokenize_impl(fs::path&& path, Source::CompilationConfig::ID compilation_config_id)
 	-> void {
 		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
 		if(new_source.isError()){ return; }
@@ -383,7 +371,7 @@ namespace pcit::panther{
 	}
 
 
-	auto Context::parse_impl(std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id)
+	auto Context::parse_impl(fs::path&& path, Source::CompilationConfig::ID compilation_config_id)
 	-> void {
 		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
 		if(new_source.isError()){ return; }
@@ -397,8 +385,8 @@ namespace pcit::panther{
 		this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 	}
 
-	auto Context::dependency_analysis_impl(
-		std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+	auto Context::build_symbol_procs_impl(
+		fs::path&& path, Source::CompilationConfig::ID compilation_config_id
 	) -> evo::Result<Source::ID> {
 		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
 		if(new_source.isError()){ return evo::resultError; }
@@ -411,9 +399,9 @@ namespace pcit::panther{
 		if(panther::parse(*this, new_source.value()) == false){ return evo::resultError; }
 		this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 
-		if(panther::analyzeDependencies(*this, new_source.value()) == false){ return evo::resultError; }
+		if(panther::build_symbol_procs(*this, new_source.value()) == false){ return evo::resultError; }
 		this->trace(
-			"Analyzed dependencies of file: \"{}\"", this->source_manager[new_source.value()].getPath().string()
+			"Built Symbol Processes of file: \"{}\"", this->source_manager[new_source.value()].getPath().string()
 		);
 
 		return new_source.value();
@@ -423,6 +411,128 @@ namespace pcit::panther{
 
 	//////////////////////////////////////////////////////////////////////
 	// misc
+
+
+	auto Context::lookupSourceID(std::string_view lookup_path, const Source& calling_source)
+	-> evo::Expected<Source::ID, LookupSourceIDError> {
+		if(lookup_path.empty()){
+			return evo::Unexpected(LookupSourceIDError::EmptyPath);
+		}
+
+		const std::optional<Source::ID> special_name_lookup = 
+			this->source_manager.lookupSpecialNameSourceID(lookup_path);
+
+		if(special_name_lookup.has_value()){ return special_name_lookup.value(); }
+
+
+		// generate path
+		fs::path file_path = [&]() -> fs::path {
+			fs::path relative_dir = calling_source.getPath();
+			relative_dir.remove_filename();
+
+			if(lookup_path.starts_with("./")){
+				return relative_dir / fs::path(lookup_path.substr(2));
+
+			}else if(lookup_path.starts_with(".\\")){
+				return relative_dir / fs::path(lookup_path.substr(3));
+
+			// }else if(lookup_path.starts_with("/") || lookup_path.starts_with("\\")){
+			// 	return relative_dir / fs::path(lookup_path.substr(1));
+
+			}else if(lookup_path.starts_with("../") || lookup_path.starts_with("..\\")){
+				return relative_dir / fs::path(lookup_path);
+
+			}else{
+				const Source::CompilationConfig& compilation_config = this->source_manager.getSourceCompilationConfig(
+					calling_source.getCompilationConfigID()
+				);
+				return compilation_config.basePath / fs::path(lookup_path);
+			}
+		}().lexically_normal();
+
+
+		if(calling_source.getPath() == file_path){
+			return evo::Unexpected(LookupSourceIDError::SameAsCaller);
+		}
+
+		std::optional<Source::ID> lookup_source_id = this->source_manager.lookupSourceID(file_path.string());
+		if(lookup_source_id.has_value()){ return lookup_source_id.value(); }
+
+		const bool current_dynamic_file_load_contains =  [&](){
+			const auto lock = std::scoped_lock(this->current_dynamic_file_load_lock);
+			return this->current_dynamic_file_load.contains(file_path);
+		}();
+			
+		if(current_dynamic_file_load_contains){
+			// TODO: better waiting
+			while(lookup_source_id.has_value() == false){
+				std::this_thread::yield();
+				std::this_thread::yield();
+				std::this_thread::yield();
+				lookup_source_id = this->source_manager.lookupSourceID(file_path.string());
+			}
+
+			const Source& lookup_source = this->source_manager[lookup_source_id.value()];
+
+			while(lookup_source.is_ready_for_sema == false){
+				std::this_thread::yield();
+				std::this_thread::yield();
+				std::this_thread::yield();
+			}
+
+			return lookup_source_id.value();
+		}
+
+		this->current_dynamic_file_load.emplace(file_path);
+
+		if(evo::fs::exists(file_path.string())){
+			if(this->_config.mode == Config::Mode::Compile){
+				return evo::Unexpected(LookupSourceIDError::NotOneOfSources);
+			}
+
+			const evo::Result<Source::ID> dep_analysis_res = this->build_symbol_procs_impl(
+				std::move(file_path), calling_source.getCompilationConfigID()
+			);
+
+			{
+				const auto lock = std::scoped_lock(this->current_dynamic_file_load_lock);
+				this->current_dynamic_file_load.erase(file_path);
+			}
+
+			if(dep_analysis_res.isSuccess()){
+				Source& source = this->source_manager[dep_analysis_res.value()];
+				source.sema_scope_id = this->sema_buffer.scope_manager.createScope();
+				this->sema_buffer.scope_manager.getScope(*source.sema_scope_id)
+					.pushLevel(this->sema_buffer.scope_manager.createLevel());
+
+				this->work_manager.visit([&](auto& work_manager_inst) -> void {
+					if constexpr(std::is_same<std::decay_t<decltype(work_manager_inst)>, std::monostate>()){
+						evo::debugFatalBreak("Should never be importing module if no work manager is running");
+
+					}else{
+						for(const auto& global_symbol_proc : source.global_symbol_procs){
+							const SymbolProc::ID symbol_proc_id = global_symbol_proc.second;
+							const SymbolProc& symbol_proc = this->symbol_proc_manager.getSymbolProc(symbol_proc_id);
+							if(symbol_proc.isWaiting() == false){
+								work_manager_inst.addTask(symbol_proc_id);
+							}
+						}
+					}
+				});
+
+				source.is_ready_for_sema = true;
+
+				return dep_analysis_res.value();
+
+			}else{
+				return evo::Unexpected(LookupSourceIDError::FailedDuringAnalysisOfNewlyLoaded);
+			}
+		}
+
+		return evo::Unexpected(LookupSourceIDError::DoesntExist);
+	}
+
+
 
 
 	auto Context::emit_diagnostic_impl(const Diagnostic& diagnostic) -> void {

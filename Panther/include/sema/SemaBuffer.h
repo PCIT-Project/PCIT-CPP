@@ -13,7 +13,7 @@
 #include <Evo.h>
 #include <PCIT_core.h>
 
-#include "./ScopeLevel.h"
+#include "../../src/sema/ScopeManager.h"
 #include "./sema.h"
 
 
@@ -273,6 +273,22 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// strings
+
+			EVO_NODISCARD auto createStringValue(std::string&& str) -> sema::StringValue::ID {
+				return this->string_values.emplace_back(str);
+			}
+
+			EVO_NODISCARD auto createStringValue(const std::string& str) -> sema::StringValue::ID {
+				return this->string_values.emplace_back(str);
+			}
+
+			EVO_NODISCARD auto getStringValue(sema::StringValue::ID id) const -> const sema::StringValue& {
+				return this->string_values[id];
+			}
+
+
+			///////////////////////////////////
 			// chars
 
 			EVO_NODISCARD auto createCharValue(char character) -> sema::CharValue::ID {
@@ -332,13 +348,13 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::IntValue, sema::IntValue::ID> int_values{};
 			core::SyncLinearStepAlloc<sema::FloatValue, sema::FloatValue::ID> float_values{};
 			core::SyncLinearStepAlloc<sema::BoolValue, sema::BoolValue::ID> bool_values{};
+			core::SyncLinearStepAlloc<sema::StringValue, sema::StringValue::ID> string_values{};
 			core::SyncLinearStepAlloc<sema::CharValue, sema::CharValue::ID> char_values{};
 
 			core::SyncLinearStepAlloc<Token::ID, uint32_t> misc_tokens{};
 
 
-			ScopeManager<sema::ScopeLevel, evo::Variant<std::monostate, sema::Func::ID>> scope_manager{};
-			using Scope = ScopeManager<sema::ScopeLevel, evo::Variant<std::monostate, sema::Func::ID>>::Scope;
+			sema::ScopeManager scope_manager{};
 
 
 			friend class Source;

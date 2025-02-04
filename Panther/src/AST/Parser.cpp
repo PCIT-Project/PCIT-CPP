@@ -139,7 +139,7 @@ namespace pcit::panther{
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::Attribute){
 			this->context.emitError(
-				Diagnostic::Code::ParserDiagnosticsInWrongPlace,
+				Diagnostic::Code::ParserAttributesInWrongPlace,
 				this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 				"Attributes for function declaration in the wrong place",
 				evo::SmallVector<Diagnostic::Info>{
@@ -245,7 +245,7 @@ namespace pcit::panther{
 
 		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
 			this->context.emitError(
-				Diagnostic::Code::ParserDiagnosticsInWrongPlace,
+				Diagnostic::Code::ParserAttributesInWrongPlace,
 				this->source.getTokenBuffer().getSourceLocation(
 					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
 					this->source.getID()
@@ -1335,7 +1335,7 @@ namespace pcit::panther{
 
 		while(this->reader[this->reader.peek()].kind() == Token::Kind::Attribute){
 			const Token::ID attr_token_id = this->reader.next();
-			auto arguments = evo::SmallVector<AST::Node, 2>();
+			auto arguments = evo::StaticVector<AST::Node, 2>();
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 				if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::Error; }

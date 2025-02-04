@@ -19,7 +19,7 @@
 #include "./source/source_data.h"
 #include "./tokens/Token.h"
 #include "./AST/AST.h"
-#include "./deps/deps.h"
+#include "./sema/sema.h"
 
 namespace pcit::panther{
 
@@ -65,25 +65,24 @@ namespace pcit::panther{
 			ParserEmptyMultiAssign,
 			ParserEmptyFuncReturnBlock,
 			ParserInvalidNewExpr,
-			ParserDiagnosticsInWrongPlace,
+			ParserAttributesInWrongPlace,
+			ParserTooManyAttributeArgs,
 
 
 			//////////////////
-			// deps
+			// symbol proc
 
-			DepInalidGlobalStmtKind,
-			DepInvalidBaseType,
-			DepRequiredComptime,
-			DepInvalidStmtKind,
-			DepGlobalIdentAlreadyDefined,
-			DepCircularDep,
+			SymbolProcInvalidGlobalStmt,
+			SymbolProcInvalidBaseType,
+			SymbolProcInvalidExprKind,
+			SymbolProcImportRequiresOneArg,
+			SymbolProcCircularDep,
 
 
 			//////////////////
 			// sema
 
 			// types
-			SemaInvalidBaseType,
 			SemaVoidWithQualifiers,
 			SemaInvalidTypeQualifiers,
 			SemaGenericTypeNotInTemplatePackDecl,
@@ -99,24 +98,31 @@ namespace pcit::panther{
 
 			// exprs
 			SemaTypeUsedAsExpr,
-			SemaInvalidExprKind,
-
-			// value stages
-			SemaInvalidStageForConstexpr,
-			SemaInvalidStageForComptime,
 
 			// type checking
 			SemaMultiReturnIntoSingleValue,
 			SemaCannotConvertFluidValue,
 			SemaTypeMismatch,
-			
+
+			// imports
+			SemaNoSymbolInModuleWithThatIdent,
+			SemaSymbolNotPub,
+			SemaFailedToImportModule,
+
+			// attributes
+			SemaAttributeAlreadySet,
+			SemaUnknownAttribute,
+			SemaAttributeImplictSet,
+			SemaTooManyAttributeArgs,
+
 
 			//////////////////
 			// misc
 
+			MiscUnimplementedFeature,
 			MiscFileDoesNotExist,
 			MiscLoadFileFailed,
-			MiscUnimplementedFeature,
+			MiscStallDetected,
 		};
 
 
@@ -181,8 +187,10 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::AttributeBlock::Attribute& attr, const class Source& src)
 					-> Location;
 
-				// deps
-				EVO_NODISCARD static auto get(const deps::Node::ID& id, const class Context& context) -> Location;
+				// sema
+				EVO_NODISCARD static auto get(
+					const sema::Var::ID& sema_var_id, const class Source& src, const class Context& context
+				) -> Location;
 		
 			private:
 				evo::Variant<None, SourceLocation> variant;
@@ -338,17 +346,18 @@ namespace pcit::panther{
 				case Code::ParserEmptyMultiAssign:             return "P7";
 				case Code::ParserEmptyFuncReturnBlock:         return "P8";
 				case Code::ParserInvalidNewExpr:               return "P9";
-				case Code::ParserDiagnosticsInWrongPlace:      return "P10";
-
-				case Code::DepInalidGlobalStmtKind:            return "D1";
-				case Code::DepInvalidBaseType:                 return "D2";
-				case Code::DepRequiredComptime:                return "D3";
-				case Code::DepInvalidStmtKind:                 return "D4";
-				case Code::DepGlobalIdentAlreadyDefined:       return "D5";
-				case Code::DepCircularDep:                     return "D6";
+				case Code::ParserAttributesInWrongPlace:       return "P10";
+				case Code::ParserTooManyAttributeArgs:         return "P11";
 
 				// TODO: give individual codes and put in correct order
-				case Code::SemaInvalidBaseType:
+				case Code::SymbolProcInvalidGlobalStmt:
+				case Code::SymbolProcInvalidBaseType:
+				case Code::SymbolProcInvalidExprKind:
+				case Code::SymbolProcImportRequiresOneArg:
+				case Code::SymbolProcCircularDep:
+					return "SP";
+
+				// TODO: give individual codes and put in correct order
 				case Code::SemaVoidWithQualifiers:
 				case Code::SemaInvalidTypeQualifiers:
 				case Code::SemaGenericTypeNotInTemplatePackDecl:
@@ -358,17 +367,22 @@ namespace pcit::panther{
 				case Code::SemaVarWithNoValue:
 				case Code::SemaVarDefNotEphemeral:
 				case Code::SemaTypeUsedAsExpr:
-				case Code::SemaInvalidExprKind:
-				case Code::SemaInvalidStageForConstexpr:
-				case Code::SemaInvalidStageForComptime:
 				case Code::SemaMultiReturnIntoSingleValue:
 				case Code::SemaCannotConvertFluidValue:
 				case Code::SemaTypeMismatch:
+				case Code::SemaNoSymbolInModuleWithThatIdent:
+				case Code::SemaSymbolNotPub:
+				case Code::SemaFailedToImportModule:
+				case Code::SemaAttributeAlreadySet:
+				case Code::SemaUnknownAttribute:
+				case Code::SemaAttributeImplictSet:
+				case Code::SemaTooManyAttributeArgs:
 					return "S";
 
+				case Code::MiscUnimplementedFeature:           return "M0";
 				case Code::MiscFileDoesNotExist:               return "M1";
 				case Code::MiscLoadFileFailed:                 return "M2";
-				case Code::MiscUnimplementedFeature:           return "M3";
+				case Code::MiscStallDetected:                  return "M3";
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::panther::Diagnostic::Code");
@@ -396,10 +410,8 @@ namespace pcit::panther{
 
 
 		EVO_NODISCARD static auto _debug_analyze_message(std::string_view message) -> void {
-			#if defined(PCIT_CONFIG_DEBUG)
-				evo::debugAssert(message.empty() == false, "Diagnostic message cannot be empty");
-				evo::debugAssert(std::isupper(int(message[0])), "Diagnostic message cannot be empty");
-			#endif
+			evo::debugAssert(message.empty() == false, "Diagnostic message cannot be empty");
+			evo::debugAssert(std::isupper(int(message[0])), "Diagnostic message must start with an upper letter");
 		}
 	};
 

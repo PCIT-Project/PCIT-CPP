@@ -9,880 +9,900 @@
 
 #include "./SemanticAnalyzer.h"
 
-#include "../../include/Context.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
 #endif
 
-
 namespace pcit::panther{
 
+	using Instruction = SymbolProc::Instruction;
 
-	SemanticAnalyzer::SemanticAnalyzer(Context& _context, deps::Node::ID _deps_node_id)
-		: context(_context),
-		deps_node_id(_deps_node_id),
-		deps_node(this->context.deps_buffer[_deps_node_id]),
-		source(this->context.getSourceManager()[this->context.deps_buffer[_deps_node_id].sourceID]),
-		scope(this->context.sema_buffer.scope_manager.getScope(*this->source.sema_scope_id))
-		{}
+	class Attribute{
+		public:
+			Attribute(SemanticAnalyzer& _sema, std::string_view _name) : sema(_sema), name(_name) {}
+			~Attribute() = default;
 
-	
-	auto SemanticAnalyzer::analyzeDecl() -> bool {
-		evo::debugAssert(
-			this->deps_node.declSemaStatus == deps::Node::SemaStatus::InQueue,
-			"Incorrect status for node to analyze semantics of decl"
-		);
+			EVO_NODISCARD auto is_set() const -> bool {
+				return this->set_location.has_value() || this->implicitly_set_location.has_value();
+			}
 
-		switch(this->deps_node.astNode.kind()){
-			break; case AST::Kind::None: evo::debugFatalBreak("Invalid AST::Node");
-
-			break; case AST::Kind::VarDecl:         if(this->analyze_decl_var() == false){       return false; }
-			break; case AST::Kind::FuncDecl:        if(this->analyze_decl_func().isError()){     return false; }
-			break; case AST::Kind::AliasDecl:       if(this->analyze_decl_alias().isError()){    return false; }
-			break; case AST::Kind::TypedefDecl:     if(this->analyze_decl_typedef().isError()){  return false; }
-			break; case AST::Kind::StructDecl:      if(this->analyze_decl_struct().isError()){   return false; }
-			break; case AST::Kind::WhenConditional: if(this->analyze_decl_when_cond() == false){ return false; }
-
-			break; default: evo::debugFatalBreak("Unsupported decl kind");
-		}
-
-		this->deps_node.declSemaStatus = deps::Node::SemaStatus::Done;
-
-		this->context.trace("SemanticAnalyzer::analyzeDecl");
-
-		if(this->deps_node.defSemaStatus == deps::Node::SemaStatus::ReadyWhenDeclDone){
-			return this->analyzeDef();
-		}else{
-			return true;
-		}
-	}
-
-
-	auto SemanticAnalyzer::analyzeDef() -> bool {
-		evo::debugAssert(
-			this->deps_node.defSemaStatus == deps::Node::SemaStatus::InQueue
-			|| this->deps_node.defSemaStatus == deps::Node::SemaStatus::ReadyWhenDeclDone,
-			"Incorrect status for node to analyze semantics of def"
-		);
-
-		const Source::SemaID decl_sema_id = [&](){
-			const auto lock = std::scoped_lock(this->source.symbol_map_lock);
-			return this->source.symbol_map.at(this->deps_node.astNode);
-		}();
-
-		switch(this->deps_node.astNode.kind()){
-			case AST::Kind::None: evo::debugFatalBreak("Invalid AST::Node");
-
-			case AST::Kind::VarDecl: {
-				if(this->analyze_def_var(decl_sema_id.as<sema::Var::ID>()) == false){ return false; }
-			} break;
-
-			case AST::Kind::FuncDecl: {
-				if(this->analyze_def_func(decl_sema_id.as<sema::Func::ID>()) == false){ return false; }
-			} break;
-
-			case AST::Kind::AliasDecl: {
-				if(this->analyze_def_alias(decl_sema_id.as<BaseType::Alias::ID>()) == false){ return false; }
-			} break;
-
-			case AST::Kind::TypedefDecl: {
-				if(this->analyze_def_typedef(decl_sema_id.as<BaseType::Typedef::ID>()) == false){ return false; }
-			} break;
-
-			case AST::Kind::StructDecl: {
-				if(this->analyze_def_struct(decl_sema_id.as<sema::Struct::ID>()) == false){ return false; }
-			} break;
-
-			case AST::Kind::WhenConditional: evo::debugFatalBreak("Should never analyze def of when cond");
-			
-			default: evo::debugFatalBreak("Unsupported decl kind");
-		}
-
-		for(const deps::Node::ID& required_by_id : this->deps_node.requiredBy){
-			this->propogate_to_required_by<false>(required_by_id);
-		}
-		this->deps_node.defSemaStatus = deps::Node::SemaStatus::Done;
-
-		this->context.trace("SemanticAnalyzer::analyzeDef");
-		this->context.deps_buffer.num_nodes_sema_status_not_done -= 1;
-		return true;
-	}
-
-
-	auto SemanticAnalyzer::analyzeDeclDef() -> bool {
-		evo::debugAssert(
-			this->deps_node.declSemaStatus == deps::Node::SemaStatus::InQueue,
-			"Incorrect status for node to analyze semantics of decl"
-		);
-
-		evo::debugAssert(
-			this->deps_node.defSemaStatus == deps::Node::SemaStatus::InQueue,
-			"Incorrect status for node to analyze semantics of def"
-		);
-			
-
-		switch(this->deps_node.astNode.kind()){
-			case AST::Kind::None: evo::debugFatalBreak("Invalid AST::Node");
-
-			case AST::Kind::VarDecl: {
-				if(this->analyze_decl_def_var() == false){ return false; }
-			} break;
-
-			case AST::Kind::FuncDecl: {
-				const evo::Result<sema::Func::ID> decl_res = this->analyze_decl_func();
-				if(decl_res.isError()){ return false; }
-				if(this->analyze_def_func(decl_res.value()) == false){ return false; }
-			} break;
-
-			case AST::Kind::AliasDecl: {
-				const evo::Result<BaseType::Alias::ID> decl_res = this->analyze_decl_alias();
-				if(decl_res.isError()){ return false; }
-				if(this->analyze_def_alias(decl_res.value()) == false){ return false; }
-			} break;
-
-			case AST::Kind::TypedefDecl: {
-				const evo::Result<BaseType::Typedef::ID> decl_res = this->analyze_decl_typedef();
-				if(decl_res.isError()){ return false; }
-				if(this->analyze_def_typedef(decl_res.value()) == false){ return false; }
-			} break;
-
-			case AST::Kind::StructDecl: {
-				const evo::Result<sema::Struct::ID> decl_res = this->analyze_decl_struct();
-				if(decl_res.isError()){ return false; }
-				if(this->analyze_def_struct(decl_res.value()) == false){ return false; }
-			} break;
-
-			case AST::Kind::WhenConditional: {
-				evo::debugFatalBreak("Should never analyze def of when cond");
-			} break;
-
-			default: evo::debugFatalBreak("Unsupported decl kind");
-		}
-
-
-		for(const deps::Node::ID& required_by_id : this->deps_node.requiredBy){
-			this->propogate_to_required_by<false>(required_by_id);
-		}
-		this->deps_node.declSemaStatus = deps::Node::SemaStatus::Done;
-		this->deps_node.defSemaStatus = deps::Node::SemaStatus::Done;
-
-		this->context.trace("SemanticAnalyzer::analyzeDeclDef");
-		this->context.deps_buffer.num_nodes_sema_status_not_done -= 1;
-		return true;
-	}
-
-
-
-	template<bool PROP_FOR_DECLS>
-	auto SemanticAnalyzer::propogate_to_required_by(deps::Node::ID required_by_id) -> void {
-		deps::Node& required_by = this->context.deps_buffer[required_by_id];
-
-
-		const auto lock = std::scoped_lock(required_by.lock);
-
-		if(required_by.defSemaStatus != deps::Node::SemaStatus::NotYet){ return; }
-
-		if constexpr(PROP_FOR_DECLS){
-			required_by.defDeps.decls.erase(this->deps_node_id);
-		}else{
-			required_by.defDeps.defs.erase(this->deps_node_id);
-		}
-
-		if(required_by.declSemaStatus != deps::Node::SemaStatus::NotYet){
-			if(required_by.hasNoDefDeps()){
-				if(required_by.declSemaStatus == deps::Node::SemaStatus::InQueue){
-					required_by.defSemaStatus = deps::Node::SemaStatus::ReadyWhenDeclDone;
-				}else{
-					required_by.defSemaStatus = deps::Node::SemaStatus::InQueue;
-					this->context.add_task_to_work_manager(Context::SemaDef(required_by_id));
+			EVO_NODISCARD auto set(Token::ID location) -> bool {
+				if(this->set_location.has_value()){
+					this->sema.emit_error(
+						Diagnostic::Code::SemaAttributeAlreadySet,
+						location,
+						std::format("Attribute #{} was already set", this->name),
+						Diagnostic::Info(
+							"First set here:", Diagnostic::Location::get(this->set_location.value(), this->sema.source)
+						)
+					);
+					return false;
 				}
+
+				if(this->implicitly_set_location.has_value()){
+					// TODO: make this warning turn-off-able in settings
+					this->sema.emit_warning(
+						Diagnostic::Code::SemaAttributeImplictSet,
+						location,
+						std::format("Attribute #{} was already implicitly set", this->name),
+						Diagnostic::Info(
+							"Implicitly set here:",
+							Diagnostic::Location::get(this->implicitly_set_location.value(), this->sema.source)
+						)
+					);
+					return true;
+				}
+
+				this->set_location = location;
+				return true;
 			}
 
-		}else{
-			if constexpr(PROP_FOR_DECLS){
-				required_by.declDeps.decls.erase(this->deps_node_id);
-			}else{
-				required_by.declDeps.defs.erase(this->deps_node_id);
+			EVO_NODISCARD auto implicitly_set(Token::ID location) -> void {
+				if(this->set_location.has_value()){
+					// TODO: make this warning turn-off-able in settings
+					this->sema.emit_warning(
+						Diagnostic::Code::SemaAttributeImplictSet,
+						this->set_location.value(),
+						std::format("Attribute #{} was implicitly set", this->name),
+						Diagnostic::Info(
+							"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
+						)
+					);
+					return;
+				}
+
+				evo::debugAssert(
+					this->implicitly_set_location.has_value() == false,
+					"Attribute #{} already implicitly set. Should this be handled? Design changed?",
+					this->name
+				);
+
+				this->implicitly_set_location = location;
+			}
+	
+		private:
+			SemanticAnalyzer& sema;
+			std::string_view name;
+			std::optional<Token::ID> set_location{};
+			std::optional<Token::ID> implicitly_set_location{};
+	};
+
+
+
+
+	class ConditionalAttribute{
+		public:
+			ConditionalAttribute(SemanticAnalyzer& _sema, std::string_view _name) : sema(_sema), name(_name) {}
+			~ConditionalAttribute() = default;
+
+			EVO_NODISCARD auto is_set() const -> bool {
+				return this->is_set_true || this->implicitly_set_location.has_value();
 			}
 
-			if(required_by.hasNoDeclDeps()){
-				if(required_by.hasNoDeclDeps()){
-					if(required_by.hasNoDefDeps() && required_by.astNode.kind() != AST::Kind::WhenConditional){
-						required_by.declSemaStatus = deps::Node::SemaStatus::InQueue;
-						required_by.defSemaStatus = deps::Node::SemaStatus::InQueue;
-						this->context.add_task_to_work_manager(Context::SemaDeclDef(required_by_id));
+			EVO_NODISCARD auto set(Token::ID location, bool cond) -> bool {
+				if(this->set_location.has_value()){
+					this->sema.emit_error(
+						Diagnostic::Code::SemaAttributeAlreadySet,
+						location,
+						std::format("Attribute #{} was already set", this->name),
+						Diagnostic::Info(
+							"First set here:", Diagnostic::Location::get(this->set_location.value(), this->sema.source)
+						)
+					);
+					return false;
+				}
+
+				if(this->implicitly_set_location.has_value()){
+					// TODO: make this warning turn-off-able in settings
+					this->sema.emit_warning(
+						Diagnostic::Code::SemaAttributeImplictSet,
+						location,
+						std::format("Attribute #{} was already implicitly set", this->name),
+						Diagnostic::Info(
+							"Implicitly set here:",
+							Diagnostic::Location::get(this->implicitly_set_location.value(), this->sema.source)
+						)
+					);
+					return true;
+				}
+
+				this->is_set_true = cond;
+				this->set_location = location;
+				return true;
+			}
+
+			EVO_NODISCARD auto implicitly_set(Token::ID location) -> void {
+				if(this->set_location.has_value()){
+					if(this->is_set_true){
+						// TODO: make this warning turn-off-able in settings
+						this->sema.emit_warning(
+							Diagnostic::Code::SemaAttributeImplictSet,
+							this->set_location.value(),
+							std::format("Attribute #{} was implicitly set", this->name),
+							Diagnostic::Info(
+								"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
+							)
+						);
+						return;
 					}else{
-						required_by.declSemaStatus = deps::Node::SemaStatus::InQueue;
-						this->context.add_task_to_work_manager(Context::SemaDecl(required_by_id));
+						this->sema.emit_error(
+							Diagnostic::Code::SemaAttributeAlreadySet,
+							this->set_location.value(),
+							std::format("Attribute #{} was implicitly set", this->name),
+							Diagnostic::Info(
+								"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
+							)
+						);
+						return;
+					}
+
+				}
+
+				evo::debugAssert(
+					this->implicitly_set_location.has_value() == false,
+					"Attribute #{} already implicitly set. Should this be handled? Design changed?",
+					this->name
+				);
+
+				this->implicitly_set_location = location;
+			}
+	
+		private:
+			SemanticAnalyzer& sema;
+			std::string_view name;
+
+			bool is_set_true = false;
+			std::optional<Token::ID> set_location{};
+			std::optional<Token::ID> implicitly_set_location{};
+	};
+
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// semantic analyzer
+
+
+	auto SemanticAnalyzer::analyze() -> void {
+		while(this->symbol_proc.isAtEnd() == false){
+			switch(this->analyze_instr(this->symbol_proc.getInstruction())){
+				case Result::Success: break;
+
+				case Result::Error: {
+					this->context.symbol_proc_manager.symbol_proc_done();
+					return;
+				} break;
+
+				case Result::NeedToWait: {
+					return;
+				} break;
+			}
+			this->symbol_proc.nextInstruction();
+		}
+
+		this->context.trace("==> Finished semantic analysis of symbol: \"{}\"", this->symbol_proc.ident);
+
+		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+
+		this->symbol_proc.def_done = true;
+
+		for(const SymbolProc::ID& def_waited_on_id : this->symbol_proc.def_waited_on_by){
+			SymbolProc& def_waited_on = this->context.symbol_proc_manager.getSymbolProc(def_waited_on_id);
+
+			for(size_t i = 0; i < def_waited_on.waiting_for.size(); i+=1){
+				if(def_waited_on.waiting_for[i] == this->symbol_proc_id){
+					if(i + 1 < def_waited_on.waiting_for.size()){
+						def_waited_on.waiting_for[i] = def_waited_on.waiting_for.back();
 					}
 				}
+
+				def_waited_on.waiting_for.pop_back();
+
+				if(def_waited_on.waiting_for.empty()){
+					this->context.add_task_to_work_manager(def_waited_on_id);
+				}
 			}
 		}
+
+		this->context.symbol_proc_manager.symbol_proc_done();
 	}
 
 
+	auto SemanticAnalyzer::analyze_instr(const Instruction& instruction) -> Result {
+		return instruction.visit([&](const auto& instr) -> Result {
+			using InstrType = std::decay_t<decltype(instr)>;
+
+			if constexpr(std::is_same<InstrType, Instruction::FinishDecl>()){
+				return this->instr_finish_decl();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDecl>()){
+				return this->instr_global_var_decl(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
+				return this->instr_func_call(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Import>()){
+				return this->instr_import(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::ComptimeExprAccessor>()){
+				return this->instr_expr_accessor<true>(instr.infix, instr.lhs, instr.rhs_ident, instr.output);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::ExprAccessor>()){
+				return this->instr_expr_accessor<false>(instr.infix, instr.lhs, instr.rhs_ident, instr.output);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::PrimitiveType>()){
+				return this->instr_primitive_type(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::ComptimeIdent>()){
+				return this->instr_ident<true>(instr.ident, instr.output);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Ident>()){
+				return this->instr_ident<false>(instr.ident, instr.output);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Intrinsic>()){
+				return this->instr_intrinsic(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Literal>()){
+				return this->instr_literal(instr);
+
+			}else{
+				static_assert(false, "Unsupported instruction type");
+			}
+		});
+	}
 
 
-	auto SemanticAnalyzer::analyze_decl_var() -> bool {
-		evo::debugAssert(this->deps_node.astNode.kind() == AST::Kind::VarDecl, "Incorrect AST::Kind");
+	auto SemanticAnalyzer::instr_finish_decl() -> Result {
+		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
 
-		const evo::Result<DeclVarImplData> decl_data = this->analyze_decl_var_impl();
-		if(decl_data.isError()){ return false; }
+		for(const SymbolProc::ID& decl_waited_on_id : this->symbol_proc.decl_waited_on_by){
+			SymbolProc& decl_waited_on = this->context.symbol_proc_manager.getSymbolProc(decl_waited_on_id);
 
+			for(size_t i = 0; i < decl_waited_on.waiting_for.size(); i+=1){
+				if(decl_waited_on.waiting_for[i] == this->symbol_proc_id){
+					if(i + 1 < decl_waited_on.waiting_for.size()){
+						decl_waited_on.waiting_for[i] = decl_waited_on.waiting_for.back();
+					}
+				}
 
-		///////////////////////////////////
-		// done
+				decl_waited_on.waiting_for.pop_back();
 
-		const sema::Var::ID sema_var_id = this->context.sema_buffer.createVar(
-			decl_data.value().ast_var_decl.kind,
-			decl_data.value().ast_var_decl.ident,
-			std::nullopt,
-			decl_data.value().type_id,
-			decl_data.value().is_pub
-		);
-
-		this->get_current_scope_level().setVar(decl_data.value().var_ident, sema_var_id);
-
-		{
-			const auto lock = std::scoped_lock(this->source.symbol_map_lock);
-			this->source.symbol_map.emplace(this->deps_node.astNode, sema_var_id);
+				if(decl_waited_on.waiting_for.empty()){
+					this->context.add_task_to_work_manager(decl_waited_on_id);
+				}
+			}
 		}
 
-		for(const deps::Node::ID& required_by_id : this->deps_node.requiredBy){
-			this->propogate_to_required_by<true>(required_by_id);
-		}
-		return true;
+		this->symbol_proc.decl_done = true;
+
+		return Result::Success;
 	}
 
-	auto SemanticAnalyzer::analyze_decl_func() -> evo::Result<sema::Func::ID> {
-		evo::debugAssert(this->deps_node.astNode.kind() == AST::Kind::FuncDecl, "Incorrect AST::Kind");
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"func declarations are unimplemented"
-		);
-		return evo::resultError;
-
-		// for(const deps::Node::ID& required_by_id : this->deps_node.requiredBy){
-		// 	this->propogate_to_required_by<true>(required_by_id);
-		// }
-		// return true;
-	}
-
-	auto SemanticAnalyzer::analyze_decl_alias() -> evo::Result<BaseType::Alias::ID> {
-		evo::debugAssert(this->deps_node.astNode.kind() == AST::Kind::AliasDecl, "Incorrect AST::Kind");
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"alias declarations are unimplemented"
-		);
-		return evo::resultError;
-
-		// for(const deps::Node::ID& required_by_id : this->deps_node.requiredBy){
-		// 	this->propogate_to_required_by<true>(required_by_id);
-		// }
-		// return true;
-	}
-
-	auto SemanticAnalyzer::analyze_decl_typedef() -> evo::Result<BaseType::Typedef::ID> {
-		evo::debugAssert(this->deps_node.astNode.kind() == AST::Kind::TypedefDecl, "Incorrect AST::Kind");
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"typedef declarations are unimplemented"
-		);
-		return evo::resultError;
-
-		// for(const deps::Node::ID& required_by_id : this->deps_node.requiredBy){
-		// 	this->propogate_to_required_by<true>(required_by_id);
-		// }
-		// return true;
-	}
-
-	auto SemanticAnalyzer::analyze_decl_struct() -> evo::Result<sema::Struct::ID> {
-		evo::debugAssert(this->deps_node.astNode.kind() == AST::Kind::StructDecl, "Incorrect AST::Kind");
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"struct declarations are unimplemented"
-		);
-		return evo::resultError;
-
-		// for(const deps::Node::ID& required_by_id : this->deps_node.requiredBy){
-		// 	this->propogate_to_required_by<true>(required_by_id);
-		// }
-		// return true;
-	}
-
-	auto SemanticAnalyzer::analyze_decl_when_cond() -> bool {
-		evo::debugAssert(this->deps_node.astNode.kind() == AST::Kind::WhenConditional, "Incorrect AST::Kind");
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"when declarations are unimplemented"
-		);
-		return false;
-
-		// TODO: only propogate to actually used block
-		// for(const deps::Node::ID& required_by_id : this->deps_node.requiredBy){
-		// 	this->propogate_to_required_by<true>(required_by_id);
-		// }
-		// this->context.deps_buffer.num_nodes_sema_status_not_done -= 1;
-		// return true;
-	}
-
-
-
-
-
-	auto SemanticAnalyzer::analyze_def_var(const sema::Var::ID& sema_var_id) -> bool {
-		const AST::VarDecl& ast_var_decl = this->source.getASTBuffer().getVarDecl(this->deps_node.astNode);
-		evo::debugAssert(ast_var_decl.type.has_value(), "A var with inferred type must be analyzed through DeclDef");
-
-		sema::Var& sema_var = this->context.sema_buffer.vars[sema_var_id];
-
-		const evo::Result<sema::Expr> expr_res = this->analyze_def_var_impl(ast_var_decl, sema_var.typeID);
-		if(expr_res.isError()){ return false; }
-
-		sema_var.expr = expr_res.value();
-		return true;
-	}
-
-	auto SemanticAnalyzer::analyze_def_func(const sema::Func::ID& sema_func_id) -> bool {
-		std::ignore = sema_func_id;
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"func definitions are unimplemented"
-		);
-		return false;
-	}
-
-	auto SemanticAnalyzer::analyze_def_alias(const BaseType::Alias::ID& sema_alias_id) -> bool {
-		std::ignore = sema_alias_id;
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"alias definitions are unimplemented"
-		);
-		return false;
-	}
-
-	auto SemanticAnalyzer::analyze_def_typedef(const BaseType::Typedef::ID& sema_typedef_id) -> bool {
-		std::ignore = sema_typedef_id;
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"typedef definitions are unimplemented"
-		);
-		return false;
-	}
-
-	auto SemanticAnalyzer::analyze_def_struct(const sema::Struct::ID& sema_struct_id) -> bool {
-		std::ignore = sema_struct_id;
-
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this->deps_node.astNode,
-			"struct definitions are unimplemented"
-		);
-		return false;
-	}
-
-
-
-
-	auto SemanticAnalyzer::analyze_decl_def_var() -> bool {
-		evo::Result<DeclVarImplData> decl_data = this->analyze_decl_var_impl();
-		if(decl_data.isError()){ return false; }
-		
-
-		///////////////////////////////////
-		// value
-
-		const evo::Result<sema::Expr> expr_res = this->analyze_def_var_impl(
-			decl_data.value().ast_var_decl, decl_data.value().type_id
-		);
-		if(expr_res.isError()){ return false; }
-
-
-		///////////////////////////////////
-		// done
-
-		const sema::Var::ID sema_var_id = this->context.sema_buffer.createVar(
-			decl_data.value().ast_var_decl.kind,
-			decl_data.value().ast_var_decl.ident,
-			expr_res.value(),
-			decl_data.value().type_id,
-			decl_data.value().is_pub
-		);
-
-
-		this->get_current_scope_level().setVar(decl_data.value().var_ident, sema_var_id);
-
-		{
-			const auto lock = std::scoped_lock(this->source.symbol_map_lock);
-			this->source.symbol_map.emplace(this->deps_node.astNode, sema_var_id);
-		}
-
-		return true;
-	}
-
-
-
-
-	auto SemanticAnalyzer::analyze_decl_var_impl() -> evo::Result<DeclVarImplData> {
-		const AST::VarDecl& ast_var_decl = this->source.getASTBuffer().getVarDecl(this->deps_node.astNode);
-
-		///////////////////////////////////
-		// check ident
-
-		const std::string_view var_ident = this->source.getTokenBuffer()[ast_var_decl.ident].getString();
-		if(this->add_ident_to_scope<true, false>(var_ident, ast_var_decl.ident) == false){ return evo::resultError; }
-
-
-		///////////////////////////////////
-		// type checking
-
+	auto SemanticAnalyzer::instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result {
 		auto type_id = std::optional<TypeInfo::ID>();
 
-		if(ast_var_decl.type.has_value()){
-			const evo::Result<TypeInfo::VoidableID> type_id_res = this->get_type_id(
-				this->source.getASTBuffer().getType(*ast_var_decl.type)
-			);
-			if(type_id_res.isError()){ return evo::resultError; }
+		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
-			if(type_id_res.value().isVoid()){
+		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_global_var_decl: {}", var_ident); });
+
+
+		auto attr_pub = ConditionalAttribute(*this, "pub");
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(instr.var_decl.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "pub"){
+				if(instr.attribute_exprs[i].empty()){
+					if(attr_pub.set(attribute.attribute, true) == false){ return Result::Error; } 
+
+				}else if(instr.attribute_exprs[i].size() == 1){
+					ExprInfo cond_expr_info = this->get_expr_info(instr.attribute_exprs[i][0]);
+
+					if(this->type_check<true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_expr_info,
+						"Conditional in #pub",
+						attribute.args[0]
+					).ok == false){
+						return Result::Error;
+					}
+
+					const bool pub_cond = this->context.sema_buffer
+						.getBoolValue(cond_expr_info.getExpr().boolValueID()).value;
+
+					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return Result::Error; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SemaTooManyAttributeArgs,
+						attribute.args[1],
+						"Attribute #pub does not accept more than 1 argument"
+					);
+					return Result::Error;
+				}
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SemaUnknownAttribute,
+					attribute.attribute,
+					std::format("Unknown variable attribute #{}", attribute_str)
+				);
+				return Result::Error;
+			}
+		}
+
+
+		if(instr.type_id.has_value()){
+			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
+
+			if(got_type_info_id.isVoid()){
 				this->emit_error(
 					Diagnostic::Code::SemaVarTypeVoid,
-					*ast_var_decl.type,
+					*instr.var_decl.type,
 					"Variables cannot be type `Void`"
 				);
-				return evo::resultError;
+				return Result::Error;
 			}
 
-			type_id = type_id_res.value().asTypeID();
+			type_id = got_type_info_id.asTypeID();
 		}
 
 
-		///////////////////////////////////
-		// attributes
-
-		const AST::AttributeBlock& attr_block = 
-			this->source.getASTBuffer().getAttributeBlock(ast_var_decl.attributeBlock);
-		// for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
-			
-		// }
-		if(attr_block.attributes.empty() == false){
-			this->emit_error(
-				Diagnostic::Code::MiscUnimplementedFeature,
-				attr_block.attributes.front(),
-				"var attributes are unimplemented"
+		ExprInfo& value_expr_info = this->get_expr_info(instr.value_id);
+		if(value_expr_info.value_category == ExprInfo::ValueCategory::Module){
+			const bool is_redef = !this->add_ident_to_scope(
+				var_ident,
+				instr.var_decl,
+				value_expr_info.type_id.as<Source::ID>(),
+				instr.var_decl.ident,
+				attr_pub.is_set()
 			);
-			return evo::resultError;
+
+			return is_redef ? Result::Error : Result::Success;
 		}
 
 
-		///////////////////////////////////
-		// done
-
-		return DeclVarImplData(ast_var_decl, var_ident, type_id, false);
-	}
-
-
-
-	auto SemanticAnalyzer::analyze_def_var_impl(
-		const AST::VarDecl& ast_var_decl, std::optional<TypeInfo::ID>& type_id
-	) -> evo::Result<sema::Expr> {
-		if(ast_var_decl.value.has_value() == false){
-			this->emit_error(
-				Diagnostic::Code::SemaVarWithNoValue, ast_var_decl, "Variables must be declared with a value"
-			);
-			return evo::resultError;
-		}
-
-		evo::Result<ExprInfo> value_expr_info = this->analyze_expr<true>(*ast_var_decl.value);
-		if(value_expr_info.isError()){ return evo::resultError; }
-
-		if(value_expr_info.value().is_ephemeral() == false){
+		if(value_expr_info.is_ephemeral() == false){
 			this->emit_error(
 				Diagnostic::Code::SemaVarDefNotEphemeral,
-				*ast_var_decl.value,
+				*instr.var_decl.value,
 				"Cannot define a variable with a non-ephemeral value"
 			);
-			return evo::resultError;
+			return Result::Error;
 		}
+
 
 		if(type_id.has_value()){
 			if(this->type_check<true>(
-				*type_id, value_expr_info.value(), "Variable definition", *ast_var_decl.value
+				*type_id, value_expr_info, "Variable definition", *instr.var_decl.value
 			).ok == false){
-				return evo::resultError;
+				return Result::Error;
 			}
 			
 		}else{
-			if(value_expr_info.value().isMultiValue()){
+			if(value_expr_info.isMultiValue()){
 				this->emit_error(
 					Diagnostic::Code::SemaMultiReturnIntoSingleValue,
-					*ast_var_decl.value,
+					*instr.var_decl.value,
 					"Cannot define a variable with multiple values"
 				);
-				return evo::resultError;
+				return Result::Error;
 			}
 		}
 
-		return value_expr_info.value().getExpr();
-	}
 
-
-
-
-	//////////////////////////////////////////////////////////////////////
-	// types
-
-	auto SemanticAnalyzer::get_type_id(const AST::Type& ast_type) -> evo::Result<TypeInfo::VoidableID> {
-		auto base_type = std::optional<BaseType::ID>();
-		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
-
-		bool should_error_invalid_type_qualifiers = true;
-
-		switch(ast_type.base.kind()){
-			case AST::Kind::PrimitiveType: {
-				const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(ast_type.base);
-				const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
-
-				switch(primitive_type_token.kind()){
-					case Token::Kind::TypeVoid: {
-						if(ast_type.qualifiers.empty() == false){
-							this->emit_error(
-								Diagnostic::Code::SemaVoidWithQualifiers,
-								ast_type.base,
-								"Type \"Void\" cannot have qualifiers"
-							);
-							return evo::resultError;
-						}
-						return TypeInfo::VoidableID::Void();
-					} break;
-
-					case Token::Kind::TypeThis:      case Token::Kind::TypeInt:        case Token::Kind::TypeISize:
-					case Token::Kind::TypeUInt:      case Token::Kind::TypeUSize:      case Token::Kind::TypeF16:
-					case Token::Kind::TypeBF16:      case Token::Kind::TypeF32:        case Token::Kind::TypeF64:
-					case Token::Kind::TypeF80:       case Token::Kind::TypeF128:       case Token::Kind::TypeByte:
-					case Token::Kind::TypeBool:      case Token::Kind::TypeChar:       case Token::Kind::TypeRawPtr:
-					case Token::Kind::TypeTypeID:    case Token::Kind::TypeCShort:     case Token::Kind::TypeCUShort:
-					case Token::Kind::TypeCInt:      case Token::Kind::TypeCUInt:      case Token::Kind::TypeCLong:
-					case Token::Kind::TypeCULong:    case Token::Kind::TypeCLongLong:  case Token::Kind::TypeCULongLong:
-					case Token::Kind::TypeCLongDouble: {
-						base_type =this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
-					} break;
-
-					case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
-						base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(
-							primitive_type_token.kind(), primitive_type_token.getBitWidth()
-						);
-					} break;
-
-
-					case Token::Kind::TypeType: {
-						this->emit_error(
-							Diagnostic::Code::SemaGenericTypeNotInTemplatePackDecl,
-							ast_type,
-							"Type \"Type\" may only be used in a template pack declaration"
-						);
-						return evo::resultError;
-					} break;
-
-					default: {
-						evo::debugFatalBreak("Unknown or unsupported PrimitiveType: {}", primitive_type_token.kind());
-					} break;
-				}
-			} break;
-
-			case AST::Kind::Ident: {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					ast_type.base,
-					"non-primitive are unimplemented"
-				);
-				return evo::resultError;
-			} break;
-
-			case AST::Kind::Infix: {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					ast_type.base,
-					"non-primitive types are unimplemented"
-				);
-				return evo::resultError;
-			} break;
-
-			case AST::Kind::TypeIDConverter: {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					ast_type.base,
-					"Type ID converters are unimplemented"
-				);
-				return evo::resultError;
-			} break;
-
-			// TODO: separate out into more kinds to be more specific (errors vs fatal)
-			default: {
-				this->emit_error(
-					Diagnostic::Code::SemaInvalidBaseType, ast_type.base, "Invalid base type"
-				);
-				return evo::resultError;
-			} break;
-		}
-
-
-		evo::debugAssert(base_type.has_value(), "base type was not set");
-
-		for(const AST::Type::Qualifier& qualifier : ast_type.qualifiers){
-			qualifiers.emplace_back(qualifier);
-		}
-
-		if(should_error_invalid_type_qualifiers){
-			if(this->check_type_qualifiers(qualifiers, ast_type) == false){ return evo::resultError; }
-
-		}else{
-			bool found_read_only_ptr = false;
-			for(auto iter = qualifiers.rbegin(); iter != qualifiers.rend(); ++iter){
-				if(found_read_only_ptr){
-					if(iter->isPtr){ iter->isReadOnly = true; }
-				}else{
-					if(iter->isPtr && iter->isReadOnly){ found_read_only_ptr = true; }
-				}
-			}
-		}
-
-		return TypeInfo::VoidableID(
-			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(*base_type, std::move(qualifiers)))
+		const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
+			instr.var_decl.kind, instr.var_decl.ident, value_expr_info.getExpr(), type_id, attr_pub.is_set()
 		);
+
+		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::Error; }
+
+		return Result::Success;
 	}
 
 
-	//////////////////////////////////////////////////////////////////////
-	// expr
 
-	template<bool IS_COMPTIME>
-	auto SemanticAnalyzer::analyze_expr(const AST::Node& node) -> evo::Result<ExprInfo> {
-		switch(node.kind()){
-			case AST::Kind::None: {
-				evo::debugFatalBreak("Invalid AST::Node");
-			} break;
+	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			instr.func_call,
+			"Semantic Analysis of function calls (other than @import) is unimplemented"
+		);
+		return Result::Error;
+	}
 
-			case AST::Kind::Block: {
-				return this->analyze_expr_block(this->source.getASTBuffer().getBlock(node));
-			} break;
-			
-			case AST::Kind::FuncCall: {
-				return this->analyze_expr_func_call<IS_COMPTIME>(this->source.getASTBuffer().getFuncCall(node));
-			} break;
-			
-			case AST::Kind::TemplatedExpr: {
-				return this->analyze_expr_templated_expr(this->source.getASTBuffer().getTemplatedExpr(node));
-			} break;
-			
-			case AST::Kind::Prefix: {
-				return this->analyze_expr_prefix(this->source.getASTBuffer().getPrefix(node));
-			} break;
-			
-			case AST::Kind::Infix: {
-				return this->analyze_expr_infix(this->source.getASTBuffer().getInfix(node));
-			} break;
-			
-			case AST::Kind::Postfix: {
-				return this->analyze_expr_postfix(this->source.getASTBuffer().getPostfix(node));
-			} break;
 
-			case AST::Kind::New: {
-				return this->analyze_expr_new(this->source.getASTBuffer().getNew(node));
-			} break;
-			
-			case AST::Kind::Ident: {
-				return this->analyze_expr_ident(this->source.getASTBuffer().getIdent(node));
-			} break;
-			
-			case AST::Kind::Intrinsic: {
-				return this->analyze_expr_intrinsic(this->source.getASTBuffer().getIntrinsic(node));
-			} break;
-			
-			case AST::Kind::Literal: {
-				return this->analyze_expr_literal(this->source.getASTBuffer().getLiteral(node));
-			} break;
-			
-			case AST::Kind::Uninit: {
-				return this->analyze_expr_uninit(this->source.getASTBuffer().getUninit(node));
-			} break;
+	auto SemanticAnalyzer::instr_import(const Instruction::Import& instr) -> Result {
+		const ExprInfo& location = this->get_expr_info(instr.location);
 
-			case AST::Kind::Zeroinit: {
-				return this->analyze_expr_zeroinit(this->source.getASTBuffer().getZeroinit(node));
-			} break;
-			
-			case AST::Kind::This: {
-				return this->analyze_expr_this(this->source.getASTBuffer().getThis(node));
-			} break;
+		// TODO: type checking of location
 
-			case AST::Kind::VarDecl:     case AST::Kind::FuncDecl:        case AST::Kind::AliasDecl:
-			case AST::Kind::TypedefDecl: case AST::Kind::StructDecl:      case AST::Kind::Return:
-			case AST::Kind::Conditional: case AST::Kind::WhenConditional: case AST::Kind::While:
-			case AST::Kind::Unreachable: case AST::Kind::TemplatePack:    case AST::Kind::MultiAssign:
-			case AST::Kind::Type:        case AST::Kind::TypeIDConverter: case AST::Kind::AttributeBlock:
-			case AST::Kind::Attribute:   case AST::Kind::PrimitiveType:   case AST::Kind::Discard: {
-				// TODO: better messaging (specify what kind)
-				this->emit_fatal(
-					Diagnostic::Code::SemaInvalidExprKind,
-					Diagnostic::Location::NONE,
-					Diagnostic::createFatalMessage("Encountered expr of invalid AST kind")
+		const std::string_view lookup_path = this->context.getSemaBuffer().getStringValue(
+			location.getExpr().stringValueID()
+		).value;
+
+		const evo::Expected<Source::ID, Context::LookupSourceIDError> import_lookup = 
+			this->context.lookupSourceID(lookup_path, this->source);
+
+		if(import_lookup.has_value()){
+			this->return_expr_info(instr.output, 
+				ExprInfo(
+					ExprInfo::ValueCategory::Module, ExprInfo::ValueStage::Comptime, import_lookup.value(), std::nullopt
+				)
+			);
+			return Result::Success;
+		}
+
+		switch(import_lookup.error()){
+			case Context::LookupSourceIDError::EmptyPath: {
+				this->emit_error(
+					Diagnostic::Code::SemaFailedToImportModule,
+					instr.func_call.args[0].value,
+					"Empty path is an invalid import location"
 				);
-				return evo::resultError; 
+				return Result::Error;
+			} break;
+
+			case Context::LookupSourceIDError::SameAsCaller: {
+				// TODO: better messaging
+				this->emit_error(
+					Diagnostic::Code::SemaFailedToImportModule,
+					instr.func_call.args[0].value,
+					"Cannot import self"
+				);
+				return Result::Error;
+			} break;
+
+			case Context::LookupSourceIDError::NotOneOfSources: {
+				this->emit_error(
+					Diagnostic::Code::SemaFailedToImportModule,
+					instr.func_call.args[0].value,
+					std::format("File \"{}\" is not one of the files being compiled", lookup_path)
+				);
+				return Result::Error;
+			} break;
+
+			case Context::LookupSourceIDError::DoesntExist: {
+				this->emit_error(
+					Diagnostic::Code::SemaFailedToImportModule,
+					instr.func_call.args[0].value,
+					std::format("Couldn't find file \"{}\"", lookup_path)
+				);
+				return Result::Error;
+			} break;
+
+			case Context::LookupSourceIDError::FailedDuringAnalysisOfNewlyLoaded: {
+				return Result::Error;
 			} break;
 		}
 
 		evo::unreachable();
 	}
 
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_expr_accessor(
+		const AST::Infix& infix, SymbolProcExprInfoID lhs_id, Token::ID rhs_ident, SymbolProcExprInfoID output
+	) -> Result {
+		const ExprInfo& lhs = this->get_expr_info(lhs_id);
+
+		if(lhs.type_id.is<Source::ID>()){
+			const Source& source_module = this->context.getSourceManager()[lhs.type_id.as<Source::ID>()];
+
+			const std::string_view rhs_ident_str = this->source.getTokenBuffer()[rhs_ident].getString();
+
+			//////////////////
+			// look in global sema scope
+
+			const sema::ScopeManager::Scope& source_module_sema_scope = 
+				this->context.sema_buffer.scope_manager.getScope(*source_module.sema_scope_id);
+
+			// TODO: create specialized version for here
+			// evo::Result<std::optional<ExprInfo>> ident_lookup = this->analyze_expr_ident_in_scope_level(
+			// 	rhs_ident, rhs_ident_str, source_module_sema_scope.getGlobalLevel(), true, true
+			// );
+
+			// if(ident_lookup.isError()){ return Result::Error; }
+
+			// if(ident_lookup.value().has_value()){
+			// 	const sema::Expr& ident_expr = ident_lookup.value().value().getExpr();
+
+			// 	switch(ident_expr.kind()){
+			// 		case sema::Expr::Kind::Var: {
+			// 			if(this->context.getSemaBuffer().getVar(ident_expr.varID()).isPub == false){
+			// 				this->emit_error(
+			// 					Diagnostic::Code::SemaSymbolNotPub,
+			// 					ident_expr.varID(),
+			// 					std::format("Identifier \"{}\" does not have the #pub attribute", rhs_ident_str)
+			// 				);
+			// 				return Result::Error;
+			// 			}
+			// 		} break;
+
+			// 		case sema::Expr::Kind::Func: {
+			// 			evo::unimplemented();
+			// 			// return this->context.getSemaBuffer().getFunc(ident_expr.funcID()).isPub;
+			// 		} break;
+
+			// 		case sema::Expr::Kind::Struct: {
+			// 			evo::unimplemented();
+			// 			// return this->context.getSemaBuffer().getStruct(ident_expr.structID()).isPub;
+			// 		} break;
+
+			// 		default: evo::debugFatalBreak("Unknown Expr Kind");
+			// 	}
+
+			// 	this->return_expr_info(output, std::move(ident_lookup.value().value()));
+			// 	return Result::Success;
+			// }
 
 
 
-	
-	auto SemanticAnalyzer::analyze_expr_block(const AST::Block& block) -> evo::Result<ExprInfo> {
+
+			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(
+				source_module_sema_scope.getGlobalLevel()
+			);
+
+			const sema::ScopeLevel::IdentID* ident_id_lookup = scope_level.lookupIdent(rhs_ident_str);
+
+			if(ident_id_lookup != nullptr){
+				return ident_id_lookup->visit([&](const auto& ident_id) -> Result {
+					using IdentIDType = std::decay_t<decltype(ident_id)>;
+
+					if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
+						this->emit_error(
+							Diagnostic::Code::MiscUnimplementedFeature,
+							rhs_ident,
+							"function identifiers are unimplemented"
+						);
+						return Result::Error;
+
+					}else if constexpr(std::is_same<IdentIDType, sema::VarID>()){
+						const sema::Var& sema_var = this->context.getSemaBuffer().getVar(ident_id);
+
+						if(sema_var.isPub == false){
+							this->emit_error(
+								Diagnostic::Code::SemaSymbolNotPub,
+								rhs_ident,
+								std::format("Identifier \"{}\" does not have the #pub attribute", rhs_ident_str),
+								Diagnostic::Info(
+									"Defined here:", Diagnostic::Location::get(ident_id, source_module, this->context)
+								)
+							);
+							return Result::Error;
+						}
+
+
+						using ValueCategory = ExprInfo::ValueCategory;
+						using ValueStage = ExprInfo::ValueStage;
+
+						switch(sema_var.kind){
+							case AST::VarDecl::Kind::Var: {
+								this->return_expr_info(output,
+									ExprInfo(
+										ValueCategory::ConcreteMut,
+										ValueStage::Runtime,
+										*sema_var.typeID,
+										sema::Expr(ident_id)
+									)
+								);
+							} break;
+
+							case AST::VarDecl::Kind::Const: {
+								this->return_expr_info(output,
+									ExprInfo(
+										ValueCategory::ConcreteConst,
+										ValueStage::Constexpr,
+										*sema_var.typeID,
+										sema::Expr(ident_id)
+									)
+								);
+							} break;
+
+							case AST::VarDecl::Kind::Def: {
+								if(sema_var.typeID.has_value()){
+									this->return_expr_info(output,
+										ExprInfo(
+											ValueCategory::Ephemeral,
+											ValueStage::Comptime,
+											*sema_var.typeID,
+											*sema_var.expr
+										)
+									);
+								}else{
+									this->return_expr_info(output,
+										ExprInfo(
+											ValueCategory::EphemeralFluid,
+											ValueStage::Comptime,
+											ExprInfo::FluidType{},
+											*sema_var.expr
+										)
+									);
+								}
+							};
+						}
+
+						return Result::Success;
+
+					}else if constexpr(std::is_same<IdentIDType, sema::StructID>()){
+						this->emit_error(
+							Diagnostic::Code::SemaTypeUsedAsExpr,
+							rhs_ident,
+							"struct cannot be used as an expression"
+						);
+						return Result::Error;
+
+					}else if constexpr(std::is_same<IdentIDType, sema::ParamID>()){
+						this->emit_error(
+							Diagnostic::Code::MiscUnimplementedFeature,
+							rhs_ident,
+							"parameter identifiers are unimplemented"
+						);
+						return Result::Error;
+
+					}else if constexpr(std::is_same<IdentIDType, sema::ReturnParamID>()){
+						this->emit_error(
+							Diagnostic::Code::MiscUnimplementedFeature,
+							rhs_ident,
+							"return parameter identifiers are unimplemented"
+						);
+						return Result::Error;
+
+					}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ModuleInfo>()){
+						if(ident_id.isPub == false){
+							this->emit_error(
+								Diagnostic::Code::SemaSymbolNotPub,
+								ident_id,
+								std::format("Identifier \"{}\" does not have the #pub attribute", rhs_ident_str)
+							);
+							return Result::Error;
+						}
+
+						this->return_expr_info(output,
+							ExprInfo(
+								ExprInfo::ValueCategory::Module,
+								ExprInfo::ValueStage::Comptime,
+								ident_id.sourceID,
+								sema::Expr::createModuleIdent(ident_id.tokenID)
+							)
+						);
+
+						return Result::Success;
+
+					}else if constexpr(std::is_same<IdentIDType, BaseType::Alias::ID>()){
+						this->emit_error(
+							Diagnostic::Code::SemaTypeUsedAsExpr,
+							rhs_ident,
+							"Type alias cannot be used as an expression"
+						);
+						return Result::Error;
+
+					}else if constexpr(std::is_same<IdentIDType, BaseType::Typedef::ID>()){
+						this->emit_error(
+							Diagnostic::Code::SemaTypeUsedAsExpr,
+							rhs_ident,
+							"Typedef cannot be used as an expression"
+						);
+						return Result::Error;
+
+					}else{
+						static_assert(false, "Unsupported IdentID");
+					}
+				});
+			}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+			//////////////////
+			// look in symbol procs
+
+			const auto find = source_module.global_symbol_procs.equal_range(rhs_ident_str);
+
+			if(find.first == source_module.global_symbol_procs.end()){
+				this->emit_error(
+					Diagnostic::Code::SemaNoSymbolInModuleWithThatIdent,
+					infix.rhs,
+					std::format("Module has no symbol named \"{}\"", rhs_ident_str)
+				);
+				return Result::Error;
+			}
+
+			const auto found_range = core::IterRange(find.first, find.second);
+
+
+			// this->symbol_proc.waiting_lock.lock();
+
+			for(auto& pair : found_range){
+				const SymbolProc::ID& found_symbol_proc_id = pair.second;
+				SymbolProc& found_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(found_symbol_proc_id);
+
+				const SymbolProc::WaitOnResult wait_on_result = [&](){
+					if constexpr(IS_COMPTIME){
+						return found_symbol_proc.waitOnDefIfNeeded(
+							this->symbol_proc_id, this->context, found_symbol_proc_id
+						);
+					}else{
+						return found_symbol_proc.waitOnDeclIfNeeded(
+							this->symbol_proc_id, this->context, found_symbol_proc_id
+						);
+					}
+				}();
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NotNeeded: {
+						// TODO: do this better
+						// call again as symbol finished
+						return this->instr_expr_accessor<IS_COMPTIME>(infix, lhs_id, rhs_ident, output);
+					} break;
+
+					case SymbolProc::WaitOnResult::Waiting: {
+						// this->symbol_proc.waiting_for.emplace_back(found_symbol_proc_id);
+					} break;
+
+					case SymbolProc::WaitOnResult::WasErrored: {
+						const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+						this->symbol_proc.errored = true;
+						return Result::Error;
+					} break;
+
+					case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: {
+						// do nothing...
+					} break;
+
+					case SymbolProc::WaitOnResult::CircularDepDetected: {
+						return Result::Error;
+					} break;
+				}
+			}
+
+			// this->symbol_proc.waiting_lock.unlock();
+
+			if(this->symbol_proc.waiting_for.empty() == false){ return Result::NeedToWait; }
+
+			this->emit_error(
+				Diagnostic::Code::SemaNoSymbolInModuleWithThatIdent,
+				infix.rhs,
+				std::format("Module has no symbol named \"{}\"", rhs_ident_str),
+				Diagnostic::Info(
+					"Perhaps a build setting prevented the symbol from being compiled "
+						"as it may have been in a when conditional"
+				)
+			);
+			return Result::Error;
+		}
+
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature,
-			block,
-			"block expressions are unimplemented"
+			infix.opTokenID,
+			"Accessor operator of non-modules is unimplemented"
 		);
-		return evo::resultError;
+		return Result::Error;
+	}
+
+
+	auto SemanticAnalyzer::instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result {
+		auto base_type = std::optional<BaseType::ID>();
+		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+
+		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.type.base);
+		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
+
+		switch(primitive_type_token.kind()){
+			case Token::Kind::TypeVoid: {
+				if(instr.type.qualifiers.empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SemaVoidWithQualifiers,
+						instr.type.base,
+						"Type \"Void\" cannot have qualifiers"
+					);
+					return Result::Error;
+				}
+				this->return_type(instr.output, TypeInfo::VoidableID::Void());
+				return Result::Success;
+			} break;
+
+			case Token::Kind::TypeThis: {
+				this->emit_error(
+					Diagnostic::Code::MiscUnimplementedFeature,
+					instr.type,
+					"Type `This` is unimplemented"
+				);
+				return Result::Error;
+			} break;
+
+			case Token::Kind::TypeInt:       case Token::Kind::TypeISize:      case Token::Kind::TypeUInt:
+			case Token::Kind::TypeUSize:     case Token::Kind::TypeF16:        case Token::Kind::TypeBF16:
+			case Token::Kind::TypeF32:       case Token::Kind::TypeF64:        case Token::Kind::TypeF80:
+			case Token::Kind::TypeF128:      case Token::Kind::TypeByte:       case Token::Kind::TypeBool:
+			case Token::Kind::TypeChar:      case Token::Kind::TypeRawPtr:     case Token::Kind::TypeTypeID:
+			case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
+			case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
+			case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: case Token::Kind::TypeCLongDouble: {
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(
+					primitive_type_token.kind(), primitive_type_token.getBitWidth()
+				);
+			} break;
+
+
+			case Token::Kind::TypeType: {
+				this->emit_error(
+					Diagnostic::Code::SemaGenericTypeNotInTemplatePackDecl,
+					instr.type,
+					"Type \"Type\" may only be used in a template pack declaration"
+				);
+				return Result::Error;
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Unknown or unsupported PrimitiveType: {}", primitive_type_token.kind());
+			} break;
+		}
+
+		evo::debugAssert(base_type.has_value(), "Base type was not set");
+
+		for(const AST::Type::Qualifier& qualifier : instr.type.qualifiers){
+			qualifiers.emplace_back(qualifier);
+		}
+
+		if(this->check_type_qualifiers(qualifiers, instr.type) == false){ return Result::Error; }
+
+		this->return_type(
+			instr.output,
+			TypeInfo::VoidableID(
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(*base_type, std::move(qualifiers)))
+			)
+		);
+		return Result::Success;
 	}
 
 
 	template<bool IS_COMPTIME>
-	auto SemanticAnalyzer::analyze_expr_func_call(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			func_call,
-			"function call expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_import(const AST::FuncCall& func_call) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			func_call,
-			"import expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_templated_expr(const AST::TemplatedExpr& templated_expr)
-	-> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			templated_expr,
-			"templated expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-
-	// auto SemanticAnalyzer::analyze_expr_templated_intrinsic(
-	// 	const AST::TemplatedExpr& templated_expr, TemplatedIntrinsic::Kind templated_intrinsic_kind
-	// ) -> evo::Result<ExprInfo> {
-	// 	evo::unimplemented();
-	// }
-
-	
-	auto SemanticAnalyzer::analyze_expr_prefix(const AST::Prefix& prefix) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			prefix,
-			"prefix expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	template<bool IS_CONST>
-	auto SemanticAnalyzer::analyze_expr_prefix_address_of(const AST::Prefix& prefix, const ExprInfo& rhs_info)
-	-> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			prefix,
-			"prefix address-of expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_infix(const AST::Infix& infix) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			infix,
-			"infix expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_postfix(const AST::Postfix& postfix) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			postfix,
-			"postfix expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_new(const AST::New& new_expr) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			new_expr,
-			"new expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_new_impl(const AST::New& new_expr, TypeInfo::VoidableID type_id) 
-	-> evo::Result<ExprInfo> {
-		std::ignore = type_id;
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			new_expr,
-			"new expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_new_impl(const AST::New& new_expr, TypeInfo::ID type_id) 
-	-> evo::Result<ExprInfo> {
-		std::ignore = type_id;
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			new_expr,
-			"new expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_ident(const Token::ID& ident) -> evo::Result<ExprInfo> {
+	auto SemanticAnalyzer::instr_ident(Token::ID ident, SymbolProc::ExprInfoID output) -> Result {
 		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
 
 		for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
@@ -895,19 +915,167 @@ namespace pcit::panther{
 					i == 0
 				);
 
-			if(scope_level_lookup.isError()){ return evo::resultError; }
-			if(scope_level_lookup.value().has_value()){ return *scope_level_lookup.value(); }
+			if(scope_level_lookup.isError()){ return Result::Error; }
+
+			if(scope_level_lookup.value().has_value()){
+				this->return_expr_info(output, *scope_level_lookup.value());
+				return Result::Success;
+			}
 
 			i -= 1;
 		}
 
-		this->emit_error(
-			Diagnostic::Code::SemaIdentNotInScope,
-			ident,
-			std::format("Identifier \"{}\" was not defined in this scope", ident_str)
-		);
-		return evo::resultError;
+		// TODO: look for Source::global_symbol_procs and wait if needed
+		const auto find = this->source.global_symbol_procs.equal_range(ident_str);
+		if(find.first == this->source.global_symbol_procs.end()){
+			this->emit_error(
+				Diagnostic::Code::SemaIdentNotInScope,
+				ident,
+				std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+			);
+			return Result::Error;
+		}
+
+		for(auto iter = find.first; iter != find.second; ++iter){
+			const SymbolProc::ID id_to_wait_on = iter->second;
+			SymbolProc& symbol_proc_to_wait_on = this->context.symbol_proc_manager.getSymbolProc(id_to_wait_on);
+
+			const SymbolProc::WaitOnResult wait_on_result = [&](){
+				if constexpr(IS_COMPTIME){
+					return symbol_proc_to_wait_on.waitOnDefIfNeeded(this->symbol_proc_id, this->context, id_to_wait_on);
+				}else{
+					return symbol_proc_to_wait_on.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, id_to_wait_on);
+				}
+			}();
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NotNeeded: {
+					// TODO: better way of doing this
+					return this->instr_ident<IS_COMPTIME>(ident, output);
+				} break;
+				case SymbolProc::WaitOnResult::Waiting: {
+					// this->symbol_proc.waiting_for.emplace_back(id_to_wait_on);
+				} break;
+				case SymbolProc::WaitOnResult::WasErrored: {
+					const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+					this->symbol_proc.errored = true;
+					return Result::Error;
+				} break;
+				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: {
+					continue;
+				} break;
+				case SymbolProc::WaitOnResult::CircularDepDetected: {
+					const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+					this->symbol_proc.errored = true;
+					return Result::Error;
+				} break;
+			}
+		}
+
+		if(this->symbol_proc.waiting_for.empty()){
+			this->emit_error(
+				Diagnostic::Code::SemaIdentNotInScope,
+				ident,
+				std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+			);
+			return Result::Error;
+
+		}else{
+			return Result::NeedToWait;
+		}
 	}
+
+
+	auto SemanticAnalyzer::instr_intrinsic(const Instruction::Intrinsic& instr) -> Result {
+		this->emit_error(
+			Diagnostic::Code::MiscUnimplementedFeature,
+			instr.intrinsic,
+			"Semantic Analysis of intrinsics (other than @import) is unimplemented"
+		);
+		return Result::Error;
+	}
+
+
+	auto SemanticAnalyzer::instr_literal(const Instruction::Literal& instr) -> Result {
+		const Token& literal_token = this->source.getTokenBuffer()[instr.literal];
+		switch(literal_token.kind()){
+			case Token::Kind::LiteralInt: {
+				this->return_expr_info(instr.output,
+					ExprInfo::ValueCategory::EphemeralFluid,
+					ExprInfo::ValueStage::Comptime,
+					ExprInfo::FluidType{},
+					sema::Expr(this->context.sema_buffer.createIntValue(
+						core::GenericInt(256, literal_token.getInt()), std::nullopt
+					))
+				);
+				return Result::Success;
+			} break;
+
+			case Token::Kind::LiteralFloat: {
+				this->return_expr_info(instr.output,
+					ExprInfo::ValueCategory::EphemeralFluid,
+					ExprInfo::ValueStage::Comptime,
+					ExprInfo::FluidType{},
+					sema::Expr(this->context.sema_buffer.createFloatValue(
+						core::GenericFloat::createF128(literal_token.getFloat()), std::nullopt
+					))
+				);
+				return Result::Success;
+			} break;
+
+			case Token::Kind::LiteralBool: {
+				this->return_expr_info(instr.output,
+					ExprInfo::ValueCategory::Ephemeral,
+					ExprInfo::ValueStage::Comptime,
+					this->context.getTypeManager().getTypeBool(),
+					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool()))
+				);
+				return Result::Success;
+			} break;
+
+			case Token::Kind::LiteralString: {
+				this->return_expr_info(instr.output,
+					ExprInfo::ValueCategory::Ephemeral,
+					ExprInfo::ValueStage::Comptime,
+					this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->context.type_manager.getOrCreateArray(
+								BaseType::Array(
+									this->context.getTypeManager().getTypeChar(),
+									evo::SmallVector<uint64_t>{literal_token.getString().size()},
+									core::GenericValue('\0')
+								)
+							)
+						)
+					),
+					sema::Expr(this->context.sema_buffer.createStringValue(std::string(literal_token.getString())))
+				);
+				return Result::Success;
+			} break;
+
+			case Token::Kind::LiteralChar: {
+				this->return_expr_info(instr.output,
+					ExprInfo::ValueCategory::Ephemeral,
+					ExprInfo::ValueStage::Comptime,
+					this->context.getTypeManager().getTypeChar(),
+					sema::Expr(this->context.sema_buffer.createCharValue(literal_token.getChar()))
+				);
+				return Result::Success;
+			} break;
+
+			default: evo::debugFatalBreak("Not a valid literal");
+		}
+	}
+
+
+
+	///////////////////////////////////
+	// misc
+
+	auto SemanticAnalyzer::get_current_scope_level() const -> sema::ScopeLevel& {
+		return this->context.sema_buffer.scope_manager.getLevel(this->scope.getCurrentLevel());
+	}
+
 
 	// TODO: does this need to be separate function
 	auto SemanticAnalyzer::analyze_expr_ident_in_scope_level(
@@ -925,24 +1093,11 @@ namespace pcit::panther{
 		return ident_id_lookup->visit([&](const auto& ident_id) -> evo::Result<std::optional<ExprInfo>> {
 			using IdentIDType = std::decay_t<decltype(ident_id)>;
 
-			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::IDNotReady>()){
-				evo::debugFatalBreak(
-					"Should never be accessing an ident that is not ready - maybe issue with dependency analysis"
-				);
-
-			}else if constexpr(std::is_same<IdentIDType, evo::SmallVector<sema::FuncID>>()){
+			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
 					ident,
 					"function identifiers are unimplemented"
-				);
-				return evo::resultError;
-
-			}else if constexpr(std::is_same<IdentIDType, sema::TemplatedFuncID>()){
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					ident,
-					"templated function identifiers are unimplemented"
 				);
 				return evo::resultError;
 
@@ -988,12 +1143,12 @@ namespace pcit::panther{
 					case AST::VarDecl::Kind::Def: {
 						if(sema_var.typeID.has_value()){
 							return std::optional<ExprInfo>(ExprInfo(
-								ValueCategory::Ephemeral, ValueStage::Constexpr, *sema_var.typeID, *sema_var.expr
+								ValueCategory::Ephemeral, ValueStage::Comptime, *sema_var.typeID, *sema_var.expr
 							));
 						}else{
 							return std::optional<ExprInfo>(ExprInfo(
 								ValueCategory::EphemeralFluid,
-								ValueStage::Constexpr,
+								ValueStage::Comptime,
 								ExprInfo::FluidType{},
 								*sema_var.expr
 							));
@@ -1059,116 +1214,33 @@ namespace pcit::panther{
 		});
 	}
 
-	
-	auto SemanticAnalyzer::analyze_expr_intrinsic(const Token::ID& intrinsic_token_id) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			intrinsic_token_id,
-			"intrinsic expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_literal(const Token::ID& literal) -> evo::Result<ExprInfo> {
-		const Token& literal_token = this->source.getTokenBuffer()[literal];
-		switch(literal_token.kind()){
-			case Token::Kind::LiteralInt: {
-				return ExprInfo(
-					ExprInfo::ValueCategory::EphemeralFluid,
-					ExprInfo::ValueStage::Comptime,
-					ExprInfo::FluidType{},
-					sema::Expr(this->context.sema_buffer.createIntValue(
-						core::GenericInt(256, literal_token.getInt()), std::nullopt
-					))
-				);	
-			} break;
-
-			case Token::Kind::LiteralFloat: {
-				return ExprInfo(
-					ExprInfo::ValueCategory::EphemeralFluid,
-					ExprInfo::ValueStage::Comptime,
-					ExprInfo::FluidType{},
-					sema::Expr(this->context.sema_buffer.createFloatValue(
-						core::GenericFloat::createF128(literal_token.getFloat()), std::nullopt
-					))
-				);	
-			} break;
-
-			case Token::Kind::LiteralBool: {
-				return ExprInfo(
-					ExprInfo::ValueCategory::Ephemeral,
-					ExprInfo::ValueStage::Comptime,
-					this->context.getTypeManager().getTypeBool(),
-					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool()))
-				);	
-			} break;
-
-			case Token::Kind::LiteralString: {
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					literal,
-					"string literals (except for in @import calls) are currently unsupported"
-				);
-				return evo::resultError;
-			} break;
-
-			case Token::Kind::LiteralChar: {
-				return ExprInfo(
-					ExprInfo::ValueCategory::Ephemeral,
-					ExprInfo::ValueStage::Comptime,
-					this->context.getTypeManager().getTypeChar(),
-					sema::Expr(this->context.sema_buffer.createCharValue(literal_token.getChar()))
-				);	
-			} break;
-
-			default: evo::debugFatalBreak("Not a valid literal");
-		}
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_uninit(const Token::ID& uninit) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			uninit,
-			"uninit expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_zeroinit(const Token::ID& zeroinit) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			zeroinit,
-			"zeroinit expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-	
-	auto SemanticAnalyzer::analyze_expr_this(const Token::ID& this_expr) -> evo::Result<ExprInfo> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			this_expr,
-			"this expressions are unimplemented"
-		);
-		return evo::resultError;
-	}
-
-
 
 	//////////////////////////////////////////////////////////////////////
-	// misc
+	// exec value gets / returns
 
-	auto SemanticAnalyzer::get_current_scope_level() const -> sema::ScopeLevel& {
-		return this->context.sema_buffer.scope_manager.getLevel(this->scope.getCurrentLevel());
+
+	auto SemanticAnalyzer::get_type(SymbolProc::TypeID symbol_proc_type_id) -> TypeInfo::VoidableID {
+		return *this->symbol_proc.type_ids[symbol_proc_type_id.get()];
 	}
+
+	auto SemanticAnalyzer::return_type(SymbolProc::TypeID symbol_proc_type_id, TypeInfo::VoidableID&& id) -> void {
+		this->symbol_proc.type_ids[symbol_proc_type_id.get()] = std::move(id);
+	}
+
+
+	auto SemanticAnalyzer::get_expr_info(SymbolProc::ExprInfoID symbol_proc_expr_info_id) -> ExprInfo& {
+		return *this->symbol_proc.expr_infos[symbol_proc_expr_info_id.get()];
+	}
+
+	auto SemanticAnalyzer::return_expr_info(SymbolProc::ExprInfoID symbol_proc_expr_info_id, auto&&... args) -> void {
+		this->symbol_proc.expr_infos[symbol_proc_expr_info_id.get()]
+			.emplace(std::forward<decltype(args)>(args)...);
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////
 	// error handling / diagnostics
-
 
 	template<bool IS_NOT_TEMPLATE_ARG>
 	auto SemanticAnalyzer::type_check(
@@ -1471,65 +1543,11 @@ namespace pcit::panther{
 			Diagnostic::Code::SemaTypeMismatch,
 			location,
 			std::format(
-				"{} cannot accept an expression of a different type, and cannot be implicitly converted",
+				"{} cannot accept an expression of a different type, and the expression cannot be implicitly converted",
 				expected_type_location_name
 			),
 			std::move(infos)
 		);
-	}
-
-
-
-	template<bool IS_GLOBAL, bool IS_FUNC>
-	auto SemanticAnalyzer::add_ident_to_scope(std::string_view ident_str, Token::ID location) -> bool {
-		if(this->get_current_scope_level().addIdent(ident_str, location) == false){
-			this->error_already_defined(ident_str, location);
-			return false;
-		}
-
-		const auto find = this->source.global_decl_ident_infos_map.find(ident_str);
-		if(find == this->source.global_decl_ident_infos_map.end()){ return true; }
-
-		Source::GlobalDeclIdentInfo& found_info = this->source.global_decl_ident_infos[find->second];
-
-		if constexpr(IS_FUNC){
-			if(found_info.is_func){ return true; }
-		}
-
-		const auto lock = std::scoped_lock(found_info.lock);
-
-		if(found_info.declared_location.has_value()){
-			if(*found_info.declared_location == location){ return true; }
-
-			this->emit_error(
-				Diagnostic::Code::SemaIdentAlreadyInScope,
-				location,
-				std::format("Identifier \"{}\" was already defined in this scope", ident_str),
-				Diagnostic::Info("First defined here:", this->get_location(*found_info.declared_location))
-			);
-			return false;
-		}
-
-		if constexpr(IS_GLOBAL){
-			if(found_info.first_sub_scope_location.has_value()){
-				this->emit_error(
-					Diagnostic::Code::SemaIdentAlreadyInScope,
-					location,
-					std::format("Identifier \"{}\" was already defined in this scope", ident_str),
-					Diagnostic::Info("First defined here:", this->get_location(*found_info.first_sub_scope_location))
-				);
-				return false;
-
-			}else{
-				found_info.declared_location = location;
-			}
-		}else{
-			if(found_info.first_sub_scope_location.has_value() == false){
-				found_info.first_sub_scope_location = location;
-			}
-		}
-
-		return true;
 	}
 
 
@@ -1562,53 +1580,62 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::error_already_defined(std::string_view ident_str, const auto& redef_location) -> void {
-		for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
-			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(scope_level_id);
-			const sema::ScopeLevel::IdentID* lookup_ident_id = scope_level.lookupIdent(ident_str);
-
-			if(lookup_ident_id == nullptr){ i -= 1; continue; }
-
-			lookup_ident_id->visit([&](const auto& ident_id) -> void {
-				using IdentIDType = std::decay_t<decltype(ident_id)>;
+	auto SemanticAnalyzer::add_ident_to_scope(std::string_view ident_str, const auto& ast_node, auto&&... ident_id_info)
+	-> bool {
+		const auto error_already_defined = [&](const sema::ScopeLevel::IdentID& first_defined_id) -> void {
+			first_defined_id.visit([&](const auto& first_decl_ident_id) -> void {
+				using IdentIDType = std::decay_t<decltype(first_decl_ident_id)>;
 
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 
-				if constexpr(std::is_same<IdentIDType, evo::SmallVector<sema::Func::ID>>()){
-					if(ident_id.size() == 1){
-						infos.emplace_back("First defined here:", this->get_location(ident_id.front()));
+				if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
+					first_decl_ident_id.front().visit([&](const auto& func_id) -> void {
+						if(first_decl_ident_id.size() == 1){
+							infos.emplace_back("First defined here:", this->get_location(func_id));
 
-					}else if(ident_id.size() == 2){
-						infos.emplace_back(
-							"First defined here (and 1 other place):", this->get_location(ident_id.front())
-						);
-					}else{
-						infos.emplace_back(
-							std::format("First defined here (and {} other places):", ident_id.size() - 1),
-							this->get_location(ident_id.front())
-						);
-					}
+						}else if(first_decl_ident_id.size() == 2){
+							infos.emplace_back(
+								"First defined here (and 1 other place):", this->get_location(func_id)
+							);
+						}else{
+							infos.emplace_back(
+								std::format(
+									"First defined here (and {} other places):", first_decl_ident_id.size() - 1
+								),
+								this->get_location(func_id)
+							);
+						}
+					});
 
 				}else{
-					infos.emplace_back("First defined here:", this->get_location(ident_id));
+					infos.emplace_back("First defined here:", this->get_location(first_decl_ident_id));
 				}
 
-				if(scope_level_id != this->scope.getCurrentLevel()){
-					infos.emplace_back("Note: shadowing is not allowed");
-				}
+				// if(scope_level_id != this->scope.getCurrentLevel()){
+				// 	infos.emplace_back("Note: shadowing is not allowed");
+				// }
 
 				this->emit_error(
 					Diagnostic::Code::SemaIdentAlreadyInScope,
-					redef_location,
+					ast_node,
 					std::format("Identifier \"{}\" was already defined in this scope", ident_str),
 					std::move(infos)
 				);
 			});
-			return;
+		};
+
+
+		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
+		if(current_scope_level.addIdent(ident_str, std::forward<decltype(ident_id_info)>(ident_id_info)...) == false){
+			error_already_defined(*current_scope_level.lookupIdent(ident_str));
+			return false;
 		}
 
-		evo::debugFatalBreak("Didn't find first defined location");
+		// TODO: look in parent scopes
+
+		return true;
 	}
+
 
 
 	auto SemanticAnalyzer::print_type(const ExprInfo& expr_info) const -> std::string {
@@ -1641,19 +1668,6 @@ namespace pcit::panther{
 				static_assert(false, "Unsupported type id kind");
 			}
 		});
-	}
-
-
-	auto SemanticAnalyzer::emit_warning(Diagnostic::Code code, const auto& location, auto&&... args) -> void {
-		this->context.emitWarning(code, this->get_location(location), std::forward<decltype(args)>(args)...);
-	}
-
-	auto SemanticAnalyzer::emit_error(Diagnostic::Code code, const auto& location, auto&&... args) -> void {
-		this->context.emitError(code, this->get_location(location), std::forward<decltype(args)>(args)...);
-	}
-
-	auto SemanticAnalyzer::emit_fatal(Diagnostic::Code code, const auto& location, auto&&... args) -> void {
-		this->context.emitFatal(code, this->get_location(location), std::forward<decltype(args)>(args)...);
 	}
 
 

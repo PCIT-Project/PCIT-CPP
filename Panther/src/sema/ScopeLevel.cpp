@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/sema/ScopeLevel.h"
+#include "./ScopeLevel.h"
 
 
 namespace pcit::panther::sema{
@@ -64,120 +64,118 @@ namespace pcit::panther::sema{
 
 
 
-	auto ScopeLevel::addIdent(std::string_view ident, Token::ID location) -> bool {
+
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::FuncID id) -> bool {
 		const auto lock = std::scoped_lock(this->ids_lock);
-		
+
+		const std::unordered_map<std::string_view, IdentID>::iterator ident_find = this->ids.find(ident);
+		if(ident_find == this->ids.end()){
+			this->ids.emplace(ident, IdentID()).first->second.as<FuncOverloadList>().emplace_back();
+			return true;
+		}else{
+			if(ident_find->second.is<FuncOverloadList>()){
+				ident_find->second.as<FuncOverloadList>().emplace_back(
+					evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
+				);
+				return true;
+			}else{
+				return false;
+			}
+		}
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::TemplatedFuncID id) -> bool {
+		const auto lock = std::scoped_lock(this->ids_lock);
+
+		const std::unordered_map<std::string_view, IdentID>::iterator ident_find = this->ids.find(ident);
+		if(ident_find == this->ids.end()){
+			this->ids.emplace(ident, IdentID()).first->second.as<FuncOverloadList>().emplace_back();
+			return true;
+		}else{
+			if(ident_find->second.is<FuncOverloadList>()){
+				ident_find->second.as<FuncOverloadList>().emplace_back(
+					evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
+				);
+				return true;
+			}else{
+				return false;
+			}
+		}
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::VarID id) -> bool {
+		const auto lock = std::scoped_lock(this->ids_lock);
+
 		if(this->ids.contains(ident)){ return false; }
 
-		this->ids.emplace(ident, IDNotReady(location));
+		this->ids.emplace(ident, id);
+		return true;
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::StructID id) -> bool {
+		const auto lock = std::scoped_lock(this->ids_lock);
+
+		if(this->ids.contains(ident)){ return false; }
+		
+		this->ids.emplace(ident, id);
+		return true;
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::ParamID id) -> bool {
+		const auto lock = std::scoped_lock(this->ids_lock);
+
+		if(this->ids.contains(ident)){ return false; }
+		
+		this->ids.emplace(ident, id);
+		return true;
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::ReturnParamID id) -> bool {
+		const auto lock = std::scoped_lock(this->ids_lock);
+
+		if(this->ids.contains(ident)){ return false; }
+		
+		this->ids.emplace(ident, id);
+		return true;
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub) -> bool {
+		const auto lock = std::scoped_lock(this->ids_lock);
+
+		if(this->ids.contains(ident)){ return false; }
+		
+		this->ids.emplace(ident, ModuleInfo(id, location, is_pub));
 		return true;
 	}
 
 
-	auto ScopeLevel::setFunc(std::string_view ident, sema::FuncID id) -> void {
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::Alias::ID id) -> bool {
 		const auto lock = std::scoped_lock(this->ids_lock);
 
-		IdentID& ident_id = this->ids.at(ident);
-
-		if(ident_id.is<IDNotReady>()){
-			ident_id.emplace<evo::SmallVector<sema::FuncID>>({id});
-			
-		}else{
-			evo::debugAssert(
-				ident_id.is<evo::SmallVector<sema::FuncID>>(), "ident \"{}\" was previously set (not a func)", ident
-			);
-
-			ident_id.as<evo::SmallVector<sema::FuncID>>().emplace_back(id);
-		}
+		if(this->ids.contains(ident)){ return false; }
+		
+		this->ids.emplace(ident, id);
+		return true;
 	}
 
-	auto ScopeLevel::setTemplatedFunc(std::string_view ident, sema::TemplatedFuncID id) -> void {
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::Typedef::ID id) -> bool {
 		const auto lock = std::scoped_lock(this->ids_lock);
 
-		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
-		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
-
-		this->ids.at(ident).emplace<sema::TemplatedFuncID>(id);
-	}
-
-	auto ScopeLevel::setVar(std::string_view ident, sema::VarID id) -> void {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
-		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
-
-		this->ids.at(ident).emplace<sema::VarID>(id);
-	}
-
-	auto ScopeLevel::setStruct(std::string_view ident, sema::StructID id) -> void {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
-		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
-
-		this->ids.at(ident).emplace<sema::StructID>(id);
-	}
-
-	auto ScopeLevel::setParam(std::string_view ident, sema::ParamID id) -> void {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
-		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
-
-		this->ids.at(ident).emplace<sema::ParamID>(id);
-	}
-
-	auto ScopeLevel::setReturnParam(std::string_view ident, sema::ReturnParamID id) -> void {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
-		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
-
-		this->ids.at(ident).emplace<sema::ReturnParamID>(id);
-	}
-
-	auto ScopeLevel::setModule(std::string_view ident, SourceID id, Token::ID location) -> void {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
-		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
-
-		this->ids.at(ident).emplace<ModuleInfo>(ModuleInfo(id, location));
-	}
-
-
-	auto ScopeLevel::setAlias(std::string_view ident, BaseType::Alias::ID id) -> void {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
-		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
-
-		this->ids.at(ident).emplace<BaseType::Alias::ID>(id);
-	}
-
-	auto ScopeLevel::setTypedef(std::string_view ident, BaseType::Typedef::ID id) -> void {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		evo::debugAssert(this->lookup_ident_without_locking(ident) != nullptr, "Scope does't ident \"{}\"", ident);
-		evo::debugAssert(this->ids.at(ident).is<IDNotReady>(), "ident \"{}\" was already set", ident);
-
-		this->ids.at(ident).emplace<BaseType::Typedef::ID>(id);
+		if(this->ids.contains(ident)){ return false; }
+		
+		this->ids.emplace(ident, id);
+		return true;
 	}
 
 
 	auto ScopeLevel::lookupIdent(std::string_view ident) const -> const IdentID* {
 		const auto lock = std::scoped_lock(this->ids_lock);
 
-		return this->lookup_ident_without_locking(ident);
-	}
-
-
-	auto ScopeLevel::lookup_ident_without_locking(std::string_view ident) const -> const IdentID* {
 		const std::unordered_map<std::string_view, IdentID>::const_iterator ident_find = this->ids.find(ident);
 		if(ident_find == this->ids.end()){ return nullptr; }
 
 		return &ident_find->second;
 	}
-
 
 }

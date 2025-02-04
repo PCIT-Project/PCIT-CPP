@@ -62,6 +62,10 @@ namespace pcit::panther{
 			}
 
 
+			EVO_NODISCARD auto lookupSpecialNameSourceID(std::string_view path) const -> std::optional<Source::ID>;
+			EVO_NODISCARD auto lookupSourceID(std::string_view path) const -> std::optional<Source::ID>;
+			
+
 		private:
 			auto create_source(
 				std::filesystem::path&& path, std::string&& data_str, Source::CompilationConfig::ID comp_config_id
@@ -95,6 +99,7 @@ namespace pcit::panther{
 
 					using CompConfig = Source::CompilationConfig;
 					core::LinearStepAlloc<CompConfig, CompConfig::ID> source_compilation_configs{};
+
 					std::unordered_map<std::string_view, std::filesystem::path> special_name_paths{};
 
 					friend SourceManager;

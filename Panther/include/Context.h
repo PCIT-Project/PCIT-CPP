@@ -11,6 +11,7 @@
 
 
 #include <filesystem>
+#include <unordered_set>
 
 #include <Evo.h>
 #include <PCIT_core.h>
@@ -18,7 +19,7 @@
 #include "./source/SourceManager.h"
 #include "./Diagnostic.h"
 #include "./TypeManager.h"
-#include "./deps/DepsBuffer.h"
+#include "../../src/symbol_proc/SymbolProcManager.h"
 #include "./sema/SemaBuffer.h"
 
 
@@ -78,7 +79,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto hasHitFailCondition() const -> bool {
-				return this->num_errors >= this->_config.maxNumErrors;
+				return this->num_errors >= this->_config.maxNumErrors || this->encountered_fatal;
 			}
 
 			EVO_NODISCARD auto mayAddSourceFile() const -> bool {
@@ -105,8 +106,8 @@ namespace pcit::panther{
 			// build targets
 
 			auto tokenize() -> bool;
-			auto parse() -> bool; 
-			auto analyzeDependencies() -> bool;
+			auto parse() -> bool;
+			auto buildSymbolProcs() -> bool;
 			auto analyzeSemantics() -> bool;
 
 
@@ -134,7 +135,8 @@ namespace pcit::panther{
 			// emitting diagnostics
 
 			auto emitFatal(auto&&... args) -> void {
-				this->num_errors = this->_config.maxNumErrors;
+				this->num_errors += 1;
+				this->encountered_fatal = true;
 				this->emit_diagnostic_impl(Diagnostic(Diagnostic::Level::Fatal, std::forward<decltype(args)>(args)...));
 			}
 
@@ -173,9 +175,6 @@ namespace pcit::panther{
 				#endif
 			}
 
-			#if defined(PCIT_CONFIG_DEBUG)
-				EVO_NODISCARD auto getDepsBuffer() const -> const DepsBuffer& { return this->deps_buffer; }
-			#endif
 
 		private:
 			EVO_NODISCARD auto load_source(
@@ -190,10 +189,20 @@ namespace pcit::panther{
 				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
 			) -> void;
 			
-			auto dependency_analysis_impl(
+			auto build_symbol_procs_impl(
 				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
 			) -> evo::Result<Source::ID>;
 
+
+			enum class LookupSourceIDError{
+				EmptyPath,
+				SameAsCaller,
+				NotOneOfSources,
+				DoesntExist,
+				FailedDuringAnalysisOfNewlyLoaded,
+			};
+			EVO_NODISCARD auto lookupSourceID(std::string_view lookup_path, const Source& calling_source)
+				-> evo::Expected<Source::ID, LookupSourceIDError>;
 
 			auto emit_diagnostic_impl(const Diagnostic& diagnostic) -> void;
 
@@ -203,11 +212,8 @@ namespace pcit::panther{
 				Source::CompilationConfig::ID compilation_config_id;
 			};
 
-			struct SemaDecl{    deps::Node::ID deps_node_id; };
-			struct SemaDef{     deps::Node::ID deps_node_id; };
-			struct SemaDeclDef{ deps::Node::ID deps_node_id; };
-
-			using Task = evo::Variant<FileToLoad, SemaDecl, SemaDef, SemaDeclDef>;
+			// TODO: needed anymore?
+			using Task = evo::Variant<FileToLoad, SymbolProc::ID>;
 
 			auto add_task_to_work_manager(auto&&... args) -> void {
 				this->work_manager.visit([&](auto& work_manager) -> void {
@@ -235,9 +241,13 @@ namespace pcit::panther{
 			mutable core::SpinLock diagnostic_callback_mutex{};
 
 			std::atomic<unsigned> num_errors = 0;
+			bool encountered_fatal = false;
 			bool added_std_lib = false;
 
 			std::vector<FileToLoad> files_to_load{};
+
+			std::unordered_set<std::filesystem::path> current_dynamic_file_load{};
+			mutable core::SpinLock current_dynamic_file_load_lock{};
 
 
 			// Only used for semantic analysis
@@ -246,11 +256,13 @@ namespace pcit::panther{
 
 			SourceManager source_manager{};
 			TypeManager type_manager;
-			DepsBuffer deps_buffer{};
+			SymbolProcManager symbol_proc_manager{};
 			SemaBuffer sema_buffer{};
 
-			friend class DependencyAnalysis;
+
+			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;
+			friend class SymbolProc;
 	};
 
 	

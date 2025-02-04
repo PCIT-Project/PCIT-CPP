@@ -425,7 +425,7 @@ namespace pcit::panther{
 
 
 		if(evo::fs::exists(lookup_path.string())){
-			return evo::Unexpected(LookupSourceIDError::NotOneOfSources);			
+			return evo::Unexpected(LookupSourceIDError::NotOneOfSources);
 		}
 
 		return evo::Unexpected(LookupSourceIDError::DoesntExist);

@@ -13,7 +13,7 @@
 #include <Evo.h>
 #include <PCIT_core.h>
 
-#include "../../include/source/Source.h"
+#include "../../include/source/source_data.h"
 #include "../../include/TypeManager.h"
 #include "../../include/sema/sema.h"
 
@@ -45,8 +45,8 @@ namespace pcit::panther{
 		};
 
 		struct InitializerType{};
-
-		enum class FluidType{};
+		
+		struct FluidType{};
 
 		using TypeID = evo::Variant<
 			InitializerType,                // Initializer
@@ -54,7 +54,7 @@ namespace pcit::panther{
 			TypeInfo::ID,                   // ConcreteConst|ConcreateMut|ConcreteConstForwardable
 						                    //   |ConcreteConstDestrMovable|Ephemeral|Function|Intrinsic
 			evo::SmallVector<TypeInfo::ID>, // Ephemeral
-			Source::ID                      // Module
+			SourceID                        // Module
 			// TODO: Template
 			// TODO: TemplateIntrinsic
 		>;
@@ -145,6 +145,15 @@ namespace pcit::panther{
 		EVO_NODISCARD auto getExpr() && -> sema::Expr&& {
 			evo::debugAssert(this->isSingleValue(), "does not hold single value");
 			return std::move(this->exprs.front());
+		}
+
+
+		//////////////////
+		// module expr
+
+		EVO_NODISCARD auto getModuleExpr() const -> const sema::Expr& {
+			evo::debugAssert(this->type_id.is<SourceID>(), "does not hold module");
+			return this->exprs.front();
 		}
 
 

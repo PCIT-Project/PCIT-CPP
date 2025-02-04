@@ -13,43 +13,25 @@
 #include <Evo.h>
 #include <PCIT_core.h>
 
-
-namespace pcit::panther{
-
-
-
-	struct ScopeManagerScopeID : public core::UniqueID<uint32_t, struct ScopeManagerScopeID> {
-		using core::UniqueID<uint32_t, ScopeManagerScopeID>::UniqueID;
-	};
-
-	struct ScopeManagerScopeIDOptInterface{
-		static constexpr auto init(ScopeManagerScopeID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ScopeManagerScopeID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
+#include "./ScopeLevel.h"
 
 
 
-	using ScopeManagerFakeObjectScope = std::monostate;
+namespace pcit::panther::sema{
 
 
-	///////////////////////////////////
-	// 
-	// OBJECT_SCOPE must be of type evo::Variant with the first type being ScopeManagerFakeObjectScope
-	// 
-	///////////////////////////////////
 
-	template<class LEVEL, class OBJECT_SCOPE>
+
 	class ScopeManager{
 		public:
 			class Scope{
 				public:
-					using ID = ScopeManagerScopeID;
-					using ObjectScope = OBJECT_SCOPE;
+					struct ID : public core::UniqueID<uint32_t, struct ID> {
+						using core::UniqueID<uint32_t, ID>::UniqueID;
+					};
+
+					using FakeObjectScope = std::monostate;
+					using ObjectScope = evo::Variant<FakeObjectScope, sema::Func::ID>;
 
 				public:
 					Scope() = default;
@@ -58,10 +40,10 @@ namespace pcit::panther{
 					///////////////////////////////////
 					// scope level
 
-					auto pushLevel(LEVEL::ID id) -> void { this->scope_levels.emplace_back(id); }
+					auto pushLevel(ScopeLevel::ID id) -> void { this->scope_levels.emplace_back(id); }
 
 					// The type of `object_scope` must be one of the ones in ObjectScope
-					auto pushLevel(LEVEL::ID id, auto&& object_scope) -> void {
+					auto pushLevel(ScopeLevel::ID id, auto&& object_scope) -> void {
 						this->pushLevel(id);
 						this->object_scopes.emplace_back(
 							ObjectScope(std::move(object_scope)), uint32_t(this->scope_levels.size())
@@ -69,7 +51,7 @@ namespace pcit::panther{
 					}
 
 					// The type of `object_scope` must be one of the ones in ObjectScope
-					auto pushLevel(LEVEL::ID id, const auto& object_scope) -> void {
+					auto pushLevel(ScopeLevel::ID id, const auto& object_scope) -> void {
 						this->pushLevel(id);
 						this->object_scopes.emplace_back(
 							ObjectScope(object_scope), uint32_t(this->scope_levels.size())
@@ -79,7 +61,7 @@ namespace pcit::panther{
 					auto popLevel() -> void {
 						evo::debugAssert(!this->scope_levels.empty(), "cannot pop scope level as there are none");
 						evo::debugAssert(
-							this->getCurrentObjectScope().is<ScopeManagerFakeObjectScope>() == false,
+							this->getCurrentObjectScope().is<FakeObjectScope>() == false,
 							"fake object scope was not popped"
 						);
 
@@ -93,7 +75,8 @@ namespace pcit::panther{
 						this->scope_levels.pop_back();
 					}
 
-					EVO_NODISCARD auto getCurrentLevel() const -> LEVEL::ID { return this->scope_levels.back(); }
+					EVO_NODISCARD auto getGlobalLevel() const -> ScopeLevel::ID { return this->scope_levels.front(); }
+					EVO_NODISCARD auto getCurrentLevel() const -> ScopeLevel::ID { return this->scope_levels.back(); }
 
 
 					EVO_NODISCARD auto size() const -> size_t { return this->scope_levels.size(); }
@@ -101,19 +84,19 @@ namespace pcit::panther{
 					// note: these are purposely reverse iterators
 					// TODO: figure out if doing lookup in reverse is indeed faster
 
-					EVO_NODISCARD auto begin() -> evo::SmallVector<typename LEVEL::ID>::reverse_iterator {
+					EVO_NODISCARD auto begin() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
 						return this->scope_levels.rbegin();
 					}
 
-					EVO_NODISCARD auto begin() const -> evo::SmallVector<typename LEVEL::ID>::const_reverse_iterator {
+					EVO_NODISCARD auto begin() const -> evo::SmallVector<ScopeLevel::ID>::const_reverse_iterator {
 						return this->scope_levels.rbegin();
 					}
 
-					EVO_NODISCARD auto end() -> evo::SmallVector<typename LEVEL::ID>::reverse_iterator {
+					EVO_NODISCARD auto end() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
 						return this->scope_levels.rend();
 					}
 
-					EVO_NODISCARD auto end() const -> evo::SmallVector<typename LEVEL::ID>::const_reverse_iterator {
+					EVO_NODISCARD auto end() const -> evo::SmallVector<ScopeLevel::ID>::const_reverse_iterator {
 						return this->scope_levels.rend();
 					}
 
@@ -143,15 +126,12 @@ namespace pcit::panther{
 					// must be popped manually
 					// be careful - only use when declaring things like params
 					EVO_NODISCARD auto pushFakeObjectScope() -> void {
-						this->object_scopes.emplace_back(
-							ScopeManagerFakeObjectScope(), uint32_t(this->scope_levels.size()) + 1
-						);
+						this->object_scopes.emplace_back(FakeObjectScope(), uint32_t(this->scope_levels.size()) + 1);
 					}
 
 					EVO_NODISCARD auto popFakeObjectScope() -> void {
 						evo::debugAssert(
-							this->getCurrentObjectScope().is<ScopeManagerFakeObjectScope>(),
-							"not in a fake object scope"
+							this->getCurrentObjectScope().is<FakeObjectScope>(), "not in a fake object scope"
 						);
 						this->object_scopes.pop_back();
 					}
@@ -163,7 +143,7 @@ namespace pcit::panther{
 					};
 
 					// TODO: use a stack?
-					evo::SmallVector<typename LEVEL::ID> scope_levels{};
+					evo::SmallVector<ScopeLevel::ID> scope_levels{};
 					evo::SmallVector<ObjectScopeData> object_scopes{};
 			};
 
@@ -189,22 +169,33 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto getLevel(LEVEL::ID id) const -> const LEVEL& {
+			EVO_NODISCARD auto getLevel(ScopeLevel::ID id) const -> const ScopeLevel& {
 				return this->levels[id];
 			}
 
-			EVO_NODISCARD auto getLevel(LEVEL::ID id) -> LEVEL& {
+			EVO_NODISCARD auto getLevel(ScopeLevel::ID id) -> ScopeLevel& {
 				return this->levels[id];
 			}
 
-			EVO_NODISCARD auto createLevel() -> LEVEL::ID {
+			EVO_NODISCARD auto createLevel() -> ScopeLevel::ID {
 				return this->levels.emplace_back();
 			}
 
 	
 		private:
-			core::SyncLinearStepAlloc<LEVEL, typename LEVEL::ID> levels{};
-			core::SyncLinearStepAlloc<Scope, typename Scope::ID> scopes{};
+			core::SyncLinearStepAlloc<ScopeLevel, ScopeLevel::ID> levels{};
+			core::SyncLinearStepAlloc<Scope, Scope::ID> scopes{};
+	};
+
+
+	struct ScopeManagerScopeIDOptInterface{
+		static constexpr auto init(ScopeManager::Scope::ID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const ScopeManager::Scope::ID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
 	};
 
 
@@ -216,18 +207,18 @@ namespace std{
 
 
 	template<>
-	class optional<pcit::panther::ScopeManagerScopeID> 
+	class optional<pcit::panther::sema::ScopeManager::Scope::ID> 
 		: public pcit::core::Optional<
-			pcit::panther::ScopeManagerScopeID, pcit::panther::ScopeManagerScopeIDOptInterface
+			pcit::panther::sema::ScopeManager::Scope::ID, pcit::panther::sema::ScopeManagerScopeIDOptInterface
 		>{
 
 		public:
 			using pcit::core::Optional<
-				pcit::panther::ScopeManagerScopeID, pcit::panther::ScopeManagerScopeIDOptInterface
+				pcit::panther::sema::ScopeManager::Scope::ID, pcit::panther::sema::ScopeManagerScopeIDOptInterface
 			>::Optional;
 
 			using pcit::core::Optional<
-				pcit::panther::ScopeManagerScopeID, pcit::panther::ScopeManagerScopeIDOptInterface
+				pcit::panther::sema::ScopeManager::Scope::ID, pcit::panther::sema::ScopeManagerScopeIDOptInterface
 			>::operator=;
 	};
 

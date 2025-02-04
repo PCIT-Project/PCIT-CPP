@@ -42,6 +42,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, BoolValueID>::UniqueID;
 	};
 
+	struct StringValueID : public core::UniqueID<uint32_t, struct StringValueID> {
+		using core::UniqueID<uint32_t, StringValueID>::UniqueID;
+	};
+
 	struct CharValueID : public core::UniqueID<uint32_t, struct CharValueID> {
 		using core::UniqueID<uint32_t, CharValueID>::UniqueID;
 	};

@@ -18,6 +18,7 @@
 #include "./tokens/Token.h"
 #include "./AST/AST.h"
 #include "./strings.h"
+#include "./sema/Expr.h"
 
 
 namespace pcit::panther{
@@ -90,6 +91,7 @@ namespace pcit::panther{
 
 			Primitive,
 			Function,
+			Array,
 			Alias,
 			Typedef,
 		};
@@ -170,12 +172,37 @@ namespace pcit::panther{
 		};
 
 
+		struct Array{
+			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+			
+			TypeInfoID elementTypeID;
+			evo::SmallVector<uint64_t> lengths;
+			std::optional<core::GenericValue> terminator;
+
+
+			Array(
+				TypeInfoID elem_type_id,
+				evo::SmallVector<uint64_t>&& _lengths,
+				std::optional<core::GenericValue> _terminator
+			) : elementTypeID(elem_type_id), lengths(_lengths), terminator(_terminator) {
+				evo::debugAssert(this->lengths.size() >= 1, "Must have at least 1 length");
+				evo::debugAssert(
+					!(this->lengths.size() > 1 && this->terminator.has_value()),
+					"multi-dimensional arrays cannot be terminated"
+				);
+			}
+
+			EVO_NODISCARD auto operator==(const Array&) const -> bool = default;
+		};
+
+
 		struct Alias{
 			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 			SourceID sourceID;
 			Token::ID identTokenID;
 			TypeInfoVoidableID aliasedType;
+			bool isPub;
 			
 			EVO_NODISCARD auto operator==(const Alias&) const -> bool = default;
 		};
@@ -187,6 +214,7 @@ namespace pcit::panther{
 			SourceID sourceID;
 			Token::ID identTokenID;
 			TypeInfoID underlyingType;
+			bool isPub;
 			
 			EVO_NODISCARD auto operator==(const Typedef&) const -> bool = default;
 		};
@@ -204,6 +232,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto funcID() const -> Function::ID {
 				evo::debugAssert(this->kind() == Kind::Function, "not a Function");
 				return Function::ID(this->_id);
+			}
+
+			EVO_NODISCARD auto arrayID() const -> Array::ID {
+				evo::debugAssert(this->kind() == Kind::Array, "not a Array");
+				return Array::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto aliasID() const -> Alias::ID {
@@ -227,6 +260,7 @@ namespace pcit::panther{
 
 			explicit ID(Primitive::ID id) : _kind(Kind::Primitive), _id(id.get()) {}
 			explicit ID(Function::ID id)  : _kind(Kind::Function),  _id(id.get()) {}
+			explicit ID(Array::ID id)     : _kind(Kind::Array),  _id(id.get()) {}
 			explicit ID(Alias::ID id)     : _kind(Kind::Alias),     _id(id.get()) {}
 			explicit ID(Typedef::ID id)   : _kind(Kind::Typedef),   _id(id.get()) {}
 
@@ -313,6 +347,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id) const -> const BaseType::Function&;
 			EVO_NODISCARD auto getOrCreateFunction(BaseType::Function&& lookup_func) -> BaseType::ID;
 
+			EVO_NODISCARD auto getArray(BaseType::Array::ID id) const -> const BaseType::Array&;
+			EVO_NODISCARD auto getOrCreateArray(BaseType::Array&& lookup_type) -> BaseType::ID;
+
 			EVO_NODISCARD auto getPrimitive(BaseType::Primitive::ID id) const -> const BaseType::Primitive&;
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind) -> BaseType::ID;
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
@@ -335,11 +372,11 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// type traits
 
-			EVO_NODISCARD auto sizeOf(TypeInfo::ID id) const -> size_t;
-			EVO_NODISCARD auto sizeOf(BaseType::ID id) const -> size_t;
+			EVO_NODISCARD auto sizeOf(TypeInfo::ID id) const -> uint64_t;
+			EVO_NODISCARD auto sizeOf(BaseType::ID id) const -> uint64_t;
 
-			EVO_NODISCARD auto sizeOfPtr() const -> size_t;
-			EVO_NODISCARD auto sizeOfGeneralRegister() const -> size_t;
+			EVO_NODISCARD auto sizeOfPtr() const -> uint64_t;
+			EVO_NODISCARD auto sizeOfGeneralRegister() const -> uint64_t;
 
 			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyCopyable(BaseType::ID id) const -> bool;
@@ -363,9 +400,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isFloatingPoint(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isFloatingPoint(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isBuiltin(TypeInfo::VoidableID id) const -> bool;
-			EVO_NODISCARD auto isBuiltin(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isBuiltin(BaseType::ID id) const -> bool;
+			// EVO_NODISCARD auto isBuiltin(TypeInfo::VoidableID id) const -> bool;
+			// EVO_NODISCARD auto isBuiltin(TypeInfo::ID id) const -> bool;
+			// EVO_NODISCARD auto isBuiltin(BaseType::ID id) const -> bool;
 
 			EVO_NODISCARD auto getUnderlyingType(TypeInfo::ID id) -> evo::Result<TypeInfo::ID>;
 			EVO_NODISCARD auto getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID>;
@@ -392,6 +429,7 @@ namespace pcit::panther{
 			// TODO: improve lookup times
 			core::SyncLinearStepAlloc<BaseType::Primitive, BaseType::Primitive::ID> primitives{};
 			core::SyncLinearStepAlloc<BaseType::Function, BaseType::Function::ID> functions{};
+			core::SyncLinearStepAlloc<BaseType::Array, BaseType::Array::ID> arrays{};
 			core::SyncLinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
 			core::SyncLinearStepAlloc<BaseType::Typedef, BaseType::Typedef::ID> typedefs{};
 			core::SyncLinearStepAlloc<TypeInfo, TypeInfo::ID> types{};

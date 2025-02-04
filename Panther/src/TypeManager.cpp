@@ -121,6 +121,11 @@ namespace pcit::panther{
 					return "{FUNCTION}";
 				} break;
 
+				case BaseType::Kind::Array: {
+					// TODO: fix this
+					return "{ARRAY}";
+				} break;
+
 				case BaseType::Kind::Alias: {
 					const BaseType::Alias::ID alias_id = type_info.baseTypeID().aliasID();
 					const BaseType::Alias& alias = this->getAlias(alias_id);
@@ -181,6 +186,25 @@ namespace pcit::panther{
 
 		const BaseType::Function::ID new_function = this->functions.emplace_back(lookup_func);
 		return BaseType::ID(BaseType::Kind::Function, new_function.get());
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// array
+
+	auto TypeManager::getArray(BaseType::Array::ID id) const -> const BaseType::Array& {
+		return this->arrays[id];
+	}
+
+	auto TypeManager::getOrCreateArray(BaseType::Array&& lookup_func) -> BaseType::ID {
+		for(uint32_t i = 0; i < this->arrays.size(); i+=1){
+			if(this->arrays[BaseType::Array::ID(i)] == lookup_func){
+				return BaseType::ID(BaseType::Kind::Array, i);
+			}
+		}
+
+		const BaseType::Array::ID new_array = this->arrays.emplace_back(lookup_func);
+		return BaseType::ID(BaseType::Kind::Array, new_array.get());
 	}
 
 
@@ -272,7 +296,7 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::sizeOf(BaseType::ID id) const -> size_t {
+	auto TypeManager::sizeOf(BaseType::ID id) const -> uint64_t {
 		switch(id.kind()){
 			case BaseType::Kind::Primitive: {
 				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
@@ -322,6 +346,19 @@ namespace pcit::panther{
 				return this->sizeOfPtr();
 			} break;
 
+			case BaseType::Kind::Array: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				const uint64_t elem_size = this->sizeOf(array.elementTypeID);
+
+				if(array.terminator.has_value()){ return elem_size * array.lengths.back() + 1; }
+
+				uint64_t output = elem_size;
+				for(uint64_t length : array.lengths){
+					output *= length;
+				}
+				return output;
+			} break;
+
 			case BaseType::Kind::Alias: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.isVoid() == false, "cannot get sizeof type `Void`");
@@ -339,8 +376,8 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported base-type kind");
 	}
 
-	auto TypeManager::sizeOfPtr() const -> size_t { return 8; }
-	auto TypeManager::sizeOfGeneralRegister() const -> size_t { return 8; }
+	auto TypeManager::sizeOfPtr() const -> uint64_t { return 8; }
+	auto TypeManager::sizeOfGeneralRegister() const -> uint64_t { return 8; }
 
 
 	///////////////////////////////////
@@ -555,33 +592,34 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// isBuiltin
 
-	auto TypeManager::isBuiltin(TypeInfo::VoidableID id) const -> bool {
-		if(id.isVoid()){ return true; }
-		return this->isBuiltin(id.asTypeID());
-	}
+	// auto TypeManager::isBuiltin(TypeInfo::VoidableID id) const -> bool {
+	// 	if(id.isVoid()){ return true; }
+	// 	return this->isBuiltin(id.asTypeID());
+	// }
 
-	auto TypeManager::isBuiltin(TypeInfo::ID id) const -> bool {
-		const TypeInfo& type_info = this->getTypeInfo(id);
+	// auto TypeManager::isBuiltin(TypeInfo::ID id) const -> bool {
+	// 	const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(auto iter = type_info.qualifiers().rbegin(); iter != type_info.qualifiers().rend(); ++iter){
-			if(iter->isPtr){ return true; }
-		}
+	// 	for(auto iter = type_info.qualifiers().rbegin(); iter != type_info.qualifiers().rend(); ++iter){
+	// 		if(iter->isPtr){ return true; }
+	// 	}
 
-		return this->isBuiltin(type_info.baseTypeID());
-	}
+	// 	return this->isBuiltin(type_info.baseTypeID());
+	// }
 
-	auto TypeManager::isBuiltin(BaseType::ID id) const -> bool {
-		switch(id.kind()){
-			case BaseType::Kind::Primitive: return true;
-			case BaseType::Kind::Function:  return false;
-			case BaseType::Kind::Alias:     return this->isBuiltin(this->getAlias(id.aliasID()).aliasedType);
-			case BaseType::Kind::Typedef:   return false;
+	// auto TypeManager::isBuiltin(BaseType::ID id) const -> bool {
+	// 	switch(id.kind()){
+	// 		case BaseType::Kind::Primitive: return true;
+	// 		case BaseType::Kind::Function:  return false;
+	// 		case BaseType::Kind::Array:     
+	// 		case BaseType::Kind::Alias:     return this->isBuiltin(this->getAlias(id.aliasID()).aliasedType);
+	// 		case BaseType::Kind::Typedef:   return false;
 
-			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
-		}
+	// 		case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
+	// 	}
 
-		evo::debugFatalBreak("Unknown BaseType::Kind");
-	}
+	// 	evo::debugFatalBreak("Unknown BaseType::Kind");
+	// }
 
 
 	///////////////////////////////////
@@ -603,6 +641,7 @@ namespace pcit::panther{
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
 			case BaseType::Kind::Primitive: break;
 			case BaseType::Kind::Function: evo::resultError;
+			case BaseType::Kind::Array: evo::resultError;
 			case BaseType::Kind::Alias: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				if(alias.aliasedType.isVoid()){ return evo::resultError; }

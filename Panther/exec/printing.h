@@ -28,8 +28,5 @@ namespace pthr{
 
 	auto print_AST(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
 
-	#if defined(PCIT_CONFIG_DEBUG)
-		auto print_deps(core::Printer& printer, const panther::Context& context, const fs::path& relative_dir) -> void;
-	#endif
 	
 }

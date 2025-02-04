@@ -159,14 +159,14 @@ namespace pcit::panther{
 	}
 
 
+
 	//////////////////////////////////////////////////////////////////////
-	// deps
+	// sema
 
-	auto Diagnostic::Location::get(const deps::Node::ID& id, const Context& context) -> Location {
-		const deps::Node& deps_node = context.getDepsBuffer()[id];
-		return Location::get(deps_node.astNode, context.getSourceManager()[deps_node.sourceID]);
+	auto Diagnostic::Location::get(const sema::Var::ID& sema_var_id, const Source& src, const Context& context)
+	-> Location {
+		return Location::get(context.getSemaBuffer().getVar(sema_var_id).ident, src);
 	}
-
 
 
 }

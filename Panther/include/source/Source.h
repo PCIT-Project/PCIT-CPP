@@ -19,8 +19,8 @@
 #include "../tokens/TokenBuffer.h"
 #include "../AST/AST.h"
 #include "../AST/ASTBuffer.h"
-#include "../deps/DepsBuffer.h"
-#include "../sema/SemaBuffer.h"
+#include "../../src/symbol_proc/SymbolProc.h"
+#include "../../src/sema/ScopeManager.h"
 
 
 namespace pcit::panther{
@@ -58,6 +58,7 @@ namespace pcit::panther{
 			Source(
 				std::filesystem::path&& _path, std::string&& data_str, CompilationConfig::ID comp_config_id
 			) : id(ID(0)), path(std::move(_path)), data(std::move(data_str)), compilation_config_id(comp_config_id) {}
+
 	
 		private:
 			ID id;
@@ -68,39 +69,17 @@ namespace pcit::panther{
 			TokenBuffer token_buffer{};
 			ASTBuffer ast_buffer{};
 
-			std::optional<DepsBuffer::Scope::ID> deps_scope_id{};
-			evo::SmallVector<deps::Node::ID> deps_node_ids{}; // TODO: needed here? Or move it to DependencyAnalysis?
+			bool is_ready_for_sema = false;
 
-			std::optional<SemaBuffer::Scope::ID> sema_scope_id{};
-
-
-			// TODO: make atomic?
-			struct GlobalDeclIdentInfo{
-				std::optional<Token::ID> declared_location; // nullopt if declared inside a when conditonal 
-				                                            //   and didn't analyze semantic declaration yet
-				bool is_func;
-
-				std::optional<Token::ID> first_sub_scope_location{};
-				core::SpinLock lock{};
-			};
-
-			core::LinearStepAlloc<GlobalDeclIdentInfo, uint32_t> global_decl_ident_infos{};
-			std::unordered_map<std::string_view, uint32_t> global_decl_ident_infos_map{};
-
-
-			using SemaID = evo::Variant<
-			sema::Var::ID, sema::Func::ID, BaseType::Typedef::ID, BaseType::Alias::ID, sema::Struct::ID
-			>;
-			std::unordered_map<AST::Node, SemaID> symbol_map{};
-			mutable core::SpinLock symbol_map_lock{};
-
+			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
+			std::unordered_multimap<std::string_view, SymbolProc::ID> global_symbol_procs{};
 
 			friend class SourceManager;
 			friend class Context;
 			friend core::LinearStepAlloc;
 			friend class Tokenizer;
 			friend class Parser;
-			friend class DependencyAnalysis;
+			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;
 	};
 

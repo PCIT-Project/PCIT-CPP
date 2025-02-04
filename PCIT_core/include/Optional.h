@@ -105,6 +105,19 @@ namespace pcit::core{
 
 
 
+			EVO_NODISCARD constexpr auto operator==(const Optional& rhs) const -> bool {
+				if(this->has_value() != rhs.has_value()){ return false; }
+				if(this->has_value() == false){ return true; }
+				return this->value() == rhs.value();
+			}
+
+
+			EVO_NODISCARD constexpr auto operator==(const T& rhs) const -> bool {
+				if(this->has_value() == false){ return false; }
+				return this->value() == rhs;
+			}
+
+
 			///////////////////////////////////
 			// observers
 
@@ -225,6 +238,10 @@ namespace pcit::core{
 	};
 
 
+	template<class T, class INTERFACE>
+	EVO_NODISCARD constexpr auto operator==(const T& lhs, const Optional<T, INTERFACE>& rhs) -> bool {
+		return rhs == lhs;
+	}
 }
 
 

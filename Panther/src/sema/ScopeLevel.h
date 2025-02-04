@@ -13,7 +13,7 @@
 
 #include "../source/source_data.h"
 #include "../TypeManager.h"
-#include "./sema_stmt.h"
+#include "../../include/sema/Stmt.h"
 
 namespace pcit::panther::sema{
 
@@ -27,16 +27,14 @@ namespace pcit::panther::sema{
 			struct ModuleInfo{
 				SourceID sourceID;
 				Token::ID tokenID;
+				bool isPub;
 			};
 
-			struct IDNotReady{
-				Token::ID location;
-			};
+
+			using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
 
 			using IdentID = evo::Variant<
-				IDNotReady,
-				evo::SmallVector<sema::FuncID>,
-				sema::TemplatedFuncID,
+				FuncOverloadList,
 				sema::VarID,
 				sema::StructID,
 				sema::ParamID,
@@ -60,23 +58,18 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto isTerminated() const -> bool;
 			EVO_NODISCARD auto isNotTerminated() const -> bool;
 
-			// returns if created new ident (false if already existed)
-			auto addIdent(std::string_view ident, Token::ID location) -> bool;
-
-			auto setFunc(std::string_view ident, sema::FuncID id) -> void;
-			auto setTemplatedFunc(std::string_view ident, sema::TemplatedFuncID id) -> void;
-			auto setVar(std::string_view ident, sema::VarID id) -> void;
-			auto setStruct(std::string_view ident, sema::StructID id) -> void;
-			auto setParam(std::string_view ident, sema::ParamID id) -> void;
-			auto setReturnParam(std::string_view ident, sema::ReturnParamID id) -> void;
-			auto setModule(std::string_view ident, SourceID id, Token::ID location) -> void;
-			auto setAlias(std::string_view ident, BaseType::Alias::ID id) -> void;
-			auto setTypedef(std::string_view ident, BaseType::Typedef::ID id) -> void;
+			// returns false if is redef (functions don't take into account redef of equivalent overloads)
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::FuncID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedFuncID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::VarID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::StructID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ReturnParamID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::Alias::ID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::Typedef::ID id) -> bool;
 
 			EVO_NODISCARD auto lookupIdent(std::string_view ident) const -> const IdentID*;
-
-		private:
-			EVO_NODISCARD auto lookup_ident_without_locking(std::string_view ident) const -> const IdentID*;
 	
 		private:
 			std::unordered_map<std::string_view, IdentID> ids{};

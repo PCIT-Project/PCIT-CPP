@@ -1,4 +1,5 @@
 
 
-// purposeful error
-def FOO: Void = 12;
+
+def PI_NUM #pub(false) = @import("std").math.PI;
+

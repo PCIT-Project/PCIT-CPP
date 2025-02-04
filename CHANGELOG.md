@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.82.0"></a>
+## v0.0.82.0
+Removed depenedency analysis and added the symbol proc stage in its place. DOing this required re-doing semantic analysis.
+
+### Panther
+- Added semantic analysis of global variables
+- Added support for `@import`
+
+
+<!---------------------------------->
 <a name="v0.0.81.0"></a>
 ## v0.0.81.0
 

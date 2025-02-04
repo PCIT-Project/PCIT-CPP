@@ -1,20 +1,10 @@
 
-// def build2 = @import("build2.pthr");
+// def FOO: Bool = true;
+// def BAR: Bool = FOO;
 
-
-type Bar = struct {
-	var bar: Foo.ID;
-}
-
-type Foo = struct {
-	type ID = UI32;
-	var foo: Bar;
-}
+// def FOO = BAR; // purposeful error
+// def BAR = FOO;
 
 
 
-
-// def TEST_FOO: Foo = false;
-// def BAR: Int = FOO;
-
-
+def NUM: F32 = @import("build2.pthr").PI_NUM; // purposeful error
