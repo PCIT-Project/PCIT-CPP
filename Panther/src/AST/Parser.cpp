@@ -349,7 +349,7 @@ namespace pcit::panther{
 		}
 
 		auto else_block = std::optional<AST::Node>();
-		if(this->reader[this->reader.peek()].kind() == Token::Kind::KeywordElse){
+		if(this->reader.at_end() == false && this->reader[this->reader.peek()].kind() == Token::Kind::KeywordElse){
 			if(this->assert_token_fail(Token::Kind::KeywordElse)){ return Result::Code::Error; }
 
 			const Token::Kind else_if_kind = this->reader[this->reader.peek()].kind();

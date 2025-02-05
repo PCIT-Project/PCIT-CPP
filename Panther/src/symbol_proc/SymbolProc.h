@@ -90,8 +90,20 @@ namespace std{
 
 namespace pcit::panther{
 
+	// For lookup in Context::symbol_proc_manager
+	struct SymbolProcID : public core::UniqueID<uint32_t, struct SymbolProcID> { 
+		using core::UniqueID<uint32_t, SymbolProcID>::UniqueID;
+	};
+
+
+	// TODO: make this data oriented
 	struct SymbolProcInstruction{
 		struct FinishDecl{};
+
+		struct GlobalWhenCond{
+			const AST::WhenConditional& when_cond;
+			SymbolProcExprInfoID cond;
+		};
 
 		struct GlobalVarDecl{
 			const AST::VarDecl& var_decl;
@@ -163,6 +175,7 @@ namespace pcit::panther{
 
 		evo::Variant<
 			FinishDecl,
+			GlobalWhenCond,
 			GlobalVarDecl,
 			FuncCall,
 			Import,
@@ -215,15 +228,12 @@ namespace pcit::panther{
 
 	class SymbolProc{
 		public:
+			using ID = SymbolProcID;
 			using Instruction = SymbolProcInstruction;
 			using ExprInfoID = SymbolProcExprInfoID;
 			using TypeID = SymbolProcTypeID;
 
-			// For lookup in Context::symbol_proc_manager
-			struct ID : public core::UniqueID<uint32_t, struct ID> { 
-				using core::UniqueID<uint32_t, ID>::UniqueID;
-			};
-
+			
 		public:
 			SymbolProc(AST::Node node, SourceID _source_id, std::string_view _ident)
 				: ast_node(node), source_id(_source_id), ident(_ident) {}
@@ -300,6 +310,15 @@ namespace pcit::panther{
 			evo::SmallVector<ID> waiting_for{};
 			evo::SmallVector<ID> decl_waited_on_by{};
 			evo::SmallVector<ID> def_waited_on_by{};
+
+
+			struct WhenCondInfo{
+				evo::SmallVector<SymbolProcID> then_ids;
+				evo::SmallVector<SymbolProcID> else_ids;
+			};
+
+			evo::Variant<std::monostate, WhenCondInfo> extra_info{};
+
 
 			size_t inst_index = 0;
 			bool decl_done = false;

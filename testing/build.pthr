@@ -8,3 +8,5 @@
 
 
 def NUM: F32 = @import("build2.pthr").PI_NUM; // purposeful error
+
+

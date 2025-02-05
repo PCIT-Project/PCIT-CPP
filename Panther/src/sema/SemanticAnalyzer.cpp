@@ -9,6 +9,7 @@
 
 #include "./SemanticAnalyzer.h"
 
+#include <queue>
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -238,6 +239,9 @@ namespace pcit::panther{
 			if constexpr(std::is_same<InstrType, Instruction::FinishDecl>()){
 				return this->instr_finish_decl();
 
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalWhenCond>()){
+				return this->instr_global_when_cond(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDecl>()){
 				return this->instr_global_var_decl(instr);
 
@@ -329,7 +333,7 @@ namespace pcit::panther{
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_expr_info,
-						"Conditional in #pub",
+						"Condition in #pub",
 						attribute.args[0]
 					).ok == false){
 						return Result::Error;
@@ -424,6 +428,90 @@ namespace pcit::panther{
 		);
 
 		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::Error; }
+
+		return Result::Success;
+	}
+
+
+	auto SemanticAnalyzer::instr_global_when_cond(const Instruction::GlobalWhenCond& instr) -> Result {
+		ExprInfo cond_expr_info = this->get_expr_info(instr.cond);
+
+		if(this->type_check<true>(
+			this->context.getTypeManager().getTypeBool(),
+			cond_expr_info,
+			"Condition in when conditional",
+			instr.when_cond.cond
+		).ok == false){
+			// TODO: propgate error to children
+			return Result::Error;
+		}
+
+		SymbolProc::WhenCondInfo& when_cond_info = this->symbol_proc.extra_info.as<SymbolProc::WhenCondInfo>();
+		auto passed_symbols = std::queue<SymbolProc::ID>();
+
+		const bool cond = this->context.sema_buffer.getBoolValue(cond_expr_info.getExpr().boolValueID()).value;
+
+		if(cond){
+			for(const SymbolProc::ID& then_id : when_cond_info.then_ids){
+				this->set_waiting_for_is_done(then_id, this->symbol_proc_id);
+			}
+
+			for(const SymbolProc::ID& else_id : when_cond_info.else_ids){
+				passed_symbols.push(else_id);
+			}
+
+		}else{
+			for(const SymbolProc::ID& else_id : when_cond_info.else_ids){
+				this->set_waiting_for_is_done(else_id, this->symbol_proc_id);
+			}
+
+			for(const SymbolProc::ID& then_id : when_cond_info.then_ids){
+				passed_symbols.push(then_id);
+			}
+		}
+
+		while(passed_symbols.empty() == false){
+			SymbolProc::ID passed_symbol_id = passed_symbols.front();
+			passed_symbols.pop();
+
+			SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_id);
+
+			auto waited_on_queue = std::queue<SymbolProc::ID>();
+
+			{
+				const auto lock = std::scoped_lock(passed_symbol.waiting_lock);
+				passed_symbol.passed_on_by_when_cond = true;
+				this->context.symbol_proc_manager.symbol_proc_done();
+
+
+				for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
+					this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
+				}
+				for(const SymbolProc::ID& def_waited_on_id : passed_symbol.def_waited_on_by){
+					this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_id);
+				}
+			}
+
+
+			passed_symbol.extra_info.visit([&](const auto& extra_info) -> void {
+				using ExtraInfo = std::decay_t<decltype(extra_info)>;
+
+				if constexpr(std::is_same<ExtraInfo, std::monostate>()){
+					// do nothing...
+				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::WhenCondInfo>()){
+					for(const SymbolProc::ID& then_id : extra_info.then_ids){
+						passed_symbols.push(then_id);
+					}
+
+					for(const SymbolProc::ID& else_id : extra_info.else_ids){
+						passed_symbols.push(else_id);
+					}
+
+				}else{
+					static_assert(false, "Unsupported extra info");
+				}
+			});
+		}
 
 		return Result::Success;
 	}
@@ -753,6 +841,7 @@ namespace pcit::panther{
 
 			// this->symbol_proc.waiting_lock.lock();
 
+			bool found_was_passed_by_when_cond = false;
 			for(auto& pair : found_range){
 				const SymbolProc::ID& found_symbol_proc_id = pair.second;
 				SymbolProc& found_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(found_symbol_proc_id);
@@ -787,7 +876,7 @@ namespace pcit::panther{
 					} break;
 
 					case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: {
-						// do nothing...
+						found_was_passed_by_when_cond = true;
 					} break;
 
 					case SymbolProc::WaitOnResult::CircularDepDetected: {
@@ -800,14 +889,19 @@ namespace pcit::panther{
 
 			if(this->symbol_proc.waiting_for.empty() == false){ return Result::NeedToWait; }
 
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			if(found_was_passed_by_when_cond){
+				infos.emplace_back(
+					Diagnostic::Info("The identifier was located in a when conditional block that wasn't taken")
+				);
+			}
+
 			this->emit_error(
 				Diagnostic::Code::SemaNoSymbolInModuleWithThatIdent,
 				infix.rhs,
 				std::format("Module has no symbol named \"{}\"", rhs_ident_str),
-				Diagnostic::Info(
-					"Perhaps a build setting prevented the symbol from being compiled "
-						"as it may have been in a when conditional"
-				)
+				std::move(infos)
 			);
 			return Result::Error;
 		}
@@ -936,15 +1030,20 @@ namespace pcit::panther{
 			return Result::Error;
 		}
 
+		bool found_was_passed_by_when_cond = false;
 		for(auto iter = find.first; iter != find.second; ++iter){
 			const SymbolProc::ID id_to_wait_on = iter->second;
 			SymbolProc& symbol_proc_to_wait_on = this->context.symbol_proc_manager.getSymbolProc(id_to_wait_on);
 
 			const SymbolProc::WaitOnResult wait_on_result = [&](){
 				if constexpr(IS_COMPTIME){
-					return symbol_proc_to_wait_on.waitOnDefIfNeeded(this->symbol_proc_id, this->context, id_to_wait_on);
+					return symbol_proc_to_wait_on.waitOnDefIfNeeded(
+						this->symbol_proc_id, this->context, id_to_wait_on
+					);
 				}else{
-					return symbol_proc_to_wait_on.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, id_to_wait_on);
+					return symbol_proc_to_wait_on.waitOnDeclIfNeeded(
+						this->symbol_proc_id, this->context, id_to_wait_on
+					);
 				}
 			}();
 
@@ -954,7 +1053,7 @@ namespace pcit::panther{
 					return this->instr_ident<IS_COMPTIME>(ident, output);
 				} break;
 				case SymbolProc::WaitOnResult::Waiting: {
-					// this->symbol_proc.waiting_for.emplace_back(id_to_wait_on);
+					// do nothing...
 				} break;
 				case SymbolProc::WaitOnResult::WasErrored: {
 					const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
@@ -962,7 +1061,7 @@ namespace pcit::panther{
 					return Result::Error;
 				} break;
 				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: {
-					continue;
+					found_was_passed_by_when_cond = true;
 				} break;
 				case SymbolProc::WaitOnResult::CircularDepDetected: {
 					const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
@@ -973,10 +1072,19 @@ namespace pcit::panther{
 		}
 
 		if(this->symbol_proc.waiting_for.empty()){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			if(found_was_passed_by_when_cond){
+				infos.emplace_back(
+					Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
+				);
+			}
+
 			this->emit_error(
 				Diagnostic::Code::SemaIdentNotInScope,
 				ident,
-				std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+				std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+				std::move(infos)
 			);
 			return Result::Error;
 
@@ -1212,6 +1320,28 @@ namespace pcit::panther{
 				static_assert(false, "Unsupported IdentID");
 			}
 		});
+	}
+
+
+
+	auto SemanticAnalyzer::set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void {
+		SymbolProc& target = this->context.symbol_proc_manager.getSymbolProc(target_id);
+
+		const auto lock = std::scoped_lock(target.waiting_lock);
+
+		for(size_t i = 0; i < target.waiting_for.size(); i+=1){
+			if(target.waiting_for[i] == done_id){
+				if(i + 1 < target.waiting_for.size()){
+					target.waiting_for[i] = target.waiting_for.back();
+				}
+			}
+
+			target.waiting_for.pop_back();
+
+			if(target.waiting_for.empty()){
+				this->context.add_task_to_work_manager(target_id);
+			}
+		}
 	}
 
 

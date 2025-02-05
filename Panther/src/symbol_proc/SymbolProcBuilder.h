@@ -23,7 +23,7 @@ namespace pcit::panther{
 			SymbolProcBuilder(Context& _context, Source& _source) : context(_context), source(_source) {}
 			~SymbolProcBuilder() = default;
 
-			auto build(const AST::Node& stmt) -> bool;
+			EVO_NODISCARD auto build(const AST::Node& stmt) -> bool;
 
 		private:
 			EVO_NODISCARD auto get_symbol_ident(const AST::Node& stmt) -> evo::Result<std::string_view>;
@@ -74,18 +74,18 @@ namespace pcit::panther{
 
 
 			auto add_instruction(auto&& instruction) -> void {
-				this->symbol_proc->instructions.emplace_back(std::move(instruction));
+				this->get_current_symbol().symbol_proc.instructions.emplace_back(std::move(instruction));
 			}
 
 
 			auto create_expr_info() -> SymbolProc::ExprInfoID {
-				EVO_DEFER([&](){ this->num_expr_infos += 1; });
-				return SymbolProc::ExprInfoID(this->num_expr_infos);
+				EVO_DEFER([&](){ this->get_current_symbol().num_expr_infos += 1; });
+				return SymbolProc::ExprInfoID(this->get_current_symbol().num_expr_infos);
 			}
 
 			auto create_type() -> SymbolProc::TypeID {
-				EVO_DEFER([&](){ this->num_type_ids += 1; });
-				return SymbolProc::TypeID(this->num_type_ids);
+				EVO_DEFER([&](){ this->get_current_symbol().num_type_ids += 1; });
+				return SymbolProc::TypeID(this->get_current_symbol().num_type_ids);
 			}
 
 
@@ -109,15 +109,37 @@ namespace pcit::panther{
 			auto get_location(const auto& node) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(node, this->source);
 			}
+
+
+			///////////////////////////////////
+			// scoping
+
+			struct SymbolProcInfo{
+				SymbolProc::ID symbol_proc_id;
+				SymbolProc& symbol_proc;
+				uint32_t num_expr_infos = 0;
+				uint32_t num_type_ids = 0;
+			};
+
+			EVO_NODISCARD auto is_child_symbol() const -> bool { return this->symbol_proc_infos.size() > 1; }
+
+			EVO_NODISCARD auto get_parent_symbol() -> SymbolProcInfo& {
+				evo::debugAssert(this->is_child_symbol(), "Not in child symbol");
+				return this->symbol_proc_infos[this->symbol_proc_infos.size() - 2];
+			}
+
+			EVO_NODISCARD auto get_current_symbol() -> SymbolProcInfo& {
+				return this->symbol_proc_infos.back();
+			}
 	
 		private:
 			Context& context;
 			Source& source;
 
-			SymbolProc::ID symbol_proc_id = SymbolProc::ID::dummy();
-			SymbolProc* symbol_proc = nullptr;
-			uint32_t num_expr_infos = 0;
-			uint32_t num_type_ids = 0;
+
+			evo::SmallVector<SymbolProcInfo> symbol_proc_infos{};
+			using SymbolScope = evo::SmallVector<SymbolProc::ID>;
+			evo::SmallVector<SymbolScope*> symbol_scopes{};
 	};
 
 

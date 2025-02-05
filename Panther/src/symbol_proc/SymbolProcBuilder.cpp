@@ -23,10 +23,14 @@ namespace pcit::panther{
 		const evo::Result<std::string_view> symbol_ident = this->get_symbol_ident(stmt);
 		if(symbol_ident.isError()){ return false; }
 
-		this->symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
+
+		SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			stmt, this->source.getID(), symbol_ident.value()
 		);
-		this->symbol_proc = &this->context.symbol_proc_manager.getSymbolProc(this->symbol_proc_id);
+		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
+
+		this->symbol_proc_infos.emplace_back(symbol_proc_id, symbol_proc);
+
 		
 		switch(stmt.kind()){
 			break; case AST::Kind::VarDecl:         if(this->build_var_decl(stmt) == false){ return false; }
@@ -40,8 +44,10 @@ namespace pcit::panther{
 			break; default: evo::unreachable();
 		}
 
-		this->symbol_proc->expr_infos.resize(this->num_expr_infos);
-		this->symbol_proc->type_ids.resize(this->num_type_ids);
+		symbol_proc.expr_infos.resize(this->get_current_symbol().num_expr_infos);
+		symbol_proc.type_ids.resize(this->get_current_symbol().num_type_ids);
+
+		this->symbol_proc_infos.pop_back();
 
 		return true;
 	}
@@ -157,7 +163,18 @@ namespace pcit::panther{
 
 		if(var_decl.type.has_value() == false){ this->add_instruction(SymbolProc::Instruction::FinishDecl()); }
 
-		this->source.global_symbol_procs.emplace(this->symbol_proc->getIdent(), this->symbol_proc_id);
+		SymbolProcInfo& current_symbol = this->get_current_symbol();
+
+		if(this->is_child_symbol()){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
+			current_symbol.symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
+		}
+
+		this->source.global_symbol_procs.emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
 
 		return true;
 	}
@@ -204,13 +221,43 @@ namespace pcit::panther{
 	}
 
 	auto SymbolProcBuilder::build_when_conditional(const AST::Node& stmt) -> bool {
-		// const AST::WhenConditional& when_conditional = this->source.getASTBuffer().getWhenConditional(stmt);
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			stmt,
-			"Building symbol process of When Conditional is unimplemented"
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::WhenConditional& when_conditional = ast_buffer.getWhenConditional(stmt);
+
+		const evo::Result<SymbolProc::ExprInfoID> cond_id = this->analyze_expr<true>(when_conditional.cond);
+		if(cond_id.isError()){ return false; }
+
+		auto then_symbol_scope = SymbolScope();
+		this->symbol_scopes.emplace_back(&then_symbol_scope);
+		for(const AST::Node& then_stmt : ast_buffer.getBlock(when_conditional.thenBlock).stmts){
+			if(this->build(then_stmt) == false){ return false; }
+		}
+		this->symbol_scopes.pop_back();
+
+		auto else_symbol_scope = SymbolScope();
+		if(when_conditional.elseBlock.has_value()){
+			this->symbol_scopes.emplace_back(&else_symbol_scope);
+			if(when_conditional.elseBlock->kind() == AST::Kind::Block){
+				for(const AST::Node& else_stmt : ast_buffer.getBlock(*when_conditional.elseBlock).stmts){
+					if(this->build(else_stmt) == false){ return false; }
+				}
+			}else{
+				if(this->build(*when_conditional.elseBlock) == false){ return false; }
+			}
+			this->symbol_scopes.pop_back();
+		}
+		
+
+		this->add_instruction(SymbolProc::Instruction::GlobalWhenCond(when_conditional, cond_id.value()));
+
+		this->source.global_symbol_procs.emplace("", this->get_current_symbol().symbol_proc_id);
+
+		// TODO: address these directly instead of moving them in
+		this->get_current_symbol().symbol_proc.extra_info.emplace<SymbolProc::WhenCondInfo>(
+			std::move(then_symbol_scope), std::move(else_symbol_scope)
 		);
-		return false;
+
+		return true;
 	}
 
 	auto SymbolProcBuilder::build_func_call(const AST::Node& stmt) -> bool {

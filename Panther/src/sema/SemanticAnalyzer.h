@@ -48,6 +48,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_finish_decl() -> Result;
 			EVO_NODISCARD auto instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_global_when_cond(const Instruction::GlobalWhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
 
@@ -79,6 +80,9 @@ namespace pcit::panther{
 				bool variables_in_scope,
 				bool is_global_scope
 			) -> evo::Result<std::optional<ExprInfo>>;
+
+
+			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
 
 
 			///////////////////////////////////
