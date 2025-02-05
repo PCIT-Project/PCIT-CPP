@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.83.1"></a>
+## v0.0.83.1
+
+### Panther
+- Fixed variable declarations not being added to sema buffer until definition
+
+
+<!---------------------------------->
 <a name="v0.0.83.0"></a>
 ## v0.0.83.0
 

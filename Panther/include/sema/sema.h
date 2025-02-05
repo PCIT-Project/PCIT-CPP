@@ -176,7 +176,7 @@ namespace pcit::panther::sema{
 
 		AST::VarDecl::Kind kind;
 		Token::ID ident;
-		std::optional<Expr> expr;
+		std::optional<Expr> expr; // is nullopt if decl is done, but not def
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPub;
 	};

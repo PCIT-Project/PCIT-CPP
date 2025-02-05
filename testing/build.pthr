@@ -1,12 +1,12 @@
 
-// def FOO: Bool = true;
-// def BAR: Bool = FOO;
-
-// def FOO = BAR; // purposeful error
-// def BAR = FOO;
-
 
 
 def NUM: F32 = @import("build2.pthr").PI_NUM; // purposeful error
 
+
+// alias Integer = Int;
+
+// def FOO: Int = 12;
+
+// def BAR: Integer = FOO;
 

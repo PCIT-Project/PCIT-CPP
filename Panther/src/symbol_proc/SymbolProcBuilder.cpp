@@ -133,15 +133,16 @@ namespace pcit::panther{
 			}
 		}
 
-		auto type_id = std::optional<SymbolProc::TypeID>();
 		if(var_decl.type.has_value()){
 			const evo::Result<SymbolProc::TypeID> type_id_res = 
 				this->analyze_type(this->source.getASTBuffer().getType(*var_decl.type));
 			if(type_id_res.isError()){ return false; }
 
-			type_id = type_id_res.value();
-
-			this->add_instruction(SymbolProc::Instruction::FinishDecl());
+			this->add_instruction(
+				SymbolProc::Instruction::GlobalVarDecl(
+					this->source.getASTBuffer().getVarDecl(stmt), std::move(attribute_exprs), type_id_res.value()
+				)
+			);
 		}
 
 
@@ -155,13 +156,18 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::ExprInfoID> value_id = this->analyze_expr<true>(*var_decl.value);
 		if(value_id.isError()){ return false; }
 
-		this->add_instruction(
-			SymbolProc::Instruction::GlobalVarDecl(
-				this->source.getASTBuffer().getVarDecl(stmt), std::move(attribute_exprs), type_id, value_id.value()
-			)
-		);
+		if(var_decl.type.has_value()){
+			this->add_instruction(
+				SymbolProc::Instruction::GlobalVarDef(this->source.getASTBuffer().getVarDecl(stmt), value_id.value())
+			);
 
-		if(var_decl.type.has_value() == false){ this->add_instruction(SymbolProc::Instruction::FinishDecl()); }
+		}else{
+			this->add_instruction(
+				SymbolProc::Instruction::GlobalVarDeclDef(
+					this->source.getASTBuffer().getVarDecl(stmt), std::move(attribute_exprs), value_id.value()
+				)
+			);
+		}
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
 

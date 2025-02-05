@@ -1,13 +1,14 @@
 
+def ASDF = PI_NUM;
 
 when(false){
+	def PI_NUM: Int #pub = @import("std").math.PI;
 
 }else when(true){
-	def PI_NUM #pub = @import("std").math.PI;
+	def PI_NUM: F32 #pub = @import("std").math.PI;
 
 }else{
 	
 }
 
 
-def ASDF = PI_NUM;

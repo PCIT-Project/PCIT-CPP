@@ -46,8 +46,9 @@ namespace pcit::panther{
 
 			auto analyze_instr(const Instruction& instruction) -> Result;
 
-			EVO_NODISCARD auto instr_finish_decl() -> Result;
 			EVO_NODISCARD auto instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result;
+			EVO_NODISCARD auto instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result;
 			EVO_NODISCARD auto instr_global_when_cond(const Instruction::GlobalWhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
@@ -83,6 +84,16 @@ namespace pcit::panther{
 
 
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
+
+
+			struct VarAttrs{
+				bool is_pub;
+			};
+			EVO_NODISCARD auto analyze_var_attrs(
+				const AST::VarDecl& var_decl, const SymbolProc::Instruction::AttributeExprs& attribute_exprs
+			) -> evo::Result<VarAttrs>;
+
+			auto propogate_finished_decl() -> void; // TODO: remove
 
 
 			///////////////////////////////////

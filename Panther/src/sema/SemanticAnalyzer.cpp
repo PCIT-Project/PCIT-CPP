@@ -236,14 +236,17 @@ namespace pcit::panther{
 		return instruction.visit([&](const auto& instr) -> Result {
 			using InstrType = std::decay_t<decltype(instr)>;
 
-			if constexpr(std::is_same<InstrType, Instruction::FinishDecl>()){
-				return this->instr_finish_decl();
-
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalWhenCond>()){
+			if constexpr(std::is_same<InstrType, Instruction::GlobalWhenCond>()){
 				return this->instr_global_when_cond(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDecl>()){
 				return this->instr_global_var_decl(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDef>()){
+				return this->instr_global_var_def(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDeclDef>()){
+				return this->instr_global_var_decl_def(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
 				return this->instr_func_call(instr);
@@ -279,105 +282,84 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_finish_decl() -> Result {
-		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
-
-		for(const SymbolProc::ID& decl_waited_on_id : this->symbol_proc.decl_waited_on_by){
-			SymbolProc& decl_waited_on = this->context.symbol_proc_manager.getSymbolProc(decl_waited_on_id);
-
-			for(size_t i = 0; i < decl_waited_on.waiting_for.size(); i+=1){
-				if(decl_waited_on.waiting_for[i] == this->symbol_proc_id){
-					if(i + 1 < decl_waited_on.waiting_for.size()){
-						decl_waited_on.waiting_for[i] = decl_waited_on.waiting_for.back();
-					}
-				}
-
-				decl_waited_on.waiting_for.pop_back();
-
-				if(decl_waited_on.waiting_for.empty()){
-					this->context.add_task_to_work_manager(decl_waited_on_id);
-				}
-			}
-		}
-
-		this->symbol_proc.decl_done = true;
-
-		return Result::Success;
-	}
 
 	auto SemanticAnalyzer::instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result {
-		auto type_id = std::optional<TypeInfo::ID>();
-
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_global_var_decl: {}", var_ident); });
 
+		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_exprs);
+		if(var_attrs.isError()){ return Result::Error; }
 
-		auto attr_pub = ConditionalAttribute(*this, "pub");
 
-		const AST::AttributeBlock& attribute_block = 
-			this->source.getASTBuffer().getAttributeBlock(instr.var_decl.attributeBlock);
+		const TypeInfo::VoidableID got_type_info_id = this->get_type(instr.type_id);
 
-		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
-			EVO_DEFER([&](){ i += 1; });
-			
-			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+		if(got_type_info_id.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SemaVarTypeVoid,
+				*instr.var_decl.type,
+				"Variables cannot be type `Void`"
+			);
+			return Result::Error;
+		}
 
-			if(attribute_str == "pub"){
-				if(instr.attribute_exprs[i].empty()){
-					if(attr_pub.set(attribute.attribute, true) == false){ return Result::Error; } 
+		const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
+			instr.var_decl.kind,
+			instr.var_decl.ident,
+			std::nullopt,
+			got_type_info_id.asTypeID(),
+			var_attrs.value().is_pub
+		);
 
-				}else if(instr.attribute_exprs[i].size() == 1){
-					ExprInfo cond_expr_info = this->get_expr_info(instr.attribute_exprs[i][0]);
+		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::Error; }
 
-					if(this->type_check<true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_expr_info,
-						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return Result::Error;
-					}
+		this->symbol_proc.extra_info.emplace<SymbolProc::VarInfo>(new_sema_var);
 
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_expr_info.getExpr().boolValueID()).value;
+		this->propogate_finished_decl();
+		return Result::Success;
+	}
 
-					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return Result::Error; }
 
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SemaTooManyAttributeArgs,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
-					return Result::Error;
-				}
-
-			}else{
-				this->emit_error(
-					Diagnostic::Code::SemaUnknownAttribute,
-					attribute.attribute,
-					std::format("Unknown variable attribute #{}", attribute_str)
-				);
-				return Result::Error;
-			}
+	auto SemanticAnalyzer::instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result {
+		ExprInfo& value_expr_info = this->get_expr_info(instr.value_id);
+		if(value_expr_info.value_category == ExprInfo::ValueCategory::Module){
+			// TODO: is an error
+			evo::unimplemented();
 		}
 
 
-		if(instr.type_id.has_value()){
-			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
-
-			if(got_type_info_id.isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SemaVarTypeVoid,
-					*instr.var_decl.type,
-					"Variables cannot be type `Void`"
-				);
-				return Result::Error;
-			}
-
-			type_id = got_type_info_id.asTypeID();
+		if(value_expr_info.is_ephemeral() == false){
+			this->emit_error(
+				Diagnostic::Code::SemaVarDefNotEphemeral,
+				*instr.var_decl.value,
+				"Cannot define a variable with a non-ephemeral value"
+			);
+			return Result::Error;
 		}
+
+		sema::Var& sema_var = this->context.sema_buffer.vars[
+			this->symbol_proc.extra_info.as<SymbolProc::VarInfo>().sema_var_id
+		];
+
+		if(this->type_check<true>(
+			*sema_var.typeID, value_expr_info, "Variable definition", *instr.var_decl.value
+		).ok == false){
+			return Result::Error;
+		}
+
+		sema_var.expr = value_expr_info.getExpr();
+
+		return Result::Success;
+	}
+
+
+	auto SemanticAnalyzer::instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result {
+		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
+
+		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_global_var_decl_def: {}", var_ident); });
+
+		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_exprs);
+		if(var_attrs.isError()){ return Result::Error; }
 
 
 		ExprInfo& value_expr_info = this->get_expr_info(instr.value_id);
@@ -387,7 +369,7 @@ namespace pcit::panther{
 				instr.var_decl,
 				value_expr_info.type_id.as<Source::ID>(),
 				instr.var_decl.ident,
-				attr_pub.is_set()
+				var_attrs.value().is_pub
 			);
 
 			return is_redef ? Result::Error : Result::Success;
@@ -403,32 +385,30 @@ namespace pcit::panther{
 			return Result::Error;
 		}
 
-
-		if(type_id.has_value()){
-			if(this->type_check<true>(
-				*type_id, value_expr_info, "Variable definition", *instr.var_decl.value
-			).ok == false){
-				return Result::Error;
-			}
 			
-		}else{
-			if(value_expr_info.isMultiValue()){
-				this->emit_error(
-					Diagnostic::Code::SemaMultiReturnIntoSingleValue,
-					*instr.var_decl.value,
-					"Cannot define a variable with multiple values"
-				);
-				return Result::Error;
-			}
+		if(value_expr_info.isMultiValue()){
+			this->emit_error(
+				Diagnostic::Code::SemaMultiReturnIntoSingleValue,
+				*instr.var_decl.value,
+				"Cannot define a variable with multiple values"
+			);
+			return Result::Error;
 		}
 
+		const std::optional<TypeInfo::ID> type_id = [&](){
+			if(value_expr_info.type_id.is<TypeInfo::ID>()){
+				return std::optional<TypeInfo::ID>(value_expr_info.type_id.as<TypeInfo::ID>());
+			}
+			return std::optional<TypeInfo::ID>();
+		}();
 
 		const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
-			instr.var_decl.kind, instr.var_decl.ident, value_expr_info.getExpr(), type_id, attr_pub.is_set()
+			instr.var_decl.kind, instr.var_decl.ident, value_expr_info.getExpr(), type_id, var_attrs.value().is_pub
 		);
 
 		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::Error; }
 
+		this->propogate_finished_decl();
 		return Result::Success;
 	}
 
@@ -497,7 +477,11 @@ namespace pcit::panther{
 				using ExtraInfo = std::decay_t<decltype(extra_info)>;
 
 				if constexpr(std::is_same<ExtraInfo, std::monostate>()){
-					// do nothing...
+					return;
+
+				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::VarInfo>()){
+					return;
+
 				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::WhenCondInfo>()){
 					for(const SymbolProc::ID& then_id : extra_info.then_ids){
 						passed_symbols.push(then_id);
@@ -1342,6 +1326,90 @@ namespace pcit::panther{
 				this->context.add_task_to_work_manager(target_id);
 			}
 		}
+	}
+
+
+
+	auto SemanticAnalyzer::analyze_var_attrs(
+		const AST::VarDecl& var_decl, const SymbolProc::Instruction::AttributeExprs& attribute_exprs
+	) -> evo::Result<VarAttrs> {
+		auto attr_pub = ConditionalAttribute(*this, "pub");
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "pub"){
+				if(attribute_exprs[i].empty()){
+					if(attr_pub.set(attribute.attribute, true) == false){ return evo::resultError; } 
+
+				}else if(attribute_exprs[i].size() == 1){
+					ExprInfo cond_expr_info = this->get_expr_info(attribute_exprs[i][0]);
+
+					if(this->type_check<true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_expr_info,
+						"Condition in #pub",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool pub_cond = this->context.sema_buffer
+						.getBoolValue(cond_expr_info.getExpr().boolValueID()).value;
+
+					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SemaTooManyAttributeArgs,
+						attribute.args[1],
+						"Attribute #pub does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SemaUnknownAttribute,
+					attribute.attribute,
+					std::format("Unknown variable attribute #{}", attribute_str)
+				);
+				return evo::resultError;
+			}
+		}
+
+
+		return VarAttrs(attr_pub.is_set());
+	}
+
+
+	auto SemanticAnalyzer::propogate_finished_decl() -> void {
+		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+
+		for(const SymbolProc::ID& decl_waited_on_id : this->symbol_proc.decl_waited_on_by){
+			SymbolProc& decl_waited_on = this->context.symbol_proc_manager.getSymbolProc(decl_waited_on_id);
+
+			for(size_t i = 0; i < decl_waited_on.waiting_for.size(); i+=1){
+				if(decl_waited_on.waiting_for[i] == this->symbol_proc_id){
+					if(i + 1 < decl_waited_on.waiting_for.size()){
+						decl_waited_on.waiting_for[i] = decl_waited_on.waiting_for.back();
+					}
+				}
+
+				decl_waited_on.waiting_for.pop_back();
+
+				if(decl_waited_on.waiting_for.empty()){
+					this->context.add_task_to_work_manager(decl_waited_on_id);
+				}
+			}
+		}
+
+		this->symbol_proc.decl_done = true;
 	}
 
 

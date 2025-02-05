@@ -16,6 +16,7 @@
 #include "../../include/source/source_data.h"
 #include "../../include/AST/AST.h"
 #include "../sema/ExprInfo.h"
+// #include "../sema/sema.h"
 #include "../../include/TypeManager.h"
 
 namespace pcit::panther{
@@ -98,18 +99,28 @@ namespace pcit::panther{
 
 	// TODO: make this data oriented
 	struct SymbolProcInstruction{
-		struct FinishDecl{};
+		using AttributeExprs = evo::SmallVector<evo::StaticVector<SymbolProcExprInfoID, 2>>;
+
+		struct GlobalVarDecl{
+			const AST::VarDecl& var_decl;
+			AttributeExprs attribute_exprs;
+			SymbolProcTypeID type_id;
+		};
+
+		struct GlobalVarDef{
+			const AST::VarDecl& var_decl;
+			SymbolProcExprInfoID value_id;
+		};
+
+		struct GlobalVarDeclDef{
+			const AST::VarDecl& var_decl;
+			AttributeExprs attribute_exprs;
+			SymbolProcExprInfoID value_id;
+		};
 
 		struct GlobalWhenCond{
 			const AST::WhenConditional& when_cond;
 			SymbolProcExprInfoID cond;
-		};
-
-		struct GlobalVarDecl{
-			const AST::VarDecl& var_decl;
-			evo::SmallVector<evo::StaticVector<SymbolProcExprInfoID, 2>> attribute_exprs;
-			std::optional<SymbolProcTypeID> type_id;
-			SymbolProcExprInfoID value_id;
 		};
 
 		struct FuncCall{
@@ -174,9 +185,10 @@ namespace pcit::panther{
 		EVO_NODISCARD auto as() const -> const T& { return this->inst.as<T>(); }
 
 		evo::Variant<
-			FinishDecl,
 			GlobalWhenCond,
 			GlobalVarDecl,
+			GlobalVarDef,
+			GlobalVarDeclDef,
 			FuncCall,
 			Import,
 			ComptimeExprAccessor,
@@ -312,12 +324,16 @@ namespace pcit::panther{
 			evo::SmallVector<ID> def_waited_on_by{};
 
 
+			struct VarInfo{
+				sema::Var::ID sema_var_id;
+			};
+
 			struct WhenCondInfo{
 				evo::SmallVector<SymbolProcID> then_ids;
 				evo::SmallVector<SymbolProcID> else_ids;
 			};
 
-			evo::Variant<std::monostate, WhenCondInfo> extra_info{};
+			evo::Variant<std::monostate, VarInfo, WhenCondInfo> extra_info{};
 
 
 			size_t inst_index = 0;
