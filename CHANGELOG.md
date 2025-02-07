@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.83.2"></a>
+## v0.0.83.2
+
+### Panther
+- Made `def variables` not allow for declaration and definition to be separate
+- Fixed race condition
+
+
+<!---------------------------------->
 <a name="v0.0.83.1"></a>
 ## v0.0.83.1
 

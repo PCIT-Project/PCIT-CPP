@@ -204,31 +204,7 @@ namespace pcit::panther{
 			this->symbol_proc.nextInstruction();
 		}
 
-		this->context.trace("==> Finished semantic analysis of symbol: \"{}\"", this->symbol_proc.ident);
-
-		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
-
-		this->symbol_proc.def_done = true;
-
-		for(const SymbolProc::ID& def_waited_on_id : this->symbol_proc.def_waited_on_by){
-			SymbolProc& def_waited_on = this->context.symbol_proc_manager.getSymbolProc(def_waited_on_id);
-
-			for(size_t i = 0; i < def_waited_on.waiting_for.size(); i+=1){
-				if(def_waited_on.waiting_for[i] == this->symbol_proc_id){
-					if(i + 1 < def_waited_on.waiting_for.size()){
-						def_waited_on.waiting_for[i] = def_waited_on.waiting_for.back();
-					}
-				}
-
-				def_waited_on.waiting_for.pop_back();
-
-				if(def_waited_on.waiting_for.empty()){
-					this->context.add_task_to_work_manager(def_waited_on_id);
-				}
-			}
-		}
-
-		this->context.symbol_proc_manager.symbol_proc_done();
+		this->context.trace("Finished semantic analysis of symbol: \"{}\"", this->symbol_proc.ident);
 	}
 
 
@@ -315,7 +291,7 @@ namespace pcit::panther{
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::VarInfo>(new_sema_var);
 
-		this->propogate_finished_decl();
+		this->propagate_finished_decl();
 		return Result::Success;
 	}
 
@@ -349,6 +325,7 @@ namespace pcit::panther{
 
 		sema_var.expr = value_expr_info.getExpr();
 
+		this->propagate_finished_def();
 		return Result::Success;
 	}
 
@@ -372,6 +349,7 @@ namespace pcit::panther{
 				var_attrs.value().is_pub
 			);
 
+			this->propagate_finished_decl_def();
 			return is_redef ? Result::Error : Result::Success;
 		}
 
@@ -408,7 +386,7 @@ namespace pcit::panther{
 
 		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::Error; }
 
-		this->propogate_finished_decl();
+		this->propagate_finished_decl_def();
 		return Result::Success;
 	}
 
@@ -497,6 +475,7 @@ namespace pcit::panther{
 			});
 		}
 
+		this->propagate_finished_def();
 		return Result::Success;
 	}
 
@@ -583,59 +562,17 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_expr_accessor(
 		const AST::Infix& infix, SymbolProcExprInfoID lhs_id, Token::ID rhs_ident, SymbolProcExprInfoID output
 	) -> Result {
+		const std::string_view rhs_ident_str = this->source.getTokenBuffer()[rhs_ident].getString();
 		const ExprInfo& lhs = this->get_expr_info(lhs_id);
 
 		if(lhs.type_id.is<Source::ID>()){
 			const Source& source_module = this->context.getSourceManager()[lhs.type_id.as<Source::ID>()];
-
-			const std::string_view rhs_ident_str = this->source.getTokenBuffer()[rhs_ident].getString();
 
 			//////////////////
 			// look in global sema scope
 
 			const sema::ScopeManager::Scope& source_module_sema_scope = 
 				this->context.sema_buffer.scope_manager.getScope(*source_module.sema_scope_id);
-
-			// TODO: create specialized version for here
-			// evo::Result<std::optional<ExprInfo>> ident_lookup = this->analyze_expr_ident_in_scope_level(
-			// 	rhs_ident, rhs_ident_str, source_module_sema_scope.getGlobalLevel(), true, true
-			// );
-
-			// if(ident_lookup.isError()){ return Result::Error; }
-
-			// if(ident_lookup.value().has_value()){
-			// 	const sema::Expr& ident_expr = ident_lookup.value().value().getExpr();
-
-			// 	switch(ident_expr.kind()){
-			// 		case sema::Expr::Kind::Var: {
-			// 			if(this->context.getSemaBuffer().getVar(ident_expr.varID()).isPub == false){
-			// 				this->emit_error(
-			// 					Diagnostic::Code::SemaSymbolNotPub,
-			// 					ident_expr.varID(),
-			// 					std::format("Identifier \"{}\" does not have the #pub attribute", rhs_ident_str)
-			// 				);
-			// 				return Result::Error;
-			// 			}
-			// 		} break;
-
-			// 		case sema::Expr::Kind::Func: {
-			// 			evo::unimplemented();
-			// 			// return this->context.getSemaBuffer().getFunc(ident_expr.funcID()).isPub;
-			// 		} break;
-
-			// 		case sema::Expr::Kind::Struct: {
-			// 			evo::unimplemented();
-			// 			// return this->context.getSemaBuffer().getStruct(ident_expr.structID()).isPub;
-			// 		} break;
-
-			// 		default: evo::debugFatalBreak("Unknown Expr Kind");
-			// 	}
-
-			// 	this->return_expr_info(output, std::move(ident_lookup.value().value()));
-			// 	return Result::Success;
-			// }
-
-
 
 
 			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(
@@ -789,21 +726,6 @@ namespace pcit::panther{
 					}
 				});
 			}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 			//////////////////
@@ -1388,29 +1310,61 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::propogate_finished_decl() -> void {
-		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
 
-		for(const SymbolProc::ID& decl_waited_on_id : this->symbol_proc.decl_waited_on_by){
-			SymbolProc& decl_waited_on = this->context.symbol_proc_manager.getSymbolProc(decl_waited_on_id);
 
-			for(size_t i = 0; i < decl_waited_on.waiting_for.size(); i+=1){
-				if(decl_waited_on.waiting_for[i] == this->symbol_proc_id){
-					if(i + 1 < decl_waited_on.waiting_for.size()){
-						decl_waited_on.waiting_for[i] = decl_waited_on.waiting_for.back();
+	auto SemanticAnalyzer::propagate_finished_impl(const evo::SmallVector<SymbolProc::ID>& waited_on_by_list) -> void {
+		for(const SymbolProc::ID& waited_on_id : waited_on_by_list){
+			SymbolProc& waited_on = this->context.symbol_proc_manager.getSymbolProc(waited_on_id);
+			const auto lock = std::scoped_lock(waited_on.waiting_lock); // needed?
+
+			for(size_t i = 0; i < waited_on.waiting_for.size(); i+=1){
+				if(waited_on.waiting_for[i] == this->symbol_proc_id){
+					if(i + 1 < waited_on.waiting_for.size()){
+						waited_on.waiting_for[i] = waited_on.waiting_for.back();
 					}
 				}
 
-				decl_waited_on.waiting_for.pop_back();
+				waited_on.waiting_for.pop_back();
 
-				if(decl_waited_on.waiting_for.empty()){
-					this->context.add_task_to_work_manager(decl_waited_on_id);
+				if(waited_on.waiting_for.empty()){
+					this->context.add_task_to_work_manager(waited_on_id);
 				}
 			}
 		}
+	}
+
+
+	auto SemanticAnalyzer::propagate_finished_decl() -> void {
+		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
 
 		this->symbol_proc.decl_done = true;
+		this->propagate_finished_impl(this->symbol_proc.decl_waited_on_by);
 	}
+
+
+	auto SemanticAnalyzer::propagate_finished_def() -> void {
+		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+
+		this->symbol_proc.def_done = true;
+		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by);
+
+		this->context.symbol_proc_manager.symbol_proc_done();
+	}
+
+
+
+	auto SemanticAnalyzer::propagate_finished_decl_def() -> void {
+		const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+
+		this->symbol_proc.decl_done = true;
+		this->propagate_finished_impl(this->symbol_proc.decl_waited_on_by);
+
+		this->symbol_proc.def_done = true;
+		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by);
+
+		this->context.symbol_proc_manager.symbol_proc_done();
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////

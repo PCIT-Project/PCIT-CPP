@@ -138,11 +138,14 @@ namespace pcit::panther{
 				this->analyze_type(this->source.getASTBuffer().getType(*var_decl.type));
 			if(type_id_res.isError()){ return false; }
 
-			this->add_instruction(
-				SymbolProc::Instruction::GlobalVarDecl(
-					this->source.getASTBuffer().getVarDecl(stmt), std::move(attribute_exprs), type_id_res.value()
-				)
-			);
+
+			if(var_decl.kind != AST::VarDecl::Kind::Def){
+				this->add_instruction(
+					SymbolProc::Instruction::GlobalVarDecl(
+						this->source.getASTBuffer().getVarDecl(stmt), std::move(attribute_exprs), type_id_res.value()
+					)
+				);
+			}
 		}
 
 
@@ -156,7 +159,7 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::ExprInfoID> value_id = this->analyze_expr<true>(*var_decl.value);
 		if(value_id.isError()){ return false; }
 
-		if(var_decl.type.has_value()){
+		if(var_decl.type.has_value() && var_decl.kind != AST::VarDecl::Kind::Def){
 			this->add_instruction(
 				SymbolProc::Instruction::GlobalVarDef(this->source.getASTBuffer().getVarDecl(stmt), value_id.value())
 			);

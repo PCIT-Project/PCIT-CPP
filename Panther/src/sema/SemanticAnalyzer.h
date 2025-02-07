@@ -93,7 +93,10 @@ namespace pcit::panther{
 				const AST::VarDecl& var_decl, const SymbolProc::Instruction::AttributeExprs& attribute_exprs
 			) -> evo::Result<VarAttrs>;
 
-			auto propogate_finished_decl() -> void; // TODO: remove
+			auto propagate_finished_impl(const evo::SmallVector<SymbolProc::ID>& waited_on_by_list) -> void;
+			auto propagate_finished_decl() -> void;
+			auto propagate_finished_def() -> void;
+			auto propagate_finished_decl_def() -> void;
 
 
 			///////////////////////////////////
