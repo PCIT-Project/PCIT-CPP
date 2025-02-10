@@ -226,7 +226,10 @@ namespace pcit::panther{
 				return this->instr_global_when_cond(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::GlobalAliasDecl>()){
-				return this->instr_global_alias(instr);
+				return this->instr_global_alias_decl(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalAliasDef>()){
+				return this->instr_global_alias_def(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
 				return this->instr_func_call(instr);
@@ -295,7 +298,7 @@ namespace pcit::panther{
 		const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
 			instr.var_decl.kind,
 			instr.var_decl.ident,
-			std::nullopt,
+			std::optional<sema::Expr>(),
 			got_type_info_id.asTypeID(),
 			var_attrs.value().is_pub
 		);
@@ -422,7 +425,11 @@ namespace pcit::panther{
 		}();
 
 		const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
-			instr.var_decl.kind, instr.var_decl.ident, value_expr_info.getExpr(), type_id, var_attrs.value().is_pub
+			instr.var_decl.kind,
+			instr.var_decl.ident,
+			std::optional<sema::Expr>(value_expr_info.getExpr()),
+			type_id,
+			var_attrs.value().is_pub
 		);
 
 		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::Error; }
@@ -510,6 +517,9 @@ namespace pcit::panther{
 						passed_symbols.push(else_id);
 					}
 
+				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::AliasInfo>()){
+					return;
+
 				}else{
 					static_assert(false, "Unsupported extra info");
 				}
@@ -522,7 +532,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_global_alias(const Instruction::GlobalAliasDecl& instr) -> Result {
+	auto SemanticAnalyzer::instr_global_alias_decl(const Instruction::GlobalAliasDecl& instr) -> Result {
 
 		///////////////////////////////////
 		// attributes
@@ -581,21 +591,48 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// create
 
-		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
-
-
 		const BaseType::ID created_alias = this->context.type_manager.getOrCreateAlias(
-			BaseType::Alias(this->source.getID(), instr.alias_decl.ident, aliased_type, attr_pub.is_set())
+			BaseType::Alias(
+				this->source.getID(), instr.alias_decl.ident, std::optional<TypeInfoID>(), attr_pub.is_set()
+			)
 		);
+
+		this->symbol_proc.extra_info.emplace<SymbolProc::AliasInfo>(created_alias.aliasID());
+
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_decl.ident].getString();
 		if(this->add_ident_to_scope(ident_str, instr.alias_decl, created_alias.aliasID()) == false){
 			return Result::Error;
 		}
 
-		this->propagate_finished_decl_def();
+		this->propagate_finished_decl();
 		return Result::Success;
 	}
+
+
+
+	auto SemanticAnalyzer::instr_global_alias_def(const Instruction::GlobalAliasDef& instr) -> Result {
+		BaseType::Alias& alias_info = this->context.type_manager.aliases[
+			this->symbol_proc.extra_info.as<SymbolProc::AliasInfo>().alias_id
+		];
+
+		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
+		if(aliased_type.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SemaAliasCannotBeVoid,
+				instr.alias_decl.type,
+				"Alias cannot be type `Void`"
+			);
+			return Result::Error;
+		}
+
+
+		alias_info.aliasedType = aliased_type.asTypeID();
+
+		this->propagate_finished_def();
+		return Result::Success;
+	};
+
 
 
 
@@ -676,7 +713,7 @@ namespace pcit::panther{
 		evo::unreachable();
 	}
 
-	template<bool IS_COMPTIME, bool IS_EXPR>
+	template<bool NEEDS_DEF, bool IS_EXPR>
 	auto SemanticAnalyzer::instr_expr_accessor(
 		const AST::Infix& infix, SymbolProcExprInfoID lhs_id, Token::ID rhs_ident, SymbolProcExprInfoID output
 	) -> Result {
@@ -700,7 +737,9 @@ namespace pcit::panther{
 			const sema::ScopeLevel::IdentID* ident_id_lookup = scope_level.lookupIdent(rhs_ident_str);
 
 			if(ident_id_lookup != nullptr){
-				return ident_id_lookup->visit([&](const auto& ident_id) -> Result {
+				// ident_lookup_result being nullopt means that it must wait for def
+				const std::optional<Result> ident_lookup_result = ident_id_lookup->visit([&](const auto& ident_id) 
+				-> std::optional<Result> {
 					using IdentIDType = std::decay_t<decltype(ident_id)>;
 
 					if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
@@ -732,6 +771,10 @@ namespace pcit::panther{
 
 						switch(sema_var.kind){
 							case AST::VarDecl::Kind::Var: {
+								if constexpr(NEEDS_DEF){
+									if(sema_var.expr.load().has_value() == false){ return std::nullopt; }
+								}
+
 								this->return_expr_info(output,
 									ExprInfo(
 										ValueCategory::ConcreteMut,
@@ -743,6 +786,10 @@ namespace pcit::panther{
 							} break;
 
 							case AST::VarDecl::Kind::Const: {
+								if constexpr(NEEDS_DEF){
+									if(sema_var.expr.load().has_value() == false){ return std::nullopt; }
+								}
+
 								this->return_expr_info(output,
 									ExprInfo(
 										ValueCategory::ConcreteConst,
@@ -760,7 +807,7 @@ namespace pcit::panther{
 											ValueCategory::Ephemeral,
 											ValueStage::Comptime,
 											*sema_var.typeID,
-											*sema_var.expr
+											*sema_var.expr.load()
 										)
 									);
 								}else{
@@ -769,7 +816,7 @@ namespace pcit::panther{
 											ValueCategory::EphemeralFluid,
 											ValueStage::Comptime,
 											ExprInfo::FluidType{},
-											*sema_var.expr
+											*sema_var.expr.load()
 										)
 									);
 								}
@@ -833,6 +880,14 @@ namespace pcit::panther{
 							return Result::Error;
 						}else{
 							const BaseType::Alias& alias = this->context.getTypeManager().getAlias(ident_id);
+
+							if constexpr(NEEDS_DEF){
+								if(alias.aliasedType.load().has_value() == false){
+									// def not ready
+									return std::nullopt;
+								}
+							}
+
 							if(alias.isPub == false){
 								this->emit_error(
 									Diagnostic::Code::SemaSymbolNotPub,
@@ -871,6 +926,10 @@ namespace pcit::panther{
 						static_assert(false, "Unsupported IdentID");
 					}
 				});
+
+				if(ident_lookup_result.has_value()){
+					return *ident_lookup_result;
+				}
 			}
 
 
@@ -899,7 +958,7 @@ namespace pcit::panther{
 				SymbolProc& found_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(found_symbol_proc_id);
 
 				const SymbolProc::WaitOnResult wait_on_result = [&](){
-					if constexpr(IS_COMPTIME){
+					if constexpr(NEEDS_DEF){
 						return found_symbol_proc.waitOnDefIfNeeded(
 							this->symbol_proc_id, this->context, found_symbol_proc_id
 						);
@@ -914,7 +973,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::NotNeeded: {
 						// TODO: do this better
 						// call again as symbol finished
-						return this->instr_expr_accessor<IS_COMPTIME, IS_EXPR>(infix, lhs_id, rhs_ident, output);
+						return this->instr_expr_accessor<NEEDS_DEF, IS_EXPR>(infix, lhs_id, rhs_ident, output);
 					} break;
 
 					case SymbolProc::WaitOnResult::Waiting: {
@@ -1105,9 +1164,9 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_COMPTIME>
+	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::instr_ident(Token::ID ident, SymbolProc::ExprInfoID output) -> Result {
-		const evo::Expected<ExprInfo, Result> lookup_ident_result = this->lookup_ident_impl<IS_COMPTIME, true>(ident);
+		const evo::Expected<ExprInfo, Result> lookup_ident_result = this->lookup_ident_impl<NEEDS_DEF, true>(ident);
 		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
 
 		this->return_expr_info(output, std::move(lookup_ident_result.value()));
@@ -1207,13 +1266,13 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_COMPTIME, bool IS_EXPR>
+	template<bool NEEDS_DEF, bool IS_EXPR>
 	auto SemanticAnalyzer::lookup_ident_impl(Token::ID ident) -> evo::Expected<ExprInfo, Result> {
 		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
 
 		for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
 			const evo::Result<std::optional<ExprInfo>> scope_level_lookup = 
-				this->analyze_expr_ident_in_scope_level<IS_EXPR>(
+				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, IS_EXPR>(
 					ident,
 					ident_str,
 					scope_level_id,
@@ -1247,7 +1306,7 @@ namespace pcit::panther{
 			SymbolProc& symbol_proc_to_wait_on = this->context.symbol_proc_manager.getSymbolProc(id_to_wait_on);
 
 			const SymbolProc::WaitOnResult wait_on_result = [&](){
-				if constexpr(IS_COMPTIME){
+				if constexpr(NEEDS_DEF){
 					return symbol_proc_to_wait_on.waitOnDefIfNeeded(
 						this->symbol_proc_id, this->context, id_to_wait_on
 					);
@@ -1261,7 +1320,7 @@ namespace pcit::panther{
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NotNeeded: {
 					// TODO: better way of doing this
-					return this->lookup_ident_impl<IS_COMPTIME, IS_EXPR>(ident);
+					return this->lookup_ident_impl<NEEDS_DEF, IS_EXPR>(ident);
 				} break;
 				case SymbolProc::WaitOnResult::Waiting: {
 					// do nothing...
@@ -1307,7 +1366,7 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_EXPR>
+	template<bool NEEDS_DEF, bool IS_EXPR>
 	auto SemanticAnalyzer::analyze_expr_ident_in_scope_level(
 		const Token::ID& ident,
 		std::string_view ident_str,
@@ -1356,6 +1415,10 @@ namespace pcit::panther{
 
 				switch(sema_var.kind){
 					case AST::VarDecl::Kind::Var: {
+						if constexpr(NEEDS_DEF){
+							if(sema_var.expr.load().has_value() == false){ return std::optional<ExprInfo>(); }
+						}
+						
 						return std::optional<ExprInfo>(ExprInfo(
 							ValueCategory::ConcreteMut,
 							is_global_scope ? ValueStage::Runtime : ValueStage::Constexpr,
@@ -1365,6 +1428,10 @@ namespace pcit::panther{
 					} break;
 
 					case AST::VarDecl::Kind::Const: {
+						if constexpr(NEEDS_DEF){
+							if(sema_var.expr.load().has_value() == false){ return std::optional<ExprInfo>(); }
+						}
+
 						return std::optional<ExprInfo>(ExprInfo(
 							ValueCategory::ConcreteConst, ValueStage::Constexpr, *sema_var.typeID, sema::Expr(ident_id)
 						));
@@ -1373,14 +1440,14 @@ namespace pcit::panther{
 					case AST::VarDecl::Kind::Def: {
 						if(sema_var.typeID.has_value()){
 							return std::optional<ExprInfo>(ExprInfo(
-								ValueCategory::Ephemeral, ValueStage::Comptime, *sema_var.typeID, *sema_var.expr
+								ValueCategory::Ephemeral, ValueStage::Comptime, *sema_var.typeID, *sema_var.expr.load()
 							));
 						}else{
 							return std::optional<ExprInfo>(ExprInfo(
 								ValueCategory::EphemeralFluid,
 								ValueStage::Comptime,
 								ExprInfo::FluidType{},
-								*sema_var.expr
+								*sema_var.expr.load()
 							));
 						}
 					};
@@ -1423,6 +1490,14 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Alias::ID>()){
+				if constexpr(NEEDS_DEF){
+					if(this->context.getTypeManager().getAlias(ident_id).aliasedType.load().has_value() == false){
+						// TODO: optimize this to signify exists but not ready
+						// def not ready
+						return std::optional<ExprInfo>();
+					}
+				}
+
 				if constexpr(IS_EXPR){
 					this->emit_error(
 						Diagnostic::Code::SemaTypeUsedAsExpr,
@@ -1644,9 +1719,9 @@ namespace pcit::panther{
 				actual_expected_type.baseTypeID().aliasID()
 			);
 
-			evo::debugAssert(expected_alias.aliasedType.isVoid() == false, "should have been checked already");
+			evo::debugAssert(expected_alias.aliasedType.load().has_value(), "Definition of alias was not completed");
 
-			actual_expected_type_id = expected_alias.aliasedType.asTypeID();
+			actual_expected_type_id = *expected_alias.aliasedType.load();
 		}
 
 		switch(got_expr.value_category){
@@ -1955,8 +2030,8 @@ namespace pcit::panther{
 				actual_expected_type.baseTypeID().aliasID()
 			);
 
-			evo::debugAssert(expected_alias.aliasedType.isVoid() == false, "should have been checked already");
-			actual_expected_type_id = expected_alias.aliasedType.asTypeID();
+			evo::debugAssert(expected_alias.aliasedType.load().has_value(), "Definition of alias was not completed");
+			actual_expected_type_id = *expected_alias.aliasedType.load();
 
 			auto alias_of_str = std::string("\\-> Alias of: ");
 			while(alias_of_str.size() < got_type_str.size()){

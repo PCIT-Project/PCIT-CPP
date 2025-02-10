@@ -207,11 +207,8 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TypeID> aliased_type = this->analyze_type(ast_buffer.getType(alias_decl.type));
 		if(aliased_type.isError()){ return false; }
 
-		this->add_instruction(
-			SymbolProc::Instruction::GlobalAliasDecl(
-				alias_decl, std::move(attribute_exprs.value()), aliased_type.value()
-			)
-		);
+		this->add_instruction(SymbolProc::Instruction::GlobalAliasDecl(alias_decl, std::move(attribute_exprs.value())));
+		this->add_instruction(SymbolProc::Instruction::GlobalAliasDef(alias_decl, aliased_type.value()));
 
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();

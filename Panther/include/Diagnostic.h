@@ -103,6 +103,7 @@ namespace pcit::panther{
 			SemaMultiReturnIntoSingleValue,
 			SemaCannotConvertFluidValue,
 			SemaTypeMismatch,
+			SemaAliasCannotBeVoid,
 
 			// imports
 			SemaNoSymbolInModuleWithThatIdent,
@@ -375,6 +376,7 @@ namespace pcit::panther{
 				case Code::SemaMultiReturnIntoSingleValue:
 				case Code::SemaCannotConvertFluidValue:
 				case Code::SemaTypeMismatch:
+				case Code::SemaAliasCannotBeVoid:
 				case Code::SemaNoSymbolInModuleWithThatIdent:
 				case Code::SemaSymbolNotPub:
 				case Code::SemaFailedToImportModule:

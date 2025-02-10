@@ -227,11 +227,11 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto operator==(const Expr&) const -> bool = default;
 
-			constexpr auto operator=(const Expr& rhs) -> Expr& {
-				this->_kind = rhs._kind;
-				this->index = rhs.index;
-				return *this;
-			}	
+			// constexpr auto operator=(const Expr& rhs) -> Expr& {
+			// 	this->_kind = rhs._kind;
+			// 	this->index = rhs.index;
+			// 	return *this;
+			// }	
 
 
 		private:
@@ -292,6 +292,8 @@ namespace std{
 
 
 namespace pcit::pir{
+
+	static_assert(std::atomic<std::optional<Expr>>::is_always_lock_free);
 	
 
 	// Get through Function

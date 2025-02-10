@@ -44,7 +44,25 @@ namespace pcit::panther{
 		}
 	};
 
+}
 
+
+
+namespace std{
+
+	template<>
+	class optional<pcit::panther::TypeInfoID> 
+		: public pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>::Optional;
+			using pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>::operator=;
+	};
+
+}
+
+
+namespace pcit::panther{
 
 	// is aliased as TypeInfo::VoidableID
 	class TypeInfoVoidableID{
@@ -196,15 +214,20 @@ namespace pcit::panther{
 		};
 
 
+		static_assert(std::atomic<std::optional<TypeInfoID>>::is_always_lock_free);
+
 		struct Alias{
 			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
 
 			SourceID sourceID;
 			Token::ID identTokenID;
-			TypeInfoVoidableID aliasedType;
+			std::atomic<std::optional<TypeInfoID>> aliasedType; // nullopt if only has decl
 			bool isPub;
+
 			
-			EVO_NODISCARD auto operator==(const Alias&) const -> bool = default;
+			EVO_NODISCARD auto operator==(const Alias& rhs) const -> bool {
+				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
+			}
 		};
 
 
@@ -216,7 +239,9 @@ namespace pcit::panther{
 			TypeInfoID underlyingType;
 			bool isPub;
 			
-			EVO_NODISCARD auto operator==(const Typedef&) const -> bool = default;
+			EVO_NODISCARD auto operator==(const Typedef& rhs) const -> bool {
+				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
+			}
 		};
 
 
@@ -433,6 +458,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
 			core::SyncLinearStepAlloc<BaseType::Typedef, BaseType::Typedef::ID> typedefs{};
 			core::SyncLinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
+
+			friend class SemanticAnalyzer;
 	};
 
 }
@@ -440,15 +467,6 @@ namespace pcit::panther{
 
 
 namespace std{
-
-	template<>
-	class optional<pcit::panther::TypeInfo::ID> 
-		: public pcit::core::Optional<pcit::panther::TypeInfo::ID, pcit::panther::TypeInfoIDOptInterface>{
-
-		public:
-			using pcit::core::Optional<pcit::panther::TypeInfo::ID, pcit::panther::TypeInfoIDOptInterface>::Optional;
-			using pcit::core::Optional<pcit::panther::TypeInfo::ID, pcit::panther::TypeInfoIDOptInterface>::operator=;
-	};
 
 
 	template<>

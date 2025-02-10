@@ -1,5 +1,16 @@
 # Change Log
 
+
+<!---------------------------------->
+<a name="v0.0.84.1"></a>
+## v0.0.84.1
+
+### Panther
+- Changed alias to not allow being `Void`
+- Fixed declaration and definition of alias not being properly separated
+- Fixed not checking for / waiting for definition of symbol if declaration was already completed
+
+
 <!---------------------------------->
 <a name="v0.0.84.0"></a>
 ## v0.0.84.0

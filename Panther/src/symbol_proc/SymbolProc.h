@@ -101,6 +101,9 @@ namespace pcit::panther{
 	struct SymbolProcInstruction{
 		using AttributeExprs = evo::SmallVector<evo::StaticVector<SymbolProcExprInfoID, 2>>;
 
+		//////////////////
+		// globals
+
 		struct GlobalVarDecl{
 			const AST::VarDecl& var_decl;
 			AttributeExprs attribute_exprs;
@@ -119,16 +122,26 @@ namespace pcit::panther{
 			SymbolProcExprInfoID value_id;
 		};
 
+
 		struct GlobalWhenCond{
 			const AST::WhenConditional& when_cond;
 			SymbolProcExprInfoID cond;
 		};
 
+
 		struct GlobalAliasDecl{
 			const AST::AliasDecl& alias_decl;
 			AttributeExprs attribute_exprs;
+		};
+
+		struct GlobalAliasDef{
+			const AST::AliasDecl& alias_decl;
 			SymbolProcTypeID aliased_type;
 		};
+
+
+		//////////////////
+		// misc expr
 
 		struct FuncCall{
 			const AST::FuncCall& func_call;
@@ -142,6 +155,10 @@ namespace pcit::panther{
 			SymbolProcExprInfoID location;
 			SymbolProcExprInfoID output;
 		};
+
+
+		//////////////////
+		// accessors
 
 		struct TypeAccessor{
 			const AST::Infix& infix;
@@ -164,6 +181,11 @@ namespace pcit::panther{
 			SymbolProcExprInfoID output;
 		};
 
+
+
+		//////////////////
+		// types
+
 		struct PrimitiveType{
 			const AST::Type& ast_type;
 			SymbolProcTypeID output;
@@ -185,6 +207,10 @@ namespace pcit::panther{
 			SymbolProcExprInfoID output;
 		};
 
+
+		//////////////////
+		// single token value
+
 		struct Ident{
 			Token::ID ident;
 			SymbolProcExprInfoID output;
@@ -201,6 +227,9 @@ namespace pcit::panther{
 		};
 
 
+		//////////////////
+		// instruction impl
+
 		auto visit(auto callable) const { return this->inst.visit(callable); }
 
 		template<class T>
@@ -215,6 +244,7 @@ namespace pcit::panther{
 			GlobalVarDef,
 			GlobalVarDeclDef,
 			GlobalAliasDecl,
+			GlobalAliasDef,
 			FuncCall,
 			Import,
 			TypeAccessor,
@@ -362,7 +392,12 @@ namespace pcit::panther{
 				evo::SmallVector<SymbolProcID> else_ids;
 			};
 
-			evo::Variant<std::monostate, VarInfo, WhenCondInfo> extra_info{};
+			struct AliasInfo{
+				BaseType::Alias::ID alias_id;
+			};
+
+
+			evo::Variant<std::monostate, VarInfo, WhenCondInfo, AliasInfo> extra_info{};
 
 
 			size_t inst_index = 0;

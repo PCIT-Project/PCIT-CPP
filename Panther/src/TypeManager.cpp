@@ -251,7 +251,9 @@ namespace pcit::panther{
 			}
 		}
 
-		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(lookup_type);
+		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(
+			lookup_type.sourceID, lookup_type.identTokenID, lookup_type.aliasedType.load(), lookup_type.isPub
+		);
 		return BaseType::ID(BaseType::Kind::Alias, new_alias.get());
 	}
 
@@ -362,8 +364,8 @@ namespace pcit::panther{
 
 			case BaseType::Kind::Alias: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				evo::debugAssert(alias.aliasedType.isVoid() == false, "cannot get sizeof type `Void`");
-				return this->sizeOf(alias.aliasedType.asTypeID());
+				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
+				return this->sizeOf(*alias.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::Typedef: {
@@ -645,8 +647,8 @@ namespace pcit::panther{
 			case BaseType::Kind::Array: evo::resultError;
 			case BaseType::Kind::Alias: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				if(alias.aliasedType.isVoid()){ return evo::resultError; }
-				return this->getUnderlyingType(alias.aliasedType.asTypeID());
+				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
+				return this->getUnderlyingType(*alias.aliasedType.load());
 			} break;
 			case BaseType::Kind::Typedef: {
 				const BaseType::Typedef& typedef_info = this->getTypedef(id.typedefID());

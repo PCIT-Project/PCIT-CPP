@@ -50,11 +50,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result;
 			EVO_NODISCARD auto instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result;
 			EVO_NODISCARD auto instr_global_when_cond(const Instruction::GlobalWhenCond& instr) -> Result;
-			EVO_NODISCARD auto instr_global_alias(const Instruction::GlobalAliasDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_global_alias_decl(const Instruction::GlobalAliasDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_global_alias_def(const Instruction::GlobalAliasDef& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
 
-			template<bool IS_COMPTIME, bool IS_EXPR>
+			template<bool NEEDS_DEF, bool IS_EXPR>
 			EVO_NODISCARD auto instr_expr_accessor(
 				const AST::Infix& infix, SymbolProcExprInfoID lhs_id, Token::ID rhs_ident, SymbolProcExprInfoID output
 			) -> Result;
@@ -64,7 +65,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_comptime_ident(const Instruction::ComptimeIdent& instr) -> Result;
 			EVO_NODISCARD auto instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result;
 
-			template<bool IS_COMPTIME>
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto instr_ident(Token::ID ident, SymbolProc::ExprInfoID output) -> Result;
 
 			EVO_NODISCARD auto instr_intrinsic(const Instruction::Intrinsic& instr) -> Result;
@@ -76,11 +77,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_current_scope_level() const -> sema::ScopeLevel&;
 
-			template<bool IS_COMPTIME, bool IS_EXPR>
+			template<bool NEEDS_DEF, bool IS_EXPR>
 			EVO_NODISCARD auto lookup_ident_impl(Token::ID ident) -> evo::Expected<ExprInfo, Result>;
 
 
-			template<bool IS_EXPR>
+			template<bool NEEDS_DEF, bool IS_EXPR>
 			EVO_NODISCARD auto analyze_expr_ident_in_scope_level(
 				const Token::ID& ident,
 				std::string_view ident_str,

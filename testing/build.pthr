@@ -1,16 +1,10 @@
 
-def build2 = @import("build2.pthr");
 
 
 
-
-
-// alias Integer = Bool;
+alias Integer = Int;
 
 def FOO: Int = 12;
 
-def BAR: build2.Integer = FOO;
-
-
-// const foo: Int = @import("std");
+def BAR: Integer = FOO;
 
