@@ -254,6 +254,15 @@ namespace pcit::core{
 				return GenericInt(this->ap_int.zext(width));
 			}
 
+			EVO_NODISCARD auto ext(unsigned width, bool is_unsigned) const -> GenericInt {
+				if(is_unsigned){
+					return this->zext(width);
+				}else{
+					return this->sext(width);
+				}
+			}
+
+
 			EVO_NODISCARD auto sextOrTrunc(unsigned width) const -> GenericInt {
 				return GenericInt(this->ap_int.sextOrTrunc(width));
 			}

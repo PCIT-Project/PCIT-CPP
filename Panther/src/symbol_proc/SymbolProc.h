@@ -115,12 +115,19 @@ namespace pcit::panther{
 		struct GlobalVarDeclDef{
 			const AST::VarDecl& var_decl;
 			AttributeExprs attribute_exprs;
+			std::optional<SymbolProcTypeID> type_id;
 			SymbolProcExprInfoID value_id;
 		};
 
 		struct GlobalWhenCond{
 			const AST::WhenConditional& when_cond;
 			SymbolProcExprInfoID cond;
+		};
+
+		struct GlobalAliasDecl{
+			const AST::AliasDecl& alias_decl;
+			AttributeExprs attribute_exprs;
+			SymbolProcTypeID aliased_type;
 		};
 
 		struct FuncCall{
@@ -133,6 +140,13 @@ namespace pcit::panther{
 		struct Import{
 			const AST::FuncCall& func_call;
 			SymbolProcExprInfoID location;
+			SymbolProcExprInfoID output;
+		};
+
+		struct TypeAccessor{
+			const AST::Infix& infix;
+			SymbolProcExprInfoID lhs;
+			Token::ID rhs_ident;
 			SymbolProcExprInfoID output;
 		};
 
@@ -151,8 +165,19 @@ namespace pcit::panther{
 		};
 
 		struct PrimitiveType{
-			const AST::Type& type;
+			const AST::Type& ast_type;
 			SymbolProcTypeID output;
+		};
+
+		struct UserType{
+			const AST::Type& ast_type;
+			SymbolProcExprInfoID base_type;
+			SymbolProcTypeID output;
+		};
+
+		struct BaseTypeIdent{
+			Token::ID ident;
+			SymbolProcExprInfoID output;
 		};
 
 		struct ComptimeIdent{
@@ -189,11 +214,15 @@ namespace pcit::panther{
 			GlobalVarDecl,
 			GlobalVarDef,
 			GlobalVarDeclDef,
+			GlobalAliasDecl,
 			FuncCall,
 			Import,
+			TypeAccessor,
 			ComptimeExprAccessor,
 			ExprAccessor,
 			PrimitiveType,
+			UserType,
+			BaseTypeIdent,
 			ComptimeIdent,
 			Ident,
 			Intrinsic,

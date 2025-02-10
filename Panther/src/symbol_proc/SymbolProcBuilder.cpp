@@ -119,20 +119,13 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::build_var_decl(const AST::Node& stmt) -> bool {
 		const AST::VarDecl& var_decl = this->source.getASTBuffer().getVarDecl(stmt);
 
-		auto attribute_exprs = evo::SmallVector<evo::StaticVector<SymbolProcExprInfoID, 2>>();
+		evo::Result<SymbolProc::Instruction::AttributeExprs> attribute_exprs = this->analyze_attributes(
+			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock)
+		);
+		if(attribute_exprs.isError()){ return false; }
 
-		const AST::AttributeBlock& attr_block = this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
-		for(const AST::AttributeBlock::Attribute& attribute : attr_block.attributes){
-			attribute_exprs.emplace_back();
 
-			for(const AST::Node& arg : attribute.args){
-				const evo::Result<SymbolProc::ExprInfoID> arg_expr = this->analyze_expr<true>(arg);
-				if(arg_expr.isError()){ return false; }
-
-				attribute_exprs.back().emplace_back(arg_expr.value());
-			}
-		}
-
+		auto type_id = std::optional<SymbolProc::TypeID>();
 		if(var_decl.type.has_value()){
 			const evo::Result<SymbolProc::TypeID> type_id_res = 
 				this->analyze_type(this->source.getASTBuffer().getType(*var_decl.type));
@@ -142,9 +135,11 @@ namespace pcit::panther{
 			if(var_decl.kind != AST::VarDecl::Kind::Def){
 				this->add_instruction(
 					SymbolProc::Instruction::GlobalVarDecl(
-						this->source.getASTBuffer().getVarDecl(stmt), std::move(attribute_exprs), type_id_res.value()
+						var_decl, std::move(attribute_exprs.value()), type_id_res.value()
 					)
 				);
+			}else{
+				type_id = type_id_res.value();
 			}
 		}
 
@@ -161,13 +156,13 @@ namespace pcit::panther{
 
 		if(var_decl.type.has_value() && var_decl.kind != AST::VarDecl::Kind::Def){
 			this->add_instruction(
-				SymbolProc::Instruction::GlobalVarDef(this->source.getASTBuffer().getVarDecl(stmt), value_id.value())
+				SymbolProc::Instruction::GlobalVarDef(var_decl, value_id.value())
 			);
 
 		}else{
 			this->add_instruction(
 				SymbolProc::Instruction::GlobalVarDeclDef(
-					this->source.getASTBuffer().getVarDecl(stmt), std::move(attribute_exprs), value_id.value()
+					var_decl, std::move(attribute_exprs.value()), type_id, value_id.value()
 				)
 			);
 		}
@@ -199,15 +194,42 @@ namespace pcit::panther{
 		return false;
 	}
 
+
 	auto SymbolProcBuilder::build_alias_decl(const AST::Node& stmt) -> bool {
-		// const AST::AliasDecl& alias_decl = this->source.getASTBuffer().getAliasDecl(stmt);
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			stmt,
-			"Building symbol process of Alias Decl is unimplemented"
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::AliasDecl& alias_decl = ast_buffer.getAliasDecl(stmt);
+
+		evo::Result<SymbolProc::Instruction::AttributeExprs> attribute_exprs = this->analyze_attributes(
+			ast_buffer.getAttributeBlock(alias_decl.attributeBlock)
 		);
-		return false;
+		if(attribute_exprs.isError()){ return false; }
+		
+		const evo::Result<SymbolProc::TypeID> aliased_type = this->analyze_type(ast_buffer.getType(alias_decl.type));
+		if(aliased_type.isError()){ return false; }
+
+		this->add_instruction(
+			SymbolProc::Instruction::GlobalAliasDecl(
+				alias_decl, std::move(attribute_exprs.value()), aliased_type.value()
+			)
+		);
+
+
+		SymbolProcInfo& current_symbol = this->get_current_symbol();
+
+		if(this->is_child_symbol()){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
+			current_symbol.symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
+		}
+
+		this->source.global_symbol_procs.emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
+
+		return true;
 	}
+
 
 	auto SymbolProcBuilder::build_typedef_decl(const AST::Node& stmt) -> bool {
 		// const AST::TypedefDecl& typedef_decl = this->source.getASTBuffer().getTypedefDecl(stmt);
@@ -283,6 +305,8 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_type(const AST::Type& ast_type) -> evo::Result<SymbolProc::TypeID> {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+
 		const SymbolProc::TypeID created_type_id = this->create_type();
 
 		switch(ast_type.base.kind()){
@@ -292,21 +316,59 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::Ident: { 
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					ast_type.base,
-					"non-primitive are unimplemented"
+				const SymbolProc::ExprInfoID created_base_expr_info_id = this->create_expr_info();
+
+				this->add_instruction(
+					SymbolProc::Instruction::BaseTypeIdent(
+						ast_buffer.getIdent(ast_type.base), created_base_expr_info_id
+					)
 				);
-				return evo::resultError;
+
+				this->add_instruction(
+					SymbolProc::Instruction::UserType(ast_type, created_base_expr_info_id, created_type_id)
+				);
+				return created_type_id;
 			} break;
 
 			case AST::Kind::Infix: { 
-				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
-					ast_type.base,
-					"non-primitive types are unimplemented"
+				const auto get_base_type = [&](const AST::Node& base_type) -> SymbolProc::ExprInfoID {
+					const auto get_base_type_ = [this, &ast_buffer]
+					(const auto get_base_type, const AST::Node& base_type) -> SymbolProc::ExprInfoID {
+						if(base_type.kind() == AST::Kind::Ident){
+							const SymbolProc::ExprInfoID created_base_expr_info_id = this->create_expr_info();
+
+							this->add_instruction(
+								SymbolProc::Instruction::BaseTypeIdent(
+									ast_buffer.getIdent(base_type), created_base_expr_info_id
+								)
+							);
+
+							return created_base_expr_info_id;
+							
+						}else{
+							evo::debugAssert(base_type.kind() == AST::Kind::Infix, "Unexpected lhs of infix type");
+							const AST::Infix& base_type_infix = ast_buffer.getInfix(base_type);
+
+							const SymbolProc::ExprInfoID created_base_type_type = this->create_expr_info();
+							this->add_instruction(
+								SymbolProc::Instruction::TypeAccessor(
+									base_type_infix,
+									get_base_type(get_base_type, base_type_infix.lhs),
+									ast_buffer.getIdent(base_type_infix.rhs),
+									created_base_type_type
+								)
+							);
+							return created_base_type_type;
+						}
+					};
+
+					return get_base_type_(get_base_type_, base_type);
+				};
+
+				this->add_instruction(
+					SymbolProc::Instruction::UserType(ast_type, get_base_type(ast_type.base), created_type_id)
 				);
-				return evo::resultError;
+				return created_type_id;
 			} break;
 
 			case AST::Kind::TypeIDConverter: { 
@@ -543,6 +605,26 @@ namespace pcit::panther{
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of this is unimplemented"
 		);
 		return evo::resultError;
+	}
+
+
+
+	auto SymbolProcBuilder::analyze_attributes(const AST::AttributeBlock& attribute_block)
+	-> evo::Result<SymbolProc::Instruction::AttributeExprs> {
+		auto attribute_exprs = SymbolProc::Instruction::AttributeExprs();
+
+		for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			attribute_exprs.emplace_back();
+
+			for(const AST::Node& arg : attribute.args){
+				const evo::Result<SymbolProc::ExprInfoID> arg_expr = this->analyze_expr<true>(arg);
+				if(arg_expr.isError()){ return evo::resultError; }
+
+				attribute_exprs.back().emplace_back(arg_expr.value());
+			}
+		}
+
+		return attribute_exprs;
 	}
 
 

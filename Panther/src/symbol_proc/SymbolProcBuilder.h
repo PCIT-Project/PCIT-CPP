@@ -72,6 +72,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
 
 
+			EVO_NODISCARD auto analyze_attributes(const AST::AttributeBlock& attribute_block)
+				-> evo::Result<SymbolProc::Instruction::AttributeExprs>;
+
 
 			auto add_instruction(auto&& instruction) -> void {
 				this->get_current_symbol().symbol_proc.instructions.emplace_back(std::move(instruction));

@@ -212,10 +212,8 @@ namespace pcit::panther{
 		return instruction.visit([&](const auto& instr) -> Result {
 			using InstrType = std::decay_t<decltype(instr)>;
 
-			if constexpr(std::is_same<InstrType, Instruction::GlobalWhenCond>()){
-				return this->instr_global_when_cond(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDecl>()){
+			if constexpr(std::is_same<InstrType, Instruction::GlobalVarDecl>()){
 				return this->instr_global_var_decl(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDef>()){
@@ -224,20 +222,35 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDeclDef>()){
 				return this->instr_global_var_decl_def(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalWhenCond>()){
+				return this->instr_global_when_cond(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalAliasDecl>()){
+				return this->instr_global_alias(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
 				return this->instr_func_call(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Import>()){
 				return this->instr_import(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::TypeAccessor>()){
+				return this->instr_expr_accessor<true, false>(instr.infix, instr.lhs, instr.rhs_ident, instr.output);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::ComptimeExprAccessor>()){
-				return this->instr_expr_accessor<true>(instr.infix, instr.lhs, instr.rhs_ident, instr.output);
+				return this->instr_expr_accessor<true, true>(instr.infix, instr.lhs, instr.rhs_ident, instr.output);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::ExprAccessor>()){
-				return this->instr_expr_accessor<false>(instr.infix, instr.lhs, instr.rhs_ident, instr.output);
+				return this->instr_expr_accessor<false, true>(instr.infix, instr.lhs, instr.rhs_ident, instr.output);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::PrimitiveType>()){
 				return this->instr_primitive_type(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::UserType>()){
+				return this->instr_user_type(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::BaseTypeIdent>()){
+				return this->instr_base_type_ident(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::ComptimeIdent>()){
 				return this->instr_ident<true>(instr.ident, instr.output);
@@ -297,14 +310,19 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result {
+		sema::Var& sema_var = this->context.sema_buffer.vars[
+			this->symbol_proc.extra_info.as<SymbolProc::VarInfo>().sema_var_id
+		];
+
 		ExprInfo& value_expr_info = this->get_expr_info(instr.value_id);
-		if(value_expr_info.value_category == ExprInfo::ValueCategory::Module){
-			// TODO: is an error
-			evo::unimplemented();
-		}
-
-
 		if(value_expr_info.is_ephemeral() == false){
+			if(value_expr_info.value_category == ExprInfo::ValueCategory::Module){
+				this->error_type_mismatch(
+					*sema_var.typeID, value_expr_info, "Variable definition", *instr.var_decl.value
+				);
+				return Result::Error;
+			}
+
 			this->emit_error(
 				Diagnostic::Code::SemaVarDefNotEphemeral,
 				*instr.var_decl.value,
@@ -312,11 +330,7 @@ namespace pcit::panther{
 			);
 			return Result::Error;
 		}
-
-		sema::Var& sema_var = this->context.sema_buffer.vars[
-			this->symbol_proc.extra_info.as<SymbolProc::VarInfo>().sema_var_id
-		];
-
+		
 		if(this->type_check<true>(
 			*sema_var.typeID, value_expr_info, "Variable definition", *instr.var_decl.value
 		).ok == false){
@@ -341,6 +355,15 @@ namespace pcit::panther{
 
 		ExprInfo& value_expr_info = this->get_expr_info(instr.value_id);
 		if(value_expr_info.value_category == ExprInfo::ValueCategory::Module){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::Def){
+				this->emit_error(
+					Diagnostic::Code::SemaModuleVarMustBeDef,
+					*instr.var_decl.value,
+					"Variable that has a module value must be declared as `def`"
+				);
+				return Result::Error;
+			}
+
 			const bool is_redef = !this->add_ident_to_scope(
 				var_ident,
 				instr.var_decl,
@@ -371,6 +394,24 @@ namespace pcit::panther{
 				"Cannot define a variable with multiple values"
 			);
 			return Result::Error;
+		}
+
+
+		if(instr.type_id.has_value()){
+			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
+
+			if(got_type_info_id.isVoid()){
+				this->emit_error(
+					Diagnostic::Code::SemaVarTypeVoid, *instr.var_decl.type, "Variables cannot be type `Void`"
+				);
+				return Result::Error;
+			}
+
+			if(this->type_check<true>(
+				got_type_info_id.asTypeID(), value_expr_info, "Variable definition", *instr.var_decl.value
+			).ok == false){
+				return Result::Error;
+			}
 		}
 
 		const std::optional<TypeInfo::ID> type_id = [&](){
@@ -481,6 +522,83 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::instr_global_alias(const Instruction::GlobalAliasDecl& instr) -> Result {
+
+		///////////////////////////////////
+		// attributes
+
+		auto attr_pub = ConditionalAttribute(*this, "pub");
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(instr.alias_decl.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "pub"){
+				if(instr.attribute_exprs[i].empty()){
+					if(attr_pub.set(attribute.attribute, true) == false){ return Result::Error; } 
+
+				}else if(instr.attribute_exprs[i].size() == 1){
+					ExprInfo cond_expr_info = this->get_expr_info(instr.attribute_exprs[i][0]);
+
+					if(this->type_check<true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_expr_info,
+						"Condition in #pub",
+						attribute.args[0]
+					).ok == false){
+						return Result::Error;
+					}
+
+					const bool pub_cond = this->context.sema_buffer
+						.getBoolValue(cond_expr_info.getExpr().boolValueID()).value;
+
+					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return Result::Error; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SemaTooManyAttributeArgs,
+						attribute.args[1],
+						"Attribute #pub does not accept more than 1 argument"
+					);
+					return Result::Error;
+				}
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SemaUnknownAttribute,
+					attribute.attribute,
+					std::format("Unknown alias attribute #{}", attribute_str)
+				);
+				return Result::Error;
+			}
+		}
+
+
+		///////////////////////////////////
+		// create
+
+		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
+
+
+		const BaseType::ID created_alias = this->context.type_manager.getOrCreateAlias(
+			BaseType::Alias(this->source.getID(), instr.alias_decl.ident, aliased_type, attr_pub.is_set())
+		);
+
+		const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_decl.ident].getString();
+		if(this->add_ident_to_scope(ident_str, instr.alias_decl, created_alias.aliasID()) == false){
+			return Result::Error;
+		}
+
+		this->propagate_finished_decl_def();
+		return Result::Success;
+	}
+
+
+
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature,
@@ -558,7 +676,7 @@ namespace pcit::panther{
 		evo::unreachable();
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_COMPTIME, bool IS_EXPR>
 	auto SemanticAnalyzer::instr_expr_accessor(
 		const AST::Infix& infix, SymbolProcExprInfoID lhs_id, Token::ID rhs_ident, SymbolProcExprInfoID output
 	) -> Result {
@@ -706,12 +824,40 @@ namespace pcit::panther{
 						return Result::Success;
 
 					}else if constexpr(std::is_same<IdentIDType, BaseType::Alias::ID>()){
-						this->emit_error(
-							Diagnostic::Code::SemaTypeUsedAsExpr,
-							rhs_ident,
-							"Type alias cannot be used as an expression"
-						);
-						return Result::Error;
+						if constexpr(IS_EXPR){
+							this->emit_error(
+								Diagnostic::Code::SemaTypeUsedAsExpr,
+								rhs_ident,
+								"Type alias cannot be used as an expression"
+							);
+							return Result::Error;
+						}else{
+							const BaseType::Alias& alias = this->context.getTypeManager().getAlias(ident_id);
+							if(alias.isPub == false){
+								this->emit_error(
+									Diagnostic::Code::SemaSymbolNotPub,
+									rhs_ident,
+									std::format("Alias \"{}\" does not have the #pub attribute", rhs_ident_str),
+									Diagnostic::Info(
+										"Alias declared here:",
+										Diagnostic::Location::get(
+											ident_id, this->context.getSourceManager()[alias.sourceID], this->context
+										)
+									)
+								);
+								return Result::Error;
+							}
+
+							this->return_expr_info(output,
+								ExprInfo(
+									ExprInfo::ValueCategory::Type,
+									ExprInfo::ValueStage::Comptime,
+									this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id))),
+									std::nullopt
+								)
+							);
+							return Result::Success;
+						}
 
 					}else if constexpr(std::is_same<IdentIDType, BaseType::Typedef::ID>()){
 						this->emit_error(
@@ -768,7 +914,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::NotNeeded: {
 						// TODO: do this better
 						// call again as symbol finished
-						return this->instr_expr_accessor<IS_COMPTIME>(infix, lhs_id, rhs_ident, output);
+						return this->instr_expr_accessor<IS_COMPTIME, IS_EXPR>(infix, lhs_id, rhs_ident, output);
 					} break;
 
 					case SymbolProc::WaitOnResult::Waiting: {
@@ -823,17 +969,16 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result {
 		auto base_type = std::optional<BaseType::ID>();
-		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
 
-		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.type.base);
+		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.ast_type.base);
 		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
 
 		switch(primitive_type_token.kind()){
 			case Token::Kind::TypeVoid: {
-				if(instr.type.qualifiers.empty() == false){
+				if(instr.ast_type.qualifiers.empty() == false){
 					this->emit_error(
 						Diagnostic::Code::SemaVoidWithQualifiers,
-						instr.type.base,
+						instr.ast_type.base,
 						"Type \"Void\" cannot have qualifiers"
 					);
 					return Result::Error;
@@ -845,7 +990,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeThis: {
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					instr.type,
+					instr.ast_type,
 					"Type `This` is unimplemented"
 				);
 				return Result::Error;
@@ -872,7 +1017,7 @@ namespace pcit::panther{
 			case Token::Kind::TypeType: {
 				this->emit_error(
 					Diagnostic::Code::SemaGenericTypeNotInTemplatePackDecl,
-					instr.type,
+					instr.ast_type,
 					"Type \"Type\" may only be used in a template pack declaration"
 				);
 				return Result::Error;
@@ -885,118 +1030,88 @@ namespace pcit::panther{
 
 		evo::debugAssert(base_type.has_value(), "Base type was not set");
 
-		for(const AST::Type::Qualifier& qualifier : instr.type.qualifiers){
-			qualifiers.emplace_back(qualifier);
-		}
-
-		if(this->check_type_qualifiers(qualifiers, instr.type) == false){ return Result::Error; }
+		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type) == false){ return Result::Error; }
 
 		this->return_type(
 			instr.output,
 			TypeInfo::VoidableID(
-				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(*base_type, std::move(qualifiers)))
+				this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(*base_type, evo::copy(instr.ast_type.qualifiers))
+				)
 			)
 		);
 		return Result::Success;
 	}
 
 
+	auto SemanticAnalyzer::instr_user_type(const Instruction::UserType& instr) -> Result {
+		evo::debugAssert(this->get_expr_info(instr.base_type).value_category == ExprInfo::ValueCategory::Type);
+		const TypeInfo::ID base_type_id = this->get_expr_info(instr.base_type).type_id.as<TypeInfo::ID>();
+
+		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(base_type_id);
+
+		// switch(base_type.baseTypeID().kind()){
+		// 	case BaseType::Kind::Dummy: evo::debugFatalBreak("Not a valid base type kind");
+		// 	case BaseType::Kind::Primitive: evo::debugFatalBreak("Not a user type");
+		// 	case BaseType::Kind::Function: {
+		// 		this->emit_error(
+		// 			Diagnostic::Code::MiscUnimplementedFeature, instr.ast_type.base, "Function types are unimplemented"
+		// 		);
+		// 		return Result::Error;
+		// 	} break;
+
+		// 	case BaseType::Kind::Array: {
+		// 		this->emit_error(
+		// 			Diagnostic::Code::MiscUnimplementedFeature, instr.ast_type.base, "Array types are unimplemented"
+		// 		);
+		// 		return Result::Error;
+		// 	} break;
+
+		// 	case BaseType::Kind::Alias: {
+		// 		const Alias&
+		// 	} break;
+
+		// 	case BaseType::Kind::Typedef: {
+		// 		this->emit_error(
+		// 			Diagnostic::Code::MiscUnimplementedFeature, instr.ast_type.base, "Typedef types are unimplemented"
+		// 		);
+		// 		return Result::Error;
+		// 	} break;
+		// }
+
+		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type) == false){ return Result::Error; }
+
+
+		this->return_type(
+			instr.output,
+			TypeInfo::VoidableID(
+				this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(base_type.baseTypeID(), evo::copy(instr.ast_type.qualifiers))
+				)
+			)
+		);
+
+		return Result::Success;
+	}
+
+
+	auto SemanticAnalyzer::instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result {
+		const evo::Expected<ExprInfo, Result> lookup_ident_result = this->lookup_ident_impl<true, false>(instr.ident);
+		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
+
+		this->return_expr_info(instr.output, lookup_ident_result.value());
+		return Result::Success;
+	}
+
+
+
 	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::instr_ident(Token::ID ident, SymbolProc::ExprInfoID output) -> Result {
-		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
+		const evo::Expected<ExprInfo, Result> lookup_ident_result = this->lookup_ident_impl<IS_COMPTIME, true>(ident);
+		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
 
-		for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
-			const evo::Result<std::optional<ExprInfo>> scope_level_lookup = 
-				this->analyze_expr_ident_in_scope_level(
-					ident,
-					ident_str,
-					scope_level_id,
-					i >= this->scope.getCurrentObjectScopeIndex() || i == 0,
-					i == 0
-				);
-
-			if(scope_level_lookup.isError()){ return Result::Error; }
-
-			if(scope_level_lookup.value().has_value()){
-				this->return_expr_info(output, *scope_level_lookup.value());
-				return Result::Success;
-			}
-
-			i -= 1;
-		}
-
-		// TODO: look for Source::global_symbol_procs and wait if needed
-		const auto find = this->source.global_symbol_procs.equal_range(ident_str);
-		if(find.first == this->source.global_symbol_procs.end()){
-			this->emit_error(
-				Diagnostic::Code::SemaIdentNotInScope,
-				ident,
-				std::format("Identifier \"{}\" was not defined in this scope", ident_str)
-			);
-			return Result::Error;
-		}
-
-		bool found_was_passed_by_when_cond = false;
-		for(auto iter = find.first; iter != find.second; ++iter){
-			const SymbolProc::ID id_to_wait_on = iter->second;
-			SymbolProc& symbol_proc_to_wait_on = this->context.symbol_proc_manager.getSymbolProc(id_to_wait_on);
-
-			const SymbolProc::WaitOnResult wait_on_result = [&](){
-				if constexpr(IS_COMPTIME){
-					return symbol_proc_to_wait_on.waitOnDefIfNeeded(
-						this->symbol_proc_id, this->context, id_to_wait_on
-					);
-				}else{
-					return symbol_proc_to_wait_on.waitOnDeclIfNeeded(
-						this->symbol_proc_id, this->context, id_to_wait_on
-					);
-				}
-			}();
-
-			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NotNeeded: {
-					// TODO: better way of doing this
-					return this->instr_ident<IS_COMPTIME>(ident, output);
-				} break;
-				case SymbolProc::WaitOnResult::Waiting: {
-					// do nothing...
-				} break;
-				case SymbolProc::WaitOnResult::WasErrored: {
-					const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
-					this->symbol_proc.errored = true;
-					return Result::Error;
-				} break;
-				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: {
-					found_was_passed_by_when_cond = true;
-				} break;
-				case SymbolProc::WaitOnResult::CircularDepDetected: {
-					const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
-					this->symbol_proc.errored = true;
-					return Result::Error;
-				} break;
-			}
-		}
-
-		if(this->symbol_proc.waiting_for.empty()){
-			auto infos = evo::SmallVector<Diagnostic::Info>();
-
-			if(found_was_passed_by_when_cond){
-				infos.emplace_back(
-					Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
-				);
-			}
-
-			this->emit_error(
-				Diagnostic::Code::SemaIdentNotInScope,
-				ident,
-				std::format("Identifier \"{}\" was not defined in this scope", ident_str),
-				std::move(infos)
-			);
-			return Result::Error;
-
-		}else{
-			return Result::NeedToWait;
-		}
+		this->return_expr_info(output, std::move(lookup_ident_result.value()));
+		return Result::Success;
 	}
 
 
@@ -1091,7 +1206,108 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: does this need to be separate function
+
+	template<bool IS_COMPTIME, bool IS_EXPR>
+	auto SemanticAnalyzer::lookup_ident_impl(Token::ID ident) -> evo::Expected<ExprInfo, Result> {
+		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
+
+		for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
+			const evo::Result<std::optional<ExprInfo>> scope_level_lookup = 
+				this->analyze_expr_ident_in_scope_level<IS_EXPR>(
+					ident,
+					ident_str,
+					scope_level_id,
+					i >= this->scope.getCurrentObjectScopeIndex() || i == 0,
+					i == 0
+				);
+
+			if(scope_level_lookup.isError()){ return evo::Unexpected(Result::Error); }
+
+			if(scope_level_lookup.value().has_value()){
+				return *scope_level_lookup.value();
+			}
+
+			i -= 1;
+		}
+
+		// TODO: look for Source::global_symbol_procs and wait if needed
+		const auto find = this->source.global_symbol_procs.equal_range(ident_str);
+		if(find.first == this->source.global_symbol_procs.end()){
+			this->emit_error(
+				Diagnostic::Code::SemaIdentNotInScope,
+				ident,
+				std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+			);
+			return evo::Unexpected(Result::Error);
+		}
+
+		bool found_was_passed_by_when_cond = false;
+		for(auto iter = find.first; iter != find.second; ++iter){
+			const SymbolProc::ID id_to_wait_on = iter->second;
+			SymbolProc& symbol_proc_to_wait_on = this->context.symbol_proc_manager.getSymbolProc(id_to_wait_on);
+
+			const SymbolProc::WaitOnResult wait_on_result = [&](){
+				if constexpr(IS_COMPTIME){
+					return symbol_proc_to_wait_on.waitOnDefIfNeeded(
+						this->symbol_proc_id, this->context, id_to_wait_on
+					);
+				}else{
+					return symbol_proc_to_wait_on.waitOnDeclIfNeeded(
+						this->symbol_proc_id, this->context, id_to_wait_on
+					);
+				}
+			}();
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NotNeeded: {
+					// TODO: better way of doing this
+					return this->lookup_ident_impl<IS_COMPTIME, IS_EXPR>(ident);
+				} break;
+				case SymbolProc::WaitOnResult::Waiting: {
+					// do nothing...
+				} break;
+				case SymbolProc::WaitOnResult::WasErrored: {
+					const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+					this->symbol_proc.errored = true;
+					return evo::Unexpected(Result::Error);
+				} break;
+				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: {
+					found_was_passed_by_when_cond = true;
+				} break;
+				case SymbolProc::WaitOnResult::CircularDepDetected: {
+					const auto lock = std::scoped_lock(this->symbol_proc.waiting_lock);
+					this->symbol_proc.errored = true;
+					return evo::Unexpected(Result::Error);
+				} break;
+			}
+		}
+
+		if(this->symbol_proc.waiting_for.empty()){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			if(found_was_passed_by_when_cond){
+				infos.emplace_back(
+					Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
+				);
+			}
+
+			this->emit_error(
+				Diagnostic::Code::SemaIdentNotInScope,
+				ident,
+				std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+				std::move(infos)
+			);
+			return evo::Unexpected(Result::Error);
+
+		}else{
+			return evo::Unexpected(Result::NeedToWait);
+		}	
+	}
+
+
+
+
+	template<bool IS_EXPR>
 	auto SemanticAnalyzer::analyze_expr_ident_in_scope_level(
 		const Token::ID& ident,
 		std::string_view ident_str,
@@ -1207,18 +1423,29 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Alias::ID>()){
-				this->emit_error(
-					Diagnostic::Code::SemaTypeUsedAsExpr,
-					ident,
-					"Type alias cannot be used as an expression"
-				);
-				return evo::resultError;
+				if constexpr(IS_EXPR){
+					this->emit_error(
+						Diagnostic::Code::SemaTypeUsedAsExpr,
+						ident,
+						"Type alias cannot be used as an expression"
+					);
+					return evo::resultError;
+				}else{
+					return std::optional<ExprInfo>(
+						ExprInfo(
+							ExprInfo::ValueCategory::Type,
+							ExprInfo::ValueStage::Comptime,
+							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id))),
+							std::nullopt
+						)
+					);
+				}
 
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Typedef::ID>()){
 				this->emit_error(
-					Diagnostic::Code::SemaTypeUsedAsExpr,
+					Diagnostic::Code::MiscUnimplementedFeature,
 					ident,
-					"Typedef cannot be used as an expression"
+					"Using typedefs is currently unimplemented"
 				);
 				return evo::resultError;
 
@@ -1315,7 +1542,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::propagate_finished_impl(const evo::SmallVector<SymbolProc::ID>& waited_on_by_list) -> void {
 		for(const SymbolProc::ID& waited_on_id : waited_on_by_list){
 			SymbolProc& waited_on = this->context.symbol_proc_manager.getSymbolProc(waited_on_id);
-			const auto lock = std::scoped_lock(waited_on.waiting_lock); // needed?
+			const auto lock = std::scoped_lock(waited_on.waiting_lock);
 
 			for(size_t i = 0; i < waited_on.waiting_for.size(); i+=1){
 				if(waited_on.waiting_for[i] == this->symbol_proc_id){
@@ -1406,6 +1633,22 @@ namespace pcit::panther{
 			"first character of expected_type_location_name should be upper-case"
 		);
 
+		TypeInfo::ID actual_expected_type_id = expected_type_id;
+		// TODO: improve perf
+		while(true){
+			const TypeInfo& actual_expected_type = this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
+			if(actual_expected_type.qualifiers().empty() == false){ break; }
+			if(actual_expected_type.baseTypeID().kind() != BaseType::Kind::Alias){ break; }
+
+			const BaseType::Alias& expected_alias = this->context.getTypeManager().getAlias(
+				actual_expected_type.baseTypeID().aliasID()
+			);
+
+			evo::debugAssert(expected_alias.aliasedType.isVoid() == false, "should have been checked already");
+
+			actual_expected_type_id = expected_alias.aliasedType.asTypeID();
+		}
+
 		switch(got_expr.value_category){
 			case ExprInfo::ValueCategory::Ephemeral:
 			case ExprInfo::ValueCategory::ConcreteConst:
@@ -1426,8 +1669,9 @@ namespace pcit::panther{
 
 				const TypeInfo::ID got_type_id = got_expr.type_id.as<TypeInfo::ID>();
 
-				if(expected_type_id != got_type_id){ // if types are not exact, check if implicit conversion is valid
-					const TypeInfo& expected_type = this->context.getTypeManager().getTypeInfo(expected_type_id);
+				// if types are not exact, check if implicit conversion is valid
+				if(actual_expected_type_id != got_type_id){
+					const TypeInfo& expected_type = this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
 					const TypeInfo& got_type      = this->context.getTypeManager().getTypeInfo(got_type_id);
 
 					if(
@@ -1546,33 +1790,43 @@ namespace pcit::panther{
 							}
 						}
 
-						const core::GenericInt target_min = type_manager.getMin(expected_type_info.baseTypeID())
-							.as<core::GenericInt>().extOrTrunc(int_value.value.getBitWidth(), is_unsigned);
+						core::GenericInt target_min = type_manager.getMin(expected_type_info.baseTypeID())
+							.as<core::GenericInt>();
 
-						const core::GenericInt target_max = type_manager.getMax(expected_type_info.baseTypeID())
-							.as<core::GenericInt>().extOrTrunc(int_value.value.getBitWidth(), is_unsigned);
+						core::GenericInt target_max = type_manager.getMax(expected_type_info.baseTypeID())
+							.as<core::GenericInt>();
 
-						if(is_unsigned){
-							if(int_value.value.ult(target_min) || int_value.value.ugt(target_max)){
-								this->emit_error(
-									Diagnostic::Code::SemaCannotConvertFluidValue,
-									location,
-									"Cannot implicitly convert this fluid value to the target type",
-									Diagnostic::Info("Requires truncation (maybe use [as] operator)")
-								);
-								return TypeCheckInfo(false, false);
+						if(int_value.value.getBitWidth() >= target_min.getBitWidth()){
+							target_min = target_min.ext(int_value.value.getBitWidth(), is_unsigned);
+							target_max = target_max.ext(int_value.value.getBitWidth(), is_unsigned);
+
+							if(is_unsigned){
+								if(int_value.value.ult(target_min) || int_value.value.ugt(target_max)){
+									this->emit_error(
+										Diagnostic::Code::SemaCannotConvertFluidValue,
+										location,
+										"Cannot implicitly convert this fluid value to the target type",
+										Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+									);
+									return TypeCheckInfo(false, false);
+								}
+							}else{
+								if(int_value.value.slt(target_min) || int_value.value.sgt(target_max)){
+									this->emit_error(
+										Diagnostic::Code::SemaCannotConvertFluidValue,
+										location,
+										"Cannot implicitly convert this fluid value to the target type",
+										Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+									);
+									return TypeCheckInfo(false, false);
+								}
 							}
+
 						}else{
-							if(int_value.value.slt(target_min) || int_value.value.sgt(target_max)){
-								this->emit_error(
-									Diagnostic::Code::SemaCannotConvertFluidValue,
-									location,
-									"Cannot implicitly convert this fluid value to the target type",
-									Diagnostic::Info("Requires truncation (maybe use [as] operator)")
-								);
-								return TypeCheckInfo(false, false);
-							}
+							int_value.value = int_value.value.ext(target_min.getBitWidth(), is_unsigned);
+
 						}
+
 
 						int_value.typeID = this->context.getTypeManager().getTypeInfo(expected_type_id).baseTypeID();
 					}
@@ -1689,6 +1943,33 @@ namespace pcit::panther{
 			expected_type_str + 
 			this->context.getTypeManager().printType(expected_type_id, this->context.getSourceManager())
 		);
+
+		TypeInfo::ID actual_expected_type_id = expected_type_id;
+		// TODO: improve perf
+		while(true){
+			const TypeInfo& actual_expected_type = this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
+			if(actual_expected_type.qualifiers().empty() == false){ break; }
+			if(actual_expected_type.baseTypeID().kind() != BaseType::Kind::Alias){ break; }
+
+			const BaseType::Alias& expected_alias = this->context.getTypeManager().getAlias(
+				actual_expected_type.baseTypeID().aliasID()
+			);
+
+			evo::debugAssert(expected_alias.aliasedType.isVoid() == false, "should have been checked already");
+			actual_expected_type_id = expected_alias.aliasedType.asTypeID();
+
+			auto alias_of_str = std::string("\\-> Alias of: ");
+			while(alias_of_str.size() < got_type_str.size()){
+				alias_of_str += ' ';
+			}
+
+			infos.emplace_back(
+				alias_of_str + 
+				this->context.getTypeManager().printType(actual_expected_type_id, this->context.getSourceManager())
+			);
+		}
+
+
 		infos.emplace_back(got_type_str + this->print_type(got_expr));
 
 		this->emit_error(

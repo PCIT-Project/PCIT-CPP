@@ -36,6 +36,7 @@ namespace pcit::panther{
 			Intrinsic,
 			TemplateIntrinsic, // uninstantiated
 			Template, // uninstantiated
+			Type,
 		};
 
 		enum class ValueStage{
@@ -52,7 +53,7 @@ namespace pcit::panther{
 			InitializerType,                // Initializer
 			FluidType,                      // EphemeralFluid
 			TypeInfo::ID,                   // ConcreteConst|ConcreateMut|ConcreteConstForwardable
-						                    //   |ConcreteConstDestrMovable|Ephemeral|Function|Intrinsic
+						                    //   |ConcreteConstDestrMovable|Ephemeral|Function|Intrinsic|Type
 			evo::SmallVector<TypeInfo::ID>, // Ephemeral
 			SourceID                        // Module
 			// TODO: Template
@@ -93,7 +94,9 @@ namespace pcit::panther{
 
 		ExprInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, std::nullopt_t)
 			: value_category(vc), value_stage(vs), type_id(std::move(_type_id)), exprs() {
-			evo::debugAssert(this->value_category == ValueCategory::Module);
+			evo::debugAssert(
+				this->value_category == ValueCategory::Module || this->value_category == ValueCategory::Type
+			);
 			evo::debugAssert(this->value_stage == ValueStage::Comptime);
 		}
 

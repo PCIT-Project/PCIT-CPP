@@ -129,7 +129,8 @@ namespace pcit::panther{
 				case BaseType::Kind::Alias: {
 					const BaseType::Alias::ID alias_id = type_info.baseTypeID().aliasID();
 					const BaseType::Alias& alias = this->getAlias(alias_id);
-					return this->printType(alias.aliasedType, source_manager);
+
+					return std::string(source_manager[alias.sourceID].getTokenBuffer()[alias.identTokenID].getString());
 				} break;
 
 				case BaseType::Kind::Typedef: {

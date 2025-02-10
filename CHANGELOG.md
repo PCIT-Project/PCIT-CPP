@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.84.0"></a>
+## v0.0.84.0
+
+### Panther
+- Added aliases
+- Added checking that module variables are `def`
+- Fixed `def variables` not being type checked
+- Fixed implicit conversion of fluid integral checking for integral types > 256
+
+
+<!---------------------------------->
 <a name="v0.0.83.2"></a>
 ## v0.0.83.2
 

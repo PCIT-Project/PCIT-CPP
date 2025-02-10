@@ -108,6 +108,7 @@ namespace pcit::panther{
 			SemaNoSymbolInModuleWithThatIdent,
 			SemaSymbolNotPub,
 			SemaFailedToImportModule,
+			SemaModuleVarMustBeDef,
 
 			// attributes
 			SemaAttributeAlreadySet,
@@ -187,9 +188,13 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::AttributeBlock::Attribute& attr, const class Source& src)
 					-> Location;
 
-				// sema
+				// sema / types
 				EVO_NODISCARD static auto get(
 					const sema::Var::ID& sema_var_id, const class Source& src, const class Context& context
+				) -> Location;
+
+				EVO_NODISCARD static auto get(
+					const BaseType::Alias::ID& alias_id, const class Source& src, const class Context& context
 				) -> Location;
 		
 			private:
@@ -204,15 +209,15 @@ namespace pcit::panther{
 			std::vector<Info> sub_infos;
 
 			Info(std::string&& _message) : message(std::move(_message)), location(), sub_infos() {
-				_debug_analyze_message(this->message);
+				// _debug_analyze_message(this->message);
 			}
 			Info(std::string&& _message, Location loc) 
 				: message(std::move(_message)), location(loc), sub_infos() {
-				_debug_analyze_message(this->message);
+				// _debug_analyze_message(this->message);
 			}
 			Info(std::string&& _message, Location loc, std::vector<Info>&& _sub_infos)
 				: message(std::move(_message)), location(loc), sub_infos(std::move(_sub_infos)) {
-				_debug_analyze_message(this->message);
+				// _debug_analyze_message(this->message);
 			}
 
 			Info(const Info& rhs) : message(rhs.message), location(rhs.location), sub_infos(rhs.sub_infos) {}
@@ -373,6 +378,7 @@ namespace pcit::panther{
 				case Code::SemaNoSymbolInModuleWithThatIdent:
 				case Code::SemaSymbolNotPub:
 				case Code::SemaFailedToImportModule:
+				case Code::SemaModuleVarMustBeDef:
 				case Code::SemaAttributeAlreadySet:
 				case Code::SemaUnknownAttribute:
 				case Code::SemaAttributeImplictSet:
