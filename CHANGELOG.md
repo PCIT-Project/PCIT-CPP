@@ -1,5 +1,12 @@
 # Change Log
 
+<!---------------------------------->
+<a name="v0.0.85.0"></a>
+## v0.0.85.0
+
+### Panther
+- Added semantic analysis of initializer values
+
 
 <!---------------------------------->
 <a name="v0.0.84.1"></a>

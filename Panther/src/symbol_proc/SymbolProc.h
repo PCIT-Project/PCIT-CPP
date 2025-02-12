@@ -104,18 +104,18 @@ namespace pcit::panther{
 		//////////////////
 		// globals
 
-		struct GlobalVarDecl{
+		struct VarDecl{
 			const AST::VarDecl& var_decl;
 			AttributeExprs attribute_exprs;
 			SymbolProcTypeID type_id;
 		};
 
-		struct GlobalVarDef{
+		struct VarDef{
 			const AST::VarDecl& var_decl;
 			SymbolProcExprInfoID value_id;
 		};
 
-		struct GlobalVarDeclDef{
+		struct VarDeclDef{
 			const AST::VarDecl& var_decl;
 			AttributeExprs attribute_exprs;
 			std::optional<SymbolProcTypeID> type_id;
@@ -123,18 +123,18 @@ namespace pcit::panther{
 		};
 
 
-		struct GlobalWhenCond{
+		struct WhenCond{
 			const AST::WhenConditional& when_cond;
 			SymbolProcExprInfoID cond;
 		};
 
 
-		struct GlobalAliasDecl{
+		struct AliasDecl{
 			const AST::AliasDecl& alias_decl;
 			AttributeExprs attribute_exprs;
 		};
 
-		struct GlobalAliasDef{
+		struct AliasDef{
 			const AST::AliasDecl& alias_decl;
 			SymbolProcTypeID aliased_type;
 		};
@@ -226,6 +226,16 @@ namespace pcit::panther{
 			SymbolProcExprInfoID output;
 		};
 
+		struct Uninit{
+			Token::ID uninit_token;
+			SymbolProcExprInfoID output;
+		};
+
+		struct Zeroinit{
+			Token::ID zeroinit_token;
+			SymbolProcExprInfoID output;
+		};
+
 
 		//////////////////
 		// instruction impl
@@ -239,12 +249,12 @@ namespace pcit::panther{
 		EVO_NODISCARD auto as() const -> const T& { return this->inst.as<T>(); }
 
 		evo::Variant<
-			GlobalWhenCond,
-			GlobalVarDecl,
-			GlobalVarDef,
-			GlobalVarDeclDef,
-			GlobalAliasDecl,
-			GlobalAliasDef,
+			WhenCond,
+			VarDecl,
+			VarDef,
+			VarDeclDef,
+			AliasDecl,
+			AliasDef,
 			FuncCall,
 			Import,
 			TypeAccessor,
@@ -256,7 +266,9 @@ namespace pcit::panther{
 			ComptimeIdent,
 			Ident,
 			Intrinsic,
-			Literal
+			Literal,
+			Uninit,
+			Zeroinit
 		> inst;
 	};
 

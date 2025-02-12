@@ -113,14 +113,6 @@ namespace pcit::panther::sema{
 		return true;
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, sema::StructID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		if(this->ids.contains(ident)){ return false; }
-		
-		this->ids.emplace(ident, id);
-		return true;
-	}
 
 	auto ScopeLevel::addIdent(std::string_view ident, sema::ParamID id) -> bool {
 		const auto lock = std::scoped_lock(this->ids_lock);

@@ -95,6 +95,8 @@ namespace pcit::panther{
 			SemaVarTypeVoid,
 			SemaVarWithNoValue,
 			SemaVarDefNotEphemeral,
+			SemaVarInitializerWithoutExplicitType,
+			SemaVarInitializerOnNonVar,
 
 			// exprs
 			SemaTypeUsedAsExpr,
@@ -372,6 +374,8 @@ namespace pcit::panther{
 				case Code::SemaVarTypeVoid:
 				case Code::SemaVarWithNoValue:
 				case Code::SemaVarDefNotEphemeral:
+				case Code::SemaVarInitializerWithoutExplicitType:
+				case Code::SemaVarInitializerOnNonVar:
 				case Code::SemaTypeUsedAsExpr:
 				case Code::SemaMultiReturnIntoSingleValue:
 				case Code::SemaCannotConvertFluidValue:

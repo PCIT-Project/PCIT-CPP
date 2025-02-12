@@ -53,7 +53,6 @@ namespace pcit::panther::sema{
 
 			Var,
 			Func,
-			Struct,
 		};
 
 		static auto createModuleIdent(Token::ID id) -> Expr {
@@ -88,7 +87,6 @@ namespace pcit::panther::sema{
 
 		explicit Expr(VarID id)         : _kind(Kind::Var),             value{.var = id}          {};
 		explicit Expr(FuncID id)        : _kind(Kind::Func),            value{.func = id}         {};
-		explicit Expr(StructID id)      : _kind(Kind::Struct),          value{._struct = id} {};
 
 
 		EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
@@ -179,10 +177,7 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::Func, "not a func");
 			return this->value.func;
 		}
-		EVO_NODISCARD auto structID() const -> StructID {
-			evo::debugAssert(this->kind() == Kind::Struct, "not a struct");
-			return this->value._struct;
-		}
+
 
 		private:
 			Expr(Kind k, Token::ID token) : _kind(k), value{.token = token} {}
@@ -218,7 +213,6 @@ namespace pcit::panther::sema{
 
 				VarID var;
 				FuncID func;
-				StructID _struct;
 			} value;
 
 			friend struct ExprOptInterface;

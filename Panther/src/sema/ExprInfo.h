@@ -127,7 +127,9 @@ namespace pcit::panther{
 		// single value
 
 		EVO_NODISCARD auto isSingleValue() const -> bool {
-			return this->type_id.is<TypeInfo::ID>() || this->type_id.is<FluidType>();
+			return this->type_id.is<TypeInfo::ID>()
+				|| this->type_id.is<FluidType>()
+				|| this->type_id.is<InitializerType>();
 		}
 
 		EVO_NODISCARD auto getExpr() const& -> const sema::Expr& {

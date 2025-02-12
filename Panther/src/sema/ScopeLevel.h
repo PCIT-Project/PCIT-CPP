@@ -36,7 +36,6 @@ namespace pcit::panther::sema{
 			using IdentID = evo::Variant<
 				FuncOverloadList,
 				sema::VarID,
-				sema::StructID,
 				sema::ParamID,
 				sema::ReturnParamID,
 				ModuleInfo,
@@ -62,7 +61,6 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::FuncID id) -> bool;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedFuncID id) -> bool;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::VarID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, sema::StructID id) -> bool;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> bool;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ReturnParamID id) -> bool;
 			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub) -> bool;

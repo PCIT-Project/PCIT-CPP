@@ -134,7 +134,7 @@ namespace pcit::panther{
 
 			if(var_decl.kind != AST::VarDecl::Kind::Def){
 				this->add_instruction(
-					SymbolProc::Instruction::GlobalVarDecl(
+					SymbolProc::Instruction::VarDecl(
 						var_decl, std::move(attribute_exprs.value()), type_id_res.value()
 					)
 				);
@@ -156,12 +156,12 @@ namespace pcit::panther{
 
 		if(var_decl.type.has_value() && var_decl.kind != AST::VarDecl::Kind::Def){
 			this->add_instruction(
-				SymbolProc::Instruction::GlobalVarDef(var_decl, value_id.value())
+				SymbolProc::Instruction::VarDef(var_decl, value_id.value())
 			);
 
 		}else{
 			this->add_instruction(
-				SymbolProc::Instruction::GlobalVarDeclDef(
+				SymbolProc::Instruction::VarDeclDef(
 					var_decl, std::move(attribute_exprs.value()), type_id, value_id.value()
 				)
 			);
@@ -207,8 +207,8 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TypeID> aliased_type = this->analyze_type(ast_buffer.getType(alias_decl.type));
 		if(aliased_type.isError()){ return false; }
 
-		this->add_instruction(SymbolProc::Instruction::GlobalAliasDecl(alias_decl, std::move(attribute_exprs.value())));
-		this->add_instruction(SymbolProc::Instruction::GlobalAliasDef(alias_decl, aliased_type.value()));
+		this->add_instruction(SymbolProc::Instruction::AliasDecl(alias_decl, std::move(attribute_exprs.value())));
+		this->add_instruction(SymbolProc::Instruction::AliasDef(alias_decl, aliased_type.value()));
 
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
@@ -276,7 +276,7 @@ namespace pcit::panther{
 		}
 		
 
-		this->add_instruction(SymbolProc::Instruction::GlobalWhenCond(when_conditional, cond_id.value()));
+		this->add_instruction(SymbolProc::Instruction::WhenCond(when_conditional, cond_id.value()));
 
 		this->source.global_symbol_procs.emplace("", this->get_current_symbol().symbol_proc_id);
 
@@ -408,8 +408,8 @@ namespace pcit::panther{
 			case AST::Kind::Ident:         return this->analyze_expr_ident<IS_COMPTIME>(expr);
 			case AST::Kind::Intrinsic:     return this->analyze_expr_intrinsic(expr);
 			case AST::Kind::Literal:       return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
-			case AST::Kind::Uninit:        return this->analyze_expr_uninit(expr);
-			case AST::Kind::Zeroinit:      return this->analyze_expr_zeroinit(expr);
+			case AST::Kind::Uninit:        return this->analyze_expr_uninit(ast_buffer.getUninit(expr));
+			case AST::Kind::Zeroinit:      return this->analyze_expr_zeroinit(ast_buffer.getZeroinit(expr));
 			case AST::Kind::This:          return this->analyze_expr_this(expr);
 
 			case AST::Kind::VarDecl:     case AST::Kind::FuncDecl:        case AST::Kind::AliasDecl:
@@ -583,18 +583,17 @@ namespace pcit::panther{
 		return new_expr_info_id;
 	}
 
-	auto SymbolProcBuilder::analyze_expr_uninit(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of uninit is unimplemented"
-		);
-		return evo::resultError;
+	auto SymbolProcBuilder::analyze_expr_uninit(const Token::ID& uninit_token) -> evo::Result<SymbolProc::ExprInfoID> {
+		const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
+		this->add_instruction(SymbolProc::Instruction::Uninit(uninit_token, new_expr_info_id));
+		return new_expr_info_id;
 	}
 
-	auto SymbolProcBuilder::analyze_expr_zeroinit(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of zeroinit is unimplemented"
-		);
-		return evo::resultError;
+	auto SymbolProcBuilder::analyze_expr_zeroinit(const Token::ID& zeroinit_token)
+	-> evo::Result<SymbolProc::ExprInfoID> {
+		const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
+		this->add_instruction(SymbolProc::Instruction::Zeroinit(zeroinit_token, new_expr_info_id));
+		return new_expr_info_id;
 	}
 
 	auto SymbolProcBuilder::analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {

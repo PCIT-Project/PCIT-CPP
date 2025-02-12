@@ -315,9 +315,4 @@ namespace pcit::panther::sema{
 	};
 
 
-	struct Struct{
-		using ID = StructID;
-	};
-
-
 }

@@ -130,10 +130,6 @@ namespace pcit::panther::sema{
 	struct ReturnParamID : public core::UniqueID<uint32_t, struct ReturnParamID> {
 		using core::UniqueID<uint32_t, ReturnParamID>::UniqueID;
 	};
-
-	struct StructID : public core::UniqueID<uint32_t, struct StructID> {
-		using core::UniqueID<uint32_t, StructID>::UniqueID;
-	};
-
+	
 }
 

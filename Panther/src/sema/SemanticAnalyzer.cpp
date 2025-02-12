@@ -213,23 +213,23 @@ namespace pcit::panther{
 			using InstrType = std::decay_t<decltype(instr)>;
 
 
-			if constexpr(std::is_same<InstrType, Instruction::GlobalVarDecl>()){
-				return this->instr_global_var_decl(instr);
+			if constexpr(std::is_same<InstrType, Instruction::VarDecl>()){
+				return this->instr_var_decl(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDef>()){
-				return this->instr_global_var_def(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::VarDef>()){
+				return this->instr_var_def(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDeclDef>()){
-				return this->instr_global_var_decl_def(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::VarDeclDef>()){
+				return this->instr_var_decl_def(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalWhenCond>()){
-				return this->instr_global_when_cond(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::WhenCond>()){
+				return this->instr_when_cond(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalAliasDecl>()){
-				return this->instr_global_alias_decl(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::AliasDecl>()){
+				return this->instr_alias_decl(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalAliasDef>()){
-				return this->instr_global_alias_def(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::AliasDef>()){
+				return this->instr_alias_def(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
 				return this->instr_func_call(instr);
@@ -267,6 +267,12 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Literal>()){
 				return this->instr_literal(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::Uninit>()){
+				return this->instr_uninit(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Zeroinit>()){
+				return this->instr_zeroinit(instr);
+
 			}else{
 				static_assert(false, "Unsupported instruction type");
 			}
@@ -275,7 +281,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result {
+	auto SemanticAnalyzer::instr_var_decl(const Instruction::VarDecl& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_global_var_decl: {}", var_ident); });
@@ -312,32 +318,45 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result {
+	auto SemanticAnalyzer::instr_var_def(const Instruction::VarDef& instr) -> Result {
 		sema::Var& sema_var = this->context.sema_buffer.vars[
 			this->symbol_proc.extra_info.as<SymbolProc::VarInfo>().sema_var_id
 		];
 
 		ExprInfo& value_expr_info = this->get_expr_info(instr.value_id);
-		if(value_expr_info.is_ephemeral() == false){
-			if(value_expr_info.value_category == ExprInfo::ValueCategory::Module){
-				this->error_type_mismatch(
-					*sema_var.typeID, value_expr_info, "Variable definition", *instr.var_decl.value
+
+		if(value_expr_info.value_category == ExprInfo::ValueCategory::Initializer){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::Var){
+				this->emit_error(
+					Diagnostic::Code::SemaVarInitializerOnNonVar,
+					instr.var_decl,
+					"Only `var` variables can be defined with an initializer value"
 				);
 				return Result::Error;
 			}
 
-			this->emit_error(
-				Diagnostic::Code::SemaVarDefNotEphemeral,
-				*instr.var_decl.value,
-				"Cannot define a variable with a non-ephemeral value"
-			);
-			return Result::Error;
-		}
-		
-		if(this->type_check<true>(
-			*sema_var.typeID, value_expr_info, "Variable definition", *instr.var_decl.value
-		).ok == false){
-			return Result::Error;
+		}else{
+			if(value_expr_info.is_ephemeral() == false){
+				if(value_expr_info.value_category == ExprInfo::ValueCategory::Module){
+					this->error_type_mismatch(
+						*sema_var.typeID, value_expr_info, "Variable definition", *instr.var_decl.value
+					);
+					return Result::Error;
+				}
+
+				this->emit_error(
+					Diagnostic::Code::SemaVarDefNotEphemeral,
+					*instr.var_decl.value,
+					"Cannot define a variable with a non-ephemeral value"
+				);
+				return Result::Error;
+			}
+			
+			if(this->type_check<true>(
+				*sema_var.typeID, value_expr_info, "Variable definition", *instr.var_decl.value
+			).ok == false){
+				return Result::Error;
+			}
 		}
 
 		sema_var.expr = value_expr_info.getExpr();
@@ -347,7 +366,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result {
+	auto SemanticAnalyzer::instr_var_decl_def(const Instruction::VarDeclDef& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_global_var_decl_def: {}", var_ident); });
@@ -379,6 +398,24 @@ namespace pcit::panther{
 			return is_redef ? Result::Error : Result::Success;
 		}
 
+
+		if(value_expr_info.value_category == ExprInfo::ValueCategory::Initializer){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::Var){
+				this->emit_error(
+					Diagnostic::Code::SemaVarInitializerOnNonVar,
+					instr.var_decl,
+					"Only `var` variables can be defined with an initializer value"
+				);
+				return Result::Error;
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SemaVarInitializerWithoutExplicitType,
+					*instr.var_decl.value,
+					"Cannot define a variable with an initializer value without an explicit type"
+				);
+				return Result::Error;
+			}
+		}
 
 		if(value_expr_info.is_ephemeral() == false){
 			this->emit_error(
@@ -439,7 +476,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_global_when_cond(const Instruction::GlobalWhenCond& instr) -> Result {
+	auto SemanticAnalyzer::instr_when_cond(const Instruction::WhenCond& instr) -> Result {
 		ExprInfo cond_expr_info = this->get_expr_info(instr.cond);
 
 		if(this->type_check<true>(
@@ -532,7 +569,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_global_alias_decl(const Instruction::GlobalAliasDecl& instr) -> Result {
+	auto SemanticAnalyzer::instr_alias_decl(const Instruction::AliasDecl& instr) -> Result {
 
 		///////////////////////////////////
 		// attributes
@@ -611,7 +648,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_global_alias_def(const Instruction::GlobalAliasDef& instr) -> Result {
+	auto SemanticAnalyzer::instr_alias_def(const Instruction::AliasDef& instr) -> Result {
 		BaseType::Alias& alias_info = this->context.type_manager.aliases[
 			this->symbol_proc.extra_info.as<SymbolProc::AliasInfo>().alias_id
 		];
@@ -824,14 +861,6 @@ namespace pcit::panther{
 						}
 
 						return Result::Success;
-
-					}else if constexpr(std::is_same<IdentIDType, sema::StructID>()){
-						this->emit_error(
-							Diagnostic::Code::SemaTypeUsedAsExpr,
-							rhs_ident,
-							"struct cannot be used as an expression"
-						);
-						return Result::Error;
 
 					}else if constexpr(std::is_same<IdentIDType, sema::ParamID>()){
 						this->emit_error(
@@ -1256,6 +1285,27 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_uninit(const Instruction::Uninit& instr) -> Result {
+		this->return_expr_info(instr.output,
+			ExprInfo::ValueCategory::Initializer,
+			ExprInfo::ValueStage::Comptime,
+			ExprInfo::InitializerType(),
+			sema::Expr(this->context.sema_buffer.createUninit(instr.uninit_token))
+		);
+		return Result::Success;
+	}
+
+	auto SemanticAnalyzer::instr_zeroinit(const Instruction::Zeroinit& instr) -> Result {
+		this->return_expr_info(instr.output,
+			ExprInfo::ValueCategory::Initializer,
+			ExprInfo::ValueStage::Comptime,
+			ExprInfo::InitializerType(),
+			sema::Expr(this->context.sema_buffer.createZeroinit(instr.zeroinit_token))
+		);
+		return Result::Success;
+	}
+
+
 
 	///////////////////////////////////
 	// misc
@@ -1454,14 +1504,6 @@ namespace pcit::panther{
 				}
 
 				evo::debugFatalBreak("Unknown or unsupported AST::VarDecl::Kind");
-
-			}else if constexpr(std::is_same<IdentIDType, sema::StructID>()){
-				this->emit_error(
-					Diagnostic::Code::SemaTypeUsedAsExpr,
-					ident,
-					"struct cannot be used as an expression"
-				);
-				return evo::resultError;
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ParamID>()){
 				this->emit_error(

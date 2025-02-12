@@ -46,12 +46,12 @@ namespace pcit::panther{
 
 			auto analyze_instr(const Instruction& instruction) -> Result;
 
-			EVO_NODISCARD auto instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result;
-			EVO_NODISCARD auto instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result;
-			EVO_NODISCARD auto instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result;
-			EVO_NODISCARD auto instr_global_when_cond(const Instruction::GlobalWhenCond& instr) -> Result;
-			EVO_NODISCARD auto instr_global_alias_decl(const Instruction::GlobalAliasDecl& instr) -> Result;
-			EVO_NODISCARD auto instr_global_alias_def(const Instruction::GlobalAliasDef& instr) -> Result;
+			EVO_NODISCARD auto instr_var_decl(const Instruction::VarDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_var_def(const Instruction::VarDef& instr) -> Result;
+			EVO_NODISCARD auto instr_var_decl_def(const Instruction::VarDeclDef& instr) -> Result;
+			EVO_NODISCARD auto instr_when_cond(const Instruction::WhenCond& instr) -> Result;
+			EVO_NODISCARD auto instr_alias_decl(const Instruction::AliasDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_alias_def(const Instruction::AliasDef& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
 
@@ -70,6 +70,8 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_intrinsic(const Instruction::Intrinsic& instr) -> Result;
 			EVO_NODISCARD auto instr_literal(const Instruction::Literal& instr) -> Result;
+			EVO_NODISCARD auto instr_uninit(const Instruction::Uninit& instr) -> Result;
+			EVO_NODISCARD auto instr_zeroinit(const Instruction::Zeroinit& instr) -> Result;
 
 
 			///////////////////////////////////
@@ -193,11 +195,6 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_location(const sema::VarID& var) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(var, this->source, this->context);
-			}
-
-			EVO_NODISCARD auto get_location(const sema::StructID& struct_id) const -> Diagnostic::Location {
-				std::ignore = struct_id;
-				evo::unimplemented();
 			}
 
 			EVO_NODISCARD auto get_location(const sema::ParamID& param) const -> Diagnostic::Location {

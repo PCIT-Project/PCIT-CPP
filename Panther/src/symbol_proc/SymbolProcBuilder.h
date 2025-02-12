@@ -67,8 +67,10 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto analyze_expr_intrinsic(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
 			EVO_NODISCARD auto analyze_expr_literal(const Token::ID& literal) -> evo::Result<SymbolProc::ExprInfoID>;
-			EVO_NODISCARD auto analyze_expr_uninit(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
-			EVO_NODISCARD auto analyze_expr_zeroinit(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_uninit(const Token::ID& uninit_token)
+				-> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_zeroinit(const Token::ID& zeroinit_token)
+				-> evo::Result<SymbolProc::ExprInfoID>;
 			EVO_NODISCARD auto analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
 
 
