@@ -174,5 +174,10 @@ namespace pcit::panther{
 		return Location::get(context.getTypeManager().getAlias(alias_id).identTokenID, src);
 	}
 
+	auto Diagnostic::Location::get(const BaseType::Struct::ID& struct_id, const Source& src, const Context& context)
+	-> Location {
+		return Location::get(context.getTypeManager().getStruct(struct_id).identTokenID, src);
+	}
+
 
 }

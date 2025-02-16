@@ -20,7 +20,9 @@ namespace pcit::panther{
 
 	class SymbolProcBuilder{
 		public:
-			SymbolProcBuilder(Context& _context, Source& _source) : context(_context), source(_source) {}
+			SymbolProcBuilder(Context& _context, Source& _source) : context(_context), source(_source) {
+				this->symbol_namespaces.emplace_back(&this->source.global_symbol_procs);
+			}
 			~SymbolProcBuilder() = default;
 
 			EVO_NODISCARD auto build(const AST::Node& stmt) -> bool;
@@ -145,6 +147,7 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcInfo> symbol_proc_infos{};
 			using SymbolScope = evo::SmallVector<SymbolProc::ID>;
 			evo::SmallVector<SymbolScope*> symbol_scopes{};
+			evo::SmallVector<SymbolProc::Namespace*> symbol_namespaces{};
 	};
 
 

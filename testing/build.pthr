@@ -1,13 +1,22 @@
-
-
-
+// def build2 = @import("build2.pthr");
 
 alias Integer = Int;
-
-def FOO: Int = 12;
-
-def BAR: Integer = FOO;
+alias Integer2 = Integer;
 
 
-var test: Int = uninit;
+type Struct = struct {
+	type Struct = struct {
+		alias Integer = Int;
 
+	// 	type Struct3 = struct {
+
+	// 	}
+	}
+
+	// alias Integer = Int;
+}
+
+
+
+def FOO: Struct.Struct.Integer = 12;
+def BAR: Integer2 = FOO;

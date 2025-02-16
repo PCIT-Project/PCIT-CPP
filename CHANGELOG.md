@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.86.0"></a>
+## v0.0.86.0
+
+### Panther
+- Added struct namespaces
+- Fixed fluid literals not implicitly converting when the expected type was an integral
+- Fixed semantic analysis sometimes deadlocking
+- Fixed 3 race conditions in semantic analysis
+- Fixed type checking when the type of the value is an alias
+
+### PCIT_core
+- Fixed race condition in `ThreadQueue::isWorking()`
+
+
+<!---------------------------------->
 <a name="v0.0.85.0"></a>
 ## v0.0.85.0
 

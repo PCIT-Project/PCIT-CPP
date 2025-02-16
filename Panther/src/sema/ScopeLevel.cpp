@@ -9,6 +9,8 @@
 
 #include "./ScopeLevel.h"
 
+// #include "../../include/TypeManager.h"
+
 
 namespace pcit::panther::sema{
 
@@ -142,7 +144,7 @@ namespace pcit::panther::sema{
 	}
 
 
-	auto ScopeLevel::addIdent(std::string_view ident, BaseType::Alias::ID id) -> bool {
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::AliasID id) -> bool {
 		const auto lock = std::scoped_lock(this->ids_lock);
 
 		if(this->ids.contains(ident)){ return false; }
@@ -151,7 +153,17 @@ namespace pcit::panther::sema{
 		return true;
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, BaseType::Typedef::ID id) -> bool {
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::TypedefID id) -> bool {
+		const auto lock = std::scoped_lock(this->ids_lock);
+
+		if(this->ids.contains(ident)){ return false; }
+		
+		this->ids.emplace(ident, id);
+		return true;
+	}
+
+
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::StructID id) -> bool {
 		const auto lock = std::scoped_lock(this->ids_lock);
 
 		if(this->ids.contains(ident)){ return false; }

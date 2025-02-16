@@ -213,8 +213,41 @@ namespace pcit::panther{
 			setup_tasks(work_manager_inst);
 
 			work_manager_inst.startup(this->_config.numThreads);
-			work_manager_inst.waitUntilDoneWorking(); // probably not needed, but I think the safety is worth it
+			work_manager_inst.waitUntilDoneWorking();
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				for(size_t i = 0; i < 100; i+=1){
+					std::this_thread::yield();
+					evo::debugAssert(work_manager_inst.isWorking() == false, "Thought was done working, was not...");
+				}
+			#endif
+
 			work_manager_inst.shutdown();
+
+			if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
+				this->emitFatal(
+					Diagnostic::Code::MiscStallDetected,
+					Diagnostic::Location::NONE,
+					std::format(
+						"Stall detected while compiling ({}/{} symbols were not completed)",
+						this->symbol_proc_manager.numProcsNotDone(),
+						this->symbol_proc_manager.numProcs()
+					),
+					Diagnostic::Info("This may be caused by the multi-threading during semantic analysis. "
+							"Until a fix is made, try the single-threaded mode as it should be more stable.")
+				);
+
+				#if defined(PCIT_CONFIG_DEBUG)
+					evo::log::debug("Collecting data to look at in the debugger...");
+					auto symbol_proc_list = std::vector<const SymbolProc*>();
+					for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
+						symbol_proc_list.emplace_back(&symbol_proc);
+					}
+					evo::breakpoint();
+				#endif
+
+				return false;
+			}
 
 		}else{
 			auto& work_manager_inst = this->work_manager.emplace<core::SingleThreadedWorkQueue<Task>>(worker);
@@ -222,17 +255,23 @@ namespace pcit::panther{
 			setup_tasks(work_manager_inst);
 
 			work_manager_inst.run();
+
+			if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
+				this->emitFatal(
+					Diagnostic::Code::MiscStallDetected,
+					Diagnostic::Location::NONE,
+					std::format(
+						"Stall detected while compiling ({}/{} symbols were not completed)",
+						this->symbol_proc_manager.numProcsNotDone(),
+						this->symbol_proc_manager.numProcs()
+					),
+					Diagnostic::Info("This may have been caused by an uncaught circular dependency")
+				);
+				return false;
+			}
 		}
 
-		if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
-			this->emitFatal(
-				Diagnostic::Code::MiscStallDetected,
-				Diagnostic::Location::NONE,
-				"Stall detected while compiling",
-				Diagnostic::Info("This may have been caused by an uncaught circular dependency")
-			);
-			return false;
-		}
+		
 
 		return this->num_errors == 0;
 	}

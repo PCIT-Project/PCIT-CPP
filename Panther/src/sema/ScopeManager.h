@@ -14,12 +14,10 @@
 #include <PCIT_core.h>
 
 #include "./ScopeLevel.h"
-
+#include "../../include/base_type_ids.h"
 
 
 namespace pcit::panther::sema{
-
-
 
 
 	class ScopeManager{
@@ -31,7 +29,7 @@ namespace pcit::panther::sema{
 					};
 
 					using FakeObjectScope = std::monostate;
-					using ObjectScope = evo::Variant<FakeObjectScope, sema::Func::ID>;
+					using ObjectScope = evo::Variant<FakeObjectScope, sema::Func::ID, BaseType::Struct::ID>;
 
 				public:
 					Scope() = default;

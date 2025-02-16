@@ -16,8 +16,10 @@
 #include "../../include/source/source_data.h"
 #include "../../include/AST/AST.h"
 #include "../sema/ExprInfo.h"
-// #include "../sema/sema.h"
+#include "./symbol_proc_ids.h"
 #include "../../include/TypeManager.h"
+#include "../sema/ScopeManager.h"
+
 
 namespace pcit::panther{
 
@@ -91,11 +93,6 @@ namespace std{
 
 namespace pcit::panther{
 
-	// For lookup in Context::symbol_proc_manager
-	struct SymbolProcID : public core::UniqueID<uint32_t, struct SymbolProcID> { 
-		using core::UniqueID<uint32_t, SymbolProcID>::UniqueID;
-	};
-
 
 	// TODO: make this data oriented
 	struct SymbolProcInstruction{
@@ -138,6 +135,14 @@ namespace pcit::panther{
 			const AST::AliasDecl& alias_decl;
 			SymbolProcTypeID aliased_type;
 		};
+
+
+		struct StructDecl{
+			const AST::StructDecl& struct_decl;
+			AttributeExprs attribute_exprs;
+		};
+
+		struct StructDef{};
 
 
 		//////////////////
@@ -255,6 +260,8 @@ namespace pcit::panther{
 			VarDeclDef,
 			AliasDecl,
 			AliasDef,
+			StructDecl,
+			StructDef,
 			FuncCall,
 			Import,
 			TypeAccessor,
@@ -316,6 +323,7 @@ namespace pcit::panther{
 			using ExprInfoID = SymbolProcExprInfoID;
 			using TypeID = SymbolProcTypeID;
 
+			using Namespace = SymbolProcNamespace;
 			
 		public:
 			SymbolProc(AST::Node node, SourceID _source_id, std::string_view _ident)
@@ -343,12 +351,16 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto isDeclDone() const -> bool {
-				const auto lock = std::scoped_lock(this->waiting_lock);
+				const auto lock = std::scoped_lock( // TODO: needed to take all of these locks?
+					this->waiting_for_lock, this->decl_waited_on_lock, this->def_waited_on_lock
+				);
 				return this->decl_done;
 			}
 
 			EVO_NODISCARD auto isDefDone() const -> bool {
-				const auto lock = std::scoped_lock(this->waiting_lock);
+				const auto lock = std::scoped_lock( // TODO: needed to take all of these locks?
+					this->waiting_for_lock, this->decl_waited_on_lock, this->def_waited_on_lock
+				);
 				return this->def_done;
 			}
 
@@ -358,8 +370,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
 			EVO_NODISCARD auto getIdent() const -> std::string_view { return this->ident; }
 
-			// TODO: needs to take lock?
-			EVO_NODISCARD auto isWaiting() const -> bool { return this->waiting_for.empty() == false; };
+			EVO_NODISCARD auto isWaiting() const -> bool {
+				const auto lock = std::scoped_lock(this->waiting_for_lock);
+				return this->waiting_for.empty() == false;
+			};
 
 
 			enum class WaitOnResult{
@@ -388,11 +402,15 @@ namespace pcit::panther{
 			std::vector<std::optional<ExprInfo>> expr_infos{};
 			std::vector<std::optional<TypeInfo::VoidableID>> type_ids{};
 
-			mutable core::SpinLock waiting_lock{};
 
 			evo::SmallVector<ID> waiting_for{};
+			mutable core::SpinLock waiting_for_lock{};
+
 			evo::SmallVector<ID> decl_waited_on_by{};
+			mutable core::SpinLock decl_waited_on_lock{};
+
 			evo::SmallVector<ID> def_waited_on_by{};
+			mutable core::SpinLock def_waited_on_lock{};
 
 
 			struct VarInfo{
@@ -408,15 +426,23 @@ namespace pcit::panther{
 				BaseType::Alias::ID alias_id;
 			};
 
+			struct StructInfo{
+				evo::SmallVector<SymbolProcID> stmts;
+				Namespace member_symbols;
+				BaseType::Struct::ID struct_id = BaseType::Struct::ID::dummy();
+			};
 
-			evo::Variant<std::monostate, VarInfo, WhenCondInfo, AliasInfo> extra_info{};
+
+			evo::Variant<std::monostate, VarInfo, WhenCondInfo, AliasInfo, StructInfo> extra_info{};
+
+			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
 
 
 			size_t inst_index = 0;
 			bool decl_done = false;
 			bool def_done = false;
-			bool passed_on_by_when_cond = false;
-			bool errored = false;
+			std::atomic<bool> passed_on_by_when_cond = false;
+			std::atomic<bool> errored = false;
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

@@ -12,7 +12,7 @@
 #include <Evo.h>
 
 #include "../source/source_data.h"
-#include "../TypeManager.h"
+#include "../../include/base_type_ids.h"
 #include "../../include/sema/Stmt.h"
 
 namespace pcit::panther::sema{
@@ -39,8 +39,9 @@ namespace pcit::panther::sema{
 				sema::ParamID,
 				sema::ReturnParamID,
 				ModuleInfo,
-				BaseType::Alias::ID,
-				BaseType::Typedef::ID
+				BaseType::AliasID,
+				BaseType::TypedefID,
+				BaseType::StructID
 			>;
 
 		public:
@@ -64,8 +65,9 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> bool;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ReturnParamID id) -> bool;
 			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::Alias::ID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::Typedef::ID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::AliasID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::TypedefID id) -> bool;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::StructID id) -> bool;
 
 			EVO_NODISCARD auto lookupIdent(std::string_view ident) const -> const IdentID*;
 	

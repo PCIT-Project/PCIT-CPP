@@ -68,20 +68,17 @@ namespace pcit::core{
 
 
 			auto addTask(TASK&& task) -> void {
-				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
-				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.add_tasks_lock, this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::move(task));
 			}
 
 			auto addTask(const TASK& task) -> void {
-				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
-				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.add_tasks_lock, this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(task);
 			}
 
 			auto addTask(auto&&... args) -> void {
-				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
-				const auto task_lock = std::lock_guard(this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.add_tasks_lock, this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::forward<decltype(args)>(args)...);
 			}
 
@@ -90,7 +87,7 @@ namespace pcit::core{
 					if(worker.is_working()){ return true; }
 				}
 
-				const auto add_lock = std::lock_guard(this->priv.add_tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.add_tasks_lock, this->priv.tasks_lock);
 
 				for(const Worker& worker : this->priv.workers){
 					if(worker.is_working()){ return true; }
@@ -170,7 +167,7 @@ namespace pcit::core{
 			auto get_task() -> std::optional<TASK> {
 				if(this->priv.tasks.empty()){ return std::nullopt; }
 
-				const auto lock = std::lock_guard(this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
 				if(this->priv.tasks.empty()){ return std::nullopt; }
 
 				const TASK task = this->priv.tasks.back();
@@ -180,7 +177,7 @@ namespace pcit::core{
 
 
 			auto signal_task_failed() -> void {
-				const auto lock = std::lock_guard(this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
 
 				this->priv.tasks.clear();
 				this->priv.task_failed = true;

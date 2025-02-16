@@ -26,7 +26,14 @@ namespace pcit::panther{
 			-> SemanticAnalyzer {
 				SymbolProc& symbol_proc = context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
 				Source& source = context.getSourceManager()[symbol_proc.getSourceID()];
-				sema::ScopeManager::Scope& scope = context.sema_buffer.scope_manager.getScope(*source.sema_scope_id);
+
+				if(symbol_proc.sema_scope_id.has_value() == false){
+					symbol_proc.sema_scope_id = context.sema_buffer.scope_manager.copyScope(*source.sema_scope_id);
+				}
+
+				sema::ScopeManager::Scope& scope = context.sema_buffer.scope_manager.getScope(
+					*symbol_proc.sema_scope_id
+				);
 
 				return SemanticAnalyzer(context, source, symbol_proc_id, symbol_proc, scope);
 			}
@@ -40,7 +47,11 @@ namespace pcit::panther{
 				Success,
 				Error,
 				NeedToWait,
+				NeedToWaitBeforeNextInstr,
 			};
+
+			///////////////////////////////////
+			// instructions
 
 			using Instruction = SymbolProc::Instruction;
 
@@ -52,6 +63,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_when_cond(const Instruction::WhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_alias_decl(const Instruction::AliasDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_alias_def(const Instruction::AliasDef& instr) -> Result;
+			EVO_NODISCARD auto instr_struct_decl(const Instruction::StructDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_struct_def() -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
 
@@ -75,25 +88,44 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// misc
+			// scope
 
 			EVO_NODISCARD auto get_current_scope_level() const -> sema::ScopeLevel&;
+			EVO_NODISCARD auto push_scope_level(const auto& object_scope_id) -> void;
+			EVO_NODISCARD auto push_scope_level() -> void;
+			EVO_NODISCARD auto pop_scope_level() -> void;
+
+
+			///////////////////////////////////
+			// misc
 
 			template<bool NEEDS_DEF, bool IS_EXPR>
 			EVO_NODISCARD auto lookup_ident_impl(Token::ID ident) -> evo::Expected<ExprInfo, Result>;
 
-
-			template<bool NEEDS_DEF, bool IS_EXPR>
+			template<bool NEEDS_DEF, bool IS_EXPR, bool PUB_REQUIRED>
 			EVO_NODISCARD auto analyze_expr_ident_in_scope_level(
 				const Token::ID& ident,
 				std::string_view ident_str,
-				sema::ScopeLevel::ID scope_level_id,
+				const sema::ScopeLevel& scope_level,
 				bool variables_in_scope,
-				bool is_global_scope
-			) -> evo::Result<std::optional<ExprInfo>>;
+				bool is_global_scope,
+				const Source* source_module
+			) -> evo::Result<std::optional<ExprInfo>>; // returning nullopt means that it needs to be waited on
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto wait_on_symbol_proc(
+				const SymbolProc::Namespace& symbol_proc_namespace,
+				const auto& ident,
+				std::string_view ident_str,
+				std::string&& error_msg_if_ident_doesnt_exist,
+				std::function<Result()> func_if_def_completed
+			) -> Result;
 
 
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
+
+			template<bool ALLOW_TYPEDEF>
+			EVO_NODISCARD auto get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID;
 
 
 			struct VarAttrs{
@@ -102,6 +134,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_var_attrs(
 				const AST::VarDecl& var_decl, const SymbolProc::Instruction::AttributeExprs& attribute_exprs
 			) -> evo::Result<VarAttrs>;
+
+
+			///////////////////////////////////
+			// propogate finished
 
 			auto propagate_finished_impl(const evo::SmallVector<SymbolProc::ID>& waited_on_by_list) -> void;
 			auto propagate_finished_decl() -> void;
@@ -216,6 +252,11 @@ namespace pcit::panther{
 				std::ignore = typedef_id;
 				evo::unimplemented();
 			}
+
+			EVO_NODISCARD auto get_location(const BaseType::Struct::ID& struct_id) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(struct_id, this->source, this->context);
+			}
+
 
 			EVO_NODISCARD auto get_location(const auto& node) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(node, this->source);

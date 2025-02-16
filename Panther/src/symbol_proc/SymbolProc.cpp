@@ -27,17 +27,22 @@ namespace pcit::panther{
 
 	EVO_NODISCARD auto SymbolProc::waitOnDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
-
-		const auto lock = std::scoped_lock(this->waiting_lock);
 		
-		if(this->decl_done){ return WaitOnResult::NotNeeded; }
+		if(this->isDeclDone()){ return WaitOnResult::NotNeeded; }
 		if(this->passed_on_by_when_cond){ return WaitOnResult::WasPassedOnByWhenCond; }
 		if(this->errored){ return WaitOnResult::WasErrored; }
 
 
-		if(this->detect_circular_dependency(id, context) == false){ return  WaitOnResult::CircularDepDetected;; }
+		if(this->detect_circular_dependency(id, context) == false){ return WaitOnResult::CircularDepDetected;; }
+
+		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
+
+		const auto lock = std::scoped_lock(this->def_waited_on_lock, waiting_symbol.waiting_for_lock);
+
+		if(this->decl_done){ return WaitOnResult::NotNeeded; }
+
 		this->decl_waited_on_by.emplace_back(id);
-		context.symbol_proc_manager.getSymbolProc(id).waiting_for.emplace_back(self_id);
+		waiting_symbol.waiting_for.emplace_back(self_id);
 
 		return WaitOnResult::Waiting;
 	}
@@ -45,16 +50,21 @@ namespace pcit::panther{
 	EVO_NODISCARD auto SymbolProc::waitOnDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
-		const auto lock = std::scoped_lock(this->waiting_lock);
-		
-		if(this->def_done){ return WaitOnResult::NotNeeded; }
+		if(this->isDefDone()){ return WaitOnResult::NotNeeded; }
 		if(this->passed_on_by_when_cond){ return WaitOnResult::WasPassedOnByWhenCond; }
 		if(this->errored){ return WaitOnResult::WasErrored; }
 
 
 		if(this->detect_circular_dependency(id, context) == false){ return WaitOnResult::CircularDepDetected; }
+
+		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
+
+		const auto lock = std::scoped_lock(this->def_waited_on_lock, waiting_symbol.waiting_for_lock);
+
+		if(this->def_done){ return WaitOnResult::NotNeeded; }
+
 		this->def_waited_on_by.emplace_back(id);
-		context.symbol_proc_manager.getSymbolProc(id).waiting_for.emplace_back(self_id);
+		waiting_symbol.waiting_for.emplace_back(self_id);
 
 		return WaitOnResult::Waiting;
 	}
@@ -64,6 +74,7 @@ namespace pcit::panther{
 		auto visited_queue = std::queue<ID>();
 
 		{
+			const auto lock = std::scoped_lock(this->waiting_for_lock);
 			for(const ID& waited_for_id : this->waiting_for){
 				visited_queue.push(waited_for_id);
 			}
@@ -90,7 +101,7 @@ namespace pcit::panther{
 
 
 			{
-				const auto lock = std::scoped_lock(visited.waiting_lock);
+				const auto lock = std::scoped_lock(visited.waiting_for_lock);
 				for(const ID& waited_for_id : visited.waiting_for){
 					visited_queue.push(waited_for_id);
 				}

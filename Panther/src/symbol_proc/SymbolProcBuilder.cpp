@@ -49,6 +49,8 @@ namespace pcit::panther{
 
 		this->symbol_proc_infos.pop_back();
 
+		this->context.trace("Finished building symbol proc of \"{}\"", symbol_ident.value());
+
 		return true;
 	}
 
@@ -178,7 +180,7 @@ namespace pcit::panther{
 			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
 		}
 
-		this->source.global_symbol_procs.emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
+		this->symbol_namespaces.back()->emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
 
 		return true;
 	}
@@ -199,15 +201,17 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::AliasDecl& alias_decl = ast_buffer.getAliasDecl(stmt);
 
+
 		evo::Result<SymbolProc::Instruction::AttributeExprs> attribute_exprs = this->analyze_attributes(
 			ast_buffer.getAttributeBlock(alias_decl.attributeBlock)
 		);
 		if(attribute_exprs.isError()){ return false; }
+
+		this->add_instruction(SymbolProc::Instruction::AliasDecl(alias_decl, std::move(attribute_exprs.value())));
 		
 		const evo::Result<SymbolProc::TypeID> aliased_type = this->analyze_type(ast_buffer.getType(alias_decl.type));
 		if(aliased_type.isError()){ return false; }
 
-		this->add_instruction(SymbolProc::Instruction::AliasDecl(alias_decl, std::move(attribute_exprs.value())));
 		this->add_instruction(SymbolProc::Instruction::AliasDef(alias_decl, aliased_type.value()));
 
 
@@ -222,7 +226,7 @@ namespace pcit::panther{
 			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
 		}
 
-		this->source.global_symbol_procs.emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
+		this->symbol_namespaces.back()->emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
 
 		return true;
 	}
@@ -239,13 +243,44 @@ namespace pcit::panther{
 	}
 
 	auto SymbolProcBuilder::build_struct_decl(const AST::Node& stmt) -> bool {
-		// const AST::StructDecl& struct_decl = this->source.getASTBuffer().getStructDecl(stmt);
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			stmt,
-			"Building symbol process of Struct Decl is unimplemented"
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::StructDecl& struct_decl = ast_buffer.getStructDecl(stmt);
+
+		evo::Result<SymbolProc::Instruction::AttributeExprs> attribute_exprs = this->analyze_attributes(
+			ast_buffer.getAttributeBlock(struct_decl.attributeBlock)
 		);
-		return false;
+		if(attribute_exprs.isError()){ return false; }
+
+		this->add_instruction(SymbolProc::Instruction::StructDecl(struct_decl, std::move(attribute_exprs.value())));
+		this->add_instruction(SymbolProc::Instruction::StructDef());
+
+		SymbolProcInfo* current_symbol = &this->get_current_symbol();
+
+		SymbolProc::StructInfo& struct_info = current_symbol->symbol_proc.extra_info.emplace<SymbolProc::StructInfo>();
+
+		this->symbol_scopes.emplace_back(&struct_info.stmts);
+		this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
+		for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).stmts){
+			if(this->build(struct_stmt) == false){ return false; }
+		}
+		this->symbol_namespaces.pop_back();
+		this->symbol_scopes.pop_back();
+
+		// need to set again as address may have changed
+		current_symbol = &this->get_current_symbol();
+
+		if(this->is_child_symbol()){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
+			current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
+		}
+
+		this->symbol_namespaces.back()->emplace(current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id);
+
+		return true;
 	}
 
 	auto SymbolProcBuilder::build_when_conditional(const AST::Node& stmt) -> bool {
@@ -278,7 +313,7 @@ namespace pcit::panther{
 
 		this->add_instruction(SymbolProc::Instruction::WhenCond(when_conditional, cond_id.value()));
 
-		this->source.global_symbol_procs.emplace("", this->get_current_symbol().symbol_proc_id);
+		this->symbol_namespaces.back()->emplace("", this->get_current_symbol().symbol_proc_id);
 
 		// TODO: address these directly instead of moving them in
 		this->get_current_symbol().symbol_proc.extra_info.emplace<SymbolProc::WhenCondInfo>(

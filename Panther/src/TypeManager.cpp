@@ -15,6 +15,7 @@
 
 #include "../include/source/SourceManager.h"
 
+
 namespace pcit::panther{
 
 
@@ -139,6 +140,15 @@ namespace pcit::panther{
 
 					return std::string(
 						source_manager[typedef_info.sourceID].getTokenBuffer()[typedef_info.identTokenID].getString()
+					);
+				} break;
+
+				case BaseType::Kind::Struct: {
+					const BaseType::Struct::ID struct_id = type_info.baseTypeID().structID();
+					const BaseType::Struct& struct_info = this->getStruct(struct_id);
+
+					return std::string(
+						source_manager[struct_info.sourceID].getTokenBuffer()[struct_info.identTokenID].getString()
 					);
 				} break;
 
@@ -273,8 +283,36 @@ namespace pcit::panther{
 			}
 		}
 
-		const BaseType::Typedef::ID new_typedef = this->typedefs.emplace_back(lookup_type);
+		const BaseType::Typedef::ID new_typedef = this->typedefs.emplace_back(
+			lookup_type.sourceID, lookup_type.identTokenID, lookup_type.underlyingType.load(), lookup_type.isPub
+		);
 		return BaseType::ID(BaseType::Kind::Typedef, new_typedef.get());
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// structs
+
+	auto TypeManager::getStruct(BaseType::Struct::ID id) const -> const BaseType::Struct& {
+		return this->structs[id];
+	}
+
+
+	auto TypeManager::getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID {
+		for(uint32_t i = 0; i < this->structs.size(); i+=1){
+			if(this->structs[BaseType::Struct::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::Struct, i);
+			}
+		}
+
+		const BaseType::Struct::ID new_struct = this->structs.emplace_back(
+			lookup_type.sourceID,
+			lookup_type.identTokenID,
+			lookup_type.memberSymbols,
+			lookup_type.scopeLevel,
+			lookup_type.isPub
+		);
+		return BaseType::ID(BaseType::Kind::Struct, new_struct.get());
 	}
 
 
@@ -369,8 +407,14 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::Typedef: {
-				const BaseType::Typedef& alias = this->getTypedef(id.typedefID());
-				return this->sizeOf(alias.underlyingType);
+				const BaseType::Typedef& type_def = this->getTypedef(id.typedefID());
+				evo::debugAssert(type_def.underlyingType.load().has_value(), "Definition of typedef was not completed");
+				return this->sizeOf(*type_def.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::Struct: {
+				// TODO: 
+				return 0;
 			} break;
 
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
@@ -643,8 +687,8 @@ namespace pcit::panther{
 		switch(id.kind()){
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
 			case BaseType::Kind::Primitive: break;
-			case BaseType::Kind::Function: evo::resultError;
-			case BaseType::Kind::Array: evo::resultError;
+			case BaseType::Kind::Function: return evo::resultError;
+			case BaseType::Kind::Array: return evo::resultError;
 			case BaseType::Kind::Alias: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
@@ -652,8 +696,12 @@ namespace pcit::panther{
 			} break;
 			case BaseType::Kind::Typedef: {
 				const BaseType::Typedef& typedef_info = this->getTypedef(id.typedefID());
-				return this->getUnderlyingType(typedef_info.underlyingType);
+				evo::debugAssert(
+					typedef_info.underlyingType.load().has_value(), "Definition of typedef was not completed"
+				);
+				return this->getUnderlyingType(*typedef_info.underlyingType.load());
 			} break;
+			case BaseType::Kind::Struct: return evo::resultError;
 		}
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());

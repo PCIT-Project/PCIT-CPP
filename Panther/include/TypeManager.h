@@ -18,7 +18,10 @@
 #include "./tokens/Token.h"
 #include "./AST/AST.h"
 #include "./strings.h"
+#include "../src/symbol_proc/symbol_proc_ids.h"
 #include "./sema/Expr.h"
+#include "../src/sema/ScopeLevel.h"
+#include "./base_type_ids.h"
 
 
 namespace pcit::panther{
@@ -112,11 +115,12 @@ namespace pcit::panther{
 			Array,
 			Alias,
 			Typedef,
+			Struct,
 		};
 
 
 		struct Primitive{
-			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+			using ID = PrimitiveID;
 
 			EVO_NODISCARD auto kind() const -> Token::Kind { return this->_kind; }
 
@@ -159,7 +163,7 @@ namespace pcit::panther{
 		};
 
 		struct Function{
-			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+			using ID = FunctionID;
 
 			struct Param{
 				evo::Variant<Token::ID, strings::StringCode> ident;
@@ -191,7 +195,7 @@ namespace pcit::panther{
 
 
 		struct Array{
-			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+			using ID = ArrayID;
 			
 			TypeInfoID elementTypeID;
 			evo::SmallVector<uint64_t> lengths;
@@ -217,13 +221,14 @@ namespace pcit::panther{
 		static_assert(std::atomic<std::optional<TypeInfoID>>::is_always_lock_free);
 
 		struct Alias{
-			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+			using ID = AliasID;
 
 			SourceID sourceID;
 			Token::ID identTokenID;
-			std::atomic<std::optional<TypeInfoID>> aliasedType; // nullopt if only has decl
+			std::atomic<std::optional<TypeInfoID>> aliasedType; // nullopt if only has decl completed
 			bool isPub;
 
+			EVO_NODISCARD auto defCompleted() const -> bool { return this->aliasedType.load().has_value(); }
 			
 			EVO_NODISCARD auto operator==(const Alias& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
@@ -232,14 +237,34 @@ namespace pcit::panther{
 
 
 		struct Typedef{
-			struct ID : public core::UniqueID<uint32_t, struct ID> { using core::UniqueID<uint32_t, ID>::UniqueID; };
+			using ID = TypedefID;
 
 			SourceID sourceID;
 			Token::ID identTokenID;
-			TypeInfoID underlyingType;
+			std::atomic<std::optional<TypeInfoID>> underlyingType; // nullopt if only has decl completed
 			bool isPub;
+
+			EVO_NODISCARD auto defCompleted() const -> bool { return this->underlyingType.load().has_value(); }
 			
 			EVO_NODISCARD auto operator==(const Typedef& rhs) const -> bool {
+				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
+			}
+		};
+
+
+		struct Struct{
+			using ID = StructID;
+
+			SourceID sourceID;
+			Token::ID identTokenID;
+			SymbolProcNamespace& memberSymbols;
+			sema::ScopeLevel* scopeLevel; // is pointer because it needs to be set after construction (so never nullptr)
+			bool isPub;
+
+			std::atomic<bool> defCompleted = false;
+
+
+			EVO_NODISCARD auto operator==(const Struct& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
 			}
 		};
@@ -274,6 +299,11 @@ namespace pcit::panther{
 				return Typedef::ID(this->_id);
 			}
 
+			EVO_NODISCARD auto structID() const -> Struct::ID {
+				evo::debugAssert(this->kind() == Kind::Struct, "not an Struct");
+				return Struct::ID(this->_id);
+			}
+
 
 			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
 
@@ -285,9 +315,10 @@ namespace pcit::panther{
 
 			explicit ID(Primitive::ID id) : _kind(Kind::Primitive), _id(id.get()) {}
 			explicit ID(Function::ID id)  : _kind(Kind::Function),  _id(id.get()) {}
-			explicit ID(Array::ID id)     : _kind(Kind::Array),  _id(id.get()) {}
+			explicit ID(Array::ID id)     : _kind(Kind::Array),     _id(id.get()) {}
 			explicit ID(Alias::ID id)     : _kind(Kind::Alias),     _id(id.get()) {}
 			explicit ID(Typedef::ID id)   : _kind(Kind::Typedef),   _id(id.get()) {}
+			explicit ID(Struct::ID id)    : _kind(Kind::Struct),    _id(id.get()) {}
 
 			private:
 				constexpr ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
@@ -335,9 +366,9 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto isOptionalNotPointer() const -> bool {
-				return this->qualifiers().empty() == false      && 
-				       this->qualifiers().back().isPtr == false &&
-				       this->qualifiers().back().isOptional;
+				return this->qualifiers().empty() == false
+					&& this->qualifiers().back().isPtr == false
+					&& this->qualifiers().back().isOptional;
 			}
 	
 		private:
@@ -384,6 +415,9 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getTypedef(BaseType::Typedef::ID id) const -> const BaseType::Typedef&;
 			EVO_NODISCARD auto getOrCreateTypedef(BaseType::Typedef&& lookup_type) -> BaseType::ID;
+
+			EVO_NODISCARD auto getStruct(BaseType::Struct::ID id) const -> const BaseType::Struct&;
+			EVO_NODISCARD auto getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID;
 
 
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0); }
@@ -457,6 +491,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<BaseType::Array, BaseType::Array::ID> arrays{};
 			core::SyncLinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
 			core::SyncLinearStepAlloc<BaseType::Typedef, BaseType::Typedef::ID> typedefs{};
+			core::SyncLinearStepAlloc<BaseType::Struct, BaseType::Struct::ID> structs{};
 			core::SyncLinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 
 			friend class SemanticAnalyzer;

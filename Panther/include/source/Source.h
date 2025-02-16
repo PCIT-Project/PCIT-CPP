@@ -72,7 +72,7 @@ namespace pcit::panther{
 			bool is_ready_for_sema = false;
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
-			std::unordered_multimap<std::string_view, SymbolProc::ID> global_symbol_procs{};
+			SymbolProc::Namespace global_symbol_procs{};
 
 			friend class SourceManager;
 			friend class Context;

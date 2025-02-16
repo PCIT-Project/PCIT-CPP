@@ -100,6 +100,7 @@ namespace pcit::panther{
 
 			// exprs
 			SemaTypeUsedAsExpr,
+			SemaInvalidAccessorRHS,
 
 			// type checking
 			SemaMultiReturnIntoSingleValue,
@@ -198,6 +199,10 @@ namespace pcit::panther{
 
 				EVO_NODISCARD static auto get(
 					const BaseType::Alias::ID& alias_id, const class Source& src, const class Context& context
+				) -> Location;
+
+				EVO_NODISCARD static auto get(
+					const BaseType::Struct::ID& struct_id, const class Source& src, const class Context& context
 				) -> Location;
 		
 			private:
@@ -377,6 +382,7 @@ namespace pcit::panther{
 				case Code::SemaVarInitializerWithoutExplicitType:
 				case Code::SemaVarInitializerOnNonVar:
 				case Code::SemaTypeUsedAsExpr:
+				case Code::SemaInvalidAccessorRHS:
 				case Code::SemaMultiReturnIntoSingleValue:
 				case Code::SemaCannotConvertFluidValue:
 				case Code::SemaTypeMismatch:

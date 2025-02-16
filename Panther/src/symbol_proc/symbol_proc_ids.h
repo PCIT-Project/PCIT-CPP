@@ -11,32 +11,20 @@
 
 
 #include <Evo.h>
+#include <PCIT_core.h>
 
-namespace pcit::core{
 
-	struct Version{
-		uint16_t major;
-		uint16_t release;
-		uint16_t minor;
-		uint16_t patch;
+
+namespace pcit::panther{
+
+	// For lookup in Context::symbol_proc_manager
+	struct SymbolProcID : public core::UniqueID<uint32_t, struct SymbolProcID> { 
+		using core::UniqueID<uint32_t, SymbolProcID>::UniqueID;
 	};
 
-	constexpr auto version = Version{
-		.major   = 0,
-		.release = 0,
-		.minor   = 86,
-		.patch   = 0,
-	};
+
+	using SymbolProcNamespace = std::unordered_multimap<std::string_view, SymbolProcID>;
+
 
 }
- 	
 
-template<>
-struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
-    auto format(const pcit::core::Version& version, std::format_context& ctx) const -> std::format_context::iterator {
-        return std::formatter<std::string>::format(
-        	std::format("{}.{}.{}.{}", version.major, version.release, version.minor, version.patch),
-        	ctx
-        );
-    }
-};

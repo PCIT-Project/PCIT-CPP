@@ -42,6 +42,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto allProcsDone() const -> bool { return this->num_procs_not_done == 0; }
 			EVO_NODISCARD auto notAllProcsDone() const -> bool { return this->num_procs_not_done != 0; }
 
+			EVO_NODISCARD auto numProcsNotDone() const -> size_t { return this->num_procs_not_done; }
+			EVO_NODISCARD auto numProcs() const -> size_t { return this->symbol_procs.size(); }
+
+
 
 		private:
 			auto create_symbol_proc(auto&&... args) -> SymbolProc::ID {
@@ -50,7 +54,11 @@ namespace pcit::panther{
 			}
 
 			auto symbol_proc_done() -> void {
-				this->num_procs_not_done -= 1;
+				#if defined(PCIT_BUILD_DEBUG)
+					evo::debugAssert(this->num_procs_not_done.fetch_sub(1) > 0, "Already completed all symbols");
+				#else
+					this->num_procs_not_done -= 1;
+				#endif
 			}
 
 	
