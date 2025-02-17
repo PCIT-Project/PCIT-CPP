@@ -174,6 +174,9 @@ namespace pcit::panther{
 		evo::Result<evo::SmallVector<AST::FuncDecl::Return>> returns = this->parse_func_returns();
 		if(returns.isError()){ return Result::Code::Error; }
 
+		evo::Result<evo::SmallVector<AST::FuncDecl::Return>> error_returns = this->parse_func_error_returns();
+		if(error_returns.isError()){ return Result::Code::Error; }
+
 		const Result block = this->parse_block(BlockLabelRequirement::NotAllowed);
 		if(this->check_result_fail(block, "statement block in function declaration")){ // TODO: better messaging 
 			return Result::Code::Error;
@@ -185,6 +188,7 @@ namespace pcit::panther{
 			std::move(params.value()),
 			attribute_block.value(),
 			std::move(returns.value()),
+			std::move(error_returns.value()),
 			block.value()
 		);
 	}
@@ -1439,6 +1443,7 @@ namespace pcit::panther{
 
 		if(this->assert_token_fail(Token::lookupKind("<{"))){ return Result::Code::Error; }
 
+		bool param_has_default_value = false;
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}>")){
 				if(this->assert_token_fail(Token::lookupKind("}>"))){ return Result::Code::Error; }
@@ -1462,7 +1467,42 @@ namespace pcit::panther{
 				return Result::Code::Error;
 			}
 
-			params.emplace_back(ASTBuffer::getIdent(ident.value()), type.value());
+
+			auto default_value = std::optional<AST::Node>();
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
+				if(this->assert_token_fail(Token::lookupKind("="))){ return Result::Code::Error; }
+
+				Result default_value_res = this->parse_type<TypeKind::TemplateArg>();
+				if(default_value_res.code() == Result::Code::Error){
+					return Result::Code::Error;
+
+				}else if(default_value_res.code() == Result::Code::WrongType){
+					default_value_res = this->parse_expr();
+					if(this->check_result_fail(default_value_res, "default value of template parameter")){
+						return Result::Code::Error;
+					}
+
+					default_value = default_value_res.value();
+
+				}else{
+					default_value = default_value_res.value();
+				}
+
+				param_has_default_value = true;
+			}else{
+				if(param_has_default_value){
+					this->context.emitError(
+						Diagnostic::Code::ParserOOODefaultValueParam,
+						Diagnostic::Location::get(ident.value(), this->source),
+						"Out of order default value parameter",
+						Diagnostic::Info("Parameters without a default value cannot be after one with a default value")
+					);
+					return Result::Code::Error;
+				}
+			}
+
+
+			params.emplace_back(ASTBuffer::getIdent(ident.value()), type.value(), default_value);
 
 
 			// check if ending or should continue
@@ -1491,6 +1531,7 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
+		bool param_has_default_value = false;
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
 				if(this->assert_token_fail(Token::lookupKind(")"))){ return evo::resultError; }
@@ -1589,7 +1630,31 @@ namespace pcit::panther{
 			const Result attributes = this->parse_attribute_block();
 			if(attributes.code() == Result::Code::Error){ return evo::resultError; }
 
-			params.emplace_back(*param_ident, param_type, *param_kind, attributes.value());
+			auto default_value = std::optional<AST::Node>();
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
+				if(this->assert_token_fail(Token::lookupKind("="))){ return evo::resultError; }
+
+				const Result default_value_res = this->parse_expr();
+				if(this->check_result_fail(default_value_res, "function parameter default value")){
+					return evo::resultError;
+				}
+
+				default_value = default_value_res.value();
+				param_has_default_value = true;
+			}else{
+				if(param_has_default_value){
+					this->context.emitError(
+						Diagnostic::Code::ParserOOODefaultValueParam,
+						Diagnostic::Location::get(*param_ident, this->source),
+						"Out of order default value parameter",
+						Diagnostic::Info("Parameters without a default value cannot be after one with a default value")
+					);
+					return evo::resultError;
+				}
+			}
+
+
+			params.emplace_back(*param_ident, param_type, *param_kind, attributes.value(), default_value);
 
 			// check if ending or should continue
 			const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
@@ -1696,6 +1761,94 @@ namespace pcit::panther{
 
 
 		return returns;
+	}
+
+
+	auto Parser::parse_func_error_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>> {
+		auto error_returns = evo::SmallVector<AST::FuncDecl::Return>();
+
+		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("<")){
+			return error_returns;
+		}
+
+		if(this->assert_token_fail(Token::lookupKind("<"))){ return evo::resultError; }
+
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
+			this->context.emitError(
+				Diagnostic::Code::ParserEmptyErrorReturnParams,
+				Diagnostic::Location::get(this->reader.peek(), this->source),
+				"Error returns parameters cannot be empty",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(
+						"If you want the function to not have error returns, "
+							"the function shouldn't have error return parameter block"
+					),
+					Diagnostic::Info(
+						"If you want the function to have error return but no error return value, "
+							"the error return parameter block should only contain `Void`"
+					),
+				}
+			);
+			return evo::resultError;
+		}
+
+
+
+
+		if(this->reader[this->reader.peek(1)].kind() != Token::lookupKind(":")){
+			const Result single_type = this->parse_type<TypeKind::Explicit>();
+			if(this->check_result_fail(single_type, "single type in function error return parameter block")){
+				evo::resultError;
+			}
+			error_returns.emplace_back(std::nullopt, single_type.value());
+
+			if(this->expect_token_fail(
+				Token::lookupKind(">"), "at end of single type in function error return parameter block"
+			)){ return evo::resultError; }
+
+			return error_returns;
+		}
+
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
+				if(this->assert_token_fail(Token::lookupKind(">"))){ return evo::resultError; }
+				break;
+			}
+
+			const Result ident = this->parse_ident();
+			if(this->check_result_fail(ident, "identifier in function error return parameter")){
+				return evo::resultError;
+			}
+
+			if(this->expect_token_fail(Token::lookupKind(":"), "after function error return parameter identifier")){
+				return evo::resultError;
+			}
+			
+			const Result type = this->parse_type<TypeKind::Explicit>();
+			if(this->check_result_fail(type, "type in function error return parameter declaration")){
+				return evo::resultError;
+			}
+
+			error_returns.emplace_back(ASTBuffer::getIdent(ident.value()), type.value());
+
+
+			// check if ending or should continue
+			const Token::Kind after_return_next_token_kind = this->reader[this->reader.next()].kind();
+			if(after_return_next_token_kind != Token::lookupKind(",")){
+				if(after_return_next_token_kind != Token::lookupKind(">")){
+					this->expected_but_got(
+						"[,] at end of function error return parameter"
+							" or [>] at end of function error returns parameters block",
+						this->reader.peek(-1)
+					);
+					return evo::resultError;
+				}
+
+				break;
+			}
+		}
+
+		return error_returns;
 	}
 
 

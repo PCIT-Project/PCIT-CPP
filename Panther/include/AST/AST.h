@@ -160,6 +160,7 @@ namespace pcit::panther::AST{
 			std::optional<Node> type; // no type given if ident is `this`
 			Kind kind;
 			Node attributeBlock;
+			std::optional<Node> defaultValue;
 		};
 
 		struct Return{
@@ -172,6 +173,7 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Param> params;
 		Node attributeBlock;
 		evo::SmallVector<Return> returns;
+		evo::SmallVector<Return> errorReturns;
 		Node block;
 	};
 
@@ -243,6 +245,7 @@ namespace pcit::panther::AST{
 		struct Param{
 			Token::ID ident;
 			Node type;
+			std::optional<Node> defaultValue;
 		};
 
 		evo::SmallVector<Param> params;

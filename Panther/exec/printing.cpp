@@ -411,8 +411,19 @@ namespace pthr{
 									break; case ParamKind::In: this->printer.printMagenta(" {in}\n");
 								}
 
-								this->indenter.set_end();
+								this->indenter.set_arrow();
 								this->print_attribute_block(this->ast_buffer.getAttributeBlock(param.attributeBlock));
+
+								this->indenter.print_end();
+								this->print_minor_header("Default Value");
+								if(param.defaultValue.has_value()){
+									this->printer.println();
+									this->indenter.push();
+									this->print_expr(*param.defaultValue);
+									this->indenter.pop();
+								}else{
+									this->printer.printGray(" {NONE}\n");
+								}
 
 								this->indenter.pop();
 							}
@@ -455,6 +466,47 @@ namespace pthr{
 								this->print_minor_header("Type");
 								this->printer.print(" ");
 								this->print_type(this->ast_buffer.getType(return_param.type));
+
+								this->indenter.pop();
+							}
+
+							i += 1;
+						}
+						this->indenter.pop();
+					}
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Error Returns");
+					if(func_decl.errorReturns.empty()){
+						this->printer.printGray(" {NONE}\n");
+					}else{
+						this->printer.println();
+						this->indenter.push();
+						for(size_t i = 0; const panther::AST::FuncDecl::Return& error_return : func_decl.errorReturns){
+							if(i + 1 < func_decl.errorReturns.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+							this->print_major_header(std::format("Error Return Parameter {}", i));
+
+							{
+								this->indenter.push();
+
+								this->indenter.print_arrow();
+								this->print_minor_header("Identifier");
+								this->printer.print(" ");
+								if(error_return.ident.has_value()){
+									this->print_ident(*error_return.ident);
+								}else{
+									this->printer.printGray("{NONE}\n");
+								}
+
+								this->indenter.print_end();
+								this->print_minor_header("Type");
+								this->printer.print(" ");
+								this->print_type(this->ast_buffer.getType(error_return.type));
 
 								this->indenter.pop();
 							}
@@ -1182,10 +1234,21 @@ namespace pthr{
 							this->printer.print(" ");
 							this->print_ident(param.ident);
 
-							this->indenter.print_end();
+							this->indenter.print_arrow();
 							this->print_minor_header("Type");
 							this->printer.print(" ");
 							this->print_type(this->ast_buffer.getType(param.type));
+
+							this->indenter.print_end();
+							this->print_minor_header("Default Value");
+							if(param.defaultValue.has_value()){
+								this->printer.println();
+								this->indenter.push();
+								this->print_expr(*param.defaultValue);
+								this->indenter.pop();
+							}else{
+								this->printer.printGray(" {NONE}\n");
+							}
 
 							this->indenter.pop();
 						}

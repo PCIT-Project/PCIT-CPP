@@ -50,7 +50,7 @@ namespace pcit::panther{
 			TokInvalidChar,
 			TokFileTooLarge,
 			TokFileLocationLimitOOB,
-			TokDoubleUnderscoreNotAllowed,
+			// TokDoubleUnderscoreNotAllowed,
 
 
 			//////////////////
@@ -60,6 +60,7 @@ namespace pcit::panther{
 			ParserIncorrectStmtContinuation,
 			ParserUnexpectedEOF,
 			ParserInvalidKindForAThisParam,
+			ParserOOODefaultValueParam,
 			ParserDereferenceOrUnwrapOnType,
 			ParserAssumedTokenNotPreset,
 			ParserEmptyMultiAssign,
@@ -67,6 +68,7 @@ namespace pcit::panther{
 			ParserInvalidNewExpr,
 			ParserAttributesInWrongPlace,
 			ParserTooManyAttributeArgs,
+			ParserEmptyErrorReturnParams,
 
 
 			//////////////////
@@ -348,19 +350,21 @@ namespace pcit::panther{
 				case Code::TokInvalidChar:                     return "T12";
 				case Code::TokFileTooLarge:                    return "T13";
 				case Code::TokFileLocationLimitOOB:            return "T14";
-				case Code::TokDoubleUnderscoreNotAllowed:      return "T15";
+				// case Code::TokDoubleUnderscoreNotAllowed:      return "T15";
 
 				case Code::ParserUnknownStmtStart:             return "P1";
 				case Code::ParserIncorrectStmtContinuation:    return "P2";
 				case Code::ParserUnexpectedEOF:                return "P3";
 				case Code::ParserInvalidKindForAThisParam:     return "P4";
-				case Code::ParserDereferenceOrUnwrapOnType:    return "P5";
-				case Code::ParserAssumedTokenNotPreset:        return "P6";
-				case Code::ParserEmptyMultiAssign:             return "P7";
-				case Code::ParserEmptyFuncReturnBlock:         return "P8";
-				case Code::ParserInvalidNewExpr:               return "P9";
-				case Code::ParserAttributesInWrongPlace:       return "P10";
-				case Code::ParserTooManyAttributeArgs:         return "P11";
+				case Code::ParserOOODefaultValueParam:         return "P5";
+				case Code::ParserDereferenceOrUnwrapOnType:    return "P6";
+				case Code::ParserAssumedTokenNotPreset:        return "P7";
+				case Code::ParserEmptyMultiAssign:             return "P8";
+				case Code::ParserEmptyFuncReturnBlock:         return "P9";
+				case Code::ParserInvalidNewExpr:               return "P10";
+				case Code::ParserAttributesInWrongPlace:       return "P11";
+				case Code::ParserTooManyAttributeArgs:         return "P12";
+				case Code::ParserEmptyErrorReturnParams:       return "P13";
 
 				// TODO: give individual codes and put in correct order
 				case Code::SymbolProcInvalidGlobalStmt:

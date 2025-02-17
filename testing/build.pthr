@@ -1,22 +1,6 @@
-// def build2 = @import("build2.pthr");
-
-alias Integer = Int;
-alias Integer2 = Integer;
 
 
-type Struct = struct {
-	type Struct = struct {
-		alias Integer = Int;
-
-	// 	type Struct3 = struct {
-
-	// 	}
-	}
-
-	// alias Integer = Int;
+func function = <{T: Type}> () -> Void {
+	
 }
 
-
-
-def FOO: Struct.Struct.Integer = 12;
-def BAR: Integer2 = FOO;

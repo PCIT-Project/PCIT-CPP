@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.87.0"></a>
+## v0.0.87.0
+
+### Panther
+- Added parsing of function parameter default values
+- Added parsing of template parameter default values
+- Added parsing of function error return parameter blocks
+
+
+<!---------------------------------->
 <a name="v0.0.86.0"></a>
 ## v0.0.86.0
 
