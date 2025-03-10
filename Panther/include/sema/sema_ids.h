@@ -119,6 +119,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, TemplatedFuncID>::UniqueID;
 	};
 
+	struct TemplatedStructID : public core::UniqueID<uint32_t, struct TemplatedStructID> {
+		using core::UniqueID<uint32_t, TemplatedStructID>::UniqueID;
+	};
+
 	struct VarID : public core::UniqueID<uint32_t, struct VarID> {
 		using core::UniqueID<uint32_t, VarID>::UniqueID;
 	};

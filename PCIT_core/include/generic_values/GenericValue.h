@@ -86,6 +86,8 @@ namespace pcit::core{
 			}
 
 
+
+
 			EVO_NODISCARD auto operator==(const GenericValue& rhs) const -> bool = default;
 
 
@@ -133,6 +135,42 @@ namespace pcit::core{
 				});
 			}
 
+
+
+			EVO_NODISCARD auto hash() const -> size_t {
+				return this->value.visit([](const auto& value) -> size_t {
+					using ValueT = std::decay_t<decltype(value)>;
+
+					if constexpr(std::is_same<ValueT, std::monostate>()){
+						return 0;
+
+					}else if constexpr(std::is_same<ValueT, GenericInt>()){
+						return std::hash<size_t>{}(static_cast<size_t>(value));
+
+					}else if constexpr(std::is_same<ValueT, GenericFloat>()){
+						return std::hash<float64_t>{}(static_cast<float64_t>(value));
+						
+					}else if constexpr(std::is_same<ValueT, bool>()){
+						return std::hash<bool>{}(value);
+						
+					}else if constexpr(std::is_same<ValueT, char>()){
+						return std::hash<char>{}(value);
+						
+					}else if constexpr(std::is_same<ValueT, std::vector<GenericValue>>()){
+						size_t hash_value = 0;
+
+						for(const GenericValue& member : value){
+							hash_value = evo::hashCombine(hash_value, member.hash());
+						}
+
+						return hash_value;
+						
+					}else{
+						static_assert(false, "Unsupported value type");
+					}
+				});
+			}
+
 	
 		private:
 			evo::Variant<std::monostate, GenericInt, GenericFloat, bool, char, std::vector<GenericValue>> value;
@@ -171,5 +209,14 @@ namespace std{
 	        return format_to(ctx.out(), "{}", value.toString());
 	    }
 	};
+
+
+	template<>
+	struct hash<pcit::core::GenericValue>{
+		auto operator()(const pcit::core::GenericValue& generic_value) const noexcept -> size_t {
+			return generic_value.hash();
+		};
+	};
+
 	
 }

@@ -89,13 +89,14 @@ namespace pcit::panther{
 			if(visited_id == id){
 				context.emitError(
 					Diagnostic::Code::SymbolProcCircularDep,
-					Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
+					Diagnostic::Location::get(visited.ast_node, context.getSourceManager()[visited.source_id]),
 					"Detected a circular dependency when analyzing this symbol:",
 					Diagnostic::Info(
 						"Requires this symbol:",
-						Diagnostic::Location::get(visited.ast_node, context.getSourceManager()[visited.source_id])
+						Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
 					)
 				);
+				evo::breakpoint();
 				return false;
 			}
 

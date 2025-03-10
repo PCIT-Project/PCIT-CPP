@@ -21,7 +21,7 @@
 namespace pcit::panther{
 
 	
-	struct ExprInfo{
+	struct TermInfo{
 		enum class ValueCategory{
 			Ephemeral,
 			EphemeralFluid,
@@ -35,7 +35,7 @@ namespace pcit::panther{
 			Function, // function, not func pointer
 			Intrinsic,
 			TemplateIntrinsic, // uninstantiated
-			Template, // uninstantiated
+			TemplateType, // uninstantiated
 			Type,
 		};
 
@@ -53,10 +53,11 @@ namespace pcit::panther{
 			InitializerType,                // Initializer
 			FluidType,                      // EphemeralFluid
 			TypeInfo::ID,                   // ConcreteConst|ConcreateMut|ConcreteConstForwardable
-						                    //   |ConcreteConstDestrMovable|Ephemeral|Function|Intrinsic|Type
+						                    //   |ConcreteConstDestrMovable|Ephemeral|Function|Intrinsic
+			TypeInfo::VoidableID,           // Type
 			evo::SmallVector<TypeInfo::ID>, // Ephemeral
-			SourceID                        // Module
-			// TODO: Template
+			SourceID,                       // Module
+			sema::TemplatedStruct::ID       // TemplateType
 			// TODO: TemplateIntrinsic
 		>;
 
@@ -68,7 +69,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// constructors
 
-		ExprInfo(
+		TermInfo(
 			ValueCategory vc,
 			ValueStage vs,
 			evo::SmallVector<TypeInfo::ID>&& type_ids,
@@ -85,19 +86,22 @@ namespace pcit::panther{
 		}
 		
 
-		ExprInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, const sema::Expr& expr_single)
+		TermInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, const sema::Expr& expr_single)
 			: value_category(vc), value_stage(vs), type_id(std::move(_type_id)), exprs{expr_single} {}
 
-		ExprInfo(ValueCategory vc, ValueStage vs, const auto& _type_id, const sema::Expr& expr_single)
+		TermInfo(ValueCategory vc, ValueStage vs, const auto& _type_id, const sema::Expr& expr_single)
 			: value_category(vc), value_stage(vs), type_id(_type_id), exprs{expr_single} {}
 
 
-		ExprInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, std::nullopt_t)
+		TermInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, std::nullopt_t)
 			: value_category(vc), value_stage(vs), type_id(std::move(_type_id)), exprs() {
 			evo::debugAssert(
-				this->value_category == ValueCategory::Module || this->value_category == ValueCategory::Type
+				this->value_category == ValueCategory::Module
+				|| this->value_category == ValueCategory::TemplateType
+				|| this->value_category == ValueCategory::Type
 			);
 			evo::debugAssert(this->value_stage == ValueStage::Comptime);
+			evo::debugAssert(this->value_category != ValueCategory::Type || this->type_id.is<TypeInfo::VoidableID>());
 		}
 
 
@@ -132,24 +136,14 @@ namespace pcit::panther{
 				|| this->type_id.is<InitializerType>();
 		}
 
-		EVO_NODISCARD auto getExpr() const& -> const sema::Expr& {
+		EVO_NODISCARD auto getExpr() const -> const sema::Expr& {
 			evo::debugAssert(this->isSingleValue(), "does not hold single value");
 			return this->exprs.front();
 		}
 
-		EVO_NODISCARD auto getExpr() & -> sema::Expr& {
+		EVO_NODISCARD auto getExpr() -> sema::Expr& {
 			evo::debugAssert(this->isSingleValue(), "does not hold single value");
 			return this->exprs.front();
-		}
-
-		EVO_NODISCARD auto getExpr() const&& -> const sema::Expr&& {
-			evo::debugAssert(this->isSingleValue(), "does not hold single value");
-			return std::move(this->exprs.front());
-		}
-
-		EVO_NODISCARD auto getExpr() && -> sema::Expr&& {
-			evo::debugAssert(this->isSingleValue(), "does not hold single value");
-			return std::move(this->exprs.front());
 		}
 
 

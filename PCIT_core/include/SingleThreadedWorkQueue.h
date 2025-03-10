@@ -54,6 +54,11 @@ namespace pcit::core{
 				return true;
 			}
 
+
+			auto forceClearQueue() -> void {
+				this->tasks.clear();
+			}
+
 		private:
 			std::deque<TASK> tasks{};
 

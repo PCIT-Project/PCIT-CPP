@@ -15,7 +15,7 @@
 
 #include "../../include/source/source_data.h"
 #include "../../include/AST/AST.h"
-#include "../sema/ExprInfo.h"
+#include "../sema/TermInfo.h"
 #include "./symbol_proc_ids.h"
 #include "../../include/TypeManager.h"
 #include "../sema/ScopeManager.h"
@@ -23,16 +23,16 @@
 
 namespace pcit::panther{
 
-	struct SymbolProcExprInfoID : public core::UniqueID<uint32_t, struct SymbolProcExprInfoID> { 
-		using core::UniqueID<uint32_t, SymbolProcExprInfoID>::UniqueID;
+	struct SymbolProcTermInfoID : public core::UniqueID<uint32_t, struct SymbolProcTermInfoID> { 
+		using core::UniqueID<uint32_t, SymbolProcTermInfoID>::UniqueID;
 	};
 
-	struct SymbolProcExprInfoIDOptInterface{
-		static constexpr auto init(SymbolProcExprInfoID* id) -> void {
+	struct SymbolProcTermInfoIDOptInterface{
+		static constexpr auto init(SymbolProcTermInfoID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const SymbolProcExprInfoID& id) -> bool {
+		static constexpr auto has_value(const SymbolProcTermInfoID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -52,23 +52,38 @@ namespace pcit::panther{
 		}
 	};
 
+
+	struct SymbolProcStructInstantiationID : public core::UniqueID<uint32_t, struct SymbolProcStructInstantiationID> { 
+		using core::UniqueID<uint32_t, SymbolProcStructInstantiationID>::UniqueID;
+	};
+
+	struct SymbolProcStructInstantiationIDOptInterface{
+		static constexpr auto init(SymbolProcStructInstantiationID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const SymbolProcStructInstantiationID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
 }
 
 
 namespace std{
 
 	template<>
-	class optional<pcit::panther::SymbolProcExprInfoID> 
+	class optional<pcit::panther::SymbolProcTermInfoID> 
 		: public pcit::core::Optional<
-			pcit::panther::SymbolProcExprInfoID, pcit::panther::SymbolProcExprInfoIDOptInterface
+			pcit::panther::SymbolProcTermInfoID, pcit::panther::SymbolProcTermInfoIDOptInterface
 		>{
 
 		public:
 			using pcit::core::Optional<
-				pcit::panther::SymbolProcExprInfoID, pcit::panther::SymbolProcExprInfoIDOptInterface
+				pcit::panther::SymbolProcTermInfoID, pcit::panther::SymbolProcTermInfoIDOptInterface
 			>::Optional;
 			using pcit::core::Optional<
-				pcit::panther::SymbolProcExprInfoID, pcit::panther::SymbolProcExprInfoIDOptInterface
+				pcit::panther::SymbolProcTermInfoID, pcit::panther::SymbolProcTermInfoIDOptInterface
 			>::operator=;
 	};
 
@@ -96,39 +111,46 @@ namespace pcit::panther{
 
 	// TODO: make this data oriented
 	struct SymbolProcInstruction{
-		using AttributeExprs = evo::SmallVector<evo::StaticVector<SymbolProcExprInfoID, 2>>;
+		using AttributeParams = evo::StaticVector<SymbolProcTermInfoID, 2>;
+
+		struct TemplateParamInfo{
+			const AST::TemplatePack::Param& param;
+			std::optional<SymbolProcTypeID> type_id; // nullopt if is `Type`
+			std::optional<SymbolProcTermInfoID> default_value;
+		};
+
 
 		//////////////////
 		// globals
 
 		struct VarDecl{
 			const AST::VarDecl& var_decl;
-			AttributeExprs attribute_exprs;
+			evo::SmallVector<AttributeParams> attribute_params_info;
 			SymbolProcTypeID type_id;
 		};
 
 		struct VarDef{
 			const AST::VarDecl& var_decl;
-			SymbolProcExprInfoID value_id;
+			SymbolProcTermInfoID value_id;
 		};
 
 		struct VarDeclDef{
 			const AST::VarDecl& var_decl;
-			AttributeExprs attribute_exprs;
+			evo::SmallVector<AttributeParams> attribute_params_info;
 			std::optional<SymbolProcTypeID> type_id;
-			SymbolProcExprInfoID value_id;
+			SymbolProcTermInfoID value_id;
 		};
 
 
 		struct WhenCond{
 			const AST::WhenConditional& when_cond;
-			SymbolProcExprInfoID cond;
+			SymbolProcTermInfoID cond;
 		};
 
 
 		struct AliasDecl{
 			const AST::AliasDecl& alias_decl;
-			AttributeExprs attribute_exprs;
+			evo::SmallVector<AttributeParams> attribute_params_info;
 		};
 
 		struct AliasDef{
@@ -139,51 +161,66 @@ namespace pcit::panther{
 
 		struct StructDecl{
 			const AST::StructDecl& struct_decl;
-			AttributeExprs attribute_exprs;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+		};
+
+		struct StructDeclInstantiation{
+			const AST::StructDecl& struct_decl;
+			evo::SmallVector<AttributeParams> attribute_params_info;
 		};
 
 		struct StructDef{};
+
+		struct TemplateStruct{
+			const AST::StructDecl& struct_decl;
+			evo::SmallVector<TemplateParamInfo> template_param_infos;
+		};
 
 
 		//////////////////
 		// misc expr
 
+		struct TypeToTerm{
+			SymbolProcTypeID from;
+			SymbolProcTermInfoID to;
+		};
+
 		struct FuncCall{
 			const AST::FuncCall& func_call;
-			SymbolProcExprInfoID target;
-			SymbolProcExprInfoID output;
-			evo::SmallVector<SymbolProcExprInfoID> args;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
 		struct Import{
 			const AST::FuncCall& func_call;
-			SymbolProcExprInfoID location;
-			SymbolProcExprInfoID output;
+			SymbolProcTermInfoID location;
+			SymbolProcTermInfoID output;
+		};
+
+
+		struct TemplatedTerm{
+			const AST::TemplatedExpr& templated_expr;
+			SymbolProcTermInfoID base;
+			evo::SmallVector<evo::Variant<SymbolProcTermInfoID, SymbolProcTypeID>> arguments;
+			SymbolProcStructInstantiationID instantiation;
+		};
+
+		struct TemplatedTermWait{
+			SymbolProcStructInstantiationID instantiation;
+			SymbolProcTermInfoID output;
 		};
 
 
 		//////////////////
 		// accessors
 
-		struct TypeAccessor{
+		template<bool NEEDS_DEF>
+		struct Accessor{
 			const AST::Infix& infix;
-			SymbolProcExprInfoID lhs;
+			SymbolProcTermInfoID lhs;
 			Token::ID rhs_ident;
-			SymbolProcExprInfoID output;
-		};
-
-		struct ComptimeExprAccessor{
-			const AST::Infix& infix;
-			SymbolProcExprInfoID lhs;
-			Token::ID rhs_ident;
-			SymbolProcExprInfoID output;
-		};
-
-		struct ExprAccessor{
-			const AST::Infix& infix;
-			SymbolProcExprInfoID lhs;
-			Token::ID rhs_ident;
-			SymbolProcExprInfoID output;
+			SymbolProcTermInfoID output;
 		};
 
 
@@ -198,47 +235,45 @@ namespace pcit::panther{
 
 		struct UserType{
 			const AST::Type& ast_type;
-			SymbolProcExprInfoID base_type;
+			SymbolProcTermInfoID base_type;
 			SymbolProcTypeID output;
 		};
 
 		struct BaseTypeIdent{
 			Token::ID ident;
-			SymbolProcExprInfoID output;
+			SymbolProcTermInfoID output;
 		};
 
-		struct ComptimeIdent{
-			Token::ID ident;
-			SymbolProcExprInfoID output;
-		};
+
 
 
 		//////////////////
 		// single token value
 
+		template<bool NEEDS_DEF>
 		struct Ident{
 			Token::ID ident;
-			SymbolProcExprInfoID output;
+			SymbolProcTermInfoID output;
 		};
 
 		struct Intrinsic{
 			Token::ID intrinsic;
-			SymbolProcExprInfoID output;
+			SymbolProcTermInfoID output;
 		};
 
 		struct Literal{
 			Token::ID literal;
-			SymbolProcExprInfoID output;
+			SymbolProcTermInfoID output;
 		};
 
 		struct Uninit{
 			Token::ID uninit_token;
-			SymbolProcExprInfoID output;
+			SymbolProcTermInfoID output;
 		};
 
 		struct Zeroinit{
 			Token::ID zeroinit_token;
-			SymbolProcExprInfoID output;
+			SymbolProcTermInfoID output;
 		};
 
 
@@ -261,17 +296,21 @@ namespace pcit::panther{
 			AliasDecl,
 			AliasDef,
 			StructDecl,
+			StructDeclInstantiation,
 			StructDef,
+			TemplateStruct,
+			TypeToTerm,
 			FuncCall,
 			Import,
-			TypeAccessor,
-			ComptimeExprAccessor,
-			ExprAccessor,
+			Accessor<true>,
+			Accessor<false>,
 			PrimitiveType,
 			UserType,
 			BaseTypeIdent,
-			ComptimeIdent,
-			Ident,
+			TemplatedTerm,
+			TemplatedTermWait,
+			Ident<false>,
+			Ident<true>,
 			Intrinsic,
 			Literal,
 			Uninit,
@@ -281,53 +320,19 @@ namespace pcit::panther{
 
 
 
-	// class SymbolProcTemplate{
-	// 	public:
-
-	// 		// For lookup in Context::symbol_proc_manager
-	// 		struct ID : public core::UniqueID<uint32_t, struct ID> { 
-	// 			using core::UniqueID<uint32_t, ID>::UniqueID;
-	// 		};
-
-	// 	public:
-	// 		SymbolProcTemplate(SourceID _source_id, std::string_view _ident) : source_id(_source_id), ident(_ident) {}
-	// 		~SymbolProcTemplate() = default;
-
-	// 		EVO_NODISCARD auto getInstruction(size_t i) const -> const Instruction& { return this->instructions[i]; }
-	// 		EVO_NODISCARD auto numInstructions() const -> size_t { return this->instructions.size(); }
-
-	// 		EVO_NODISCARD auto numExprInfos() const -> uint32_t { return this->num_expr_infos; }
-	// 		EVO_NODISCARD auto numTypeIDs() const -> uint32_t { return this->num_type_ids; }
-
-	// 		EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
-
-
-	// 	private:
-	// 		SourceID source_id;
-	// 		std::string_view ident; // size 0 if it symbol doesn't have an ident
-	// 								// 	(is when cond, func call, or operator function)
-
-	// 		std::vector<Instruction> instructions{};
-	// 		uint32_t num_expr_infos = 0;
-	// 		uint32_t num_type_ids = 0;
-
-	// 		friend class SymbolProcBuilder;
-	// };
-
-
-
 	class SymbolProc{
 		public:
 			using ID = SymbolProcID;
 			using Instruction = SymbolProcInstruction;
-			using ExprInfoID = SymbolProcExprInfoID;
+			using TermInfoID = SymbolProcTermInfoID;
+			using StructInstantiationID = SymbolProcStructInstantiationID;
 			using TypeID = SymbolProcTypeID;
 
 			using Namespace = SymbolProcNamespace;
 			
 		public:
-			SymbolProc(AST::Node node, SourceID _source_id, std::string_view _ident)
-				: ast_node(node), source_id(_source_id), ident(_ident) {}
+			SymbolProc(AST::Node node, SourceID _source_id, std::string_view _ident, SymbolProc* _parent)
+				: ast_node(node), source_id(_source_id), ident(_ident), parent(_parent) {}
 			~SymbolProc() = default;
 
 
@@ -340,13 +345,23 @@ namespace pcit::panther{
 				return this->inst_index >= this->instructions.size();
 			}
 
+			auto setIsTemplateSubSymbol() -> void { this->inst_index = std::numeric_limits<size_t>::max(); }
+			EVO_NODISCARD auto isTemplateSubSymbol() const -> bool {
+				return this->inst_index == std::numeric_limits<size_t>::max();
+			}
 
-			EVO_NODISCARD auto getExprInfo(SymbolProc::ExprInfoID id) -> const std::optional<ExprInfo>& {
-				return this->expr_infos[id.get()];
+
+			EVO_NODISCARD auto getTermInfo(SymbolProc::TermInfoID id) -> const std::optional<TermInfo>& {
+				return this->term_infos[id.get()];
 			}
 
 			EVO_NODISCARD auto getTypeID(SymbolProc::TypeID id) -> const std::optional<TypeInfo::VoidableID>& {
 				return this->type_ids[id.get()];
+			}
+
+			EVO_NODISCARD auto getStructInstantiationID(SymbolProc::StructInstantiationID id)
+			-> const sema::TemplatedStruct::Instantiation& {
+				return *this->struct_instantiations[id.get()];
 			}
 
 
@@ -375,6 +390,10 @@ namespace pcit::panther{
 				return this->waiting_for.empty() == false;
 			};
 
+			EVO_NODISCARD auto isReadyToBeAddedToWorkQueue() const -> bool {
+				return this->isWaiting() == false && this->isTemplateSubSymbol() == false;
+			}
+
 
 			enum class WaitOnResult{
 				NotNeeded,
@@ -397,10 +416,12 @@ namespace pcit::panther{
 			SourceID source_id;
 			std::string_view ident; // size 0 if it symbol doesn't have an ident
 									// 	(is when cond, func call, or operator function)
+			SymbolProc* parent; // nullptr means no parent
 
 			std::vector<Instruction> instructions{};
-			std::vector<std::optional<ExprInfo>> expr_infos{};
+			std::vector<std::optional<TermInfo>> term_infos{};
 			std::vector<std::optional<TypeInfo::VoidableID>> type_ids{};
+			std::vector<const sema::TemplatedStruct::Instantiation*> struct_instantiations{};
 
 
 			evo::SmallVector<ID> waiting_for{};
@@ -426,9 +447,11 @@ namespace pcit::panther{
 				BaseType::Alias::ID alias_id;
 			};
 
+			// only needed for non-template structs or template struct instantiations
 			struct StructInfo{
-				evo::SmallVector<SymbolProcID> stmts;
-				Namespace member_symbols;
+				sema::TemplatedStruct::Instantiation* instantiation = nullptr;
+				evo::SmallVector<SymbolProcID> stmts{};
+				Namespace member_symbols{};
 				BaseType::Struct::ID struct_id = BaseType::Struct::ID::dummy();
 			};
 
@@ -443,6 +466,10 @@ namespace pcit::panther{
 			bool def_done = false;
 			std::atomic<bool> passed_on_by_when_cond = false;
 			std::atomic<bool> errored = false;
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				std::atomic<bool> being_worked_on = false;
+			#endif
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

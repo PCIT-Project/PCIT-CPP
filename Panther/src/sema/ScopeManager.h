@@ -14,7 +14,7 @@
 #include <PCIT_core.h>
 
 #include "./ScopeLevel.h"
-#include "../../include/base_type_ids.h"
+#include "../../include/type_ids.h"
 
 
 namespace pcit::panther::sema{

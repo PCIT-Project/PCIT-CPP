@@ -136,8 +136,9 @@ namespace pcit::panther{
 
 			auto emitFatal(auto&&... args) -> void {
 				this->num_errors += 1;
-				this->encountered_fatal = true;
+				if(this->encountered_fatal.exchange(true) == true){ return; }
 				this->emit_diagnostic_impl(Diagnostic(Diagnostic::Level::Fatal, std::forward<decltype(args)>(args)...));
+				this->clear_work_queue_if_needed();
 			}
 
 			auto emitError(auto&&... args) -> void {
@@ -146,6 +147,8 @@ namespace pcit::panther{
 					this->emit_diagnostic_impl(
 						Diagnostic(Diagnostic::Level::Error, std::forward<decltype(args)>(args)...)
 					);
+				}else{
+					this->clear_work_queue_if_needed();
 				}
 			}
 
@@ -216,6 +219,8 @@ namespace pcit::panther{
 			using Task = evo::Variant<FileToLoad, SymbolProc::ID>;
 
 			auto add_task_to_work_manager(auto&&... args) -> void {
+				if(this->hasHitFailCondition()){ return; }
+
 				this->work_manager.visit([&](auto& work_manager) -> void {
 					using WorkManager = std::decay_t<decltype(work_manager)>;
 
@@ -233,6 +238,25 @@ namespace pcit::panther{
 					}
 				});
 			}
+
+			auto clear_work_queue_if_needed() -> void {
+				this->work_manager.visit([&](auto& work_manager) -> void {
+					using WorkManager = std::decay_t<decltype(work_manager)>;
+
+					if constexpr(std::is_same<WorkManager, std::monostate>()){
+						return;
+
+					}else if constexpr(std::is_same<WorkManager, core::ThreadQueue<Task>>()){
+						work_manager.forceClearQueue();
+
+					}else if constexpr(std::is_same<WorkManager, core::SingleThreadedWorkQueue<Task>>()){
+						work_manager.forceClearQueue();
+
+					}else{
+						static_assert(false, "Unsupported work manager");
+					}
+				});
+			}
 	
 		private:
 			const Config& _config;
@@ -241,7 +265,7 @@ namespace pcit::panther{
 			mutable core::SpinLock diagnostic_callback_mutex{};
 
 			std::atomic<unsigned> num_errors = 0;
-			bool encountered_fatal = false;
+			std::atomic<bool> encountered_fatal = false;
 			bool added_std_lib = false;
 
 			std::vector<FileToLoad> files_to_load{};

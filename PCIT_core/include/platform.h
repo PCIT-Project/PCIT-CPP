@@ -15,10 +15,10 @@
 namespace pcit::core{
 
 	enum class OS{
-		Unknown,
-
 		Windows,
 		Linux,
+
+		Unknown,
 	};
 
 	EVO_NODISCARD constexpr auto getCurrentOS() -> OS {
@@ -34,9 +34,9 @@ namespace pcit::core{
 
 
 	enum class Architecture{
-		Unknown,
-
 		X86_64,
+
+		Unknown,
 	};
 
 	EVO_NODISCARD constexpr auto getCurrentArchitecture() -> Architecture {

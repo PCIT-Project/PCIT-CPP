@@ -147,7 +147,7 @@ auto main(int argc, const char* argv[]) -> int {
 	std::ignore = context.addSourceFile("build.pthr", comp_config);
 
 
-	if(context.parse() == false){
+	if(context.analyzeSemantics() == false){
 		const unsigned num_errors = context.getNumErrors();
 		if(num_errors == 1){
 			printer.printlnError("Failed with 1 error");
@@ -157,9 +157,9 @@ auto main(int argc, const char* argv[]) -> int {
 		return EXIT_FAILURE;
 	}
 
-	for(const panther::Source::ID& source_id : context.getSourceManager()){
-		pthr::print_AST(printer, context.getSourceManager()[source_id], current_path.value());
-	}
+	// for(const panther::Source::ID& source_id : context.getSourceManager()){
+	// 	pthr::print_AST(printer, context.getSourceManager()[source_id], current_path.value());
+	// }
 
 
 	if(config.verbosity >= pthr::Config::Verbosity::Some){

@@ -21,87 +21,14 @@
 #include "../src/symbol_proc/symbol_proc_ids.h"
 #include "./sema/Expr.h"
 #include "../src/sema/ScopeLevel.h"
-#include "./base_type_ids.h"
+#include "./type_ids.h"
+
+
+
 
 
 namespace pcit::panther{
-
-	class TypeManager;
-
-
-	//////////////////////////////////////////////////////////////////////
-	// forward decls
-
-	// is aliased as TypeInfo::ID
-	struct TypeInfoID : public core::UniqueID<uint32_t, struct TypeInfoID> {
-		using core::UniqueID<uint32_t, TypeInfoID>::UniqueID;
-	};
-
-	struct TypeInfoIDOptInterface{
-		static constexpr auto init(TypeInfoID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const TypeInfoID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
-
-}
-
-
-
-namespace std{
-
-	template<>
-	class optional<pcit::panther::TypeInfoID> 
-		: public pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>{
-
-		public:
-			using pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>::Optional;
-			using pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>::operator=;
-	};
-
-}
-
-
-namespace pcit::panther{
-
-	// is aliased as TypeInfo::VoidableID
-	class TypeInfoVoidableID{
-		public:
-			TypeInfoVoidableID(TypeInfoID type_id) : id(type_id) {};
-			~TypeInfoVoidableID() = default;
-
-			EVO_NODISCARD static auto Void() -> TypeInfoVoidableID { return TypeInfoVoidableID(); };
-
-			EVO_NODISCARD auto operator==(const TypeInfoVoidableID& rhs) const -> bool {
-				return this->id == rhs.id;
-			};
-
-			EVO_NODISCARD auto asTypeID() const -> const TypeInfoID& {
-				evo::debugAssert(this->isVoid() == false, "type is void");
-				return this->id;
-			};
-
-			EVO_NODISCARD auto asTypeID() -> TypeInfoID& {
-				evo::debugAssert(this->isVoid() == false, "type is void");
-				return this->id;
-			};
-
-
-			EVO_NODISCARD auto isVoid() const -> bool {
-				return this->id.get() == std::numeric_limits<TypeInfoID::Base>::max();
-			};
-
-		private:
-			TypeInfoVoidableID() : id(std::numeric_limits<TypeInfoID::Base>::max()) {};
 	
-		private:
-			TypeInfoID id;
-	};
-
-
 	//////////////////////////////////////////////////////////////////////
 	// base type
 
@@ -511,6 +438,14 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::BaseType::ID, pcit::panther::BaseType::IDOptInterface>::Optional;
 			using pcit::core::Optional<pcit::panther::BaseType::ID, pcit::panther::BaseType::IDOptInterface>::operator=;
+	};
+
+
+	template<>
+	struct hash<pcit::panther::TypeInfo::VoidableID>{
+		auto operator()(const pcit::panther::TypeInfo::VoidableID& voidable_id) const noexcept -> size_t {
+			return voidable_id.hash();
+		};
 	};
 	
 }

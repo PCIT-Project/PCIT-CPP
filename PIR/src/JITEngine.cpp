@@ -39,10 +39,9 @@ namespace pcit::pir{
 		this->data->llvm_context.init();	
 		this->data->module.init("PIR-JITEngine", this->data->llvm_context);
 
-		const std::string target_triple = this->data->module.getDefaultTargetTriple();
-
-		const std::string data_layout_error = this->data->module.setDataLayout(
-			target_triple,
+		const std::string data_layout_error = this->data->module.setTargetAndDataLayout(
+			core::getCurrentOS(),
+			core::getCurrentArchitecture(),
 			llvmint::Module::Relocation::Default,
 			llvmint::Module::CodeSize::Default,
 			llvmint::Module::OptLevel::None,
@@ -50,8 +49,6 @@ namespace pcit::pir{
 		);
 
 		evo::Assert(data_layout_error.empty(), "Failed to set data layout with message: {}", data_layout_error);
-
-		this->data->module.setTargetTriple(target_triple);
 
 		auto lowerer = PIRToLLVMIR(*this->module, this->data->llvm_context, this->data->module);
 		lowerer.lower();

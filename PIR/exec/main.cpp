@@ -124,8 +124,8 @@ auto main(int argc, const char* argv[]) -> int {
 		"string", module.getGlobalString(global_str_value).type, pcit::pir::Linkage::Private, global_str_value, true
 	);
 
-	const pcit::pir::FunctionDecl::ID print_hello_decl = module.createFunctionDecl(
-		"print_hello",
+	const pcit::pir::FunctionDecl::ID print_message_decl = module.createFunctionDecl(
+		"print_message",
 		evo::SmallVector<pcit::pir::Parameter>{pcit::pir::Parameter("str", module.createPtrType())},
 		pcit::pir::CallingConvention::C,
 		pcit::pir::Linkage::External,
@@ -202,8 +202,8 @@ auto main(int argc, const char* argv[]) -> int {
 		agent.createGlobalValue(global_str), module.getGlobalString(global_str_value).type, {0, 14}
 	);
 
-	agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{str_ptr});
-	// agent.createCallVoid(print_hello_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
+	agent.createCallVoid(print_message_decl, evo::SmallVector<pcit::pir::Expr>{str_ptr});
+	// agent.createCallVoid(print_message_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
 	agent.createRet(agent.extractUAddWrapResult(add3));
 
@@ -253,7 +253,7 @@ auto main(int argc, const char* argv[]) -> int {
 	jit_engine.init(module);
 
 
-	jit_engine.registerFunction(print_hello_decl, [](const char* msg) -> void {
+	jit_engine.registerFunction(print_message_decl, [](const char* msg) -> void {
 		evo::printlnYellow("Message: \"{}\"", msg);
 	});
 

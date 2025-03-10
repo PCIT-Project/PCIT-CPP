@@ -14,6 +14,7 @@
 #include <PCIT_core.h>
 
 #include "../../include/Context.h"
+#include "../sema/sema.h"
 
 namespace pcit::panther{
 
@@ -27,6 +28,12 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto build(const AST::Node& stmt) -> bool;
 
+			EVO_NODISCARD auto buildTemplateInstance(
+				const SymbolProc& template_symbol_proc,
+				sema::TemplatedStruct::Instantiation& instantiation,
+				sema::ScopeManager::Scope::ID sema_scope_id
+			) -> evo::Result<SymbolProc::ID>;
+
 		private:
 			EVO_NODISCARD auto get_symbol_ident(const AST::Node& stmt) -> evo::Result<std::string_view>;
 
@@ -39,45 +46,56 @@ namespace pcit::panther{
 			EVO_NODISCARD auto build_func_call(const AST::Node& stmt) -> bool;
 
 			EVO_NODISCARD auto analyze_type(const AST::Type& ast_type) -> evo::Result<SymbolProc::TypeID>;
+			EVO_NODISCARD auto analyze_type_base(const AST::Node& ast_type_base) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
+
+			template<bool IS_COMPTIME, bool MUST_BE_EXPR>
+			EVO_NODISCARD auto analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;			
+
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr_prefix(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_prefix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+			EVO_NODISCARD auto analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			EVO_NODISCARD auto analyze_expr_intrinsic(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
-			EVO_NODISCARD auto analyze_expr_literal(const Token::ID& literal) -> evo::Result<SymbolProc::ExprInfoID>;
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
+
+			EVO_NODISCARD auto analyze_expr_intrinsic(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
+			EVO_NODISCARD auto analyze_expr_literal(const Token::ID& literal) -> evo::Result<SymbolProc::TermInfoID>;
 			EVO_NODISCARD auto analyze_expr_uninit(const Token::ID& uninit_token)
-				-> evo::Result<SymbolProc::ExprInfoID>;
+				-> evo::Result<SymbolProc::TermInfoID>;
 			EVO_NODISCARD auto analyze_expr_zeroinit(const Token::ID& zeroinit_token)
-				-> evo::Result<SymbolProc::ExprInfoID>;
-			EVO_NODISCARD auto analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID>;
+				-> evo::Result<SymbolProc::TermInfoID>;
+			EVO_NODISCARD auto analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 
 			EVO_NODISCARD auto analyze_attributes(const AST::AttributeBlock& attribute_block)
-				-> evo::Result<SymbolProc::Instruction::AttributeExprs>;
+				-> evo::Result<evo::SmallVector<SymbolProc::Instruction::AttributeParams>>;
+
+			EVO_NODISCARD auto analyze_template_param_pack(const AST::TemplatePack& template_pack)
+				-> evo::Result<evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>>;
 
 
 			auto add_instruction(auto&& instruction) -> void {
@@ -85,14 +103,19 @@ namespace pcit::panther{
 			}
 
 
-			auto create_expr_info() -> SymbolProc::ExprInfoID {
-				EVO_DEFER([&](){ this->get_current_symbol().num_expr_infos += 1; });
-				return SymbolProc::ExprInfoID(this->get_current_symbol().num_expr_infos);
+			auto create_term_info() -> SymbolProc::TermInfoID {
+				EVO_DEFER([&](){ this->get_current_symbol().num_term_infos += 1; });
+				return SymbolProc::TermInfoID(this->get_current_symbol().num_term_infos);
 			}
 
 			auto create_type() -> SymbolProc::TypeID {
 				EVO_DEFER([&](){ this->get_current_symbol().num_type_ids += 1; });
 				return SymbolProc::TypeID(this->get_current_symbol().num_type_ids);
+			}
+
+			auto create_struct_instantiation() -> SymbolProc::StructInstantiationID {
+				EVO_DEFER([&](){ this->get_current_symbol().num_struct_instantiations += 1; });
+				return SymbolProc::StructInstantiationID(this->get_current_symbol().num_struct_instantiations);
 			}
 
 
@@ -124,8 +147,10 @@ namespace pcit::panther{
 			struct SymbolProcInfo{
 				SymbolProc::ID symbol_proc_id;
 				SymbolProc& symbol_proc;
-				uint32_t num_expr_infos = 0;
+				uint32_t num_term_infos = 0;
 				uint32_t num_type_ids = 0;
+				uint32_t num_struct_instantiations = 0;
+				bool is_template = false;
 			};
 
 			EVO_NODISCARD auto is_child_symbol() const -> bool { return this->symbol_proc_infos.size() > 1; }
@@ -149,6 +174,7 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolScope*> symbol_scopes{};
 			evo::SmallVector<SymbolProc::Namespace*> symbol_namespaces{};
 	};
+
 
 
 	EVO_NODISCARD inline auto build_symbol_procs(Context& context, Source::ID source_id) -> bool {

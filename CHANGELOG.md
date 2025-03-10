@@ -1,6 +1,35 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.89.0"></a>
+## v0.0.89.0
+
+### Panther
+- Added struct templates
+- Added checking for shadowing
+- Fixed semantic analysis sometimes incorrectly requiring that a struct member have the `#pub` attribute to be used
+- Fixed struct members within a when conditional being put into the wrong scope level
+- Fixed fatal error when statement is two or more when-conditional deep and the when-conditional path for that symbol was not taken
+- Fixed circular dependency diagnostics having the locations switched
+- Fixed identifier lookup not looking in all required scope levels
+- Slight improvement to printing the AST of templated types
+
+### PIR
+- Changed assembly output from AT&T to Intel
+
+### PCIT_core
+- Fixed race condition in `ThreadQueue::isWorking()`
+
+
+<!---------------------------------->
+<a name="v0.0.88.0"></a>
+## v0.0.88.0
+
+### Panther
+- Added checking for empty template parameter blocks
+
+
+<!---------------------------------->
 <a name="v0.0.87.0"></a>
 ## v0.0.87.0
 
@@ -82,7 +111,7 @@
 <!---------------------------------->
 <a name="v0.0.82.0"></a>
 ## v0.0.82.0
-Removed depenedency analysis and added the symbol proc stage in its place. DOing this required re-doing semantic analysis.
+Removed depenedency analysis and added the symbol proc stage in its place. Doing this required re-doing semantic analysis.
 
 ### Panther
 - Added semantic analysis of global variables

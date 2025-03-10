@@ -1441,7 +1441,7 @@ namespace pcit::panther{
 
 		auto params = evo::SmallVector<AST::TemplatePack::Param>();
 
-		if(this->assert_token_fail(Token::lookupKind("<{"))){ return Result::Code::Error; }
+		const Token::ID start_location = this->reader.next();
 
 		bool param_has_default_value = false;
 		while(true){
@@ -1520,6 +1520,15 @@ namespace pcit::panther{
 			}
 		}
 
+
+		if(params.empty()){
+			this->context.emitError(
+				Diagnostic::Code::ParserTemplateParameterBlockEmpty,
+				Diagnostic::Location::get(start_location, this->source),
+				"Template parameter blocks cannot be empty",
+				Diagnostic::Info("If you don't want the symbol to be templated, remove the template parameter block")
+			);
+		}
 
 		return this->source.ast_buffer.createTemplatePack(std::move(params));
 	}

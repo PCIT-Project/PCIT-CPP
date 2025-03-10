@@ -329,6 +329,7 @@ namespace pthr{
 					if(var_decl.type.has_value()){
 						this->printer.print(" ");
 						this->print_type(this->ast_buffer.getType(*var_decl.type));
+						this->printer.println();
 					}else{
 						this->printer.printGray(" {INFERRED}\n");
 					}
@@ -395,6 +396,7 @@ namespace pthr{
 									this->print_minor_header("Type");
 									this->printer.print(" ");
 									this->print_type(this->ast_buffer.getType(*param.type));
+									this->printer.println();
 
 								}else{
 									this->indenter.print_arrow();
@@ -466,6 +468,7 @@ namespace pthr{
 								this->print_minor_header("Type");
 								this->printer.print(" ");
 								this->print_type(this->ast_buffer.getType(return_param.type));
+								this->printer.println();
 
 								this->indenter.pop();
 							}
@@ -507,6 +510,7 @@ namespace pthr{
 								this->print_minor_header("Type");
 								this->printer.print(" ");
 								this->print_type(this->ast_buffer.getType(error_return.type));
+								this->printer.println();
 
 								this->indenter.pop();
 							}
@@ -544,6 +548,7 @@ namespace pthr{
 					this->print_minor_header("Type");
 					this->printer.print(" ");
 					this->print_type(this->ast_buffer.getType(alias_decl.type));
+					this->printer.println();
 
 					this->indenter.pop();
 				}
@@ -568,6 +573,7 @@ namespace pthr{
 					this->print_minor_header("Type");
 					this->printer.print(" ");
 					this->print_type(this->ast_buffer.getType(type_decl.type));
+					this->printer.println();
 
 					this->indenter.pop();
 				}
@@ -733,6 +739,7 @@ namespace pthr{
 					this->printer.print(" ");
 					if(block.labelExplicitType.has_value()){
 						this->print_type(this->source.getASTBuffer().getType(*block.labelExplicitType));
+						this->printer.println();
 					}else{
 						this->printer.printlnGray("{NONE}");
 					}
@@ -801,9 +808,9 @@ namespace pthr{
 
 					case panther::AST::Kind::Infix: {
 						const panther::AST::Infix& infix = this->ast_buffer.getInfix(base_type);
-						print_base_type(infix.lhs);
+						this->print_base_type(infix.lhs);
 						this->printer.printMagenta(".");
-						print_base_type(infix.rhs);
+						this->print_base_type(infix.rhs);
 					} break;
 
 
@@ -811,9 +818,22 @@ namespace pthr{
 					case panther::AST::Kind::TemplatedExpr: {
 						const panther::AST::TemplatedExpr& templated_expr = 
 							this->ast_buffer.getTemplatedExpr(base_type);
-						print_base_type(templated_expr.base);
+						this->print_base_type(templated_expr.base);
 						this->printer.printMagenta("<{");
-						this->printer.printGray("...{} args...", templated_expr.args.size());
+
+						for(size_t i = 0; const panther::AST::Node& arg : templated_expr.args){
+							if(arg.kind() == panther::AST::Kind::Type){
+								this->print_type(this->ast_buffer.getType(arg));
+							}else{
+								this->printer.printGray("{ARG}");
+							}
+
+							if(i + 1 < templated_expr.args.size()){
+								this->printer.printMagenta(", ");
+							}
+						
+							i += 1;
+						}
 						this->printer.printMagenta("}>");
 					} break;
 
@@ -851,9 +871,7 @@ namespace pthr{
 				}
 
 				if(type.base.kind() == panther::AST::Kind::PrimitiveType){
-					this->printer.printGray(" {PRIMITIVE}\n");
-				}else{
-					this->printer.println();
+					this->printer.printGray(" {PRIMITIVE}");
 				}
 			}
 
@@ -889,6 +907,7 @@ namespace pthr{
 
 					case panther::AST::Kind::Type: {
 						this->print_type(this->ast_buffer.getType(node));
+						this->printer.println();
 					} break;
 
 					case panther::AST::Kind::New: {
@@ -1238,6 +1257,7 @@ namespace pthr{
 							this->print_minor_header("Type");
 							this->printer.print(" ");
 							this->print_type(this->ast_buffer.getType(param.type));
+							this->printer.println();
 
 							this->indenter.print_end();
 							this->print_minor_header("Default Value");
@@ -1320,6 +1340,7 @@ namespace pthr{
 				this->print_minor_header("Type");
 				this->printer.print(" ");
 				this->print_type(this->ast_buffer.getType(new_expr.type));
+				this->printer.println();
 
 				this->indenter.print_end();
 				this->print_minor_header("Arguments");

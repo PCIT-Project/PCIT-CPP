@@ -48,6 +48,7 @@ namespace pcit::panther{
 				Error,
 				NeedToWait,
 				NeedToWaitBeforeNextInstr,
+				// NeedToWaitOnInstantiation,
 			};
 
 			///////////////////////////////////
@@ -63,23 +64,31 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_when_cond(const Instruction::WhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_alias_decl(const Instruction::AliasDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_alias_def(const Instruction::AliasDef& instr) -> Result;
-			EVO_NODISCARD auto instr_struct_decl(const Instruction::StructDecl& instr) -> Result;
+
+			template<bool IS_INSTANTIATION>
+			EVO_NODISCARD auto instr_struct_decl(
+				const AST::StructDecl& struct_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> Result;
+
 			EVO_NODISCARD auto instr_struct_def() -> Result;
+			EVO_NODISCARD auto instr_templated_struct(const Instruction::TemplateStruct& instr) -> Result;
+			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
 
-			template<bool NEEDS_DEF, bool IS_EXPR>
-			EVO_NODISCARD auto instr_expr_accessor(
-				const AST::Infix& infix, SymbolProcExprInfoID lhs_id, Token::ID rhs_ident, SymbolProcExprInfoID output
-			) -> Result;
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result;
 
 			EVO_NODISCARD auto instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result;
 			EVO_NODISCARD auto instr_user_type(const Instruction::UserType& instr) -> Result;
-			EVO_NODISCARD auto instr_comptime_ident(const Instruction::ComptimeIdent& instr) -> Result;
 			EVO_NODISCARD auto instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result;
 
+			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
+			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait& instr)
+				-> Result;
+
 			template<bool NEEDS_DEF>
-			EVO_NODISCARD auto instr_ident(Token::ID ident, SymbolProc::ExprInfoID output) -> Result;
+			EVO_NODISCARD auto instr_ident(const Instruction::Ident<NEEDS_DEF>& instr) -> Result;
 
 			EVO_NODISCARD auto instr_intrinsic(const Instruction::Intrinsic& instr) -> Result;
 			EVO_NODISCARD auto instr_literal(const Instruction::Literal& instr) -> Result;
@@ -99,10 +108,17 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// misc
 
-			template<bool NEEDS_DEF, bool IS_EXPR>
-			EVO_NODISCARD auto lookup_ident_impl(Token::ID ident) -> evo::Expected<ExprInfo, Result>;
 
-			template<bool NEEDS_DEF, bool IS_EXPR, bool PUB_REQUIRED>
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto lookup_ident_impl(Token::ID ident) -> evo::Expected<TermInfo, Result>;
+
+
+			enum class AnalyzeExprIdentInScopeLevelError{
+				DoesntExist,
+				NeedsToWaitOnDef,
+				ErrorEmitted,
+			};
+			template<bool NEEDS_DEF, bool PUB_REQUIRED>
 			EVO_NODISCARD auto analyze_expr_ident_in_scope_level(
 				const Token::ID& ident,
 				std::string_view ident_str,
@@ -110,11 +126,13 @@ namespace pcit::panther{
 				bool variables_in_scope,
 				bool is_global_scope,
 				const Source* source_module
-			) -> evo::Result<std::optional<ExprInfo>>; // returning nullopt means that it needs to be waited on
+			) -> evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError>;
+
+			// evo::Result<std::optional<TermInfo>>; // returning nullopt means that it needs to be waited on
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto wait_on_symbol_proc(
-				const SymbolProc::Namespace& symbol_proc_namespace,
+				evo::ArrayProxy<const SymbolProc::Namespace*> symbol_proc_namespaces,
 				const auto& ident,
 				std::string_view ident_str,
 				std::string&& error_msg_if_ident_doesnt_exist,
@@ -132,8 +150,16 @@ namespace pcit::panther{
 				bool is_pub;
 			};
 			EVO_NODISCARD auto analyze_var_attrs(
-				const AST::VarDecl& var_decl, const SymbolProc::Instruction::AttributeExprs& attribute_exprs
+				const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<VarAttrs>;
+
+
+			struct StructAttrs{
+				bool is_pub;
+			};
+			EVO_NODISCARD auto analyze_struct_attrs(
+				const AST::StructDecl& struct_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<StructAttrs>;
 
 
 			///////////////////////////////////
@@ -151,8 +177,15 @@ namespace pcit::panther{
 			auto get_type(SymbolProc::TypeID symbol_proc_type_id) -> TypeInfo::VoidableID;
 			auto return_type(SymbolProc::TypeID symbol_proc_type_id, TypeInfo::VoidableID&& id) -> void;
 
-			auto get_expr_info(SymbolProc::ExprInfoID symbol_proc_expr_info_id) -> ExprInfo&;
-			auto return_expr_info(SymbolProc::ExprInfoID symbol_proc_expr_info_id, auto&&... args) -> void;
+			auto get_term_info(SymbolProc::TermInfoID symbol_proc_term_info_id) -> TermInfo&;
+			auto return_term_info(SymbolProc::TermInfoID symbol_proc_term_info_id, auto&&... args) -> void;
+
+			auto get_struct_instantiation(SymbolProc::StructInstantiationID instantiation_id)
+				-> const sema::TemplatedStruct::Instantiation&;
+			auto return_struct_instantiation(
+				SymbolProc::StructInstantiationID instantiation_id,
+				const sema::TemplatedStruct::Instantiation& instantiation
+			) -> void;
 
 
 
@@ -161,20 +194,20 @@ namespace pcit::panther{
 
 			struct TypeCheckInfo{
 				bool ok;
-				bool requires_implicit_conversion; // only may be true if .ok is true
+				bool requires_implicit_conversion; // value is undefined if .ok == false
 			};
 
-			template<bool IS_NOT_TEMPLATE_ARG>
+			template<bool IS_NOT_ARGUMENT>
 			EVO_NODISCARD auto type_check(
 				TypeInfo::ID expected_type_id,
-				ExprInfo& got_expr,
+				TermInfo& got_expr,
 				std::string_view expected_type_location_name,
 				const auto& location
 			) -> TypeCheckInfo;
 
 			auto error_type_mismatch(
 				TypeInfo::ID expected_type_id,
-				const ExprInfo& got_expr,
+				const TermInfo& got_expr,
 				std::string_view expected_type_location_name,
 				const auto& location
 			) -> void;
@@ -185,20 +218,37 @@ namespace pcit::panther{
 			) -> bool;
 
 
+			EVO_NODISCARD auto check_term_isnt_type(const TermInfo& term_info, const auto& location) -> bool;
+
+
 			EVO_NODISCARD auto add_ident_to_scope(
 				std::string_view ident_str, const auto& ast_node, auto&&... ident_id_info
+			) -> bool {
+				return this->add_ident_to_scope(
+					this->scope, ident_str, ast_node, std::forward<decltype(ident_id_info)>(ident_id_info)...
+				);
+			}
+
+			EVO_NODISCARD auto add_ident_to_scope(
+				sema::ScopeManager::Scope& target_scope,
+				std::string_view ident_str,
+				const auto& ast_node,
+				auto&&... ident_id_info
 			) -> bool;
 
-			EVO_NODISCARD auto print_type(const ExprInfo& expr_info) const -> std::string;
+			template<bool IS_SHADOWING>
+			auto error_already_defined(
+				const auto& redef_id, std::string_view ident_str, const sema::ScopeLevel::IdentID& first_defined_id
+			) -> void;
+
+			EVO_NODISCARD auto print_type(const TermInfo& term_info) const -> std::string;
 
 
 			auto emit_fatal(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
-				this->symbol_proc.errored = true;
 				this->context.emitFatal(code, this->get_location(node), std::forward<decltype(args)>(args)...);
 			}
 
 			auto emit_error(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
-				this->symbol_proc.errored = true;
 				this->context.emitError(code, this->get_location(node), std::forward<decltype(args)>(args)...);
 			}
 
@@ -217,6 +267,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_location(const sema::ScopeLevel::ModuleInfo& module_info) const
 			-> Diagnostic::Location {
 				return this->get_location(module_info.tokenID);
+			}
+
+			EVO_NODISCARD auto get_location(const sema::ScopeLevel::TemplateTypeParam& template_type_param) const
+			-> Diagnostic::Location {
+				return this->get_location(template_type_param.location);
+			}
+
+			EVO_NODISCARD auto get_location(const sema::ScopeLevel::TemplateExprParam& template_expr_param) const
+			-> Diagnostic::Location {
+				return this->get_location(template_expr_param.location);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::FuncID& func) const -> Diagnostic::Location {
@@ -255,6 +315,17 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_location(const BaseType::Struct::ID& struct_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(struct_id, this->source, this->context);
+			}
+
+			EVO_NODISCARD auto get_location(const sema::TemplatedStruct::ID& templated_struct_id) const
+			-> Diagnostic::Location {
+				const sema::TemplatedStruct& templated_struct =
+					this->context.sema_buffer.getTemplatedStruct(templated_struct_id);
+
+				return Diagnostic::Location::get(
+					templated_struct.symbolProc.ast_node,
+					this->context.getSourceManager()[templated_struct.symbolProc.source_id]
+				);
 			}
 
 

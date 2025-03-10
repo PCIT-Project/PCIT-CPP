@@ -42,11 +42,6 @@ namespace pcit::pir{
 
 		lowering_data.module.init(module.getName(), lowering_data.context);
 
-		const std::string target_triple = lowering_data.module.generateTargetTriple(
-			module.getOS(), module.getArchitecture()
-		);
-
-
 		const llvmint::Module::OptLevel opt_level = [&](){
 			switch(opt_mode){
 				case OptMode::O0: return llvmint::Module::OptLevel::None;
@@ -60,8 +55,14 @@ namespace pcit::pir{
 			evo::unreachable();
 		}();
 
-		const std::string data_layout_error = lowering_data.module.setDataLayout(
-			target_triple,
+
+		//////////////////////////////////////////////////////////////////////
+		// 
+		
+
+		const std::string data_layout_error = lowering_data.module.setTargetAndDataLayout(
+			module.getOS(),
+			module.getArchitecture(),
 			llvmint::Module::Relocation::Default,
 			llvmint::Module::CodeSize::Default,
 			opt_level,
@@ -70,7 +71,10 @@ namespace pcit::pir{
 
 		evo::debugAssert(data_layout_error.empty(), data_layout_error);
 
-		lowering_data.module.setTargetTriple(target_triple);
+		// 
+		//////////////////////////////////////////////////////////////////////
+
+
 
 		auto lowerer = PIRToLLVMIR(module, lowering_data.context, lowering_data.module);
 		lowerer.lower();

@@ -249,6 +249,7 @@ namespace pcit::pir{
 	};
 
 	static_assert(sizeof(Expr) == 8);
+	static_assert(std::is_trivially_copyable<Expr>());
 
 
 	struct ExprOptInterface{

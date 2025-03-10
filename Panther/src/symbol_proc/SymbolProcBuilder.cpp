@@ -17,20 +17,24 @@
 #endif
 
 namespace pcit::panther{
+
+	using Instruction = SymbolProc::Instruction;
 	
 
 	auto SymbolProcBuilder::build(const AST::Node& stmt) -> bool {
 		const evo::Result<std::string_view> symbol_ident = this->get_symbol_ident(stmt);
 		if(symbol_ident.isError()){ return false; }
 
+		SymbolProc* parent_symbol = (this->symbol_proc_infos.empty() == false) 
+			? &this->symbol_proc_infos.back().symbol_proc
+			: nullptr;
 
 		SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
-			stmt, this->source.getID(), symbol_ident.value()
+			stmt, this->source.getID(), symbol_ident.value(), parent_symbol
 		);
 		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
 
 		this->symbol_proc_infos.emplace_back(symbol_proc_id, symbol_proc);
-
 		
 		switch(stmt.kind()){
 			break; case AST::Kind::VarDecl:         if(this->build_var_decl(stmt) == false){ return false; }
@@ -44,8 +48,20 @@ namespace pcit::panther{
 			break; default: evo::unreachable();
 		}
 
-		symbol_proc.expr_infos.resize(this->get_current_symbol().num_expr_infos);
+		symbol_proc.term_infos.resize(this->get_current_symbol().num_term_infos);
 		symbol_proc.type_ids.resize(this->get_current_symbol().num_type_ids);
+		symbol_proc.struct_instantiations.resize(this->get_current_symbol().num_struct_instantiations);
+
+		if(this->get_current_symbol().is_template == false){
+			for(auto iter = this->symbol_proc_infos.rbegin(); iter != this->symbol_proc_infos.rend(); ++iter){
+				if(iter->is_template){
+					symbol_proc.setIsTemplateSubSymbol();
+					this->context.symbol_proc_manager.num_procs_not_done -= 1;
+					break;
+				}
+			}
+		}
+
 
 		this->symbol_proc_infos.pop_back();
 
@@ -53,6 +69,73 @@ namespace pcit::panther{
 
 		return true;
 	}
+
+
+
+	auto SymbolProcBuilder::buildTemplateInstance(
+		const SymbolProc& template_symbol_proc,
+		sema::TemplatedStruct::Instantiation& instantiation,
+		sema::ScopeManager::Scope::ID sema_scope_id
+	) -> evo::Result<SymbolProc::ID> {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::StructDecl& struct_decl = ast_buffer.getStructDecl(template_symbol_proc.ast_node);
+
+		SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
+			template_symbol_proc.ast_node,
+			template_symbol_proc.source_id,
+			template_symbol_proc.ident,
+			template_symbol_proc.parent
+		);
+		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
+
+		symbol_proc.sema_scope_id = sema_scope_id;
+
+		this->symbol_proc_infos.emplace_back(symbol_proc_id, symbol_proc);
+
+
+		///////////////////////////////////
+		// build struct decl
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		this->add_instruction(
+			Instruction::StructDeclInstantiation(struct_decl, std::move(attribute_params_info.value()))
+		);
+		this->add_instruction(Instruction::StructDef());
+
+		SymbolProc::StructInfo& struct_info = this->get_current_symbol().symbol_proc.extra_info
+			.emplace<SymbolProc::StructInfo>(&instantiation);
+
+		this->symbol_scopes.emplace_back(&struct_info.stmts);
+		this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
+		for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).stmts){
+			if(this->build(struct_stmt) == false){ return evo::resultError; }
+		}
+		this->symbol_namespaces.pop_back();
+		this->symbol_scopes.pop_back();
+
+
+		///////////////////////////////////
+		// done
+
+		symbol_proc.term_infos.resize(this->get_current_symbol().num_term_infos);
+		symbol_proc.type_ids.resize(this->get_current_symbol().num_type_ids);
+		symbol_proc.struct_instantiations.resize(this->get_current_symbol().num_struct_instantiations);
+
+		this->symbol_proc_infos.pop_back();
+
+		this->context.trace(
+			"Finished building template instantiation symbol proc of \"{}\"", template_symbol_proc.ident
+		);
+
+		return symbol_proc_id;
+	}
+
+
+
+
 
 
 	auto SymbolProcBuilder::get_symbol_ident(const AST::Node& stmt) -> evo::Result<std::string_view> {
@@ -121,10 +204,10 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::build_var_decl(const AST::Node& stmt) -> bool {
 		const AST::VarDecl& var_decl = this->source.getASTBuffer().getVarDecl(stmt);
 
-		evo::Result<SymbolProc::Instruction::AttributeExprs> attribute_exprs = this->analyze_attributes(
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
 			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock)
 		);
-		if(attribute_exprs.isError()){ return false; }
+		if(attribute_params_info.isError()){ return false; }
 
 
 		auto type_id = std::optional<SymbolProc::TypeID>();
@@ -136,8 +219,8 @@ namespace pcit::panther{
 
 			if(var_decl.kind != AST::VarDecl::Kind::Def){
 				this->add_instruction(
-					SymbolProc::Instruction::VarDecl(
-						var_decl, std::move(attribute_exprs.value()), type_id_res.value()
+					Instruction::VarDecl(
+						var_decl, std::move(attribute_params_info.value()), type_id_res.value()
 					)
 				);
 			}else{
@@ -153,18 +236,18 @@ namespace pcit::panther{
 			return false;
 		}
 
-		const evo::Result<SymbolProc::ExprInfoID> value_id = this->analyze_expr<true>(*var_decl.value);
+		const evo::Result<SymbolProc::TermInfoID> value_id = this->analyze_expr<true>(*var_decl.value);
 		if(value_id.isError()){ return false; }
 
 		if(var_decl.type.has_value() && var_decl.kind != AST::VarDecl::Kind::Def){
 			this->add_instruction(
-				SymbolProc::Instruction::VarDef(var_decl, value_id.value())
+				Instruction::VarDef(var_decl, value_id.value())
 			);
 
 		}else{
 			this->add_instruction(
-				SymbolProc::Instruction::VarDeclDef(
-					var_decl, std::move(attribute_exprs.value()), type_id, value_id.value()
+				Instruction::VarDeclDef(
+					var_decl, std::move(attribute_params_info.value()), type_id, value_id.value()
 				)
 			);
 		}
@@ -202,17 +285,17 @@ namespace pcit::panther{
 		const AST::AliasDecl& alias_decl = ast_buffer.getAliasDecl(stmt);
 
 
-		evo::Result<SymbolProc::Instruction::AttributeExprs> attribute_exprs = this->analyze_attributes(
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
 			ast_buffer.getAttributeBlock(alias_decl.attributeBlock)
 		);
-		if(attribute_exprs.isError()){ return false; }
+		if(attribute_params_info.isError()){ return false; }
 
-		this->add_instruction(SymbolProc::Instruction::AliasDecl(alias_decl, std::move(attribute_exprs.value())));
+		this->add_instruction(Instruction::AliasDecl(alias_decl, std::move(attribute_params_info.value())));
 		
 		const evo::Result<SymbolProc::TypeID> aliased_type = this->analyze_type(ast_buffer.getType(alias_decl.type));
 		if(aliased_type.isError()){ return false; }
 
-		this->add_instruction(SymbolProc::Instruction::AliasDef(alias_decl, aliased_type.value()));
+		this->add_instruction(Instruction::AliasDef(alias_decl, aliased_type.value()));
 
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
@@ -246,28 +329,45 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::StructDecl& struct_decl = ast_buffer.getStructDecl(stmt);
 
-		evo::Result<SymbolProc::Instruction::AttributeExprs> attribute_exprs = this->analyze_attributes(
-			ast_buffer.getAttributeBlock(struct_decl.attributeBlock)
-		);
-		if(attribute_exprs.isError()){ return false; }
-
-		this->add_instruction(SymbolProc::Instruction::StructDecl(struct_decl, std::move(attribute_exprs.value())));
-		this->add_instruction(SymbolProc::Instruction::StructDef());
-
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 
-		SymbolProc::StructInfo& struct_info = current_symbol->symbol_proc.extra_info.emplace<SymbolProc::StructInfo>();
+		auto template_param_infos = evo::SmallVector<Instruction::TemplateParamInfo>();
+		if(struct_decl.templatePack.has_value()){
+			current_symbol->is_template = true;
+			evo::Result<evo::SmallVector<Instruction::TemplateParamInfo>> template_param_infos_res =
+				this->analyze_template_param_pack(ast_buffer.getTemplatePack(*struct_decl.templatePack));
 
-		this->symbol_scopes.emplace_back(&struct_info.stmts);
-		this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
-		for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).stmts){
-			if(this->build(struct_stmt) == false){ return false; }
+			if(template_param_infos_res.isError()){ return false; }
+			template_param_infos = std::move(template_param_infos_res.value());
 		}
-		this->symbol_namespaces.pop_back();
-		this->symbol_scopes.pop_back();
 
-		// need to set again as address may have changed
-		current_symbol = &this->get_current_symbol();
+		if(template_param_infos.empty()){
+			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+				this->analyze_attributes(ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
+			if(attribute_params_info.isError()){ return false; }
+
+			this->add_instruction(Instruction::StructDecl(struct_decl, std::move(attribute_params_info.value())));
+			this->add_instruction(Instruction::StructDef());
+
+			SymbolProc::StructInfo& struct_info =
+				current_symbol->symbol_proc.extra_info.emplace<SymbolProc::StructInfo>();
+
+
+			this->symbol_scopes.emplace_back(&struct_info.stmts);
+			this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
+			for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).stmts){
+				if(this->build(struct_stmt) == false){ return false; }
+			}
+			this->symbol_namespaces.pop_back();
+			this->symbol_scopes.pop_back();
+
+			// need to set again as address may have changed
+			current_symbol = &this->get_current_symbol();
+
+		}else{
+			this->add_instruction(Instruction::TemplateStruct(struct_decl, std::move(template_param_infos)));
+		}
+
 
 		if(this->is_child_symbol()){
 			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
@@ -287,7 +387,7 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::WhenConditional& when_conditional = ast_buffer.getWhenConditional(stmt);
 
-		const evo::Result<SymbolProc::ExprInfoID> cond_id = this->analyze_expr<true>(when_conditional.cond);
+		const evo::Result<SymbolProc::TermInfoID> cond_id = this->analyze_expr<true>(when_conditional.cond);
 		if(cond_id.isError()){ return false; }
 
 		auto then_symbol_scope = SymbolScope();
@@ -311,12 +411,24 @@ namespace pcit::panther{
 		}
 		
 
-		this->add_instruction(SymbolProc::Instruction::WhenCond(when_conditional, cond_id.value()));
+		this->add_instruction(Instruction::WhenCond(when_conditional, cond_id.value()));
+
+
+		SymbolProcInfo& current_symbol = this->get_current_symbol();
+
+		if(this->is_child_symbol()){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
+			current_symbol.symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
+		}
 
 		this->symbol_namespaces.back()->emplace("", this->get_current_symbol().symbol_proc_id);
 
 		// TODO: address these directly instead of moving them in
-		this->get_current_symbol().symbol_proc.extra_info.emplace<SymbolProc::WhenCondInfo>(
+		current_symbol.symbol_proc.extra_info.emplace<SymbolProc::WhenCondInfo>(
 			std::move(then_symbol_scope), std::move(else_symbol_scope)
 		);
 
@@ -337,76 +449,92 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_type(const AST::Type& ast_type) -> evo::Result<SymbolProc::TypeID> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-
 		const SymbolProc::TypeID created_type_id = this->create_type();
 
-		switch(ast_type.base.kind()){
-			case AST::Kind::PrimitiveType: { 
-				this->add_instruction(SymbolProc::Instruction::PrimitiveType(ast_type, created_type_id));
-				return created_type_id;
+		if(ast_type.base.kind() == AST::Kind::PrimitiveType){
+			this->add_instruction(Instruction::PrimitiveType(ast_type, created_type_id));
+			return created_type_id;
+		}else{
+			const evo::Result<SymbolProc::TermInfoID> type_base = this->analyze_type_base(ast_type.base);
+			if(type_base.isError()){ return evo::resultError; }
+
+			this->add_instruction(Instruction::UserType(ast_type, type_base.value(), created_type_id));
+			return created_type_id;
+		}
+	}
+
+
+
+
+	auto SymbolProcBuilder::analyze_type_base(const AST::Node& ast_type_base) -> evo::Result<SymbolProc::TermInfoID> {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+
+		switch(ast_type_base.kind()){
+			case AST::Kind::Ident: { 
+				return this->analyze_expr_ident<true>(ast_type_base);
 			} break;
 
-			case AST::Kind::Ident: { 
-				const SymbolProc::ExprInfoID created_base_expr_info_id = this->create_expr_info();
+			case AST::Kind::TemplatedExpr: {
+				const AST::TemplatedExpr& templated_expr = ast_buffer.getTemplatedExpr(ast_type_base);
+
+				const evo::Result<SymbolProc::TermInfoID> base_type = this->analyze_type_base(templated_expr.base);
+				if(base_type.isError()){ return evo::resultError; }
+
+				auto args = evo::SmallVector<evo::Variant<SymbolProc::TermInfoID, SymbolProc::TypeID>>();
+				args.reserve(templated_expr.args.size());
+				for(const AST::Node& arg : templated_expr.args){
+					if(arg.kind() == AST::Kind::Type){
+						const evo::Result<SymbolProc::TypeID> arg_type = this->analyze_type(ast_buffer.getType(arg));
+						if(arg_type.isError()){ return evo::resultError; }
+
+						args.emplace_back(arg_type.value());
+
+					}else{
+						const evo::Result<SymbolProc::TermInfoID> arg_expr_info = this->analyze_expr<true>(arg);
+						if(arg_expr_info.isError()){ return evo::resultError; }
+
+						args.emplace_back(arg_expr_info.value());
+					}
+				}
+
+				const SymbolProc::StructInstantiationID created_struct_inst_id = this->create_struct_instantiation();
+				const SymbolProc::TermInfoID created_base_term_info_id = this->create_term_info();
 
 				this->add_instruction(
-					SymbolProc::Instruction::BaseTypeIdent(
-						ast_buffer.getIdent(ast_type.base), created_base_expr_info_id
+					Instruction::TemplatedTerm(
+						templated_expr, base_type.value(), std::move(args), created_struct_inst_id
 					)
 				);
 
 				this->add_instruction(
-					SymbolProc::Instruction::UserType(ast_type, created_base_expr_info_id, created_type_id)
+					Instruction::TemplatedTermWait(created_struct_inst_id, created_base_term_info_id)
 				);
-				return created_type_id;
+
+				return created_base_term_info_id;
 			} break;
 
 			case AST::Kind::Infix: { 
-				const auto get_base_type = [&](const AST::Node& base_type) -> SymbolProc::ExprInfoID {
-					const auto get_base_type_ = [this, &ast_buffer]
-					(const auto get_base_type, const AST::Node& base_type) -> SymbolProc::ExprInfoID {
-						if(base_type.kind() == AST::Kind::Ident){
-							const SymbolProc::ExprInfoID created_base_expr_info_id = this->create_expr_info();
+				const AST::Infix& base_type_infix = ast_buffer.getInfix(ast_type_base);
 
-							this->add_instruction(
-								SymbolProc::Instruction::BaseTypeIdent(
-									ast_buffer.getIdent(base_type), created_base_expr_info_id
-								)
-							);
+				const evo::Result<SymbolProc::TermInfoID> base_lhs = this->analyze_type_base(base_type_infix.lhs);
+				if(base_lhs.isError()){ return evo::resultError; }
 
-							return created_base_expr_info_id;
-							
-						}else{
-							evo::debugAssert(base_type.kind() == AST::Kind::Infix, "Unexpected lhs of infix type");
-							const AST::Infix& base_type_infix = ast_buffer.getInfix(base_type);
-
-							const SymbolProc::ExprInfoID created_base_type_type = this->create_expr_info();
-							this->add_instruction(
-								SymbolProc::Instruction::TypeAccessor(
-									base_type_infix,
-									get_base_type(get_base_type, base_type_infix.lhs),
-									ast_buffer.getIdent(base_type_infix.rhs),
-									created_base_type_type
-								)
-							);
-							return created_base_type_type;
-						}
-					};
-
-					return get_base_type_(get_base_type_, base_type);
-				};
-
+				const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
 				this->add_instruction(
-					SymbolProc::Instruction::UserType(ast_type, get_base_type(ast_type.base), created_type_id)
+					Instruction::Accessor<true>(
+						base_type_infix,
+						base_lhs.value(),
+						ast_buffer.getIdent(base_type_infix.rhs),
+						created_base_type_type
+					)
 				);
-				return created_type_id;
+				return created_base_type_type;
 			} break;
 
 			case AST::Kind::TypeIDConverter: { 
 				this->emit_error(
 					Diagnostic::Code::MiscUnimplementedFeature,
-					ast_type.base,
+					ast_type_base,
 					"Type ID converters are unimplemented"
 				);
 				return evo::resultError;
@@ -415,7 +543,7 @@ namespace pcit::panther{
 			// TODO: separate out into more kinds to be more specific (errors vs fatal)
 			default: {
 				this->emit_error(
-					Diagnostic::Code::SymbolProcInvalidBaseType, ast_type.base, "Invalid base type"
+					Diagnostic::Code::SymbolProcInvalidBaseType, ast_type_base, "Invalid base type"
 				);
 				return evo::resultError;
 			} break;
@@ -425,7 +553,18 @@ namespace pcit::panther{
 
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::ExprInfoID> {
+	auto SymbolProcBuilder::analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
+		return this->analyze_term_impl<IS_COMPTIME, false>(expr);
+	}
+
+	template<bool IS_COMPTIME>
+	auto SymbolProcBuilder::analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
+		return this->analyze_term_impl<IS_COMPTIME, true>(expr);
+	}
+
+
+	template<bool IS_COMPTIME, bool MUST_BE_EXPR>
+	auto SymbolProcBuilder::analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		switch(expr.kind()){
@@ -447,12 +586,46 @@ namespace pcit::panther{
 			case AST::Kind::Zeroinit:      return this->analyze_expr_zeroinit(ast_buffer.getZeroinit(expr));
 			case AST::Kind::This:          return this->analyze_expr_this(expr);
 
-			case AST::Kind::VarDecl:     case AST::Kind::FuncDecl:        case AST::Kind::AliasDecl:
-			case AST::Kind::TypedefDecl: case AST::Kind::StructDecl:      case AST::Kind::Return:
-			case AST::Kind::Conditional: case AST::Kind::WhenConditional: case AST::Kind::While:
-			case AST::Kind::Unreachable: case AST::Kind::TemplatePack:    case AST::Kind::MultiAssign:
-			case AST::Kind::Type:        case AST::Kind::TypeIDConverter: case AST::Kind::AttributeBlock:
-			case AST::Kind::Attribute:   case AST::Kind::PrimitiveType:   case AST::Kind::Discard: {
+			case AST::Kind::Type: {
+				if constexpr(MUST_BE_EXPR){
+					this->emit_error(Diagnostic::Code::SymbolProcTypeUsedAsExpr, expr, "Type used as expression");
+					return evo::resultError;
+				}else{
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+
+					const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type(ast_buffer.getType(expr));
+					if(type_id.isError()){ return evo::resultError; }
+
+					this->add_instruction(Instruction::TypeToTerm(type_id.value(), new_term_info_id));
+					return new_term_info_id;
+				}
+			} break;
+
+			case AST::Kind::TypeIDConverter: {
+				if constexpr(MUST_BE_EXPR){
+					this->emit_error(
+						Diagnostic::Code::MiscUnimplementedFeature,
+						expr,
+						"Type ID converter is currently unimplemented"
+					);
+					return evo::resultError;
+				}else{
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+
+					const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type(ast_buffer.getType(expr));
+					if(type_id.isError()){ return evo::resultError; }
+
+					this->add_instruction(Instruction::TypeToTerm(type_id.value(), new_term_info_id));
+					return new_term_info_id;
+				}
+			} break;
+
+			case AST::Kind::VarDecl:        case AST::Kind::FuncDecl:        case AST::Kind::AliasDecl:
+			case AST::Kind::TypedefDecl:    case AST::Kind::StructDecl:      case AST::Kind::Return:
+			case AST::Kind::Conditional:    case AST::Kind::WhenConditional: case AST::Kind::While:
+			case AST::Kind::Unreachable:    case AST::Kind::TemplatePack:    case AST::Kind::MultiAssign:
+			case AST::Kind::AttributeBlock: case AST::Kind::Attribute:       case AST::Kind::PrimitiveType:
+			case AST::Kind::Discard: {
 				// TODO: better messaging (specify what kind)
 				this->emit_fatal(
 					Diagnostic::Code::SymbolProcInvalidExprKind,
@@ -469,7 +642,7 @@ namespace pcit::panther{
 
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
+	auto SymbolProcBuilder::analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of block is unimplemented"
 		);
@@ -477,7 +650,7 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
+	auto SymbolProcBuilder::analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(node);
 
 		if(func_call.target.kind() == AST::Kind::Intrinsic){
@@ -501,45 +674,78 @@ namespace pcit::panther{
 					return evo::resultError;	
 				}
 
-				const evo::Result<SymbolProc::ExprInfoID> path_value = this->analyze_expr<true>(
+				const evo::Result<SymbolProc::TermInfoID> path_value = this->analyze_expr<true>(
 					func_call.args[0].value
 				);
 				if(path_value.isError()){ return evo::resultError; }
 
-				const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
-				this->add_instruction(SymbolProc::Instruction::Import(func_call, path_value.value(), new_expr_info_id));
-				return new_expr_info_id;
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				this->add_instruction(Instruction::Import(func_call, path_value.value(), new_term_info_id));
+				return new_term_info_id;
 			}
 		}
 
-		const evo::Result<SymbolProc::ExprInfoID> target = this->analyze_expr<IS_COMPTIME>(func_call.target);
+		const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(func_call.target);
 		if(target.isError()){ return evo::resultError; }
 
-		auto args = evo::SmallVector<SymbolProc::ExprInfoID>();
+		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
 		args.reserve(func_call.args.size());
 		for(const AST::FuncCall::Arg& arg : func_call.args){
-			const evo::Result<SymbolProc::ExprInfoID> arg_value = this->analyze_expr<IS_COMPTIME>(arg.value);
+			const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_expr<IS_COMPTIME>(arg.value);
 			if(arg_value.isError()){ return evo::resultError; }
 			args.emplace_back(arg_value.value());
 		}
 
-		const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			SymbolProc::Instruction::FuncCall(func_call, target.value(), new_expr_info_id, std::move(args))
+			Instruction::FuncCall(func_call, target.value(), new_term_info_id, std::move(args))
 		);
-		return new_expr_info_id;
+		return new_term_info_id;
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of templated expr is unimplemented"
+	auto SymbolProcBuilder::analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::TemplatedExpr& templated_expr = ast_buffer.getTemplatedExpr(node);
+
+		const evo::Result<SymbolProc::TermInfoID> base_type = this->analyze_expr<IS_COMPTIME>(templated_expr.base);
+		if(base_type.isError()){ return evo::resultError; }
+
+		auto args = evo::SmallVector<evo::Variant<SymbolProc::TermInfoID, SymbolProc::TypeID>>();
+		args.reserve(templated_expr.args.size());
+		for(const AST::Node& arg : templated_expr.args){
+			if(arg.kind() == AST::Kind::Type){
+				const evo::Result<SymbolProc::TypeID> arg_type = this->analyze_type(ast_buffer.getType(arg));
+				if(arg_type.isError()){ return evo::resultError; }
+
+				args.emplace_back(arg_type.value());
+
+			}else{
+				const evo::Result<SymbolProc::TermInfoID> arg_expr_info = this->analyze_expr<true>(arg);
+				if(arg_expr_info.isError()){ return evo::resultError; }
+
+				args.emplace_back(arg_expr_info.value());
+			}
+		}
+
+		const SymbolProc::StructInstantiationID created_struct_inst_id = this->create_struct_instantiation();
+		const SymbolProc::TermInfoID created_base_term_info_id = this->create_term_info();
+
+		this->add_instruction(
+			Instruction::TemplatedTerm(
+				templated_expr, base_type.value(), std::move(args), created_struct_inst_id
+			)
 		);
-		return evo::resultError;
+
+		this->add_instruction(
+			Instruction::TemplatedTermWait(created_struct_inst_id, created_base_term_info_id)
+		);
+
+		return created_base_term_info_id;
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_prefix(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
+	auto SymbolProcBuilder::analyze_expr_prefix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of prefix is unimplemented"
 		);
@@ -547,24 +753,18 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
+	auto SymbolProcBuilder::analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::Infix& infix = this->source.getASTBuffer().getInfix(node);
 
 		if(this->source.getTokenBuffer()[infix.opTokenID].kind() == Token::lookupKind(".")){
-			const evo::Result<SymbolProc::ExprInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
+			const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 			if(lhs.isError()){ return evo::resultError; }
 
 			const Token::ID rhs = this->source.getASTBuffer().getIdent(infix.rhs);
 
-			const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
-			if constexpr(IS_COMPTIME){
-				this->add_instruction(
-					SymbolProc::Instruction::ComptimeExprAccessor(infix, lhs.value(), rhs, new_expr_info_id)
-				);
-			}else{
-				this->add_instruction(SymbolProc::Instruction::ExprAccessor(infix, lhs.value(), rhs, new_expr_info_id));
-			}
-			return new_expr_info_id;
+			const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+			this->add_instruction(Instruction::Accessor<IS_COMPTIME>(infix, lhs.value(), rhs, new_term_info_id));
+			return new_term_info_id;
 		}
 
 		this->emit_error(
@@ -574,7 +774,7 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
+	auto SymbolProcBuilder::analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of postfix is unimplemented"
 		);
@@ -582,7 +782,7 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
+	auto SymbolProcBuilder::analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of new is unimplemented"
 		);
@@ -590,48 +790,42 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
-		const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
-		if constexpr(IS_COMPTIME){
-			this->add_instruction(
-				SymbolProc::Instruction::ComptimeIdent(this->source.getASTBuffer().getIdent(node), new_expr_info_id)
-			);
-		}else{
-			this->add_instruction(
-				SymbolProc::Instruction::Ident(this->source.getASTBuffer().getIdent(node), new_expr_info_id)
-			);
-		}
-		return new_expr_info_id;
-	}
-
-	auto SymbolProcBuilder::analyze_expr_intrinsic(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
-		const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
+	auto SymbolProcBuilder::analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			SymbolProc::Instruction::Intrinsic(this->source.getASTBuffer().getIntrinsic(node), new_expr_info_id)
+			Instruction::Ident<IS_COMPTIME>(this->source.getASTBuffer().getIdent(node), new_term_info_id)
 		);
-		return new_expr_info_id;
+		return new_term_info_id;
 	}
 
-	auto SymbolProcBuilder::analyze_expr_literal(const Token::ID& literal) -> evo::Result<SymbolProc::ExprInfoID> {
-		const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
-		this->add_instruction(SymbolProc::Instruction::Literal(literal, new_expr_info_id));
-		return new_expr_info_id;
+	auto SymbolProcBuilder::analyze_expr_intrinsic(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		this->add_instruction(
+			Instruction::Intrinsic(this->source.getASTBuffer().getIntrinsic(node), new_term_info_id)
+		);
+		return new_term_info_id;
 	}
 
-	auto SymbolProcBuilder::analyze_expr_uninit(const Token::ID& uninit_token) -> evo::Result<SymbolProc::ExprInfoID> {
-		const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
-		this->add_instruction(SymbolProc::Instruction::Uninit(uninit_token, new_expr_info_id));
-		return new_expr_info_id;
+	auto SymbolProcBuilder::analyze_expr_literal(const Token::ID& literal) -> evo::Result<SymbolProc::TermInfoID> {
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		this->add_instruction(Instruction::Literal(literal, new_term_info_id));
+		return new_term_info_id;
+	}
+
+	auto SymbolProcBuilder::analyze_expr_uninit(const Token::ID& uninit_token) -> evo::Result<SymbolProc::TermInfoID> {
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		this->add_instruction(Instruction::Uninit(uninit_token, new_term_info_id));
+		return new_term_info_id;
 	}
 
 	auto SymbolProcBuilder::analyze_expr_zeroinit(const Token::ID& zeroinit_token)
-	-> evo::Result<SymbolProc::ExprInfoID> {
-		const SymbolProc::ExprInfoID new_expr_info_id = this->create_expr_info();
-		this->add_instruction(SymbolProc::Instruction::Zeroinit(zeroinit_token, new_expr_info_id));
-		return new_expr_info_id;
+	-> evo::Result<SymbolProc::TermInfoID> {
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		this->add_instruction(Instruction::Zeroinit(zeroinit_token, new_term_info_id));
+		return new_term_info_id;
 	}
 
-	auto SymbolProcBuilder::analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::ExprInfoID> {
+	auto SymbolProcBuilder::analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of this is unimplemented"
 		);
@@ -641,21 +835,56 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_attributes(const AST::AttributeBlock& attribute_block)
-	-> evo::Result<SymbolProc::Instruction::AttributeExprs> {
-		auto attribute_exprs = SymbolProc::Instruction::AttributeExprs();
+	-> evo::Result<evo::SmallVector<Instruction::AttributeParams>> {
+		auto attribute_params_info = evo::SmallVector<Instruction::AttributeParams>();
 
 		for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
-			attribute_exprs.emplace_back();
+			attribute_params_info.emplace_back();
 
 			for(const AST::Node& arg : attribute.args){
-				const evo::Result<SymbolProc::ExprInfoID> arg_expr = this->analyze_expr<true>(arg);
+				const evo::Result<SymbolProc::TermInfoID> arg_expr = this->analyze_expr<true>(arg);
 				if(arg_expr.isError()){ return evo::resultError; }
 
-				attribute_exprs.back().emplace_back(arg_expr.value());
+				attribute_params_info.back().emplace_back(arg_expr.value());
 			}
 		}
 
-		return attribute_exprs;
+		return attribute_params_info;
+	}
+
+
+
+	auto SymbolProcBuilder::analyze_template_param_pack(const AST::TemplatePack& template_pack)
+	-> evo::Result<evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>> {
+		const TokenBuffer& token_buffer = this->source.getTokenBuffer();
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+
+		auto template_param_infos = evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>();
+
+		for(const AST::TemplatePack::Param& param : template_pack.params){
+			const AST::Type& param_ast_type = ast_buffer.getType(param.type);
+			auto param_type = std::optional<SymbolProc::TypeID>();
+			if(
+				param_ast_type.base.kind() != AST::Kind::PrimitiveType 
+				|| token_buffer[ast_buffer.getPrimitiveType(param_ast_type.base)].kind() != Token::Kind::TypeType
+			){
+				const evo::Result<SymbolProc::TypeID> param_type_res = this->analyze_type(param_ast_type);
+				if(param_type_res.isError()){ return evo::resultError; }
+				param_type = param_type_res.value();
+			}
+
+			auto default_value = std::optional<SymbolProc::TermInfoID>();
+			if(param.defaultValue.has_value()){
+				const evo::Result<SymbolProc::TermInfoID> default_value_res =
+					this->analyze_term<true>(*param.defaultValue);
+				if(default_value_res.isError()){ return evo::resultError; }
+				default_value = default_value_res.value();
+			}
+
+			template_param_infos.emplace_back(param, param_type, default_value);
+		}
+
+		return template_param_infos;
 	}
 
 

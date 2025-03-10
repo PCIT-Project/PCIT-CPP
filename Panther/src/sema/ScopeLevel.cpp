@@ -68,118 +68,156 @@ namespace pcit::panther::sema{
 
 
 
-	auto ScopeLevel::addIdent(std::string_view ident, sema::FuncID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
+	auto ScopeLevel::addIdent(std::string_view ident, sema::FuncID id) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
 
 		const std::unordered_map<std::string_view, IdentID>::iterator ident_find = this->ids.find(ident);
 		if(ident_find == this->ids.end()){
-			this->ids.emplace(ident, IdentID()).first->second.as<FuncOverloadList>().emplace_back();
-			return true;
+			IdentID& new_ident_id = this->ids.emplace(ident, IdentID()).first->second;
+			new_ident_id.as<FuncOverloadList>().emplace_back();
+			return &new_ident_id;
+
 		}else{
 			if(ident_find->second.is<FuncOverloadList>()){
 				ident_find->second.as<FuncOverloadList>().emplace_back(
 					evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
 				);
-				return true;
+				return &ident_find->second;
 			}else{
-				return false;
+				return evo::Unexpected(false);
 			}
 		}
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, sema::TemplatedFuncID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
+	auto ScopeLevel::addIdent(std::string_view ident, sema::TemplatedFuncID id) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
 
 		const std::unordered_map<std::string_view, IdentID>::iterator ident_find = this->ids.find(ident);
 		if(ident_find == this->ids.end()){
-			this->ids.emplace(ident, IdentID()).first->second.as<FuncOverloadList>().emplace_back();
-			return true;
+			IdentID& new_ident_id = this->ids.emplace(ident, IdentID()).first->second;
+			new_ident_id.as<FuncOverloadList>().emplace_back();
+			return &new_ident_id;
+
 		}else{
 			if(ident_find->second.is<FuncOverloadList>()){
 				ident_find->second.as<FuncOverloadList>().emplace_back(
 					evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
 				);
-				return true;
+				return &ident_find->second;
 			}else{
-				return false;
+				return evo::Unexpected(false);
 			}
 		}
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, sema::VarID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		if(this->ids.contains(ident)){ return false; }
-
-		this->ids.emplace(ident, id);
-		return true;
+	auto ScopeLevel::addIdent(std::string_view ident, sema::VarID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
 	}
 
 
-	auto ScopeLevel::addIdent(std::string_view ident, sema::ParamID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
+	auto ScopeLevel::addIdent(std::string_view ident, sema::ParamID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
 
-		if(this->ids.contains(ident)){ return false; }
+	auto ScopeLevel::addIdent(std::string_view ident, sema::ReturnParamID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
 		
-		this->ids.emplace(ident, id);
-		return true;
+		return &this->ids.emplace(ident, ModuleInfo(id, location, is_pub)).first->second;
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, sema::ReturnParamID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
+
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::TypedefID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::StructID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, TypeInfoVoidableID typeID, Token::ID location) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+
+		return &this->ids.emplace(ident, TemplateTypeParam(typeID, location)).first->second;
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, TypeInfoID typeID, sema::Expr value, Token::ID location)
+	-> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+		
+		return &this->ids.emplace(ident, TemplateExprParam(typeID, value, location)).first->second;
+	}
+
+
+
+	auto ScopeLevel::add_ident_default_impl(std::string_view ident, auto id) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+		
+		return &this->ids.emplace(ident, id).first->second;
+	}
+
+
+	auto ScopeLevel::disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool {
+		evo::debugAssert(id != nullptr, "`id` cannot be nullptr");
+		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return false; }
-		
-		this->ids.emplace(ident, id);
+
+		this->disallowed_idents_for_shadowing.emplace(ident, id);
 		return true;
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		if(this->ids.contains(ident)){ return false; }
-		
-		this->ids.emplace(ident, ModuleInfo(id, location, is_pub));
-		return true;
-	}
-
-
-	auto ScopeLevel::addIdent(std::string_view ident, BaseType::AliasID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		if(this->ids.contains(ident)){ return false; }
-		
-		this->ids.emplace(ident, id);
-		return true;
-	}
-
-	auto ScopeLevel::addIdent(std::string_view ident, BaseType::TypedefID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		if(this->ids.contains(ident)){ return false; }
-		
-		this->ids.emplace(ident, id);
-		return true;
-	}
-
-
-	auto ScopeLevel::addIdent(std::string_view ident, BaseType::StructID id) -> bool {
-		const auto lock = std::scoped_lock(this->ids_lock);
-
-		if(this->ids.contains(ident)){ return false; }
-		
-		this->ids.emplace(ident, id);
-		return true;
-	}
 
 
 	auto ScopeLevel::lookupIdent(std::string_view ident) const -> const IdentID* {
-		const auto lock = std::scoped_lock(this->ids_lock);
+		const auto lock = std::scoped_lock(this->idents_lock);
 
 		const std::unordered_map<std::string_view, IdentID>::const_iterator ident_find = this->ids.find(ident);
 		if(ident_find == this->ids.end()){ return nullptr; }
 
 		return &ident_find->second;
 	}
+
+
+	auto ScopeLevel::lookupDisallowedIdentForShadowing(std::string_view ident) const -> const IdentID* {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		const std::unordered_map<std::string_view, const IdentID*>::const_iterator ident_find =
+			this->disallowed_idents_for_shadowing.find(ident);
+		if(ident_find == this->disallowed_idents_for_shadowing.end()){ return nullptr; }
+
+		return ident_find->second;
+	}
+
+
 
 }

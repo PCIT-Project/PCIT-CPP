@@ -12,8 +12,9 @@
 #include <Evo.h>
 
 #include "../source/source_data.h"
-#include "../../include/base_type_ids.h"
+#include "../../include/type_ids.h"
 #include "../../include/sema/Stmt.h"
+#include "../../include/sema/Expr.h"
 
 namespace pcit::panther::sema{
 
@@ -30,6 +31,16 @@ namespace pcit::panther::sema{
 				bool isPub;
 			};
 
+			struct TemplateTypeParam{
+				TypeInfoVoidableID typeID;
+				Token::ID location;
+			};
+
+			struct TemplateExprParam{
+				TypeInfoID typeID;
+				sema::Expr value;
+				Token::ID location;	
+			};
 
 			using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
 
@@ -41,7 +52,10 @@ namespace pcit::panther::sema{
 				ModuleInfo,
 				BaseType::AliasID,
 				BaseType::TypedefID,
-				BaseType::StructID
+				BaseType::StructID,
+				sema::TemplatedStructID,
+				TemplateTypeParam,
+				TemplateExprParam
 			>;
 
 		public:
@@ -58,22 +72,43 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto isTerminated() const -> bool;
 			EVO_NODISCARD auto isNotTerminated() const -> bool;
 
-			// returns false if is redef (functions don't take into account redef of equivalent overloads)
-			EVO_NODISCARD auto addIdent(std::string_view ident, sema::FuncID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedFuncID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, sema::VarID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ReturnParamID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::AliasID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::TypedefID id) -> bool;
-			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::StructID id) -> bool;
 
+
+			using IsShadowRedef = bool;
+			using AddIdentResult = evo::Expected<const IdentID*, IsShadowRedef>;
+
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::FuncID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedFuncID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::VarID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ReturnParamID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub)
+				-> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::TypedefID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::StructID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, TypeInfoVoidableID typeID, Token::ID location)
+				-> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, TypeInfoID typeID, sema::Expr value, Token::ID location)
+				-> AddIdentResult;
+
+			// returns false if is a redefinition
+			EVO_NODISCARD auto disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool;
+
+			// returns nullptr if doesnt exist
 			EVO_NODISCARD auto lookupIdent(std::string_view ident) const -> const IdentID*;
+			EVO_NODISCARD auto lookupDisallowedIdentForShadowing(std::string_view ident) const -> const IdentID*;
+
+
+
+		private:
+			EVO_NODISCARD auto add_ident_default_impl(std::string_view ident, auto id) -> AddIdentResult;
 	
 		private:
 			std::unordered_map<std::string_view, IdentID> ids{};
-			mutable core::SpinLock ids_lock{};
+			std::unordered_map<std::string_view, const IdentID*> disallowed_idents_for_shadowing{};
+			mutable core::SpinLock idents_lock{};
 
 			sema::StmtBlock* _stmt_block;
 			unsigned num_sub_scopes_not_terminated = 0;

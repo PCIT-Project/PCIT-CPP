@@ -200,7 +200,7 @@ namespace pcit::panther{
 			for(uint32_t i = 0; const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
 				EVO_DEFER([&](){ i += 1; });
 
-				if(symbol_proc.isWaiting() == false){
+				if(symbol_proc.isReadyToBeAddedToWorkQueue()){
 					work_manager_inst.addTask(SymbolProc::ID(i));
 				}
 			}
@@ -224,55 +224,49 @@ namespace pcit::panther{
 
 			work_manager_inst.shutdown();
 
-			if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
-				this->emitFatal(
-					Diagnostic::Code::MiscStallDetected,
-					Diagnostic::Location::NONE,
-					std::format(
-						"Stall detected while compiling ({}/{} symbols were not completed)",
-						this->symbol_proc_manager.numProcsNotDone(),
-						this->symbol_proc_manager.numProcs()
-					),
-					Diagnostic::Info("This may be caused by the multi-threading during semantic analysis. "
-							"Until a fix is made, try the single-threaded mode as it should be more stable.")
-				);
-
-				#if defined(PCIT_CONFIG_DEBUG)
-					evo::log::debug("Collecting data to look at in the debugger...");
-					auto symbol_proc_list = std::vector<const SymbolProc*>();
-					for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
-						symbol_proc_list.emplace_back(&symbol_proc);
-					}
-					evo::breakpoint();
-				#endif
-
-				return false;
-			}
-
 		}else{
 			auto& work_manager_inst = this->work_manager.emplace<core::SingleThreadedWorkQueue<Task>>(worker);
 
 			setup_tasks(work_manager_inst);
 
 			work_manager_inst.run();
+		}
 
-			if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
-				this->emitFatal(
-					Diagnostic::Code::MiscStallDetected,
-					Diagnostic::Location::NONE,
-					std::format(
-						"Stall detected while compiling ({}/{} symbols were not completed)",
-						this->symbol_proc_manager.numProcsNotDone(),
-						this->symbol_proc_manager.numProcs()
-					),
-					Diagnostic::Info("This may have been caused by an uncaught circular dependency")
-				);
-				return false;
+
+		if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			if(this->_config.isMultiThreaded()){
+				infos.emplace_back("This may be caused by the multi-threading during semantic analysis. "
+							"Until a fix is made, try the single-threaded mode as it should be more stable.");
+			}else{
+				infos.emplace_back("This may have been caused by an uncaught circular dependency");
 			}
+
+			this->emitFatal(
+				Diagnostic::Code::MiscStallDetected,
+				Diagnostic::Location::NONE,
+				std::format(
+					"Stall detected while compiling ({}/{} symbols were not completed)",
+					this->symbol_proc_manager.numProcsNotDone(),
+					this->symbol_proc_manager.numProcs()
+				),
+				std::move(infos)
+			);
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				evo::log::debug("Collecting data to look at in the debugger (`symbol_proc_list`)...");
+				auto symbol_proc_list = std::vector<const SymbolProc*>();
+				for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
+					symbol_proc_list.emplace_back(&symbol_proc);
+				}
+				evo::breakpoint();
+			#endif
+
+			return false;
 		}
 
 		
-
 		return this->num_errors == 0;
 	}
 

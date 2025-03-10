@@ -63,22 +63,24 @@ namespace pcit::core{
 					worker.request_stop();
 				}
 
+				this->forceClearQueue();
 				this->waitUntilNotRunning();
+				this->priv.tasks.shrink_to_fit();
 			}
 
 
 			auto addTask(TASK&& task) -> void {
-				const auto lock = std::scoped_lock(this->priv.add_tasks_lock, this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(/*this->priv.add_tasks_lock, */this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::move(task));
 			}
 
 			auto addTask(const TASK& task) -> void {
-				const auto lock = std::scoped_lock(this->priv.add_tasks_lock, this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(/*this->priv.add_tasks_lock, */this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(task);
 			}
 
 			auto addTask(auto&&... args) -> void {
-				const auto lock = std::scoped_lock(this->priv.add_tasks_lock, this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(/*this->priv.add_tasks_lock, */this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::forward<decltype(args)>(args)...);
 			}
 
@@ -87,7 +89,7 @@ namespace pcit::core{
 					if(worker.is_working()){ return true; }
 				}
 
-				const auto lock = std::scoped_lock(this->priv.add_tasks_lock, this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(/*this->priv.add_tasks_lock, */this->priv.tasks_lock);
 
 				for(const Worker& worker : this->priv.workers){
 					if(worker.is_working()){ return true; }
@@ -118,25 +120,33 @@ namespace pcit::core{
 			}
 
 
+			auto forceClearQueue() -> void {
+				const auto lock = std::scoped_lock(this->priv.tasks_lock/*, this->priv.add_tasks_lock*/);
+				this->priv.tasks.clear();
+			}
+
+
 		private:
 			class Worker{
 				public:
 					Worker(ThreadQueue& _thread_queue) 
 						: thread_queue(_thread_queue), thread([this](std::stop_token stop) -> void {
 							while(stop.stop_requested() == false){
+								this->working_state = WorkingState::Checking;
+
 								std::optional<TASK> task = this->thread_queue.get_task();
 								if(task.has_value() == false){
-									this->_is_working = false;
+									this->working_state = WorkingState::NotWorking;
 									std::this_thread::yield();
 									continue;
 								}
 
-								this->_is_working = true;
+								this->working_state = WorkingState::Working;
 
 								const bool work_res = this->thread_queue._work_func(*task);
 								if(work_res == false){
 									this->thread_queue.signal_task_failed();
-									this->_is_working = false;
+									this->working_state = WorkingState::NotWorking;
 									std::this_thread::yield();
 								}
 							}
@@ -150,7 +160,10 @@ namespace pcit::core{
 					~Worker() = default;
 
 
-					EVO_NODISCARD auto is_working() const -> bool { return this->_is_working; }
+					EVO_NODISCARD auto is_working() const -> bool {
+						while(this->working_state == WorkingState::Checking){}
+						return this->working_state == WorkingState::Working;
+					}
 
 					auto request_stop() -> void {
 						this->thread.request_stop();
@@ -160,7 +173,14 @@ namespace pcit::core{
 					ThreadQueue& thread_queue;
 					std::jthread thread;
 
-					bool _is_working = true;
+
+					enum class WorkingState{
+						Working,
+						Checking,
+						NotWorking,
+					};
+
+					std::atomic<WorkingState> working_state = WorkingState::Working;
 			};
 
 
@@ -198,7 +218,7 @@ namespace pcit::core{
 
 					std::deque<TASK> tasks{};
 					mutable core::SpinLock tasks_lock{};
-					mutable core::SpinLock add_tasks_lock{};
+					// mutable core::SpinLock add_tasks_lock{};
 
 					std::atomic<uint32_t> num_workers_running = 0;
 					bool task_failed = false;

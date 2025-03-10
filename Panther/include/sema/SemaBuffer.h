@@ -45,7 +45,7 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// templated func calls
+			// templated funcs
 
 			EVO_NODISCARD auto createTemplatedFunc(auto&&... args) -> sema::TemplatedFunc::ID {
 				return this->templated_funcs.emplace_back(std::forward<decltype(args)>(args)...);
@@ -53,6 +53,18 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getTemplatedFunc(sema::TemplatedFunc::ID id) const -> const sema::TemplatedFunc& {
 				return this->templated_funcs[id];
+			}
+
+
+			///////////////////////////////////
+			// templated structs
+
+			EVO_NODISCARD auto createTemplatedStruct(auto&&... args) -> sema::TemplatedStruct::ID {
+				return this->templated_structs.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getTemplatedStruct(sema::TemplatedStruct::ID id) const -> const sema::TemplatedStruct& {
+				return this->templated_structs[id];
 			}
 
 
@@ -327,6 +339,7 @@ namespace pcit::panther{
 		private:
 			core::SyncLinearStepAlloc<sema::Func, sema::Func::ID> funcs{};
 			core::SyncLinearStepAlloc<sema::TemplatedFunc, sema::TemplatedFunc::ID> templated_funcs{};
+			core::SyncLinearStepAlloc<sema::TemplatedStruct, sema::TemplatedStruct::ID> templated_structs{};
 			core::SyncLinearStepAlloc<sema::Var, sema::Var::ID> vars{};
 			core::SyncLinearStepAlloc<sema::Param, sema::Param::ID> params{};
 			core::SyncLinearStepAlloc<sema::ReturnParam, sema::ReturnParam::ID> return_params{};

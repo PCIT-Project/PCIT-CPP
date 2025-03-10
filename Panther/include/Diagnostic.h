@@ -69,6 +69,7 @@ namespace pcit::panther{
 			ParserAttributesInWrongPlace,
 			ParserTooManyAttributeArgs,
 			ParserEmptyErrorReturnParams,
+			ParserTemplateParameterBlockEmpty,
 
 
 			//////////////////
@@ -79,6 +80,7 @@ namespace pcit::panther{
 			SymbolProcInvalidExprKind,
 			SymbolProcImportRequiresOneArg,
 			SymbolProcCircularDep,
+			SymbolProcTypeUsedAsExpr,
 
 
 			//////////////////
@@ -88,6 +90,7 @@ namespace pcit::panther{
 			SemaVoidWithQualifiers,
 			SemaInvalidTypeQualifiers,
 			SemaGenericTypeNotInTemplatePackDecl,
+			SemaNotTemplatedTypeWithTemplateArgs,
 
 			// idents
 			SemaIdentNotInScope,
@@ -121,6 +124,14 @@ namespace pcit::panther{
 			SemaUnknownAttribute,
 			SemaAttributeImplictSet,
 			SemaTooManyAttributeArgs,
+
+			// templates
+			SemaTemplateParamCannotBeTypeVoid,
+			SemaTemplateParamTypeDefaultMustBeType,
+			SemaTemplateParamExprDefaultMustBeExpr,
+			SemaTemplateTooFewArgs,
+			SemaTemplateTooManyArgs,
+			SemaTemplateInvalidArg,
 
 
 			//////////////////
@@ -365,6 +376,7 @@ namespace pcit::panther{
 				case Code::ParserAttributesInWrongPlace:       return "P11";
 				case Code::ParserTooManyAttributeArgs:         return "P12";
 				case Code::ParserEmptyErrorReturnParams:       return "P13";
+				case Code::ParserTemplateParameterBlockEmpty:  return "P14";
 
 				// TODO: give individual codes and put in correct order
 				case Code::SymbolProcInvalidGlobalStmt:
@@ -372,12 +384,14 @@ namespace pcit::panther{
 				case Code::SymbolProcInvalidExprKind:
 				case Code::SymbolProcImportRequiresOneArg:
 				case Code::SymbolProcCircularDep:
+				case Code::SymbolProcTypeUsedAsExpr:
 					return "SP";
 
 				// TODO: give individual codes and put in correct order
 				case Code::SemaVoidWithQualifiers:
 				case Code::SemaInvalidTypeQualifiers:
 				case Code::SemaGenericTypeNotInTemplatePackDecl:
+				case Code::SemaNotTemplatedTypeWithTemplateArgs:
 				case Code::SemaIdentNotInScope:
 				case Code::SemaIdentAlreadyInScope:
 				case Code::SemaVarTypeVoid:
@@ -399,6 +413,12 @@ namespace pcit::panther{
 				case Code::SemaUnknownAttribute:
 				case Code::SemaAttributeImplictSet:
 				case Code::SemaTooManyAttributeArgs:
+				case Code::SemaTemplateParamCannotBeTypeVoid:
+				case Code::SemaTemplateParamTypeDefaultMustBeType:
+				case Code::SemaTemplateParamExprDefaultMustBeExpr:
+				case Code::SemaTemplateTooFewArgs:
+				case Code::SemaTemplateTooManyArgs:
+				case Code::SemaTemplateInvalidArg:
 					return "S";
 
 				case Code::MiscUnimplementedFeature:           return "M0";

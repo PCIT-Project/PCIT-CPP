@@ -18,6 +18,12 @@
 #include "./sema_ids.h"
 #include "./Stmt.h"
 #include "./Expr.h"
+#include "../../src/symbol_proc/symbol_proc_ids.h"
+
+
+namespace pcit::panther{
+	class SymbolProc;
+}
 
 
 namespace pcit::panther::sema{
@@ -312,6 +318,48 @@ namespace pcit::panther::sema{
 	// 		// TODO: better allocation?
 	// 		evo::SmallVector<std::unique_ptr<Instatiation>> instantiations{};
 	// 		mutable core::SpinLock instance_lock{};
+	};
+
+
+
+
+	struct TemplatedStruct{
+		using ID = TemplatedStructID;
+		using Arg = evo::Variant<TypeInfo::VoidableID, core::GenericValue>;
+
+		struct Instantiation{
+			std::atomic<std::optional<SymbolProcID>> symbolProcID{}; // nullopt means its being generated
+			std::optional<BaseType::Struct::ID> structID{}; // nullopt means it's being worked on
+			std::atomic<bool> errored = false;
+		};
+
+		struct Param{
+			std::optional<TypeInfo::ID> typeID;
+			evo::Variant<std::monostate, Expr, TypeInfo::VoidableID> defaultValue;
+		};
+
+		SymbolProc& symbolProc;
+		size_t minNumTemplateArgs;
+		evo::SmallVector<Param> params;
+
+		struct InstantiationInfo{
+			Instantiation& instantiation;
+			bool needs_to_be_compiled;
+		};
+		EVO_NODISCARD auto lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
+
+		EVO_NODISCARD auto hasAnyDefaultParams() const -> bool {
+			return this->minNumTemplateArgs != this->params.size();
+		}
+
+
+		TemplatedStruct(SymbolProc& symbol_proc, size_t min_num_template_args, evo::SmallVector<Param>&& _params)
+			: symbolProc(symbol_proc), minNumTemplateArgs(min_num_template_args), params(std::move(_params)) {}
+
+		private:
+			core::LinearStepAlloc<Instantiation, size_t> instantiations{};
+			std::unordered_map<evo::SmallVector<Arg>, Instantiation&> instantiation_map{};
+			mutable core::SpinLock instantiation_lock{};
 	};
 
 

@@ -28,11 +28,58 @@ namespace pcit::llvmint{
 	}
 
 
-	auto Module::getDefaultTargetTriple() -> std::string {
-		return llvm::sys::getDefaultTargetTriple();
-	}
+	// auto Module::getDefaultTargetTriple() -> std::string {
+	// 	return llvm::sys::getDefaultTargetTriple();
+	// }
 
-	auto Module::generateTargetTriple(core::OS os, core::Architecture arch) -> std::string {
+
+
+
+	auto Module::setTargetAndDataLayout(
+		core::OS os,
+		core::Architecture arch,
+		Relocation relocation,
+		CodeSize code_size,
+		OptLevel opt_level,
+		bool is_jit,
+		ArchSpecificSettings arch_specific_settings
+	) -> std::string {
+		evo::debugAssert(this->isInitialized(), "not initialized");
+
+
+		if(arch_specific_settings.is<ArchSpecificSettingsDefault>()){
+			switch(arch){
+				case core::Architecture::X86_64: {
+					arch_specific_settings = ArchSpecificSettingsX86();
+				} break;
+
+				case core::Architecture::Unknown: break;
+			}
+		}
+
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			arch_specific_settings.visit([&](const auto& settings) -> void {
+				using Settings = std::decay_t<decltype(settings)>;
+
+				if constexpr(std::is_same<Settings, ArchSpecificSettingsDefault>()){
+					evo::debugAssert(
+						arch == core::Architecture::Unknown,
+						"Architecture specific settings should have been set to correct architecture"
+					);
+
+				}else if constexpr(std::is_same<Settings, ArchSpecificSettingsX86>()){
+					evo::debugAssert(
+						arch == core::Architecture::X86_64, "Architecture and arch specific settings do not match"
+					);
+
+				}else{
+					static_assert(false, "Unsupported target");
+				}
+			});
+		#endif
+
+
 		const llvm::Triple::ArchType triple_arch = [&](){
 			switch(arch){
 				case core::Architecture::Unknown: return llvm::Triple::ArchType::UnknownArch;
@@ -84,6 +131,20 @@ namespace pcit::llvmint{
 		// 	evo::unreachable();
 		// }();
 
+
+		if(arch_specific_settings.is<ArchSpecificSettingsX86>()){
+			if(
+				arch_specific_settings.as<ArchSpecificSettingsX86>().dialect == 
+				ArchSpecificSettingsX86::AssemblyDialect::Intel
+			){
+				const auto llvm_cmd_args = std::array<const char*, 2>{"", "--x86-asm-syntax=intel"};
+			    const bool llvm_parse_cmd_res = llvm::cl::ParseCommandLineOptions(
+			    	int(llvm_cmd_args.size()), llvm_cmd_args.data()
+			    );
+			    evo::debugAssert(llvm_parse_cmd_res, "Failed to parse llvm cmd args");
+			}
+		}
+
 		auto triple = llvm::Triple();
 		triple.setArch(triple_arch, triple_sub_arch);
 		triple.setVendor(triple_vendor);
@@ -91,25 +152,10 @@ namespace pcit::llvmint{
 		triple.setEnvironment(triple_enviroment);
 		// triple.setObjectFormat(triple_object_format);
 
-		return triple.getTriple();
-	}
+		const std::string target_triple = triple.getTriple();
 
-	auto Module::setTargetTriple(const std::string& target_triple) -> void {
-		evo::debugAssert(this->isInitialized(), "not initialized");
 		this->_native->setTargetTriple(target_triple);
-	}
 
-
-
-
-	auto Module::setDataLayout(
-		std::string_view target_triple,
-		Relocation relocation,
-		CodeSize code_size,
-		OptLevel opt_level,
-		bool is_jit
-	) -> std::string {
-		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		auto error_msg = std::string();
 		const llvm::Target* target = llvm::TargetRegistry::lookupTarget(target_triple, error_msg);
@@ -156,6 +202,7 @@ namespace pcit::llvmint{
 			}
 			evo::debugFatalBreak("Unknown or unsupported opt level");
 		}();
+
 
 		this->target_machine = target->createTargetMachine(
 			target_triple, cpu, features, target_options, reloc_model, code_model, code_gen_opt_level, is_jit
@@ -278,9 +325,11 @@ namespace pcit::llvmint{
 			static constexpr bool disable_verify = true;
 		#endif
 
+
 		if(this->target_machine->addPassesToEmitFile(pass, stream, nullptr, file_type, disable_verify)){
 			return evo::resultError;
 		}
+
 
 		pass.run(*this->native());
 

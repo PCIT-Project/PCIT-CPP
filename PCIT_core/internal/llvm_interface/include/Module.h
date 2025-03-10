@@ -70,6 +70,21 @@ namespace pcit::llvmint{
 				Oz,
 			};
 
+
+
+			struct ArchSpecificSettingsDefault{};
+
+			struct ArchSpecificSettingsX86{
+				enum class AssemblyDialect{
+					Intel,
+					ATT,
+				};
+
+				AssemblyDialect dialect = AssemblyDialect::Intel;
+			};
+
+			using ArchSpecificSettings = evo::Variant<ArchSpecificSettingsDefault, ArchSpecificSettingsX86>;
+
 		public:
 			Module() = default;
 			~Module() = default;
@@ -80,17 +95,19 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->_native != nullptr; }
 
 
-			EVO_NODISCARD static auto getDefaultTargetTriple() -> std::string;
-			EVO_NODISCARD static auto generateTargetTriple(core::OS os, core::Architecture arch) -> std::string;
-			auto setTargetTriple(const std::string& target_triple) -> void;
 
-			EVO_NODISCARD auto setDataLayout(
-				std::string_view target_triple,
-				Relocation relocation = Relocation::Default,
-				CodeSize code_size    = CodeSize::Default,
-				OptLevel opt_level    = OptLevel::Default,
-				bool is_jit           = false
+
+
+			EVO_NODISCARD auto setTargetAndDataLayout(
+				core::OS os             = core::getCurrentOS(),
+				core::Architecture arch = core::getCurrentArchitecture(),
+				Relocation relocation   = Relocation::Default,
+				CodeSize code_size      = CodeSize::Default,
+				OptLevel opt_level      = OptLevel::Default,
+				bool is_jit             = false,
+				ArchSpecificSettings arch_specific_settings = ArchSpecificSettingsDefault()
 			) -> std::string; // returns error message (empty if no error)
+
 
 
 			EVO_NODISCARD auto createFunction(evo::CStrProxy name, const FunctionType& prototype, LinkageType linkage) 
