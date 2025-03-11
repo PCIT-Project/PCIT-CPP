@@ -19,12 +19,13 @@ namespace pcit::panther::sema{
 
 		auto find = this->instantiation_map.find(args);
 		if(find == this->instantiation_map.end()){
+			const uint32_t instantiation_id = uint32_t(this->instantiations.size());
 			Instantiation& new_instantiation = this->instantiations[this->instantiations.emplace_back()];
 			this->instantiation_map.emplace(std::move(args), new_instantiation);
-			return InstantiationInfo(new_instantiation, true);
+			return InstantiationInfo(new_instantiation, instantiation_id);
 
 		}else{
-			return InstantiationInfo(find->second, false);
+			return InstantiationInfo(find->second, std::nullopt);
 		}
 	}
 

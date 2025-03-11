@@ -167,6 +167,7 @@ namespace pcit::panther{
 		struct StructDeclInstantiation{
 			const AST::StructDecl& struct_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
+			uint32_t instantiation_id;
 		};
 
 		struct StructDef{};
@@ -467,9 +468,7 @@ namespace pcit::panther{
 			std::atomic<bool> passed_on_by_when_cond = false;
 			std::atomic<bool> errored = false;
 
-			#if defined(PCIT_CONFIG_DEBUG)
-				std::atomic<bool> being_worked_on = false;
-			#endif
+			std::atomic<bool> being_worked_on = false;
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

@@ -75,7 +75,8 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::buildTemplateInstance(
 		const SymbolProc& template_symbol_proc,
 		sema::TemplatedStruct::Instantiation& instantiation,
-		sema::ScopeManager::Scope::ID sema_scope_id
+		sema::ScopeManager::Scope::ID sema_scope_id,
+		uint32_t instantiation_id
 	) -> evo::Result<SymbolProc::ID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::StructDecl& struct_decl = ast_buffer.getStructDecl(template_symbol_proc.ast_node);
@@ -101,7 +102,9 @@ namespace pcit::panther{
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
-			Instruction::StructDeclInstantiation(struct_decl, std::move(attribute_params_info.value()))
+			Instruction::StructDeclInstantiation(
+				struct_decl, std::move(attribute_params_info.value()), instantiation_id
+			)
 		);
 		this->add_instruction(Instruction::StructDef());
 

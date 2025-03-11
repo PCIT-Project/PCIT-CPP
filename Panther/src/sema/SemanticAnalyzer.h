@@ -48,7 +48,6 @@ namespace pcit::panther{
 				Error,
 				NeedToWait,
 				NeedToWaitBeforeNextInstr,
-				// NeedToWaitOnInstantiation,
 			};
 
 			///////////////////////////////////
@@ -67,7 +66,9 @@ namespace pcit::panther{
 
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_struct_decl(
-				const AST::StructDecl& struct_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+				const AST::StructDecl& struct_decl,
+				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info,
+				uint32_t instantiation_id = std::numeric_limits<uint32_t>::max()
 			) -> Result;
 
 			EVO_NODISCARD auto instr_struct_def() -> Result;

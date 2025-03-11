@@ -184,6 +184,7 @@ namespace pcit::panther{
 
 			SourceID sourceID;
 			Token::ID identTokenID;
+			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uin32_t max if not instantiation
 			SymbolProcNamespace& memberSymbols;
 			sema::ScopeLevel* scopeLevel; // is pointer because it needs to be set after construction (so never nullptr)
 			bool isPub;
@@ -192,7 +193,9 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto operator==(const Struct& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
+				return this->sourceID == rhs.sourceID
+					&& this->identTokenID == rhs.identTokenID
+					&& this->instantiation == rhs.instantiation;
 			}
 		};
 

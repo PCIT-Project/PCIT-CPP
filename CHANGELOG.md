@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.89.1"></a>
+## v0.0.89.1
+
+### Panther
+- Fixed race condition in semantic analysis
+- Fixed issues with multiple template instantiations of a single type
+
+
+<!---------------------------------->
 <a name="v0.0.89.0"></a>
 ## v0.0.89.0
 

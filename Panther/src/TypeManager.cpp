@@ -308,6 +308,7 @@ namespace pcit::panther{
 		const BaseType::Struct::ID new_struct = this->structs.emplace_back(
 			lookup_type.sourceID,
 			lookup_type.identTokenID,
+			lookup_type.instantiation,
 			lookup_type.memberSymbols,
 			lookup_type.scopeLevel,
 			lookup_type.isPub

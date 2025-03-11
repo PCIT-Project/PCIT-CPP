@@ -31,7 +31,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto buildTemplateInstance(
 				const SymbolProc& template_symbol_proc,
 				sema::TemplatedStruct::Instantiation& instantiation,
-				sema::ScopeManager::Scope::ID sema_scope_id
+				sema::ScopeManager::Scope::ID sema_scope_id,
+				uint32_t instantiation_id
 			) -> evo::Result<SymbolProc::ID>;
 
 		private:

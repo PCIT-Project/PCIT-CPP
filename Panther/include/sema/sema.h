@@ -331,6 +331,9 @@ namespace pcit::panther::sema{
 			std::atomic<std::optional<SymbolProcID>> symbolProcID{}; // nullopt means its being generated
 			std::optional<BaseType::Struct::ID> structID{}; // nullopt means it's being worked on
 			std::atomic<bool> errored = false;
+
+			Instantiation() = default;
+			Instantiation(const Instantiation&) = delete;
 		};
 
 		struct Param{
@@ -344,7 +347,9 @@ namespace pcit::panther::sema{
 
 		struct InstantiationInfo{
 			Instantiation& instantiation;
-			bool needs_to_be_compiled;
+			std::optional<uint32_t> instantiationID; // only has value if it needs to be compiled
+
+			EVO_NODISCARD auto needsToBeCompiled() const -> bool { return this->instantiationID.has_value(); }
 		};
 		EVO_NODISCARD auto lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
 

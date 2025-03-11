@@ -194,12 +194,10 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze() -> void {
 		if(this->symbol_proc.passed_on_by_when_cond){ return; }
 
-		evo::debugAssert(
-			this->symbol_proc.being_worked_on.exchange(true) == false, "This symbol is already being worked on"
-		);
-		#if defined(PCIT_CONFIG_DEBUG)
-			EVO_DEFER([&](){ this->symbol_proc.being_worked_on = false; });
-		#endif
+		while(this->symbol_proc.being_worked_on.exchange(true)){
+			std::this_thread::yield();
+		}
+		EVO_DEFER([&](){ this->symbol_proc.being_worked_on = false; });
 
 		while(this->symbol_proc.isAtEnd() == false){
 			evo::debugAssert(
@@ -235,11 +233,6 @@ namespace pcit::panther{
 					this->symbol_proc.nextInstruction();
 					return;
 				} break;
-
-				// case Result::NeedToWaitOnInstantiation: {
-				// 	this->context.add_task_to_work_manager(this->symbol_proc_id);
-				// 	return;
-				// } break;
 			}
 		}
 
@@ -274,7 +267,9 @@ namespace pcit::panther{
 				return this->instr_struct_decl<false>(instr.struct_decl, instr.attribute_params_info);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::StructDeclInstantiation>()){
-				return this->instr_struct_decl<true>(instr.struct_decl, instr.attribute_params_info);
+				return this->instr_struct_decl<true>(
+					instr.struct_decl, instr.attribute_params_info, instr.instantiation_id
+				);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::StructDef>()){
 				return this->instr_struct_def();
@@ -749,7 +744,9 @@ namespace pcit::panther{
 
 	template<bool IS_INSTANTIATION>
 	auto SemanticAnalyzer::instr_struct_decl(
-		const AST::StructDecl& struct_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+		const AST::StructDecl& struct_decl,
+		evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info,
+		uint32_t instantiation_id
 	) -> Result {
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_struct_decl: {}", this->symbol_proc.ident); });
 
@@ -762,10 +759,12 @@ namespace pcit::panther{
 
 		SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
 
+
 		const BaseType::ID created_struct = this->context.type_manager.getOrCreateStruct(
 			BaseType::Struct(
 				this->source.getID(),
 				struct_decl.ident,
+				instantiation_id,
 				struct_info.member_symbols,
 				nullptr,
 				struct_attrs.value().is_pub
@@ -787,7 +786,9 @@ namespace pcit::panther{
 
 		this->push_scope_level(created_struct.structID());
 
-		this->context.type_manager.structs[created_struct.structID()].scopeLevel = &this->get_current_scope_level();
+		BaseType::Struct& created_struct_ref = this->context.type_manager.structs[created_struct.structID()];
+		created_struct_ref.scopeLevel = &this->get_current_scope_level();
+
 
 		for(const SymbolProc::ID& member_stmt_id : struct_info.stmts){
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
@@ -842,18 +843,6 @@ namespace pcit::panther{
 		auto params = evo::SmallVector<sema::TemplatedStruct::Param>();
 
 		for(const SymbolProc::Instruction::TemplateParamInfo& template_param_info : instr.template_param_infos){
-			// const std::string_view ident_str = 
-			// 	this->source.getTokenBuffer()[template_param_info.param.ident].getString();
-
-			// for(auto iter = std::next(this->scope.begin()); iter != this->scope.end(); ++iter){
-			// 	sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(*iter);
-			// 	if(scope_level.disallowIdentForShadowing(ident_str, add_ident_result.value()) == false){
-			// 		this->error_already_defined<true>(ast_node, ident_str, *scope_level.lookupIdent(ident_str));
-			// 		return false;
-			// 	}
-			// }
-
-
 			auto type_id = std::optional<TypeInfo::ID>();
 			if(template_param_info.type_id.has_value()){
 				const TypeInfo::VoidableID type_info_voidable_id = this->get_type(*template_param_info.type_id);
@@ -1151,7 +1140,6 @@ namespace pcit::panther{
 				case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef: break;
 				case AnalyzeExprIdentInScopeLevelError::ErrorEmitted:     return Result::Error;
 			}
-
 
  			return this->wait_on_symbol_proc<NEEDS_DEF>(
 				&lhs_struct.memberSymbols,
@@ -1463,7 +1451,6 @@ namespace pcit::panther{
 				instantiation_args.emplace_back(arg_expr);
 				switch(arg_expr.kind()){
 					case sema::Expr::Kind::IntValue: {
-						evo::log::debug("int value");
 						instantiation_lookup_args.emplace_back(
 							core::GenericValue(evo::copy(sema_buffer.getIntValue(arg_expr.intValueID()).value))
 						);
@@ -1584,7 +1571,7 @@ namespace pcit::panther{
 		const sema::TemplatedStruct::InstantiationInfo instantiation_info =
 			templated_struct.lookupInstantiation(std::move(instantiation_lookup_args));
 
-		if(instantiation_info.needs_to_be_compiled){
+		if(instantiation_info.needsToBeCompiled()){
 			auto symbol_proc_builder = SymbolProcBuilder(
 				this->context, this->context.source_manager[templated_struct.symbolProc.source_id]
 			);
@@ -1599,7 +1586,10 @@ namespace pcit::panther{
 			// build instantiation
 
 			const evo::Result<SymbolProc::ID> instantiation_symbol_proc_id = symbol_proc_builder.buildTemplateInstance(
-				templated_struct.symbolProc, instantiation_info.instantiation, instantiation_sema_scope_id
+				templated_struct.symbolProc,
+				instantiation_info.instantiation,
+				instantiation_sema_scope_id,
+				*instantiation_info.instantiationID
 			);
 			if(instantiation_symbol_proc_id.isError()){ return Result::Error; }
 

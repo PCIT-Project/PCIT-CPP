@@ -1,29 +1,12 @@
 
-type Container = struct <{T: Type, VALUE: Bool = true}> #pub {
-	// alias Elem = T;
-
-	alias SubContF32 = SubContainer<{F32}>;
-
-	type SubContainer = struct <{U: Type}> {
-		// alias ElemT = T;
-		alias ElemU = U;
-	}
-
+type Container = struct <{T: Type, VALUE: Bool}> #pub {
 	def VAL: T = VALUE;
 }
 
 
+var data: Container<{Bool, true}> = uninit;
 
-
-// var data: Container<{Bool}> = uninit;
-
-// def FOO: Int = ContT;
-// def BAR: Container<{Int, FOO}>.SubContF32.ElemU = 12.4;
-
-alias ContT = Bool;
-def WILL_ERROR: Bool = false;
-
-when(Container<{ContT, WILL_ERROR}>.VAL){
+when(Container<{Bool, false}>.VAL){
 	alias Test = Fail;
 }
 
