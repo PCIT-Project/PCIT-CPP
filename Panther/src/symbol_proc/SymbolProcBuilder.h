@@ -30,7 +30,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto buildTemplateInstance(
 				const SymbolProc& template_symbol_proc,
-				sema::TemplatedStruct::Instantiation& instantiation,
+				BaseType::StructTemplate::Instantiation& instantiation,
 				sema::ScopeManager::Scope::ID sema_scope_id,
 				uint32_t instantiation_id
 			) -> evo::Result<SymbolProc::ID>;
@@ -152,6 +152,12 @@ namespace pcit::panther{
 				uint32_t num_type_ids = 0;
 				uint32_t num_struct_instantiations = 0;
 				bool is_template = false;
+
+				auto operator=(const SymbolProcInfo& rhs) -> SymbolProcInfo& {
+					std::destroy_at(this); // just in case destruction become non-trivial
+					std::construct_at(this, rhs);
+					return *this;
+				}
 			};
 
 			EVO_NODISCARD auto is_child_symbol() const -> bool { return this->symbol_proc_infos.size() > 1; }

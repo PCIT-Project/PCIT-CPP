@@ -30,7 +30,7 @@ namespace pcit::panther::sema{
 
 	struct Stmt{
 		enum class Kind : uint32_t {
-			Var,
+			GlobalVar,
 			FuncCall,
 			Assign,
 			MultiAssign,
@@ -40,23 +40,23 @@ namespace pcit::panther::sema{
 			While,
 		};
 
-		explicit Stmt(VarID var_id)            : _kind(Kind::Var),        value{.var_id = var_id}             {}
-		explicit Stmt(FuncCallID func_call_id) : _kind(Kind::FuncCall),   value{.func_call_id = func_call_id} {}
-		explicit Stmt(AssignID assign_id)      : _kind(Kind::Assign),     value{.assign_id = assign_id}       {}
+		explicit Stmt(GlobalVarID global_var_id) : _kind(Kind::GlobalVar),   value{.global_var_id = global_var_id} {}
+		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FuncCall),    value{.func_call_id = func_call_id}   {}
+		explicit Stmt(AssignID assign_id)        : _kind(Kind::Assign),      value{.assign_id = assign_id}         {}
 		explicit Stmt(MultiAssignID multi_assign_id)
 			: _kind(Kind::MultiAssign), value{.multi_assign_id = multi_assign_id} {}
-		explicit Stmt(ReturnID return_id)      : _kind(Kind::Return),      value{.return_id = return_id}      {}
-		explicit Stmt(ConditionalID cond_id)   : _kind(Kind::Conditional), value{.cond_id = cond_id}          {}
-		explicit Stmt(WhileID while_id)        : _kind(Kind::While),       value{.while_id = while_id}        {}
+		explicit Stmt(ReturnID return_id)        : _kind(Kind::Return),      value{.return_id = return_id}         {}
+		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::Conditional), value{.cond_id = cond_id}             {}
+		explicit Stmt(WhileID while_id)          : _kind(Kind::While),       value{.while_id = while_id}           {}
 
 		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::Unreachable); }
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
 
-		EVO_NODISCARD auto varID() const -> VarID {
-			evo::debugAssert(this->kind() == Kind::Var, "not a var");
-			return this->value.var_id;
+		EVO_NODISCARD auto globalVarID() const -> GlobalVarID {
+			evo::debugAssert(this->kind() == Kind::GlobalVar, "not a global_var");
+			return this->value.global_var_id;
 		}
 
 		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
@@ -103,7 +103,7 @@ namespace pcit::panther::sema{
 			Kind _kind;
 			union {
 				Token::ID token_id;
-				VarID var_id;
+				GlobalVarID global_var_id;
 				FuncCallID func_call_id;
 				AssignID assign_id;
 				MultiAssignID multi_assign_id;

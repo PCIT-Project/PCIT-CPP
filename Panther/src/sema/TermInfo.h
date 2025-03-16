@@ -49,11 +49,16 @@ namespace pcit::panther{
 		
 		struct FluidType{};
 
+		using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
+		using TypeTemplateOverloadList = evo::SmallVector<sema::TemplatedStructID>;
+
+
 		using TypeID = evo::Variant<
 			InitializerType,                // Initializer
 			FluidType,                      // EphemeralFluid
 			TypeInfo::ID,                   // ConcreteConst|ConcreateMut|ConcreteConstForwardable
-						                    //   |ConcreteConstDestrMovable|Ephemeral|Function|Intrinsic
+						                    //   |ConcreteConstDestrMovable|Ephemeral|Intrinsic
+			FuncOverloadList,               // Function
 			TypeInfo::VoidableID,           // Type
 			evo::SmallVector<TypeInfo::ID>, // Ephemeral
 			SourceID,                       // Module
@@ -99,10 +104,29 @@ namespace pcit::panther{
 				this->value_category == ValueCategory::Module
 				|| this->value_category == ValueCategory::TemplateType
 				|| this->value_category == ValueCategory::Type
+				|| this->value_category == ValueCategory::Function
 			);
 			evo::debugAssert(this->value_stage == ValueStage::Comptime);
 			evo::debugAssert(this->value_category != ValueCategory::Type || this->type_id.is<TypeInfo::VoidableID>());
 		}
+
+
+		TermInfo(ValueCategory vc, ValueStage vs, const auto& _type_id, std::nullopt_t)
+			: value_category(vc), value_stage(vs), type_id(InitializerType()), exprs() {
+			evo::debugAssert(
+				this->value_category == ValueCategory::Module
+				|| this->value_category == ValueCategory::TemplateType
+				|| this->value_category == ValueCategory::Type
+				|| this->value_category == ValueCategory::Function
+			);
+			evo::debugAssert(this->value_stage == ValueStage::Comptime);
+			evo::debugAssert(this->value_category != ValueCategory::Type || this->type_id.is<TypeInfo::VoidableID>());
+
+			// This is to get around the MSVC bug
+			this->type_id.emplace<std::remove_cvref_t<decltype(_type_id)>>(_type_id);
+		}
+
+		
 
 
 

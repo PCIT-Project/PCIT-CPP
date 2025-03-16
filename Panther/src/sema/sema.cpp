@@ -9,12 +9,30 @@
 
 #include "../../include/sema/sema.h"
 
+#include "../../include/Context.h"
 
 
 namespace pcit::panther::sema{
 
 
-	auto TemplatedStruct::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
+	auto Func::isEquivalentOverload(const Func& rhs, const Context& context) const -> bool {
+		const BaseType::Function& this_type = context.getTypeManager().getFunction(this->typeID);
+		const BaseType::Function& rhs_type = context.getTypeManager().getFunction(rhs.typeID);
+
+		if(this_type.params.size() != rhs_type.params.size()){ return false; }
+
+		for(size_t i = 0; i < this_type.params.size(); i+=1){
+			if(this_type.params[i].typeID != rhs_type.params[i].typeID){ return false; }
+			if(this_type.params[i].kind != rhs_type.params[i].kind){ return false; }
+		}
+
+		return true;
+	}
+
+
+
+
+	auto TemplatedFunc::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
 		const auto lock = std::scoped_lock(this->instantiation_lock);
 
 		auto find = this->instantiation_map.find(args);

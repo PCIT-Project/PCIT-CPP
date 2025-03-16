@@ -83,6 +83,12 @@ namespace pcit::pir{
 
 			struct StmtPassGroupItem{
 				class Function& func;
+
+				auto operator=(const StmtPassGroupItem& rhs) -> StmtPassGroupItem& {
+					std::destroy_at(this); // just in case destruction becomes non-trivial
+					std::construct_at(this, rhs);
+					return *this;
+				}
 			};
 			EVO_NODISCARD auto run_single_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool;
 			EVO_NODISCARD auto run_multi_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool;
@@ -92,6 +98,12 @@ namespace pcit::pir{
 
 			struct ReverseStmtPassGroupItem{
 				class Function& func;
+
+				auto operator=(const ReverseStmtPassGroupItem& rhs) -> ReverseStmtPassGroupItem& {
+					std::destroy_at(this); // just in case destruction becomes non-trivial
+					std::construct_at(this, rhs);
+					return *this;
+				}
 			};
 			EVO_NODISCARD auto run_single_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> bool;
 			EVO_NODISCARD auto run_multi_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> bool;

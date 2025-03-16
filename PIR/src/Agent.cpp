@@ -2853,6 +2853,10 @@ namespace pcit::pir{
 			if(param.getName() == name){ return true; }
 		}
 
+		for(const Alloca& alloca : this->target_func->getAllocasRange()){
+			if(alloca.name == name){ return true; }
+		}
+
 		for(BasicBlock::ID basic_block_id : *this->target_func){
 			const BasicBlock& basic_block = this->getBasicBlock(basic_block_id);
 			if(basic_block.getName() == name){ return true; }

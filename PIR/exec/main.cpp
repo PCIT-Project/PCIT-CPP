@@ -227,7 +227,7 @@ auto main(int argc, const char* argv[]) -> int {
 			return EXIT_FAILURE;
 		}
 
-		pcit::pir::printModule(module, printer);		
+		pcit::pir::printModule(module, printer);
 	}
 
 

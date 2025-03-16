@@ -51,7 +51,7 @@ namespace pcit::panther::sema{
 			Param,
 			ReturnParam,
 
-			Var,
+			GlobalVar,
 			Func,
 		};
 
@@ -85,7 +85,7 @@ namespace pcit::panther::sema{
 		explicit Expr(ParamID id)       : _kind(Kind::Param),           value{.param = id}        {};
 		explicit Expr(ReturnParamID id) : _kind(Kind::ReturnParam),     value{.return_param = id} {};
 
-		explicit Expr(VarID id)         : _kind(Kind::Var),             value{.var = id}          {};
+		explicit Expr(GlobalVarID id)   : _kind(Kind::GlobalVar),       value{.global_var = id}   {};
 		explicit Expr(FuncID id)        : _kind(Kind::Func),            value{.func = id}         {};
 
 
@@ -169,13 +169,18 @@ namespace pcit::panther::sema{
 			return this->value.return_param;
 		}
 
-		EVO_NODISCARD auto varID() const -> VarID {
-			evo::debugAssert(this->kind() == Kind::Var, "not a var");
-			return this->value.var;
+		EVO_NODISCARD auto globalVarID() const -> GlobalVarID {
+			evo::debugAssert(this->kind() == Kind::GlobalVar, "not a global var");
+			return this->value.global_var;
 		}
 		EVO_NODISCARD auto funcID() const -> FuncID {
 			evo::debugAssert(this->kind() == Kind::Func, "not a func");
 			return this->value.func;
+		}
+
+
+		EVO_NODISCARD auto operator==(const Expr& rhs) const -> bool {
+			return evo::bitCast<uint64_t>(*this) == evo::bitCast<uint64_t>(rhs);
 		}
 
 
@@ -211,7 +216,7 @@ namespace pcit::panther::sema{
 				ParamID param;
 				ReturnParamID return_param;
 
-				VarID var;
+				GlobalVarID global_var;
 				FuncID func;
 			} value;
 

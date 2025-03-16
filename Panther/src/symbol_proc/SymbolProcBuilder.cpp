@@ -74,7 +74,7 @@ namespace pcit::panther{
 
 	auto SymbolProcBuilder::buildTemplateInstance(
 		const SymbolProc& template_symbol_proc,
-		sema::TemplatedStruct::Instantiation& instantiation,
+		BaseType::StructTemplate::Instantiation& instantiation,
 		sema::ScopeManager::Scope::ID sema_scope_id,
 		uint32_t instantiation_id
 	) -> evo::Result<SymbolProc::ID> {
@@ -102,9 +102,7 @@ namespace pcit::panther{
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
-			Instruction::StructDeclInstantiation(
-				struct_decl, std::move(attribute_params_info.value()), instantiation_id
-			)
+			Instruction::StructDecl<true>(struct_decl, std::move(attribute_params_info.value()), instantiation_id)
 		);
 		this->add_instruction(Instruction::StructDef());
 
@@ -273,13 +271,96 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_func_decl(const AST::Node& stmt) -> bool {
-		// const AST::FuncDecl& func_decl = this->source.getASTBuffer().getFuncDecl(stmt);
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			stmt,
-			"Building symbol process of Func Decl is unimplemented"
-		);
-		return false;
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::FuncDecl& func_decl = ast_buffer.getFuncDecl(stmt);
+
+		SymbolProcInfo* current_symbol = &this->get_current_symbol();
+
+
+		auto template_param_infos = evo::SmallVector<Instruction::TemplateParamInfo>();
+		if(func_decl.templatePack.has_value()){
+			current_symbol->is_template = true;
+			evo::Result<evo::SmallVector<Instruction::TemplateParamInfo>> template_param_infos_res =
+				this->analyze_template_param_pack(ast_buffer.getTemplatePack(*func_decl.templatePack));
+
+			if(template_param_infos_res.isError()){ return false; }
+			template_param_infos = std::move(template_param_infos_res.value());
+		}
+
+
+
+		if(template_param_infos.empty()){
+			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+				this->analyze_attributes(ast_buffer.getAttributeBlock(func_decl.attributeBlock));
+			if(attribute_params_info.isError()){ return false; }
+
+			auto types = evo::SmallVector<std::optional<SymbolProcTypeID>>();
+			types.reserve(func_decl.params.size() + func_decl.returns.size() + func_decl.errorReturns.size());
+
+			for(const AST::FuncDecl::Param& param : func_decl.params){
+				if(param.type.has_value() == false){
+					types.emplace_back();
+					break;
+				}
+					
+				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(ast_buffer.getType(*param.type));
+				if(param_type.isError()){ return false; }
+				types.emplace_back(param_type.value());
+			}
+
+			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
+				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(
+					ast_buffer.getType(return_param.type)
+				);
+				if(param_type.isError()){ return false; }
+				types.emplace_back(param_type.value());
+			}
+
+			for(const AST::FuncDecl::Return& error_return_param : func_decl.errorReturns){
+				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(
+					ast_buffer.getType(error_return_param.type)
+				);
+				if(param_type.isError()){ return false; }
+				types.emplace_back(param_type.value());
+			}
+
+			this->add_instruction(
+				Instruction::FuncDecl<false>(func_decl, std::move(attribute_params_info.value()), std::move(types))
+			);
+
+			this->add_instruction(Instruction::FuncDef());
+
+			// SymbolProc::StructInfo& struct_info =
+			// 	current_symbol->symbol_proc.extra_info.emplace<SymbolProc::StructInfo>();
+
+			// this->symbol_scopes.emplace_back(&struct_info.stmts);
+			// this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
+			// for(const AST::Node& struct_stmt : ast_buffer.getBlock(func_decl.block).stmts){
+			// 	if(this->build(struct_stmt) == false){ return false; }
+			// }
+			// this->symbol_namespaces.pop_back();
+			// this->symbol_scopes.pop_back();
+
+			// need to set again as address may have changed
+			current_symbol = &this->get_current_symbol();
+
+		}else{
+			this->add_instruction(Instruction::TemplateFunc(func_decl, std::move(template_param_infos)));
+		}
+
+
+		if(this->is_child_symbol()){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
+			current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
+		}
+
+		this->symbol_namespaces.back()->emplace(current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id);
+
+		return true;
 	}
 
 
@@ -349,7 +430,9 @@ namespace pcit::panther{
 				this->analyze_attributes(ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
 			if(attribute_params_info.isError()){ return false; }
 
-			this->add_instruction(Instruction::StructDecl(struct_decl, std::move(attribute_params_info.value())));
+			this->add_instruction(
+				Instruction::StructDecl<false>(struct_decl, std::move(attribute_params_info.value()))
+			);
 			this->add_instruction(Instruction::StructDef());
 
 			SymbolProc::StructInfo& struct_info =

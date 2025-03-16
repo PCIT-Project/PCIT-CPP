@@ -18,6 +18,31 @@
 
 namespace pcit::panther{
 
+	//////////////////////////////////////////////////////////////////////
+	// base type
+
+
+	auto BaseType::StructTemplate::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
+		const auto lock = std::scoped_lock(this->instantiation_lock);
+
+		auto find = this->instantiation_map.find(args);
+		if(find == this->instantiation_map.end()){
+			const uint32_t instantiation_id = uint32_t(this->instantiations.size());
+			Instantiation& new_instantiation = this->instantiations[this->instantiations.emplace_back()];
+			this->instantiation_map.emplace(std::move(args), new_instantiation);
+			return InstantiationInfo(new_instantiation, instantiation_id);
+
+		}else{
+			return InstantiationInfo(find->second, std::nullopt);
+		}
+	}
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// type manager
+
 
 	auto TypeManager::initPrimitives() -> void {
 		evo::debugAssert(this->primitivesInitialized() == false, "primitives already initialized");
@@ -150,6 +175,14 @@ namespace pcit::panther{
 					return std::string(
 						source_manager[struct_info.sourceID].getTokenBuffer()[struct_info.identTokenID].getString()
 					);
+				} break;
+
+				case BaseType::Kind::StructTemplate: {
+					const BaseType::StructTemplate::ID struct_template_id = type_info.baseTypeID().structTemplateID();
+					const BaseType::StructTemplate& struct_template_info = this->getStructTemplate(struct_template_id);
+
+					const TokenBuffer& token_buffer = source_manager[struct_template_info.sourceID].getTokenBuffer();
+					return std::string(token_buffer[struct_template_info.identTokenID].getString());
 				} break;
 
 				case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
@@ -318,6 +351,31 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// struct templates
+
+	auto TypeManager::getStructTemplate(BaseType::StructTemplate::ID id) const -> const BaseType::StructTemplate& {
+		return this->struct_templates[id];
+	}
+
+
+	auto TypeManager::getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID {
+		for(uint32_t i = 0; i < this->struct_templates.size(); i+=1){
+			if(this->struct_templates[BaseType::StructTemplate::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::StructTemplate, i);
+			}
+		}
+
+		const BaseType::StructTemplate::ID new_struct = this->struct_templates.emplace_back(
+			lookup_type.sourceID,
+			lookup_type.identTokenID,
+			std::move(lookup_type.params),
+			lookup_type.minNumTemplateArgs
+		);
+		return BaseType::ID(BaseType::Kind::StructTemplate, new_struct.get());
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
 	// type traits
 
 	// https://stackoverflow.com/a/1766566
@@ -418,6 +476,11 @@ namespace pcit::panther{
 				return 0;
 			} break;
 
+			case BaseType::Kind::StructTemplate: {
+				// TODO: handle this better?
+				evo::debugAssert("Cannot get size of Struct Template");
+			} break;
+
 			case BaseType::Kind::Dummy: evo::debugFatalBreak("Dummy type should not be used");
 		}
 
@@ -433,12 +496,13 @@ namespace pcit::panther{
 
 	auto TypeManager::isTriviallyCopyable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
-		if(type_info.qualifiers().empty()){ return this->isTriviallyCopyable(type_info.baseTypeID()); }
-		return true;
+		if(type_info.isPointer()){ return true; }
+		if(type_info.qualifiers().back().isOptional){ evo::unimplemented("Trivially Copyable of optionals"); }
+		return this->isTriviallyCopyable(type_info.baseTypeID());
 	}
 
-	auto TypeManager::isTriviallyCopyable(BaseType::ID) const -> bool {
-		return true;
+	auto TypeManager::isTriviallyCopyable(BaseType::ID id) const -> bool {
+		return this->sizeOf(id) <= this->sizeOfPtr();
 	}
 
 
@@ -703,6 +767,7 @@ namespace pcit::panther{
 				return this->getUnderlyingType(*typedef_info.underlyingType.load());
 			} break;
 			case BaseType::Kind::Struct: return evo::resultError;
+			case BaseType::Kind::StructTemplate: return evo::resultError;
 		}
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
@@ -860,6 +925,14 @@ namespace pcit::panther{
 
 	static auto float_data_from_exponent(unsigned width, int exponent, unsigned precision) -> core::GenericInt {
 		return core::GenericInt(width, unsigned(exponent), false).ushl(core::GenericInt(width, precision)).result;
+	}
+
+	static auto calc_float_max(unsigned width, int exponent, unsigned precision) -> core::GenericInt {
+		return float_data_from_exponent(width, exponent, precision).bitwiseOr(
+			core::GenericInt(width, 1)
+				.ushl(core::GenericInt(width, precision - 1)).result
+				.usub(core::GenericInt(width, 1)).result
+		);
 	}
 
 
@@ -1047,22 +1120,24 @@ namespace pcit::panther{
 			case Token::Kind::TypeUI_N:  return core::GenericValue(calc_max_unsigned(primitive.bitWidth()));
 
 			case Token::Kind::TypeF16:
-				return core::GenericValue(core::GenericFloat::createF16(float_data_from_exponent(16, 15, 11)));
+				return core::GenericValue(core::GenericFloat::createF16(calc_float_max(16, 15, 11)));
 
 			case Token::Kind::TypeBF16:
-				return core::GenericValue(core::GenericFloat::createBF16(float_data_from_exponent(16, 127, 8)));
+				return core::GenericValue(core::GenericFloat::createBF16(calc_float_max(16, 127, 8)));
 
 			case Token::Kind::TypeF32:
-				return core::GenericValue(core::GenericFloat::createF32(float_data_from_exponent(32, 127, 24)));
+				return core::GenericValue(core::GenericFloat::createF32(calc_float_max(32, 127, 24)));
 
 			case Token::Kind::TypeF64:
-				return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1023, 53)));
+				return core::GenericValue(core::GenericFloat::createF64(calc_float_max(64, 1023, 53)));
 
 			case Token::Kind::TypeF80:
-				return core::GenericValue(core::GenericFloat::createF80(float_data_from_exponent(80, 16383, 64)));
+				// TODO: is this correct? Doing it the correct way seems to make `llvm::APFloat::toString` print "NaN"
+				return core::GenericValue(core::GenericFloat::createF128(calc_float_max(128, 16383, 113)).asF80());
+				// return core::GenericValue(core::GenericFloat::createF80(calc_float_max(80, 16383, 64)));
 
 			case Token::Kind::TypeF128:
-				return core::GenericValue(core::GenericFloat::createF128(float_data_from_exponent(128, 16388, 113)));
+				return core::GenericValue(core::GenericFloat::createF128(calc_float_max(128, 16383, 113)));
 
 
 			case Token::Kind::TypeByte:   return core::GenericValue(calc_max_unsigned(8));

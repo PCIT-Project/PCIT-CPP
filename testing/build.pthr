@@ -1,17 +1,16 @@
 
-type Container = struct <{T: Type, VALUE: Bool}> #pub {
-	def VAL: T = VALUE;
+type Struct = struct {
+	
 }
 
 
-var data: Container<{Bool, true}> = uninit;
+const test_var: F128 = 12.4;
+const test_var2: F128 = 12.8;
 
-when(Container<{Bool, false}>.VAL){
-	alias Test = Fail;
+func test = (lhs: Int, rhs: Byte) -> Void {
+	
 }
 
-
-
-
-
-
+// func test = (lhs: I65) -> Int {
+	
+// }

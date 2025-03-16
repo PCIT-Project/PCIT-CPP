@@ -117,11 +117,17 @@ namespace pcit::panther{
 			const AST::TemplatePack::Param& param;
 			std::optional<SymbolProcTypeID> type_id; // nullopt if is `Type`
 			std::optional<SymbolProcTermInfoID> default_value;
+
+			auto operator=(const TemplateParamInfo& rhs) -> TemplateParamInfo& {
+				std::destroy_at(this); // just in case destruction becomes non-trivial
+				std::construct_at(this, rhs);
+				return *this;
+			}
 		};
 
 
 		//////////////////
-		// globals
+		// stmts valid in global scope
 
 		struct VarDecl{
 			const AST::VarDecl& var_decl;
@@ -159,21 +165,119 @@ namespace pcit::panther{
 		};
 
 
+		template<bool IS_INSTANTIATION>
 		struct StructDecl{
 			const AST::StructDecl& struct_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
-		};
+			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
 
-		struct StructDeclInstantiation{
-			const AST::StructDecl& struct_decl;
-			evo::SmallVector<AttributeParams> attribute_params_info;
-			uint32_t instantiation_id;
+			StructDecl(
+				const AST::StructDecl& _struct_decl, evo::SmallVector<AttributeParams>&& _attribute_params_info
+			) requires(!IS_INSTANTIATION) : struct_decl(_struct_decl), attribute_params_info(_attribute_params_info) {}
+
+			StructDecl(
+				const AST::StructDecl& _struct_decl,
+				evo::SmallVector<AttributeParams>&& _attribute_params_info,
+				uint32_t _instantiation_id
+			) requires(IS_INSTANTIATION) :
+				struct_decl(_struct_decl),
+				attribute_params_info(_attribute_params_info),
+				instantiation_id(_instantiation_id)
+			{}
 		};
 
 		struct StructDef{};
 
 		struct TemplateStruct{
 			const AST::StructDecl& struct_decl;
+			evo::SmallVector<TemplateParamInfo> template_param_infos;
+		};
+
+
+		template<bool IS_INSTANTIATION>
+		struct FuncDecl{
+			const AST::FuncDecl& func_decl;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
+
+			// param type is nullopt if the param is `this`
+			EVO_NODISCARD auto params() const -> evo::ArrayProxy<std::optional<SymbolProcTypeID>> {
+				return evo::ArrayProxy<std::optional<SymbolProcTypeID>>(
+					this->types.data(), this->func_decl.params.size()
+				);
+			}
+
+			EVO_NODISCARD auto returns() const -> evo::ArrayProxy<SymbolProcTypeID> {
+				return evo::ArrayProxy<SymbolProcTypeID>(
+					(SymbolProcTypeID*)&this->types[this->func_decl.params.size()],
+					this->func_decl.returns.size()
+				);
+			}
+
+			EVO_NODISCARD auto errorReturns() const -> evo::ArrayProxy<SymbolProcTypeID> {
+				if(this->func_decl.errorReturns.empty()){
+					return evo::ArrayProxy<SymbolProcTypeID>();
+					
+				}else{
+					return evo::ArrayProxy<SymbolProcTypeID>(
+						(SymbolProcTypeID*)&this->types[this->func_decl.params.size() + this->func_decl.returns.size()],
+						this->func_decl.errorReturns.size()
+					);
+				}
+			}
+
+
+			FuncDecl(
+				const AST::FuncDecl& _func_decl,
+				evo::SmallVector<AttributeParams>&& _attribute_params_info,
+				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types
+			) requires(!IS_INSTANTIATION) : 
+				func_decl(_func_decl), attribute_params_info(_attribute_params_info), types(_types)
+			{
+				#if defined(PCIT_CONFIG_DEBUG)
+					const size_t correct_num_types = this->func_decl.params.size() 
+						+ this->func_decl.returns.size() 
+						+ this->func_decl.errorReturns.size();
+
+					evo::debugAssert(this->types.size() == correct_num_types, "Recieved the incorrect number of types");
+				#endif
+			}
+
+
+			FuncDecl(
+				const AST::FuncDecl& _func_decl,
+				evo::SmallVector<AttributeParams>&& _attribute_params_info,
+				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types,
+				uint32_t _instantiation_id
+			) requires(IS_INSTANTIATION) : 
+				func_decl(_func_decl),
+				attribute_params_info(_attribute_params_info),
+				types(_types),
+				instantiation_id(_instantiation_id)
+			{
+				#if defined(PCIT_CONFIG_DEBUG)
+					const size_t correct_num_types = this->func_decl.params.size() 
+						+ this->func_decl.returns.size() 
+						+ this->func_decl.errorReturns.size();
+
+					evo::debugAssert(this->types.size() == correct_num_types, "Recieved the incorrect number of types");
+				#endif
+			}
+
+
+			private:
+				evo::SmallVector<std::optional<SymbolProcTypeID>> types;
+
+				static_assert(
+					sizeof(SymbolProcTypeID) == sizeof(std::optional<SymbolProcTypeID>),
+					"\"magically\" getting rid of the optional in `returns()` and `errorReturns()` is invalid"
+				);
+		};
+
+		struct FuncDef{};
+
+		struct TemplateFunc{
+			const AST::FuncDecl& func_decl;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
 
@@ -290,26 +394,38 @@ namespace pcit::panther{
 		EVO_NODISCARD auto as() const -> const T& { return this->inst.as<T>(); }
 
 		evo::Variant<
+			// stmts valid in global scope
 			WhenCond,
 			VarDecl,
 			VarDef,
 			VarDeclDef,
 			AliasDecl,
 			AliasDef,
-			StructDecl,
-			StructDeclInstantiation,
+			StructDecl<false>,
+			StructDecl<true>,
 			StructDef,
 			TemplateStruct,
+			FuncDecl<false>,
+			FuncDef,
+			TemplateFunc,
+
+			// misc expr
 			TypeToTerm,
 			FuncCall,
 			Import,
+			TemplatedTerm,
+			TemplatedTermWait,
+
+			// accessors
 			Accessor<true>,
 			Accessor<false>,
+
+			// types
 			PrimitiveType,
 			UserType,
 			BaseTypeIdent,
-			TemplatedTerm,
-			TemplatedTermWait,
+
+			// single token value
 			Ident<false>,
 			Ident<true>,
 			Intrinsic,
@@ -361,7 +477,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto getStructInstantiationID(SymbolProc::StructInstantiationID id)
-			-> const sema::TemplatedStruct::Instantiation& {
+			-> const BaseType::StructTemplate::Instantiation& {
 				return *this->struct_instantiations[id.get()];
 			}
 
@@ -419,10 +535,11 @@ namespace pcit::panther{
 									// 	(is when cond, func call, or operator function)
 			SymbolProc* parent; // nullptr means no parent
 
+			// TODO: make evo::SmallVector?
 			std::vector<Instruction> instructions{};
 			std::vector<std::optional<TermInfo>> term_infos{};
 			std::vector<std::optional<TypeInfo::VoidableID>> type_ids{};
-			std::vector<const sema::TemplatedStruct::Instantiation*> struct_instantiations{};
+			std::vector<const BaseType::StructTemplate::Instantiation*> struct_instantiations{};
 
 
 			evo::SmallVector<ID> waiting_for{};
@@ -435,8 +552,8 @@ namespace pcit::panther{
 			mutable core::SpinLock def_waited_on_lock{};
 
 
-			struct VarInfo{
-				sema::Var::ID sema_var_id;
+			struct GlobalVarInfo{
+				sema::GlobalVar::ID sema_var_id;
 			};
 
 			struct WhenCondInfo{
@@ -450,14 +567,14 @@ namespace pcit::panther{
 
 			// only needed for non-template structs or template struct instantiations
 			struct StructInfo{
-				sema::TemplatedStruct::Instantiation* instantiation = nullptr;
+				BaseType::StructTemplate::Instantiation* instantiation = nullptr;
 				evo::SmallVector<SymbolProcID> stmts{};
 				Namespace member_symbols{};
 				BaseType::Struct::ID struct_id = BaseType::Struct::ID::dummy();
 			};
 
 
-			evo::Variant<std::monostate, VarInfo, WhenCondInfo, AliasInfo, StructInfo> extra_info{};
+			evo::Variant<std::monostate, GlobalVarInfo, WhenCondInfo, AliasInfo, StructInfo> extra_info{};
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
 
@@ -472,6 +589,7 @@ namespace pcit::panther{
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;
+			friend struct Diagnostic;
 	};
 
 

@@ -29,9 +29,9 @@
 
 namespace pcit::panther{
 	
+
 	//////////////////////////////////////////////////////////////////////
 	// base type
-
 
 	namespace BaseType{
 		enum class Kind : uint8_t {
@@ -43,6 +43,7 @@ namespace pcit::panther{
 			Alias,
 			Typedef,
 			Struct,
+			StructTemplate,
 		};
 
 
@@ -96,8 +97,7 @@ namespace pcit::panther{
 				evo::Variant<Token::ID, strings::StringCode> ident;
 				TypeInfoID typeID;
 				AST::FuncDecl::Param::Kind kind;
-				bool mustLabel:1;
-				bool optimizeWithCopy:1;
+				bool shouldCopy;
 
 				EVO_NODISCARD auto operator==(const Param&) const -> bool = default;
 			};
@@ -111,11 +111,17 @@ namespace pcit::panther{
 
 			evo::SmallVector<Param> params;
 			evo::SmallVector<ReturnParam> returnParams;
-			bool isRuntime;
+			evo::SmallVector<ReturnParam> errorParams;
+			bool isComptime;
 
 
 			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->returnParams[0].ident.has_value(); }
 			EVO_NODISCARD auto returnsVoid() const -> bool { return this->returnParams[0].typeID.isVoid(); }
+
+			EVO_NODISCARD auto hasErrorReturns() const -> bool { return !this->errorParams.empty(); }
+			EVO_NODISCARD auto hasErrorReturnParams() const -> bool {
+				return this->hasErrorReturns() && this->errorParams[0].typeID.isVoid() == false;
+			}
 
 			EVO_NODISCARD auto operator==(const Function&) const -> bool = default;
 		};
@@ -200,6 +206,71 @@ namespace pcit::panther{
 		};
 
 
+		struct StructTemplate{
+			using ID = StructTemplateID;
+			using Arg = evo::Variant<TypeInfoVoidableID, core::GenericValue>;
+
+			struct Instantiation{
+				std::atomic<std::optional<SymbolProcID>> symbolProcID{}; // nullopt means its being generated
+				std::optional<BaseType::Struct::ID> structID{}; // nullopt means it's being worked on
+				std::atomic<bool> errored = false;
+
+				Instantiation() = default;
+				Instantiation(const Instantiation&) = delete;
+			};
+
+			struct Param{
+				std::optional<TypeInfoID> typeID;
+				evo::Variant<std::monostate, sema::Expr, TypeInfoVoidableID> defaultValue; // monostate if no default
+
+				EVO_NODISCARD auto operator==(const Param&) const -> bool = default;
+			};
+
+
+			SourceID& sourceID;
+			Token::ID identTokenID;
+			evo::SmallVector<Param> params;
+			size_t minNumTemplateArgs; // TODO: make sure this optimization actually improves perf
+
+			struct InstantiationInfo{
+				Instantiation& instantiation;
+				std::optional<uint32_t> instantiationID; // only has value if it needs to be compiled
+
+				EVO_NODISCARD auto needsToBeCompiled() const -> bool { return this->instantiationID.has_value(); }
+			};
+			EVO_NODISCARD auto lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
+
+			EVO_NODISCARD auto hasAnyDefaultParams() const -> bool {
+				return this->minNumTemplateArgs != this->params.size();
+			}
+
+
+			auto operator==(const StructTemplate& rhs) const -> bool {
+				return this->sourceID == rhs.sourceID 
+					&& this->identTokenID == rhs.identTokenID
+					&& this->params == rhs.params;
+			}
+
+
+			StructTemplate(
+				SourceID source_id,
+				Token::ID ident_token_id,
+				evo::SmallVector<Param>&& _params,
+				size_t min_num_template_args
+			) : 
+				sourceID(source_id), 
+				identTokenID(ident_token_id),
+				params(std::move(_params)), 
+				minNumTemplateArgs(min_num_template_args) 
+			{}
+
+			private:
+				core::LinearStepAlloc<Instantiation, size_t> instantiations{};
+				std::unordered_map<evo::SmallVector<Arg>, Instantiation&> instantiation_map{};
+				mutable core::SpinLock instantiation_lock{};
+		};
+
+
 
 		struct ID{
 			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -225,13 +296,18 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto typedefID() const -> Typedef::ID {
-				evo::debugAssert(this->kind() == Kind::Typedef, "not an Typedef");
+				evo::debugAssert(this->kind() == Kind::Typedef, "not a Typedef");
 				return Typedef::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto structID() const -> Struct::ID {
-				evo::debugAssert(this->kind() == Kind::Struct, "not an Struct");
+				evo::debugAssert(this->kind() == Kind::Struct, "not a Struct");
 				return Struct::ID(this->_id);
+			}
+
+			EVO_NODISCARD auto structTemplateID() const -> StructTemplate::ID {
+				evo::debugAssert(this->kind() == Kind::StructTemplate, "not a StructTemplate");
+				return StructTemplate::ID(this->_id);
 			}
 
 
@@ -243,12 +319,13 @@ namespace pcit::panther{
 			}
 
 
-			explicit ID(Primitive::ID id) : _kind(Kind::Primitive), _id(id.get()) {}
-			explicit ID(Function::ID id)  : _kind(Kind::Function),  _id(id.get()) {}
-			explicit ID(Array::ID id)     : _kind(Kind::Array),     _id(id.get()) {}
-			explicit ID(Alias::ID id)     : _kind(Kind::Alias),     _id(id.get()) {}
-			explicit ID(Typedef::ID id)   : _kind(Kind::Typedef),   _id(id.get()) {}
-			explicit ID(Struct::ID id)    : _kind(Kind::Struct),    _id(id.get()) {}
+			explicit ID(Primitive::ID id)      : _kind(Kind::Primitive),      _id(id.get()) {}
+			explicit ID(Function::ID id)       : _kind(Kind::Function),       _id(id.get()) {}
+			explicit ID(Array::ID id)          : _kind(Kind::Array),          _id(id.get()) {}
+			explicit ID(Alias::ID id)          : _kind(Kind::Alias),          _id(id.get()) {}
+			explicit ID(Typedef::ID id)        : _kind(Kind::Typedef),        _id(id.get()) {}
+			explicit ID(Struct::ID id)         : _kind(Kind::Struct),         _id(id.get()) {}
+			explicit ID(StructTemplate::ID id) : _kind(Kind::StructTemplate), _id(id.get()) {}
 
 			private:
 				constexpr ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
@@ -349,6 +426,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getStruct(BaseType::Struct::ID id) const -> const BaseType::Struct&;
 			EVO_NODISCARD auto getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID;
 
+			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) const
+				-> const BaseType::StructTemplate&;
+			EVO_NODISCARD auto getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID;
+
 
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0); }
 			EVO_NODISCARD static auto getTypeChar()   -> TypeInfo::ID { return TypeInfo::ID(1); }
@@ -422,9 +503,11 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
 			core::SyncLinearStepAlloc<BaseType::Typedef, BaseType::Typedef::ID> typedefs{};
 			core::SyncLinearStepAlloc<BaseType::Struct, BaseType::Struct::ID> structs{};
+			core::SyncLinearStepAlloc<BaseType::StructTemplate, BaseType::StructTemplate::ID> struct_templates{};
 			core::SyncLinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 
 			friend class SemanticAnalyzer;
+			friend class SemaToPIR;
 	};
 
 }

@@ -133,6 +133,12 @@ namespace pcit::panther{
 			SemaTemplateTooManyArgs,
 			SemaTemplateInvalidArg,
 
+			// functions
+			SemaParamTypeVoid,
+			SemaInvalidScopeForThis,
+			SemaNamedVoidReturn,
+			SemaNotFirstReturnVoid,
+
 
 			//////////////////
 			// misc
@@ -207,7 +213,15 @@ namespace pcit::panther{
 
 				// sema / types
 				EVO_NODISCARD static auto get(
-					const sema::Var::ID& sema_var_id, const class Source& src, const class Context& context
+					const sema::GlobalVar::ID& sema_var_id, const class Source& src, const class Context& context
+				) -> Location;
+
+				EVO_NODISCARD static auto get(
+					const sema::Func::ID& func_id, const class Source& src, const class Context& context
+				) -> Location;
+
+				EVO_NODISCARD static auto get(
+					const sema::TemplatedFunc::ID& templated_func_id, const class Source& src, const class Context& context
 				) -> Location;
 
 				EVO_NODISCARD static auto get(
@@ -419,6 +433,10 @@ namespace pcit::panther{
 				case Code::SemaTemplateTooFewArgs:
 				case Code::SemaTemplateTooManyArgs:
 				case Code::SemaTemplateInvalidArg:
+				case Code::SemaParamTypeVoid:
+				case Code::SemaInvalidScopeForThis:
+				case Code::SemaNamedVoidReturn:
+				case Code::SemaNotFirstReturnVoid:
 					return "S";
 
 				case Code::MiscUnimplementedFeature:           return "M0";
@@ -455,6 +473,12 @@ namespace pcit::panther{
 			evo::debugAssert(message.empty() == false, "Diagnostic message cannot be empty");
 			evo::debugAssert(std::isupper(int(message[0])), "Diagnostic message must start with an upper letter");
 		}
+
+
+		private:
+			EVO_NODISCARD static auto get_ast_node_from_symbol_proc(const SymbolProc& symbol_proc) -> const AST::Node&;
+
+			friend class Location;
 	};
 
 }

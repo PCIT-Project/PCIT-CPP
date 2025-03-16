@@ -16,6 +16,10 @@ namespace fs = std::filesystem;
 #include "./AST/Parser.h"
 #include "./symbol_proc/SymbolProcBuilder.h"
 #include "./sema/SemanticAnalyzer.h"
+#include "../src/sema_to_pir/SemaToPIR.h"
+
+#include <PIR.h>
+
 
 namespace pcit::panther{
 
@@ -268,6 +272,23 @@ namespace pcit::panther{
 
 		
 		return this->num_errors == 0;
+	}
+
+
+
+
+	auto Context::lowerToAndPrintPIR(core::Printer& printer) -> void {
+		auto module = pir::Module(evo::copy(this->_config.title), this->_config.os, this->_config.architecture);
+
+		auto sema_to_pir = SemaToPIR(*this, module, SemaToPIR::Config{
+			.useReadableNames   = true,
+			.checkedMath        = true,
+			.isJIT              = false,
+			.addSourceLocations = true,
+		});
+		sema_to_pir.lower();
+
+		pcit::pir::printModule(module, printer);
 	}
 
 

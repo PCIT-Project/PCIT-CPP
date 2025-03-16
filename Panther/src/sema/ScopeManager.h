@@ -121,6 +121,15 @@ namespace pcit::panther::sema{
 					}
 
 
+					EVO_NODISCARD auto getCurrentTypeScopeIfExists() const -> std::optional<ObjectScope> {
+						for(auto iter = this->object_scopes.rbegin(); iter != this->object_scopes.rend(); ++iter){
+							if(iter->obj_scope.is<BaseType::Struct::ID>()){ return iter->obj_scope; }
+						}
+
+						return std::nullopt;
+					}
+
+
 					// must be popped manually
 					// be careful - only use when declaring things like params
 					EVO_NODISCARD auto pushFakeObjectScope() -> void {

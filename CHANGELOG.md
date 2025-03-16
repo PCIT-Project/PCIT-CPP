@@ -1,6 +1,28 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.91.0"></a>
+## v0.0.91.0
+
+### Panther
+- Added lowering to PIR
+- Fixed semantic analysis incorrectly saying a fluid float needed to be truncated when the target type is `F128`
+- Fixed `TypeManager::sizeOf()` for float types
+
+### PIR
+- Fixed type checking debug asserts in `Module::createGlobalArray`, `Module::createGlobalStruct`, and `Module::createGlobalVar`
+- Fixed stmt name deduplicator / static automatic name-er not taking `@alloca`s into account
+
+
+<!---------------------------------->
+<a name="v0.0.90.0"></a>
+## v0.0.90.0
+
+### Panther
+- Added functions
+
+
+<!---------------------------------->
 <a name="v0.0.89.1"></a>
 ## v0.0.89.1
 

@@ -163,9 +163,22 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// sema
 
-	auto Diagnostic::Location::get(const sema::Var::ID& sema_var_id, const Source& src, const Context& context)
+	auto Diagnostic::Location::get(const sema::GlobalVar::ID& sema_var_id, const Source& src, const Context& context)
 	-> Location {
-		return Location::get(context.getSemaBuffer().getVar(sema_var_id).ident, src);
+		return Location::get(context.getSemaBuffer().getGlobalVar(sema_var_id).ident, src);
+	}
+
+	auto Diagnostic::Location::get(const sema::Func::ID& func_id, const Source& src, const Context& context)
+	-> Location {
+		return Location::get(context.getSemaBuffer().getFunc(func_id).name, src);
+	}
+
+	auto Diagnostic::Location::get(const sema::TemplatedFunc::ID& func_id, const Source& src, const Context& context)
+	-> Location {
+		return Location::get(
+			Diagnostic::get_ast_node_from_symbol_proc(context.getSemaBuffer().getTemplatedFunc(func_id).symbolProc),
+			src
+		);
 	}
 
 
@@ -177,6 +190,12 @@ namespace pcit::panther{
 	auto Diagnostic::Location::get(const BaseType::Struct::ID& struct_id, const Source& src, const Context& context)
 	-> Location {
 		return Location::get(context.getTypeManager().getStruct(struct_id).identTokenID, src);
+	}
+
+
+
+	auto Diagnostic::get_ast_node_from_symbol_proc(const SymbolProc& symbol_proc) -> const AST::Node& {
+		return symbol_proc.ast_node;
 	}
 
 

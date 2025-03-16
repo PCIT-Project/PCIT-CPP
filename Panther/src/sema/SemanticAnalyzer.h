@@ -65,17 +65,21 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_alias_def(const Instruction::AliasDef& instr) -> Result;
 
 			template<bool IS_INSTANTIATION>
-			EVO_NODISCARD auto instr_struct_decl(
-				const AST::StructDecl& struct_decl,
-				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info,
-				uint32_t instantiation_id = std::numeric_limits<uint32_t>::max()
-			) -> Result;
-
+			EVO_NODISCARD auto instr_struct_decl(const Instruction::StructDecl<IS_INSTANTIATION>& instr) -> Result;
 			EVO_NODISCARD auto instr_struct_def() -> Result;
-			EVO_NODISCARD auto instr_templated_struct(const Instruction::TemplateStruct& instr) -> Result;
+			EVO_NODISCARD auto instr_template_struct(const Instruction::TemplateStruct& instr) -> Result;
+
+			template<bool IS_INSTANTIATION>
+			EVO_NODISCARD auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
+
+			EVO_NODISCARD auto instr_func_def() -> Result;
+			EVO_NODISCARD auto instr_template_func(const Instruction::TemplateFunc& instr) -> Result;
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
+			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
+			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait& instr)
+				-> Result;
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result;
@@ -83,10 +87,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result;
 			EVO_NODISCARD auto instr_user_type(const Instruction::UserType& instr) -> Result;
 			EVO_NODISCARD auto instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result;
-
-			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
-			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait& instr)
-				-> Result;
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto instr_ident(const Instruction::Ident<NEEDS_DEF>& instr) -> Result;
@@ -129,7 +129,6 @@ namespace pcit::panther{
 				const Source* source_module
 			) -> evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError>;
 
-			// evo::Result<std::optional<TermInfo>>; // returning nullopt means that it needs to be waited on
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto wait_on_symbol_proc(
@@ -163,6 +162,16 @@ namespace pcit::panther{
 			) -> evo::Result<StructAttrs>;
 
 
+			struct FuncAttrs{
+				bool is_pub;
+				bool is_runtime;
+				bool is_entry;
+			};
+			EVO_NODISCARD auto analyze_func_attrs(
+				const AST::FuncDecl& func_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<FuncAttrs>;
+
+
 			///////////////////////////////////
 			// propogate finished
 
@@ -182,10 +191,10 @@ namespace pcit::panther{
 			auto return_term_info(SymbolProc::TermInfoID symbol_proc_term_info_id, auto&&... args) -> void;
 
 			auto get_struct_instantiation(SymbolProc::StructInstantiationID instantiation_id)
-				-> const sema::TemplatedStruct::Instantiation&;
+				-> const BaseType::StructTemplate::Instantiation&;
 			auto return_struct_instantiation(
 				SymbolProc::StructInstantiationID instantiation_id,
-				const sema::TemplatedStruct::Instantiation& instantiation
+				const BaseType::StructTemplate::Instantiation& instantiation
 			) -> void;
 
 
@@ -281,16 +290,14 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto get_location(const sema::FuncID& func) const -> Diagnostic::Location {
-				std::ignore = func;
-				evo::unimplemented();
+				return Diagnostic::Location::get(func, this->source, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::TemplatedFuncID& templated_func) const -> Diagnostic::Location {
-				std::ignore = templated_func;
-				evo::unimplemented();
+				return Diagnostic::Location::get(templated_func, this->source, this->context);
 			}
 
-			EVO_NODISCARD auto get_location(const sema::VarID& var) const -> Diagnostic::Location {
+			EVO_NODISCARD auto get_location(const sema::GlobalVarID& var) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(var, this->source, this->context);
 			}
 

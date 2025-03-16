@@ -90,7 +90,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto printer = core::Printer::createConsole(config.print_color);
 
 
-	if(config.verbosity == pthr::Config::Verbosity::Full){
+	if(config.verbosity >= pthr::Config::Verbosity::Some){
 		pthr::print_logo(printer);
 
 		#if defined(PCIT_BUILD_DEBUG)
@@ -119,6 +119,7 @@ auto main(int argc, const char* argv[]) -> int {
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
 		.mode         = ContextConfig::Mode::BuildSystem,
+		.title        = "Panther Testing",
 		.os           = core::getCurrentOS(),
 		.architecture = core::getCurrentArchitecture(),
 
@@ -127,6 +128,10 @@ auto main(int argc, const char* argv[]) -> int {
 
 	const evo::Result<std::filesystem::path> current_path = get_current_path(printer);
 	if(current_path.isError()){ return EXIT_FAILURE; }
+
+	if(config.verbosity == pthr::Config::Verbosity::Full){
+		printer.printlnMagenta("Relative directory: \"{}\"", current_path.value().string());
+	}
 
 	auto context = panther::Context(
 		panther::createDefaultDiagnosticCallback(printer, current_path.value()), context_config
@@ -160,6 +165,11 @@ auto main(int argc, const char* argv[]) -> int {
 	// for(const panther::Source::ID& source_id : context.getSourceManager()){
 	// 	pthr::print_AST(printer, context.getSourceManager()[source_id], current_path.value());
 	// }
+
+	printer.printlnGray("--------------------------------");
+	context.lowerToAndPrintPIR(printer);
+	printer.printlnGray("--------------------------------");
+
 
 
 	if(config.verbosity >= pthr::Config::Verbosity::Some){

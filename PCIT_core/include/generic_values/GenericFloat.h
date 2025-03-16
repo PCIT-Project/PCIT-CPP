@@ -71,8 +71,12 @@ namespace pcit::core{
 			}
 
 
-			EVO_NODISCARD explicit operator float64_t() const { return this->ap_float.convertToDouble(); }
-			EVO_NODISCARD explicit operator float32_t() const { return this->ap_float.convertToFloat();  }
+			EVO_NODISCARD explicit operator float64_t() const {
+				return this->asF64().ap_float.convertToDouble();
+			}
+			EVO_NODISCARD explicit operator float32_t() const {
+				return this->asF32().ap_float.convertToFloat(); 
+			}
 
 
 			EVO_NODISCARD auto toString() const -> std::string {
@@ -83,6 +87,21 @@ namespace pcit::core{
 
 
 			EVO_NODISCARD auto getNative() const -> const llvmint::APFloat& { return this->ap_float; }
+
+
+
+			EVO_NODISCARD auto nextUp() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				std::ignore = ap_float_copy.next(false);
+				return GenericFloat(std::move(ap_float_copy));
+			}
+
+			EVO_NODISCARD auto nextDown() const -> GenericFloat {
+				llvmint::APFloat ap_float_copy = this->ap_float;
+				std::ignore = ap_float_copy.next(true);
+				return GenericFloat(std::move(ap_float_copy));
+			}
+
 
 
 			//////////////////////////////////////////////////////////////////////

@@ -129,5 +129,9 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, StructID>::UniqueID; 
 	};
 
+	struct StructTemplateID : public core::UniqueID<uint32_t, struct StructTemplateID> {
+		using core::UniqueID<uint32_t, StructTemplateID>::UniqueID; 
+	};
+
 
 }

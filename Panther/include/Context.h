@@ -38,6 +38,7 @@ namespace pcit::panther{
 				};
 
 				Mode mode;
+				std::string title;
 				core::OS os;
 				core::Architecture architecture;
 
@@ -109,6 +110,8 @@ namespace pcit::panther{
 			auto parse() -> bool;
 			auto buildSymbolProcs() -> bool;
 			auto analyzeSemantics() -> bool;
+
+			auto lowerToAndPrintPIR(core::Printer& printer) -> void;
 
 
 

@@ -137,19 +137,19 @@ namespace pcit::panther{
 			return Result::Code::Error;
 		}
 
-		if(this->reader[this->reader.peek()].kind() == Token::Kind::Attribute){
-			this->context.emitError(
-				Diagnostic::Code::ParserAttributesInWrongPlace,
-				this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
-				"Attributes for function declaration in the wrong place",
-				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info("Attributes should be after the parameters block")
-				}
-			);
-			return Result::Code::Error;
-		}
+
 
 		if(this->expect_token_fail(Token::lookupKind("="), "after identifier in function declaration")){
+			if(this->reader[this->reader.peek()].kind() == Token::Kind::Attribute){
+				this->context.emitError(
+					Diagnostic::Code::ParserAttributesInWrongPlace,
+					this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+					"Attributes for function declaration in the wrong place",
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("Attributes should be after the parameters block")
+					}
+				);
+			}
 			return Result::Code::Error;
 		}
 

@@ -16,6 +16,10 @@
 #include "../../include/sema/Stmt.h"
 #include "../../include/sema/Expr.h"
 
+namespace pcit::panther{
+	class Context;
+}
+
 namespace pcit::panther::sema{
 
 	
@@ -46,7 +50,7 @@ namespace pcit::panther::sema{
 
 			using IdentID = evo::Variant<
 				FuncOverloadList,
-				sema::VarID,
+				sema::GlobalVarID,
 				sema::ParamID,
 				sema::ReturnParamID,
 				ModuleInfo,
@@ -77,9 +81,10 @@ namespace pcit::panther::sema{
 			using IsShadowRedef = bool;
 			using AddIdentResult = evo::Expected<const IdentID*, IsShadowRedef>;
 
-			EVO_NODISCARD auto addIdent(std::string_view ident, sema::FuncID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::FuncID id, const class panther::Context& context)
+				-> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedFuncID id) -> AddIdentResult;
-			EVO_NODISCARD auto addIdent(std::string_view ident, sema::VarID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::GlobalVarID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ReturnParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub)

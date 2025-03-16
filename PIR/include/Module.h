@@ -24,7 +24,6 @@ namespace pcit::pir{
 
 	class Module{
 		public:
-			// Module(std::string_view _name) : name(_name) {}
 			Module(
 				std::string&& _name, core::OS _os, core::Architecture _arch
 			) : name(std::move(_name)), os(_os), arch(_arch) {}
@@ -169,19 +168,19 @@ namespace pcit::pir{
 
 							}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
 								evo::debugAssert(
-									element_type == this->getGlobalString(element).type,
+									this->typesEquivalent(element_type, this->getGlobalString(element).type),
 									"Array element must match type"
 								);
 
 							}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
 								evo::debugAssert(
-									element_type == this->getGlobalArray(element).type,
+									this->typesEquivalent(element_type, this->getGlobalArray(element).type),
 									"Array element must match type"
 								);
 
 							}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
 								evo::debugAssert(
-									element_type == this->getGlobalStruct(element).type,
+									this->typesEquivalent(element_type, this->getGlobalStruct(element).type),
 									"Array element must match type"
 								);
 
@@ -229,20 +228,20 @@ namespace pcit::pir{
 
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::String::ID>()){
 			 					evo::debugAssert(
-			 						member_type == this->getGlobalString(member_value).type,
+			 						this->typesEquivalent(member_type, this->getGlobalString(member_value).type),
 			 						"Struct member value must match type"
 			 					);
 			 					
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Array::ID>()){
 			 					evo::debugAssert(
-			 						member_type == this->getGlobalArray(member_value).type,
+			 						this->typesEquivalent(member_type, this->getGlobalArray(member_value).type),
 			 						"Struct member value must match type"
 			 					);
 			 					
 
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
 			 					evo::debugAssert(
-			 						member_type == this->getGlobalStruct(member_value).type,
+			 						this->typesEquivalent(member_type, this->getGlobalStruct(member_value).type),
 			 						"Struct member value must match type"
 			 					);
 
@@ -287,20 +286,20 @@ namespace pcit::pir{
 
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::String::ID>()){
 							evo::debugAssert(
-								type == this->getGlobalString(member_value).type,
+								this->typesEquivalent(type, this->getGlobalString(member_value).type),
 								"Global variable value must match type"
 							);
 							
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Array::ID>()){
 							evo::debugAssert(
-								type == this->getGlobalArray(member_value).type,
+								this->typesEquivalent(type, this->getGlobalArray(member_value).type),
 								"Global variable value must match type"
 							);
 							
 
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
 							evo::debugAssert(
-								type == this->getGlobalStruct(member_value).type,
+								this->typesEquivalent(type, this->getGlobalStruct(member_value).type),
 								"Global variable value must match type"
 							);
 
@@ -432,6 +431,59 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getFunctionType(const Type& func_type) const -> const FunctionType& {
 				evo::debugAssert(func_type.kind() == Type::Kind::Function, "Not an function");
 				return this->func_types[func_type.number];
+			}
+
+
+
+			EVO_NODISCARD auto typesEquivalent(const Type& lhs, const Type& rhs) const -> bool {
+				if(lhs.kind() != rhs.kind()){ return false; }
+
+				switch(lhs.kind()){
+					case Type::Kind::Void:    return true;
+					case Type::Kind::Integer: return lhs.getWidth() == rhs.getWidth();
+					case Type::Kind::Bool:    return true;
+					case Type::Kind::Float:   return lhs.getWidth() == rhs.getWidth();
+					case Type::Kind::BFloat:  return true;
+					case Type::Kind::Ptr:     return true;
+
+					case Type::Kind::Array: {
+						const ArrayType& lhs_array = this->getArrayType(lhs);
+						const ArrayType& rhs_array = this->getArrayType(rhs);
+
+						if(lhs_array.length != rhs_array.length){ return false; }
+						return this->typesEquivalent(lhs_array.elemType, rhs_array.elemType);
+					} break;
+
+					case Type::Kind::Struct: {
+						const StructType& lhs_struct = this->getStructType(lhs);
+						const StructType& rhs_struct = this->getStructType(rhs);
+
+						if(lhs_struct.isPacked != rhs_struct.isPacked){ return false; }
+						if(lhs_struct.members.size() != rhs_struct.members.size()){ return false; }
+						for(size_t i = 0; i < lhs_struct.members.size(); i+=1){
+							if(this->typesEquivalent(lhs_struct.members[i], rhs_struct.members[i]) == false){
+								return false;
+							}
+						}
+						return true;
+					} break;
+
+					case Type::Kind::Function: {
+						const FunctionType& lhs_func = this->getFunctionType(lhs);
+						const FunctionType& rhs_func = this->getFunctionType(rhs);
+
+						if(lhs_func.callingConvention != rhs_func.callingConvention){ return false; }
+						if(lhs_func.parameters.size() != rhs_func.parameters.size()){ return false; }
+						for(size_t i = 0; i < lhs_func.parameters.size(); i+=1){
+							if(this->typesEquivalent(lhs_func.parameters[i], rhs_func.parameters[i]) == false){
+								return false;
+							}
+						}
+						return this->typesEquivalent(lhs_func.returnType, rhs_func.returnType);
+					} break;
+				}
+
+				evo::unreachable();
 			}
 
 
