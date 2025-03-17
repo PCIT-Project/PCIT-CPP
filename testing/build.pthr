@@ -1,16 +1,10 @@
 
-type Struct = struct {
-	
+
+func test = () -> Int {
+	return 12;
 }
 
 
-const test_var: F128 = 12.4;
-const test_var2: F128 = 12.8;
-
-func test = (lhs: Int, rhs: Byte) -> Void {
-	
+func test = (num: Int) -> (output: Int) {
+	return...;
 }
-
-// func test = (lhs: I65) -> Int {
-	
-// }

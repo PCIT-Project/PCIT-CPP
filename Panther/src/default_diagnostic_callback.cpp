@@ -156,12 +156,9 @@ namespace pcit::panther{
 			}
 		}else{
 			for(size_t i = point_collumn; i < line_str.size() + 1; i+=1){
-				if(i == point_collumn){
-					pointer_str += '^';
-				}else{
-					pointer_str += '~';
-				}
+				pointer_str += '^';
 			}
+			pointer_str += "-->";
 		}
 
 		pointer_str += '\n';

@@ -274,12 +274,24 @@ namespace pcit::panther{
 				);
 		};
 
-		struct FuncDef{};
+		struct FuncDef{
+			const AST::FuncDecl& func_decl;
+		};
 
 		struct TemplateFunc{
 			const AST::FuncDecl& func_decl;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
+
+
+		//////////////////
+		// stmt
+
+		struct Return{
+			const AST::Return& return_stmt;
+			std::optional<SymbolProcTermInfoID>	value;
+		};
+
 
 
 		//////////////////
@@ -408,6 +420,9 @@ namespace pcit::panther{
 			FuncDecl<false>,
 			FuncDef,
 			TemplateFunc,
+
+			// stmt
+			Return,
 
 			// misc expr
 			TypeToTerm,

@@ -224,6 +224,15 @@ namespace pcit::panther{
 					return;
 				} break;
 
+				case Result::RecoverableError: {
+					this->symbol_proc.errored = true;
+					if(this->symbol_proc.extra_info.is<SymbolProc::StructInfo>()){
+						SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
+						if(struct_info.instantiation != nullptr){ struct_info.instantiation->errored = true; }
+					}
+					this->symbol_proc.nextInstruction();
+				} break;
+
 				case Result::NeedToWait: {
 					return;
 				} break;
@@ -278,10 +287,13 @@ namespace pcit::panther{
 				return this->instr_func_decl<false>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncDef>()){
-				return this->instr_func_def();
+				return this->instr_func_def(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplateFunc>()){
 				return this->instr_template_func(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Return>()){
+				return this->instr_return(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::TypeToTerm>()){
 				return this->instr_type_to_term(instr);
@@ -789,7 +801,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// setup member statements
 
-		this->push_scope_level(created_struct.structID());
+		this->push_scope_level(nullptr, created_struct.structID());
 
 		BaseType::Struct& created_struct_ref = this->context.type_manager.structs[created_struct.structID()];
 		created_struct_ref.scopeLevel = &this->get_current_scope_level();
@@ -1098,9 +1110,6 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// create func
 
-		// SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-
-
 		const sema::Func::ID created_func = this->context.sema_buffer.createFunc(
 			instr.func_decl.name,
 			this->source.getID(),
@@ -1111,8 +1120,6 @@ namespace pcit::panther{
 		);
 
 
-		// func_info.func_id = created_func.funcID();
-
 		if constexpr(IS_INSTANTIATION == false){
 			// TODO: manage overloads
 			const Token::ID ident = this->source.getASTBuffer().getIdent(instr.func_decl.name);
@@ -1121,6 +1128,8 @@ namespace pcit::panther{
 				return Result::Error;
 			}
 		}
+
+		this->push_scope_level(&this->context.sema_buffer.funcs[created_func].stmtBlock, created_func);
 
 
 		///////////////////////////////////
@@ -1133,16 +1142,35 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_func_def() -> Result {
+	auto SemanticAnalyzer::instr_func_def(const Instruction::FuncDef& instr) -> Result {
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_func_def: {}", this->symbol_proc.ident); });
 
-		// this->pop_scope_level(); // TODO: needed?
+		if(this->get_current_scope_level().isTerminated()){
+			this->get_current_func().isTerminated = true;
+
+		}else{
+			const sema::Func& current_func = this->get_current_func();
+			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
+
+			if(func_type.returnsVoid() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaFuncIsntTerminated,
+					instr.func_decl,
+					"Function isn't terminated",
+					Diagnostic::Info(
+						"A function is terminated when all control paths end in a [return], [unreachable], "
+						"or a function call that has the attribute `#noReturn`"
+					)
+				);
+				return Result::Error;
+			}
+		}
+
 
 		this->propagate_finished_def();
+		this->get_current_func().defCompleted = true;
 
-		// this->context.type_manager.funcs[
-		// 	this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().func_id
-		// ].defCompleted = true;
+		this->pop_scope_level(); // TODO: needed?
 
 		return Result::Success;
 	}
@@ -1245,7 +1273,124 @@ namespace pcit::panther{
 		this->propagate_finished_decl_def();
 
 		return Result::Success;
-	};
+	}
+
+
+
+	auto SemanticAnalyzer::instr_return(const Instruction::Return& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.return_stmt) == false){ return Result::Error; }
+
+		if(instr.return_stmt.label.has_value()){
+			this->emit_error(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				instr.return_stmt.label.value(),
+				"return statements with labels are currently unsupported"
+			);
+			return Result::Error;
+		}
+
+		const sema::Func& current_func = this->get_current_func();
+		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
+
+
+		auto return_value = std::optional<sema::Expr>();
+		if(instr.return_stmt.value.is<std::monostate>()){
+			if(current_func_type.returnsVoid() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.return_stmt,
+					"Functions that have a return type other than `Void` must return a value"
+				);
+				return Result::Error;
+			}
+
+			if(current_func_type.hasNamedReturns()){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.return_stmt,
+					"Incorrect return statement kind for a function named return parameters",
+					Diagnostic::Info("Set all return values and use \"return...;\" instead")
+				);
+				return Result::Error;
+			}
+			
+		}else if(instr.return_stmt.value.is<AST::Node>()){
+			evo::debugAssert(instr.value.has_value(), "Return value needs to have value analyzed");
+
+			if(current_func_type.returnsVoid()){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.return_stmt,
+					"Functions that have a return type of `Void` cannot return a value"
+				);
+				return Result::Error;
+			}
+
+			if(current_func_type.hasNamedReturns()){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.return_stmt,
+					"Incorrect return statement kind for a function named return parameters",
+					Diagnostic::Info("Set all return values and use \"return...;\" instead")
+				);
+				return Result::Error;
+			}
+
+
+			TermInfo& return_value_term = this->get_term_info(*instr.value);
+
+			if(return_value_term.is_ephemeral() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaReturnNotEphemeral,
+					instr.return_stmt.value.as<AST::Node>(),
+					"Value of return statement is not ephemeral"
+				);
+				return Result::Error;
+			}
+
+			if(this->type_check<true>(
+				current_func_type.returnParams.front().typeID.asTypeID(),
+				return_value_term,
+				"Return",
+				instr.return_stmt.value.as<AST::Node>()
+			).ok == false){
+				return Result::Error;
+			}
+
+			return_value = return_value_term.getExpr();
+			
+		}else{
+			evo::debugAssert(instr.return_stmt.value.is<Token::ID>(), "Unknown return kind");
+
+			if(current_func_type.returnsVoid()){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.return_stmt,
+					"Functions that have a return type of `Void` cannot return a value"
+				);
+				return Result::Error;
+			}
+
+			if(current_func_type.hasNamedReturns() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.return_stmt,
+					"Incorrect return statement kind for single unnamed return parameters",
+					Diagnostic::Info("Use \"return {EXPRESSION};\" instead")
+				);
+				return Result::Error;
+			}
+		}
+
+		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(return_value);
+
+		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
+		this->get_current_scope_level().setTerminated();
+
+		return Result::Success;
+	}
+
+
 
 
 
@@ -2032,7 +2177,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_templated_term_wait(const Instruction::TemplatedTermWait& instr) -> Result {
-		const BaseType::StructTemplate::Instantiation& instantiation = this->get_struct_instantiation(instr.instantiation);
+		const BaseType::StructTemplate::Instantiation& instantiation =
+			this->get_struct_instantiation(instr.instantiation);
 
 		if(instantiation.errored.load()){ return Result::Error; }
 		// if(instantiation.structID.load().has_value() == false){ return Result::NeedToWaitOnInstantiation; }
@@ -2166,28 +2312,57 @@ namespace pcit::panther{
 
 
 
-	///////////////////////////////////
-	// misc
+	//////////////////////////////////////////////////////////////////////
+	// scope
 
 	auto SemanticAnalyzer::get_current_scope_level() const -> sema::ScopeLevel& {
 		return this->context.sema_buffer.scope_manager.getLevel(this->scope.getCurrentLevel());
 	}
 
 
-	auto SemanticAnalyzer::push_scope_level(const auto& object_scope_id) -> void {
-		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(), object_scope_id);
+	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block) -> void {
+		if(this->scope.inObjectScope()){
+			this->get_current_scope_level().addSubScope();
+		}
+		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block));
 	}
 
-	auto SemanticAnalyzer::push_scope_level() -> void {
-		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel());
+	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block, const auto& object_scope_id) -> void {
+		// if(this->scope.inObjectScope()){
+			this->get_current_scope_level().addSubScope();
+		// }
+		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block), object_scope_id);
 	}
 
 	auto SemanticAnalyzer::pop_scope_level() -> void {
-		this->scope.popLevel();
+		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
+		const bool current_scope_is_terminated = current_scope_level.isTerminated();
+
+		if(
+			current_scope_level.hasStmtBlock()                      &&
+			current_scope_level.stmtBlock().isTerminated() == false &&
+			current_scope_level.isTerminated()
+		){
+			current_scope_level.stmtBlock().setTerminated();
+		}
+
+		this->scope.popLevel(); // `current_scope_level` is now invalid
+
+		if(current_scope_is_terminated && this->scope.inObjectScope() && !this->scope.inObjectMainScope()){
+			this->get_current_scope_level().setSubScopeTerminated();
+		}
+	}
+
+
+	auto SemanticAnalyzer::get_current_func() -> sema::Func& {
+		return this->context.sema_buffer.funcs[this->scope.getCurrentObjectScope().as<sema::Func::ID>()];
 	}
 
 
 
+
+	//////////////////////////////////////////////////////////////////////
+	// misc
 
 	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::lookup_ident_impl(Token::ID ident) -> evo::Expected<TermInfo, Result> {
@@ -3344,8 +3519,8 @@ namespace pcit::panther{
 			std::isupper(int(expected_type_location_name[0])), "first character of name should be upper-case"
 		);
 
-		std::string expected_type_str = std::format("{} is of type: ", expected_type_location_name);
-		auto got_type_str = std::string("Expression is of type: ");
+		std::string expected_type_str = std::format("{} is type: ", expected_type_location_name);
+		auto got_type_str = std::string("Expression is type: ");
 
 		while(expected_type_str.size() < got_type_str.size()){
 			expected_type_str += ' ';
@@ -3420,7 +3595,8 @@ namespace pcit::panther{
 			Diagnostic::Code::SemaTypeMismatch,
 			location,
 			std::format(
-				"{} cannot accept an expression of a different type, and the expression cannot be implicitly converted",
+				"{} cannot accept an expression of a different type, "
+					"and this expression cannot be implicitly converted to the correct type",
 				expected_type_location_name
 			),
 			std::move(infos)
@@ -3626,6 +3802,19 @@ namespace pcit::panther{
 				static_assert(false, "Unsupported type id kind");
 			}
 		});
+	}
+
+
+
+	auto SemanticAnalyzer::check_scope_isnt_terminated(const auto& location) -> bool {
+		if(this->get_current_scope_level().isTerminated() == false){ return true; }
+
+		this->emit_error(
+			Diagnostic::Code::SemaScopeIsAlreadyTerminated,
+			location,
+			"Scope is already terminated"
+		);
+		return false;
 	}
 
 

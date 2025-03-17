@@ -184,8 +184,8 @@ namespace pcit::panther::sema{
 				return this->levels[id];
 			}
 
-			EVO_NODISCARD auto createLevel() -> ScopeLevel::ID {
-				return this->levels.emplace_back();
+			EVO_NODISCARD auto createLevel(sema::StmtBlock* stmt_block = nullptr) -> ScopeLevel::ID {
+				return this->levels.emplace_back(stmt_block);
 			}
 
 	

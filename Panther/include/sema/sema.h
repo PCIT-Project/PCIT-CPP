@@ -141,7 +141,7 @@ namespace pcit::panther::sema{
 	struct Return{
 		using ID = ReturnID;
 
-	// 	std::optional<Expr> value; // nullopt means `return;`
+		std::optional<Expr> value; // nullopt means return void
 	};
 
 	struct Conditional{
@@ -200,6 +200,8 @@ namespace pcit::panther::sema{
 		bool hasInParam;
 		
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation
+
+		sema::StmtBlock stmtBlock{};
 
 		bool isTerminated = false;
 		std::atomic<bool> defCompleted = false;

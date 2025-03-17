@@ -46,6 +46,7 @@ namespace pcit::panther{
 			enum class Result{
 				Success,
 				Error,
+				RecoverableError,
 				NeedToWait,
 				NeedToWaitBeforeNextInstr,
 			};
@@ -71,9 +72,13 @@ namespace pcit::panther{
 
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
-
-			EVO_NODISCARD auto instr_func_def() -> Result;
+			EVO_NODISCARD auto instr_func_def(const Instruction::FuncDef& instr) -> Result;
 			EVO_NODISCARD auto instr_template_func(const Instruction::TemplateFunc& instr) -> Result;
+
+
+			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
+
+
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
@@ -101,9 +106,11 @@ namespace pcit::panther{
 			// scope
 
 			EVO_NODISCARD auto get_current_scope_level() const -> sema::ScopeLevel&;
-			EVO_NODISCARD auto push_scope_level(const auto& object_scope_id) -> void;
-			EVO_NODISCARD auto push_scope_level() -> void;
+			EVO_NODISCARD auto push_scope_level(sema::StmtBlock* stmt_block = nullptr) -> void;
+			EVO_NODISCARD auto push_scope_level(sema::StmtBlock* stmt_block, const auto& object_scope_id) -> void;
 			EVO_NODISCARD auto pop_scope_level() -> void;
+
+			EVO_NODISCARD auto get_current_func() -> sema::Func&;
 
 
 			///////////////////////////////////
@@ -254,6 +261,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto print_type(const TermInfo& term_info) const -> std::string;
 
 
+			EVO_NODISCARD auto check_scope_isnt_terminated(const auto& location) -> bool;
+
+
 			auto emit_fatal(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
 				this->context.emitFatal(code, this->get_location(node), std::forward<decltype(args)>(args)...);
 			}
@@ -265,6 +275,7 @@ namespace pcit::panther{
 			auto emit_warning(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
 				this->context.emitWarning(code, this->get_location(node), std::forward<decltype(args)>(args)...);
 			}
+
 
 
 			///////////////////////////////////

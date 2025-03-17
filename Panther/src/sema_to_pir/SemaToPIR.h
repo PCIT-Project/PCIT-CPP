@@ -43,7 +43,11 @@ namespace pcit::panther{
 			auto lower_struct(const BaseType::Struct::ID struct_id) -> void;
 			auto lower_global(const sema::GlobalVar::ID global_var_id) -> void;
 			auto lower_func_decl(const sema::Func::ID func_id) -> void;
+			auto lower_func_def(const sema::Func::ID func_id) -> void;
 
+			auto lower_stmt(const sema::Stmt& stmt) -> void;
+
+			EVO_NODISCARD auto get_expr(const sema::Expr expr) -> pir::Expr;
 			EVO_NODISCARD auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
 
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID voidable_type_id) -> pir::Type;

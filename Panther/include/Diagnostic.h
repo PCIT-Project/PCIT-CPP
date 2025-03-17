@@ -138,6 +138,12 @@ namespace pcit::panther{
 			SemaInvalidScopeForThis,
 			SemaNamedVoidReturn,
 			SemaNotFirstReturnVoid,
+			SemaFuncIsntTerminated,
+
+			// misc
+			SemaIncorrectReturnStmtKind,
+			SemaReturnNotEphemeral,
+			SemaScopeIsAlreadyTerminated,
 
 
 			//////////////////
@@ -437,6 +443,10 @@ namespace pcit::panther{
 				case Code::SemaInvalidScopeForThis:
 				case Code::SemaNamedVoidReturn:
 				case Code::SemaNotFirstReturnVoid:
+				case Code::SemaFuncIsntTerminated:
+				case Code::SemaIncorrectReturnStmtKind:
+				case Code::SemaReturnNotEphemeral:
+				case Code::SemaScopeIsAlreadyTerminated:
 					return "S";
 
 				case Code::MiscUnimplementedFeature:           return "M0";

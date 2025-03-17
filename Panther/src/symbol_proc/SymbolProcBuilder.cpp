@@ -328,18 +328,11 @@ namespace pcit::panther{
 				Instruction::FuncDecl<false>(func_decl, std::move(attribute_params_info.value()), std::move(types))
 			);
 
-			this->add_instruction(Instruction::FuncDef());
+			for(const AST::Node& func_stmt : ast_buffer.getBlock(func_decl.block).stmts){
+				if(this->analyze_stmt(func_stmt) == false){ return false; }
+			}
 
-			// SymbolProc::StructInfo& struct_info =
-			// 	current_symbol->symbol_proc.extra_info.emplace<SymbolProc::StructInfo>();
-
-			// this->symbol_scopes.emplace_back(&struct_info.stmts);
-			// this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
-			// for(const AST::Node& struct_stmt : ast_buffer.getBlock(func_decl.block).stmts){
-			// 	if(this->build(struct_stmt) == false){ return false; }
-			// }
-			// this->symbol_namespaces.pop_back();
-			// this->symbol_scopes.pop_back();
+			this->add_instruction(Instruction::FuncDef(func_decl));
 
 			// need to set again as address may have changed
 			current_symbol = &this->get_current_symbol();
@@ -635,6 +628,65 @@ namespace pcit::panther{
 			} break;
 		}
 	}
+
+
+
+	auto SymbolProcBuilder::analyze_stmt(const AST::Node& stmt) -> bool {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+
+		switch(stmt.kind()){
+			case AST::Kind::None:            evo::debugFatalBreak("Not a valid AST node");
+			case AST::Kind::VarDecl:         evo::unimplemented("AST::Kind::VarDecl");
+			case AST::Kind::FuncDecl:        evo::unimplemented("AST::Kind::FuncDecl");
+			case AST::Kind::AliasDecl:       evo::unimplemented("AST::Kind::AliasDecl");
+			case AST::Kind::TypedefDecl:     evo::unimplemented("AST::Kind::TypedefDecl");
+			case AST::Kind::StructDecl:      evo::unimplemented("AST::Kind::StructDecl");
+			case AST::Kind::Return:          return this->analyze_return(ast_buffer.getReturn(stmt));
+			case AST::Kind::Conditional:     evo::unimplemented("AST::Kind::Conditional");
+			case AST::Kind::WhenConditional: evo::unimplemented("AST::Kind::WhenConditional");
+			case AST::Kind::While:           evo::unimplemented("AST::Kind::While");
+			case AST::Kind::Unreachable:     evo::unimplemented("AST::Kind::Unreachable");
+			case AST::Kind::Block:           evo::unimplemented("AST::Kind::Block");
+			case AST::Kind::FuncCall:        evo::unimplemented("AST::Kind::FuncCall");
+			case AST::Kind::TemplatePack:    evo::unimplemented("AST::Kind::TemplatePack");
+			case AST::Kind::TemplatedExpr:   evo::unimplemented("AST::Kind::TemplatedExpr");
+			case AST::Kind::Prefix:          evo::unimplemented("AST::Kind::Prefix");
+			case AST::Kind::Infix:           evo::unimplemented("AST::Kind::Infix");
+			case AST::Kind::Postfix:         evo::unimplemented("AST::Kind::Postfix");
+			case AST::Kind::MultiAssign:     evo::unimplemented("AST::Kind::MultiAssign");
+			case AST::Kind::New:             evo::unimplemented("AST::Kind::New");
+			case AST::Kind::Type:            evo::unimplemented("AST::Kind::Type");
+			case AST::Kind::TypeIDConverter: evo::unimplemented("AST::Kind::TypeIDConverter");
+			case AST::Kind::AttributeBlock:  evo::unimplemented("AST::Kind::AttributeBlock");
+			case AST::Kind::Attribute:       evo::unimplemented("AST::Kind::Attribute");
+			case AST::Kind::PrimitiveType:   evo::unimplemented("AST::Kind::PrimitiveType");
+			case AST::Kind::Ident:           evo::unimplemented("AST::Kind::Ident");
+			case AST::Kind::Intrinsic:       evo::unimplemented("AST::Kind::Intrinsic");
+			case AST::Kind::Literal:         evo::unimplemented("AST::Kind::Literal");
+			case AST::Kind::Uninit:          evo::unimplemented("AST::Kind::Uninit");
+			case AST::Kind::Zeroinit:        evo::unimplemented("AST::Kind::Zeroinit");
+			case AST::Kind::This:            evo::unimplemented("AST::Kind::This");
+			case AST::Kind::Discard:         evo::unimplemented("AST::Kind::Discard");
+		}
+	}
+
+
+
+	auto SymbolProcBuilder::analyze_return(const AST::Return& return_stmt) -> bool {
+		if(return_stmt.value.is<AST::Node>()){
+			const evo::Result<SymbolProc::TermInfoID> return_value = 
+				this->analyze_expr<false>(return_stmt.value.as<AST::Node>());
+			if(return_value.isError()){ return false; }
+
+			this->add_instruction(Instruction::Return(return_stmt, return_value.value()));
+			return true;
+			
+		}else{
+			this->add_instruction(Instruction::Return(return_stmt, std::nullopt));
+			return true;
+		}
+	}
+
 
 
 

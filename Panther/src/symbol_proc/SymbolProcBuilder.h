@@ -49,6 +49,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_type(const AST::Type& ast_type) -> evo::Result<SymbolProc::TypeID>;
 			EVO_NODISCARD auto analyze_type_base(const AST::Node& ast_type_base) -> evo::Result<SymbolProc::TermInfoID>;
 
+
+			auto analyze_stmt(const AST::Node& stmt) -> bool;
+			auto analyze_return(const AST::Return& return_stmt) -> bool;
+
+
+
 			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 

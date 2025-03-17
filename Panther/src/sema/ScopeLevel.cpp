@@ -55,7 +55,9 @@ namespace pcit::panther::sema{
 
 	auto ScopeLevel::isTerminated() const -> bool {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
-		return this->_stmt_block->isTerminated() || (this->has_sub_scopes && this->num_sub_scopes_not_terminated == 0);
+		
+		return (this->hasStmtBlock() && this->stmtBlock().isTerminated())
+			|| (this->has_sub_scopes && this->num_sub_scopes_not_terminated == 0);
 	}
 
 	auto ScopeLevel::isNotTerminated() const -> bool {

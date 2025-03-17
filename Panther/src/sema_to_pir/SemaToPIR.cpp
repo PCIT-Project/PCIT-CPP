@@ -15,6 +15,10 @@ namespace pcit::panther{
 	
 
 	auto SemaToPIR::lower() -> void {
+		for(uint32_t i = 0; i < this->context.getTypeManager().structs.size(); i+=1){
+			this->lower_struct(BaseType::Struct::ID(i));
+		}
+
 		this->global_vars.reserve(this->context.getSemaBuffer().numGlobalVars());
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
 			this->lower_global(global_var_id);
@@ -24,9 +28,8 @@ namespace pcit::panther{
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
 			this->lower_func_decl(func_id);
 		}
-
-		for(uint32_t i = 0; i < this->context.getTypeManager().structs.size(); i+=1){
-			this->lower_struct(BaseType::Struct::ID(i));
+		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
+			this->lower_func_def(func_id);
 		}
 	}
 
@@ -196,9 +199,186 @@ namespace pcit::panther{
 
 
 
+	auto SemaToPIR::lower_func_def(const sema::Func::ID func_id) -> void {
+		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
+		this->current_source = &this->context.getSourceManager()[sema_func.sourceID];
+		EVO_DEFER([&](){ this->current_source = nullptr; });
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
+
+		pir::Function& func = this->module.getFunction(this->funcs[func_id.get()]);
+
+		this->agent.setTargetFunction(func);
+		this->agent.setTargetBasicBlockAtEnd();
+
+		for(const sema::Stmt& stmt : sema_func.stmtBlock){
+			// TODO: move into separate function?
+			switch(stmt.kind()){
+				case sema::Stmt::Kind::GlobalVar: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::GlobalVar");
+				} break;
+
+				case sema::Stmt::Kind::FuncCall: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::FuncCall");
+				} break;
+
+				case sema::Stmt::Kind::Assign: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::Assign");
+				} break;
+
+				case sema::Stmt::Kind::MultiAssign: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::MultiAssign");
+				} break;
+
+				case sema::Stmt::Kind::Return: {
+					const sema::Return& return_stmt = this->context.getSemaBuffer().getReturn(stmt.returnID());
+
+					if(return_stmt.value.has_value()){
+						this->agent.createRet(this->get_expr(*return_stmt.value));
+
+					}else if(func_type.hasErrorReturns()){
+						this->agent.createRet(this->agent.createBoolean(true));
+
+					}else{
+						this->agent.createRet();
+					}
+				} break;
+
+				case sema::Stmt::Kind::Unreachable: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::Unreachable");
+				} break;
+
+				case sema::Stmt::Kind::Conditional: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::Conditional");
+				} break;
+
+				case sema::Stmt::Kind::While: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::While");
+				} break;
+			}
+		}
+
+
+		if(sema_func.isTerminated == false){
+			if(func_type.returnsVoid()){
+				if(func_type.hasErrorReturns()){
+					this->agent.createRet(this->agent.createBoolean(true));
+				}else{
+					this->agent.createRet();
+				}
+				
+			}else{
+				this->agent.createUnreachable();
+			}
+		}
+	}
+
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// get expr
+
+
+	auto SemaToPIR::get_expr(const sema::Expr expr) -> pir::Expr {
+		switch(expr.kind()){
+			case sema::Expr::Kind::None: {
+				evo::debugFatalBreak("Not a valid sema::Expr");
+			} break;
+
+			case sema::Expr::Kind::ModuleIdent: {
+				evo::unimplemented("lower sema::Expr::Kind::ModuleIdent");
+			} break;
+
+			case sema::Expr::Kind::Uninit: {
+				evo::unimplemented("lower sema::Expr::Kind::Uninit");
+			} break;
+
+			case sema::Expr::Kind::Zeroinit: {
+				evo::unimplemented("lower sema::Expr::Kind::Zeroinit");
+			} break;
+
+			case sema::Expr::Kind::IntValue: {
+				const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
+				return this->agent.createNumber(this->get_type(*int_value.typeID), int_value.value);
+			} break;
+
+			case sema::Expr::Kind::FloatValue: {
+				const sema::FloatValue& float_value = this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
+				return this->agent.createNumber(this->get_type(*float_value.typeID), float_value.value);
+			} break;
+
+			case sema::Expr::Kind::BoolValue: {
+				const sema::BoolValue& bool_value = this->context.getSemaBuffer().getBoolValue(expr.boolValueID());
+				return this->agent.createBoolean(bool_value.value);
+			} break;
+
+			case sema::Expr::Kind::StringValue: {
+				evo::unimplemented("lower sema::Expr::Kind::StringValue");
+			} break;
+
+			case sema::Expr::Kind::CharValue: {
+				const sema::CharValue& char_value = this->context.getSemaBuffer().getCharValue(expr.charValueID());
+				return this->agent.createNumber(
+					this->module.createIntegerType(8), core::GenericInt(8, uint64_t(char_value.value))
+				);
+			} break;
+
+			case sema::Expr::Kind::Intrinsic: {
+				evo::unimplemented("lower sema::Expr::Kind::Intrinsic");
+			} break;
+
+			case sema::Expr::Kind::TemplatedIntrinsicInstantiation: {
+				evo::unimplemented("lower sema::Expr::Kind::TemplatedIntrinsicInstantiation");
+			} break;
+
+			case sema::Expr::Kind::Copy: {
+				evo::unimplemented("lower sema::Expr::Kind::Copy");
+			} break;
+
+			case sema::Expr::Kind::Move: {
+				evo::unimplemented("lower sema::Expr::Kind::Move");
+			} break;
+
+			case sema::Expr::Kind::DestructiveMove: {
+				evo::unimplemented("lower sema::Expr::Kind::DestructiveMove");
+			} break;
+
+			case sema::Expr::Kind::Forward: {
+				evo::unimplemented("lower sema::Expr::Kind::Forward");
+			} break;
+
+			case sema::Expr::Kind::FuncCall: {
+				evo::unimplemented("lower sema::Expr::Kind::FuncCall");
+			} break;
+
+			case sema::Expr::Kind::AddrOf: {
+				evo::unimplemented("lower sema::Expr::Kind::AddrOf");
+			} break;
+
+			case sema::Expr::Kind::Deref: {
+				evo::unimplemented("lower sema::Expr::Kind::Deref");
+			} break;
+
+			case sema::Expr::Kind::Param: {
+				evo::unimplemented("lower sema::Expr::Kind::Param");
+			} break;
+
+			case sema::Expr::Kind::ReturnParam: {
+				evo::unimplemented("lower sema::Expr::Kind::ReturnParam");
+			} break;
+
+			case sema::Expr::Kind::GlobalVar: {
+				evo::unimplemented("lower sema::Expr::Kind::GlobalVar");
+			} break;
+
+			case sema::Expr::Kind::Func: {
+				evo::unimplemented("lower sema::Expr::Kind::Func");
+			} break;
+
+		}
+	}
+
 
 
 	auto SemaToPIR::get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value {
