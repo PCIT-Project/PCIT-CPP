@@ -94,6 +94,7 @@ namespace pcit::panther{
 				KeywordStruct,
 
 				KeywordReturn,
+				KeywordError,
 				KeywordUnreachable,
 
 				KeywordNull,
@@ -451,6 +452,7 @@ namespace pcit::panther{
 					break; case Kind::KeywordStruct:      return "struct";
 
 					break; case Kind::KeywordReturn:      return "return";
+					break; case Kind::KeywordError:       return "error";
 					break; case Kind::KeywordUnreachable: return "unreachable";
 
 					break; case Kind::KeywordNull:        return "null";

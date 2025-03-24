@@ -19,11 +19,19 @@ namespace pcit::panther::sema{
 		const BaseType::Function& this_type = context.getTypeManager().getFunction(this->typeID);
 		const BaseType::Function& rhs_type = context.getTypeManager().getFunction(rhs.typeID);
 
-		if(this_type.params.size() != rhs_type.params.size()){ return false; }
+		if(this->minNumArgs == rhs.minNumArgs){
+			for(size_t i = 0; i < this->minNumArgs; i+=1){
+				if(this_type.params[i].typeID != rhs_type.params[i].typeID){ return false; }
+				if(this_type.params[i].kind != rhs_type.params[i].kind){ return false; }
+			}
+			
+		}else{
+			if(this_type.params.size() != rhs_type.params.size()){ return false; }
 
-		for(size_t i = 0; i < this_type.params.size(); i+=1){
-			if(this_type.params[i].typeID != rhs_type.params[i].typeID){ return false; }
-			if(this_type.params[i].kind != rhs_type.params[i].kind){ return false; }
+			for(size_t i = 0; i < this_type.params.size(); i+=1){
+				if(this_type.params[i].typeID != rhs_type.params[i].typeID){ return false; }
+				if(this_type.params[i].kind != rhs_type.params[i].kind){ return false; }
+			}
 		}
 
 		return true;

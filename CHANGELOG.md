@@ -1,11 +1,31 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.93.0"></a>
+## v0.0.93.0
+
+### Panther
+- Added `error` statements
+- Added better diagnostics when there is a function overload collision 
+- Added checking for float literal ending in a `.`
+- Added checking for implicitly-typed `var` and `const` variables having a value of a fulid literal
+- Added checking for newlines and tabs in character literals
+- Swapped defintitions of language terms `comptime` and `constexpr`
+- Improved PIR code generation for function parameters (removing unnecessary `@alloca`s)
+- Slight tweaks to CONTRIBUTING.md
+- Fixed race condition in semantic analysis where sometimes not all overloads of a function were considered
+- Fixed code generation for functions with an unnamed return value and error return
+- Fixed fatal error when generating code for function that has an unnamed error return param
+- Fixed literal integer and literal float scientific notation for when the exponent is `1`
+- Fixed assert going off incorrectly in lowering to PIR when using `def` variables
+
+
+<!---------------------------------->
 <a name="v0.0.92.0"></a>
 ## v0.0.92.0
 
 ### Panther
-- Added returns
+- Added `return` statements
 
 
 <!---------------------------------->

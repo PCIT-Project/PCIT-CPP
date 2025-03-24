@@ -1,9 +1,9 @@
 # Contributing to PCIT
 
-Thanks for your interest in the PCIT project!
+Thanks for your interest in the PCIT Project!
 
-## Pull Requests
-At this time, PCIT is not accepting any pull requests. The intension is to open this up in the future though.
+## Code contributions
+At this time, the PCIT Project Team is not accepting any code contributions. However, this is most likely going to change in the future!
 
 ## Issues
 Issues are welcomed. However, since this project is in its infancy, expect that things may change soon. When creating an issue, please:

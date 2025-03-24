@@ -55,6 +55,7 @@ namespace pcit::panther{
 			case Token::Kind::KeywordAlias:       return this->parse_alias_decl();
 			case Token::Kind::KeywordType:        return this->parse_type_decl();
 			case Token::Kind::KeywordReturn:      return this->parse_return();
+			case Token::Kind::KeywordError:       return this->parse_error();
 			case Token::Kind::KeywordUnreachable: return this->parse_unreachable();
 			case Token::Kind::KeywordIf:          return this->parse_conditional<false>();
 			case Token::Kind::KeywordWhen:        return this->parse_conditional<true>();
@@ -136,7 +137,6 @@ namespace pcit::panther{
 		if(this->check_result_fail(ident, "identifier after [func] in function declaration")){
 			return Result::Code::Error;
 		}
-
 
 
 		if(this->expect_token_fail(Token::lookupKind("="), "after identifier in function declaration")){
@@ -318,6 +318,32 @@ namespace pcit::panther{
 
 		return this->source.ast_buffer.createReturn(start_location, label, expr);
 	}
+
+	// TODO: check EOF
+	auto Parser::parse_error() -> Result {
+		const Token::ID start_location = this->reader.peek();
+		if(this->assert_token_fail(Token::Kind::KeywordError)){ return Result::Code::Error; }
+
+		auto expr = evo::Variant<std::monostate, AST::Node, Token::ID>();
+
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("...")){
+			expr = this->reader.next();
+		}else{
+			const Result expr_result = this->parse_expr();
+			if(expr_result.code() == Result::Code::Error){
+				return Result::Code::Error;
+			}else if(expr_result.code() == Result::Code::Success){
+				expr = expr_result.value();
+			}
+		}
+
+		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [error] statement")){
+			return Result::Code::Error;
+		}
+
+		return this->source.ast_buffer.createError(start_location, expr);
+	}
+
 
 	// TODO: check EOF
 	auto Parser::parse_unreachable() -> Result {

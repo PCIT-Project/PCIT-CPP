@@ -77,6 +77,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
+			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
 
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
@@ -137,14 +138,19 @@ namespace pcit::panther{
 			) -> evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError>;
 
 
+			enum class WaitOnSymbolProcResult{
+				Error,
+				NeedToWait,
+				SemasReady,
+			};
+
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto wait_on_symbol_proc(
 				evo::ArrayProxy<const SymbolProc::Namespace*> symbol_proc_namespaces,
 				const auto& ident,
 				std::string_view ident_str,
-				std::string&& error_msg_if_ident_doesnt_exist,
-				std::function<Result()> func_if_def_completed
-			) -> Result;
+				std::string&& error_msg_if_ident_doesnt_exist
+			) -> WaitOnSymbolProcResult;
 
 
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
@@ -152,6 +158,27 @@ namespace pcit::panther{
 			template<bool ALLOW_TYPEDEF>
 			EVO_NODISCARD auto get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID;
 
+
+			struct SelectFuncOverloadFuncInfo{
+				sema::Func::ID func_id;
+				const BaseType::Function& func_type;
+			};
+
+			struct SelectFuncOverloadArgInfo{
+				TermInfo& term_info;
+				const AST::FuncCall::Arg& ast_arg;
+			};
+
+			EVO_NODISCARD auto select_func_overload(
+				evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
+				evo::SmallVector<SelectFuncOverloadArgInfo>& arg_infos,
+				const auto& call_node
+			) -> evo::Result<size_t>; // returns index of selected overload
+
+
+
+			///////////////////////////////////
+			// attributes
 
 			struct VarAttrs{
 				bool is_pub;
@@ -253,10 +280,38 @@ namespace pcit::panther{
 				auto&&... ident_id_info
 			) -> bool;
 
+
 			template<bool IS_SHADOWING>
 			auto error_already_defined(
-				const auto& redef_id, std::string_view ident_str, const sema::ScopeLevel::IdentID& first_defined_id
+				const auto& redef_id,
+				std::string_view ident_str,
+				const sema::ScopeLevel::IdentID& first_defined_id,
+				sema::Func::ID attempted_decl_func_id,
+				[[maybe_unused]] auto&&... ident_id_info_args
+			) -> void {
+				this->error_already_defined_impl<IS_SHADOWING>(
+					redef_id, ident_str, first_defined_id, attempted_decl_func_id
+				);
+			}
+
+			template<bool IS_SHADOWING>
+			auto error_already_defined(
+				const auto& redef_id,
+				std::string_view ident_str,
+				const sema::ScopeLevel::IdentID& first_defined_id,
+				[[maybe_unused]] auto&&... ident_id_info_args
+			) -> void {
+				this->error_already_defined_impl<IS_SHADOWING>(redef_id, ident_str, first_defined_id, std::nullopt);
+			}
+
+			template<bool IS_SHADOWING>
+			auto error_already_defined_impl(
+				const auto& redef_id,
+				std::string_view ident_str,
+				const sema::ScopeLevel::IdentID& first_defined_id,
+				std::optional<sema::Func::ID> attempted_decl_func_id
 			) -> void;
+
 
 			EVO_NODISCARD auto print_type(const TermInfo& term_info) const -> std::string;
 
@@ -300,7 +355,7 @@ namespace pcit::panther{
 				return this->get_location(template_expr_param.location);
 			}
 
-			EVO_NODISCARD auto get_location(const sema::FuncID& func) const -> Diagnostic::Location {
+			EVO_NODISCARD auto get_location(const sema::Func::ID& func) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(func, this->source, this->context);
 			}
 

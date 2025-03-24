@@ -145,6 +145,17 @@ namespace pcit::panther{
 				return this->returns[node._value.node_index];
 			}
 
+
+			EVO_NODISCARD auto createError(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->errors.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::Error, node_index);
+			}
+			EVO_NODISCARD auto getError(const AST::Node& node) const -> const AST::Error& {
+				evo::debugAssert(node.kind() == AST::Kind::Error, "Node is not a Error");
+				return this->errors[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createConditional(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->conditionals.emplace_back(std::forward<decltype(args)>(args)...);
@@ -323,6 +334,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::StructDecl, uint32_t> struct_decls{};
 
 			core::LinearStepAlloc<AST::Return, uint32_t> returns{};
+			core::LinearStepAlloc<AST::Error, uint32_t> errors{};
 			core::LinearStepAlloc<AST::Conditional, uint32_t> conditionals{};
 			core::LinearStepAlloc<AST::WhenConditional, uint32_t> when_conditionals{};
 			core::LinearStepAlloc<AST::While, uint32_t> whiles{};

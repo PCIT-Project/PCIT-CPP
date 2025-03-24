@@ -42,6 +42,7 @@ namespace pcit::panther{
 			case AST::Kind::TypedefDecl:     return Location::get(ast_buffer.getTypedefDecl(node), src);
 			case AST::Kind::StructDecl:      return Location::get(ast_buffer.getStructDecl(node), src);
 			case AST::Kind::Return:          return Location::get(ast_buffer.getReturn(node), src);
+			case AST::Kind::Error:           return Location::get(ast_buffer.getError(node), src);
 			case AST::Kind::Unreachable:     return Location::get(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::Conditional:     return Location::get(ast_buffer.getConditional(node), src);
 			case AST::Kind::WhenConditional: return Location::get(ast_buffer.getWhenConditional(node), src);
@@ -95,6 +96,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::Return& return_stmt, const Source& src) -> Location {
 		return Location::get(return_stmt.keyword, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::Error& error_stmt, const Source& src) -> Location {
+		return Location::get(error_stmt.keyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::Conditional& conditional, const Source& src) -> Location {

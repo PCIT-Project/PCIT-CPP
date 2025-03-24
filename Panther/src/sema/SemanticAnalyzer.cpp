@@ -295,6 +295,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Return>()){
 				return this->instr_return(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::Error>()){
+				return this->instr_error(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::TypeToTerm>()){
 				return this->instr_type_to_term(instr);
 
@@ -509,6 +512,19 @@ namespace pcit::panther{
 				Diagnostic::Code::SemaMultiReturnIntoSingleValue,
 				*instr.var_decl.value,
 				"Cannot define a variable with multiple values"
+			);
+			return Result::Error;
+		}
+
+		if(
+			instr.var_decl.kind != AST::VarDecl::Kind::Def &&
+			value_term_info.value_category == TermInfo::ValueCategory::EphemeralFluid
+		){
+			this->emit_error(
+				Diagnostic::Code::SemaCannotInferType,
+				*instr.var_decl.value,
+				"Cannot infer the type of a fluid literal",
+				Diagnostic::Info("Did you mean this variable to be `def`? If not, give the variable an explicit type")
 			);
 			return Result::Error;
 		}
@@ -969,6 +985,8 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		auto params = evo::SmallVector<BaseType::Function::Param>();
+		auto sema_params = evo::SmallVector<sema::Func::Param>();
+		uint32_t min_num_args = 0;
 		bool has_in_param = false;
 
 		for(size_t i = 0; const std::optional<SymbolProc::TypeID>& symbol_proc_param_type_id : instr.params()){
@@ -982,7 +1000,7 @@ namespace pcit::panther{
 			);
 
 
-			if(symbol_proc_param_type_id.has_value()){
+			if(symbol_proc_param_type_id.has_value()){ // regular param
 				const TypeInfo::VoidableID param_type_id = this->get_type(*symbol_proc_param_type_id);
 
 				if(param_type_id.isVoid()){
@@ -1001,9 +1019,31 @@ namespace pcit::panther{
 					has_in_param = true;
 				}
 
-				params.emplace_back(ast_buffer.getIdent(param.name), param_type_id.asTypeID(), param.kind, should_copy);
+				params.emplace_back(param_type_id.asTypeID(), param.kind, should_copy);
 
-			}else{
+				if(instr.default_param_values[i].has_value()){
+					TermInfo default_param_value = this->get_term_info(*instr.default_param_values[i]);
+
+					if(
+						this->type_check<true>(
+							param_type_id.asTypeID(),
+							default_param_value,
+							"Default value of function parameter",
+							*instr.func_decl.params[i].defaultValue
+						).ok == false
+					){
+						return Result::Error;
+					}
+
+					sema_params.emplace_back(ast_buffer.getIdent(param.name), default_param_value.getExpr());
+
+
+				}else{
+					sema_params.emplace_back(ast_buffer.getIdent(param.name), std::nullopt);
+					min_num_args += 1;
+				}
+
+			}else{ // `this` param
 				const std::optional<sema::ScopeManager::Scope::ObjectScope> current_type_scope = 
 					this->scope.getCurrentTypeScopeIfExists();
 
@@ -1024,11 +1064,14 @@ namespace pcit::panther{
 						const TypeInfo::ID this_type = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(BaseType::ID(type_scope))
 						);
-						params.emplace_back(ast_buffer.getThis(param.name), this_type, param.kind);
+						params.emplace_back(this_type, param.kind);
 					}else{
 						evo::debugFatalBreak("Invalid object scope");
 					}
 				});
+
+				sema_params.emplace_back(ast_buffer.getThis(param.name), std::nullopt);
+				min_num_args += 1;
 			}
 		}
 
@@ -1098,12 +1141,7 @@ namespace pcit::panther{
 
 
 		const BaseType::ID created_func_base_type = this->context.type_manager.getOrCreateFunction(
-			BaseType::Function(
-				std::move(params),
-				std::move(return_params),
-				std::move(error_return_params),
-				!func_attrs.value().is_runtime
-			)
+			BaseType::Function(std::move(params), std::move(return_params), std::move(error_return_params))
 		);
 
 
@@ -1114,7 +1152,10 @@ namespace pcit::panther{
 			instr.func_decl.name,
 			this->source.getID(),
 			created_func_base_type.funcID(),
+			std::move(sema_params),
+			min_num_args,
 			func_attrs.value().is_pub,
+			!func_attrs.value().is_runtime,
 			has_in_param,
 			instr.instantiation_id
 		);
@@ -1158,7 +1199,7 @@ namespace pcit::panther{
 					instr.func_decl,
 					"Function isn't terminated",
 					Diagnostic::Info(
-						"A function is terminated when all control paths end in a [return], [unreachable], "
+						"A function is terminated when all control paths end in a [return], [error], [unreachable], "
 						"or a function call that has the attribute `#noReturn`"
 					)
 				);
@@ -1294,7 +1335,7 @@ namespace pcit::panther{
 
 
 		auto return_value = std::optional<sema::Expr>();
-		if(instr.return_stmt.value.is<std::monostate>()){
+		if(instr.return_stmt.value.is<std::monostate>()){ // return;
 			if(current_func_type.returnsVoid() == false){
 				this->emit_error(
 					Diagnostic::Code::SemaIncorrectReturnStmtKind,
@@ -1314,7 +1355,7 @@ namespace pcit::panther{
 				return Result::Error;
 			}
 			
-		}else if(instr.return_stmt.value.is<AST::Node>()){
+		}else if(instr.return_stmt.value.is<AST::Node>()){ // return {EXPRESSION};
 			evo::debugAssert(instr.value.has_value(), "Return value needs to have value analyzed");
 
 			if(current_func_type.returnsVoid()){
@@ -1359,7 +1400,7 @@ namespace pcit::panther{
 
 			return_value = return_value_term.getExpr();
 			
-		}else{
+		}else{ // return...;
 			evo::debugAssert(instr.return_stmt.value.is<Token::ID>(), "Unknown return kind");
 
 			if(current_func_type.returnsVoid()){
@@ -1393,10 +1434,100 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::instr_error(const Instruction::Error& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.error_stmt) == false){ return Result::Error; }
+
+		const sema::Func& current_func = this->get_current_func();
+		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
+
+
+		if(current_func_type.hasErrorReturn() == false){
+			this->emit_error(
+				Diagnostic::Code::SemaErrorInFuncWithoutErrors,
+				instr.error_stmt,
+				"Cannot error return in a function that does not have error returns"
+			);
+			return Result::Error;
+		}
+
+
+		auto error_value = std::optional<sema::Expr>();
+		if(instr.error_stmt.value.is<std::monostate>()){ // error;
+			if(current_func_type.hasErrorReturnParams()){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.error_stmt,
+					"Incorrect error return statement kind for a function named error return parameters",
+					Diagnostic::Info("Set all error return values and use \"error...;\" instead")
+				);
+				return Result::Error;
+			}
+			
+		}else if(instr.error_stmt.value.is<AST::Node>()){ // error {EXPRESSION};
+			evo::debugAssert(instr.value.has_value(), "error return value needs to have value analyzed");
+
+			if(current_func_type.hasNamedErrorReturns()){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.error_stmt,
+					"Incorrect error return statement kind for a function named error return parameters",
+					Diagnostic::Info("Set all error return values and use \"error...;\" instead")
+				);
+				return Result::Error;
+			}
+
+
+			TermInfo& error_value_term = this->get_term_info(*instr.value);
+
+			if(error_value_term.is_ephemeral() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaReturnNotEphemeral,
+					instr.error_stmt.value.as<AST::Node>(),
+					"Value of error return statement is not ephemeral"
+				);
+				return Result::Error;
+			}
+
+			if(this->type_check<true>(
+				current_func_type.errorParams.front().typeID.asTypeID(),
+				error_value_term,
+				"Error return",
+				instr.error_stmt.value.as<AST::Node>()
+			).ok == false){
+				return Result::Error;
+			}
+
+			error_value = error_value_term.getExpr();
+			
+		}else{ // error...;
+			evo::debugAssert(instr.error_stmt.value.is<Token::ID>(), "Unknown return kind");
+
+			if(current_func_type.hasNamedErrorReturns() == false){
+				this->emit_error(
+					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					instr.error_stmt,
+					"Incorrect error return statement kind for single unnamed error return parameters",
+					Diagnostic::Info("Use \"error {EXPRESSION};\" instead")
+				);
+				return Result::Error;
+			}
+		}
+
+		const sema::Error::ID sema_error_id = this->context.sema_buffer.createError(error_value);
+
+		this->get_current_scope_level().stmtBlock().emplace_back(sema_error_id);
+		this->get_current_scope_level().setTerminated();
+
+		return Result::Success;
+	}
+
+
+
+
 
 	auto SemanticAnalyzer::instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result {
 		this->return_term_info(instr.to,
-			TermInfo::ValueCategory::Type, TermInfo::ValueStage::Comptime, this->get_type(instr.from), std::nullopt
+			TermInfo::ValueCategory::Type, TermInfo::ValueStage::Constexpr, this->get_type(instr.from), std::nullopt
 		);
 		return Result::Success;
 	}
@@ -1404,12 +1535,94 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
-		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
-			instr.func_call,
-			"Semantic Analysis of function calls (other than @import) is unimplemented"
+		const TermInfo target_term_info = this->get_term_info(instr.target);
+
+		if(target_term_info.value_category != TermInfo::ValueCategory::Function){
+			this->emit_error(
+				Diagnostic::Code::SemaCannotCallLikeFunction,
+				instr.func_call.target,
+				"Cannot call expression like a function"
+			);
+			return Result::Error;
+		}
+
+
+		auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
+		using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFuncID>;
+		for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
+			if(func_overload.is<sema::Func::ID>()){
+				const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_overload.as<sema::Func::ID>());
+				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
+				func_infos.emplace_back(func_overload.as<sema::Func::ID>(), func_type);
+			}
+		}
+
+		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>();
+		for(size_t i = 0; const SymbolProc::TermInfoID& arg : instr.args){
+			arg_infos.emplace_back(this->get_term_info(arg), instr.func_call.args[i]);
+			i += 1;
+		}
+
+
+		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
+			func_infos, arg_infos, instr.func_call.target
 		);
-		return Result::Error;
+		if(selected_func_overload_index.isError()){ return Result::Error; }
+
+
+		const sema::Func::ID selected_func_id = func_infos[selected_func_overload_index.value()].func_id;
+		const sema::Func& selected_func = this->context.sema_buffer.getFunc(selected_func_id);
+		const BaseType::Function& selected_func_type = this->context.getTypeManager().getFunction(selected_func.typeID);
+
+
+
+		auto sema_args = evo::SmallVector<sema::Expr>();
+		for(const SymbolProc::TermInfoID& arg : instr.args){
+			sema_args.emplace_back(this->get_term_info(arg).getExpr());
+		}
+
+		for(size_t i = sema_args.size(); i < selected_func.params.size(); i+=1){
+			sema_args.emplace_back(*selected_func.params[i].defaultValue);
+		}
+
+		const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
+			selected_func_id, std::move(sema_args)
+		);
+
+
+		const TermInfo::ValueStage value_stage = selected_func.isConstexpr
+			? TermInfo::ValueStage::Constexpr 
+			: TermInfo::ValueStage::Runtime;
+
+		if(selected_func_type.returnParams.size() == 1){ // single return
+			this->return_term_info(instr.output,
+				TermInfo(
+					TermInfo::ValueCategory::Ephemeral,
+					value_stage,
+					selected_func_type.returnParams[0].typeID.asTypeID(),
+					sema::Expr(sema_func_call_id)
+				)
+			);
+			
+		}else{ // multi-return
+			auto return_types = evo::SmallVector<TypeInfo::ID>();
+			return_types.reserve(selected_func_type.returnParams.size());
+			for(const BaseType::Function::ReturnParam& return_param : selected_func_type.returnParams){
+				return_types.emplace_back(return_param.typeID.asTypeID());
+			}
+
+			this->return_term_info(instr.output,
+				TermInfo(
+					TermInfo::ValueCategory::Ephemeral,
+					value_stage,
+					std::move(return_types),
+					sema::Expr(sema_func_call_id)
+				)
+			);
+		}
+
+
+		return Result::Success;
 	}
 
 
@@ -1428,7 +1641,10 @@ namespace pcit::panther{
 		if(import_lookup.has_value()){
 			this->return_term_info(instr.output, 
 				TermInfo(
-					TermInfo::ValueCategory::Module, TermInfo::ValueStage::Comptime, import_lookup.value(), std::nullopt
+					TermInfo::ValueCategory::Module,
+					TermInfo::ValueStage::Constexpr,
+					import_lookup.value(),
+					std::nullopt
 				)
 			);
 			return Result::Success;
@@ -1497,10 +1713,26 @@ namespace pcit::panther{
 				source_module_sema_scope.getGlobalLevel()
 			);
 
+			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+				&source_module.global_symbol_procs,
+				instr.infix.rhs,
+				rhs_ident_str,
+				std::format("Module has no symbol named \"{}\"", rhs_ident_str)
+			);
+
+			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::Error){ return Result::Error; }
+			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NeedToWait){ return Result::NeedToWait; }
+
+			evo::debugAssert(
+				wait_on_symbol_proc_result == WaitOnSymbolProcResult::SemasReady, "Unknown WaitOnSymbolProcResult"
+			);
+
+
 			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
 				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, true>(
 					instr.rhs_ident, rhs_ident_str, scope_level, true, true, &source_module
 				);
+
 
 			if(expr_ident.has_value()){
 				this->return_term_info(instr.output, std::move(expr_ident.value()));
@@ -1508,42 +1740,19 @@ namespace pcit::panther{
 			}
 
 			switch(expr_ident.error()){
-				case AnalyzeExprIdentInScopeLevelError::DoesntExist:      break;
-				case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef: break;
-				case AnalyzeExprIdentInScopeLevelError::ErrorEmitted:     return Result::Error;
+				case AnalyzeExprIdentInScopeLevelError::DoesntExist:
+					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
+
+				case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef:
+					evo::debugFatalBreak(
+						"Sema doesn't have completed info for def despite SymbolProc saying it should"
+					);
+
+				case AnalyzeExprIdentInScopeLevelError::ErrorEmitted: return Result::Error;
 			}
 
-			return this->wait_on_symbol_proc<NEEDS_DEF>(
-				&source_module.global_symbol_procs,
-				instr.infix.rhs,
-				rhs_ident_str,
-				std::format("Module has no symbol named \"{}\"", rhs_ident_str),
-				[&]() -> Result {
-					const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-						this->analyze_expr_ident_in_scope_level<NEEDS_DEF, true>(
-							instr.rhs_ident, rhs_ident_str, scope_level, true, true, &source_module
-						);
+			evo::unreachable();
 
-					if(expr_ident.has_value()){
-						this->return_term_info(instr.output, std::move(expr_ident.value()));
-						return Result::Success;
-					}
-
-					switch(expr_ident.error()){
-						case AnalyzeExprIdentInScopeLevelError::DoesntExist:
-							evo::debugFatalBreak("Def is done, but can't find sema of symbol");
-
-						case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef:
-							evo::debugFatalBreak(
-								"Sema doesn't have completed info for def despite SymbolProc saying it should"
-							);
-
-						case AnalyzeExprIdentInScopeLevelError::ErrorEmitted: return Result::Error;
-					}
-
-					evo::unreachable();
-				}
-			);
 
 		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
 			if(lhs.type_id.as<TypeInfo::VoidableID>().isVoid()){
@@ -1587,6 +1796,21 @@ namespace pcit::panther{
 
 			const Source& struct_source = this->context.getSourceManager()[lhs_struct.sourceID];
 
+			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+				&lhs_struct.memberSymbols,
+				instr.infix.rhs,
+				rhs_ident_str,
+				std::format("Struct has no member named \"{}\"", rhs_ident_str)
+			);
+
+			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::Error){ return Result::Error; }
+			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NeedToWait){ return Result::NeedToWait; }
+
+			evo::debugAssert(
+				wait_on_symbol_proc_result == WaitOnSymbolProcResult::SemasReady, "Unknown WaitOnSymbolProcResult"
+			);
+
+
 			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
 				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
 					instr.rhs_ident, rhs_ident_str, *lhs_struct.scopeLevel, true, true, &struct_source
@@ -1598,43 +1822,19 @@ namespace pcit::panther{
 			}
 
 			switch(expr_ident.error()){
-				case AnalyzeExprIdentInScopeLevelError::DoesntExist:      break;
-				case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef: break;
-				case AnalyzeExprIdentInScopeLevelError::ErrorEmitted:     return Result::Error;
+				case AnalyzeExprIdentInScopeLevelError::DoesntExist: {
+					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
+				}
+
+				case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef:
+					evo::debugFatalBreak(
+						"Sema doesn't have completed info for def despite SymbolProc saying it should"
+					);
+
+				case AnalyzeExprIdentInScopeLevelError::ErrorEmitted: return Result::Error;
 			}
 
- 			return this->wait_on_symbol_proc<NEEDS_DEF>(
-				&lhs_struct.memberSymbols,
-				instr.infix.rhs,
-				rhs_ident_str,
-				std::format("Struct has no member named \"{}\"", rhs_ident_str),
-				[&]() -> Result {
-					const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-						this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-							instr.rhs_ident, rhs_ident_str, *lhs_struct.scopeLevel, true, true, &struct_source
-						);
-
-					if(expr_ident.has_value()){
-						this->return_term_info(instr.output, std::move(expr_ident.value()));
-						return Result::Success;
-					}
-
-					switch(expr_ident.error()){
-						case AnalyzeExprIdentInScopeLevelError::DoesntExist: {
-							evo::debugFatalBreak("Def is done, but can't find sema of symbol");
-						}
-
-						case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef:
-							evo::debugFatalBreak(
-								"Sema doesn't have completed info for def despite SymbolProc saying it should"
-							);
-
-						case AnalyzeExprIdentInScopeLevelError::ErrorEmitted: return Result::Error;
-					}
-
-					evo::unreachable();
-				}
-			);
+			evo::unreachable();
 		}
 
 		this->emit_error(
@@ -2186,7 +2386,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::Type,
-			TermInfo::ValueStage::Comptime,
+			TermInfo::ValueStage::Constexpr,
 			TypeInfo::VoidableID(
 				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(*instantiation.structID)))
 			),
@@ -2224,7 +2424,7 @@ namespace pcit::panther{
 			case Token::Kind::LiteralInt: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EphemeralFluid,
-					TermInfo::ValueStage::Comptime,
+					TermInfo::ValueStage::Constexpr,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createIntValue(
 						core::GenericInt(256, literal_token.getInt()), std::nullopt
@@ -2236,7 +2436,7 @@ namespace pcit::panther{
 			case Token::Kind::LiteralFloat: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EphemeralFluid,
-					TermInfo::ValueStage::Comptime,
+					TermInfo::ValueStage::Constexpr,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createFloatValue(
 						core::GenericFloat::createF128(literal_token.getFloat()), std::nullopt
@@ -2248,7 +2448,7 @@ namespace pcit::panther{
 			case Token::Kind::LiteralBool: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::Ephemeral,
-					TermInfo::ValueStage::Comptime,
+					TermInfo::ValueStage::Constexpr,
 					this->context.getTypeManager().getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool()))
 				);
@@ -2258,7 +2458,7 @@ namespace pcit::panther{
 			case Token::Kind::LiteralString: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::Ephemeral,
-					TermInfo::ValueStage::Comptime,
+					TermInfo::ValueStage::Constexpr,
 					this->context.type_manager.getOrCreateTypeInfo(
 						TypeInfo(
 							this->context.type_manager.getOrCreateArray(
@@ -2278,7 +2478,7 @@ namespace pcit::panther{
 			case Token::Kind::LiteralChar: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::Ephemeral,
-					TermInfo::ValueStage::Comptime,
+					TermInfo::ValueStage::Constexpr,
 					this->context.getTypeManager().getTypeChar(),
 					sema::Expr(this->context.sema_buffer.createCharValue(literal_token.getChar()))
 				);
@@ -2293,7 +2493,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_uninit(const Instruction::Uninit& instr) -> Result {
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::Initializer,
-			TermInfo::ValueStage::Comptime,
+			TermInfo::ValueStage::Constexpr,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createUninit(instr.uninit_token))
 		);
@@ -2303,7 +2503,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_zeroinit(const Instruction::Zeroinit& instr) -> Result {
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::Initializer,
-			TermInfo::ValueStage::Comptime,
+			TermInfo::ValueStage::Constexpr,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createZeroinit(instr.zeroinit_token))
 		);
@@ -2368,7 +2568,44 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::lookup_ident_impl(Token::ID ident) -> evo::Expected<TermInfo, Result> {
 		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
 
-		// in-scope sema params
+		///////////////////////////////////
+		// find symbol procs
+
+		auto symbol_proc_namespaces = evo::SmallVector<const SymbolProc::Namespace*>();
+
+		SymbolProc* parent_symbol = this->symbol_proc.parent;
+		while(parent_symbol != nullptr){
+			if(parent_symbol->extra_info.is<SymbolProc::StructInfo>()){
+				symbol_proc_namespaces.emplace_back(
+					&parent_symbol->extra_info.as<SymbolProc::StructInfo>().member_symbols
+				);
+			}
+			
+			parent_symbol = parent_symbol->parent;
+		}
+		symbol_proc_namespaces.emplace_back(&this->source.global_symbol_procs);
+
+
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+			symbol_proc_namespaces,
+			ident,
+			ident_str,
+			std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+		);
+
+		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::Error){ return evo::Unexpected(Result::Error); }
+		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NeedToWait){
+			return evo::Unexpected(Result::NeedToWait);
+		}
+
+		evo::debugAssert(
+			wait_on_symbol_proc_result == WaitOnSymbolProcResult::SemasReady, "Unknown WaitOnSymbolProcResult"
+		);
+
+
+		///////////////////////////////////
+		// find sema
+
 		for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
 			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> scope_level_lookup = 
 				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
@@ -2392,68 +2629,7 @@ namespace pcit::panther{
 			i -= 1;
 		}
 
-
-
-		// look in symbol procs
-		auto symbol_proc_namespaces = evo::SmallVector<const SymbolProc::Namespace*>();
-
-		SymbolProc* parent_symbol = this->symbol_proc.parent;
-		while(parent_symbol != nullptr){
-			if(parent_symbol->extra_info.is<SymbolProc::StructInfo>()){
-				symbol_proc_namespaces.emplace_back(
-					&parent_symbol->extra_info.as<SymbolProc::StructInfo>().member_symbols
-				);
-			}
-			
-			parent_symbol = parent_symbol->parent;
-		}
-		symbol_proc_namespaces.emplace_back(&this->source.global_symbol_procs);
-
-		auto maybe_output = std::optional<TermInfo>();
-		const Result wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-			symbol_proc_namespaces,
-			ident,
-			ident_str,
-			std::format("Identifier \"{}\" was not defined in this scope", ident_str),
-			[&]() -> Result {
-				for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
-					const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> scope_level_lookup = 
-						this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-							ident,
-							ident_str,
-							this->context.sema_buffer.scope_manager.getLevel(scope_level_id),
-							i >= this->scope.getCurrentObjectScopeIndex() || i == 0,
-							i == 0,
-							nullptr
-						);
-
-					if(scope_level_lookup.has_value()){
-						maybe_output = scope_level_lookup.value();
-						return Result::Success;
-					}
-
-					switch(scope_level_lookup.error()){
-						case AnalyzeExprIdentInScopeLevelError::DoesntExist: break;
-
-						case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef:
-							evo::debugFatalBreak(
-								"Sema doesn't have completed info for def despite SymbolProc saying it should"
-							);
-
-						case AnalyzeExprIdentInScopeLevelError::ErrorEmitted: return Result::Error;
-					}
-
-					i -= 1;
-				}
-
-				evo::debugFatalBreak("Should never get here");
-			}
-		);
-		if(wait_on_symbol_proc_result == Result::Success){ return *maybe_output; }
-
-		evo::debugAssert(maybe_output.has_value() == false, "`maybe_output` should not be set");
-
-		return evo::Unexpected(wait_on_symbol_proc_result);
+		evo::debugFatalBreak("Failed to find semas for ident");
 	}
 
 
@@ -2486,7 +2662,7 @@ namespace pcit::panther{
 
 			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
 				return ReturnType(
-					TermInfo(TermInfo::ValueCategory::Function, TermInfo::ValueStage::Comptime, ident_id, std::nullopt)
+					TermInfo(TermInfo::ValueCategory::Function, TermInfo::ValueStage::Constexpr, ident_id, std::nullopt)
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::GlobalVar::ID>()){
@@ -2536,7 +2712,7 @@ namespace pcit::panther{
 						
 						return ReturnType(TermInfo(
 							ValueCategory::ConcreteMut,
-							is_global_scope ? ValueStage::Runtime : ValueStage::Constexpr,
+							is_global_scope ? ValueStage::Runtime : ValueStage::Comptime,
 							*sema_var.typeID,
 							sema::Expr(ident_id)
 						));
@@ -2550,19 +2726,19 @@ namespace pcit::panther{
 						}
 
 						return ReturnType(TermInfo(
-							ValueCategory::ConcreteConst, ValueStage::Constexpr, *sema_var.typeID, sema::Expr(ident_id)
+							ValueCategory::ConcreteConst, ValueStage::Comptime, *sema_var.typeID, sema::Expr(ident_id)
 						));
 					} break;
 
 					case AST::VarDecl::Kind::Def: {
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
-								ValueCategory::Ephemeral, ValueStage::Comptime, *sema_var.typeID, *sema_var.expr.load()
+								ValueCategory::Ephemeral, ValueStage::Constexpr, *sema_var.typeID, *sema_var.expr.load()
 							));
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EphemeralFluid,
-								ValueStage::Comptime,
+								ValueStage::Constexpr,
 								TermInfo::FluidType{},
 								*sema_var.expr.load()
 							));
@@ -2607,7 +2783,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::Module,
-						TermInfo::ValueStage::Comptime,
+						TermInfo::ValueStage::Constexpr,
 						ident_id.sourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
 					)
@@ -2640,7 +2816,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::Type,
-						TermInfo::ValueStage::Comptime,
+						TermInfo::ValueStage::Constexpr,
 						TypeInfo::VoidableID(
 							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
 						),
@@ -2683,7 +2859,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::Type,
-						TermInfo::ValueStage::Comptime,
+						TermInfo::ValueStage::Constexpr,
 						TypeInfo::VoidableID(
 							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
 						),
@@ -2695,7 +2871,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TemplateType,
-						TermInfo::ValueStage::Comptime,
+						TermInfo::ValueStage::Constexpr,
 						ident_id,
 						std::nullopt
 					)
@@ -2705,7 +2881,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::Type,
-						TermInfo::ValueStage::Comptime,
+						TermInfo::ValueStage::Constexpr,
 						ident_id.typeID,
 						std::nullopt
 					)
@@ -2715,7 +2891,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::Ephemeral,
-						TermInfo::ValueStage::Comptime,
+						TermInfo::ValueStage::Constexpr,
 						ident_id.typeID,
 						ident_id.value
 					)
@@ -2733,9 +2909,8 @@ namespace pcit::panther{
 		evo::ArrayProxy<const SymbolProc::Namespace*> symbol_proc_namespaces,
 		const auto& ident,
 		std::string_view ident_str,
-		std::string&& error_msg_if_ident_doesnt_exist,
-		std::function<Result()> func_if_def_completed
-	) -> Result {
+		std::string&& error_msg_if_ident_doesnt_exist
+	) -> WaitOnSymbolProcResult {
 		auto found_range = std::optional<core::IterRange<SymbolProc::Namespace::const_iterator>>();
 		for(const SymbolProc::Namespace* symbol_proc_namespace : symbol_proc_namespaces){
 			const auto find = symbol_proc_namespace->equal_range(ident_str);
@@ -2751,12 +2926,12 @@ namespace pcit::panther{
 				ident,
 				std::move(error_msg_if_ident_doesnt_exist)
 			);
-			return Result::Error;
+			return WaitOnSymbolProcResult::Error;
 		}
 
 
-
-		bool found_was_passed_by_when_cond = false;
+		bool any_waiting = false;
+		bool any_ready = false;
 		for(auto& pair : *found_range){
 			const SymbolProc::ID& found_symbol_proc_id = pair.second;
 			SymbolProc& found_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(found_symbol_proc_id);
@@ -2774,47 +2949,27 @@ namespace pcit::panther{
 			}();
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NotNeeded: {
-					// call again as symbol finished
-					return func_if_def_completed();
-				} break;
-
-				case SymbolProc::WaitOnResult::Waiting: {
-					// do nothing...
-				} break;
-
-				case SymbolProc::WaitOnResult::WasErrored: {
-					this->symbol_proc.errored = true;
-					return Result::Error;
-				} break;
-
-				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: {
-					found_was_passed_by_when_cond = true;
-				} break;
-
-				case SymbolProc::WaitOnResult::CircularDepDetected: {
-					return Result::Error;
-				} break;
+				break; case SymbolProc::WaitOnResult::NotNeeded:             any_ready = true;
+				break; case SymbolProc::WaitOnResult::Waiting:               any_waiting = true;
+				break; case SymbolProc::WaitOnResult::WasErrored:            return WaitOnSymbolProcResult::Error;
+				break; case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: // do nothing...
+				break; case SymbolProc::WaitOnResult::CircularDepDetected:   return WaitOnSymbolProcResult::Error;
 			}
 		}
 
+		if(any_waiting){ return WaitOnSymbolProcResult::NeedToWait; }
+		if(any_ready){ return WaitOnSymbolProcResult::SemasReady; }
 
-		if(this->symbol_proc.isWaiting()){ return Result::NeedToWait; }
-
-		if(found_was_passed_by_when_cond){
-			this->emit_error(
-				Diagnostic::Code::SemaNoSymbolInModuleWithThatIdent,
-				ident,
-				std::move(error_msg_if_ident_doesnt_exist),
-				Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
-			);
-			return Result::Error;
-
-		}else{
-			// was waiting on, but it completed already
-			return func_if_def_completed();
-		}
+		this->emit_error(
+			Diagnostic::Code::SemaNoSymbolInModuleWithThatIdent,
+			ident,
+			std::move(error_msg_if_ident_doesnt_exist),
+			Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
+		);
+		return WaitOnSymbolProcResult::Error;
 	}
+
+
 
 
 
@@ -2882,6 +3037,352 @@ namespace pcit::panther{
 		}
 	}
 
+
+
+
+	auto SemanticAnalyzer::select_func_overload(
+		evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
+		evo::SmallVector<SelectFuncOverloadArgInfo>& arg_infos,
+		const auto& call_node
+	) -> evo::Result<size_t> {
+		evo::debugAssert(func_infos.empty() == false, "need at least 1 function");
+
+		struct OverloadScore{
+			using Success = std::monostate;
+			struct TooFewArgs{ size_t min_num; size_t got_num; bool accepts_different_nums; };
+			struct TooManyArgs{ size_t max_num; size_t got_num; bool accepts_different_nums; };
+			struct TypeMismatch{ size_t arg_index; };
+			struct ValueKindMismatch{ size_t arg_index; };
+			struct IncorrectLabel{ size_t arg_index; };
+
+			using Reason = evo::Variant<
+				Success,
+				TooFewArgs,
+				TooManyArgs,
+				TypeMismatch,
+				ValueKindMismatch,
+				IncorrectLabel
+			>;
+			
+			unsigned score;
+			Reason reason;
+
+			OverloadScore(unsigned _score) : score(_score), reason(std::monostate()) {};
+			OverloadScore(Reason _reason) : score(0), reason(_reason) {};
+		};
+		auto scores = evo::SmallVector<OverloadScore>();
+		scores.reserve(func_infos.size());
+
+		unsigned best_score = 0;
+		size_t best_score_index = 0;
+		bool found_matching_best_score = false;
+
+		
+		for(size_t func_i = 0; const SelectFuncOverloadFuncInfo& func_info : func_infos){
+			EVO_DEFER([&](){ func_i += 1; });
+
+
+			unsigned current_score = 0;
+
+			const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_info.func_id);
+
+			if(arg_infos.size() < sema_func.minNumArgs){
+				scores.emplace_back(OverloadScore::TooFewArgs(
+					sema_func.minNumArgs,
+					arg_infos.size(),
+					sema_func.minNumArgs != func_info.func_type.params.size())
+				);
+				continue;
+			}
+
+			if(arg_infos.size() > func_info.func_type.params.size()){
+				scores.emplace_back(OverloadScore::TooManyArgs(
+					func_info.func_type.params.size(),
+					arg_infos.size(),
+					sema_func.minNumArgs != func_info.func_type.params.size())
+				);
+				continue;
+			}
+
+
+			bool arg_checking_failed = false;
+			for(size_t arg_i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
+				EVO_DEFER([&](){ arg_i += 1; });
+
+
+				///////////////////////////////////
+				// check type mismatch
+
+				const TypeCheckInfo& type_check_info = this->type_check<false>(
+					func_info.func_type.params[arg_i].typeID,
+					arg_info.term_info,
+					"Function call argument",
+					arg_info.ast_arg.value
+				);
+
+				if(type_check_info.ok == false){
+					scores.emplace_back(OverloadScore::TypeMismatch(arg_i));
+					arg_checking_failed = true;
+					break;
+				}
+
+				if(type_check_info.requires_implicit_conversion == false){ current_score += 1; }
+
+
+				///////////////////////////////////
+				// value kind
+
+				switch(func_info.func_type.params[arg_i].kind){
+					case AST::FuncDecl::Param::Kind::Read: {
+						// accepts any value kind
+					} break;
+
+					case AST::FuncDecl::Param::Kind::Mut: {
+						if(arg_info.term_info.is_const()){
+							scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
+							arg_checking_failed = true;
+							break;
+						}
+
+						if(arg_info.term_info.is_concrete() == false){
+							scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
+							arg_checking_failed = true;
+							break;
+						}
+
+						current_score += 1; // add 1 to prefer mut over read
+					} break;
+
+					case AST::FuncDecl::Param::Kind::In: {
+						if(arg_info.term_info.is_ephemeral() == false){
+							scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
+							arg_checking_failed = true;
+							break;
+						}
+					} break;
+				}
+
+
+				///////////////////////////////////
+				// check label
+
+				if(arg_info.ast_arg.label.has_value()){
+					const std::string_view arg_label = 
+						this->source.getTokenBuffer()[*arg_info.ast_arg.label].getString();
+
+					const std::string_view param_name = this->context.getSourceManager()[sema_func.sourceID]
+						.getTokenBuffer()[sema_func.params[arg_i].ident].getString();
+
+					if(arg_label != param_name){
+						scores.emplace_back(OverloadScore::IncorrectLabel(arg_i));
+						arg_checking_failed = true;
+						break;
+					}
+				}
+
+
+				///////////////////////////////////
+				// done checking arg
+
+				current_score += 1;
+			}
+			if(arg_checking_failed){ continue; }
+
+			current_score += 1;
+			scores.emplace_back(current_score);
+			if(best_score < current_score){
+				best_score = current_score;
+				best_score_index = func_i;
+				found_matching_best_score = false;
+			}else if(best_score == current_score){
+				found_matching_best_score = true;
+			}
+		}
+
+		if(best_score == 0){ // found no matches
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			for(size_t i = 0; const OverloadScore& score : scores){
+				EVO_DEFER([&](){ i += 1; });
+			
+				score.reason.visit([&](const auto& reason) -> void {
+					using ReasonT = std::decay_t<decltype(reason)>;
+					
+					if constexpr(std::is_same<ReasonT, OverloadScore::Success>()){
+						evo::fatalBreak("Success should not have a score of 0");
+
+					}else if constexpr(std::is_same<ReasonT, OverloadScore::TooFewArgs>()){
+						if(reason.accepts_different_nums){
+							infos.emplace_back(
+								std::format(
+									"Failed to match: too few arguments (requires at least {}, got {})",
+									reason.min_num,
+									reason.got_num
+								),
+								this->get_location(func_infos[i].func_id)
+							);
+							
+						}else{
+							infos.emplace_back(
+								std::format(
+									"Failed to match: too few arguments (requires {}, got {})",
+									reason.min_num,
+									reason.got_num
+								),
+								this->get_location(func_infos[i].func_id)
+							);
+						}
+
+					}else if constexpr(std::is_same<ReasonT, OverloadScore::TooManyArgs>()){
+						if(reason.accepts_different_nums){
+							infos.emplace_back(
+								std::format(
+									"Failed to match: too many arguments (requires at most {}, got {})",
+									reason.max_num,
+									reason.got_num
+								),
+								this->get_location(func_infos[i].func_id)
+							);
+							
+						}else{
+							infos.emplace_back(
+								std::format(
+									"Failed to match: too many arguments (requires {}, got {})",
+									reason.max_num,
+									reason.got_num
+								),
+								this->get_location(func_infos[i].func_id)
+							);
+						}
+
+					}else if constexpr(std::is_same<ReasonT, OverloadScore::TypeMismatch>()){
+						const TypeInfo::ID expected_type_id = func_infos[i].func_type.params[reason.arg_index].typeID;
+						const TermInfo& got_arg = arg_infos[reason.arg_index].term_info;
+
+						infos.emplace_back(
+							std::format("Failed to match: argument (index: {}) type mismatch", reason.arg_index),
+							this->get_location(func_infos[i].func_id),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"This argument:", this->get_location(arg_infos[reason.arg_index].ast_arg.value)
+								),
+								Diagnostic::Info(std::format("Argument type:  {}", this->print_type(got_arg))),
+								Diagnostic::Info(
+									std::format(
+										"Parameter type: {}",
+										this->context.getTypeManager().printType(
+											expected_type_id, this->context.getSourceManager()
+										)
+									)
+								),
+							}
+						);
+
+					}else if constexpr(std::is_same<ReasonT, OverloadScore::ValueKindMismatch>()){
+						auto sub_infos = evo::SmallVector<Diagnostic::Info>();
+						sub_infos.emplace_back(
+							"This argument:", this->get_location(arg_infos[reason.arg_index].ast_arg.value)
+						);
+
+						switch(func_infos[i].func_type.params[reason.arg_index].kind){
+							case AST::FuncDecl::Param::Kind::Read: {
+								evo::debugFatalBreak("Read parameters should never fail to accept value kind");
+							} break;
+
+							case AST::FuncDecl::Param::Kind::Mut: {
+								sub_infos.emplace_back(
+									"`mut` parameters can only accept concrete values that are mutable"
+								);
+							} break;
+
+							case AST::FuncDecl::Param::Kind::In: {
+								sub_infos.emplace_back("`in` parameters can only accept ephemeral values");
+							} break;
+						}
+
+						infos.emplace_back(
+							std::format("Failed to match: argument (index: {}) value kind mismatch", reason.arg_index),
+							this->get_location(func_infos[i].func_id),
+							std::move(sub_infos)
+						);
+
+					}else if constexpr(std::is_same<ReasonT, OverloadScore::IncorrectLabel>()){
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_infos[i].func_id);
+
+						infos.emplace_back(
+							std::format("Failed to match: argument (index: {}) incorrect label", reason.arg_index),
+							this->get_location(func_infos[i].func_id),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"This label:", this->get_location(*arg_infos[reason.arg_index].ast_arg.label)
+								),
+								Diagnostic::Info(
+									std::format(
+										"Expected label: \"{}\"", 
+										this->context.getSourceManager()[sema_func.sourceID]
+											.getTokenBuffer()[sema_func.params[reason.arg_index].ident].getString()
+									)
+								),
+							}
+						);
+
+					}else{
+						static_assert(false, "Unsupported overload score reason");
+					}
+				});
+			}
+
+			this->emit_error(
+				Diagnostic::Code::SemaNoMatchingFunction,
+				call_node,
+				"No matching function overload found",
+				std::move(infos)
+			);
+			return evo::resultError;
+
+
+		}else if(found_matching_best_score){ // found multiple matches
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			for(size_t i = 0; const OverloadScore& score : scores){
+				EVO_DEFER([&](){ i += 1; });
+
+				if(score.score == best_score){
+					infos.emplace_back("Could be this one:", this->get_location(func_infos[i].func_id));
+				}
+			}
+
+			this->emit_error(
+				Diagnostic::Code::SemaMultipleMatchingFunctionOverloads,
+				call_node,
+				"Multiple matching function overloads found",
+				std::move(infos)
+			);
+			return evo::resultError;
+		}
+
+
+		const SelectFuncOverloadFuncInfo& selected_func = func_infos[best_score_index];
+
+		for(size_t i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
+			if(this->type_check<true>( // this is to implicitly convert all the required args
+				selected_func.func_type.params[i].typeID,
+				arg_info.term_info,
+				"Function call argument",
+				arg_info.ast_arg.value
+			).ok == false){
+				evo::debugFatalBreak("This should not be able to fail");
+			}
+		
+			i += 1;
+		}
+
+		return best_score_index;
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// attributes
 
 
 	auto SemanticAnalyzer::analyze_var_attrs(
@@ -3172,6 +3673,10 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::get_type(SymbolProc::TypeID symbol_proc_type_id) -> TypeInfo::VoidableID {
+		evo::debugAssert(
+			this->symbol_proc.type_ids[symbol_proc_type_id.get()].has_value(),
+			"Symbol proc type wasn't set"
+		);
 		return *this->symbol_proc.type_ids[symbol_proc_type_id.get()];
 	}
 
@@ -3181,6 +3686,10 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::get_term_info(SymbolProc::TermInfoID symbol_proc_term_info_id) -> TermInfo& {
+		evo::debugAssert(
+			this->symbol_proc.term_infos[symbol_proc_term_info_id.get()].has_value(),
+			"Symbol proc term info wasn't set"
+		);
 		return *this->symbol_proc.term_infos[symbol_proc_term_info_id.get()];
 	}
 
@@ -3193,6 +3702,10 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::get_struct_instantiation(SymbolProc::StructInstantiationID instantiation_id)
 	-> const BaseType::StructTemplate::Instantiation& {
+		evo::debugAssert(
+			this->symbol_proc.struct_instantiations[instantiation_id.get()] != nullptr,
+			"Symbol proc struct instantiation wasn't set"
+		);
 		return *this->symbol_proc.struct_instantiations[instantiation_id.get()];
 	}
 
@@ -3519,7 +4032,7 @@ namespace pcit::panther{
 			std::isupper(int(expected_type_location_name[0])), "first character of name should be upper-case"
 		);
 
-		std::string expected_type_str = std::format("{} is type: ", expected_type_location_name);
+		std::string expected_type_str = std::string("Expected type: ");
 		auto got_type_str = std::string("Expression is type: ");
 
 		while(expected_type_str.size() < got_type_str.size()){
@@ -3693,7 +4206,12 @@ namespace pcit::panther{
 				});
 
 			}else{
-				this->error_already_defined<false>(ast_node, ident_str, *current_scope_level.lookupIdent(ident_str));
+				this->error_already_defined<false>(
+					ast_node,
+					ident_str,
+					*current_scope_level.lookupIdent(ident_str),
+					std::forward<decltype(ident_id_info)>(ident_id_info)...
+				);
 			}
 
 			return false;
@@ -3703,7 +4221,12 @@ namespace pcit::panther{
 		for(auto iter = std::next(target_scope.begin()); iter != target_scope.end(); ++iter){
 			sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(*iter);
 			if(scope_level.disallowIdentForShadowing(ident_str, add_ident_result.value()) == false){
-				this->error_already_defined<true>(ast_node, ident_str, *scope_level.lookupIdent(ident_str));
+				this->error_already_defined<true>(
+					ast_node,
+					ident_str,
+					*scope_level.lookupIdent(ident_str),
+					std::forward<decltype(ident_id_info)>(ident_id_info)...
+				);
 				return false;
 			}
 		}
@@ -3713,15 +4236,39 @@ namespace pcit::panther{
 
 
 	template<bool IS_SHADOWING>
-	auto SemanticAnalyzer::error_already_defined(
-		const auto& redef_id, std::string_view ident_str, const sema::ScopeLevel::IdentID& first_defined_id
+	auto SemanticAnalyzer::error_already_defined_impl(
+		const auto& redef_id,
+		std::string_view ident_str,
+		const sema::ScopeLevel::IdentID& first_defined_id,
+		std::optional<sema::Func::ID> attempted_decl_func_id
 	)  -> void {
 		first_defined_id.visit([&](const auto& first_decl_ident_id) -> void {
 			using IdentIDType = std::decay_t<decltype(first_decl_ident_id)>;
 
+			static constexpr bool IS_FUNC_OVERLOAD_COLLISION = 
+				std::is_same<std::remove_cvref_t<std::decay_t<decltype(redef_id)>>, pcit::panther::AST::FuncDecl>() 
+				&& std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()
+				&& !IS_SHADOWING;
+
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 
-			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
+			if constexpr(IS_FUNC_OVERLOAD_COLLISION){
+				const sema::Func& attempted_decl_func = this->context.getSemaBuffer().getFunc(*attempted_decl_func_id);
+
+				for(const evo::Variant<sema::Func::ID, sema::TemplatedFuncID>& overload_id : first_decl_ident_id){
+					if(overload_id.is<sema::TemplatedFuncID>()){ continue; }
+
+					const sema::Func& overload = this->context.sema_buffer.getFunc(overload_id.as<sema::Func::ID>());
+					if(attempted_decl_func.isEquivalentOverload(overload, this->context)){
+						// TODO: better messaging
+						infos.emplace_back(
+							"Overload collided with:", this->get_location(overload_id.as<sema::Func::ID>())
+						);
+						break;
+					}
+				}
+				
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
 				first_decl_ident_id.front().visit([&](const auto& func_id) -> void {
 					if(first_decl_ident_id.size() == 1){
 						infos.emplace_back("First defined here:", this->get_location(func_id));
@@ -3749,12 +4296,19 @@ namespace pcit::panther{
 				infos.emplace_back("Note: shadowing is not allowed");
 			}
 
+			const std::string message = [&](){
+				if constexpr(IS_FUNC_OVERLOAD_COLLISION){
+					return std::format(
+						"Function \"{}\" has an overload that collides with this declaration", ident_str
+					);
+				}else{
+					return std::format("Identifier \"{}\" was already defined in this scope", ident_str);
+				}
+			}();
+
 
 			this->emit_error(
-				Diagnostic::Code::SemaIdentAlreadyInScope,
-				redef_id,
-				std::format("Identifier \"{}\" was already defined in this scope", ident_str),
-				std::move(infos)
+				Diagnostic::Code::SemaIdentAlreadyInScope, redef_id, std::move(message), std::move(infos)
 			);
 		});
 	};

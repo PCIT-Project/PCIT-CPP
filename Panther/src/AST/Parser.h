@@ -84,6 +84,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_type_decl() -> Result;
 			EVO_NODISCARD auto parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
 			EVO_NODISCARD auto parse_return() -> Result;
+			EVO_NODISCARD auto parse_error() -> Result;
 			EVO_NODISCARD auto parse_unreachable() -> Result;
 			template<bool IS_WHEN> EVO_NODISCARD auto parse_conditional() -> Result;
 			EVO_NODISCARD auto parse_while() -> Result;

@@ -52,6 +52,7 @@ namespace pcit::panther{
 
 			auto analyze_stmt(const AST::Node& stmt) -> bool;
 			auto analyze_return(const AST::Return& return_stmt) -> bool;
+			auto analyze_error(const AST::Error& error_stmt) -> bool;
 
 
 

@@ -32,11 +32,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto ammount_left() const -> size_t { return this->data.size() - this->cursor; }
 
 			EVO_NODISCARD auto get_line() const -> evo::Result<uint32_t> {
-				if(this->line > std::numeric_limits<uint32_t>::max()) [[likely]] { return evo::resultError; }
+				if(this->line > std::numeric_limits<uint32_t>::max()) [[unlikely]] { return evo::resultError; }
 				return uint32_t(this->line);
 			}
 			EVO_NODISCARD auto get_collumn() const -> evo::Result<uint32_t> {
-				if(this->collumn > std::numeric_limits<uint32_t>::max()) [[likely]] { return evo::resultError; }
+				if(this->collumn > std::numeric_limits<uint32_t>::max()) [[unlikely]] { return evo::resultError; }
 				return uint32_t(this->collumn);
 			}
 

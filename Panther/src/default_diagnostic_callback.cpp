@@ -106,39 +106,48 @@ namespace pcit::panther{
 		size_t point_collumn = location.collumnStart;
 		bool remove_whitespace = true;
 
+		auto line_char_is_tab = evo::SmallVector<bool>();
+
 		while(source.getData()[cursor] != '\n' && source.getData()[cursor] != '\r' && cursor < source.getData().size()){
 			if(remove_whitespace && (source.getData()[cursor] == '\t' || source.getData()[cursor] == ' ')){
 				// remove leading whitespace
 				point_collumn -= 1;
 
 			}else{
-				line_str += source.getData()[cursor];
+				if(source.getData()[cursor] == '\t'){
+					line_str += "    ";
+					line_char_is_tab.emplace_back(true);
+				}else{
+					line_str += source.getData()[cursor];
+					line_char_is_tab.emplace_back(false);
+				}
 				remove_whitespace = false;
 			}
 
 			cursor += 1;
 		}
 
-		if(level == DiagnosticLevel::Info){
-			printer.printGray(std::format("\t\t{} | {}\n", line_number_str, line_str));
-		}else{
-			printer.printGray(std::format("\t{} | {}\n", line_number_str, line_str));
+		line_char_is_tab.emplace_back(false);
+
+
+
+		for(size_t i = 0; i < depth; i+=1){
+			printer.print("\t");
 		}
+		printer.printGray(std::format("{} | {}\n", line_number_str, line_str));
 
 
 		///////////////////////////////////
 		// print formatting space for pointer line
 
 		auto line_space_str = std::string();
+		for(size_t i = 0; i < depth; i+=1){
+			line_space_str += '\t';
+		}
 		for(size_t i = 0; i < line_number_str.size(); i+=1){
 			line_space_str += ' ';
 		}
-
-		if(level == DiagnosticLevel::Info){
-			printer.printGray(std::format("\t\t{} | ", line_space_str));
-		}else{
-			printer.printGray(std::format("\t{} | ", line_space_str));
-		}
+		printer.printGray(std::format("{} | ", line_space_str));
 
 
 		///////////////////////////////////
@@ -147,16 +156,28 @@ namespace pcit::panther{
 		auto pointer_str = std::string();
 
 		for(size_t i = 0; i < point_collumn - 1; i+=1){
-			pointer_str += ' ';
+			if(line_char_is_tab[i]){
+				pointer_str += "    ";
+			}else{
+				pointer_str += ' ';
+			}
 		}
 
 		if(location.lineStart == location.lineEnd){
 			for(uint32_t i = location.collumnStart; i < location.collumnEnd + 1; i+=1){
-				pointer_str += '^';
+				if(line_char_is_tab[i]){
+					pointer_str += "^^^^";
+				}else{
+					pointer_str += '^';
+				}
 			}
 		}else{
-			for(size_t i = point_collumn; i < line_str.size() + 1; i+=1){
-				pointer_str += '^';
+			for(size_t i = point_collumn; i < line_char_is_tab.size(); i+=1){
+				if(line_char_is_tab[i]){
+					pointer_str += "^^^^";
+				}else{
+					pointer_str += '^';
+				}
 			}
 			pointer_str += "-->";
 		}

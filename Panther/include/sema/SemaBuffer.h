@@ -163,6 +163,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// errors
+
+			EVO_NODISCARD auto createError(auto&&... args) -> sema::Error::ID {
+				return this->errors.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getError(sema::Error::ID id) const -> const sema::Error& {
+				return this->errors[id];
+			}
+
+
+			///////////////////////////////////
 			// conditionals
 
 			EVO_NODISCARD auto createConditional(auto&&... args) -> sema::Conditional::ID {
@@ -350,6 +362,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Assign, sema::Assign::ID> assigns{};
 			core::SyncLinearStepAlloc<sema::MultiAssign, sema::MultiAssign::ID> multi_assigns{};
 			core::SyncLinearStepAlloc<sema::Return, sema::Return::ID> returns{};
+			core::SyncLinearStepAlloc<sema::Error, sema::Error::ID> errors{};
 			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
 

@@ -198,6 +198,7 @@ namespace pcit::panther{
 		struct FuncDecl{
 			const AST::FuncDecl& func_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
+			evo::SmallVector<std::optional<SymbolProcTermInfoID>> default_param_values;
 			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
 
 			// param type is nullopt if the param is `this`
@@ -230,9 +231,13 @@ namespace pcit::panther{
 			FuncDecl(
 				const AST::FuncDecl& _func_decl,
 				evo::SmallVector<AttributeParams>&& _attribute_params_info,
+				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types
 			) requires(!IS_INSTANTIATION) : 
-				func_decl(_func_decl), attribute_params_info(_attribute_params_info), types(_types)
+				func_decl(_func_decl),
+				attribute_params_info(_attribute_params_info),
+				default_param_values(_default_param_values),
+				types(_types)
 			{
 				#if defined(PCIT_CONFIG_DEBUG)
 					const size_t correct_num_types = this->func_decl.params.size() 
@@ -247,11 +252,13 @@ namespace pcit::panther{
 			FuncDecl(
 				const AST::FuncDecl& _func_decl,
 				evo::SmallVector<AttributeParams>&& _attribute_params_info,
+				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types,
 				uint32_t _instantiation_id
 			) requires(IS_INSTANTIATION) : 
 				func_decl(_func_decl),
 				attribute_params_info(_attribute_params_info),
+				default_param_values(_default_param_values),
 				types(_types),
 				instantiation_id(_instantiation_id)
 			{
@@ -289,6 +296,11 @@ namespace pcit::panther{
 
 		struct Return{
 			const AST::Return& return_stmt;
+			std::optional<SymbolProcTermInfoID>	value;
+		};
+
+		struct Error{
+			const AST::Error& error_stmt;
 			std::optional<SymbolProcTermInfoID>	value;
 		};
 
@@ -423,6 +435,7 @@ namespace pcit::panther{
 
 			// stmt
 			Return,
+			Error,
 
 			// misc expr
 			TypeToTerm,

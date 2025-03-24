@@ -43,6 +43,7 @@ namespace pcit::panther{
 			TokLiteralLeadingZero,
 			TokLiteralNumMultipleDecimalPoints,
 			TokInvalidFPBase,
+			TokFloatLiteralEndingInPeriod,
 			TokInvalidNumDigit,
 			TokLiteralNumTooBig,
 			TokInvalidIntegerWidth,
@@ -112,6 +113,7 @@ namespace pcit::panther{
 			SemaCannotConvertFluidValue,
 			SemaTypeMismatch,
 			SemaAliasCannotBeVoid,
+			SemaCannotInferType,
 
 			// imports
 			SemaNoSymbolInModuleWithThatIdent,
@@ -142,8 +144,12 @@ namespace pcit::panther{
 
 			// misc
 			SemaIncorrectReturnStmtKind,
+			SemaErrorInFuncWithoutErrors,
 			SemaReturnNotEphemeral,
 			SemaScopeIsAlreadyTerminated,
+			SemaCannotCallLikeFunction,
+			SemaMultipleMatchingFunctionOverloads,
+			SemaNoMatchingFunction,
 
 
 			//////////////////
@@ -198,6 +204,7 @@ namespace pcit::panther{
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::StructDecl& struct_decl, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Return& return_stmt, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::Error& error_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Conditional& conditional, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::WhenConditional& when_cond, const class Source& src)
 					-> Location;
@@ -247,7 +254,7 @@ namespace pcit::panther{
 		struct Info{
 			std::string message;
 			Location location;
-			std::vector<Info> sub_infos;
+			evo::SmallVector<Info> sub_infos;
 
 			Info(std::string&& _message) : message(std::move(_message)), location(), sub_infos() {
 				// _debug_analyze_message(this->message);
@@ -256,23 +263,23 @@ namespace pcit::panther{
 				: message(std::move(_message)), location(loc), sub_infos() {
 				// _debug_analyze_message(this->message);
 			}
-			Info(std::string&& _message, Location loc, std::vector<Info>&& _sub_infos)
+			Info(std::string&& _message, Location loc, evo::SmallVector<Info>&& _sub_infos)
 				: message(std::move(_message)), location(loc), sub_infos(std::move(_sub_infos)) {
 				// _debug_analyze_message(this->message);
 			}
 
-			Info(const Info& rhs) : message(rhs.message), location(rhs.location), sub_infos(rhs.sub_infos) {}
+			// Info(const Info& rhs) : message(rhs.message), location(rhs.location), sub_infos(rhs.sub_infos) {}
 
-			auto operator=(const Info& rhs) -> Info& {
-				this->message = rhs.message;
-				this->location = rhs.location;
-				this->sub_infos = rhs.sub_infos;
+			// auto operator=(const Info& rhs) -> Info& {
+			// 	this->message = rhs.message;
+			// 	this->location = rhs.location;
+			// 	this->sub_infos = rhs.sub_infos;
 				
-				return *this;
-			}
+			// 	return *this;
+			// }
 
-			Info(Info&& rhs)
-				: message(std::move(rhs.message)), location(rhs.location), sub_infos(std::move(rhs.sub_infos)) {}
+			// Info(Info&& rhs)
+			// 	: message(std::move(rhs.message)), location(rhs.location), sub_infos(std::move(rhs.sub_infos)) {}
 		};
 
 		Level level;
@@ -374,14 +381,15 @@ namespace pcit::panther{
 				case Code::TokLiteralLeadingZero:              return "T5";
 				case Code::TokLiteralNumMultipleDecimalPoints: return "T6";
 				case Code::TokInvalidFPBase:                   return "T7";
-				case Code::TokInvalidNumDigit:                 return "T8";
-				case Code::TokLiteralNumTooBig:                return "T9";
-				case Code::TokInvalidIntegerWidth:             return "T10";
-				case Code::TokUnknownFailureToTokenizeNum:     return "T11";
-				case Code::TokInvalidChar:                     return "T12";
-				case Code::TokFileTooLarge:                    return "T13";
-				case Code::TokFileLocationLimitOOB:            return "T14";
-				// case Code::TokDoubleUnderscoreNotAllowed:      return "T15";
+				case Code::TokFloatLiteralEndingInPeriod:      return "T8";
+				case Code::TokInvalidNumDigit:                 return "T9";
+				case Code::TokLiteralNumTooBig:                return "T10";
+				case Code::TokInvalidIntegerWidth:             return "T11";
+				case Code::TokUnknownFailureToTokenizeNum:     return "T12";
+				case Code::TokInvalidChar:                     return "T13";
+				case Code::TokFileTooLarge:                    return "T14";
+				case Code::TokFileLocationLimitOOB:            return "T15";
+				// case Code::TokDoubleUnderscoreNotAllowed:      return "T16";
 
 				case Code::ParserUnknownStmtStart:             return "P1";
 				case Code::ParserIncorrectStmtContinuation:    return "P2";
@@ -425,6 +433,7 @@ namespace pcit::panther{
 				case Code::SemaCannotConvertFluidValue:
 				case Code::SemaTypeMismatch:
 				case Code::SemaAliasCannotBeVoid:
+				case Code::SemaCannotInferType:
 				case Code::SemaNoSymbolInModuleWithThatIdent:
 				case Code::SemaSymbolNotPub:
 				case Code::SemaFailedToImportModule:
@@ -445,8 +454,12 @@ namespace pcit::panther{
 				case Code::SemaNotFirstReturnVoid:
 				case Code::SemaFuncIsntTerminated:
 				case Code::SemaIncorrectReturnStmtKind:
+				case Code::SemaErrorInFuncWithoutErrors:
 				case Code::SemaReturnNotEphemeral:
 				case Code::SemaScopeIsAlreadyTerminated:
+				case Code::SemaCannotCallLikeFunction:
+				case Code::SemaMultipleMatchingFunctionOverloads:
+				case Code::SemaNoMatchingFunction:
 					return "S";
 
 				case Code::MiscUnimplementedFeature:           return "M0";

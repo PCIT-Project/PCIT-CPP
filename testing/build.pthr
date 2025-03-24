@@ -1,10 +1,30 @@
 
 
-func test = () -> Int {
-	return 12;
+// func get_num = () -> Int {
+// 	return 12;
+// }
+
+
+
+
+def std = @import("std");
+
+
+
+// func get_num = (num: F32 = std.math.PI) -> F32 {
+// 	return 12.4;
+// }
+
+
+var foo: F128 = 2.0;
+
+
+
+func test = () -> F128 {
+	return get_num(12.4);
 }
 
 
-func test = (num: Int) -> (output: Int) {
-	return...;
+func get_num = (asdf: F128) -> F128 {
+	return 12.4;
 }

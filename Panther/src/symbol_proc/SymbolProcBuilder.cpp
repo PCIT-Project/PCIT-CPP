@@ -180,14 +180,15 @@ namespace pcit::panther{
 			} break;
 
 
-			case AST::Kind::Return:        case AST::Kind::Conditional:     case AST::Kind::While:
-			case AST::Kind::Unreachable:   case AST::Kind::Block:           case AST::Kind::TemplatePack:
-			case AST::Kind::TemplatedExpr: case AST::Kind::Prefix:          case AST::Kind::Infix:
-			case AST::Kind::Postfix:       case AST::Kind::MultiAssign:     case AST::Kind::New:
-			case AST::Kind::Type:          case AST::Kind::TypeIDConverter: case AST::Kind::AttributeBlock:
-			case AST::Kind::Attribute:     case AST::Kind::PrimitiveType:   case AST::Kind::Ident:
-			case AST::Kind::Intrinsic:     case AST::Kind::Literal:         case AST::Kind::Uninit:
-			case AST::Kind::Zeroinit:      case AST::Kind::This:            case AST::Kind::Discard: {
+			case AST::Kind::Return:         case AST::Kind::Error:         case AST::Kind::Conditional:
+			case AST::Kind::While:          case AST::Kind::Unreachable:   case AST::Kind::Block:
+			case AST::Kind::TemplatePack:   case AST::Kind::TemplatedExpr: case AST::Kind::Prefix:
+			case AST::Kind::Infix:          case AST::Kind::Postfix:       case AST::Kind::MultiAssign:
+			case AST::Kind::New:            case AST::Kind::Type:          case AST::Kind::TypeIDConverter:
+			case AST::Kind::AttributeBlock: case AST::Kind::Attribute:     case AST::Kind::PrimitiveType:
+			case AST::Kind::Ident:          case AST::Kind::Intrinsic:     case AST::Kind::Literal:
+			case AST::Kind::Uninit:         case AST::Kind::Zeroinit:      case AST::Kind::This:
+			case AST::Kind::Discard: {
 				this->context.emitError(
 					Diagnostic::Code::SymbolProcInvalidGlobalStmt,
 					Diagnostic::Location::get(stmt, this->source),
@@ -297,6 +298,8 @@ namespace pcit::panther{
 			auto types = evo::SmallVector<std::optional<SymbolProcTypeID>>();
 			types.reserve(func_decl.params.size() + func_decl.returns.size() + func_decl.errorReturns.size());
 
+			auto default_param_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
+			default_param_values.reserve(func_decl.params.size());
 			for(const AST::FuncDecl::Param& param : func_decl.params){
 				if(param.type.has_value() == false){
 					types.emplace_back();
@@ -306,6 +309,16 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(ast_buffer.getType(*param.type));
 				if(param_type.isError()){ return false; }
 				types.emplace_back(param_type.value());
+
+				if(param.defaultValue.has_value()){
+					const evo::Result<SymbolProc::TermInfoID> param_default_value =
+						this->analyze_expr<false>(*param.defaultValue);
+					if(param_default_value.isError()){ return false; }
+
+					default_param_values.emplace_back(param_default_value.value());
+				}else{
+					default_param_values.emplace_back();
+				}
 			}
 
 			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
@@ -325,7 +338,12 @@ namespace pcit::panther{
 			}
 
 			this->add_instruction(
-				Instruction::FuncDecl<false>(func_decl, std::move(attribute_params_info.value()), std::move(types))
+				Instruction::FuncDecl<false>(
+					func_decl,
+					std::move(attribute_params_info.value()),
+					std::move(default_param_values),
+					std::move(types)
+				)
 			);
 
 			for(const AST::Node& func_stmt : ast_buffer.getBlock(func_decl.block).stmts){
@@ -631,6 +649,7 @@ namespace pcit::panther{
 
 
 
+	// TODO: error on invalid statements
 	auto SymbolProcBuilder::analyze_stmt(const AST::Node& stmt) -> bool {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
@@ -642,6 +661,7 @@ namespace pcit::panther{
 			case AST::Kind::TypedefDecl:     evo::unimplemented("AST::Kind::TypedefDecl");
 			case AST::Kind::StructDecl:      evo::unimplemented("AST::Kind::StructDecl");
 			case AST::Kind::Return:          return this->analyze_return(ast_buffer.getReturn(stmt));
+			case AST::Kind::Error:           return this->analyze_error(ast_buffer.getError(stmt));
 			case AST::Kind::Conditional:     evo::unimplemented("AST::Kind::Conditional");
 			case AST::Kind::WhenConditional: evo::unimplemented("AST::Kind::WhenConditional");
 			case AST::Kind::While:           evo::unimplemented("AST::Kind::While");
@@ -668,6 +688,8 @@ namespace pcit::panther{
 			case AST::Kind::This:            evo::unimplemented("AST::Kind::This");
 			case AST::Kind::Discard:         evo::unimplemented("AST::Kind::Discard");
 		}
+
+		evo::unreachable();
 	}
 
 
@@ -683,6 +705,21 @@ namespace pcit::panther{
 			
 		}else{
 			this->add_instruction(Instruction::Return(return_stmt, std::nullopt));
+			return true;
+		}
+	}
+
+	auto SymbolProcBuilder::analyze_error(const AST::Error& error_stmt) -> bool {
+		if(error_stmt.value.is<AST::Node>()){
+			const evo::Result<SymbolProc::TermInfoID> error_value = 
+				this->analyze_expr<false>(error_stmt.value.as<AST::Node>());
+			if(error_value.isError()){ return false; }
+
+			this->add_instruction(Instruction::Error(error_stmt, error_value.value()));
+			return true;
+			
+		}else{
+			this->add_instruction(Instruction::Error(error_stmt, std::nullopt));
 			return true;
 		}
 	}
@@ -758,12 +795,12 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case AST::Kind::VarDecl:        case AST::Kind::FuncDecl:        case AST::Kind::AliasDecl:
-			case AST::Kind::TypedefDecl:    case AST::Kind::StructDecl:      case AST::Kind::Return:
-			case AST::Kind::Conditional:    case AST::Kind::WhenConditional: case AST::Kind::While:
-			case AST::Kind::Unreachable:    case AST::Kind::TemplatePack:    case AST::Kind::MultiAssign:
-			case AST::Kind::AttributeBlock: case AST::Kind::Attribute:       case AST::Kind::PrimitiveType:
-			case AST::Kind::Discard: {
+			case AST::Kind::VarDecl:       case AST::Kind::FuncDecl:       case AST::Kind::AliasDecl:
+			case AST::Kind::TypedefDecl:   case AST::Kind::StructDecl:     case AST::Kind::Return:
+			case AST::Kind::Error:         case AST::Kind::Conditional:    case AST::Kind::WhenConditional:
+			case AST::Kind::While:         case AST::Kind::Unreachable:    case AST::Kind::TemplatePack:
+			case AST::Kind::MultiAssign:   case AST::Kind::AttributeBlock: case AST::Kind::Attribute:
+			case AST::Kind::PrimitiveType: case AST::Kind::Discard: {
 				// TODO: better messaging (specify what kind)
 				this->emit_fatal(
 					Diagnostic::Code::SymbolProcInvalidExprKind,
@@ -809,7 +846,7 @@ namespace pcit::panther{
 						func_call.args[1].value,
 						"Calls to @import requires a path, and no other arguments"
 					);
-					return evo::resultError;	
+					return evo::resultError;
 				}
 
 				const evo::Result<SymbolProc::TermInfoID> path_value = this->analyze_expr<true>(
@@ -823,7 +860,19 @@ namespace pcit::panther{
 			}
 		}
 
-		const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(func_call.target);
+
+		bool is_target_template = false;
+		const evo::Result<SymbolProc::TermInfoID> target = [&](){
+			if(func_call.target.kind() == AST::Kind::TemplatedExpr){
+				is_target_template = true;
+				const AST::TemplatedExpr& target_templated_expr = 
+					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+				return this->analyze_expr<IS_COMPTIME>(target_templated_expr.base);
+
+			}else{
+				return this->analyze_expr<IS_COMPTIME>(func_call.target);
+			}
+		}();
 		if(target.isError()){ return evo::resultError; }
 
 		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
@@ -835,9 +884,20 @@ namespace pcit::panther{
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(
-			Instruction::FuncCall(func_call, target.value(), new_term_info_id, std::move(args))
-		);
+
+		if(is_target_template){
+			this->emit_error(
+				Diagnostic::Code::MiscUnimplementedFeature,
+				func_call.target,
+				"Templated function calls are currently unimplemented"
+			);
+			return evo::resultError;
+
+		}else{
+			this->add_instruction(
+				Instruction::FuncCall(func_call, target.value(), new_term_info_id, std::move(args))
+			);
+		}
 		return new_term_info_id;
 	}
 

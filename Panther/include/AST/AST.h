@@ -32,6 +32,7 @@ namespace pcit::panther::AST{
 		StructDecl,
 
 		Return,
+		Error,
 		Conditional,
 		WhenConditional,
 		While,
@@ -202,6 +203,11 @@ namespace pcit::panther::AST{
 		Token::ID keyword;
 		std::optional<Node> label;
 		evo::Variant<std::monostate, Node, Token::ID> value; // std::monostate == return; Token::ID == return...;
+	};
+
+	struct Error{
+		Token::ID keyword;
+		evo::Variant<std::monostate, Node, Token::ID> value; // std::monostate == error; Token::ID == error...;
 	};
 
 	struct Conditional{

@@ -200,6 +200,7 @@ namespace pcit::panther{
 		{"struct",      Token::Kind::KeywordStruct},
 
 		{"return",      Token::Kind::KeywordReturn},
+		{"error",       Token::Kind::KeywordError},
 		{"unreachable", Token::Kind::KeywordUnreachable},
 
 		{"null",        Token::Kind::KeywordNull},
@@ -784,6 +785,8 @@ namespace pcit::panther{
 		if(evo::isNumber(this->char_stream.peek()) == false){ return false; }
 
 		int base = 10;
+		auto number_string = std::string();
+		bool has_decimal_point = false;
 
 		///////////////////////////////////
 		// get number prefix
@@ -821,10 +824,6 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// get number
 
-		auto number_string = std::string();
-
-		bool has_decimal_point = false;
-
 		while(this->char_stream.at_end() == false){
 			const char peeked_char = this->char_stream.peek();
 
@@ -849,7 +848,9 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::TokInvalidFPBase,
 						Source::Location(
-							this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
+							this->source.getID(),
+							this->current_token_line_start, this->current_token_line_start,
+							this->current_token_collumn_start, this->current_token_collumn_start + 1
 						),
 						"Base-2 floating-point literals are not supported"
 					);
@@ -859,7 +860,9 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::TokInvalidFPBase,
 						Source::Location(
-							this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
+							this->source.getID(),
+							this->current_token_line_start, this->current_token_line_start,
+							this->current_token_collumn_start, this->current_token_collumn_start + 1
 						),
 						"Base-8 floating-point literals are not supported"
 					);
@@ -944,7 +947,19 @@ namespace pcit::panther{
 					break;
 				}
 			}
+		}
 
+		if(number_string.back() == '.'){
+			const evo::Result<Source::Location> current_location = this->get_current_location_token();
+			if(current_location.isError()){ return true; }
+
+			this->emit_error(
+				Diagnostic::Code::TokFloatLiteralEndingInPeriod,
+				current_location.value(),
+				"Float literal cannot end in a `.`",
+				Diagnostic::Info("Maybe add a `0` to the end")
+			);
+			return true;
 		}
 
 
@@ -990,7 +1005,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// parse exponent (if it exists)
 
-		int64_t exponent_number = 1;
+		int64_t exponent_number = 0;
 
 		if(exponent_string.size() != 0){
 			const evo::Expected<int64_t, StrToNumError> converted_exponent_number = 
@@ -1031,7 +1046,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// check exponent isn't too large
 
-		if(exponent_number != 0 && exponent_number != 1){
+		if(exponent_number != 0){
 			const float64_t floating_point_exponent_number = float64_t(exponent_number);
 
 			if(has_decimal_point){
@@ -1126,8 +1141,9 @@ namespace pcit::panther{
 
 
 			float64_t output_number = parsed_number;
-			     if(exponent_number == 0){ output_number = 0; }
-			else if(exponent_number != 1){ output_number *= std::pow(10, exponent_number); }
+			if(exponent_number != 0){
+				output_number *= std::pow(10, exponent_number);
+			}
 
 			this->create_token(Token::Kind::LiteralFloat, output_number);
 
@@ -1167,8 +1183,9 @@ namespace pcit::panther{
 
 
 			uint64_t output_number = converted_parsed_number.value();
-			     if(exponent_number == 0){ output_number = 0; }
-			else if(exponent_number != 1){ output_number *= uint64_t(std::pow(10, exponent_number)); }
+			if(exponent_number != 0){
+				output_number *= uint64_t(std::pow(10, exponent_number));
+			}
 
 			this->create_token(Token::Kind::LiteralInt, output_number);
 		}
@@ -1184,6 +1201,8 @@ namespace pcit::panther{
 
 		auto literal_value = std::string();
 
+		bool contains_illegal_character_literal_character = false;
+
 		while(this->char_stream.peek() != delimiter){
 			bool unexpected_at_end = false;
 
@@ -1193,12 +1212,12 @@ namespace pcit::panther{
 			}else if(this->char_stream.peek() == '\\'){
 				switch(this->char_stream.peek(1)){
 					break; case '0': literal_value += '\0';
-					break; case 'a': literal_value += '\a';
-					break; case 'b': literal_value += '\b';
+					// break; case 'a': literal_value += '\a';
+					// break; case 'b': literal_value += '\b';
 					break; case 't': literal_value += '\t';
 					break; case 'n': literal_value += '\n';
-					break; case 'v': literal_value += '\v';
-					break; case 'f': literal_value += '\f';
+					// break; case 'v': literal_value += '\v';
+					// break; case 'f': literal_value += '\f';
 					break; case 'r': literal_value += '\r';
 
 					break; case '\'': literal_value += '\'';
@@ -1221,6 +1240,10 @@ namespace pcit::panther{
 				this->char_stream.skip(2);
 
 			}else{
+				if(this->char_stream.peek() == '\n' || this->char_stream.peek() == '\t'){
+					contains_illegal_character_literal_character = true;
+				}
+
 				literal_value += this->char_stream.next();
 			}
 
@@ -1272,7 +1295,9 @@ namespace pcit::panther{
 				);
 				return true;
 
-			}else if(literal_value.size() > 1){
+			}
+
+			if(literal_value.size() > 1){
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
 				if(current_location.isError()){ return true; }
 
@@ -1280,6 +1305,18 @@ namespace pcit::panther{
 					Diagnostic::Code::TokInvalidChar,
 					current_location.value(),
 					"Literal character must be only 1 character"
+				);
+				return true;
+			}
+
+			if(contains_illegal_character_literal_character){
+				const evo::Result<Source::Location> current_location = this->get_current_location_token();
+				if(current_location.isError()){ return true; }
+
+				this->emit_error(
+					Diagnostic::Code::TokInvalidChar,
+					current_location.value(),
+					"Illegal character literal character"
 				);
 				return true;
 			}

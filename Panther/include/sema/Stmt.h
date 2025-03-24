@@ -35,6 +35,7 @@ namespace pcit::panther::sema{
 			Assign,
 			MultiAssign,
 			Return,
+			Error,
 			Unreachable,
 			Conditional,
 			While,
@@ -46,6 +47,7 @@ namespace pcit::panther::sema{
 		explicit Stmt(MultiAssignID multi_assign_id)
 			: _kind(Kind::MultiAssign), value{.multi_assign_id = multi_assign_id} {}
 		explicit Stmt(ReturnID return_id)        : _kind(Kind::Return),      value{.return_id = return_id}         {}
+		explicit Stmt(ErrorID error_id)          : _kind(Kind::Error),       value{.error_id = error_id}           {}
 		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::Conditional), value{.cond_id = cond_id}             {}
 		explicit Stmt(WhileID while_id)          : _kind(Kind::While),       value{.while_id = while_id}           {}
 
@@ -79,6 +81,11 @@ namespace pcit::panther::sema{
 			return this->value.return_id;
 		}
 
+		EVO_NODISCARD auto errorID() const -> ErrorID {
+			evo::debugAssert(this->kind() == Kind::Error, "not an error");
+			return this->value.error_id;
+		}
+
 		EVO_NODISCARD auto unreachableID() const -> Token::ID {
 			evo::debugAssert(this->kind() == Kind::Unreachable, "not an unreachable");
 			return this->value.token_id;
@@ -108,6 +115,7 @@ namespace pcit::panther::sema{
 				AssignID assign_id;
 				MultiAssignID multi_assign_id;
 				ReturnID return_id;
+				ErrorID error_id;
 				ConditionalID cond_id;
 				WhileID while_id;
 			} value;

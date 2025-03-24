@@ -102,6 +102,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, ReturnID>::UniqueID;
 	};
 
+	struct ErrorID : public core::UniqueID<uint32_t, struct ErrorID> {
+		using core::UniqueID<uint32_t, ErrorID>::UniqueID;
+	};
+
 	struct ConditionalID : public core::UniqueID<uint32_t, struct ConditionalID> {
 		using core::UniqueID<uint32_t, ConditionalID>::UniqueID;
 	};

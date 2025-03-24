@@ -94,7 +94,6 @@ namespace pcit::panther{
 			using ID = FunctionID;
 
 			struct Param{
-				evo::Variant<Token::ID, strings::StringCode> ident;
 				TypeInfoID typeID;
 				AST::FuncDecl::Param::Kind kind;
 				bool shouldCopy;
@@ -112,15 +111,17 @@ namespace pcit::panther{
 			evo::SmallVector<Param> params;
 			evo::SmallVector<ReturnParam> returnParams;
 			evo::SmallVector<ReturnParam> errorParams;
-			bool isComptime;
 
 
 			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->returnParams[0].ident.has_value(); }
 			EVO_NODISCARD auto returnsVoid() const -> bool { return this->returnParams[0].typeID.isVoid(); }
 
-			EVO_NODISCARD auto hasErrorReturns() const -> bool { return !this->errorParams.empty(); }
+			EVO_NODISCARD auto hasErrorReturn() const -> bool { return !this->errorParams.empty(); }
 			EVO_NODISCARD auto hasErrorReturnParams() const -> bool {
-				return this->hasErrorReturns() && this->errorParams[0].typeID.isVoid() == false;
+				return this->hasErrorReturn() && this->errorParams[0].typeID.isVoid() == false;
+			}
+			EVO_NODISCARD auto hasNamedErrorReturns() const -> bool {
+				return this->hasErrorReturnParams() && this->errorParams[0].ident.has_value();
 			}
 
 			EVO_NODISCARD auto operator==(const Function&) const -> bool = default;

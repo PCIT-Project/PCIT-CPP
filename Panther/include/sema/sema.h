@@ -118,9 +118,9 @@ namespace pcit::panther::sema{
 	struct FuncCall{
 		using ID = FuncCallID;
 
-	// 	evo::Variant<FuncID, Intrinsic::Kind, TemplatedIntrinsicInstantiationID> target;
-	// 	evo::SmallVector<Expr> args;
-	// 	Location location;
+		evo::Variant<FuncID/*, Intrinsic::Kind, TemplatedIntrinsicInstantiationID*/> target;
+		evo::SmallVector<Expr> args;
+		// SourceLocation location;
 	};
 
 
@@ -140,6 +140,12 @@ namespace pcit::panther::sema{
 
 	struct Return{
 		using ID = ReturnID;
+
+		std::optional<Expr> value; // nullopt means return void
+	};
+
+	struct Error{
+		using ID = ErrorID;
 
 		std::optional<Expr> value; // nullopt means return void
 	};
@@ -193,10 +199,18 @@ namespace pcit::panther::sema{
 	struct Func{
 		using ID = FuncID;
 
+		struct Param{
+			Token::ID ident;
+			std::optional<Expr> defaultValue;
+		};
+
 		AST::Node name;
 		SourceID sourceID;
 		BaseType::Function::ID typeID;
+		evo::SmallVector<Param> params;
+		uint32_t minNumArgs; // TODO: make sure this optimization actually improves perf
 		bool isPub;
+		bool isConstexpr;
 		bool hasInParam;
 		
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation
@@ -206,10 +220,6 @@ namespace pcit::panther::sema{
 		bool isTerminated = false;
 		std::atomic<bool> defCompleted = false;
 
-
-		EVO_NODISCARD auto isComptime(const TypeManager& type_manager) const -> bool {
-			return type_manager.getFunction(this->typeID).isComptime;
-		}
 
 		EVO_NODISCARD auto isEquivalentOverload(const Func& rhs, const class panther::Context& context) const -> bool;
 	};

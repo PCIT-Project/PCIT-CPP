@@ -47,7 +47,23 @@ namespace pcit::panther{
 
 			auto lower_stmt(const sema::Stmt& stmt) -> void;
 
-			EVO_NODISCARD auto get_expr(const sema::Expr expr) -> pir::Expr;
+			EVO_NODISCARD auto get_expr_register(const sema::Expr expr) -> pir::Expr;
+			EVO_NODISCARD auto get_expr_pointer(const sema::Expr expr) -> pir::Expr;
+			EVO_NODISCARD auto get_expr_store(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+				-> void;
+
+			enum class GetExprMode{
+				Register,
+				Pointer,
+				Store,
+			};
+
+			template<GetExprMode MODE>
+			auto get_expr_impl(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+				-> std::optional<pir::Expr>;
+
+
+
 			EVO_NODISCARD auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
 
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID voidable_type_id) -> pir::Type;
@@ -74,9 +90,17 @@ namespace pcit::panther{
 
 			Source* current_source = nullptr;
 
+			struct FuncInfo{
+				pir::Function::ID pir_id;
+				pir::Type return_type;
+				evo::SmallVector<bool> arg_is_copy;
+				evo::SmallVector<pir::Expr> return_params; // only used if they are out params
+				evo::SmallVector<pir::Expr> error_return_params;
+			};
+
 			evo::SmallVector<pir::Type> structs{};
-			evo::SmallVector<pir::GlobalVar::ID> global_vars{};
-			evo::SmallVector<pir::Function::ID> funcs{};
+			evo::SmallVector<std::optional<pir::GlobalVar::ID>> global_vars{}; // nullopt means is `def`
+			evo::SmallVector<FuncInfo> funcs{};
 	};
 
 
