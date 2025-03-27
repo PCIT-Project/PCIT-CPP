@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <unordered_set>
 
 #include <Evo.h>
 #include <PCIT_core.h>
@@ -285,6 +286,9 @@ namespace pcit::panther{
 			const AST::FuncDecl& func_decl;
 		};
 
+		struct FuncConstexprPIRReadyIfNeeded{};
+
+
 		struct TemplateFunc{
 			const AST::FuncDecl& func_decl;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
@@ -314,11 +318,18 @@ namespace pcit::panther{
 			SymbolProcTermInfoID to;
 		};
 
+		template<bool IS_CONSTEXPR>
 		struct FuncCall{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
 			evo::SmallVector<SymbolProcTermInfoID> args;
+		};
+
+		struct ConstexprFuncCallRun{
+			const AST::FuncCall& func_call;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
 		};
 
 		struct Import{
@@ -431,6 +442,7 @@ namespace pcit::panther{
 			TemplateStruct,
 			FuncDecl<false>,
 			FuncDef,
+			FuncConstexprPIRReadyIfNeeded,
 			TemplateFunc,
 
 			// stmt
@@ -439,7 +451,9 @@ namespace pcit::panther{
 
 			// misc expr
 			TypeToTerm,
-			FuncCall,
+			FuncCall<false>,
+			FuncCall<true>,
+			ConstexprFuncCallRun,
 			Import,
 			TemplatedTerm,
 			TemplatedTermWait,
@@ -524,6 +538,20 @@ namespace pcit::panther{
 				return this->def_done;
 			}
 
+			EVO_NODISCARD auto isPIRLowerDone() const -> bool {
+				const auto lock = std::scoped_lock( // TODO: needed to take all of these locks?
+					this->waiting_for_lock, this->pir_lower_waited_on_lock
+				);
+				return this->pir_lower_done;
+			}
+
+			EVO_NODISCARD auto isPIRReadyDone() const -> bool {
+				const auto lock = std::scoped_lock( // TODO: needed to take all of these locks?
+					this->waiting_for_lock, this->pir_ready_waited_on_lock
+				);
+				return this->pir_lower_done;
+			}
+
 			EVO_NODISCARD auto hasErrored() const -> bool { return this->errored; }
 			EVO_NODISCARD auto passedOnByWhenCond() const -> bool { return this->passed_on_by_when_cond; }
 
@@ -533,10 +561,19 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isWaiting() const -> bool {
 				const auto lock = std::scoped_lock(this->waiting_for_lock);
 				return this->waiting_for.empty() == false;
-			};
+			}
 
 			EVO_NODISCARD auto isReadyToBeAddedToWorkQueue() const -> bool {
 				return this->isWaiting() == false && this->isTemplateSubSymbol() == false;
+			}
+
+			// this should be called after starting to wait
+			EVO_NODISCARD auto shouldContinueRunning() -> bool {
+				evo::debugAssert(this->being_worked_on.load(), "only should call this func if being worked on");
+				const auto lock = std::scoped_lock(this->waiting_for_lock);
+				const bool is_waiting = this->waiting_for.empty() == false;
+				if(is_waiting){ this->being_worked_on = false; }
+				return is_waiting == false;
 			}
 
 
@@ -550,6 +587,8 @@ namespace pcit::panther{
 
 			auto waitOnDeclIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
 			auto waitOnDefIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
+			auto waitOnPIRLowerIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
+			auto waitOnPIRReadyIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
 
 
 		private:
@@ -563,11 +602,13 @@ namespace pcit::panther{
 									// 	(is when cond, func call, or operator function)
 			SymbolProc* parent; // nullptr means no parent
 
-			// TODO: make evo::SmallVector?
-			std::vector<Instruction> instructions{};
-			std::vector<std::optional<TermInfo>> term_infos{};
-			std::vector<std::optional<TypeInfo::VoidableID>> type_ids{};
-			std::vector<const BaseType::StructTemplate::Instantiation*> struct_instantiations{};
+			evo::SmallVector<Instruction> instructions{};
+
+			// TODO: optimize the memory usage here?
+			evo::SmallVector<std::optional<TermInfo>> term_infos{};
+			evo::SmallVector<std::optional<TypeInfo::VoidableID>> type_ids{};
+			evo::SmallVector<const BaseType::StructTemplate::Instantiation*> struct_instantiations{};
+
 
 
 			evo::SmallVector<ID> waiting_for{};
@@ -578,6 +619,12 @@ namespace pcit::panther{
 
 			evo::SmallVector<ID> def_waited_on_by{};
 			mutable core::SpinLock def_waited_on_lock{};
+
+			evo::SmallVector<ID> pir_lower_waited_on_by{};
+			mutable core::SpinLock pir_lower_waited_on_lock{};
+
+			evo::SmallVector<ID> pir_ready_waited_on_by{};
+			mutable core::SpinLock pir_ready_waited_on_lock{};
 
 
 			struct GlobalVarInfo{
@@ -602,7 +649,12 @@ namespace pcit::panther{
 			};
 
 
-			evo::Variant<std::monostate, GlobalVarInfo, WhenCondInfo, AliasInfo, StructInfo> extra_info{};
+			// Only needed if the func is comptime
+			struct FuncInfo{
+				std::unordered_set<sema::Func::ID> dependent_funcs{};
+			};
+
+			evo::Variant<std::monostate, GlobalVarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo> extra_info{};
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
 
@@ -610,6 +662,8 @@ namespace pcit::panther{
 			size_t inst_index = 0;
 			bool decl_done = false;
 			bool def_done = false;
+			bool pir_lower_done = false;
+			bool pir_ready = false;
 			std::atomic<bool> passed_on_by_when_cond = false;
 			std::atomic<bool> errored = false;
 

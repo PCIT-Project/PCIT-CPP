@@ -23,6 +23,7 @@
 #include "./Printer.h"
 #include "./SingleThreadedWorkQueue.h"
 #include "./StepAlloc.h"
+#include "./StepVector.h"
 #include "./ThreadPool.h"
 #include "./ThreadQueue.h"
 #include "./UniqueID.h"

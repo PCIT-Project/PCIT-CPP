@@ -280,12 +280,14 @@ namespace pcit::panther{
 	auto Context::lowerToAndPrintPIR(core::Printer& printer) -> void {
 		auto module = pir::Module(evo::copy(this->_config.title), this->_config.os, this->_config.architecture);
 
-		auto sema_to_pir = SemaToPIR(*this, module, SemaToPIR::Config{
+		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
 			.useReadableNames   = true,
 			.checkedMath        = true,
 			.isJIT              = false,
 			.addSourceLocations = true,
 		});
+
+		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
 		sema_to_pir.lower();
 
 		pcit::pir::printModule(module, printer);

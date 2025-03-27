@@ -28,5 +28,7 @@
 #include "./passes/instCombine.h"
 #include "./passes/removeUnusedStmts.h"
 
+#include "./Interpreter.h"
+
 #include "./llvmir.h"
 #include "./JITEngine.h"

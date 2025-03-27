@@ -297,7 +297,6 @@ namespace pcit::pir{
 	static_assert(std::atomic<std::optional<Expr>>::is_always_lock_free);
 	
 
-	// Get through Function
 	struct Number{
 		Type type;
 
@@ -309,6 +308,10 @@ namespace pcit::pir{
 		EVO_NODISCARD auto getFloat() const -> const core::GenericFloat& {
 			evo::debugAssert(this->type.isFloat(), "This number is not float");
 			return this->value.as<core::GenericFloat>();
+		}
+
+		EVO_NODISCARD auto asGenericValue() const -> core::GenericValue {
+			return value.visit([](const auto& val){ return core::GenericValue(evo::copy(val)); });
 		}
 
 		Number(const Type& _type, core::GenericInt&& val) : type(_type), value(std::move(val)) {}

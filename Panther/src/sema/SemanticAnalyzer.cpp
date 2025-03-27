@@ -289,6 +289,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncDef>()){
 				return this->instr_func_def(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncConstexprPIRReadyIfNeeded>()){
+				return this->instr_func_constexpr_pir_ready_if_needed();
+
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplateFunc>()){
 				return this->instr_template_func(instr);
 
@@ -301,8 +304,14 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::TypeToTerm>()){
 				return this->instr_type_to_term(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
-				return this->instr_func_call(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall<false>>()){
+				return this->instr_func_call<false>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall<true>>()){
+				return this->instr_func_call<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::ConstexprFuncCallRun>()){
+				return this->instr_constexpr_func_call_run(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Import>()){
 				return this->instr_import(instr);
@@ -393,9 +402,9 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_var_def(const Instruction::VarDef& instr) -> Result {
-		sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[
-			this->symbol_proc.extra_info.as<SymbolProc::GlobalVarInfo>().sema_var_id
-		];
+		const sema::GlobalVar::ID sema_var_id =
+			this->symbol_proc.extra_info.as<SymbolProc::GlobalVarInfo>().sema_var_id;
+		sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
 
 		TermInfo& value_term_info = this->get_term_info(instr.value_id);
 
@@ -437,6 +446,11 @@ namespace pcit::panther{
 		}
 
 		sema_var.expr = value_term_info.getExpr();
+
+		auto sema_to_pir = SemaToPIR(
+			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+		);
+		sema_to_pir.lowerGlobal(sema_var_id);
 
 		this->propagate_finished_def();
 		return Result::Success;
@@ -662,6 +676,9 @@ namespace pcit::panther{
 					return;
 
 				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::StructInfo>()){
+					return;
+
+				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::FuncInfo>()){
 					return;
 
 				}else{
@@ -1148,17 +1165,25 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// create func
 
+		const bool is_constexpr = !func_attrs.value().is_runtime;
+
 		const sema::Func::ID created_func = this->context.sema_buffer.createFunc(
 			instr.func_decl.name,
 			this->source.getID(),
 			created_func_base_type.funcID(),
 			std::move(sema_params),
+			this->symbol_proc,
+			this->symbol_proc_id,
 			min_num_args,
 			func_attrs.value().is_pub,
-			!func_attrs.value().is_runtime,
+			is_constexpr,
 			has_in_param,
 			instr.instantiation_id
 		);
+
+		if(is_constexpr){
+			this->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
+		}
 
 
 		if constexpr(IS_INSTANTIATION == false){
@@ -1176,6 +1201,12 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// setup member statements
 
+		if(func_attrs.value().is_runtime == false){
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
+			this->context.sema_buffer.funcs[created_func].pirID = sema_to_pir.lowerFuncDecl(created_func);
+		}
 
 		this->propagate_finished_decl();
 
@@ -1186,11 +1217,12 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_func_def(const Instruction::FuncDef& instr) -> Result {
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_func_def: {}", this->symbol_proc.ident); });
 
+		const sema::Func& current_func = this->get_current_func();
+
 		if(this->get_current_scope_level().isTerminated()){
 			this->get_current_func().isTerminated = true;
 
 		}else{
-			const sema::Func& current_func = this->get_current_func();
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
 			if(func_type.returnsVoid() == false){
@@ -1207,14 +1239,89 @@ namespace pcit::panther{
 			}
 		}
 
-
-		this->propagate_finished_def();
 		this->get_current_func().defCompleted = true;
+		this->propagate_finished_def();
+
+		if(current_func.isConstexpr){
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
+			sema_to_pir.lowerFuncDef(this->scope.getCurrentObjectScope().as<sema::Func::ID>());
+
+			this->propagate_finished_pir_lower();
+
+
+			auto dependent_funcs = std::unordered_set<sema::Func::ID>();
+			auto dependent_funcs_queue = std::queue<sema::Func::ID>();
+
+			{
+				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+				for(sema::Func::ID dependent_func : func_info.dependent_funcs){
+					dependent_funcs_queue.emplace(dependent_func);
+				}
+			}
+
+			while(dependent_funcs_queue.empty() == false){
+				const sema::Func::ID func_id = dependent_funcs_queue.front();
+				dependent_funcs_queue.pop();
+				if(dependent_funcs.contains(func_id)){ continue; }
+
+				const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+
+				SymbolProc::FuncInfo& func_info = func.symbolProc.extra_info.as<SymbolProc::FuncInfo>();
+				for(sema::Func::ID dependent_func : func_info.dependent_funcs){
+					dependent_funcs_queue.emplace(dependent_func);
+				}
+
+				dependent_funcs.emplace(func_id);
+			}
+
+
+			bool any_waiting = false;
+			for(sema::Func::ID dependent_func_id : dependent_funcs){
+				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
+				const SymbolProc::WaitOnResult wait_on_result = dependent_func.symbolProc.waitOnPIRReadyIfNeeded(
+					this->symbol_proc_id, this->context, dependent_func.symbolProcID
+				);
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NotNeeded:			  break;
+					case SymbolProc::WaitOnResult::Waiting:               any_waiting = true; break;
+					case SymbolProc::WaitOnResult::WasErrored:            return Result::Error;
+					case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CircularDepDetected:   evo::debugFatalBreak("Shouldn't be possible");
+				}
+			}
+
+			if(any_waiting){
+				if(this->symbol_proc.shouldContinueRunning()){
+					return Result::Success;
+				}else{
+					return Result::NeedToWaitBeforeNextInstr;
+				}
+
+			}else{
+				return Result::Success;
+			}
+		}
+
+
+		return Result::Success;
+	}
+
+
+	auto SemanticAnalyzer::instr_func_constexpr_pir_ready_if_needed() -> Result {
+		const sema::Func& current_func = this->get_current_func();
+
+		if(current_func.isConstexpr){
+			this->propagate_finished_pir_ready();
+		}
 
 		this->pop_scope_level(); // TODO: needed?
 
 		return Result::Success;
 	}
+
 
 
 	// TODO: condense this with template struct somehow?
@@ -1533,8 +1640,8 @@ namespace pcit::panther{
 	}
 
 
-
-	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
+	template<bool IS_CONSTEXPR> // TODO: needed?
+	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall<IS_CONSTEXPR>& instr) -> Result {
 		const TermInfo target_term_info = this->get_term_info(instr.target);
 
 		if(target_term_info.value_category != TermInfo::ValueCategory::Function){
@@ -1559,7 +1666,30 @@ namespace pcit::panther{
 
 		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>();
 		for(size_t i = 0; const SymbolProc::TermInfoID& arg : instr.args){
-			arg_infos.emplace_back(this->get_term_info(arg), instr.func_call.args[i]);
+			TermInfo& arg_term_info = this->get_term_info(arg);
+
+			if constexpr(IS_CONSTEXPR){
+				if(arg_term_info.value_stage != TermInfo::ValueStage::Constexpr){
+					this->emit_error(
+						Diagnostic::Code::SemaExprNotConstexpr,
+						instr.func_call.args[i].value,
+						"Arguments in a constexpr function call must have a value stage of constexpr",
+						Diagnostic::Info(
+							std::format(
+								"Value stage of the argument is {}",
+								arg_term_info.value_stage == TermInfo::ValueStage::Comptime ? "comptime" : "runtime"
+							)
+						)
+					);
+					return Result::Error;
+				}
+			}else{
+				if(this->expr_in_func_is_valid_value_stage(arg_term_info, instr.func_call.args[i].value) == false){
+					return Result::Error;
+				}
+			}
+
+			arg_infos.emplace_back(arg_term_info, instr.func_call.args[i]);
 			i += 1;
 		}
 
@@ -1590,9 +1720,17 @@ namespace pcit::panther{
 		);
 
 
-		const TermInfo::ValueStage value_stage = selected_func.isConstexpr
-			? TermInfo::ValueStage::Constexpr 
-			: TermInfo::ValueStage::Runtime;
+		const TermInfo::ValueStage value_stage = [&](){
+			if constexpr(IS_CONSTEXPR){
+				return TermInfo::ValueStage::Constexpr;
+			}else{
+				if(this->get_current_func().isConstexpr){
+					return TermInfo::ValueStage::Comptime;
+				}else{
+					return TermInfo::ValueStage::Runtime;
+				}
+			}
+		}();
 
 		if(selected_func_type.returnParams.size() == 1){ // single return
 			this->return_term_info(instr.output,
@@ -1621,9 +1759,104 @@ namespace pcit::panther{
 			);
 		}
 
+		if constexpr(IS_CONSTEXPR){
+			if(selected_func.isConstexpr == false){
+				this->emit_error(
+					Diagnostic::Code::SemaFuncIsntConstexpr,
+					instr.func_call.target,
+					"Constexpr value cannot be a call to a function that is not constexpr",
+					Diagnostic::Info("Called function was defined here:", this->get_location(selected_func_id))
+				);
+				return Result::Error;
+			}
+
+
+			const SymbolProc::WaitOnResult wait_on_result = selected_func.symbolProc.waitOnPIRReadyIfNeeded(
+				this->symbol_proc_id, this->context, selected_func.symbolProcID
+			);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NotNeeded:			  break;
+				case SymbolProc::WaitOnResult::Waiting:               return Result::NeedToWaitBeforeNextInstr;
+				case SymbolProc::WaitOnResult::WasErrored:            return Result::Error;
+				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CircularDepDetected:   evo::debugFatalBreak("Shouldn't be possible");
+			}
+
+			return Result::Success;
+
+		}else{
+			if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
+				if(selected_func.isConstexpr == false){
+					this->emit_error(
+						Diagnostic::Code::SemaFuncIsntConstexpr,
+						instr.func_call.target,
+						"Cannot call a non-constexpr function within a constexpr function",
+						Diagnostic::Info("Called function was defined here:", this->get_location(selected_func_id))
+					);
+					return Result::Error;
+				}
+
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
+			}
+
+			return Result::Success;
+		}
+
+	}
+
+
+
+	auto SemanticAnalyzer::instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result {
+		const TermInfo& func_call_term = this->get_term_info(instr.target);
+
+		const sema::FuncCall& sema_func_call =
+			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
+		const sema::Func& target_func = 
+			this->context.getSemaBuffer().getFunc(sema_func_call.target.as<sema::Func::ID>());
+
+		evo::debugAssert(target_func.defCompleted.load(), "def of func not completed");
+
+		auto interpreter_args = evo::SmallVector<core::GenericValue>();
+
+		// auto printer = core::Printer::createConsole(true);
+		// pir::printModule(this->context.pir_module, printer);
+
+
+		auto pir_interpreter = pir::Interpreter(this->context.constexpr_pir_module);
+		evo::Expected<core::GenericValue, pir::Interpreter::ErrorInfo> interpreter_return = 
+			pir_interpreter.runFunction(*target_func.pirID, interpreter_args);
+
+		if(interpreter_return.has_value() == false){
+			// TODO: better messaging
+			this->emit_error(
+				Diagnostic::Code::SemaErrorReturnedFromConstexprFuncRun,
+				instr.func_call,
+				"Constexpr function returned error"
+			);
+			return Result::Error;
+		}
+
+		// auto output_values = evo::SmallVector<sema::Expr>();
+		// for(core::GenericValue& returned_value : constexpr_func_run_result.value()){
+			
+		// }
+
+		this->return_term_info(instr.output,
+			TermInfo(
+				TermInfo::ValueCategory::Ephemeral,
+				TermInfo::ValueStage::Constexpr,
+				func_call_term.type_id,
+				sema::Expr(this->context.sema_buffer.createIntValue(
+					std::move(interpreter_return.value().as<core::GenericInt>()),
+					this->context.getTypeManager().getTypeInfo(func_call_term.type_id.as<TypeInfo::ID>()).baseTypeID()
+				))
+			)
+		);
 
 		return Result::Success;
 	}
+
 
 
 	auto SemanticAnalyzer::instr_import(const Instruction::Import& instr) -> Result {
@@ -2554,6 +2787,7 @@ namespace pcit::panther{
 	}
 
 
+
 	auto SemanticAnalyzer::get_current_func() -> sema::Func& {
 		return this->context.sema_buffer.funcs[this->scope.getCurrentObjectScope().as<sema::Func::ID>()];
 	}
@@ -2709,12 +2943,23 @@ namespace pcit::panther{
 								return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef));
 							}
 						}
+
+						const ValueStage value_stage = [&](){
+							if(is_global_scope){ return ValueStage::Runtime; }
+
+							if(this->scope.getCurrentObjectScope().is<sema::Func::ID>() == false){
+								return ValueStage::Runtime;
+							}
+							
+							if(this->get_current_func().isConstexpr){
+								return ValueStage::Comptime;
+							}else{
+								return ValueStage::Runtime;
+							}
+						}();
 						
 						return ReturnType(TermInfo(
-							ValueCategory::ConcreteMut,
-							is_global_scope ? ValueStage::Runtime : ValueStage::Comptime,
-							*sema_var.typeID,
-							sema::Expr(ident_id)
+							ValueCategory::ConcreteMut, value_stage, *sema_var.typeID, sema::Expr(ident_id)
 						));
 					} break;
 
@@ -2725,8 +2970,22 @@ namespace pcit::panther{
 							}
 						}
 
+						const ValueStage value_stage = [&](){
+							if(is_global_scope){ return ValueStage::Comptime; }
+
+							if(this->scope.getCurrentObjectScope().is<sema::Func::ID>() == false){
+								return ValueStage::Comptime;
+							}
+
+							if(this->get_current_func().isConstexpr){
+								return ValueStage::Comptime;
+							}else{
+								return ValueStage::Runtime;
+							}
+						}();
+
 						return ReturnType(TermInfo(
-							ValueCategory::ConcreteConst, ValueStage::Comptime, *sema_var.typeID, sema::Expr(ident_id)
+							ValueCategory::ConcreteConst, value_stage, *sema_var.typeID, sema::Expr(ident_id)
 						));
 					} break;
 
@@ -2957,7 +3216,14 @@ namespace pcit::panther{
 			}
 		}
 
-		if(any_waiting){ return WaitOnSymbolProcResult::NeedToWait; }
+		if(any_waiting){
+			if(this->symbol_proc.shouldContinueRunning()){
+				return WaitOnSymbolProcResult::SemasReady;
+			}else{
+				return WaitOnSymbolProcResult::NeedToWait;
+			}
+		}
+
 		if(any_ready){ return WaitOnSymbolProcResult::SemasReady; }
 
 		this->emit_error(
@@ -2996,7 +3262,8 @@ namespace pcit::panther{
 			target.waiting_for.empty() && 
 			target.passed_on_by_when_cond == false && 
 			target.errored == false && 
-			target.isTemplateSubSymbol() == false
+			target.isTemplateSubSymbol() == false &&
+			target.being_worked_on == false // prevent race condition of target actively adding more to wait on
 		){
 			this->context.add_task_to_work_manager(target_id);
 		}
@@ -3381,6 +3648,27 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::expr_in_func_is_valid_value_stage(
+		const TermInfo& term_info, const auto& node_location
+	) -> bool {
+		if(this->get_current_func().isConstexpr == false){ return true; }
+
+		if(term_info.value_stage != TermInfo::ValueStage::Runtime){ return true; }
+
+		this->emit_error(
+			Diagnostic::Code::SemaExprNotComptime,
+			node_location,
+			"Expressions in a constexpr function cannot have a value stage of runtime"
+		);
+
+		return false;
+	}
+
+
+
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// attributes
 
@@ -3605,8 +3893,7 @@ namespace pcit::panther{
 			}
 		}
 
-
-		return FuncAttrs(attr_pub.is_set());
+		return FuncAttrs(attr_pub.is_set(), attr_runtime.is_set(), attr_entry.is_set());
 	}
 
 
@@ -3664,6 +3951,21 @@ namespace pcit::panther{
 		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by);
 
 		this->context.symbol_proc_manager.symbol_proc_done();
+	}
+
+
+	auto SemanticAnalyzer::propagate_finished_pir_lower() -> void {
+		const auto lock = std::scoped_lock(this->symbol_proc.pir_lower_waited_on_lock);
+
+		this->symbol_proc.pir_lower_done = true;
+		this->propagate_finished_impl(this->symbol_proc.pir_lower_waited_on_by);
+	}
+
+	auto SemanticAnalyzer::propagate_finished_pir_ready() -> void {
+		const auto lock = std::scoped_lock(this->symbol_proc.pir_ready_waited_on_lock);
+
+		this->symbol_proc.pir_ready = true;
+		this->propagate_finished_impl(this->symbol_proc.pir_ready_waited_on_by);
 	}
 
 

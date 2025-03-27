@@ -56,38 +56,38 @@ namespace pcit::panther{
 
 
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME, bool MUST_BE_EXPR>
+			template<bool IS_CONSTEXPR, bool MUST_BE_EXPR>
 			EVO_NODISCARD auto analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;			
 
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_prefix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			EVO_NODISCARD auto analyze_expr_intrinsic(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;

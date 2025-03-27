@@ -116,7 +116,7 @@ namespace pcit::panther::sema{
 					}
 
 					EVO_NODISCARD auto inObjectMainScope() const -> bool {
-						evo::debugAssert(this->object_scopes.size() >= 1, "not in object scope");
+						evo::debugAssert(this->inObjectScope(), "not in object scope");
 						return this->object_scopes.back().scope_level_index - 1 == this->size();
 					}
 

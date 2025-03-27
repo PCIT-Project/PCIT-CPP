@@ -107,6 +107,8 @@ namespace pcit::panther{
 			// exprs
 			SemaTypeUsedAsExpr,
 			SemaInvalidAccessorRHS,
+			SemaExprNotConstexpr,
+			SemaExprNotComptime,
 
 			// type checking
 			SemaMultiReturnIntoSingleValue,
@@ -142,14 +144,18 @@ namespace pcit::panther{
 			SemaNotFirstReturnVoid,
 			SemaFuncIsntTerminated,
 
+			// function calls
+			SemaCannotCallLikeFunction,
+			SemaMultipleMatchingFunctionOverloads,
+			SemaNoMatchingFunction,
+			SemaErrorReturnedFromConstexprFuncRun,
+			SemaFuncIsntConstexpr,
+
 			// misc
 			SemaIncorrectReturnStmtKind,
 			SemaErrorInFuncWithoutErrors,
 			SemaReturnNotEphemeral,
 			SemaScopeIsAlreadyTerminated,
-			SemaCannotCallLikeFunction,
-			SemaMultipleMatchingFunctionOverloads,
-			SemaNoMatchingFunction,
 
 
 			//////////////////
@@ -429,6 +435,8 @@ namespace pcit::panther{
 				case Code::SemaVarInitializerOnNonVar:
 				case Code::SemaTypeUsedAsExpr:
 				case Code::SemaInvalidAccessorRHS:
+				case Code::SemaExprNotConstexpr:
+				case Code::SemaExprNotComptime:
 				case Code::SemaMultiReturnIntoSingleValue:
 				case Code::SemaCannotConvertFluidValue:
 				case Code::SemaTypeMismatch:
@@ -453,13 +461,15 @@ namespace pcit::panther{
 				case Code::SemaNamedVoidReturn:
 				case Code::SemaNotFirstReturnVoid:
 				case Code::SemaFuncIsntTerminated:
+				case Code::SemaCannotCallLikeFunction:
+				case Code::SemaMultipleMatchingFunctionOverloads:
+				case Code::SemaNoMatchingFunction:
+				case Code::SemaErrorReturnedFromConstexprFuncRun:
+				case Code::SemaFuncIsntConstexpr:
 				case Code::SemaIncorrectReturnStmtKind:
 				case Code::SemaErrorInFuncWithoutErrors:
 				case Code::SemaReturnNotEphemeral:
 				case Code::SemaScopeIsAlreadyTerminated:
-				case Code::SemaCannotCallLikeFunction:
-				case Code::SemaMultipleMatchingFunctionOverloads:
-				case Code::SemaNoMatchingFunction:
 					return "S";
 
 				case Code::MiscUnimplementedFeature:           return "M0";

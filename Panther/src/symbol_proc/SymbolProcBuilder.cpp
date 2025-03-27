@@ -351,6 +351,7 @@ namespace pcit::panther{
 			}
 
 			this->add_instruction(Instruction::FuncDef(func_decl));
+			this->add_instruction(Instruction::FuncConstexprPIRReadyIfNeeded());
 
 			// need to set again as address may have changed
 			current_symbol = &this->get_current_symbol();
@@ -727,18 +728,18 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
-		return this->analyze_term_impl<IS_COMPTIME, false>(expr);
+		return this->analyze_term_impl<IS_CONSTEXPR, false>(expr);
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
-		return this->analyze_term_impl<IS_COMPTIME, true>(expr);
+		return this->analyze_term_impl<IS_CONSTEXPR, true>(expr);
 	}
 
 
-	template<bool IS_COMPTIME, bool MUST_BE_EXPR>
+	template<bool IS_CONSTEXPR, bool MUST_BE_EXPR>
 	auto SymbolProcBuilder::analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
@@ -747,14 +748,14 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Invalid AST::Node");
 			} break;
 
-			case AST::Kind::Block:         return this->analyze_expr_block<IS_COMPTIME>(expr);
-			case AST::Kind::FuncCall:      return this->analyze_expr_func_call<IS_COMPTIME>(expr);
-			case AST::Kind::TemplatedExpr: return this->analyze_expr_templated<IS_COMPTIME>(expr);
-			case AST::Kind::Prefix:        return this->analyze_expr_prefix<IS_COMPTIME>(expr);
-			case AST::Kind::Infix:         return this->analyze_expr_infix<IS_COMPTIME>(expr);
-			case AST::Kind::Postfix:       return this->analyze_expr_postfix<IS_COMPTIME>(expr);
-			case AST::Kind::New:           return this->analyze_expr_new<IS_COMPTIME>(expr);
-			case AST::Kind::Ident:         return this->analyze_expr_ident<IS_COMPTIME>(expr);
+			case AST::Kind::Block:         return this->analyze_expr_block<IS_CONSTEXPR>(expr);
+			case AST::Kind::FuncCall:      return this->analyze_expr_func_call<IS_CONSTEXPR>(expr);
+			case AST::Kind::TemplatedExpr: return this->analyze_expr_templated<IS_CONSTEXPR>(expr);
+			case AST::Kind::Prefix:        return this->analyze_expr_prefix<IS_CONSTEXPR>(expr);
+			case AST::Kind::Infix:         return this->analyze_expr_infix<IS_CONSTEXPR>(expr);
+			case AST::Kind::Postfix:       return this->analyze_expr_postfix<IS_CONSTEXPR>(expr);
+			case AST::Kind::New:           return this->analyze_expr_new<IS_CONSTEXPR>(expr);
+			case AST::Kind::Ident:         return this->analyze_expr_ident<IS_CONSTEXPR>(expr);
 			case AST::Kind::Intrinsic:     return this->analyze_expr_intrinsic(expr);
 			case AST::Kind::Literal:       return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
 			case AST::Kind::Uninit:        return this->analyze_expr_uninit(ast_buffer.getUninit(expr));
@@ -816,7 +817,7 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of block is unimplemented"
@@ -824,7 +825,7 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(node);
 
@@ -867,10 +868,10 @@ namespace pcit::panther{
 				is_target_template = true;
 				const AST::TemplatedExpr& target_templated_expr = 
 					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
-				return this->analyze_expr<IS_COMPTIME>(target_templated_expr.base);
+				return this->analyze_expr<IS_CONSTEXPR>(target_templated_expr.base);
 
 			}else{
-				return this->analyze_expr<IS_COMPTIME>(func_call.target);
+				return this->analyze_expr<IS_CONSTEXPR>(func_call.target);
 			}
 		}();
 		if(target.isError()){ return evo::resultError; }
@@ -878,7 +879,7 @@ namespace pcit::panther{
 		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
 		args.reserve(func_call.args.size());
 		for(const AST::FuncCall::Arg& arg : func_call.args){
-			const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_expr<IS_COMPTIME>(arg.value);
+			const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_expr<IS_CONSTEXPR>(arg.value);
 			if(arg_value.isError()){ return evo::resultError; }
 			args.emplace_back(arg_value.value());
 		}
@@ -892,21 +893,36 @@ namespace pcit::panther{
 				"Templated function calls are currently unimplemented"
 			);
 			return evo::resultError;
+		}
+
+
+		if constexpr(IS_CONSTEXPR){
+			this->add_instruction(
+				Instruction::FuncCall<true>(func_call, target.value(), new_term_info_id, std::move(args))
+			);
+
+			const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+			this->add_instruction(
+				Instruction::ConstexprFuncCallRun(func_call, new_term_info_id, comptime_res_term_info_id)
+			);
+			return comptime_res_term_info_id;
 
 		}else{
 			this->add_instruction(
-				Instruction::FuncCall(func_call, target.value(), new_term_info_id, std::move(args))
+				Instruction::FuncCall<false>(func_call, target.value(), new_term_info_id, std::move(args))
 			);
+
+			return new_term_info_id;
 		}
-		return new_term_info_id;
+
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::TemplatedExpr& templated_expr = ast_buffer.getTemplatedExpr(node);
 
-		const evo::Result<SymbolProc::TermInfoID> base_type = this->analyze_expr<IS_COMPTIME>(templated_expr.base);
+		const evo::Result<SymbolProc::TermInfoID> base_type = this->analyze_expr<IS_CONSTEXPR>(templated_expr.base);
 		if(base_type.isError()){ return evo::resultError; }
 
 		auto args = evo::SmallVector<evo::Variant<SymbolProc::TermInfoID, SymbolProc::TypeID>>();
@@ -942,7 +958,7 @@ namespace pcit::panther{
 		return created_base_term_info_id;
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_prefix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of prefix is unimplemented"
@@ -950,18 +966,18 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::Infix& infix = this->source.getASTBuffer().getInfix(node);
 
 		if(this->source.getTokenBuffer()[infix.opTokenID].kind() == Token::lookupKind(".")){
-			const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
+			const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
 			if(lhs.isError()){ return evo::resultError; }
 
 			const Token::ID rhs = this->source.getASTBuffer().getIdent(infix.rhs);
 
 			const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-			this->add_instruction(Instruction::Accessor<IS_COMPTIME>(infix, lhs.value(), rhs, new_term_info_id));
+			this->add_instruction(Instruction::Accessor<IS_CONSTEXPR>(infix, lhs.value(), rhs, new_term_info_id));
 			return new_term_info_id;
 		}
 
@@ -971,7 +987,7 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of postfix is unimplemented"
@@ -979,7 +995,7 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
 			Diagnostic::Code::MiscUnimplementedFeature, node, "Building symbol proc of new is unimplemented"
@@ -987,11 +1003,11 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			Instruction::Ident<IS_COMPTIME>(this->source.getASTBuffer().getIdent(node), new_term_info_id)
+			Instruction::Ident<IS_CONSTEXPR>(this->source.getASTBuffer().getIdent(node), new_term_info_id)
 		);
 		return new_term_info_id;
 	}

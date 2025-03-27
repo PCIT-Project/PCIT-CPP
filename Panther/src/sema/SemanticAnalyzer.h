@@ -73,6 +73,7 @@ namespace pcit::panther{
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
 			EVO_NODISCARD auto instr_func_def(const Instruction::FuncDef& instr) -> Result;
+			EVO_NODISCARD auto instr_func_constexpr_pir_ready_if_needed() -> Result;
 			EVO_NODISCARD auto instr_template_func(const Instruction::TemplateFunc& instr) -> Result;
 
 
@@ -81,7 +82,11 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
-			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
+
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall<IS_CONSTEXPR>& instr) -> Result;
+			EVO_NODISCARD auto instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result;
+
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
 			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait& instr)
@@ -116,7 +121,6 @@ namespace pcit::panther{
 
 			///////////////////////////////////
 			// misc
-
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto lookup_ident_impl(Token::ID ident) -> evo::Expected<TermInfo, Result>;
@@ -177,6 +181,11 @@ namespace pcit::panther{
 
 
 
+			EVO_NODISCARD auto expr_in_func_is_valid_value_stage(
+				const TermInfo& term_info, const auto& node_location
+			) -> bool;
+
+
 			///////////////////////////////////
 			// attributes
 
@@ -213,6 +222,8 @@ namespace pcit::panther{
 			auto propagate_finished_decl() -> void;
 			auto propagate_finished_def() -> void;
 			auto propagate_finished_decl_def() -> void;
+			auto propagate_finished_pir_lower() -> void;
+			auto propagate_finished_pir_ready() -> void;
 
 
 			///////////////////////////////////
@@ -417,7 +428,12 @@ namespace pcit::panther{
 				SymbolProc::ID sym_proc_id,
 				SymbolProc& sym_proc,
 				sema::ScopeManager::Scope& _scope
-			) : context(_context), source(_source), symbol_proc_id(sym_proc_id), symbol_proc(sym_proc), scope(_scope) {}
+			) : context(_context),
+				source(_source),
+				symbol_proc_id(sym_proc_id),
+				symbol_proc(sym_proc),
+				scope(_scope)
+			{}
 
 		private:
 			Context& context;
@@ -425,6 +441,7 @@ namespace pcit::panther{
 			SymbolProc::ID symbol_proc_id;
 			SymbolProc& symbol_proc;
 			sema::ScopeManager::Scope& scope;
+
 
 			friend class Attribute;
 			friend class ConditionalAttribute;

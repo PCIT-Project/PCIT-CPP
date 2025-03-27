@@ -32,7 +32,7 @@ namespace pthr{
 		unsigned num_threads = panther::Context::optimalNumThreads();
 		// unsigned num_threads = 0;
 
-		bool use_std_lib     = true;
+		bool use_std_lib     = false;
 	};
 
 

@@ -114,7 +114,9 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, WhileID>::UniqueID;
 	};
 
-	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {using core::UniqueID<uint32_t, FuncID>::UniqueID;};
+	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {
+		using core::UniqueID<uint32_t, FuncID>::UniqueID;
+	};
 
 	using Parent = evo::Variant<std::monostate, FuncID>;
 
@@ -141,4 +143,20 @@ namespace pcit::panther::sema{
 	};
 	
 }
+
+
+
+namespace std{
+
+
+	template<>
+	struct hash<pcit::panther::sema::FuncID>{
+		auto operator()(pcit::panther::sema::FuncID func_id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(func_id.get());
+		};
+	};
+	
+}
+
+
 

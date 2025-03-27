@@ -25,7 +25,7 @@ namespace pcit::panther{
 	static core::SpinLock wait_on_if_needed_lock{};
 	
 
-	EVO_NODISCARD auto SymbolProc::waitOnDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+	auto SymbolProc::waitOnDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 		
 		if(this->isDeclDone()){ return WaitOnResult::NotNeeded; }
@@ -37,7 +37,7 @@ namespace pcit::panther{
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
-		const auto lock = std::scoped_lock(this->def_waited_on_lock, waiting_symbol.waiting_for_lock);
+		const auto lock = std::scoped_lock(this->decl_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->decl_done){ return WaitOnResult::NotNeeded; }
 
@@ -47,7 +47,7 @@ namespace pcit::panther{
 		return WaitOnResult::Waiting;
 	}
 
-	EVO_NODISCARD auto SymbolProc::waitOnDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+	auto SymbolProc::waitOnDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
 		if(this->isDefDone()){ return WaitOnResult::NotNeeded; }
@@ -68,6 +68,46 @@ namespace pcit::panther{
 
 		return WaitOnResult::Waiting;
 	}
+
+
+
+	auto SymbolProc::waitOnPIRLowerIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
+
+		if(this->isPIRLowerDone()){ return WaitOnResult::NotNeeded; }
+		if(this->errored){ return WaitOnResult::WasErrored; }
+
+		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
+
+		const auto lock = std::scoped_lock(this->pir_lower_waited_on_lock, waiting_symbol.waiting_for_lock);
+
+		if(this->pir_lower_done){ return WaitOnResult::NotNeeded; }
+
+		this->pir_lower_waited_on_by.emplace_back(id);
+		waiting_symbol.waiting_for.emplace_back(self_id);
+
+		return WaitOnResult::Waiting;
+	}
+
+
+	auto SymbolProc::waitOnPIRReadyIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
+
+		if(this->isPIRReadyDone()){ return WaitOnResult::NotNeeded; }
+		if(this->errored){ return WaitOnResult::WasErrored; }
+
+		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
+
+		const auto lock = std::scoped_lock(this->pir_ready_waited_on_lock, waiting_symbol.waiting_for_lock);
+
+		if(this->pir_ready){ return WaitOnResult::NotNeeded; }
+
+		this->pir_ready_waited_on_by.emplace_back(id);
+		waiting_symbol.waiting_for.emplace_back(self_id);
+
+		return WaitOnResult::Waiting;
+	}
+
 
 
 	auto SymbolProc::detect_circular_dependency(ID id, Context& context) const -> bool {
@@ -96,7 +136,6 @@ namespace pcit::panther{
 						Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
 					)
 				);
-				evo::breakpoint();
 				return false;
 			}
 

@@ -9,6 +9,8 @@
 
 #include "./SemaToPIR.h"
 
+#include "../../include/Context.h"
+
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
@@ -19,31 +21,26 @@ namespace pcit::panther{
 	
 
 	auto SemaToPIR::lower() -> void {
-		this->structs.reserve(this->context.getTypeManager().structs.size());
 		for(uint32_t i = 0; i < this->context.getTypeManager().structs.size(); i+=1){
-			this->lower_struct(BaseType::Struct::ID(i));
+			this->lowerStruct(BaseType::Struct::ID(i));
 		}
 
-		this->global_vars.reserve(this->context.getSemaBuffer().numGlobalVars());
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
-			this->lower_global(global_var_id);
+			this->lowerGlobal(global_var_id);
 		}
 
-		this->funcs.reserve(this->context.getSemaBuffer().numFuncs());
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
-			this->lower_func_decl(func_id);
+			this->lowerFuncDecl(func_id);
 		}
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
-			this->lower_func_def(func_id);
+			this->lowerFuncDef(func_id);
 		}
 	}
 
 
 
-	auto SemaToPIR::lower_struct(const BaseType::Struct::ID struct_id) -> void {
-		evo::debugAssert(size_t(struct_id.get()) == this->structs.size(), "Struct isn't lining up");
+	auto SemaToPIR::lowerStruct(const BaseType::Struct::ID struct_id) -> void {
 		// const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
-
 
 		const pir::Type new_type = this->module.createStructType(
 			this->mangle_name(struct_id),
@@ -51,35 +48,29 @@ namespace pcit::panther{
 			false
 		);
 
-		this->structs.emplace_back(new_type);
+		this->data.create_struct(struct_id, new_type);
 	}
 
 
 
-	auto SemaToPIR::lower_global(const sema::GlobalVar::ID global_var_id) -> void {
-		evo::debugAssert(size_t(global_var_id.get()) == this->global_vars.size(), "Global Var isn't lining up");
+	auto SemaToPIR::lowerGlobal(const sema::GlobalVar::ID global_var_id) -> void {
 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 
-		if(global_var.kind == AST::VarDecl::Kind::Def){
-			this->global_vars.emplace_back();
-			return;
-		}
+		if(global_var.kind == AST::VarDecl::Kind::Def){ return; }
 
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
 			this->get_type(*global_var.typeID),
-			pcit::pir::Linkage::Private,
+			pir::Linkage::Private,
 			this->get_global_var_value(*global_var.expr.load()),
 			global_var.kind == AST::VarDecl::Kind::Const
 		);
 
-		this->global_vars.emplace_back(new_global_var);
+		this->data.create_global_var(global_var_id, new_global_var);
 	}
 
 
-	auto SemaToPIR::lower_func_decl(const sema::Func::ID func_id) -> void {
-		evo::debugAssert(size_t(func_id.get()) == this->funcs.size(), "Function isn't lining up");
-
+	auto SemaToPIR::lowerFuncDecl(const sema::Func::ID func_id) -> pir::Function::ID {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 		this->current_source = &this->context.getSourceManager()[func.sourceID];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
@@ -100,7 +91,7 @@ namespace pcit::panther{
 			EVO_DEFER([&](){ i += 1; });
 
 			std::string param_name = [&](){
-				if(this->config.useReadableNames == false){
+				if(this->data.getConfig().useReadableNames == false){
 					return std::format(".{}", params.size());
 				}else{
 					return std::string(this->current_source->getTokenBuffer()[func.params[i].ident].getString());
@@ -125,7 +116,7 @@ namespace pcit::panther{
 			for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams){
 				return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
 
-				if(this->config.useReadableNames){
+				if(this->data.getConfig().useReadableNames){
 					params.emplace_back(
 						std::format("RET.{}", this->current_source->getTokenBuffer()[*return_param.ident].getString()),
 						this->module.createPtrType()
@@ -138,7 +129,7 @@ namespace pcit::panther{
 		}else if(func_type.hasErrorReturn() && func_type.returnsVoid() == false){
 			return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
 
-			if(this->config.useReadableNames){
+			if(this->data.getConfig().useReadableNames){
 				params.emplace_back("RET", this->module.createPtrType());
 			}else{
 				params.emplace_back(std::format(".{}", params.size()), this->module.createPtrType());
@@ -151,7 +142,7 @@ namespace pcit::panther{
 				for(const BaseType::Function::ReturnParam& error_param : func_type.errorParams){
 					error_return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
 
-					if(this->config.useReadableNames){
+					if(this->data.getConfig().useReadableNames){
 						params.emplace_back(
 							std::format(
 								"ERR.{}", this->current_source->getTokenBuffer()[*error_param.ident].getString()
@@ -167,7 +158,7 @@ namespace pcit::panther{
 			}else{
 				error_return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
 
-				if(this->config.useReadableNames){
+				if(this->data.getConfig().useReadableNames){
 					params.emplace_back("ERR", this->module.createPtrType());
 				}else{
 					params.emplace_back(std::format(".{}", params.size()), this->module.createPtrType());
@@ -187,18 +178,23 @@ namespace pcit::panther{
 			}
 		}();
 
-		const pcit::pir::Function::ID new_func_id = module.createFunction(
+		const pir::Function::ID new_func_id = module.createFunction(
 			this->mangle_name(func_id),
 			std::move(params),
-			this->config.isJIT ? pir::CallingConvention::C : pir::CallingConvention::Fast,
-			this->config.isJIT ? pir::Linkage::External : pir::Linkage::Private,
+			this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::Fast,
+			this->data.getConfig().isJIT ? pir::Linkage::External : pir::Linkage::Private,
 			return_type
 		);
 
 		this->agent.setTargetFunction(new_func_id);
 
-		this->funcs.emplace_back(
-			new_func_id, return_type, std::move(arg_is_copy), std::move(return_params), std::move(error_return_params)
+		this->data.create_func(
+			func_id,
+			new_func_id, // first arg of FuncInfo construction
+			return_type,
+			std::move(arg_is_copy),
+			std::move(return_params),
+			std::move(error_return_params)
 		);
 
 
@@ -231,18 +227,21 @@ namespace pcit::panther{
 
 			this->agent.createBranch(begin_block);
 		}
+
+
+		return new_func_id;
 	}
 
 
 
-	auto SemaToPIR::lower_func_def(const sema::Func::ID func_id) -> void {
+	auto SemaToPIR::lowerFuncDef(const sema::Func::ID func_id) -> void {
 		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
 		this->current_source = &this->context.getSourceManager()[sema_func.sourceID];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
 
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
 
-		pir::Function& func = this->module.getFunction(this->funcs[func_id.get()].pir_id);
+		pir::Function& func = this->module.getFunction(this->data.get_func(func_id).pir_id);
 
 		this->agent.setTargetFunction(func);
 		this->agent.setTargetBasicBlockAtEnd();
@@ -272,7 +271,7 @@ namespace pcit::panther{
 					if(func_type.hasErrorReturn()){
 						if(return_stmt.value.has_value()){
 							this->agent.createStore(
-								this->funcs[func_id.get()].return_params.front(),
+								this->data.get_func(func_id).return_params.front(),
 								this->get_expr_register(*return_stmt.value),
 								false,
 								pir::AtomicOrdering::None
@@ -296,7 +295,7 @@ namespace pcit::panther{
 
 					if(error_stmt.value.has_value()){
 						this->agent.createStore(
-							this->funcs[func_id.get()].error_return_params.front(),
+							this->data.get_func(func_id).error_return_params.front(),
 							this->get_expr_register(*error_stmt.value),
 							false,
 							pir::AtomicOrdering::None
@@ -499,7 +498,7 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::FuncCall: {
 				const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(expr.funcCallID());
-				const FuncInfo target_func_info = this->funcs[func_call.target.as<sema::Func::ID>().get()];
+				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : func_call.args){
@@ -552,7 +551,7 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::GlobalVar: {
-				const pir::GlobalVar::ID pir_var_id = *this->global_vars[expr.globalVarID().get()];
+				const pir::GlobalVar::ID pir_var_id = this->data.get_global_var(expr.globalVarID());
 				
 				if constexpr(MODE == GetExprMode::Register){
 					const pir::GlobalVar& pir_var = this->module.getGlobalVar(pir_var_id);
@@ -761,7 +760,7 @@ namespace pcit::panther{
 		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 		const Source& source = this->context.getSourceManager()[struct_type.sourceID];
 
-		if(this->config.useReadableNames){
+		if(this->data.getConfig().useReadableNames){
 			return std::format(
 				"PTHR.s{}.{}", struct_id.get(), source.getTokenBuffer()[struct_type.identTokenID].getString()
 			);
@@ -775,7 +774,7 @@ namespace pcit::panther{
 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 		const Source& source = this->context.getSourceManager()[global_var.sourceID];
 
-		if(this->config.useReadableNames){
+		if(this->data.getConfig().useReadableNames){
 			return std::format(
 				"PTHR.v{}.{}", global_var_id.get(), source.getTokenBuffer()[global_var.ident].getString()
 			);
@@ -791,7 +790,7 @@ namespace pcit::panther{
 		const Source& source = this->context.getSourceManager()[func.sourceID];
 
 		if(func.name.kind() == AST::Kind::Ident){
-			if(this->config.useReadableNames){
+			if(this->data.getConfig().useReadableNames){
 				return std::format(
 					"PTHR.f{}.{}",
 					func_id.get(),
@@ -811,7 +810,7 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::name(std::string_view str) const -> std::string {
-		if(this->config.useReadableNames) [[unlikely]] {
+		if(this->data.getConfig().useReadableNames) [[unlikely]] {
 			return std::string(str);
 		}else{
 			return std::string();
@@ -821,7 +820,7 @@ namespace pcit::panther{
 
 	template<class... Args>
 	auto SemaToPIR::name(std::format_string<Args...> fmt, Args&&... args) const -> std::string {
-		if(this->config.useReadableNames) [[unlikely]] {
+		if(this->data.getConfig().useReadableNames) [[unlikely]] {
 			return std::format(fmt, std::forward<Args...>(args)...);
 		}else{
 			return std::string();

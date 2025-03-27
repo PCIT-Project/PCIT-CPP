@@ -20,8 +20,8 @@ namespace pcit::core{
 	//////////////////////////////////////////////////////////////////////
 	// 
 	// GenericValue
-	// 	There is purposely no way to check which value type is held as if GenericValue is being used you should know
-	// 	which type there is held
+	// 	 There is purposely no way to check which value type is held as if GenericValue is being used you should know
+	// 	 which type there is held
 	// 
 	//////////////////////////////////////////////////////////////////////
 

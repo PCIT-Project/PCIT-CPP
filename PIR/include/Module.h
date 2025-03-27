@@ -400,8 +400,8 @@ namespace pcit::pir{
 			}
 
 
-			using StructTypeIter = core::LinearStepAlloc<StructType, uint32_t>::Iter;
-			using StructTypeConstIter = core::LinearStepAlloc<StructType, uint32_t>::ConstIter;
+			using StructTypeIter = core::SyncLinearStepAlloc<StructType, uint32_t>::Iter;
+			using StructTypeConstIter = core::SyncLinearStepAlloc<StructType, uint32_t>::ConstIter;
 
 			EVO_NODISCARD auto getStructTypeIter() -> core::IterRange<StructTypeIter> {
 				return core::IterRange<StructTypeIter>(
@@ -520,9 +520,9 @@ namespace pcit::pir{
 			core::StepAlloc<BasicBlock, BasicBlock::ID> basic_blocks{};
 			core::StepAlloc<Number, uint32_t> numbers{};
 
-			core::LinearStepAlloc<ArrayType, uint32_t> array_types{};
-			core::LinearStepAlloc<StructType, uint32_t> struct_types{};
-			core::LinearStepAlloc<FunctionType, uint32_t> func_types{};
+			core::SyncLinearStepAlloc<ArrayType, uint32_t> array_types{};
+			core::SyncLinearStepAlloc<StructType, uint32_t> struct_types{};
+			core::SyncLinearStepAlloc<FunctionType, uint32_t> func_types{};
 
 			// exprs
 			core::StepAlloc<Call, uint32_t> calls{};

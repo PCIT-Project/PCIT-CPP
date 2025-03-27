@@ -12,6 +12,7 @@
 
 #include <Evo.h>
 #include <PCIT_core.h>
+#include <PIR.h>
 
 #include "../AST/AST.h"
 #include "../TypeManager.h"
@@ -208,6 +209,8 @@ namespace pcit::panther::sema{
 		SourceID sourceID;
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
+		SymbolProc& symbolProc;
+		SymbolProcID symbolProcID;
 		uint32_t minNumArgs; // TODO: make sure this optimization actually improves perf
 		bool isPub;
 		bool isConstexpr;
@@ -219,6 +222,8 @@ namespace pcit::panther::sema{
 
 		bool isTerminated = false;
 		std::atomic<bool> defCompleted = false;
+
+		std::optional<pir::Function::ID> pirID{};
 
 
 		EVO_NODISCARD auto isEquivalentOverload(const Func& rhs, const class panther::Context& context) const -> bool;

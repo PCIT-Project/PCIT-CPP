@@ -28,7 +28,14 @@ namespace pcit::core{
 	// Note: ID must inherit from UniqueID, or be an integral
 
 
-	template<class T, class ID, size_t STARTING_POW_OF_2 = get_optimal_start_pow_of_2_for_linear_step_alloc<T>()>
+	template<class T>
+	EVO_NODISCARD consteval auto get_optimal_start_pow_of_2_for_step_alloc() -> size_t {
+		const size_t num_bits = std::bit_ceil(std::hardware_destructive_interference_size / sizeof(std::optional<T>));
+		return std::max(size_t(2), size_t(std::countr_zero(num_bits)));
+	}
+
+
+	template<class T, class ID, size_t STARTING_POW_OF_2 = get_optimal_start_pow_of_2_for_step_alloc<T>()>
 	class StepAlloc{
 		public:
 			StepAlloc() = default;
@@ -308,8 +315,6 @@ namespace pcit::core{
 			LinearStepAlloc<std::optional<T>, ID, STARTING_POW_OF_2> linear_step_alloc{};
 			std::stack<ID> erased_elems{};
 			mutable core::SpinLock mutex{};
-
-			friend Iter;
 	};
 
 }

@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.94.0"></a>
+## v0.0.94.0
+
+### Panther
+- Added constexpr execution of functions
+- Added checks for proper value stages
+- Fixed 2 race conditions in semantic analysis
+
+### PIR
+- Added `Interpreter`
+
+### PCIT_core
+- Added `StepVector`
+
+
+<!---------------------------------->
 <a name="v0.0.93.0"></a>
 ## v0.0.93.0
 

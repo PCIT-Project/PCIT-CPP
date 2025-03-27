@@ -15,12 +15,14 @@
 
 #include <Evo.h>
 #include <PCIT_core.h>
+#include <PIR.h>
 
 #include "./source/SourceManager.h"
 #include "./Diagnostic.h"
 #include "./TypeManager.h"
 #include "../../src/symbol_proc/SymbolProcManager.h"
 #include "./sema/SemaBuffer.h"
+#include "../../src/sema_to_pir/SemaToPIR.h"
 
 
 namespace pcit::panther{
@@ -60,7 +62,15 @@ namespace pcit::panther{
 			Context(const DiagnosticCallback& diagnostic_callback, const Config& config)
 				: _diagnostic_callback(diagnostic_callback),
 				_config(config),
-				type_manager(config.os, config.architecture) {
+				type_manager(config.os, config.architecture),
+				constexpr_pir_module(evo::copy(config.title), config.os, config.architecture),
+				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
+					.useReadableNames   = false,
+					.checkedMath        = true,
+					.isJIT              = false,
+					.addSourceLocations = true,
+				})
+			{
 				evo::debugAssert(config.os != core::OS::Unknown, "OS must be known");
 				evo::debugAssert(config.architecture != core::Architecture::Unknown, "Architecture must be known");
 			}
@@ -68,7 +78,15 @@ namespace pcit::panther{
 			Context(DiagnosticCallback&& diagnostic_callback, const Config& config)
 				: _diagnostic_callback(std::move(diagnostic_callback)),
 				_config(config),
-				type_manager(config.os, config.architecture) {
+				type_manager(config.os, config.architecture),
+				constexpr_pir_module(evo::copy(config.title), config.os, config.architecture),
+				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
+					.useReadableNames   = false,
+					.checkedMath        = true,
+					.isJIT              = false,
+					.addSourceLocations = true,
+				})
+			{
 				evo::debugAssert(config.os != core::OS::Unknown, "OS must be known");
 				evo::debugAssert(config.architecture != core::Architecture::Unknown, "Architecture must be known");
 			}
@@ -286,6 +304,8 @@ namespace pcit::panther{
 			SymbolProcManager symbol_proc_manager{};
 			SemaBuffer sema_buffer{};
 
+			pir::Module constexpr_pir_module;
+			SemaToPIR::Data constexpr_sema_to_pir_data;
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

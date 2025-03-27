@@ -74,7 +74,7 @@ namespace pcit::panther{
 		// constructors
 
 		TermInfo(ValueCategory vc, ValueStage vs, evo::SmallVector<TypeInfo::ID>&& _type_id, const sema::Expr& _expr)
-			: value_category(vc), value_stage(vs), type_id(InitializerType()), expr{_expr} {
+			: value_category(vc), value_stage(vs), type_id(InitializerType()), exprs{_expr} {
 			evo::debugAssert(this->value_category == ValueCategory::Ephemeral);
 
 			// This is to get around the MSVC bug
@@ -82,14 +82,14 @@ namespace pcit::panther{
 		}
 
 		TermInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, const sema::Expr& _expr)
-			: value_category(vc), value_stage(vs), type_id(std::forward<decltype(_type_id)>(_type_id)), expr{_expr} {
+			: value_category(vc), value_stage(vs), type_id(std::forward<decltype(_type_id)>(_type_id)), exprs{_expr} {
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_single_expr_construction();
 			#endif
 		}
 
 		TermInfo(ValueCategory vc, ValueStage vs, const auto& _type_id, const sema::Expr& _expr)
-			: value_category(vc), value_stage(vs), type_id(_type_id), expr{_expr} {
+			: value_category(vc), value_stage(vs), type_id(_type_id), exprs{_expr} {
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_single_expr_construction();
 			#endif
@@ -97,7 +97,7 @@ namespace pcit::panther{
 
 
 		TermInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, std::nullopt_t)
-			: value_category(vc), value_stage(vs), type_id(std::forward<decltype(_type_id)>(_type_id)), expr() {
+			: value_category(vc), value_stage(vs), type_id(std::forward<decltype(_type_id)>(_type_id)), exprs() {
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_no_expr_construction();
 			#endif
@@ -105,13 +105,27 @@ namespace pcit::panther{
 
 
 		TermInfo(ValueCategory vc, ValueStage vs, const auto& _type_id, std::nullopt_t)
-			: value_category(vc), value_stage(vs), type_id(InitializerType()), expr() {
+			: value_category(vc), value_stage(vs), type_id(InitializerType()), exprs() {
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_no_expr_construction();
 			#endif
 
 			// This is to get around the MSVC bug
 			this->type_id.emplace<std::remove_cvref_t<decltype(_type_id)>>(_type_id);
+		}
+
+
+		TermInfo(
+			ValueCategory vc,
+			ValueStage vs,
+			evo::SmallVector<TypeInfo::ID>&& type_ids,
+			evo::SmallVector<sema::Expr>&& expr_list
+		)
+			: value_category(vc), value_stage(vs), type_id(InitializerType{}), exprs(std::move(expr_list)) {
+			// TODO: remove this and move directly into `type_id` when the MSVC bug is fixed
+			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(type_ids));
+
+			evo::debugAssert(this->value_category == ValueCategory::Ephemeral, "multi-expr must be multi-return");
 		}
 
 		
@@ -210,12 +224,12 @@ namespace pcit::panther{
 
 		EVO_NODISCARD auto getExpr() const -> const sema::Expr& {
 			evo::debugAssert(this->isSingleValue(), "does not hold expr value");
-			return *this->expr;
+			return this->exprs[0];
 		}
 
 		EVO_NODISCARD auto getExpr() -> sema::Expr& {
 			evo::debugAssert(this->isSingleValue(), "does not hold expr value");
-			return *this->expr;
+			return this->exprs[0];
 		}
 
 
@@ -228,7 +242,7 @@ namespace pcit::panther{
 
 		EVO_NODISCARD auto getModuleExpr() const -> const sema::Expr& {
 			evo::debugAssert(this->isModuleExpr(), "does not hold module");
-			return *this->expr;
+			return this->exprs[0];
 		}
 
 
@@ -239,14 +253,14 @@ namespace pcit::panther{
 			return this->type_id.is<evo::SmallVector<TypeInfo::ID>>();
 		}
 
-		EVO_NODISCARD auto getMultiExpr() const -> const sema::Expr& {
+		EVO_NODISCARD auto getMultiExpr() const -> const evo::SmallVector<sema::Expr>& {
 			evo::debugAssert(this->isMultiValue(), "does not hold expr value");
-			return *this->expr;
+			return this->exprs;
 		}
 
 
 		private:
-			std::optional<sema::Expr> expr; // empty if from ValueCategory::Module
+			evo::SmallVector<sema::Expr> exprs; // empty if from ValueCategory::Module
 	};
 	
 
