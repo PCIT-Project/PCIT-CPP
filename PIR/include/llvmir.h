@@ -18,11 +18,11 @@
 
 namespace pcit::pir{
 
-	auto lowerToLLVMIR(const class Module& module, OptMode opt_mode = OptMode::None) -> std::string;
+	auto lowerToLLVMIR(const class Module& module, OptMode opt_mode = OptMode::NONE) -> std::string;
 
-	auto lowerToAssembly(const class Module& module, OptMode opt_mode = OptMode::None) -> evo::Result<std::string>;
+	auto lowerToAssembly(const class Module& module, OptMode opt_mode = OptMode::NONE) -> evo::Result<std::string>;
 
-	auto lowerToObject(const class Module& module, OptMode opt_mode = OptMode::None)
+	auto lowerToObject(const class Module& module, OptMode opt_mode = OptMode::NONE)
 		-> evo::Result<std::vector<evo::byte>>;
 
 }

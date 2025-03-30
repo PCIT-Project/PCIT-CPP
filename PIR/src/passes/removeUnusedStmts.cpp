@@ -42,96 +42,96 @@ namespace pcit::pir::passes{
 
 			auto see_expr = [&](const Expr& expr) -> void {
 				switch(expr.kind()){
-					break; case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
-					break; case Expr::Kind::GlobalValue:     break;
-					break; case Expr::Kind::FunctionPointer: break;
-					break; case Expr::Kind::Number:          break;
-					break; case Expr::Kind::Boolean:         break;
-					break; case Expr::Kind::ParamExpr:       break;
-					break; case Expr::Kind::Call:            func_metadata.emplace(expr);
-					break; case Expr::Kind::CallVoid:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Breakpoint:      evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Ret:             evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Branch:          evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::CondBranch:      evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Unreachable:     evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::Alloca:          func_metadata.emplace(expr);
-					break; case Expr::Kind::Load:            func_metadata.emplace(expr);
-					break; case Expr::Kind::Store:           evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::CalcPtr:         func_metadata.emplace(expr);
-					break; case Expr::Kind::Memcpy:          func_metadata.emplace(expr);
-					break; case Expr::Kind::Memset:          func_metadata.emplace(expr);
-					break; case Expr::Kind::BitCast:         func_metadata.emplace(expr);
-					break; case Expr::Kind::Trunc:           func_metadata.emplace(expr);
-					break; case Expr::Kind::FTrunc:          func_metadata.emplace(expr);
-					break; case Expr::Kind::SExt:            func_metadata.emplace(expr);
-					break; case Expr::Kind::ZExt:            func_metadata.emplace(expr);
-					break; case Expr::Kind::FExt:            func_metadata.emplace(expr);
-					break; case Expr::Kind::IToF:            func_metadata.emplace(expr);
-					break; case Expr::Kind::UIToF:           func_metadata.emplace(expr);
-					break; case Expr::Kind::FToI:            func_metadata.emplace(expr);
-					break; case Expr::Kind::FToUI:           func_metadata.emplace(expr);
-					break; case Expr::Kind::Add:             func_metadata.emplace(expr);
-					break; case Expr::Kind::SAddWrap:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::SAddWrapResult:  func_metadata.emplace(expr);
-					break; case Expr::Kind::SAddWrapWrapped: func_metadata.emplace(expr);
-					break; case Expr::Kind::UAddWrap:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::UAddWrapResult:  func_metadata.emplace(expr);
-					break; case Expr::Kind::UAddWrapWrapped: func_metadata.emplace(expr);
-					break; case Expr::Kind::SAddSat:         func_metadata.emplace(expr);
-					break; case Expr::Kind::UAddSat:         func_metadata.emplace(expr);
-					break; case Expr::Kind::FAdd:            func_metadata.emplace(expr);
-					break; case Expr::Kind::Sub:             func_metadata.emplace(expr);
-					break; case Expr::Kind::SSubWrap:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::SSubWrapResult:  func_metadata.emplace(expr);
-					break; case Expr::Kind::SSubWrapWrapped: func_metadata.emplace(expr);
-					break; case Expr::Kind::USubWrap:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::USubWrapResult:  func_metadata.emplace(expr);
-					break; case Expr::Kind::USubWrapWrapped: func_metadata.emplace(expr);
-					break; case Expr::Kind::SSubSat:         func_metadata.emplace(expr);
-					break; case Expr::Kind::USubSat:         func_metadata.emplace(expr);
-					break; case Expr::Kind::FSub:            func_metadata.emplace(expr);
-					break; case Expr::Kind::Mul:             func_metadata.emplace(expr);
-					break; case Expr::Kind::SMulWrap:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::SMulWrapResult:  func_metadata.emplace(expr);
-					break; case Expr::Kind::SMulWrapWrapped: func_metadata.emplace(expr);
-					break; case Expr::Kind::UMulWrap:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::UMulWrapResult:  func_metadata.emplace(expr);
-					break; case Expr::Kind::UMulWrapWrapped: func_metadata.emplace(expr);
-					break; case Expr::Kind::SMulSat:         func_metadata.emplace(expr);
-					break; case Expr::Kind::UMulSat:         func_metadata.emplace(expr);
-					break; case Expr::Kind::FMul:            func_metadata.emplace(expr);
-					break; case Expr::Kind::SDiv:            func_metadata.emplace(expr);
-					break; case Expr::Kind::UDiv:            func_metadata.emplace(expr);
-					break; case Expr::Kind::FDiv:            func_metadata.emplace(expr);
-					break; case Expr::Kind::SRem:            func_metadata.emplace(expr);
-					break; case Expr::Kind::URem:            func_metadata.emplace(expr);
-					break; case Expr::Kind::FRem:            func_metadata.emplace(expr);
-					break; case Expr::Kind::FNeg:            func_metadata.emplace(expr);
-					break; case Expr::Kind::IEq:             func_metadata.emplace(expr);
-					break; case Expr::Kind::FEq:             func_metadata.emplace(expr);
-					break; case Expr::Kind::INeq:            func_metadata.emplace(expr);
-					break; case Expr::Kind::FNeq:            func_metadata.emplace(expr);
-					break; case Expr::Kind::SLT:             func_metadata.emplace(expr);
-					break; case Expr::Kind::ULT:             func_metadata.emplace(expr);
-					break; case Expr::Kind::FLT:             func_metadata.emplace(expr);
-					break; case Expr::Kind::SLTE:            func_metadata.emplace(expr);
-					break; case Expr::Kind::ULTE:            func_metadata.emplace(expr);
-					break; case Expr::Kind::FLTE:            func_metadata.emplace(expr);
-					break; case Expr::Kind::SGT:             func_metadata.emplace(expr);
-					break; case Expr::Kind::UGT:             func_metadata.emplace(expr);
-					break; case Expr::Kind::FGT:             func_metadata.emplace(expr);
-					break; case Expr::Kind::SGTE:            func_metadata.emplace(expr);
-					break; case Expr::Kind::UGTE:            func_metadata.emplace(expr);
-					break; case Expr::Kind::FGTE:            func_metadata.emplace(expr);
-					break; case Expr::Kind::And:             func_metadata.emplace(expr);
-					break; case Expr::Kind::Or:              func_metadata.emplace(expr);
-					break; case Expr::Kind::Xor:             func_metadata.emplace(expr);
-					break; case Expr::Kind::SHL:             func_metadata.emplace(expr);
-					break; case Expr::Kind::SSHLSat:         func_metadata.emplace(expr);
-					break; case Expr::Kind::USHLSat:         func_metadata.emplace(expr);
-					break; case Expr::Kind::SSHR:            func_metadata.emplace(expr);
-					break; case Expr::Kind::USHR:            func_metadata.emplace(expr);
+					break; case Expr::Kind::NONE:              evo::debugFatalBreak("Invalid expr");
+					break; case Expr::Kind::GLOBAL_VALUE:      break;
+					break; case Expr::Kind::FUNCTION_POINTER:  break;
+					break; case Expr::Kind::NUMBER:            break;
+					break; case Expr::Kind::BOOLEAN:           break;
+					break; case Expr::Kind::PARAM_EXPR:        break;
+					break; case Expr::Kind::CALL:              func_metadata.emplace(expr);
+					break; case Expr::Kind::CALL_VOID:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::BREAKPOINT:        evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::RET:               evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::BRANCH:            evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::COND_BRANCH:       evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::UNREACHABLE:       evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::ALLOCA:            func_metadata.emplace(expr);
+					break; case Expr::Kind::LOAD:              func_metadata.emplace(expr);
+					break; case Expr::Kind::STORE:             evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::CALC_PTR:          func_metadata.emplace(expr);
+					break; case Expr::Kind::MEMCPY:            func_metadata.emplace(expr);
+					break; case Expr::Kind::MEMSET:            func_metadata.emplace(expr);
+					break; case Expr::Kind::BIT_CAST:          func_metadata.emplace(expr);
+					break; case Expr::Kind::TRUNC:             func_metadata.emplace(expr);
+					break; case Expr::Kind::FTRUNC:            func_metadata.emplace(expr);
+					break; case Expr::Kind::SEXT:              func_metadata.emplace(expr);
+					break; case Expr::Kind::ZEXT:              func_metadata.emplace(expr);
+					break; case Expr::Kind::FEXT:              func_metadata.emplace(expr);
+					break; case Expr::Kind::ITOF:              func_metadata.emplace(expr);
+					break; case Expr::Kind::UITOF:             func_metadata.emplace(expr);
+					break; case Expr::Kind::FTOI:              func_metadata.emplace(expr);
+					break; case Expr::Kind::FTOUI:             func_metadata.emplace(expr);
+					break; case Expr::Kind::ADD:               func_metadata.emplace(expr);
+					break; case Expr::Kind::SADD_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::SADD_WRAP_RESULT:  func_metadata.emplace(expr);
+					break; case Expr::Kind::SADD_WRAP_WRAPPED: func_metadata.emplace(expr);
+					break; case Expr::Kind::UADD_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::UADD_WRAP_RESULT:  func_metadata.emplace(expr);
+					break; case Expr::Kind::UADD_WRAP_WRAPPED: func_metadata.emplace(expr);
+					break; case Expr::Kind::SADD_SAT:          func_metadata.emplace(expr);
+					break; case Expr::Kind::UADD_SAT:          func_metadata.emplace(expr);
+					break; case Expr::Kind::FADD:              func_metadata.emplace(expr);
+					break; case Expr::Kind::SUB:               func_metadata.emplace(expr);
+					break; case Expr::Kind::SSUB_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::SSUB_WRAP_RESULT:  func_metadata.emplace(expr);
+					break; case Expr::Kind::SSUB_WRAP_WRAPPED: func_metadata.emplace(expr);
+					break; case Expr::Kind::USUB_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::USUB_WRAP_RESULT:  func_metadata.emplace(expr);
+					break; case Expr::Kind::USUB_WRAP_WRAPPED: func_metadata.emplace(expr);
+					break; case Expr::Kind::SSUB_SAT:          func_metadata.emplace(expr);
+					break; case Expr::Kind::USUB_SAT:          func_metadata.emplace(expr);
+					break; case Expr::Kind::FSUB:              func_metadata.emplace(expr);
+					break; case Expr::Kind::MUL:               func_metadata.emplace(expr);
+					break; case Expr::Kind::SMUL_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::SMUL_WRAP_RESULT:  func_metadata.emplace(expr);
+					break; case Expr::Kind::SMUL_WRAP_WRAPPED: func_metadata.emplace(expr);
+					break; case Expr::Kind::UMUL_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::UMUL_WRAP_RESULT:  func_metadata.emplace(expr);
+					break; case Expr::Kind::UMUL_WRAP_WRAPPED: func_metadata.emplace(expr);
+					break; case Expr::Kind::SMUL_SAT:          func_metadata.emplace(expr);
+					break; case Expr::Kind::UMUL_SAT:          func_metadata.emplace(expr);
+					break; case Expr::Kind::FMUL:              func_metadata.emplace(expr);
+					break; case Expr::Kind::SDIV:              func_metadata.emplace(expr);
+					break; case Expr::Kind::UDIV:              func_metadata.emplace(expr);
+					break; case Expr::Kind::FDIV:              func_metadata.emplace(expr);
+					break; case Expr::Kind::SREM:              func_metadata.emplace(expr);
+					break; case Expr::Kind::UREM:              func_metadata.emplace(expr);
+					break; case Expr::Kind::FREM:              func_metadata.emplace(expr);
+					break; case Expr::Kind::FNEG:              func_metadata.emplace(expr);
+					break; case Expr::Kind::IEQ:               func_metadata.emplace(expr);
+					break; case Expr::Kind::FEQ:               func_metadata.emplace(expr);
+					break; case Expr::Kind::INEQ:              func_metadata.emplace(expr);
+					break; case Expr::Kind::FNEQ:              func_metadata.emplace(expr);
+					break; case Expr::Kind::SLT:               func_metadata.emplace(expr);
+					break; case Expr::Kind::ULT:               func_metadata.emplace(expr);
+					break; case Expr::Kind::FLT:               func_metadata.emplace(expr);
+					break; case Expr::Kind::SLTE:              func_metadata.emplace(expr);
+					break; case Expr::Kind::ULTE:              func_metadata.emplace(expr);
+					break; case Expr::Kind::FLTE:              func_metadata.emplace(expr);
+					break; case Expr::Kind::SGT:               func_metadata.emplace(expr);
+					break; case Expr::Kind::UGT:               func_metadata.emplace(expr);
+					break; case Expr::Kind::FGT:               func_metadata.emplace(expr);
+					break; case Expr::Kind::SGTE:              func_metadata.emplace(expr);
+					break; case Expr::Kind::UGTE:              func_metadata.emplace(expr);
+					break; case Expr::Kind::FGTE:              func_metadata.emplace(expr);
+					break; case Expr::Kind::AND:               func_metadata.emplace(expr);
+					break; case Expr::Kind::OR:                func_metadata.emplace(expr);
+					break; case Expr::Kind::XOR:               func_metadata.emplace(expr);
+					break; case Expr::Kind::SHL:               func_metadata.emplace(expr);
+					break; case Expr::Kind::SSHL_SAT:          func_metadata.emplace(expr);
+					break; case Expr::Kind::USHL_SAT:          func_metadata.emplace(expr);
+					break; case Expr::Kind::SSHR:              func_metadata.emplace(expr);
+					break; case Expr::Kind::USHR:              func_metadata.emplace(expr);
 				}
 			};
 
@@ -145,14 +145,14 @@ namespace pcit::pir::passes{
 			};
 
 			switch(stmt.kind()){
-				case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
-				case Expr::Kind::GlobalValue:     return false;
-				case Expr::Kind::FunctionPointer: return false;
-				case Expr::Kind::Number:          return false;
-				case Expr::Kind::Boolean:         return false;
-				case Expr::Kind::ParamExpr:       return false;
+				case Expr::Kind::NONE:            evo::debugFatalBreak("Invalid expr");
+				case Expr::Kind::GLOBAL_VALUE:     return false;
+				case Expr::Kind::FUNCTION_POINTER: return false;
+				case Expr::Kind::NUMBER:          return false;
+				case Expr::Kind::BOOLEAN:         return false;
+				case Expr::Kind::PARAM_EXPR:       return false;
 
-				case Expr::Kind::Call: {
+				case Expr::Kind::CALL: {
 					// TODO: remove if func has no side-effects
 					// if(remove_unused_stmt(stmt)){ return true; }
 
@@ -169,7 +169,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::CallVoid: {
+				case Expr::Kind::CALL_VOID: {
 					const CallVoid& call_void_inst = agent.getCallVoid(stmt);
 
 					if(call_void_inst.target.is<PtrCall>()){
@@ -183,9 +183,9 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::Breakpoint: return false;
+				case Expr::Kind::BREAKPOINT: return false;
 
-				case Expr::Kind::Ret: {
+				case Expr::Kind::RET: {
 					const Ret& ret_inst = agent.getRet(stmt);
 
 					if(ret_inst.value.has_value()){
@@ -195,18 +195,18 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::Branch:      return false;
-				case Expr::Kind::CondBranch:  return false;
-				case Expr::Kind::Unreachable: return false;
+				case Expr::Kind::BRANCH:      return false;
+				case Expr::Kind::COND_BRANCH:  return false;
+				case Expr::Kind::UNREACHABLE: return false;
 
-				case Expr::Kind::Alloca: {
+				case Expr::Kind::ALLOCA: {
 					if(remove_unused_stmt()){ return true; }
 
 					return false;
 				} break;
 
 
-				case Expr::Kind::Load: {
+				case Expr::Kind::LOAD: {
 					if(remove_unused_stmt()){ return true; }
 
 					const Load& load = agent.getLoad(stmt);
@@ -215,7 +215,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::Store: {
+				case Expr::Kind::STORE: {
 					const Store& store = agent.getStore(stmt);
 					see_expr(store.destination);
 					see_expr(store.value);
@@ -223,7 +223,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::CalcPtr: {
+				case Expr::Kind::CALC_PTR: {
 					if(remove_unused_stmt()){ return true; }
 
 					const CalcPtr& calc_ptr = agent.getCalcPtr(stmt);
@@ -237,14 +237,14 @@ namespace pcit::pir::passes{
 				} break;
 
 
-				case Expr::Kind::Memcpy: {
+				case Expr::Kind::MEMCPY: {
 					const Memcpy& memcpy = agent.getMemcpy(stmt);
 					see_expr(memcpy.dst);
 					see_expr(memcpy.src);
 					see_expr(memcpy.numBytes);
 				} break;
 
-				case Expr::Kind::Memset: {
+				case Expr::Kind::MEMSET: {
 					const Memset& memset = agent.getMemset(stmt);
 					see_expr(memset.dst);
 					see_expr(memset.value);
@@ -252,70 +252,70 @@ namespace pcit::pir::passes{
 				} break;
 
 
-				case Expr::Kind::BitCast: {
+				case Expr::Kind::BIT_CAST: {
 					if(remove_unused_stmt()){ return true; }
 
 					const BitCast& bitcast = agent.getBitCast(stmt);
 					see_expr(bitcast.fromValue);
 				} break;
 
-				case Expr::Kind::Trunc: {
+				case Expr::Kind::TRUNC: {
 					if(remove_unused_stmt()){ return true; }
 
 					const Trunc& trunc = agent.getTrunc(stmt);
 					see_expr(trunc.fromValue);
 				} break;
 
-				case Expr::Kind::FTrunc: {
+				case Expr::Kind::FTRUNC: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FTrunc& ftrunc = agent.getFTrunc(stmt);
 					see_expr(ftrunc.fromValue);
 				} break;
 
-				case Expr::Kind::SExt: {
+				case Expr::Kind::SEXT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const SExt& sext = agent.getSExt(stmt);
 					see_expr(sext.fromValue);
 				} break;
 
-				case Expr::Kind::ZExt: {
+				case Expr::Kind::ZEXT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const ZExt& zext = agent.getZExt(stmt);
 					see_expr(zext.fromValue);
 				} break;
 
-				case Expr::Kind::FExt: {
+				case Expr::Kind::FEXT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FExt& fext = agent.getFExt(stmt);
 					see_expr(fext.fromValue);
 				} break;
 
-				case Expr::Kind::IToF: {
+				case Expr::Kind::ITOF: {
 					if(remove_unused_stmt()){ return true; }
 
 					const IToF& itof = agent.getIToF(stmt);
 					see_expr(itof.fromValue);
 				} break;
 
-				case Expr::Kind::UIToF: {
+				case Expr::Kind::UITOF: {
 					if(remove_unused_stmt()){ return true; }
 
 					const UIToF& uitof = agent.getUIToF(stmt);
 					see_expr(uitof.fromValue);
 				} break;
 
-				case Expr::Kind::FToI: {
+				case Expr::Kind::FTOI: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FToI& ftoi = agent.getFToI(stmt);
 					see_expr(ftoi.fromValue);
 				} break;
 
-				case Expr::Kind::FToUI: {
+				case Expr::Kind::FTOUI: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FToUI& ftoui = agent.getFToUI(stmt);
@@ -323,7 +323,7 @@ namespace pcit::pir::passes{
 				} break;
 
 
-				case Expr::Kind::Add: {
+				case Expr::Kind::ADD: {
 					if(remove_unused_stmt()){ return true; }
 
 					const Add& add = agent.getAdd(stmt);
@@ -333,7 +333,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::SAddWrap: {
+				case Expr::Kind::SADD_WRAP: {
 					if(func_metadata.contains(agent.extractSAddWrapWrapped(stmt)) == false){
 						if(func_metadata.contains(agent.extractSAddWrapResult(stmt)) == false){
 							agent.removeStmt(stmt);
@@ -360,10 +360,10 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::SAddWrapResult:  return false;
-				case Expr::Kind::SAddWrapWrapped: return false;
+				case Expr::Kind::SADD_WRAP_RESULT:  return false;
+				case Expr::Kind::SADD_WRAP_WRAPPED: return false;
 
-				case Expr::Kind::UAddWrap: {
+				case Expr::Kind::UADD_WRAP: {
 					if(func_metadata.contains(agent.extractUAddWrapWrapped(stmt)) == false){
 						if(func_metadata.contains(agent.extractUAddWrapResult(stmt)) == false){
 							agent.removeStmt(stmt);
@@ -390,10 +390,10 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::UAddWrapResult:  return false;
-				case Expr::Kind::UAddWrapWrapped: return false;
+				case Expr::Kind::UADD_WRAP_RESULT:  return false;
+				case Expr::Kind::UADD_WRAP_WRAPPED: return false;
 
-				case Expr::Kind::SAddSat: {
+				case Expr::Kind::SADD_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const SAddSat& sadd_sat = agent.getSAddSat(stmt);
@@ -403,7 +403,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::UAddSat: {
+				case Expr::Kind::UADD_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const UAddSat& uadd_sat = agent.getUAddSat(stmt);
@@ -413,7 +413,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FAdd: {
+				case Expr::Kind::FADD: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FAdd& fadd = agent.getFAdd(stmt);
@@ -424,7 +424,7 @@ namespace pcit::pir::passes{
 				} break;
 
 
-				case Expr::Kind::Sub: {
+				case Expr::Kind::SUB: {
 					if(remove_unused_stmt()){ return true; }
 
 					const Sub& sub = agent.getSub(stmt);
@@ -434,7 +434,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::SSubWrap: {
+				case Expr::Kind::SSUB_WRAP: {
 					if(func_metadata.contains(agent.extractSSubWrapWrapped(stmt)) == false){
 						if(func_metadata.contains(agent.extractSSubWrapResult(stmt)) == false){
 							agent.removeStmt(stmt);
@@ -461,10 +461,10 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::SSubWrapResult:  return false;
-				case Expr::Kind::SSubWrapWrapped: return false;
+				case Expr::Kind::SSUB_WRAP_RESULT:  return false;
+				case Expr::Kind::SSUB_WRAP_WRAPPED: return false;
 
-				case Expr::Kind::USubWrap: {
+				case Expr::Kind::USUB_WRAP: {
 					if(func_metadata.contains(agent.extractUSubWrapWrapped(stmt)) == false){
 						if(func_metadata.contains(agent.extractUSubWrapResult(stmt)) == false){
 							agent.removeStmt(stmt);
@@ -491,10 +491,10 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::USubWrapResult:  return false;
-				case Expr::Kind::USubWrapWrapped: return false;
+				case Expr::Kind::USUB_WRAP_RESULT:  return false;
+				case Expr::Kind::USUB_WRAP_WRAPPED: return false;
 
-				case Expr::Kind::SSubSat: {
+				case Expr::Kind::SSUB_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const SSubSat& ssub_sat = agent.getSSubSat(stmt);
@@ -504,7 +504,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::USubSat: {
+				case Expr::Kind::USUB_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const USubSat& usub_sat = agent.getUSubSat(stmt);
@@ -514,7 +514,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FSub: {
+				case Expr::Kind::FSUB: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FSub& fsub = agent.getFSub(stmt);
@@ -525,7 +525,7 @@ namespace pcit::pir::passes{
 				} break;
 
 
-				case Expr::Kind::Mul: {
+				case Expr::Kind::MUL: {
 					if(remove_unused_stmt()){ return true; }
 
 					const Mul& mul = agent.getMul(stmt);
@@ -535,7 +535,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::SMulWrap: {
+				case Expr::Kind::SMUL_WRAP: {
 					if(func_metadata.contains(agent.extractSMulWrapWrapped(stmt)) == false){
 						if(func_metadata.contains(agent.extractSMulWrapResult(stmt)) == false){
 							agent.removeStmt(stmt);
@@ -562,10 +562,10 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::SMulWrapResult:  return false;
-				case Expr::Kind::SMulWrapWrapped: return false;
+				case Expr::Kind::SMUL_WRAP_RESULT:  return false;
+				case Expr::Kind::SMUL_WRAP_WRAPPED: return false;
 
-				case Expr::Kind::UMulWrap: {
+				case Expr::Kind::UMUL_WRAP: {
 					if(func_metadata.contains(agent.extractUMulWrapWrapped(stmt)) == false){
 						if(func_metadata.contains(agent.extractUMulWrapResult(stmt)) == false){
 							agent.removeStmt(stmt);
@@ -592,10 +592,10 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::UMulWrapResult:  return false;
-				case Expr::Kind::UMulWrapWrapped: return false;
+				case Expr::Kind::UMUL_WRAP_RESULT:  return false;
+				case Expr::Kind::UMUL_WRAP_WRAPPED: return false;
 
-				case Expr::Kind::SMulSat: {
+				case Expr::Kind::SMUL_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const SMulSat& smul_sat = agent.getSMulSat(stmt);
@@ -605,7 +605,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::UMulSat: {
+				case Expr::Kind::UMUL_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const UMulSat& umul_sat = agent.getUMulSat(stmt);
@@ -615,7 +615,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FMul: {
+				case Expr::Kind::FMUL: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FMul& fmul = agent.getFMul(stmt);
@@ -625,7 +625,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::SDiv: {
+				case Expr::Kind::SDIV: {
 					if(remove_unused_stmt()){ return true; }
 
 					const SDiv& sdiv = agent.getSDiv(stmt);
@@ -635,7 +635,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::UDiv: {
+				case Expr::Kind::UDIV: {
 					if(remove_unused_stmt()){ return true; }
 
 					const UDiv udiv = agent.getUDiv(stmt);
@@ -645,7 +645,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FDiv: {
+				case Expr::Kind::FDIV: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FDiv& fdiv = agent.getFDiv(stmt);
@@ -656,7 +656,7 @@ namespace pcit::pir::passes{
 				} break;
 
 
-				case Expr::Kind::SRem: {
+				case Expr::Kind::SREM: {
 					if(remove_unused_stmt()){ return true; }
 
 					const SRem& srem = agent.getSRem(stmt);
@@ -666,7 +666,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::URem: {
+				case Expr::Kind::UREM: {
 					if(remove_unused_stmt()){ return true; }
 
 					const URem urem = agent.getURem(stmt);
@@ -676,7 +676,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FRem: {
+				case Expr::Kind::FREM: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FRem& frem = agent.getFRem(stmt);
@@ -686,7 +686,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FNeg: {
+				case Expr::Kind::FNEG: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FNeg& fneg = agent.getFNeg(stmt);
@@ -695,7 +695,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::IEq: {
+				case Expr::Kind::IEQ: {
 					if(remove_unused_stmt()){ return true; }
 
 					const IEq& ieq = agent.getIEq(stmt);
@@ -705,7 +705,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FEq: {
+				case Expr::Kind::FEQ: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FEq& feq = agent.getFEq(stmt);
@@ -715,7 +715,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::INeq: {
+				case Expr::Kind::INEQ: {
 					if(remove_unused_stmt()){ return true; }
 
 					const INeq& ineq = agent.getINeq(stmt);
@@ -725,7 +725,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::FNeq: {
+				case Expr::Kind::FNEQ: {
 					if(remove_unused_stmt()){ return true; }
 
 					const FNeq& fneq = agent.getFNeq(stmt);
@@ -855,7 +855,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::And: {
+				case Expr::Kind::AND: {
 					if(remove_unused_stmt()){ return true; }
 
 					const And& and_stmt = agent.getAnd(stmt);
@@ -865,7 +865,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::Or: {
+				case Expr::Kind::OR: {
 					if(remove_unused_stmt()){ return true; }
 
 					const Or& or_stmt = agent.getOr(stmt);
@@ -875,7 +875,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::Xor: {
+				case Expr::Kind::XOR: {
 					if(remove_unused_stmt()){ return true; }
 
 					const Xor& xor_stmt = agent.getXor(stmt);
@@ -895,7 +895,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::SSHLSat: {
+				case Expr::Kind::SSHL_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const SSHLSat& sshlsat = agent.getSSHLSat(stmt);
@@ -905,7 +905,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::USHLSat: {
+				case Expr::Kind::USHL_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
 					const USHLSat& ushlsat = agent.getUSHLSat(stmt);

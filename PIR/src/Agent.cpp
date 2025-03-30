@@ -135,15 +135,15 @@ namespace pcit::pir{
 				}
 
 				switch(stmt.kind()){
-					case Expr::Kind::None: evo::debugFatalBreak("Invalid stmt");
+					case Expr::Kind::NONE: evo::debugFatalBreak("Invalid stmt");
 					
-					case Expr::Kind::GlobalValue:     continue;
-					case Expr::Kind::FunctionPointer: continue;
-					case Expr::Kind::Number:          continue;
-					case Expr::Kind::Boolean:         continue;
-					case Expr::Kind::ParamExpr:       continue;
+					case Expr::Kind::GLOBAL_VALUE:     continue;
+					case Expr::Kind::FUNCTION_POINTER: continue;
+					case Expr::Kind::NUMBER:          continue;
+					case Expr::Kind::BOOLEAN:         continue;
+					case Expr::Kind::PARAM_EXPR:       continue;
 					
-					case Expr::Kind::Call: {
+					case Expr::Kind::CALL: {
 						Call& call_inst = this->module.calls[stmt.index];
 
 						if(call_inst.target.is<PtrCall>() && call_inst.target.as<PtrCall>().location == original){
@@ -155,7 +155,7 @@ namespace pcit::pir{
 						}
 					} break;
 					
-					case Expr::Kind::CallVoid: {
+					case Expr::Kind::CALL_VOID: {
 						CallVoid& call_void_inst = this->module.call_voids[stmt.index];
 
 						if(
@@ -170,9 +170,9 @@ namespace pcit::pir{
 						}
 					} break;
 
-					case Expr::Kind::Breakpoint: continue;
+					case Expr::Kind::BREAKPOINT: continue;
 	
-					case Expr::Kind::Ret: {
+					case Expr::Kind::RET: {
 						Ret& ret_inst = this->module.rets[stmt.index];
 
 						if(ret_inst.value.has_value() && *ret_inst.value == original){
@@ -180,31 +180,31 @@ namespace pcit::pir{
 						}
 					} break;
 					
-					case Expr::Kind::Branch: continue;
+					case Expr::Kind::BRANCH: continue;
 
-					case Expr::Kind::CondBranch: {
+					case Expr::Kind::COND_BRANCH: {
 						CondBranch& cond_branch = this->module.cond_branches[stmt.index];
 
 						if(cond_branch.cond == original){ cond_branch.cond = replacement; }
 					} break;
 
-					case Expr::Kind::Unreachable: continue;
-					case Expr::Kind::Alloca:      continue;
+					case Expr::Kind::UNREACHABLE: continue;
+					case Expr::Kind::ALLOCA:      continue;
 
-					case Expr::Kind::Load: {
+					case Expr::Kind::LOAD: {
 						Load& load = this->module.loads[stmt.index];
 
 						if(load.source == original){ load.source = replacement; }
 					} break;
 
-					case Expr::Kind::Store: {
+					case Expr::Kind::STORE: {
 						Store& store = this->module.stores[stmt.index];
 
 						if(store.destination == original){ store.destination = replacement; }
 						if(store.value == original){ store.value = replacement; }
 					} break;
 
-					case Expr::Kind::CalcPtr: {
+					case Expr::Kind::CALC_PTR: {
 						CalcPtr& calc_ptr = this->module.calc_ptrs[stmt.index];
 
 						if(calc_ptr.basePtr == original){
@@ -216,7 +216,7 @@ namespace pcit::pir{
 						}
 					} break;
 
-					case Expr::Kind::Memcpy: {
+					case Expr::Kind::MEMCPY: {
 						Memcpy& memcpy = this->module.memcpys[stmt.index];
 
 						if(memcpy.dst == original){ memcpy.dst = replacement; }
@@ -224,7 +224,7 @@ namespace pcit::pir{
 						if(memcpy.numBytes == original){ memcpy.numBytes = replacement; }
 					} break;
 
-					case Expr::Kind::Memset: {
+					case Expr::Kind::MEMSET: {
 						Memset& memset = this->module.memsets[stmt.index];
 
 						if(memset.dst == original){ memset.dst = replacement; }
@@ -232,99 +232,99 @@ namespace pcit::pir{
 						if(memset.numBytes == original){ memset.numBytes = replacement; }
 					} break;
 
-					case Expr::Kind::BitCast: {
+					case Expr::Kind::BIT_CAST: {
 						BitCast& bitcast = this->module.bitcasts[stmt.index];
 						if(bitcast.fromValue == original){ bitcast.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::Trunc: {
+					case Expr::Kind::TRUNC: {
 						Trunc& trunc = this->module.truncs[stmt.index];
 						if(trunc.fromValue == original){ trunc.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::FTrunc: {
+					case Expr::Kind::FTRUNC: {
 						FTrunc& ftrunc = this->module.ftruncs[stmt.index];
 						if(ftrunc.fromValue == original){ ftrunc.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::SExt: {
+					case Expr::Kind::SEXT: {
 						SExt& sext = this->module.sexts[stmt.index];
 						if(sext.fromValue == original){ sext.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::ZExt: {
+					case Expr::Kind::ZEXT: {
 						ZExt& zext = this->module.zexts[stmt.index];
 						if(zext.fromValue == original){ zext.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::FExt: {
+					case Expr::Kind::FEXT: {
 						FExt& fext = this->module.fexts[stmt.index];
 						if(fext.fromValue == original){ fext.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::IToF: {
+					case Expr::Kind::ITOF: {
 						IToF& itof = this->module.itofs[stmt.index];
 						if(itof.fromValue == original){ itof.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::UIToF: {
+					case Expr::Kind::UITOF: {
 						UIToF& uitof = this->module.uitofs[stmt.index];
 						if(uitof.fromValue == original){ uitof.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::FToI: {
+					case Expr::Kind::FTOI: {
 						FToI& ftoi = this->module.ftois[stmt.index];
 						if(ftoi.fromValue == original){ ftoi.fromValue = replacement; }
 					} break;
 
-					case Expr::Kind::FToUI: {
+					case Expr::Kind::FTOUI: {
 						FToUI& ftoui = this->module.ftouis[stmt.index];
 						if(ftoui.fromValue == original){ ftoui.fromValue = replacement; }
 					} break;
 
 					
-					case Expr::Kind::Add: {
+					case Expr::Kind::ADD: {
 						Add& add = this->module.adds[stmt.index];
 
 						if(add.lhs == original){ add.lhs = replacement; }
 						if(add.rhs == original){ add.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SAddWrap: {
+					case Expr::Kind::SADD_WRAP: {
 						SAddWrap& sadd_wrap = this->module.sadd_wraps[stmt.index];
 
 						if(sadd_wrap.lhs == original){ sadd_wrap.lhs = replacement; }
 						if(sadd_wrap.rhs == original){ sadd_wrap.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SAddWrapResult: continue;
-					case Expr::Kind::SAddWrapWrapped: continue;
+					case Expr::Kind::SADD_WRAP_RESULT: continue;
+					case Expr::Kind::SADD_WRAP_WRAPPED: continue;
 
-					case Expr::Kind::UAddWrap: {
+					case Expr::Kind::UADD_WRAP: {
 						UAddWrap& uadd_wrap = this->module.uadd_wraps[stmt.index];
 
 						if(uadd_wrap.lhs == original){ uadd_wrap.lhs = replacement; }
 						if(uadd_wrap.rhs == original){ uadd_wrap.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::UAddWrapResult: continue;
-					case Expr::Kind::UAddWrapWrapped: continue;
+					case Expr::Kind::UADD_WRAP_RESULT: continue;
+					case Expr::Kind::UADD_WRAP_WRAPPED: continue;
 
-					case Expr::Kind::SAddSat: {
+					case Expr::Kind::SADD_SAT: {
 						SAddSat& sadd_wrap = this->module.sadd_sats[stmt.index];
 
 						if(sadd_wrap.lhs == original){ sadd_wrap.lhs = replacement; }
 						if(sadd_wrap.rhs == original){ sadd_wrap.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::UAddSat: {
+					case Expr::Kind::UADD_SAT: {
 						UAddSat& uadd_wrap = this->module.uadd_sats[stmt.index];
 
 						if(uadd_wrap.lhs == original){ uadd_wrap.lhs = replacement; }
 						if(uadd_wrap.rhs == original){ uadd_wrap.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FAdd: {
+					case Expr::Kind::FADD: {
 						FAdd& fadd = this->module.fadds[stmt.index];
 
 						if(fadd.lhs == original){ fadd.lhs = replacement; }
@@ -332,48 +332,48 @@ namespace pcit::pir{
 					} break;
 
 
-					case Expr::Kind::Sub: {
+					case Expr::Kind::SUB: {
 						Sub& sub = this->module.subs[stmt.index];
 
 						if(sub.lhs == original){ sub.lhs = replacement; }
 						if(sub.rhs == original){ sub.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SSubWrap: {
+					case Expr::Kind::SSUB_WRAP: {
 						SSubWrap& ssub_wrap = this->module.ssub_wraps[stmt.index];
 
 						if(ssub_wrap.lhs == original){ ssub_wrap.lhs = replacement; }
 						if(ssub_wrap.rhs == original){ ssub_wrap.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SSubWrapResult: continue;
-					case Expr::Kind::SSubWrapWrapped: continue;
+					case Expr::Kind::SSUB_WRAP_RESULT: continue;
+					case Expr::Kind::SSUB_WRAP_WRAPPED: continue;
 
-					case Expr::Kind::USubWrap: {
+					case Expr::Kind::USUB_WRAP: {
 						USubWrap& usub_wrap = this->module.usub_wraps[stmt.index];
 
 						if(usub_wrap.lhs == original){ usub_wrap.lhs = replacement; }
 						if(usub_wrap.rhs == original){ usub_wrap.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::USubWrapResult: continue;
-					case Expr::Kind::USubWrapWrapped: continue;
+					case Expr::Kind::USUB_WRAP_RESULT: continue;
+					case Expr::Kind::USUB_WRAP_WRAPPED: continue;
 
-					case Expr::Kind::SSubSat: {
+					case Expr::Kind::SSUB_SAT: {
 						SSubSat& ssub_sat = this->module.ssub_sats[stmt.index];
 
 						if(ssub_sat.lhs == original){ ssub_sat.lhs = replacement; }
 						if(ssub_sat.rhs == original){ ssub_sat.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::USubSat: {
+					case Expr::Kind::USUB_SAT: {
 						USubSat& usub_sat = this->module.usub_sats[stmt.index];
 
 						if(usub_sat.lhs == original){ usub_sat.lhs = replacement; }
 						if(usub_sat.rhs == original){ usub_sat.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FSub: {
+					case Expr::Kind::FSUB: {
 						FSub& fsub = this->module.fsubs[stmt.index];
 
 						if(fsub.lhs == original){ fsub.lhs = replacement; }
@@ -381,97 +381,97 @@ namespace pcit::pir{
 					} break;
 
 
-					case Expr::Kind::Mul: {
+					case Expr::Kind::MUL: {
 						Mul& mul = this->module.muls[stmt.index];
 
 						if(mul.lhs == original){ mul.lhs = replacement; }
 						if(mul.rhs == original){ mul.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SMulWrap: {
+					case Expr::Kind::SMUL_WRAP: {
 						SMulWrap& smul_wrap = this->module.smul_wraps[stmt.index];
 
 						if(smul_wrap.lhs == original){ smul_wrap.lhs = replacement; }
 						if(smul_wrap.rhs == original){ smul_wrap.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SMulWrapResult: continue;
-					case Expr::Kind::SMulWrapWrapped: continue;
+					case Expr::Kind::SMUL_WRAP_RESULT: continue;
+					case Expr::Kind::SMUL_WRAP_WRAPPED: continue;
 
-					case Expr::Kind::UMulWrap: {
+					case Expr::Kind::UMUL_WRAP: {
 						UMulWrap& umul_wrap = this->module.umul_wraps[stmt.index];
 
 						if(umul_wrap.lhs == original){ umul_wrap.lhs = replacement; }
 						if(umul_wrap.rhs == original){ umul_wrap.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::UMulWrapResult: continue;
-					case Expr::Kind::UMulWrapWrapped: continue;
+					case Expr::Kind::UMUL_WRAP_RESULT: continue;
+					case Expr::Kind::UMUL_WRAP_WRAPPED: continue;
 
-					case Expr::Kind::SMulSat: {
+					case Expr::Kind::SMUL_SAT: {
 						SMulSat& smul_sat = this->module.smul_sats[stmt.index];
 
 						if(smul_sat.lhs == original){ smul_sat.lhs = replacement; }
 						if(smul_sat.rhs == original){ smul_sat.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::UMulSat: {
+					case Expr::Kind::UMUL_SAT: {
 						UMulSat& umul_sat = this->module.umul_sats[stmt.index];
 
 						if(umul_sat.lhs == original){ umul_sat.lhs = replacement; }
 						if(umul_sat.rhs == original){ umul_sat.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FMul: {
+					case Expr::Kind::FMUL: {
 						FMul& fmul = this->module.fmuls[stmt.index];
 
 						if(fmul.lhs == original){ fmul.lhs = replacement; }
 						if(fmul.rhs == original){ fmul.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SDiv: {
+					case Expr::Kind::SDIV: {
 						SDiv& sdiv = this->module.sdivs[stmt.index];
 
 						if(sdiv.lhs == original){ sdiv.lhs = replacement; }
 						if(sdiv.rhs == original){ sdiv.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::UDiv: {
+					case Expr::Kind::UDIV: {
 						UDiv& udiv = this->module.udivs[stmt.index];
 
 						if(udiv.lhs == original){ udiv.lhs = replacement; }
 						if(udiv.rhs == original){ udiv.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FDiv: {
+					case Expr::Kind::FDIV: {
 						FDiv& fdiv = this->module.fdivs[stmt.index];
 
 						if(fdiv.lhs == original){ fdiv.lhs = replacement; }
 						if(fdiv.rhs == original){ fdiv.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SRem: {
+					case Expr::Kind::SREM: {
 						SRem& srem = this->module.srems[stmt.index];
 
 						if(srem.lhs == original){ srem.lhs = replacement; }
 						if(srem.rhs == original){ srem.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::URem: {
+					case Expr::Kind::UREM: {
 						URem& urem = this->module.urems[stmt.index];
 
 						if(urem.lhs == original){ urem.lhs = replacement; }
 						if(urem.rhs == original){ urem.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FRem: {
+					case Expr::Kind::FREM: {
 						FRem& frem = this->module.frems[stmt.index];
 
 						if(frem.lhs == original){ frem.lhs = replacement; }
 						if(frem.rhs == original){ frem.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FNeg: {
+					case Expr::Kind::FNEG: {
 						FNeg& fneg = this->module.fnegs[stmt.index];
 
 						if(fneg.rhs == original){ fneg.rhs = replacement; }
@@ -479,28 +479,28 @@ namespace pcit::pir{
 
 
 
-					case Expr::Kind::IEq: {
+					case Expr::Kind::IEQ: {
 						IEq& ieq = this->module.ieqs[stmt.index];
 
 						if(ieq.lhs == original){ ieq.lhs = replacement; }
 						if(ieq.rhs == original){ ieq.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FEq: {
+					case Expr::Kind::FEQ: {
 						FEq& feq = this->module.feqs[stmt.index];
 
 						if(feq.lhs == original){ feq.lhs = replacement; }
 						if(feq.rhs == original){ feq.rhs = replacement; }
 					} break;
 					
-					case Expr::Kind::INeq: {
+					case Expr::Kind::INEQ: {
 						INeq& ineq = this->module.ineqs[stmt.index];
 
 						if(ineq.lhs == original){ ineq.lhs = replacement; }
 						if(ineq.rhs == original){ ineq.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::FNeq: {
+					case Expr::Kind::FNEQ: {
 						FNeq& fneq = this->module.fneqs[stmt.index];
 
 						if(fneq.lhs == original){ fneq.lhs = replacement; }
@@ -588,21 +588,21 @@ namespace pcit::pir{
 						if(fgte.rhs == original){ fgte.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::And: {
+					case Expr::Kind::AND: {
 						And& and_stmt = this->module.ands[stmt.index];
 
 						if(and_stmt.lhs == original){ and_stmt.lhs = replacement; }
 						if(and_stmt.rhs == original){ and_stmt.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::Or: {
+					case Expr::Kind::OR: {
 						Or& or_stmt = this->module.ors[stmt.index];
 
 						if(or_stmt.lhs == original){ or_stmt.lhs = replacement; }
 						if(or_stmt.rhs == original){ or_stmt.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::Xor: {
+					case Expr::Kind::XOR: {
 						Xor& xor_stmt = this->module.xors[stmt.index];
 
 						if(xor_stmt.lhs == original){ xor_stmt.lhs = replacement; }
@@ -616,14 +616,14 @@ namespace pcit::pir{
 						if(shl.rhs == original){ shl.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::SSHLSat: {
+					case Expr::Kind::SSHL_SAT: {
 						SSHLSat& sshlsat = this->module.sshlsats[stmt.index];
 
 						if(sshlsat.lhs == original){ sshlsat.lhs = replacement; }
 						if(sshlsat.rhs == original){ sshlsat.rhs = replacement; }
 					} break;
 
-					case Expr::Kind::USHLSat: {
+					case Expr::Kind::USHL_SAT: {
 						USHLSat& ushlsat = this->module.ushlsats[stmt.index];
 
 						if(ushlsat.lhs == original){ ushlsat.lhs = replacement; }
@@ -662,7 +662,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 		evo::debugAssert(stmt_to_remove.isStmt(), "not a statement");
 
-		if(stmt_to_remove.kind() != Expr::Kind::Alloca){
+		if(stmt_to_remove.kind() != Expr::Kind::ALLOCA){
 			for(const BasicBlock::ID& basic_block_id : *this->target_func){
 				BasicBlock& basic_block = this->getBasicBlock(basic_block_id);
 	
@@ -721,30 +721,30 @@ namespace pcit::pir{
 
 	auto Agent::createNumber(const Type& type, core::GenericInt&& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
-		evo::debugAssert(type.kind() == Type::Kind::Integer, "Type and value must both be integer or both be floating");
+		evo::debugAssert(type.kind() == Type::Kind::INTEGER, "Type and value must both be integer or both be floating");
 
-		return Expr(Expr::Kind::Number, this->module.numbers.emplace_back(type, std::move(value)));
+		return Expr(Expr::Kind::NUMBER, this->module.numbers.emplace_back(type, std::move(value)));
 	}
 
 	auto Agent::createNumber(const Type& type, const core::GenericInt& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
-		evo::debugAssert(type.kind() == Type::Kind::Integer, "Type and value must both be integer or both be floating");
+		evo::debugAssert(type.kind() == Type::Kind::INTEGER, "Type and value must both be integer or both be floating");
 
-		return Expr(Expr::Kind::Number, this->module.numbers.emplace_back(type, value));
+		return Expr(Expr::Kind::NUMBER, this->module.numbers.emplace_back(type, value));
 	}
 
 	auto Agent::createNumber(const Type& type, core::GenericFloat&& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
 		evo::debugAssert(type.isFloat(), "Type and value must both be integer or both be floating");
 
-		return Expr(Expr::Kind::Number, this->module.numbers.emplace_back(type, std::move(value)));
+		return Expr(Expr::Kind::NUMBER, this->module.numbers.emplace_back(type, std::move(value)));
 	}
 
 	auto Agent::createNumber(const Type& type, const core::GenericFloat& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
 		evo::debugAssert(type.isFloat(), "Type and value must both be integer or both be floating");
 
-		return Expr(Expr::Kind::Number, this->module.numbers.emplace_back(type, value));
+		return Expr(Expr::Kind::NUMBER, this->module.numbers.emplace_back(type, value));
 	}
 
 	auto Agent::getNumber(const Expr& expr) const -> const Number& {
@@ -756,7 +756,7 @@ namespace pcit::pir{
 	// booleans
 
 	auto Agent::createBoolean(bool value) -> Expr {
-		return Expr(Expr::Kind::Boolean, uint32_t(value));
+		return Expr(Expr::Kind::BOOLEAN, uint32_t(value));
 	}
 
 	auto Agent::getBoolean(const Expr& expr) -> bool {
@@ -768,7 +768,7 @@ namespace pcit::pir{
 	// param exprs
 
 	auto Agent::createParamExpr(uint32_t index) -> Expr {
-		return Expr(Expr::Kind::ParamExpr, index);
+		return Expr(Expr::Kind::PARAM_EXPR, index);
 	}
 
 	auto Agent::getParamExpr(const Expr& expr) -> ParamExpr {
@@ -780,7 +780,7 @@ namespace pcit::pir{
 	// global values (expr)
 
 	auto Agent::createGlobalValue(const GlobalVar::ID& global_id) -> Expr {
-		return Expr(Expr::Kind::GlobalValue, global_id.get());
+		return Expr(Expr::Kind::GLOBAL_VALUE, global_id.get());
 	}
 
 	auto Agent::getGlobalValue(const Expr& expr) const -> const GlobalVar& {
@@ -792,7 +792,7 @@ namespace pcit::pir{
 	// global values (expr)
 
 	auto Agent::createFunctionPointer(const Function::ID& func_id) -> Expr {
-		return Expr(Expr::Kind::FunctionPointer, func_id.get());
+		return Expr(Expr::Kind::FUNCTION_POINTER, func_id.get());
 	}
 
 	auto Agent::getFunctionPointer(const Expr& expr) const -> const Function& {
@@ -807,13 +807,13 @@ namespace pcit::pir{
 	auto Agent::createCall(Function::ID func, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunction(func).getReturnType().kind() != Type::Kind::Void,
+			this->module.getFunction(func).getReturnType().kind() != Type::Kind::VOID,
 			"Call cannot return `Void` (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::Call,
+			Expr::Kind::CALL,
 			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, std::move(args))
 		);
 		this->insert_stmt(new_expr);
@@ -824,13 +824,13 @@ namespace pcit::pir{
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunction(func).getReturnType().kind() != Type::Kind::Void,
+			this->module.getFunction(func).getReturnType().kind() != Type::Kind::VOID,
 			"Call cannot return `Void` (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::Call,
+			Expr::Kind::CALL,
 			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, args)
 		);
 		this->insert_stmt(new_expr);
@@ -841,13 +841,13 @@ namespace pcit::pir{
 	auto Agent::createCall(FunctionDecl::ID func, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionDecl(func).returnType.kind() != Type::Kind::Void,
+			this->module.getFunctionDecl(func).returnType.kind() != Type::Kind::VOID,
 			"Call cannot return `Void` (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::Call,
+			Expr::Kind::CALL,
 			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, std::move(args))
 		);
 		this->insert_stmt(new_expr);
@@ -858,13 +858,13 @@ namespace pcit::pir{
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionDecl(func).returnType.kind() != Type::Kind::Void,
+			this->module.getFunctionDecl(func).returnType.kind() != Type::Kind::VOID,
 			"Call cannot return `Void` (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::Call,
+			Expr::Kind::CALL,
 			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, args)
 		);
 		this->insert_stmt(new_expr);
@@ -877,13 +877,13 @@ namespace pcit::pir{
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::Void,
+			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::VOID,
 			"Call cannot return `Void` (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func_type, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::Call,
+			Expr::Kind::CALL,
 			this->module.calls.emplace_back(
 				this->get_stmt_name(std::move(name)), PtrCall(func, func_type), std::move(args)
 			)
@@ -897,13 +897,13 @@ namespace pcit::pir{
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::Void,
+			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::VOID,
 			"Call cannot return `Void` (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func_type, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::Call,
+			Expr::Kind::CALL,
 			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), PtrCall(func, func_type), args)
 		);
 		this->insert_stmt(new_expr);
@@ -922,13 +922,13 @@ namespace pcit::pir{
 	auto Agent::createCallVoid(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunction(func).getReturnType().kind() == Type::Kind::Void,
+			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CallVoid, this->module.call_voids.emplace_back(func, std::move(args))
+			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, std::move(args))
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -937,12 +937,12 @@ namespace pcit::pir{
 	auto Agent::createCallVoid(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunction(func).getReturnType().kind() == Type::Kind::Void,
+			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
-		const auto new_expr = Expr(Expr::Kind::CallVoid, this->module.call_voids.emplace_back(func, args));
+		const auto new_expr = Expr(Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, args));
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
@@ -951,13 +951,13 @@ namespace pcit::pir{
 	auto Agent::createCallVoid(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionDecl(func).returnType.kind() == Type::Kind::Void,
+			this->module.getFunctionDecl(func).returnType.kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CallVoid, this->module.call_voids.emplace_back(func, std::move(args))
+			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, std::move(args))
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -966,12 +966,12 @@ namespace pcit::pir{
 	auto Agent::createCallVoid(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionDecl(func).returnType.kind() == Type::Kind::Void,
+			this->module.getFunctionDecl(func).returnType.kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
-		const auto new_expr = Expr(Expr::Kind::CallVoid, this->module.call_voids.emplace_back(func, args));
+		const auto new_expr = Expr(Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, args));
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
@@ -981,13 +981,13 @@ namespace pcit::pir{
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::Void,
+			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func_type, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CallVoid,
+			Expr::Kind::CALL_VOID,
 			this->module.call_voids.emplace_back(PtrCall(func, func_type), std::move(args))
 		);
 		this->insert_stmt(new_expr);
@@ -998,13 +998,13 @@ namespace pcit::pir{
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::Void,
+			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func_type, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CallVoid, this->module.call_voids.emplace_back(PtrCall(func, func_type), args)
+			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(PtrCall(func, func_type), args)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -1020,7 +1020,7 @@ namespace pcit::pir{
 	// breakpoint
 
 	auto Agent::createBreakpoint() const -> Expr {
-		const auto new_expr = Expr(Expr::Kind::Breakpoint);
+		const auto new_expr = Expr(Expr::Kind::BREAKPOINT);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
@@ -1036,16 +1036,16 @@ namespace pcit::pir{
 			this->getExprType(expr) == this->target_func->getReturnType(), "Return type must match function"
 		);
 
-		const auto new_expr = Expr(Expr::Kind::Ret, this->module.rets.emplace_back(expr));
+		const auto new_expr = Expr(Expr::Kind::RET, this->module.rets.emplace_back(expr));
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
 	auto Agent::createRet() const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(this->target_func->getReturnType().kind() == Type::Kind::Void, "Return type must match");
+		evo::debugAssert(this->target_func->getReturnType().kind() == Type::Kind::VOID, "Return type must match");
 
-		const auto new_expr = Expr(Expr::Kind::Ret, this->module.rets.emplace_back(std::nullopt));
+		const auto new_expr = Expr(Expr::Kind::RET, this->module.rets.emplace_back(std::nullopt));
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
@@ -1061,7 +1061,7 @@ namespace pcit::pir{
 	auto Agent::createBranch(BasicBlock::ID basic_block_id) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 
-		const auto new_expr = Expr(Expr::Kind::Branch, basic_block_id.get());
+		const auto new_expr = Expr(Expr::Kind::BRANCH, basic_block_id.get());
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
@@ -1076,10 +1076,10 @@ namespace pcit::pir{
 
 	auto Agent::createCondBranch(const Expr& cond, BasicBlock::ID then_block, BasicBlock::ID else_block) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(this->getExprType(cond).kind() == Type::Kind::Bool, "Cond must be of type Bool");
+		evo::debugAssert(this->getExprType(cond).kind() == Type::Kind::BOOL, "Cond must be of type Bool");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CondBranch, this->module.cond_branches.emplace_back(cond, then_block, else_block)
+			Expr::Kind::COND_BRANCH, this->module.cond_branches.emplace_back(cond, then_block, else_block)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -1094,7 +1094,7 @@ namespace pcit::pir{
 	// unreachable
 
 	auto Agent::createUnreachable() const -> Expr {
-		const auto new_expr = Expr(Expr::Kind::Unreachable);
+		const auto new_expr = Expr(Expr::Kind::UNREACHABLE);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
@@ -1107,7 +1107,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetFunction(), "No target functions set");
 
 		return Expr(
-			Expr::Kind::Alloca, this->target_func->allocas.emplace_back(this->get_stmt_name(std::move(name)), type)
+			Expr::Kind::ALLOCA, this->target_func->allocas.emplace_back(this->get_stmt_name(std::move(name)), type)
 		);
 	}
 
@@ -1124,10 +1124,10 @@ namespace pcit::pir{
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(atomic_ordering.isValidForLoad(), "This atomic ordering is not valid for a load");
-		evo::debugAssert(this->getExprType(source).kind() == Type::Kind::Ptr, "Source must be of type Ptr");
+		evo::debugAssert(this->getExprType(source).kind() == Type::Kind::PTR, "Source must be of type Ptr");
 
 		const auto new_stmt = Expr(
-			Expr::Kind::Load,
+			Expr::Kind::LOAD,
 			this->module.loads.emplace_back(
 				this->get_stmt_name(std::move(name)), source, type, is_volatile, atomic_ordering
 			)
@@ -1150,11 +1150,11 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(atomic_ordering.isValidForStore(), "This atomic ordering is not valid for a store");
 		evo::debugAssert(
-			this->getExprType(destination).kind() == Type::Kind::Ptr, "Destination must be of type Ptr"
+			this->getExprType(destination).kind() == Type::Kind::PTR, "Destination must be of type Ptr"
 		);
 
 		const auto new_stmt = Expr(
-			Expr::Kind::Store, this->module.stores.emplace_back(destination, value, is_volatile, atomic_ordering)
+			Expr::Kind::STORE, this->module.stores.emplace_back(destination, value, is_volatile, atomic_ordering)
 		);
 		this->insert_stmt(new_stmt);
 	}
@@ -1171,7 +1171,7 @@ namespace pcit::pir{
 		const Expr& base_ptr, const Type& ptr_type, evo::SmallVector<CalcPtr::Index>&& indices, std::string&& name
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(this->getExprType(base_ptr).kind() == Type::Kind::Ptr, "Base ptr must be of type Ptr");
+		evo::debugAssert(this->getExprType(base_ptr).kind() == Type::Kind::PTR, "Base ptr must be of type Ptr");
 		evo::debugAssert(!indices.empty(), "There must be at least one index");
 		#if defined(PCIT_CONFIG_DEBUG)
 			Type target_type = ptr_type;
@@ -1181,11 +1181,11 @@ namespace pcit::pir{
 
 				evo::debugAssert(target_type.isAggregate(), "ptr type must be an aggregate type");
 				evo::debugAssert(
-					index.is<int64_t>() || this->getExprType(index.as<Expr>()).kind() == Type::Kind::Integer,
+					index.is<int64_t>() || this->getExprType(index.as<Expr>()).kind() == Type::Kind::INTEGER,
 					"Index must be integer"
 				);
 
-				if(target_type.kind() == Type::Kind::Array){
+				if(target_type.kind() == Type::Kind::ARRAY){
 					const ArrayType& array_type = this->module.getArrayType(target_type);
 
 					if(index.is<int64_t>()){
@@ -1194,7 +1194,7 @@ namespace pcit::pir{
 							"indexing into an array must be a valid index"
 						);
 						
-					}else if(index.as<Expr>().kind() == Expr::Kind::Number){
+					}else if(index.as<Expr>().kind() == Expr::Kind::NUMBER){
 						const int64_t member_index = static_cast<int64_t>(this->getNumber(index.as<Expr>()).getInt());
 						evo::debugAssert(
 							member_index >= 0 && size_t(member_index) < array_type.length,
@@ -1219,7 +1219,7 @@ namespace pcit::pir{
 		#endif
 
 		const auto new_stmt = Expr(
-			Expr::Kind::CalcPtr,
+			Expr::Kind::CALC_PTR,
 			this->module.calc_ptrs.emplace_back(
 				this->get_stmt_name(std::move(name)), ptr_type, base_ptr, std::move(indices)
 			)
@@ -1237,16 +1237,16 @@ namespace pcit::pir{
 	// memcpy
 
 	auto Agent::createMemcpy(const Expr& dst, const Expr& src, const Expr& num_bytes, bool is_volatile) const -> Expr {
-		evo::debugAssert(this->getExprType(dst).kind() == Type::Kind::Ptr, "dst must be pointer");
-		evo::debugAssert(this->getExprType(src).kind() == Type::Kind::Ptr, "src must be pointer");
+		evo::debugAssert(this->getExprType(dst).kind() == Type::Kind::PTR, "dst must be pointer");
+		evo::debugAssert(this->getExprType(src).kind() == Type::Kind::PTR, "src must be pointer");
 		evo::debugAssert(
-			this->getExprType(num_bytes).kind() == Type::Kind::Integer && this->getExprType(num_bytes).getWidth() <= 64,
+			this->getExprType(num_bytes).kind() == Type::Kind::INTEGER && this->getExprType(num_bytes).getWidth() <= 64,
 			"num bytes must be integral and have a max width of 64"
 		);
 
 
 		const auto new_stmt = Expr(
-			Expr::Kind::Memcpy, this->module.memcpys.emplace_back(dst, src, num_bytes, is_volatile)
+			Expr::Kind::MEMCPY, this->module.memcpys.emplace_back(dst, src, num_bytes, is_volatile)
 		);
 		this->insert_stmt(new_stmt);
 		return new_stmt;
@@ -1262,20 +1262,20 @@ namespace pcit::pir{
 
 	auto Agent::createMemset(const Expr& dst, const Expr& value, const Expr& num_bytes, bool is_volatile) const 
 	-> Expr {
-		evo::debugAssert(this->getExprType(dst).kind() == Type::Kind::Ptr, "dst must be pointer");
+		evo::debugAssert(this->getExprType(dst).kind() == Type::Kind::PTR, "dst must be pointer");
 		evo::debugAssert(
-			this->getExprType(value).kind() == Type::Kind::Integer && this->getExprType(value).getWidth() == 8,
+			this->getExprType(value).kind() == Type::Kind::INTEGER && this->getExprType(value).getWidth() == 8,
 			"value must be of type I8"
 		);
 		evo::debugAssert(
-			this->getExprType(num_bytes).kind() == Type::Kind::Integer
+			this->getExprType(num_bytes).kind() == Type::Kind::INTEGER
 			&& this->getExprType(num_bytes).getWidth() <= 64,
 			"num bytes must be integral and have a max width of 64"
 		);
 
 
 		const auto new_stmt = Expr(
-			Expr::Kind::Memset, this->module.memsets.emplace_back(dst, value, num_bytes, is_volatile)
+			Expr::Kind::MEMSET, this->module.memsets.emplace_back(dst, value, num_bytes, is_volatile)
 		);
 		this->insert_stmt(new_stmt);
 		return new_stmt;
@@ -1298,7 +1298,7 @@ namespace pcit::pir{
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::BitCast,
+			Expr::Kind::BIT_CAST,
 			this->module.bitcasts.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1319,11 +1319,11 @@ namespace pcit::pir{
 			this->module.getSize(this->getExprType(fromValue)) >= this->module.getSize(toType),
 			"Cannot convert to a type of a greater size"
 		);
-		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::Integer, "can only convert integers");
-		evo::debugAssert(toType.kind() == Type::Kind::Integer, "can only convert to integers");
+		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
+		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
 
 		const auto new_expr = Expr(
-			Expr::Kind::Trunc,
+			Expr::Kind::TRUNC,
 			this->module.truncs.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1349,7 +1349,7 @@ namespace pcit::pir{
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FTrunc,
+			Expr::Kind::FTRUNC,
 			this->module.ftruncs.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1370,11 +1370,11 @@ namespace pcit::pir{
 			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
 			"Cannot convert to a type of a smaller size"
 		);
-		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::Integer, "can only convert integers");
-		evo::debugAssert(toType.kind() == Type::Kind::Integer, "can only convert to integers");
+		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
+		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
 
 		const auto new_expr = Expr(
-			Expr::Kind::SExt,
+			Expr::Kind::SEXT,
 			this->module.sexts.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1396,14 +1396,14 @@ namespace pcit::pir{
 			"Cannot convert to a type of a smaller size"
 		);
 		evo::debugAssert(
-			this->getExprType(fromValue).kind() == Type::Kind::Integer
-			|| this->getExprType(fromValue).kind() == Type::Kind::Bool,
+			this->getExprType(fromValue).kind() == Type::Kind::INTEGER
+			|| this->getExprType(fromValue).kind() == Type::Kind::BOOL,
 			"can only convert from integers and Bool"
 		);
-		evo::debugAssert(toType.kind() == Type::Kind::Integer, "can only convert to integers");
+		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
 
 		const auto new_expr = Expr(
-			Expr::Kind::ZExt,
+			Expr::Kind::ZEXT,
 			this->module.zexts.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1428,7 +1428,7 @@ namespace pcit::pir{
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FExt,
+			Expr::Kind::FEXT,
 			this->module.fexts.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1445,11 +1445,11 @@ namespace pcit::pir{
 	
 	EVO_NODISCARD auto Agent::createIToF(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::Integer, "can only convert integers");
+		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
 
 		const auto new_expr = Expr(
-			Expr::Kind::IToF,
+			Expr::Kind::ITOF,
 			this->module.itofs.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1466,11 +1466,11 @@ namespace pcit::pir{
 	
 	EVO_NODISCARD auto Agent::createUIToF(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::Integer, "can only convert integers");
+		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
 
 		const auto new_expr = Expr(
-			Expr::Kind::UIToF,
+			Expr::Kind::UITOF,
 			this->module.uitofs.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1488,10 +1488,10 @@ namespace pcit::pir{
 	EVO_NODISCARD auto Agent::createFToI(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
-		evo::debugAssert(toType.kind() == Type::Kind::Integer, "can only convert to integers");
+		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FToI,
+			Expr::Kind::FTOI,
 			this->module.ftois.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1510,12 +1510,12 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
 		evo::debugAssert(
-			toType.kind() == Type::Kind::Integer || toType.kind() == Type::Kind::Bool,
+			toType.kind() == Type::Kind::INTEGER || toType.kind() == Type::Kind::BOOL,
 			"can only convert to integers and Bool"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::FToUI,
+			Expr::Kind::FTOUI,
 			this->module.ftouis.emplace_back(this->get_stmt_name(std::move(name)), fromValue, toType)
 		);
 		this->insert_stmt(new_expr);
@@ -1537,11 +1537,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @add instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @add instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::Add,
+			Expr::Kind::ADD,
 			this->module.adds.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, nsw, nuw)
 		);
 		this->insert_stmt(new_expr);
@@ -1562,7 +1562,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::Integer, "Can only add wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only add wrap integers");
 
 		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -1570,7 +1570,7 @@ namespace pcit::pir{
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SAddWrap,
+			Expr::Kind::SADD_WRAP,
 			this->module.sadd_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1600,7 +1600,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::Integer, "Can only add wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only add wrap integers");
 
 		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -1608,7 +1608,7 @@ namespace pcit::pir{
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::UAddWrap,
+			Expr::Kind::UADD_WRAP,
 			this->module.uadd_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1637,11 +1637,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @saddSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @saddSat instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SAddSat,
+			Expr::Kind::SADD_SAT,
 			this->module.sadd_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1661,11 +1661,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @uaddSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @uaddSat instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::UAddSat,
+			Expr::Kind::UADD_SAT,
 			this->module.uadd_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1687,7 +1687,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fAdd instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FAdd, this->module.fadds.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+			Expr::Kind::FADD, this->module.fadds.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -1707,11 +1707,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @sub instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sub instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::Sub,
+			Expr::Kind::SUB,
 			this->module.subs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, nsw, nuw)
 		);
 		this->insert_stmt(new_expr);
@@ -1732,7 +1732,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::Integer, "Can only sub wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only sub wrap integers");
 
 		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -1740,7 +1740,7 @@ namespace pcit::pir{
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SSubWrap,
+			Expr::Kind::SSUB_WRAP,
 			this->module.ssub_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1770,7 +1770,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::Integer, "Can only sub wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only sub wrap integers");
 
 		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -1778,7 +1778,7 @@ namespace pcit::pir{
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::USubWrap,
+			Expr::Kind::USUB_WRAP,
 			this->module.usub_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1807,11 +1807,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ssubSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ssubSat instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SSubSat,
+			Expr::Kind::SSUB_SAT,
 			this->module.ssub_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1831,11 +1831,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @usubSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @usubSat instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::USubSat,
+			Expr::Kind::USUB_SAT,
 			this->module.usub_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1857,7 +1857,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fSub instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FSub, this->module.fsubs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+			Expr::Kind::FSUB, this->module.fsubs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -1877,11 +1877,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @mul instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @mul instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::Mul,
+			Expr::Kind::MUL,
 			this->module.muls.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, nsw, nuw)
 		);
 		this->insert_stmt(new_expr);
@@ -1902,7 +1902,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::Integer, "Can only mul wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only mul wrap integers");
 
 		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -1910,7 +1910,7 @@ namespace pcit::pir{
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SMulWrap,
+			Expr::Kind::SMUL_WRAP,
 			this->module.smul_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1940,7 +1940,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::Integer, "Can only mul wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only mul wrap integers");
 
 		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -1948,7 +1948,7 @@ namespace pcit::pir{
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::UMulWrap,
+			Expr::Kind::UMUL_WRAP,
 			this->module.umul_wraps.emplace_back(std::move(result_stmt_name), std::move(wrapped_stmt_name), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -1977,11 +1977,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @smulSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @smulSat instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SMulSat,
+			Expr::Kind::SMUL_SAT,
 			this->module.smul_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2001,11 +2001,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @umulSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @umulSat instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::UMulSat,
+			Expr::Kind::UMUL_SAT,
 			this->module.umul_sats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2027,7 +2027,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fmul instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FMul, this->module.fmuls.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+			Expr::Kind::FMUL, this->module.fmuls.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -2047,11 +2047,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @sdiv instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sdiv instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SDiv,
+			Expr::Kind::SDIV,
 			this->module.sdivs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, is_exact)
 		);
 		this->insert_stmt(new_expr);
@@ -2072,11 +2072,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @udiv instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @udiv instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::UDiv,
+			Expr::Kind::UDIV,
 			this->module.udivs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs, is_exact)
 		);
 		this->insert_stmt(new_expr);
@@ -2099,7 +2099,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fdiv instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FDiv, this->module.fdivs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+			Expr::Kind::FDIV, this->module.fdivs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -2119,11 +2119,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @srem instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @srem instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SRem,
+			Expr::Kind::SREM,
 			this->module.srems.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2144,11 +2144,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @urem instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @urem instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::URem,
+			Expr::Kind::UREM,
 			this->module.urems.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2171,7 +2171,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @frem instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FRem, this->module.frems.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+			Expr::Kind::FREM, this->module.frems.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -2192,7 +2192,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(rhs).isFloat(), "The @fneg instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FNeg, this->module.fnegs.emplace_back(this->get_stmt_name(std::move(name)), rhs)
+			Expr::Kind::FNEG, this->module.fnegs.emplace_back(this->get_stmt_name(std::move(name)), rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -2212,11 +2212,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ieq instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ieq instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::IEq,
+			Expr::Kind::IEQ,
 			this->module.ieqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2235,7 +2235,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @feq instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FEq, this->module.feqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+			Expr::Kind::FEQ, this->module.feqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -2255,11 +2255,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ineq instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ineq instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::INeq,
+			Expr::Kind::INEQ,
 			this->module.ineqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2278,7 +2278,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs).isFloat(), "The @fneq instruction only supports float values");
 
 		const auto new_expr = Expr(
-			Expr::Kind::FNeq, this->module.fneqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
+			Expr::Kind::FNEQ, this->module.fneqs.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -2298,7 +2298,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @slt instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @slt instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2319,7 +2319,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ult instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ult instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2362,7 +2362,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @slte instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @slte instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2383,7 +2383,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ulte instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ulte instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2426,7 +2426,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @sgt instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sgt instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2447,7 +2447,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ugt instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ugt instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2490,7 +2490,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @sgte instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sgte instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2511,7 +2511,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ugte instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ugte instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2555,13 +2555,13 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer
-			|| this->getExprType(lhs).kind() == Type::Kind::Bool,
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER
+			|| this->getExprType(lhs).kind() == Type::Kind::BOOL,
 			"The @and instruction only supports integers and Bool"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::And,
+			Expr::Kind::AND,
 			this->module.ands.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2578,13 +2578,13 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer
-			|| this->getExprType(lhs).kind() == Type::Kind::Bool,
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER
+			|| this->getExprType(lhs).kind() == Type::Kind::BOOL,
 			"The @or instruction only supports integers and Bool"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::Or,
+			Expr::Kind::OR,
 			this->module.ors.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2601,13 +2601,13 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer
-			|| this->getExprType(lhs).kind() == Type::Kind::Bool,
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER
+			|| this->getExprType(lhs).kind() == Type::Kind::BOOL,
 			"The @xor instruction only supports integers and Bool"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::Xor,
+			Expr::Kind::XOR,
 			this->module.xors.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2624,7 +2624,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @shl instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @shl instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2645,11 +2645,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @sshlsat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sshlsat instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::SSHLSat,
+			Expr::Kind::SSHL_SAT,
 			this->module.sshlsats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2666,11 +2666,11 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ushlsat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ushlsat instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::USHLSat,
+			Expr::Kind::USHL_SAT,
 			this->module.ushlsats.emplace_back(this->get_stmt_name(std::move(name)), lhs, rhs)
 		);
 		this->insert_stmt(new_expr);
@@ -2687,7 +2687,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @sshr instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sshr instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2708,7 +2708,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::Integer, "The @ushr instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ushr instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2747,96 +2747,96 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetFunction(), "Not target function is set");
 
 		switch(expr.kind()){
-			break; case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
-			break; case Expr::Kind::GlobalValue:     return;
-			break; case Expr::Kind::FunctionPointer: return;
-			break; case Expr::Kind::Number:          this->module.numbers.erase(expr.index);
-			break; case Expr::Kind::Boolean:         return;
-			break; case Expr::Kind::ParamExpr:       return;
-			break; case Expr::Kind::Call:            this->module.calls.erase(expr.index);
-			break; case Expr::Kind::CallVoid:        this->module.call_voids.erase(expr.index);
-			break; case Expr::Kind::Breakpoint:      return;
-			break; case Expr::Kind::Ret:             this->module.rets.erase(expr.index);
-			break; case Expr::Kind::Branch:          return;
-			break; case Expr::Kind::CondBranch:      this->module.cond_branches.erase(expr.index);
-			break; case Expr::Kind::Unreachable:     return;
-			break; case Expr::Kind::Alloca:          this->target_func->allocas.erase(expr.index);
-			break; case Expr::Kind::Load:            this->module.loads.erase(expr.index);
-			break; case Expr::Kind::Store:           this->module.stores.erase(expr.index);
-			break; case Expr::Kind::CalcPtr:         this->module.calc_ptrs.erase(expr.index);
-			break; case Expr::Kind::Memcpy:          this->module.memcpys.erase(expr.index);
-			break; case Expr::Kind::Memset:          this->module.memsets.erase(expr.index);
-			break; case Expr::Kind::BitCast:         this->module.bitcasts.erase(expr.index);
-			break; case Expr::Kind::Trunc:           this->module.truncs.erase(expr.index);
-			break; case Expr::Kind::FTrunc:          this->module.ftruncs.erase(expr.index);
-			break; case Expr::Kind::SExt:            this->module.sexts.erase(expr.index);
-			break; case Expr::Kind::ZExt:            this->module.zexts.erase(expr.index);
-			break; case Expr::Kind::FExt:            this->module.fexts.erase(expr.index);
-			break; case Expr::Kind::IToF:            this->module.itofs.erase(expr.index);
-			break; case Expr::Kind::UIToF:           this->module.uitofs.erase(expr.index);
-			break; case Expr::Kind::FToI:            this->module.ftois.erase(expr.index);
-			break; case Expr::Kind::FToUI:           this->module.ftouis.erase(expr.index);
-			break; case Expr::Kind::Add:             this->module.adds.erase(expr.index);
-			break; case Expr::Kind::SAddWrap:        this->module.sadd_wraps.erase(expr.index);
-			break; case Expr::Kind::SAddWrapResult:  return;
-			break; case Expr::Kind::SAddWrapWrapped: return;
-			break; case Expr::Kind::UAddWrap:        this->module.uadd_wraps.erase(expr.index);
-			break; case Expr::Kind::UAddWrapResult:  return;
-			break; case Expr::Kind::UAddWrapWrapped: return;
-			break; case Expr::Kind::SAddSat:         this->module.sadd_sats.erase(expr.index);
-			break; case Expr::Kind::UAddSat:         this->module.uadd_sats.erase(expr.index);
-			break; case Expr::Kind::FAdd:            this->module.fadds.erase(expr.index);
-			break; case Expr::Kind::Sub:             this->module.subs.erase(expr.index);
-			break; case Expr::Kind::SSubWrap:        this->module.ssub_wraps.erase(expr.index);
-			break; case Expr::Kind::SSubWrapResult:  return;
-			break; case Expr::Kind::SSubWrapWrapped: return;
-			break; case Expr::Kind::USubWrap:        this->module.usub_wraps.erase(expr.index);
-			break; case Expr::Kind::USubWrapResult:  return;
-			break; case Expr::Kind::USubWrapWrapped: return;
-			break; case Expr::Kind::SSubSat:         this->module.ssub_sats.erase(expr.index);
-			break; case Expr::Kind::USubSat:         this->module.usub_sats.erase(expr.index);
-			break; case Expr::Kind::FSub:            this->module.fsubs.erase(expr.index);
-			break; case Expr::Kind::Mul:             this->module.muls.erase(expr.index);
-			break; case Expr::Kind::SMulWrap:        this->module.smul_wraps.erase(expr.index);
-			break; case Expr::Kind::SMulWrapResult:  return;
-			break; case Expr::Kind::SMulWrapWrapped: return;
-			break; case Expr::Kind::UMulWrap:        this->module.umul_wraps.erase(expr.index);
-			break; case Expr::Kind::UMulWrapResult:  return;
-			break; case Expr::Kind::UMulWrapWrapped: return;
-			break; case Expr::Kind::SMulSat:         this->module.smul_sats.erase(expr.index);
-			break; case Expr::Kind::UMulSat:         this->module.umul_sats.erase(expr.index);
-			break; case Expr::Kind::FMul:            this->module.fmuls.erase(expr.index);
-			break; case Expr::Kind::SDiv:            this->module.sdivs.erase(expr.index);
-			break; case Expr::Kind::UDiv:            this->module.udivs.erase(expr.index);
-			break; case Expr::Kind::FDiv:            this->module.fdivs.erase(expr.index);
-			break; case Expr::Kind::SRem:            this->module.srems.erase(expr.index);
-			break; case Expr::Kind::URem:            this->module.urems.erase(expr.index);
-			break; case Expr::Kind::FRem:            this->module.frems.erase(expr.index);
-			break; case Expr::Kind::FNeg:            this->module.fnegs.erase(expr.index);
-			break; case Expr::Kind::IEq:             this->module.ieqs.erase(expr.index);
-			break; case Expr::Kind::FEq:             this->module.feqs.erase(expr.index);
-			break; case Expr::Kind::INeq:            this->module.ineqs.erase(expr.index);
-			break; case Expr::Kind::FNeq:            this->module.fneqs.erase(expr.index);
-			break; case Expr::Kind::SLT:             this->module.slts.erase(expr.index);
-			break; case Expr::Kind::ULT:             this->module.ults.erase(expr.index);
-			break; case Expr::Kind::FLT:             this->module.flts.erase(expr.index);
-			break; case Expr::Kind::SLTE:            this->module.sltes.erase(expr.index);
-			break; case Expr::Kind::ULTE:            this->module.ultes.erase(expr.index);
-			break; case Expr::Kind::FLTE:            this->module.fltes.erase(expr.index);
-			break; case Expr::Kind::SGT:             this->module.sgts.erase(expr.index);
-			break; case Expr::Kind::UGT:             this->module.ugts.erase(expr.index);
-			break; case Expr::Kind::FGT:             this->module.fgts.erase(expr.index);
-			break; case Expr::Kind::SGTE:            this->module.sgtes.erase(expr.index);
-			break; case Expr::Kind::UGTE:            this->module.ugtes.erase(expr.index);
-			break; case Expr::Kind::FGTE:            this->module.fgtes.erase(expr.index);
-			break; case Expr::Kind::And:             this->module.ands.erase(expr.index);
-			break; case Expr::Kind::Or:              this->module.ors.erase(expr.index);
-			break; case Expr::Kind::Xor:             this->module.xors.erase(expr.index);
-			break; case Expr::Kind::SHL:             this->module.shls.erase(expr.index);
-			break; case Expr::Kind::SSHLSat:         this->module.sshlsats.erase(expr.index);
-			break; case Expr::Kind::USHLSat:         this->module.ushlsats.erase(expr.index);
-			break; case Expr::Kind::SSHR:            this->module.sshrs.erase(expr.index);
-			break; case Expr::Kind::USHR:            this->module.ushrs.erase(expr.index);
+			break; case Expr::Kind::NONE:              evo::debugFatalBreak("Invalid expr");
+			break; case Expr::Kind::GLOBAL_VALUE:      return;
+			break; case Expr::Kind::FUNCTION_POINTER:  return;
+			break; case Expr::Kind::NUMBER:            this->module.numbers.erase(expr.index);
+			break; case Expr::Kind::BOOLEAN:           return;
+			break; case Expr::Kind::PARAM_EXPR:        return;
+			break; case Expr::Kind::CALL:              this->module.calls.erase(expr.index);
+			break; case Expr::Kind::CALL_VOID:         this->module.call_voids.erase(expr.index);
+			break; case Expr::Kind::BREAKPOINT:        return;
+			break; case Expr::Kind::RET:               this->module.rets.erase(expr.index);
+			break; case Expr::Kind::BRANCH:            return;
+			break; case Expr::Kind::COND_BRANCH:       this->module.cond_branches.erase(expr.index);
+			break; case Expr::Kind::UNREACHABLE:       return;
+			break; case Expr::Kind::ALLOCA:            this->target_func->allocas.erase(expr.index);
+			break; case Expr::Kind::LOAD:              this->module.loads.erase(expr.index);
+			break; case Expr::Kind::STORE:             this->module.stores.erase(expr.index);
+			break; case Expr::Kind::CALC_PTR:          this->module.calc_ptrs.erase(expr.index);
+			break; case Expr::Kind::MEMCPY:            this->module.memcpys.erase(expr.index);
+			break; case Expr::Kind::MEMSET:            this->module.memsets.erase(expr.index);
+			break; case Expr::Kind::BIT_CAST:          this->module.bitcasts.erase(expr.index);
+			break; case Expr::Kind::TRUNC:             this->module.truncs.erase(expr.index);
+			break; case Expr::Kind::FTRUNC:            this->module.ftruncs.erase(expr.index);
+			break; case Expr::Kind::SEXT:              this->module.sexts.erase(expr.index);
+			break; case Expr::Kind::ZEXT:              this->module.zexts.erase(expr.index);
+			break; case Expr::Kind::FEXT:              this->module.fexts.erase(expr.index);
+			break; case Expr::Kind::ITOF:              this->module.itofs.erase(expr.index);
+			break; case Expr::Kind::UITOF:             this->module.uitofs.erase(expr.index);
+			break; case Expr::Kind::FTOI:              this->module.ftois.erase(expr.index);
+			break; case Expr::Kind::FTOUI:             this->module.ftouis.erase(expr.index);
+			break; case Expr::Kind::ADD:               this->module.adds.erase(expr.index);
+			break; case Expr::Kind::SADD_WRAP:         this->module.sadd_wraps.erase(expr.index);
+			break; case Expr::Kind::SADD_WRAP_RESULT:  return;
+			break; case Expr::Kind::SADD_WRAP_WRAPPED: return;
+			break; case Expr::Kind::UADD_WRAP:         this->module.uadd_wraps.erase(expr.index);
+			break; case Expr::Kind::UADD_WRAP_RESULT:  return;
+			break; case Expr::Kind::UADD_WRAP_WRAPPED: return;
+			break; case Expr::Kind::SADD_SAT:          this->module.sadd_sats.erase(expr.index);
+			break; case Expr::Kind::UADD_SAT:          this->module.uadd_sats.erase(expr.index);
+			break; case Expr::Kind::FADD:              this->module.fadds.erase(expr.index);
+			break; case Expr::Kind::SUB:               this->module.subs.erase(expr.index);
+			break; case Expr::Kind::SSUB_WRAP:         this->module.ssub_wraps.erase(expr.index);
+			break; case Expr::Kind::SSUB_WRAP_RESULT:  return;
+			break; case Expr::Kind::SSUB_WRAP_WRAPPED: return;
+			break; case Expr::Kind::USUB_WRAP:         this->module.usub_wraps.erase(expr.index);
+			break; case Expr::Kind::USUB_WRAP_RESULT:  return;
+			break; case Expr::Kind::USUB_WRAP_WRAPPED: return;
+			break; case Expr::Kind::SSUB_SAT:          this->module.ssub_sats.erase(expr.index);
+			break; case Expr::Kind::USUB_SAT:          this->module.usub_sats.erase(expr.index);
+			break; case Expr::Kind::FSUB:              this->module.fsubs.erase(expr.index);
+			break; case Expr::Kind::MUL:               this->module.muls.erase(expr.index);
+			break; case Expr::Kind::SMUL_WRAP:         this->module.smul_wraps.erase(expr.index);
+			break; case Expr::Kind::SMUL_WRAP_RESULT:  return;
+			break; case Expr::Kind::SMUL_WRAP_WRAPPED: return;
+			break; case Expr::Kind::UMUL_WRAP:         this->module.umul_wraps.erase(expr.index);
+			break; case Expr::Kind::UMUL_WRAP_RESULT:  return;
+			break; case Expr::Kind::UMUL_WRAP_WRAPPED: return;
+			break; case Expr::Kind::SMUL_SAT:          this->module.smul_sats.erase(expr.index);
+			break; case Expr::Kind::UMUL_SAT:          this->module.umul_sats.erase(expr.index);
+			break; case Expr::Kind::FMUL:              this->module.fmuls.erase(expr.index);
+			break; case Expr::Kind::SDIV:              this->module.sdivs.erase(expr.index);
+			break; case Expr::Kind::UDIV:              this->module.udivs.erase(expr.index);
+			break; case Expr::Kind::FDIV:              this->module.fdivs.erase(expr.index);
+			break; case Expr::Kind::SREM:              this->module.srems.erase(expr.index);
+			break; case Expr::Kind::UREM:              this->module.urems.erase(expr.index);
+			break; case Expr::Kind::FREM:              this->module.frems.erase(expr.index);
+			break; case Expr::Kind::FNEG:              this->module.fnegs.erase(expr.index);
+			break; case Expr::Kind::IEQ:               this->module.ieqs.erase(expr.index);
+			break; case Expr::Kind::FEQ:               this->module.feqs.erase(expr.index);
+			break; case Expr::Kind::INEQ:              this->module.ineqs.erase(expr.index);
+			break; case Expr::Kind::FNEQ:              this->module.fneqs.erase(expr.index);
+			break; case Expr::Kind::SLT:               this->module.slts.erase(expr.index);
+			break; case Expr::Kind::ULT:               this->module.ults.erase(expr.index);
+			break; case Expr::Kind::FLT:               this->module.flts.erase(expr.index);
+			break; case Expr::Kind::SLTE:              this->module.sltes.erase(expr.index);
+			break; case Expr::Kind::ULTE:              this->module.ultes.erase(expr.index);
+			break; case Expr::Kind::FLTE:              this->module.fltes.erase(expr.index);
+			break; case Expr::Kind::SGT:               this->module.sgts.erase(expr.index);
+			break; case Expr::Kind::UGT:               this->module.ugts.erase(expr.index);
+			break; case Expr::Kind::FGT:               this->module.fgts.erase(expr.index);
+			break; case Expr::Kind::SGTE:              this->module.sgtes.erase(expr.index);
+			break; case Expr::Kind::UGTE:              this->module.ugtes.erase(expr.index);
+			break; case Expr::Kind::FGTE:              this->module.fgtes.erase(expr.index);
+			break; case Expr::Kind::AND:               this->module.ands.erase(expr.index);
+			break; case Expr::Kind::OR:                this->module.ors.erase(expr.index);
+			break; case Expr::Kind::XOR:               this->module.xors.erase(expr.index);
+			break; case Expr::Kind::SHL:               this->module.shls.erase(expr.index);
+			break; case Expr::Kind::SSHL_SAT:          this->module.sshlsats.erase(expr.index);
+			break; case Expr::Kind::USHL_SAT:          this->module.ushlsats.erase(expr.index);
+			break; case Expr::Kind::SSHR:              this->module.sshrs.erase(expr.index);
+			break; case Expr::Kind::USHR:              this->module.ushrs.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -2863,126 +2863,126 @@ namespace pcit::pir{
 
 			for(const Expr& stmt : basic_block){
 				switch(stmt.kind()){
-					case Expr::Kind::None:            evo::debugFatalBreak("Invalid expr");
-					case Expr::Kind::GlobalValue:     continue;
-					case Expr::Kind::FunctionPointer: continue;
-					case Expr::Kind::Number:          continue;
-					case Expr::Kind::Boolean:         continue;
-					case Expr::Kind::ParamExpr:       continue;
-					case Expr::Kind::Call:            if(this->getCall(stmt).name == name){ return true; } continue;
-					case Expr::Kind::CallVoid:        continue;
-					case Expr::Kind::Breakpoint:      continue;
-					case Expr::Kind::Ret:             continue;
-					case Expr::Kind::Branch:          continue;
-					case Expr::Kind::CondBranch:      continue;
-					case Expr::Kind::Unreachable:     continue;
-					case Expr::Kind::Alloca:          if(this->getAlloca(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Load:            if(this->getLoad(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Store:           continue;
-					case Expr::Kind::CalcPtr:         if(this->getCalcPtr(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Memcpy:          continue;
-					case Expr::Kind::Memset:          continue;
-					case Expr::Kind::BitCast:         if(this->getBitCast(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Trunc:           if(this->getTrunc(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FTrunc:          if(this->getFTrunc(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SExt:            if(this->getSExt(stmt).name == name){ return true; } continue;
-					case Expr::Kind::ZExt:            if(this->getZExt(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FExt:            if(this->getFExt(stmt).name == name){ return true; } continue;
-					case Expr::Kind::IToF:            if(this->getIToF(stmt).name == name){ return true; } continue;
-					case Expr::Kind::UIToF:           if(this->getUIToF(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FToI:            if(this->getFToI(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FToUI:           if(this->getFToUI(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Add:             if(this->getAdd(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SAddWrap: {
+					case Expr::Kind::NONE:             evo::debugFatalBreak("Invalid expr");
+					case Expr::Kind::GLOBAL_VALUE:     continue;
+					case Expr::Kind::FUNCTION_POINTER: continue;
+					case Expr::Kind::NUMBER:           continue;
+					case Expr::Kind::BOOLEAN:          continue;
+					case Expr::Kind::PARAM_EXPR:       continue;
+					case Expr::Kind::CALL:             if(this->getCall(stmt).name == name){ return true; } continue;
+					case Expr::Kind::CALL_VOID:        continue;
+					case Expr::Kind::BREAKPOINT:       continue;
+					case Expr::Kind::RET:              continue;
+					case Expr::Kind::BRANCH:           continue;
+					case Expr::Kind::COND_BRANCH:      continue;
+					case Expr::Kind::UNREACHABLE:      continue;
+					case Expr::Kind::ALLOCA:           if(this->getAlloca(stmt).name == name){ return true; } continue;
+					case Expr::Kind::LOAD:             if(this->getLoad(stmt).name == name){ return true; } continue;
+					case Expr::Kind::STORE:            continue;
+					case Expr::Kind::CALC_PTR:         if(this->getCalcPtr(stmt).name == name){ return true; } continue;
+					case Expr::Kind::MEMCPY:           continue;
+					case Expr::Kind::MEMSET:           continue;
+					case Expr::Kind::BIT_CAST:         if(this->getBitCast(stmt).name == name){ return true; } continue;
+					case Expr::Kind::TRUNC:            if(this->getTrunc(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FTRUNC:           if(this->getFTrunc(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SEXT:             if(this->getSExt(stmt).name == name){ return true; } continue;
+					case Expr::Kind::ZEXT:             if(this->getZExt(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FEXT:             if(this->getFExt(stmt).name == name){ return true; } continue;
+					case Expr::Kind::ITOF:             if(this->getIToF(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UITOF:            if(this->getUIToF(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FTOI:             if(this->getFToI(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FTOUI:            if(this->getFToUI(stmt).name == name){ return true; } continue;
+					case Expr::Kind::ADD:              if(this->getAdd(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SADD_WRAP: {
 						const SAddWrap& sadd_wrap = this->getSAddWrap(stmt);
 						if(sadd_wrap.resultName == name){ return true; }
 						if(sadd_wrap.wrappedName == name){ return true; }
 						continue;
 					} break;
-					case Expr::Kind::SAddWrapResult:  continue;
-					case Expr::Kind::SAddWrapWrapped: continue;
-					case Expr::Kind::UAddWrap: {
+					case Expr::Kind::SADD_WRAP_RESULT:  continue;
+					case Expr::Kind::SADD_WRAP_WRAPPED: continue;
+					case Expr::Kind::UADD_WRAP: {
 						const UAddWrap& uadd_wrap = this->getUAddWrap(stmt);
 						if(uadd_wrap.resultName == name){ return true; }
 						if(uadd_wrap.wrappedName == name){ return true; }
 						continue;
 					} break;
-					case Expr::Kind::UAddWrapResult:  continue;
-					case Expr::Kind::UAddWrapWrapped: continue;
-					case Expr::Kind::SAddSat:         if(this->getSAddSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::UAddSat:         if(this->getUAddSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FAdd:            if(this->getFAdd(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Sub:             if(this->getSub(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SSubWrap: {
+					case Expr::Kind::UADD_WRAP_RESULT:  continue;
+					case Expr::Kind::UADD_WRAP_WRAPPED: continue;
+					case Expr::Kind::SADD_SAT: if(this->getSAddSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UADD_SAT: if(this->getUAddSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FADD:     if(this->getFAdd(stmt).name == name){    return true; } continue;
+					case Expr::Kind::SUB:      if(this->getSub(stmt).name == name){     return true; } continue;
+					case Expr::Kind::SSUB_WRAP: {
 						const SSubWrap& ssub_wrap = this->getSSubWrap(stmt);
 						if(ssub_wrap.resultName == name){ return true; }
 						if(ssub_wrap.wrappedName == name){ return true; }
 						continue;
 					} break;
-					case Expr::Kind::SSubWrapResult:  continue;
-					case Expr::Kind::SSubWrapWrapped: continue;
-					case Expr::Kind::USubWrap: {
+					case Expr::Kind::SSUB_WRAP_RESULT:  continue;
+					case Expr::Kind::SSUB_WRAP_WRAPPED: continue;
+					case Expr::Kind::USUB_WRAP: {
 						const USubWrap& usub_wrap = this->getUSubWrap(stmt);
 						if(usub_wrap.resultName == name){ return true; }
 						if(usub_wrap.wrappedName == name){ return true; }
 						continue;
 					} break;
-					case Expr::Kind::USubWrapResult:  continue;
-					case Expr::Kind::USubWrapWrapped: continue;
-					case Expr::Kind::SSubSat:         if(this->getSSubSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::USubSat:         if(this->getUSubSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FSub:            if(this->getFSub(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Mul:             if(this->getMul(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SMulWrap: {
+					case Expr::Kind::USUB_WRAP_RESULT:  continue;
+					case Expr::Kind::USUB_WRAP_WRAPPED: continue;
+					case Expr::Kind::SSUB_SAT: if(this->getSSubSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::USUB_SAT: if(this->getUSubSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FSUB:     if(this->getFSub(stmt).name == name){    return true; } continue;
+					case Expr::Kind::MUL:      if(this->getMul(stmt).name == name){     return true; } continue;
+					case Expr::Kind::SMUL_WRAP: {
 						const SMulWrap& smul_wrap = this->getSMulWrap(stmt);
 						if(smul_wrap.resultName == name){ return true; }
 						if(smul_wrap.wrappedName == name){ return true; }
 						continue;
 					} break;
-					case Expr::Kind::SMulWrapResult:  continue;
-					case Expr::Kind::SMulWrapWrapped: continue;
-					case Expr::Kind::UMulWrap: {
+					case Expr::Kind::SMUL_WRAP_RESULT:  continue;
+					case Expr::Kind::SMUL_WRAP_WRAPPED: continue;
+					case Expr::Kind::UMUL_WRAP: {
 						const UMulWrap& umul_wrap = this->getUMulWrap(stmt);
 						if(umul_wrap.resultName == name){ return true; }
 						if(umul_wrap.wrappedName == name){ return true; }
 						continue;
 					} break;
-					case Expr::Kind::UMulWrapResult:  continue;
-					case Expr::Kind::UMulWrapWrapped: continue;
-					case Expr::Kind::SMulSat:         if(this->getSMulSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::UMulSat:         if(this->getUMulSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FMul:            if(this->getFMul(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SDiv:            if(this->getSDiv(stmt).name == name){ return true; } continue;
-					case Expr::Kind::UDiv:            if(this->getUDiv(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FDiv:            if(this->getFDiv(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SRem:            if(this->getSRem(stmt).name == name){ return true; } continue;
-					case Expr::Kind::URem:            if(this->getURem(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FRem:            if(this->getFRem(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FNeg:            if(this->getFNeg(stmt).name == name){ return true; } continue;
-					case Expr::Kind::IEq:             if(this->getIEq(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FEq:             if(this->getFEq(stmt).name == name){ return true; } continue;
-					case Expr::Kind::INeq:            if(this->getINeq(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FNeq:            if(this->getFNeq(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SLT:             if(this->getSLT(stmt).name == name){ return true; } continue;
-					case Expr::Kind::ULT:             if(this->getULT(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FLT:             if(this->getFLT(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SLTE:            if(this->getSLTE(stmt).name == name){ return true; } continue;
-					case Expr::Kind::ULTE:            if(this->getULTE(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FLTE:            if(this->getFLTE(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SGT:             if(this->getSGT(stmt).name == name){ return true; } continue;
-					case Expr::Kind::UGT:             if(this->getUGT(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FGT:             if(this->getFGT(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SGTE:            if(this->getSGTE(stmt).name == name){ return true; } continue;
-					case Expr::Kind::UGTE:            if(this->getUGTE(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FGTE:            if(this->getFGTE(stmt).name == name){ return true; } continue;
-					case Expr::Kind::And:             if(this->getAnd(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Or:              if(this->getOr(stmt).name == name){ return true; } continue;
-					case Expr::Kind::Xor:             if(this->getXor(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SHL:             if(this->getSHL(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SSHLSat:         if(this->getSSHLSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::USHLSat:         if(this->getUSHLSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SSHR:            if(this->getSSHR(stmt).name == name){ return true; } continue;
-					case Expr::Kind::USHR:            if(this->getUSHR(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UMUL_WRAP_RESULT:  continue;
+					case Expr::Kind::UMUL_WRAP_WRAPPED: continue;
+					case Expr::Kind::SMUL_SAT: if(this->getSMulSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::UMUL_SAT: if(this->getUMulSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::FMUL:     if(this->getFMul(stmt).name == name){    return true; } continue;
+					case Expr::Kind::SDIV:     if(this->getSDiv(stmt).name == name){    return true; } continue;
+					case Expr::Kind::UDIV:     if(this->getUDiv(stmt).name == name){    return true; } continue;
+					case Expr::Kind::FDIV:     if(this->getFDiv(stmt).name == name){    return true; } continue;
+					case Expr::Kind::SREM:     if(this->getSRem(stmt).name == name){    return true; } continue;
+					case Expr::Kind::UREM:     if(this->getURem(stmt).name == name){    return true; } continue;
+					case Expr::Kind::FREM:     if(this->getFRem(stmt).name == name){    return true; } continue;
+					case Expr::Kind::FNEG:     if(this->getFNeg(stmt).name == name){    return true; } continue;
+					case Expr::Kind::IEQ:      if(this->getIEq(stmt).name == name){     return true; } continue;
+					case Expr::Kind::FEQ:      if(this->getFEq(stmt).name == name){     return true; } continue;
+					case Expr::Kind::INEQ:     if(this->getINeq(stmt).name == name){    return true; } continue;
+					case Expr::Kind::FNEQ:     if(this->getFNeq(stmt).name == name){    return true; } continue;
+					case Expr::Kind::SLT:      if(this->getSLT(stmt).name == name){     return true; } continue;
+					case Expr::Kind::ULT:      if(this->getULT(stmt).name == name){     return true; } continue;
+					case Expr::Kind::FLT:      if(this->getFLT(stmt).name == name){     return true; } continue;
+					case Expr::Kind::SLTE:     if(this->getSLTE(stmt).name == name){    return true; } continue;
+					case Expr::Kind::ULTE:     if(this->getULTE(stmt).name == name){    return true; } continue;
+					case Expr::Kind::FLTE:     if(this->getFLTE(stmt).name == name){    return true; } continue;
+					case Expr::Kind::SGT:      if(this->getSGT(stmt).name == name){     return true; } continue;
+					case Expr::Kind::UGT:      if(this->getUGT(stmt).name == name){     return true; } continue;
+					case Expr::Kind::FGT:      if(this->getFGT(stmt).name == name){     return true; } continue;
+					case Expr::Kind::SGTE:     if(this->getSGTE(stmt).name == name){    return true; } continue;
+					case Expr::Kind::UGTE:     if(this->getUGTE(stmt).name == name){    return true; } continue;
+					case Expr::Kind::FGTE:     if(this->getFGTE(stmt).name == name){    return true; } continue;
+					case Expr::Kind::AND:      if(this->getAnd(stmt).name == name){     return true; } continue;
+					case Expr::Kind::OR:       if(this->getOr(stmt).name == name){      return true; } continue;
+					case Expr::Kind::XOR:      if(this->getXor(stmt).name == name){     return true; } continue;
+					case Expr::Kind::SHL:      if(this->getSHL(stmt).name == name){     return true; } continue;
+					case Expr::Kind::SSHL_SAT: if(this->getSSHLSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::USHL_SAT: if(this->getUSHLSat(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SSHR:     if(this->getSSHR(stmt).name == name){    return true; } continue;
+					case Expr::Kind::USHR:     if(this->getUSHR(stmt).name == name){    return true; } continue;
 				}
 			}
 		}

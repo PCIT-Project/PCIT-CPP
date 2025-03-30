@@ -34,9 +34,9 @@ namespace pcit::panther{
 
 			struct Config{
 				enum class Mode{
-					Compile,
-					Scripting,
-					BuildSystem = Scripting,
+					COMPILE,
+					SCRIPTING,
+					BUILD_SYSTEM = SCRIPTING,
 				};
 
 				Mode mode;
@@ -52,10 +52,10 @@ namespace pcit::panther{
 
 
 			enum class AddSourceResult{
-				Success,
-				DoesntExist,
-				NotDirectory,
-				StdNotAbsolute,
+				SUCCESS,
+				DOESNT_EXIST,
+				NOT_DIRECTORY,
+				// STD_NOT_ABSOLUTE,
 			};
 
 		public:
@@ -71,8 +71,8 @@ namespace pcit::panther{
 					.addSourceLocations = true,
 				})
 			{
-				evo::debugAssert(config.os != core::OS::Unknown, "OS must be known");
-				evo::debugAssert(config.architecture != core::Architecture::Unknown, "Architecture must be known");
+				evo::debugAssert(config.os != core::OS::UNKNOWN, "OS must be known");
+				evo::debugAssert(config.architecture != core::Architecture::UNKNOWN, "Architecture must be known");
 			}
 
 			Context(DiagnosticCallback&& diagnostic_callback, const Config& config)
@@ -87,8 +87,8 @@ namespace pcit::panther{
 					.addSourceLocations = true,
 				})
 			{
-				evo::debugAssert(config.os != core::OS::Unknown, "OS must be known");
-				evo::debugAssert(config.architecture != core::Architecture::Unknown, "Architecture must be known");
+				evo::debugAssert(config.os != core::OS::UNKNOWN, "OS must be known");
+				evo::debugAssert(config.architecture != core::Architecture::UNKNOWN, "Architecture must be known");
 			}
 
 			~Context() = default;
@@ -102,7 +102,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto mayAddSourceFile() const -> bool {
-				return this->_config.mode == Config::Mode::Scripting || this->source_manager.size() > 0;
+				return this->_config.mode == Config::Mode::SCRIPTING || this->source_manager.size() > 0;
 			}
 
 
@@ -158,7 +158,7 @@ namespace pcit::panther{
 			auto emitFatal(auto&&... args) -> void {
 				this->num_errors += 1;
 				if(this->encountered_fatal.exchange(true) == true){ return; }
-				this->emit_diagnostic_impl(Diagnostic(Diagnostic::Level::Fatal, std::forward<decltype(args)>(args)...));
+				this->emit_diagnostic_impl(Diagnostic(Diagnostic::Level::FATAL, std::forward<decltype(args)>(args)...));
 				this->clear_work_queue_if_needed();
 			}
 
@@ -166,7 +166,7 @@ namespace pcit::panther{
 				this->num_errors += 1;
 				if(this->hasHitFailCondition() == false){
 					this->emit_diagnostic_impl(
-						Diagnostic(Diagnostic::Level::Error, std::forward<decltype(args)>(args)...)
+						Diagnostic(Diagnostic::Level::ERROR, std::forward<decltype(args)>(args)...)
 					);
 				}else{
 					this->clear_work_queue_if_needed();
@@ -175,7 +175,7 @@ namespace pcit::panther{
 
 			auto emitWarning(auto&&... args) -> void {
 				this->emit_diagnostic_impl(
-					Diagnostic(Diagnostic::Level::Warning, std::forward<decltype(args)>(args)...)
+					Diagnostic(Diagnostic::Level::WARNING, std::forward<decltype(args)>(args)...)
 				);
 			}
 
@@ -219,11 +219,11 @@ namespace pcit::panther{
 
 
 			enum class LookupSourceIDError{
-				EmptyPath,
-				SameAsCaller,
-				NotOneOfSources,
-				DoesntExist,
-				FailedDuringAnalysisOfNewlyLoaded,
+				EMPTY_PATH,
+				SAME_AS_CALLER,
+				NOT_ONE_OF_SOURCES,
+				DOESNT_EXIST,
+				FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED,
 			};
 			EVO_NODISCARD auto lookupSourceID(std::string_view lookup_path, const Source& calling_source)
 				-> evo::Expected<Source::ID, LookupSourceIDError>;

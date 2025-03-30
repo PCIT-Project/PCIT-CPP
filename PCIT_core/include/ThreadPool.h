@@ -128,22 +128,22 @@ namespace pcit::core{
 			class Worker{
 				public:
 					enum class Mode{
-						Waiting,
-						Working,
-						Stealing,
-						Stopping, // told to stop doing tasks, but not stop running
+						WAITING,
+						WORKING,
+						STEALING,
+						STOPPING, // told to stop doing tasks, but not stop running
 					};
 
 				public:
 					Worker(ThreadPool* _thread_pool, size_t _id)
 						: thread_pool(_thread_pool), id(_id), thread([this](std::stop_token stop) -> void {
 							while(stop.stop_requested() == false){
-								if(this->mode == Mode::Waiting){
+								if(this->mode == Mode::WAITING){
 									std::this_thread::yield();
 									continue;
 
-								}else if(this->mode == Mode::Stopping){
-									this->mode = Mode::Waiting;
+								}else if(this->mode == Mode::STOPPING){
+									this->mode = Mode::WAITING;
 									this->thread_pool->signal_worker_finished_working();
 									std::this_thread::yield();
 									continue;
@@ -152,14 +152,14 @@ namespace pcit::core{
 
 								DATA* task = this->get_task();
 								if(task == nullptr){
-									this->mode = Mode::Waiting;
+									this->mode = Mode::WAITING;
 									std::this_thread::yield();
 									continue;
 								}
 
 								const bool task_result = this->thread_pool->work_func->operator()(*task);
 								if(task_result == false){
-									this->mode = Mode::Stopping;
+									this->mode = Mode::STOPPING;
 									this->thread_pool->signal_worker_failed();
 								}
 							}
@@ -175,7 +175,7 @@ namespace pcit::core{
 
 
 					auto start_working(size_t new_start, size_t new_end) -> void {
-						this->mode = Mode::Working;
+						this->mode = Mode::WORKING;
 						this->start_index = new_start;
 						this->end_index = new_end;
 					}
@@ -186,19 +186,19 @@ namespace pcit::core{
 					}
 
 				public:
-					Mode mode = Mode::Waiting;
+					Mode mode = Mode::WAITING;
 
 				private:
 					auto get_task() -> DATA* {
 						evo::debugAssert(
-							this->mode != Mode::Waiting, "Should not be getting task when in waiting mode"
+							this->mode != Mode::WAITING, "Should not be getting task when in waiting mode"
 						);
 
-						if(this->mode == Mode::Working){
+						if(this->mode == Mode::WORKING){
 							this->work_lock.lock();
 
 							if(this->start_index > this->end_index){
-								this->mode = Mode::Stealing;
+								this->mode = Mode::STEALING;
 								this->work_lock.unlock();
 								return this->search_for_task_to_steal();
 							}
@@ -208,12 +208,12 @@ namespace pcit::core{
 							this->work_lock.unlock();
 							return next_task;
 
-						}else if(this->mode == Mode::Stopping){
+						}else if(this->mode == Mode::STOPPING){
 							return nullptr;
 
 						}else{
 							evo::debugAssert(
-								this->mode == Mode::Stealing, "Unsupported mode ({})", evo::to_underlying(this->mode)
+								this->mode == Mode::STEALING, "Unsupported mode ({})", evo::to_underlying(this->mode)
 							);
 
 							return this->search_for_task_to_steal();
@@ -222,7 +222,7 @@ namespace pcit::core{
 
 
 					auto search_for_task_to_steal() -> DATA* {
-						evo::debugAssert(this->mode == Mode::Stealing, "Should only steal if in stealing mode");
+						evo::debugAssert(this->mode == Mode::STEALING, "Should only steal if in stealing mode");
 
 						for(size_t i = 0; i < this->thread_pool->workers.size(); i+=1){
 							if(i == this->id){ continue; }
@@ -231,7 +231,7 @@ namespace pcit::core{
 							if(stolen_task != nullptr){ return stolen_task; }
 						}
 
-						this->mode = Mode::Waiting;
+						this->mode = Mode::WAITING;
 						this->thread_pool->signal_worker_finished_working();
 						return nullptr;
 					}
@@ -239,7 +239,7 @@ namespace pcit::core{
 					auto attempt_to_steal_from() -> DATA* {
 						const auto lock = std::lock_guard(this->work_lock);
 
-						if(this->mode != Mode::Working){ return nullptr; }
+						if(this->mode != Mode::WORKING){ return nullptr; }
 
 						if(this->start_index >= this->end_index){ return nullptr; }
 
@@ -270,7 +270,7 @@ namespace pcit::core{
 			auto signal_worker_failed() -> void {
 				this->worker_failed = true;
 				for(Worker& worker : this->workers){
-					if(worker.mode != Worker::Mode::Waiting){ worker.mode = Worker::Mode::Stopping; }
+					if(worker.mode != Worker::Mode::WAITING){ worker.mode = Worker::Mode::STOPPING; }
 				}
 			}
 

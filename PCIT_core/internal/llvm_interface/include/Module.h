@@ -28,12 +28,12 @@ namespace pcit::llvmint{
 			// thanks to https://doc.rust-lang.org/rustc/codegen-options/index.html for this info
 			// used for target triple
 			enum class Relocation{
-				Default,
-				Static, // absolute addressing mode
+				DEFAULT,
+				STATIC, // absolute addressing mode
 				PIC,    // position independent code (-fPIC)
 
 				// Only use on Darwin
-				DynamicNoPIC, // relocatable external references, non-relocatable code
+				DYNAMIC_NO_PIC, // relocatable external references, non-relocatable code
 
 				// Only use for certain embedded ARM targets
 				ROPI, // relocatable code and read-only data
@@ -43,26 +43,26 @@ namespace pcit::llvmint{
 
 			// used for target triple
 			enum class CodeSize{
-				Default,
+				DEFAULT,
 				// Tiny, // seems to cause a crash within LLVM
-				Small,
-				Kernel,
-				Medium,
-				Large,
+				SMALL,
+				KERNEL,
+				MEDIUM,
+				LARGE,
 			};
 
 			// used for target triple
 			enum class OptLevel{
-				None,       // O0
-				Less,       // O1
-				Default,    // O2 / Os
-				Aggressive, // O3
+				NONE,       // O0
+				LESS,       // O1
+				DEFAULT,    // O2 / Os
+				AGGRESSIVE, // O3
 			};
 
 			// used for optimization pass
 			enum class OptMode{
-				None,
-				O0 = None,
+				NONE,
+				O0 = NONE,
 				O1,
 				O2,
 				O3,
@@ -76,11 +76,11 @@ namespace pcit::llvmint{
 
 			struct ArchSpecificSettingsX86{
 				enum class AssemblyDialect{
-					Intel,
+					INTEL,
 					ATT,
 				};
 
-				AssemblyDialect dialect = AssemblyDialect::Intel;
+				AssemblyDialect dialect = AssemblyDialect::INTEL;
 			};
 
 			using ArchSpecificSettings = evo::Variant<ArchSpecificSettingsDefault, ArchSpecificSettingsX86>;
@@ -101,9 +101,9 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto setTargetAndDataLayout(
 				core::OS os             = core::getCurrentOS(),
 				core::Architecture arch = core::getCurrentArchitecture(),
-				Relocation relocation   = Relocation::Default,
-				CodeSize code_size      = CodeSize::Default,
-				OptLevel opt_level      = OptLevel::Default,
+				Relocation relocation   = Relocation::DEFAULT,
+				CodeSize code_size      = CodeSize::DEFAULT,
+				OptLevel opt_level      = OptLevel::DEFAULT,
 				bool is_jit             = false,
 				ArchSpecificSettings arch_specific_settings = ArchSpecificSettingsDefault()
 			) -> std::string; // returns error message (empty if no error)

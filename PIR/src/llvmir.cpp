@@ -44,12 +44,12 @@ namespace pcit::pir{
 
 		const llvmint::Module::OptLevel opt_level = [&](){
 			switch(opt_mode){
-				case OptMode::O0: return llvmint::Module::OptLevel::None;
-				case OptMode::O1: return llvmint::Module::OptLevel::Less;
-				case OptMode::O2: return llvmint::Module::OptLevel::Default;
-				case OptMode::O3: return llvmint::Module::OptLevel::Aggressive;
-				case OptMode::Os: return llvmint::Module::OptLevel::Default;
-				case OptMode::Oz: return llvmint::Module::OptLevel::Default;
+				case OptMode::O0: return llvmint::Module::OptLevel::NONE;
+				case OptMode::O1: return llvmint::Module::OptLevel::LESS;
+				case OptMode::O2: return llvmint::Module::OptLevel::DEFAULT;
+				case OptMode::O3: return llvmint::Module::OptLevel::AGGRESSIVE;
+				case OptMode::Os: return llvmint::Module::OptLevel::DEFAULT;
+				case OptMode::Oz: return llvmint::Module::OptLevel::DEFAULT;
 			}
 
 			evo::unreachable();
@@ -63,8 +63,8 @@ namespace pcit::pir{
 		const std::string data_layout_error = lowering_data.module.setTargetAndDataLayout(
 			module.getOS(),
 			module.getArchitecture(),
-			llvmint::Module::Relocation::Default,
-			llvmint::Module::CodeSize::Default,
+			llvmint::Module::Relocation::DEFAULT,
+			llvmint::Module::CodeSize::DEFAULT,
 			opt_level,
 			false // is_jit
 		);

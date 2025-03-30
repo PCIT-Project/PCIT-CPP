@@ -35,15 +35,15 @@ namespace pcit::panther{
 
 	namespace BaseType{
 		enum class Kind : uint8_t {
-			Dummy,
+			DUMMY,
 
-			Primitive,
-			Function,
-			Array,
-			Alias,
-			Typedef,
-			Struct,
-			StructTemplate,
+			PRIMITIVE,
+			FUNCTION,
+			ARRAY,
+			ALIAS,
+			TYPEDEF,
+			STRUCT,
+			STRUCT_TEMPLATE,
 		};
 
 
@@ -54,7 +54,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto bitWidth() const -> uint32_t {
 				evo::debugAssert(
-					this->_kind == Token::Kind::TypeI_N || this->_kind == Token::Kind::TypeUI_N,
+					this->_kind == Token::Kind::TYPE_I_N || this->_kind == Token::Kind::TYPE_UI_N,
 					"This type does not have a bit-width"
 				);
 
@@ -73,14 +73,14 @@ namespace pcit::panther{
 
 			Primitive(Token::Kind tok_kind) : _kind(tok_kind), bit_width(0) {
 				evo::debugAssert(
-					this->_kind != Token::Kind::TypeI_N && this->_kind != Token::Kind::TypeUI_N,
+					this->_kind != Token::Kind::TYPE_I_N && this->_kind != Token::Kind::TYPE_UI_N,
 					"This type requires a bit-width"
 				);
 			};
 
 			Primitive(Token::Kind tok_kind, uint32_t _bit_width) : _kind(tok_kind), bit_width(_bit_width) {
 				evo::debugAssert(
-					this->_kind == Token::Kind::TypeI_N || this->_kind == Token::Kind::TypeUI_N,
+					this->_kind == Token::Kind::TYPE_I_N || this->_kind == Token::Kind::TYPE_UI_N,
 					"This type does not have a bit-width"
 				);
 			};
@@ -277,37 +277,37 @@ namespace pcit::panther{
 			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
 
 			EVO_NODISCARD auto primitiveID() const -> Primitive::ID {
-				evo::debugAssert(this->kind() == Kind::Primitive, "not a Primitive");
+				evo::debugAssert(this->kind() == Kind::PRIMITIVE, "not a Primitive");
 				return Primitive::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto funcID() const -> Function::ID {
-				evo::debugAssert(this->kind() == Kind::Function, "not a Function");
+				evo::debugAssert(this->kind() == Kind::FUNCTION, "not a Function");
 				return Function::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto arrayID() const -> Array::ID {
-				evo::debugAssert(this->kind() == Kind::Array, "not a Array");
+				evo::debugAssert(this->kind() == Kind::ARRAY, "not a Array");
 				return Array::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto aliasID() const -> Alias::ID {
-				evo::debugAssert(this->kind() == Kind::Alias, "not an Alias");
+				evo::debugAssert(this->kind() == Kind::ALIAS, "not an Alias");
 				return Alias::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto typedefID() const -> Typedef::ID {
-				evo::debugAssert(this->kind() == Kind::Typedef, "not a Typedef");
+				evo::debugAssert(this->kind() == Kind::TYPEDEF, "not a Typedef");
 				return Typedef::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto structID() const -> Struct::ID {
-				evo::debugAssert(this->kind() == Kind::Struct, "not a Struct");
+				evo::debugAssert(this->kind() == Kind::STRUCT, "not a Struct");
 				return Struct::ID(this->_id);
 			}
 
 			EVO_NODISCARD auto structTemplateID() const -> StructTemplate::ID {
-				evo::debugAssert(this->kind() == Kind::StructTemplate, "not a StructTemplate");
+				evo::debugAssert(this->kind() == Kind::STRUCT_TEMPLATE, "not a StructTemplate");
 				return StructTemplate::ID(this->_id);
 			}
 
@@ -316,17 +316,17 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD static constexpr auto dummy() -> ID {
-				return ID(Kind::Dummy, std::numeric_limits<uint32_t>::max());
+				return ID(Kind::DUMMY, std::numeric_limits<uint32_t>::max());
 			}
 
 
-			explicit ID(Primitive::ID id)      : _kind(Kind::Primitive),      _id(id.get()) {}
-			explicit ID(Function::ID id)       : _kind(Kind::Function),       _id(id.get()) {}
-			explicit ID(Array::ID id)          : _kind(Kind::Array),          _id(id.get()) {}
-			explicit ID(Alias::ID id)          : _kind(Kind::Alias),          _id(id.get()) {}
-			explicit ID(Typedef::ID id)        : _kind(Kind::Typedef),        _id(id.get()) {}
-			explicit ID(Struct::ID id)         : _kind(Kind::Struct),         _id(id.get()) {}
-			explicit ID(StructTemplate::ID id) : _kind(Kind::StructTemplate), _id(id.get()) {}
+			explicit ID(Primitive::ID id)      : _kind(Kind::PRIMITIVE),      _id(id.get()) {}
+			explicit ID(Function::ID id)       : _kind(Kind::FUNCTION),       _id(id.get()) {}
+			explicit ID(Array::ID id)          : _kind(Kind::ARRAY),          _id(id.get()) {}
+			explicit ID(Alias::ID id)          : _kind(Kind::ALIAS),          _id(id.get()) {}
+			explicit ID(Typedef::ID id)        : _kind(Kind::TYPEDEF),        _id(id.get()) {}
+			explicit ID(Struct::ID id)         : _kind(Kind::STRUCT),         _id(id.get()) {}
+			explicit ID(StructTemplate::ID id) : _kind(Kind::STRUCT_TEMPLATE), _id(id.get()) {}
 
 			private:
 				constexpr ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
@@ -342,11 +342,11 @@ namespace pcit::panther{
 
 		struct IDOptInterface{
 			static constexpr auto init(ID* id) -> void {
-				new(id) ID(Kind::Dummy, std::numeric_limits<uint32_t>::max());
+				new(id) ID(Kind::DUMMY, std::numeric_limits<uint32_t>::max());
 			}
 
 			static constexpr auto has_value(const BaseType::ID& id) -> bool {
-				return id._kind != Kind::Dummy;
+				return id._kind != Kind::DUMMY;
 			}
 		};
 	};

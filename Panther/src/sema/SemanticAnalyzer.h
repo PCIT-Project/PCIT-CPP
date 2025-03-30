@@ -44,11 +44,11 @@ namespace pcit::panther{
 
 		private:
 			enum class Result{
-				Success,
-				Error,
-				RecoverableError,
-				NeedToWait,
-				NeedToWaitBeforeNextInstr,
+				SUCCESS,
+				ERROR,
+				RECOVERABLE_ERROR,
+				NEED_TO_WAIT,
+				NEED_TO_WAIT_BEFORE_NEXT_INSTR,
 			};
 
 			///////////////////////////////////
@@ -127,9 +127,9 @@ namespace pcit::panther{
 
 
 			enum class AnalyzeExprIdentInScopeLevelError{
-				DoesntExist,
-				NeedsToWaitOnDef,
-				ErrorEmitted,
+				DOESNT_EXIST,
+				NEEDS_TO_WAIT_ON_DEF,
+				ERROR_EMITTED,
 			};
 			template<bool NEEDS_DEF, bool PUB_REQUIRED>
 			EVO_NODISCARD auto analyze_expr_ident_in_scope_level(
@@ -143,9 +143,9 @@ namespace pcit::panther{
 
 
 			enum class WaitOnSymbolProcResult{
-				Error,
-				NeedToWait,
-				SemasReady,
+				ERROR,
+				NEED_TO_WAIT,
+				SEMAS_READY,
 			};
 
 			template<bool NEEDS_DEF>

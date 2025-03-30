@@ -22,85 +22,85 @@ namespace pcit::pir{
 	class Expr{
 		public:
 			enum class Kind : uint32_t {
-				None, // for the optional optimization
+				NONE, // for the optional optimization
 
 				// values
-				GlobalValue,
-				FunctionPointer,
-				Number,
-				Boolean,
-				ParamExpr,
+				GLOBAL_VALUE,
+				FUNCTION_POINTER,
+				NUMBER,
+				BOOLEAN,
+				PARAM_EXPR,
 
 				// stmts
-				Call,
-				CallVoid, // is separated from Call to allow for Expr::isValue()
-				Breakpoint,
+				CALL,
+				CALL_VOID, // is separated from Call to allow for Expr::isValue()
+				BREAKPOINT,
 
-				Ret,
-				Branch,
-				CondBranch,
-				Unreachable,
+				RET,
+				BRANCH,
+				COND_BRANCH,
+				UNREACHABLE,
 
-				Alloca,
-				Load,
-				Store,
-				CalcPtr,
-				Memcpy,
-				Memset,
+				ALLOCA,
+				LOAD,
+				STORE,
+				CALC_PTR,
+				MEMCPY,
+				MEMSET,
 
-				BitCast,
-				Trunc,
-				FTrunc,
-				SExt,
-				ZExt,
-				FExt,
-				IToF,
-				UIToF,
-				FToI,
-				FToUI,
+				BIT_CAST,
+				TRUNC,
+				FTRUNC,
+				SEXT,
+				ZEXT,
+				FEXT,
+				ITOF,
+				UITOF,
+				FTOI,
+				FTOUI,
 
-				Add,
-				SAddWrap,
-				SAddWrapResult,
-				SAddWrapWrapped,
-				UAddWrap,
-				UAddWrapResult,
-				UAddWrapWrapped,
-				SAddSat,
-				UAddSat,
-				FAdd,
-				Sub,
-				SSubWrap,
-				SSubWrapResult,
-				SSubWrapWrapped,
-				USubWrap,
-				USubWrapResult,
-				USubWrapWrapped,
-				SSubSat,
-				USubSat,
-				FSub,
-				Mul,
-				SMulWrap,
-				SMulWrapResult,
-				SMulWrapWrapped,
-				UMulWrap,
-				UMulWrapResult,
-				UMulWrapWrapped,
-				SMulSat,
-				UMulSat,
-				FMul,
-				SDiv,
-				UDiv,
-				FDiv,
-				SRem,
-				URem,
-				FRem,
-				FNeg,
+				ADD,
+				SADD_WRAP,
+				SADD_WRAP_RESULT,
+				SADD_WRAP_WRAPPED,
+				UADD_WRAP,
+				UADD_WRAP_RESULT,
+				UADD_WRAP_WRAPPED,
+				SADD_SAT,
+				UADD_SAT,
+				FADD,
+				SUB,
+				SSUB_WRAP,
+				SSUB_WRAP_RESULT,
+				SSUB_WRAP_WRAPPED,
+				USUB_WRAP,
+				USUB_WRAP_RESULT,
+				USUB_WRAP_WRAPPED,
+				SSUB_SAT,
+				USUB_SAT,
+				FSUB,
+				MUL,
+				SMUL_WRAP,
+				SMUL_WRAP_RESULT,
+				SMUL_WRAP_WRAPPED,
+				UMUL_WRAP,
+				UMUL_WRAP_RESULT,
+				UMUL_WRAP_WRAPPED,
+				SMUL_SAT,
+				UMUL_SAT,
+				FMUL,
+				SDIV,
+				UDIV,
+				FDIV,
+				SREM,
+				UREM,
+				FREM,
+				FNEG,
 
-				IEq,
-				FEq,
-				INeq,
-				FNeq,
+				IEQ,
+				FEQ,
+				INEQ,
+				FNEQ,
 				SLT,
 				ULT,
 				FLT,
@@ -114,12 +114,12 @@ namespace pcit::pir{
 				UGTE,
 				FGTE,
 
-				And,
-				Or,
-				Xor,
+				AND,
+				OR,
+				XOR,
 				SHL,
-				SSHLSat,
-				USHLSat,
+				SSHL_SAT,
+				USHL_SAT,
 				SSHR,
 				USHR,
 			};
@@ -131,32 +131,32 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isValue() const -> bool {
                 switch(this->_kind){
-					case Kind::Number:          case Kind::Boolean:         case Kind::GlobalValue:
-					case Kind::ParamExpr:       case Kind::Call:            case Kind::Alloca:
-					case Kind::Load:            case Kind::CalcPtr:         case Kind::BitCast:
-					case Kind::Trunc:           case Kind::FTrunc:          case Kind::SExt:
-					case Kind::ZExt:            case Kind::FExt:            case Kind::IToF:
-					case Kind::UIToF:           case Kind::FToI:            case Kind::FToUI:
-					case Kind::Add:             case Kind::SAddWrap:        case Kind::SAddWrapResult:
-					case Kind::SAddWrapWrapped: case Kind::UAddWrap:        case Kind::UAddWrapResult:
-					case Kind::UAddWrapWrapped: case Kind::SAddSat:         case Kind::UAddSat:
-					case Kind::FAdd:            case Kind::Sub:             case Kind::SSubWrap:
-					case Kind::SSubWrapResult:  case Kind::SSubWrapWrapped: case Kind::USubWrap:
-					case Kind::USubWrapResult:  case Kind::USubWrapWrapped: case Kind::SSubSat:
-					case Kind::USubSat:         case Kind::FSub:            case Kind::Mul:
-					case Kind::SMulWrap:        case Kind::SMulWrapResult:  case Kind::SMulWrapWrapped:
-					case Kind::UMulWrap:        case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped:
-					case Kind::SMulSat:         case Kind::UMulSat:         case Kind::FMul:
-					case Kind::SDiv:            case Kind::UDiv:            case Kind::FDiv:
-					case Kind::SRem:            case Kind::URem:            case Kind::FRem:
-					case Kind::FNeg:            case Kind::IEq:             case Kind::FEq:
-					case Kind::INeq:            case Kind::FNeq:            case Kind::SLT:
-					case Kind::ULT:             case Kind::FLT:             case Kind::SLTE:
-					case Kind::ULTE:            case Kind::FLTE:            case Kind::SGT:
-					case Kind::UGT:             case Kind::FGT:             case Kind::SGTE:
-					case Kind::UGTE:            case Kind::FGTE:            case Kind::And:
-					case Kind::Or:              case Kind::Xor:             case Kind::SHL:
-					case Kind::SSHLSat:         case Kind::USHLSat:         case Kind::SSHR:
+					case Kind::NUMBER:            case Kind::BOOLEAN:           case Kind::GLOBAL_VALUE:
+					case Kind::PARAM_EXPR:        case Kind::CALL:              case Kind::ALLOCA:
+					case Kind::LOAD:              case Kind::CALC_PTR:          case Kind::BIT_CAST:
+					case Kind::TRUNC:             case Kind::FTRUNC:            case Kind::SEXT:
+					case Kind::ZEXT:              case Kind::FEXT:              case Kind::ITOF:
+					case Kind::UITOF:             case Kind::FTOI:              case Kind::FTOUI:
+					case Kind::ADD:               case Kind::SADD_WRAP:         case Kind::SADD_WRAP_RESULT:
+					case Kind::SADD_WRAP_WRAPPED: case Kind::UADD_WRAP:         case Kind::UADD_WRAP_RESULT:
+					case Kind::UADD_WRAP_WRAPPED: case Kind::SADD_SAT:          case Kind::UADD_SAT:
+					case Kind::FADD:              case Kind::SUB:               case Kind::SSUB_WRAP:
+					case Kind::SSUB_WRAP_RESULT:  case Kind::SSUB_WRAP_WRAPPED: case Kind::USUB_WRAP:
+					case Kind::USUB_WRAP_RESULT:  case Kind::USUB_WRAP_WRAPPED: case Kind::SSUB_SAT:
+					case Kind::USUB_SAT:          case Kind::FSUB:              case Kind::MUL:
+					case Kind::SMUL_WRAP:         case Kind::SMUL_WRAP_RESULT:  case Kind::SMUL_WRAP_WRAPPED:
+					case Kind::UMUL_WRAP:         case Kind::UMUL_WRAP_RESULT:  case Kind::UMUL_WRAP_WRAPPED:
+					case Kind::SMUL_SAT:          case Kind::UMUL_SAT:          case Kind::FMUL:
+					case Kind::SDIV:              case Kind::UDIV:              case Kind::FDIV:
+					case Kind::SREM:              case Kind::UREM:              case Kind::FREM:
+					case Kind::FNEG:              case Kind::IEQ:               case Kind::FEQ:
+					case Kind::INEQ:              case Kind::FNEQ:              case Kind::SLT:
+					case Kind::ULT:               case Kind::FLT:               case Kind::SLTE:
+					case Kind::ULTE:              case Kind::FLTE:              case Kind::SGT:
+					case Kind::UGT:               case Kind::FGT:               case Kind::SGTE:
+					case Kind::UGTE:              case Kind::FGTE:              case Kind::AND:
+					case Kind::OR:                case Kind::XOR:               case Kind::SHL:
+					case Kind::SSHL_SAT:          case Kind::USHL_SAT:          case Kind::SSHR:
 					case Kind::USHR: {
 						return true;
 					} break;
@@ -166,41 +166,41 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isConstant() const -> bool {
 				switch(this->_kind){
-					case Kind::Number: case Kind::Boolean: return true;
+					case Kind::NUMBER: case Kind::BOOLEAN: return true;
 					default: return false;
 				}
 			}
 
 			EVO_NODISCARD auto isStmt() const -> bool {
 				switch(this->_kind){
-					case Kind::Call:            case Kind::CallVoid:        case Kind::Breakpoint:
-					case Kind::Ret:             case Kind::Branch:          case Kind::CondBranch:
-					case Kind::Unreachable:     case Kind::Alloca:          case Kind::Load:
-					case Kind::Store:           case Kind::CalcPtr:        	case Kind::Memcpy:
-					case Kind::Memset:          case Kind::BitCast:         case Kind::Trunc:
-					case Kind::FTrunc:          case Kind::SExt:            case Kind::ZExt:
-					case Kind::FExt:            case Kind::IToF:            case Kind::UIToF:
-					case Kind::FToI:            case Kind::FToUI:           case Kind::Add:
-					case Kind::SAddWrap:        case Kind::SAddWrapResult:  case Kind::SAddWrapWrapped:
-					case Kind::UAddWrap:        case Kind::UAddWrapResult:  case Kind::UAddWrapWrapped:
-					case Kind::SAddSat:         case Kind::UAddSat:         case Kind::FAdd:
-					case Kind::Sub:             case Kind::SSubWrap:        case Kind::SSubWrapResult:
-					case Kind::SSubWrapWrapped: case Kind::USubWrap:        case Kind::USubWrapResult:
-					case Kind::USubWrapWrapped: case Kind::SSubSat:         case Kind::USubSat:
-					case Kind::FSub:            case Kind::Mul:             case Kind::SMulWrap:
-					case Kind::SMulWrapResult:  case Kind::SMulWrapWrapped: case Kind::UMulWrap:
-					case Kind::UMulWrapResult:  case Kind::UMulWrapWrapped: case Kind::SMulSat:
-					case Kind::UMulSat:         case Kind::FMul:            case Kind::SDiv:
-					case Kind::UDiv:            case Kind::FDiv:            case Kind::SRem:
-					case Kind::URem:            case Kind::FRem:            case Kind::FNeg:
-					case Kind::IEq:             case Kind::FEq:             case Kind::INeq:
-					case Kind::FNeq:            case Kind::SLT:             case Kind::ULT:
-					case Kind::FLT:             case Kind::SLTE:            case Kind::ULTE:
-					case Kind::FLTE:            case Kind::SGT:             case Kind::UGT:
-					case Kind::FGT:             case Kind::SGTE:            case Kind::UGTE:
-					case Kind::FGTE:            case Kind::And:             case Kind::Or:
-					case Kind::Xor:             case Kind::SHL:             case Kind::SSHLSat:
-					case Kind::USHLSat:         case Kind::SSHR:            case Kind::USHR: {
+					case Kind::CALL:              case Kind::CALL_VOID:         case Kind::BREAKPOINT:
+					case Kind::RET:               case Kind::BRANCH:            case Kind::COND_BRANCH:
+					case Kind::UNREACHABLE:       case Kind::ALLOCA:            case Kind::LOAD:
+					case Kind::STORE:             case Kind::CALC_PTR:        	case Kind::MEMCPY:
+					case Kind::MEMSET:            case Kind::BIT_CAST:          case Kind::TRUNC:
+					case Kind::FTRUNC:            case Kind::SEXT:              case Kind::ZEXT:
+					case Kind::FEXT:              case Kind::ITOF:              case Kind::UITOF:
+					case Kind::FTOI:              case Kind::FTOUI:             case Kind::ADD:
+					case Kind::SADD_WRAP:         case Kind::SADD_WRAP_RESULT:  case Kind::SADD_WRAP_WRAPPED:
+					case Kind::UADD_WRAP:         case Kind::UADD_WRAP_RESULT:  case Kind::UADD_WRAP_WRAPPED:
+					case Kind::SADD_SAT:          case Kind::UADD_SAT:          case Kind::FADD:
+					case Kind::SUB:               case Kind::SSUB_WRAP:         case Kind::SSUB_WRAP_RESULT:
+					case Kind::SSUB_WRAP_WRAPPED: case Kind::USUB_WRAP:         case Kind::USUB_WRAP_RESULT:
+					case Kind::USUB_WRAP_WRAPPED: case Kind::SSUB_SAT:          case Kind::USUB_SAT:
+					case Kind::FSUB:              case Kind::MUL:               case Kind::SMUL_WRAP:
+					case Kind::SMUL_WRAP_RESULT:  case Kind::SMUL_WRAP_WRAPPED: case Kind::UMUL_WRAP:
+					case Kind::UMUL_WRAP_RESULT:  case Kind::UMUL_WRAP_WRAPPED: case Kind::SMUL_SAT:
+					case Kind::UMUL_SAT:          case Kind::FMUL:              case Kind::SDIV:
+					case Kind::UDIV:              case Kind::FDIV:              case Kind::SREM:
+					case Kind::UREM:              case Kind::FREM:              case Kind::FNEG:
+					case Kind::IEQ:               case Kind::FEQ:               case Kind::INEQ:
+					case Kind::FNEQ:              case Kind::SLT:               case Kind::ULT:
+					case Kind::FLT:               case Kind::SLTE:              case Kind::ULTE:
+					case Kind::FLTE:              case Kind::SGT:               case Kind::UGT:
+					case Kind::FGT:               case Kind::SGTE:              case Kind::UGTE:
+					case Kind::FGTE:              case Kind::AND:               case Kind::OR:
+					case Kind::XOR:               case Kind::SHL:               case Kind::SSHL_SAT:
+					case Kind::USHL_SAT:          case Kind::SSHR:              case Kind::USHR: {
 						return true;
 					} break;
 					default: return false;
@@ -209,8 +209,8 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isMultiValueStmt() const -> bool {
 				switch(this->_kind){
-					case Kind::SAddWrap: case Kind::UAddWrap: case Kind::SSubWrap: case Kind::USubWrap:
-					case Kind::SMulWrap: case Kind::UMulWrap: {
+					case Kind::SADD_WRAP: case Kind::UADD_WRAP: case Kind::SSUB_WRAP: case Kind::USUB_WRAP:
+					case Kind::SMUL_WRAP: case Kind::UMUL_WRAP: {
 						return true;
 					} break;
 					default: return false;
@@ -219,7 +219,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isTerminator() const -> bool {
 				switch(this->_kind){
-					case Kind::Ret: case Kind::Branch: case Kind::CondBranch: case Kind::Unreachable: return true;
+					case Kind::RET: case Kind::BRANCH: case Kind::COND_BRANCH: case Kind::UNREACHABLE: return true;
 					default: return false;
 				}
 			}
@@ -254,11 +254,11 @@ namespace pcit::pir{
 
 	struct ExprOptInterface{
 		static constexpr auto init(Expr* expr) -> void {
-			*expr = Expr(Expr::Kind::None);
+			*expr = Expr(Expr::Kind::NONE);
 		}
 
 		static constexpr auto has_value(const Expr& expr) -> bool {
-			return expr.kind() != Expr::Kind::None;
+			return expr.kind() != Expr::Kind::NONE;
 		}
 	};
 
@@ -301,7 +301,7 @@ namespace pcit::pir{
 		Type type;
 
 		EVO_NODISCARD auto getInt() const -> const core::GenericInt& {
-			evo::debugAssert(this->type.kind() == Type::Kind::Integer, "This number is not integral");
+			evo::debugAssert(this->type.kind() == Type::Kind::INTEGER, "This number is not integral");
 			return this->value.as<core::GenericInt>();
 		}
 

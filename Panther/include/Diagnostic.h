@@ -27,144 +27,144 @@ namespace pcit::panther{
 
 	struct Diagnostic{
 		enum class Level{
-			Fatal,
-			Error,
-			Warning,
+			FATAL,
+			ERROR,
+			WARNING,
 		};
 
 		enum class Code{
 			//////////////////
 			// tokens
 
-			TokUnrecognizedCharacter,
-			TokUnterminatedMultilineComment,
-			TokUnterminatedTextLiteral,
-			TokUnterminatedTextEscapeSequence,
-			TokLiteralLeadingZero,
-			TokLiteralNumMultipleDecimalPoints,
-			TokInvalidFPBase,
-			TokFloatLiteralEndingInPeriod,
-			TokInvalidNumDigit,
-			TokLiteralNumTooBig,
-			TokInvalidIntegerWidth,
-			TokUnknownFailureToTokenizeNum,
-			TokInvalidChar,
-			TokFileTooLarge,
-			TokFileLocationLimitOOB,
-			// TokDoubleUnderscoreNotAllowed,
+			TOK_UNRECOGNIZED_CHARACTER,
+			TOK_UNTERMINATED_MULTILINE_COMMENT,
+			TOK_UNTERMINATED_TEXT_LITERAL,
+			TOK_UNTERMINATED_TEXT_ESCAPE_SEQUENCE,
+			TOK_LITERAL_LEADING_ZERO,
+			TOK_LITERAL_NUM_MULTIPLE_DECIMAL_POINTS,
+			TOK_INVALID_FPBASE,
+			TOK_FLOAT_LITERAL_ENDING_IN_PERIOD,
+			TOK_INVALID_NUM_DIGIT,
+			TOK_LITERAL_NUM_TOO_BIG,
+			TOK_INVALID_INTEGER_WIDTH,
+			TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
+			TOK_INVALID_CHAR,
+			TOK_FILE_TOO_LARGE,
+			TOK_FILE_LOCATION_LIMIT_OOB,
+			// TOK_DOUBLE_UNDERSCORE_NOT_ALLOWED,
 
 
 			//////////////////
 			// parser
 
-			ParserUnknownStmtStart,
-			ParserIncorrectStmtContinuation,
-			ParserUnexpectedEOF,
-			ParserInvalidKindForAThisParam,
-			ParserOOODefaultValueParam,
-			ParserDereferenceOrUnwrapOnType,
-			ParserAssumedTokenNotPreset,
-			ParserEmptyMultiAssign,
-			ParserEmptyFuncReturnBlock,
-			ParserInvalidNewExpr,
-			ParserAttributesInWrongPlace,
-			ParserTooManyAttributeArgs,
-			ParserEmptyErrorReturnParams,
-			ParserTemplateParameterBlockEmpty,
+			PARSER_UNKNOWN_STMT_START,
+			PARSER_INCORRECT_STMT_CONTINUATION,
+			PARSER_UNEXPECTED_EOF,
+			PARSER_INVALID_KIND_FOR_A_THIS_PARAM,
+			PARSER_OOO_DEFAULT_VALUE_PARAM,
+			PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE,
+			PARSER_ASSUMED_TOKEN_NOT_PRESET,
+			PARSER_EMPTY_MULTI_ASSIGN,
+			PARSER_EMPTY_FUNC_RETURN_BLOCK,
+			PARSER_INVALID_NEW_EXPR,
+			PARSER_ATTRIBUTES_IN_WRONG_PLACE,
+			PARSER_TOO_MANY_ATTRIBUTE_ARGS,
+			PARSER_EMPTY_ERROR_RETURN_PARAMS,
+			PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY,
 
 
 			//////////////////
 			// symbol proc
 
-			SymbolProcInvalidGlobalStmt,
-			SymbolProcInvalidBaseType,
-			SymbolProcInvalidExprKind,
-			SymbolProcImportRequiresOneArg,
-			SymbolProcCircularDep,
-			SymbolProcTypeUsedAsExpr,
+			SYMBOL_PROC_INVALID_GLOBAL_STMT,
+			SYMBOL_PROC_INVALID_BASE_TYPE,
+			SYMBOL_PROC_INVALID_EXPR_KIND,
+			SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+			SYMBOL_PROC_CIRCULAR_DEP,
+			SYMBOL_PROC_TYPE_USED_AS_EXPR,
+			SYMBOL_PROC_VAR_WITH_NO_VALUE,
 
 
 			//////////////////
 			// sema
 
 			// types
-			SemaVoidWithQualifiers,
-			SemaInvalidTypeQualifiers,
-			SemaGenericTypeNotInTemplatePackDecl,
-			SemaNotTemplatedTypeWithTemplateArgs,
+			SEMA_VOID_WITH_QUALIFIERS,
+			SEMA_INVALID_TYPE_QUALIFIERS,
+			SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
+			SEMA_NOT_TEMPLATED_TYPE_WITH_TEMPLATE_ARGS,
 
 			// idents
-			SemaIdentNotInScope,
-			SemaIdentAlreadyInScope,
+			SEMA_IDENT_NOT_IN_SCOPE,
+			SEMA_IDENT_ALREADY_IN_SCOPE,
 
 			// vars
-			SemaVarTypeVoid,
-			SemaVarWithNoValue,
-			SemaVarDefNotEphemeral,
-			SemaVarInitializerWithoutExplicitType,
-			SemaVarInitializerOnNonVar,
+			SEMA_VAR_TYPE_VOID,
+			SEMA_VAR_DEF_NOT_EPHEMERAL,
+			SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
+			SEMA_VAR_INITIALIZER_ON_NON_VAR,
 
 			// exprs
-			SemaTypeUsedAsExpr,
-			SemaInvalidAccessorRHS,
-			SemaExprNotConstexpr,
-			SemaExprNotComptime,
+			SEMA_TYPE_USED_AS_EXPR,
+			SEMA_INVALID_ACCESSOR_RHS,
+			SEMA_EXPR_NOT_CONSTEXPR,
+			SEMA_EXPR_NOT_COMPTIME,
 
 			// type checking
-			SemaMultiReturnIntoSingleValue,
-			SemaCannotConvertFluidValue,
-			SemaTypeMismatch,
-			SemaAliasCannotBeVoid,
-			SemaCannotInferType,
+			SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
+			SEMA_CANNOT_CONVERT_FLUID_VALUE,
+			SEMA_TYPE_MISMATCH,
+			SEMA_ALIAS_CANNOT_BE_VOID,
+			SEMA_CANNOT_INFER_TYPE,
 
 			// imports
-			SemaNoSymbolInModuleWithThatIdent,
-			SemaSymbolNotPub,
-			SemaFailedToImportModule,
-			SemaModuleVarMustBeDef,
+			SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
+			SEMA_SYMBOL_NOT_PUB,
+			SEMA_FAILED_TO_IMPORT_MODULE,
+			SEMA_MODULE_VAR_MUST_BE_DEF,
 
 			// attributes
-			SemaAttributeAlreadySet,
-			SemaUnknownAttribute,
-			SemaAttributeImplictSet,
-			SemaTooManyAttributeArgs,
+			SEMA_ATTRIBUTE_ALREADY_SET,
+			SEMA_UNKNOWN_ATTRIBUTE,
+			SEMA_ATTRIBUTE_IMPLICT_SET,
+			SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 
 			// templates
-			SemaTemplateParamCannotBeTypeVoid,
-			SemaTemplateParamTypeDefaultMustBeType,
-			SemaTemplateParamExprDefaultMustBeExpr,
-			SemaTemplateTooFewArgs,
-			SemaTemplateTooManyArgs,
-			SemaTemplateInvalidArg,
+			SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
+			SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE,
+			SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
+			SEMA_TEMPLATE_TOO_FEW_ARGS,
+			SEMA_TEMPLATE_TOO_MANY_ARGS,
+			SEMA_TEMPLATE_INVALID_ARG,
 
 			// functions
-			SemaParamTypeVoid,
-			SemaInvalidScopeForThis,
-			SemaNamedVoidReturn,
-			SemaNotFirstReturnVoid,
-			SemaFuncIsntTerminated,
+			SEMA_PARAM_TYPE_VOID,
+			SEMA_INVALID_SCOPE_FOR_THIS,
+			SEMA_NAMED_VOID_RETURN,
+			SEMA_NOT_FIRST_RETURN_VOID,
+			SEMA_FUNC_ISNT_TERMINATED,
 
 			// function calls
-			SemaCannotCallLikeFunction,
-			SemaMultipleMatchingFunctionOverloads,
-			SemaNoMatchingFunction,
-			SemaErrorReturnedFromConstexprFuncRun,
-			SemaFuncIsntConstexpr,
+			SEMA_CANNOT_CALL_LIKE_FUNCTION,
+			SEMA_MULTIPLE_MATCHING_FUNCTION_OVERLOADS,
+			SEMA_NO_MATCHING_FUNCTION,
+			SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN,
+			SEMA_FUNC_ISNT_CONSTEXPR,
 
 			// misc
-			SemaIncorrectReturnStmtKind,
-			SemaErrorInFuncWithoutErrors,
-			SemaReturnNotEphemeral,
-			SemaScopeIsAlreadyTerminated,
+			SEMA_INCORRECT_RETURN_STMT_KIND,
+			SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS,
+			SEMA_RETURN_NOT_EPHEMERAL,
+			SEMA_SCOPE_IS_ALREADY_TERMINATED,
 
 
 			//////////////////
 			// misc
 
-			MiscUnimplementedFeature,
-			MiscFileDoesNotExist,
-			MiscLoadFileFailed,
-			MiscStallDetected,
+			MISC_UNIMPLEMENTED_FEATURE, // M0
+			MISC_FILE_DOES_NOT_EXIST,   // M1
+			MISC_LOAD_FILE_FAILED,      // M2
+			MISC_STALL_DETECTED,        // M3
 		};
 
 
@@ -380,102 +380,102 @@ namespace pcit::panther{
 
 		EVO_NODISCARD static auto printCode(Code code) -> std::string_view {
 			switch(code){
-				case Code::TokUnrecognizedCharacter:           return "T1";
-				case Code::TokUnterminatedMultilineComment:    return "T2";
-				case Code::TokUnterminatedTextLiteral:         return "T3";
-				case Code::TokUnterminatedTextEscapeSequence:  return "T4";
-				case Code::TokLiteralLeadingZero:              return "T5";
-				case Code::TokLiteralNumMultipleDecimalPoints: return "T6";
-				case Code::TokInvalidFPBase:                   return "T7";
-				case Code::TokFloatLiteralEndingInPeriod:      return "T8";
-				case Code::TokInvalidNumDigit:                 return "T9";
-				case Code::TokLiteralNumTooBig:                return "T10";
-				case Code::TokInvalidIntegerWidth:             return "T11";
-				case Code::TokUnknownFailureToTokenizeNum:     return "T12";
-				case Code::TokInvalidChar:                     return "T13";
-				case Code::TokFileTooLarge:                    return "T14";
-				case Code::TokFileLocationLimitOOB:            return "T15";
-				// case Code::TokDoubleUnderscoreNotAllowed:      return "T16";
+				case Code::TOK_UNRECOGNIZED_CHARACTER:              return "T1";
+				case Code::TOK_UNTERMINATED_MULTILINE_COMMENT:      return "T2";
+				case Code::TOK_UNTERMINATED_TEXT_LITERAL:           return "T3";
+				case Code::TOK_UNTERMINATED_TEXT_ESCAPE_SEQUENCE:   return "T4";
+				case Code::TOK_LITERAL_LEADING_ZERO:                return "T5";
+				case Code::TOK_LITERAL_NUM_MULTIPLE_DECIMAL_POINTS: return "T6";
+				case Code::TOK_INVALID_FPBASE:                      return "T7";
+				case Code::TOK_FLOAT_LITERAL_ENDING_IN_PERIOD:      return "T8";
+				case Code::TOK_INVALID_NUM_DIGIT:                   return "T9";
+				case Code::TOK_LITERAL_NUM_TOO_BIG:                 return "T10";
+				case Code::TOK_INVALID_INTEGER_WIDTH:               return "T11";
+				case Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM:     return "T12";
+				case Code::TOK_INVALID_CHAR:                        return "T13";
+				case Code::TOK_FILE_TOO_LARGE:                      return "T14";
+				case Code::TOK_FILE_LOCATION_LIMIT_OOB:             return "T15";
+				// case Code::TOK_DOUBLE_UNDERSCORE_NOT_ALLOWED:       return "T16";
 
-				case Code::ParserUnknownStmtStart:             return "P1";
-				case Code::ParserIncorrectStmtContinuation:    return "P2";
-				case Code::ParserUnexpectedEOF:                return "P3";
-				case Code::ParserInvalidKindForAThisParam:     return "P4";
-				case Code::ParserOOODefaultValueParam:         return "P5";
-				case Code::ParserDereferenceOrUnwrapOnType:    return "P6";
-				case Code::ParserAssumedTokenNotPreset:        return "P7";
-				case Code::ParserEmptyMultiAssign:             return "P8";
-				case Code::ParserEmptyFuncReturnBlock:         return "P9";
-				case Code::ParserInvalidNewExpr:               return "P10";
-				case Code::ParserAttributesInWrongPlace:       return "P11";
-				case Code::ParserTooManyAttributeArgs:         return "P12";
-				case Code::ParserEmptyErrorReturnParams:       return "P13";
-				case Code::ParserTemplateParameterBlockEmpty:  return "P14";
+				case Code::PARSER_UNKNOWN_STMT_START:             return "P1";
+				case Code::PARSER_INCORRECT_STMT_CONTINUATION:    return "P2";
+				case Code::PARSER_UNEXPECTED_EOF:                 return "P3";
+				case Code::PARSER_INVALID_KIND_FOR_A_THIS_PARAM:  return "P4";
+				case Code::PARSER_OOO_DEFAULT_VALUE_PARAM:        return "P5";
+				case Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE:  return "P6";
+				case Code::PARSER_ASSUMED_TOKEN_NOT_PRESET:       return "P7";
+				case Code::PARSER_EMPTY_MULTI_ASSIGN:             return "P8";
+				case Code::PARSER_EMPTY_FUNC_RETURN_BLOCK:        return "P9";
+				case Code::PARSER_INVALID_NEW_EXPR:               return "P10";
+				case Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE:      return "P11";
+				case Code::PARSER_TOO_MANY_ATTRIBUTE_ARGS:        return "P12";
+				case Code::PARSER_EMPTY_ERROR_RETURN_PARAMS:      return "P13";
+				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY: return "P14";
 
 				// TODO: give individual codes and put in correct order
-				case Code::SymbolProcInvalidGlobalStmt:
-				case Code::SymbolProcInvalidBaseType:
-				case Code::SymbolProcInvalidExprKind:
-				case Code::SymbolProcImportRequiresOneArg:
-				case Code::SymbolProcCircularDep:
-				case Code::SymbolProcTypeUsedAsExpr:
+				case Code::SYMBOL_PROC_INVALID_GLOBAL_STMT:
+				case Code::SYMBOL_PROC_INVALID_BASE_TYPE:
+				case Code::SYMBOL_PROC_INVALID_EXPR_KIND:
+				case Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG:
+				case Code::SYMBOL_PROC_CIRCULAR_DEP:
+				case Code::SYMBOL_PROC_TYPE_USED_AS_EXPR:
+				case Code::SYMBOL_PROC_VAR_WITH_NO_VALUE:
 					return "SP";
 
 				// TODO: give individual codes and put in correct order
-				case Code::SemaVoidWithQualifiers:
-				case Code::SemaInvalidTypeQualifiers:
-				case Code::SemaGenericTypeNotInTemplatePackDecl:
-				case Code::SemaNotTemplatedTypeWithTemplateArgs:
-				case Code::SemaIdentNotInScope:
-				case Code::SemaIdentAlreadyInScope:
-				case Code::SemaVarTypeVoid:
-				case Code::SemaVarWithNoValue:
-				case Code::SemaVarDefNotEphemeral:
-				case Code::SemaVarInitializerWithoutExplicitType:
-				case Code::SemaVarInitializerOnNonVar:
-				case Code::SemaTypeUsedAsExpr:
-				case Code::SemaInvalidAccessorRHS:
-				case Code::SemaExprNotConstexpr:
-				case Code::SemaExprNotComptime:
-				case Code::SemaMultiReturnIntoSingleValue:
-				case Code::SemaCannotConvertFluidValue:
-				case Code::SemaTypeMismatch:
-				case Code::SemaAliasCannotBeVoid:
-				case Code::SemaCannotInferType:
-				case Code::SemaNoSymbolInModuleWithThatIdent:
-				case Code::SemaSymbolNotPub:
-				case Code::SemaFailedToImportModule:
-				case Code::SemaModuleVarMustBeDef:
-				case Code::SemaAttributeAlreadySet:
-				case Code::SemaUnknownAttribute:
-				case Code::SemaAttributeImplictSet:
-				case Code::SemaTooManyAttributeArgs:
-				case Code::SemaTemplateParamCannotBeTypeVoid:
-				case Code::SemaTemplateParamTypeDefaultMustBeType:
-				case Code::SemaTemplateParamExprDefaultMustBeExpr:
-				case Code::SemaTemplateTooFewArgs:
-				case Code::SemaTemplateTooManyArgs:
-				case Code::SemaTemplateInvalidArg:
-				case Code::SemaParamTypeVoid:
-				case Code::SemaInvalidScopeForThis:
-				case Code::SemaNamedVoidReturn:
-				case Code::SemaNotFirstReturnVoid:
-				case Code::SemaFuncIsntTerminated:
-				case Code::SemaCannotCallLikeFunction:
-				case Code::SemaMultipleMatchingFunctionOverloads:
-				case Code::SemaNoMatchingFunction:
-				case Code::SemaErrorReturnedFromConstexprFuncRun:
-				case Code::SemaFuncIsntConstexpr:
-				case Code::SemaIncorrectReturnStmtKind:
-				case Code::SemaErrorInFuncWithoutErrors:
-				case Code::SemaReturnNotEphemeral:
-				case Code::SemaScopeIsAlreadyTerminated:
+				case Code::SEMA_VOID_WITH_QUALIFIERS:
+				case Code::SEMA_INVALID_TYPE_QUALIFIERS:
+				case Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL:
+				case Code::SEMA_NOT_TEMPLATED_TYPE_WITH_TEMPLATE_ARGS:
+				case Code::SEMA_IDENT_NOT_IN_SCOPE:
+				case Code::SEMA_IDENT_ALREADY_IN_SCOPE:
+				case Code::SEMA_VAR_TYPE_VOID:
+				case Code::SEMA_VAR_DEF_NOT_EPHEMERAL:
+				case Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE:
+				case Code::SEMA_VAR_INITIALIZER_ON_NON_VAR:
+				case Code::SEMA_TYPE_USED_AS_EXPR:
+				case Code::SEMA_INVALID_ACCESSOR_RHS:
+				case Code::SEMA_EXPR_NOT_CONSTEXPR:
+				case Code::SEMA_EXPR_NOT_COMPTIME:
+				case Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE:
+				case Code::SEMA_CANNOT_CONVERT_FLUID_VALUE:
+				case Code::SEMA_TYPE_MISMATCH:
+				case Code::SEMA_ALIAS_CANNOT_BE_VOID:
+				case Code::SEMA_CANNOT_INFER_TYPE:
+				case Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT:
+				case Code::SEMA_SYMBOL_NOT_PUB:
+				case Code::SEMA_FAILED_TO_IMPORT_MODULE:
+				case Code::SEMA_MODULE_VAR_MUST_BE_DEF:
+				case Code::SEMA_ATTRIBUTE_ALREADY_SET:
+				case Code::SEMA_UNKNOWN_ATTRIBUTE:
+				case Code::SEMA_ATTRIBUTE_IMPLICT_SET:
+				case Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS:
+				case Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID:
+				case Code::SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE:
+				case Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR:
+				case Code::SEMA_TEMPLATE_TOO_FEW_ARGS:
+				case Code::SEMA_TEMPLATE_TOO_MANY_ARGS:
+				case Code::SEMA_TEMPLATE_INVALID_ARG:
+				case Code::SEMA_PARAM_TYPE_VOID:
+				case Code::SEMA_INVALID_SCOPE_FOR_THIS:
+				case Code::SEMA_NAMED_VOID_RETURN:
+				case Code::SEMA_NOT_FIRST_RETURN_VOID:
+				case Code::SEMA_FUNC_ISNT_TERMINATED:
+				case Code::SEMA_CANNOT_CALL_LIKE_FUNCTION:
+				case Code::SEMA_MULTIPLE_MATCHING_FUNCTION_OVERLOADS:
+				case Code::SEMA_NO_MATCHING_FUNCTION:
+				case Code::SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN:
+				case Code::SEMA_FUNC_ISNT_CONSTEXPR:
+				case Code::SEMA_INCORRECT_RETURN_STMT_KIND:
+				case Code::SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS:
+				case Code::SEMA_RETURN_NOT_EPHEMERAL:
+				case Code::SEMA_SCOPE_IS_ALREADY_TERMINATED:
 					return "S";
 
-				case Code::MiscUnimplementedFeature:           return "M0";
-				case Code::MiscFileDoesNotExist:               return "M1";
-				case Code::MiscLoadFileFailed:                 return "M2";
-				case Code::MiscStallDetected:                  return "M3";
+				case Code::MISC_UNIMPLEMENTED_FEATURE: return "M0";
+				case Code::MISC_FILE_DOES_NOT_EXIST:   return "M1";
+				case Code::MISC_LOAD_FILE_FAILED:      return "M2";
+				case Code::MISC_STALL_DETECTED:        return "M3";
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::panther::Diagnostic::Code");
@@ -492,9 +492,9 @@ namespace pcit::panther{
 
 		EVO_NODISCARD static auto printLevel(Level level) -> std::string_view {
 			switch(level){
-				break; case Level::Fatal:   return "Fatal";
-				break; case Level::Error:   return "Error";
-				break; case Level::Warning: return "Warning";
+				break; case Level::FATAL:   return "Fatal";
+				break; case Level::ERROR:   return "Error";
+				break; case Level::WARNING: return "Warning";
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::core::Diagnostic::Level");

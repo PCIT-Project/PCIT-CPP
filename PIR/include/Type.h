@@ -23,15 +23,15 @@ namespace pcit::pir{
 	class Type{
 		public:
 			enum class Kind{
-				Void,
-				Integer,
-				Bool,
-				Float,
-				BFloat,
-				Ptr,
-				Array,
-				Struct,
-				Function,
+				VOID,
+				INTEGER,
+				BOOL,
+				FLOAT,
+				BFLOAT,
+				PTR,
+				ARRAY,
+				STRUCT,
+				FUNCTION,
 			};
 
 		public:
@@ -69,23 +69,23 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto isFloat() const -> bool {
-				return this->_kind == Kind::Float || this->_kind == Kind::BFloat;
+				return this->_kind == Kind::FLOAT || this->_kind == Kind::BFLOAT;
 			}
 
 			EVO_NODISCARD auto isNumeric() const -> bool {
-				return this->_kind == Kind::Integer || this->isFloat();
+				return this->_kind == Kind::INTEGER || this->isFloat();
 			}
 
 			EVO_NODISCARD auto isConstant() const -> bool {
-				return this->isNumeric() || this->_kind == Kind::Bool;
+				return this->isNumeric() || this->_kind == Kind::BOOL;
 			}
 
 			EVO_NODISCARD auto isAggregate() const -> bool {
-				return this->_kind == Kind::Array || this->_kind == Kind::Struct;
+				return this->_kind == Kind::ARRAY || this->_kind == Kind::STRUCT;
 			}
 
 			EVO_NODISCARD auto hasWidth() const -> bool {
-				return this->_kind == Kind::Integer || this->_kind == Kind::Float;
+				return this->_kind == Kind::INTEGER || this->_kind == Kind::FLOAT;
 			}
 
 

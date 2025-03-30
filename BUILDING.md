@@ -4,9 +4,10 @@ These are the building instructions for the PCIT project. This has only been tes
 
 ## Requirements:
 - [Premake5](https://premake.github.io/)
-- cmake
+- CMake (miniumn 3.20.0)
 - A version of MSVC, GCC, or Clang that is C++20 compliant
 - Either Visual Studio or make
+- Python (minimum 3.8)
 
 
 ## Downloading PCIT

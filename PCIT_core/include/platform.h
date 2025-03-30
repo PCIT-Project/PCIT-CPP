@@ -15,19 +15,19 @@
 namespace pcit::core{
 
 	enum class OS{
-		Windows,
-		Linux,
+		WINDOWS,
+		LINUX,
 
-		Unknown,
+		UNKNOWN,
 	};
 
 	EVO_NODISCARD constexpr auto getCurrentOS() -> OS {
 		#if defined(EVO_PLATFORM_WINDOWS)
-			return OS::Windows;
+			return OS::WINDOWS;
 		#elif defined(EVO_PLATFORM_LINUX)
-			return OS::Linux;
+			return OS::LINUX;
 		#else
-			return OS::Unknown;
+			return OS::UNKNOWN;
 		#endif
 	}
 
@@ -36,14 +36,14 @@ namespace pcit::core{
 	enum class Architecture{
 		X86_64,
 
-		Unknown,
+		UNKNOWN,
 	};
 
 	EVO_NODISCARD constexpr auto getCurrentArchitecture() -> Architecture {
 		#if defined(EVO_ARCH_X86_64)
 			return Architecture::X86_64;
 		#else
-			return Architecture::Unknown;
+			return Architecture::UNKNOWN;
 		#endif
 	}
 
@@ -54,8 +54,9 @@ template<>
 struct std::formatter<pcit::core::OS> : std::formatter<std::string_view> {
     auto format(const pcit::core::OS& os, std::format_context& ctx) const -> std::format_context::iterator {
         switch(os){
-        	case pcit::core::OS::Windows: return std::formatter<std::string_view>::format("Windows", ctx);
-        	case pcit::core::OS::Linux:   return std::formatter<std::string_view>::format("Linux", ctx);
+        	case pcit::core::OS::WINDOWS: return std::formatter<std::string_view>::format("Windows", ctx);
+        	case pcit::core::OS::LINUX:   return std::formatter<std::string_view>::format("Linux", ctx);
+        	case pcit::core::OS::UNKNOWN: return std::formatter<std::string_view>::format("UNKNOWN", ctx);
         	default: evo::debugFatalBreak("Unknown or unsupported OS");
         }
     }
@@ -67,7 +68,8 @@ struct std::formatter<pcit::core::Architecture> : std::formatter<std::string_vie
     auto format(const pcit::core::Architecture& arch, std::format_context& ctx) const
     -> std::format_context::iterator {
         switch(arch){
-        	case pcit::core::Architecture::X86_64: return std::formatter<std::string_view>::format("x86_64", ctx);
+        	case pcit::core::Architecture::X86_64:  return std::formatter<std::string_view>::format("x86_64", ctx);
+        	case pcit::core::Architecture::UNKNOWN: return std::formatter<std::string_view>::format("UNKNOWN", ctx);
         	default: evo::debugFatalBreak("Unknown or unsupported architecture");
         }
     }

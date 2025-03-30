@@ -18,33 +18,33 @@
 namespace pcit::pir{
 
 	enum class CallingConvention{
-		Default, // C
+		DEFAULT, // C
 
 		C,
-		Fast,
-		Cold,
+		FAST,
+		COLD,
 	};
 
 
 	enum class Linkage{
-		Default, // Internal
+		DEFAULT, // Internal
 
-		Private,
-		Internal, // Like private, but shows up as a local symbol in the object file
-		External,
+		PRIVATE,
+		INTERNAL, // Like private, but shows up as a local symbol in the object file
+		EXTERNAL,
 	};
 
 
-	// Note: if you want a good default (that's not None), use SequentiallyConsistent
+	// Note: if you want a good default (that's not NONE), use SEQUENTIALLY_CONSISTENT
 	struct AtomicOrdering{
 		enum class Value{
-			None, // not atomic
-			Monotonic, // allows reordering of reads or writes
-			Acquire, // (only load) no reordering of reads or writes to before
-			Release, // (only store) no reordering of reads or writes to after
-			AcquireRelease, // (only read-modify-write) an acquire and release 
+			NONE, // not atomic
+			MONOTONIC, // allows reordering of reads or writes
+			ACQUIRE, // (only load) no reordering of reads or writes to before
+			RELEASE, // (only store) no reordering of reads or writes to after
+			ACQUIRE_RELEASE, // (only read-modify-write) an acquire and release 
 			                //   only works if both threads use the same atomic variable
-			SequentiallyConsistent, // load = aquire, store = release, rmw = AcquireRelease 
+			SEQUENTIALLY_CONSISTENT, // load = aquire, store = release, rmw = AcquireRelease 
 				                    //   however it works with multiple atomic variables
 			                        //   (slower than raw acquire, release, AcquireRelease)
 		};
@@ -55,12 +55,12 @@ namespace pcit::pir{
 
 		EVO_NODISCARD constexpr auto isValidForLoad() const -> bool {
 			switch(*this){
-				case AtomicOrdering::None:                   return true;
-				case AtomicOrdering::Monotonic:              return true;
-				case AtomicOrdering::Acquire:                return true;
-				case AtomicOrdering::Release:                return false;
-				case AtomicOrdering::AcquireRelease:         return false;
-				case AtomicOrdering::SequentiallyConsistent: return true;
+				case AtomicOrdering::NONE:                   return true;
+				case AtomicOrdering::MONOTONIC:              return true;
+				case AtomicOrdering::ACQUIRE:                return true;
+				case AtomicOrdering::RELEASE:                return false;
+				case AtomicOrdering::ACQUIRE_RELEASE:         return false;
+				case AtomicOrdering::SEQUENTIALLY_CONSISTENT: return true;
 			}
 
 			evo::unreachable();
@@ -68,12 +68,12 @@ namespace pcit::pir{
 
 		EVO_NODISCARD constexpr auto isValidForStore() const -> bool {
 			switch(*this){
-				case AtomicOrdering::None:                   return true;
-				case AtomicOrdering::Monotonic:              return true;
-				case AtomicOrdering::Acquire:                return false;
-				case AtomicOrdering::Release:                return true;
-				case AtomicOrdering::AcquireRelease:         return false;
-				case AtomicOrdering::SequentiallyConsistent: return true;
+				case AtomicOrdering::NONE:                   return true;
+				case AtomicOrdering::MONOTONIC:              return true;
+				case AtomicOrdering::ACQUIRE:                return false;
+				case AtomicOrdering::RELEASE:                return true;
+				case AtomicOrdering::ACQUIRE_RELEASE:         return false;
+				case AtomicOrdering::SEQUENTIALLY_CONSISTENT: return true;
 			}
 
 			evo::unreachable();
@@ -86,8 +86,8 @@ namespace pcit::pir{
 
 
 	enum class OptMode{
-		None,
-		O0 = None,
+		NONE,
+		O0 = NONE,
 		O1,
 		O2,
 		O3,

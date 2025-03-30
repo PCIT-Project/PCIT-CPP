@@ -97,7 +97,7 @@ namespace pcit::pir{
 
 		for(auto iter = item.func.getAllocasRange().begin(); iter != item.func.getAllocasRange().end(); ++iter){
 			for(const StmtPass& stmt_pass : stmt_pass_group.passes){
-				if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent)){ break; }
+				if(stmt_pass.func(Expr(Expr::Kind::ALLOCA, iter.getID()), agent)){ break; }
 			}
 		}
 
@@ -206,7 +206,7 @@ namespace pcit::pir{
 			auto iter = item.func.getAllocasRange().begin();
 			while(iter != item.func.getAllocasRange().end()){
 				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(Expr(Expr::Kind::Alloca, iter.getID()), agent)){ break; }
+					if(stmt_pass.func(Expr(Expr::Kind::ALLOCA, iter.getID()), agent)){ break; }
 				}
 
 				if(item.func.getAllocasRange().size() != current_allocas_range_size){

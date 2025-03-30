@@ -161,14 +161,14 @@ namespace pcit::pir{
 			
 			for(const Expr& stmt : basic_block){
 				switch(stmt.kind()){
-					case Expr::Kind::None:            evo::debugFatalBreak("Not a valid expr");
-					case Expr::Kind::GlobalValue:     evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::FunctionPointer: evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::Number:          evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::Boolean:         evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::ParamExpr:       evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::NONE:             evo::debugFatalBreak("Not a valid expr");
+					case Expr::Kind::GLOBAL_VALUE:     evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::FUNCTION_POINTER: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::NUMBER:           evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::BOOLEAN:          evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::PARAM_EXPR:       evo::debugFatalBreak("Not a valid stmt");
 
-					case Expr::Kind::Call: {
+					case Expr::Kind::CALL: {
 						const Call& call = this->reader.getCall(stmt);
 
 						auto call_args = evo::SmallVector<llvmint::Value>();
@@ -221,7 +221,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, call_value);
 					} break;
 
-					case Expr::Kind::CallVoid: {
+					case Expr::Kind::CALL_VOID: {
 						const CallVoid& call_void = this->reader.getCallVoid(stmt);
 
 						auto call_args = evo::SmallVector<llvmint::Value>();
@@ -261,13 +261,13 @@ namespace pcit::pir{
 						});
 					} break;
 
-					case Expr::Kind::Breakpoint: {
+					case Expr::Kind::BREAKPOINT: {
 						this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::debugtrap, this->builder.getTypeVoid(), nullptr
+							llvmint::IRBuilder::IntrinsicID::DEBUG_TRAP, this->builder.getTypeVoid(), nullptr
 						);
 					} break;
 
-					case Expr::Kind::Ret: {
+					case Expr::Kind::RET: {
 						const Ret& ret = this->reader.getRet(stmt);
 						if(ret.value.has_value()){
 							this->builder.createRet(this->get_value(*ret.value));
@@ -276,12 +276,12 @@ namespace pcit::pir{
 						}
 					} break;
 
-					case Expr::Kind::Branch: {
+					case Expr::Kind::BRANCH: {
 						const Branch& branch = this->reader.getBranch(stmt);
 						this->builder.createBranch(basic_block_map.at(branch.target));
 					} break;
 
-					case Expr::Kind::CondBranch: {
+					case Expr::Kind::COND_BRANCH: {
 						const CondBranch& branch = this->reader.getCondBranch(stmt);
 						this->builder.createCondBranch(
 							this->get_value(branch.cond),
@@ -290,13 +290,13 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::Unreachable: {
+					case Expr::Kind::UNREACHABLE: {
 						this->builder.createUnreachable();
 					} break;
 
-					case Expr::Kind::Alloca: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::ALLOCA: evo::debugFatalBreak("Not a valid stmt");
 
-					case Expr::Kind::Load: {
+					case Expr::Kind::LOAD: {
 						const Load& load = this->reader.getLoad(stmt);
 
 						const llvmint::LoadInst load_inst = this->builder.createLoad(
@@ -310,7 +310,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, load_inst);
 					} break;
 
-					case Expr::Kind::Store: {
+					case Expr::Kind::STORE: {
 						const Store& store = this->reader.getStore(stmt);
 
 						this->builder.createStore(
@@ -321,7 +321,7 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::CalcPtr: {
+					case Expr::Kind::CALC_PTR: {
 						const CalcPtr& calc_ptr = this->reader.getCalcPtr(stmt);
 
 						auto indices = evo::SmallVector<llvmint::Value>();
@@ -343,7 +343,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, gep);
 					} break;
 
-					case Expr::Kind::Memcpy: {
+					case Expr::Kind::MEMCPY: {
 						const Memcpy& memcpy = this->reader.getMemcpy(stmt);
 
 						this->builder.createMemCpyInline(
@@ -354,7 +354,7 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::Memset: {
+					case Expr::Kind::MEMSET: {
 						const Memset& memset = this->reader.getMemset(stmt);
 
 						this->builder.createMemSetInline(
@@ -365,7 +365,7 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::BitCast: {
+					case Expr::Kind::BIT_CAST: {
 						const BitCast& bitcast = this->reader.getBitCast(stmt);
 
 						const llvmint::Value from_value = this->get_value(bitcast.fromValue);
@@ -376,7 +376,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_bitcast);
 					} break;
 
-					case Expr::Kind::Trunc: {
+					case Expr::Kind::TRUNC: {
 						const Trunc& trunc = this->reader.getTrunc(stmt);
 
 						const llvmint::Value from_value = this->get_value(trunc.fromValue);
@@ -386,7 +386,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_trunc);
 					} break;
 
-					case Expr::Kind::FTrunc: {
+					case Expr::Kind::FTRUNC: {
 						const FTrunc& ftrunc = this->reader.getFTrunc(stmt);
 
 						const llvmint::Value from_value = this->get_value(ftrunc.fromValue);
@@ -396,7 +396,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_ftrunc);
 					} break;
 
-					case Expr::Kind::SExt: {
+					case Expr::Kind::SEXT: {
 						const SExt& sext = this->reader.getSExt(stmt);
 
 						const llvmint::Value from_value = this->get_value(sext.fromValue);
@@ -406,7 +406,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_sext);
 					} break;
 
-					case Expr::Kind::ZExt: {
+					case Expr::Kind::ZEXT: {
 						const ZExt& zext = this->reader.getZExt(stmt);
 
 						const llvmint::Value from_value = this->get_value(zext.fromValue);
@@ -416,7 +416,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_zext);
 					} break;
 
-					case Expr::Kind::FExt: {
+					case Expr::Kind::FEXT: {
 						const FExt& fext = this->reader.getFExt(stmt);
 
 						const llvmint::Value from_value = this->get_value(fext.fromValue);
@@ -426,7 +426,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_fext);
 					} break;
 
-					case Expr::Kind::IToF: {
+					case Expr::Kind::ITOF: {
 						const IToF& itof = this->reader.getIToF(stmt);
 
 						const llvmint::Value from_value = this->get_value(itof.fromValue);
@@ -436,7 +436,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_itof);
 					} break;
 
-					case Expr::Kind::UIToF: {
+					case Expr::Kind::UITOF: {
 						const UIToF& uitof = this->reader.getUIToF(stmt);
 
 						const llvmint::Value from_value = this->get_value(uitof.fromValue);
@@ -446,7 +446,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_uitof);
 					} break;
 
-					case Expr::Kind::FToI: {
+					case Expr::Kind::FTOI: {
 						const FToI& ftoi = this->reader.getFToI(stmt);
 
 						const llvmint::Value from_value = this->get_value(ftoi.fromValue);
@@ -456,7 +456,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, llvm_ftoi);
 					} break;
 
-					case Expr::Kind::FToUI: {
+					case Expr::Kind::FTOUI: {
 						const FToUI& ftoui = this->reader.getFToUI(stmt);
 
 						const llvmint::Value from_value = this->get_value(ftoui.fromValue);
@@ -467,7 +467,7 @@ namespace pcit::pir{
 					} break;
 
 
-					case Expr::Kind::Add: {
+					case Expr::Kind::ADD: {
 						const Add& add = this->reader.getAdd(stmt);
 
 						const llvmint::Value lhs = this->get_value(add.lhs);
@@ -477,7 +477,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, add_value);
 					} break;
 
-					case Expr::Kind::SAddWrap: {
+					case Expr::Kind::SADD_WRAP: {
 						const SAddWrap& sadd_wrap = this->reader.getSAddWrap(stmt);
 						const Type& sadd_type = this->reader.getExprType(sadd_wrap.lhs);
 
@@ -486,7 +486,7 @@ namespace pcit::pir{
 						).asType();
 
 						const llvmint::Value sadd_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::saddOverflow,
+							llvmint::IRBuilder::IntrinsicID::SADD_OVERFLOW,
 							return_type,
 							{this->get_value(sadd_wrap.lhs), this->get_value(sadd_wrap.rhs)},
 							"ADD_WRAP"
@@ -503,10 +503,10 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::SAddWrapResult:  evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::SAddWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SADD_WRAP_RESULT:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SADD_WRAP_WRAPPED: evo::debugFatalBreak("Not a valid stmt");
 
-					case Expr::Kind::UAddWrap: {
+					case Expr::Kind::UADD_WRAP: {
 						const UAddWrap& uadd_wrap = this->reader.getUAddWrap(stmt);
 						const Type& uadd_type = this->reader.getExprType(uadd_wrap.lhs);
 
@@ -515,7 +515,7 @@ namespace pcit::pir{
 						).asType();
 
 						const llvmint::Value uadd_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::uaddOverflow,
+							llvmint::IRBuilder::IntrinsicID::UADD_OVERFLOW,
 							return_type,
 							{this->get_value(uadd_wrap.lhs), this->get_value(uadd_wrap.rhs)},
 							"ADD_WRAP"
@@ -532,15 +532,15 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::UAddWrapResult:  evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::UAddWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::UADD_WRAP_RESULT:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::UADD_WRAP_WRAPPED: evo::debugFatalBreak("Not a valid stmt");
 
-					case Expr::Kind::SAddSat: {
+					case Expr::Kind::SADD_SAT: {
 						const SAddSat& sadd_sat = this->reader.getSAddSat(stmt);
 						const Type& sadd_sat_type = this->reader.getExprType(sadd_sat.lhs);
 
 						const llvmint::Value sadd_sat_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::saddSat,
+							llvmint::IRBuilder::IntrinsicID::SADD_SAT,
 							this->get_type(sadd_sat_type),
 							{this->get_value(sadd_sat.lhs), this->get_value(sadd_sat.rhs)},
 							sadd_sat.name
@@ -548,12 +548,12 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, sadd_sat_value);
 					} break;
 
-					case Expr::Kind::UAddSat: {
+					case Expr::Kind::UADD_SAT: {
 						const UAddSat& uadd_sat = this->reader.getUAddSat(stmt);
 						const Type& uadd_sat_type = this->reader.getExprType(uadd_sat.lhs);
 
 						const llvmint::Value uadd_sat_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::uaddSat,
+							llvmint::IRBuilder::IntrinsicID::UADD_SAT,
 							this->get_type(uadd_sat_type),
 							{this->get_value(uadd_sat.lhs), this->get_value(uadd_sat.rhs)},
 							uadd_sat.name
@@ -561,7 +561,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, uadd_sat_value);
 					} break;
 
-					case Expr::Kind::FAdd: {
+					case Expr::Kind::FADD: {
 						const FAdd& add = this->reader.getFAdd(stmt);
 
 						const llvmint::Value lhs = this->get_value(add.lhs);
@@ -572,7 +572,7 @@ namespace pcit::pir{
 					} break;
 
 
-					case Expr::Kind::Sub: {
+					case Expr::Kind::SUB: {
 						const Sub& sub = this->reader.getSub(stmt);
 
 						const llvmint::Value lhs = this->get_value(sub.lhs);
@@ -582,7 +582,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, sub_value);
 					} break;
 
-					case Expr::Kind::SSubWrap: {
+					case Expr::Kind::SSUB_WRAP: {
 						const SSubWrap& ssub_wrap = this->reader.getSSubWrap(stmt);
 						const Type& ssub_type = this->reader.getExprType(ssub_wrap.lhs);
 
@@ -591,7 +591,7 @@ namespace pcit::pir{
 						).asType();
 
 						const llvmint::Value ssub_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::ssubOverflow,
+							llvmint::IRBuilder::IntrinsicID::SSUB_OVERFLOW,
 							return_type,
 							{this->get_value(ssub_wrap.lhs), this->get_value(ssub_wrap.rhs)},
 							"ADD_WRAP"
@@ -608,10 +608,10 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::SSubWrapResult:  evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::SSubWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SSUB_WRAP_RESULT:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SSUB_WRAP_WRAPPED: evo::debugFatalBreak("Not a valid stmt");
 
-					case Expr::Kind::USubWrap: {
+					case Expr::Kind::USUB_WRAP: {
 						const USubWrap& usub_wrap = this->reader.getUSubWrap(stmt);
 						const Type& usub_type = this->reader.getExprType(usub_wrap.lhs);
 
@@ -620,7 +620,7 @@ namespace pcit::pir{
 						).asType();
 
 						const llvmint::Value usub_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::usubOverflow,
+							llvmint::IRBuilder::IntrinsicID::USUB_OVERFLOW,
 							return_type,
 							{this->get_value(usub_wrap.lhs), this->get_value(usub_wrap.rhs)},
 							"ADD_WRAP"
@@ -637,15 +637,15 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::USubWrapResult:  evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::USubWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::USUB_WRAP_RESULT:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::USUB_WRAP_WRAPPED: evo::debugFatalBreak("Not a valid stmt");
 
-					case Expr::Kind::SSubSat: {
+					case Expr::Kind::SSUB_SAT: {
 						const SSubSat& ssub_sat = this->reader.getSSubSat(stmt);
 						const Type& ssub_sat_type = this->reader.getExprType(ssub_sat.lhs);
 
 						const llvmint::Value ssub_sat_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::ssubSat,
+							llvmint::IRBuilder::IntrinsicID::SSUB_SAT,
 							this->get_type(ssub_sat_type),
 							{this->get_value(ssub_sat.lhs), this->get_value(ssub_sat.rhs)},
 							ssub_sat.name
@@ -653,12 +653,12 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, ssub_sat_value);
 					} break;
 
-					case Expr::Kind::USubSat: {
+					case Expr::Kind::USUB_SAT: {
 						const USubSat& usub_sat = this->reader.getUSubSat(stmt);
 						const Type& usub_sat_type = this->reader.getExprType(usub_sat.lhs);
 
 						const llvmint::Value usub_sat_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::usubSat,
+							llvmint::IRBuilder::IntrinsicID::USUB_SAT,
 							this->get_type(usub_sat_type),
 							{this->get_value(usub_sat.lhs), this->get_value(usub_sat.rhs)},
 							usub_sat.name
@@ -666,7 +666,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, usub_sat_value);
 					} break;
 
-					case Expr::Kind::FSub: {
+					case Expr::Kind::FSUB: {
 						const FSub& add = this->reader.getFSub(stmt);
 
 						const llvmint::Value lhs = this->get_value(add.lhs);
@@ -676,7 +676,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, add_value);
 					} break;
 
-					case Expr::Kind::Mul: {
+					case Expr::Kind::MUL: {
 						const Mul& mul = this->reader.getMul(stmt);
 
 						const llvmint::Value lhs = this->get_value(mul.lhs);
@@ -686,7 +686,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, mul_value);
 					} break;
 
-					case Expr::Kind::SMulWrap: {
+					case Expr::Kind::SMUL_WRAP: {
 						const SMulWrap& smul_wrap = this->reader.getSMulWrap(stmt);
 						const Type& smul_type = this->reader.getExprType(smul_wrap.lhs);
 
@@ -695,7 +695,7 @@ namespace pcit::pir{
 						).asType();
 
 						const llvmint::Value smul_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::smulOverflow,
+							llvmint::IRBuilder::IntrinsicID::SMUL_OVERFLOW,
 							return_type,
 							{this->get_value(smul_wrap.lhs), this->get_value(smul_wrap.rhs)},
 							"ADD_WRAP"
@@ -712,10 +712,10 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::SMulWrapResult:  evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::SMulWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SMUL_WRAP_RESULT:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::SMUL_WRAP_WRAPPED: evo::debugFatalBreak("Not a valid stmt");
 
-					case Expr::Kind::UMulWrap: {
+					case Expr::Kind::UMUL_WRAP: {
 						const UMulWrap& umul_wrap = this->reader.getUMulWrap(stmt);
 						const Type& umul_type = this->reader.getExprType(umul_wrap.lhs);
 
@@ -724,7 +724,7 @@ namespace pcit::pir{
 						).asType();
 
 						const llvmint::Value umul_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::umulOverflow,
+							llvmint::IRBuilder::IntrinsicID::UMUL_OVERFLOW,
 							return_type,
 							{this->get_value(umul_wrap.lhs), this->get_value(umul_wrap.rhs)},
 							"ADD_WRAP"
@@ -741,15 +741,15 @@ namespace pcit::pir{
 						);
 					} break;
 
-					case Expr::Kind::UMulWrapResult:  evo::debugFatalBreak("Not a valid stmt");
-					case Expr::Kind::UMulWrapWrapped: evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::UMUL_WRAP_RESULT:  evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::UMUL_WRAP_WRAPPED: evo::debugFatalBreak("Not a valid stmt");
 
-					case Expr::Kind::SMulSat: {
+					case Expr::Kind::SMUL_SAT: {
 						const SMulSat& smul_sat = this->reader.getSMulSat(stmt);
 						const Type& smul_sat_type = this->reader.getExprType(smul_sat.lhs);
 
 						const llvmint::Value smul_sat_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::smulFixSat,
+							llvmint::IRBuilder::IntrinsicID::SMUL_FIX_SAT,
 							this->get_type(smul_sat_type),
 							{this->get_value(smul_sat.lhs), this->get_value(smul_sat.rhs)},
 							smul_sat.name
@@ -757,12 +757,12 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, smul_sat_value);
 					} break;
 
-					case Expr::Kind::UMulSat: {
+					case Expr::Kind::UMUL_SAT: {
 						const UMulSat& umul_sat = this->reader.getUMulSat(stmt);
 						const Type& umul_sat_type = this->reader.getExprType(umul_sat.lhs);
 
 						const llvmint::Value umul_sat_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::umulFixSat,
+							llvmint::IRBuilder::IntrinsicID::UMUL_FIX_SAT,
 							this->get_type(umul_sat_type),
 							{this->get_value(umul_sat.lhs), this->get_value(umul_sat.rhs)},
 							umul_sat.name
@@ -770,7 +770,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, umul_sat_value);
 					} break;
 
-					case Expr::Kind::FMul: {
+					case Expr::Kind::FMUL: {
 						const FMul& fmul = this->reader.getFMul(stmt);
 
 						const llvmint::Value lhs = this->get_value(fmul.lhs);
@@ -780,7 +780,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, fmul_value);
 					} break;
 
-					case Expr::Kind::SDiv: {
+					case Expr::Kind::SDIV: {
 						const SDiv& sdiv = this->reader.getSDiv(stmt);
 
 						const llvmint::Value lhs = this->get_value(sdiv.lhs);
@@ -790,7 +790,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, sdiv_value);
 					} break;
 
-					case Expr::Kind::UDiv: {
+					case Expr::Kind::UDIV: {
 						const UDiv& udiv = this->reader.getUDiv(stmt);
 
 						const llvmint::Value lhs = this->get_value(udiv.lhs);
@@ -800,7 +800,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, udiv_value);
 					} break;
 
-					case Expr::Kind::FDiv: {
+					case Expr::Kind::FDIV: {
 						const FDiv& fdiv = this->reader.getFDiv(stmt);
 
 						const llvmint::Value lhs = this->get_value(fdiv.lhs);
@@ -810,7 +810,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, fdiv_value);
 					} break;
 
-					case Expr::Kind::SRem: {
+					case Expr::Kind::SREM: {
 						const SRem& srem = this->reader.getSRem(stmt);
 
 						const llvmint::Value lhs = this->get_value(srem.lhs);
@@ -820,7 +820,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, srem_value);
 					} break;
 
-					case Expr::Kind::URem: {
+					case Expr::Kind::UREM: {
 						const URem& urem = this->reader.getURem(stmt);
 
 						const llvmint::Value lhs = this->get_value(urem.lhs);
@@ -830,7 +830,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, urem_value);
 					} break;
 
-					case Expr::Kind::FRem: {
+					case Expr::Kind::FREM: {
 						const FRem& frem = this->reader.getFRem(stmt);
 
 						const llvmint::Value lhs = this->get_value(frem.lhs);
@@ -840,7 +840,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, frem_value);
 					} break;
 
-					case Expr::Kind::FNeg: {
+					case Expr::Kind::FNEG: {
 						const FNeg& fneg = this->reader.getFNeg(stmt);
 
 						const llvmint::Value rhs = this->get_value(fneg.rhs);
@@ -850,7 +850,7 @@ namespace pcit::pir{
 					} break;
 
 
-					case Expr::Kind::IEq: {
+					case Expr::Kind::IEQ: {
 						const IEq& ieq = this->reader.getIEq(stmt);
 
 						const llvmint::Value lhs = this->get_value(ieq.lhs);
@@ -860,7 +860,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, ieq_value);
 					} break;
 					
-					case Expr::Kind::FEq: {
+					case Expr::Kind::FEQ: {
 						const FEq& feq = this->reader.getFEq(stmt);
 
 						const llvmint::Value lhs = this->get_value(feq.lhs);
@@ -870,7 +870,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, feq_value);
 					} break;
 					
-					case Expr::Kind::INeq: {
+					case Expr::Kind::INEQ: {
 						const INeq& ineq = this->reader.getINeq(stmt);
 
 						const llvmint::Value lhs = this->get_value(ineq.lhs);
@@ -880,7 +880,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, ineq_value);
 					} break;
 					
-					case Expr::Kind::FNeq: {
+					case Expr::Kind::FNEQ: {
 						const FNeq& fneq = this->reader.getFNeq(stmt);
 
 						const llvmint::Value lhs = this->get_value(fneq.lhs);
@@ -1010,7 +1010,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, fgte_value);
 					} break;
 
-					case Expr::Kind::And: {
+					case Expr::Kind::AND: {
 						const And& and_stmt = this->reader.getAnd(stmt);
 
 						const llvmint::Value lhs = this->get_value(and_stmt.lhs);
@@ -1020,7 +1020,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, and_value);
 					} break;
 
-					case Expr::Kind::Or: {
+					case Expr::Kind::OR: {
 						const Or& or_stmt = this->reader.getOr(stmt);
 
 						const llvmint::Value lhs = this->get_value(or_stmt.lhs);
@@ -1030,7 +1030,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, or_value);
 					} break;
 
-					case Expr::Kind::Xor: {
+					case Expr::Kind::XOR: {
 						const Xor& xor_stmt = this->reader.getXor(stmt);
 
 						const llvmint::Value lhs = this->get_value(xor_stmt.lhs);
@@ -1050,7 +1050,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, shl_value);
 					} break;
 
-					case Expr::Kind::SSHLSat: {
+					case Expr::Kind::SSHL_SAT: {
 						const SSHLSat& sshl_sat = this->reader.getSSHLSat(stmt);
 						const Type& sshlsat_type = this->reader.getExprType(sshl_sat.lhs);
 
@@ -1058,7 +1058,7 @@ namespace pcit::pir{
 						const llvmint::Value rhs = this->get_value(sshl_sat.rhs);
 
 						const llvmint::Value sshl_sat_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::sshlSat,
+							llvmint::IRBuilder::IntrinsicID::SSHL_SAT,
 							this->get_type(sshlsat_type),
 							{this->get_value(sshl_sat.lhs), this->get_value(sshl_sat.rhs)},
 							sshl_sat.name
@@ -1066,7 +1066,7 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, sshl_sat_value);
 					} break;
 
-					case Expr::Kind::USHLSat: {
+					case Expr::Kind::USHL_SAT: {
 						const USHLSat& ushl_sat = this->reader.getUSHLSat(stmt);
 						const Type& ushlsat_type = this->reader.getExprType(ushl_sat.lhs);
 
@@ -1074,7 +1074,7 @@ namespace pcit::pir{
 						const llvmint::Value rhs = this->get_value(ushl_sat.rhs);
 
 						const llvmint::Value ushl_sat_value = this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::ushlSat,
+							llvmint::IRBuilder::IntrinsicID::USHL_SAT,
 							this->get_type(ushlsat_type),
 							{this->get_value(ushl_sat.lhs), this->get_value(ushl_sat.rhs)},
 							ushl_sat.name
@@ -1116,25 +1116,25 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_constant_value(const Expr& expr) -> llvmint::Constant {
 		evo::debugAssert(
-			expr.kind() == Expr::Kind::Number || expr.kind() == Expr::Kind::Boolean, "Not a valid constant"
+			expr.kind() == Expr::Kind::NUMBER || expr.kind() == Expr::Kind::BOOLEAN, "Not a valid constant"
 		);
 
-		if(expr.kind() == Expr::Kind::Boolean){
+		if(expr.kind() == Expr::Kind::BOOLEAN){
 			return this->builder.getValueBool(this->reader.getBoolean(expr)).asConstant();
 		}
 
 		const Number& number = this->reader.getNumber(expr);
 
 		switch(number.type.kind()){
-			case Type::Kind::Integer: {
+			case Type::Kind::INTEGER: {
 				return this->builder.getValueI_N(number.type.getWidth(), false, number.getInt()).asConstant();
 			} break;
 
-			case Type::Kind::Float: {
+			case Type::Kind::FLOAT: {
 				return this->builder.getValueFloat(this->get_type(number.type), number.getFloat());
 			} break;
 
-			case Type::Kind::BFloat: {
+			case Type::Kind::BFLOAT: {
 				return this->builder.getValueFloat(this->builder.getTypeBF16(), number.getFloat());
 			} break;
 
@@ -1154,11 +1154,11 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
 				switch(type.kind()){
-					case Type::Kind::Integer: {
+					case Type::Kind::INTEGER: {
 						return this->builder.getValueI_N(type.getWidth(), 0).asConstant();
 					} break;
 
-					case Type::Kind::Float: {
+					case Type::Kind::FLOAT: {
 						switch(type.getWidth()){
 							case 16:  return this->builder.getValueF16(0);
 							case 32:  return this->builder.getValueF32(0);
@@ -1170,7 +1170,7 @@ namespace pcit::pir{
 						evo::debugFatalBreak("Unknown float width");
 					} break;
 
-					case Type::Kind::BFloat: {
+					case Type::Kind::BFLOAT: {
 						return this->builder.getValueBF16(0);
 					} break;
 
@@ -1220,27 +1220,27 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_value(const Expr& expr) -> llvmint::Value {
 		switch(expr.kind()){
-			case Expr::Kind::None: evo::debugFatalBreak("Not a valid expr");
+			case Expr::Kind::NONE: evo::debugFatalBreak("Not a valid expr");
 
-			case Expr::Kind::GlobalValue: {
+			case Expr::Kind::GLOBAL_VALUE: {
 				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
 				return this->global_vars.at(global_var.name).asValue();
 			} break;
 
-			case Expr::Kind::FunctionPointer: {
+			case Expr::Kind::FUNCTION_POINTER: {
 				const Function& func = this->reader.getFunctionPointer(expr);
 				return this->funcs.at(func.getName()).asValue();
 			} break;
 
-			case Expr::Kind::Number: {
+			case Expr::Kind::NUMBER: {
 				const Number& number = this->reader.getNumber(expr);
 
 				switch(number.type.kind()){
-					case Type::Kind::Integer: {
+					case Type::Kind::INTEGER: {
 						return this->builder.getValueI_N(number.type.getWidth(), true, number.getInt()).asValue();
 					} break;
 
-					case Type::Kind::Float: {
+					case Type::Kind::FLOAT: {
 						core::GenericFloat float_value = [&](){
 							switch(number.type.getWidth()){
 								case 16: return number.getFloat().asF16();
@@ -1254,7 +1254,7 @@ namespace pcit::pir{
 						return this->builder.getValueFloat(this->get_type(number.type), float_value).asValue();
 					} break;
 
-					case Type::Kind::BFloat: {
+					case Type::Kind::BFLOAT: {
 						return this->builder.getValueFloat(
 							this->builder.getTypeBF16(), number.getFloat().asBF16()
 						).asValue();
@@ -1264,140 +1264,140 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Expr::Kind::Boolean: {
+			case Expr::Kind::BOOLEAN: {
 				return this->builder.getValueBool(this->reader.getBoolean(expr)).asValue();
 			} break;
 
-			case Expr::Kind::ParamExpr: {
+			case Expr::Kind::PARAM_EXPR: {
 				const ParamExpr& param = this->reader.getParamExpr(expr);
 				return this->args[param.index].asValue();
 			} break;
 
-			case Expr::Kind::Call: {
+			case Expr::Kind::CALL: {
 				return this->stmt_values.at(expr);
 			} break;
 
-			case Expr::Kind::CallVoid:    evo::debugFatalBreak("Not a value");
-			case Expr::Kind::Breakpoint:  evo::debugFatalBreak("Not a value");
-			case Expr::Kind::Ret:         evo::debugFatalBreak("Not a value");
-			case Expr::Kind::Branch:      evo::debugFatalBreak("Not a value");
-			case Expr::Kind::CondBranch:  evo::debugFatalBreak("Not a value");
-			case Expr::Kind::Unreachable: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::CALL_VOID:    evo::debugFatalBreak("Not a value");
+			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Not a value");
+			case Expr::Kind::RET:         evo::debugFatalBreak("Not a value");
+			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Not a value");
+			case Expr::Kind::COND_BRANCH:  evo::debugFatalBreak("Not a value");
+			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Not a value");
 
-			case Expr::Kind::Alloca: {
+			case Expr::Kind::ALLOCA: {
 				const Alloca& alloca_info = this->reader.getAlloca(expr);
 				return this->allocas.at(&alloca_info).asValue();
 			} break;
 
-			case Expr::Kind::Load: {
+			case Expr::Kind::LOAD: {
 				return this->stmt_values.at(expr);
 			} break;
 
-			case Expr::Kind::Store: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::STORE: evo::debugFatalBreak("Not a value");
 
-			case Expr::Kind::CalcPtr: return this->stmt_values.at(expr);
-			case Expr::Kind::Memcpy: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::Memset: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::BitCast: return this->stmt_values.at(expr);
-			case Expr::Kind::Trunc:   return this->stmt_values.at(expr);
-			case Expr::Kind::FTrunc:  return this->stmt_values.at(expr);
-			case Expr::Kind::SExt:    return this->stmt_values.at(expr);
-			case Expr::Kind::ZExt:    return this->stmt_values.at(expr);
-			case Expr::Kind::FExt:    return this->stmt_values.at(expr);
-			case Expr::Kind::IToF:    return this->stmt_values.at(expr);
-			case Expr::Kind::UIToF:   return this->stmt_values.at(expr);
-			case Expr::Kind::FToI:    return this->stmt_values.at(expr);
-			case Expr::Kind::FToUI:   return this->stmt_values.at(expr);
+			case Expr::Kind::CALC_PTR: return this->stmt_values.at(expr);
+			case Expr::Kind::MEMCPY: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::MEMSET: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::BIT_CAST: return this->stmt_values.at(expr);
+			case Expr::Kind::TRUNC:   return this->stmt_values.at(expr);
+			case Expr::Kind::FTRUNC:  return this->stmt_values.at(expr);
+			case Expr::Kind::SEXT:    return this->stmt_values.at(expr);
+			case Expr::Kind::ZEXT:    return this->stmt_values.at(expr);
+			case Expr::Kind::FEXT:    return this->stmt_values.at(expr);
+			case Expr::Kind::ITOF:    return this->stmt_values.at(expr);
+			case Expr::Kind::UITOF:   return this->stmt_values.at(expr);
+			case Expr::Kind::FTOI:    return this->stmt_values.at(expr);
+			case Expr::Kind::FTOUI:   return this->stmt_values.at(expr);
 
-			case Expr::Kind::Add:     return this->stmt_values.at(expr);
-			case Expr::Kind::SAddWrap: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::SAddWrapResult: {
+			case Expr::Kind::ADD:     return this->stmt_values.at(expr);
+			case Expr::Kind::SADD_WRAP: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::SADD_WRAP_RESULT: {
 				return this->stmt_values.at(this->reader.extractSAddWrapResult(expr));
 			} break;
-			case Expr::Kind::SAddWrapWrapped: {
+			case Expr::Kind::SADD_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractSAddWrapWrapped(expr));
 			} break;
-			case Expr::Kind::UAddWrap: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::UAddWrapResult: {
+			case Expr::Kind::UADD_WRAP: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::UADD_WRAP_RESULT: {
 				return this->stmt_values.at(this->reader.extractUAddWrapResult(expr));
 			} break;
-			case Expr::Kind::UAddWrapWrapped: {
+			case Expr::Kind::UADD_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractUAddWrapWrapped(expr));
 			} break;
-			case Expr::Kind::SAddSat: return this->stmt_values.at(expr);
-			case Expr::Kind::UAddSat: return this->stmt_values.at(expr);
-			case Expr::Kind::FAdd:    return this->stmt_values.at(expr);
+			case Expr::Kind::SADD_SAT: return this->stmt_values.at(expr);
+			case Expr::Kind::UADD_SAT: return this->stmt_values.at(expr);
+			case Expr::Kind::FADD:     return this->stmt_values.at(expr);
 
-			case Expr::Kind::Sub:     return this->stmt_values.at(expr);
-			case Expr::Kind::SSubWrap: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::SSubWrapResult: {
+			case Expr::Kind::SUB:      return this->stmt_values.at(expr);
+			case Expr::Kind::SSUB_WRAP: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::SSUB_WRAP_RESULT: {
 				return this->stmt_values.at(this->reader.extractSSubWrapResult(expr));
 			} break;
-			case Expr::Kind::SSubWrapWrapped: {
+			case Expr::Kind::SSUB_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractSSubWrapWrapped(expr));
 			} break;
-			case Expr::Kind::USubWrap: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::USubWrapResult: {
+			case Expr::Kind::USUB_WRAP: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::USUB_WRAP_RESULT: {
 				return this->stmt_values.at(this->reader.extractUSubWrapResult(expr));
 			} break;
-			case Expr::Kind::USubWrapWrapped: {
+			case Expr::Kind::USUB_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractUSubWrapWrapped(expr));
 			} break;
-			case Expr::Kind::SSubSat: return this->stmt_values.at(expr);
-			case Expr::Kind::USubSat: return this->stmt_values.at(expr);
-			case Expr::Kind::FSub:    return this->stmt_values.at(expr);
+			case Expr::Kind::SSUB_SAT: return this->stmt_values.at(expr);
+			case Expr::Kind::USUB_SAT: return this->stmt_values.at(expr);
+			case Expr::Kind::FSUB:     return this->stmt_values.at(expr);
 
-			case Expr::Kind::Mul:     return this->stmt_values.at(expr);
-			case Expr::Kind::SMulWrap: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::SMulWrapResult: {
+			case Expr::Kind::MUL:      return this->stmt_values.at(expr);
+			case Expr::Kind::SMUL_WRAP: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::SMUL_WRAP_RESULT: {
 				return this->stmt_values.at(this->reader.extractSMulWrapResult(expr));
 			} break;
-			case Expr::Kind::SMulWrapWrapped: {
+			case Expr::Kind::SMUL_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractSMulWrapWrapped(expr));
 			} break;
-			case Expr::Kind::UMulWrap: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::UMulWrapResult: {
+			case Expr::Kind::UMUL_WRAP: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::UMUL_WRAP_RESULT: {
 				return this->stmt_values.at(this->reader.extractUMulWrapResult(expr));
 			} break;
-			case Expr::Kind::UMulWrapWrapped: {
+			case Expr::Kind::UMUL_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractUMulWrapWrapped(expr));
 			} break;
-			case Expr::Kind::SMulSat: return this->stmt_values.at(expr);
-			case Expr::Kind::UMulSat: return this->stmt_values.at(expr);
-			case Expr::Kind::FMul:    return this->stmt_values.at(expr);
+			case Expr::Kind::SMUL_SAT: return this->stmt_values.at(expr);
+			case Expr::Kind::UMUL_SAT: return this->stmt_values.at(expr);
+			case Expr::Kind::FMUL:     return this->stmt_values.at(expr);
 
-			case Expr::Kind::SDiv:    return this->stmt_values.at(expr);
-			case Expr::Kind::UDiv:    return this->stmt_values.at(expr);
-			case Expr::Kind::FDiv:    return this->stmt_values.at(expr);
-			case Expr::Kind::SRem:    return this->stmt_values.at(expr);
-			case Expr::Kind::URem:    return this->stmt_values.at(expr);
-			case Expr::Kind::FRem:    return this->stmt_values.at(expr);
-			case Expr::Kind::FNeg:    return this->stmt_values.at(expr);
+			case Expr::Kind::SDIV:     return this->stmt_values.at(expr);
+			case Expr::Kind::UDIV:     return this->stmt_values.at(expr);
+			case Expr::Kind::FDIV:     return this->stmt_values.at(expr);
+			case Expr::Kind::SREM:     return this->stmt_values.at(expr);
+			case Expr::Kind::UREM:     return this->stmt_values.at(expr);
+			case Expr::Kind::FREM:     return this->stmt_values.at(expr);
+			case Expr::Kind::FNEG:     return this->stmt_values.at(expr);
 
-			case Expr::Kind::IEq:     return this->stmt_values.at(expr);
-			case Expr::Kind::FEq:     return this->stmt_values.at(expr);
-			case Expr::Kind::INeq:    return this->stmt_values.at(expr);
-			case Expr::Kind::FNeq:    return this->stmt_values.at(expr);
-			case Expr::Kind::SLT:     return this->stmt_values.at(expr);
-			case Expr::Kind::ULT:     return this->stmt_values.at(expr);
-			case Expr::Kind::FLT:     return this->stmt_values.at(expr);
-			case Expr::Kind::SLTE:    return this->stmt_values.at(expr);
-			case Expr::Kind::ULTE:    return this->stmt_values.at(expr);
-			case Expr::Kind::FLTE:    return this->stmt_values.at(expr);
-			case Expr::Kind::SGT:     return this->stmt_values.at(expr);
-			case Expr::Kind::UGT:     return this->stmt_values.at(expr);
-			case Expr::Kind::FGT:     return this->stmt_values.at(expr);
-			case Expr::Kind::SGTE:    return this->stmt_values.at(expr);
-			case Expr::Kind::UGTE:    return this->stmt_values.at(expr);
-			case Expr::Kind::FGTE:    return this->stmt_values.at(expr);
-			case Expr::Kind::And:     return this->stmt_values.at(expr);
-			case Expr::Kind::Or:      return this->stmt_values.at(expr);
-			case Expr::Kind::Xor:     return this->stmt_values.at(expr);
-			case Expr::Kind::SHL:     return this->stmt_values.at(expr);
-			case Expr::Kind::SSHLSat: return this->stmt_values.at(expr);
-			case Expr::Kind::USHLSat: return this->stmt_values.at(expr);
-			case Expr::Kind::SSHR:    return this->stmt_values.at(expr);
-			case Expr::Kind::USHR:    return this->stmt_values.at(expr);
+			case Expr::Kind::IEQ:      return this->stmt_values.at(expr);
+			case Expr::Kind::FEQ:      return this->stmt_values.at(expr);
+			case Expr::Kind::INEQ:     return this->stmt_values.at(expr);
+			case Expr::Kind::FNEQ:     return this->stmt_values.at(expr);
+			case Expr::Kind::SLT:      return this->stmt_values.at(expr);
+			case Expr::Kind::ULT:      return this->stmt_values.at(expr);
+			case Expr::Kind::FLT:      return this->stmt_values.at(expr);
+			case Expr::Kind::SLTE:     return this->stmt_values.at(expr);
+			case Expr::Kind::ULTE:     return this->stmt_values.at(expr);
+			case Expr::Kind::FLTE:     return this->stmt_values.at(expr);
+			case Expr::Kind::SGT:      return this->stmt_values.at(expr);
+			case Expr::Kind::UGT:      return this->stmt_values.at(expr);
+			case Expr::Kind::FGT:      return this->stmt_values.at(expr);
+			case Expr::Kind::SGTE:     return this->stmt_values.at(expr);
+			case Expr::Kind::UGTE:     return this->stmt_values.at(expr);
+			case Expr::Kind::FGTE:     return this->stmt_values.at(expr);
+			case Expr::Kind::AND:      return this->stmt_values.at(expr);
+			case Expr::Kind::OR:       return this->stmt_values.at(expr);
+			case Expr::Kind::XOR:      return this->stmt_values.at(expr);
+			case Expr::Kind::SHL:      return this->stmt_values.at(expr);
+			case Expr::Kind::SSHL_SAT: return this->stmt_values.at(expr);
+			case Expr::Kind::USHL_SAT: return this->stmt_values.at(expr);
+			case Expr::Kind::SSHR:     return this->stmt_values.at(expr);
+			case Expr::Kind::USHR:     return this->stmt_values.at(expr);
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -1406,10 +1406,10 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_type(const Type& type) -> llvmint::Type {
 		switch(type.kind()){
-			case Type::Kind::Void:     return this->builder.getTypeVoid();
-			case Type::Kind::Integer:  return this->builder.getTypeI_N(type.getWidth()).asType();
-			case Type::Kind::Bool:     return this->builder.getTypeBool().asType();
-			case Type::Kind::Float: {
+			case Type::Kind::VOID:     return this->builder.getTypeVoid();
+			case Type::Kind::INTEGER:  return this->builder.getTypeI_N(type.getWidth()).asType();
+			case Type::Kind::BOOL:     return this->builder.getTypeBool().asType();
+			case Type::Kind::FLOAT: {
 				switch(type.getWidth()){
 					case 16:  return this->builder.getTypeF16();
 					case 32:  return this->builder.getTypeF32();
@@ -1418,19 +1418,19 @@ namespace pcit::pir{
 					case 128: return this->builder.getTypeF128();
 				}
 			} break;
-			case Type::Kind::BFloat: return this->builder.getTypeBF16();
-			case Type::Kind::Ptr:    return this->builder.getTypePtr().asType();
+			case Type::Kind::BFLOAT: return this->builder.getTypeBF16();
+			case Type::Kind::PTR:    return this->builder.getTypePtr().asType();
 
-			case Type::Kind::Array: {
+			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->module.getArrayType(type);
 				return this->builder.getArrayType(this->get_type(array_type.elemType), array_type.length).asType();
 			} break;
 
-			case Type::Kind::Struct: {
+			case Type::Kind::STRUCT: {
 				return this->get_struct_type(type).asType();
 			} break;
 
-			case Type::Kind::Function: {
+			case Type::Kind::FUNCTION: {
 				return this->get_func_type(type).asType();
 			} break;
 		}
@@ -1459,10 +1459,10 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_linkage(const Linkage& linkage) -> llvmint::LinkageType {
 		switch(linkage){
-			case Linkage::Default:  return llvmint::LinkageType::Internal;
-			case Linkage::Private:  return llvmint::LinkageType::Private;
-			case Linkage::Internal: return llvmint::LinkageType::Internal;
-			case Linkage::External: return llvmint::LinkageType::External;
+			case Linkage::DEFAULT:  return llvmint::LinkageType::Internal;
+			case Linkage::PRIVATE:  return llvmint::LinkageType::Private;
+			case Linkage::INTERNAL: return llvmint::LinkageType::Internal;
+			case Linkage::EXTERNAL: return llvmint::LinkageType::External;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported linkage kind");
@@ -1471,10 +1471,10 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv {
 		switch(calling_conv){
-			case CallingConvention::Default: return llvmint::CallingConv::C;
+			case CallingConvention::DEFAULT: return llvmint::CallingConv::C;
 			case CallingConvention::C:       return llvmint::CallingConv::C;
-			case CallingConvention::Fast:    return llvmint::CallingConv::Fast;
-			case CallingConvention::Cold:    return llvmint::CallingConv::Cold;
+			case CallingConvention::FAST:    return llvmint::CallingConv::Fast;
+			case CallingConvention::COLD:    return llvmint::CallingConv::Cold;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported linkage kind");
@@ -1482,12 +1482,12 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_atomic_ordering(const AtomicOrdering& atomic_ordering) -> llvmint::AtomicOrdering {
 		switch(atomic_ordering){
-			case AtomicOrdering::None:                   return llvmint::AtomicOrdering::NotAtomic;
-			case AtomicOrdering::Monotonic:              return llvmint::AtomicOrdering::Monotonic;
-			case AtomicOrdering::Acquire:                return llvmint::AtomicOrdering::Acquire;
-			case AtomicOrdering::Release:                return llvmint::AtomicOrdering::Release;
-			case AtomicOrdering::AcquireRelease:         return llvmint::AtomicOrdering::AcquireRelease;
-			case AtomicOrdering::SequentiallyConsistent: return llvmint::AtomicOrdering::SequentiallyConsistent;
+			case AtomicOrdering::NONE:                   return llvmint::AtomicOrdering::NotAtomic;
+			case AtomicOrdering::MONOTONIC:              return llvmint::AtomicOrdering::Monotonic;
+			case AtomicOrdering::ACQUIRE:                return llvmint::AtomicOrdering::Acquire;
+			case AtomicOrdering::RELEASE:                return llvmint::AtomicOrdering::Release;
+			case AtomicOrdering::ACQUIRE_RELEASE:         return llvmint::AtomicOrdering::AcquireRelease;
+			case AtomicOrdering::SEQUENTIALLY_CONSISTENT: return llvmint::AtomicOrdering::SequentiallyConsistent;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported atomic ordering");

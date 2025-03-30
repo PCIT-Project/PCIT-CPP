@@ -61,7 +61,7 @@ namespace pcit::panther{
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
 			this->get_type(*global_var.typeID),
-			pir::Linkage::Private,
+			pir::Linkage::PRIVATE,
 			this->get_global_var_value(*global_var.expr.load()),
 			global_var.kind == AST::VarDecl::Kind::Const
 		);
@@ -181,8 +181,8 @@ namespace pcit::panther{
 		const pir::Function::ID new_func_id = module.createFunction(
 			this->mangle_name(func_id),
 			std::move(params),
-			this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::Fast,
-			this->data.getConfig().isJIT ? pir::Linkage::External : pir::Linkage::Private,
+			this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
+			this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
 			return_type
 		);
 
@@ -220,7 +220,7 @@ namespace pcit::panther{
 				// 	ASG::Param::LinkID(asg_func_link_id, func.params[i]), ParamInfo(param_alloca, param_type, i)
 				// );
 
-				this->agent.createStore(param_alloca, this->agent.createParamExpr(i), false, pir::AtomicOrdering::None);
+				this->agent.createStore(param_alloca, this->agent.createParamExpr(i), false, pir::AtomicOrdering::NONE);
 
 				i += 1;
 			}
@@ -249,23 +249,23 @@ namespace pcit::panther{
 		for(const sema::Stmt& stmt : sema_func.stmtBlock){
 			// TODO: move into separate function?
 			switch(stmt.kind()){
-				case sema::Stmt::Kind::GlobalVar: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::GlobalVar");
+				case sema::Stmt::Kind::GLOBAL_VAR: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::GLOBAL_VAR");
 				} break;
 
-				case sema::Stmt::Kind::FuncCall: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::FuncCall");
+				case sema::Stmt::Kind::FUNC_CALL: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::FUNC_CALL");
 				} break;
 
-				case sema::Stmt::Kind::Assign: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::Assign");
+				case sema::Stmt::Kind::ASSIGN: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::ASSIGN");
 				} break;
 
-				case sema::Stmt::Kind::MultiAssign: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::MultiAssign");
+				case sema::Stmt::Kind::MULTI_ASSIGN: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::MULTI_ASSIGN");
 				} break;
 
-				case sema::Stmt::Kind::Return: {
+				case sema::Stmt::Kind::RETURN: {
 					const sema::Return& return_stmt = this->context.getSemaBuffer().getReturn(stmt.returnID());
 
 					if(func_type.hasErrorReturn()){
@@ -274,7 +274,7 @@ namespace pcit::panther{
 								this->data.get_func(func_id).return_params.front(),
 								this->get_expr_register(*return_stmt.value),
 								false,
-								pir::AtomicOrdering::None
+								pir::AtomicOrdering::NONE
 							);
 						}
 
@@ -290,7 +290,7 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case sema::Stmt::Kind::Error: {
+				case sema::Stmt::Kind::ERROR: {
 					const sema::Error& error_stmt = this->context.getSemaBuffer().getError(stmt.errorID());
 
 					if(error_stmt.value.has_value()){
@@ -298,7 +298,7 @@ namespace pcit::panther{
 							this->data.get_func(func_id).error_return_params.front(),
 							this->get_expr_register(*error_stmt.value),
 							false,
-							pir::AtomicOrdering::None
+							pir::AtomicOrdering::NONE
 						);
 						this->agent.createRet(this->agent.createBoolean(false));
 
@@ -308,16 +308,16 @@ namespace pcit::panther{
 					
 				} break;
 
-				case sema::Stmt::Kind::Unreachable: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::Unreachable");
+				case sema::Stmt::Kind::UNREACHABLE: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::UNREACHABLE");
 				} break;
 
-				case sema::Stmt::Kind::Conditional: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::Conditional");
+				case sema::Stmt::Kind::CONDITIONAL: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::CONDITIONAL");
 				} break;
 
-				case sema::Stmt::Kind::While: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::While");
+				case sema::Stmt::Kind::WHILE: {
+					evo::unimplemented("To PIR of sema::Stmt::Kind::WHILE");
 				} break;
 			}
 		}
@@ -345,15 +345,15 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::get_expr_register(const sema::Expr expr) -> pir::Expr {
-		return *this->get_expr_impl<GetExprMode::Register>(expr, nullptr);
+		return *this->get_expr_impl<GetExprMode::REGISTER>(expr, nullptr);
 	}
 
 	auto SemaToPIR::get_expr_pointer(const sema::Expr expr) -> pir::Expr {
-		return *this->get_expr_impl<GetExprMode::Pointer>(expr, nullptr);
+		return *this->get_expr_impl<GetExprMode::POINTER>(expr, nullptr);
 	}
 
 	auto SemaToPIR::get_expr_store(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations) -> void {
-		this->get_expr_impl<GetExprMode::Store>(expr, store_locations);
+		this->get_expr_impl<GetExprMode::STORE>(expr, store_locations);
 	}
 
 
@@ -361,142 +361,142 @@ namespace pcit::panther{
 	template<SemaToPIR::GetExprMode MODE>
 	auto SemaToPIR::get_expr_impl(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 	-> std::optional<pir::Expr> {
-		if constexpr(MODE == GetExprMode::Store){
-			evo::debugAssert(!store_locations.empty(), "Must have store location(s) if `MODE == GetExprMode::Store`");
+		if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(!store_locations.empty(), "Must have store location(s) if `MODE == GetExprMode::STORE`");
 
 		}else{
-			evo::debugAssert(store_locations.empty(), "Cannot have store location(s) if `MODE != GetExprMode::Store`");
+			evo::debugAssert(store_locations.empty(), "Cannot have store location(s) if `MODE != GetExprMode::STORE`");
 		}
 
 		switch(expr.kind()){
-			case sema::Expr::Kind::None: {
+			case sema::Expr::Kind::NONE: {
 				evo::debugFatalBreak("Not a valid sema::Expr");
 			} break;
 
-			case sema::Expr::Kind::ModuleIdent: {
+			case sema::Expr::Kind::MODULE_IDENT: {
 				evo::unimplemented("lower sema::Expr::Kind::ModuleIdent");
 			} break;
 
-			case sema::Expr::Kind::Uninit: {
+			case sema::Expr::Kind::UNINIT: {
 				evo::unimplemented("lower sema::Expr::Kind::Uninit");
 			} break;
 
-			case sema::Expr::Kind::Zeroinit: {
+			case sema::Expr::Kind::ZEROINIT: {
 				evo::unimplemented("lower sema::Expr::Kind::Zeroinit");
 			} break;
 
-			case sema::Expr::Kind::IntValue: {
+			case sema::Expr::Kind::INT_VALUE: {
 				const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
 				const pir::Type value_type = this->get_type(*int_value.typeID);
 				const pir::Expr number = this->agent.createNumber(value_type, int_value.value);
 
-				if constexpr(MODE == GetExprMode::Register){
+				if constexpr(MODE == GetExprMode::REGISTER){
 					return number;
 
-				}else if constexpr(MODE == GetExprMode::Pointer){
+				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name("NUMBER.ALLOCA"));
-					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::None);
+					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::NONE);
 					return alloca;
 
 				}else{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::None);
+					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::NONE);
 					return std::nullopt;
 				}
 			} break;
 
-			case sema::Expr::Kind::FloatValue: {
+			case sema::Expr::Kind::FLOAT_VALUE: {
 				const sema::FloatValue& float_value = this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
 				const pir::Type value_type = this->get_type(*float_value.typeID);
 				const pir::Expr number = this->agent.createNumber(value_type, float_value.value);
 
-				if constexpr(MODE == GetExprMode::Register){
+				if constexpr(MODE == GetExprMode::REGISTER){
 					return number;
 
-				}else if constexpr(MODE == GetExprMode::Pointer){
+				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name("NUMBER.ALLOCA"));
-					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::None);
+					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::NONE);
 					return alloca;
 
 				}else{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::None);
+					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::NONE);
 					return std::nullopt;
 				}
 			} break;
 
-			case sema::Expr::Kind::BoolValue: {
+			case sema::Expr::Kind::BOOL_VALUE: {
 				const sema::BoolValue& bool_value = this->context.getSemaBuffer().getBoolValue(expr.boolValueID());
 				const pir::Expr boolean = this->agent.createBoolean(bool_value.value);
 
-				if constexpr(MODE == GetExprMode::Register){
+				if constexpr(MODE == GetExprMode::REGISTER){
 					return boolean;
 
-				}else if constexpr(MODE == GetExprMode::Pointer){
+				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr alloca = this->agent.createAlloca(
 						this->module.createBoolType(), this->name("BOOLEAN.ALLOCA")
 					);
-					this->agent.createStore(alloca, boolean, false, pir::AtomicOrdering::None);
+					this->agent.createStore(alloca, boolean, false, pir::AtomicOrdering::NONE);
 					return alloca;
 
 				}else{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(store_locations[0], boolean, false, pir::AtomicOrdering::None);
+					this->agent.createStore(store_locations[0], boolean, false, pir::AtomicOrdering::NONE);
 					return std::nullopt;
 				}
 			} break;
 
-			case sema::Expr::Kind::StringValue: {
+			case sema::Expr::Kind::STRING_VALUE: {
 				evo::unimplemented("lower sema::Expr::Kind::StringValue");
 			} break;
 
-			case sema::Expr::Kind::CharValue: {
+			case sema::Expr::Kind::CHAR_VALUE: {
 				const sema::CharValue& char_value = this->context.getSemaBuffer().getCharValue(expr.charValueID());
 				const pir::Type value_type = this->module.createIntegerType(8);
 				const pir::Expr number = this->agent.createNumber(
 					value_type, core::GenericInt(8, uint64_t(char_value.value))
 				);
 
-				if constexpr(MODE == GetExprMode::Register){
+				if constexpr(MODE == GetExprMode::REGISTER){
 					return number;
 
-				}else if constexpr(MODE == GetExprMode::Pointer){
+				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name("NUMBER.ALLOCA"));
-					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::None);
+					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::NONE);
 					return alloca;
 
 				}else{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::None);
+					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::NONE);
 					return std::nullopt;
 				}
 			} break;
 
-			case sema::Expr::Kind::Intrinsic: {
+			case sema::Expr::Kind::INTRINSIC: {
 				evo::unimplemented("lower sema::Expr::Kind::Intrinsic");
 			} break;
 
-			case sema::Expr::Kind::TemplatedIntrinsicInstantiation: {
+			case sema::Expr::Kind::TEMPLATED_INTRINSIC_INSTANTIATION: {
 				evo::unimplemented("lower sema::Expr::Kind::TemplatedIntrinsicInstantiation");
 			} break;
 
-			case sema::Expr::Kind::Copy: {
+			case sema::Expr::Kind::COPY: {
 				evo::unimplemented("lower sema::Expr::Kind::Copy");
 			} break;
 
-			case sema::Expr::Kind::Move: {
+			case sema::Expr::Kind::MOVE: {
 				evo::unimplemented("lower sema::Expr::Kind::Move");
 			} break;
 
-			case sema::Expr::Kind::DestructiveMove: {
+			case sema::Expr::Kind::DESTRUCTIVE_MOVE: {
 				evo::unimplemented("lower sema::Expr::Kind::DestructiveMove");
 			} break;
 
-			case sema::Expr::Kind::Forward: {
+			case sema::Expr::Kind::FORWARD: {
 				evo::unimplemented("lower sema::Expr::Kind::Forward");
 			} break;
 
-			case sema::Expr::Kind::FuncCall: {
+			case sema::Expr::Kind::FUNC_CALL: {
 				const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(expr.funcCallID());
 				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
 
@@ -519,63 +519,63 @@ namespace pcit::panther{
 					);
 				}();
 
-				if constexpr(MODE == GetExprMode::Register){
+				if constexpr(MODE == GetExprMode::REGISTER){
 					return output;
 
-				}else if constexpr(MODE == GetExprMode::Pointer){
+				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr alloca = this->agent.createAlloca(target_func_info.return_type);
-					this->agent.createStore(alloca, output, false, pir::AtomicOrdering::None);
+					this->agent.createStore(alloca, output, false, pir::AtomicOrdering::NONE);
 					return alloca;
 					
 				}else{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(store_locations.front(), output, false, pir::AtomicOrdering::None);
+					this->agent.createStore(store_locations.front(), output, false, pir::AtomicOrdering::NONE);
 					return std::nullopt;
 				}
 			} break;
 
-			case sema::Expr::Kind::AddrOf: {
+			case sema::Expr::Kind::ADDR_OF: {
 				evo::unimplemented("lower sema::Expr::Kind::AddrOf");
 			} break;
 
-			case sema::Expr::Kind::Deref: {
+			case sema::Expr::Kind::DEREF: {
 				evo::unimplemented("lower sema::Expr::Kind::Deref");
 			} break;
 
-			case sema::Expr::Kind::Param: {
+			case sema::Expr::Kind::PARAM: {
 				evo::unimplemented("lower sema::Expr::Kind::Param");
 			} break;
 
-			case sema::Expr::Kind::ReturnParam: {
+			case sema::Expr::Kind::RETURN_PARAM: {
 				evo::unimplemented("lower sema::Expr::Kind::ReturnParam");
 			} break;
 
-			case sema::Expr::Kind::GlobalVar: {
+			case sema::Expr::Kind::GLOBAL_VAR: {
 				const pir::GlobalVar::ID pir_var_id = this->data.get_global_var(expr.globalVarID());
 				
-				if constexpr(MODE == GetExprMode::Register){
+				if constexpr(MODE == GetExprMode::REGISTER){
 					const pir::GlobalVar& pir_var = this->module.getGlobalVar(pir_var_id);
 					return this->agent.createLoad(
 						this->agent.createGlobalValue(pir_var_id),
 						pir_var.type,
 						false,
-						pir::AtomicOrdering::None,
+						pir::AtomicOrdering::NONE,
 						this->name("{}.LOAD", this->mangle_name(expr.globalVarID()))
 					);
 
-				}else if constexpr(MODE == GetExprMode::Pointer){
+				}else if constexpr(MODE == GetExprMode::POINTER){
 					return this->agent.createGlobalValue(pir_var_id);
 					
 				}else{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 					this->agent.createStore(
-						store_locations[0], this->agent.createGlobalValue(pir_var_id), false, pir::AtomicOrdering::None
+						store_locations[0], this->agent.createGlobalValue(pir_var_id), false, pir::AtomicOrdering::NONE
 					);
 					return std::nullopt;
 				}
 			} break;
 
-			case sema::Expr::Kind::Func: {
+			case sema::Expr::Kind::FUNC: {
 				evo::unimplemented("lower sema::Expr::Kind::Func");
 			} break;
 		}
@@ -587,51 +587,52 @@ namespace pcit::panther{
 
 	auto SemaToPIR::get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value {
 		switch(expr.kind()){
-			case sema::Expr::Kind::None: evo::debugFatalBreak("Invalid Expr");
+			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid Expr");
 
-			case sema::Expr::Kind::Uninit: {
+			case sema::Expr::Kind::UNINIT: {
 				return pir::GlobalVar::Uninit();
 			} break;
 
-			case sema::Expr::Kind::Zeroinit: {
+			case sema::Expr::Kind::ZEROINIT: {
 				return pir::GlobalVar::Zeroinit();
 			} break;
 
-			case sema::Expr::Kind::IntValue: {
+			case sema::Expr::Kind::INT_VALUE: {
 				const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
 				return this->agent.createNumber(this->get_type(*int_value.typeID), int_value.value);
 			} break;
 
-			case sema::Expr::Kind::FloatValue: {
+			case sema::Expr::Kind::FLOAT_VALUE: {
 				const sema::FloatValue& float_value = this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
 				return this->agent.createNumber(this->get_type(*float_value.typeID), float_value.value);
 			} break;
 
-			case sema::Expr::Kind::BoolValue: {
+			case sema::Expr::Kind::BOOL_VALUE: {
 				const sema::BoolValue& bool_value = this->context.getSemaBuffer().getBoolValue(expr.boolValueID());
 				return this->agent.createBoolean(bool_value.value);
 			} break;
 
-			case sema::Expr::Kind::StringValue: {
+			case sema::Expr::Kind::STRING_VALUE: {
 				const sema::StringValue& string_value =
 					this->context.getSemaBuffer().getStringValue(expr.stringValueID());
 
 				return this->module.createGlobalString(evo::copy(string_value.value));
 			} break;
 
-			case sema::Expr::Kind::CharValue: {
+			case sema::Expr::Kind::CHAR_VALUE: {
 				const sema::CharValue& char_value = this->context.getSemaBuffer().getCharValue(expr.charValueID());
 				return this->agent.createNumber(
 					this->module.createIntegerType(8), core::GenericInt(8, uint64_t(char_value.value))
 				);
 			} break;
 
-			case sema::Expr::Kind::ModuleIdent: case sema::Expr::Kind::Intrinsic:
-			case sema::Expr::Kind::TemplatedIntrinsicInstantiation:
-			case sema::Expr::Kind::Copy:        case sema::Expr::Kind::Move:     case sema::Expr::Kind::DestructiveMove:
-			case sema::Expr::Kind::Forward:     case sema::Expr::Kind::FuncCall: case sema::Expr::Kind::AddrOf:
-			case sema::Expr::Kind::Deref:       case sema::Expr::Kind::Param:    case sema::Expr::Kind::ReturnParam:
-			case sema::Expr::Kind::GlobalVar:   case sema::Expr::Kind::Func: {
+			case sema::Expr::Kind::MODULE_IDENT:                      case sema::Expr::Kind::INTRINSIC:
+			case sema::Expr::Kind::TEMPLATED_INTRINSIC_INSTANTIATION: case sema::Expr::Kind::COPY:
+			case sema::Expr::Kind::MOVE:                              case sema::Expr::Kind::DESTRUCTIVE_MOVE:
+			case sema::Expr::Kind::FORWARD:                           case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:                           case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::PARAM:                             case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::GLOBAL_VAR:                        case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}
@@ -668,40 +669,40 @@ namespace pcit::panther{
 
 	auto SemaToPIR::get_type(const BaseType::ID base_type_id) -> pir::Type {
 		switch(base_type_id.kind()){
-			case BaseType::Kind::Dummy: evo::debugFatalBreak("Not a valid base type");
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Not a valid base type");
 			
-			case BaseType::Kind::Primitive: {
+			case BaseType::Kind::PRIMITIVE: {
 				const BaseType::Primitive& primitive = 
 					this->context.getTypeManager().getPrimitive(base_type_id.primitiveID());
 
 				switch(primitive.kind()){
-					case Token::Kind::TypeInt:        case Token::Kind::TypeISize:  case Token::Kind::TypeUInt:
-					case Token::Kind::TypeUSize:      case Token::Kind::TypeTypeID: case Token::Kind::TypeCShort:
-					case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:   case Token::Kind::TypeCUInt:
-					case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong: case Token::Kind::TypeCLongLong:
-					case Token::Kind::TypeCULongLong:
+					case Token::Kind::TYPE_INT:      case Token::Kind::TYPE_ISIZE:   case Token::Kind::TYPE_UINT:
+					case Token::Kind::TYPE_USIZE:    case Token::Kind::TYPE_TYPEID:  case Token::Kind::TYPE_C_SHORT:
+					case Token::Kind::TYPE_C_USHORT: case Token::Kind::TYPE_C_INT:   case Token::Kind::TYPE_C_UINT:
+					case Token::Kind::TYPE_C_LONG:   case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG:
+					case Token::Kind::TYPE_C_ULONG_LONG:
 						return this->module.createIntegerType(
 							uint32_t(this->context.getTypeManager().sizeOf(base_type_id) * 8)
 						);
 
-					case Token::Kind::TypeI_N:
-					case Token::Kind::TypeUI_N:
+					case Token::Kind::TYPE_I_N:
+					case Token::Kind::TYPE_UI_N:
 						return this->module.createIntegerType(primitive.bitWidth());
 
-					case Token::Kind::TypeF16:    return this->module.createFloatType(16);
-					case Token::Kind::TypeBF16:   return this->module.createBFloatType();
-					case Token::Kind::TypeF32:    return this->module.createFloatType(32);
-					case Token::Kind::TypeF64:    return this->module.createFloatType(64);
-					case Token::Kind::TypeF80:    return this->module.createFloatType(80);
-					case Token::Kind::TypeF128:   return this->module.createFloatType(128);
+					case Token::Kind::TYPE_F16:    return this->module.createFloatType(16);
+					case Token::Kind::TYPE_BF16:   return this->module.createBFloatType();
+					case Token::Kind::TYPE_F32:    return this->module.createFloatType(32);
+					case Token::Kind::TYPE_F64:    return this->module.createFloatType(64);
+					case Token::Kind::TYPE_F80:    return this->module.createFloatType(80);
+					case Token::Kind::TYPE_F128:   return this->module.createFloatType(128);
 
-					case Token::Kind::TypeByte:   return this->module.createIntegerType(8);
-					case Token::Kind::TypeBool:   return this->module.createBoolType();
-					case Token::Kind::TypeChar:   return this->module.createIntegerType(8);
+					case Token::Kind::TYPE_BYTE:   return this->module.createIntegerType(8);
+					case Token::Kind::TYPE_BOOL:   return this->module.createBoolType();
+					case Token::Kind::TYPE_CHAR:   return this->module.createIntegerType(8);
 
-					case Token::Kind::TypeRawPtr: return this->module.createPtrType();
+					case Token::Kind::TYPE_RAWPTR: return this->module.createPtrType();
 
-					case Token::Kind::TypeCLongDouble: 
+					case Token::Kind::TYPE_C_LONG_DOUBLE: 
 						return this->context.getTypeManager().sizeOf(base_type_id) 
 							? this->module.createFloatType(64)
 							: this->module.createFloatType(128);
@@ -710,11 +711,11 @@ namespace pcit::panther{
 				}
 			} break;
 			
-			case BaseType::Kind::Function: {
-				evo::unimplemented("BaseType::Kind::Function");
+			case BaseType::Kind::FUNCTION: {
+				evo::unimplemented("BaseType::Kind::FUNCTION");
 			} break;
 			
-			case BaseType::Kind::Array: {
+			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->context.getTypeManager().getArray(base_type_id.arrayID());
 				const pir::Type elem_type = this->get_type(array.elementTypeID);
 
@@ -728,22 +729,22 @@ namespace pcit::panther{
 				return this->module.createArrayType(elem_type, length);
 			} break;
 			
-			case BaseType::Kind::Alias: {
+			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(base_type_id.aliasID());
 				return this->get_type(*alias.aliasedType.load());
 			} break;
 			
-			case BaseType::Kind::Typedef: {
+			case BaseType::Kind::TYPEDEF: {
 				const BaseType::Typedef& typedef_type = 
 					this->context.getTypeManager().getTypedef(base_type_id.typedefID());
 				return this->get_type(*typedef_type.underlyingType.load());
 			} break;
 			
-			case BaseType::Kind::Struct: {
-				evo::unimplemented("BaseType::Kind::Struct");
+			case BaseType::Kind::STRUCT: {
+				evo::unimplemented("BaseType::Kind::STRUCT");
 			} break;
 			
-			case BaseType::Kind::StructTemplate: {
+			case BaseType::Kind::STRUCT_TEMPLATE: {
 				evo::debugFatalBreak("Cannot get type of struct template");
 			} break;
 		}
@@ -789,7 +790,7 @@ namespace pcit::panther{
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 		const Source& source = this->context.getSourceManager()[func.sourceID];
 
-		if(func.name.kind() == AST::Kind::Ident){
+		if(func.name.kind() == AST::Kind::IDENT){
 			if(this->data.getConfig().useReadableNames){
 				return std::format(
 					"PTHR.f{}.{}",

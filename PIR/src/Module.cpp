@@ -41,9 +41,9 @@ namespace pcit::pir{
 
 	auto Module::getSize(const Type& type, bool packed) const -> size_t {
 		switch(type.kind()){
-			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
+			case Type::Kind::VOID: evo::debugFatalBreak("Cannot get size of Void");
 
-			case Type::Kind::Integer: {
+			case Type::Kind::INTEGER: {
 				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
 
 				if(packed){
@@ -57,9 +57,9 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::Bool: return 1;
+			case Type::Kind::BOOL: return 1;
 
-			case Type::Kind::Float: {
+			case Type::Kind::FLOAT: {
 				switch(type.getWidth()){
 					case 16: return 2;
 					case 32: return 4;
@@ -69,15 +69,15 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::BFloat: return 2;
-			case Type::Kind::Ptr: return this->sizeOfPtr();
+			case Type::Kind::BFLOAT: return 2;
+			case Type::Kind::PTR: return this->sizeOfPtr();
 
-			case Type::Kind::Array: {
+			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->getArrayType(type);
 				return this->getSize(array_type.elemType) * array_type.length;
 			} break;
 
-			case Type::Kind::Struct: {
+			case Type::Kind::STRUCT: {
 				const StructType& struct_type = this->getStructType(type);
 
 				size_t size = 0;
@@ -98,7 +98,7 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::Function: return this->sizeOfPtr();
+			case Type::Kind::FUNCTION: return this->sizeOfPtr();
 		}
 
 		evo::unreachable();
@@ -107,16 +107,16 @@ namespace pcit::pir{
 
 	auto Module::getAlignment(const Type& type) const -> size_t {
 		switch(type.kind()){
-			case Type::Kind::Void: evo::debugFatalBreak("Cannot get size of Void");
+			case Type::Kind::VOID: evo::debugFatalBreak("Cannot get size of Void");
 
-			case Type::Kind::Integer: {
+			case Type::Kind::INTEGER: {
 				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
 				return std::min<size_t>(std::bit_ceil(unpadded_num_bytes), this->sizeOfPtr());
 			} break;
 
-			case Type::Kind::Bool: return 1;
+			case Type::Kind::BOOL: return 1;
 
-			case Type::Kind::Float: {
+			case Type::Kind::FLOAT: {
 				switch(type.getWidth()){
 					case 16: return 2;
 					case 32: return 4;
@@ -126,15 +126,15 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::BFloat: return 2;
-			case Type::Kind::Ptr: return this->sizeOfPtr();
+			case Type::Kind::BFLOAT: return 2;
+			case Type::Kind::PTR: return this->sizeOfPtr();
 
-			case Type::Kind::Array: {
+			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->getArrayType(type);
 				return this->getAlignment(array_type.elemType);
 			} break;
 
-			case Type::Kind::Struct: {
+			case Type::Kind::STRUCT: {
 				const StructType& struct_type = this->getStructType(type);
 
 				size_t max_align = 0;
@@ -146,7 +146,7 @@ namespace pcit::pir{
 				return max_align;
 			} break;
 
-			case Type::Kind::Function: return this->sizeOfPtr();
+			case Type::Kind::FUNCTION: return this->sizeOfPtr();
 		}
 
 		evo::unreachable();

@@ -90,16 +90,16 @@ namespace pcit::plnk{
 
 		LinkData link_data = [&](){
 			switch(target){
-				case Target::Windows:
+				case Target::WINDOWS:
 					return LinkData(&lld::coff::link, get_windows_args(object_file_paths, options));
 
-				case Target::Unix:
+				case Target::UNIX:
 					return LinkData(&lld::elf::link, get_unix_args(object_file_paths, options));
 
-				case Target::Darwin:
+				case Target::DARWIN:
 					return LinkData(&lld::macho::link, get_darwin_args(object_file_paths, options));
 
-				case Target::WebAssembly:
+				case Target::WEB_ASSEMBLY:
 					return LinkData(&lld::wasm::link, get_wasm_args(object_file_paths, options));
 			}
 

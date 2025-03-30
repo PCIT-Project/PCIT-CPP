@@ -248,7 +248,7 @@ namespace pcit::panther{
 			}
 
 			this->emitFatal(
-				Diagnostic::Code::MiscStallDetected,
+				Diagnostic::Code::MISC_STALL_DETECTED,
 				Diagnostic::Location::NONE,
 				std::format(
 					"Stall detected while compiling ({}/{} symbols were not completed)",
@@ -303,7 +303,7 @@ namespace pcit::panther{
 	auto Context::addSourceFile(const fs::path& path, Source::CompilationConfig::ID compilation_config_id)
 	-> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		if(path_exitsts(path) == false){ return AddSourceResult::DoesntExist; }
+		if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
 
 		const Source::CompilationConfig& compilation_config =
 			this->source_manager.getSourceCompilationConfig(compilation_config_id);
@@ -311,15 +311,15 @@ namespace pcit::panther{
 			normalize_path(path, compilation_config.basePath), compilation_config_id
 		);
 
-		return AddSourceResult::Success;
+		return AddSourceResult::SUCCESS;
 	}
 
 	auto Context::addSourceDirectory(
 		const fs::path& directory, Source::CompilationConfig::ID compilation_config_id
 	) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		if(path_exitsts(directory) == false){ return AddSourceResult::DoesntExist; }
-		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NotDirectory; }
+		if(path_exitsts(directory) == false){ return AddSourceResult::DOESNT_EXIST; }
+		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
 		const Source::CompilationConfig& compilation_config =
 			this->source_manager.getSourceCompilationConfig(compilation_config_id);
@@ -332,15 +332,15 @@ namespace pcit::panther{
 			}
 		}
 
-		return AddSourceResult::Success;
+		return AddSourceResult::SUCCESS;
 	}
 
 	auto Context::addSourceDirectoryRecursive(
 		const fs::path& directory, Source::CompilationConfig::ID compilation_config_id
 	) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		if(path_exitsts(directory) == false){ return AddSourceResult::DoesntExist; }
-		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NotDirectory; }
+		if(path_exitsts(directory) == false){ return AddSourceResult::DOESNT_EXIST; }
+		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
 		const Source::CompilationConfig& compilation_config =
 			this->source_manager.getSourceCompilationConfig(compilation_config_id);
@@ -353,7 +353,7 @@ namespace pcit::panther{
 			}
 		}
 
-		return AddSourceResult::Success;
+		return AddSourceResult::SUCCESS;
 	}
 
 	auto Context::addStdLib(const fs::path& directory) -> AddSourceResult {
@@ -361,8 +361,8 @@ namespace pcit::panther{
 		evo::debugAssert(directory.is_absolute(), "std lib directory must be absolute");
 		evo::debugAssert(this->added_std_lib == false, "already added std lib");
 
-		if(path_exitsts(directory) == false){ return AddSourceResult::DoesntExist; }
-		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NotDirectory; }
+		if(path_exitsts(directory) == false){ return AddSourceResult::DOESNT_EXIST; }
+		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
 		const Source::CompilationConfig::ID compilation_config_id = 
 			this->source_manager.emplace_source_compilation_config(directory);
@@ -381,7 +381,7 @@ namespace pcit::panther{
 
 		this->added_std_lib = true;
 
-		return AddSourceResult::Success;
+		return AddSourceResult::SUCCESS;
 	}
 
 
@@ -394,7 +394,7 @@ namespace pcit::panther{
 	) -> evo::Result<Source::ID> {
 		if(std::filesystem::exists(path) == false){
 			this->emitError(
-				Diagnostic::Code::MiscFileDoesNotExist,
+				Diagnostic::Code::MISC_FILE_DOES_NOT_EXIST,
 				Diagnostic::Location::NONE,
 				std::format("File \"{}\" does not exist", path.string())
 			);
@@ -404,7 +404,7 @@ namespace pcit::panther{
 		evo::Result<std::string> file_data = evo::fs::readFile(path.string());
 		if(file_data.isError()){
 			this->emitError(
-				Diagnostic::Code::MiscLoadFileFailed,
+				Diagnostic::Code::MISC_LOAD_FILE_FAILED,
 				Diagnostic::Location::NONE,
 				std::format("Failed to load file: \"{}\"", path.string())	
 			);
@@ -472,7 +472,7 @@ namespace pcit::panther{
 	auto Context::lookupSourceID(std::string_view lookup_path, const Source& calling_source)
 	-> evo::Expected<Source::ID, LookupSourceIDError> {
 		if(lookup_path.empty()){
-			return evo::Unexpected(LookupSourceIDError::EmptyPath);
+			return evo::Unexpected(LookupSourceIDError::EMPTY_PATH);
 		}
 
 		const std::optional<Source::ID> special_name_lookup = 
@@ -508,7 +508,7 @@ namespace pcit::panther{
 
 
 		if(calling_source.getPath() == file_path){
-			return evo::Unexpected(LookupSourceIDError::SameAsCaller);
+			return evo::Unexpected(LookupSourceIDError::SAME_AS_CALLER);
 		}
 
 		std::optional<Source::ID> lookup_source_id = this->source_manager.lookupSourceID(file_path.string());
@@ -542,8 +542,8 @@ namespace pcit::panther{
 		this->current_dynamic_file_load.emplace(file_path);
 
 		if(evo::fs::exists(file_path.string())){
-			if(this->_config.mode == Config::Mode::Compile){
-				return evo::Unexpected(LookupSourceIDError::NotOneOfSources);
+			if(this->_config.mode == Config::Mode::COMPILE){
+				return evo::Unexpected(LookupSourceIDError::NOT_ONE_OF_SOURCES);
 			}
 
 			const evo::Result<Source::ID> dep_analysis_res = this->build_symbol_procs_impl(
@@ -581,11 +581,11 @@ namespace pcit::panther{
 				return dep_analysis_res.value();
 
 			}else{
-				return evo::Unexpected(LookupSourceIDError::FailedDuringAnalysisOfNewlyLoaded);
+				return evo::Unexpected(LookupSourceIDError::FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED);
 			}
 		}
 
-		return evo::Unexpected(LookupSourceIDError::DoesntExist);
+		return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);
 	}
 
 

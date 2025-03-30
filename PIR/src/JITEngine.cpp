@@ -42,9 +42,9 @@ namespace pcit::pir{
 		const std::string data_layout_error = this->data->module.setTargetAndDataLayout(
 			core::getCurrentOS(),
 			core::getCurrentArchitecture(),
-			llvmint::Module::Relocation::Default,
-			llvmint::Module::CodeSize::Default,
-			llvmint::Module::OptLevel::None,
+			llvmint::Module::Relocation::DEFAULT,
+			llvmint::Module::CodeSize::DEFAULT,
+			llvmint::Module::OptLevel::NONE,
 			false
 		);
 
@@ -117,18 +117,18 @@ namespace pcit::pir{
 		);
 
 		evo::debugAssert(
-			func.getReturnType().kind() != Type::Kind::Function, "Cannot run functions that return a function"
+			func.getReturnType().kind() != Type::Kind::FUNCTION, "Cannot run functions that return a function"
 		);
 
 
 		switch(func.getReturnType().kind()){
-			case Type::Kind::Void: {
+			case Type::Kind::VOID: {
 				const evo::Result<void> result = this->data->execution_engine.runFunctionDirectly<void>(func.getName());
 				if(result.isError()){ return evo::resultError; }
 				return core::GenericValue();
 			} break;
 
-			case Type::Kind::Integer: {
+			case Type::Kind::INTEGER: {
 				const size_t size_of_func_return_base_type = this->module->getSize(func.getReturnType());
 
 				switch(size_of_func_return_base_type){
@@ -176,7 +176,7 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::Bool: {
+			case Type::Kind::BOOL: {
 				const evo::Result<bool> result =
 					this->data->execution_engine.runFunctionDirectly<bool>(func.getName());
 				if(result.isError()){ return evo::resultError; }
@@ -184,7 +184,7 @@ namespace pcit::pir{
 			} break;
 
 
-			case Type::Kind::Float: {
+			case Type::Kind::FLOAT: {
 				switch(func.getReturnType().getWidth()){
 					case 16: {
 						evo::debugFatalBreak("JITEngine currently cannot run functions that return F16");
@@ -214,14 +214,14 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::BFloat: {
+			case Type::Kind::BFLOAT: {
 				evo::debugFatalBreak("JITEngine currently cannot run functions that return BFloat (bugged in LLVM)");
 			} break;
 
-			case Type::Kind::Ptr:      evo::debugFatalBreak("JITEngine cannot run functions that return a pointer");
-			case Type::Kind::Array:    evo::debugFatalBreak("JITEngine cannot run functions that return an array");
-			case Type::Kind::Struct:   evo::debugFatalBreak("JITEngine cannot run functions that return a struct");
-			case Type::Kind::Function: evo::debugFatalBreak("JITEngine cannot run functions that return a function");
+			case Type::Kind::PTR:      evo::debugFatalBreak("JITEngine cannot run functions that return a pointer");
+			case Type::Kind::ARRAY:    evo::debugFatalBreak("JITEngine cannot run functions that return an array");
+			case Type::Kind::STRUCT:   evo::debugFatalBreak("JITEngine cannot run functions that return a struct");
+			case Type::Kind::FUNCTION: evo::debugFatalBreak("JITEngine cannot run functions that return a function");
 		}
 
 		evo::unreachable();

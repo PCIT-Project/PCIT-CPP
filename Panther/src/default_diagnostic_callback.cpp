@@ -13,27 +13,19 @@ namespace pcit::panther{
 
 
 	enum class DiagnosticLevel{
-		Fatal,
-		Error,
-		Warning,
-		Info,
+		FATAL,
+		ERROR,
+		WARNING,
+		INFO,
 	};
 
-	EVO_NODISCARD static auto print_diagnostic_level(Diagnostic::Level level) -> std::string_view {
-		switch(level){
-			case Diagnostic::Level::Fatal:   return "Fatal";
-			case Diagnostic::Level::Error:   return "Error";
-			case Diagnostic::Level::Warning: return "Warning";
-		}
 
-		evo::debugFatalBreak("Unknown or unsupported diagnostic level");
-	}
 
 	EVO_NODISCARD static auto get_diagnostic_level(Diagnostic::Level level) -> DiagnosticLevel {
 		switch(level){
-			case Diagnostic::Level::Fatal:   return DiagnosticLevel::Fatal;
-			case Diagnostic::Level::Error:   return DiagnosticLevel::Error;
-			case Diagnostic::Level::Warning: return DiagnosticLevel::Warning;
+			case Diagnostic::Level::FATAL:   return DiagnosticLevel::FATAL;
+			case Diagnostic::Level::ERROR:   return DiagnosticLevel::ERROR;
+			case Diagnostic::Level::WARNING: return DiagnosticLevel::WARNING;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported diagnostic level");
@@ -185,10 +177,10 @@ namespace pcit::panther{
 		pointer_str += '\n';
 
 		switch(level){
-			break; case DiagnosticLevel::Fatal:   printer.printError(pointer_str);
-			break; case DiagnosticLevel::Error:   printer.printError(pointer_str);
-			break; case DiagnosticLevel::Warning: printer.printWarning(pointer_str);
-			break; case DiagnosticLevel::Info:    printer.printInfo(pointer_str);
+			break; case DiagnosticLevel::FATAL:   printer.printError(pointer_str);
+			break; case DiagnosticLevel::ERROR:   printer.printError(pointer_str);
+			break; case DiagnosticLevel::WARNING: printer.printWarning(pointer_str);
+			break; case DiagnosticLevel::INFO:    printer.printInfo(pointer_str);
 		}
 	}
 
@@ -209,7 +201,7 @@ namespace pcit::panther{
 		if(info.location.is<Source::Location>()){
 			const Source& source = context.getSourceManager()[info.location.as<Source::Location>().sourceID];
 			print_location(
-				printer, rel_dir, source, DiagnosticLevel::Info, info.location.as<Source::Location>(), depth + 1
+				printer, rel_dir, source, DiagnosticLevel::INFO, info.location.as<Source::Location>(), depth + 1
 			);
 		}
 
@@ -226,13 +218,13 @@ namespace pcit::panther{
 		-> void {
 
 			const std::string diagnostic_message = std::format(
-				"<{}|{}> {}\n", print_diagnostic_level(diagnostic.level), diagnostic.code, diagnostic.message
+				"<{}|{}> {}\n", Diagnostic::printLevel(diagnostic.level), diagnostic.code, diagnostic.message
 			);
 
 			switch(diagnostic.level){
-				break; case Diagnostic::Level::Fatal:   printer.printFatal(diagnostic_message);
-				break; case Diagnostic::Level::Error:   printer.printError(diagnostic_message);
-				break; case Diagnostic::Level::Warning: printer.printWarning(diagnostic_message);
+				break; case Diagnostic::Level::FATAL:   printer.printFatal(diagnostic_message);
+				break; case Diagnostic::Level::ERROR:   printer.printError(diagnostic_message);
+				break; case Diagnostic::Level::WARNING: printer.printWarning(diagnostic_message);
 			}
 
 			if(diagnostic.location.is<Source::Location>()){
@@ -247,7 +239,7 @@ namespace pcit::panther{
 			}
 
 
-			if(diagnostic.level == Diagnostic::Level::Fatal){
+			if(diagnostic.level == Diagnostic::Level::FATAL){
 				printer.printFatal(
 					"\tThis is a bug in the compiler.\n"
 					"\tPlease report it on Github: https://github.com/PCIT-Project/PCIT-CPP/issues\n"
@@ -257,7 +249,7 @@ namespace pcit::panther{
 			}
 
 			#if defined(PCIT_BUILD_DEBUG)
-				if(diagnostic.level == Diagnostic::Level::Error || diagnostic.level == Diagnostic::Level::Fatal){
+				if(diagnostic.level == Diagnostic::Level::ERROR || diagnostic.level == Diagnostic::Level::FATAL){
 					evo::breakpoint();
 				}
 			#endif

@@ -18,7 +18,7 @@ namespace pcit::panther::strings{
 		Num,   // num
 		LHS,   // lhs
 		RHS,   // rhs
-		Value, // value
+		VALUE, // value
 	};
 
 	EVO_NODISCARD constexpr auto toStringView(StringCode str) -> std::string_view {
@@ -26,7 +26,7 @@ namespace pcit::panther::strings{
 			case StringCode::Num:   return "num";
 			case StringCode::LHS:   return "lhs";
 			case StringCode::RHS:   return "rhs";
-			case StringCode::Value: return "value";
+			case StringCode::VALUE: return "value";
 		}
 
 		evo::debugFatalBreak("Unknown string code");

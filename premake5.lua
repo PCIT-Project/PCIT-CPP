@@ -76,9 +76,7 @@ workspace "PCIT-CPP"
 			"NDEBUG",
 		}
 
-		flags{
-			"LinkTimeOptimization",
-		}
+		linktimeoptimization "On"
 	filter {}
 
 
@@ -91,9 +89,7 @@ workspace "PCIT-CPP"
 			"NDEBUG",
 		}
 
-		flags{
-			"LinkTimeOptimization",
-		}
+		linktimeoptimization "On"
 	filter {}
 
 
@@ -107,9 +103,7 @@ workspace "PCIT-CPP"
 			"NDEBUG",
 		}
 
-		flags{
-			"LinkTimeOptimization",
-		}
+		linktimeoptimization "On"
 	filter {}
 
 

@@ -116,23 +116,23 @@ namespace pcit::llvmint{
 		// llvm/IR/IntrinsicEnums.inc
 		const llvm::Intrinsic::ID intrinsic_id = [&]() -> llvm::Intrinsic::ID {
 			switch(id){
-				case IntrinsicID::debugtrap:    return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
+				case IntrinsicID::DEBUG_TRAP:    return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
 
-				case IntrinsicID::saddSat:      return llvm::Intrinsic::IndependentIntrinsics::sadd_sat;
-				case IntrinsicID::saddOverflow: return llvm::Intrinsic::IndependentIntrinsics::sadd_with_overflow;
-				case IntrinsicID::smulFixSat:   return llvm::Intrinsic::IndependentIntrinsics::smul_fix_sat;
-				case IntrinsicID::smulOverflow: return llvm::Intrinsic::IndependentIntrinsics::smul_with_overflow;
-				case IntrinsicID::sshlSat:      return llvm::Intrinsic::IndependentIntrinsics::sshl_sat;
-				case IntrinsicID::ssubSat:      return llvm::Intrinsic::IndependentIntrinsics::ssub_sat;
-				case IntrinsicID::ssubOverflow: return llvm::Intrinsic::IndependentIntrinsics::ssub_with_overflow;
+				case IntrinsicID::SADD_SAT:      return llvm::Intrinsic::IndependentIntrinsics::sadd_sat;
+				case IntrinsicID::SADD_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::sadd_with_overflow;
+				case IntrinsicID::SMUL_FIX_SAT:  return llvm::Intrinsic::IndependentIntrinsics::smul_fix_sat;
+				case IntrinsicID::SMUL_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::smul_with_overflow;
+				case IntrinsicID::SSHL_SAT:      return llvm::Intrinsic::IndependentIntrinsics::sshl_sat;
+				case IntrinsicID::SSUB_SAT:      return llvm::Intrinsic::IndependentIntrinsics::ssub_sat;
+				case IntrinsicID::SSUB_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::ssub_with_overflow;
 
-				case IntrinsicID::uaddSat:      return llvm::Intrinsic::IndependentIntrinsics::uadd_sat;
-				case IntrinsicID::uaddOverflow: return llvm::Intrinsic::IndependentIntrinsics::uadd_with_overflow;
-				case IntrinsicID::umulFixSat:   return llvm::Intrinsic::IndependentIntrinsics::umul_fix_sat;
-				case IntrinsicID::umulOverflow: return llvm::Intrinsic::IndependentIntrinsics::umul_with_overflow;
-				case IntrinsicID::ushlSat:      return llvm::Intrinsic::IndependentIntrinsics::ushl_sat;
-				case IntrinsicID::usubSat:      return llvm::Intrinsic::IndependentIntrinsics::usub_sat;
-				case IntrinsicID::usubOverflow: return llvm::Intrinsic::IndependentIntrinsics::usub_with_overflow;
+				case IntrinsicID::UADD_SAT:      return llvm::Intrinsic::IndependentIntrinsics::uadd_sat;
+				case IntrinsicID::UADD_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::uadd_with_overflow;
+				case IntrinsicID::UMUL_FIX_SAT:  return llvm::Intrinsic::IndependentIntrinsics::umul_fix_sat;
+				case IntrinsicID::UMUL_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::umul_with_overflow;
+				case IntrinsicID::USHL_SAT:      return llvm::Intrinsic::IndependentIntrinsics::ushl_sat;
+				case IntrinsicID::USUB_SAT:      return llvm::Intrinsic::IndependentIntrinsics::usub_sat;
+				case IntrinsicID::USUB_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::usub_with_overflow;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported intrinsic id");
@@ -564,8 +564,8 @@ namespace pcit::llvmint{
 	}
 
 
-	auto IRBuilder::getValueGlobalStrPtr(std::string_view str, evo::CStrProxy name) const -> Constant {
-		return Constant(this->builder->CreateGlobalStringPtr(str, name.c_str()));
+	auto IRBuilder::getValueGlobalStr(std::string_view str, evo::CStrProxy name) const -> Constant {
+		return Constant(this->builder->CreateGlobalString(str, name.c_str()));
 	}
 
 	auto IRBuilder::getValueGlobalStr(const std::string& value) const -> Constant {

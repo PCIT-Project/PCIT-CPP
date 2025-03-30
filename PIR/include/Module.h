@@ -345,16 +345,16 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// types
 
-			EVO_NODISCARD static auto createVoidType() -> Type { return Type(Type::Kind::Void); }
+			EVO_NODISCARD static auto createVoidType() -> Type { return Type(Type::Kind::VOID); }
 
-			EVO_NODISCARD static auto createPtrType() -> Type { return Type(Type::Kind::Ptr); }
+			EVO_NODISCARD static auto createPtrType() -> Type { return Type(Type::Kind::PTR); }
 
 			EVO_NODISCARD static auto createIntegerType(uint32_t width) -> Type {
 				evo::debugAssert(width != 0 && width < 1 << 23, "Invalid width for an integer ({})", width);
-				return Type(Type::Kind::Integer, width);
+				return Type(Type::Kind::INTEGER, width);
 			}
 
-			EVO_NODISCARD static auto createBoolType() -> Type { return Type(Type::Kind::Bool); }
+			EVO_NODISCARD static auto createBoolType() -> Type { return Type(Type::Kind::BOOL); }
 
 
 			EVO_NODISCARD static auto createFloatType(uint32_t width) -> Type {
@@ -362,20 +362,20 @@ namespace pcit::pir{
 					width == 16 || width == 32 || width == 64 || width == 80 || width == 128,
 					"Invalid width for a float ({})", width
 				);
-				return Type(Type::Kind::Float, width);
+				return Type(Type::Kind::FLOAT, width);
 			}
 
-			EVO_NODISCARD static auto createBFloatType() -> Type { return Type(Type::Kind::BFloat); }
+			EVO_NODISCARD static auto createBFloatType() -> Type { return Type(Type::Kind::BFLOAT); }
 
 
 
 			EVO_NODISCARD auto createArrayType(auto&&... args) -> Type {
 				const uint32_t array_type_index = this->array_types.emplace_back(std::forward<decltype(args)>(args)...);
-				return Type(Type::Kind::Array, array_type_index);
+				return Type(Type::Kind::ARRAY, array_type_index);
 			}
 
 			EVO_NODISCARD auto getArrayType(const Type& arr_type) const -> const ArrayType& {
-				evo::debugAssert(arr_type.kind() == Type::Kind::Array, "Not an array");
+				evo::debugAssert(arr_type.kind() == Type::Kind::ARRAY, "Not an array");
 				return this->array_types[arr_type.number];
 			}
 
@@ -391,11 +391,11 @@ namespace pcit::pir{
 				const uint32_t struct_type_index = this->struct_types.emplace_back(
 					std::move(struct_name), members, is_packed
 				);
-				return Type(Type::Kind::Struct, struct_type_index);
+				return Type(Type::Kind::STRUCT, struct_type_index);
 			}
 
 			EVO_NODISCARD auto getStructType(const Type& struct_type) const -> const StructType& {
-				evo::debugAssert(struct_type.kind() == Type::Kind::Struct, "Not a struct");
+				evo::debugAssert(struct_type.kind() == Type::Kind::STRUCT, "Not a struct");
 				return this->struct_types[struct_type.number];
 			}
 
@@ -425,11 +425,11 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto createFunctionType(auto&&... args) -> Type {
 				const uint32_t array_type_index = this->func_types.emplace_back(std::forward<decltype(args)>(args)...);
-				return Type(Type::Kind::Function, array_type_index);
+				return Type(Type::Kind::FUNCTION, array_type_index);
 			}
 
 			EVO_NODISCARD auto getFunctionType(const Type& func_type) const -> const FunctionType& {
-				evo::debugAssert(func_type.kind() == Type::Kind::Function, "Not an function");
+				evo::debugAssert(func_type.kind() == Type::Kind::FUNCTION, "Not an function");
 				return this->func_types[func_type.number];
 			}
 
@@ -439,14 +439,14 @@ namespace pcit::pir{
 				if(lhs.kind() != rhs.kind()){ return false; }
 
 				switch(lhs.kind()){
-					case Type::Kind::Void:    return true;
-					case Type::Kind::Integer: return lhs.getWidth() == rhs.getWidth();
-					case Type::Kind::Bool:    return true;
-					case Type::Kind::Float:   return lhs.getWidth() == rhs.getWidth();
-					case Type::Kind::BFloat:  return true;
-					case Type::Kind::Ptr:     return true;
+					case Type::Kind::VOID:    return true;
+					case Type::Kind::INTEGER: return lhs.getWidth() == rhs.getWidth();
+					case Type::Kind::BOOL:    return true;
+					case Type::Kind::FLOAT:   return lhs.getWidth() == rhs.getWidth();
+					case Type::Kind::BFLOAT:  return true;
+					case Type::Kind::PTR:     return true;
 
-					case Type::Kind::Array: {
+					case Type::Kind::ARRAY: {
 						const ArrayType& lhs_array = this->getArrayType(lhs);
 						const ArrayType& rhs_array = this->getArrayType(rhs);
 
@@ -454,7 +454,7 @@ namespace pcit::pir{
 						return this->typesEquivalent(lhs_array.elemType, rhs_array.elemType);
 					} break;
 
-					case Type::Kind::Struct: {
+					case Type::Kind::STRUCT: {
 						const StructType& lhs_struct = this->getStructType(lhs);
 						const StructType& rhs_struct = this->getStructType(rhs);
 
@@ -468,7 +468,7 @@ namespace pcit::pir{
 						return true;
 					} break;
 
-					case Type::Kind::Function: {
+					case Type::Kind::FUNCTION: {
 						const FunctionType& lhs_func = this->getFunctionType(lhs);
 						const FunctionType& rhs_func = this->getFunctionType(rhs);
 

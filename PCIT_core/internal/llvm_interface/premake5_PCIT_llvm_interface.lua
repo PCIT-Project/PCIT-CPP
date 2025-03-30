@@ -20,26 +20,26 @@ project "PCIT_llvm_interface"
 
 
 
-	LLVM.link.X86()
 
 	links{
 		"Evo",
 
-		-- platform: AArch64
+		-- AArch64
 		LLVM.libs.AggressiveInstCombine,
-		-- platform: AMDGPU
+		-- AMDGPU
 		LLVM.libs.Analysis,
-		-- platform: ARM
+		-- ARM
 		LLVM.libs.AsmParser,
 		LLVM.libs.AsmPrinter,
-		-- platform: AVR
+		-- AVR
 		LLVM.libs.BinaryFormat,
 		LLVM.libs.BitReader,
 		LLVM.libs.BitstreamReader,
 		LLVM.libs.BitWriter,
-		-- platform: BPF
+		-- BFP
 		LLVM.libs.CFGuard,
 		LLVM.libs.CFIVerify,
+		LLVM.libs.CGData,
 		LLVM.libs.CodeGen,
 		LLVM.libs.CodeGenTypes,
 		LLVM.libs.Core,
@@ -61,9 +61,10 @@ project "PCIT_llvm_interface"
 		LLVM.libs.DWARFLinkerParallel,
 		LLVM.libs.DWP,
 		LLVM.libs.ExecutionEngine,
-		-- platform: Exegesis
+		-- Exegesis
 		LLVM.libs.Extensions,
 		LLVM.libs.FileCheck,
+		LLVM.libs.FrontendAtomic,
 		LLVM.libs.FrontendDriver,
 		LLVM.libs.FrontendHLSL,
 		LLVM.libs.FrontendOffloading,
@@ -72,7 +73,7 @@ project "PCIT_llvm_interface"
 		LLVM.libs.FuzzerCLI,
 		LLVM.libs.FuzzMutate,
 		LLVM.libs.GlobalISel,
-		-- platform: Hexagon
+		-- Hexagon
 		LLVM.libs.HipStdPar,
 		LLVM.libs.InstCombine,
 		LLVM.libs.Instrumentation,
@@ -82,21 +83,21 @@ project "PCIT_llvm_interface"
 		LLVM.libs.IRPrinter,
 		LLVM.libs.IRReader,
 		LLVM.libs.JITLink,
-		-- platform: Lanai
+		-- Lanai
 		LLVM.libs.LibDriver,
 		LLVM.libs.LineEditor,
 		LLVM.libs.Linker,
-		-- platform: LoongArch
+		-- LoongArch
 		LLVM.libs.LTO,
 		LLVM.libs.MC,
 		LLVM.libs.MCA,
 		LLVM.libs.MCDisassembler,
 		LLVM.libs.MCJIT,
 		LLVM.libs.MCParser,
-		-- platform: Mips
+		-- Mips
 		LLVM.libs.MIRParser,
-		-- platform: MSP430
-		-- platform: NVPTX
+		-- MSP430
+		-- NVPTX
 		LLVM.libs.ObjCARCOpts,
 		LLVM.libs.ObjCopy,
 		LLVM.libs.Object,
@@ -108,22 +109,25 @@ project "PCIT_llvm_interface"
 		LLVM.libs.OrcShared,
 		LLVM.libs.OrcTargetProcess,
 		LLVM.libs.Passes,
-		-- platform: PowerPC
+		-- PowerPC
 		LLVM.libs.ProfileData,
 		LLVM.libs.Remarks,
-		-- platform: RISCV
+		-- RISCV
 		LLVM.libs.RuntimeDyld,
+		LLVM.libs.SandboxIR,
 		LLVM.libs.ScalarOpts,
 		LLVM.libs.SelectionDAG,
-		-- platform: Sparc
+		-- Sparc
+		-- SPIRV
 		LLVM.libs.Support,
 		LLVM.libs.Symbolize,
-		-- platform: SystemZ
+		-- SystemZ
 		LLVM.libs.TableGen,
+		LLVM.libs.TableGenBasic,
 		LLVM.libs.TableGenCommon,
-		LLVM.libs.TableGenGlobalISel,
 		LLVM.libs.Target,
 		LLVM.libs.TargetParser,
+		LLVM.libs.Telemetry,
 		LLVM.libs.TextAPI,
 		LLVM.libs.TextAPIBinaryReader,
 		LLVM.libs.TransformUtils,
@@ -133,16 +137,23 @@ project "PCIT_llvm_interface"
 		LLVM.libs.VEDesc,
 		LLVM.libs.VEDisassembler,
 		LLVM.libs.VEInfo,
-		-- platform: WebAssembly
+		-- WebAssembly
 		LLVM.libs.WindowsDriver,
 		LLVM.libs.WindowsManifest,
-		-- platform: x86
-		LLVM.libs.X86TargetMCA,
-		-- platform: XCore
+		-- X86
+		-- XCore
 		LLVM.libs.XRay,
 	}
 
-	LLVM.link.X86();
+	LLVM.link.X86()
+
+
+	filter "system:Windows"
+		links{
+			"ntdll"
+		}
+	filter {}
+
 
 
 project "*"

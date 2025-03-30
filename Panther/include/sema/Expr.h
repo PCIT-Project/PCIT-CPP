@@ -24,107 +24,107 @@ namespace pcit::panther::sema{
 
 	struct Expr{
 		enum class Kind : uint32_t {
-			None, // only use for optional
+			NONE, // only use for optional
 
-			ModuleIdent,
+			MODULE_IDENT,
 
-			Uninit,
-			Zeroinit,
+			UNINIT,
+			ZEROINIT,
 
-			IntValue,
-			FloatValue,
-			BoolValue,
-			StringValue,
-			CharValue,
+			INT_VALUE,
+			FLOAT_VALUE,
+			BOOL_VALUE,
+			STRING_VALUE,
+			CHAR_VALUE,
 
-			Intrinsic,
-			TemplatedIntrinsicInstantiation,
+			INTRINSIC,
+			TEMPLATED_INTRINSIC_INSTANTIATION,
 
-			Copy,
-			Move,
-			DestructiveMove,
-			Forward,
-			FuncCall,
-			AddrOf,
-			Deref,
+			COPY,
+			MOVE,
+			DESTRUCTIVE_MOVE,
+			FORWARD,
+			FUNC_CALL,
+			ADDR_OF,
+			DEREF,
 				
-			Param,
-			ReturnParam,
+			PARAM,
+			RETURN_PARAM,
 
-			GlobalVar,
-			Func,
+			GLOBAL_VAR,
+			FUNC,
 		};
 
 		static auto createModuleIdent(Token::ID id) -> Expr {
-			return Expr(Kind::ModuleIdent, id);
+			return Expr(Kind::MODULE_IDENT, id);
 		}
 
-		explicit Expr(UninitID id)      : _kind(Kind::Uninit),      value{.uninit = id}       {};
-		explicit Expr(ZeroinitID id)    : _kind(Kind::Zeroinit),    value{.zeroinit = id}     {};
+		explicit Expr(UninitID id)      : _kind(Kind::UNINIT),      value{.uninit = id}       {};
+		explicit Expr(ZeroinitID id)    : _kind(Kind::ZEROINIT),    value{.zeroinit = id}     {};
 
-		explicit Expr(IntValueID id)    : _kind(Kind::IntValue),    value{.int_value = id}    {};
-		explicit Expr(FloatValueID id)  : _kind(Kind::FloatValue),  value{.float_value = id}  {};
-		explicit Expr(BoolValueID id)   : _kind(Kind::BoolValue),   value{.bool_value = id}   {};
-		explicit Expr(StringValueID id) : _kind(Kind::StringValue), value{.string_value = id} {};
-		explicit Expr(CharValueID id)   : _kind(Kind::CharValue),   value{.char_value = id}   {};
+		explicit Expr(IntValueID id)    : _kind(Kind::INT_VALUE),    value{.int_value = id}    {};
+		explicit Expr(FloatValueID id)  : _kind(Kind::FLOAT_VALUE),  value{.float_value = id}  {};
+		explicit Expr(BoolValueID id)   : _kind(Kind::BOOL_VALUE),   value{.bool_value = id}   {};
+		explicit Expr(StringValueID id) : _kind(Kind::STRING_VALUE), value{.string_value = id} {};
+		explicit Expr(CharValueID id)   : _kind(Kind::CHAR_VALUE),   value{.char_value = id}   {};
 
 		// explicit Expr(Intrinsic::Kind intrinsic_kind) : _kind(Kind::Intrinsic), value{.intrinsic = intrinsic_kind} {};
 		// explicit Expr(TemplatedIntrinsicInstantiationID id)
-		// 	: _kind(Kind::TemplatedIntrinsicInstantiation), 
+		// 	: _kind(Kind::TEMPLATED_INTRINSIC_INSTANTIATION), 
 		// 	  value{.templated_intrinsic_instantiation = id} 
 		// 	  {};
 
-		explicit Expr(CopyID id)            : _kind(Kind::Copy),            value{.copy = id}         {};
-		explicit Expr(MoveID id)            : _kind(Kind::Move),            value{.move = id}         {};
-		explicit Expr(DestructiveMoveID id) : _kind(Kind::DestructiveMove), value{.dest_move = id}    {};
-		explicit Expr(ForwardID id)         : _kind(Kind::Forward),         value{.forward = id}      {};
-		explicit Expr(FuncCallID id)        : _kind(Kind::FuncCall),        value{.func_call = id}    {};
-		explicit Expr(AddrOfID id)          : _kind(Kind::AddrOf),          value{.addr_of = id}      {};
-		explicit Expr(DerefID id)           : _kind(Kind::Deref),           value{.deref = id}        {};
+		explicit Expr(CopyID id)            : _kind(Kind::COPY),             value{.copy = id}         {};
+		explicit Expr(MoveID id)            : _kind(Kind::MOVE),             value{.move = id}         {};
+		explicit Expr(DestructiveMoveID id) : _kind(Kind::DESTRUCTIVE_MOVE), value{.dest_move = id}    {};
+		explicit Expr(ForwardID id)         : _kind(Kind::FORWARD),          value{.forward = id}      {};
+		explicit Expr(FuncCallID id)        : _kind(Kind::FUNC_CALL),        value{.func_call = id}    {};
+		explicit Expr(AddrOfID id)          : _kind(Kind::ADDR_OF),          value{.addr_of = id}      {};
+		explicit Expr(DerefID id)           : _kind(Kind::DEREF),            value{.deref = id}        {};
 
-		explicit Expr(ParamID id)       : _kind(Kind::Param),           value{.param = id}        {};
-		explicit Expr(ReturnParamID id) : _kind(Kind::ReturnParam),     value{.return_param = id} {};
+		explicit Expr(ParamID id)           : _kind(Kind::PARAM),            value{.param = id}        {};
+		explicit Expr(ReturnParamID id)     : _kind(Kind::RETURN_PARAM),     value{.return_param = id} {};
 
-		explicit Expr(GlobalVarID id)   : _kind(Kind::GlobalVar),       value{.global_var = id}   {};
-		explicit Expr(FuncID id)        : _kind(Kind::Func),            value{.func = id}         {};
+		explicit Expr(GlobalVarID id)       : _kind(Kind::GLOBAL_VAR),       value{.global_var = id}   {};
+		explicit Expr(FuncID id)            : _kind(Kind::FUNC),             value{.func = id}         {};
 
 
 		EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
 
 
 		EVO_NODISCARD auto moduleIdent() const -> Token::ID {
-			evo::debugAssert(this->kind() == Kind::ModuleIdent, "not a ModuleIdent");
+			evo::debugAssert(this->kind() == Kind::MODULE_IDENT, "not a MODULE_IDENT");
 			return this->value.token;
 		}
 
 		EVO_NODISCARD auto uninitID() const -> UninitID {
-			evo::debugAssert(this->kind() == Kind::Uninit, "not a Uninit");
+			evo::debugAssert(this->kind() == Kind::UNINIT, "not a Uninit");
 			return this->value.uninit;
 		}
 
 		EVO_NODISCARD auto zeroinitID() const -> ZeroinitID {
-			evo::debugAssert(this->kind() == Kind::Zeroinit, "not a Zeroinit");
+			evo::debugAssert(this->kind() == Kind::ZEROINIT, "not a Zeroinit");
 			return this->value.zeroinit;
 		}
 
 		EVO_NODISCARD auto intValueID() const -> IntValueID {
-			evo::debugAssert(this->kind() == Kind::IntValue, "not a IntValue");
+			evo::debugAssert(this->kind() == Kind::INT_VALUE, "not a IntValue");
 			return this->value.int_value;
 		}
 		EVO_NODISCARD auto floatValueID() const -> FloatValueID {
-			evo::debugAssert(this->kind() == Kind::FloatValue, "not a FloatValue");
+			evo::debugAssert(this->kind() == Kind::FLOAT_VALUE, "not a FloatValue");
 			return this->value.float_value;
 		}
 		EVO_NODISCARD auto boolValueID() const -> BoolValueID {
-			evo::debugAssert(this->kind() == Kind::BoolValue, "not a BoolValue");
+			evo::debugAssert(this->kind() == Kind::BOOL_VALUE, "not a BoolValue");
 			return this->value.bool_value;
 		}
 		EVO_NODISCARD auto stringValueID() const -> StringValueID {
-			evo::debugAssert(this->kind() == Kind::StringValue, "not a StringValue");
+			evo::debugAssert(this->kind() == Kind::STRING_VALUE, "not a StringValue");
 			return this->value.string_value;
 		}
 		EVO_NODISCARD auto charValueID() const -> CharValueID {
-			evo::debugAssert(this->kind() == Kind::CharValue, "not a CharValue");
+			evo::debugAssert(this->kind() == Kind::CHAR_VALUE, "not a CharValue");
 			return this->value.char_value;
 		}
 
@@ -134,47 +134,47 @@ namespace pcit::panther::sema{
 		// }
 		// EVO_NODISCARD auto templatedIntrinsicInstantiationID() const -> TemplatedIntrinsicInstantiationID {
 		// 	evo::debugAssert(
-		// 		this->kind() == Kind::TemplatedIntrinsicInstantiation, "not a TemplatedIntrinsicInstantiation"
+		// 		this->kind() == Kind::TEMPLATED_INTRINSIC_INSTANTIATION, "not a TEMPLATED_INTRINSIC_INSTANTIATION"
 		// 	);
 		// 	return this->value.templated_intrinsic_instantiation;
 		// }
 
 		EVO_NODISCARD auto copyID() const -> CopyID {
-			evo::debugAssert(this->kind() == Kind::Copy, "not a copy");
+			evo::debugAssert(this->kind() == Kind::COPY, "not a copy");
 			return this->value.copy;
 		}
 		EVO_NODISCARD auto moveID() const -> MoveID {
-			evo::debugAssert(this->kind() == Kind::Move, "not a move");
+			evo::debugAssert(this->kind() == Kind::MOVE, "not a move");
 			return this->value.move;
 		}
 		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
-			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
+			evo::debugAssert(this->kind() == Kind::FUNC_CALL, "not a func call");
 			return this->value.func_call;
 		}
 		EVO_NODISCARD auto addrOfID() const -> AddrOfID {
-			evo::debugAssert(this->kind() == Kind::AddrOf, "not an addr of");
+			evo::debugAssert(this->kind() == Kind::ADDR_OF, "not an addr of");
 			return this->value.addr_of;
 		}
 		EVO_NODISCARD auto derefID() const -> DerefID {
-			evo::debugAssert(this->kind() == Kind::Deref, "not an deref");
+			evo::debugAssert(this->kind() == Kind::DEREF, "not an deref");
 			return this->value.deref;
 		}
 
 		EVO_NODISCARD auto paramID() const -> ParamID {
-			evo::debugAssert(this->kind() == Kind::Param, "not a param");
+			evo::debugAssert(this->kind() == Kind::PARAM, "not a param");
 			return this->value.param;
 		}
 		EVO_NODISCARD auto returnParamID() const -> ReturnParamID {
-			evo::debugAssert(this->kind() == Kind::ReturnParam, "not a return param");
+			evo::debugAssert(this->kind() == Kind::RETURN_PARAM, "not a return param");
 			return this->value.return_param;
 		}
 
 		EVO_NODISCARD auto globalVarID() const -> GlobalVarID {
-			evo::debugAssert(this->kind() == Kind::GlobalVar, "not a global var");
+			evo::debugAssert(this->kind() == Kind::GLOBAL_VAR, "not a global var");
 			return this->value.global_var;
 		}
 		EVO_NODISCARD auto funcID() const -> FuncID {
-			evo::debugAssert(this->kind() == Kind::Func, "not a func");
+			evo::debugAssert(this->kind() == Kind::FUNC, "not a func");
 			return this->value.func;
 		}
 
@@ -226,11 +226,11 @@ namespace pcit::panther::sema{
 
 	struct ExprOptInterface{
 		static constexpr auto init(Expr* expr) -> void {
-			expr->_kind = Expr::Kind::None;
+			expr->_kind = Expr::Kind::NONE;
 		}
 
 		static constexpr auto has_value(const Expr& expr) -> bool {
-			return expr._kind != Expr::Kind::None;
+			return expr._kind != Expr::Kind::NONE;
 		}
 	};
 

@@ -108,7 +108,7 @@ namespace pcit::pir{
 		this->printer.print(") ");
 
 		switch(func_decl.callingConvention){
-			case CallingConvention::Default: {
+			case CallingConvention::DEFAULT: {
 				// do nothing
 			} break;
 
@@ -117,33 +117,33 @@ namespace pcit::pir{
 				this->printer.print("(c) ");
 			} break;
 
-			case CallingConvention::Fast: {
+			case CallingConvention::FAST: {
 				this->printer.printRed("#callConv");
 				this->printer.print("(fast) ");
 			} break;
 
-			case CallingConvention::Cold: {
+			case CallingConvention::COLD: {
 				this->printer.printRed("#callConv");
 				this->printer.print("(cold) ");
 			} break;
 		}
 
 		switch(func_decl.linkage){
-			case Linkage::Default: {
+			case Linkage::DEFAULT: {
 				// do nothing
 			} break;
 
-			case Linkage::Private: {
+			case Linkage::PRIVATE: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(private) ");
 			} break;
 
-			case Linkage::Internal: {
+			case Linkage::INTERNAL: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(internal) ");
 			} break;
 
-			case Linkage::External: {
+			case Linkage::EXTERNAL: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(external) ");
 			} break;
@@ -240,21 +240,21 @@ namespace pcit::pir{
 		this->printer.print(" ");
 
 		switch(global_var.linkage){
-			case Linkage::Default: {
+			case Linkage::DEFAULT: {
 				// do nothing
 			} break;
 
-			case Linkage::Private: {
+			case Linkage::PRIVATE: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(private) ");
 			} break;
 
-			case Linkage::Internal: {
+			case Linkage::INTERNAL: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(internal) ");
 			} break;
 
-			case Linkage::External: {
+			case Linkage::EXTERNAL: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(external) ");
 			} break;
@@ -381,14 +381,14 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_type(const Type& type) -> void {
 		switch(type.kind()){
-			case Type::Kind::Void:     { this->printer.printCyan("Void");                 } break;
-			case Type::Kind::Integer:  { this->printer.printCyan("I{}", type.getWidth()); } break;
-			case Type::Kind::Bool:     { this->printer.printCyan("Bool");                 } break;
-			case Type::Kind::Float:    { this->printer.printCyan("F{}", type.getWidth()); } break;
-			case Type::Kind::BFloat:   { this->printer.printCyan("BF16");                 } break;
-			case Type::Kind::Ptr:      { this->printer.printCyan("Ptr");                  } break;
+			case Type::Kind::VOID:     { this->printer.printCyan("Void");                 } break;
+			case Type::Kind::INTEGER:  { this->printer.printCyan("I{}", type.getWidth()); } break;
+			case Type::Kind::BOOL:     { this->printer.printCyan("Bool");                 } break;
+			case Type::Kind::FLOAT:    { this->printer.printCyan("F{}", type.getWidth()); } break;
+			case Type::Kind::BFLOAT:   { this->printer.printCyan("BF16");                 } break;
+			case Type::Kind::PTR:      { this->printer.printCyan("Ptr");                  } break;
 
-			case Type::Kind::Array: {
+			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->get_module().getArrayType(type);
 
 				printer.print("[");
@@ -398,13 +398,13 @@ namespace pcit::pir{
 				printer.print("]");
 			} break;
 
-			case Type::Kind::Struct: {
+			case Type::Kind::STRUCT: {
 				const StructType& struct_type = this->get_module().getStructType(type);
 				
 				printer.print("&{}", struct_type.name);
 			} break;
 
-			case Type::Kind::Function: evo::debugFatalBreak("Cannot print function type");
+			case Type::Kind::FUNCTION: evo::debugFatalBreak("Cannot print function type");
 		}
 
 	}
@@ -413,13 +413,23 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_expr(const Expr& expr) -> void {
 		switch(expr.kind()){
-			case Expr::Kind::None: evo::debugFatalBreak("Not valid expr");
+			case Expr::Kind::NONE: evo::debugFatalBreak("Not valid expr");
 
-			case Expr::Kind::Number: {
+			case Expr::Kind::GLOBAL_VALUE: {
+				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
+				this->printer.print("@{}", global_var.name);
+			} break;
+
+			case Expr::Kind::FUNCTION_POINTER: {
+				const Function& function = this->reader.getFunctionPointer(expr);
+				this->printer.print("@{}", function.getName());
+			} break;
+
+			case Expr::Kind::NUMBER: {
 				const Number& number = this->reader.getNumber(expr);
 				this->print_type(number.type);
 				this->printer.print("(");
-				if(number.type.kind() == Type::Kind::Integer){
+				if(number.type.kind() == Type::Kind::INTEGER){
 					this->printer.printMagenta(number.getInt().toString(true));
 				}else{
 					this->printer.printMagenta(number.getFloat().toString());
@@ -427,293 +437,283 @@ namespace pcit::pir{
 				this->printer.print(")");
 			} break;
 
-			case Expr::Kind::Boolean: {
+			case Expr::Kind::BOOLEAN: {
 				this->printer.printMagenta(evo::boolStr(this->reader.getBoolean(expr)));
 			} break;
 
-			case Expr::Kind::GlobalValue: {
-				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
-				this->printer.print("@{}", global_var.name);
-			} break;
-
-			case Expr::Kind::FunctionPointer: {
-				const Function& function = this->reader.getFunctionPointer(expr);
-				this->printer.print("@{}", function.getName());
-			} break;
-
-			case Expr::Kind::ParamExpr: {
+			case Expr::Kind::PARAM_EXPR: {
 				const ParamExpr param_expr = this->reader.getParamExpr(expr);
 				this->printer.print(
 					"${}", this->get_current_func().getParameters()[param_expr.index].getName()
 				);
 			} break;
 
-			case Expr::Kind::Call: {
+			case Expr::Kind::CALL: {
 				const Call& call_inst = this->reader.getCall(expr);
 				this->printer.print("${}", call_inst.name);
 			} break;
 
-			case Expr::Kind::CallVoid:    evo::debugFatalBreak("Expr::Kind::CallVoid is not a valid expression");
-			case Expr::Kind::Breakpoint:  evo::debugFatalBreak("Expr::Kind::Breakpoint is not a valid expression");
-			case Expr::Kind::Ret:         evo::debugFatalBreak("Expr::Kind::Ret is not a valid expression");
-			case Expr::Kind::Branch:      evo::debugFatalBreak("Expr::Kind::Branch is not a valid expression");
-			case Expr::Kind::CondBranch:  evo::debugFatalBreak("Expr::Kind::CondBranch is not a valid expression");
-			case Expr::Kind::Unreachable: evo::debugFatalBreak("Expr::Kind::Unreachable is not a valid expression");
+			case Expr::Kind::CALL_VOID:    evo::debugFatalBreak("Expr::Kind::CallVoid is not a valid expression");
+			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Expr::Kind::Breakpoint is not a valid expression");
+			case Expr::Kind::RET:         evo::debugFatalBreak("Expr::Kind::Ret is not a valid expression");
+			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Expr::Kind::Branch is not a valid expression");
+			case Expr::Kind::COND_BRANCH:  evo::debugFatalBreak("Expr::Kind::CondBranch is not a valid expression");
+			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Expr::Kind::Unreachable is not a valid expression");
 
-			case Expr::Kind::Alloca: {
+			case Expr::Kind::ALLOCA: {
 				const Alloca& alloca = this->reader.getAlloca(expr);
 				this->printer.print("${}", alloca.name);
 			} break;
 
-			case Expr::Kind::Load: {
+			case Expr::Kind::LOAD: {
 				const Load& load = this->reader.getLoad(expr);
 				this->printer.print("${}", load.name);
 			} break;
 
-			case Expr::Kind::Store: evo::debugFatalBreak("Expr::Kind::Store is not a valid expression");
+			case Expr::Kind::STORE: evo::debugFatalBreak("Expr::Kind::Store is not a valid expression");
 
-			case Expr::Kind::CalcPtr: {
+			case Expr::Kind::CALC_PTR: {
 				const CalcPtr& calc_ptr = this->reader.getCalcPtr(expr);
 				this->printer.print("${}", calc_ptr.name);
 			} break;
 
-			case Expr::Kind::Memcpy: evo::debugFatalBreak("Expr::Kind::Memcpy is not a valid expression");
-			case Expr::Kind::Memset: evo::debugFatalBreak("Expr::Kind::Memset is not a valid expression");
+			case Expr::Kind::MEMCPY: evo::debugFatalBreak("Expr::Kind::Memcpy is not a valid expression");
+			case Expr::Kind::MEMSET: evo::debugFatalBreak("Expr::Kind::Memset is not a valid expression");
 
-			case Expr::Kind::BitCast: {
+			case Expr::Kind::BIT_CAST: {
 				const BitCast& bitcast = this->reader.getBitCast(expr);
 				this->printer.print("${}", bitcast.name);
 			} break;
 
-			case Expr::Kind::Trunc: {
+			case Expr::Kind::TRUNC: {
 				const Trunc& trunc = this->reader.getTrunc(expr);
 				this->printer.print("${}", trunc.name);
 			} break;
 
-			case Expr::Kind::FTrunc: {
+			case Expr::Kind::FTRUNC: {
 				const FTrunc& ftrunc = this->reader.getFTrunc(expr);
 				this->printer.print("${}", ftrunc.name);
 			} break;
 
-			case Expr::Kind::SExt: {
+			case Expr::Kind::SEXT: {
 				const SExt& sext = this->reader.getSExt(expr);
 				this->printer.print("${}", sext.name);
 			} break;
 
-			case Expr::Kind::ZExt: {
+			case Expr::Kind::ZEXT: {
 				const ZExt& zext = this->reader.getZExt(expr);
 				this->printer.print("${}", zext.name);
 			} break;
 
-			case Expr::Kind::FExt: {
+			case Expr::Kind::FEXT: {
 				const FExt& fext = this->reader.getFExt(expr);
 				this->printer.print("${}", fext.name);
 			} break;
 
-			case Expr::Kind::IToF: {
+			case Expr::Kind::ITOF: {
 				const IToF& itof = this->reader.getIToF(expr);
 				this->printer.print("${}", itof.name);
 			} break;
 
-			case Expr::Kind::UIToF: {
+			case Expr::Kind::UITOF: {
 				const UIToF& uitof = this->reader.getUIToF(expr);
 				this->printer.print("${}", uitof.name);
 			} break;
 
-			case Expr::Kind::FToI: {
+			case Expr::Kind::FTOI: {
 				const FToI& ftoi = this->reader.getFToI(expr);
 				this->printer.print("${}", ftoi.name);
 			} break;
 
-			case Expr::Kind::FToUI: {
+			case Expr::Kind::FTOUI: {
 				const FToUI& ftoui = this->reader.getFToUI(expr);
 				this->printer.print("${}", ftoui.name);
 			} break;
 
 
-			case Expr::Kind::Add: {
+			case Expr::Kind::ADD: {
 				const Add& add = this->reader.getAdd(expr);
 				this->printer.print("${}", add.name);
 			} break;
 
-			case Expr::Kind::SAddWrap: evo::debugFatalBreak("Expr::Kind::SAddWrap is not a valid expression");
+			case Expr::Kind::SADD_WRAP: evo::debugFatalBreak("Expr::Kind::SAddWrap is not a valid expression");
 
-			case Expr::Kind::SAddWrapResult: {
+			case Expr::Kind::SADD_WRAP_RESULT: {
 				const SAddWrap& sadd_wrap = this->reader.getSAddWrap(expr);
 				this->printer.print("${}", sadd_wrap.resultName);
 			} break;
 
-			case Expr::Kind::SAddWrapWrapped: {
+			case Expr::Kind::SADD_WRAP_WRAPPED: {
 				const SAddWrap& sadd_wrap = this->reader.getSAddWrap(expr);
 				this->printer.print("${}", sadd_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::UAddWrap: evo::debugFatalBreak("Expr::Kind::UAddWrap is not a valid expression");
+			case Expr::Kind::UADD_WRAP: evo::debugFatalBreak("Expr::Kind::UAddWrap is not a valid expression");
 
-			case Expr::Kind::UAddWrapResult: {
+			case Expr::Kind::UADD_WRAP_RESULT: {
 				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(expr);
 				this->printer.print("${}", uadd_wrap.resultName);
 			} break;
 
-			case Expr::Kind::UAddWrapWrapped: {
+			case Expr::Kind::UADD_WRAP_WRAPPED: {
 				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(expr);
 				this->printer.print("${}", uadd_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::SAddSat: {
+			case Expr::Kind::SADD_SAT: {
 				const SAddSat& sadd_sat = this->reader.getSAddSat(expr);
 				this->printer.print("${}", sadd_sat.name);
 			} break;
 
-			case Expr::Kind::UAddSat: {
+			case Expr::Kind::UADD_SAT: {
 				const UAddSat& uadd_sat = this->reader.getUAddSat(expr);
 				this->printer.print("${}", uadd_sat.name);
 			} break;
 
-			case Expr::Kind::FAdd: {
+			case Expr::Kind::FADD: {
 				const FAdd& fadd = this->reader.getFAdd(expr);
 				this->printer.print("${}", fadd.name);
 			} break;
 
-			case Expr::Kind::Sub: {
+			case Expr::Kind::SUB: {
 				const Sub& sub = this->reader.getSub(expr);
 				this->printer.print("${}", sub.name);
 			} break;
 
-			case Expr::Kind::SSubWrap: evo::debugFatalBreak("Expr::Kind::SSubWrap is not a valid expression");
+			case Expr::Kind::SSUB_WRAP: evo::debugFatalBreak("Expr::Kind::SSubWrap is not a valid expression");
 
-			case Expr::Kind::SSubWrapResult: {
+			case Expr::Kind::SSUB_WRAP_RESULT: {
 				const SSubWrap& ssub_wrap = this->reader.getSSubWrap(expr);
 				this->printer.print("${}", ssub_wrap.resultName);
 			} break;
 
-			case Expr::Kind::SSubWrapWrapped: {
+			case Expr::Kind::SSUB_WRAP_WRAPPED: {
 				const SSubWrap& ssub_wrap = this->reader.getSSubWrap(expr);
 				this->printer.print("${}", ssub_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::USubWrap: evo::debugFatalBreak("Expr::Kind::USubWrap is not a valid expression");
+			case Expr::Kind::USUB_WRAP: evo::debugFatalBreak("Expr::Kind::USubWrap is not a valid expression");
 
-			case Expr::Kind::USubWrapResult: {
+			case Expr::Kind::USUB_WRAP_RESULT: {
 				const USubWrap& usub_wrap = this->reader.getUSubWrap(expr);
 				this->printer.print("${}", usub_wrap.resultName);
 			} break;
 
-			case Expr::Kind::USubWrapWrapped: {
+			case Expr::Kind::USUB_WRAP_WRAPPED: {
 				const USubWrap& usub_wrap = this->reader.getUSubWrap(expr);
 				this->printer.print("${}", usub_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::SSubSat: {
+			case Expr::Kind::SSUB_SAT: {
 				const SSubSat& ssub_sat = this->reader.getSSubSat(expr);
 				this->printer.print("${}", ssub_sat.name);
 			} break;
 
-			case Expr::Kind::USubSat: {
+			case Expr::Kind::USUB_SAT: {
 				const USubSat& usub_sat = this->reader.getUSubSat(expr);
 				this->printer.print("${}", usub_sat.name);
 			} break;
 
-			case Expr::Kind::FSub: {
+			case Expr::Kind::FSUB: {
 				const FSub& fsub = this->reader.getFSub(expr);
 				this->printer.print("${}", fsub.name);
 			} break;
 
-			case Expr::Kind::Mul: {
+			case Expr::Kind::MUL: {
 				const Mul& mul = this->reader.getMul(expr);
 				this->printer.print("${}", mul.name);
 			} break;
 
-			case Expr::Kind::SMulWrap: evo::debugFatalBreak("Expr::Kind::SMulWrap is not a valid expression");
+			case Expr::Kind::SMUL_WRAP: evo::debugFatalBreak("Expr::Kind::SMulWrap is not a valid expression");
 
-			case Expr::Kind::SMulWrapResult: {
+			case Expr::Kind::SMUL_WRAP_RESULT: {
 				const SMulWrap& smul_wrap = this->reader.getSMulWrap(expr);
 				this->printer.print("${}", smul_wrap.resultName);
 			} break;
 
-			case Expr::Kind::SMulWrapWrapped: {
+			case Expr::Kind::SMUL_WRAP_WRAPPED: {
 				const SMulWrap& smul_wrap = this->reader.getSMulWrap(expr);
 				this->printer.print("${}", smul_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::UMulWrap: evo::debugFatalBreak("Expr::Kind::UMulWrap is not a valid expression");
+			case Expr::Kind::UMUL_WRAP: evo::debugFatalBreak("Expr::Kind::UMulWrap is not a valid expression");
 
-			case Expr::Kind::UMulWrapResult: {
+			case Expr::Kind::UMUL_WRAP_RESULT: {
 				const UMulWrap& umul_wrap = this->reader.getUMulWrap(expr);
 				this->printer.print("${}", umul_wrap.resultName);
 			} break;
 
-			case Expr::Kind::UMulWrapWrapped: {
+			case Expr::Kind::UMUL_WRAP_WRAPPED: {
 				const UMulWrap& umul_wrap = this->reader.getUMulWrap(expr);
 				this->printer.print("${}", umul_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::SMulSat: {
+			case Expr::Kind::SMUL_SAT: {
 				const SMulSat& smul_sat = this->reader.getSMulSat(expr);
 				this->printer.print("${}", smul_sat.name);
 			} break;
 
-			case Expr::Kind::UMulSat: {
+			case Expr::Kind::UMUL_SAT: {
 				const UMulSat& umul_sat = this->reader.getUMulSat(expr);
 				this->printer.print("${}", umul_sat.name);
 			} break;
 
-			case Expr::Kind::FMul: {
+			case Expr::Kind::FMUL: {
 				const FMul& fmul = this->reader.getFMul(expr);
 				this->printer.print("${}", fmul.name);
 			} break;
 
-			case Expr::Kind::SDiv: {
+			case Expr::Kind::SDIV: {
 				const SDiv& sdiv = this->reader.getSDiv(expr);
 				this->printer.print("${}", sdiv.name);
 			} break;
 
-			case Expr::Kind::UDiv: {
+			case Expr::Kind::UDIV: {
 				const UDiv& udiv = this->reader.getUDiv(expr);
 				this->printer.print("${}", udiv.name);
 			} break;
 
-			case Expr::Kind::FDiv: {
+			case Expr::Kind::FDIV: {
 				const FDiv& fdiv = this->reader.getFDiv(expr);
 				this->printer.print("${}", fdiv.name);
 			} break;
 
-			case Expr::Kind::SRem: {
+			case Expr::Kind::SREM: {
 				const SRem& srem = this->reader.getSRem(expr);
 				this->printer.print("${}", srem.name);
 			} break;
 
-			case Expr::Kind::URem: {
+			case Expr::Kind::UREM: {
 				const URem& urem = this->reader.getURem(expr);
 				this->printer.print("${}", urem.name);
 			} break;
 
-			case Expr::Kind::FRem: {
+			case Expr::Kind::FREM: {
 				const FRem& frem = this->reader.getFRem(expr);
 				this->printer.print("${}", frem.name);
 			} break;
 
-			case Expr::Kind::FNeg: {
+			case Expr::Kind::FNEG: {
 				const FNeg& fneg = this->reader.getFNeg(expr);
 				this->printer.print("${}", fneg.name);
 			} break;
 
-			case Expr::Kind::IEq: {
+			case Expr::Kind::IEQ: {
 				const IEq& ieq = this->reader.getIEq(expr);
 				this->printer.print("${}", ieq.name);
 			} break;
 
-			case Expr::Kind::FEq: {
+			case Expr::Kind::FEQ: {
 				const FEq& feq = this->reader.getFEq(expr);
 				this->printer.print("${}", feq.name);
 			} break;
 
-			case Expr::Kind::INeq: {
+			case Expr::Kind::INEQ: {
 				const INeq& ineq = this->reader.getINeq(expr);
 				this->printer.print("${}", ineq.name);
 			} break;
 
-			case Expr::Kind::FNeq: {
+			case Expr::Kind::FNEQ: {
 				const FNeq& fneq = this->reader.getFNeq(expr);
 				this->printer.print("${}", fneq.name);
 			} break;
@@ -778,17 +778,17 @@ namespace pcit::pir{
 				this->printer.print("${}", fgte.name);
 			} break;
 
-			case Expr::Kind::And: {
+			case Expr::Kind::AND: {
 				const And& and_stmt = this->reader.getAnd(expr);
 				this->printer.print("${}", and_stmt.name);
 			} break;
 
-			case Expr::Kind::Or: {
+			case Expr::Kind::OR: {
 				const Or& or_stmt = this->reader.getOr(expr);
 				this->printer.print("${}", or_stmt.name);
 			} break;
 
-			case Expr::Kind::Xor: {
+			case Expr::Kind::XOR: {
 				const Xor& xor_stmt = this->reader.getXor(expr);
 				this->printer.print("${}", xor_stmt.name);
 			} break;
@@ -798,12 +798,12 @@ namespace pcit::pir{
 				this->printer.print("${}", shl.name);
 			} break;
 
-			case Expr::Kind::SSHLSat: {
+			case Expr::Kind::SSHL_SAT: {
 				const SSHLSat& sshlsat = this->reader.getSSHLSat(expr);
 				this->printer.print("${}", sshlsat.name);
 			} break;
 
-			case Expr::Kind::USHLSat: {
+			case Expr::Kind::USHL_SAT: {
 				const USHLSat& ushlsat = this->reader.getUSHLSat(expr);
 				this->printer.print("${}", ushlsat.name);
 			} break;
@@ -823,16 +823,16 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_expr_stmt(const Expr& stmt) -> void {
 		switch(stmt.kind()){
-			case Expr::Kind::None: evo::debugFatalBreak("Not valid expr");
+			case Expr::Kind::NONE: evo::debugFatalBreak("Not valid expr");
 
-			case Expr::Kind::Number:      evo::debugFatalBreak("Expr::Kind::Number is not a valid statement");
-			case Expr::Kind::Boolean:     evo::debugFatalBreak("Expr::Kind::Boolean is not a valid statement");
-			case Expr::Kind::GlobalValue: evo::debugFatalBreak("Expr::Kind::GlobalValue is not a valid statement");
-			case Expr::Kind::FunctionPointer: 
+			case Expr::Kind::GLOBAL_VALUE: evo::debugFatalBreak("Expr::Kind::GlobalValue is not a valid statement");
+			case Expr::Kind::FUNCTION_POINTER: 
 				evo::debugFatalBreak("Expr::Kind::FunctionPointer is not a valid statement");
-			case Expr::Kind::ParamExpr: evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
+			case Expr::Kind::NUMBER:      evo::debugFatalBreak("Expr::Kind::Number is not a valid statement");
+			case Expr::Kind::BOOLEAN:     evo::debugFatalBreak("Expr::Kind::Boolean is not a valid statement");
+			case Expr::Kind::PARAM_EXPR: evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
 
-			case Expr::Kind::Call: {
+			case Expr::Kind::CALL: {
 				const Call& call_inst = this->reader.getCall(stmt);
 
 				this->printer.print("{}${} ", tabs(2), call_inst.name);
@@ -841,7 +841,7 @@ namespace pcit::pir{
 				this->print_function_call_impl(call_inst.target, call_inst.args);
 			} break;
 
-			case Expr::Kind::CallVoid: {
+			case Expr::Kind::CALL_VOID: {
 				const CallVoid& call_void_inst = this->reader.getCallVoid(stmt);
 
 				this->printer.print(tabs(2));
@@ -849,11 +849,11 @@ namespace pcit::pir{
 				this->print_function_call_impl(call_void_inst.target, call_void_inst.args);
 			} break;
 
-			case Expr::Kind::Breakpoint: {
+			case Expr::Kind::BREAKPOINT: {
 				this->printer.printlnRed("{}@breakpoint", tabs(2));
 			} break;
 
-			case Expr::Kind::Ret: {
+			case Expr::Kind::RET: {
 				const Ret& ret_inst = this->reader.getRet(stmt);
 
 				if(ret_inst.value.has_value()){
@@ -866,13 +866,13 @@ namespace pcit::pir{
 			} break;
 
 
-			case Expr::Kind::Branch: {
+			case Expr::Kind::BRANCH: {
 				this->printer.printRed("{}@branch ", tabs(2));
 				const BasicBlock::ID basic_block_id = reader.getBranch(stmt).target;
 				this->printer.println("${}", reader.getBasicBlock(basic_block_id).getName());
 			} break;
 
-			case Expr::Kind::CondBranch: {
+			case Expr::Kind::COND_BRANCH: {
 				const CondBranch& cond_branch = this->reader.getCondBranch(stmt);
 
 				this->printer.printRed("{}@condBranch ", tabs(2));
@@ -884,13 +884,13 @@ namespace pcit::pir{
 				);
 			} break;
 
-			case Expr::Kind::Unreachable: {
+			case Expr::Kind::UNREACHABLE: {
 				this->printer.printlnRed("{}@unreachable", tabs(2));
 			} break;
 
-			case Expr::Kind::Alloca: evo::debugFatalBreak("Expr::Kind::Alloca should not be printed through this func");
+			case Expr::Kind::ALLOCA: evo::debugFatalBreak("Expr::Kind::Alloca should not be printed through this func");
 
-			case Expr::Kind::Load: {
+			case Expr::Kind::LOAD: {
 				const Load& load = this->reader.getLoad(stmt);
 
 				this->printer.print("{}${} ", tabs(2), load.name);
@@ -903,7 +903,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Store: {
+			case Expr::Kind::STORE: {
 				const Store& store = this->reader.getStore(stmt);
 
 				this->printer.printRed("{}@store ", tabs(2));
@@ -915,7 +915,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::CalcPtr: {
+			case Expr::Kind::CALC_PTR: {
 				const CalcPtr& calc_ptr = this->reader.getCalcPtr(stmt);
 
 				this->printer.print("{}${} ", tabs(2), calc_ptr.name);
@@ -940,7 +940,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Memcpy: {
+			case Expr::Kind::MEMCPY: {
 				const Memcpy& memcpy = this->reader.getMemcpy(stmt);
 
 				this->printer.printRed("{}@memcpy ", tabs(2));
@@ -953,7 +953,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Memset: {
+			case Expr::Kind::MEMSET: {
 				const Memset& memset = this->reader.getMemset(stmt);
 
 				this->printer.printRed("{}@memset ", tabs(2));
@@ -966,7 +966,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::BitCast: {
+			case Expr::Kind::BIT_CAST: {
 				const BitCast& bitcast = this->reader.getBitCast(stmt);
 
 				this->printer.print("{}${} ", tabs(2), bitcast.name);
@@ -977,7 +977,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Trunc: {
+			case Expr::Kind::TRUNC: {
 				const Trunc& trunc = this->reader.getTrunc(stmt);
 
 				this->printer.print("{}${} ", tabs(2), trunc.name);
@@ -988,7 +988,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FTrunc: {
+			case Expr::Kind::FTRUNC: {
 				const FTrunc& ftrunc = this->reader.getFTrunc(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftrunc.name);
@@ -999,7 +999,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SExt: {
+			case Expr::Kind::SEXT: {
 				const SExt& sext = this->reader.getSExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), sext.name);
@@ -1010,7 +1010,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::ZExt: {
+			case Expr::Kind::ZEXT: {
 				const ZExt& zext = this->reader.getZExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), zext.name);
@@ -1021,7 +1021,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FExt: {
+			case Expr::Kind::FEXT: {
 				const FExt& fext = this->reader.getFExt(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fext.name);
@@ -1032,7 +1032,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::IToF: {
+			case Expr::Kind::ITOF: {
 				const IToF& itof = this->reader.getIToF(stmt);
 
 				this->printer.print("{}${} ", tabs(2), itof.name);
@@ -1043,7 +1043,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::UIToF: {
+			case Expr::Kind::UITOF: {
 				const UIToF& uitof = this->reader.getUIToF(stmt);
 
 				this->printer.print("{}${} ", tabs(2), uitof.name);
@@ -1054,7 +1054,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FToI: {
+			case Expr::Kind::FTOI: {
 				const FToI& ftoi = this->reader.getFToI(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftoi.name);
@@ -1065,7 +1065,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FToUI: {
+			case Expr::Kind::FTOUI: {
 				const FToUI& ftoui = this->reader.getFToUI(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ftoui.name);
@@ -1077,7 +1077,7 @@ namespace pcit::pir{
 			} break;
 
 
-			case Expr::Kind::Add: {
+			case Expr::Kind::ADD: {
 				const Add& add = this->reader.getAdd(stmt);
 
 				this->printer.print("{}${} ", tabs(2), add.name);
@@ -1090,7 +1090,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SAddWrap: {
+			case Expr::Kind::SADD_WRAP: {
 				const SAddWrap& sadd_wrap = this->reader.getSAddWrap(stmt);
 
 				this->printer.print("{}${}, ${} ", tabs(2), sadd_wrap.resultName, sadd_wrap.wrappedName);
@@ -1102,14 +1102,14 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SAddWrapResult:
+			case Expr::Kind::SADD_WRAP_RESULT:
 				evo::debugFatalBreak("Expr::Kind::SAddWrapResult is not a valid statement");
 
-			case Expr::Kind::SAddWrapWrapped:
+			case Expr::Kind::SADD_WRAP_WRAPPED:
 				evo::debugFatalBreak("Expr::Kind::SAddWrapWrapped is not a valid statement");
 
 
-			case Expr::Kind::UAddWrap: {
+			case Expr::Kind::UADD_WRAP: {
 				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(stmt);
 
 				this->printer.print("{}${}, ${} ", tabs(2), uadd_wrap.resultName, uadd_wrap.wrappedName);
@@ -1121,13 +1121,13 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::UAddWrapResult:
+			case Expr::Kind::UADD_WRAP_RESULT:
 				evo::debugFatalBreak("Expr::Kind::UAddWrapResult is not a valid statement");
 
-			case Expr::Kind::UAddWrapWrapped:
+			case Expr::Kind::UADD_WRAP_WRAPPED:
 				evo::debugFatalBreak("Expr::Kind::UAddWrapWrapped is not a valid statement");
 
-			case Expr::Kind::SAddSat: {
+			case Expr::Kind::SADD_SAT: {
 				const SAddSat& sadd_sat = this->reader.getSAddSat(stmt);
 
 				this->printer.print("{}${} ", tabs(2), sadd_sat.name);
@@ -1138,7 +1138,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::UAddSat: {
+			case Expr::Kind::UADD_SAT: {
 				const UAddSat& uadd_sat = this->reader.getUAddSat(stmt);
 
 				this->printer.print("{}${} ", tabs(2), uadd_sat.name);
@@ -1149,7 +1149,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FAdd: {
+			case Expr::Kind::FADD: {
 				const FAdd& fadd = this->reader.getFAdd(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fadd.name);
@@ -1160,7 +1160,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Sub: {
+			case Expr::Kind::SUB: {
 				const Sub& sub = this->reader.getSub(stmt);
 
 				this->printer.print("{}${} ", tabs(2), sub.name);
@@ -1173,7 +1173,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SSubWrap: {
+			case Expr::Kind::SSUB_WRAP: {
 				const SSubWrap& ssub_wrap = this->reader.getSSubWrap(stmt);
 
 				this->printer.print("{}${}, ${} ", tabs(2), ssub_wrap.resultName, ssub_wrap.wrappedName);
@@ -1185,14 +1185,14 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SSubWrapResult:
+			case Expr::Kind::SSUB_WRAP_RESULT:
 				evo::debugFatalBreak("Expr::Kind::SSubWrapResult is not a valid statement");
 
-			case Expr::Kind::SSubWrapWrapped:
+			case Expr::Kind::SSUB_WRAP_WRAPPED:
 				evo::debugFatalBreak("Expr::Kind::SSubWrapWrapped is not a valid statement");
 
 
-			case Expr::Kind::USubWrap: {
+			case Expr::Kind::USUB_WRAP: {
 				const USubWrap& usub_wrap = this->reader.getUSubWrap(stmt);
 
 				this->printer.print("{}${}, ${} ", tabs(2), usub_wrap.resultName, usub_wrap.wrappedName);
@@ -1204,13 +1204,13 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::USubWrapResult:
+			case Expr::Kind::USUB_WRAP_RESULT:
 				evo::debugFatalBreak("Expr::Kind::USubWrapResult is not a valid statement");
 
-			case Expr::Kind::USubWrapWrapped:
+			case Expr::Kind::USUB_WRAP_WRAPPED:
 				evo::debugFatalBreak("Expr::Kind::USubWrapWrapped is not a valid statement");
 
-			case Expr::Kind::SSubSat: {
+			case Expr::Kind::SSUB_SAT: {
 				const SSubSat& ssub_sat = this->reader.getSSubSat(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ssub_sat.name);
@@ -1221,7 +1221,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::USubSat: {
+			case Expr::Kind::USUB_SAT: {
 				const USubSat& usub_sat = this->reader.getUSubSat(stmt);
 
 				this->printer.print("{}${} ", tabs(2), usub_sat.name);
@@ -1232,7 +1232,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FSub: {
+			case Expr::Kind::FSUB: {
 				const FSub& fsub = this->reader.getFSub(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fsub.name);
@@ -1243,7 +1243,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Mul: {
+			case Expr::Kind::MUL: {
 				const Mul& mul = this->reader.getMul(stmt);
 
 				this->printer.print("{}${} ", tabs(2), mul.name);
@@ -1256,7 +1256,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SMulWrap: {
+			case Expr::Kind::SMUL_WRAP: {
 				const SMulWrap& smul_wrap = this->reader.getSMulWrap(stmt);
 
 				this->printer.print("{}${}, ${} ", tabs(2), smul_wrap.resultName, smul_wrap.wrappedName);
@@ -1268,14 +1268,14 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SMulWrapResult:
+			case Expr::Kind::SMUL_WRAP_RESULT:
 				evo::debugFatalBreak("Expr::Kind::SMulWrapResult is not a valid statement");
 
-			case Expr::Kind::SMulWrapWrapped:
+			case Expr::Kind::SMUL_WRAP_WRAPPED:
 				evo::debugFatalBreak("Expr::Kind::SMulWrapWrapped is not a valid statement");
 
 
-			case Expr::Kind::UMulWrap: {
+			case Expr::Kind::UMUL_WRAP: {
 				const UMulWrap& umul_wrap = this->reader.getUMulWrap(stmt);
 
 				this->printer.print("{}${}, ${} ", tabs(2), umul_wrap.resultName, umul_wrap.wrappedName);
@@ -1287,13 +1287,13 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::UMulWrapResult:
+			case Expr::Kind::UMUL_WRAP_RESULT:
 				evo::debugFatalBreak("Expr::Kind::UMulWrapResult is not a valid statement");
 
-			case Expr::Kind::UMulWrapWrapped:
+			case Expr::Kind::UMUL_WRAP_WRAPPED:
 				evo::debugFatalBreak("Expr::Kind::UMulWrapWrapped is not a valid statement");
 
-			case Expr::Kind::SMulSat: {
+			case Expr::Kind::SMUL_SAT: {
 				const SMulSat& smul_sat = this->reader.getSMulSat(stmt);
 
 				this->printer.print("{}${} ", tabs(2), smul_sat.name);
@@ -1304,7 +1304,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::UMulSat: {
+			case Expr::Kind::UMUL_SAT: {
 				const UMulSat& umul_sat = this->reader.getUMulSat(stmt);
 
 				this->printer.print("{}${} ", tabs(2), umul_sat.name);
@@ -1315,7 +1315,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FMul: {
+			case Expr::Kind::FMUL: {
 				const FMul& fmul = this->reader.getFMul(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fmul.name);
@@ -1326,7 +1326,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SDiv: {
+			case Expr::Kind::SDIV: {
 				const SDiv& sdiv = this->reader.getSDiv(stmt);
 
 				this->printer.print("{}${} ", tabs(2), sdiv.name);
@@ -1338,7 +1338,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::UDiv: {
+			case Expr::Kind::UDIV: {
 				const UDiv& udiv = this->reader.getUDiv(stmt);
 
 				this->printer.print("{}${} ", tabs(2), udiv.name);
@@ -1350,7 +1350,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FDiv: {
+			case Expr::Kind::FDIV: {
 				const FDiv& fdiv = this->reader.getFDiv(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fdiv.name);
@@ -1361,7 +1361,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SRem: {
+			case Expr::Kind::SREM: {
 				const SRem& srem = this->reader.getSRem(stmt);
 
 				this->printer.print("{}${} ", tabs(2), srem.name);
@@ -1372,7 +1372,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::URem: {
+			case Expr::Kind::UREM: {
 				const URem& urem = this->reader.getURem(stmt);
 
 				this->printer.print("{}${} ", tabs(2), urem.name);
@@ -1383,7 +1383,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FRem: {
+			case Expr::Kind::FREM: {
 				const FRem& frem = this->reader.getFRem(stmt);
 
 				this->printer.print("{}${} ", tabs(2), frem.name);
@@ -1394,7 +1394,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FNeg: {
+			case Expr::Kind::FNEG: {
 				const FNeg& fneg = this->reader.getFNeg(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fneg.name);
@@ -1403,7 +1403,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::IEq: {
+			case Expr::Kind::IEQ: {
 				const IEq& ieq = this->reader.getIEq(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ieq.name);
@@ -1414,7 +1414,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FEq: {
+			case Expr::Kind::FEQ: {
 				const FEq& feq = this->reader.getFEq(stmt);
 
 				this->printer.print("{}${} ", tabs(2), feq.name);
@@ -1425,7 +1425,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::INeq: {
+			case Expr::Kind::INEQ: {
 				const INeq& ineq = this->reader.getINeq(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ineq.name);
@@ -1436,7 +1436,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::FNeq: {
+			case Expr::Kind::FNEQ: {
 				const FNeq& fneq = this->reader.getFNeq(stmt);
 
 				this->printer.print("{}${} ", tabs(2), fneq.name);
@@ -1579,7 +1579,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::And: {
+			case Expr::Kind::AND: {
 				const And& and_stmt = this->reader.getAnd(stmt);
 
 				this->printer.print("{}${} ", tabs(2), and_stmt.name);
@@ -1590,7 +1590,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Or: {
+			case Expr::Kind::OR: {
 				const Or& or_stmt = this->reader.getOr(stmt);
 
 				this->printer.print("{}${} ", tabs(2), or_stmt.name);
@@ -1601,7 +1601,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::Xor: {
+			case Expr::Kind::XOR: {
 				const Xor& xor_stmt = this->reader.getXor(stmt);
 
 				this->printer.print("{}${} ", tabs(2), xor_stmt.name);
@@ -1625,7 +1625,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::SSHLSat: {
+			case Expr::Kind::SSHL_SAT: {
 				const SSHLSat& sshlsat = this->reader.getSSHLSat(stmt);
 
 				this->printer.print("{}${} ", tabs(2), sshlsat.name);
@@ -1636,7 +1636,7 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
-			case Expr::Kind::USHLSat: {
+			case Expr::Kind::USHL_SAT: {
 				const USHLSat& ushlsat = this->reader.getUSHLSat(stmt);
 
 				this->printer.print("{}${} ", tabs(2), ushlsat.name);
@@ -1753,31 +1753,31 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_atomic_ordering(AtomicOrdering ordering) -> void {
 		switch(ordering){
-			case AtomicOrdering::None: {
+			case AtomicOrdering::NONE: {
 				// none
 			} break;
 
-			case AtomicOrdering::Monotonic: {
+			case AtomicOrdering::MONOTONIC: {
 				this->printer.printRed(" #atomic");
 				this->printer.print("(monotonic)");
 			} break;
 
-			case AtomicOrdering::Acquire: {
+			case AtomicOrdering::ACQUIRE: {
 				this->printer.printRed(" #atomic");
 				this->printer.print("(acquire)");
 			} break;
 
-			case AtomicOrdering::Release: {
+			case AtomicOrdering::RELEASE: {
 				this->printer.printRed(" #atomic");
 				this->printer.print("(release)");
 			} break;
 
-			case AtomicOrdering::AcquireRelease: {
+			case AtomicOrdering::ACQUIRE_RELEASE: {
 				this->printer.printRed(" #atomic");
 				this->printer.print("(acquireRelease)");
 			} break;
 
-			case AtomicOrdering::SequentiallyConsistent: {
+			case AtomicOrdering::SEQUENTIALLY_CONSISTENT: {
 				this->printer.printRed(" #atomic");
 				this->printer.print("(sequentiallyConsistent)");
 			} break;

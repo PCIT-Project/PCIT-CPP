@@ -14,8 +14,8 @@ namespace pcit::panther{
 
 
 	enum class StrToNumError{
-		OutOfRange,
-		Invalid,
+		OUT_OF_RANGE,
+		INVALID,
 	};
 
 	template<class NumericType>
@@ -24,11 +24,11 @@ namespace pcit::panther{
 		NumericType result;
 		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result, base);
 
-		if(ptr != str.data() + str.size()){ return evo::Unexpected(StrToNumError::Invalid); }
+		if(ptr != str.data() + str.size()){ return evo::Unexpected(StrToNumError::INVALID); }
 
 		if(ec == std::errc())                         { return result; }
-		else if(ec == std::errc::result_out_of_range) { return evo::Unexpected(StrToNumError::OutOfRange); }
-		else if(ec == std::errc::invalid_argument)    { return evo::Unexpected(StrToNumError::Invalid);    }
+		else if(ec == std::errc::result_out_of_range) { return evo::Unexpected(StrToNumError::OUT_OF_RANGE); }
+		else if(ec == std::errc::invalid_argument)    { return evo::Unexpected(StrToNumError::INVALID);    }
 		else                                          { evo::debugFatalBreak("Unknown error"); }
 	}
 
@@ -46,11 +46,11 @@ namespace pcit::panther{
 		NumericType result;
 		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result, fmt);
 
-		if(ptr != str.data() + str.size()){ return evo::Unexpected(StrToNumError::Invalid); }
+		if(ptr != str.data() + str.size()){ return evo::Unexpected(StrToNumError::INVALID); }
 
 		if(ec == std::errc())                         { return result; }
-		else if(ec == std::errc::result_out_of_range) { return evo::Unexpected(StrToNumError::OutOfRange); }
-		else if(ec == std::errc::invalid_argument)    { return evo::Unexpected(StrToNumError::Invalid);    }
+		else if(ec == std::errc::result_out_of_range) { return evo::Unexpected(StrToNumError::OUT_OF_RANGE); }
+		else if(ec == std::errc::invalid_argument)    { return evo::Unexpected(StrToNumError::INVALID);    }
 		else                                          { evo::debugFatalBreak("Unknown error"); }
 	}
 
@@ -123,7 +123,7 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TokUnterminatedMultilineComment,
+						Diagnostic::Code::TOK_UNTERMINATED_MULTILINE_COMMENT,
 						current_location.value(),
 						"Unterminated multi-line comment",
 						Diagnostic::Info("Expected a \"*/\" before the end of the file")
@@ -156,71 +156,71 @@ namespace pcit::panther{
 	// TODO: change to not use global initialization
 	const static auto keyword_map = std::unordered_map<std::string_view, Token::Kind>{
 		// types
-		{"Void",        Token::Kind::TypeVoid},
-		{"Type",        Token::Kind::TypeType},
-		{"This",        Token::Kind::TypeThis},
+		{"Void",        Token::Kind::TYPE_VOID},
+		{"Type",        Token::Kind::TYPE_TYPE},
+		{"This",        Token::Kind::TYPE_THIS},
 
-		{"Int",         Token::Kind::TypeInt},
-		{"ISize",       Token::Kind::TypeISize},
+		{"Int",         Token::Kind::TYPE_INT},
+		{"ISize",       Token::Kind::TYPE_ISIZE},
 
-		{"UInt",        Token::Kind::TypeUInt},
-		{"USize",       Token::Kind::TypeUSize},
+		{"UInt",        Token::Kind::TYPE_UINT},
+		{"USize",       Token::Kind::TYPE_USIZE},
 
-		{"F16",         Token::Kind::TypeF16},
-		{"BF16",        Token::Kind::TypeBF16},
-		{"F32",         Token::Kind::TypeF32},
-		{"F64",         Token::Kind::TypeF64},
-		{"F80",         Token::Kind::TypeF80},
-		{"F128",        Token::Kind::TypeF128},
+		{"F16",         Token::Kind::TYPE_F16},
+		{"BF16",        Token::Kind::TYPE_BF16},
+		{"F32",         Token::Kind::TYPE_F32},
+		{"F64",         Token::Kind::TYPE_F64},
+		{"F80",         Token::Kind::TYPE_F80},
+		{"F128",        Token::Kind::TYPE_F128},
 
-		{"Byte",        Token::Kind::TypeByte},
-		{"Bool",        Token::Kind::TypeBool},
-		{"Char",        Token::Kind::TypeChar},
-		{"RawPtr",      Token::Kind::TypeRawPtr},
-		{"TypeID",      Token::Kind::TypeTypeID},
+		{"Byte",        Token::Kind::TYPE_BYTE},
+		{"Bool",        Token::Kind::TYPE_BOOL},
+		{"Char",        Token::Kind::TYPE_CHAR},
+		{"RawPtr",      Token::Kind::TYPE_RAWPTR},
+		{"TypeID",      Token::Kind::TYPE_TYPEID},
 
-		{"CShort",      Token::Kind::TypeCShort},
-		{"CUShort",     Token::Kind::TypeCUShort},
-		{"CInt",        Token::Kind::TypeCInt},
-		{"CUInt",       Token::Kind::TypeCUInt},
-		{"CLong",       Token::Kind::TypeCLong},
-		{"CULong",      Token::Kind::TypeCULong},
-		{"CLongLong",   Token::Kind::TypeCLongLong},
-		{"CULongLong",  Token::Kind::TypeCULongLong},
-		{"CLongDouble", Token::Kind::TypeCLongDouble},
+		{"CShort",      Token::Kind::TYPE_C_SHORT},
+		{"CUShort",     Token::Kind::TYPE_C_USHORT},
+		{"CInt",        Token::Kind::TYPE_C_INT},
+		{"CUInt",       Token::Kind::TYPE_C_UINT},
+		{"CLong",       Token::Kind::TYPE_C_LONG},
+		{"CULong",      Token::Kind::TYPE_C_ULONG},
+		{"CLongLong",   Token::Kind::TYPE_C_LONG_LONG},
+		{"CULongLong",  Token::Kind::TYPE_C_ULONG_LONG},
+		{"CLongDouble", Token::Kind::TYPE_C_LONG_DOUBLE},
 
 
 		// keywords
-		{"var",         Token::Kind::KeywordVar},
-		{"const",       Token::Kind::KeywordConst},
-		{"def",         Token::Kind::KeywordDef},
-		{"func",        Token::Kind::KeywordFunc},
-		{"alias",       Token::Kind::KeywordAlias},
-		{"type",        Token::Kind::KeywordType},
-		{"struct",      Token::Kind::KeywordStruct},
+		{"var",         Token::Kind::KEYWORD_VAR},
+		{"const",       Token::Kind::KEYWORD_CONST},
+		{"def",         Token::Kind::KEYWORD_DEF},
+		{"func",        Token::Kind::KEYWORD_FUNC},
+		{"alias",       Token::Kind::KEYWORD_ALIAS},
+		{"type",        Token::Kind::KEYWORD_TYPE},
+		{"struct",      Token::Kind::KEYWORD_STRUCT},
 
-		{"return",      Token::Kind::KeywordReturn},
-		{"error",       Token::Kind::KeywordError},
-		{"unreachable", Token::Kind::KeywordUnreachable},
+		{"return",      Token::Kind::KEYWORD_RETURN},
+		{"error",       Token::Kind::KEYWORD_ERROR},
+		{"unreachable", Token::Kind::KEYWORD_UNREACHABLE},
 
-		{"null",        Token::Kind::KeywordNull},
-		{"uninit",      Token::Kind::KeywordUninit},
-		{"zeroinit",    Token::Kind::KeywordZeroinit},
-		{"this",        Token::Kind::KeywordThis},
+		{"null",        Token::Kind::KEYWORD_NULL},
+		{"uninit",      Token::Kind::KEYWORD_UNINIT},
+		{"zeroinit",    Token::Kind::KEYWORD_ZEROINIT},
+		{"this",        Token::Kind::KEYWORD_THIS},
 
-		{"read",        Token::Kind::KeywordRead},
-		{"mut",         Token::Kind::KeywordMut},
-		{"in",          Token::Kind::KeywordIn},
+		{"read",        Token::Kind::KEYWORD_READ},
+		{"mut",         Token::Kind::KEYWORD_MUT},
+		{"in",          Token::Kind::KEYWORD_IN},
 
-		{"copy",        Token::Kind::KeywordCopy},
-		{"forward",     Token::Kind::KeywordForward},
-		{"new",         Token::Kind::KeywordNew},
-		{"as",          Token::Kind::KeywordAs},
+		{"copy",        Token::Kind::KEYWORD_COPY},
+		{"forward",     Token::Kind::KEYWORD_FORWARD},
+		{"new",         Token::Kind::KEYWORD_NEW},
+		{"as",          Token::Kind::KEYWORD_AS},
 
-		{"if",          Token::Kind::KeywordIf},
-		{"else",        Token::Kind::KeywordElse},
-		{"when",        Token::Kind::KeywordWhen},
-		{"while",       Token::Kind::KeywordWhile},
+		{"if",          Token::Kind::KEYWORD_IF},
+		{"else",        Token::Kind::KEYWORD_ELSE},
+		{"when",        Token::Kind::KEYWORD_WHEN},
+		{"while",       Token::Kind::KEYWORD_WHILE},
 
 		// discard
 		{"_", Token::lookupKind("_")},
@@ -230,22 +230,22 @@ namespace pcit::panther{
 
 
 	auto Tokenizer::tokenize_identifier() -> bool {
-		auto kind = Token::Kind::None;
+		auto kind = Token::Kind::NONE;
 
 		char peeked_char = this->char_stream.peek();
 		if(evo::isLetter(peeked_char) || peeked_char == '_'){
-			kind = Token::Kind::Ident;
+			kind = Token::Kind::IDENT;
 
 		}else if(
 			this->char_stream.ammount_left() >= 2
 			&& (evo::isLetter(this->char_stream.peek(1)) || this->char_stream.peek(1) == '_')
 		){
 			if(this->char_stream.peek() == '@'){
-				kind = Token::Kind::Intrinsic;
+				kind = Token::Kind::INTRINSIC;
 				this->char_stream.skip(1);
 
 			}else if(this->char_stream.peek() == '#'){
-				kind = Token::Kind::Attribute;
+				kind = Token::Kind::ATTRIBUTE;
 				this->char_stream.skip(1);
 			}else{
 				return false;
@@ -267,18 +267,18 @@ namespace pcit::panther{
 
 		auto ident_name = std::string_view(string_start_ptr, this->char_stream.peek_raw_ptr() - string_start_ptr);
 
-		if(kind == Token::Kind::Ident){
+		if(kind == Token::Kind::IDENT){
 			if(ident_name == "true") [[unlikely]] {
-				this->create_token(Token::Kind::LiteralBool, true);
+				this->create_token(Token::Kind::LITERAL_BOOL, true);
 
 			}else if(ident_name == "false") [[unlikely]] {
-				this->create_token(Token::Kind::LiteralBool, false);
+				this->create_token(Token::Kind::LITERAL_BOOL, false);
 
 			}else if(ident_name == "move") [[unlikely]] {
 				if(this->char_stream.peek() == '!'){
-					this->create_token(Token::Kind::KeywordDestructiveMove);
+					this->create_token(Token::Kind::KEYWORD_DESTRUCTIVE_MOVE);
 				}else{
-					this->create_token(Token::Kind::KeywordMove);
+					this->create_token(Token::Kind::KEYWORD_MOVE);
 				}
 
 				return true;
@@ -305,7 +305,7 @@ namespace pcit::panther{
 							if(current_location.isError()){ return; }
 
 							this->emit_error(
-								Diagnostic::Code::TokInvalidIntegerWidth,
+								Diagnostic::Code::TOK_INVALID_INTEGER_WIDTH,
 								current_location.value(),
 								"Integer bit-width is too large",
 								Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
@@ -316,7 +316,7 @@ namespace pcit::panther{
 							if(current_location.isError()){ return; }
 
 							this->emit_error(
-								Diagnostic::Code::TokInvalidIntegerWidth,
+								Diagnostic::Code::TOK_INVALID_INTEGER_WIDTH,
 								current_location.value(),
 								"Integer bit-width cannot be 0"
 							);
@@ -327,24 +327,24 @@ namespace pcit::panther{
 					}
 
 					switch(bitwidth.error()){
-						case StrToNumError::OutOfRange: {
+						case StrToNumError::OUT_OF_RANGE: {
 							const evo::Result<Source::Location> current_location = this->get_current_location_token();
 							if(current_location.isError()){ return; }
 
 							this->emit_error(
-								Diagnostic::Code::TokInvalidIntegerWidth,
+								Diagnostic::Code::TOK_INVALID_INTEGER_WIDTH,
 								current_location.value(),
 								"Integer bit-width is too large",
 								Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
 							);
 						} break;
 
-						case StrToNumError::Invalid: {
+						case StrToNumError::INVALID: {
 							const evo::Result<Source::Location> current_location = this->get_current_location_token();
 							if(current_location.isError()){ return; }
 
 							this->emit_fatal(
-								Diagnostic::Code::TokUnknownFailureToTokenizeNum,
+								Diagnostic::Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
 								current_location.value(),
 								Diagnostic::createFatalMessage("Attempted to tokenize invalid integer bit-width")
 							);
@@ -354,9 +354,9 @@ namespace pcit::panther{
 
 				if(ident_name.size() > 1){
 					if(ident_name[0] == 'I'){
-						parse_integer(Token::Kind::TypeI_N, 1);
+						parse_integer(Token::Kind::TYPE_I_N, 1);
 					}else if(ident_name.size() > 2 && ident_name[0] == 'U' && ident_name[1] == 'I'){
-						parse_integer(Token::Kind::TypeUI_N, 2);
+						parse_integer(Token::Kind::TYPE_UI_N, 2);
 					}
 				}
 
@@ -367,7 +367,7 @@ namespace pcit::panther{
 					const auto keyword_map_iter = keyword_map.find(ident_name);
 
 					if(keyword_map_iter == keyword_end){
-						this->create_token(Token::Kind::Ident, ident_name);
+						this->create_token(Token::Kind::IDENT, ident_name);
 
 					}else{
 						this->create_token(keyword_map_iter->second);
@@ -385,23 +385,23 @@ namespace pcit::panther{
 
 	auto Tokenizer::tokenize_punctuation() -> bool {
 		const char peeked_char = this->char_stream.peek();
-		Token::Kind tok_kind = Token::Kind::None;
+		Token::Kind tok_kind = Token::Kind::NONE;
 
 		switch(peeked_char){
-			break; case '(': tok_kind = Token::Kind::OpenParen;
-			break; case ')': tok_kind = Token::Kind::CloseParen;
-			break; case '[': tok_kind = Token::Kind::OpenBracket;
-			break; case ']': tok_kind = Token::Kind::CloseBracket;
-			break; case '{': tok_kind = Token::Kind::OpenBrace;
-			break; case '}': tok_kind = Token::Kind::CloseBrace;
+			break; case '(': tok_kind = Token::Kind::OPEN_PAREN;
+			break; case ')': tok_kind = Token::Kind::CLOSE_PAREN;
+			break; case '[': tok_kind = Token::Kind::OPEN_BRACKET;
+			break; case ']': tok_kind = Token::Kind::CLOSE_BRACKET;
+			break; case '{': tok_kind = Token::Kind::OPEN_BRACE;
+			break; case '}': tok_kind = Token::Kind::CLOSE_BRACE;
 
-			break; case ',': tok_kind = Token::Kind::Comma;
-			break; case ';': tok_kind = Token::Kind::SemiColon;
-			break; case ':': tok_kind = Token::Kind::Colon;
-			break; case '?': tok_kind = Token::Kind::QuestionMark;
+			break; case ',': tok_kind = Token::Kind::COMMA;
+			break; case ';': tok_kind = Token::Kind::SEMICOLON;
+			break; case ':': tok_kind = Token::Kind::COLON;
+			break; case '?': tok_kind = Token::Kind::QUESTION_MARK;
 		}
 
-		if(tok_kind == Token::Kind::None){ return false; }
+		if(tok_kind == Token::Kind::NONE){ return false; }
 
 		this->char_stream.skip(1);
 
@@ -810,7 +810,7 @@ namespace pcit::panther{
 				if(current_location.isError()){ return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TokLiteralLeadingZero,
+					Diagnostic::Code::TOK_LITERAL_LEADING_ZERO,
 					current_location.value(),
 					"Leading zeros in literal numbers are not supported",
 					Diagnostic::Info("Note: the literal integer prefix for base-8 is \"0o\"")
@@ -837,7 +837,7 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TokLiteralNumMultipleDecimalPoints,
+						Diagnostic::Code::TOK_LITERAL_NUM_MULTIPLE_DECIMAL_POINTS,
 						current_location.value(),
 						"Cannot have multiple decimal points in a floating-point literal"
 					);
@@ -846,7 +846,7 @@ namespace pcit::panther{
 
 				if(base == 2){
 					this->emit_error(
-						Diagnostic::Code::TokInvalidFPBase,
+						Diagnostic::Code::TOK_INVALID_FPBASE,
 						Source::Location(
 							this->source.getID(),
 							this->current_token_line_start, this->current_token_line_start,
@@ -858,7 +858,7 @@ namespace pcit::panther{
 
 				}else if(base == 8){
 					this->emit_error(
-						Diagnostic::Code::TokInvalidFPBase,
+						Diagnostic::Code::TOK_INVALID_FPBASE,
 						Source::Location(
 							this->source.getID(),
 							this->current_token_line_start, this->current_token_line_start,
@@ -886,7 +886,7 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TokInvalidNumDigit,
+						Diagnostic::Code::TOK_INVALID_NUM_DIGIT,
 						current_location.value(),
 						"Base-2 numbers should only have digits 0 and 1"
 					);
@@ -905,7 +905,7 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TokInvalidNumDigit,
+						Diagnostic::Code::TOK_INVALID_NUM_DIGIT,
 						current_location.value(),
 						"Base-8 numbers should only have digits 0-7"
 					);
@@ -927,7 +927,7 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TokInvalidNumDigit,
+						Diagnostic::Code::TOK_INVALID_NUM_DIGIT,
 						current_location.value(),
 						"Base-10 numbers should only have digits 0-9",
 						Diagnostic::Info("Note: The prefix for hexidecimal numbers (base-16) is \"0x\"")
@@ -954,7 +954,7 @@ namespace pcit::panther{
 			if(current_location.isError()){ return true; }
 
 			this->emit_error(
-				Diagnostic::Code::TokFloatLiteralEndingInPeriod,
+				Diagnostic::Code::TOK_FLOAT_LITERAL_ENDING_IN_PERIOD,
 				current_location.value(),
 				"Float literal cannot end in a `.`",
 				Diagnostic::Info("Maybe add a `0` to the end")
@@ -988,7 +988,7 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TokInvalidNumDigit,
+						Diagnostic::Code::TOK_INVALID_NUM_DIGIT,
 						current_location.value(),
 						"Literal number exponents should only have digits 0-9"
 					);
@@ -1015,12 +1015,12 @@ namespace pcit::panther{
 				exponent_number = converted_exponent_number.value();	
 			}else{
 				switch(converted_exponent_number.error()){
-					case StrToNumError::OutOfRange: {
+					case StrToNumError::OUT_OF_RANGE: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
 						if(current_location.isError()){ return true; }
 
 						this->emit_error(
-							Diagnostic::Code::TokLiteralNumTooBig,
+							Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
 							current_location.value(),
 							"Literal number exponent too large to fit into a I64."
 							"This limitation will be removed when the compiler is self hosted."
@@ -1028,12 +1028,12 @@ namespace pcit::panther{
 						return true;
 					} break;
 
-					case StrToNumError::Invalid: {
+					case StrToNumError::INVALID: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
 						if(current_location.isError()){ return true; }
 
 						this->emit_fatal(
-							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
+							Diagnostic::Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
 							current_location.value(),
 							Diagnostic::createFatalMessage("Tried to convert invalid integer string for exponent")
 						);
@@ -1057,7 +1057,7 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TokLiteralNumTooBig,
+						Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
 						current_location.value(),
 						"Literal floating-point number too large to fit into an F64",
 						Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
@@ -1073,7 +1073,7 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TokLiteralNumTooBig,
+						Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
 						current_location.value(),
 						"Literal number integer too large to fit into a UI64",
 						Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
@@ -1094,12 +1094,12 @@ namespace pcit::panther{
 
 			if(converted_parsed_number.has_value() == false){
 				switch(converted_parsed_number.error()){
-					case StrToNumError::OutOfRange: {
+					case StrToNumError::OUT_OF_RANGE: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
 						if(current_location.isError()){ return true; }
 
 						this->emit_error(
-							Diagnostic::Code::TokLiteralNumTooBig,
+							Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
 							current_location.value(),
 							"Literal floating-point too large to fit into an F64",
 							Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
@@ -1107,12 +1107,12 @@ namespace pcit::panther{
 						return true;
 					} break;
 
-					case StrToNumError::Invalid: {
+					case StrToNumError::INVALID: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
 						if(current_location.isError()){ return true; }
 
 						this->emit_fatal(
-							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
+							Diagnostic::Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
 							current_location.value(),
 							Diagnostic::createFatalMessage("Tried to convert invalid literal floating-point number")
 						);
@@ -1131,7 +1131,7 @@ namespace pcit::panther{
 				if(current_location.isError()){ return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TokLiteralNumTooBig,
+					Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
 					current_location.value(),
 					"Literal number integer too large to fit into an F64",
 					Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
@@ -1145,7 +1145,7 @@ namespace pcit::panther{
 				output_number *= std::pow(10, exponent_number);
 			}
 
-			this->create_token(Token::Kind::LiteralFloat, output_number);
+			this->create_token(Token::Kind::LITERAL_FLOAT, output_number);
 
 
 		}else{
@@ -1154,12 +1154,12 @@ namespace pcit::panther{
 
 			if(converted_parsed_number.has_value() == false){
 				switch(converted_parsed_number.error()){
-					case StrToNumError::OutOfRange: {
+					case StrToNumError::OUT_OF_RANGE: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
 						if(current_location.isError()){ return true; }
 
 						this->emit_error(
-							Diagnostic::Code::TokLiteralNumTooBig,
+							Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
 							current_location.value(),
 							"Literal integer too large to fit into a UI64",
 							Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
@@ -1167,12 +1167,12 @@ namespace pcit::panther{
 						return true;
 					} break;
 
-					case StrToNumError::Invalid: {
+					case StrToNumError::INVALID: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
 						if(current_location.isError()){ return true; }
 
 						this->emit_fatal(
-							Diagnostic::Code::TokUnknownFailureToTokenizeNum,
+							Diagnostic::Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
 							current_location.value(),
 							Diagnostic::createFatalMessage("Tried to convert invalid literal integer")
 						);
@@ -1187,7 +1187,7 @@ namespace pcit::panther{
 				output_number *= uint64_t(std::pow(10, exponent_number));
 			}
 
-			this->create_token(Token::Kind::LiteralInt, output_number);
+			this->create_token(Token::Kind::LITERAL_INT, output_number);
 		}
 
 		return true;
@@ -1229,7 +1229,7 @@ namespace pcit::panther{
 						if(current_location.isError()){ return true; }
 
 						this->emit_error(
-							Diagnostic::Code::TokUnterminatedTextEscapeSequence,
+							Diagnostic::Code::TOK_UNTERMINATED_TEXT_ESCAPE_SEQUENCE,
 							current_location.value(),
 							std::format("Unknown string escape code '\\{}'", this->char_stream.peek(1))
 						);
@@ -1266,7 +1266,7 @@ namespace pcit::panther{
 				if(collumn_result.isError()){ this->error_collumn_too_big(); return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TokUnterminatedMultilineComment,
+					Diagnostic::Code::TOK_UNTERMINATED_MULTILINE_COMMENT,
 					Source::Location(
 						this->source.getID(),
 						this->current_token_line_start, line_result.value(),
@@ -1289,7 +1289,7 @@ namespace pcit::panther{
 				if(current_location.isError()){ return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TokInvalidChar,
+					Diagnostic::Code::TOK_INVALID_CHAR,
 					current_location.value(),
 					"Literal character cannot be empty"
 				);
@@ -1302,7 +1302,7 @@ namespace pcit::panther{
 				if(current_location.isError()){ return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TokInvalidChar,
+					Diagnostic::Code::TOK_INVALID_CHAR,
 					current_location.value(),
 					"Literal character must be only 1 character"
 				);
@@ -1314,16 +1314,16 @@ namespace pcit::panther{
 				if(current_location.isError()){ return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TokInvalidChar,
+					Diagnostic::Code::TOK_INVALID_CHAR,
 					current_location.value(),
 					"Illegal character literal character"
 				);
 				return true;
 			}
 
-			this->create_token(Token::Kind::LiteralChar, literal_value[0]);
+			this->create_token(Token::Kind::LITERAL_CHAR, literal_value[0]);
 		}else{
-			this->create_token(Token::Kind::LiteralString, literal_value);
+			this->create_token(Token::Kind::LITERAL_STRING, literal_value);
 		}
 
 
@@ -1371,7 +1371,7 @@ namespace pcit::panther{
 		if(current_location.isError()){ return true; }
 
 		this->emit_error(
-			Diagnostic::Code::TokFileTooLarge,
+			Diagnostic::Code::TOK_FILE_TOO_LARGE,
 			current_location.value(),
 			"File too large",
 			Diagnostic::Info(std::format("Source files can have a maximum of {} (2^32-2) tokens", MAX_TOKENS))
@@ -1430,7 +1430,7 @@ namespace pcit::panther{
 			if(current_location.isError()){ return; }
 
 			this->emit_error(
-				Diagnostic::Code::TokUnrecognizedCharacter,
+				Diagnostic::Code::TOK_UNRECOGNIZED_CHARACTER,
 				current_location.value(),
 				std::format(
 					"Unrecognized or unexpected character \"{}\" (charcode: {})",
@@ -1454,7 +1454,7 @@ namespace pcit::panther{
 			if(current_location.isError()){ return; }
 
 			this->emit_error(
-				Diagnostic::Code::TokUnrecognizedCharacter,
+				Diagnostic::Code::TOK_UNRECOGNIZED_CHARACTER,
 				current_location.value(),
 				std::format(
 					"Unrecognized character (non-standard utf-8 character)",
@@ -1537,7 +1537,7 @@ namespace pcit::panther{
 		if(current_location.isError()){ return; }
 
 		this->emit_error(
-			Diagnostic::Code::TokUnrecognizedCharacter,
+			Diagnostic::Code::TOK_UNRECOGNIZED_CHARACTER,
 			current_location.value(),
 			std::format("Unrecognized character \"{}\" (UTF-8 code: {})", utf8_str, utf8_charcodes_str)
 		);
@@ -1547,7 +1547,7 @@ namespace pcit::panther{
 
 	auto Tokenizer::error_line_too_big() -> void {
 		this->emit_error(
-			Diagnostic::Code::TokFileLocationLimitOOB,
+			Diagnostic::Code::TOK_FILE_LOCATION_LIMIT_OOB,
 			Source::Location(
 				this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
 			),
@@ -1564,7 +1564,7 @@ namespace pcit::panther{
 
 	auto Tokenizer::error_collumn_too_big() -> void {
 		this->emit_error(
-			Diagnostic::Code::TokFileLocationLimitOOB,
+			Diagnostic::Code::TOK_FILE_LOCATION_LIMIT_OOB,
 			Source::Location(
 				this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
 			),

@@ -124,9 +124,9 @@ namespace pcit::panther{
 				-> void;
 
 			enum class GetExprMode{
-				Register,
-				Pointer,
-				Store,
+				REGISTER,
+				POINTER,
+				STORE,
 			};
 
 			template<GetExprMode MODE>

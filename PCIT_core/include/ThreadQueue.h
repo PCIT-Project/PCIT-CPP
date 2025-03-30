@@ -132,21 +132,21 @@ namespace pcit::core{
 					Worker(ThreadQueue& _thread_queue) 
 						: thread_queue(_thread_queue), thread([this](std::stop_token stop) -> void {
 							while(stop.stop_requested() == false){
-								this->working_state = WorkingState::Checking;
+								this->working_state = WorkingState::CHECKING;
 
 								std::optional<TASK> task = this->thread_queue.get_task();
 								if(task.has_value() == false){
-									this->working_state = WorkingState::NotWorking;
+									this->working_state = WorkingState::NOT_WORKING;
 									std::this_thread::yield();
 									continue;
 								}
 
-								this->working_state = WorkingState::Working;
+								this->working_state = WorkingState::WORKING;
 
 								const bool work_res = this->thread_queue._work_func(*task);
 								if(work_res == false){
 									this->thread_queue.signal_task_failed();
-									this->working_state = WorkingState::NotWorking;
+									this->working_state = WorkingState::NOT_WORKING;
 									std::this_thread::yield();
 								}
 							}
@@ -161,8 +161,8 @@ namespace pcit::core{
 
 
 					EVO_NODISCARD auto is_working() const -> bool {
-						while(this->working_state == WorkingState::Checking){}
-						return this->working_state == WorkingState::Working;
+						while(this->working_state == WorkingState::CHECKING){}
+						return this->working_state == WorkingState::WORKING;
 					}
 
 					auto request_stop() -> void {
@@ -175,12 +175,12 @@ namespace pcit::core{
 
 
 					enum class WorkingState{
-						Working,
-						Checking,
-						NotWorking,
+						WORKING,
+						CHECKING,
+						NOT_WORKING,
 					};
 
-					std::atomic<WorkingState> working_state = WorkingState::Working;
+					std::atomic<WorkingState> working_state = WorkingState::WORKING;
 			};
 
 

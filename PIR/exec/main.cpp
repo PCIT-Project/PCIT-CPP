@@ -64,8 +64,7 @@ auto main(int argc, const char* argv[]) -> int {
 		evo::log::setDefaultThreadSaferCallback();
 	#endif
 
-	const bool print_color = pcit::core::Printer::platformSupportsColor() == pcit::core::Printer::DetectResult::Yes;
-	auto printer = pcit::core::Printer::createConsole(print_color);
+	auto printer = pcit::core::Printer::createConsole();
 
 	print_title(printer);
 
@@ -87,7 +86,7 @@ auto main(int argc, const char* argv[]) -> int {
 		if(pcit::core::windows::isDebuggerPresent()){
 			static auto at_exit_call = [&]() -> void {
 				// not using printer because it should always go to stdout
-				if(print_color){
+				if(printer.isPrintingColor()){
 					evo::printGray("Press [Enter] to close...");
 				}else{
 					evo::print("Press [Enter] to close...");
@@ -112,7 +111,7 @@ auto main(int argc, const char* argv[]) -> int {
 	const pcit::pir::GlobalVar::ID global = module.createGlobalVar(
 		"global",
 		module.createIntegerType(17),
-		pcit::pir::Linkage::Internal,
+		pcit::pir::Linkage::INTERNAL,
 		agent.createNumber(module.createIntegerType(17), pcit::core::GenericInt::create<uint64_t>(18)),
 		true
 	);
@@ -121,14 +120,14 @@ auto main(int argc, const char* argv[]) -> int {
 		"[NOT PRINTED] Hello World, I'm PIR!"
 	);
 	const pcit::pir::GlobalVar::ID global_str = module.createGlobalVar(
-		"string", module.getGlobalString(global_str_value).type, pcit::pir::Linkage::Private, global_str_value, true
+		"string", module.getGlobalString(global_str_value).type, pcit::pir::Linkage::PRIVATE, global_str_value, true
 	);
 
 	const pcit::pir::FunctionDecl::ID print_message_decl = module.createFunctionDecl(
 		"print_message",
 		evo::SmallVector<pcit::pir::Parameter>{pcit::pir::Parameter("str", module.createPtrType())},
 		pcit::pir::CallingConvention::C,
-		pcit::pir::Linkage::External,
+		pcit::pir::Linkage::EXTERNAL,
 		module.createVoidType()
 	);
 
@@ -137,7 +136,7 @@ auto main(int argc, const char* argv[]) -> int {
 	);
 
 	const pcit::pir::GlobalVar::ID vec2_value = module.createGlobalVar(
-		"vec2", vec2, pcit::pir::Linkage::Private, module.createGlobalStruct(vec2, {
+		"vec2", vec2, pcit::pir::Linkage::PRIVATE, module.createGlobalStruct(vec2, {
 			agent.createNumber(module.createFloatType(32), pcit::core::GenericFloat::createF32(12)),
 			agent.createNumber(module.createFloatType(32), pcit::core::GenericFloat::createF32(19)),
 		}), true
@@ -150,8 +149,8 @@ auto main(int argc, const char* argv[]) -> int {
 			// pcit::pir::Parameter("vec2", vec2),
 			// pcit::pir::Parameter("number", module.createIntegerType(64))
 		},
-		pcit::pir::CallingConvention::Fast,
-		pcit::pir::Linkage::External,
+		pcit::pir::CallingConvention::FAST,
+		pcit::pir::Linkage::EXTERNAL,
 		module.createIntegerType(64)
 	);
 	agent.setTargetFunction(entry_func_id);
@@ -187,9 +186,9 @@ auto main(int argc, const char* argv[]) -> int {
 		val_alloca,
 		agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(2)),
 		false,
-		pcit::pir::AtomicOrdering::Release
+		pcit::pir::AtomicOrdering::RELEASE
 	);
-	std::ignore = agent.createLoad(val_alloca, module.createIntegerType(64), true, pcit::pir::AtomicOrdering::Acquire);
+	std::ignore = agent.createLoad(val_alloca, module.createIntegerType(64), true, pcit::pir::AtomicOrdering::ACQUIRE);
 
 	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
@@ -215,8 +214,8 @@ auto main(int argc, const char* argv[]) -> int {
 	if(config.optimize){
 		printer.printlnGray("--------------------------------");
 
-		const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
-		// const unsigned num_threads = 0;
+		// const unsigned num_threads = pcit::pir::PassManager::optimalNumThreads();
+		const unsigned num_threads = 0;
 		auto pass_manager = pcit::pir::PassManager(module, num_threads);
 
 		pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
@@ -231,7 +230,7 @@ auto main(int argc, const char* argv[]) -> int {
 	}
 
 
-	const pcit::pir::OptMode opt_mode = config.optimize ? pcit::pir::OptMode::O3 : pcit::pir::OptMode::None;
+	const pcit::pir::OptMode opt_mode = config.optimize ? pcit::pir::OptMode::O3 : pcit::pir::OptMode::NONE;
 
 
 	printer.printlnGray("--------------------------------");

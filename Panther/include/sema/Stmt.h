@@ -30,74 +30,74 @@ namespace pcit::panther::sema{
 
 	struct Stmt{
 		enum class Kind : uint32_t {
-			GlobalVar,
-			FuncCall,
-			Assign,
-			MultiAssign,
-			Return,
-			Error,
-			Unreachable,
-			Conditional,
-			While,
+			GLOBAL_VAR,
+			FUNC_CALL,
+			ASSIGN,
+			MULTI_ASSIGN,
+			RETURN,
+			ERROR,
+			UNREACHABLE,
+			CONDITIONAL,
+			WHILE,
 		};
 
-		explicit Stmt(GlobalVarID global_var_id) : _kind(Kind::GlobalVar),   value{.global_var_id = global_var_id} {}
-		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FuncCall),    value{.func_call_id = func_call_id}   {}
-		explicit Stmt(AssignID assign_id)        : _kind(Kind::Assign),      value{.assign_id = assign_id}         {}
+		explicit Stmt(GlobalVarID global_var_id) : _kind(Kind::GLOBAL_VAR),   value{.global_var_id = global_var_id} {}
+		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FUNC_CALL),    value{.func_call_id = func_call_id}   {}
+		explicit Stmt(AssignID assign_id)        : _kind(Kind::ASSIGN),       value{.assign_id = assign_id}         {}
 		explicit Stmt(MultiAssignID multi_assign_id)
-			: _kind(Kind::MultiAssign), value{.multi_assign_id = multi_assign_id} {}
-		explicit Stmt(ReturnID return_id)        : _kind(Kind::Return),      value{.return_id = return_id}         {}
-		explicit Stmt(ErrorID error_id)          : _kind(Kind::Error),       value{.error_id = error_id}           {}
-		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::Conditional), value{.cond_id = cond_id}             {}
-		explicit Stmt(WhileID while_id)          : _kind(Kind::While),       value{.while_id = while_id}           {}
+			: _kind(Kind::MULTI_ASSIGN), value{.multi_assign_id = multi_assign_id} {}
+		explicit Stmt(ReturnID return_id)        : _kind(Kind::RETURN),      value{.return_id = return_id}         {}
+		explicit Stmt(ErrorID error_id)          : _kind(Kind::ERROR),       value{.error_id = error_id}           {}
+		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::CONDITIONAL), value{.cond_id = cond_id}             {}
+		explicit Stmt(WhileID while_id)          : _kind(Kind::WHILE),       value{.while_id = while_id}           {}
 
-		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::Unreachable); }
+		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::UNREACHABLE); }
 
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
 
 		EVO_NODISCARD auto globalVarID() const -> GlobalVarID {
-			evo::debugAssert(this->kind() == Kind::GlobalVar, "not a global_var");
+			evo::debugAssert(this->kind() == Kind::GLOBAL_VAR, "not a global_var");
 			return this->value.global_var_id;
 		}
 
 		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
-			evo::debugAssert(this->kind() == Kind::FuncCall, "not a func call");
+			evo::debugAssert(this->kind() == Kind::FUNC_CALL, "not a func call");
 			return this->value.func_call_id;
 		}
 
 		EVO_NODISCARD auto assignID() const -> AssignID {
-			evo::debugAssert(this->kind() == Kind::Assign, "not an assign");
+			evo::debugAssert(this->kind() == Kind::ASSIGN, "not an assign");
 			return this->value.assign_id;
 		}
 
 		EVO_NODISCARD auto multiAssignID() const -> MultiAssignID {
-			evo::debugAssert(this->kind() == Kind::MultiAssign, "not an assign");
+			evo::debugAssert(this->kind() == Kind::MULTI_ASSIGN, "not an assign");
 			return this->value.multi_assign_id;
 		}
 
 		EVO_NODISCARD auto returnID() const -> ReturnID {
-			evo::debugAssert(this->kind() == Kind::Return, "not an return");
+			evo::debugAssert(this->kind() == Kind::RETURN, "not an return");
 			return this->value.return_id;
 		}
 
 		EVO_NODISCARD auto errorID() const -> ErrorID {
-			evo::debugAssert(this->kind() == Kind::Error, "not an error");
+			evo::debugAssert(this->kind() == Kind::ERROR, "not an error");
 			return this->value.error_id;
 		}
 
 		EVO_NODISCARD auto unreachableID() const -> Token::ID {
-			evo::debugAssert(this->kind() == Kind::Unreachable, "not an unreachable");
+			evo::debugAssert(this->kind() == Kind::UNREACHABLE, "not an unreachable");
 			return this->value.token_id;
 		}
 
 		EVO_NODISCARD auto conditionalID() const -> ConditionalID {
-			evo::debugAssert(this->kind() == Kind::Conditional, "not an conditional");
+			evo::debugAssert(this->kind() == Kind::CONDITIONAL, "not an conditional");
 			return this->value.cond_id;
 		}
 
 		EVO_NODISCARD auto whileID() const -> WhileID {
-			evo::debugAssert(this->kind() == Kind::While, "not an while");
+			evo::debugAssert(this->kind() == Kind::WHILE, "not an while");
 			return this->value.while_id;
 		}
 

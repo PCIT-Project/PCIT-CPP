@@ -41,14 +41,14 @@ namespace pcit::panther{
 			class Result{
 				public:
 					enum class Code{
-						Success,
-						WrongType,
-						Error,
+						SUCCESS,
+						WRONG_TYPE,
+						ERROR,
 					};
 
 				public:
 					Result(Code res_code) : result_code(res_code) {}
-					Result(AST::Node val) : result_code(Code::Success), node(val) {}
+					Result(AST::Node val) : result_code(Code::SUCCESS), node(val) {}
 
 					// Result(const Result& rhs) = default;
 
@@ -57,7 +57,7 @@ namespace pcit::panther{
 					EVO_NODISCARD auto code() const -> Code { return this->result_code; }
 					EVO_NODISCARD auto value() const -> const AST::Node& {
 						evo::debugAssert(
-							this->result_code == Code::Success,
+							this->result_code == Code::SUCCESS,
 							"Attempted to get value from result that has no value"
 						);
 						return this->node;
@@ -93,18 +93,18 @@ namespace pcit::panther{
 
 
 			enum class BlockLabelRequirement{
-				Required,
-				NotAllowed,
-				Optional,
+				REQUIRED,
+				NOT_ALLOWED,
+				OPTIONAL,
 			};
 			// TODO: make label_requirement template?
 			EVO_NODISCARD auto parse_block(BlockLabelRequirement label_requirement) -> Result;
 
 			
 			enum class TypeKind{
-				Explicit,
-				Expr, // For use with `as`
-				TemplateArg,
+				EXPLICIT,
+				EXPR, // For use with `as`
+				TEMPLATE_ARG,
 			};
 			template<TypeKind KIND>
 			EVO_NODISCARD auto parse_type() -> Result;
@@ -117,10 +117,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_new_expr() -> Result;
 
 			enum class TermKind{
-				ExplicitType,
-				AsType,
-				Expr,
-				TemplateExpr,
+				EXPLICIT_TYPE,
+				AS_TYPE,
+				EXPR,
+				TEMPLATE_EXPR,
 			};
 			template<TermKind TERM_KIND>
 			EVO_NODISCARD auto parse_term() -> Result; 

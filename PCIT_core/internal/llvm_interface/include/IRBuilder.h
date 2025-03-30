@@ -29,23 +29,23 @@ namespace pcit::llvmint{
 	class IRBuilder{
 		public:
 			enum class IntrinsicID{
-				debugtrap,
+				DEBUG_TRAP,
 
-				saddSat,
-				saddOverflow,
-				smulFixSat,
-				smulOverflow,
-				sshlSat,
-				ssubSat,
-				ssubOverflow,
+				SADD_SAT,
+				SADD_OVERFLOW,
+				SMUL_FIX_SAT,
+				SMUL_OVERFLOW,
+				SSHL_SAT,
+				SSUB_SAT,
+				SSUB_OVERFLOW,
 
-				uaddSat,
-				uaddOverflow,
-				umulFixSat,
-				umulOverflow,
-				ushlSat,
-				usubSat,
-				usubOverflow,
+				UADD_SAT,
+				UADD_OVERFLOW,
+				UMUL_FIX_SAT,
+				UMUL_OVERFLOW,
+				USHL_SAT,
+				USUB_SAT,
+				USUB_OVERFLOW,
 			};
 
 		public:
@@ -295,7 +295,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getInfinityF128() const -> Constant;
 
 
-			EVO_NODISCARD auto getValueGlobalStrPtr(std::string_view str, evo::CStrProxy name = '\0') const -> Constant;
+			EVO_NODISCARD auto getValueGlobalStr(std::string_view str, evo::CStrProxy name = '\0') const -> Constant;
 
 			EVO_NODISCARD auto getValueGlobalStr(const std::string& value) const -> Constant;
 			EVO_NODISCARD auto getValueGlobalUndefValue(const Type& type) const -> Constant;

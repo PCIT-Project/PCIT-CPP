@@ -578,11 +578,11 @@ namespace pcit::panther{
 
 
 			enum class WaitOnResult{
-				NotNeeded,
-				Waiting,
-				WasErrored,
-				WasPassedOnByWhenCond,
-				CircularDepDetected,
+				NOT_NEEDED,
+				WAITING,
+				WAS_ERRORED,
+				WAS_PASSED_ON_BY_WHEN_COND,
+				CIRCULAR_DEP_DETECTED,
 			};
 
 			auto waitOnDeclIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;

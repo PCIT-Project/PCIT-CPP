@@ -34,7 +34,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto set(Token::ID location) -> bool {
 				if(this->set_location.has_value()){
 					this->sema.emit_error(
-						Diagnostic::Code::SemaAttributeAlreadySet,
+						Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
 						location,
 						std::format("Attribute #{} was already set", this->name),
 						Diagnostic::Info(
@@ -47,7 +47,7 @@ namespace pcit::panther{
 				if(this->implicitly_set_location.has_value()){
 					// TODO: make this warning turn-off-able in settings
 					this->sema.emit_warning(
-						Diagnostic::Code::SemaAttributeImplictSet,
+						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
 						location,
 						std::format("Attribute #{} was already implicitly set", this->name),
 						Diagnostic::Info(
@@ -66,7 +66,7 @@ namespace pcit::panther{
 				if(this->set_location.has_value()){
 					// TODO: make this warning turn-off-able in settings
 					this->sema.emit_warning(
-						Diagnostic::Code::SemaAttributeImplictSet,
+						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
 						this->set_location.value(),
 						std::format("Attribute #{} was implicitly set", this->name),
 						Diagnostic::Info(
@@ -107,7 +107,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto set(Token::ID location, bool cond) -> bool {
 				if(this->set_location.has_value()){
 					this->sema.emit_error(
-						Diagnostic::Code::SemaAttributeAlreadySet,
+						Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
 						location,
 						std::format("Attribute #{} was already set", this->name),
 						Diagnostic::Info(
@@ -120,7 +120,7 @@ namespace pcit::panther{
 				if(this->implicitly_set_location.has_value()){
 					// TODO: make this warning turn-off-able in settings
 					this->sema.emit_warning(
-						Diagnostic::Code::SemaAttributeImplictSet,
+						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
 						location,
 						std::format("Attribute #{} was already implicitly set", this->name),
 						Diagnostic::Info(
@@ -141,7 +141,7 @@ namespace pcit::panther{
 					if(this->is_set_true){
 						// TODO: make this warning turn-off-able in settings
 						this->sema.emit_warning(
-							Diagnostic::Code::SemaAttributeImplictSet,
+							Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
 							this->set_location.value(),
 							std::format("Attribute #{} was implicitly set", this->name),
 							Diagnostic::Info(
@@ -151,7 +151,7 @@ namespace pcit::panther{
 						return;
 					}else{
 						this->sema.emit_error(
-							Diagnostic::Code::SemaAttributeAlreadySet,
+							Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
 							this->set_location.value(),
 							std::format("Attribute #{} was implicitly set", this->name),
 							Diagnostic::Info(
@@ -210,11 +210,11 @@ namespace pcit::panther{
 			);
 
 			switch(this->analyze_instr(this->symbol_proc.getInstruction())){
-				case Result::Success: {
+				case Result::SUCCESS: {
 					this->symbol_proc.nextInstruction();
 				} break;
 
-				case Result::Error: {
+				case Result::ERROR: {
 					this->context.symbol_proc_manager.symbol_proc_done();
 					this->symbol_proc.errored = true;
 					if(this->symbol_proc.extra_info.is<SymbolProc::StructInfo>()){
@@ -224,7 +224,7 @@ namespace pcit::panther{
 					return;
 				} break;
 
-				case Result::RecoverableError: {
+				case Result::RECOVERABLE_ERROR: {
 					this->symbol_proc.errored = true;
 					if(this->symbol_proc.extra_info.is<SymbolProc::StructInfo>()){
 						SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
@@ -233,11 +233,11 @@ namespace pcit::panther{
 					this->symbol_proc.nextInstruction();
 				} break;
 
-				case Result::NeedToWait: {
+				case Result::NEED_TO_WAIT: {
 					return;
 				} break;
 
-				case Result::NeedToWaitBeforeNextInstr: {
+				case Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR: {
 					this->symbol_proc.nextInstruction();
 					return;
 				} break;
@@ -369,18 +369,18 @@ namespace pcit::panther{
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_decl: {}", this->symbol_proc.ident); });
 
 		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_params_info);
-		if(var_attrs.isError()){ return Result::Error; }
+		if(var_attrs.isError()){ return Result::ERROR; }
 
 
 		const TypeInfo::VoidableID got_type_info_id = this->get_type(instr.type_id);
 
 		if(got_type_info_id.isVoid()){
 			this->emit_error(
-				Diagnostic::Code::SemaVarTypeVoid,
+				Diagnostic::Code::SEMA_VAR_TYPE_VOID,
 				*instr.var_decl.type,
 				"Variables cannot be type `Void`"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
@@ -392,12 +392,12 @@ namespace pcit::panther{
 			var_attrs.value().is_pub
 		);
 
-		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::Error; }
+		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::ERROR; }
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::GlobalVarInfo>(new_sema_var);
 
 		this->propagate_finished_decl();
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -409,39 +409,39 @@ namespace pcit::panther{
 		TermInfo& value_term_info = this->get_term_info(instr.value_id);
 
 
-		if(value_term_info.value_category == TermInfo::ValueCategory::Initializer){
+		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
 			if(instr.var_decl.kind != AST::VarDecl::Kind::Var){
 				this->emit_error(
-					Diagnostic::Code::SemaVarInitializerOnNonVar,
+					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
 					instr.var_decl,
 					"Only `var` variables can be defined with an initializer value"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 		}else{
 			if(value_term_info.is_ephemeral() == false){
-				if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value) == false){ return Result::Error; }
+				if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value) == false){ return Result::ERROR; }
 
-				if(value_term_info.value_category == TermInfo::ValueCategory::Module){
+				if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
 					this->error_type_mismatch(
 						*sema_var.typeID, value_term_info, "Variable definition", *instr.var_decl.value
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 
 				this->emit_error(
-					Diagnostic::Code::SemaVarDefNotEphemeral,
+					Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
 					*instr.var_decl.value,
 					"Cannot define a variable with a non-ephemeral value"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 			
 			if(this->type_check<true>(
 				*sema_var.typeID, value_term_info, "Variable definition", *instr.var_decl.value
 			).ok == false){
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
@@ -453,7 +453,7 @@ namespace pcit::panther{
 		sema_to_pir.lowerGlobal(sema_var_id);
 
 		this->propagate_finished_def();
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -463,18 +463,18 @@ namespace pcit::panther{
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_decl_def: {}", this->symbol_proc.ident); });
 
 		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_params_info);
-		if(var_attrs.isError()){ return Result::Error; }
+		if(var_attrs.isError()){ return Result::ERROR; }
 
 
 		TermInfo& value_term_info = this->get_term_info(instr.value_id);
-		if(value_term_info.value_category == TermInfo::ValueCategory::Module){
+		if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
 			if(instr.var_decl.kind != AST::VarDecl::Kind::Def){
 				this->emit_error(
-					Diagnostic::Code::SemaModuleVarMustBeDef,
+					Diagnostic::Code::SEMA_MODULE_VAR_MUST_BE_DEF,
 					*instr.var_decl.value,
 					"Variable that has a module value must be declared as `def`"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			const bool is_redef = !this->add_ident_to_scope(
@@ -486,61 +486,61 @@ namespace pcit::panther{
 			);
 
 			this->propagate_finished_decl_def();
-			return is_redef ? Result::Error : Result::Success;
+			return is_redef ? Result::ERROR : Result::SUCCESS;
 		}
 
 
-		if(value_term_info.value_category == TermInfo::ValueCategory::Initializer){
+		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
 			if(instr.var_decl.kind != AST::VarDecl::Kind::Var){
 				this->emit_error(
-					Diagnostic::Code::SemaVarInitializerOnNonVar,
+					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
 					instr.var_decl,
 					"Only `var` variables can be defined with an initializer value"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SemaVarInitializerWithoutExplicitType,
+					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
 					*instr.var_decl.value,
 					"Cannot define a variable with an initializer value without an explicit type"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
 
 		if(value_term_info.is_ephemeral() == false){
-			if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value) == false){ return Result::Error; }
+			if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value) == false){ return Result::ERROR; }
 
 			this->emit_error(
-				Diagnostic::Code::SemaVarDefNotEphemeral,
+				Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
 				*instr.var_decl.value,
 				"Cannot define a variable with a non-ephemeral value"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 			
 		if(value_term_info.isMultiValue()){
 			this->emit_error(
-				Diagnostic::Code::SemaMultiReturnIntoSingleValue,
+				Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
 				*instr.var_decl.value,
 				"Cannot define a variable with multiple values"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		if(
 			instr.var_decl.kind != AST::VarDecl::Kind::Def &&
-			value_term_info.value_category == TermInfo::ValueCategory::EphemeralFluid
+			value_term_info.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
 		){
 			this->emit_error(
-				Diagnostic::Code::SemaCannotInferType,
+				Diagnostic::Code::SEMA_CANNOT_INFER_TYPE,
 				*instr.var_decl.value,
 				"Cannot infer the type of a fluid literal",
 				Diagnostic::Info("Did you mean this variable to be `def`? If not, give the variable an explicit type")
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 
@@ -549,15 +549,15 @@ namespace pcit::panther{
 
 			if(got_type_info_id.isVoid()){
 				this->emit_error(
-					Diagnostic::Code::SemaVarTypeVoid, *instr.var_decl.type, "Variables cannot be type `Void`"
+					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_decl.type, "Variables cannot be type `Void`"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			if(this->type_check<true>(
 				got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_decl.value
 			).ok == false){
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
@@ -577,17 +577,17 @@ namespace pcit::panther{
 			var_attrs.value().is_pub
 		);
 
-		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::Error; }
+		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::ERROR; }
 
 		this->propagate_finished_decl_def();
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
 
 	auto SemanticAnalyzer::instr_when_cond(const Instruction::WhenCond& instr) -> Result {
 		TermInfo& cond_term_info = this->get_term_info(instr.cond);
-		if(this->check_term_isnt_type(cond_term_info, instr.when_cond.cond) == false){ return Result::Error; }
+		if(this->check_term_isnt_type(cond_term_info, instr.when_cond.cond) == false){ return Result::ERROR; }
 
 		if(this->type_check<true>(
 			this->context.getTypeManager().getTypeBool(),
@@ -596,7 +596,7 @@ namespace pcit::panther{
 			instr.when_cond.cond
 		).ok == false){
 			// TODO: propgate error to children
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		SymbolProc::WhenCondInfo& when_cond_info = this->symbol_proc.extra_info.as<SymbolProc::WhenCondInfo>();
@@ -688,7 +688,7 @@ namespace pcit::panther{
 		}
 
 		this->propagate_finished_def();
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -708,11 +708,11 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(instr.attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true) == false){ return Result::Error; } 
+					if(attr_pub.set(attribute.attribute, true) == false){ return Result::ERROR; } 
 
 				}else if(instr.attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(instr.attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]) == false){ return Result::Error; }
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]) == false){ return Result::ERROR; }
 
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
@@ -720,30 +720,30 @@ namespace pcit::panther{
 						"Condition in #pub",
 						attribute.args[0]
 					).ok == false){
-						return Result::Error;
+						return Result::ERROR;
 					}
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return Result::Error; }
+					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return Result::ERROR; }
 
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SemaTooManyAttributeArgs,
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args[1],
 						"Attribute #pub does not accept more than 1 argument"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SemaUnknownAttribute,
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
 					attribute.attribute,
 					std::format("Unknown alias attribute #{}", attribute_str)
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
@@ -761,11 +761,11 @@ namespace pcit::panther{
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_decl.ident].getString();
 		if(this->add_ident_to_scope(ident_str, instr.alias_decl, created_alias.aliasID()) == false){
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		this->propagate_finished_decl();
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -780,18 +780,18 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
 		if(aliased_type.isVoid()){
 			this->emit_error(
-				Diagnostic::Code::SemaAliasCannotBeVoid,
+				Diagnostic::Code::SEMA_ALIAS_CANNOT_BE_VOID,
 				instr.alias_decl.type,
 				"Alias cannot be type `Void`"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 
 		alias_info.aliasedType = aliased_type.asTypeID();
 
 		this->propagate_finished_def();
-		return Result::Success;
+		return Result::SUCCESS;
 	};
 
 
@@ -801,7 +801,7 @@ namespace pcit::panther{
 
 		const evo::Result<StructAttrs> struct_attrs =
 			this->analyze_struct_attrs(instr.struct_decl, instr.attribute_params_info);
-		if(struct_attrs.isError()){ return Result::Error; }
+		if(struct_attrs.isError()){ return Result::ERROR; }
 
 
 		///////////////////////////////////
@@ -826,7 +826,7 @@ namespace pcit::panther{
 		if constexpr(IS_INSTANTIATION == false){
 			const std::string_view ident_str = this->source.getTokenBuffer()[instr.struct_decl.ident].getString();
 			if(this->add_ident_to_scope(ident_str, instr.struct_decl, created_struct.structID()) == false){
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
@@ -860,9 +860,9 @@ namespace pcit::panther{
 		this->propagate_finished_decl();
 
 		if(struct_info.stmts.empty()){
-			return Result::Success;
+			return Result::SUCCESS;
 		}else{
-			return Result::NeedToWaitBeforeNextInstr;
+			return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 		}
 	}
 
@@ -878,7 +878,7 @@ namespace pcit::panther{
 			this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id
 		].defCompleted = true;
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -898,11 +898,11 @@ namespace pcit::panther{
 				const TypeInfo::VoidableID type_info_voidable_id = this->get_type(*template_param_info.type_id);
 				if(type_info_voidable_id.isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SemaTemplateParamCannotBeTypeVoid,
+						Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 						template_param_info.param.type,
 						"Template parameter cannot be type `Void`"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 				type_id = type_info_voidable_id.asTypeID();
 			}
@@ -915,18 +915,18 @@ namespace pcit::panther{
 					if(default_value->isSingleValue() == false){
 						if(default_value->isMultiValue()){
 							this->emit_error(
-								Diagnostic::Code::SemaTemplateParamExprDefaultMustBeExpr,
+								Diagnostic::Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
 								*template_param_info.param.defaultValue,
 								"Default of an expression template parameter must be a single expression"
 							);	
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SemaTemplateParamExprDefaultMustBeExpr,
+								Diagnostic::Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
 								*template_param_info.param.defaultValue,
 								"Default of an expression template parameter must be an expression"
 							);
 						}
-						return Result::Error;
+						return Result::ERROR;
 					}
 
 					const TypeCheckInfo type_check_info = this->type_check<true>(
@@ -936,17 +936,17 @@ namespace pcit::panther{
 						*template_param_info.param.defaultValue
 					);
 					if(type_check_info.ok == false){
-						return Result::Error;
+						return Result::ERROR;
 					}
 
 				}else{
-					if(default_value->value_category != TermInfo::ValueCategory::Type){
+					if(default_value->value_category != TermInfo::ValueCategory::TYPE){
 						this->emit_error(
-							Diagnostic::Code::SemaTemplateParamTypeDefaultMustBeType,
+							Diagnostic::Code::SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE,
 							*template_param_info.param.defaultValue,
 							"Default of a `Type` template parameter must be an type"
 						);
-						return Result::Error;
+						return Result::ERROR;
 					}
 				}
 			}else{
@@ -956,7 +956,7 @@ namespace pcit::panther{
 			if(default_value == nullptr){
 				params.emplace_back(type_id, std::monostate());
 
-			}else if(default_value->value_category == TermInfo::ValueCategory::Type){
+			}else if(default_value->value_category == TermInfo::ValueCategory::TYPE){
 				params.emplace_back(type_id, default_value->type_id.as<TypeInfo::VoidableID>());
 
 			}else{
@@ -977,12 +977,12 @@ namespace pcit::panther{
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.struct_decl.ident].getString();
 		if(this->add_ident_to_scope(ident_str, instr.struct_decl, new_templated_struct) == false){
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		this->propagate_finished_decl_def();
 
-		return Result::Success;
+		return Result::SUCCESS;
 	};
 
 
@@ -993,7 +993,7 @@ namespace pcit::panther{
 
 		const evo::Result<FuncAttrs> func_attrs =
 			this->analyze_func_attrs(instr.func_decl, instr.attribute_params_info);
-		if(func_attrs.isError()){ return Result::Error; }
+		if(func_attrs.isError()){ return Result::ERROR; }
 
 
 		///////////////////////////////////
@@ -1012,7 +1012,7 @@ namespace pcit::panther{
 			const AST::FuncDecl::Param& param = instr.func_decl.params[i];
 			
 			evo::debugAssert(
-				symbol_proc_param_type_id.has_value() == (param.name.kind() != AST::Kind::This),
+				symbol_proc_param_type_id.has_value() == (param.name.kind() != AST::Kind::THIS),
 				"`this` is the only must not have a type, and everything else must have a type"
 			);
 
@@ -1022,9 +1022,9 @@ namespace pcit::panther{
 
 				if(param_type_id.isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SemaParamTypeVoid, *param.type, "Function parameter cannot be type `Void`"
+						Diagnostic::Code::SEMA_PARAM_TYPE_VOID, *param.type, "Function parameter cannot be type `Void`"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 
 				const bool should_copy = [&](){
@@ -1049,7 +1049,7 @@ namespace pcit::panther{
 							*instr.func_decl.params[i].defaultValue
 						).ok == false
 					){
-						return Result::Error;
+						return Result::ERROR;
 					}
 
 					sema_params.emplace_back(ast_buffer.getIdent(param.name), default_param_value.getExpr());
@@ -1067,11 +1067,11 @@ namespace pcit::panther{
 				if(current_type_scope.has_value() == false){
 					// TODO: better messaging
 					this->emit_error(
-						Diagnostic::Code::SemaInvalidScopeForThis,
+						Diagnostic::Code::SEMA_INVALID_SCOPE_FOR_THIS,
 						param.name,
 						"`this` parameters are only valid inside type scope"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 
 				current_type_scope->visit([&](const auto& type_scope) -> void {
@@ -1104,20 +1104,20 @@ namespace pcit::panther{
 			if(i == 0){
 				if(type_id.isVoid() && ast_return_param.ident.has_value()){
 					this->emit_error(
-						Diagnostic::Code::SemaNamedVoidReturn,
+						Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
 						*ast_return_param.ident,
 						"A function return parameter that is type `Void` cannot be named"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 			}else{
 				if(type_id.isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SemaNotFirstReturnVoid,
+						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
 						ast_return_param.type,
 						"Only the first function return parameter can be type `Void`"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 			}
 
@@ -1136,20 +1136,20 @@ namespace pcit::panther{
 			if(i == 0){
 				if(type_id.isVoid() && ast_error_return_param.ident.has_value()){
 					this->emit_error(
-						Diagnostic::Code::SemaNamedVoidReturn,
+						Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
 						*ast_error_return_param.ident,
 						"A function error return parameter that is type `Void` cannot be named"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 			}else{
 				if(type_id.isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SemaNotFirstReturnVoid,
+						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
 						ast_error_return_param.type,
 						"Only the first function error return parameter can be type `Void`"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 			}
 
@@ -1191,7 +1191,7 @@ namespace pcit::panther{
 			const Token::ID ident = this->source.getASTBuffer().getIdent(instr.func_decl.name);
 			const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
 			if(this->add_ident_to_scope(ident_str, instr.func_decl, created_func, this->context) == false){
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
@@ -1210,7 +1210,7 @@ namespace pcit::panther{
 
 		this->propagate_finished_decl();
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -1227,7 +1227,7 @@ namespace pcit::panther{
 
 			if(func_type.returnsVoid() == false){
 				this->emit_error(
-					Diagnostic::Code::SemaFuncIsntTerminated,
+					Diagnostic::Code::SEMA_FUNC_ISNT_TERMINATED,
 					instr.func_decl,
 					"Function isn't terminated",
 					Diagnostic::Info(
@@ -1235,7 +1235,7 @@ namespace pcit::panther{
 						"or a function call that has the attribute `#noReturn`"
 					)
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
@@ -1285,28 +1285,37 @@ namespace pcit::panther{
 				);
 
 				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NotNeeded:			  break;
-					case SymbolProc::WaitOnResult::Waiting:               any_waiting = true; break;
-					case SymbolProc::WaitOnResult::WasErrored:            return Result::Error;
-					case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: evo::debugFatalBreak("Shouldn't be possible");
-					case SymbolProc::WaitOnResult::CircularDepDetected:   evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::NOT_NEEDED:
+						break;
+
+					case SymbolProc::WaitOnResult::WAITING:
+						any_waiting = true; break;
+
+					case SymbolProc::WaitOnResult::WAS_ERRORED:
+						return Result::ERROR;
+
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						evo::debugFatalBreak("Shouldn't be possible");
+
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+						evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
 			if(any_waiting){
 				if(this->symbol_proc.shouldContinueRunning()){
-					return Result::Success;
+					return Result::SUCCESS;
 				}else{
-					return Result::NeedToWaitBeforeNextInstr;
+					return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 				}
 
 			}else{
-				return Result::Success;
+				return Result::SUCCESS;
 			}
 		}
 
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -1319,7 +1328,7 @@ namespace pcit::panther{
 
 		this->pop_scope_level(); // TODO: needed?
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -1340,11 +1349,11 @@ namespace pcit::panther{
 				const TypeInfo::VoidableID type_info_voidable_id = this->get_type(*template_param_info.type_id);
 				if(type_info_voidable_id.isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SemaTemplateParamCannotBeTypeVoid,
+						Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 						template_param_info.param.type,
 						"Template parameter cannot be type `Void`"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 				type_id = type_info_voidable_id.asTypeID();
 			}
@@ -1357,18 +1366,18 @@ namespace pcit::panther{
 					if(default_value->isSingleValue() == false){
 						if(default_value->isMultiValue()){
 							this->emit_error(
-								Diagnostic::Code::SemaTemplateParamExprDefaultMustBeExpr,
+								Diagnostic::Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
 								*template_param_info.param.defaultValue,
 								"Default of an expression template parameter must be a single expression"
 							);	
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SemaTemplateParamExprDefaultMustBeExpr,
+								Diagnostic::Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
 								*template_param_info.param.defaultValue,
 								"Default of an expression template parameter must be an expression"
 							);
 						}
-						return Result::Error;
+						return Result::ERROR;
 					}
 
 					const TypeCheckInfo type_check_info = this->type_check<true>(
@@ -1378,17 +1387,17 @@ namespace pcit::panther{
 						*template_param_info.param.defaultValue
 					);
 					if(type_check_info.ok == false){
-						return Result::Error;
+						return Result::ERROR;
 					}
 
 				}else{
-					if(default_value->value_category != TermInfo::ValueCategory::Type){
+					if(default_value->value_category != TermInfo::ValueCategory::TYPE){
 						this->emit_error(
-							Diagnostic::Code::SemaTemplateParamTypeDefaultMustBeType,
+							Diagnostic::Code::SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE,
 							*template_param_info.param.defaultValue,
 							"Default of a `Type` template parameter must be an type"
 						);
-						return Result::Error;
+						return Result::ERROR;
 					}
 				}
 			}else{
@@ -1398,7 +1407,7 @@ namespace pcit::panther{
 			if(default_value == nullptr){
 				params.emplace_back(type_id, std::monostate());
 
-			}else if(default_value->value_category == TermInfo::ValueCategory::Type){
+			}else if(default_value->value_category == TermInfo::ValueCategory::TYPE){
 				params.emplace_back(type_id, default_value->type_id.as<TypeInfo::VoidableID>());
 
 			}else{
@@ -1406,7 +1415,7 @@ namespace pcit::panther{
 			}
 		}
 
-		evo::debugAssert(instr.func_decl.name.kind() == AST::Kind::Ident, "templated overloads are not allowed");
+		evo::debugAssert(instr.func_decl.name.kind() == AST::Kind::IDENT, "templated overloads are not allowed");
 		const Token::ID ident = this->source.getASTBuffer().getIdent(instr.func_decl.name);
 		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
 		
@@ -1415,26 +1424,26 @@ namespace pcit::panther{
 		);
 
 		if(this->add_ident_to_scope(ident_str, instr.func_decl, new_templated_func) == false){
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		this->propagate_finished_decl_def();
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
 
 	auto SemanticAnalyzer::instr_return(const Instruction::Return& instr) -> Result {
-		if(this->check_scope_isnt_terminated(instr.return_stmt) == false){ return Result::Error; }
+		if(this->check_scope_isnt_terminated(instr.return_stmt) == false){ return Result::ERROR; }
 
 		if(instr.return_stmt.label.has_value()){
 			this->emit_error(
-				Diagnostic::Code::MiscUnimplementedFeature,
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				instr.return_stmt.label.value(),
 				"return statements with labels are currently unsupported"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		const sema::Func& current_func = this->get_current_func();
@@ -1445,21 +1454,21 @@ namespace pcit::panther{
 		if(instr.return_stmt.value.is<std::monostate>()){ // return;
 			if(current_func_type.returnsVoid() == false){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Functions that have a return type other than `Void` must return a value"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			if(current_func_type.hasNamedReturns()){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Incorrect return statement kind for a function named return parameters",
 					Diagnostic::Info("Set all return values and use \"return...;\" instead")
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 			
 		}else if(instr.return_stmt.value.is<AST::Node>()){ // return {EXPRESSION};
@@ -1467,21 +1476,21 @@ namespace pcit::panther{
 
 			if(current_func_type.returnsVoid()){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Functions that have a return type of `Void` cannot return a value"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			if(current_func_type.hasNamedReturns()){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Incorrect return statement kind for a function named return parameters",
 					Diagnostic::Info("Set all return values and use \"return...;\" instead")
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 
@@ -1489,11 +1498,11 @@ namespace pcit::panther{
 
 			if(return_value_term.is_ephemeral() == false){
 				this->emit_error(
-					Diagnostic::Code::SemaReturnNotEphemeral,
+					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
 					instr.return_stmt.value.as<AST::Node>(),
 					"Value of return statement is not ephemeral"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			if(this->type_check<true>(
@@ -1502,7 +1511,7 @@ namespace pcit::panther{
 				"Return",
 				instr.return_stmt.value.as<AST::Node>()
 			).ok == false){
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			return_value = return_value_term.getExpr();
@@ -1512,21 +1521,21 @@ namespace pcit::panther{
 
 			if(current_func_type.returnsVoid()){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Functions that have a return type of `Void` cannot return a value"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			if(current_func_type.hasNamedReturns() == false){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Incorrect return statement kind for single unnamed return parameters",
 					Diagnostic::Info("Use \"return {EXPRESSION};\" instead")
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
@@ -1535,14 +1544,14 @@ namespace pcit::panther{
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
 		this->get_current_scope_level().setTerminated();
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
 
 
 	auto SemanticAnalyzer::instr_error(const Instruction::Error& instr) -> Result {
-		if(this->check_scope_isnt_terminated(instr.error_stmt) == false){ return Result::Error; }
+		if(this->check_scope_isnt_terminated(instr.error_stmt) == false){ return Result::ERROR; }
 
 		const sema::Func& current_func = this->get_current_func();
 		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
@@ -1550,11 +1559,11 @@ namespace pcit::panther{
 
 		if(current_func_type.hasErrorReturn() == false){
 			this->emit_error(
-				Diagnostic::Code::SemaErrorInFuncWithoutErrors,
+				Diagnostic::Code::SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS,
 				instr.error_stmt,
 				"Cannot error return in a function that does not have error returns"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 
@@ -1562,12 +1571,12 @@ namespace pcit::panther{
 		if(instr.error_stmt.value.is<std::monostate>()){ // error;
 			if(current_func_type.hasErrorReturnParams()){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.error_stmt,
 					"Incorrect error return statement kind for a function named error return parameters",
 					Diagnostic::Info("Set all error return values and use \"error...;\" instead")
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 			
 		}else if(instr.error_stmt.value.is<AST::Node>()){ // error {EXPRESSION};
@@ -1575,12 +1584,12 @@ namespace pcit::panther{
 
 			if(current_func_type.hasNamedErrorReturns()){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.error_stmt,
 					"Incorrect error return statement kind for a function named error return parameters",
 					Diagnostic::Info("Set all error return values and use \"error...;\" instead")
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 
@@ -1588,11 +1597,11 @@ namespace pcit::panther{
 
 			if(error_value_term.is_ephemeral() == false){
 				this->emit_error(
-					Diagnostic::Code::SemaReturnNotEphemeral,
+					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
 					instr.error_stmt.value.as<AST::Node>(),
 					"Value of error return statement is not ephemeral"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			if(this->type_check<true>(
@@ -1601,7 +1610,7 @@ namespace pcit::panther{
 				"Error return",
 				instr.error_stmt.value.as<AST::Node>()
 			).ok == false){
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			error_value = error_value_term.getExpr();
@@ -1611,12 +1620,12 @@ namespace pcit::panther{
 
 			if(current_func_type.hasNamedErrorReturns() == false){
 				this->emit_error(
-					Diagnostic::Code::SemaIncorrectReturnStmtKind,
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.error_stmt,
 					"Incorrect error return statement kind for single unnamed error return parameters",
 					Diagnostic::Info("Use \"error {EXPRESSION};\" instead")
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 		}
 
@@ -1625,7 +1634,7 @@ namespace pcit::panther{
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_error_id);
 		this->get_current_scope_level().setTerminated();
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -1634,23 +1643,23 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result {
 		this->return_term_info(instr.to,
-			TermInfo::ValueCategory::Type, TermInfo::ValueStage::Constexpr, this->get_type(instr.from), std::nullopt
+			TermInfo::ValueCategory::TYPE, TermInfo::ValueStage::CONSTEXPR, this->get_type(instr.from), std::nullopt
 		);
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
-	template<bool IS_CONSTEXPR> // TODO: needed?
+	template<bool IS_CONSTEXPR>
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall<IS_CONSTEXPR>& instr) -> Result {
 		const TermInfo target_term_info = this->get_term_info(instr.target);
 
-		if(target_term_info.value_category != TermInfo::ValueCategory::Function){
+		if(target_term_info.value_category != TermInfo::ValueCategory::FUNCTION){
 			this->emit_error(
-				Diagnostic::Code::SemaCannotCallLikeFunction,
+				Diagnostic::Code::SEMA_CANNOT_CALL_LIKE_FUNCTION,
 				instr.func_call.target,
 				"Cannot call expression like a function"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 
@@ -1669,23 +1678,23 @@ namespace pcit::panther{
 			TermInfo& arg_term_info = this->get_term_info(arg);
 
 			if constexpr(IS_CONSTEXPR){
-				if(arg_term_info.value_stage != TermInfo::ValueStage::Constexpr){
+				if(arg_term_info.value_stage != TermInfo::ValueStage::CONSTEXPR){
 					this->emit_error(
-						Diagnostic::Code::SemaExprNotConstexpr,
+						Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
 						instr.func_call.args[i].value,
 						"Arguments in a constexpr function call must have a value stage of constexpr",
 						Diagnostic::Info(
 							std::format(
 								"Value stage of the argument is {}",
-								arg_term_info.value_stage == TermInfo::ValueStage::Comptime ? "comptime" : "runtime"
+								arg_term_info.value_stage == TermInfo::ValueStage::COMPTIME ? "comptime" : "runtime"
 							)
 						)
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 			}else{
 				if(this->expr_in_func_is_valid_value_stage(arg_term_info, instr.func_call.args[i].value) == false){
-					return Result::Error;
+					return Result::ERROR;
 				}
 			}
 
@@ -1697,7 +1706,7 @@ namespace pcit::panther{
 		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
 			func_infos, arg_infos, instr.func_call.target
 		);
-		if(selected_func_overload_index.isError()){ return Result::Error; }
+		if(selected_func_overload_index.isError()){ return Result::ERROR; }
 
 
 		const sema::Func::ID selected_func_id = func_infos[selected_func_overload_index.value()].func_id;
@@ -1722,12 +1731,12 @@ namespace pcit::panther{
 
 		const TermInfo::ValueStage value_stage = [&](){
 			if constexpr(IS_CONSTEXPR){
-				return TermInfo::ValueStage::Constexpr;
+				return TermInfo::ValueStage::CONSTEXPR;
 			}else{
 				if(this->get_current_func().isConstexpr){
-					return TermInfo::ValueStage::Comptime;
+					return TermInfo::ValueStage::COMPTIME;
 				}else{
-					return TermInfo::ValueStage::Runtime;
+					return TermInfo::ValueStage::RUNTIME;
 				}
 			}
 		}();
@@ -1735,7 +1744,7 @@ namespace pcit::panther{
 		if(selected_func_type.returnParams.size() == 1){ // single return
 			this->return_term_info(instr.output,
 				TermInfo(
-					TermInfo::ValueCategory::Ephemeral,
+					TermInfo::ValueCategory::EPHEMERAL,
 					value_stage,
 					selected_func_type.returnParams[0].typeID.asTypeID(),
 					sema::Expr(sema_func_call_id)
@@ -1751,7 +1760,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo(
-					TermInfo::ValueCategory::Ephemeral,
+					TermInfo::ValueCategory::EPHEMERAL,
 					value_stage,
 					std::move(return_types),
 					sema::Expr(sema_func_call_id)
@@ -1762,12 +1771,12 @@ namespace pcit::panther{
 		if constexpr(IS_CONSTEXPR){
 			if(selected_func.isConstexpr == false){
 				this->emit_error(
-					Diagnostic::Code::SemaFuncIsntConstexpr,
+					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 					instr.func_call.target,
 					"Constexpr value cannot be a call to a function that is not constexpr",
 					Diagnostic::Info("Called function was defined here:", this->get_location(selected_func_id))
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 
@@ -1776,31 +1785,40 @@ namespace pcit::panther{
 			);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NotNeeded:			  break;
-				case SymbolProc::WaitOnResult::Waiting:               return Result::NeedToWaitBeforeNextInstr;
-				case SymbolProc::WaitOnResult::WasErrored:            return Result::Error;
-				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CircularDepDetected:   evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::NOT_NEEDED:
+					break;
+
+				case SymbolProc::WaitOnResult::WAITING:
+					return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+
+				case SymbolProc::WaitOnResult::WAS_ERRORED:
+					return Result::ERROR;
+
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+					evo::debugFatalBreak("Shouldn't be possible");
+
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+					evo::debugFatalBreak("Shouldn't be possible");
 			}
 
-			return Result::Success;
+			return Result::SUCCESS;
 
 		}else{
 			if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
 				if(selected_func.isConstexpr == false){
 					this->emit_error(
-						Diagnostic::Code::SemaFuncIsntConstexpr,
+						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 						instr.func_call.target,
 						"Cannot call a non-constexpr function within a constexpr function",
 						Diagnostic::Info("Called function was defined here:", this->get_location(selected_func_id))
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 			}
 
-			return Result::Success;
+			return Result::SUCCESS;
 		}
 
 	}
@@ -1830,11 +1848,11 @@ namespace pcit::panther{
 		if(interpreter_return.has_value() == false){
 			// TODO: better messaging
 			this->emit_error(
-				Diagnostic::Code::SemaErrorReturnedFromConstexprFuncRun,
+				Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN,
 				instr.func_call,
 				"Constexpr function returned error"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		// auto output_values = evo::SmallVector<sema::Expr>();
@@ -1844,8 +1862,8 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo(
-				TermInfo::ValueCategory::Ephemeral,
-				TermInfo::ValueStage::Constexpr,
+				TermInfo::ValueCategory::EPHEMERAL,
+				TermInfo::ValueStage::CONSTEXPR,
 				func_call_term.type_id,
 				sema::Expr(this->context.sema_buffer.createIntValue(
 					std::move(interpreter_return.value().as<core::GenericInt>()),
@@ -1854,7 +1872,7 @@ namespace pcit::panther{
 			)
 		);
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -1874,55 +1892,55 @@ namespace pcit::panther{
 		if(import_lookup.has_value()){
 			this->return_term_info(instr.output, 
 				TermInfo(
-					TermInfo::ValueCategory::Module,
-					TermInfo::ValueStage::Constexpr,
+					TermInfo::ValueCategory::MODULE,
+					TermInfo::ValueStage::CONSTEXPR,
 					import_lookup.value(),
 					std::nullopt
 				)
 			);
-			return Result::Success;
+			return Result::SUCCESS;
 		}
 
 		switch(import_lookup.error()){
-			case Context::LookupSourceIDError::EmptyPath: {
+			case Context::LookupSourceIDError::EMPTY_PATH: {
 				this->emit_error(
-					Diagnostic::Code::SemaFailedToImportModule,
+					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
 					instr.func_call.args[0].value,
 					"Empty path is an invalid import location"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			} break;
 
-			case Context::LookupSourceIDError::SameAsCaller: {
+			case Context::LookupSourceIDError::SAME_AS_CALLER: {
 				// TODO: better messaging
 				this->emit_error(
-					Diagnostic::Code::SemaFailedToImportModule,
+					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
 					instr.func_call.args[0].value,
 					"Cannot import self"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			} break;
 
-			case Context::LookupSourceIDError::NotOneOfSources: {
+			case Context::LookupSourceIDError::NOT_ONE_OF_SOURCES: {
 				this->emit_error(
-					Diagnostic::Code::SemaFailedToImportModule,
+					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
 					instr.func_call.args[0].value,
 					std::format("File \"{}\" is not one of the files being compiled", lookup_path)
 				);
-				return Result::Error;
+				return Result::ERROR;
 			} break;
 
-			case Context::LookupSourceIDError::DoesntExist: {
+			case Context::LookupSourceIDError::DOESNT_EXIST: {
 				this->emit_error(
-					Diagnostic::Code::SemaFailedToImportModule,
+					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
 					instr.func_call.args[0].value,
 					std::format("Couldn't find file \"{}\"", lookup_path)
 				);
-				return Result::Error;
+				return Result::ERROR;
 			} break;
 
-			case Context::LookupSourceIDError::FailedDuringAnalysisOfNewlyLoaded: {
-				return Result::Error;
+			case Context::LookupSourceIDError::FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED: {
+				return Result::ERROR;
 			} break;
 		}
 
@@ -1953,11 +1971,11 @@ namespace pcit::panther{
 				std::format("Module has no symbol named \"{}\"", rhs_ident_str)
 			);
 
-			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::Error){ return Result::Error; }
-			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NeedToWait){ return Result::NeedToWait; }
+			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::ERROR){ return Result::ERROR; }
+			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NEED_TO_WAIT){ return Result::NEED_TO_WAIT; }
 
 			evo::debugAssert(
-				wait_on_symbol_proc_result == WaitOnSymbolProcResult::SemasReady, "Unknown WaitOnSymbolProcResult"
+				wait_on_symbol_proc_result == WaitOnSymbolProcResult::SEMAS_READY, "Unknown WaitOnSymbolProcResult"
 			);
 
 
@@ -1969,19 +1987,19 @@ namespace pcit::panther{
 
 			if(expr_ident.has_value()){
 				this->return_term_info(instr.output, std::move(expr_ident.value()));
-				return Result::Success;
+				return Result::SUCCESS;
 			}
 
 			switch(expr_ident.error()){
-				case AnalyzeExprIdentInScopeLevelError::DoesntExist:
+				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST:
 					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
 
-				case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef:
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF:
 					evo::debugFatalBreak(
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 
-				case AnalyzeExprIdentInScopeLevelError::ErrorEmitted: return Result::Error;
+				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
 			}
 
 			evo::unreachable();
@@ -1990,11 +2008,11 @@ namespace pcit::panther{
 		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
 			if(lhs.type_id.as<TypeInfo::VoidableID>().isVoid()){
 				this->emit_error(
-					Diagnostic::Code::SemaInvalidAccessorRHS,
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 					instr.infix.lhs,
 					"Accessor operator of type `Void` is invalid"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
 			const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true>(
@@ -2005,21 +2023,21 @@ namespace pcit::panther{
 			if(actual_lhs_type.qualifiers().empty() == false){
 				// TODO: better message
 				this->emit_error(
-					Diagnostic::Code::SemaInvalidAccessorRHS,
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 					instr.infix.lhs,
 					"Accessor operator of this LHS is unsupported"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			}
 
-			if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::Struct){
+			if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::STRUCT){
 				// TODO: better message
 				this->emit_error(
-					Diagnostic::Code::SemaInvalidAccessorRHS,
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 					instr.infix.lhs,
 					"Accessor operator of this LHS is unsupported"
 				);
-				return Result::Error;	
+				return Result::ERROR;	
 			}
 
 
@@ -2036,11 +2054,11 @@ namespace pcit::panther{
 				std::format("Struct has no member named \"{}\"", rhs_ident_str)
 			);
 
-			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::Error){ return Result::Error; }
-			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NeedToWait){ return Result::NeedToWait; }
+			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::ERROR){ return Result::ERROR; }
+			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NEED_TO_WAIT){ return Result::NEED_TO_WAIT; }
 
 			evo::debugAssert(
-				wait_on_symbol_proc_result == WaitOnSymbolProcResult::SemasReady, "Unknown WaitOnSymbolProcResult"
+				wait_on_symbol_proc_result == WaitOnSymbolProcResult::SEMAS_READY, "Unknown WaitOnSymbolProcResult"
 			);
 
 
@@ -2051,31 +2069,33 @@ namespace pcit::panther{
 
 			if(expr_ident.has_value()){
 				this->return_term_info(instr.output, std::move(expr_ident.value()));
-				return Result::Success;
+				return Result::SUCCESS;
 			}
 
 			switch(expr_ident.error()){
-				case AnalyzeExprIdentInScopeLevelError::DoesntExist: {
+				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
 					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
 				}
 
-				case AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef:
+
+
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF:
 					evo::debugFatalBreak(
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 
-				case AnalyzeExprIdentInScopeLevelError::ErrorEmitted: return Result::Error;
+				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
 			}
 
 			evo::unreachable();
 		}
 
 		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
+			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			instr.infix.lhs,
 			"Accessor operator of this LHS is unimplemented"
 		);
-		return Result::Error;
+		return Result::ERROR;
 	}
 
 
@@ -2086,53 +2106,54 @@ namespace pcit::panther{
 		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
 
 		switch(primitive_type_token.kind()){
-			case Token::Kind::TypeVoid: {
+			case Token::Kind::TYPE_VOID: {
 				if(instr.ast_type.qualifiers.empty() == false){
 					this->emit_error(
-						Diagnostic::Code::SemaVoidWithQualifiers,
+						Diagnostic::Code::SEMA_VOID_WITH_QUALIFIERS,
 						instr.ast_type.base,
 						"Type \"Void\" cannot have qualifiers"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 				this->return_type(instr.output, TypeInfo::VoidableID::Void());
-				return Result::Success;
+				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::TypeThis: {
+			case Token::Kind::TYPE_THIS: {
 				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					instr.ast_type,
 					"Type `This` is unimplemented"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			} break;
 
-			case Token::Kind::TypeInt:       case Token::Kind::TypeISize:      case Token::Kind::TypeUInt:
-			case Token::Kind::TypeUSize:     case Token::Kind::TypeF16:        case Token::Kind::TypeBF16:
-			case Token::Kind::TypeF32:       case Token::Kind::TypeF64:        case Token::Kind::TypeF80:
-			case Token::Kind::TypeF128:      case Token::Kind::TypeByte:       case Token::Kind::TypeBool:
-			case Token::Kind::TypeChar:      case Token::Kind::TypeRawPtr:     case Token::Kind::TypeTypeID:
-			case Token::Kind::TypeCShort:    case Token::Kind::TypeCUShort:    case Token::Kind::TypeCInt:
-			case Token::Kind::TypeCUInt:     case Token::Kind::TypeCLong:      case Token::Kind::TypeCULong:
-			case Token::Kind::TypeCLongLong: case Token::Kind::TypeCULongLong: case Token::Kind::TypeCLongDouble: {
+			case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_F16:          case Token::Kind::TYPE_BF16:
+			case Token::Kind::TYPE_F32:         case Token::Kind::TYPE_F64:          case Token::Kind::TYPE_F80:
+			case Token::Kind::TYPE_F128:        case Token::Kind::TYPE_BYTE:         case Token::Kind::TYPE_BOOL:
+			case Token::Kind::TYPE_CHAR:        case Token::Kind::TYPE_RAWPTR:       case Token::Kind::TYPE_TYPEID:
+			case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
+			case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
+			case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_C_LONG_DOUBLE: {
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
-			case Token::Kind::TypeI_N: case Token::Kind::TypeUI_N: {
+			case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(
 					primitive_type_token.kind(), primitive_type_token.getBitWidth()
 				);
 			} break;
 
 
-			case Token::Kind::TypeType: {
+			case Token::Kind::TYPE_TYPE: {
 				this->emit_error(
-					Diagnostic::Code::SemaGenericTypeNotInTemplatePackDecl,
+					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
 					instr.ast_type,
 					"Type \"Type\" may only be used in a template pack declaration"
 				);
-				return Result::Error;
+				return Result::ERROR;
 			} break;
 
 			default: {
@@ -2142,7 +2163,7 @@ namespace pcit::panther{
 
 		evo::debugAssert(base_type.has_value(), "Base type was not set");
 
-		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type) == false){ return Result::Error; }
+		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type) == false){ return Result::ERROR; }
 
 		this->return_type(
 			instr.output,
@@ -2152,7 +2173,7 @@ namespace pcit::panther{
 				)
 			)
 		);
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -2161,7 +2182,7 @@ namespace pcit::panther{
 			const TermInfo& term_info = this->get_term_info(instr.base_type);
 
 			switch(term_info.value_category){
-				case TermInfo::ValueCategory::Type: {
+				case TermInfo::ValueCategory::TYPE: {
 					evo::debugAssert(
 						this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
 						"`Void` is not a user-type"
@@ -2169,7 +2190,7 @@ namespace pcit::panther{
 					return term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
 				} break;
 
-				case TermInfo::ValueCategory::TemplateType: {
+				case TermInfo::ValueCategory::TEMPLATE_TYPE: {
 					const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.getTemplatedStruct(
 						term_info.type_id.as<sema::TemplatedStruct::ID>()
 					);
@@ -2185,7 +2206,7 @@ namespace pcit::panther{
 
 		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(base_type_id);
 
-		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type) == false){ return Result::Error; }
+		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type) == false){ return Result::ERROR; }
 
 		this->return_type(
 			instr.output,
@@ -2196,7 +2217,7 @@ namespace pcit::panther{
 			)
 		);
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -2205,20 +2226,20 @@ namespace pcit::panther{
 		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
 
 		this->return_term_info(instr.output, lookup_ident_result.value());
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
 	auto SemanticAnalyzer::instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result {
 		const TermInfo& templated_type_term_info = this->get_term_info(instr.base);
 
-		if(templated_type_term_info.value_category != TermInfo::ValueCategory::TemplateType){
+		if(templated_type_term_info.value_category != TermInfo::ValueCategory::TEMPLATE_TYPE){
 			this->emit_error(
-				Diagnostic::Code::SemaNotTemplatedTypeWithTemplateArgs,
+				Diagnostic::Code::SEMA_NOT_TEMPLATED_TYPE_WITH_TEMPLATE_ARGS,
 				instr.templated_expr.base,
 				"Base of templated type is not a template"
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 		const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.templated_structs[
@@ -2251,12 +2272,12 @@ namespace pcit::panther{
 			}
 
 			this->emit_error(
-				Diagnostic::Code::SemaTemplateTooFewArgs,
+				Diagnostic::Code::SEMA_TEMPLATE_TOO_FEW_ARGS,
 				instr.templated_expr,
 				"Too few template arguments for this type",
 				std::move(infos)
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 
@@ -2279,12 +2300,12 @@ namespace pcit::panther{
 			}
 
 			this->emit_error(
-				Diagnostic::Code::SemaTemplateTooManyArgs,
+				Diagnostic::Code::SEMA_TEMPLATE_TOO_MANY_ARGS,
 				instr.templated_expr,
 				"Too many template arguments for this type",
 				std::move(infos)
 			);
-			return Result::Error;
+			return Result::ERROR;
 		}
 
 
@@ -2306,14 +2327,14 @@ namespace pcit::panther{
 
 				if(arg_term_info.isMultiValue()){
 					this->emit_error(
-						Diagnostic::Code::SemaMultiReturnIntoSingleValue,
+						Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
 						instr.templated_expr.args[i],
 						"Template argument cannot be multiple values"
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 
-				if(arg_term_info.value_category == TermInfo::ValueCategory::Type){
+				if(arg_term_info.value_category == TermInfo::ValueCategory::TYPE){
 					if(struct_template.params[i].typeID.has_value()){
 						const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 						const AST::StructDecl& ast_struct =
@@ -2322,14 +2343,14 @@ namespace pcit::panther{
 							ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
 						this->emit_error(
-							Diagnostic::Code::SemaTemplateInvalidArg,
+							Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
 							instr.templated_expr.args[i],
 							"Expected an expression template argument, got a type",
 							Diagnostic::Info(
 								"Parameter declared here:", this->get_location(ast_template_pack.params[i].ident)
 							)
 						);
-						return Result::Error;
+						return Result::ERROR;
 					}
 
 					instantiation_lookup_args.emplace_back(arg_term_info.type_id.as<TypeInfo::VoidableID>());
@@ -2344,14 +2365,14 @@ namespace pcit::panther{
 					const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
 					this->emit_error(
-						Diagnostic::Code::SemaTemplateInvalidArg,
+						Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
 						instr.templated_expr.args[i],
 						"Expected a type template argument, got an expression",
 						Diagnostic::Info(
 							"Parameter declared here:", this->get_location(ast_template_pack.params[i].ident)
 						)
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 
 
@@ -2359,37 +2380,37 @@ namespace pcit::panther{
 					*struct_template.params[i].typeID, arg_term_info, "Template argument", instr.templated_expr.args[i]
 				);
 				if(type_check_info.ok == false){
-					return Result::Error;
+					return Result::ERROR;
 				}
 
 				const sema::Expr& arg_expr = arg_term_info.getExpr();
 				instantiation_args.emplace_back(arg_expr);
 				switch(arg_expr.kind()){
-					case sema::Expr::Kind::IntValue: {
+					case sema::Expr::Kind::INT_VALUE: {
 						instantiation_lookup_args.emplace_back(
 							core::GenericValue(evo::copy(sema_buffer.getIntValue(arg_expr.intValueID()).value))
 						);
 					} break;
 
-					case sema::Expr::Kind::FloatValue: {
+					case sema::Expr::Kind::FLOAT_VALUE: {
 						instantiation_lookup_args.emplace_back(
 							core::GenericValue(evo::copy(sema_buffer.getFloatValue(arg_expr.floatValueID()).value))
 						);
 					} break;
 
-					case sema::Expr::Kind::BoolValue: {
+					case sema::Expr::Kind::BOOL_VALUE: {
 						instantiation_lookup_args.emplace_back(
 							core::GenericValue(evo::copy(sema_buffer.getBoolValue(arg_expr.boolValueID()).value))
 						);
 					} break;
 
-					case sema::Expr::Kind::StringValue: {
+					case sema::Expr::Kind::STRING_VALUE: {
 						evo::debugFatalBreak(
 							"String value template args are not supported yet (getting here should be impossible)"
 						);
 					} break;
 
-					case sema::Expr::Kind::CharValue: {
+					case sema::Expr::Kind::CHAR_VALUE: {
 						instantiation_lookup_args.emplace_back(
 							core::GenericValue(evo::copy(sema_buffer.getCharValue(arg_expr.charValueID()).value))
 						);
@@ -2406,14 +2427,14 @@ namespace pcit::panther{
 					const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
 					this->emit_error(
-						Diagnostic::Code::SemaTemplateInvalidArg,
+						Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
 						instr.templated_expr.args[i],
 						"Expected an expression template argument, got a type",
 						Diagnostic::Info(
 							"Parameter declared here:", this->get_location(ast_template_pack.params[i].ident)
 						)
 					);
-					return Result::Error;
+					return Result::ERROR;
 				}
 				const TypeInfo::VoidableID type_id = this->get_type(arg.as<SymbolProc::TypeID>());
 				instantiation_lookup_args.emplace_back(type_id);
@@ -2431,7 +2452,7 @@ namespace pcit::panther{
 
 				}else if constexpr(std::is_same<DefaultValue, sema::Expr>()){
 					switch(default_value.kind()){
-						case sema::Expr::Kind::IntValue: {
+						case sema::Expr::Kind::INT_VALUE: {
 							instantiation_lookup_args.emplace_back(
 								core::GenericValue(
 									evo::copy(sema_buffer.getIntValue(default_value.intValueID()).value)
@@ -2439,7 +2460,7 @@ namespace pcit::panther{
 							);
 						} break;
 
-						case sema::Expr::Kind::FloatValue: {
+						case sema::Expr::Kind::FLOAT_VALUE: {
 							instantiation_lookup_args.emplace_back(
 								core::GenericValue(
 									evo::copy(sema_buffer.getFloatValue(default_value.floatValueID()).value)
@@ -2447,7 +2468,7 @@ namespace pcit::panther{
 							);
 						} break;
 
-						case sema::Expr::Kind::BoolValue: {
+						case sema::Expr::Kind::BOOL_VALUE: {
 							instantiation_lookup_args.emplace_back(
 								core::GenericValue(
 									evo::copy(sema_buffer.getBoolValue(default_value.boolValueID()).value)
@@ -2455,13 +2476,13 @@ namespace pcit::panther{
 							);
 						} break;
 
-						case sema::Expr::Kind::StringValue: {
+						case sema::Expr::Kind::STRING_VALUE: {
 							evo::debugFatalBreak(
 								"String value template args are not supported yet (getting here should be impossible)"
 							);
 						} break;
 
-						case sema::Expr::Kind::CharValue: {
+						case sema::Expr::Kind::CHAR_VALUE: {
 							instantiation_lookup_args.emplace_back(
 								core::GenericValue(
 									evo::copy(sema_buffer.getCharValue(default_value.charValueID()).value)
@@ -2507,7 +2528,7 @@ namespace pcit::panther{
 				instantiation_sema_scope_id,
 				*instantiation_info.instantiationID
 			);
-			if(instantiation_symbol_proc_id.isError()){ return Result::Error; }
+			if(instantiation_symbol_proc_id.isError()){ return Result::ERROR; }
 
 			instantiation_info.instantiation.symbolProcID = instantiation_symbol_proc_id.value();
 
@@ -2551,7 +2572,7 @@ namespace pcit::panther{
 					}
 				}();
 
-				if(add_ident_result == false){ return Result::Error; }
+				if(add_ident_result == false){ return Result::ERROR; }
 			}
 
 			// wait on instantiation
@@ -2562,12 +2583,20 @@ namespace pcit::panther{
 				this->symbol_proc_id, this->context, instantiation_symbol_proc_id.value()
 			);
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NotNeeded:  evo::debugFatalBreak("Should never be possible");
-				case SymbolProc::WaitOnResult::Waiting:    break;
-				case SymbolProc::WaitOnResult::WasErrored: evo::debugFatalBreak("Should never be possible");
-				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: evo::debugFatalBreak("Should never be possible");
-				case SymbolProc::WaitOnResult::CircularDepDetected:   return Result::Error; // not sure this is possible
-																						    // 	but just in case
+				case SymbolProc::WaitOnResult::NOT_NEEDED:
+					evo::debugFatalBreak("Should never be possible");
+
+				case SymbolProc::WaitOnResult::WAITING:
+					break;
+
+				case SymbolProc::WaitOnResult::WAS_ERRORED:
+					evo::debugFatalBreak("Should never be possible");
+
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+					evo::debugFatalBreak("Should never be possible");
+
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+					return Result::ERROR; // not sure this is possible just in case
 			}
 
 			this->return_struct_instantiation(instr.instantiation, instantiation_info.instantiation);
@@ -2576,7 +2605,7 @@ namespace pcit::panther{
 			this->context.add_task_to_work_manager(instantiation_symbol_proc_id.value());
 
 
-			return Result::NeedToWaitBeforeNextInstr;
+			return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 
 		}else{
 			this->return_struct_instantiation(instr.instantiation, instantiation_info.instantiation);
@@ -2594,12 +2623,20 @@ namespace pcit::panther{
 				this->symbol_proc_id, this->context, *instantiation_info.instantiation.symbolProcID.load()
 			);
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NotNeeded:  return Result::Success;
-				case SymbolProc::WaitOnResult::Waiting:    return Result::NeedToWaitBeforeNextInstr;
-				case SymbolProc::WaitOnResult::WasErrored: return Result::Error;
-				case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: evo::debugFatalBreak("Should never be possible");
-				case SymbolProc::WaitOnResult::CircularDepDetected:   return Result::Error; // not sure this is possible
-																						    //  but just in case
+				case SymbolProc::WaitOnResult::NOT_NEEDED:
+					return Result::SUCCESS;
+				
+				case SymbolProc::WaitOnResult::WAITING:
+					return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				
+				case SymbolProc::WaitOnResult::WAS_ERRORED:
+					return Result::ERROR;
+				
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+					evo::debugFatalBreak("Should never be possible");
+				
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+					return Result::ERROR; // not sure this is possible but just in case
 			}
 
 			evo::unreachable();
@@ -2613,20 +2650,20 @@ namespace pcit::panther{
 		const BaseType::StructTemplate::Instantiation& instantiation =
 			this->get_struct_instantiation(instr.instantiation);
 
-		if(instantiation.errored.load()){ return Result::Error; }
-		// if(instantiation.structID.load().has_value() == false){ return Result::NeedToWaitOnInstantiation; }
+		if(instantiation.errored.load()){ return Result::ERROR; }
+		// if(instantiation.structID.load().has_value() == false){ return Result::NEED_TO_WAITOnInstantiation; }
 		evo::debugAssert(instantiation.structID.has_value(), "Should already be completed");
 
 		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::Type,
-			TermInfo::ValueStage::Constexpr,
+			TermInfo::ValueCategory::TYPE,
+			TermInfo::ValueStage::CONSTEXPR,
 			TypeInfo::VoidableID(
 				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(*instantiation.structID)))
 			),
 			std::nullopt
 		);
 
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -2637,61 +2674,61 @@ namespace pcit::panther{
 		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
 
 		this->return_term_info(instr.output, std::move(lookup_ident_result.value()));
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
 	auto SemanticAnalyzer::instr_intrinsic(const Instruction::Intrinsic& instr) -> Result {
 		this->emit_error(
-			Diagnostic::Code::MiscUnimplementedFeature,
+			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			instr.intrinsic,
 			"Semantic Analysis of intrinsics (other than @import) is unimplemented"
 		);
-		return Result::Error;
+		return Result::ERROR;
 	}
 
 
 	auto SemanticAnalyzer::instr_literal(const Instruction::Literal& instr) -> Result {
 		const Token& literal_token = this->source.getTokenBuffer()[instr.literal];
 		switch(literal_token.kind()){
-			case Token::Kind::LiteralInt: {
+			case Token::Kind::LITERAL_INT: {
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EphemeralFluid,
-					TermInfo::ValueStage::Constexpr,
+					TermInfo::ValueCategory::EPHEMERAL_FLUID,
+					TermInfo::ValueStage::CONSTEXPR,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createIntValue(
 						core::GenericInt(256, literal_token.getInt()), std::nullopt
 					))
 				);
-				return Result::Success;
+				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::LiteralFloat: {
+			case Token::Kind::LITERAL_FLOAT: {
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EphemeralFluid,
-					TermInfo::ValueStage::Constexpr,
+					TermInfo::ValueCategory::EPHEMERAL_FLUID,
+					TermInfo::ValueStage::CONSTEXPR,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createFloatValue(
 						core::GenericFloat::createF128(literal_token.getFloat()), std::nullopt
 					))
 				);
-				return Result::Success;
+				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::LiteralBool: {
+			case Token::Kind::LITERAL_BOOL: {
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::Ephemeral,
-					TermInfo::ValueStage::Constexpr,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
 					this->context.getTypeManager().getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool()))
 				);
-				return Result::Success;
+				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::LiteralString: {
+			case Token::Kind::LITERAL_STRING: {
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::Ephemeral,
-					TermInfo::ValueStage::Constexpr,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
 					this->context.type_manager.getOrCreateTypeInfo(
 						TypeInfo(
 							this->context.type_manager.getOrCreateArray(
@@ -2705,17 +2742,17 @@ namespace pcit::panther{
 					),
 					sema::Expr(this->context.sema_buffer.createStringValue(std::string(literal_token.getString())))
 				);
-				return Result::Success;
+				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::LiteralChar: {
+			case Token::Kind::LITERAL_CHAR: {
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::Ephemeral,
-					TermInfo::ValueStage::Constexpr,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
 					this->context.getTypeManager().getTypeChar(),
 					sema::Expr(this->context.sema_buffer.createCharValue(literal_token.getChar()))
 				);
-				return Result::Success;
+				return Result::SUCCESS;
 			} break;
 
 			default: evo::debugFatalBreak("Not a valid literal");
@@ -2725,22 +2762,22 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_uninit(const Instruction::Uninit& instr) -> Result {
 		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::Initializer,
-			TermInfo::ValueStage::Constexpr,
+			TermInfo::ValueCategory::INITIALIZER,
+			TermInfo::ValueStage::CONSTEXPR,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createUninit(instr.uninit_token))
 		);
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 	auto SemanticAnalyzer::instr_zeroinit(const Instruction::Zeroinit& instr) -> Result {
 		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::Initializer,
-			TermInfo::ValueStage::Constexpr,
+			TermInfo::ValueCategory::INITIALIZER,
+			TermInfo::ValueStage::CONSTEXPR,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createZeroinit(instr.zeroinit_token))
 		);
-		return Result::Success;
+		return Result::SUCCESS;
 	}
 
 
@@ -2827,13 +2864,13 @@ namespace pcit::panther{
 			std::format("Identifier \"{}\" was not defined in this scope", ident_str)
 		);
 
-		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::Error){ return evo::Unexpected(Result::Error); }
-		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NeedToWait){
-			return evo::Unexpected(Result::NeedToWait);
+		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::ERROR){ return evo::Unexpected(Result::ERROR); }
+		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NEED_TO_WAIT){
+			return evo::Unexpected(Result::NEED_TO_WAIT);
 		}
 
 		evo::debugAssert(
-			wait_on_symbol_proc_result == WaitOnSymbolProcResult::SemasReady, "Unknown WaitOnSymbolProcResult"
+			wait_on_symbol_proc_result == WaitOnSymbolProcResult::SEMAS_READY, "Unknown WaitOnSymbolProcResult"
 		);
 
 
@@ -2855,10 +2892,12 @@ namespace pcit::panther{
 				return scope_level_lookup.value();
 			}
 
-			if(scope_level_lookup.error() == AnalyzeExprIdentInScopeLevelError::ErrorEmitted){
-				return evo::Unexpected(Result::Error);
+			if(scope_level_lookup.error() == AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED){
+				return evo::Unexpected(Result::ERROR);
 			}
-			if(scope_level_lookup.error() == AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef){ break; }
+			if(scope_level_lookup.
+				error() == AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF){ break;
+			 }
 
 			i -= 1;
 		}
@@ -2885,7 +2924,7 @@ namespace pcit::panther{
 
 		const sema::ScopeLevel::IdentID* ident_id_lookup = scope_level.lookupIdent(ident_str);
 		if(ident_id_lookup == nullptr){
-			return evo::Unexpected(AnalyzeExprIdentInScopeLevelError::DoesntExist);
+			return evo::Unexpected(AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST);
 		}
 
 
@@ -2896,14 +2935,14 @@ namespace pcit::panther{
 
 			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
 				return ReturnType(
-					TermInfo(TermInfo::ValueCategory::Function, TermInfo::ValueStage::Constexpr, ident_id, std::nullopt)
+					TermInfo(TermInfo::ValueCategory::FUNCTION, TermInfo::ValueStage::CONSTEXPR, ident_id, std::nullopt)
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::GlobalVar::ID>()){
 				if(!variables_in_scope){
 					// TODO: better messaging
 					this->emit_error(
-						Diagnostic::Code::SemaIdentNotInScope,
+						Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
 						ident,
 						std::format("Variable \"{}\" is not accessable in this scope", ident_str),
 						Diagnostic::Info(
@@ -2912,7 +2951,7 @@ namespace pcit::panther{
 							this->get_location(ident_id)
 						)
 					);
-					return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ErrorEmitted));
+					return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 				}
 
 				const sema::GlobalVar& sema_var = this->context.getSemaBuffer().getGlobalVar(ident_id);
@@ -2920,7 +2959,7 @@ namespace pcit::panther{
 				if constexpr(PUB_REQUIRED){
 					if(sema_var.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SemaSymbolNotPub,
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident,
 							std::format("Variable \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
@@ -2928,7 +2967,7 @@ namespace pcit::panther{
 								Diagnostic::Location::get(ident_id, *source_module, this->context)
 							)
 						);
-						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ErrorEmitted));
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 
 				}
@@ -2940,64 +2979,68 @@ namespace pcit::panther{
 					case AST::VarDecl::Kind::Var: {
 						if constexpr(NEEDS_DEF){
 							if(sema_var.expr.load().has_value() == false){
-								return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef));
+								return ReturnType(
+									evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+								);
 							}
 						}
 
 						const ValueStage value_stage = [&](){
-							if(is_global_scope){ return ValueStage::Runtime; }
+							if(is_global_scope){ return ValueStage::RUNTIME; }
 
 							if(this->scope.getCurrentObjectScope().is<sema::Func::ID>() == false){
-								return ValueStage::Runtime;
+								return ValueStage::RUNTIME;
 							}
 							
 							if(this->get_current_func().isConstexpr){
-								return ValueStage::Comptime;
+								return ValueStage::COMPTIME;
 							}else{
-								return ValueStage::Runtime;
+								return ValueStage::RUNTIME;
 							}
 						}();
 						
 						return ReturnType(TermInfo(
-							ValueCategory::ConcreteMut, value_stage, *sema_var.typeID, sema::Expr(ident_id)
+							ValueCategory::CONCRETE_MUT, value_stage, *sema_var.typeID, sema::Expr(ident_id)
 						));
 					} break;
 
 					case AST::VarDecl::Kind::Const: {
 						if constexpr(NEEDS_DEF){
 							if(sema_var.expr.load().has_value() == false){
-								return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef));
+								return ReturnType(
+									evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+								);
 							}
 						}
 
 						const ValueStage value_stage = [&](){
-							if(is_global_scope){ return ValueStage::Comptime; }
+							if(is_global_scope){ return ValueStage::COMPTIME; }
 
 							if(this->scope.getCurrentObjectScope().is<sema::Func::ID>() == false){
-								return ValueStage::Comptime;
+								return ValueStage::COMPTIME;
 							}
 
 							if(this->get_current_func().isConstexpr){
-								return ValueStage::Comptime;
+								return ValueStage::COMPTIME;
 							}else{
-								return ValueStage::Runtime;
+								return ValueStage::RUNTIME;
 							}
 						}();
 
 						return ReturnType(TermInfo(
-							ValueCategory::ConcreteConst, value_stage, *sema_var.typeID, sema::Expr(ident_id)
+							ValueCategory::CONCRETE_CONST, value_stage, *sema_var.typeID, sema::Expr(ident_id)
 						));
 					} break;
 
 					case AST::VarDecl::Kind::Def: {
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
-								ValueCategory::Ephemeral, ValueStage::Constexpr, *sema_var.typeID, *sema_var.expr.load()
+								ValueCategory::EPHEMERAL, ValueStage::CONSTEXPR, *sema_var.typeID, *sema_var.expr.load()
 							));
 						}else{
 							return ReturnType(TermInfo(
-								ValueCategory::EphemeralFluid,
-								ValueStage::Constexpr,
+								ValueCategory::EPHEMERAL_FLUID,
+								ValueStage::CONSTEXPR,
 								TermInfo::FluidType{},
 								*sema_var.expr.load()
 							));
@@ -3009,25 +3052,25 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ParamID>()){
 				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					ident,
 					"parameter identifiers are unimplemented"
 				);
-				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ErrorEmitted));
+				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ReturnParamID>()){
 				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					ident,
 					"return parameter identifiers are unimplemented"
 				);
-				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ErrorEmitted));
+				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ModuleInfo>()){
 				if constexpr(PUB_REQUIRED){
 					if(ident_id.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SemaSymbolNotPub,
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident_id,
 							std::format("Identifier \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
@@ -3035,14 +3078,14 @@ namespace pcit::panther{
 								Diagnostic::Location::get(ident_id.tokenID, *source_module)
 							)
 						);
-						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ErrorEmitted));
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 				}
 
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::Module,
-						TermInfo::ValueStage::Constexpr,
+						TermInfo::ValueCategory::MODULE,
+						TermInfo::ValueStage::CONSTEXPR,
 						ident_id.sourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
 					)
@@ -3053,14 +3096,16 @@ namespace pcit::panther{
 
 				if constexpr(NEEDS_DEF){
 					if(alias.defCompleted() == false){
-						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef));
+						return ReturnType(
+							evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+						);
 					}
 				}
 
 				if constexpr(PUB_REQUIRED){
 					if(alias.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SemaSymbolNotPub,
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident,
 							std::format("Alias \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
@@ -3068,14 +3113,14 @@ namespace pcit::panther{
 								Diagnostic::Location::get(ident_id, *source_module, this->context)
 							)
 						);
-						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ErrorEmitted));
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 				}
 
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::Type,
-						TermInfo::ValueStage::Constexpr,
+						TermInfo::ValueCategory::TYPE,
+						TermInfo::ValueStage::CONSTEXPR,
 						TypeInfo::VoidableID(
 							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
 						),
@@ -3085,25 +3130,27 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Typedef::ID>()){
 				this->emit_error(
-					Diagnostic::Code::MiscUnimplementedFeature,
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					ident,
 					"Using typedefs is currently unimplemented"
 				);
-				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ErrorEmitted));
+				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Struct::ID>()){
 				const BaseType::Struct& struct_info = this->context.getTypeManager().getStruct(ident_id);
 
 				if constexpr(NEEDS_DEF){
 					if(struct_info.defCompleted == false){
-						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NeedsToWaitOnDef));
+						return ReturnType(
+							evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+						);
 					}
 				}
 
 				if constexpr(PUB_REQUIRED){
 					if(struct_info.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SemaSymbolNotPub,
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident,
 							std::format("Struct \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
@@ -3111,14 +3158,14 @@ namespace pcit::panther{
 								Diagnostic::Location::get(ident_id, *source_module, this->context)
 							)
 						);
-						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ErrorEmitted));
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 				}
 
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::Type,
-						TermInfo::ValueStage::Constexpr,
+						TermInfo::ValueCategory::TYPE,
+						TermInfo::ValueStage::CONSTEXPR,
 						TypeInfo::VoidableID(
 							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
 						),
@@ -3129,8 +3176,8 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, sema::TemplatedStruct::ID>()){
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::TemplateType,
-						TermInfo::ValueStage::Constexpr,
+						TermInfo::ValueCategory::TEMPLATE_TYPE,
+						TermInfo::ValueStage::CONSTEXPR,
 						ident_id,
 						std::nullopt
 					)
@@ -3139,8 +3186,8 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateTypeParam>()){
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::Type,
-						TermInfo::ValueStage::Constexpr,
+						TermInfo::ValueCategory::TYPE,
+						TermInfo::ValueStage::CONSTEXPR,
 						ident_id.typeID,
 						std::nullopt
 					)
@@ -3149,8 +3196,8 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateExprParam>()){
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::Ephemeral,
-						TermInfo::ValueStage::Constexpr,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
 						ident_id.typeID,
 						ident_id.value
 					)
@@ -3181,11 +3228,11 @@ namespace pcit::panther{
 		}
 		if(found_range.has_value() == false){
 			this->emit_error(
-				Diagnostic::Code::SemaNoSymbolInModuleWithThatIdent,
+				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
 				ident,
 				std::move(error_msg_if_ident_doesnt_exist)
 			);
-			return WaitOnSymbolProcResult::Error;
+			return WaitOnSymbolProcResult::ERROR;
 		}
 
 
@@ -3208,31 +3255,31 @@ namespace pcit::panther{
 			}();
 
 			switch(wait_on_result){
-				break; case SymbolProc::WaitOnResult::NotNeeded:             any_ready = true;
-				break; case SymbolProc::WaitOnResult::Waiting:               any_waiting = true;
-				break; case SymbolProc::WaitOnResult::WasErrored:            return WaitOnSymbolProcResult::Error;
-				break; case SymbolProc::WaitOnResult::WasPassedOnByWhenCond: // do nothing...
-				break; case SymbolProc::WaitOnResult::CircularDepDetected:   return WaitOnSymbolProcResult::Error;
+				break; case SymbolProc::WaitOnResult::NOT_NEEDED:                 any_ready = true;
+				break; case SymbolProc::WaitOnResult::WAITING:                    any_waiting = true;
+				break; case SymbolProc::WaitOnResult::WAS_ERRORED:                return WaitOnSymbolProcResult::ERROR;
+				break; case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: // do nothing...
+				break; case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return WaitOnSymbolProcResult::ERROR;
 			}
 		}
 
 		if(any_waiting){
 			if(this->symbol_proc.shouldContinueRunning()){
-				return WaitOnSymbolProcResult::SemasReady;
+				return WaitOnSymbolProcResult::SEMAS_READY;
 			}else{
-				return WaitOnSymbolProcResult::NeedToWait;
+				return WaitOnSymbolProcResult::NEED_TO_WAIT;
 			}
 		}
 
-		if(any_ready){ return WaitOnSymbolProcResult::SemasReady; }
+		if(any_ready){ return WaitOnSymbolProcResult::SEMAS_READY; }
 
 		this->emit_error(
-			Diagnostic::Code::SemaNoSymbolInModuleWithThatIdent,
+			Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
 			ident,
 			std::move(error_msg_if_ident_doesnt_exist),
 			Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
 		);
-		return WaitOnSymbolProcResult::Error;
+		return WaitOnSymbolProcResult::ERROR;
 	}
 
 
@@ -3279,13 +3326,13 @@ namespace pcit::panther{
 			if(type_info.qualifiers().empty() == false){ return type_id; }
 
 
-			if(type_info.baseTypeID().kind() == BaseType::Kind::Alias){
+			if(type_info.baseTypeID().kind() == BaseType::Kind::ALIAS){
 				const BaseType::Alias& alias = type_manager.getAlias(type_info.baseTypeID().aliasID());
 
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
 				type_id = *alias.aliasedType.load();
 
-			}else if(type_info.baseTypeID().kind() == BaseType::Kind::Typedef){
+			}else if(type_info.baseTypeID().kind() == BaseType::Kind::TYPEDEF){
 				if constexpr(ALLOW_TYPEDEF){
 					const BaseType::Typedef& typedef_info = type_manager.getTypedef(type_info.baseTypeID().typedefID());
 
@@ -3600,7 +3647,7 @@ namespace pcit::panther{
 			}
 
 			this->emit_error(
-				Diagnostic::Code::SemaNoMatchingFunction,
+				Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
 				call_node,
 				"No matching function overload found",
 				std::move(infos)
@@ -3619,7 +3666,7 @@ namespace pcit::panther{
 			}
 
 			this->emit_error(
-				Diagnostic::Code::SemaMultipleMatchingFunctionOverloads,
+				Diagnostic::Code::SEMA_MULTIPLE_MATCHING_FUNCTION_OVERLOADS,
 				call_node,
 				"Multiple matching function overloads found",
 				std::move(infos)
@@ -3653,10 +3700,10 @@ namespace pcit::panther{
 	) -> bool {
 		if(this->get_current_func().isConstexpr == false){ return true; }
 
-		if(term_info.value_stage != TermInfo::ValueStage::Runtime){ return true; }
+		if(term_info.value_stage != TermInfo::ValueStage::RUNTIME){ return true; }
 
 		this->emit_error(
-			Diagnostic::Code::SemaExprNotComptime,
+			Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
 			node_location,
 			"Expressions in a constexpr function cannot have a value stage of runtime"
 		);
@@ -3710,7 +3757,7 @@ namespace pcit::panther{
 
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SemaTooManyAttributeArgs,
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args[1],
 						"Attribute #pub does not accept more than 1 argument"
 					);
@@ -3719,7 +3766,7 @@ namespace pcit::panther{
 
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SemaUnknownAttribute,
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
 					attribute.attribute,
 					std::format("Unknown variable attribute #{}", attribute_str)
 				);
@@ -3770,7 +3817,7 @@ namespace pcit::panther{
 
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SemaTooManyAttributeArgs,
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args[1],
 						"Attribute #pub does not accept more than 1 argument"
 					);
@@ -3779,7 +3826,7 @@ namespace pcit::panther{
 
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SemaUnknownAttribute,
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
 					attribute.attribute,
 					std::format("Unknown struct attribute #{}", attribute_str)
 				);
@@ -3831,7 +3878,7 @@ namespace pcit::panther{
 
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SemaTooManyAttributeArgs,
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args[1],
 						"Attribute #pub does not accept more than 1 argument"
 					);
@@ -3862,7 +3909,7 @@ namespace pcit::panther{
 
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SemaTooManyAttributeArgs,
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args[1],
 						"Attribute #runtime does not accept more than 1 argument"
 					);
@@ -3872,7 +3919,7 @@ namespace pcit::panther{
 			}else if(attribute_str == "entry"){
 				if(attribute_params_info.empty() == false){
 					this->emit_error(
-						Diagnostic::Code::SemaTooManyAttributeArgs,
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args.front(),
 						"Attribute #entry does not accept any arguments"
 					);
@@ -3885,7 +3932,7 @@ namespace pcit::panther{
 
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SemaUnknownAttribute,
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
 					attribute.attribute,
 					std::format("Unknown function attribute #{}", attribute_str)
 				);
@@ -4038,17 +4085,17 @@ namespace pcit::panther{
 		TypeInfo::ID actual_expected_type_id = this->get_actual_type<false>(expected_type_id);
 
 		switch(got_expr.value_category){
-			case TermInfo::ValueCategory::Ephemeral:
-			case TermInfo::ValueCategory::ConcreteConst:
-			case TermInfo::ValueCategory::ConcreteMut:
-			case TermInfo::ValueCategory::ConcreteConstForwardable:
-			case TermInfo::ValueCategory::ConcreteConstDestrMovable: {
+			case TermInfo::ValueCategory::EPHEMERAL:
+			case TermInfo::ValueCategory::CONCRETE_CONST:
+			case TermInfo::ValueCategory::CONCRETE_MUT:
+			case TermInfo::ValueCategory::CONCRETE_CONST_FORWARDABLE:
+			case TermInfo::ValueCategory::CONCRETE_CONST_DESTR_MOVABLE: {
 				if(got_expr.isMultiValue()){
 					auto name_copy = std::string(expected_type_location_name);
 					name_copy[0] = char(std::tolower(int(name_copy[0])));
 
 					this->emit_error(
-						Diagnostic::Code::SemaMultiReturnIntoSingleValue,
+						Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
 						location,
 						std::format("Cannot set {} with multiple values", name_copy)
 					);
@@ -4106,13 +4153,13 @@ namespace pcit::panther{
 				return TypeCheckInfo(true, got_expr.type_id.as<TypeInfo::ID>() != expected_type_id);
 			} break;
 
-			case TermInfo::ValueCategory::EphemeralFluid: {
+			case TermInfo::ValueCategory::EPHEMERAL_FLUID: {
 				const TypeInfo& expected_type_info = 
 					this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
 
 				if(
 					expected_type_info.qualifiers().empty() == false || 
-					expected_type_info.baseTypeID().kind() != BaseType::Kind::Primitive
+					expected_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
 				){
 					if constexpr(IS_NOT_ARGUMENT){
 						this->error_type_mismatch(
@@ -4128,28 +4175,28 @@ namespace pcit::panther{
 				const BaseType::Primitive& expected_type_primitive = 
 					this->context.getTypeManager().getPrimitive(expected_type_primitive_id);
 
-				if(got_expr.getExpr().kind() == sema::Expr::Kind::IntValue){
+				if(got_expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 					bool is_unsigned = true;
 
 					switch(expected_type_primitive.kind()){
-						case Token::Kind::TypeInt:
-						case Token::Kind::TypeISize:
-						case Token::Kind::TypeI_N:
-						case Token::Kind::TypeCShort:
-						case Token::Kind::TypeCInt:
-						case Token::Kind::TypeCLong:
-						case Token::Kind::TypeCLongLong:
+						case Token::Kind::TYPE_INT:
+						case Token::Kind::TYPE_ISIZE:
+						case Token::Kind::TYPE_I_N:
+						case Token::Kind::TYPE_C_SHORT:
+						case Token::Kind::TYPE_C_INT:
+						case Token::Kind::TYPE_C_LONG:
+						case Token::Kind::TYPE_C_LONG_LONG:
 							is_unsigned = false;
 							break;
 
-						case Token::Kind::TypeUInt:
-						case Token::Kind::TypeUSize:
-						case Token::Kind::TypeUI_N:
-						case Token::Kind::TypeByte:
-						case Token::Kind::TypeCUShort:
-						case Token::Kind::TypeCUInt:
-						case Token::Kind::TypeCULong:
-						case Token::Kind::TypeCULongLong:
+						case Token::Kind::TYPE_UINT:
+						case Token::Kind::TYPE_USIZE:
+						case Token::Kind::TYPE_UI_N:
+						case Token::Kind::TYPE_BYTE:
+						case Token::Kind::TYPE_C_USHORT:
+						case Token::Kind::TYPE_C_UINT:
+						case Token::Kind::TYPE_C_ULONG:
+						case Token::Kind::TYPE_C_ULONG_LONG:
 							break;
 
 						default: {
@@ -4171,7 +4218,7 @@ namespace pcit::panther{
 						if(is_unsigned){
 							if(int_value.value.slt(core::GenericInt(256, 0, true))){
 								this->emit_error(
-									Diagnostic::Code::SemaCannotConvertFluidValue,
+									Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
 									location,
 									"Cannot implicitly convert this fluid value to the target type",
 									Diagnostic::Info("Fluid value is negative and target type is unsigned")
@@ -4193,7 +4240,7 @@ namespace pcit::panther{
 							if(is_unsigned){
 								if(int_value.value.ult(target_min) || int_value.value.ugt(target_max)){
 									this->emit_error(
-										Diagnostic::Code::SemaCannotConvertFluidValue,
+										Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
 										location,
 										"Cannot implicitly convert this fluid value to the target type",
 										Diagnostic::Info("Requires truncation (maybe use [as] operator)")
@@ -4203,7 +4250,7 @@ namespace pcit::panther{
 							}else{
 								if(int_value.value.slt(target_min) || int_value.value.sgt(target_max)){
 									this->emit_error(
-										Diagnostic::Code::SemaCannotConvertFluidValue,
+										Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
 										location,
 										"Cannot implicitly convert this fluid value to the target type",
 										Diagnostic::Info("Requires truncation (maybe use [as] operator)")
@@ -4223,17 +4270,17 @@ namespace pcit::panther{
 
 				}else{
 					evo::debugAssert(
-						got_expr.getExpr().kind() == sema::Expr::Kind::FloatValue, "Expected float"
+						got_expr.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE, "Expected float"
 					);
 
 					switch(expected_type_primitive.kind()){
-						case Token::Kind::TypeF16:
-						case Token::Kind::TypeBF16:
-						case Token::Kind::TypeF32:
-						case Token::Kind::TypeF64:
-						case Token::Kind::TypeF80:
-						case Token::Kind::TypeF128:
-						case Token::Kind::TypeCLongDouble:
+						case Token::Kind::TYPE_F16:
+						case Token::Kind::TYPE_BF16:
+						case Token::Kind::TYPE_F32:
+						case Token::Kind::TYPE_F64:
+						case Token::Kind::TYPE_F80:
+						case Token::Kind::TYPE_F128:
+						case Token::Kind::TYPE_C_LONG_DOUBLE:
 							break;
 
 						default: {
@@ -4264,7 +4311,7 @@ namespace pcit::panther{
 
 						if(converted_literal.lt(target_min) || converted_literal.gt(target_max)){
 							this->emit_error(
-								Diagnostic::Code::SemaCannotConvertFluidValue,
+								Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
 								location,
 								"Cannot implicitly convert this fluid value to the target type",
 								Diagnostic::Info("Requires truncation (maybe use [as] operator)")
@@ -4274,13 +4321,13 @@ namespace pcit::panther{
 
 
 						switch(expected_type_primitive.kind()){
-							break; case Token::Kind::TypeF16:  float_value.value = float_value.value.asF16();
-							break; case Token::Kind::TypeBF16: float_value.value = float_value.value.asBF16();
-							break; case Token::Kind::TypeF32:  float_value.value = float_value.value.asF32();
-							break; case Token::Kind::TypeF64:  float_value.value = float_value.value.asF64();
-							break; case Token::Kind::TypeF80:  float_value.value = float_value.value.asF80();
-							break; case Token::Kind::TypeF128: float_value.value = float_value.value.asF128();
-							break; case Token::Kind::TypeCLongDouble: {
+							break; case Token::Kind::TYPE_F16:  float_value.value = float_value.value.asF16();
+							break; case Token::Kind::TYPE_BF16: float_value.value = float_value.value.asBF16();
+							break; case Token::Kind::TYPE_F32:  float_value.value = float_value.value.asF32();
+							break; case Token::Kind::TYPE_F64:  float_value.value = float_value.value.asF64();
+							break; case Token::Kind::TYPE_F80:  float_value.value = float_value.value.asF80();
+							break; case Token::Kind::TYPE_F128: float_value.value = float_value.value.asF128();
+							break; case Token::Kind::TYPE_C_LONG_DOUBLE: {
 								if(this->context.getTypeManager().sizeOf(expected_type_info.baseTypeID()) == 8){
 									float_value.value = float_value.value.asF64();
 								}else{
@@ -4294,29 +4341,29 @@ namespace pcit::panther{
 				}
 
 				if constexpr(IS_NOT_ARGUMENT){
-					got_expr.value_category = TermInfo::ValueCategory::Ephemeral;
+					got_expr.value_category = TermInfo::ValueCategory::EPHEMERAL;
 					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
 				}
 
 				return TypeCheckInfo(true, true);
 			} break;
 
-			case TermInfo::ValueCategory::Initializer:
+			case TermInfo::ValueCategory::INITIALIZER:
 				evo::debugFatalBreak("Initializer should not be compared with this function");
 
-			case TermInfo::ValueCategory::Module:
+			case TermInfo::ValueCategory::MODULE:
 				evo::debugFatalBreak("Module should not be compared with this function");
 
-			case TermInfo::ValueCategory::Function:
+			case TermInfo::ValueCategory::FUNCTION:
 				evo::debugFatalBreak("Function should not be compared with this function");
 
-			case TermInfo::ValueCategory::Intrinsic:
+			case TermInfo::ValueCategory::INTRINSIC:
 				evo::debugFatalBreak("Intrinsic should not be compared with this function");
 
-			case TermInfo::ValueCategory::TemplateIntrinsic:
+			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC:
 				evo::debugFatalBreak("TemplateIntrinsic should not be compared with this function");
 
-			case TermInfo::ValueCategory::TemplateType:
+			case TermInfo::ValueCategory::TEMPLATE_TYPE:
 				evo::debugFatalBreak("TemplateType should not be compared with this function");
 		}
 
@@ -4356,7 +4403,7 @@ namespace pcit::panther{
 		while(true){
 			const TypeInfo& actual_expected_type = this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
 			if(actual_expected_type.qualifiers().empty() == false){ break; }
-			if(actual_expected_type.baseTypeID().kind() != BaseType::Kind::Alias){ break; }
+			if(actual_expected_type.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
 
 			const BaseType::Alias& expected_alias = this->context.getTypeManager().getAlias(
 				actual_expected_type.baseTypeID().aliasID()
@@ -4385,7 +4432,7 @@ namespace pcit::panther{
 			while(true){
 				const TypeInfo& actual_got_type = this->context.getTypeManager().getTypeInfo(actual_got_type_id);
 				if(actual_got_type.qualifiers().empty() == false){ break; }
-				if(actual_got_type.baseTypeID().kind() != BaseType::Kind::Alias){ break; }
+				if(actual_got_type.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
 
 				const BaseType::Alias& got_alias = this->context.getTypeManager().getAlias(
 					actual_got_type.baseTypeID().aliasID()
@@ -4407,7 +4454,7 @@ namespace pcit::panther{
 		}
 
 		this->emit_error(
-			Diagnostic::Code::SemaTypeMismatch,
+			Diagnostic::Code::SEMA_TYPE_MISMATCH,
 			location,
 			std::format(
 				"{} cannot accept an expression of a different type, "
@@ -4429,7 +4476,7 @@ namespace pcit::panther{
 			if(found_read_only_ptr){
 				if(qualifier.isPtr && qualifier.isReadOnly == false){
 					this->emit_error(
-						Diagnostic::Code::SemaInvalidTypeQualifiers,
+						Diagnostic::Code::SEMA_INVALID_TYPE_QUALIFIERS,
 						location,
 						"Invalid type qualifiers",
 						Diagnostic::Info(
@@ -4450,8 +4497,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::check_term_isnt_type(const TermInfo& term_info, const auto& location) -> bool {
-		if(term_info.value_category == TermInfo::ValueCategory::Type){
-			this->emit_error(Diagnostic::Code::SemaTypeUsedAsExpr, location, "Type used as an expression");
+		if(term_info.value_category == TermInfo::ValueCategory::TYPE){
+			this->emit_error(Diagnostic::Code::SEMA_TYPE_USED_AS_EXPR, location, "Type used as an expression");
 			return false;
 		}
 
@@ -4500,7 +4547,7 @@ namespace pcit::panther{
 					infos.emplace_back("Note: shadowing is not allowed");
 					
 					this->emit_error(
-						Diagnostic::Code::SemaIdentAlreadyInScope,
+						Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE,
 						ast_node,
 						std::format("Identifier \"{}\" was already defined in this scope", ident_str),
 						std::move(infos)
@@ -4610,7 +4657,7 @@ namespace pcit::panther{
 
 
 			this->emit_error(
-				Diagnostic::Code::SemaIdentAlreadyInScope, redef_id, std::move(message), std::move(infos)
+				Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE, redef_id, std::move(message), std::move(infos)
 			);
 		});
 	};
@@ -4625,11 +4672,11 @@ namespace pcit::panther{
 				return "{INITIALIZER}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::FluidType>()){
-				if(term_info.getExpr().kind() == sema::Expr::Kind::IntValue){
+				if(term_info.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 					return "{FLUID INTEGRAL}";
 				}else{
 					evo::debugAssert(
-						term_info.getExpr().kind() == sema::Expr::Kind::FloatValue, "Unsupported fluid type"
+						term_info.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE, "Unsupported fluid type"
 					);
 					return "{FLUID FLOAT}";
 				}
@@ -4666,7 +4713,7 @@ namespace pcit::panther{
 		if(this->get_current_scope_level().isTerminated() == false){ return true; }
 
 		this->emit_error(
-			Diagnostic::Code::SemaScopeIsAlreadyTerminated,
+			Diagnostic::Code::SEMA_SCOPE_IS_ALREADY_TERMINATED,
 			location,
 			"Scope is already terminated"
 		);

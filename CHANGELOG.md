@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.95.0"></a>
+## v0.0.95.0
+
+### Panther
+- Fixed missing token string for destructive move
+
+### PIR
+- Fixed fatal errors when erasing expressions from basic blocks
+
+### Misc
+- Upgraded LLVM from 18.1.1 to 20.1.1
+- Upgraded Premake build system from 5.0-beta2 to 5.0-beta5
+- Improved / updated build instructions and script
+- Changed enums to match Panther style
+
+
+<!---------------------------------->
 <a name="v0.0.94.0"></a>
 ## v0.0.94.0
 

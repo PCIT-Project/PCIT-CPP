@@ -34,14 +34,14 @@ namespace pcit::pir{
 			const Expr& instr = this->current_basic_block->operator[](this->current_instruction_index);
 
 			switch(instr.kind()){
-				case Expr::Kind::None: evo::debugFatalBreak("Invalid Expr");
+				case Expr::Kind::NONE: evo::debugFatalBreak("Invalid Expr");
 
-				case Expr::Kind::GlobalValue: case Expr::Kind::FunctionPointer:  case Expr::Kind::Number:
-				case Expr::Kind::Boolean:     case Expr::Kind::ParamExpr: {
+				case Expr::Kind::GLOBAL_VALUE: case Expr::Kind::FUNCTION_POINTER: case Expr::Kind::NUMBER:
+				case Expr::Kind::BOOLEAN:      case Expr::Kind::PARAM_EXPR: {
 					evo::debugFatalBreak("Invalid instruction");
 				} break;
 
-				case Expr::Kind::Call: {
+				case Expr::Kind::CALL: {
 					const Call& call = this->reader.getCall(instr);
 
 					call.target.visit([&](const auto& target) -> void {
@@ -72,16 +72,16 @@ namespace pcit::pir{
 					});
 				} break;
 
-				case Expr::Kind::CallVoid: {
+				case Expr::Kind::CALL_VOID: {
 					// const CallVoid& callvoid = this->reader.getCallVoid(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::CallVoid");
 				} break;
 
-				case Expr::Kind::Breakpoint: {
+				case Expr::Kind::BREAKPOINT: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Breakpoint");
 				} break;
 
-				case Expr::Kind::Ret: {
+				case Expr::Kind::RET: {
 					const Ret& ret = this->reader.getRet(instr);
 
 					if(ret.value.has_value()){
@@ -105,288 +105,288 @@ namespace pcit::pir{
 					}
 				} break;
 
-				case Expr::Kind::Branch: {
+				case Expr::Kind::BRANCH: {
 					// const Branch& branch = this->reader.getBranch(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Branch");
 				} break;
 
-				case Expr::Kind::CondBranch: {
+				case Expr::Kind::COND_BRANCH: {
 					// const CondBranch& condbranch = this->reader.getCondBranch(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::CondBranch");
 				} break;
 
-				case Expr::Kind::Unreachable: {
+				case Expr::Kind::UNREACHABLE: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Unreachable");
 				} break;
 
-				case Expr::Kind::Alloca: {
+				case Expr::Kind::ALLOCA: {
 					evo::debugFatalBreak("Invalid instruction - `@alloca`");
 				} break;
 
-				case Expr::Kind::Load: {
+				case Expr::Kind::LOAD: {
 					// const Load& load = this->reader.getLoad(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Load");
 				} break;
 
-				case Expr::Kind::Store: {
+				case Expr::Kind::STORE: {
 					// const Store& store = this->reader.getStore(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Store");
 				} break;
 
-				case Expr::Kind::CalcPtr: {
+				case Expr::Kind::CALC_PTR: {
 					// const CalcPtr& calcptr = this->reader.getCalcPtr(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::CalcPtr");
 				} break;
 
-				case Expr::Kind::Memcpy: {
+				case Expr::Kind::MEMCPY: {
 					// const Memcpy& memcpy = this->reader.getMemcpy(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Memcpy");
 				} break;
 
-				case Expr::Kind::Memset: {
+				case Expr::Kind::MEMSET: {
 					// const Memset& memset = this->reader.getMemset(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Memset");
 				} break;
 
-				case Expr::Kind::BitCast: {
+				case Expr::Kind::BIT_CAST: {
 					// const BitCast& bitcast = this->reader.getBitCast(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::BitCast");
 				} break;
 
-				case Expr::Kind::Trunc: {
+				case Expr::Kind::TRUNC: {
 					// const Trunc& trunc = this->reader.getTrunc(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Trunc");
 				} break;
 
-				case Expr::Kind::FTrunc: {
+				case Expr::Kind::FTRUNC: {
 					// const FTrunc& ftrunc = this->reader.getFTrunc(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FTrunc");
 				} break;
 
-				case Expr::Kind::SExt: {
+				case Expr::Kind::SEXT: {
 					// const SExt& sext = this->reader.getSExt(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SExt");
 				} break;
 
-				case Expr::Kind::ZExt: {
+				case Expr::Kind::ZEXT: {
 					// const ZExt& zext = this->reader.getZExt(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::ZExt");
 				} break;
 
-				case Expr::Kind::FExt: {
+				case Expr::Kind::FEXT: {
 					// const FExt& fext = this->reader.getFExt(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FExt");
 				} break;
 
-				case Expr::Kind::IToF: {
+				case Expr::Kind::ITOF: {
 					// const IToF& itof = this->reader.getIToF(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::IToF");
 				} break;
 
-				case Expr::Kind::UIToF: {
+				case Expr::Kind::UITOF: {
 					// const UIToF& uitof = this->reader.getUIToF(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UIToF");
 				} break;
 
-				case Expr::Kind::FToI: {
+				case Expr::Kind::FTOI: {
 					// const FToI& ftoi = this->reader.getFToI(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FToI");
 				} break;
 
-				case Expr::Kind::FToUI: {
+				case Expr::Kind::FTOUI: {
 					// const FToUI& ftoui = this->reader.getFToUI(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FToUI");
 				} break;
 
-				case Expr::Kind::Add: {
+				case Expr::Kind::ADD: {
 					// const Add& add = this->reader.getAdd(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Add");
 				} break;
 
-				case Expr::Kind::SAddWrap: {
+				case Expr::Kind::SADD_WRAP: {
 					// const SAddWrap& saddwrap = this->reader.getSAddWrap(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SAddWrap");
 				} break;
 
-				case Expr::Kind::SAddWrapResult: {
+				case Expr::Kind::SADD_WRAP_RESULT: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SAddWrapResult");
 				} break;
 
-				case Expr::Kind::SAddWrapWrapped: {
+				case Expr::Kind::SADD_WRAP_WRAPPED: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SAddWrapWrapped");
 				} break;
 
-				case Expr::Kind::UAddWrap: {
+				case Expr::Kind::UADD_WRAP: {
 					// const UAddWrap& uaddwrap = this->reader.getUAddWrap(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UAddWrap");
 				} break;
 
-				case Expr::Kind::UAddWrapResult: {
+				case Expr::Kind::UADD_WRAP_RESULT: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UAddWrapResult");
 				} break;
 
-				case Expr::Kind::UAddWrapWrapped: {
+				case Expr::Kind::UADD_WRAP_WRAPPED: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UAddWrapWrapped");
 				} break;
 
-				case Expr::Kind::SAddSat: {
+				case Expr::Kind::SADD_SAT: {
 					// const SAddSat& saddsat = this->reader.getSAddSat(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SAddSat");
 				} break;
 
-				case Expr::Kind::UAddSat: {
+				case Expr::Kind::UADD_SAT: {
 					// const UAddSat& uaddsat = this->reader.getUAddSat(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UAddSat");
 				} break;
 
-				case Expr::Kind::FAdd: {
+				case Expr::Kind::FADD: {
 					// const FAdd& fadd = this->reader.getFAdd(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FAdd");
 				} break;
 
-				case Expr::Kind::Sub: {
+				case Expr::Kind::SUB: {
 					// const Sub& sub = this->reader.getSub(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Sub");
 				} break;
 
-				case Expr::Kind::SSubWrap: {
+				case Expr::Kind::SSUB_WRAP: {
 					// const SSubWrap& ssubwrap = this->reader.getSSubWrap(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SSubWrap");
 				} break;
 
-				case Expr::Kind::SSubWrapResult: {
+				case Expr::Kind::SSUB_WRAP_RESULT: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SSubWrapResult");
 				} break;
 
-				case Expr::Kind::SSubWrapWrapped: {
+				case Expr::Kind::SSUB_WRAP_WRAPPED: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SSubWrapWrapped");
 				} break;
 
-				case Expr::Kind::USubWrap: {
+				case Expr::Kind::USUB_WRAP: {
 					// const USubWrap& usubwrap = this->reader.getUSubWrap(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::USubWrap");
 				} break;
 
-				case Expr::Kind::USubWrapResult: {
+				case Expr::Kind::USUB_WRAP_RESULT: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::USubWrapResult");
 				} break;
 
-				case Expr::Kind::USubWrapWrapped: {
+				case Expr::Kind::USUB_WRAP_WRAPPED: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::USubWrapWrapped");
 				} break;
 
-				case Expr::Kind::SSubSat: {
+				case Expr::Kind::SSUB_SAT: {
 					// const SSubSat& ssubsat = this->reader.getSSubSat(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SSubSat");
 				} break;
 
-				case Expr::Kind::USubSat: {
+				case Expr::Kind::USUB_SAT: {
 					// const USubSat& usubsat = this->reader.getUSubSat(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::USubSat");
 				} break;
 
-				case Expr::Kind::FSub: {
+				case Expr::Kind::FSUB: {
 					// const FSub& fsub = this->reader.getFSub(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FSub");
 				} break;
 
-				case Expr::Kind::Mul: {
+				case Expr::Kind::MUL: {
 					// const Mul& mul = this->reader.getMul(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Mul");
 				} break;
 
-				case Expr::Kind::SMulWrap: {
+				case Expr::Kind::SMUL_WRAP: {
 					// const SMulWrap& smulwrap = this->reader.getSMulWrap(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SMulWrap");
 				} break;
 
-				case Expr::Kind::SMulWrapResult: {
+				case Expr::Kind::SMUL_WRAP_RESULT: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SMulWrapResult");
 				} break;
 
-				case Expr::Kind::SMulWrapWrapped: {
+				case Expr::Kind::SMUL_WRAP_WRAPPED: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SMulWrapWrapped");
 				} break;
 
-				case Expr::Kind::UMulWrap: {
+				case Expr::Kind::UMUL_WRAP: {
 					// const UMulWrap& umulwrap = this->reader.getUMulWrap(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UMulWrap");
 				} break;
 
-				case Expr::Kind::UMulWrapResult: {
+				case Expr::Kind::UMUL_WRAP_RESULT: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UMulWrapResult");
 				} break;
 
-				case Expr::Kind::UMulWrapWrapped: {
+				case Expr::Kind::UMUL_WRAP_WRAPPED: {
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UMulWrapWrapped");
 				} break;
 
-				case Expr::Kind::SMulSat: {
+				case Expr::Kind::SMUL_SAT: {
 					// const SMulSat& smulsat = this->reader.getSMulSat(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SMulSat");
 				} break;
 
-				case Expr::Kind::UMulSat: {
+				case Expr::Kind::UMUL_SAT: {
 					// const UMulSat& umulsat = this->reader.getUMulSat(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UMulSat");
 				} break;
 
-				case Expr::Kind::FMul: {
+				case Expr::Kind::FMUL: {
 					// const FMul& fmul = this->reader.getFMul(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FMul");
 				} break;
 
-				case Expr::Kind::SDiv: {
+				case Expr::Kind::SDIV: {
 					// const SDiv& sdiv = this->reader.getSDiv(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SDiv");
 				} break;
 
-				case Expr::Kind::UDiv: {
+				case Expr::Kind::UDIV: {
 					// const UDiv& udiv = this->reader.getUDiv(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::UDiv");
 				} break;
 
-				case Expr::Kind::FDiv: {
+				case Expr::Kind::FDIV: {
 					// const FDiv& fdiv = this->reader.getFDiv(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FDiv");
 				} break;
 
-				case Expr::Kind::SRem: {
+				case Expr::Kind::SREM: {
 					// const SRem& srem = this->reader.getSRem(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SRem");
 				} break;
 
-				case Expr::Kind::URem: {
+				case Expr::Kind::UREM: {
 					// const URem& urem = this->reader.getURem(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::URem");
 				} break;
 
-				case Expr::Kind::FRem: {
+				case Expr::Kind::FREM: {
 					// const FRem& frem = this->reader.getFRem(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FRem");
 				} break;
 
-				case Expr::Kind::FNeg: {
+				case Expr::Kind::FNEG: {
 					// const FNeg& fneg = this->reader.getFNeg(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FNeg");
 				} break;
 
-				case Expr::Kind::IEq: {
+				case Expr::Kind::IEQ: {
 					// const IEq& ieq = this->reader.getIEq(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::IEq");
 				} break;
 
-				case Expr::Kind::FEq: {
+				case Expr::Kind::FEQ: {
 					// const FEq& feq = this->reader.getFEq(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FEq");
 				} break;
 
-				case Expr::Kind::INeq: {
+				case Expr::Kind::INEQ: {
 					// const INeq& ineq = this->reader.getINeq(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::INeq");
 				} break;
 
-				case Expr::Kind::FNeq: {
+				case Expr::Kind::FNEQ: {
 					// const FNeq& fneq = this->reader.getFNeq(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FNeq");
 				} break;
@@ -451,17 +451,17 @@ namespace pcit::pir{
 					evo::unimplemented("PIR Interpreter - Expr::Kind::FGTE");
 				} break;
 
-				case Expr::Kind::And: {
+				case Expr::Kind::AND: {
 					// const And& and_res = this->reader.getAnd(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::And");
 				} break;
 
-				case Expr::Kind::Or: {
+				case Expr::Kind::OR: {
 					// const Or& or_res = this->reader.getOr(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Or");
 				} break;
 
-				case Expr::Kind::Xor: {
+				case Expr::Kind::XOR: {
 					// const Xor& xor_res = this->reader.getXor(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::Xor");
 				} break;
@@ -471,12 +471,12 @@ namespace pcit::pir{
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SHL");
 				} break;
 
-				case Expr::Kind::SSHLSat: {
+				case Expr::Kind::SSHL_SAT: {
 					// const SSHLSat& sshlsat = this->reader.getSSHLSat(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::SSHLSat");
 				} break;
 
-				case Expr::Kind::USHLSat: {
+				case Expr::Kind::USHL_SAT: {
 					// const USHLSat& ushlsat = this->reader.getUSHLSat(instr);
 					evo::unimplemented("PIR Interpreter - Expr::Kind::USHLSat");
 				} break;
@@ -503,17 +503,17 @@ namespace pcit::pir{
 		StackFrame& current_stack_frame = this->stack.top();
 
 		switch(expr.kind()){
-			case Expr::Kind::None: evo::debugFatalBreak("Invalid Expr");
+			case Expr::Kind::NONE: evo::debugFatalBreak("Invalid Expr");
 
-			case Expr::Kind::GlobalValue: {
+			case Expr::Kind::GLOBAL_VALUE: {
 				evo::unimplemented("Expr::Kind::GlobalValue");
 			} break;
 
-			case Expr::Kind::FunctionPointer: {
+			case Expr::Kind::FUNCTION_POINTER: {
 				evo::unimplemented("Expr::Kind::FunctionPointer");
 			} break;
 
-			case Expr::Kind::Number: {
+			case Expr::Kind::NUMBER: {
 				auto find = current_stack_frame.values.find(expr);
 				if(find != current_stack_frame.values.end()){ return find->second; }
 
@@ -522,11 +522,11 @@ namespace pcit::pir{
 				).first->second;
 			} break;
 
-			case Expr::Kind::Boolean: {
+			case Expr::Kind::BOOLEAN: {
 				evo::unimplemented("Expr::Kind::Boolean");
 			} break;
 
-			case Expr::Kind::ParamExpr: {
+			case Expr::Kind::PARAM_EXPR: {
 				evo::unimplemented("Expr::Kind::ParamExpr");
 			} break;
 

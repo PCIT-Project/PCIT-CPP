@@ -180,6 +180,7 @@ LLVM = {
 		BPFInfo                 = (LLVM_libs_loc .. "LLVMBPFInfo"),
 		CFGuard                 = (LLVM_libs_loc .. "LLVMCFGuard"),
 		CFIVerify               = (LLVM_libs_loc .. "LLVMCFIVerify"),
+		CGData                  = (LLVM_libs_loc .. "LLVMCGData"),
 		CodeGen                 = (LLVM_libs_loc .. "LLVMCodeGen"),
 		CodeGenTypes            = (LLVM_libs_loc .. "LLVMCodeGenTypes"),
 		Core                    = (LLVM_libs_loc .. "LLVMCore"),
@@ -205,9 +206,11 @@ LLVM = {
 		ExegesisAArch64         = (LLVM_libs_loc .. "LLVMExegesisAArch64"),
 		ExegesisMips            = (LLVM_libs_loc .. "LLVMExegesisMips"),
 		ExegesisPowerPC         = (LLVM_libs_loc .. "LLVMExegesisPowerPC"),
+		ExegesisRISCV           = (LLVM_libs_loc .. "LLVMExegesisRISCV"),
 		ExegesisX86             = (LLVM_libs_loc .. "LLVMExegesisX86"),
 		Extensions              = (LLVM_libs_loc .. "LLVMExtensions"),
 		FileCheck               = (LLVM_libs_loc .. "LLVMFileCheck"),
+		FrontendAtomic          = (LLVM_libs_loc .. "LLVMFrontendAtomic"),
 		FrontendDriver          = (LLVM_libs_loc .. "LLVMFrontendDriver"),
 		FrontendHLSL            = (LLVM_libs_loc .. "LLVMFrontendHLSL"),
 		FrontendOffloading      = (LLVM_libs_loc .. "LLVMFrontendOffloading"),
@@ -288,6 +291,7 @@ LLVM = {
 		RISCVInfo               = (LLVM_libs_loc .. "LLVMRISCVInfo"),
 		RISCVTargetMCA          = (LLVM_libs_loc .. "LLVMRISCVTargetMCA"),
 		RuntimeDyld             = (LLVM_libs_loc .. "LLVMRuntimeDyld"),
+		SandboxIR               = (LLVM_libs_loc .. "LLVMSandboxIR"),
 		ScalarOpts              = (LLVM_libs_loc .. "LLVMScalarOpts"),
 		SelectionDAG            = (LLVM_libs_loc .. "LLVMSelectionDAG"),
 		SparcAsmParser          = (LLVM_libs_loc .. "LLVMSparcAsmParser"),
@@ -295,6 +299,10 @@ LLVM = {
 		SparcDesc               = (LLVM_libs_loc .. "LLVMSparcDesc"),
 		SparcDisassembler       = (LLVM_libs_loc .. "LLVMSparcDisassembler"),
 		SparcInfo               = (LLVM_libs_loc .. "LLVMSparcInfo"),
+		SPIRVAnalysis           = (LLVM_libs_loc .. "LLVMSPIRVAnalysis"),
+		SPIRVCodeGen            = (LLVM_libs_loc .. "LLVMSPIRVCodeGen"),
+		SPIRVDesc               = (LLVM_libs_loc .. "LLVMSPIRVDesc"),
+		SPIRVInfo               = (LLVM_libs_loc .. "LLVMSPIRVInfo"),
 		Support                 = (LLVM_libs_loc .. "LLVMSupport"),
 		Symbolize               = (LLVM_libs_loc .. "LLVMSymbolize"),
 		SystemZAsmParser        = (LLVM_libs_loc .. "LLVMSystemZAsmParser"),
@@ -303,10 +311,11 @@ LLVM = {
 		SystemZDisassembler     = (LLVM_libs_loc .. "LLVMSystemZDisassembler"),
 		SystemZInfo             = (LLVM_libs_loc .. "LLVMSystemZInfo"),
 		TableGen                = (LLVM_libs_loc .. "LLVMTableGen"),
+		TableGenBasic           = (LLVM_libs_loc .. "LLVMTableGenBasic"),
 		TableGenCommon          = (LLVM_libs_loc .. "LLVMTableGenCommon"),
-		TableGenGlobalISel      = (LLVM_libs_loc .. "LLVMTableGenGlobalISel"),
 		Target                  = (LLVM_libs_loc .. "LLVMTarget"),
 		TargetParser            = (LLVM_libs_loc .. "LLVMTargetParser"),
+		Telemetry               = (LLVM_libs_loc .. "LLVMTelemetry"),
 		TextAPI                 = (LLVM_libs_loc .. "LLVMTextAPI"),
 		TextAPIBinaryReader     = (LLVM_libs_loc .. "LLVMTextAPIBinaryReader"),
 		TransformUtils          = (LLVM_libs_loc .. "LLVMTransformUtils"),
@@ -403,6 +412,7 @@ function LLVM.link.Exegesis()
 		LLVM.libs.ExegesisAArch64,
 		LLVM.libs.ExegesisMips,
 		LLVM.libs.ExegesisPowerPC,
+		LLVM.libs.ExegesisRISCV,
 		LLVM.libs.ExegesisX86,
 	}
 end
@@ -496,6 +506,15 @@ function LLVM.link.Sparc()
 	}
 end
 
+function LLVM.link.SPIRV()
+	links{
+		LLVM.libs.SPIRVAnalysis,
+		LLVM.libs.SPIRVCodeGen,
+		LLVM.libs.SPIRVDesc,
+		LLVM.libs.SPIRVInfo,
+	}
+end
+
 function LLVM.link.SystemZ()
 	links{
 		LLVM.libs.SystemZAsmParser,
@@ -506,7 +525,7 @@ function LLVM.link.SystemZ()
 	}
 end
 
-function LLVM.link.WASM()
+function LLVM.link.WebAssembly()
 	links{
 		LLVM.libs.WebAssemblyAsmParser,
 		LLVM.libs.WebAssemblyCodeGen,
@@ -554,8 +573,9 @@ function LLVM.link.all_platforms()
 	LLVM.link.PowerPC()
 	LLVM.link.RISCV()
 	LLVM.link.Sparc()
+	LLVM.link.SPIRV()
 	LLVM.link.SystemZ()
-	LLVM.link.WASM()
+	LLVM.link.WebAssembly()
 	LLVM.link.X86()
 	LLVM.link.XCore()
 end

@@ -23,26 +23,26 @@ namespace pcit::panther{
 	
 	struct TermInfo{
 		enum class ValueCategory{
-			Ephemeral,
-			EphemeralFluid,
-			ConcreteConst,
-			ConcreteMut,
-			ConcreteConstForwardable,
-			ConcreteConstDestrMovable,
+			EPHEMERAL,
+			EPHEMERAL_FLUID,
+			CONCRETE_CONST,
+			CONCRETE_MUT,
+			CONCRETE_CONST_FORWARDABLE,
+			CONCRETE_CONST_DESTR_MOVABLE,
 
-			Initializer, // uninit / zeroinit
-			Module,
-			Function, // function, not func pointer
-			Intrinsic,
-			TemplateIntrinsic, // uninstantiated
-			TemplateType, // uninstantiated
-			Type,
+			INITIALIZER, // uninit / zeroinit
+			MODULE,
+			FUNCTION, // function, not func pointer
+			INTRINSIC,
+			TEMPLATE_INTRINSIC, // uninstantiated
+			TEMPLATE_TYPE, // uninstantiated
+			TYPE,
 		};
 
 		enum class ValueStage{
-			Constexpr,
-			Comptime,
-			Runtime,
+			CONSTEXPR,
+			COMPTIME,
+			RUNTIME,
 		};
 
 		struct InitializerType{};
@@ -54,15 +54,15 @@ namespace pcit::panther{
 
 		using TypeID = evo::Variant<
 			InitializerType,                // Initializer
-			FluidType,                      // EphemeralFluid
-			TypeInfo::ID,                   // ConcreteConst|ConcreteMut|ConcreteConstForwardable
-						                    //   |ConcreteConstDestrMovable|Ephemeral|Intrinsic
-			FuncOverloadList,               // Function
-			TypeInfo::VoidableID,           // Type
-			evo::SmallVector<TypeInfo::ID>, // Ephemeral
-			SourceID,                       // Module
-			sema::TemplatedStruct::ID       // TemplateType
-			// TODO: TemplateIntrinsic
+			FluidType,                      // EPHEMERAL_FLUID
+			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_CONST_FORWARDABLE
+						                    //   |CONCRETE_CONST_DESTR_MOVABLE|EPHEMERAL|INTRINSIC
+			FuncOverloadList,               // FUNCTION
+			TypeInfo::VoidableID,           // TYPE
+			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
+			SourceID,                       // MODULE
+			sema::TemplatedStruct::ID       // TEMPLATE_TYPE
+			// TODO: TEMPLATE_INTRINSIC
 		>;
 
 		ValueCategory value_category;
@@ -75,7 +75,7 @@ namespace pcit::panther{
 
 		TermInfo(ValueCategory vc, ValueStage vs, evo::SmallVector<TypeInfo::ID>&& _type_id, const sema::Expr& _expr)
 			: value_category(vc), value_stage(vs), type_id(InitializerType()), exprs{_expr} {
-			evo::debugAssert(this->value_category == ValueCategory::Ephemeral);
+			evo::debugAssert(this->value_category == ValueCategory::EPHEMERAL);
 
 			// This is to get around the MSVC bug
 			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(_type_id));
@@ -125,53 +125,53 @@ namespace pcit::panther{
 			// TODO: remove this and move directly into `type_id` when the MSVC bug is fixed
 			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(type_ids));
 
-			evo::debugAssert(this->value_category == ValueCategory::Ephemeral, "multi-expr must be multi-return");
+			evo::debugAssert(this->value_category == ValueCategory::EPHEMERAL, "multi-expr must be multi-return");
 		}
 
 		
 		#if defined(PCIT_CONFIG_DEBUG)
 			auto check_single_expr_construction() -> void {
 				switch(this->value_category){
-					break; case ValueCategory::Ephemeral:
+					break; case ValueCategory::EPHEMERAL:
 						evo::debugAssert(
 							this->type_id.is<TypeInfo::ID>() || this->type_id.is<evo::SmallVector<TypeInfo::ID>>(),
 							"Incorrect TypeInfo creation"
 						);
 
-					break; case ValueCategory::EphemeralFluid:
+					break; case ValueCategory::EPHEMERAL_FLUID:
 						evo::debugAssert(this->type_id.is<FluidType>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::ConcreteConst:
+					break; case ValueCategory::CONCRETE_CONST:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::ConcreteMut:
+					break; case ValueCategory::CONCRETE_MUT:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::ConcreteConstForwardable:
+					break; case ValueCategory::CONCRETE_CONST_FORWARDABLE:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::ConcreteConstDestrMovable:
+					break; case ValueCategory::CONCRETE_CONST_DESTR_MOVABLE:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::Initializer:
+					break; case ValueCategory::INITIALIZER:
 						evo::debugAssert(this->type_id.is<InitializerType>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::Module:
+					break; case ValueCategory::MODULE:
 						evo::debugAssert(this->type_id.is<SourceID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::Function:
+					break; case ValueCategory::FUNCTION:
 						evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::Intrinsic:
+					break; case ValueCategory::INTRINSIC:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::TemplateIntrinsic:
-						evo::unimplemented("ValueCategory::TemplateIntrinsic");
+					break; case ValueCategory::TEMPLATE_INTRINSIC:
+						evo::unimplemented("ValueCategory::TEMPLATE_INTRINSIC");
 
-					break; case ValueCategory::TemplateType:
+					break; case ValueCategory::TEMPLATE_TYPE:
 						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::Type:
+					break; case ValueCategory::TYPE:
 						evo::debugAssert(this->type_id.is<TypeInfo::VoidableID>(), "Incorrect TypeInfo creation");
 				}
 			}
@@ -179,14 +179,14 @@ namespace pcit::panther{
 
 			auto check_no_expr_construction() -> void {
 				evo::debugAssert(
-					this->value_category == ValueCategory::Module
-					|| this->value_category == ValueCategory::TemplateType
-					|| this->value_category == ValueCategory::Type
-					|| this->value_category == ValueCategory::Function
+					this->value_category == ValueCategory::MODULE
+					|| this->value_category == ValueCategory::TEMPLATE_TYPE
+					|| this->value_category == ValueCategory::TYPE
+					|| this->value_category == ValueCategory::FUNCTION
 				);
-				evo::debugAssert(this->value_stage == ValueStage::Constexpr);
+				evo::debugAssert(this->value_stage == ValueStage::CONSTEXPR);
 				evo::debugAssert(
-					this->value_category != ValueCategory::Type || this->type_id.is<TypeInfo::VoidableID>()
+					this->value_category != ValueCategory::TYPE || this->type_id.is<TypeInfo::VoidableID>()
 				);
 			}
 		#endif
@@ -196,20 +196,20 @@ namespace pcit::panther{
 		// value type checking
 
 		EVO_NODISCARD constexpr auto is_ephemeral() const -> bool {
-			return this->value_category == ValueCategory::Ephemeral
-				|| this->value_category == ValueCategory::EphemeralFluid;
+			return this->value_category == ValueCategory::EPHEMERAL
+				|| this->value_category == ValueCategory::EPHEMERAL_FLUID;
 		}
 
 		EVO_NODISCARD constexpr auto is_concrete() const -> bool {
-			return this->value_category == ValueCategory::ConcreteConst
-				|| this->value_category == ValueCategory::ConcreteMut
-				|| this->value_category == ValueCategory::ConcreteConstForwardable
-				|| this->value_category == ValueCategory::ConcreteConstDestrMovable;
+			return this->value_category == ValueCategory::CONCRETE_CONST
+				|| this->value_category == ValueCategory::CONCRETE_MUT
+				|| this->value_category == ValueCategory::CONCRETE_CONST_FORWARDABLE
+				|| this->value_category == ValueCategory::CONCRETE_CONST_DESTR_MOVABLE;
 		}
 
 		EVO_NODISCARD constexpr auto is_const() const -> bool {
-			return this->value_category == ValueCategory::ConcreteConst 
-				|| this->value_category == ValueCategory::Function;
+			return this->value_category == ValueCategory::CONCRETE_CONST 
+				|| this->value_category == ValueCategory::FUNCTION;
 		}
 
 

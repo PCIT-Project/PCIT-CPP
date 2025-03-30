@@ -21,13 +21,13 @@ namespace pthr{
 
 	struct Config{
 		enum class Verbosity{
-			None = 0,
-			Some = 1,
-			Full = 2,
+			NONE = 0,
+			SOME = 1,
+			FULL = 2,
 		};
 
-		Verbosity verbosity  = Verbosity::Full;
-		bool print_color     = core::Printer::platformSupportsColor() == core::Printer::DetectResult::Yes;
+		Verbosity verbosity  = Verbosity::FULL;
+		bool print_color     = core::Printer::platformSupportsColor() == core::Printer::DetectResult::YES;
 		
 		unsigned num_threads = panther::Context::optimalNumThreads();
 		// unsigned num_threads = 0;
@@ -90,7 +90,7 @@ auto main(int argc, const char* argv[]) -> int {
 	auto printer = core::Printer::createConsole(config.print_color);
 
 
-	if(config.verbosity >= pthr::Config::Verbosity::Some){
+	if(config.verbosity >= pthr::Config::Verbosity::SOME){
 		pthr::print_logo(printer);
 
 		#if defined(PCIT_BUILD_DEBUG)
@@ -118,7 +118,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode         = ContextConfig::Mode::BuildSystem,
+		.mode         = ContextConfig::Mode::BUILD_SYSTEM,
 		.title        = "Panther Testing",
 		.os           = core::getCurrentOS(),
 		.architecture = core::getCurrentArchitecture(),
@@ -129,7 +129,7 @@ auto main(int argc, const char* argv[]) -> int {
 	const evo::Result<std::filesystem::path> current_path = get_current_path(printer);
 	if(current_path.isError()){ return EXIT_FAILURE; }
 
-	if(config.verbosity == pthr::Config::Verbosity::Full){
+	if(config.verbosity == pthr::Config::Verbosity::FULL){
 		printer.printlnMagenta("Relative directory: \"{}\"", current_path.value().string());
 	}
 
@@ -172,7 +172,7 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 
-	if(config.verbosity >= pthr::Config::Verbosity::Some){
+	if(config.verbosity >= pthr::Config::Verbosity::SOME){
 		printer.printlnSuccess("Successfully completed");
 	}
 

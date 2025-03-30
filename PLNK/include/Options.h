@@ -18,10 +18,10 @@ namespace pcit::plnk{
 
 	struct Target{
 		enum class Value{
-			Windows,
-			Unix,
-			Darwin,
-			WebAssembly,
+			WINDOWS,
+			UNIX,
+			DARWIN,
+			WEB_ASSEMBLY,
 		};
 		using enum class Value;
 
@@ -31,13 +31,13 @@ namespace pcit::plnk{
 
 		EVO_NODISCARD static constexpr auto getDefault() -> Target {
 			#if defined(EVO_PLATFORM_WINDOWS)
-				return Target::Windows;
+				return Target::WINDOWS;
 			#elif defined(EVO_PLATFORM_LINUX) || defined(EVO_PLATFORM_UNIX)
-				return Target::Unix;
+				return Target::UNIX;
 			#elif defined(EVO_PLATFROM_APPLE)
-				return Target::Darwin;
+				return Target::DARWIN;
 			#else
-				return Target::Unix;
+				return Target::UNIX;
 			#endif
 		}
 
@@ -62,22 +62,22 @@ namespace pcit::plnk{
 		struct WebAssemblySpecific{};
 
 		EVO_NODISCARD auto getWindowsSpecific() -> WindowsSpecific& {
-			evo::debugAssert(this->target == Target::Windows, "Not Windows target");
+			evo::debugAssert(this->target == Target::WINDOWS, "Not Windows target");
 			return this->specific.as<WindowsSpecific>();
 		}
 
 		EVO_NODISCARD auto getUnixSpecific() -> UnixSpecific& {
-			evo::debugAssert(this->target == Target::Unix, "Not Unix target");
+			evo::debugAssert(this->target == Target::UNIX, "Not Unix target");
 			return this->specific.as<UnixSpecific>();
 		}
 
 		EVO_NODISCARD auto getDarwinSpecific() -> DarwinSpecific& {
-			evo::debugAssert(this->target == Target::Darwin, "Not Darwin target");
+			evo::debugAssert(this->target == Target::DARWIN, "Not Darwin target");
 			return this->specific.as<DarwinSpecific>();
 		}
 
 		EVO_NODISCARD auto getWebAssemblySpecific() -> WebAssemblySpecific& {
-			evo::debugAssert(this->target == Target::WebAssembly, "Not WebAssembly target");
+			evo::debugAssert(this->target == Target::WEB_ASSEMBLY, "Not WebAssembly target");
 			return this->specific.as<WebAssemblySpecific>();
 		}
 

@@ -19,11 +19,11 @@ namespace pcit::core{
 		private:
 			// TODO: optimize this with templates
 			enum class Mode{
-				ConsoleColor,
-				Console,
-				String,
+				CONSOLE_COLOR,
+				CONSOLE,
+				STRING,
 
-				Uninit, // to facilitate move
+				UNINIT, // to facilitate move
 			};
 
 			Printer(Mode _mode);
@@ -31,18 +31,18 @@ namespace pcit::core{
 		public:
 			static EVO_NODISCARD auto createConsole(bool with_color) -> Printer {
 				if(with_color){
-					return Printer(Mode::ConsoleColor);
+					return Printer(Mode::CONSOLE_COLOR);
 				}else{
-					return Printer(Mode::Console);
+					return Printer(Mode::CONSOLE);
 				}
 			}
 
 			static EVO_NODISCARD auto createConsole() -> Printer {
-				return createConsole(platformSupportsColor() == DetectResult::Yes);
+				return createConsole(platformSupportsColor() == DetectResult::YES);
 			}
 
 			static EVO_NODISCARD auto createString() -> Printer {
-				return Printer(Mode::String);
+				return Printer(Mode::STRING);
 			}
 
 
@@ -53,19 +53,19 @@ namespace pcit::core{
 
 
 			enum class DetectResult{
-				Yes,
-				No,
-				Unknown,
+				YES,
+				NO,
+				UNKNOWN,
 			};
 			EVO_NODISCARD static auto platformSupportsColor() -> DetectResult;
 
 
-			EVO_NODISCARD auto isPrintingColor() const -> bool { return this->mode == Mode::ConsoleColor; }
+			EVO_NODISCARD auto isPrintingColor() const -> bool { return this->mode == Mode::CONSOLE_COLOR; }
 			EVO_NODISCARD auto isPrintingToConsle() const -> bool {
-				return this->mode == Mode::ConsoleColor || this->mode == Mode::Console;
+				return this->mode == Mode::CONSOLE_COLOR || this->mode == Mode::CONSOLE;
 			}
 
-			EVO_NODISCARD auto isPrintingString() const -> bool { return this->mode == Mode::String; }
+			EVO_NODISCARD auto isPrintingString() const -> bool { return this->mode == Mode::STRING; }
 
 
 			EVO_NODISCARD auto getString() const -> std::string {

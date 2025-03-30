@@ -23,49 +23,49 @@ namespace pcit::panther{
 namespace pcit::panther::AST{
 
 	enum class Kind : uint32_t {
-		None, // don't use! only here to allow optimization of std::optional<Node>
+		NONE, // don't use! only here to allow optimization of std::optional<Node>
 
-		VarDecl,
-		FuncDecl,
-		AliasDecl,
-		TypedefDecl,
-		StructDecl,
+		VAR_DECL,
+		FUNC_DECL,
+		ALIAS_DECL,
+		TYPEDEF_DECL,
+		STRUCT_DECL,
 
-		Return,
-		Error,
-		Conditional,
-		WhenConditional,
-		While,
-		Unreachable,
+		RETURN,
+		ERROR,
+		CONDITIONAL,
+		WHEN_CONDITIONAL,
+		WHILE,
+		UNREACHABLE,
 
-		Block,
-		FuncCall,
-		TemplatePack,
-		TemplatedExpr,
+		BLOCK,
+		FUNC_CALL,
+		TEMPLATE_PACK,
+		TEMPLATED_EXPR,
 		
-		Prefix,
-		Infix,
-		Postfix,
+		PREFIX,
+		INFIX,
+		POSTFIX,
 
-		MultiAssign,
+		MULTI_ASSIGN,
 
-		New,
+		NEW,
 
-		Type,
-		TypeIDConverter,
+		TYPE,
+		TYPEID_CONVERTER,
 
-		AttributeBlock,
-		Attribute,
+		ATTRIBUTE_BLOCK,
+		ATTRIBUTE,
 
-		PrimitiveType,
-		Ident,
-		Intrinsic,
-		Literal,
-		Uninit,
-		Zeroinit,
-		This,
+		PRIMITIVE_TYPE,
+		IDENT,
+		INTRINSIC,
+		LITERAL,
+		UNINIT,
+		ZEROINIT,
+		THIS,
 		
-		Discard,
+		DISCARD,
 	};
 
 
@@ -104,11 +104,11 @@ namespace pcit::panther::AST{
 
 	struct NodeOptInterface{
 		static constexpr auto init(Node* node) -> void {
-			node->_kind = Kind::None;
+			node->_kind = Kind::NONE;
 		}
 
 		static constexpr auto has_value(const Node& node) -> bool {
-			return node.kind() != Kind::None;
+			return node.kind() != Kind::NONE;
 		}
 	};
 

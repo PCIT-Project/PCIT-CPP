@@ -25,39 +25,39 @@ namespace pcit::pir::passes{
 
 	auto constant_folding_impl(Expr stmt, const Agent& agent) -> PassManager::MadeTransformation {
 		switch(stmt.kind()){
-			case Expr::Kind::None:            evo::debugFatalBreak("Not valid expr");
-			case Expr::Kind::GlobalValue:     return false;
-			case Expr::Kind::FunctionPointer: return false;
-			case Expr::Kind::Number:          return false;
-			case Expr::Kind::Boolean:         return false;
-			case Expr::Kind::ParamExpr:       return false;
-			case Expr::Kind::Call:            return false;
-			case Expr::Kind::CallVoid:        return false;
-			case Expr::Kind::Breakpoint:      return false;
-			case Expr::Kind::Ret:             return false;
-			case Expr::Kind::Branch:          return false;
-			case Expr::Kind::CondBranch:      return false;
-			case Expr::Kind::Unreachable:     return false;
-			case Expr::Kind::Alloca:          return false;
-			case Expr::Kind::Load:            return false;
-			case Expr::Kind::Store:           return false;
-			case Expr::Kind::CalcPtr:         return false;
-			case Expr::Kind::Memcpy:          return false;
-			case Expr::Kind::Memset:          return false;
-			case Expr::Kind::BitCast:         return false;
-			case Expr::Kind::Trunc:           return false;
-			case Expr::Kind::FTrunc:          return false;
-			case Expr::Kind::SExt:            return false;
-			case Expr::Kind::ZExt:            return false;
-			case Expr::Kind::FExt:            return false;
-			case Expr::Kind::IToF:            return false;
-			case Expr::Kind::UIToF:           return false;
-			case Expr::Kind::FToI:            return false;
-			case Expr::Kind::FToUI:           return false;
+			case Expr::Kind::NONE:            evo::debugFatalBreak("Not valid expr");
+			case Expr::Kind::GLOBAL_VALUE:     return false;
+			case Expr::Kind::FUNCTION_POINTER: return false;
+			case Expr::Kind::NUMBER:          return false;
+			case Expr::Kind::BOOLEAN:         return false;
+			case Expr::Kind::PARAM_EXPR:       return false;
+			case Expr::Kind::CALL:            return false;
+			case Expr::Kind::CALL_VOID:        return false;
+			case Expr::Kind::BREAKPOINT:      return false;
+			case Expr::Kind::RET:             return false;
+			case Expr::Kind::BRANCH:          return false;
+			case Expr::Kind::COND_BRANCH:      return false;
+			case Expr::Kind::UNREACHABLE:     return false;
+			case Expr::Kind::ALLOCA:          return false;
+			case Expr::Kind::LOAD:            return false;
+			case Expr::Kind::STORE:           return false;
+			case Expr::Kind::CALC_PTR:         return false;
+			case Expr::Kind::MEMCPY:          return false;
+			case Expr::Kind::MEMSET:          return false;
+			case Expr::Kind::BIT_CAST:         return false;
+			case Expr::Kind::TRUNC:           return false;
+			case Expr::Kind::FTRUNC:          return false;
+			case Expr::Kind::SEXT:            return false;
+			case Expr::Kind::ZEXT:            return false;
+			case Expr::Kind::FEXT:            return false;
+			case Expr::Kind::ITOF:            return false;
+			case Expr::Kind::UITOF:           return false;
+			case Expr::Kind::FTOI:            return false;
+			case Expr::Kind::FTOUI:           return false;
 
-			case Expr::Kind::Add: {
+			case Expr::Kind::ADD: {
 				const Add& add = agent.getAdd(stmt);
-				if(add.lhs.kind() != Expr::Kind::Number || add.rhs.kind() != Expr::Kind::Number){ return false; }
+				if(add.lhs.kind() != Expr::Kind::NUMBER || add.rhs.kind() != Expr::Kind::NUMBER){ return false; }
 				const Number& lhs = agent.getNumber(add.lhs);
 				const Number& rhs = agent.getNumber(add.rhs);
 
@@ -67,9 +67,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SAddWrap: {
+			case Expr::Kind::SADD_WRAP: {
 				const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
-				if(sadd_wrap.lhs.kind() != Expr::Kind::Number || sadd_wrap.rhs.kind() != Expr::Kind::Number){
+				if(sadd_wrap.lhs.kind() != Expr::Kind::NUMBER || sadd_wrap.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 
@@ -92,12 +92,12 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SAddWrapResult:  return false;
-			case Expr::Kind::SAddWrapWrapped: return false;
+			case Expr::Kind::SADD_WRAP_RESULT:  return false;
+			case Expr::Kind::SADD_WRAP_WRAPPED: return false;
 
-			case Expr::Kind::UAddWrap: {
+			case Expr::Kind::UADD_WRAP: {
 				const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
-				if(uadd_wrap.lhs.kind() != Expr::Kind::Number || uadd_wrap.rhs.kind() != Expr::Kind::Number){
+				if(uadd_wrap.lhs.kind() != Expr::Kind::NUMBER || uadd_wrap.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 
@@ -120,12 +120,12 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::UAddWrapResult:  return false;
-			case Expr::Kind::UAddWrapWrapped: return false;
+			case Expr::Kind::UADD_WRAP_RESULT:  return false;
+			case Expr::Kind::UADD_WRAP_WRAPPED: return false;
 
-			case Expr::Kind::SAddSat: {
+			case Expr::Kind::SADD_SAT: {
 				const SAddSat& sadd_sat = agent.getSAddSat(stmt);
-				if(sadd_sat.lhs.kind() != Expr::Kind::Number || sadd_sat.rhs.kind() != Expr::Kind::Number){
+				if(sadd_sat.lhs.kind() != Expr::Kind::NUMBER || sadd_sat.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sadd_sat.lhs);
@@ -137,9 +137,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::UAddSat: {
+			case Expr::Kind::UADD_SAT: {
 				const UAddSat& uadd_sat = agent.getUAddSat(stmt);
-				if(uadd_sat.lhs.kind() != Expr::Kind::Number || uadd_sat.rhs.kind() != Expr::Kind::Number){
+				if(uadd_sat.lhs.kind() != Expr::Kind::NUMBER || uadd_sat.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(uadd_sat.lhs);
@@ -151,9 +151,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::FAdd: {
+			case Expr::Kind::FADD: {
 				const FAdd& fadd = agent.getFAdd(stmt);
-				if(fadd.lhs.kind() != Expr::Kind::Number || fadd.rhs.kind() != Expr::Kind::Number){
+				if(fadd.lhs.kind() != Expr::Kind::NUMBER || fadd.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fadd.lhs);
@@ -165,9 +165,9 @@ namespace pcit::pir::passes{
 			} break;
 
 
-			case Expr::Kind::Sub: {
+			case Expr::Kind::SUB: {
 				const Sub& sub = agent.getSub(stmt);
-				if(sub.lhs.kind() != Expr::Kind::Number || sub.rhs.kind() != Expr::Kind::Number){ return false; }
+				if(sub.lhs.kind() != Expr::Kind::NUMBER || sub.rhs.kind() != Expr::Kind::NUMBER){ return false; }
 				const Number& lhs = agent.getNumber(sub.lhs);
 				const Number& rhs = agent.getNumber(sub.rhs);
 
@@ -177,9 +177,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SSubWrap: {
+			case Expr::Kind::SSUB_WRAP: {
 				const SSubWrap& ssub_wrap = agent.getSSubWrap(stmt);
-				if(ssub_wrap.lhs.kind() != Expr::Kind::Number || ssub_wrap.rhs.kind() != Expr::Kind::Number){
+				if(ssub_wrap.lhs.kind() != Expr::Kind::NUMBER || ssub_wrap.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 
@@ -202,12 +202,12 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SSubWrapResult:  return false;
-			case Expr::Kind::SSubWrapWrapped: return false;
+			case Expr::Kind::SSUB_WRAP_RESULT:  return false;
+			case Expr::Kind::SSUB_WRAP_WRAPPED: return false;
 
-			case Expr::Kind::USubWrap: {
+			case Expr::Kind::USUB_WRAP: {
 				const USubWrap& usub_wrap = agent.getUSubWrap(stmt);
-				if(usub_wrap.lhs.kind() != Expr::Kind::Number || usub_wrap.rhs.kind() != Expr::Kind::Number){
+				if(usub_wrap.lhs.kind() != Expr::Kind::NUMBER || usub_wrap.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 
@@ -230,12 +230,12 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::USubWrapResult:  return false;
-			case Expr::Kind::USubWrapWrapped: return false;
+			case Expr::Kind::USUB_WRAP_RESULT:  return false;
+			case Expr::Kind::USUB_WRAP_WRAPPED: return false;
 
-			case Expr::Kind::SSubSat: {
+			case Expr::Kind::SSUB_SAT: {
 				const SSubSat& ssub_sat = agent.getSSubSat(stmt);
-				if(ssub_sat.lhs.kind() != Expr::Kind::Number || ssub_sat.rhs.kind() != Expr::Kind::Number){
+				if(ssub_sat.lhs.kind() != Expr::Kind::NUMBER || ssub_sat.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ssub_sat.lhs);
@@ -247,9 +247,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::USubSat: {
+			case Expr::Kind::USUB_SAT: {
 				const USubSat& usub_sat = agent.getUSubSat(stmt);
-				if(usub_sat.lhs.kind() != Expr::Kind::Number || usub_sat.rhs.kind() != Expr::Kind::Number){
+				if(usub_sat.lhs.kind() != Expr::Kind::NUMBER || usub_sat.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(usub_sat.lhs);
@@ -261,9 +261,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::FSub: {
+			case Expr::Kind::FSUB: {
 				const FSub& fsub = agent.getFSub(stmt);
-				if(fsub.lhs.kind() != Expr::Kind::Number || fsub.rhs.kind() != Expr::Kind::Number){
+				if(fsub.lhs.kind() != Expr::Kind::NUMBER || fsub.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fsub.lhs);
@@ -274,9 +274,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::Mul: {
+			case Expr::Kind::MUL: {
 				const Mul& mul = agent.getMul(stmt);
-				if(mul.lhs.kind() != Expr::Kind::Number || mul.rhs.kind() != Expr::Kind::Number){ return false; }
+				if(mul.lhs.kind() != Expr::Kind::NUMBER || mul.rhs.kind() != Expr::Kind::NUMBER){ return false; }
 				const Number& lhs = agent.getNumber(mul.lhs);
 				const Number& rhs = agent.getNumber(mul.rhs);
 
@@ -286,9 +286,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SMulWrap: {
+			case Expr::Kind::SMUL_WRAP: {
 				const SMulWrap& smul_wrap = agent.getSMulWrap(stmt);
-				if(smul_wrap.lhs.kind() != Expr::Kind::Number || smul_wrap.rhs.kind() != Expr::Kind::Number){
+				if(smul_wrap.lhs.kind() != Expr::Kind::NUMBER || smul_wrap.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 
@@ -311,12 +311,12 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SMulWrapResult:  return false;
-			case Expr::Kind::SMulWrapWrapped: return false;
+			case Expr::Kind::SMUL_WRAP_RESULT:  return false;
+			case Expr::Kind::SMUL_WRAP_WRAPPED: return false;
 
-			case Expr::Kind::UMulWrap: {
+			case Expr::Kind::UMUL_WRAP: {
 				const UMulWrap& umul_wrap = agent.getUMulWrap(stmt);
-				if(umul_wrap.lhs.kind() != Expr::Kind::Number || umul_wrap.rhs.kind() != Expr::Kind::Number){
+				if(umul_wrap.lhs.kind() != Expr::Kind::NUMBER || umul_wrap.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 
@@ -339,12 +339,12 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::UMulWrapResult:  return false;
-			case Expr::Kind::UMulWrapWrapped: return false;
+			case Expr::Kind::UMUL_WRAP_RESULT:  return false;
+			case Expr::Kind::UMUL_WRAP_WRAPPED: return false;
 
-			case Expr::Kind::SMulSat: {
+			case Expr::Kind::SMUL_SAT: {
 				const SMulSat& smul_sat = agent.getSMulSat(stmt);
-				if(smul_sat.lhs.kind() != Expr::Kind::Number || smul_sat.rhs.kind() != Expr::Kind::Number){
+				if(smul_sat.lhs.kind() != Expr::Kind::NUMBER || smul_sat.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(smul_sat.lhs);
@@ -356,9 +356,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::UMulSat: {
+			case Expr::Kind::UMUL_SAT: {
 				const UMulSat& umul_sat = agent.getUMulSat(stmt);
-				if(umul_sat.lhs.kind() != Expr::Kind::Number || umul_sat.rhs.kind() != Expr::Kind::Number){
+				if(umul_sat.lhs.kind() != Expr::Kind::NUMBER || umul_sat.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(umul_sat.lhs);
@@ -370,9 +370,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::FMul: {
+			case Expr::Kind::FMUL: {
 				const FMul& fmul = agent.getFMul(stmt);
-				if(fmul.lhs.kind() != Expr::Kind::Number || fmul.rhs.kind() != Expr::Kind::Number){
+				if(fmul.lhs.kind() != Expr::Kind::NUMBER || fmul.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fmul.lhs);
@@ -383,9 +383,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SDiv: {
+			case Expr::Kind::SDIV: {
 				const SDiv& sdiv = agent.getSDiv(stmt);
-				if(sdiv.lhs.kind() != Expr::Kind::Number || sdiv.rhs.kind() != Expr::Kind::Number){
+				if(sdiv.lhs.kind() != Expr::Kind::NUMBER || sdiv.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sdiv.lhs);
@@ -396,9 +396,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::UDiv: {
+			case Expr::Kind::UDIV: {
 				const UDiv& udiv = agent.getUDiv(stmt);
-				if(udiv.lhs.kind() != Expr::Kind::Number || udiv.rhs.kind() != Expr::Kind::Number){
+				if(udiv.lhs.kind() != Expr::Kind::NUMBER || udiv.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(udiv.lhs);
@@ -409,9 +409,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::FDiv: {
+			case Expr::Kind::FDIV: {
 				const FDiv& fdiv = agent.getFDiv(stmt);
-				if(fdiv.lhs.kind() != Expr::Kind::Number || fdiv.rhs.kind() != Expr::Kind::Number){
+				if(fdiv.lhs.kind() != Expr::Kind::NUMBER || fdiv.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fdiv.lhs);
@@ -422,9 +422,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SRem: {
+			case Expr::Kind::SREM: {
 				const SRem& srem = agent.getSRem(stmt);
-				if(srem.lhs.kind() != Expr::Kind::Number || srem.rhs.kind() != Expr::Kind::Number){
+				if(srem.lhs.kind() != Expr::Kind::NUMBER || srem.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(srem.lhs);
@@ -435,9 +435,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::URem: {
+			case Expr::Kind::UREM: {
 				const URem& urem = agent.getURem(stmt);
-				if(urem.lhs.kind() != Expr::Kind::Number || urem.rhs.kind() != Expr::Kind::Number){
+				if(urem.lhs.kind() != Expr::Kind::NUMBER || urem.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(urem.lhs);
@@ -448,9 +448,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::FRem: {
+			case Expr::Kind::FREM: {
 				const FRem& frem = agent.getFRem(stmt);
-				if(frem.lhs.kind() != Expr::Kind::Number || frem.rhs.kind() != Expr::Kind::Number){
+				if(frem.lhs.kind() != Expr::Kind::NUMBER || frem.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(frem.lhs);
@@ -461,22 +461,22 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::FNeg: {
+			case Expr::Kind::FNEG: {
 				const FNeg& fneg = agent.getFNeg(stmt);
-				if(fneg.rhs.kind() != Expr::Kind::Number){
+				if(fneg.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 
 				const Number& rhs = agent.getNumber(fneg.rhs);
 
 				const core::GenericFloat zero = [&](){
-					if(rhs.type.kind() == Type::Kind::BFloat){ return core::GenericFloat::createBF16(0); }
+					if(rhs.type.kind() == Type::Kind::BFLOAT){ return core::GenericFloat::createBF16(0); }
 
 					switch(rhs.type.getWidth()){
-						case 16: return core::GenericFloat::createF16(0);
-						case 32: return core::GenericFloat::createF32(0);
-						case 64: return core::GenericFloat::createF64(0);
-						case 80: return core::GenericFloat::createF80(0);
+						case 16:  return core::GenericFloat::createF16(0);
+						case 32:  return core::GenericFloat::createF32(0);
+						case 64:  return core::GenericFloat::createF64(0);
+						case 80:  return core::GenericFloat::createF80(0);
 						case 128: return core::GenericFloat::createF128(0);
 					}
 					evo::unreachable();
@@ -487,9 +487,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::IEq: {
+			case Expr::Kind::IEQ: {
 				const IEq& ieq = agent.getIEq(stmt);
-				if(ieq.lhs.kind() != Expr::Kind::Number || ieq.rhs.kind() != Expr::Kind::Number){
+				if(ieq.lhs.kind() != Expr::Kind::NUMBER || ieq.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ieq.lhs);
@@ -500,9 +500,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::FEq: {
+			case Expr::Kind::FEQ: {
 				const FEq& feq = agent.getFEq(stmt);
-				if(feq.lhs.kind() != Expr::Kind::Number || feq.rhs.kind() != Expr::Kind::Number){
+				if(feq.lhs.kind() != Expr::Kind::NUMBER || feq.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(feq.lhs);
@@ -513,9 +513,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::INeq: {
+			case Expr::Kind::INEQ: {
 				const INeq& ineq = agent.getINeq(stmt);
-				if(ineq.lhs.kind() != Expr::Kind::Number || ineq.rhs.kind() != Expr::Kind::Number){
+				if(ineq.lhs.kind() != Expr::Kind::NUMBER || ineq.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ineq.lhs);
@@ -526,9 +526,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::FNeq: {
+			case Expr::Kind::FNEQ: {
 				const FNeq& fneq = agent.getFNeq(stmt);
-				if(fneq.lhs.kind() != Expr::Kind::Number || fneq.rhs.kind() != Expr::Kind::Number){
+				if(fneq.lhs.kind() != Expr::Kind::NUMBER || fneq.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fneq.lhs);
@@ -541,7 +541,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SLT: {
 				const SLT& slt = agent.getSLT(stmt);
-				if(slt.lhs.kind() != Expr::Kind::Number || slt.rhs.kind() != Expr::Kind::Number){
+				if(slt.lhs.kind() != Expr::Kind::NUMBER || slt.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(slt.lhs);
@@ -554,7 +554,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::ULT: {
 				const ULT& ult = agent.getULT(stmt);
-				if(ult.lhs.kind() != Expr::Kind::Number || ult.rhs.kind() != Expr::Kind::Number){
+				if(ult.lhs.kind() != Expr::Kind::NUMBER || ult.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ult.lhs);
@@ -567,7 +567,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FLT: {
 				const FLT& flt = agent.getFLT(stmt);
-				if(flt.lhs.kind() != Expr::Kind::Number || flt.rhs.kind() != Expr::Kind::Number){
+				if(flt.lhs.kind() != Expr::Kind::NUMBER || flt.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(flt.lhs);
@@ -580,7 +580,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SLTE: {
 				const SLTE& slte = agent.getSLTE(stmt);
-				if(slte.lhs.kind() != Expr::Kind::Number || slte.rhs.kind() != Expr::Kind::Number){
+				if(slte.lhs.kind() != Expr::Kind::NUMBER || slte.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(slte.lhs);
@@ -593,7 +593,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::ULTE: {
 				const ULTE& ulte = agent.getULTE(stmt);
-				if(ulte.lhs.kind() != Expr::Kind::Number || ulte.rhs.kind() != Expr::Kind::Number){
+				if(ulte.lhs.kind() != Expr::Kind::NUMBER || ulte.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ulte.lhs);
@@ -606,7 +606,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FLTE: {
 				const FLTE& flte = agent.getFLTE(stmt);
-				if(flte.lhs.kind() != Expr::Kind::Number || flte.rhs.kind() != Expr::Kind::Number){
+				if(flte.lhs.kind() != Expr::Kind::NUMBER || flte.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(flte.lhs);
@@ -619,7 +619,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SGT: {
 				const SGT& sgt = agent.getSGT(stmt);
-				if(sgt.lhs.kind() != Expr::Kind::Number || sgt.rhs.kind() != Expr::Kind::Number){
+				if(sgt.lhs.kind() != Expr::Kind::NUMBER || sgt.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sgt.lhs);
@@ -632,7 +632,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UGT: {
 				const UGT& ugt = agent.getUGT(stmt);
-				if(ugt.lhs.kind() != Expr::Kind::Number || ugt.rhs.kind() != Expr::Kind::Number){
+				if(ugt.lhs.kind() != Expr::Kind::NUMBER || ugt.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ugt.lhs);
@@ -645,7 +645,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FGT: {
 				const FGT& fgt = agent.getFGT(stmt);
-				if(fgt.lhs.kind() != Expr::Kind::Number || fgt.rhs.kind() != Expr::Kind::Number){
+				if(fgt.lhs.kind() != Expr::Kind::NUMBER || fgt.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fgt.lhs);
@@ -658,7 +658,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SGTE: {
 				const SGTE& sgte = agent.getSGTE(stmt);
-				if(sgte.lhs.kind() != Expr::Kind::Number || sgte.rhs.kind() != Expr::Kind::Number){
+				if(sgte.lhs.kind() != Expr::Kind::NUMBER || sgte.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sgte.lhs);
@@ -671,7 +671,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::UGTE: {
 				const UGTE& ugte = agent.getUGTE(stmt);
-				if(ugte.lhs.kind() != Expr::Kind::Number || ugte.rhs.kind() != Expr::Kind::Number){
+				if(ugte.lhs.kind() != Expr::Kind::NUMBER || ugte.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ugte.lhs);
@@ -684,7 +684,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FGTE: {
 				const FGTE& fgte = agent.getFGTE(stmt);
-				if(fgte.lhs.kind() != Expr::Kind::Number || fgte.rhs.kind() != Expr::Kind::Number){
+				if(fgte.lhs.kind() != Expr::Kind::NUMBER || fgte.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(fgte.lhs);
@@ -695,9 +695,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::And: {
+			case Expr::Kind::AND: {
 				const And& and_stmt = agent.getAnd(stmt);
-				if(and_stmt.lhs.kind() != Expr::Kind::Number || and_stmt.rhs.kind() != Expr::Kind::Number){
+				if(and_stmt.lhs.kind() != Expr::Kind::NUMBER || and_stmt.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(and_stmt.lhs);
@@ -708,9 +708,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::Or: {
+			case Expr::Kind::OR: {
 				const Or& or_stmt = agent.getOr(stmt);
-				if(or_stmt.lhs.kind() != Expr::Kind::Number || or_stmt.rhs.kind() != Expr::Kind::Number){
+				if(or_stmt.lhs.kind() != Expr::Kind::NUMBER || or_stmt.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(or_stmt.lhs);
@@ -721,9 +721,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::Xor: {
+			case Expr::Kind::XOR: {
 				const Xor& xor_stmt = agent.getXor(stmt);
-				if(xor_stmt.lhs.kind() != Expr::Kind::Number || xor_stmt.rhs.kind() != Expr::Kind::Number){
+				if(xor_stmt.lhs.kind() != Expr::Kind::NUMBER || xor_stmt.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(xor_stmt.lhs);
@@ -736,7 +736,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SHL: {
 				const SHL& shl = agent.getSHL(stmt);
-				if(shl.lhs.kind() != Expr::Kind::Number || shl.rhs.kind() != Expr::Kind::Number){
+				if(shl.lhs.kind() != Expr::Kind::NUMBER || shl.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(shl.lhs);
@@ -747,9 +747,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::SSHLSat: {
+			case Expr::Kind::SSHL_SAT: {
 				const SSHLSat& sshlsat = agent.getSSHLSat(stmt);
-				if(sshlsat.lhs.kind() != Expr::Kind::Number || sshlsat.rhs.kind() != Expr::Kind::Number){
+				if(sshlsat.lhs.kind() != Expr::Kind::NUMBER || sshlsat.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sshlsat.lhs);
@@ -760,9 +760,9 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::USHLSat: {
+			case Expr::Kind::USHL_SAT: {
 				const USHLSat& ushlsat = agent.getUSHLSat(stmt);
-				if(ushlsat.lhs.kind() != Expr::Kind::Number || ushlsat.rhs.kind() != Expr::Kind::Number){
+				if(ushlsat.lhs.kind() != Expr::Kind::NUMBER || ushlsat.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ushlsat.lhs);
@@ -775,7 +775,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::SSHR: {
 				const SSHR& sshr = agent.getSSHR(stmt);
-				if(sshr.lhs.kind() != Expr::Kind::Number || sshr.rhs.kind() != Expr::Kind::Number){
+				if(sshr.lhs.kind() != Expr::Kind::NUMBER || sshr.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(sshr.lhs);
@@ -788,7 +788,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::USHR: {
 				const USHR& ushr = agent.getUSHR(stmt);
-				if(ushr.lhs.kind() != Expr::Kind::Number || ushr.rhs.kind() != Expr::Kind::Number){
+				if(ushr.lhs.kind() != Expr::Kind::NUMBER || ushr.rhs.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
 				const Number& lhs = agent.getNumber(ushr.lhs);
@@ -807,22 +807,22 @@ namespace pcit::pir::passes{
 
 	auto inst_simplify_impl(Expr stmt, const Agent& agent) -> PassManager::MadeTransformation {
 		switch(stmt.kind()){
-			case Expr::Kind::None:            evo::debugFatalBreak("Not valid expr");
-			case Expr::Kind::GlobalValue:     return false;
-			case Expr::Kind::FunctionPointer: return false;
-			case Expr::Kind::Number:          return false;
-			case Expr::Kind::Boolean:         return false;
-			case Expr::Kind::ParamExpr:       return false;
-			case Expr::Kind::Call:            return false;
-			case Expr::Kind::CallVoid:        return false;
-			case Expr::Kind::Breakpoint:      return false;
-			case Expr::Kind::Ret:             return false;
-			case Expr::Kind::Branch:          return false;
+			case Expr::Kind::NONE:             evo::debugFatalBreak("Not valid expr");
+			case Expr::Kind::GLOBAL_VALUE:     return false;
+			case Expr::Kind::FUNCTION_POINTER: return false;
+			case Expr::Kind::NUMBER:           return false;
+			case Expr::Kind::BOOLEAN:          return false;
+			case Expr::Kind::PARAM_EXPR:       return false;
+			case Expr::Kind::CALL:             return false;
+			case Expr::Kind::CALL_VOID:        return false;
+			case Expr::Kind::BREAKPOINT:       return false;
+			case Expr::Kind::RET:              return false;
+			case Expr::Kind::BRANCH:           return false;
 
-			case Expr::Kind::CondBranch: {
+			case Expr::Kind::COND_BRANCH: {
 				const CondBranch& cond_branch = agent.getCondBranch(stmt);
 
-				if(cond_branch.cond.kind() != Expr::Kind::Boolean){ return false; }
+				if(cond_branch.cond.kind() != Expr::Kind::BOOLEAN){ return false; }
 
 				if(agent.getBoolean(cond_branch.cond)){
 					const BasicBlock::ID then_block = cond_branch.thenBlock;
@@ -837,12 +837,12 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::Unreachable: return false;
-			case Expr::Kind::Alloca:      return false;
-			case Expr::Kind::Load:        return false;
-			case Expr::Kind::Store:       return false;
+			case Expr::Kind::UNREACHABLE: return false;
+			case Expr::Kind::ALLOCA:      return false;
+			case Expr::Kind::LOAD:        return false;
+			case Expr::Kind::STORE:       return false;
 
-			case Expr::Kind::CalcPtr: {
+			case Expr::Kind::CALC_PTR: {
 				const CalcPtr& calc_ptr = agent.getCalcPtr(stmt);
 
 				for(const CalcPtr::Index& index : calc_ptr.indices){
@@ -851,7 +851,7 @@ namespace pcit::pir::passes{
 					}else{
 						const Expr& expr = index.as<Expr>();
 
-						if(expr.kind() != Expr::Kind::Number){ return false; }
+						if(expr.kind() != Expr::Kind::NUMBER){ return false; }
 						if(static_cast<uint64_t>(agent.getNumber(expr).getInt()) != 0){ return false; }
 					}
 				}
@@ -861,10 +861,10 @@ namespace pcit::pir::passes{
 			} break;
 
 			// TODO: 
-			case Expr::Kind::Memcpy: return false;
-			case Expr::Kind::Memset: return false;
+			case Expr::Kind::MEMCPY: return false;
+			case Expr::Kind::MEMSET: return false;
 
-			case Expr::Kind::BitCast: {
+			case Expr::Kind::BIT_CAST: {
 				const BitCast& bitcast = agent.getBitCast(stmt);
 				
 				if(agent.getExprType(bitcast.fromValue) == bitcast.toType){
@@ -873,7 +873,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::Trunc: {
+			case Expr::Kind::TRUNC: {
 				const Trunc& trunc = agent.getTrunc(stmt);
 				
 				if(agent.getExprType(trunc.fromValue) == trunc.toType){
@@ -882,7 +882,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::FTrunc: {
+			case Expr::Kind::FTRUNC: {
 				const FTrunc& ftrunc = agent.getFTrunc(stmt);
 				
 				if(agent.getExprType(ftrunc.fromValue) == ftrunc.toType){
@@ -891,7 +891,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::SExt: {
+			case Expr::Kind::SEXT: {
 				const SExt& sext = agent.getSExt(stmt);
 				
 				if(agent.getExprType(sext.fromValue) == sext.toType){
@@ -900,7 +900,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::ZExt: {
+			case Expr::Kind::ZEXT: {
 				const ZExt& zext = agent.getZExt(stmt);
 				
 				if(agent.getExprType(zext.fromValue) == zext.toType){
@@ -909,7 +909,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::FExt: {
+			case Expr::Kind::FEXT: {
 				const FExt& fext = agent.getFExt(stmt);
 				
 				if(agent.getExprType(fext.fromValue) == fext.toType){
@@ -918,7 +918,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::IToF: {
+			case Expr::Kind::ITOF: {
 				const IToF& itof = agent.getIToF(stmt);
 				
 				if(agent.getExprType(itof.fromValue) == itof.toType){
@@ -927,7 +927,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::UIToF: {
+			case Expr::Kind::UITOF: {
 				const UIToF& uitof = agent.getUIToF(stmt);
 				
 				if(agent.getExprType(uitof.fromValue) == uitof.toType){
@@ -936,7 +936,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::FToI: {
+			case Expr::Kind::FTOI: {
 				const FToI& ftoi = agent.getFToI(stmt);
 				
 				if(agent.getExprType(ftoi.fromValue) == ftoi.toType){
@@ -945,7 +945,7 @@ namespace pcit::pir::passes{
 				}
 			} break;
 
-			case Expr::Kind::FToUI: {
+			case Expr::Kind::FTOUI: {
 				const FToUI& ftoui = agent.getFToUI(stmt);
 				
 				if(agent.getExprType(ftoui.fromValue) == ftoui.toType){
@@ -955,10 +955,10 @@ namespace pcit::pir::passes{
 			} break;
 
 
-			case Expr::Kind::Add: {
+			case Expr::Kind::ADD: {
 				const Add& add = agent.getAdd(stmt);
 
-				if(add.lhs.kind() == Expr::Kind::Number){
+				if(add.lhs.kind() == Expr::Kind::NUMBER){
 					const Number& lhs = agent.getNumber(add.lhs);
 					const core::GenericInt& lhs_number = lhs.getInt();
 					if(lhs_number == core::GenericInt(lhs_number.getBitWidth(), 0)){
@@ -966,7 +966,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(add.rhs.kind() == Expr::Kind::Number){
+				}else if(add.rhs.kind() == Expr::Kind::NUMBER){
 					const Number& rhs = agent.getNumber(add.rhs);
 					const core::GenericInt& rhs_number = rhs.getInt();
 					if(rhs_number == core::GenericInt(rhs_number.getBitWidth(), 0)){
@@ -979,10 +979,10 @@ namespace pcit::pir::passes{
 			} break;
 
 
-			case Expr::Kind::SAddWrap: {
+			case Expr::Kind::SADD_WRAP: {
 				const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
 
-				if(sadd_wrap.lhs.kind() == Expr::Kind::Number){
+				if(sadd_wrap.lhs.kind() == Expr::Kind::NUMBER){
 					const Number& lhs = agent.getNumber(sadd_wrap.lhs);
 					const core::GenericInt& number = lhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
@@ -992,7 +992,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(sadd_wrap.rhs.kind() == Expr::Kind::Number){
+				}else if(sadd_wrap.rhs.kind() == Expr::Kind::NUMBER){
 					const Number& rhs = agent.getNumber(sadd_wrap.rhs);
 					const core::GenericInt& number = rhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
@@ -1006,13 +1006,13 @@ namespace pcit::pir::passes{
 				return false;
 			} break;
 
-			case Expr::Kind::SAddWrapResult:  return false;
-			case Expr::Kind::SAddWrapWrapped: return false;
+			case Expr::Kind::SADD_WRAP_RESULT:  return false;
+			case Expr::Kind::SADD_WRAP_WRAPPED: return false;
 
-			case Expr::Kind::UAddWrap: {
+			case Expr::Kind::UADD_WRAP: {
 				const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
 
-				if(uadd_wrap.lhs.kind() == Expr::Kind::Number){
+				if(uadd_wrap.lhs.kind() == Expr::Kind::NUMBER){
 					const Number& lhs = agent.getNumber(uadd_wrap.lhs);
 					const core::GenericInt& number = lhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
@@ -1022,7 +1022,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(uadd_wrap.rhs.kind() == Expr::Kind::Number){
+				}else if(uadd_wrap.rhs.kind() == Expr::Kind::NUMBER){
 					const Number& rhs = agent.getNumber(uadd_wrap.rhs);
 					const core::GenericInt& number = rhs.getInt();
 					if(number == core::GenericInt(number.getBitWidth(), 0)){
@@ -1036,13 +1036,13 @@ namespace pcit::pir::passes{
 				return false;
 			} break;
 
-			case Expr::Kind::UAddWrapResult:  return false;
-			case Expr::Kind::UAddWrapWrapped: return false;
+			case Expr::Kind::UADD_WRAP_RESULT:  return false;
+			case Expr::Kind::UADD_WRAP_WRAPPED: return false;
 
-			case Expr::Kind::SAddSat: {
+			case Expr::Kind::SADD_SAT: {
 				const SAddSat& sadd_sat = agent.getSAddSat(stmt);
 
-				if(sadd_sat.lhs.kind() == Expr::Kind::Number){
+				if(sadd_sat.lhs.kind() == Expr::Kind::NUMBER){
 					const Number& lhs = agent.getNumber(sadd_sat.lhs);
 					const core::GenericInt& lhs_number = lhs.getInt();
 					if(lhs_number == core::GenericInt(lhs_number.getBitWidth(), 0)){
@@ -1050,7 +1050,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(sadd_sat.rhs.kind() == Expr::Kind::Number){
+				}else if(sadd_sat.rhs.kind() == Expr::Kind::NUMBER){
 					const Number& rhs = agent.getNumber(sadd_sat.rhs);
 					const core::GenericInt& rhs_number = rhs.getInt();
 					if(rhs_number == core::GenericInt(rhs_number.getBitWidth(), 0)){
@@ -1062,10 +1062,10 @@ namespace pcit::pir::passes{
 				return false;
 			} break;
 
-			case Expr::Kind::UAddSat: {
+			case Expr::Kind::UADD_SAT: {
 				const UAddSat& uadd_sat = agent.getUAddSat(stmt);
 
-				if(uadd_sat.lhs.kind() == Expr::Kind::Number){
+				if(uadd_sat.lhs.kind() == Expr::Kind::NUMBER){
 					const Number& lhs = agent.getNumber(uadd_sat.lhs);
 					const core::GenericInt& lhs_number = lhs.getInt();
 					if(lhs_number == core::GenericInt(lhs_number.getBitWidth(), 0)){
@@ -1073,7 +1073,7 @@ namespace pcit::pir::passes{
 						return true;
 					}
 
-				}else if(uadd_sat.rhs.kind() == Expr::Kind::Number){
+				}else if(uadd_sat.rhs.kind() == Expr::Kind::NUMBER){
 					const Number& rhs = agent.getNumber(uadd_sat.rhs);
 					const core::GenericInt& rhs_number = rhs.getInt();
 					if(rhs_number == core::GenericInt(rhs_number.getBitWidth(), 0)){
@@ -1085,42 +1085,42 @@ namespace pcit::pir::passes{
 				return false;
 			} break;
 
-			case Expr::Kind::FAdd: return false;
+			case Expr::Kind::FADD: return false;
 
 			// TODO: 
-			case Expr::Kind::Sub:             return false;
-			case Expr::Kind::SSubWrap:        return false;
-			case Expr::Kind::SSubWrapResult:  return false;
-			case Expr::Kind::SSubWrapWrapped: return false;
-			case Expr::Kind::USubWrap:        return false;
-			case Expr::Kind::USubWrapResult:  return false;
-			case Expr::Kind::USubWrapWrapped: return false;
-			case Expr::Kind::SSubSat:         return false;
-			case Expr::Kind::USubSat:         return false;
-			case Expr::Kind::FSub:            return false;
-			case Expr::Kind::Mul:             return false;
-			case Expr::Kind::SMulWrap:        return false;
-			case Expr::Kind::SMulWrapResult:  return false;
-			case Expr::Kind::SMulWrapWrapped: return false;
-			case Expr::Kind::UMulWrap:        return false;
-			case Expr::Kind::UMulWrapResult:  return false;
-			case Expr::Kind::UMulWrapWrapped: return false;
-			case Expr::Kind::SMulSat:         return false;
-			case Expr::Kind::UMulSat:         return false;
-			case Expr::Kind::FMul:            return false;
-			case Expr::Kind::SDiv:            return false;
-			case Expr::Kind::UDiv:            return false;
-			case Expr::Kind::FDiv:            return false;
-			case Expr::Kind::SRem:            return false;
-			case Expr::Kind::URem:            return false;
-			case Expr::Kind::FRem:            return false;
-			case Expr::Kind::FNeg:            return false;
+			case Expr::Kind::SUB:               return false;
+			case Expr::Kind::SSUB_WRAP:         return false;
+			case Expr::Kind::SSUB_WRAP_RESULT:  return false;
+			case Expr::Kind::SSUB_WRAP_WRAPPED: return false;
+			case Expr::Kind::USUB_WRAP:         return false;
+			case Expr::Kind::USUB_WRAP_RESULT:  return false;
+			case Expr::Kind::USUB_WRAP_WRAPPED: return false;
+			case Expr::Kind::SSUB_SAT:          return false;
+			case Expr::Kind::USUB_SAT:          return false;
+			case Expr::Kind::FSUB:              return false;
+			case Expr::Kind::MUL:               return false;
+			case Expr::Kind::SMUL_WRAP:         return false;
+			case Expr::Kind::SMUL_WRAP_RESULT:  return false;
+			case Expr::Kind::SMUL_WRAP_WRAPPED: return false;
+			case Expr::Kind::UMUL_WRAP:         return false;
+			case Expr::Kind::UMUL_WRAP_RESULT:  return false;
+			case Expr::Kind::UMUL_WRAP_WRAPPED: return false;
+			case Expr::Kind::SMUL_SAT:          return false;
+			case Expr::Kind::UMUL_SAT:          return false;
+			case Expr::Kind::FMUL:              return false;
+			case Expr::Kind::SDIV:              return false;
+			case Expr::Kind::UDIV:              return false;
+			case Expr::Kind::FDIV:              return false;
+			case Expr::Kind::SREM:              return false;
+			case Expr::Kind::UREM:              return false;
+			case Expr::Kind::FREM:              return false;
+			case Expr::Kind::FNEG:              return false;
 
 			// TODO:
-			case Expr::Kind::IEq:  return false;
-			case Expr::Kind::FEq:  return false;
-			case Expr::Kind::INeq: return false;
-			case Expr::Kind::FNeq: return false;
+			case Expr::Kind::IEQ:  return false;
+			case Expr::Kind::FEQ:  return false;
+			case Expr::Kind::INEQ: return false;
+			case Expr::Kind::FNEQ: return false;
 			case Expr::Kind::SLT:  return false;
 			case Expr::Kind::ULT:  return false;
 			case Expr::Kind::FLT:  return false;
@@ -1135,14 +1135,14 @@ namespace pcit::pir::passes{
 			case Expr::Kind::FGTE: return false;
 
 			// TODO:
-			case Expr::Kind::And:     return false;
-			case Expr::Kind::Or:      return false;
-			case Expr::Kind::Xor:     return false;
-			case Expr::Kind::SHL:     return false;
-			case Expr::Kind::SSHLSat: return false;
-			case Expr::Kind::USHLSat: return false;
-			case Expr::Kind::SSHR:    return false;
-			case Expr::Kind::USHR:    return false;
+			case Expr::Kind::AND:      return false;
+			case Expr::Kind::OR:       return false;
+			case Expr::Kind::XOR:      return false;
+			case Expr::Kind::SHL:      return false;
+			case Expr::Kind::SSHL_SAT: return false;
+			case Expr::Kind::USHL_SAT: return false;
+			case Expr::Kind::SSHR:     return false;
+			case Expr::Kind::USHR:     return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

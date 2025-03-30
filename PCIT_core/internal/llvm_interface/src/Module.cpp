@@ -53,7 +53,7 @@ namespace pcit::llvmint{
 					arch_specific_settings = ArchSpecificSettingsX86();
 				} break;
 
-				case core::Architecture::Unknown: break;
+				case core::Architecture::UNKNOWN: break;
 			}
 		}
 
@@ -64,7 +64,7 @@ namespace pcit::llvmint{
 
 				if constexpr(std::is_same<Settings, ArchSpecificSettingsDefault>()){
 					evo::debugAssert(
-						arch == core::Architecture::Unknown,
+						arch == core::Architecture::UNKNOWN,
 						"Architecture specific settings should have been set to correct architecture"
 					);
 
@@ -82,7 +82,7 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::ArchType triple_arch = [&](){
 			switch(arch){
-				case core::Architecture::Unknown: return llvm::Triple::ArchType::UnknownArch;
+				case core::Architecture::UNKNOWN: return llvm::Triple::ArchType::UnknownArch;
 				case core::Architecture::X86_64:  return llvm::Triple::ArchType::x86_64;
 			}
 
@@ -93,9 +93,9 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::OSType triple_os = [&](){
 			switch(os){
-				case core::OS::Unknown: return llvm::Triple::OSType::UnknownOS;
-				case core::OS::Windows: return llvm::Triple::OSType::Win32;
-				case core::OS::Linux:   return llvm::Triple::OSType::Linux;
+				case core::OS::UNKNOWN: return llvm::Triple::OSType::UnknownOS;
+				case core::OS::WINDOWS: return llvm::Triple::OSType::Win32;
+				case core::OS::LINUX:   return llvm::Triple::OSType::Linux;
 			}
 
 			evo::unreachable();
@@ -103,9 +103,9 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::VendorType triple_vendor = [&](){
 			switch(os){
-				case core::OS::Unknown: return llvm::Triple::VendorType::UnknownVendor;
-				case core::OS::Windows: return llvm::Triple::VendorType::PC;
-				case core::OS::Linux:   return llvm::Triple::VendorType::UnknownVendor;
+				case core::OS::UNKNOWN: return llvm::Triple::VendorType::UnknownVendor;
+				case core::OS::WINDOWS: return llvm::Triple::VendorType::PC;
+				case core::OS::LINUX:   return llvm::Triple::VendorType::UnknownVendor;
 			}
 
 			evo::unreachable();
@@ -113,9 +113,9 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::EnvironmentType triple_enviroment = [&](){
 			switch(os){
-				case core::OS::Unknown: return llvm::Triple::EnvironmentType::UnknownEnvironment;
-				case core::OS::Windows: return llvm::Triple::EnvironmentType::MSVC;
-				case core::OS::Linux:   return llvm::Triple::EnvironmentType::GNU;
+				case core::OS::UNKNOWN: return llvm::Triple::EnvironmentType::UnknownEnvironment;
+				case core::OS::WINDOWS: return llvm::Triple::EnvironmentType::MSVC;
+				case core::OS::LINUX:   return llvm::Triple::EnvironmentType::GNU;
 			}
 
 			evo::unreachable();
@@ -123,9 +123,9 @@ namespace pcit::llvmint{
 
 		// const llvm::Triple::ObjectFormatType triple_object_format = [&](){
 		// 	switch(os){
-		// 		case core::OS::Unknown: return llvm::Triple::ObjectFormatType::UnknownObjectFormat;
-		// 		case core::OS::Windows: return llvm::Triple::ObjectFormatType::COFF;
-		// 		case core::OS::Linux:   return llvm::Triple::ObjectFormatType::ELF;
+		// 		case core::OS::UNKNOWN: return llvm::Triple::ObjectFormatType::UnknownObjectFormat;
+		// 		case core::OS::WINDOWS: return llvm::Triple::ObjectFormatType::COFF;
+		// 		case core::OS::LINUX:   return llvm::Triple::ObjectFormatType::ELF;
 		// 	}
 
 		// 	evo::unreachable();
@@ -135,7 +135,7 @@ namespace pcit::llvmint{
 		if(arch_specific_settings.is<ArchSpecificSettingsX86>()){
 			if(
 				arch_specific_settings.as<ArchSpecificSettingsX86>().dialect == 
-				ArchSpecificSettingsX86::AssemblyDialect::Intel
+				ArchSpecificSettingsX86::AssemblyDialect::INTEL
 			){
 				const auto llvm_cmd_args = std::array<const char*, 2>{"", "--x86-asm-syntax=intel"};
 			    const bool llvm_parse_cmd_res = llvm::cl::ParseCommandLineOptions(
@@ -152,13 +152,12 @@ namespace pcit::llvmint{
 		triple.setEnvironment(triple_enviroment);
 		// triple.setObjectFormat(triple_object_format);
 
-		const std::string target_triple = triple.getTriple();
 
-		this->_native->setTargetTriple(target_triple);
+		this->_native->setTargetTriple(triple);
 
 
 		auto error_msg = std::string();
-		const llvm::Target* target = llvm::TargetRegistry::lookupTarget(target_triple, error_msg);
+		const llvm::Target* target = llvm::TargetRegistry::lookupTarget(triple, error_msg);
 
 		if(target == nullptr){ return error_msg; }
 
@@ -170,42 +169,42 @@ namespace pcit::llvmint{
 
 		const std::optional<llvm::Reloc::Model> reloc_model = [&](){
 			switch(relocation){
-				case Relocation::Default:      return std::optional<llvm::Reloc::Model>();
-				case Relocation::Static:       return std::optional<llvm::Reloc::Model>(llvm::Reloc::Static);
-				case Relocation::PIC:          return std::optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
-				case Relocation::DynamicNoPIC: return std::optional<llvm::Reloc::Model>(llvm::Reloc::DynamicNoPIC);
-				case Relocation::ROPI:         return std::optional<llvm::Reloc::Model>(llvm::Reloc::ROPI);
-				case Relocation::RWPI:         return std::optional<llvm::Reloc::Model>(llvm::Reloc::RWPI);
-				case Relocation::ROPI_RWPI:    return std::optional<llvm::Reloc::Model>(llvm::Reloc::ROPI_RWPI);
+				case Relocation::DEFAULT:        return std::optional<llvm::Reloc::Model>();
+				case Relocation::STATIC:         return std::optional<llvm::Reloc::Model>(llvm::Reloc::Static);
+				case Relocation::PIC:            return std::optional<llvm::Reloc::Model>(llvm::Reloc::PIC_);
+				case Relocation::DYNAMIC_NO_PIC: return std::optional<llvm::Reloc::Model>(llvm::Reloc::DynamicNoPIC);
+				case Relocation::ROPI:           return std::optional<llvm::Reloc::Model>(llvm::Reloc::ROPI);
+				case Relocation::RWPI:           return std::optional<llvm::Reloc::Model>(llvm::Reloc::RWPI);
+				case Relocation::ROPI_RWPI:      return std::optional<llvm::Reloc::Model>(llvm::Reloc::ROPI_RWPI);
 			}
 			evo::debugFatalBreak("Unknown or unsupported relocation mode");
 		}();
 
 		const std::optional<llvm::CodeModel::Model> code_model = [&](){
 			switch(code_size){
-				case CodeSize::Default: return std::optional<llvm::CodeModel::Model>();
+				case CodeSize::DEFAULT: return std::optional<llvm::CodeModel::Model>();
 				// case CodeSize::Tiny:    return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Tiny);
-				case CodeSize::Small:   return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Small);
-				case CodeSize::Kernel:  return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Kernel);
-				case CodeSize::Medium:  return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Medium);
-				case CodeSize::Large:   return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Large);
+				case CodeSize::SMALL:   return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Small);
+				case CodeSize::KERNEL:  return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Kernel);
+				case CodeSize::MEDIUM:  return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Medium);
+				case CodeSize::LARGE:   return std::optional<llvm::CodeModel::Model>(llvm::CodeModel::Large);
 			}
 			evo::debugFatalBreak("Unknown or unsupported code size mode");
 		}();
 
 		const llvm::CodeGenOptLevel code_gen_opt_level = [&](){
 			switch(opt_level){
-				case OptLevel::None:       return llvm::CodeGenOptLevel::None;
-				case OptLevel::Less:       return llvm::CodeGenOptLevel::Less;
-				case OptLevel::Default:    return llvm::CodeGenOptLevel::Default;
-				case OptLevel::Aggressive: return llvm::CodeGenOptLevel::Aggressive;
+				case OptLevel::NONE:       return llvm::CodeGenOptLevel::None;
+				case OptLevel::LESS:       return llvm::CodeGenOptLevel::Less;
+				case OptLevel::DEFAULT:    return llvm::CodeGenOptLevel::Default;
+				case OptLevel::AGGRESSIVE: return llvm::CodeGenOptLevel::Aggressive;
 			}
 			evo::debugFatalBreak("Unknown or unsupported opt level");
 		}();
 
 
 		this->target_machine = target->createTargetMachine(
-			target_triple, cpu, features, target_options, reloc_model, code_model, code_gen_opt_level, is_jit
+			triple, cpu, features, target_options, reloc_model, code_model, code_gen_opt_level, is_jit
 		);
 
 		this->native()->setDataLayout(target_machine->createDataLayout());
@@ -344,7 +343,7 @@ namespace pcit::llvmint{
 
 
 	auto Module::optimize(OptMode opt_mode) -> void {
-		if(opt_mode == OptMode::None){ return; }
+		if(opt_mode == OptMode::NONE){ return; }
 
 		// DO NOT RE-ORDER THESE (destructors must be called in this order)
 		auto loop_analysis_manager = llvm::LoopAnalysisManager();

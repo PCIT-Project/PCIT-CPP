@@ -89,7 +89,7 @@ namespace pcit::core{
 
 	Printer::Printer(Printer&& rhs) : mode(rhs.mode) {
 		#if defined(EVO_PLATFORM_WINDOWS)
-			rhs.mode = Mode::Uninit;
+			rhs.mode = Mode::UNINIT;
 		#endif
 	}
 
@@ -98,17 +98,17 @@ namespace pcit::core{
 
 	auto Printer::platformSupportsColor() -> DetectResult {
 		#if defined(EVO_PLATFORM_WINDOWS)
-			return DetectResult::Yes;
+			return DetectResult::YES;
 
 		#elif defined(EVO_PLATFORM_LINUX)
 			if(std::getenv("TERM") == nullptr){
-				return DetectResult::Yes;
+				return DetectResult::YES;
 			}else{
-				return DetectResult::No;
+				return DetectResult::NO;
 			}
 
 		#else
-			return DetectResult::Unknown;
+			return DetectResult::UNKNOWN;
 		#endif
 	}
 
