@@ -417,12 +417,12 @@ namespace pcit::pir{
 
 			case Expr::Kind::GLOBAL_VALUE: {
 				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
-				this->printer.print("@{}", global_var.name);
+				this->printer.print("&{}", global_var.name);
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {
 				const Function& function = this->reader.getFunctionPointer(expr);
-				this->printer.print("@{}", function.getName());
+				this->printer.print("&{}", function.getName());
 			} break;
 
 			case Expr::Kind::NUMBER: {
@@ -453,11 +453,11 @@ namespace pcit::pir{
 				this->printer.print("${}", call_inst.name);
 			} break;
 
-			case Expr::Kind::CALL_VOID:    evo::debugFatalBreak("Expr::Kind::CallVoid is not a valid expression");
+			case Expr::Kind::CALL_VOID:   evo::debugFatalBreak("Expr::Kind::CallVoid is not a valid expression");
 			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Expr::Kind::Breakpoint is not a valid expression");
 			case Expr::Kind::RET:         evo::debugFatalBreak("Expr::Kind::Ret is not a valid expression");
 			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Expr::Kind::Branch is not a valid expression");
-			case Expr::Kind::COND_BRANCH:  evo::debugFatalBreak("Expr::Kind::CondBranch is not a valid expression");
+			case Expr::Kind::COND_BRANCH: evo::debugFatalBreak("Expr::Kind::CondBranch is not a valid expression");
 			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Expr::Kind::Unreachable is not a valid expression");
 
 			case Expr::Kind::ALLOCA: {
@@ -922,6 +922,8 @@ namespace pcit::pir{
 				this->printer.printRed("= @calcPtr ");
 				this->print_type(calc_ptr.ptrType);
 				this->printer.print(" ");
+				this->print_expr(calc_ptr.basePtr);
+				this->printer.print(", ");
 				for(size_t i = 0; const CalcPtr::Index& index : calc_ptr.indices){
 					if(index.is<int64_t>()){
 						this->printer.printCyan("I64");

@@ -19,6 +19,17 @@
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/GenericValue.h>
 
+#include <llvm/ExecutionEngine/Orc/CompileUtils.h>
+#include <llvm/ExecutionEngine/Orc/Core.h>
+#include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
+#include <llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h>
+#include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
+// #include <llvm/ExecutionEngine/Orc/MapperJITLinkMemoryManager.h>
+#include <llvm/ExecutionEngine/Orc/Mangling.h>
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
+#include <llvm/ExecutionEngine/Orc/AbsoluteSymbols.h>
+
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/NoFolder.h>
 

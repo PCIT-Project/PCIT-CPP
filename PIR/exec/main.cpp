@@ -34,7 +34,7 @@
 
 
 struct Config{
-	bool optimize = true;
+	bool optimize = false;
 	bool print_assembly = true;
 } config;
 
@@ -149,7 +149,7 @@ auto main(int argc, const char* argv[]) -> int {
 			// pcit::pir::Parameter("vec2", vec2),
 			// pcit::pir::Parameter("number", module.createIntegerType(64))
 		},
-		pcit::pir::CallingConvention::FAST,
+		pcit::pir::CallingConvention::C,
 		pcit::pir::Linkage::EXTERNAL,
 		module.createIntegerType(64)
 	);
@@ -182,13 +182,13 @@ auto main(int argc, const char* argv[]) -> int {
 		agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(2))
 	);
 
-	agent.createStore(
-		val_alloca,
-		agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(2)),
-		false,
-		pcit::pir::AtomicOrdering::RELEASE
-	);
-	std::ignore = agent.createLoad(val_alloca, module.createIntegerType(64), true, pcit::pir::AtomicOrdering::ACQUIRE);
+	// agent.createStore(
+	// 	val_alloca,
+	// 	agent.createNumber(module.createIntegerType(64), pcit::core::GenericInt::create<uint64_t>(2)),
+	// 	false,
+	// 	pcit::pir::AtomicOrdering::RELEASE
+	// );
+	// std::ignore = agent.createLoad(val_alloca, module.createIntegerType(64), true, pcit::pir::AtomicOrdering::ACQUIRE);
 
 	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
 
@@ -249,17 +249,24 @@ auto main(int argc, const char* argv[]) -> int {
 
 
 	auto jit_engine = pcit::pir::JITEngine();
-	jit_engine.init(module);
+	jit_engine.init(pcit::pir::JITEngine::InitConfig());
 
+	jit_engine.addModule(module);
 
-	jit_engine.registerFunction(print_message_decl, [](const char* msg) -> void {
+	jit_engine.registerFunc("print_message", [](const char* msg) -> void {
 		evo::printlnYellow("Message: \"{}\"", msg);
 	});
 
-	const evo::Result<pcit::core::GenericValue> result = jit_engine.runFunc(entry_func_id);
-	if(result.isSuccess()){
-		printer.printlnSuccess("value returned from entry: {}", result.value());
-	}
+	// const evo::Result<pcit::core::GenericValue> result = jit_engine.runFunc(entry_func_id);
+	// if(result.isSuccess()){
+	// 	printer.printlnSuccess("value returned from entry: {}", result.value());
+	// }
+
+	const void* entry_func_jit_ptr = jit_engine.lookupFunc("entry");
+	using FuncType = uint64_t(*)(void);
+	const uint64_t res = ((FuncType)entry_func_jit_ptr)();
+
+	printer.printlnSuccess("Value returned from entry: {}", res);
 
 	jit_engine.deinit();
 

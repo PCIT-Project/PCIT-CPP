@@ -25,6 +25,7 @@ namespace pcit::llvmint{
 	
 	auto Module::deinit() -> void {
 		delete this->_native;
+		this->_native = nullptr;
 	}
 
 

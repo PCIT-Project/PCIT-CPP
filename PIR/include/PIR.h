@@ -31,4 +31,5 @@
 #include "./Interpreter.h"
 
 #include "./llvmir.h"
+#include "./LegacyJITEngine.h"
 #include "./JITEngine.h"

@@ -9,44 +9,44 @@
 
 #pragma once
 
-
 #include <Evo.h>
-#include <PCIT_core.h>
+
+// #include "./class_impls/native_ptr_decls.h"
+// #include "./class_impls/types.h"
+// #include "./class_impls/enums.h"
+// #include "./Function.h"
+
+// #include "../../../include/platform.h"
+
+namespace pcit::llvmint{
 
 
-#include "./Function.h"
-
-
-namespace pcit::pir{
-
-
-	class JITEngine{
+	class OrcJIT{
 		public:
 			struct InitConfig{
 				bool allowDefaultSymbolLinking = false;
 			};
-		
 
 		public:
-			JITEngine() = default;
+			OrcJIT() = default;
 
 			#if defined(PCIT_CONFIG_DEBUG)
-				~JITEngine(){
+				~OrcJIT(){
 					evo::debugAssert(
-						this->isInitialized() == false, "Didn't deinit JITEngine before destructor"
+						this->isInitialized() == false, "`OrcJIT::deinit()` must be called before destructor`"
 					);
 				}
 			#else
-				~JITEngine() = default;
+				~OrcJIT() = default;
 			#endif
 
-			auto init(const InitConfig& config) -> evo::Result<>;
-			auto deinit() -> void;
+			EVO_NODISCARD auto init(const InitConfig& config) -> evo::Result<>; // if returns error, not initialized
+			EVO_NODISCARD auto deinit() -> void;
 
 
-			EVO_NODISCARD auto addModule(const class Module& module) -> evo::Result<>;
+			EVO_NODISCARD auto addModule(class LLVMContext&& context, class Module&& module) -> evo::Result<>;
 
-			auto lookupFunc(std::string_view name) -> void*;
+			EVO_NODISCARD auto lookupFunc(std::string_view name) -> void*;
 
 			struct FuncRegisterInfo{
 				std::string_view name;
@@ -57,14 +57,11 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->data != nullptr; }
-
-
+	
 		private:
 			struct Data;
 			Data* data = nullptr;
 	};
 
-
+	
 }
-
-

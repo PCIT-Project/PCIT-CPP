@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.96.0"></a>
+## v0.0.96.0
+
+### PIR
+- Created new `JITEngine` (old one is currently present in `LegacyJITEngine`)
+- Fixed `ModulePrinter` not printing out the base location of a `@calPtr` instruction
+- Fixed `ModulePrinter` printing global value expression and function pointers with a `@` prefix instead of `&`
+- Fixed some minor memory leaks 
+
+### Misc
+- Removed BUILDING.md and pointed the link to the builing instructions that's on the README to [https://www.pcitproject.org/site/build.html](https://www.pcitproject.org/site/build.html)
+- Added a link on the README to the PIR documentation
+- Fixed the link to the pcitproject.org home page on the README
+
+
+<!---------------------------------->
 <a name="v0.0.95.0"></a>
 ## v0.0.95.0
 

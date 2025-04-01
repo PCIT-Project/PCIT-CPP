@@ -296,14 +296,14 @@ namespace pcit::panther{
 	}
 
 
-	struct JITEngineContext{
+	struct LegacyJITEngineContext{
 		std::mutex lock{};
 
 		core::Printer* printer = nullptr;
 		Context* context = nullptr;
 	};
 
-	static auto jit_engine_context = JITEngineContext();
+	static auto jit_engine_context = LegacyJITEngineContext();
 
 
 	auto Context::run() -> evo::Result<uint8_t> {
@@ -319,7 +319,7 @@ namespace pcit::panther{
 		asg_to_pir.lower();
 		asg_to_pir.addRuntime();
 
-		auto jit_engine = pir::JITEngine();
+		auto jit_engine = pir::LegacyJITEngine();
 		jit_engine.init(module);
 		EVO_DEFER([&](){ jit_engine.deinit(); });
 
@@ -340,7 +340,7 @@ namespace pcit::panther{
 						Source::Location(Source::ID(source_id), line, collumn),
 						std::format("Execution Panic: \"{}\"", msg)
 					);
-					pir::JITEngine::panicJump();
+					pir::LegacyJITEngine::panicJump();
 				}
 			);
 		}else{
@@ -350,7 +350,7 @@ namespace pcit::panther{
 					std::nullopt,
 					std::format("Execution Panic: \"{}\"", msg)
 				);
-				pir::JITEngine::panicJump();
+				pir::LegacyJITEngine::panicJump();
 			});
 		}
 

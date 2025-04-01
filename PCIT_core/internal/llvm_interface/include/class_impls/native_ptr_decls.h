@@ -44,5 +44,5 @@ namespace llvm{
 	class CallInst;
 	class LoadInst;
 	class GlobalVariable;
-	
+
 }

@@ -20,4 +20,5 @@
 
 #include "./IRBuilder.h"
 #include "./ExecutionEngine.h"
+#include "./OrcJIT.h"
 

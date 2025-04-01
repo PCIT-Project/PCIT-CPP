@@ -248,7 +248,7 @@ namespace pcit::panther{
 			bool requires_engine_restart = false;
 
 			pir::Module module;
-			pir::JITEngine jit_engine{};
+			pir::LegacyJITEngine jit_engine{};
 			class ASGToPIR* asg_to_pir = nullptr;
 	};
 

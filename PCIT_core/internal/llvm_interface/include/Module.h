@@ -87,15 +87,37 @@ namespace pcit::llvmint{
 
 		public:
 			Module() = default;
-			~Module() = default;
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				~Module(){
+					evo::debugAssert(
+						this->isInitialized() == false, "`Module::deinit()` must be called before destructor`"
+					);
+				}
+			#else
+				~Module() = default;
+			#endif
+
+
+			Module(Module&& rhs){
+				llvm::Module* holder = this->_native;
+				this->_native = rhs._native;
+				rhs._native = holder;
+			}
+
 
 			auto init(std::string_view name, class LLVMContext& context) -> void;
 			auto deinit() -> void;
 
+
+			auto steal() -> llvm::Module* {
+				llvm::Module* holder = this->_native;
+				this->_native = nullptr;
+				return holder;
+			}
+
+
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->_native != nullptr; }
-
-
-
 
 
 			EVO_NODISCARD auto setTargetAndDataLayout(

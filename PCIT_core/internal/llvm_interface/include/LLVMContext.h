@@ -18,10 +18,23 @@ namespace pcit::llvmint{
 	class LLVMContext{
 		public:
 			LLVMContext() = default;
-			~LLVMContext() { evo::debugAssert(!this->isInitialized(), "Did not call shutdown() before destructor"); };
+			~LLVMContext() { evo::debugAssert(!this->isInitialized(), "must be uninitialized before destructor"); };
+
+			LLVMContext(LLVMContext&& rhs){
+				llvm::LLVMContext* holder = this->_native;
+				this->_native = rhs._native;
+				rhs._native = holder;
+			}
 
 			auto init() -> void;
 			auto deinit() -> void;
+
+			// uninitiailizes
+			auto steal() -> llvm::LLVMContext* {
+				llvm::LLVMContext* holder = this->_native;
+				this->_native = nullptr;
+				return holder;
+			}
 
 
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->_native != nullptr; };
