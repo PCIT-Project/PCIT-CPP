@@ -31,7 +31,7 @@ namespace pcit::panther{
 
 			~Tokenizer() = default;
 
-			EVO_NODISCARD auto tokenize() -> bool;
+			EVO_NODISCARD auto tokenize() -> evo::Result<>;
 
 			
 		private:
@@ -77,7 +77,7 @@ namespace pcit::panther{
 	};
 
 
-	EVO_NODISCARD inline auto tokenize(Context& context, Source::ID source_id) -> bool {
+	EVO_NODISCARD inline auto tokenize(Context& context, Source::ID source_id) -> evo::Result<> {
 		auto tokenizer = Tokenizer(context, source_id);
 		return tokenizer.tokenize();
 	}

@@ -386,7 +386,7 @@ namespace pcit::panther{
 
 	class TypeManager{
 		public:
-			TypeManager(core::OS target_os, core::Architecture target_arch) : _os(target_os), _arch(target_arch) {};
+			TypeManager(core::Platform target_platform) : platform(target_platform) {};
 			~TypeManager() = default;
 
 
@@ -394,8 +394,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto primitivesInitialized() const -> bool; // single-threaded
 
 
-			EVO_NODISCARD auto getOS() const -> core::OS { return this->_os; }
-			EVO_NODISCARD auto getArchitecture() const -> core::Architecture { return this->_arch; }
+			EVO_NODISCARD auto getPlatform() const -> const core::Platform& { return this->platform; }
 
 
 			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
@@ -494,18 +493,33 @@ namespace pcit::panther{
 
 
 		private:
-			core::OS _os;
-			core::Architecture _arch;
+			core::Platform platform;
 
 			// TODO: improve lookup times
-			core::SyncLinearStepAlloc<BaseType::Primitive, BaseType::Primitive::ID> primitives{};
-			core::SyncLinearStepAlloc<BaseType::Function, BaseType::Function::ID> functions{};
-			core::SyncLinearStepAlloc<BaseType::Array, BaseType::Array::ID> arrays{};
-			core::SyncLinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
-			core::SyncLinearStepAlloc<BaseType::Typedef, BaseType::Typedef::ID> typedefs{};
-			core::SyncLinearStepAlloc<BaseType::Struct, BaseType::Struct::ID> structs{};
-			core::SyncLinearStepAlloc<BaseType::StructTemplate, BaseType::StructTemplate::ID> struct_templates{};
-			core::SyncLinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
+			core::LinearStepAlloc<BaseType::Primitive, BaseType::Primitive::ID> primitives{};
+			mutable core::SpinLock primitives_lock{};
+
+			core::LinearStepAlloc<BaseType::Function, BaseType::Function::ID> functions{};
+			mutable core::SpinLock functions_lock{};
+
+			core::LinearStepAlloc<BaseType::Array, BaseType::Array::ID> arrays{};
+			mutable core::SpinLock arrays_lock{};
+
+			core::LinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
+			mutable core::SpinLock aliases_lock{};
+
+			core::LinearStepAlloc<BaseType::Typedef, BaseType::Typedef::ID> typedefs{};
+			mutable core::SpinLock typedefs_lock{};
+
+			core::LinearStepAlloc<BaseType::Struct, BaseType::Struct::ID> structs{};
+			mutable core::SpinLock structs_lock{};
+
+			core::LinearStepAlloc<BaseType::StructTemplate, BaseType::StructTemplate::ID> struct_templates{};
+			mutable core::SpinLock struct_templates_lock{};
+
+			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
+			mutable core::SpinLock types_lock{};
+
 
 			friend class SemanticAnalyzer;
 			friend class SemaToPIR;

@@ -21,9 +21,9 @@ namespace pcit::panther{
 	using Instruction = SymbolProc::Instruction;
 	
 
-	auto SymbolProcBuilder::build(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::build(const AST::Node& stmt) -> evo::Result<> {
 		const evo::Result<std::string_view> symbol_ident = this->get_symbol_ident(stmt);
-		if(symbol_ident.isError()){ return false; }
+		if(symbol_ident.isError()){ return evo::resultError; }
 
 		SymbolProc* parent_symbol = (this->symbol_proc_infos.empty() == false) 
 			? &this->symbol_proc_infos.back().symbol_proc
@@ -37,13 +37,26 @@ namespace pcit::panther{
 		this->symbol_proc_infos.emplace_back(symbol_proc_id, symbol_proc);
 		
 		switch(stmt.kind()){
-			break; case AST::Kind::VAR_DECL:         if(this->build_var_decl(stmt) == false){ return false; }
-			break; case AST::Kind::FUNC_DECL:        if(this->build_func_decl(stmt) == false){ return false; }
-			break; case AST::Kind::ALIAS_DECL:       if(this->build_alias_decl(stmt) == false){ return false; }
-			break; case AST::Kind::TYPEDEF_DECL:     if(this->build_typedef_decl(stmt) == false){ return false; }
-			break; case AST::Kind::STRUCT_DECL:      if(this->build_struct_decl(stmt) == false){ return false; }
-			break; case AST::Kind::WHEN_CONDITIONAL: if(this->build_when_conditional(stmt) == false){ return false; }
-			break; case AST::Kind::FUNC_CALL:        if(this->build_func_call(stmt) == false){ return false; }
+			break; case AST::Kind::VAR_DECL:
+				if(this->build_var_decl(stmt).isError()){ return evo::resultError; }
+
+			break; case AST::Kind::FUNC_DECL:
+				if(this->build_func_decl(stmt).isError()){ return evo::resultError; }
+
+			break; case AST::Kind::ALIAS_DECL:
+				if(this->build_alias_decl(stmt).isError()){ return evo::resultError; }
+
+			break; case AST::Kind::TYPEDEF_DECL:
+				if(this->build_typedef_decl(stmt).isError()){ return evo::resultError; }
+
+			break; case AST::Kind::STRUCT_DECL:
+				if(this->build_struct_decl(stmt).isError()){ return evo::resultError; }
+
+			break; case AST::Kind::WHEN_CONDITIONAL:
+				if(this->build_when_conditional(stmt).isError()){ return evo::resultError; }
+
+			break; case AST::Kind::FUNC_CALL:
+				if(this->build_func_call(stmt).isError()){ return evo::resultError; }
 
 			break; default: evo::unreachable();
 		}
@@ -67,7 +80,7 @@ namespace pcit::panther{
 
 		this->context.trace("Finished building symbol proc of \"{}\"", symbol_ident.value());
 
-		return true;
+		return evo::Result<>();
 	}
 
 
@@ -112,7 +125,7 @@ namespace pcit::panther{
 		this->symbol_scopes.emplace_back(&struct_info.stmts);
 		this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
 		for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).stmts){
-			if(this->build(struct_stmt) == false){ return evo::resultError; }
+			if(this->build(struct_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
 		this->symbol_scopes.pop_back();
@@ -203,20 +216,20 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::build_var_decl(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::build_var_decl(const AST::Node& stmt) -> evo::Result<> {
 		const AST::VarDecl& var_decl = this->source.getASTBuffer().getVarDecl(stmt);
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
 			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock)
 		);
-		if(attribute_params_info.isError()){ return false; }
+		if(attribute_params_info.isError()){ return evo::resultError; }
 
 
 		auto type_id = std::optional<SymbolProc::TypeID>();
 		if(var_decl.type.has_value()){
 			const evo::Result<SymbolProc::TypeID> type_id_res = 
 				this->analyze_type(this->source.getASTBuffer().getType(*var_decl.type));
-			if(type_id_res.isError()){ return false; }
+			if(type_id_res.isError()){ return evo::resultError; }
 
 
 			if(var_decl.kind != AST::VarDecl::Kind::Def){
@@ -235,11 +248,11 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE, var_decl, "Variables need to be defined with a value"
 			);
-			return false;
+			return evo::resultError;
 		}
 
 		const evo::Result<SymbolProc::TermInfoID> value_id = this->analyze_expr<true>(*var_decl.value);
-		if(value_id.isError()){ return false; }
+		if(value_id.isError()){ return evo::resultError; }
 
 		if(var_decl.type.has_value() && var_decl.kind != AST::VarDecl::Kind::Def){
 			this->add_instruction(
@@ -267,11 +280,11 @@ namespace pcit::panther{
 
 		this->symbol_namespaces.back()->emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
 
-		return true;
+		return evo::Result<>();
 	}
 
 
-	auto SymbolProcBuilder::build_func_decl(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::build_func_decl(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::FuncDecl& func_decl = ast_buffer.getFuncDecl(stmt);
 
@@ -284,7 +297,7 @@ namespace pcit::panther{
 			evo::Result<evo::SmallVector<Instruction::TemplateParamInfo>> template_param_infos_res =
 				this->analyze_template_param_pack(ast_buffer.getTemplatePack(*func_decl.templatePack));
 
-			if(template_param_infos_res.isError()){ return false; }
+			if(template_param_infos_res.isError()){ return evo::resultError; }
 			template_param_infos = std::move(template_param_infos_res.value());
 		}
 
@@ -293,7 +306,7 @@ namespace pcit::panther{
 		if(template_param_infos.empty()){
 			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
 				this->analyze_attributes(ast_buffer.getAttributeBlock(func_decl.attributeBlock));
-			if(attribute_params_info.isError()){ return false; }
+			if(attribute_params_info.isError()){ return evo::resultError; }
 
 			auto types = evo::SmallVector<std::optional<SymbolProcTypeID>>();
 			types.reserve(func_decl.params.size() + func_decl.returns.size() + func_decl.errorReturns.size());
@@ -307,13 +320,13 @@ namespace pcit::panther{
 				}
 					
 				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(ast_buffer.getType(*param.type));
-				if(param_type.isError()){ return false; }
+				if(param_type.isError()){ return evo::resultError; }
 				types.emplace_back(param_type.value());
 
 				if(param.defaultValue.has_value()){
 					const evo::Result<SymbolProc::TermInfoID> param_default_value =
 						this->analyze_expr<false>(*param.defaultValue);
-					if(param_default_value.isError()){ return false; }
+					if(param_default_value.isError()){ return evo::resultError; }
 
 					default_param_values.emplace_back(param_default_value.value());
 				}else{
@@ -325,7 +338,7 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(
 					ast_buffer.getType(return_param.type)
 				);
-				if(param_type.isError()){ return false; }
+				if(param_type.isError()){ return evo::resultError; }
 				types.emplace_back(param_type.value());
 			}
 
@@ -333,7 +346,7 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(
 					ast_buffer.getType(error_return_param.type)
 				);
-				if(param_type.isError()){ return false; }
+				if(param_type.isError()){ return evo::resultError; }
 				types.emplace_back(param_type.value());
 			}
 
@@ -347,7 +360,7 @@ namespace pcit::panther{
 			);
 
 			for(const AST::Node& func_stmt : ast_buffer.getBlock(func_decl.block).stmts){
-				if(this->analyze_stmt(func_stmt) == false){ return false; }
+				if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 			}
 
 			this->add_instruction(Instruction::FuncDef(func_decl));
@@ -372,11 +385,11 @@ namespace pcit::panther{
 
 		this->symbol_namespaces.back()->emplace(current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id);
 
-		return true;
+		return evo::Result<>();
 	}
 
 
-	auto SymbolProcBuilder::build_alias_decl(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::build_alias_decl(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::AliasDecl& alias_decl = ast_buffer.getAliasDecl(stmt);
 
@@ -384,12 +397,12 @@ namespace pcit::panther{
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
 			ast_buffer.getAttributeBlock(alias_decl.attributeBlock)
 		);
-		if(attribute_params_info.isError()){ return false; }
+		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(Instruction::AliasDecl(alias_decl, std::move(attribute_params_info.value())));
 		
 		const evo::Result<SymbolProc::TypeID> aliased_type = this->analyze_type(ast_buffer.getType(alias_decl.type));
-		if(aliased_type.isError()){ return false; }
+		if(aliased_type.isError()){ return evo::resultError; }
 
 		this->add_instruction(Instruction::AliasDef(alias_decl, aliased_type.value()));
 
@@ -407,21 +420,21 @@ namespace pcit::panther{
 
 		this->symbol_namespaces.back()->emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
 
-		return true;
+		return evo::Result<>();
 	}
 
 
-	auto SymbolProcBuilder::build_typedef_decl(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::build_typedef_decl(const AST::Node& stmt) -> evo::Result<> {
 		// const AST::TypedefDecl& typedef_decl = this->source.getASTBuffer().getTypedefDecl(stmt);
 		this->emit_error(
 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			stmt,
 			"Building symbol process of Typedef Decl is unimplemented"
 		);
-		return false;
+		return evo::resultError;
 	}
 
-	auto SymbolProcBuilder::build_struct_decl(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::build_struct_decl(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::StructDecl& struct_decl = ast_buffer.getStructDecl(stmt);
 
@@ -433,14 +446,14 @@ namespace pcit::panther{
 			evo::Result<evo::SmallVector<Instruction::TemplateParamInfo>> template_param_infos_res =
 				this->analyze_template_param_pack(ast_buffer.getTemplatePack(*struct_decl.templatePack));
 
-			if(template_param_infos_res.isError()){ return false; }
+			if(template_param_infos_res.isError()){ return evo::resultError; }
 			template_param_infos = std::move(template_param_infos_res.value());
 		}
 
 		if(template_param_infos.empty()){
 			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
 				this->analyze_attributes(ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
-			if(attribute_params_info.isError()){ return false; }
+			if(attribute_params_info.isError()){ return evo::resultError; }
 
 			this->add_instruction(
 				Instruction::StructDecl<false>(struct_decl, std::move(attribute_params_info.value()))
@@ -454,7 +467,7 @@ namespace pcit::panther{
 			this->symbol_scopes.emplace_back(&struct_info.stmts);
 			this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
 			for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).stmts){
-				if(this->build(struct_stmt) == false){ return false; }
+				if(this->build(struct_stmt).isError()){ return evo::resultError; }
 			}
 			this->symbol_namespaces.pop_back();
 			this->symbol_scopes.pop_back();
@@ -478,20 +491,20 @@ namespace pcit::panther{
 
 		this->symbol_namespaces.back()->emplace(current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id);
 
-		return true;
+		return evo::Result<>();
 	}
 
-	auto SymbolProcBuilder::build_when_conditional(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::build_when_conditional(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::WhenConditional& when_conditional = ast_buffer.getWhenConditional(stmt);
 
 		const evo::Result<SymbolProc::TermInfoID> cond_id = this->analyze_expr<true>(when_conditional.cond);
-		if(cond_id.isError()){ return false; }
+		if(cond_id.isError()){ return evo::resultError; }
 
 		auto then_symbol_scope = SymbolScope();
 		this->symbol_scopes.emplace_back(&then_symbol_scope);
 		for(const AST::Node& then_stmt : ast_buffer.getBlock(when_conditional.thenBlock).stmts){
-			if(this->build(then_stmt) == false){ return false; }
+			if(this->build(then_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_scopes.pop_back();
 
@@ -500,10 +513,10 @@ namespace pcit::panther{
 			this->symbol_scopes.emplace_back(&else_symbol_scope);
 			if(when_conditional.elseBlock->kind() == AST::Kind::BLOCK){
 				for(const AST::Node& else_stmt : ast_buffer.getBlock(*when_conditional.elseBlock).stmts){
-					if(this->build(else_stmt) == false){ return false; }
+					if(this->build(else_stmt).isError()){ return evo::resultError; }
 				}
 			}else{
-				if(this->build(*when_conditional.elseBlock) == false){ return false; }
+				if(this->build(*when_conditional.elseBlock).isError()){ return evo::resultError; }
 			}
 			this->symbol_scopes.pop_back();
 		}
@@ -530,17 +543,17 @@ namespace pcit::panther{
 			std::move(then_symbol_scope), std::move(else_symbol_scope)
 		);
 
-		return true;
+		return evo::Result<>();
 	}
 
-	auto SymbolProcBuilder::build_func_call(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::build_func_call(const AST::Node& stmt) -> evo::Result<> {
 		// const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(stmt);
 		this->emit_error(
 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			stmt,
 			"Building symbol process of Func Call is unimplemented"
 		);
-		return false;
+		return evo::resultError;
 	}
 
 
@@ -651,7 +664,7 @@ namespace pcit::panther{
 
 
 	// TODO: error on invalid statements
-	auto SymbolProcBuilder::analyze_stmt(const AST::Node& stmt) -> bool {
+	auto SymbolProcBuilder::analyze_stmt(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		switch(stmt.kind()){
@@ -695,33 +708,33 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::analyze_return(const AST::Return& return_stmt) -> bool {
+	auto SymbolProcBuilder::analyze_return(const AST::Return& return_stmt) -> evo::Result<> {
 		if(return_stmt.value.is<AST::Node>()){
 			const evo::Result<SymbolProc::TermInfoID> return_value = 
 				this->analyze_expr<false>(return_stmt.value.as<AST::Node>());
-			if(return_value.isError()){ return false; }
+			if(return_value.isError()){ return evo::resultError; }
 
 			this->add_instruction(Instruction::Return(return_stmt, return_value.value()));
-			return true;
+			return evo::Result<>();
 			
 		}else{
 			this->add_instruction(Instruction::Return(return_stmt, std::nullopt));
-			return true;
+			return evo::Result<>();
 		}
 	}
 
-	auto SymbolProcBuilder::analyze_error(const AST::Error& error_stmt) -> bool {
+	auto SymbolProcBuilder::analyze_error(const AST::Error& error_stmt) -> evo::Result<> {
 		if(error_stmt.value.is<AST::Node>()){
 			const evo::Result<SymbolProc::TermInfoID> error_value = 
 				this->analyze_expr<false>(error_stmt.value.as<AST::Node>());
-			if(error_value.isError()){ return false; }
+			if(error_value.isError()){ return evo::resultError; }
 
 			this->add_instruction(Instruction::Error(error_stmt, error_value.value()));
-			return true;
+			return evo::Result<>();
 			
 		}else{
 			this->add_instruction(Instruction::Error(error_stmt, std::nullopt));
-			return true;
+			return evo::Result<>();
 		}
 	}
 

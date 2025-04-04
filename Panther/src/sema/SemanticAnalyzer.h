@@ -270,15 +270,15 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto check_type_qualifiers(
 				evo::ArrayProxy<AST::Type::Qualifier> qualifiers, const auto& location
-			) -> bool;
+			) -> evo::Result<>;
 
 
-			EVO_NODISCARD auto check_term_isnt_type(const TermInfo& term_info, const auto& location) -> bool;
+			EVO_NODISCARD auto check_term_isnt_type(const TermInfo& term_info, const auto& location) -> evo::Result<>;
 
 
 			EVO_NODISCARD auto add_ident_to_scope(
 				std::string_view ident_str, const auto& ast_node, auto&&... ident_id_info
-			) -> bool {
+			) -> evo::Result<> {
 				return this->add_ident_to_scope(
 					this->scope, ident_str, ast_node, std::forward<decltype(ident_id_info)>(ident_id_info)...
 				);
@@ -289,7 +289,7 @@ namespace pcit::panther{
 				std::string_view ident_str,
 				const auto& ast_node,
 				auto&&... ident_id_info
-			) -> bool;
+			) -> evo::Result<>;
 
 
 			template<bool IS_SHADOWING>
@@ -327,7 +327,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto print_type(const TermInfo& term_info) const -> std::string;
 
 
-			EVO_NODISCARD auto check_scope_isnt_terminated(const auto& location) -> bool;
+			EVO_NODISCARD auto check_scope_isnt_terminated(const auto& location) -> evo::Result<>;
 
 
 			auto emit_fatal(Diagnostic::Code code, const auto& node, auto&&... args) -> void {

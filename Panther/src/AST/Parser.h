@@ -34,7 +34,7 @@ namespace pcit::panther{
 			~Parser() = default;
 
 
-			EVO_NODISCARD auto parse() -> bool;
+			EVO_NODISCARD auto parse() -> evo::Result<>;
 
 
 		private:
@@ -166,7 +166,7 @@ namespace pcit::panther{
 	};
 
 
-	EVO_NODISCARD inline auto parse(Context& context, Source::ID source_id) -> bool {
+	EVO_NODISCARD inline auto parse(Context& context, Source::ID source_id) -> evo::Result<> {
 		auto parser = Parser(context, source_id);
 		return parser.parse();
 	}

@@ -22,46 +22,35 @@
 namespace pcit::pir{
 	
 	struct JITEngine::Data{
-		llvmint::LLVMContext llvm_context{};
-		llvmint::Module module{};
-
 		llvmint::OrcJIT orc_jit{};
 	};
 
 
-	auto JITEngine::init(const InitConfig& config) -> evo::Result<> {
-		evo::debugAssert(this->isInitialized() == false, "LegacyJITEngine already initialized");
+	auto JITEngine::init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized() == false, "JITEngine already initialized");
 
 		this->data = new Data();
 
-		this->data->llvm_context.init();	
-		this->data->module.init("PIR-JITEngine", this->data->llvm_context);
-
-		const std::string data_layout_error = this->data->module.setTargetAndDataLayout(
-			core::getCurrentOS(),
-			core::getCurrentArchitecture(),
-			llvmint::Module::Relocation::DEFAULT,
-			llvmint::Module::CodeSize::DEFAULT,
-			llvmint::Module::OptLevel::NONE,
-			false
+		evo::Expected<void, evo::SmallVector<std::string>> res = this->data->orc_jit.init(
+			llvmint::OrcJIT::InitConfig{
+				.allowDefaultSymbolLinking = config.allowDefaultSymbolLinking,
+			}
 		);
 
-		evo::Assert(data_layout_error.empty(), "Failed to set data layout with message: {}", data_layout_error);
+		if(res.has_value() == false){
+			delete this->data;
+			this->data = nullptr;
+			return res;
+		}
 
-
-		return this->data->orc_jit.init(llvmint::OrcJIT::InitConfig{
-			.allowDefaultSymbolLinking = config.allowDefaultSymbolLinking,
-		});
+		return {};
 	}
 
 
 	auto JITEngine::deinit() -> void {
-		evo::debugAssert(this->isInitialized(), "LegacyJITEngine not initialized");
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
 
 		this->data->orc_jit.deinit();
-
-		this->data->module.deinit();
-		this->data->llvm_context.deinit();
 
 		delete this->data;
 		this->data = nullptr;
@@ -69,7 +58,9 @@ namespace pcit::pir{
 
 
 
-	auto JITEngine::addModule(const class Module& module) -> evo::Result<> {
+	auto JITEngine::addModule(const class Module& module) -> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
 		auto llvm_context = llvmint::LLVMContext();
 		llvm_context.init();
 
@@ -82,19 +73,70 @@ namespace pcit::pir{
 		return this->data->orc_jit.addModule(std::move(llvm_context), std::move(llvm_module));
 	}
 
-	auto JITEngine::lookupFunc(std::string_view name) -> void* {
+
+	auto JITEngine::addModuleSubset(const class Module& module, const ModuleSubsets& module_subsets)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
+		auto llvm_context = llvmint::LLVMContext();
+		llvm_context.init();
+
+		auto llvm_module = llvmint::Module();
+		llvm_module.init(module.getName(), llvm_context);
+
+		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
+		lowerer.lowerSubset(PIRToLLVMIR::Subsets{
+			.structs     = nullptr,
+			.globalVars  = nullptr,
+			.externFuncs = module_subsets.externFuncs,
+			.funcDecls   = module_subsets.funcDecls,
+			.funcs       = module_subsets.funcs,
+		});
+
+		return this->data->orc_jit.addModule(std::move(llvm_context), std::move(llvm_module));
+	}
+
+
+
+
+
+	auto JITEngine::runFunc(const Module& module, Function::ID func_id, std::span<core::GenericValue> args)
+	-> core::GenericValue {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
+		const Function& func = module.getFunction(func_id);
+
+		auto return_value = core::GenericValue();
+
+		this->getFuncPtr<void(*)(core::GenericValue*)>(func.getName())(&return_value);
+
+		return return_value;
+	}
+
+
+
+
+	auto JITEngine::get_func_ptr(std::string_view name) -> void* {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
 		return this->data->orc_jit.lookupFunc(name);
 	}
 
 
 
-	auto JITEngine::registerFuncs(evo::ArrayProxy<FuncRegisterInfo> func_register_infos) -> evo::Result<> {
+	auto JITEngine::registerFuncs(evo::ArrayProxy<FuncRegisterInfo> func_register_infos)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
 		return this->data->orc_jit.registerFuncs(
 			evo::bitCast<evo::ArrayProxy<llvmint::OrcJIT::FuncRegisterInfo>>(func_register_infos)
 		);
 	}
 
-	auto JITEngine::registerFunc(std::string_view name, void* func_call_address) -> evo::Result<> {
+	auto JITEngine::registerFunc(std::string_view name, void* func_call_address)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
 		return this->data->orc_jit.registerFunc(name, func_call_address);
 	}
 

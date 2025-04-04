@@ -31,7 +31,7 @@ namespace pcit::panther{
 				return this->set_location.has_value() || this->implicitly_set_location.has_value();
 			}
 
-			EVO_NODISCARD auto set(Token::ID location) -> bool {
+			EVO_NODISCARD auto set(Token::ID location) -> evo::Result<> {
 				if(this->set_location.has_value()){
 					this->sema.emit_error(
 						Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
@@ -41,7 +41,7 @@ namespace pcit::panther{
 							"First set here:", Diagnostic::Location::get(this->set_location.value(), this->sema.source)
 						)
 					);
-					return false;
+					return evo::resultError;
 				}
 
 				if(this->implicitly_set_location.has_value()){
@@ -55,11 +55,11 @@ namespace pcit::panther{
 							Diagnostic::Location::get(this->implicitly_set_location.value(), this->sema.source)
 						)
 					);
-					return true;
+					return evo::Result<>();
 				}
 
 				this->set_location = location;
-				return true;
+				return evo::Result<>();
 			}
 
 			EVO_NODISCARD auto implicitly_set(Token::ID location) -> void {
@@ -104,7 +104,7 @@ namespace pcit::panther{
 				return this->is_set_true;
 			}
 
-			EVO_NODISCARD auto set(Token::ID location, bool cond) -> bool {
+			EVO_NODISCARD auto set(Token::ID location, bool cond) -> evo::Result<> {
 				if(this->set_location.has_value()){
 					this->sema.emit_error(
 						Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
@@ -114,7 +114,7 @@ namespace pcit::panther{
 							"First set here:", Diagnostic::Location::get(this->set_location.value(), this->sema.source)
 						)
 					);
-					return false;
+					return evo::resultError;
 				}
 
 				if(this->implicitly_set_location.has_value()){
@@ -128,12 +128,12 @@ namespace pcit::panther{
 							Diagnostic::Location::get(this->implicitly_set_location.value(), this->sema.source)
 						)
 					);
-					return true;
+					return evo::Result<>();
 				}
 
 				this->is_set_true = cond;
 				this->set_location = location;
-				return true;
+				return evo::Result<>();
 			}
 
 			EVO_NODISCARD auto implicitly_set(Token::ID location, bool cond) -> void {
@@ -392,7 +392,7 @@ namespace pcit::panther{
 			var_attrs.value().is_pub
 		);
 
-		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::ERROR; }
+		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::GlobalVarInfo>(new_sema_var);
 
@@ -421,7 +421,7 @@ namespace pcit::panther{
 
 		}else{
 			if(value_term_info.is_ephemeral() == false){
-				if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value) == false){ return Result::ERROR; }
+				if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){ return Result::ERROR; }
 
 				if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
 					this->error_type_mismatch(
@@ -446,11 +446,6 @@ namespace pcit::panther{
 		}
 
 		sema_var.expr = value_term_info.getExpr();
-
-		auto sema_to_pir = SemaToPIR(
-			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-		);
-		sema_to_pir.lowerGlobal(sema_var_id);
 
 		this->propagate_finished_def();
 		return Result::SUCCESS;
@@ -477,7 +472,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			const bool is_redef = !this->add_ident_to_scope(
+			const evo::Result<> add_ident_result = this->add_ident_to_scope(
 				var_ident,
 				instr.var_decl,
 				value_term_info.type_id.as<Source::ID>(),
@@ -485,8 +480,9 @@ namespace pcit::panther{
 				var_attrs.value().is_pub
 			);
 
+			// TODO: propgate if `add_ident_result` errored?
 			this->propagate_finished_decl_def();
-			return is_redef ? Result::ERROR : Result::SUCCESS;
+			return add_ident_result.isError() ? Result::ERROR : Result::SUCCESS;
 		}
 
 
@@ -510,7 +506,7 @@ namespace pcit::panther{
 
 
 		if(value_term_info.is_ephemeral() == false){
-			if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value) == false){ return Result::ERROR; }
+			if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){ return Result::ERROR; }
 
 			this->emit_error(
 				Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
@@ -577,7 +573,7 @@ namespace pcit::panther{
 			var_attrs.value().is_pub
 		);
 
-		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var) == false){ return Result::ERROR; }
+		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
 
 		this->propagate_finished_decl_def();
 		return Result::SUCCESS;
@@ -587,7 +583,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_when_cond(const Instruction::WhenCond& instr) -> Result {
 		TermInfo& cond_term_info = this->get_term_info(instr.cond);
-		if(this->check_term_isnt_type(cond_term_info, instr.when_cond.cond) == false){ return Result::ERROR; }
+		if(this->check_term_isnt_type(cond_term_info, instr.when_cond.cond).isError()){ return Result::ERROR; }
 
 		if(this->type_check<true>(
 			this->context.getTypeManager().getTypeBool(),
@@ -708,11 +704,11 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(instr.attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true) == false){ return Result::ERROR; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return Result::ERROR; } 
 
 				}else if(instr.attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(instr.attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]) == false){ return Result::ERROR; }
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){ return Result::ERROR; }
 
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
@@ -726,7 +722,7 @@ namespace pcit::panther{
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return Result::ERROR; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return Result::ERROR; }
 
 				}else{
 					this->emit_error(
@@ -760,7 +756,7 @@ namespace pcit::panther{
 		this->symbol_proc.extra_info.emplace<SymbolProc::AliasInfo>(created_alias.aliasID());
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_decl.ident].getString();
-		if(this->add_ident_to_scope(ident_str, instr.alias_decl, created_alias.aliasID()) == false){
+		if(this->add_ident_to_scope(ident_str, instr.alias_decl, created_alias.aliasID()).isError()){
 			return Result::ERROR;
 		}
 
@@ -825,7 +821,7 @@ namespace pcit::panther{
 
 		if constexpr(IS_INSTANTIATION == false){
 			const std::string_view ident_str = this->source.getTokenBuffer()[instr.struct_decl.ident].getString();
-			if(this->add_ident_to_scope(ident_str, instr.struct_decl, created_struct.structID()) == false){
+			if(this->add_ident_to_scope(ident_str, instr.struct_decl, created_struct.structID()).isError()){
 				return Result::ERROR;
 			}
 		}
@@ -976,7 +972,7 @@ namespace pcit::panther{
 		);
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.struct_decl.ident].getString();
-		if(this->add_ident_to_scope(ident_str, instr.struct_decl, new_templated_struct) == false){
+		if(this->add_ident_to_scope(ident_str, instr.struct_decl, new_templated_struct).isError()){
 			return Result::ERROR;
 		}
 
@@ -1167,7 +1163,7 @@ namespace pcit::panther{
 
 		const bool is_constexpr = !func_attrs.value().is_runtime;
 
-		const sema::Func::ID created_func = this->context.sema_buffer.createFunc(
+		const sema::Func::ID created_func_id = this->context.sema_buffer.createFunc(
 			instr.func_decl.name,
 			this->source.getID(),
 			created_func_base_type.funcID(),
@@ -1181,8 +1177,19 @@ namespace pcit::panther{
 			instr.instantiation_id
 		);
 
+		sema::Func& created_func = this->context.sema_buffer.funcs[created_func_id];
+
 		if(is_constexpr){
 			this->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
+
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
+
+			created_func.constexprJITInterfaceInfo = sema::Func::ConstexprJITInterfaceInfo{
+				.func          = sema_to_pir.lowerFuncDecl(created_func_id),
+				.interfaceFunc = pir::Function::ID::dummy(),
+			};
 		}
 
 
@@ -1190,23 +1197,16 @@ namespace pcit::panther{
 			// TODO: manage overloads
 			const Token::ID ident = this->source.getASTBuffer().getIdent(instr.func_decl.name);
 			const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
-			if(this->add_ident_to_scope(ident_str, instr.func_decl, created_func, this->context) == false){
+			if(this->add_ident_to_scope(ident_str, instr.func_decl, created_func_id, this->context).isError()){
 				return Result::ERROR;
 			}
 		}
 
-		this->push_scope_level(&this->context.sema_buffer.funcs[created_func].stmtBlock, created_func);
+		this->push_scope_level(&created_func.stmtBlock, created_func_id);
 
 
 		///////////////////////////////////
-		// setup member statements
-
-		if(func_attrs.value().is_runtime == false){
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-			);
-			this->context.sema_buffer.funcs[created_func].pirID = sema_to_pir.lowerFuncDecl(created_func);
-		}
+		// done
 
 		this->propagate_finished_decl();
 
@@ -1243,10 +1243,54 @@ namespace pcit::panther{
 		this->propagate_finished_def();
 
 		if(current_func.isConstexpr){
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-			);
-			sema_to_pir.lowerFuncDef(this->scope.getCurrentObjectScope().as<sema::Func::ID>());
+			{
+				auto sema_to_pir = SemaToPIR(
+					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+				);
+
+				const sema::Func::ID sema_func_id = this->scope.getCurrentObjectScope().as<sema::Func::ID>();
+				sema::Func& sema_func = this->context.sema_buffer.funcs[sema_func_id];
+
+				sema_to_pir.lowerFuncDef(sema_func_id);
+				sema_func.constexprJITInterfaceInfo->interfaceFunc = sema_to_pir.createFuncJITInterface(
+					sema_func_id, sema_func.constexprJITInterfaceInfo->func
+				);
+
+				auto dependent_pir_funcs = evo::SmallVector<pir::Function::ID>();
+				const SymbolProc::FuncInfo func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+				for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
+					const sema::Func& dependent_func = this->context.sema_buffer.getFunc(dependent_func_id);
+					dependent_pir_funcs.emplace_back(dependent_func.constexprJITInterfaceInfo->func);
+				}
+
+				const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+					this->context.constexpr_jit_engine.addModuleSubset(
+						this->context.constexpr_pir_module,
+						pir::JITEngine::ModuleSubsets{
+							.funcs = {
+								sema_func.constexprJITInterfaceInfo->func,
+								sema_func.constexprJITInterfaceInfo->interfaceFunc
+							},
+							.funcDecls   = dependent_pir_funcs,
+							.externFuncs = this->context.constexpr_sema_to_pir_data.getJITInterfaceFuncsArray(),
+						}
+					);
+
+				if(add_module_subset_result.has_value() == false){
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					for(const std::string& error : add_module_subset_result.error()){
+						infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+					}
+
+					this->emit_fatal(
+						Diagnostic::Code::MISC_LLVM_ERROR,
+						instr.func_decl,
+						Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for constexpr function"),
+						std::move(infos)
+					);
+					return Result::ERROR;
+				}
+			}
 
 			this->propagate_finished_pir_lower();
 
@@ -1423,7 +1467,7 @@ namespace pcit::panther{
 			this->symbol_proc, minimum_num_template_args, std::move(params)
 		);
 
-		if(this->add_ident_to_scope(ident_str, instr.func_decl, new_templated_func) == false){
+		if(this->add_ident_to_scope(ident_str, instr.func_decl, new_templated_func).isError()){
 			return Result::ERROR;
 		}
 
@@ -1435,7 +1479,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_return(const Instruction::Return& instr) -> Result {
-		if(this->check_scope_isnt_terminated(instr.return_stmt) == false){ return Result::ERROR; }
+		if(this->check_scope_isnt_terminated(instr.return_stmt).isError()){ return Result::ERROR; }
 
 		if(instr.return_stmt.label.has_value()){
 			this->emit_error(
@@ -1551,7 +1595,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_error(const Instruction::Error& instr) -> Result {
-		if(this->check_scope_isnt_terminated(instr.error_stmt) == false){ return Result::ERROR; }
+		if(this->check_scope_isnt_terminated(instr.error_stmt).isError()){ return Result::ERROR; }
 
 		const sema::Func& current_func = this->get_current_func();
 		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
@@ -1830,49 +1874,154 @@ namespace pcit::panther{
 
 		const sema::FuncCall& sema_func_call =
 			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
-		const sema::Func& target_func = 
-			this->context.getSemaBuffer().getFunc(sema_func_call.target.as<sema::Func::ID>());
 
+		const sema::Func& target_func = 
+			this->context.getSemaBuffer().getFunc(sema_func_call.target.as<sema::Func::ID>()); 
+
+		const BaseType::Function& target_func_type = this->context.getTypeManager().getFunction(target_func.typeID);
+
+		evo::debugAssert(target_func_type.returnsVoid() == false, "Constexpr function call expr cannot return void");
 		evo::debugAssert(target_func.defCompleted.load(), "def of func not completed");
 
-		auto interpreter_args = evo::SmallVector<core::GenericValue>();
-
-		// auto printer = core::Printer::createConsole(true);
-		// pir::printModule(this->context.pir_module, printer);
-
-
-		auto pir_interpreter = pir::Interpreter(this->context.constexpr_pir_module);
-		evo::Expected<core::GenericValue, pir::Interpreter::ErrorInfo> interpreter_return = 
-			pir_interpreter.runFunction(*target_func.pirID, interpreter_args);
-
-		if(interpreter_return.has_value() == false){
-			// TODO: better messaging
-			this->emit_error(
-				Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN,
-				instr.func_call,
-				"Constexpr function returned error"
-			);
-			return Result::ERROR;
-		}
-
-		// auto output_values = evo::SmallVector<sema::Expr>();
-		// for(core::GenericValue& returned_value : constexpr_func_run_result.value()){
-			
-		// }
-
-		this->return_term_info(instr.output,
-			TermInfo(
-				TermInfo::ValueCategory::EPHEMERAL,
-				TermInfo::ValueStage::CONSTEXPR,
-				func_call_term.type_id,
-				sema::Expr(this->context.sema_buffer.createIntValue(
-					std::move(interpreter_return.value().as<core::GenericInt>()),
-					this->context.getTypeManager().getTypeInfo(func_call_term.type_id.as<TypeInfo::ID>()).baseTypeID()
-				))
-			)
+		auto jit_args = evo::SmallVector<core::GenericValue>();
+		core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
+			this->context.constexpr_pir_module, target_func.constexprJITInterfaceInfo->interfaceFunc, jit_args
 		);
 
-		return Result::SUCCESS;
+		if(target_func_type.hasErrorReturn()){
+			// 	// TODO: better messaging
+			// 	this->emit_error(
+			// 		Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN,
+			// 		instr.func_call,
+			// 		"Constexpr function returned error"
+			// 	);
+			// 	return Result::ERROR;
+
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.func_call,
+				"Running a constexpr function that has error returns is unimplemented"
+			);
+			return Result::ERROR;
+
+		}else{
+			const TypeInfo& return_type = this->context.getTypeManager().getTypeInfo(
+				target_func_type.returnParams[0].typeID.asTypeID()
+			);
+
+			if(return_type.qualifiers().empty() == false){
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.func_call,
+					"Running a constexpr function as a constexpr expression that returns "
+						"a qualified type is unimplemented"
+				);
+				return Result::ERROR;
+			}
+
+			switch(return_type.baseTypeID().kind()){
+				case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
+
+				case BaseType::Kind::PRIMITIVE: {
+					const BaseType::Primitive& primitive_type = this->context.getTypeManager().getPrimitive(
+						return_type.baseTypeID().primitiveID()
+					);
+
+					switch(primitive_type.kind()){
+						case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
+						case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
+						case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
+						case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_TYPEID:
+						case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+						case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
+						case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
+						case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
+							this->return_term_info(instr.output,
+								TermInfo(
+									TermInfo::ValueCategory::EPHEMERAL,
+									TermInfo::ValueStage::CONSTEXPR,
+									func_call_term.type_id,
+									sema::Expr(this->context.sema_buffer.createIntValue(
+										std::move(run_result.as<core::GenericInt>()), return_type.baseTypeID()
+									))
+								)
+							);
+							return Result::SUCCESS;
+						} break;
+
+						case Token::Kind::TYPE_F16:           case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
+						case Token::Kind::TYPE_F64:           case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128:
+						case Token::Kind::TYPE_C_LONG_DOUBLE: {
+							this->return_term_info(instr.output,
+								TermInfo(
+									TermInfo::ValueCategory::EPHEMERAL,
+									TermInfo::ValueStage::CONSTEXPR,
+									func_call_term.type_id,
+									sema::Expr(this->context.sema_buffer.createFloatValue(
+										std::move(run_result.as<core::GenericFloat>()), return_type.baseTypeID()
+									))
+								)
+							);
+							return Result::SUCCESS;
+						} break;
+
+						case Token::Kind::TYPE_BOOL: {
+							this->return_term_info(instr.output,
+								TermInfo(
+									TermInfo::ValueCategory::EPHEMERAL,
+									TermInfo::ValueStage::CONSTEXPR,
+									func_call_term.type_id,
+									sema::Expr(this->context.sema_buffer.createBoolValue(run_result.as<bool>()))
+								)
+							);
+							return Result::SUCCESS;
+						} break;
+
+						case Token::Kind::TYPE_CHAR: {
+							this->return_term_info(instr.output,
+								TermInfo(
+									TermInfo::ValueCategory::EPHEMERAL,
+									TermInfo::ValueStage::CONSTEXPR,
+									func_call_term.type_id,
+									sema::Expr(this->context.sema_buffer.createCharValue(run_result.as<char>()))
+								)
+							);
+							return Result::SUCCESS;
+						} break;
+
+						case Token::Kind::TYPE_RAWPTR: evo::unimplemented("Token::Kind::TYPE_RAWPTR");
+
+						default: evo::debugFatalBreak("Invalid type");
+					}
+				} break;
+
+				case BaseType::Kind::FUNCTION: {
+					evo::unimplemented("BaseType::Kind::FUNCTION");
+				} break;
+
+				case BaseType::Kind::ARRAY: {
+					evo::unimplemented("BaseType::Kind::ARRAY");
+				} break;
+
+				case BaseType::Kind::ALIAS: {
+					evo::unimplemented("BaseType::Kind::ALIAS");
+				} break;
+
+				case BaseType::Kind::TYPEDEF: {
+					evo::unimplemented("BaseType::Kind::TYPEDEF");
+				} break;
+
+				case BaseType::Kind::STRUCT: {
+					evo::unimplemented("BaseType::Kind::STRUCT");
+				} break;
+
+				case BaseType::Kind::STRUCT_TEMPLATE: {
+					evo::debugFatalBreak("Function cannot return a struct template");
+				} break;
+			}
+		}
+
+		evo::unreachable();
 	}
 
 
@@ -2163,7 +2312,7 @@ namespace pcit::panther{
 
 		evo::debugAssert(base_type.has_value(), "Base type was not set");
 
-		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type) == false){ return Result::ERROR; }
+		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
 
 		this->return_type(
 			instr.output,
@@ -2206,7 +2355,7 @@ namespace pcit::panther{
 
 		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(base_type_id);
 
-		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type) == false){ return Result::ERROR; }
+		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
 
 		this->return_type(
 			instr.output,
@@ -2550,7 +2699,7 @@ namespace pcit::panther{
 			for(size_t i = 0; const evo::Variant<TypeInfo::VoidableID, sema::Expr>& arg : instantiation_args){
 				EVO_DEFER([&](){ i += 1; });
 
-				const bool add_ident_result = [&](){
+				const evo::Result<> add_ident_result = [&](){
 					if(arg.is<TypeInfo::VoidableID>()){
 						return this->add_ident_to_scope(
 							instantiation_sema_scope,
@@ -2572,7 +2721,7 @@ namespace pcit::panther{
 					}
 				}();
 
-				if(add_ident_result == false){ return Result::ERROR; }
+				if(add_ident_result.isError()){ return Result::ERROR; }
 			}
 
 			// wait on instantiation
@@ -3735,11 +3884,11 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true) == false){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]) == false){return evo::resultError;}
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){return evo::resultError;}
 
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
@@ -3753,7 +3902,7 @@ namespace pcit::panther{
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
 					this->emit_error(
@@ -3795,11 +3944,13 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true) == false){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]) == false){return evo::resultError;}
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
 
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
@@ -3813,7 +3964,7 @@ namespace pcit::panther{
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
 					this->emit_error(
@@ -3856,11 +4007,13 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true) == false){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]) == false){return evo::resultError;}
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
 
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
@@ -3874,7 +4027,7 @@ namespace pcit::panther{
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond) == false){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
 					this->emit_error(
@@ -3887,11 +4040,13 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "runtime"){
 				if(attribute_params_info[i].empty()){
-					if(attr_runtime.set(attribute.attribute, true) == false){ return evo::resultError; } 
+					if(attr_runtime.set(attribute.attribute, true).isError()){ return evo::resultError; } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]) == false){return evo::resultError;}
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
 
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
@@ -3905,7 +4060,7 @@ namespace pcit::panther{
 					const bool runtime_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_runtime.set(attribute.attribute, runtime_cond) == false){ return evo::resultError; }
+					if(attr_runtime.set(attribute.attribute, runtime_cond).isError()){ return evo::resultError; }
 
 				}else{
 					this->emit_error(
@@ -3926,9 +4081,8 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				if(attr_entry.set(attribute.attribute) == false){ return evo::resultError; }
+				if(attr_entry.set(attribute.attribute).isError()){ return evo::resultError; }
 				attr_runtime.implicitly_set(attribute.attribute, true);
-
 
 			}else{
 				this->emit_error(
@@ -4463,12 +4617,14 @@ namespace pcit::panther{
 			),
 			std::move(infos)
 		);
+
+		evo::breakpoint();
 	}
 
 
 
 	auto SemanticAnalyzer::check_type_qualifiers(evo::ArrayProxy<AST::Type::Qualifier> qualifiers, const auto& location)
-	-> bool {
+	-> evo::Result<> {
 		bool found_read_only_ptr = false;
 		for(ptrdiff_t i = qualifiers.size() - 1; i >= 0; i-=1){
 			const AST::Type::Qualifier& qualifier = qualifiers[i];
@@ -4484,25 +4640,25 @@ namespace pcit::panther{
 							"all previous pointer qualifier levels must also be read-only"
 						)
 					);
-					return false;
+					return evo::resultError;
 				}
 
 			}else if(qualifier.isPtr && qualifier.isReadOnly){
 				found_read_only_ptr = true;
 			}
 		}
-		return true;
+		return evo::Result<>();
 	}
 
 
 
-	auto SemanticAnalyzer::check_term_isnt_type(const TermInfo& term_info, const auto& location) -> bool {
+	auto SemanticAnalyzer::check_term_isnt_type(const TermInfo& term_info, const auto& location) -> evo::Result<> {
 		if(term_info.value_category == TermInfo::ValueCategory::TYPE){
 			this->emit_error(Diagnostic::Code::SEMA_TYPE_USED_AS_EXPR, location, "Type used as an expression");
-			return false;
+			return evo::resultError;
 		}
 
-		return true;
+		return evo::Result<>();
 	}
 
 
@@ -4512,7 +4668,7 @@ namespace pcit::panther{
 		std::string_view ident_str,
 		const auto& ast_node,
 		auto&&... ident_id_info
-	) -> bool {
+	) -> evo::Result<> {
 		sema::ScopeLevel& current_scope_level = 
 			this->context.sema_buffer.scope_manager.getLevel(target_scope.getCurrentLevel());
 
@@ -4563,7 +4719,7 @@ namespace pcit::panther{
 				);
 			}
 
-			return false;
+			return evo::resultError;
 		}
 
 
@@ -4576,11 +4732,11 @@ namespace pcit::panther{
 					*scope_level.lookupIdent(ident_str),
 					std::forward<decltype(ident_id_info)>(ident_id_info)...
 				);
-				return false;
+				return evo::resultError;
 			}
 		}
 
-		return true;
+		return evo::Result<>();
 	}
 
 
@@ -4709,15 +4865,15 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::check_scope_isnt_terminated(const auto& location) -> bool {
-		if(this->get_current_scope_level().isTerminated() == false){ return true; }
+	auto SemanticAnalyzer::check_scope_isnt_terminated(const auto& location) -> evo::Result<> {
+		if(this->get_current_scope_level().isTerminated() == false){ return evo::Result<>(); }
 
 		this->emit_error(
 			Diagnostic::Code::SEMA_SCOPE_IS_ALREADY_TERMINATED,
 			location,
 			"Scope is already terminated"
 		);
-		return false;
+		return evo::resultError;
 	}
 
 

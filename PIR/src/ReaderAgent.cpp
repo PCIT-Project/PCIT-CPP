@@ -47,8 +47,8 @@ namespace pcit::pir{
 					if constexpr(std::is_same<ValueT, Function::ID>()){
 						return this->module.getFunction(target).getReturnType();
 
-					}else if constexpr(std::is_same<ValueT, FunctionDecl::ID>()){
-						return this->module.getFunctionDecl(target).returnType;
+					}else if constexpr(std::is_same<ValueT, ExternalFunction::ID>()){
+						return this->module.getExternalFunction(target).returnType;
 						
 					}else if constexpr(std::is_same<ValueT, PtrCall>()){
 						return this->module.getFunctionType(target.funcType).returnType;

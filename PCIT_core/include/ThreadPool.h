@@ -24,7 +24,7 @@ namespace pcit::core{
 	template<class DATA>
 	class ThreadPool{
 		public:
-			using WorkFunc = std::function<bool(DATA&)>;
+			using WorkFunc = std::function<evo::Result<>(DATA&)>;
 
 		public:
 			ThreadPool() = default;
@@ -105,16 +105,16 @@ namespace pcit::core{
 
 			EVO_NODISCARD auto isWorking() const -> bool { return this->num_threads_still_working != 0; }
 			EVO_NODISCARD auto isRunning() const -> bool { return this->workers.empty() == false; }
-			EVO_NODISCARD auto taskFailed() const -> bool { return this->worker_failed; }
+			EVO_NODISCARD auto anyTaskFailed() const -> bool { return this->worker_failed; }
 			EVO_NODISCARD auto getNumThreads() const -> unsigned { return unsigned(this->workers.size()); }
 
-			// returns if all tasks ran successfully
-			auto waitUntilDoneWorking() -> bool {
+
+			auto waitUntilDoneWorking() -> evo::Result<> {
 				while(this->isWorking()){
 					std::this_thread::yield();
 				}
 
-				return !this->taskFailed();
+				return evo::Result<>::fromBool(!this->anyTaskFailed());
 			}
 
 			auto waitUntilNotRunning() -> void {
@@ -157,8 +157,8 @@ namespace pcit::core{
 									continue;
 								}
 
-								const bool task_result = this->thread_pool->work_func->operator()(*task);
-								if(task_result == false){
+								const evo::Result<> task_result = this->thread_pool->work_func->operator()(*task);
+								if(task_result.isError()){
 									this->mode = Mode::STOPPING;
 									this->thread_pool->signal_worker_failed();
 								}

@@ -51,11 +51,11 @@ namespace pcit::pir{
 			}
 		}
 
-		if(this->get_module().getFunctionDeclIter().empty() == false){
+		if(this->get_module().getExternalFunctionIter().empty() == false){
 			this->printer.println();
 
-			for(const FunctionDecl& function_decl : this->get_module().getFunctionDeclIter()){
-				this->print_function_decl(function_decl);
+			for(const ExternalFunction& external_function : this->get_module().getExternalFunctionIter()){
+				this->print_external_function(external_function);
 			}
 		}
 
@@ -185,7 +185,7 @@ namespace pcit::pir{
 	}
 
 
-	auto ModulePrinter::print_function_decl(const FunctionDecl& function_decl) -> void {
+	auto ModulePrinter::print_external_function(const ExternalFunction& function_decl) -> void {
 		this->print_function_decl_impl(
 			FuncDeclRef(
 				function_decl.name,
@@ -1679,7 +1679,7 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_function_call_impl(
-		const evo::Variant<FunctionID, FunctionDeclID, PtrCall>& call_target, evo::ArrayProxy<Expr> args
+		const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target, evo::ArrayProxy<Expr> args
 	) -> void {
 		this->printer.printRed("@call ");
 
@@ -1695,8 +1695,8 @@ namespace pcit::pir{
 					this->print_non_standard_name(name);
 				}
 
-			}else if constexpr(std::is_same_v<ValueT, FunctionDecl::ID>){
-				const std::string_view name = this->get_module().getFunctionDecl(target).name;
+			}else if constexpr(std::is_same_v<ValueT, ExternalFunction::ID>){
+				const std::string_view name = this->get_module().getExternalFunction(target).name;
 
 				if(isStandardName(name)){
 					this->printer.print("&{}", name);

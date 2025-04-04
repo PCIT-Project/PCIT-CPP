@@ -30,7 +30,7 @@ namespace pcit::pir{
 
 		private:
 			auto print_function(const class Function& function) -> void;
-			auto print_function_decl(const struct FunctionDecl& function_decl) -> void;
+			auto print_external_function(const struct ExternalFunction& external_function) -> void;
 			auto print_struct_type(const struct StructType& struct_type) -> void;
 			auto print_global_var(const struct GlobalVar& global_var) -> void;
 			auto print_global_var_value(const GlobalVar::Value& global_var_value) -> void;
@@ -40,7 +40,7 @@ namespace pcit::pir{
 			auto print_expr_stmt(const Expr& expr) -> void;
 
 			auto print_function_call_impl(
-				const evo::Variant<FunctionID, FunctionDeclID, PtrCall>& call_target, evo::ArrayProxy<Expr> args
+				const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target, evo::ArrayProxy<Expr> args
 			) -> void;
 
 			auto print_function_decl_impl(const struct FuncDeclRef& func_decl) -> void;

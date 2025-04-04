@@ -838,10 +838,10 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCall(FunctionDecl::ID func, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
+	auto Agent::createCall(ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionDecl(func).returnType.kind() != Type::Kind::VOID,
+			this->module.getExternalFunction(func).returnType.kind() != Type::Kind::VOID,
 			"Call cannot return `Void` (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
@@ -854,11 +854,11 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCall(FunctionDecl::ID func, const evo::SmallVector<Expr>& args, std::string&& name) const
+	auto Agent::createCall(ExternalFunction::ID func, const evo::SmallVector<Expr>& args, std::string&& name) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionDecl(func).returnType.kind() != Type::Kind::VOID,
+			this->module.getExternalFunction(func).returnType.kind() != Type::Kind::VOID,
 			"Call cannot return `Void` (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
@@ -948,10 +948,10 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCallVoid(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
+	auto Agent::createCallVoid(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionDecl(func).returnType.kind() == Type::Kind::VOID,
+			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
@@ -963,10 +963,10 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallVoid(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
+	auto Agent::createCallVoid(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getFunctionDecl(func).returnType.kind() == Type::Kind::VOID,
+			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");

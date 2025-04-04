@@ -19,7 +19,7 @@ namespace pcit::core{
 	template<class TASK>
 	class SingleThreadedWorkQueue{
 		public:
-			using WorkFunc = std::function<bool(TASK&)>;
+			using WorkFunc = std::function<evo::Result<>(TASK&)>;
 
 		public:
 			SingleThreadedWorkQueue(WorkFunc&& work_func) : _work_func(std::move(work_func)) {}
@@ -44,14 +44,14 @@ namespace pcit::core{
 				this->tasks.emplace_front(std::forward<decltype(args)>(args)...);
 			}
 
-			auto run() -> bool {
+			auto run() -> evo::Result<> {
 				while(this->tasks.empty() == false){
-					const bool work_res = this->_work_func(this->tasks.back());
+					const evo::Result<> work_res = this->_work_func(this->tasks.back());
 					this->tasks.pop_back();
-					if(work_res == false){ return false; }
+					if(work_res.isError()){ return evo::resultError; }
 				}
 
-				return true;
+				return evo::Result<>();
 			}
 
 

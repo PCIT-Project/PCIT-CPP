@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.97.0"></a>
+## v0.0.97.0
+
+### Panther
+- Move constexpr-execution from `pir::Interpreter` to `pir::JITEngine`
+- Changed the function ABI to have error return params be a packed struct instead of separate parameters
+- Fixed race condition in `TypeManager`
+
+### PIR
+- Changed `FunctionDecl` to `ExternalFunction`
+- Removed `Interpreter` in favor of the new `JITEngine`
+
+### Misc
+- Changed from using `bool` as error return value to `evo::Result<>`
+
+
+<!---------------------------------->
 <a name="v0.0.96.0"></a>
 ## v0.0.96.0
 

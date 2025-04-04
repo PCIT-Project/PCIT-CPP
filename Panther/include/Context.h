@@ -41,8 +41,7 @@ namespace pcit::panther{
 
 				Mode mode;
 				std::string title;
-				core::OS os;
-				core::Architecture architecture;
+				core::Platform platform;
 
 				uint32_t maxNumErrors = std::numeric_limits<uint32_t>::max();
 				uint32_t numThreads = 0; // 0 means single-threaded
@@ -62,36 +61,48 @@ namespace pcit::panther{
 			Context(const DiagnosticCallback& diagnostic_callback, const Config& config)
 				: _diagnostic_callback(diagnostic_callback),
 				_config(config),
-				type_manager(config.os, config.architecture),
-				constexpr_pir_module(evo::copy(config.title), config.os, config.architecture),
+				type_manager(config.platform),
+				constexpr_pir_module(evo::copy(config.title), config.platform),
 				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
-					.useReadableNames   = false,
+					#if defined(PCIT_CONFIG_DEBUG)
+						.useReadableNames = true,
+					#else
+						.useReadableNames = false,
+					#endif
 					.checkedMath        = true,
-					.isJIT              = false,
+					.isJIT              = true,
 					.addSourceLocations = true,
 				})
 			{
-				evo::debugAssert(config.os != core::OS::UNKNOWN, "OS must be known");
-				evo::debugAssert(config.architecture != core::Architecture::UNKNOWN, "Architecture must be known");
+				evo::debugAssert(config.platform.os != core::Platform::OS::UNKNOWN, "OS must be known");
+				evo::debugAssert(
+					config.platform.arch != core::Platform::Architecture::UNKNOWN, "Architecture must be known"
+				);
 			}
 
 			Context(DiagnosticCallback&& diagnostic_callback, const Config& config)
 				: _diagnostic_callback(std::move(diagnostic_callback)),
 				_config(config),
-				type_manager(config.os, config.architecture),
-				constexpr_pir_module(evo::copy(config.title), config.os, config.architecture),
+				type_manager(config.platform),
+				constexpr_pir_module(evo::copy(config.title), config.platform),
 				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
-					.useReadableNames   = false,
+					#if defined(PCIT_CONFIG_DEBUG)
+						.useReadableNames = true,
+					#else
+						.useReadableNames = false,
+					#endif
 					.checkedMath        = true,
-					.isJIT              = false,
+					.isJIT              = true,
 					.addSourceLocations = true,
 				})
 			{
-				evo::debugAssert(config.os != core::OS::UNKNOWN, "OS must be known");
-				evo::debugAssert(config.architecture != core::Architecture::UNKNOWN, "Architecture must be known");
+				evo::debugAssert(config.platform.os != core::Platform::OS::UNKNOWN, "OS must be known");
+				evo::debugAssert(
+					config.platform.arch != core::Platform::Architecture::UNKNOWN, "Architecture must be known"
+				);
 			}
 
-			~Context() = default;
+			~Context();
 
 
 			EVO_NODISCARD static auto optimalNumThreads() -> unsigned;
@@ -124,10 +135,10 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// build targets
 
-			auto tokenize() -> bool;
-			auto parse() -> bool;
-			auto buildSymbolProcs() -> bool;
-			auto analyzeSemantics() -> bool;
+			auto tokenize() -> evo::Result<>;
+			auto parse() -> evo::Result<>;
+			auto buildSymbolProcs() -> evo::Result<>;
+			auto analyzeSemantics() -> evo::Result<>;
 
 			auto lowerToAndPrintPIR(core::Printer& printer) -> void;
 
@@ -306,6 +317,7 @@ namespace pcit::panther{
 
 			pir::Module constexpr_pir_module;
 			SemaToPIR::Data constexpr_sema_to_pir_data;
+			pir::JITEngine constexpr_jit_engine{};
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

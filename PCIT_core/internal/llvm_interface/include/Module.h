@@ -121,12 +121,11 @@ namespace pcit::llvmint{
 
 
 			EVO_NODISCARD auto setTargetAndDataLayout(
-				core::OS os             = core::getCurrentOS(),
-				core::Architecture arch = core::getCurrentArchitecture(),
-				Relocation relocation   = Relocation::DEFAULT,
-				CodeSize code_size      = CodeSize::DEFAULT,
-				OptLevel opt_level      = OptLevel::DEFAULT,
-				bool is_jit             = false,
+				core::Platform platorm = core::Platform::getCurrent(),
+				Relocation relocation  = Relocation::DEFAULT,
+				CodeSize code_size     = CodeSize::DEFAULT,
+				OptLevel opt_level     = OptLevel::DEFAULT,
+				bool is_jit            = false,
 				ArchSpecificSettings arch_specific_settings = ArchSpecificSettingsDefault()
 			) -> std::string; // returns error message (empty if no error)
 

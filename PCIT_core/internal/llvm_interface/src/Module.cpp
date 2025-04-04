@@ -37,8 +37,7 @@ namespace pcit::llvmint{
 
 
 	auto Module::setTargetAndDataLayout(
-		core::OS os,
-		core::Architecture arch,
+		core::Platform platform,
 		Relocation relocation,
 		CodeSize code_size,
 		OptLevel opt_level,
@@ -49,12 +48,12 @@ namespace pcit::llvmint{
 
 
 		if(arch_specific_settings.is<ArchSpecificSettingsDefault>()){
-			switch(arch){
-				case core::Architecture::X86_64: {
+			switch(platform.arch){
+				case core::Platform::Architecture::X86_64: {
 					arch_specific_settings = ArchSpecificSettingsX86();
 				} break;
 
-				case core::Architecture::UNKNOWN: break;
+				case core::Platform::Architecture::UNKNOWN: break;
 			}
 		}
 
@@ -65,13 +64,14 @@ namespace pcit::llvmint{
 
 				if constexpr(std::is_same<Settings, ArchSpecificSettingsDefault>()){
 					evo::debugAssert(
-						arch == core::Architecture::UNKNOWN,
+						platform.arch == core::Platform::Architecture::UNKNOWN,
 						"Architecture specific settings should have been set to correct architecture"
 					);
 
 				}else if constexpr(std::is_same<Settings, ArchSpecificSettingsX86>()){
 					evo::debugAssert(
-						arch == core::Architecture::X86_64, "Architecture and arch specific settings do not match"
+						platform.arch == core::Platform::Architecture::X86_64,
+						"Architecture and arch specific settings do not match"
 					);
 
 				}else{
@@ -82,9 +82,9 @@ namespace pcit::llvmint{
 
 
 		const llvm::Triple::ArchType triple_arch = [&](){
-			switch(arch){
-				case core::Architecture::UNKNOWN: return llvm::Triple::ArchType::UnknownArch;
-				case core::Architecture::X86_64:  return llvm::Triple::ArchType::x86_64;
+			switch(platform.arch){
+				case core::Platform::Architecture::UNKNOWN: return llvm::Triple::ArchType::UnknownArch;
+				case core::Platform::Architecture::X86_64:  return llvm::Triple::ArchType::x86_64;
 			}
 
 			evo::unreachable();
@@ -93,30 +93,30 @@ namespace pcit::llvmint{
 		const llvm::Triple::SubArchType triple_sub_arch = llvm::Triple::SubArchType::NoSubArch;
 
 		const llvm::Triple::OSType triple_os = [&](){
-			switch(os){
-				case core::OS::UNKNOWN: return llvm::Triple::OSType::UnknownOS;
-				case core::OS::WINDOWS: return llvm::Triple::OSType::Win32;
-				case core::OS::LINUX:   return llvm::Triple::OSType::Linux;
+			switch(platform.os){
+				case core::Platform::OS::UNKNOWN: return llvm::Triple::OSType::UnknownOS;
+				case core::Platform::OS::WINDOWS: return llvm::Triple::OSType::Win32;
+				case core::Platform::OS::LINUX:   return llvm::Triple::OSType::Linux;
 			}
 
 			evo::unreachable();
 		}();
 
 		const llvm::Triple::VendorType triple_vendor = [&](){
-			switch(os){
-				case core::OS::UNKNOWN: return llvm::Triple::VendorType::UnknownVendor;
-				case core::OS::WINDOWS: return llvm::Triple::VendorType::PC;
-				case core::OS::LINUX:   return llvm::Triple::VendorType::UnknownVendor;
+			switch(platform.os){
+				case core::Platform::OS::UNKNOWN: return llvm::Triple::VendorType::UnknownVendor;
+				case core::Platform::OS::WINDOWS: return llvm::Triple::VendorType::PC;
+				case core::Platform::OS::LINUX:   return llvm::Triple::VendorType::UnknownVendor;
 			}
 
 			evo::unreachable();
 		}();
 
 		const llvm::Triple::EnvironmentType triple_enviroment = [&](){
-			switch(os){
-				case core::OS::UNKNOWN: return llvm::Triple::EnvironmentType::UnknownEnvironment;
-				case core::OS::WINDOWS: return llvm::Triple::EnvironmentType::MSVC;
-				case core::OS::LINUX:   return llvm::Triple::EnvironmentType::GNU;
+			switch(platform.os){
+				case core::Platform::OS::UNKNOWN: return llvm::Triple::EnvironmentType::UnknownEnvironment;
+				case core::Platform::OS::WINDOWS: return llvm::Triple::EnvironmentType::MSVC;
+				case core::Platform::OS::LINUX:   return llvm::Triple::EnvironmentType::GNU;
 			}
 
 			evo::unreachable();
@@ -124,9 +124,9 @@ namespace pcit::llvmint{
 
 		// const llvm::Triple::ObjectFormatType triple_object_format = [&](){
 		// 	switch(os){
-		// 		case core::OS::UNKNOWN: return llvm::Triple::ObjectFormatType::UnknownObjectFormat;
-		// 		case core::OS::WINDOWS: return llvm::Triple::ObjectFormatType::COFF;
-		// 		case core::OS::LINUX:   return llvm::Triple::ObjectFormatType::ELF;
+		// 		case core::Platform::OS::UNKNOWN: return llvm::Triple::ObjectFormatType::UnknownObjectFormat;
+		// 		case core::Platform::OS::WINDOWS: return llvm::Triple::ObjectFormatType::COFF;
+		// 		case core::Platform::OS::LINUX:   return llvm::Triple::ObjectFormatType::ELF;
 		// 	}
 
 		// 	evo::unreachable();

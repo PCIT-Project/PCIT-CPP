@@ -175,8 +175,8 @@ namespace pcit::pir{
 				evo::debugAssert(func.getName() != global_name, "global \"{}\" already used", global_name);
 			}
 
-			for(const FunctionDecl& func_decl : this->function_decls){
-				evo::debugAssert(func_decl.name != global_name, "global \"{}\" already used", global_name);
+			for(const ExternalFunction& external_func : this->external_funcs){
+				evo::debugAssert(external_func.name != global_name, "global \"{}\" already used", global_name);
 			}
 
 			for(const GlobalVar& global_var : this->global_vars){

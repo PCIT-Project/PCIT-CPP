@@ -39,7 +39,7 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::lowerStruct(const BaseType::Struct::ID struct_id) -> void {
+	auto SemaToPIR::lowerStruct(BaseType::Struct::ID struct_id) -> void {
 		// const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
 		const pir::Type new_type = this->module.createStructType(
@@ -53,7 +53,7 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::lowerGlobal(const sema::GlobalVar::ID global_var_id) -> void {
+	auto SemaToPIR::lowerGlobal(sema::GlobalVar::ID global_var_id) -> void {
 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 
 		if(global_var.kind == AST::VarDecl::Kind::Def){ return; }
@@ -70,7 +70,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemaToPIR::lowerFuncDecl(const sema::Func::ID func_id) -> pir::Function::ID {
+	auto SemaToPIR::lowerFuncDecl(sema::Func::ID func_id) -> pir::Function::ID {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 		this->current_source = &this->context.getSourceManager()[func.sourceID];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
@@ -136,34 +136,26 @@ namespace pcit::panther{
 			}
 		}
 
-		auto error_return_params = evo::SmallVector<pir::Expr>();
+		auto error_return_param = std::optional<pir::Expr>();
+		auto error_return_type = std::optional<pir::Type>();
 		if(func_type.hasErrorReturnParams()){
-			if(func_type.hasNamedErrorReturns()){
-				for(const BaseType::Function::ReturnParam& error_param : func_type.errorParams){
-					error_return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
+			error_return_param = this->agent.createParamExpr(uint32_t(params.size()));
 
-					if(this->data.getConfig().useReadableNames){
-						params.emplace_back(
-							std::format(
-								"ERR.{}", this->current_source->getTokenBuffer()[*error_param.ident].getString()
-							),
-							this->module.createPtrType()
-						);
-
-					}else{
-						params.emplace_back(std::format(".{}", params.size()), this->module.createPtrType());
-					}
-				}
-				
+			if(this->data.getConfig().useReadableNames){
+				params.emplace_back("ERR", this->module.createPtrType());
 			}else{
-				error_return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
-
-				if(this->data.getConfig().useReadableNames){
-					params.emplace_back("ERR", this->module.createPtrType());
-				}else{
-					params.emplace_back(std::format(".{}", params.size()), this->module.createPtrType());
-				}
+				params.emplace_back(std::format(".{}", params.size()), this->module.createPtrType());
 			}
+
+
+			auto error_return_param_types = evo::SmallVector<pir::Type>();
+			for(const BaseType::Function::ReturnParam& error_param : func_type.errorParams){
+				error_return_param_types.emplace_back(this->get_type(error_param.typeID));
+			}
+
+			error_return_type = this->module.createStructType(
+				this->mangle_name(func_id) + ".ERR", std::move(error_return_param_types), true
+			);
 		}
 
 		const pir::Type return_type = [&](){
@@ -178,7 +170,7 @@ namespace pcit::panther{
 			}
 		}();
 
-		const pir::Function::ID new_func_id = module.createFunction(
+		const pir::Function::ID new_func_id = this->module.createFunction(
 			this->mangle_name(func_id),
 			std::move(params),
 			this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
@@ -194,7 +186,8 @@ namespace pcit::panther{
 			return_type,
 			std::move(arg_is_copy),
 			std::move(return_params),
-			std::move(error_return_params)
+			error_return_param,
+			error_return_type
 		);
 
 
@@ -234,7 +227,7 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::lowerFuncDef(const sema::Func::ID func_id) -> void {
+	auto SemaToPIR::lowerFuncDef(sema::Func::ID func_id) -> void {
 		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
 		this->current_source = &this->context.getSourceManager()[sema_func.sourceID];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
@@ -295,7 +288,7 @@ namespace pcit::panther{
 
 					if(error_stmt.value.has_value()){
 						this->agent.createStore(
-							this->data.get_func(func_id).error_return_params.front(),
+							*this->data.get_func(func_id).error_return_param,
 							this->get_expr_register(*error_stmt.value),
 							false,
 							pir::AtomicOrdering::NONE
@@ -336,6 +329,172 @@ namespace pcit::panther{
 			}
 		}
 	}
+
+
+
+	auto SemaToPIR::createFuncJITInterface(sema::Func::ID func_id, pir::Function::ID pir_func_id) -> pir::Function::ID {
+		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
+		this->current_source = &this->context.getSourceManager()[sema_func.sourceID];
+		EVO_DEFER([&](){ this->current_source = nullptr; });
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
+
+		const pir::Function& target_pir_func = this->module.getFunction(pir_func_id);
+
+
+
+		auto params = evo::SmallVector<pir::Parameter>{
+			pir::Parameter("RET", this->module.createPtrType())
+		};
+
+		const pir::Function::ID jit_interface_func_id = this->module.createFunction(
+			"JIT_INT." + this->mangle_name(func_id),
+			std::move(params),
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			this->module.createVoidType()
+		);
+
+
+		pir::Function& jit_interface_func = this->module.getFunction(jit_interface_func_id);
+
+		this->agent.setTargetFunction(jit_interface_func);
+
+		this->agent.createBasicBlock();
+		this->agent.setTargetBasicBlockAtEnd();
+
+
+		switch(target_pir_func.getReturnType().kind()){
+			case pir::Type::Kind::VOID: {
+				evo::unimplemented();
+			} break;
+			
+			case pir::Type::Kind::INTEGER: {
+				const bool returns_char = func_type.returnParams.size() == 1 
+					&& func_type.hasErrorReturn() == false
+					&& func_type.returnParams[0].typeID.asTypeID() == this->context.getTypeManager().getTypeChar();
+
+				if(returns_char){
+					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_char, {
+						this->agent.createParamExpr(0),
+						this->agent.createCall(pir_func_id, {})
+					});
+
+				}else{
+					const uint32_t bit_width = target_pir_func.getReturnType().getWidth();
+
+					const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
+					const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+					this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
+
+					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_int, {
+						this->agent.createParamExpr(0),
+						return_alloca,
+						this->agent.createNumber(
+							this->module.createIntegerType(64), core::GenericInt::create<uint64_t>(uint64_t(bit_width))
+						)
+					});
+				}
+
+				this->agent.createRet();
+
+			} break;
+			
+			case pir::Type::Kind::BOOL: {
+				this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_bool, {
+					this->agent.createParamExpr(0),
+					this->agent.createCall(pir_func_id, {})
+				});
+
+				this->agent.createRet();
+			} break;
+			
+			case pir::Type::Kind::FLOAT: {				
+				switch(target_pir_func.getReturnType().getWidth()){
+					case 16: {
+						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
+						const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+						this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
+
+						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f16, {
+							this->agent.createParamExpr(0), return_alloca,
+						});
+						this->agent.createRet();
+					} break;
+
+					case 32: {
+						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f32, {
+							this->agent.createParamExpr(0),
+							this->agent.createCall(pir_func_id, {})
+						});
+
+						this->agent.createRet();
+					} break;
+
+					case 64: {
+						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f64, {
+							this->agent.createParamExpr(0),
+							this->agent.createCall(pir_func_id, {})
+						});
+
+						this->agent.createRet();
+					} break;
+
+					case 80: {
+						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
+						const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+						this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
+
+						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f80, {
+							this->agent.createParamExpr(0), return_alloca,
+						});
+						this->agent.createRet();
+					} break;
+
+					case 128: {
+						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
+						const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+						this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
+
+						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f128, {
+							this->agent.createParamExpr(0), return_alloca,
+						});
+						this->agent.createRet();
+					} break;
+				}
+			} break;
+			
+			case pir::Type::Kind::BFLOAT: {
+				const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
+				const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+				this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
+
+				this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_bf16, {
+					this->agent.createParamExpr(0), return_alloca,
+				});
+				this->agent.createRet();
+			} break;
+			
+			case pir::Type::Kind::PTR: {
+				evo::unimplemented();
+			} break;
+			
+			case pir::Type::Kind::ARRAY: {
+				evo::unimplemented();
+			} break;
+			
+			case pir::Type::Kind::STRUCT: {
+				evo::unimplemented();
+			} break;
+			
+			case pir::Type::Kind::FUNCTION: {
+				evo::unimplemented();
+			} break;
+		}
+
+		return jit_interface_func_id;
+	}
+
 
 
 

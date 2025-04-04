@@ -91,6 +91,7 @@ namespace pcit::panther{
 	}
 
 	auto TypeManager::primitivesInitialized() const -> bool {
+		const auto lock = std::scoped_lock(this->primitives_lock);
 		return !this->primitives.empty();
 	}
 
@@ -99,10 +100,13 @@ namespace pcit::panther{
 	// type
 
 	auto TypeManager::getTypeInfo(TypeInfo::ID id) const -> const TypeInfo& {
+		const auto lock = std::scoped_lock(this->types_lock);
 		return this->types[id];
 	}
 
 	auto TypeManager::getOrCreateTypeInfo(TypeInfo&& lookup_type_info) -> TypeInfo::ID {
+		const auto lock = std::scoped_lock(this->types_lock);
+
 		for(uint32_t i = 0; i < this->types.size(); i+=1){
 			if(this->types[TypeInfo::ID(i)] == lookup_type_info){
 				return TypeInfo::ID(i);
@@ -218,10 +222,13 @@ namespace pcit::panther{
 	// function
 
 	auto TypeManager::getFunction(BaseType::Function::ID id) const -> const BaseType::Function& {
+		const auto lock = std::scoped_lock(this->functions_lock);
 		return this->functions[id];
 	}
 
 	auto TypeManager::getOrCreateFunction(BaseType::Function&& lookup_func) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->functions_lock);
+
 		for(uint32_t i = 0; i < this->functions.size(); i+=1){
 			if(this->functions[BaseType::Function::ID(i)] == lookup_func){
 				return BaseType::ID(BaseType::Kind::FUNCTION, i);
@@ -237,10 +244,13 @@ namespace pcit::panther{
 	// array
 
 	auto TypeManager::getArray(BaseType::Array::ID id) const -> const BaseType::Array& {
+		const auto lock = std::scoped_lock(this->arrays_lock);
 		return this->arrays[id];
 	}
 
 	auto TypeManager::getOrCreateArray(BaseType::Array&& lookup_func) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->arrays_lock);
+
 		for(uint32_t i = 0; i < this->arrays.size(); i+=1){
 			if(this->arrays[BaseType::Array::ID(i)] == lookup_func){
 				return BaseType::ID(BaseType::Kind::ARRAY, i);
@@ -256,6 +266,7 @@ namespace pcit::panther{
 	// primitive
 
 	auto TypeManager::getPrimitive(BaseType::Primitive::ID id) const -> const BaseType::Primitive& {
+		const auto lock = std::scoped_lock(this->primitives_lock);
 		return this->primitives[id];
 	}
 
@@ -268,6 +279,8 @@ namespace pcit::panther{
 	}
 
 	auto TypeManager::get_or_create_primitive_base_type_impl(const BaseType::Primitive& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->primitives_lock);
+
 		for(uint32_t i = 0; i < this->primitives.size(); i+=1){
 			if(this->primitives[BaseType::Primitive::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::PRIMITIVE, i);
@@ -283,11 +296,14 @@ namespace pcit::panther{
 	// aliases
 
 	auto TypeManager::getAlias(BaseType::Alias::ID id) const -> const BaseType::Alias& {
+		const auto lock = std::scoped_lock(this->aliases_lock);
 		return this->aliases[id];
 	}
 
 
 	auto TypeManager::getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->aliases_lock);
+
 		for(uint32_t i = 0; i < this->aliases.size(); i+=1){
 			if(this->aliases[BaseType::Alias::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::ALIAS, i);
@@ -305,11 +321,14 @@ namespace pcit::panther{
 	// typedefs
 
 	auto TypeManager::getTypedef(BaseType::Typedef::ID id) const -> const BaseType::Typedef& {
+		const auto lock = std::scoped_lock(this->typedefs_lock);
 		return this->typedefs[id];
 	}
 
 
 	auto TypeManager::getOrCreateTypedef(BaseType::Typedef&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->typedefs_lock);
+
 		for(uint32_t i = 0; i < this->typedefs.size(); i+=1){
 			if(this->typedefs[BaseType::Typedef::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::TYPEDEF, i);
@@ -327,11 +346,14 @@ namespace pcit::panther{
 	// structs
 
 	auto TypeManager::getStruct(BaseType::Struct::ID id) const -> const BaseType::Struct& {
+		const auto lock = std::scoped_lock(this->structs_lock);
 		return this->structs[id];
 	}
 
 
 	auto TypeManager::getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->structs_lock);
+
 		for(uint32_t i = 0; i < this->structs.size(); i+=1){
 			if(this->structs[BaseType::Struct::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::STRUCT, i);
@@ -354,11 +376,14 @@ namespace pcit::panther{
 	// struct templates
 
 	auto TypeManager::getStructTemplate(BaseType::StructTemplate::ID id) const -> const BaseType::StructTemplate& {
+		const auto lock = std::scoped_lock(this->struct_templates_lock);
 		return this->struct_templates[id];
 	}
 
 
 	auto TypeManager::getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->struct_templates_lock);
+
 		for(uint32_t i = 0; i < this->struct_templates.size(); i+=1){
 			if(this->struct_templates[BaseType::StructTemplate::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::STRUCT_TEMPLATE, i);
@@ -431,12 +456,13 @@ namespace pcit::panther{
 						return 4;
 
 					case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_ULONG:
-						return this->getOS() == core::OS::WINDOWS ? 4 : 8;
+						return this->platform.os == core::Platform::OS::WINDOWS ? 4 : 8;
 
 					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 						return 8;
 
-					case Token::Kind::TYPE_C_LONG_DOUBLE: return this->getOS() == core::OS::WINDOWS ? 8 : 16;
+					case Token::Kind::TYPE_C_LONG_DOUBLE:
+						return this->platform.os == core::Platform::OS::WINDOWS ? 8 : 16;
 
 					default: evo::debugFatalBreak("Unknown or unsupported built-in type");
 				}
@@ -871,7 +897,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_LONG_LONG: {
-				const uint32_t size = this->_os == core::OS::WINDOWS ? 32 : 64;
+				const uint32_t size = this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64;
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, size))
 				);
@@ -884,14 +910,14 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_ULONG_LONG: {
-				const uint32_t size = this->_os == core::OS::WINDOWS ? 32 : 64;
+				const uint32_t size = this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64;
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, size))
 				);
 			} break;
 
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				if(this->getOS() == core::OS::WINDOWS){
+				if(this->platform.os == core::Platform::OS::WINDOWS){
 					return this->getOrCreateTypeInfo(
 						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F64))
 					);
@@ -992,19 +1018,21 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_min_signed(32));
 				
 			case Token::Kind::TYPE_C_LONG:
-				return core::GenericValue(calc_min_signed(this->_os == core::OS::WINDOWS ? 32 : 64));
+				return core::GenericValue(calc_min_signed(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64));
 
 			case Token::Kind::TYPE_C_LONG_LONG: return core::GenericValue(calc_min_signed(32));
 			case Token::Kind::TYPE_C_USHORT:   return core::GenericValue(core::GenericInt(16, 0));
 			case Token::Kind::TYPE_C_UINT:     return core::GenericValue(core::GenericInt(32, 0));
 
 			case Token::Kind::TYPE_C_ULONG:     
-				 return core::GenericValue(core::GenericInt(this->_os == core::OS::WINDOWS ? 32 : 64, 0));
+				return core::GenericValue(
+					core::GenericInt(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64, 0)
+				);
 
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(core::GenericInt(64, 0));
 
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				if(this->_os == core::OS::WINDOWS){
+				if(this->platform.os == core::Platform::OS::WINDOWS){
 					return core::GenericValue(
 						core::GenericFloat::createF64(float_data_from_exponent(64, 1023, 53)).neg()
 					);
@@ -1074,19 +1102,21 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_min_signed(32));
 				
 			case Token::Kind::TYPE_C_LONG:
-				return core::GenericValue(calc_min_signed(this->_os == core::OS::WINDOWS ? 32 : 64));
+				return core::GenericValue(calc_min_signed(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64));
 
 			case Token::Kind::TYPE_C_LONG_LONG: return core::GenericValue(calc_min_signed(32));
 			case Token::Kind::TYPE_C_USHORT:   return core::GenericValue(core::GenericInt(16, 0));
 			case Token::Kind::TYPE_C_UINT:     return core::GenericValue(core::GenericInt(32, 0));
 
 			case Token::Kind::TYPE_C_ULONG:     
-				 return core::GenericValue(core::GenericInt(this->_os == core::OS::WINDOWS ? 32 : 64, 0));
+				return core::GenericValue(
+					core::GenericInt(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64, 0)
+				);
 
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(core::GenericInt(64, 0));
 
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				if(this->_os == core::OS::WINDOWS){
+				if(this->platform.os == core::Platform::OS::WINDOWS){
 					return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1, 53)));
 				}else{
 					return core::GenericValue(core::GenericFloat::createF128(float_data_from_exponent(128, 1, 113)));
@@ -1149,19 +1179,21 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_max_signed(32));
 
 			case Token::Kind::TYPE_C_LONG:      
-				return core::GenericValue(calc_max_signed(this->_os == core::OS::WINDOWS ? 32 : 64));
+				return core::GenericValue(calc_max_signed(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64));
 
 			case Token::Kind::TYPE_C_LONG_LONG:  return core::GenericValue(calc_max_signed(32));
 			case Token::Kind::TYPE_C_USHORT:    return core::GenericValue(calc_max_unsigned(16));
 			case Token::Kind::TYPE_C_UINT:      return core::GenericValue(calc_max_unsigned(32));
 
 			case Token::Kind::TYPE_C_ULONG:     
-				return core::GenericValue(calc_max_unsigned(this->_os == core::OS::WINDOWS ? 32 : 64));
+				return core::GenericValue(
+					calc_max_unsigned(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64)
+				);
 				
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(calc_max_unsigned(64));
 
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				if(this->_os == core::OS::WINDOWS){
+				if(this->platform.os == core::Platform::OS::WINDOWS){
 					return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1023, 53)));
 				}else{
 					return core::GenericValue(

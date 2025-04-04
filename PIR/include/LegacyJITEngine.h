@@ -39,9 +39,9 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->data != nullptr; }
 
-			EVO_NODISCARD auto registerFunction(std::string_view func_decl_name, void* func) -> void;
-			EVO_NODISCARD auto registerFunction(const FunctionDecl::ID func_decl_id, void* func) -> void;
-			EVO_NODISCARD auto registerFunction(const FunctionDecl& func_decl, void* func) -> void;
+			EVO_NODISCARD auto registerFunction(std::string_view extern_func_name, void* func) -> void;
+			EVO_NODISCARD auto registerFunction(const ExternalFunction::ID extern_func_id, void* func) -> void;
+			EVO_NODISCARD auto registerFunction(const ExternalFunction& extern_func, void* func) -> void;
 
 			EVO_NODISCARD auto runFunc(std::string_view func_name) const -> evo::Result<core::GenericValue>;
 			EVO_NODISCARD auto runFunc(Function::ID func_id) const -> evo::Result<core::GenericValue>;

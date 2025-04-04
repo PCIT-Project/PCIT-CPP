@@ -11,6 +11,7 @@
 
 #include "../include/LLVMContext.h"
 #include "../include/Module.h"
+#include "../include/init.h"
 
 #include <LLVM.h>
 
@@ -24,12 +25,37 @@ namespace pcit::llvmint{
 		std::unique_ptr<llvm::orc::LLJIT> lljit;
 	};
 
+	static auto extract_llvm_error_messages(llvm::Error&& error) -> evo::SmallVector<std::string> {
+		auto error_msgs = evo::SmallVector<std::string>();
 
-	auto OrcJIT::init(const InitConfig& config) -> evo::Result<> {
+		llvm::handleAllErrors(std::move(error), [&](const llvm::ErrorInfoBase& error_base) -> void {
+			error_msgs.emplace_back(error_base.message());
+		});
+
+		return error_msgs;
+	}
+
+
+	static auto is_error(llvm::Error& error) -> bool {
+		return bool(error);
+	}
+
+	template<class T>
+	static auto is_error(llvm::Expected<T>& expected) -> bool {
+		return bool(expected) == false;
+	}
+
+
+	auto OrcJIT::init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized() == false, "OrcJIT already initialized");
+
+		if(isInitialized() == false){ llvmint::init(); }
+
 		auto lljit_builder = llvm::orc::LLJITBuilder();
 
 		if(config.allowDefaultSymbolLinking == false){
 			lljit_builder.setLinkProcessSymbolsByDefault(false);
+
 			// this is needed because setLinkProcessSymbolsByDefault on it's own causes creation to fail
 			lljit_builder.setProcessSymbolsJITDylibSetup(
 				[](llvm::orc::LLJIT& lljit){ return &lljit.getExecutionSession().createBareJITDylib("<procsymbol>"); }
@@ -38,31 +64,47 @@ namespace pcit::llvmint{
 
 		llvm::Expected<std::unique_ptr<llvm::orc::LLJIT>> created_lljit = lljit_builder.create();
 
-		if(bool(created_lljit) == false){ return evo::resultError; }
+
+		if(is_error(created_lljit)){
+			return evo::Unexpected(extract_llvm_error_messages(created_lljit.takeError()));
+		}
 
 		this->data = new Data(std::move(*created_lljit));
-		return evo::Result<>();
+		return {};
 	}
 
 
 	auto OrcJIT::deinit() -> void {
+		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
+
 		delete this->data;
 		this->data = nullptr;
 	}
 
 
-	auto OrcJIT::addModule(LLVMContext&& context, Module&& module) -> evo::Result<> {
+	auto OrcJIT::addModule(LLVMContext&& context, Module&& module)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
+
 		llvm::Error add_module_result = this->data->lljit->addIRModule(
 			llvm::orc::ThreadSafeModule(
 				std::unique_ptr<llvm::Module>(module.steal()),
 				std::unique_ptr<llvm::LLVMContext>(context.steal())
 			)
 		);
-		return evo::Result<>::fromBool(bool(add_module_result));
+
+
+		if(is_error(add_module_result)){
+			return evo::Unexpected(extract_llvm_error_messages(std::move(add_module_result)));
+		}
+
+		return {};
 	}
 
 
 	auto OrcJIT::lookupFunc(std::string_view name) -> void* {
+		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
+
 		return (void*)(this->data->lljit->lookup(name)->getValue());
 	}
 
@@ -71,7 +113,10 @@ namespace pcit::llvmint{
 
 	using LLVMSymbolMapPair = llvm::detail::DenseMapPair<llvm::orc::SymbolStringPtr, llvm::orc::ExecutorSymbolDef>;
 
-	auto OrcJIT::registerFunc(std::string_view name, void* func_call_address) -> evo::Result<> {
+	auto OrcJIT::registerFunc(std::string_view name, void* func_call_address)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
+
 		llvm::Error define_res = this->data->lljit->getMainJITDylib().define(
 			llvm::orc::absoluteSymbols(
 				llvm::orc::SymbolMap{
@@ -86,11 +131,15 @@ namespace pcit::llvmint{
 			)
 		);
 
-		return evo::Result<>::fromBool(bool(define_res));
+		if(is_error(define_res)){ return evo::Unexpected(extract_llvm_error_messages(std::move(define_res))); }
+		return {};
 	}
 
 
-	auto OrcJIT::registerFuncs(evo::ArrayProxy<FuncRegisterInfo> func_register_infos) -> evo::Result<> {
+	auto OrcJIT::registerFuncs(evo::ArrayProxy<FuncRegisterInfo> func_register_infos)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
+
 		auto symbol_list = evo::SmallVector<LLVMSymbolMapPair>();
 		symbol_list.reserve(func_register_infos.size());
 
@@ -108,7 +157,8 @@ namespace pcit::llvmint{
 			llvm::orc::absoluteSymbols(llvm::orc::SymbolMap(symbol_list.begin(), symbol_list.end()))
 		);
 
-		return evo::Result<>::fromBool(bool(define_res));
+		if(is_error(define_res)){ return evo::Unexpected(extract_llvm_error_messages(std::move(define_res))); }
+		return {};
 	}
 
 

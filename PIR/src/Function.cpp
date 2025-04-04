@@ -111,11 +111,11 @@ namespace pcit::pir{
 		return this->check_func_call_args(param_types, args);
 	}
 
-	auto Function::check_func_call_args(FunctionDecl::ID id, evo::ArrayProxy<Expr> args) const -> bool {
-		const FunctionDecl& target_func_decl = this->parent_module.getFunctionDecl(id);
+	auto Function::check_func_call_args(ExternalFunction::ID id, evo::ArrayProxy<Expr> args) const -> bool {
+		const ExternalFunction& target_external_func = this->parent_module.getExternalFunction(id);
 
 		auto param_types = evo::SmallVector<Type>();
-		for(const Parameter& param : target_func_decl.parameters){
+		for(const Parameter& param : target_external_func.parameters){
 			param_types.emplace_back(param.getType());
 		}
 

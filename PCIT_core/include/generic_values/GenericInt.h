@@ -26,6 +26,8 @@ namespace pcit::core{
 			GenericInt(unsigned bit_width, uint64_t value, bool is_signed = false)
 				: ap_int(bit_width, value, is_signed) {}
 
+			GenericInt(unsigned bit_width, evo::ArrayProxy<uint64_t> data) : ap_int(bit_width, data) {}
+
 			GenericInt(const llvm::APInt& native) : ap_int(llvmint::APInt::fromNative(native)) {}
 
 			~GenericInt() = default;

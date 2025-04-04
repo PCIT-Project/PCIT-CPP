@@ -27,8 +27,8 @@ namespace pcit::pir{
 		using core::UniqueID<uint32_t, FunctionID>::UniqueID;
 	};
 
-	struct FunctionDeclID : public core::UniqueID<uint32_t, struct FunctionDeclID> {
-		using core::UniqueID<uint32_t, FunctionDeclID>::UniqueID;
+	struct ExternalFunctionID : public core::UniqueID<uint32_t, struct ExternalFunctionID> {
+		using core::UniqueID<uint32_t, ExternalFunctionID>::UniqueID;
 	};
 
 
@@ -54,8 +54,8 @@ namespace std{
 
 
 	template<>
-	struct hash<pcit::pir::FunctionDeclID>{
-		auto operator()(const pcit::pir::FunctionDeclID& expr) const noexcept -> size_t {
+	struct hash<pcit::pir::ExternalFunctionID>{
+		auto operator()(const pcit::pir::ExternalFunctionID& expr) const noexcept -> size_t {
 			return hash<uint32_t>{}(expr.get());
 		}
 	};

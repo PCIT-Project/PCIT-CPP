@@ -164,7 +164,8 @@ namespace pcit::panther{
 			MISC_UNIMPLEMENTED_FEATURE, // M0
 			MISC_FILE_DOES_NOT_EXIST,   // M1
 			MISC_LOAD_FILE_FAILED,      // M2
-			MISC_STALL_DETECTED,        // M3
+			MISC_LLVM_ERROR,            // M3
+			MISC_STALL_DETECTED,        // M4
 		};
 
 
@@ -475,7 +476,8 @@ namespace pcit::panther{
 				case Code::MISC_UNIMPLEMENTED_FEATURE: return "M0";
 				case Code::MISC_FILE_DOES_NOT_EXIST:   return "M1";
 				case Code::MISC_LOAD_FILE_FAILED:      return "M2";
-				case Code::MISC_STALL_DETECTED:        return "M3";
+				case Code::MISC_LLVM_ERROR:            return "M3";
+				case Code::MISC_STALL_DETECTED:        return "M4";
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::panther::Diagnostic::Code");

@@ -14,7 +14,7 @@
 namespace pcit::panther{
 	
 
-	auto Parser::parse() -> bool {
+	auto Parser::parse() -> evo::Result<> {
 		EVO_DEFER([&](){ this->source.ast_buffer.lock(); });
 
 		while(this->reader.at_end() == false){
@@ -31,16 +31,16 @@ namespace pcit::panther{
 						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
 						"Unknown start to statement"
 					);
-					return false;
+					return evo::resultError;
 				} break;
 
 				case Result::Code::ERROR: {
-					return false;
+					return evo::resultError;
 				} break;
 			}
 		}
 
-		return true;
+		return evo::Result<>();
 	}
 
 

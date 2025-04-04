@@ -26,7 +26,7 @@ namespace pcit::panther{
 			}
 			~SymbolProcBuilder() = default;
 
-			EVO_NODISCARD auto build(const AST::Node& stmt) -> bool;
+			EVO_NODISCARD auto build(const AST::Node& stmt) -> evo::Result<>;
 
 			EVO_NODISCARD auto buildTemplateInstance(
 				const SymbolProc& template_symbol_proc,
@@ -38,21 +38,21 @@ namespace pcit::panther{
 		private:
 			EVO_NODISCARD auto get_symbol_ident(const AST::Node& stmt) -> evo::Result<std::string_view>;
 
-			EVO_NODISCARD auto build_var_decl(const AST::Node& stmt) -> bool;
-			EVO_NODISCARD auto build_func_decl(const AST::Node& stmt) -> bool;
-			EVO_NODISCARD auto build_alias_decl(const AST::Node& stmt) -> bool;
-			EVO_NODISCARD auto build_typedef_decl(const AST::Node& stmt) -> bool;
-			EVO_NODISCARD auto build_struct_decl(const AST::Node& stmt) -> bool;
-			EVO_NODISCARD auto build_when_conditional(const AST::Node& stmt) -> bool;
-			EVO_NODISCARD auto build_func_call(const AST::Node& stmt) -> bool;
+			EVO_NODISCARD auto build_var_decl(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_func_decl(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_alias_decl(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_typedef_decl(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_struct_decl(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_when_conditional(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_func_call(const AST::Node& stmt) -> evo::Result<>;
 
 			EVO_NODISCARD auto analyze_type(const AST::Type& ast_type) -> evo::Result<SymbolProc::TypeID>;
 			EVO_NODISCARD auto analyze_type_base(const AST::Node& ast_type_base) -> evo::Result<SymbolProc::TermInfoID>;
 
 
-			auto analyze_stmt(const AST::Node& stmt) -> bool;
-			auto analyze_return(const AST::Return& return_stmt) -> bool;
-			auto analyze_error(const AST::Error& error_stmt) -> bool;
+			auto analyze_stmt(const AST::Node& stmt) -> evo::Result<>;
+			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
+			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
 
 
 
@@ -191,14 +191,14 @@ namespace pcit::panther{
 
 
 
-	EVO_NODISCARD inline auto build_symbol_procs(Context& context, Source::ID source_id) -> bool {
+	EVO_NODISCARD inline auto build_symbol_procs(Context& context, Source::ID source_id) -> evo::Result<> {
 		Source& source = context.getSourceManager()[source_id];
 
 		for(const AST::Node& ast_node : source.getASTBuffer().getGlobalStmts()){
-			if(SymbolProcBuilder(context, source).build(ast_node) == false){ return false; }
+			if(SymbolProcBuilder(context, source).build(ast_node).isError()){ return evo::resultError; }
 		}
 
-		return true;
+		return evo::Result<>();
 	}
 
 

@@ -38,7 +38,7 @@ namespace pcit::pir{
 
 
 	// Create through Module
-	struct FunctionDecl{
+	struct ExternalFunction{
 		std::string name;
 		evo::SmallVector<Parameter> parameters;
 		CallingConvention callingConvention;
@@ -47,7 +47,7 @@ namespace pcit::pir{
 
 
 		// for lookup in Module
-		using ID = FunctionDeclID;
+		using ID = ExternalFunctionID;
 	};
 
 
@@ -61,10 +61,10 @@ namespace pcit::pir{
 
 		public:
 			// Don't call this directly, go through Module
-			Function(class Module& module, const FunctionDecl& declaration)
+			Function(Module& module, const ExternalFunction& declaration)
 				: parent_module(module), func_decl(declaration) {}
 
-			Function(class Module& module, FunctionDecl&& declaration)
+			Function(Module& module, ExternalFunction&& declaration)
 				: parent_module(module), func_decl(std::move(declaration)) {}
 
 			~Function() = default;
@@ -131,14 +131,14 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto check_func_call_args(Function::ID id, evo::ArrayProxy<Expr> args) const -> bool;
-			EVO_NODISCARD auto check_func_call_args(FunctionDecl::ID id, evo::ArrayProxy<Expr> args) const -> bool;
+			EVO_NODISCARD auto check_func_call_args(ExternalFunction::ID id, evo::ArrayProxy<Expr> args) const -> bool;
 			EVO_NODISCARD auto check_func_call_args(Type func_type, evo::ArrayProxy<Expr> args) const -> bool;
 			EVO_NODISCARD auto check_func_call_args(evo::ArrayProxy<Type> param_types, evo::ArrayProxy<Expr> args) const
 				-> bool;
 
 	
 		private:
-			FunctionDecl func_decl;
+			ExternalFunction func_decl;
 			Module& parent_module;
 
 			evo::SmallVector<BasicBlock::ID> basic_blocks{};

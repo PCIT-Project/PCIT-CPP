@@ -25,13 +25,12 @@ namespace pcit::pir{
 	class Module{
 		public:
 			Module(
-				std::string&& _name, core::OS _os, core::Architecture _arch
-			) : name(std::move(_name)), os(_os), arch(_arch) {}
+				std::string&& _name, core::Platform _platform
+			) : name(std::move(_name)), platform(_platform) {}
 			~Module() = default;
 
 			EVO_NODISCARD auto getName() const -> std::string_view { return this->name; }
-			EVO_NODISCARD auto getOS() const -> core::OS { return this->os; }
-			EVO_NODISCARD auto getArchitecture() const -> core::Architecture { return this->arch; }
+			EVO_NODISCARD auto getPlatform() const -> const core::Platform& { return this->platform; }
 
 
 
@@ -52,7 +51,7 @@ namespace pcit::pir{
 
 				return this->functions.emplace_back(
 					*this,
-					FunctionDecl(std::move(func_name), std::move(parameters), callingConvention, linkage, returnType)
+					ExternalFunction(std::move(func_name), std::move(parameters), callingConvention, linkage, returnType)
 				);
 			}
 
@@ -85,50 +84,50 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// function declaration
 
-			EVO_NODISCARD auto createFunctionDecl(
+			EVO_NODISCARD auto createExternalFunction(
 				std::string&& func_name,
 				evo::SmallVector<Parameter>&& parameters,
 				CallingConvention callingConvention,
 				Linkage linkage,
 				Type returnType
-			) -> FunctionDecl::ID {
+			) -> ExternalFunction::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
 					this->check_global_name_reusue(func_name);
 				#endif
 
-				return this->function_decls.emplace_back(
+				return this->external_funcs.emplace_back(
 					std::move(func_name), std::move(parameters), callingConvention, linkage, returnType
 				);
 			}
 
-			EVO_NODISCARD auto getFunctionDecl(FunctionDecl::ID id) const -> const FunctionDecl& {
-				return this->function_decls[id];
+			EVO_NODISCARD auto getExternalFunction(ExternalFunction::ID id) const -> const ExternalFunction& {
+				return this->external_funcs[id];
 			}
 
-			EVO_NODISCARD auto getFunctionDecl(FunctionDecl::ID id) -> FunctionDecl& {
-				return this->function_decls[id];
+			EVO_NODISCARD auto getExternalFunction(ExternalFunction::ID id) -> ExternalFunction& {
+				return this->external_funcs[id];
 			}
 
 
-			using FunctionDeclIter = core::StepAlloc<FunctionDecl, FunctionDecl::ID>::Iter;
-			using FunctionDeclsConstIter = core::StepAlloc<FunctionDecl, FunctionDecl::ID>::ConstIter;
+			using ExternalFunctionIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::Iter;
+			using ExternalFunctionsConstIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::ConstIter;
 
-			EVO_NODISCARD auto getFunctionDeclIter() -> core::IterRange<FunctionDeclIter> {
-				return core::IterRange<FunctionDeclIter>(
-					this->function_decls.begin(), this->function_decls.end()
+			EVO_NODISCARD auto getExternalFunctionIter() -> core::IterRange<ExternalFunctionIter> {
+				return core::IterRange<ExternalFunctionIter>(
+					this->external_funcs.begin(), this->external_funcs.end()
 				);
 			}
 
-			EVO_NODISCARD auto getFunctionDeclIter() const -> core::IterRange<FunctionDeclsConstIter> {
-				return core::IterRange<FunctionDeclsConstIter>(
-					this->function_decls.cbegin(), this->function_decls.cend()
+			EVO_NODISCARD auto getExternalFunctionIter() const -> core::IterRange<ExternalFunctionsConstIter> {
+				return core::IterRange<ExternalFunctionsConstIter>(
+					this->external_funcs.cbegin(), this->external_funcs.cend()
 				);
 			}
 
-			EVO_NODISCARD auto getFunctionDeclsConstIter() const -> core::IterRange<FunctionDeclsConstIter> {
-				return core::IterRange<FunctionDeclsConstIter>(
-					this->function_decls.cbegin(), this->function_decls.cend()
+			EVO_NODISCARD auto getExternalFunctionsConstIter() const -> core::IterRange<ExternalFunctionsConstIter> {
+				return core::IterRange<ExternalFunctionsConstIter>(
+					this->external_funcs.cbegin(), this->external_funcs.cend()
 				);
 			}
 
@@ -382,14 +381,14 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto createStructType(
-				std::string&& struct_name, evo::SmallVector<Type> members, bool is_packed
+				std::string&& struct_name, evo::SmallVector<Type>&& members, bool is_packed
 			) -> Type {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_global_name_reusue(struct_name);
 				#endif
 
 				const uint32_t struct_type_index = this->struct_types.emplace_back(
-					std::move(struct_name), members, is_packed
+					std::move(struct_name), std::move(members), is_packed
 				);
 				return Type(Type::Kind::STRUCT, struct_type_index);
 			}
@@ -510,11 +509,10 @@ namespace pcit::pir{
 	
 		private:
 			std::string name;
-			core::OS os;
-			core::Architecture arch;
+			core::Platform platform;
 
 			core::StepAlloc<Function, Function::ID> functions{};
-			core::StepAlloc<FunctionDecl, FunctionDecl::ID> function_decls{};
+			core::StepAlloc<ExternalFunction, ExternalFunction::ID> external_funcs{};
 			core::StepAlloc<GlobalVar, GlobalVar::ID> global_vars{};
 
 			core::StepAlloc<BasicBlock, BasicBlock::ID> basic_blocks{};

@@ -147,10 +147,10 @@ namespace pcit::pir{
 			) const -> Expr;
 
 			EVO_NODISCARD auto createCall(
-				FunctionDecl::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
+				ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
 			EVO_NODISCARD auto createCall(
-				FunctionDecl::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
+				ExternalFunction::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
 			EVO_NODISCARD auto createCall(
@@ -169,8 +169,8 @@ namespace pcit::pir{
 			auto createCallVoid(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
 			auto createCallVoid(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoid(FunctionDecl::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallVoid(FunctionDecl::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallVoid(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoid(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
 			auto createCallVoid(const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args) const
 				-> Expr;

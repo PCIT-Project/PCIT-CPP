@@ -335,12 +335,12 @@ namespace pcit::pir{
 
 	struct Call{
 		std::string name;
-		evo::Variant<FunctionID, FunctionDeclID, PtrCall> target;
+		evo::Variant<FunctionID, ExternalFunctionID, PtrCall> target;
 		evo::SmallVector<Expr> args;
 	};
 
 	struct CallVoid{
-		evo::Variant<FunctionID, FunctionDeclID, PtrCall> target;
+		evo::Variant<FunctionID, ExternalFunctionID, PtrCall> target;
 		evo::SmallVector<Expr> args;
 	};
 

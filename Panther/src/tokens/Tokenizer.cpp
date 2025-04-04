@@ -56,17 +56,17 @@ namespace pcit::panther{
 
 	
 
-	auto Tokenizer::tokenize() -> bool {
+	auto Tokenizer::tokenize() -> evo::Result<> {
 		EVO_DEFER([&](){ this->source.token_buffer.lock(); });
 
 		while(
 			this->char_stream.at_end() == false && this->context.hasHitFailCondition() == false && this->can_continue
 		){
 			const evo::Result<uint32_t> line_result = this->char_stream.get_line();
-			if(line_result.isError()){ this->error_line_too_big(); return false; }
+			if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
 
 			const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
-			if(collumn_result.isError()){ this->error_collumn_too_big(); return false; }
+			if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
 
 			this->current_token_line_start = line_result.value();
 			this->current_token_collumn_start = collumn_result.value();
@@ -81,10 +81,10 @@ namespace pcit::panther{
 			if(this->tokenize_string_literal()){ continue; }
 			
 			this->error_unrecognized_character();
-			return false;
+			return evo::resultError;
 		}
 
-		return this->can_continue;
+		return evo::Result<>::fromBool(this->can_continue);
 	}
 
 

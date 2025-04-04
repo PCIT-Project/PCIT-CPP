@@ -223,7 +223,11 @@ namespace pcit::panther::sema{
 		bool isTerminated = false;
 		std::atomic<bool> defCompleted = false;
 
-		std::optional<pir::Function::ID> pirID{};
+		struct ConstexprJITInterfaceInfo{
+			pir::Function::ID func;
+			pir::Function::ID interfaceFunc;
+		};
+		std::optional<ConstexprJITInterfaceInfo> constexprJITInterfaceInfo{};
 
 
 		EVO_NODISCARD auto isEquivalentOverload(const Func& rhs, const class panther::Context& context) const -> bool;

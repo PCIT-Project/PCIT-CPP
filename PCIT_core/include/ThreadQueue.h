@@ -20,7 +20,7 @@ namespace pcit::core{
 	template<class TASK>
 	class ThreadQueue{
 		public:
-			using WorkFunc = std::function<bool(TASK&)>;
+			using WorkFunc = std::function<evo::Result<>(TASK&)>;
 
 		public:
 			ThreadQueue(WorkFunc&& work_func) : _work_func(std::move(work_func)) {}
@@ -143,8 +143,8 @@ namespace pcit::core{
 
 								this->working_state = WorkingState::WORKING;
 
-								const bool work_res = this->thread_queue._work_func(*task);
-								if(work_res == false){
+								const evo::Result<> work_res = this->thread_queue._work_func(*task);
+								if(work_res.isError()){
 									this->thread_queue.signal_task_failed();
 									this->working_state = WorkingState::NOT_WORKING;
 									std::this_thread::yield();

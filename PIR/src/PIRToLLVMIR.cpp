@@ -28,8 +28,8 @@ namespace pcit::pir{
 			this->lower_global_var(global_var);
 		}
 
-		for(const FunctionDecl& function_decl : this->module.getFunctionDeclIter()){
-			this->lower_function_decl(function_decl);
+		for(const ExternalFunction& external_function : this->module.getExternalFunctionIter()){
+			this->lower_external_func(external_function);
 		}
 
 		auto func_setups = std::vector<FuncLoweredSetup>();
@@ -41,6 +41,37 @@ namespace pcit::pir{
 			this->lower_func_body(func_setup.func, func_setup.llvm_func);
 		}
 	}
+
+
+
+	auto PIRToLLVMIR::lowerSubset(const Subsets& subsets) -> void {
+		for(const Type& struct_type : subsets.structs){
+			this->lower_struct_type(this->module.getStructType(struct_type));
+		}
+
+		for(const GlobalVar::ID global_var_id : subsets.globalVars){
+			this->lower_global_var(this->module.getGlobalVar(global_var_id));
+		}
+
+		for(const ExternalFunction::ID external_function_id : subsets.externFuncs){
+			this->lower_external_func(this->module.getExternalFunction(external_function_id));
+		}
+
+		for(const Function::ID function_id : subsets.funcDecls){
+			this->lower_function_decl(this->module.getFunction(function_id));
+		}
+
+
+		auto func_setups = std::vector<FuncLoweredSetup>();
+		for(const Function::ID func_id : subsets.funcs){
+			func_setups.emplace_back(this->lower_function_setup(this->module.getFunction(func_id)));
+		}
+
+		for(const FuncLoweredSetup& func_setup : func_setups){
+			this->lower_func_body(func_setup.func, func_setup.llvm_func);
+		}
+	}
+
 
 
 	auto PIRToLLVMIR::lower_struct_type(const StructType& struct_type) -> void {
@@ -69,7 +100,8 @@ namespace pcit::pir{
 		this->global_vars.emplace(global.name, llvm_global_var);
 	}
 
-	auto PIRToLLVMIR::lower_function_decl(const FunctionDecl& func_decl) -> void {
+
+	auto PIRToLLVMIR::lower_external_func(const ExternalFunction& func_decl) -> void {
 		auto param_types = evo::SmallVector<llvmint::Type>();
 		for(const Parameter& param : func_decl.parameters){
 			param_types.emplace_back(this->get_type(param.getType()));
@@ -86,6 +118,26 @@ namespace pcit::pir{
 		llvm_func_decl.setCallingConv(this->get_calling_conv(func_decl.callingConvention));
 
 		this->funcs.emplace(func_decl.name, llvm_func_decl);
+	}
+
+
+	auto PIRToLLVMIR::lower_function_decl(const Function& func) -> void {
+		auto param_types = evo::SmallVector<llvmint::Type>();
+		for(const Parameter& param : func.getParameters()){
+			param_types.emplace_back(this->get_type(param.getType()));
+		}
+
+		const llvmint::FunctionType func_type = this->builder.getFuncProto(
+			this->get_type(func.getReturnType()), param_types, false
+		);
+
+		const llvmint::LinkageType linkage = this->get_linkage(func.getLinkage());
+
+		llvmint::Function llvm_func_decl = this->llvm_module.createFunction(func.getName(), func_type, linkage);
+		llvm_func_decl.setNoThrow();
+		llvm_func_decl.setCallingConv(this->get_calling_conv(func.getCallingConvention()));
+
+		this->funcs.emplace(func.getName(), llvm_func_decl);
 	}
 
 
@@ -180,14 +232,26 @@ namespace pcit::pir{
 							[&](const auto& target) -> llvmint::Value {
 								using TargetT = std::decay_t<decltype(target)>;
 
+
 								if constexpr(std::is_same<TargetT, Function::ID>()){
 									const Function& func_target = this->module.getFunction(target);
+
+									evo::debugAssert(
+										this->funcs.contains(func_target.getName()),
+										"Func {} was not lowered", func_target.getName()
+									);
+
 									return this->builder.createCall(
 										this->funcs.at(func_target.getName()), call_args
 									).asValue();
 
-								}else if constexpr(std::is_same<TargetT, FunctionDecl::ID>()){
-									const FunctionDecl& func_target = this->module.getFunctionDecl(target);
+								}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
+									const ExternalFunction& func_target = this->module.getExternalFunction(target);
+
+									evo::debugAssert(
+										this->funcs.contains(func_target.name),
+										"Func {} was not lowered", func_target.name
+									);
 
 									llvmint::CallInst call_inst = 
 										this->builder.createCall(this->funcs.at(func_target.name), call_args);
@@ -236,8 +300,8 @@ namespace pcit::pir{
 								const Function& func_target = this->module.getFunction(target);
 								this->builder.createCall(this->funcs.at(func_target.getName()), call_args);
 
-							}else if constexpr(std::is_same<TargetT, FunctionDecl::ID>()){
-								const FunctionDecl& func_target = this->module.getFunctionDecl(target);
+							}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
+								const ExternalFunction& func_target = this->module.getExternalFunction(target);
 
 								llvmint::CallInst call_inst = 
 									this->builder.createCall(this->funcs.at(func_target.name), call_args);

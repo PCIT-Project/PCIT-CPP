@@ -7,8 +7,6 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/LLVMContext.h"
-
 #include "../include/init.h"
 
 #include <LLVM.h>
@@ -16,20 +14,32 @@
 
 namespace pcit::llvmint{
 
+
+	bool is_initialized = false;
 	
-	auto LLVMContext::init() -> void {
-		evo::debugAssert(this->isInitialized() == false, "LLVMContext is already initialized");
+	auto init() -> void {
+		evo::debugAssert(isInitialized() == false, "LLVM was already initialized");
 
-		if(llvmint::isInitialized() == false){ llvmint::init(); }
+		// TODO: is this all needed?
+		
+		// LLVMLinkInInterpreter();
+		// auto force = ForceMCJITLinking();
+		LLVMLinkInMCJIT();
+		llvm::InitializeNativeTarget();
+		llvm::InitializeNativeTargetAsmPrinter();
+		llvm::InitializeNativeTargetAsmParser();
 
-		this->_native = new llvm::LLVMContext();
+
+		// llvm::InitializeAllTargetInfos();
+		// llvm::InitializeAllTargets();
+		// llvm::InitializeAllTargetMCs();
+		// llvm::InitializeAllAsmParsers();
+		// llvm::InitializeAllAsmPrinters();
 	}
 
-	auto LLVMContext::deinit() -> void {
-		evo::debugAssert(this->isInitialized(), "Cannot deinit LLVMContext when not initialized");
-
-		delete this->_native;
-		this->_native = nullptr;
+	
+	auto isInitialized() -> bool {
+		return is_initialized;
 	}
 	
 }

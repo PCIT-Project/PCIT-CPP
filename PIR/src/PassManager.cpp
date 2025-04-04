@@ -24,24 +24,23 @@
 namespace pcit::pir{
 	
 
-	auto PassManager::run() -> bool {
-		if(this->max_threads == 0){ return this->runSingleThreaded(); }
+	auto PassManager::run() -> evo::Result<> {
+		if(this->max_threads == 0){
+			this->runSingleThreaded();
+			return evo::Result<>();
+		}
 		return this->run_multi_threaded();
 	}
 
-	auto PassManager::runSingleThreaded() -> bool {
+	auto PassManager::runSingleThreaded() -> void {
 		for(const PassGroupVariant& pass_group_variant : this->pass_groups){
-			const bool pass_result = pass_group_variant.visit([&](const auto& pass_group) -> bool {
-				return this->run_single_threaded_pass_group(pass_group);
+			pass_group_variant.visit([&](const auto& pass_group) -> void {
+				this->run_single_threaded_pass_group(pass_group);
 			});
-
-			if(pass_result == false){ return false; }
 		}
-
-		return true;
 	}
 
-	auto PassManager::run_multi_threaded() -> bool {
+	auto PassManager::run_multi_threaded() -> evo::Result<> {
 		evo::debugAssert(this->max_threads != 0, "This pass manager is not allowed to run multi-threaded");
 
 		if(this->pool.isRunning() == false){
@@ -49,14 +48,14 @@ namespace pcit::pir{
 		}
 
 		for(const PassGroupVariant& pass_group_variant : this->pass_groups){
-			const bool pass_result = pass_group_variant.visit([&](const auto& pass_group) -> bool {
+			const evo::Result<> pass_result = pass_group_variant.visit([&](const auto& pass_group) -> evo::Result<> {
 				return this->run_multi_threaded_pass_group(pass_group);
 			});
 
-			if(pass_result == false){ return false; }
+			if(pass_result.isError()){ return evo::resultError; }
 		}
 
-		return true;
+		return evo::Result<>();
 	}
 
 
@@ -64,19 +63,15 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// stmt pass
 
-	auto PassManager::run_single_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool {
+	auto PassManager::run_single_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> void {
 		auto agent = Agent(this->module);
 
 		for(Function& func : this->module.getFunctionIter()){
-			if(this->run_pass_group(stmt_pass_group, StmtPassGroupItem(func)) == false){
-				return false;
-			}
+			this->run_pass_group(stmt_pass_group, StmtPassGroupItem(func));
 		}
-
-		return true;
 	}
 
-	auto PassManager::run_multi_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> bool {
+	auto PassManager::run_multi_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> evo::Result<> {
 		auto agent = Agent(this->module);
 
 		auto items = evo::SmallVector<ThreadPoolItem>();
@@ -84,15 +79,16 @@ namespace pcit::pir{
 			items.emplace_back(StmtPassGroupItem(func));
 		}
 
-		this->pool.work(std::move(items), [&](ThreadPoolItem& item) -> bool {
-			return this->run_pass_group(stmt_pass_group, item.value.as<StmtPassGroupItem>());
+		this->pool.work(std::move(items), [&](ThreadPoolItem& item) -> evo::Result<> {
+			this->run_pass_group(stmt_pass_group, item.value.as<StmtPassGroupItem>());
+			return evo::Result<>();
 		});
 
 		return this->pool.waitUntilDoneWorking();
 	}
 
 
-	auto PassManager::run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item) -> bool {
+	auto PassManager::run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item) -> void {
 		auto agent = Agent(this->module, item.func);
 
 		for(auto iter = item.func.getAllocasRange().begin(); iter != item.func.getAllocasRange().end(); ++iter){
@@ -144,28 +140,21 @@ namespace pcit::pir{
 				}
 			}
 		}
-
-
-		return true;
 	}
 
 
 	//////////////////////////////////////////////////////////////////////
 	// reverse stmt pass
 
-	auto PassManager::run_single_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> bool {
+	auto PassManager::run_single_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> void {
 		auto agent = Agent(this->module);
 
 		for(Function& func : this->module.getFunctionIter()){
-			if(this->run_pass_group(stmt_pass_group, ReverseStmtPassGroupItem(func)) == false){
-				return false;
-			}
+			this->run_pass_group(stmt_pass_group, ReverseStmtPassGroupItem(func));
 		}
-
-		return true;
 	}
 
-	auto PassManager::run_multi_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> bool {
+	auto PassManager::run_multi_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> evo::Result<> {
 		auto agent = Agent(this->module);
 
 		auto items = evo::SmallVector<ThreadPoolItem>();
@@ -173,8 +162,9 @@ namespace pcit::pir{
 			items.emplace_back(ReverseStmtPassGroupItem(func));
 		}
 
-		this->pool.work(std::move(items), [&](ThreadPoolItem& item) -> bool {
-			return this->run_pass_group(stmt_pass_group, item.value.as<ReverseStmtPassGroupItem>());
+		this->pool.work(std::move(items), [&](ThreadPoolItem& item) -> evo::Result<> {
+			this->run_pass_group(stmt_pass_group, item.value.as<ReverseStmtPassGroupItem>());
+			return evo::Result<>();
 		});
 
 		return this->pool.waitUntilDoneWorking();
@@ -183,7 +173,7 @@ namespace pcit::pir{
 
 	auto PassManager::run_pass_group(
 		const ReverseStmtPassGroup& stmt_pass_group, const ReverseStmtPassGroupItem& item
-	) -> bool {
+	) -> void {
 		auto agent = Agent(this->module, item.func);
 
 		for(BasicBlock::ID basic_block_id : item.func | std::views::reverse){
@@ -216,8 +206,6 @@ namespace pcit::pir{
 				++iter;
 			}
 		}
-
-		return true;
 	}
 
 

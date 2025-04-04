@@ -45,6 +45,14 @@ namespace pcit::panther{
 	// misc
 
 
+	Context::~Context(){
+		if(this->constexpr_jit_engine.isInitialized()){
+			this->constexpr_jit_engine.deinit();
+		}
+	}
+
+
+
 	auto Context::optimalNumThreads() -> unsigned {
 		return unsigned(core::ThreadPool<Task>::optimalNumThreads());
 	}
@@ -56,10 +64,10 @@ namespace pcit::panther{
 	// build targets
 
 	// TODO: force shutdown when hit fail condition
-	auto Context::tokenize() -> bool {
-		const auto worker = [&](Task& task) -> bool {
+	auto Context::tokenize() -> evo::Result<> {
+		const auto worker = [&](Task& task) -> evo::Result<> {
 			this->tokenize_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id);
-			return true;
+			return evo::Result<>();
 		};
 
 		if(this->_config.isMultiThreaded()){
@@ -87,15 +95,15 @@ namespace pcit::panther{
 			local_work_manager.run();
 		}
 
-		return this->num_errors == 0;
+		return evo::Result<>::fromBool(this->num_errors == 0);
 	}
 
 
 
-	auto Context::parse() -> bool {
-		const auto worker = [&](Task& task) -> bool {
+	auto Context::parse() -> evo::Result<> {
+		const auto worker = [&](Task& task) -> evo::Result<> {
 			this->parse_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id);
-			return true;
+			return evo::Result<>();
 		};
 
 		if(this->_config.isMultiThreaded()){
@@ -123,16 +131,16 @@ namespace pcit::panther{
 			local_work_manager.run();
 		}
 
-		return this->num_errors == 0;
+		return evo::Result<>::fromBool(this->num_errors == 0);
 	}
 
 
-	auto Context::buildSymbolProcs() -> bool {
-		const auto worker = [&](Task& task) -> bool {
+	auto Context::buildSymbolProcs() -> evo::Result<> {
+		const auto worker = [&](Task& task) -> evo::Result<> {
 			this->build_symbol_procs_impl(
 				std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id
 			);
-			return true;
+			return evo::Result<>();
 		};
 
 		if(this->_config.isMultiThreaded()){
@@ -160,15 +168,129 @@ namespace pcit::panther{
 			local_work_manager.run();
 		}
 
-		return this->num_errors == 0;
+		return evo::Result<>::fromBool(this->num_errors == 0);
 	}
 
 
-	auto Context::analyzeSemantics() -> bool {
-		if(this->buildSymbolProcs() == false){ return false; }
+	static constexpr auto round_up_to_nearest_multiple_of_64(size_t num) -> size_t {
+		return (num + (64 - 1)) & ~(64 - 1);
+	}
+
+	auto Context::analyzeSemantics() -> evo::Result<> {
+		if(this->buildSymbolProcs().isError()){ return evo::resultError; }
 
 		if(this->type_manager.primitivesInitialized() == false){
 			this->type_manager.initPrimitives();
+		}
+
+		if(this->constexpr_jit_engine.isInitialized() == false){
+			const evo::Expected<void, evo::SmallVector<std::string>> jit_init_result = 
+				this->constexpr_jit_engine.init(pir::JITEngine::InitConfig{
+					.allowDefaultSymbolLinking = false,
+				});
+
+			if(jit_init_result.has_value() == false){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				for(const std::string& error : jit_init_result.error()){
+					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				}
+
+				this->emitError(
+					Diagnostic::Code::MISC_LLVM_ERROR,
+					Diagnostic::Location::NONE,
+					"Error trying to initalize PIR JITEngine",
+					std::move(infos)
+				);
+				return evo::resultError;
+			}
+
+			const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
+			this->constexpr_jit_engine.registerFuncs({
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_int",
+					[](core::GenericValue* return_value, uint64_t* data, uint64_t bitwidth) -> void {
+						*return_value = core::GenericValue(core::GenericInt(
+							unsigned(bitwidth),
+							evo::ArrayProxy<uint64_t>(data, round_up_to_nearest_multiple_of_64(bitwidth) / 64)
+						));
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_bool",
+					[](core::GenericValue* return_value, bool value) -> void {
+						*return_value = core::GenericValue(value);
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_f16",
+					[](core::GenericValue* return_value, uint16_t* value) -> void {
+						*return_value = core::GenericValue(
+							core::GenericFloat::createF16(core::GenericInt::create<uint16_t>(*value))
+						);
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_bf16",
+					[](core::GenericValue* return_value, uint16_t* value) -> void {
+						*return_value = core::GenericValue(
+							core::GenericFloat::createBF16(core::GenericInt::create<uint16_t>(*value))
+						);
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_f32",
+					[](core::GenericValue* return_value, float32_t value) -> void {
+						*return_value = core::GenericValue(core::GenericFloat::createF32(value));
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_f64",
+					[](core::GenericValue* return_value, float64_t value) -> void {
+						*return_value = core::GenericValue(core::GenericFloat::createF64(value));
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_f80",
+					[](core::GenericValue* return_value, uint64_t* value) -> void {
+						*return_value = core::GenericValue(
+							core::GenericFloat::createF80(core::GenericInt(80, evo::ArrayProxy<uint64_t>(value, 2)))
+						);
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_f128",
+					[](core::GenericValue* return_value, uint64_t* value) -> void {
+						*return_value = core::GenericValue(
+							core::GenericFloat::createF128(core::GenericInt(128, evo::ArrayProxy<uint64_t>(value, 2)))
+						);
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.JIT.return_generic_char",
+					[](core::GenericValue* return_value, char value) -> void {
+						*return_value = core::GenericValue(value);
+					}
+				),
+			});
+
+
+			if(register_result.has_value() == false){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				for(const std::string& error : register_result.error()){
+					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				}
+
+				this->emitFatal(
+					Diagnostic::Code::MISC_LLVM_ERROR,
+					Diagnostic::Location::NONE,
+					Diagnostic::createFatalMessage("Error trying to register functions to PIR JITEngine"),
+					std::move(infos)
+				);
+				return evo::resultError;
+			}
+
+
+			this->constexpr_sema_to_pir_data.createNeededJITInterfaceFuncDecls(this->constexpr_pir_module);
 		}
 
 		for(const Source::ID& source_id : this->source_manager){
@@ -181,7 +303,7 @@ namespace pcit::panther{
 			source.is_ready_for_sema = true;
 		}
 
-		const auto worker = [&](Task& task_variant) -> bool {
+		const auto worker = [&](Task& task_variant) -> evo::Result<> {
 			task_variant.visit([&](auto& task) -> void {
 				using TaskType = std::decay_t<decltype(task)>;
 
@@ -196,7 +318,7 @@ namespace pcit::panther{
 				}
 			});
 
-			return !this->hasHitFailCondition();
+			return evo::Result<>::fromBool(!this->hasHitFailCondition());
 		};
 
 
@@ -267,18 +389,18 @@ namespace pcit::panther{
 				evo::breakpoint();
 			#endif
 
-			return false;
+			return evo::resultError;
 		}
 
 		
-		return this->num_errors == 0;
+		return evo::Result<>::fromBool(this->num_errors == 0);
 	}
 
 
 
 
 	auto Context::lowerToAndPrintPIR(core::Printer& printer) -> void {
-		auto module = pir::Module(evo::copy(this->_config.title), this->_config.os, this->_config.architecture);
+		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
 
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
 			.useReadableNames   = true,
@@ -422,7 +544,7 @@ namespace pcit::panther{
 
 		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 
-		if(panther::tokenize(*this, new_source.value()) == false){ return; }
+		if(panther::tokenize(*this, new_source.value()).isError()){ return; }
 		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 	}
 
@@ -434,10 +556,10 @@ namespace pcit::panther{
 
 		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 
-		if(panther::tokenize(*this, new_source.value()) == false){ return; }
+		if(panther::tokenize(*this, new_source.value()).isError()){ return; }
 		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 
-		if(panther::parse(*this, new_source.value()) == false){ return; }
+		if(panther::parse(*this, new_source.value()).isError()){ return; }
 		this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 	}
 
@@ -449,13 +571,13 @@ namespace pcit::panther{
 
 		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 
-		if(panther::tokenize(*this, new_source.value()) == false){ return evo::resultError; }
+		if(panther::tokenize(*this, new_source.value()).isError()){ return evo::resultError; }
 		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 
-		if(panther::parse(*this, new_source.value()) == false){ return evo::resultError; }
+		if(panther::parse(*this, new_source.value()).isError()){ return evo::resultError; }
 		this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 
-		if(panther::build_symbol_procs(*this, new_source.value()) == false){ return evo::resultError; }
+		if(panther::build_symbol_procs(*this, new_source.value()).isError()){ return evo::resultError; }
 		this->trace(
 			"Built Symbol Processes of file: \"{}\"", this->source_manager[new_source.value()].getPath().string()
 		);

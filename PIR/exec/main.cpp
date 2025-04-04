@@ -105,7 +105,7 @@ auto main(int argc, const char* argv[]) -> int {
 	//////////////////////////////////////////////////////////////////////
 	// begin test
 
-	auto module = pcit::pir::Module("PIR testing", pcit::core::getCurrentOS(), pcit::core::getCurrentArchitecture());
+	auto module = pcit::pir::Module("PIR testing", pcit::core::Platform::getCurrent());
 	auto agent = pcit::pir::Agent(module);
 
 	const pcit::pir::GlobalVar::ID global = module.createGlobalVar(
@@ -123,7 +123,7 @@ auto main(int argc, const char* argv[]) -> int {
 		"string", module.getGlobalString(global_str_value).type, pcit::pir::Linkage::PRIVATE, global_str_value, true
 	);
 
-	const pcit::pir::FunctionDecl::ID print_message_decl = module.createFunctionDecl(
+	const pcit::pir::ExternalFunction::ID print_message_decl = module.createExternalFunction(
 		"print_message",
 		evo::SmallVector<pcit::pir::Parameter>{pcit::pir::Parameter("str", module.createPtrType())},
 		pcit::pir::CallingConvention::C,
@@ -220,8 +220,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 		pass_manager.addPass(pcit::pir::passes::removeUnusedStmts());
 		pass_manager.addPass(pcit::pir::passes::instCombine());
-		const bool opt_result = pass_manager.run();
-		if(opt_result == false){
+		const evo::Result<> opt_result = pass_manager.run();
+		if(opt_result.isError()){
 			printer.printlnError("Error occured while running pass");
 			return EXIT_FAILURE;
 		}
@@ -251,9 +251,9 @@ auto main(int argc, const char* argv[]) -> int {
 	auto jit_engine = pcit::pir::JITEngine();
 	jit_engine.init(pcit::pir::JITEngine::InitConfig());
 
-	jit_engine.addModule(module);
+	std::ignore = jit_engine.addModule(module);
 
-	jit_engine.registerFunc("print_message", [](const char* msg) -> void {
+	std::ignore = jit_engine.registerFunc("print_message", [](const char* msg) -> void {
 		evo::printlnYellow("Message: \"{}\"", msg);
 	});
 
@@ -262,9 +262,7 @@ auto main(int argc, const char* argv[]) -> int {
 	// 	printer.printlnSuccess("value returned from entry: {}", result.value());
 	// }
 
-	const void* entry_func_jit_ptr = jit_engine.lookupFunc("entry");
-	using FuncType = uint64_t(*)(void);
-	const uint64_t res = ((FuncType)entry_func_jit_ptr)();
+	const uint64_t res = jit_engine.getFuncPtr<uint64_t(*)(void)>("entry")();
 
 	printer.printlnSuccess("Value returned from entry: {}", res);
 

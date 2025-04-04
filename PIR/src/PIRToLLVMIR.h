@@ -32,10 +32,21 @@ namespace pcit::pir{
 			auto lower() -> void;
 
 
+			struct Subsets{
+				evo::ArrayProxy<Type> structs;
+				evo::ArrayProxy<GlobalVar::ID> globalVars;
+				evo::ArrayProxy<ExternalFunction::ID> externFuncs;
+				evo::ArrayProxy<Function::ID> funcDecls;
+				evo::ArrayProxy<Function::ID> funcs;
+			};
+			auto lowerSubset(const Subsets& subsets) -> void;
+
+
 		private:
 			auto lower_struct_type(const StructType& struct_type) -> void;
 			auto lower_global_var(const GlobalVar& global) -> void;
-			auto lower_function_decl(const FunctionDecl& func_decl) -> void;
+			auto lower_external_func(const ExternalFunction& external_func) -> void;
+			auto lower_function_decl(const Function& func) -> void;
 
 			struct FuncLoweredSetup{
 				const Function& func;

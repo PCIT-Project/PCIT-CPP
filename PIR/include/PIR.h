@@ -28,8 +28,6 @@
 #include "./passes/instCombine.h"
 #include "./passes/removeUnusedStmts.h"
 
-#include "./Interpreter.h"
-
 #include "./llvmir.h"
 #include "./LegacyJITEngine.h"
 #include "./JITEngine.h"

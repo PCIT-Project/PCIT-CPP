@@ -22,7 +22,6 @@ project "Panther"
 	links{
 		"Evo",
 		"PCIT_core",
-		"PCIT_llvm_interface",
 		"PIR",
 	}
 	

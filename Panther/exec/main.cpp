@@ -118,10 +118,9 @@ auto main(int argc, const char* argv[]) -> int {
 
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode         = ContextConfig::Mode::BUILD_SYSTEM,
-		.title        = "Panther Testing",
-		.os           = core::getCurrentOS(),
-		.architecture = core::getCurrentArchitecture(),
+		.mode     = ContextConfig::Mode::BUILD_SYSTEM,
+		.title    = "Panther Testing",
+		.platform = core::Platform::getCurrent(),
 
 		.numThreads = config.num_threads,
 	};
@@ -152,7 +151,7 @@ auto main(int argc, const char* argv[]) -> int {
 	std::ignore = context.addSourceFile("build.pthr", comp_config);
 
 
-	if(context.analyzeSemantics() == false){
+	if(context.analyzeSemantics().isError()){
 		const unsigned num_errors = context.getNumErrors();
 		if(num_errors == 1){
 			printer.printlnError("Failed with 1 error");

@@ -55,10 +55,10 @@ namespace pcit::pir{
 
 		EVO_NODISCARD constexpr auto isValidForLoad() const -> bool {
 			switch(*this){
-				case AtomicOrdering::NONE:                   return true;
-				case AtomicOrdering::MONOTONIC:              return true;
-				case AtomicOrdering::ACQUIRE:                return true;
-				case AtomicOrdering::RELEASE:                return false;
+				case AtomicOrdering::NONE:                    return true;
+				case AtomicOrdering::MONOTONIC:               return true;
+				case AtomicOrdering::ACQUIRE:                 return true;
+				case AtomicOrdering::RELEASE:                 return false;
 				case AtomicOrdering::ACQUIRE_RELEASE:         return false;
 				case AtomicOrdering::SEQUENTIALLY_CONSISTENT: return true;
 			}
@@ -68,10 +68,10 @@ namespace pcit::pir{
 
 		EVO_NODISCARD constexpr auto isValidForStore() const -> bool {
 			switch(*this){
-				case AtomicOrdering::NONE:                   return true;
-				case AtomicOrdering::MONOTONIC:              return true;
-				case AtomicOrdering::ACQUIRE:                return false;
-				case AtomicOrdering::RELEASE:                return true;
+				case AtomicOrdering::NONE:                    return true;
+				case AtomicOrdering::MONOTONIC:               return true;
+				case AtomicOrdering::ACQUIRE:                 return false;
+				case AtomicOrdering::RELEASE:                 return true;
 				case AtomicOrdering::ACQUIRE_RELEASE:         return false;
 				case AtomicOrdering::SEQUENTIALLY_CONSISTENT: return true;
 			}

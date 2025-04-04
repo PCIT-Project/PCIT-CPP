@@ -40,8 +40,7 @@ namespace pcit::pir{
 		this->data->module.init("PIR-LegacyJITEngine", this->data->llvm_context);
 
 		const std::string data_layout_error = this->data->module.setTargetAndDataLayout(
-			core::getCurrentOS(),
-			core::getCurrentArchitecture(),
+			core::Platform::getCurrent(),
 			llvmint::Module::Relocation::DEFAULT,
 			llvmint::Module::CodeSize::DEFAULT,
 			llvmint::Module::OptLevel::NONE,
@@ -68,24 +67,24 @@ namespace pcit::pir{
 	}
 
 
-	auto LegacyJITEngine::registerFunction(std::string_view func_decl_name, void* func) -> void {
+	auto LegacyJITEngine::registerFunction(std::string_view extern_func_name, void* func) -> void {
 		evo::debugAssert(this->isInitialized(), "LegacyJITEngine not initialized");
 
-		this->data->execution_engine.registerFunction(func_decl_name, func);
+		this->data->execution_engine.registerFunction(extern_func_name, func);
 	}
 
 
-	auto LegacyJITEngine::registerFunction(const FunctionDecl::ID func_decl_id, void* func) -> void {
+	auto LegacyJITEngine::registerFunction(const ExternalFunction::ID extern_func_id, void* func) -> void {
 		evo::debugAssert(this->isInitialized(), "LegacyJITEngine not initialized");
 
-		this->registerFunction(this->module->getFunctionDecl(func_decl_id).name, func);
+		this->registerFunction(this->module->getExternalFunction(extern_func_id).name, func);
 	}
 
 
-	auto LegacyJITEngine::registerFunction(const FunctionDecl& func_decl, void* func) -> void {
+	auto LegacyJITEngine::registerFunction(const ExternalFunction& extern_func, void* func) -> void {
 		evo::debugAssert(this->isInitialized(), "LegacyJITEngine not initialized");
 
-		this->registerFunction(func_decl.name, func);
+		this->registerFunction(extern_func.name, func);
 	}
 
 

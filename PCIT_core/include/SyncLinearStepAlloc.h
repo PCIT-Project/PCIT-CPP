@@ -112,6 +112,10 @@ namespace pcit::core{
 			EVO_NODISCARD auto rend()  const -> ConstIter { return this->linear_step_alloc.rend();  }
 			EVO_NODISCARD auto crend() const -> ConstIter { return this->linear_step_alloc.crend(); }
 
+
+			EVO_NODISCARD auto getSpinLock() const -> core::SpinLock& {
+				return this->spin_lock;
+			}
 	
 		private:
 			LinearStepAlloc<T, ID, STARTING_POW_OF_2> linear_step_alloc{};
