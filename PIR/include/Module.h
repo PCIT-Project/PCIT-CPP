@@ -386,6 +386,7 @@ namespace pcit::pir{
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_global_name_reusue(struct_name);
 				#endif
+				evo::debugAssert(members.empty() == false, "Cannot create a struct type with no members");
 
 				const uint32_t struct_type_index = this->struct_types.emplace_back(
 					std::move(struct_name), std::move(members), is_packed

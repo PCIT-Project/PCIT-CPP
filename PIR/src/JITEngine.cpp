@@ -141,6 +141,81 @@ namespace pcit::pir{
 	}
 
 
+	static constexpr auto round_up_to_nearest_multiple_of_64(size_t num) -> size_t {
+		return (num + (64 - 1)) & ~(64 - 1);
+	}
+
+	auto JITEngine::registerJITInterfaceFuncs() -> evo::Expected<void, evo::SmallVector<std::string>> {
+		return this->registerFuncs({
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_int",
+				[](core::GenericValue* return_value, uint64_t* data, uint64_t bitwidth) -> void {
+					*return_value = core::GenericValue(core::GenericInt(
+						unsigned(bitwidth),
+						evo::ArrayProxy<uint64_t>(data, round_up_to_nearest_multiple_of_64(bitwidth) / 64)
+					));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_bool",
+				[](core::GenericValue* return_value, bool value) -> void {
+					*return_value = core::GenericValue(value);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_f16",
+				[](core::GenericValue* return_value, uint16_t* value) -> void {
+					*return_value = core::GenericValue(
+						core::GenericFloat::createF16(core::GenericInt::create<uint16_t>(*value))
+					);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_bf16",
+				[](core::GenericValue* return_value, uint16_t* value) -> void {
+					*return_value = core::GenericValue(
+						core::GenericFloat::createBF16(core::GenericInt::create<uint16_t>(*value))
+					);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_f32",
+				[](core::GenericValue* return_value, float32_t value) -> void {
+					*return_value = core::GenericValue(core::GenericFloat::createF32(value));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_f64",
+				[](core::GenericValue* return_value, float64_t value) -> void {
+					*return_value = core::GenericValue(core::GenericFloat::createF64(value));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_f80",
+				[](core::GenericValue* return_value, uint64_t* value) -> void {
+					*return_value = core::GenericValue(
+						core::GenericFloat::createF80(core::GenericInt(80, evo::ArrayProxy<uint64_t>(value, 2)))
+					);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_f128",
+				[](core::GenericValue* return_value, uint64_t* value) -> void {
+					*return_value = core::GenericValue(
+						core::GenericFloat::createF128(core::GenericInt(128, evo::ArrayProxy<uint64_t>(value, 2)))
+					);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_char",
+				[](core::GenericValue* return_value, char value) -> void {
+					*return_value = core::GenericValue(value);
+				}
+			),
+		});
+	}
+
+
 	
 
 }

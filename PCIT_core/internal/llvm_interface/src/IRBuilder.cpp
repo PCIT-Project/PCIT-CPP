@@ -116,6 +116,7 @@ namespace pcit::llvmint{
 		// llvm/IR/IntrinsicEnums.inc
 		const llvm::Intrinsic::ID intrinsic_id = [&]() -> llvm::Intrinsic::ID {
 			switch(id){
+				case IntrinsicID::TRAP:          return llvm::Intrinsic::IndependentIntrinsics::trap;
 				case IntrinsicID::DEBUG_TRAP:    return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
 
 				case IntrinsicID::SADD_SAT:      return llvm::Intrinsic::IndependentIntrinsics::sadd_sat;

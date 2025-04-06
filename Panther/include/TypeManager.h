@@ -429,14 +429,17 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) const
 				-> const BaseType::StructTemplate&;
 			EVO_NODISCARD auto getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID;
-
-
+			
+			
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0); }
 			EVO_NODISCARD static auto getTypeChar()   -> TypeInfo::ID { return TypeInfo::ID(1); }
 			EVO_NODISCARD static auto getTypeUI8()    -> TypeInfo::ID { return TypeInfo::ID(2); }
-			EVO_NODISCARD static auto getTypeUSize()  -> TypeInfo::ID { return TypeInfo::ID(3); }
-			EVO_NODISCARD static auto getTypeTypeID() -> TypeInfo::ID { return TypeInfo::ID(4); }
-			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(5); }
+			EVO_NODISCARD static auto getTypeUI16()   -> TypeInfo::ID { return TypeInfo::ID(3); }
+			EVO_NODISCARD static auto getTypeUI32()   -> TypeInfo::ID { return TypeInfo::ID(4); }
+			EVO_NODISCARD static auto getTypeUI64()   -> TypeInfo::ID { return TypeInfo::ID(5); }
+			EVO_NODISCARD static auto getTypeUSize()  -> TypeInfo::ID { return TypeInfo::ID(6); }
+			EVO_NODISCARD static auto getTypeTypeID() -> TypeInfo::ID { return TypeInfo::ID(7); }
+			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(8); }
 
 
 			///////////////////////////////////

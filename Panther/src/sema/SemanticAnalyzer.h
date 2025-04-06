@@ -79,12 +79,13 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
 			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
+			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
 
 			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall<IS_CONSTEXPR>& instr) -> Result;
+			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR>& instr) -> Result;
 			EVO_NODISCARD auto instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result;
 
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
@@ -164,7 +165,7 @@ namespace pcit::panther{
 
 
 			struct SelectFuncOverloadFuncInfo{
-				sema::Func::ID func_id;
+				std::optional<sema::Func::ID> func_id; // nullopt means it's an intrinsic
 				const BaseType::Function& func_type;
 			};
 

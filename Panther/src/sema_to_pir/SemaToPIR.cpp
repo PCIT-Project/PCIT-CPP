@@ -42,13 +42,13 @@ namespace pcit::panther{
 	auto SemaToPIR::lowerStruct(BaseType::Struct::ID struct_id) -> void {
 		// const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
-		const pir::Type new_type = this->module.createStructType(
-			this->mangle_name(struct_id),
-			evo::SmallVector<pir::Type>(),
-			false
-		);
+		// const pir::Type new_type = this->module.createStructType(
+		// 	this->mangle_name(struct_id),
+		// 	evo::SmallVector<pir::Type>(),
+		// 	false
+		// );
 
-		this->data.create_struct(struct_id, new_type);
+		// this->data.create_struct(struct_id, new_type);
 	}
 
 
@@ -247,7 +247,31 @@ namespace pcit::panther{
 				} break;
 
 				case sema::Stmt::Kind::FUNC_CALL: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::FUNC_CALL");
+					const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(stmt.funcCallID());
+
+					if(func_call.target.is<IntrinsicFunc::Kind>()){ 
+						this->intrinsic_func_call(func_call);
+						continue;
+					}
+
+					const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
+
+					auto args = evo::SmallVector<pir::Expr>();
+					for(size_t i = 0; const sema::Expr& arg : func_call.args){
+						if(target_func_info.arg_is_copy[i]){
+							args.emplace_back(this->get_expr_register(arg));
+						}else{
+							args.emplace_back(this->get_expr_pointer(arg));
+						}
+
+						i += 1;
+					}
+
+					if(target_func_info.return_type.kind() == pir::Type::Kind::VOID){
+						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+					}else{
+						std::ignore = this->agent.createCall(target_func_info.pir_id, std::move(args));
+					}
 				} break;
 
 				case sema::Stmt::Kind::ASSIGN: {
@@ -330,6 +354,28 @@ namespace pcit::panther{
 		}
 	}
 
+
+
+	auto SemaToPIR::createJITEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
+		const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
+
+
+		const pir::Function::ID entry_func_id = this->module.createFunction(
+			"PTHR.entry", {}, pir::CallingConvention::C, pir::Linkage::EXTERNAL, this->module.createIntegerType(8)
+		);
+
+		pir::Function& entry_func = this->module.getFunction(entry_func_id);
+
+		this->agent.setTargetFunction(entry_func);
+
+		this->agent.createBasicBlock();
+		this->agent.setTargetBasicBlockAtEnd();
+
+		const pir::Expr entry_call = this->agent.createCall(target_entry_func_info.pir_id, {});
+		this->agent.createRet(entry_call);
+
+		return entry_func_id;
+	}
 
 
 	auto SemaToPIR::createFuncJITInterface(sema::Func::ID func_id, pir::Function::ID pir_func_id) -> pir::Function::ID {
@@ -498,7 +544,6 @@ namespace pcit::panther{
 
 
 
-
 	//////////////////////////////////////////////////////////////////////
 	// get expr
 
@@ -631,11 +676,11 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case sema::Expr::Kind::INTRINSIC: {
+			case sema::Expr::Kind::INTRINSIC_FUNC: {
 				evo::unimplemented("lower sema::Expr::Kind::Intrinsic");
 			} break;
 
-			case sema::Expr::Kind::TEMPLATED_INTRINSIC_INSTANTIATION: {
+			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION: {
 				evo::unimplemented("lower sema::Expr::Kind::TemplatedIntrinsicInstantiation");
 			} break;
 
@@ -744,6 +789,75 @@ namespace pcit::panther{
 
 
 
+	auto SemaToPIR::intrinsic_func_call(const sema::FuncCall& func_call) -> void {
+		const IntrinsicFunc::Kind intrinsic_func_kind = func_call.target.as<IntrinsicFunc::Kind>();
+
+		const auto get_args = [&](evo::SmallVector<pir::Expr>& args) -> void {
+			const TypeManager& type_manager = this->context.getTypeManager();
+
+			const TypeInfo::ID intrinsic_type_id = this->context.getIntrinsicFuncInfo(intrinsic_func_kind).typeID;
+			const TypeInfo& intrinsic_type = type_manager.getTypeInfo(intrinsic_type_id);
+			const BaseType::Function& func_type = type_manager.getFunction(intrinsic_type.baseTypeID().funcID());
+
+			for(size_t i = 0; const sema::Expr& arg : func_call.args){
+				if(func_type.params[i].shouldCopy){
+					args.emplace_back(this->get_expr_register(arg));
+				}else{
+					args.emplace_back(this->get_expr_pointer(arg));
+				}
+
+				i += 1;
+			}
+		};
+
+		const auto get_context_ptr = [&]() -> pir::Expr {
+			return this->agent.createNumber(
+				this->module.createIntegerType(sizeof(size_t) * 8),
+				core::GenericInt::create<size_t>(size_t(&this->context))
+			);
+		};
+
+		switch(intrinsic_func_kind){
+			case IntrinsicFunc::Kind::ABORT: {
+				this->agent.createAbort();
+			} break;
+
+			case IntrinsicFunc::Kind::BREAKPOINT: {
+				this->agent.createBreakpoint();
+			} break;
+
+			case IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_num_threads, std::move(args));
+			} break;
+
+			case IntrinsicFunc::Kind::BUILD_SET_OUTPUT: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_output, std::move(args));
+			} break;
+
+			case IntrinsicFunc::Kind::BUILD_SET_USE_STD_LIB: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_use_std_lib, std::move(args));
+			} break;
+
+			case IntrinsicFunc::Kind::_max_: {
+				evo::debugFatalBreak("Invalid intrinsic func");
+			} break;
+		}
+	}
+
+
+
 	auto SemaToPIR::get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value {
 		switch(expr.kind()){
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid Expr");
@@ -785,13 +899,14 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:                      case sema::Expr::Kind::INTRINSIC:
-			case sema::Expr::Kind::TEMPLATED_INTRINSIC_INSTANTIATION: case sema::Expr::Kind::COPY:
-			case sema::Expr::Kind::MOVE:                              case sema::Expr::Kind::DESTRUCTIVE_MOVE:
-			case sema::Expr::Kind::FORWARD:                           case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:                           case sema::Expr::Kind::DEREF:
-			case sema::Expr::Kind::PARAM:                             case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::GLOBAL_VAR:                        case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::MODULE_IDENT:     case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::COPY:             case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::DESTRUCTIVE_MOVE: case sema::Expr::Kind::FORWARD:
+			case sema::Expr::Kind::FUNC_CALL:        case sema::Expr::Kind::ADDR_OF:
+			case sema::Expr::Kind::DEREF:            case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:     case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

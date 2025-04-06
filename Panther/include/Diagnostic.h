@@ -97,6 +97,7 @@ namespace pcit::panther{
 			// idents
 			SEMA_IDENT_NOT_IN_SCOPE,
 			SEMA_IDENT_ALREADY_IN_SCOPE,
+			SEMA_INTRINSIC_DOESNT_EXIST,
 
 			// vars
 			SEMA_VAR_TYPE_VOID,
@@ -143,6 +144,7 @@ namespace pcit::panther{
 			SEMA_NAMED_VOID_RETURN,
 			SEMA_NOT_FIRST_RETURN_VOID,
 			SEMA_FUNC_ISNT_TERMINATED,
+			SEMA_INVALID_ENTRY,
 
 			// function calls
 			SEMA_CANNOT_CALL_LIKE_FUNCTION,
@@ -150,6 +152,9 @@ namespace pcit::panther{
 			SEMA_NO_MATCHING_FUNCTION,
 			SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN,
 			SEMA_FUNC_ISNT_CONSTEXPR,
+			SEMA_FUNC_ISNT_RUNTIME,
+			SEMA_DISCARDING_RETURNS,
+			SEMA_INVALID_MODE_FOR_INTRINSIC,
 
 			// misc
 			SEMA_INCORRECT_RETURN_STMT_KIND,
@@ -162,10 +167,21 @@ namespace pcit::panther{
 			// misc
 
 			MISC_UNIMPLEMENTED_FEATURE, // M0
-			MISC_FILE_DOES_NOT_EXIST,   // M1
-			MISC_LOAD_FILE_FAILED,      // M2
-			MISC_LLVM_ERROR,            // M3
-			MISC_STALL_DETECTED,        // M4
+			MISC_UNKNOWN_ERROR,         // M1
+			MISC_FILE_DOES_NOT_EXIST,   // M2
+			MISC_LOAD_FILE_FAILED,      // M3
+			MISC_LLVM_ERROR,            // M4
+			MISC_STALL_DETECTED,        // M5
+			MISC_NO_ENTRY,              // M6
+
+
+			//////////////////
+			// frontend
+
+			FRONTEND_FAILED_TO_GET_REL_DIR,       // F1
+			FRONTEND_BUILD_SYSTEM_RETURNED_ERROR, // F2
+			FRONTEND_FAILED_TO_ADD_STD_LIB,       // F3
+			FRONTEND_FAILED_TO_OUTPUT_ASM,        // F4
 		};
 
 
@@ -206,6 +222,8 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::Node& node, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::VarDecl& var_decl, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::FuncDecl& func_decl, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::FuncDecl::Param& param, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::FuncDecl::Return& ret, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::AliasDecl& alias_decl, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TypedefDecl& typedef_decl, const class Source& src)
 					-> Location;
@@ -430,6 +448,7 @@ namespace pcit::panther{
 				case Code::SEMA_NOT_TEMPLATED_TYPE_WITH_TEMPLATE_ARGS:
 				case Code::SEMA_IDENT_NOT_IN_SCOPE:
 				case Code::SEMA_IDENT_ALREADY_IN_SCOPE:
+				case Code::SEMA_INTRINSIC_DOESNT_EXIST:
 				case Code::SEMA_VAR_TYPE_VOID:
 				case Code::SEMA_VAR_DEF_NOT_EPHEMERAL:
 				case Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE:
@@ -462,11 +481,15 @@ namespace pcit::panther{
 				case Code::SEMA_NAMED_VOID_RETURN:
 				case Code::SEMA_NOT_FIRST_RETURN_VOID:
 				case Code::SEMA_FUNC_ISNT_TERMINATED:
+				case Code::SEMA_INVALID_ENTRY:
 				case Code::SEMA_CANNOT_CALL_LIKE_FUNCTION:
 				case Code::SEMA_MULTIPLE_MATCHING_FUNCTION_OVERLOADS:
 				case Code::SEMA_NO_MATCHING_FUNCTION:
 				case Code::SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN:
 				case Code::SEMA_FUNC_ISNT_CONSTEXPR:
+				case Code::SEMA_FUNC_ISNT_RUNTIME:
+				case Code::SEMA_DISCARDING_RETURNS:
+				case Code::SEMA_INVALID_MODE_FOR_INTRINSIC:
 				case Code::SEMA_INCORRECT_RETURN_STMT_KIND:
 				case Code::SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS:
 				case Code::SEMA_RETURN_NOT_EPHEMERAL:
@@ -474,10 +497,17 @@ namespace pcit::panther{
 					return "S";
 
 				case Code::MISC_UNIMPLEMENTED_FEATURE: return "M0";
-				case Code::MISC_FILE_DOES_NOT_EXIST:   return "M1";
-				case Code::MISC_LOAD_FILE_FAILED:      return "M2";
-				case Code::MISC_LLVM_ERROR:            return "M3";
-				case Code::MISC_STALL_DETECTED:        return "M4";
+				case Code::MISC_UNKNOWN_ERROR:         return "M1";
+				case Code::MISC_FILE_DOES_NOT_EXIST:   return "M2";
+				case Code::MISC_LOAD_FILE_FAILED:      return "M3";
+				case Code::MISC_LLVM_ERROR:            return "M4";
+				case Code::MISC_STALL_DETECTED:        return "M5";
+				case Code::MISC_NO_ENTRY:              return "M6";
+
+				case Code::FRONTEND_FAILED_TO_GET_REL_DIR:       return "F1";
+				case Code::FRONTEND_BUILD_SYSTEM_RETURNED_ERROR: return "F2";
+				case Code::FRONTEND_FAILED_TO_ADD_STD_LIB:       return "F3";
+				case Code::FRONTEND_FAILED_TO_OUTPUT_ASM:        return "F4";
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::panther::Diagnostic::Code");

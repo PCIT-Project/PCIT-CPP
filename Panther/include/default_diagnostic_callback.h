@@ -25,4 +25,10 @@ namespace pcit::panther{
 	) -> Context::DiagnosticCallback;
 
 
+
+
+	auto printDiagnosticWithoutLocation(pcit::core::Printer& printer, const Diagnostic& diagnostic) -> void;
+
+
+
 }

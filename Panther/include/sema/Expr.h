@@ -14,6 +14,7 @@
 #include <PCIT_core.h>
 
 #include "./sema_ids.h"
+#include "../intrinsics.h"
 
 
 namespace pcit::panther::sema{
@@ -37,8 +38,8 @@ namespace pcit::panther::sema{
 			STRING_VALUE,
 			CHAR_VALUE,
 
-			INTRINSIC,
-			TEMPLATED_INTRINSIC_INSTANTIATION,
+			INTRINSIC_FUNC,
+			TEMPLATED_INTRINSIC_FUNC_INSTANTIATION,
 
 			COPY,
 			MOVE,
@@ -68,10 +69,12 @@ namespace pcit::panther::sema{
 		explicit Expr(StringValueID id) : _kind(Kind::STRING_VALUE), value{.string_value = id} {};
 		explicit Expr(CharValueID id)   : _kind(Kind::CHAR_VALUE),   value{.char_value = id}   {};
 
-		// explicit Expr(Intrinsic::Kind intrinsic_kind) : _kind(Kind::Intrinsic), value{.intrinsic = intrinsic_kind} {};
+		explicit Expr(IntrinsicFunc::Kind intrinsic_func_kind) :
+			_kind(Kind::INTRINSIC_FUNC), value{.intrinsic_func = intrinsic_func_kind} {};
+
 		// explicit Expr(TemplatedIntrinsicInstantiationID id)
 		// 	: _kind(Kind::TEMPLATED_INTRINSIC_INSTANTIATION), 
-		// 	  value{.templated_intrinsic_instantiation = id} 
+		// 	  value{.templated_intrinsic_func_instantiation = id} 
 		// 	  {};
 
 		explicit Expr(CopyID id)            : _kind(Kind::COPY),             value{.copy = id}         {};
@@ -128,15 +131,15 @@ namespace pcit::panther::sema{
 			return this->value.char_value;
 		}
 
-		// EVO_NODISCARD auto intrinsicID() const -> Intrinsic::Kind {
-		// 	evo::debugAssert(this->kind() == Kind::Intrinsic, "not a Intrinsic");
-		// 	return this->value.intrinsic;
-		// }
+		EVO_NODISCARD auto intrinsicFuncID() const -> IntrinsicFunc::Kind {
+			evo::debugAssert(this->kind() == Kind::INTRINSIC_FUNC, "not an IntrinsicFunc");
+			return this->value.intrinsic_func;
+		}
 		// EVO_NODISCARD auto templatedIntrinsicInstantiationID() const -> TemplatedIntrinsicInstantiationID {
 		// 	evo::debugAssert(
 		// 		this->kind() == Kind::TEMPLATED_INTRINSIC_INSTANTIATION, "not a TEMPLATED_INTRINSIC_INSTANTIATION"
 		// 	);
-		// 	return this->value.templated_intrinsic_instantiation;
+		// 	return this->value.templated_intrinsic_func_instantiation;
 		// }
 
 		EVO_NODISCARD auto copyID() const -> CopyID {
@@ -202,8 +205,8 @@ namespace pcit::panther::sema{
 				StringValueID string_value;
 				CharValueID char_value;
 
-				// Intrinsic::Kind intrinsic;
-				// TemplatedIntrinsicInstantiationID templated_intrinsic_instantiation;
+				IntrinsicFunc::Kind intrinsic_func;
+				// TemplatedIntrinsicInstantiationID templated_intrinsic_func_instantiation;
 
 				CopyID copy;
 				MoveID move;

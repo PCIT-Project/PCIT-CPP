@@ -81,6 +81,9 @@ namespace pcit::pir{
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
 
 
+			// Needed if you want to use `runFunc`
+			EVO_NODISCARD auto registerJITInterfaceFuncs() -> evo::Expected<void, evo::SmallVector<std::string>>;
+
 
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->data != nullptr; }
 

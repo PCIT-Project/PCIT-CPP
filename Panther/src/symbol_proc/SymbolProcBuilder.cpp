@@ -681,7 +681,7 @@ namespace pcit::panther{
 			case AST::Kind::WHILE:            evo::unimplemented("AST::Kind::WHILE");
 			case AST::Kind::UNREACHABLE:      evo::unimplemented("AST::Kind::UNREACHABLE");
 			case AST::Kind::BLOCK:            evo::unimplemented("AST::Kind::BLOCK");
-			case AST::Kind::FUNC_CALL:        evo::unimplemented("AST::Kind::FUNC_CALL");
+			case AST::Kind::FUNC_CALL:        return this->analyze_func_call(ast_buffer.getFuncCall(stmt));
 			case AST::Kind::TEMPLATE_PACK:    evo::unimplemented("AST::Kind::TEMPLATE_PACK");
 			case AST::Kind::TEMPLATED_EXPR:   evo::unimplemented("AST::Kind::TEMPLATED_EXPR");
 			case AST::Kind::PREFIX:           evo::unimplemented("AST::Kind::PREFIX");
@@ -736,6 +736,45 @@ namespace pcit::panther{
 			this->add_instruction(Instruction::Error(error_stmt, std::nullopt));
 			return evo::Result<>();
 		}
+	}
+
+	// TODO: deduplicate with `analyze_expr_func_call`?
+	auto SymbolProcBuilder::analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<> {
+		bool is_target_template = false;
+		const evo::Result<SymbolProc::TermInfoID> target = [&](){
+			if(func_call.target.kind() == AST::Kind::TEMPLATED_EXPR){
+				is_target_template = true;
+				const AST::TemplatedExpr& target_templated_expr = 
+					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+				return this->analyze_expr<false>(target_templated_expr.base);
+
+			}else{
+				return this->analyze_expr<false>(func_call.target);
+			}
+		}();
+		if(target.isError()){ return evo::resultError; }
+
+		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
+		args.reserve(func_call.args.size());
+		for(const AST::FuncCall::Arg& arg : func_call.args){
+			const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_expr<false>(arg.value);
+			if(arg_value.isError()){ return evo::resultError; }
+			args.emplace_back(arg_value.value());
+		}
+
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+
+		if(is_target_template){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				func_call.target,
+				"Templated function calls are currently unimplemented"
+			);
+			return evo::resultError;
+		}
+
+		this->add_instruction(Instruction::FuncCall(func_call, target.value(), std::move(args)));
+		return evo::Result<>();
 	}
 
 
@@ -911,7 +950,7 @@ namespace pcit::panther{
 
 		if constexpr(IS_CONSTEXPR){
 			this->add_instruction(
-				Instruction::FuncCall<true>(func_call, target.value(), new_term_info_id, std::move(args))
+				Instruction::FuncCallExpr<true>(func_call, target.value(), new_term_info_id, std::move(args))
 			);
 
 			const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
@@ -922,7 +961,7 @@ namespace pcit::panther{
 
 		}else{
 			this->add_instruction(
-				Instruction::FuncCall<false>(func_call, target.value(), new_term_info_id, std::move(args))
+				Instruction::FuncCallExpr<false>(func_call, target.value(), new_term_info_id, std::move(args))
 			);
 
 			return new_term_info_id;

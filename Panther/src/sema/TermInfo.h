@@ -15,6 +15,7 @@
 
 #include "../../include/source/source_data.h"
 #include "../../include/TypeManager.h"
+#include "../../include/intrinsics.h"
 #include "../../include/sema/sema.h"
 
 
@@ -33,8 +34,8 @@ namespace pcit::panther{
 			INITIALIZER, // uninit / zeroinit
 			MODULE,
 			FUNCTION, // function, not func pointer
-			INTRINSIC,
-			TEMPLATE_INTRINSIC, // uninstantiated
+			INTRINSIC_FUNC,
+			TEMPLATE_INTRINSIC_FUNC, // uninstantiated
 			TEMPLATE_TYPE, // uninstantiated
 			TYPE,
 		};
@@ -56,13 +57,13 @@ namespace pcit::panther{
 			InitializerType,                // Initializer
 			FluidType,                      // EPHEMERAL_FLUID
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_CONST_FORWARDABLE
-						                    //   |CONCRETE_CONST_DESTR_MOVABLE|EPHEMERAL|INTRINSIC
+						                    //   |CONCRETE_CONST_DESTR_MOVABLE|EPHEMERAL|INTRINSIC_FUNC
 			FuncOverloadList,               // FUNCTION
 			TypeInfo::VoidableID,           // TYPE
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
 			sema::TemplatedStruct::ID       // TEMPLATE_TYPE
-			// TODO: TEMPLATE_INTRINSIC
+			// TODO: TEMPLATE_INTRINSIC_FUNC
 		>;
 
 		ValueCategory value_category;
@@ -162,11 +163,11 @@ namespace pcit::panther{
 					break; case ValueCategory::FUNCTION:
 						evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::INTRINSIC:
+					break; case ValueCategory::INTRINSIC_FUNC:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::TEMPLATE_INTRINSIC:
-						evo::unimplemented("ValueCategory::TEMPLATE_INTRINSIC");
+					break; case ValueCategory::TEMPLATE_INTRINSIC_FUNC:
+						evo::unimplemented("ValueCategory::TEMPLATE_INTRINSIC_FUNC");
 
 					break; case ValueCategory::TEMPLATE_TYPE:
 						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TypeInfo creation");

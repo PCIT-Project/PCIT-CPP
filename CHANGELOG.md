@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.98.0"></a>
+## v0.0.98.0
+
+### Panther
+- Added build system
+- Added function call statements
+- Added generation and running of entry function via JIT
+- Added Assembly output
+- Removed leftover breakpoint when type mismatch was detected in semantic analysis
+
+### Panther STD
+- Added build sub-library
+
+### PIR
+- Added `@abort` instruction
+- Fixed converting global variables of type `Bool` and `Ptr` with a value of `zeroinit` to LLVM
+
+
+<!---------------------------------->
 <a name="v0.0.97.0"></a>
 ## v0.0.97.0
 
@@ -12,6 +31,7 @@
 ### PIR
 - Changed `FunctionDecl` to `ExternalFunction`
 - Removed `Interpreter` in favor of the new `JITEngine`
+	- Note: it will probably come back in some form in the long-term future
 
 ### Misc
 - Changed from using `bool` as error return value to `evo::Result<>`

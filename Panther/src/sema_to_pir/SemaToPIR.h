@@ -37,10 +37,11 @@ namespace pcit::panther{
 			auto lowerGlobal(sema::GlobalVar::ID global_var_id) -> void;
 			auto lowerFuncDecl(sema::Func::ID func_id) -> pir::Function::ID;
 			auto lowerFuncDef(sema::Func::ID func_id) -> void;
+			
+			auto createJITEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
 
 			EVO_NODISCARD auto createFuncJITInterface(sema::Func::ID func_id, pir::Function::ID pir_func_id)
 				-> pir::Function::ID;
-
 
 
 		private:
@@ -61,7 +62,7 @@ namespace pcit::panther{
 			auto get_expr_impl(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 				-> std::optional<pir::Expr>;
 
-
+			auto intrinsic_func_call(const sema::FuncCall& func_call) -> void;
 
 			EVO_NODISCARD auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
 

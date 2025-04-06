@@ -187,8 +187,8 @@ namespace pcit::panther{
 
 	static auto print_info(
 		core::Printer& printer,
-		const std::filesystem::path& rel_dir,
-		const Context& context,
+		const std::filesystem::path* rel_dir,
+		const Context* context,
 		const Diagnostic::Info& info,
 		unsigned depth
 	) -> void {
@@ -199,9 +199,12 @@ namespace pcit::panther{
 		printer.printCyan(std::format("<Info> {}\n", info.message));
 
 		if(info.location.is<Source::Location>()){
-			const Source& source = context.getSourceManager()[info.location.as<Source::Location>().sourceID];
+			// message is this way to make sense when called from `printDiagnosticWithoutLocation`
+			evo::debugAssert(context != nullptr, "Cannot print diagnostic info with location with this function");
+
+			const Source& source = context->getSourceManager()[info.location.as<Source::Location>().sourceID];
 			print_location(
-				printer, rel_dir, source, DiagnosticLevel::INFO, info.location.as<Source::Location>(), depth + 1
+				printer, *rel_dir, source, DiagnosticLevel::INFO, info.location.as<Source::Location>(), depth + 1
 			);
 		}
 
@@ -216,7 +219,6 @@ namespace pcit::panther{
 	-> Context::DiagnosticCallback {
 		return [&printer = printer_ref, &rel_dir = relative_dir](const Context& context, const Diagnostic& diagnostic) 
 		-> void {
-
 			const std::string diagnostic_message = std::format(
 				"<{}|{}> {}\n", Diagnostic::printLevel(diagnostic.level), diagnostic.code, diagnostic.message
 			);
@@ -235,7 +237,7 @@ namespace pcit::panther{
 			}
 
 			for(const Diagnostic::Info& info : diagnostic.infos){
-				print_info(printer, rel_dir, context, info, 1);
+				print_info(printer, &rel_dir, &context, info, 1);
 			}
 
 
@@ -254,6 +256,45 @@ namespace pcit::panther{
 				}
 			#endif
 		};
+	}
+
+
+
+
+	auto printDiagnosticWithoutLocation(pcit::core::Printer& printer, const Diagnostic& diagnostic) -> void {
+		const std::string diagnostic_message = std::format(
+			"<{}|{}> {}\n", Diagnostic::printLevel(diagnostic.level), diagnostic.code, diagnostic.message
+		);
+
+		switch(diagnostic.level){
+			break; case Diagnostic::Level::FATAL:   printer.printFatal(diagnostic_message);
+			break; case Diagnostic::Level::ERROR:   printer.printError(diagnostic_message);
+			break; case Diagnostic::Level::WARNING: printer.printWarning(diagnostic_message);
+		}
+
+		evo::debugAssert(
+			diagnostic.location.is<Diagnostic::Location::None>(),
+			"Cannot print diagnostic with location with this function"
+		);
+
+		for(const Diagnostic::Info& info : diagnostic.infos){
+			print_info(printer, nullptr, nullptr, info, 1);
+		}
+
+		if(diagnostic.level == Diagnostic::Level::FATAL){
+			printer.printFatal(
+				"\tThis is a bug in the compiler.\n"
+				"\tPlease report it on Github: https://github.com/PCIT-Project/PCIT-CPP/issues\n"
+				"\tGuidelines for creating issues: "
+					"https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md#issues\n"
+			);
+		}
+
+		#if defined(PCIT_BUILD_DEBUG)
+			if(diagnostic.level == Diagnostic::Level::ERROR || diagnostic.level == Diagnostic::Level::FATAL){
+				evo::breakpoint();
+			}
+		#endif
 	}
 
 

@@ -308,6 +308,12 @@ namespace pcit::panther{
 			std::optional<SymbolProcTermInfoID>	value;
 		};
 
+		struct FuncCall{
+			const AST::FuncCall& func_call;
+			SymbolProcTermInfoID target;
+			evo::SmallVector<SymbolProcTermInfoID> args;
+		};
+
 
 
 		//////////////////
@@ -319,7 +325,7 @@ namespace pcit::panther{
 		};
 
 		template<bool IS_CONSTEXPR>
-		struct FuncCall{
+		struct FuncCallExpr{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
@@ -448,11 +454,12 @@ namespace pcit::panther{
 			// stmt
 			Return,
 			Error,
+			FuncCall,
 
 			// misc expr
 			TypeToTerm,
-			FuncCall<false>,
-			FuncCall<true>,
+			FuncCallExpr<false>,
+			FuncCallExpr<true>,
 			ConstexprFuncCallRun,
 			Import,
 			TemplatedTerm,

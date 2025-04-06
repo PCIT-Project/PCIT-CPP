@@ -1,19 +1,11 @@
+def build = @import("build");
 
 
-// def std = @import("std");
-
-
-// var asdf: I85 = 9;
-
-const foo: Int = get_num();
-
-
-func get_num = () -> Int {
-	return get_num_impl();
-	// return 12;
-}
-
-func get_num_impl = () -> Int {
-	return 14;
+func entry = () #entry -> UI8 {
+	@buildSetOutput(build.Output.PRINT_PIR);
+	@buildSetNumThreads(12);
+	@buildSetUseStdLib(true);
+	
+	return 0;
 }
 

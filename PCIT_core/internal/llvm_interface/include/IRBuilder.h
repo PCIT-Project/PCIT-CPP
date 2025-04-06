@@ -29,6 +29,7 @@ namespace pcit::llvmint{
 	class IRBuilder{
 		public:
 			enum class IntrinsicID{
+				TRAP,
 				DEBUG_TRAP,
 
 				SADD_SAT,

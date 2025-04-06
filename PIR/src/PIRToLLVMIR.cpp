@@ -325,6 +325,12 @@ namespace pcit::pir{
 						});
 					} break;
 
+					case Expr::Kind::ABORT: {
+						this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::TRAP, this->builder.getTypeVoid(), nullptr
+						);
+					} break;
+
 					case Expr::Kind::BREAKPOINT: {
 						this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::DEBUG_TRAP, this->builder.getTypeVoid(), nullptr
@@ -1222,6 +1228,10 @@ namespace pcit::pir{
 						return this->builder.getValueI_N(type.getWidth(), 0).asConstant();
 					} break;
 
+					case Type::Kind::BOOL: {
+						return this->builder.getValueI_N(8, 0).asConstant();
+					} break;
+
 					case Type::Kind::FLOAT: {
 						switch(type.getWidth()){
 							case 16:  return this->builder.getValueF16(0);
@@ -1236,6 +1246,10 @@ namespace pcit::pir{
 
 					case Type::Kind::BFLOAT: {
 						return this->builder.getValueBF16(0);
+					} break;
+
+					case Type::Kind::PTR: {
+						return this->builder.getValueI_N(64, 0).asConstant();
 					} break;
 
 					default: {
@@ -1341,11 +1355,12 @@ namespace pcit::pir{
 				return this->stmt_values.at(expr);
 			} break;
 
-			case Expr::Kind::CALL_VOID:    evo::debugFatalBreak("Not a value");
+			case Expr::Kind::CALL_VOID:   evo::debugFatalBreak("Not a value");
+			case Expr::Kind::ABORT:       evo::debugFatalBreak("Not a value");
 			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Not a value");
 			case Expr::Kind::RET:         evo::debugFatalBreak("Not a value");
 			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Not a value");
-			case Expr::Kind::COND_BRANCH:  evo::debugFatalBreak("Not a value");
+			case Expr::Kind::COND_BRANCH: evo::debugFatalBreak("Not a value");
 			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Not a value");
 
 			case Expr::Kind::ALLOCA: {

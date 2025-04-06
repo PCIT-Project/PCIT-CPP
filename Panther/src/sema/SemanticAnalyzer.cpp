@@ -12,6 +12,7 @@
 #include <queue>
 
 #include "../symbol_proc/SymbolProcBuilder.h"
+#include "./attributes.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -21,168 +22,6 @@
 namespace pcit::panther{
 
 	using Instruction = SymbolProc::Instruction;
-
-	class Attribute{
-		public:
-			Attribute(SemanticAnalyzer& _sema, std::string_view _name) : sema(_sema), name(_name) {}
-			~Attribute() = default;
-
-			EVO_NODISCARD auto is_set() const -> bool {
-				return this->set_location.has_value() || this->implicitly_set_location.has_value();
-			}
-
-			EVO_NODISCARD auto set(Token::ID location) -> evo::Result<> {
-				if(this->set_location.has_value()){
-					this->sema.emit_error(
-						Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
-						location,
-						std::format("Attribute #{} was already set", this->name),
-						Diagnostic::Info(
-							"First set here:", Diagnostic::Location::get(this->set_location.value(), this->sema.source)
-						)
-					);
-					return evo::resultError;
-				}
-
-				if(this->implicitly_set_location.has_value()){
-					// TODO: make this warning turn-off-able in settings
-					this->sema.emit_warning(
-						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
-						location,
-						std::format("Attribute #{} was already implicitly set", this->name),
-						Diagnostic::Info(
-							"Implicitly set here:",
-							Diagnostic::Location::get(this->implicitly_set_location.value(), this->sema.source)
-						)
-					);
-					return evo::Result<>();
-				}
-
-				this->set_location = location;
-				return evo::Result<>();
-			}
-
-			EVO_NODISCARD auto implicitly_set(Token::ID location) -> void {
-				if(this->set_location.has_value()){
-					// TODO: make this warning turn-off-able in settings
-					this->sema.emit_warning(
-						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
-						this->set_location.value(),
-						std::format("Attribute #{} was implicitly set", this->name),
-						Diagnostic::Info(
-							"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
-						)
-					);
-					return;
-				}
-
-				evo::debugAssert(
-					this->implicitly_set_location.has_value() == false,
-					"Attribute #{} already implicitly set. Should this be handled? Design changed?",
-					this->name
-				);
-
-				this->implicitly_set_location = location;
-			}
-	
-		private:
-			SemanticAnalyzer& sema;
-			std::string_view name;
-			std::optional<Token::ID> set_location{};
-			std::optional<Token::ID> implicitly_set_location{};
-	};
-
-
-
-
-	class ConditionalAttribute{
-		public:
-			ConditionalAttribute(SemanticAnalyzer& _sema, std::string_view _name) : sema(_sema), name(_name) {}
-			~ConditionalAttribute() = default;
-
-			EVO_NODISCARD auto is_set() const -> bool {
-				return this->is_set_true;
-			}
-
-			EVO_NODISCARD auto set(Token::ID location, bool cond) -> evo::Result<> {
-				if(this->set_location.has_value()){
-					this->sema.emit_error(
-						Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
-						location,
-						std::format("Attribute #{} was already set", this->name),
-						Diagnostic::Info(
-							"First set here:", Diagnostic::Location::get(this->set_location.value(), this->sema.source)
-						)
-					);
-					return evo::resultError;
-				}
-
-				if(this->implicitly_set_location.has_value()){
-					// TODO: make this warning turn-off-able in settings
-					this->sema.emit_warning(
-						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
-						location,
-						std::format("Attribute #{} was already implicitly set", this->name),
-						Diagnostic::Info(
-							"Implicitly set here:",
-							Diagnostic::Location::get(this->implicitly_set_location.value(), this->sema.source)
-						)
-					);
-					return evo::Result<>();
-				}
-
-				this->is_set_true = cond;
-				this->set_location = location;
-				return evo::Result<>();
-			}
-
-			EVO_NODISCARD auto implicitly_set(Token::ID location, bool cond) -> void {
-				if(this->set_location.has_value()){
-					if(this->is_set_true){
-						// TODO: make this warning turn-off-able in settings
-						this->sema.emit_warning(
-							Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
-							this->set_location.value(),
-							std::format("Attribute #{} was implicitly set", this->name),
-							Diagnostic::Info(
-								"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
-							)
-						);
-						return;
-					}else{
-						this->sema.emit_error(
-							Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
-							this->set_location.value(),
-							std::format("Attribute #{} was implicitly set", this->name),
-							Diagnostic::Info(
-								"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
-							)
-						);
-						return;
-					}
-
-				}
-
-				evo::debugAssert(
-					this->implicitly_set_location.has_value() == false,
-					"Attribute #{} already implicitly set. Should this be handled? Design changed?",
-					this->name
-				);
-
-				this->is_set_true = cond;
-				this->implicitly_set_location = location;
-			}
-	
-		private:
-			SemanticAnalyzer& sema;
-			std::string_view name;
-
-			bool is_set_true = false;
-			std::optional<Token::ID> set_location{};
-			std::optional<Token::ID> implicitly_set_location{};
-	};
-
-
 
 
 
@@ -301,14 +140,17 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Error>()){
 				return this->instr_error(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
+				return this->instr_func_call(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::TypeToTerm>()){
 				return this->instr_type_to_term(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall<false>>()){
-				return this->instr_func_call<false>(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<false>>()){
+				return this->instr_func_call_expr<false>(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall<true>>()){
-				return this->instr_func_call<true>(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<true>>()){
+				return this->instr_func_call_expr<true>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::ConstexprFuncCallRun>()){
 				return this->instr_constexpr_func_call_run(instr);
@@ -1159,6 +1001,49 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
+		// checking attributes
+
+		if(func_attrs.value().is_entry){
+			if(params.empty() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					instr.func_decl.params[0],
+					"Functions with the `#entry` attribute cannot have parameters"
+				);
+				return Result::ERROR;
+			}
+
+			if(instr.func_decl.returns[0].ident.has_value()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					instr.func_decl.returns[0],
+					"Functions with the `#entry` attribute cannot have named returns"
+				);
+				return Result::ERROR;
+			}
+
+			if(return_params[0].typeID.isVoid() || return_params[0].typeID != TypeManager::getTypeUI8()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					instr.func_decl.returns[0].type,
+					"Functions with the `#entry` attribute must return `UI8`"
+				);
+				return Result::ERROR;
+			}
+
+			if(error_return_params.empty() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					instr.func_decl.errorReturns[0],
+					"Functions with the `#entry` attribute cannot have error returns"
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+
+		///////////////////////////////////
 		// create func
 
 		const bool is_constexpr = !func_attrs.value().is_runtime;
@@ -1177,6 +1062,10 @@ namespace pcit::panther{
 			instr.instantiation_id
 		);
 
+		if(func_attrs.value().is_entry){
+			this->context.entry = created_func_id;
+		}
+
 		sema::Func& created_func = this->context.sema_buffer.funcs[created_func_id];
 
 		if(is_constexpr){
@@ -1186,10 +1075,7 @@ namespace pcit::panther{
 				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
 			);
 
-			created_func.constexprJITInterfaceInfo = sema::Func::ConstexprJITInterfaceInfo{
-				.func          = sema_to_pir.lowerFuncDecl(created_func_id),
-				.interfaceFunc = pir::Function::ID::dummy(),
-			};
+			created_func.constexprJITFunc = sema_to_pir.lowerFuncDecl(created_func_id);
 		}
 
 
@@ -1218,13 +1104,13 @@ namespace pcit::panther{
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_func_def: {}", this->symbol_proc.ident); });
 
 		const sema::Func& current_func = this->get_current_func();
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
+
 
 		if(this->get_current_scope_level().isTerminated()){
 			this->get_current_func().isTerminated = true;
 
 		}else{
-			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
-
 			if(func_type.returnsVoid() == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_TERMINATED,
@@ -1252,25 +1138,31 @@ namespace pcit::panther{
 				sema::Func& sema_func = this->context.sema_buffer.funcs[sema_func_id];
 
 				sema_to_pir.lowerFuncDef(sema_func_id);
-				sema_func.constexprJITInterfaceInfo->interfaceFunc = sema_to_pir.createFuncJITInterface(
-					sema_func_id, sema_func.constexprJITInterfaceInfo->func
-				);
+
+
+				auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>();
+				module_subset_funcs.emplace_back(*sema_func.constexprJITFunc);
+				if(func_type.returnsVoid() == false){
+					sema_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+						sema_func_id, *sema_func.constexprJITFunc
+					);
+					module_subset_funcs.emplace_back(*sema_func.constexprJITInterfaceFunc);
+				}
+
 
 				auto dependent_pir_funcs = evo::SmallVector<pir::Function::ID>();
 				const SymbolProc::FuncInfo func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 				for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
 					const sema::Func& dependent_func = this->context.sema_buffer.getFunc(dependent_func_id);
-					dependent_pir_funcs.emplace_back(dependent_func.constexprJITInterfaceInfo->func);
+					dependent_pir_funcs.emplace_back(*dependent_func.constexprJITFunc);
 				}
+
 
 				const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
 					this->context.constexpr_jit_engine.addModuleSubset(
 						this->context.constexpr_pir_module,
 						pir::JITEngine::ModuleSubsets{
-							.funcs = {
-								sema_func.constexprJITInterfaceInfo->func,
-								sema_func.constexprJITInterfaceInfo->interfaceFunc
-							},
+							.funcs       = module_subset_funcs,
 							.funcDecls   = dependent_pir_funcs,
 							.externFuncs = this->context.constexpr_sema_to_pir_data.getJITInterfaceFuncsArray(),
 						}
@@ -1682,6 +1574,183 @@ namespace pcit::panther{
 	}
 
 
+	// TODO: condence with `instr_func_call_expr`?
+	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
+		const TermInfo target_term_info = this->get_term_info(instr.target);
+
+		bool is_intrinsic = false;
+		if(target_term_info.value_category == TermInfo::ValueCategory::FUNCTION){
+			// do nothing...
+		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTRINSIC_FUNC){
+			is_intrinsic = true;
+		}else{
+			this->emit_error(
+				Diagnostic::Code::SEMA_CANNOT_CALL_LIKE_FUNCTION,
+				instr.func_call.target,
+				"Cannot call expression like a function"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeManager& type_manager = this->context.getTypeManager();
+
+		auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
+		if(is_intrinsic) [[unlikely]] {
+			const TypeInfo::ID type_info_id = target_term_info.type_id.as<TypeInfo::ID>();
+			const TypeInfo& type_info = type_manager.getTypeInfo(type_info_id);
+			const BaseType::Function& func_type = type_manager.getFunction(type_info.baseTypeID().funcID());
+			func_infos.emplace_back(std::nullopt, func_type);
+
+		}else{
+			using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFuncID>;
+			for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
+				if(func_overload.is<sema::Func::ID>()){
+					const sema::Func& sema_func =
+						this->context.getSemaBuffer().getFunc(func_overload.as<sema::Func::ID>());
+					const BaseType::Function& func_type = type_manager.getFunction(sema_func.typeID);
+					func_infos.emplace_back(func_overload.as<sema::Func::ID>(), func_type);
+				}
+			}
+		}
+
+		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>();
+		for(size_t i = 0; const SymbolProc::TermInfoID& arg : instr.args){
+			TermInfo& arg_term_info = this->get_term_info(arg);
+
+			if(this->expr_in_func_is_valid_value_stage(arg_term_info, instr.func_call.args[i].value) == false){
+				return Result::ERROR;
+			}
+
+			arg_infos.emplace_back(arg_term_info, instr.func_call.args[i]);
+			i += 1;
+		}
+
+		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
+			func_infos, arg_infos, instr.func_call.target
+		);
+		if(selected_func_overload_index.isError()){ return Result::ERROR; }
+
+
+		const std::optional<sema::Func::ID> selected_func_id = func_infos[selected_func_overload_index.value()].func_id;
+		const sema::Func* selected_func = nullptr;
+		if(!is_intrinsic){ selected_func = &this->context.sema_buffer.getFunc(*selected_func_id); }
+		const BaseType::Function& selected_func_type = func_infos[selected_func_overload_index.value()].func_type;
+
+
+		if(selected_func_type.returnsVoid() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_DISCARDING_RETURNS,
+				instr.func_call.target,
+				"Discarding return value of function call"
+			);
+			return Result::ERROR;
+		}
+
+		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>() && !is_intrinsic){
+			if(selected_func->isConstexpr == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					instr.func_call.target,
+					"Cannot call a non-constexpr function within a constexpr function",
+					Diagnostic::Info("Called function was defined here:", this->get_location(*selected_func_id))
+				);
+				return Result::ERROR;
+			}
+
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(*selected_func_id);
+		}
+
+
+		auto sema_args = evo::SmallVector<sema::Expr>();
+		for(const SymbolProc::TermInfoID& arg : instr.args){
+			sema_args.emplace_back(this->get_term_info(arg).getExpr());
+		}
+
+
+		if(is_intrinsic) [[unlikely]] {
+			const IntrinsicFunc::Kind intrinsic_kind = target_term_info.getExpr().intrinsicFuncID();
+
+			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
+
+			if(this->get_current_func().isConstexpr){
+				if(intrinsic_func_info.allowedInConstexpr == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+						instr.func_call.target,
+						"Cannot call a non-constexpr function within a constexpr function"
+					);
+					return Result::ERROR;
+				}
+
+			}else{
+				if(intrinsic_func_info.allowedInRuntime == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_RUNTIME,
+						instr.func_call.target,
+						"Cannot call a non-runtime function within a runtime function"
+					);
+					return Result::ERROR;
+				}
+			}
+
+			switch(this->context.getConfig().mode){
+				case Context::Config::Mode::COMPILE: {
+					if(intrinsic_func_info.allowedInCompile == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+							instr.func_call.target,
+							"Calling this intrinsic is not allowed in compile mode"
+						);
+						return Result::ERROR;
+					}
+				} break;
+
+				case Context::Config::Mode::SCRIPTING: {
+					if(intrinsic_func_info.allowedInScript == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+							instr.func_call.target,
+							"Calling this intrinsic is not allowed in scripting mode"
+						);
+						return Result::ERROR;
+					}
+				} break;
+
+				case Context::Config::Mode::BUILD_SYSTEM: {
+					if(intrinsic_func_info.allowedInBuildSystem == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+							instr.func_call.target,
+							"Calling this intrinsic is not allowed in build system mode"
+						);
+						return Result::ERROR;
+					}
+				} break;
+			}
+
+
+			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
+				intrinsic_kind, std::move(sema_args)
+			);
+
+			this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
+
+		}else{
+			for(size_t i = sema_args.size(); i < selected_func->params.size(); i+=1){
+				sema_args.emplace_back(*selected_func->params[i].defaultValue);
+			}
+
+			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
+				*selected_func_id, std::move(sema_args)
+			);
+
+			this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
+		}
+
+		return Result::SUCCESS;
+	}
+
+
 
 
 
@@ -1694,7 +1763,7 @@ namespace pcit::panther{
 
 
 	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall<IS_CONSTEXPR>& instr) -> Result {
+	auto SemanticAnalyzer::instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR>& instr) -> Result {
 		const TermInfo target_term_info = this->get_term_info(instr.target);
 
 		if(target_term_info.value_category != TermInfo::ValueCategory::FUNCTION){
@@ -1753,7 +1822,7 @@ namespace pcit::panther{
 		if(selected_func_overload_index.isError()){ return Result::ERROR; }
 
 
-		const sema::Func::ID selected_func_id = func_infos[selected_func_overload_index.value()].func_id;
+		const sema::Func::ID selected_func_id = *func_infos[selected_func_overload_index.value()].func_id;
 		const sema::Func& selected_func = this->context.sema_buffer.getFunc(selected_func_id);
 		const BaseType::Function& selected_func_type = this->context.getTypeManager().getFunction(selected_func.typeID);
 
@@ -1885,7 +1954,7 @@ namespace pcit::panther{
 
 		auto jit_args = evo::SmallVector<core::GenericValue>();
 		core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
-			this->context.constexpr_pir_module, target_func.constexprJITInterfaceInfo->interfaceFunc, jit_args
+			this->context.constexpr_pir_module, *target_func.constexprJITInterfaceFunc, jit_args
 		);
 
 		if(target_func_type.hasErrorReturn()){
@@ -2828,12 +2897,26 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_intrinsic(const Instruction::Intrinsic& instr) -> Result {
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-			instr.intrinsic,
-			"Semantic Analysis of intrinsics (other than @import) is unimplemented"
+		const std::string_view intrinsic_name = this->source.getTokenBuffer()[instr.intrinsic].getString();
+		const std::optional<IntrinsicFunc::Kind> intrinsic_kind = IntrinsicFunc::lookupKind(intrinsic_name);
+		if(intrinsic_kind.has_value() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INTRINSIC_DOESNT_EXIST,
+				instr.intrinsic,
+				std::format("Intrinsic \"@{}\" doesn't exist", intrinsic_name)
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo::ID intrinsic_type = this->context.getIntrinsicFuncInfo(*intrinsic_kind).typeID;
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::INTRINSIC_FUNC,
+			TermInfo::ValueStage::CONSTEXPR,
+			intrinsic_type,
+			sema::Expr(*intrinsic_kind)
 		);
-		return Result::ERROR;
+		return Result::SUCCESS;
 	}
 
 
@@ -3514,17 +3597,21 @@ namespace pcit::panther{
 			using Success = std::monostate;
 			struct TooFewArgs{ size_t min_num; size_t got_num; bool accepts_different_nums; };
 			struct TooManyArgs{ size_t max_num; size_t got_num; bool accepts_different_nums; };
+			struct IntrinsicWrongNumArgs{ size_t required_num; size_t got_num; };
 			struct TypeMismatch{ size_t arg_index; };
 			struct ValueKindMismatch{ size_t arg_index; };
 			struct IncorrectLabel{ size_t arg_index; };
+			struct IntrinsicArgWithLabel{ size_t arg_index; };
 
 			using Reason = evo::Variant<
 				Success,
 				TooFewArgs,
 				TooManyArgs,
+				IntrinsicWrongNumArgs,
 				TypeMismatch,
 				ValueKindMismatch,
-				IncorrectLabel
+				IncorrectLabel,
+				IntrinsicArgWithLabel
 			>;
 			
 			unsigned score;
@@ -3547,24 +3634,35 @@ namespace pcit::panther{
 
 			unsigned current_score = 0;
 
-			const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_info.func_id);
+			const sema::Func* sema_func = nullptr;
 
-			if(arg_infos.size() < sema_func.minNumArgs){
-				scores.emplace_back(OverloadScore::TooFewArgs(
-					sema_func.minNumArgs,
-					arg_infos.size(),
-					sema_func.minNumArgs != func_info.func_type.params.size())
-				);
-				continue;
-			}
+			if(func_info.func_id.has_value()){ // isn't intrinsic
+				sema_func = &this->context.getSemaBuffer().getFunc(*func_info.func_id);
 
-			if(arg_infos.size() > func_info.func_type.params.size()){
-				scores.emplace_back(OverloadScore::TooManyArgs(
-					func_info.func_type.params.size(),
-					arg_infos.size(),
-					sema_func.minNumArgs != func_info.func_type.params.size())
-				);
-				continue;
+				if(arg_infos.size() < sema_func->minNumArgs){
+					scores.emplace_back(OverloadScore::TooFewArgs(
+						sema_func->minNumArgs,
+						arg_infos.size(),
+						sema_func->minNumArgs != func_info.func_type.params.size())
+					);
+					continue;
+				}
+
+				if(arg_infos.size() > func_info.func_type.params.size()){
+					scores.emplace_back(OverloadScore::TooManyArgs(
+						func_info.func_type.params.size(),
+						arg_infos.size(),
+						sema_func->minNumArgs != func_info.func_type.params.size())
+					);
+					continue;
+				}
+			}else{
+				if(arg_infos.size() != func_info.func_type.params.size()){
+					scores.emplace_back(
+						OverloadScore::IntrinsicWrongNumArgs(func_info.func_type.params.size(), arg_infos.size())
+					);
+					continue;
+				}
 			}
 
 
@@ -3630,14 +3728,21 @@ namespace pcit::panther{
 				// check label
 
 				if(arg_info.ast_arg.label.has_value()){
-					const std::string_view arg_label = 
-						this->source.getTokenBuffer()[*arg_info.ast_arg.label].getString();
+					if(sema_func != nullptr){ // isn't intrinsic
+						const std::string_view arg_label = 
+							this->source.getTokenBuffer()[*arg_info.ast_arg.label].getString();
 
-					const std::string_view param_name = this->context.getSourceManager()[sema_func.sourceID]
-						.getTokenBuffer()[sema_func.params[arg_i].ident].getString();
+						const std::string_view param_name = this->context.getSourceManager()[sema_func->sourceID]
+							.getTokenBuffer()[sema_func->params[arg_i].ident].getString();
 
-					if(arg_label != param_name){
-						scores.emplace_back(OverloadScore::IncorrectLabel(arg_i));
+						if(arg_label != param_name){
+							scores.emplace_back(OverloadScore::IncorrectLabel(arg_i));
+							arg_checking_failed = true;
+							break;
+						}
+
+					}else{
+						scores.emplace_back(OverloadScore::IntrinsicArgWithLabel(arg_i));
 						arg_checking_failed = true;
 						break;
 					}
@@ -3682,7 +3787,7 @@ namespace pcit::panther{
 									reason.min_num,
 									reason.got_num
 								),
-								this->get_location(func_infos[i].func_id)
+								this->get_location(*func_infos[i].func_id)
 							);
 							
 						}else{
@@ -3692,7 +3797,7 @@ namespace pcit::panther{
 									reason.min_num,
 									reason.got_num
 								),
-								this->get_location(func_infos[i].func_id)
+								this->get_location(*func_infos[i].func_id)
 							);
 						}
 
@@ -3704,7 +3809,7 @@ namespace pcit::panther{
 									reason.max_num,
 									reason.got_num
 								),
-								this->get_location(func_infos[i].func_id)
+								this->get_location(*func_infos[i].func_id)
 							);
 							
 						}else{
@@ -3714,9 +3819,18 @@ namespace pcit::panther{
 									reason.max_num,
 									reason.got_num
 								),
-								this->get_location(func_infos[i].func_id)
+								this->get_location(*func_infos[i].func_id)
 							);
 						}
+
+					}else if constexpr(std::is_same<ReasonT, OverloadScore::IntrinsicWrongNumArgs>()){
+						infos.emplace_back(
+							std::format(
+								"Failed to match: wrong number of arguments (requires {}, got {})",
+								reason.required_num,
+								reason.got_num
+							)
+						);
 
 					}else if constexpr(std::is_same<ReasonT, OverloadScore::TypeMismatch>()){
 						const TypeInfo::ID expected_type_id = func_infos[i].func_type.params[reason.arg_index].typeID;
@@ -3724,7 +3838,7 @@ namespace pcit::panther{
 
 						infos.emplace_back(
 							std::format("Failed to match: argument (index: {}) type mismatch", reason.arg_index),
-							this->get_location(func_infos[i].func_id),
+							this->get_location(*func_infos[i].func_id),
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info(
 									"This argument:", this->get_location(arg_infos[reason.arg_index].ast_arg.value)
@@ -3765,16 +3879,16 @@ namespace pcit::panther{
 
 						infos.emplace_back(
 							std::format("Failed to match: argument (index: {}) value kind mismatch", reason.arg_index),
-							this->get_location(func_infos[i].func_id),
+							this->get_location(*func_infos[i].func_id),
 							std::move(sub_infos)
 						);
 
 					}else if constexpr(std::is_same<ReasonT, OverloadScore::IncorrectLabel>()){
-						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_infos[i].func_id);
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*func_infos[i].func_id);
 
 						infos.emplace_back(
-							std::format("Failed to match: argument (index: {}) incorrect label", reason.arg_index),
-							this->get_location(func_infos[i].func_id),
+							std::format("Failed to match: argument (index: {}) has incorrect label", reason.arg_index),
+							this->get_location(*func_infos[i].func_id),
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info(
 									"This label:", this->get_location(*arg_infos[reason.arg_index].ast_arg.label)
@@ -3786,6 +3900,16 @@ namespace pcit::panther{
 											.getTokenBuffer()[sema_func.params[reason.arg_index].ident].getString()
 									)
 								),
+							}
+						);
+
+
+					}else if constexpr(std::is_same<ReasonT, OverloadScore::IntrinsicArgWithLabel>()){
+						infos.emplace_back(
+							std::format("Failed to match: argument (index: {}) has a label", reason.arg_index),
+							this->get_location(*arg_infos[reason.arg_index].ast_arg.label),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Arguments to intrinsic functions cannot have labels"),
 							}
 						);
 
@@ -3810,7 +3934,7 @@ namespace pcit::panther{
 				EVO_DEFER([&](){ i += 1; });
 
 				if(score.score == best_score){
-					infos.emplace_back("Could be this one:", this->get_location(func_infos[i].func_id));
+					infos.emplace_back("Could be this one:", this->get_location(*func_infos[i].func_id));
 				}
 			}
 
@@ -4072,7 +4196,7 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "entry"){
-				if(attribute_params_info.empty() == false){
+				if(attribute_params_info[i].empty() == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args.front(),
@@ -4503,22 +4627,22 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::INITIALIZER:
-				evo::debugFatalBreak("Initializer should not be compared with this function");
+				evo::debugFatalBreak("INITIALIZER should not be compared with this function");
 
 			case TermInfo::ValueCategory::MODULE:
-				evo::debugFatalBreak("Module should not be compared with this function");
+				evo::debugFatalBreak("MODULE should not be compared with this function");
 
 			case TermInfo::ValueCategory::FUNCTION:
-				evo::debugFatalBreak("Function should not be compared with this function");
+				evo::debugFatalBreak("FUNCTION should not be compared with this function");
 
-			case TermInfo::ValueCategory::INTRINSIC:
-				evo::debugFatalBreak("Intrinsic should not be compared with this function");
+			case TermInfo::ValueCategory::INTRINSIC_FUNC:
+				evo::debugFatalBreak("INTRINSIC_FUNC should not be compared with this function");
 
-			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC:
-				evo::debugFatalBreak("TemplateIntrinsic should not be compared with this function");
+			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC:
+				evo::debugFatalBreak("TEMPLATE_INTRINSIC_FUNC should not be compared with this function");
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE:
-				evo::debugFatalBreak("TemplateType should not be compared with this function");
+				evo::debugFatalBreak("TEMPLATE_TYPE should not be compared with this function");
 		}
 
 		evo::unreachable();
@@ -4617,8 +4741,6 @@ namespace pcit::panther{
 			),
 			std::move(infos)
 		);
-
-		evo::breakpoint();
 	}
 
 

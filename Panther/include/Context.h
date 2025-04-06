@@ -32,11 +32,31 @@ namespace pcit::panther{
 		public:
 			using DiagnosticCallback = std::function<void(Context&, const Diagnostic&)>;
 
+			struct NumThreads{
+				NumThreads(uint32_t num_threads) : num(num_threads){
+					evo::debugAssert(num_threads != 0, "For single threaded, use NumThreads::single()");
+				}
+
+				EVO_NODISCARD auto isSingle() const -> bool { return this->num == 0; }
+				EVO_NODISCARD auto isMulti() const -> bool { return this->num != 0; }
+				EVO_NODISCARD auto getNum() const -> uint32_t {
+					evo::debugAssert(this->isSingle() == false, "Cannot get num threads when is single-threaded");
+					return num;
+				}
+
+				EVO_NODISCARD static auto single() -> NumThreads { return evo::bitCast<NumThreads>(uint32_t(0)); }
+				EVO_NODISCARD static auto optimalMulti() -> NumThreads;
+
+				private:
+					uint32_t num;
+			};
+
+
 			struct Config{
 				enum class Mode{
 					COMPILE,
 					SCRIPTING,
-					BUILD_SYSTEM = SCRIPTING,
+					BUILD_SYSTEM,
 				};
 
 				Mode mode;
@@ -44,11 +64,25 @@ namespace pcit::panther{
 				core::Platform platform;
 
 				uint32_t maxNumErrors = std::numeric_limits<uint32_t>::max();
-				uint32_t numThreads = 0; // 0 means single-threaded
-
-				EVO_NODISCARD auto isMultiThreaded() const -> bool { return this->numThreads > 0; }
+				NumThreads numThreads = NumThreads::single();
 			};
 
+			struct BuildSystemConfig{
+				enum class Output : uint32_t {
+					PRINT_TOKENS       = 0,
+					PRINT_AST          = 1,
+					BUILD_SYMBOL_PROCS = 2,
+					ANALYZE_SEMANTICS  = 3,
+					PRINT_PIR          = 4,
+					PRINT_ASSEMBLY     = 5,
+					RUN                = 6,
+				};
+
+
+				Output output         = Output::RUN;
+				NumThreads numThreads = NumThreads::single();
+				bool useStdLib        = true;
+			};
 
 			enum class AddSourceResult{
 				SUCCESS,
@@ -104,6 +138,11 @@ namespace pcit::panther{
 
 			~Context();
 
+			
+			EVO_NODISCARD auto getBuildSystemConfig() const -> const BuildSystemConfig& {
+				return this->build_system_config;
+			}
+
 
 			EVO_NODISCARD static auto optimalNumThreads() -> unsigned;
 
@@ -113,7 +152,9 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto mayAddSourceFile() const -> bool {
-				return this->_config.mode == Config::Mode::SCRIPTING || this->source_manager.size() > 0;
+				return this->_config.mode == Config::Mode::SCRIPTING 
+					|| this->_config.mode == Config::Mode::BUILD_SYSTEM
+					|| this->started_any_target == false;
 			}
 
 
@@ -141,6 +182,9 @@ namespace pcit::panther{
 			auto analyzeSemantics() -> evo::Result<>;
 
 			auto lowerToAndPrintPIR(core::Printer& printer) -> void;
+			auto lowerToASM() -> evo::Result<std::string>;
+
+			EVO_NODISCARD auto runEntry() -> evo::Result<uint8_t>;
 
 
 
@@ -289,9 +333,32 @@ namespace pcit::panther{
 					}
 				});
 			}
+
+
+			auto jit_engine_result_emit_diagnositc(const evo::SmallVector<std::string>& messages) -> void;
+
+			EVO_NODISCARD auto register_build_system_jit_funcs(pir::JITEngine& jit_engine) -> evo::Result<>;
+
+
+
+			struct IntrinsicFuncInfo{
+				TypeInfoID typeID;
+
+				bool allowedInConstexpr;
+				bool allowedInRuntime;
+
+				bool allowedInCompile;
+				bool allowedInScript;
+				bool allowedInBuildSystem;
+			};
+
+			auto initIntrinsicInfos() -> void;
+			EVO_NODISCARD auto getIntrinsicFuncInfo(IntrinsicFunc::Kind kind) const -> const IntrinsicFuncInfo&;
+
 	
 		private:
 			const Config& _config;
+			BuildSystemConfig build_system_config{};
 
 			DiagnosticCallback _diagnostic_callback;
 			mutable core::SpinLock diagnostic_callback_mutex{};
@@ -299,11 +366,13 @@ namespace pcit::panther{
 			std::atomic<unsigned> num_errors = 0;
 			std::atomic<bool> encountered_fatal = false;
 			bool added_std_lib = false;
+			bool started_any_target = false;
 
 			std::vector<FileToLoad> files_to_load{};
 
 			std::unordered_set<std::filesystem::path> current_dynamic_file_load{};
 			mutable core::SpinLock current_dynamic_file_load_lock{};
+
 
 
 			// Only used for semantic analysis
@@ -315,6 +384,10 @@ namespace pcit::panther{
 			SymbolProcManager symbol_proc_manager{};
 			SemaBuffer sema_buffer{};
 
+			std::optional<sema::Func::ID> entry{};
+
+			std::array<IntrinsicFuncInfo, evo::to_underlying(IntrinsicFunc::Kind::_max_)> intrinsic_infos{};
+
 			pir::Module constexpr_pir_module;
 			SemaToPIR::Data constexpr_sema_to_pir_data;
 			pir::JITEngine constexpr_jit_engine{};
@@ -322,6 +395,7 @@ namespace pcit::panther{
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;
 			friend class SymbolProc;
+			friend class SemaToPIR;
 	};
 
 	

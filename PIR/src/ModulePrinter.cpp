@@ -453,12 +453,13 @@ namespace pcit::pir{
 				this->printer.print("${}", call_inst.name);
 			} break;
 
-			case Expr::Kind::CALL_VOID:   evo::debugFatalBreak("Expr::Kind::CallVoid is not a valid expression");
-			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Expr::Kind::Breakpoint is not a valid expression");
-			case Expr::Kind::RET:         evo::debugFatalBreak("Expr::Kind::Ret is not a valid expression");
-			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Expr::Kind::Branch is not a valid expression");
-			case Expr::Kind::COND_BRANCH: evo::debugFatalBreak("Expr::Kind::CondBranch is not a valid expression");
-			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Expr::Kind::Unreachable is not a valid expression");
+			case Expr::Kind::CALL_VOID:   evo::debugFatalBreak("Expr::Kind::CALL_VOID is not a valid expression");
+			case Expr::Kind::ABORT:       evo::debugFatalBreak("Expr::Kind::ABORT is not a valid expression");
+			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Expr::Kind::BREAKPOINT is not a valid expression");
+			case Expr::Kind::RET:         evo::debugFatalBreak("Expr::Kind::RET is not a valid expression");
+			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Expr::Kind::BRANCH is not a valid expression");
+			case Expr::Kind::COND_BRANCH: evo::debugFatalBreak("Expr::Kind::COND_BRANCH is not a valid expression");
+			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Expr::Kind::UNREACHABLE is not a valid expression");
 
 			case Expr::Kind::ALLOCA: {
 				const Alloca& alloca = this->reader.getAlloca(expr);
@@ -847,6 +848,10 @@ namespace pcit::pir{
 				this->printer.print(tabs(2));
 
 				this->print_function_call_impl(call_void_inst.target, call_void_inst.args);
+			} break;
+
+			case Expr::Kind::ABORT: {
+				this->printer.printlnRed("{}@abort", tabs(2));
 			} break;
 
 			case Expr::Kind::BREAKPOINT: {

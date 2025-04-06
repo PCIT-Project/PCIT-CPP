@@ -59,6 +59,7 @@ namespace pcit::pir{
 				});
 			} break;
 			case Expr::Kind::CALL_VOID:         evo::unreachable();
+			case Expr::Kind::ABORT:             evo::unreachable();
 			case Expr::Kind::BREAKPOINT:        evo::unreachable();
 			case Expr::Kind::RET:               evo::unreachable();
 			case Expr::Kind::BRANCH:            evo::unreachable();

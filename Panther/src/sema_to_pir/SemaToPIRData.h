@@ -52,11 +52,21 @@ namespace pcit::panther{
 				pir::ExternalFunction::ID return_generic_char = pir::ExternalFunction::ID::dummy();
 			};
 
+			struct JITBuildFuncs{
+				pir::ExternalFunction::ID build_set_num_threads = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_set_output      = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_set_use_std_lib = pir::ExternalFunction::ID::dummy();
+			};
+
 		public:
 			SemaToPIRData(Config&& _config) : config(_config) {}
 			~SemaToPIRData() = default;
 
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
+
+
+			//////////////////
+			// JIT interface funcs
 
 			EVO_NODISCARD auto getJITInterfaceFuncs() const -> const JITInterfaceFuncs& {
 				return this->jit_interface_funcs;
@@ -69,13 +79,30 @@ namespace pcit::panther{
 				);
 			}
 
+			auto createJITInterfaceFuncDecls(pir::Module& module) -> void;
+
+
+
+			//////////////////
+			// JIT build funcs
+
+			EVO_NODISCARD auto getJITBuildFuncs() const -> const JITBuildFuncs& {
+				return this->jit_build_funcs;
+			}
+
+			EVO_NODISCARD auto getJITBuildFuncsArray() const -> evo::ArrayProxy<pir::ExternalFunction::ID> {
+				return evo::ArrayProxy<pir::ExternalFunction::ID>(
+					reinterpret_cast<const pir::ExternalFunction::ID*>(&this->jit_build_funcs),
+					sizeof(JITBuildFuncs) / sizeof(pir::ExternalFunction::ID)
+				);
+			}
+
+			auto createJITBuildFuncDecls(pir::Module& module) -> void;
 
 
 
 
-			auto createNeededJITInterfaceFuncDecls(pir::Module& module) -> void;
-
-
+		private:	
 			auto create_struct(const BaseType::Struct::ID struct_id, pir::Type pir_id) -> void {
 				const auto lock = std::scoped_lock(this->structs_lock);
 				const auto emplace_result = this->structs.emplace(struct_id.get(), pir_id);
@@ -132,6 +159,9 @@ namespace pcit::panther{
 			mutable core::SpinLock funcs_lock{};
 
 			JITInterfaceFuncs jit_interface_funcs{};
+			JITBuildFuncs jit_build_funcs{};
+
+			friend class SemaToPIR;
 	};
 
 

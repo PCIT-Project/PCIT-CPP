@@ -82,6 +82,18 @@ namespace pcit::panther{
 		return Location::get(func_decl.name, src);
 	}
 
+	auto Diagnostic::Location::get(const AST::FuncDecl::Param& param, const Source& src) -> Location {
+		return Location::get(param.name, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::FuncDecl::Return& ret, const Source& src) -> Location {
+		if(ret.ident.has_value()){
+			return Location::get(*ret.ident, src);
+		}else{
+			return Location::get(ret.type, src);
+		}
+	}
+
 	auto Diagnostic::Location::get(const AST::AliasDecl& alias_decl, const Source& src) -> Location {
 		return Location::get(alias_decl.ident, src);
 	}

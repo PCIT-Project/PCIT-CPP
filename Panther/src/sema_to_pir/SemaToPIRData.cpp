@@ -18,7 +18,7 @@
 namespace pcit::panther{
 
 
-	auto SemaToPIRData::createNeededJITInterfaceFuncDecls(pir::Module& module) -> void {
+	auto SemaToPIRData::createJITInterfaceFuncDecls(pir::Module& module) -> void {
 		const auto create_func_decl = [&](std::string_view name, evo::SmallVector<pir::Parameter>&& params){
 			return module.createExternalFunction(
 				std::string(name),
@@ -31,47 +31,86 @@ namespace pcit::panther{
 
 
 		this->jit_interface_funcs.return_generic_int = create_func_decl(
-			"PTHR.JIT.return_generic_int",
+			"PIR.JIT.return_generic_int",
 			{
-				pir::Parameter{"target", module.createPtrType()},
-				pir::Parameter{"data", module.createPtrType()},
-				pir::Parameter{"size", module.createIntegerType(64)},
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("data", module.createPtrType()),
+				pir::Parameter("size", module.createIntegerType(64)),
 			}
 		);
 
 		this->jit_interface_funcs.return_generic_bool = create_func_decl(
-			"PTHR.JIT.return_generic_bool",
-			{pir::Parameter{"target", module.createPtrType()}, pir::Parameter{"value", module.createBoolType()}}
+			"PIR.JIT.return_generic_bool",
+			{pir::Parameter("target", module.createPtrType()), pir::Parameter("value", module.createBoolType())}
 		);
 
 		this->jit_interface_funcs.return_generic_f16 = create_func_decl(
-			"PTHR.JIT.return_generic_f16",
-			{pir::Parameter{"target", module.createPtrType()}, pir::Parameter{"value", module.createPtrType()}}
+			"PIR.JIT.return_generic_f16",
+			{pir::Parameter("target", module.createPtrType()), pir::Parameter("value", module.createPtrType())}
 		);
 		this->jit_interface_funcs.return_generic_bf16 = create_func_decl(
-			"PTHR.JIT.return_generic_bf16",
-			{pir::Parameter{"target", module.createPtrType()}, pir::Parameter{"value", module.createPtrType()}}
+			"PIR.JIT.return_generic_bf16",
+			{pir::Parameter("target", module.createPtrType()), pir::Parameter("value", module.createPtrType())}
 		);
 		this->jit_interface_funcs.return_generic_f32 = create_func_decl(
-			"PTHR.JIT.return_generic_f32",
-			{pir::Parameter{"target", module.createPtrType()}, pir::Parameter{"value", module.createFloatType(32)}}
+			"PIR.JIT.return_generic_f32",
+			{pir::Parameter("target", module.createPtrType()), pir::Parameter("value", module.createFloatType(32))}
 		);
 		this->jit_interface_funcs.return_generic_f64 = create_func_decl(
-			"PTHR.JIT.return_generic_f64",
-			{pir::Parameter{"target", module.createPtrType()}, pir::Parameter{"value", module.createFloatType(64)}}
+			"PIR.JIT.return_generic_f64",
+			{pir::Parameter("target", module.createPtrType()), pir::Parameter("value", module.createFloatType(64))}
 		);
 		this->jit_interface_funcs.return_generic_f80 = create_func_decl(
-			"PTHR.JIT.return_generic_f80",
-			{pir::Parameter{"target", module.createPtrType()}, pir::Parameter{"value", module.createPtrType()}}
+			"PIR.JIT.return_generic_f80",
+			{pir::Parameter("target", module.createPtrType()), pir::Parameter("value", module.createPtrType())}
 		);
 		this->jit_interface_funcs.return_generic_f128 = create_func_decl(
-			"PTHR.JIT.return_generic_f128",
-			{pir::Parameter{"target", module.createPtrType()}, pir::Parameter{"value", module.createPtrType()}}
+			"PIR.JIT.return_generic_f128",
+			{pir::Parameter("target", module.createPtrType()), pir::Parameter("value", module.createPtrType())}
 		);
 
 		this->jit_interface_funcs.return_generic_char = create_func_decl(
-			"PTHR.JIT.return_generic_char",
-			{pir::Parameter{"target", module.createPtrType()}, pir::Parameter{"value", module.createIntegerType(8)}}
+			"PIR.JIT.return_generic_char",
+			{pir::Parameter("target", module.createPtrType()), pir::Parameter("value", module.createIntegerType(8))}
+		);
+	}
+
+
+
+	auto SemaToPIRData::createJITBuildFuncDecls(pir::Module& module) -> void {
+		const auto create_func_decl = [&](std::string_view name, evo::SmallVector<pir::Parameter>&& params){
+			return module.createExternalFunction(
+				std::string(name),
+				std::move(params),
+				pir::CallingConvention::C,
+				pir::Linkage::EXTERNAL,
+				module.createVoidType()
+			);
+		};
+
+
+		this->jit_build_funcs.build_set_num_threads = create_func_decl(
+			"PTHR.BUILD.build_set_num_threads",
+			{
+				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
+				pir::Parameter("num_threads", module.createIntegerType(32))
+			}
+		);
+
+		this->jit_build_funcs.build_set_output = create_func_decl(
+			"PTHR.BUILD.build_set_output",
+			{
+				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
+				pir::Parameter("output", module.createIntegerType(32))
+			}
+		);
+
+		this->jit_build_funcs.build_set_use_std_lib = create_func_decl(
+			"PTHR.BUILD.build_set_use_std_lib",
+			{
+				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
+				pir::Parameter("use_std_lib", module.createBoolType())
+			}
 		);
 	}
 

@@ -53,6 +53,7 @@ namespace pcit::panther{
 			auto analyze_stmt(const AST::Node& stmt) -> evo::Result<>;
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
+			auto analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<>;
 
 
 

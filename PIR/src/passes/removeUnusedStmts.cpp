@@ -50,6 +50,7 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::PARAM_EXPR:        break;
 					break; case Expr::Kind::CALL:              func_metadata.emplace(expr);
 					break; case Expr::Kind::CALL_VOID:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::ABORT:             evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::BREAKPOINT:        evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::RET:               evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::BRANCH:            evo::debugFatalBreak("Should never see this expr kind");
@@ -183,6 +184,7 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
+				case Expr::Kind::ABORT: return false;
 				case Expr::Kind::BREAKPOINT: return false;
 
 				case Expr::Kind::RET: {

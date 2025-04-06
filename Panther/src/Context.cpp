@@ -44,6 +44,10 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// misc
 
+	auto Context::NumThreads::optimalMulti() -> NumThreads {
+		return NumThreads(uint32_t(core::ThreadPool<Task>::optimalNumThreads()));
+	}
+
 
 	Context::~Context(){
 		if(this->constexpr_jit_engine.isInitialized()){
@@ -52,25 +56,19 @@ namespace pcit::panther{
 	}
 
 
-
-	auto Context::optimalNumThreads() -> unsigned {
-		return unsigned(core::ThreadPool<Task>::optimalNumThreads());
-	}
-
-
-
-
 	//////////////////////////////////////////////////////////////////////
 	// build targets
 
 	// TODO: force shutdown when hit fail condition
 	auto Context::tokenize() -> evo::Result<> {
+		this->started_any_target = true;
+
 		const auto worker = [&](Task& task) -> evo::Result<> {
 			this->tokenize_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id);
 			return evo::Result<>();
 		};
 
-		if(this->_config.isMultiThreaded()){
+		if(this->_config.numThreads.isMulti()){
 			auto local_work_manager = core::ThreadPool<Task>();
 
 			auto tasks = evo::SmallVector<Task>();
@@ -78,7 +76,7 @@ namespace pcit::panther{
 				tasks.emplace_back(std::move(file_to_load));
 			}
 
-			local_work_manager.startup(this->_config.numThreads);
+			local_work_manager.startup(this->_config.numThreads.getNum());
 			local_work_manager.work(std::move(tasks), worker);
 			local_work_manager.waitUntilDoneWorking();
 			local_work_manager.shutdown();
@@ -101,12 +99,14 @@ namespace pcit::panther{
 
 
 	auto Context::parse() -> evo::Result<> {
+		this->started_any_target = true;
+
 		const auto worker = [&](Task& task) -> evo::Result<> {
 			this->parse_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id);
 			return evo::Result<>();
 		};
 
-		if(this->_config.isMultiThreaded()){
+		if(this->_config.numThreads.isMulti()){
 			auto local_work_manager = core::ThreadPool<Task>();
 
 			auto tasks = evo::SmallVector<Task>();
@@ -114,7 +114,7 @@ namespace pcit::panther{
 				tasks.emplace_back(std::move(file_to_load));
 			}
 
-			local_work_manager.startup(this->_config.numThreads);
+			local_work_manager.startup(this->_config.numThreads.getNum());
 			local_work_manager.work(std::move(tasks), worker);
 			local_work_manager.waitUntilDoneWorking();
 			local_work_manager.shutdown();
@@ -136,6 +136,8 @@ namespace pcit::panther{
 
 
 	auto Context::buildSymbolProcs() -> evo::Result<> {
+		this->started_any_target = true;
+
 		const auto worker = [&](Task& task) -> evo::Result<> {
 			this->build_symbol_procs_impl(
 				std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().compilation_config_id
@@ -143,7 +145,7 @@ namespace pcit::panther{
 			return evo::Result<>();
 		};
 
-		if(this->_config.isMultiThreaded()){
+		if(this->_config.numThreads.isMulti()){
 			auto local_work_manager = core::ThreadPool<Task>();
 
 			auto tasks = evo::SmallVector<Task>();
@@ -151,7 +153,7 @@ namespace pcit::panther{
 				tasks.emplace_back(std::move(file_to_load));
 			}
 
-			local_work_manager.startup(this->_config.numThreads);
+			local_work_manager.startup(this->_config.numThreads.getNum());
 			local_work_manager.work(std::move(tasks), worker);
 			local_work_manager.waitUntilDoneWorking();
 			local_work_manager.shutdown();
@@ -172,16 +174,17 @@ namespace pcit::panther{
 	}
 
 
-	static constexpr auto round_up_to_nearest_multiple_of_64(size_t num) -> size_t {
-		return (num + (64 - 1)) & ~(64 - 1);
-	}
-
 	auto Context::analyzeSemantics() -> evo::Result<> {
+		this->started_any_target = true;
+
 		if(this->buildSymbolProcs().isError()){ return evo::resultError; }
 
 		if(this->type_manager.primitivesInitialized() == false){
 			this->type_manager.initPrimitives();
 		}
+
+		IntrinsicFunc::initLookupTableIfNeeded();
+		this->initIntrinsicInfos();
 
 		if(this->constexpr_jit_engine.isInitialized() == false){
 			const evo::Expected<void, evo::SmallVector<std::string>> jit_init_result = 
@@ -204,93 +207,19 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
-			this->constexpr_jit_engine.registerFuncs({
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_int",
-					[](core::GenericValue* return_value, uint64_t* data, uint64_t bitwidth) -> void {
-						*return_value = core::GenericValue(core::GenericInt(
-							unsigned(bitwidth),
-							evo::ArrayProxy<uint64_t>(data, round_up_to_nearest_multiple_of_64(bitwidth) / 64)
-						));
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_bool",
-					[](core::GenericValue* return_value, bool value) -> void {
-						*return_value = core::GenericValue(value);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_f16",
-					[](core::GenericValue* return_value, uint16_t* value) -> void {
-						*return_value = core::GenericValue(
-							core::GenericFloat::createF16(core::GenericInt::create<uint16_t>(*value))
-						);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_bf16",
-					[](core::GenericValue* return_value, uint16_t* value) -> void {
-						*return_value = core::GenericValue(
-							core::GenericFloat::createBF16(core::GenericInt::create<uint16_t>(*value))
-						);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_f32",
-					[](core::GenericValue* return_value, float32_t value) -> void {
-						*return_value = core::GenericValue(core::GenericFloat::createF32(value));
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_f64",
-					[](core::GenericValue* return_value, float64_t value) -> void {
-						*return_value = core::GenericValue(core::GenericFloat::createF64(value));
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_f80",
-					[](core::GenericValue* return_value, uint64_t* value) -> void {
-						*return_value = core::GenericValue(
-							core::GenericFloat::createF80(core::GenericInt(80, evo::ArrayProxy<uint64_t>(value, 2)))
-						);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_f128",
-					[](core::GenericValue* return_value, uint64_t* value) -> void {
-						*return_value = core::GenericValue(
-							core::GenericFloat::createF128(core::GenericInt(128, evo::ArrayProxy<uint64_t>(value, 2)))
-						);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.JIT.return_generic_char",
-					[](core::GenericValue* return_value, char value) -> void {
-						*return_value = core::GenericValue(value);
-					}
-				),
-			});
+			
+			{
+				const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
+					this->constexpr_jit_engine.registerJITInterfaceFuncs();
 
-
-			if(register_result.has_value() == false){
-				auto infos = evo::SmallVector<Diagnostic::Info>();
-				for(const std::string& error : register_result.error()){
-					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				if(register_result.has_value() == false){
+					this->jit_engine_result_emit_diagnositc(register_result.error());
+					return evo::resultError;
 				}
-
-				this->emitFatal(
-					Diagnostic::Code::MISC_LLVM_ERROR,
-					Diagnostic::Location::NONE,
-					Diagnostic::createFatalMessage("Error trying to register functions to PIR JITEngine"),
-					std::move(infos)
-				);
-				return evo::resultError;
 			}
 
 
-			this->constexpr_sema_to_pir_data.createNeededJITInterfaceFuncDecls(this->constexpr_pir_module);
+			this->constexpr_sema_to_pir_data.createJITInterfaceFuncDecls(this->constexpr_pir_module);
 		}
 
 		for(const Source::ID& source_id : this->source_manager){
@@ -333,12 +262,12 @@ namespace pcit::panther{
 		};
 
 
-		if(this->_config.isMultiThreaded()){
+		if(this->_config.numThreads.isMulti()){
 			auto& work_manager_inst = this->work_manager.emplace<core::ThreadQueue<Task>>(worker);
 
 			setup_tasks(work_manager_inst);
 
-			work_manager_inst.startup(this->_config.numThreads);
+			work_manager_inst.startup(this->_config.numThreads.getNum());
 			work_manager_inst.waitUntilDoneWorking();
 
 			#if defined(PCIT_CONFIG_DEBUG)
@@ -362,7 +291,7 @@ namespace pcit::panther{
 		if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 
-			if(this->_config.isMultiThreaded()){
+			if(this->_config.numThreads.isMulti()){
 				infos.emplace_back("This may be caused by the multi-threading during semantic analysis. "
 							"Until a fix is made, try the single-threaded mode as it should be more stable.");
 			}else{
@@ -409,10 +338,90 @@ namespace pcit::panther{
 			.addSourceLocations = true,
 		});
 
+		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
+			sema_to_pir_data.createJITBuildFuncDecls(module);
+		}
+
 		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
 		sema_to_pir.lower();
 
 		pcit::pir::printModule(module, printer);
+	}
+
+
+
+	auto Context::lowerToASM() -> evo::Result<std::string> {
+		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
+
+		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
+			.useReadableNames   = true,
+			.checkedMath        = true,
+			.isJIT              = false,
+			.addSourceLocations = true,
+		});
+
+		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
+			sema_to_pir_data.createJITBuildFuncDecls(module);
+		}
+
+		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
+		sema_to_pir.lower();
+
+		return pcit::pir::lowerToAssembly(module, pcit::pir::OptMode::NONE);
+	}
+
+
+
+	auto Context::runEntry() -> evo::Result<uint8_t> {
+		if(this->entry.has_value() == false){
+			this->emitError(
+				Diagnostic::Code::MISC_NO_ENTRY,
+				Diagnostic::Location::NONE,
+				"No function with the `#entry` attribute found"
+			);
+			return evo::resultError;
+		}
+
+		auto module = pir::Module("<entry>", core::Platform::getCurrent());
+
+		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
+			#if defined(PCIT_CONFIG_DEBUG)
+				.useReadableNames = true,
+			#else
+				.useReadableNames = false,
+			#endif
+			.checkedMath = true, 
+			.isJIT = true,
+			.addSourceLocations = true,
+		});
+		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
+			sema_to_pir_data.createJITBuildFuncDecls(module);
+		}
+
+		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
+		sema_to_pir.lower();
+		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry);
+
+		auto jit_engine = pir::JITEngine();
+		jit_engine.init(pir::JITEngine::InitConfig{
+			.allowDefaultSymbolLinking = false,
+		});
+		EVO_DEFER([&](){ jit_engine.deinit(); });
+
+		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
+			if(this->register_build_system_jit_funcs(jit_engine).isError()){
+				return evo::resultError;
+			}
+		}
+
+		
+		const evo::Expected<void, evo::SmallVector<std::string>> add_module_result = jit_engine.addModule(module);
+		if(add_module_result.has_value() == false){
+			this->jit_engine_result_emit_diagnositc(add_module_result.error());
+			return evo::resultError;
+		}
+
+		return jit_engine.getFuncPtr<uint8_t(*)(void)>("PTHR.entry")();
 	}
 
 
@@ -494,8 +503,13 @@ namespace pcit::panther{
 		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(directory)){
 			if(path_is_pthr_file(file_path)){
 				const fs::path normalized_path = normalize_path(file_path, compilation_config.basePath);
+
+				// TODO: optimize this, maybe with a map
 				if(file_path.stem() == "std"){  this->source_manager.add_special_name_path("std", normalized_path);  }
 				if(file_path.stem() == "math"){ this->source_manager.add_special_name_path("math", normalized_path); }
+				if(file_path.stem() == "build_config"){
+					this->source_manager.add_special_name_path("build", normalized_path);
+				}
 
 				this->files_to_load.emplace_back(normalized_path, compilation_config_id);
 			}
@@ -718,6 +732,151 @@ namespace pcit::panther{
 
 		this->_diagnostic_callback(*this, diagnostic);
 	}
+
+
+
+	auto Context::jit_engine_result_emit_diagnositc(const evo::SmallVector<std::string>& messages) -> void {
+		auto infos = evo::SmallVector<Diagnostic::Info>();
+		for(const std::string& error : messages){
+			infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+		}
+
+		this->emitFatal(
+			Diagnostic::Code::MISC_LLVM_ERROR,
+			Diagnostic::Location::NONE,
+			Diagnostic::createFatalMessage("Error trying to register functions to PIR JITEngine"),
+			std::move(infos)
+		);
+	}
+
+
+
+	auto Context::register_build_system_jit_funcs(pir::JITEngine& jit_engine) -> evo::Result<> {
+		const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
+			jit_engine.registerFuncs({
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.BUILD.build_set_num_threads",
+					[](Context* context, uint32_t num_threads){
+						context->build_system_config.numThreads = NumThreads(num_threads);
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.BUILD.build_set_output",
+					[](Context* context, uint32_t output){
+						context->build_system_config.output = BuildSystemConfig::Output(output);
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.BUILD.build_set_use_std_lib",
+					[](Context* context, bool use_std_lib){
+						context->build_system_config.useStdLib = use_std_lib;
+					}
+				),
+			});
+
+		if(register_result.has_value() == false){
+			this->jit_engine_result_emit_diagnositc(register_result.error());
+			return evo::resultError;
+		}
+
+		return evo::Result<>();
+	}
+
+
+
+
+	auto Context::initIntrinsicInfos() -> void {
+		const auto create_func_type = [&](
+			evo::SmallVector<BaseType::Function::Param>&& params,
+			evo::SmallVector<BaseType::Function::ReturnParam>&& returns,
+			evo::SmallVector<BaseType::Function::ReturnParam>&& error_returns
+		) -> TypeInfo::ID {
+			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
+				BaseType::Function(std::move(params), std::move(returns), std::move(error_returns))
+			);
+
+			return type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type));
+		};
+
+
+		const TypeInfo::ID no_params_return_void = create_func_type(
+			{}, {BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())}, {}
+		);
+
+		const TypeInfo::ID ui32_arg_return_void = create_func_type(
+			{BaseType::Function::Param(TypeManager::getTypeUI32(), AST::FuncDecl::Param::Kind::Read, true)},
+			{BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())},
+			{}
+		);
+
+		const TypeInfo::ID bool_arg_return_void = create_func_type(
+			{BaseType::Function::Param(TypeManager::getTypeBool(), AST::FuncDecl::Param::Kind::Read, true)},
+			{BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())},
+			{}
+		);
+
+		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
+			.typeID = no_params_return_void,
+
+			.allowedInConstexpr = false,
+			.allowedInRuntime   = true,
+
+			.allowedInCompile     = false,
+			.allowedInScript      = false,
+			.allowedInBuildSystem = true,
+		};
+			
+		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
+			.typeID = no_params_return_void,
+
+			.allowedInConstexpr = false,
+			.allowedInRuntime   = true,
+
+			.allowedInCompile     = false,
+			.allowedInScript      = false,
+			.allowedInBuildSystem = true,
+		};
+			
+		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS))] = IntrinsicFuncInfo{
+			.typeID = ui32_arg_return_void,
+
+			.allowedInConstexpr = false,
+			.allowedInRuntime   = true,
+
+			.allowedInCompile     = false,
+			.allowedInScript      = false,
+			.allowedInBuildSystem = true,
+		};
+			
+		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_OUTPUT))] = IntrinsicFuncInfo{
+			.typeID = ui32_arg_return_void,
+
+			.allowedInConstexpr = false,
+			.allowedInRuntime   = true,
+
+			.allowedInCompile     = false,
+			.allowedInScript      = false,
+			.allowedInBuildSystem = true,
+		};
+			
+		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_USE_STD_LIB))] = IntrinsicFuncInfo{
+			.typeID = bool_arg_return_void,
+
+			.allowedInConstexpr = false,
+			.allowedInRuntime   = true,
+
+			.allowedInCompile     = false,
+			.allowedInScript      = false,
+			.allowedInBuildSystem = true,
+		};
+	}
+
+
+
+	auto Context::getIntrinsicFuncInfo(IntrinsicFunc::Kind kind) const -> const IntrinsicFuncInfo& {
+		return this->intrinsic_infos[size_t(evo::to_underlying(kind))];
+	}
+
 
 	
 }

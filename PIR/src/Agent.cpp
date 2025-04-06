@@ -170,6 +170,7 @@ namespace pcit::pir{
 						}
 					} break;
 
+					case Expr::Kind::ABORT: continue;
 					case Expr::Kind::BREAKPOINT: continue;
 	
 					case Expr::Kind::RET: {
@@ -1017,7 +1018,13 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
-	// breakpoint
+	// abort / breakpoint
+
+	auto Agent::createAbort() const -> Expr {
+		const auto new_expr = Expr(Expr::Kind::ABORT);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
 
 	auto Agent::createBreakpoint() const -> Expr {
 		const auto new_expr = Expr(Expr::Kind::BREAKPOINT);
@@ -2755,6 +2762,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::PARAM_EXPR:        return;
 			break; case Expr::Kind::CALL:              this->module.calls.erase(expr.index);
 			break; case Expr::Kind::CALL_VOID:         this->module.call_voids.erase(expr.index);
+			break; case Expr::Kind::ABORT:             return;
 			break; case Expr::Kind::BREAKPOINT:        return;
 			break; case Expr::Kind::RET:               this->module.rets.erase(expr.index);
 			break; case Expr::Kind::BRANCH:            return;
@@ -2871,6 +2879,7 @@ namespace pcit::pir{
 					case Expr::Kind::PARAM_EXPR:       continue;
 					case Expr::Kind::CALL:             if(this->getCall(stmt).name == name){ return true; } continue;
 					case Expr::Kind::CALL_VOID:        continue;
+					case Expr::Kind::ABORT:            continue;
 					case Expr::Kind::BREAKPOINT:       continue;
 					case Expr::Kind::RET:              continue;
 					case Expr::Kind::BRANCH:           continue;

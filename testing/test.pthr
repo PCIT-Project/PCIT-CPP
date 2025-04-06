@@ -1,21 +1,8 @@
+def std = @import("std");
 
 
+const num: Int = get_num();
 
-type Test = struct #noReorder #packed #extern {
-	var x: Int;
-	var some_default: Bool = false;
-	var y: Int;
+func get_num = () -> Int {
+	return 12;
 }
-
-
-// func entry = () #entry -> UI8 {
-// 	var foo: Test = new Test<{Int}>(12, true, 14);
-
-// 	var bar: Test = new Test<{12, asdf}>{
-// 		x = 42,
-// 		// some_default = true,
-// 		y = 19,
-// 	};
-
-// 	return ((foo.x == bar.y) & bar.some_default) as UI8;
-// }

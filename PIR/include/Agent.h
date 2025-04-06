@@ -181,8 +181,9 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
-			// breakpoint
+			// breakpoint / abort
 
+			auto createAbort() const -> Expr;
 			auto createBreakpoint() const -> Expr;
 
 

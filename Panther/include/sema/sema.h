@@ -119,7 +119,7 @@ namespace pcit::panther::sema{
 	struct FuncCall{
 		using ID = FuncCallID;
 
-		evo::Variant<FuncID/*, Intrinsic::Kind, TemplatedIntrinsicInstantiationID*/> target;
+		evo::Variant<FuncID, IntrinsicFunc::Kind/*, TemplatedIntrinsicInstantiationID*/> target;
 		evo::SmallVector<Expr> args;
 		// SourceLocation location;
 	};
@@ -223,12 +223,8 @@ namespace pcit::panther::sema{
 		bool isTerminated = false;
 		std::atomic<bool> defCompleted = false;
 
-		struct ConstexprJITInterfaceInfo{
-			pir::Function::ID func;
-			pir::Function::ID interfaceFunc;
-		};
-		std::optional<ConstexprJITInterfaceInfo> constexprJITInterfaceInfo{};
-
+		std::optional<pir::Function::ID> constexprJITFunc{};
+		std::optional<pir::Function::ID> constexprJITInterfaceFunc{};
 
 		EVO_NODISCARD auto isEquivalentOverload(const Func& rhs, const class panther::Context& context) const -> bool;
 	};

@@ -1,6 +1,6 @@
 # directories
 .vs/
-build/
+/build
 testing/local
 dependencies/LLVM_build
 

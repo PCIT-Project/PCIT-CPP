@@ -9,34 +9,28 @@
 
 #pragma once
 
-
 #include <Evo.h>
+#include <PCIT_core.h>
 
-namespace pcit::core{
+#include "./type_ids.h"
 
-	struct Version{
-		uint16_t major;
-		uint16_t release;
-		uint16_t minor;
-		uint16_t patch;
+namespace pcit::panther{
+
+	
+	namespace IntrinsicFunc{
+		enum class Kind {
+			ABORT,
+			BREAKPOINT,
+			BUILD_SET_NUM_THREADS,
+			BUILD_SET_OUTPUT,
+			BUILD_SET_USE_STD_LIB,
+
+			_max_,
+		};
+
+		EVO_NODISCARD auto lookupKind(std::string_view name) -> std::optional<Kind>;
+		auto initLookupTableIfNeeded() -> void;
 	};
 
-	constexpr auto version = Version{
-		.major   = 0,
-		.release = 0,
-		.minor   = 98,
-		.patch   = 0,
-	};
 
 }
- 	
-
-template<>
-struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
-    auto format(const pcit::core::Version& version, std::format_context& ctx) const -> std::format_context::iterator {
-        return std::formatter<std::string>::format(
-        	std::format("{}.{}.{}.{}", version.major, version.release, version.minor, version.patch),
-        	ctx
-        );
-    }
-};

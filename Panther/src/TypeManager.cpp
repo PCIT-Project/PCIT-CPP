@@ -57,8 +57,8 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TYPE_F80);
 		this->primitives.emplace_back(Token::Kind::TYPE_F128);
 		this->primitives.emplace_back(Token::Kind::TYPE_BYTE);
-		const BaseType::Primitive::ID type_bool = this->primitives.emplace_back(Token::Kind::TYPE_BOOL);
-		const BaseType::Primitive::ID type_char = this->primitives.emplace_back(Token::Kind::TYPE_CHAR);
+		const BaseType::Primitive::ID type_bool    = this->primitives.emplace_back(Token::Kind::TYPE_BOOL);
+		const BaseType::Primitive::ID type_char    = this->primitives.emplace_back(Token::Kind::TYPE_CHAR);
 		const BaseType::Primitive::ID type_raw_ptr = this->primitives.emplace_back(Token::Kind::TYPE_RAWPTR);
 		const BaseType::Primitive::ID type_type_id = this->primitives.emplace_back(Token::Kind::TYPE_TYPEID);
 
@@ -77,14 +77,17 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TYPE_I_N, 32);
 		this->primitives.emplace_back(Token::Kind::TYPE_I_N, 64);
 
-		const BaseType::Primitive::ID type_ui8 = this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 8);
-		this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 16);
-		this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 32);
-		this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 64);
+		const BaseType::Primitive::ID type_ui8  = this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 8);
+		const BaseType::Primitive::ID type_ui16 = this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 16);
+		const BaseType::Primitive::ID type_ui32 = this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 32);
+		const BaseType::Primitive::ID type_ui64 = this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 64);
 
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_bool.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_char.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_ui8.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_ui16.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_ui32.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_ui64.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_usize.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_type_id.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_raw_ptr.get())));
