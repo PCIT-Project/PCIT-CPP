@@ -157,7 +157,7 @@ namespace pcit::panther{
 
 		if(location.lineStart == location.lineEnd){
 			for(uint32_t i = location.collumnStart; i < location.collumnEnd + 1; i+=1){
-				if(line_char_is_tab[i]){
+				if(line_char_is_tab[i - (location.collumnStart - point_collumn)]){
 					pointer_str += "^^^^";
 				}else{
 					pointer_str += '^';

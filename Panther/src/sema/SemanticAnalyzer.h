@@ -145,17 +145,20 @@ namespace pcit::panther{
 
 			enum class WaitOnSymbolProcResult{
 				ERROR,
+				EXISTS_BUT_ERRORED,
+				ERROR_PASSED_BY_WHEN_COND,
 				NEED_TO_WAIT,
 				SEMAS_READY,
 			};
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto wait_on_symbol_proc(
-				evo::ArrayProxy<const SymbolProc::Namespace*> symbol_proc_namespaces,
-				const auto& ident,
-				std::string_view ident_str,
-				std::string&& error_msg_if_ident_doesnt_exist
+				evo::ArrayProxy<const SymbolProc::Namespace*> symbol_proc_namespaces, std::string_view ident_str
 			) -> WaitOnSymbolProcResult;
+
+
+			auto wait_on_symbol_proc_emit_error(WaitOnSymbolProcResult result, const auto& ident, std::string&& msg)
+				-> void;
 
 
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;

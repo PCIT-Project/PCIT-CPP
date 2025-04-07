@@ -1,8 +1,24 @@
-def std = @import("std");
 
 
-const num: Int = get_num();
+const num: Int = Struct<{Int}>.get_num();
+const asdf: I32 = Struct<{I32}>.get_num();
 
-func get_num = () -> Int {
-	return 12;
+
+
+type Struct = struct <{T: Type}> {
+	func get_num = () -> T {
+		return 12;
+	}
 }
+
+
+
+// func entry = () #entry -> UI8 {
+// 	Struct<{Int}>.test();
+// 	Struct<{F32}>.test();
+	
+	
+// 	return 0;
+// }
+
+

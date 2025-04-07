@@ -72,6 +72,8 @@ namespace pcit::llvmint{
 		private:
 			struct Data;
 			Data* data = nullptr;
+
+			std::mutex mutex{};
 	};
 
 	

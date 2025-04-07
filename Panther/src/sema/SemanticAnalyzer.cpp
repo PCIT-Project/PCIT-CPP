@@ -2183,19 +2183,32 @@ namespace pcit::panther{
 			);
 
 			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-				&source_module.global_symbol_procs,
-				instr.infix.rhs,
-				rhs_ident_str,
-				std::format("Module has no symbol named \"{}\"", rhs_ident_str)
+				&source_module.global_symbol_procs, rhs_ident_str
 			);
 
-			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::ERROR){ return Result::ERROR; }
-			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NEED_TO_WAIT){ return Result::NEED_TO_WAIT; }
 
-			evo::debugAssert(
-				wait_on_symbol_proc_result == WaitOnSymbolProcResult::SEMAS_READY, "Unknown WaitOnSymbolProcResult"
-			);
+			switch(wait_on_symbol_proc_result){
+				case WaitOnSymbolProcResult::ERROR: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+					this->wait_on_symbol_proc_emit_error(
+						wait_on_symbol_proc_result,
+						instr.infix.rhs,
+						std::format("Module has no symbol named \"{}\"", rhs_ident_str)
+					);
+					return Result::ERROR;
+				} break;
 
+				case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+					return Result::ERROR;
+				} break;
+
+				case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+					return Result::NEED_TO_WAIT;
+				} break;
+
+				case WaitOnSymbolProcResult::SEMAS_READY: {
+					// do nothing...
+				} break;
+			}
 
 			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
 				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, true>(
@@ -2266,18 +2279,32 @@ namespace pcit::panther{
 			const Source& struct_source = this->context.getSourceManager()[lhs_struct.sourceID];
 
 			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-				&lhs_struct.memberSymbols,
-				instr.infix.rhs,
-				rhs_ident_str,
-				std::format("Struct has no member named \"{}\"", rhs_ident_str)
+				&lhs_struct.memberSymbols, rhs_ident_str
 			);
 
-			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::ERROR){ return Result::ERROR; }
-			if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NEED_TO_WAIT){ return Result::NEED_TO_WAIT; }
 
-			evo::debugAssert(
-				wait_on_symbol_proc_result == WaitOnSymbolProcResult::SEMAS_READY, "Unknown WaitOnSymbolProcResult"
-			);
+			switch(wait_on_symbol_proc_result){
+				case WaitOnSymbolProcResult::ERROR: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+					this->wait_on_symbol_proc_emit_error(
+						wait_on_symbol_proc_result,
+						instr.infix.rhs,
+						std::format("Struct has no member named \"{}\"", rhs_ident_str)
+					);
+					return Result::ERROR;
+				} break;
+
+				case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+					return Result::ERROR;
+				} break;
+
+				case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+					return Result::NEED_TO_WAIT;
+				} break;
+
+				case WaitOnSymbolProcResult::SEMAS_READY: {
+					// do nothing...
+				} break;
+			}
 
 
 			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
@@ -3090,20 +3117,36 @@ namespace pcit::panther{
 
 
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-			symbol_proc_namespaces,
-			ident,
-			ident_str,
-			std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+			symbol_proc_namespaces, ident_str
 		);
 
-		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::ERROR){ return evo::Unexpected(Result::ERROR); }
-		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::NEED_TO_WAIT){
-			return evo::Unexpected(Result::NEED_TO_WAIT);
+		switch(wait_on_symbol_proc_result){
+			case WaitOnSymbolProcResult::ERROR: {
+				// Do nothing as it may be an ident might not have a symbol proc (such as template param)
+			} break;
+
+			case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				this->wait_on_symbol_proc_emit_error(
+					wait_on_symbol_proc_result,
+					ident,
+					std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+				);
+				return evo::Unexpected(Result::ERROR);
+			} break;
+
+			case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return evo::Unexpected(Result::ERROR);
+			} break;
+
+			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+				return evo::Unexpected(Result::NEED_TO_WAIT);
+			} break;
+
+			case WaitOnSymbolProcResult::SEMAS_READY: {
+				// do nothing...
+			} break;
 		}
 
-		evo::debugAssert(
-			wait_on_symbol_proc_result == WaitOnSymbolProcResult::SEMAS_READY, "Unknown WaitOnSymbolProcResult"
-		);
 
 
 		///////////////////////////////////
@@ -3120,21 +3163,23 @@ namespace pcit::panther{
 					nullptr
 				);
 
-			if(scope_level_lookup.has_value()){
-				return scope_level_lookup.value();
-			}
-
+			if(scope_level_lookup.has_value()){ return scope_level_lookup.value(); }
 			if(scope_level_lookup.error() == AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED){
 				return evo::Unexpected(Result::ERROR);
 			}
-			if(scope_level_lookup.
-				error() == AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF){ break;
-			 }
+			if(scope_level_lookup.error() == AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF){ break; }
 
 			i -= 1;
 		}
 
-		evo::debugFatalBreak("Failed to find semas for ident");
+
+		///////////////////////////////////
+		// didn't find identifier
+
+		this->wait_on_symbol_proc_emit_error(
+			wait_on_symbol_proc_result, ident, std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+		);
+		return evo::Unexpected(Result::ERROR);
 	}
 
 
@@ -3444,10 +3489,7 @@ namespace pcit::panther{
 
 	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::wait_on_symbol_proc(
-		evo::ArrayProxy<const SymbolProc::Namespace*> symbol_proc_namespaces,
-		const auto& ident,
-		std::string_view ident_str,
-		std::string&& error_msg_if_ident_doesnt_exist
+		evo::ArrayProxy<const SymbolProc::Namespace*> symbol_proc_namespaces, std::string_view ident_str
 	) -> WaitOnSymbolProcResult {
 		auto found_range = std::optional<core::IterRange<SymbolProc::Namespace::const_iterator>>();
 		for(const SymbolProc::Namespace* symbol_proc_namespace : symbol_proc_namespaces){
@@ -3459,11 +3501,6 @@ namespace pcit::panther{
 			}			
 		}
 		if(found_range.has_value() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
-				ident,
-				std::move(error_msg_if_ident_doesnt_exist)
-			);
 			return WaitOnSymbolProcResult::ERROR;
 		}
 
@@ -3487,9 +3524,9 @@ namespace pcit::panther{
 			}();
 
 			switch(wait_on_result){
-				break; case SymbolProc::WaitOnResult::NOT_NEEDED:                 any_ready = true;
-				break; case SymbolProc::WaitOnResult::WAITING:                    any_waiting = true;
-				break; case SymbolProc::WaitOnResult::WAS_ERRORED:                return WaitOnSymbolProcResult::ERROR;
+				break; case SymbolProc::WaitOnResult::NOT_NEEDED:  any_ready = true;
+				break; case SymbolProc::WaitOnResult::WAITING:     any_waiting = true;
+				break; case SymbolProc::WaitOnResult::WAS_ERRORED: return WaitOnSymbolProcResult::EXISTS_BUT_ERRORED;
 				break; case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: // do nothing...
 				break; case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return WaitOnSymbolProcResult::ERROR;
 			}
@@ -3505,13 +3542,40 @@ namespace pcit::panther{
 
 		if(any_ready){ return WaitOnSymbolProcResult::SEMAS_READY; }
 
-		this->emit_error(
-			Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
-			ident,
-			std::move(error_msg_if_ident_doesnt_exist),
-			Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
-		);
-		return WaitOnSymbolProcResult::ERROR;
+		return WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND;
+	}
+
+
+
+	auto SemanticAnalyzer::wait_on_symbol_proc_emit_error(
+		WaitOnSymbolProcResult result, const auto& ident, std::string&& msg
+	) -> void {
+		switch(result){
+			case WaitOnSymbolProcResult::ERROR: {
+				this->emit_error(Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT, ident, std::move(msg));
+			} break;
+
+			case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				// do nothing...
+			} break;
+
+			case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
+					ident,
+					std::move(msg),
+					Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
+				);
+			} break;
+
+			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+				evo::debugFatalBreak("WaitOnSymbolProcResult::NEED_TO_WAIT is not an error");
+			} break;
+
+			case WaitOnSymbolProcResult::SEMAS_READY: {
+				evo::debugFatalBreak("WaitOnSymbolProcResult::SEMAS_READY is not an error");
+			} break;
+		}
 	}
 
 

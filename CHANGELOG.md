@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.98.1"></a>
+## v0.0.98.1
+
+### Panther
+- Fixed default diagnostic callback location pointing sometimes getting spacing incorrect and sometimes crashing (OOB error)
+- Fixed assert failing incorrectly in semantic analysis
+- Fixed template parameters not being found within scope
+- Fixed semantic analysis saying a symbol didn't exist if there was an error in that symbol
+
+### PIR
+- Fixed race condition in `JITEngine`
+
+
+<!---------------------------------->
 <a name="v0.0.98.0"></a>
 ## v0.0.98.0
 

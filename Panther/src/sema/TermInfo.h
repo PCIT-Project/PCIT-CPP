@@ -80,6 +80,10 @@ namespace pcit::panther{
 
 			// This is to get around the MSVC bug
 			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(_type_id));
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				this->check_single_expr_construction();
+			#endif
 		}
 
 		TermInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, const sema::Expr& _expr)
@@ -107,12 +111,12 @@ namespace pcit::panther{
 
 		TermInfo(ValueCategory vc, ValueStage vs, const auto& _type_id, std::nullopt_t)
 			: value_category(vc), value_stage(vs), type_id(InitializerType()), exprs() {
+			// This is to get around the MSVC bug
+			this->type_id.emplace<std::remove_cvref_t<decltype(_type_id)>>(_type_id);
+
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_no_expr_construction();
 			#endif
-
-			// This is to get around the MSVC bug
-			this->type_id.emplace<std::remove_cvref_t<decltype(_type_id)>>(_type_id);
 		}
 
 
@@ -185,10 +189,15 @@ namespace pcit::panther{
 					|| this->value_category == ValueCategory::TYPE
 					|| this->value_category == ValueCategory::FUNCTION
 				);
+
 				evo::debugAssert(this->value_stage == ValueStage::CONSTEXPR);
-				evo::debugAssert(
-					this->value_category != ValueCategory::TYPE || this->type_id.is<TypeInfo::VoidableID>()
-				);
+
+				if(this->value_category == ValueCategory::TYPE){
+					evo::debugAssert(
+						this->type_id.is<TypeInfo::VoidableID>(),
+						"ValueCategory of TYPE must have a `type_id` of TypeInfo::VoidableID"
+					);
+				}
 			}
 		#endif
 
