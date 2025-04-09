@@ -422,6 +422,11 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct TypeDeducer{
+			Token::ID type_deducer_token;
+			SymbolProcTermInfoID output;
+		};
+
 
 		//////////////////
 		// instruction impl
@@ -480,7 +485,8 @@ namespace pcit::panther{
 			Intrinsic,
 			Literal,
 			Uninit,
-			Zeroinit
+			Zeroinit,
+			TypeDeducer
 		> inst;
 	};
 

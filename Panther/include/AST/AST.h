@@ -57,6 +57,7 @@ namespace pcit::panther::AST{
 		ATTRIBUTE_BLOCK,
 		ATTRIBUTE,
 
+		TYPE_DEDUCER,
 		PRIMITIVE_TYPE,
 		IDENT,
 		INTRINSIC,

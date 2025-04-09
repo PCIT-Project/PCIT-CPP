@@ -197,6 +197,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Zeroinit>()){
 				return this->instr_zeroinit(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::TypeDeducer>()){
+				return this->instr_type_deducer(instr);
+
 			}else{
 				static_assert(false, "Unsupported instruction type");
 			}
@@ -263,7 +266,9 @@ namespace pcit::panther{
 
 		}else{
 			if(value_term_info.is_ephemeral() == false){
-				if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){ return Result::ERROR; }
+				if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){
+					return Result::ERROR;
+				}
 
 				if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
 					this->error_type_mismatch(
@@ -392,11 +397,38 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true>(
+
+			const TypeCheckInfo type_check_info = this->type_check<true>(
 				got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_decl.value
-			).ok == false){
-				return Result::ERROR;
+			);
+
+			if(type_check_info.ok == false){ return Result::ERROR; }
+
+			if(type_check_info.deduced_types.empty() == false){
+				if(this->scope.isGlobalScope()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TYPE_DEDUCER_IN_GLOBAL_VAR,
+						*instr.var_decl.type,
+						"Global variables cannot have type deducers"
+					);
+					return Result::ERROR;
+				}
+
+				for(const DeducedType& deduced_type : type_check_info.deduced_types){
+					if(
+						this->add_ident_to_scope(
+							this->source.getTokenBuffer()[deduced_type.tokenID].getString(),
+							deduced_type.tokenID,
+							deduced_type.typeID,
+							deduced_type.tokenID,
+							sema::ScopeLevel::DeducedTypeFlag{}
+						).isError()
+					){
+						return Result::ERROR;
+					}
+				}
 			}
+
 		}
 
 		const std::optional<TypeInfo::ID> type_id = [&](){
@@ -1574,70 +1606,19 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: condence with `instr_func_call_expr`?
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
-		const TermInfo target_term_info = this->get_term_info(instr.target);
+		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		bool is_intrinsic = false;
-		if(target_term_info.value_category == TermInfo::ValueCategory::FUNCTION){
-			// do nothing...
-		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTRINSIC_FUNC){
-			is_intrinsic = true;
-		}else{
-			this->emit_error(
-				Diagnostic::Code::SEMA_CANNOT_CALL_LIKE_FUNCTION,
-				instr.func_call.target,
-				"Cannot call expression like a function"
-			);
-			return Result::ERROR;
-		}
-
-		const TypeManager& type_manager = this->context.getTypeManager();
-
-		auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
-		if(is_intrinsic) [[unlikely]] {
-			const TypeInfo::ID type_info_id = target_term_info.type_id.as<TypeInfo::ID>();
-			const TypeInfo& type_info = type_manager.getTypeInfo(type_info_id);
-			const BaseType::Function& func_type = type_manager.getFunction(type_info.baseTypeID().funcID());
-			func_infos.emplace_back(std::nullopt, func_type);
-
-		}else{
-			using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFuncID>;
-			for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
-				if(func_overload.is<sema::Func::ID>()){
-					const sema::Func& sema_func =
-						this->context.getSemaBuffer().getFunc(func_overload.as<sema::Func::ID>());
-					const BaseType::Function& func_type = type_manager.getFunction(sema_func.typeID);
-					func_infos.emplace_back(func_overload.as<sema::Func::ID>(), func_type);
-				}
-			}
-		}
-
-		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>();
-		for(size_t i = 0; const SymbolProc::TermInfoID& arg : instr.args){
-			TermInfo& arg_term_info = this->get_term_info(arg);
-
-			if(this->expr_in_func_is_valid_value_stage(arg_term_info, instr.func_call.args[i].value) == false){
-				return Result::ERROR;
-			}
-
-			arg_infos.emplace_back(arg_term_info, instr.func_call.args[i]);
-			i += 1;
-		}
-
-		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
-			func_infos, arg_infos, instr.func_call.target
+		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<false>(
+			instr.func_call, target_term_info, instr.args
 		);
-		if(selected_func_overload_index.isError()){ return Result::ERROR; }
+		if(func_call_impl_res.isError()){ return Result::ERROR; }
+
+		//////////////////////////////////////////////////////////////////////
+		// 
 
 
-		const std::optional<sema::Func::ID> selected_func_id = func_infos[selected_func_overload_index.value()].func_id;
-		const sema::Func* selected_func = nullptr;
-		if(!is_intrinsic){ selected_func = &this->context.sema_buffer.getFunc(*selected_func_id); }
-		const BaseType::Function& selected_func_type = func_infos[selected_func_overload_index.value()].func_type;
-
-
-		if(selected_func_type.returnsVoid() == false){
+		if(func_call_impl_res.value().selected_func_type.returnsVoid() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DISCARDING_RETURNS,
 				instr.func_call.target,
@@ -1646,18 +1627,23 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>() && !is_intrinsic){
-			if(selected_func->isConstexpr == false){
+		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>() && !func_call_impl_res.value().is_intrinsic){
+			if(func_call_impl_res.value().selected_func->isConstexpr == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 					instr.func_call.target,
 					"Cannot call a non-constexpr function within a constexpr function",
-					Diagnostic::Info("Called function was defined here:", this->get_location(*selected_func_id))
+					Diagnostic::Info(
+						"Called function was defined here:",
+						this->get_location(*func_call_impl_res.value().selected_func_id)
+					)
 				);
 				return Result::ERROR;
 			}
 
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(*selected_func_id);
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
+				*func_call_impl_res.value().selected_func_id
+			);
 		}
 
 
@@ -1667,7 +1653,7 @@ namespace pcit::panther{
 		}
 
 
-		if(is_intrinsic) [[unlikely]] {
+		if(func_call_impl_res.value().is_intrinsic) [[unlikely]] {
 			const IntrinsicFunc::Kind intrinsic_kind = target_term_info.getExpr().intrinsicFuncID();
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
@@ -1736,12 +1722,12 @@ namespace pcit::panther{
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
 
 		}else{
-			for(size_t i = sema_args.size(); i < selected_func->params.size(); i+=1){
-				sema_args.emplace_back(*selected_func->params[i].defaultValue);
+			for(size_t i = sema_args.size(); i < func_call_impl_res.value().selected_func->params.size(); i+=1){
+				sema_args.emplace_back(*func_call_impl_res.value().selected_func->params[i].defaultValue);
 			}
 
 			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-				*selected_func_id, std::move(sema_args)
+				*func_call_impl_res.value().selected_func_id, std::move(sema_args)
 			);
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -1764,68 +1750,15 @@ namespace pcit::panther{
 
 	template<bool IS_CONSTEXPR>
 	auto SemanticAnalyzer::instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR>& instr) -> Result {
-		const TermInfo target_term_info = this->get_term_info(instr.target);
+		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		if(target_term_info.value_category != TermInfo::ValueCategory::FUNCTION){
-			this->emit_error(
-				Diagnostic::Code::SEMA_CANNOT_CALL_LIKE_FUNCTION,
-				instr.func_call.target,
-				"Cannot call expression like a function"
-			);
-			return Result::ERROR;
-		}
-
-
-		auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
-		using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFuncID>;
-		for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
-			if(func_overload.is<sema::Func::ID>()){
-				const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_overload.as<sema::Func::ID>());
-				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
-				func_infos.emplace_back(func_overload.as<sema::Func::ID>(), func_type);
-			}
-		}
-
-		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>();
-		for(size_t i = 0; const SymbolProc::TermInfoID& arg : instr.args){
-			TermInfo& arg_term_info = this->get_term_info(arg);
-
-			if constexpr(IS_CONSTEXPR){
-				if(arg_term_info.value_stage != TermInfo::ValueStage::CONSTEXPR){
-					this->emit_error(
-						Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
-						instr.func_call.args[i].value,
-						"Arguments in a constexpr function call must have a value stage of constexpr",
-						Diagnostic::Info(
-							std::format(
-								"Value stage of the argument is {}",
-								arg_term_info.value_stage == TermInfo::ValueStage::COMPTIME ? "comptime" : "runtime"
-							)
-						)
-					);
-					return Result::ERROR;
-				}
-			}else{
-				if(this->expr_in_func_is_valid_value_stage(arg_term_info, instr.func_call.args[i].value) == false){
-					return Result::ERROR;
-				}
-			}
-
-			arg_infos.emplace_back(arg_term_info, instr.func_call.args[i]);
-			i += 1;
-		}
-
-
-		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
-			func_infos, arg_infos, instr.func_call.target
+		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<IS_CONSTEXPR>(
+			instr.func_call, target_term_info, instr.args
 		);
-		if(selected_func_overload_index.isError()){ return Result::ERROR; }
+		if(func_call_impl_res.isError()){ return Result::ERROR; }
 
-
-		const sema::Func::ID selected_func_id = *func_infos[selected_func_overload_index.value()].func_id;
-		const sema::Func& selected_func = this->context.sema_buffer.getFunc(selected_func_id);
-		const BaseType::Function& selected_func_type = this->context.getTypeManager().getFunction(selected_func.typeID);
-
+		//////////////////////////////////////////////////////////////////////
+		// 
 
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
@@ -1833,12 +1766,12 @@ namespace pcit::panther{
 			sema_args.emplace_back(this->get_term_info(arg).getExpr());
 		}
 
-		for(size_t i = sema_args.size(); i < selected_func.params.size(); i+=1){
-			sema_args.emplace_back(*selected_func.params[i].defaultValue);
+		for(size_t i = sema_args.size(); i < func_call_impl_res.value().selected_func->params.size(); i+=1){
+			sema_args.emplace_back(*func_call_impl_res.value().selected_func->params[i].defaultValue);
 		}
 
 		const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-			selected_func_id, std::move(sema_args)
+			*func_call_impl_res.value().selected_func_id, std::move(sema_args)
 		);
 
 
@@ -1854,20 +1787,20 @@ namespace pcit::panther{
 			}
 		}();
 
-		if(selected_func_type.returnParams.size() == 1){ // single return
+		if(func_call_impl_res.value().selected_func_type.returnParams.size() == 1){ // single return
 			this->return_term_info(instr.output,
 				TermInfo(
 					TermInfo::ValueCategory::EPHEMERAL,
 					value_stage,
-					selected_func_type.returnParams[0].typeID.asTypeID(),
+					func_call_impl_res.value().selected_func_type.returnParams[0].typeID.asTypeID(),
 					sema::Expr(sema_func_call_id)
 				)
 			);
 			
 		}else{ // multi-return
 			auto return_types = evo::SmallVector<TypeInfo::ID>();
-			return_types.reserve(selected_func_type.returnParams.size());
-			for(const BaseType::Function::ReturnParam& return_param : selected_func_type.returnParams){
+			return_types.reserve(func_call_impl_res.value().selected_func_type.returnParams.size());
+			for(const BaseType::Function::ReturnParam& return_param : func_call_impl_res.value().selected_func_type.returnParams){
 				return_types.emplace_back(return_param.typeID.asTypeID());
 			}
 
@@ -1882,19 +1815,19 @@ namespace pcit::panther{
 		}
 
 		if constexpr(IS_CONSTEXPR){
-			if(selected_func.isConstexpr == false){
+			if(func_call_impl_res.value().selected_func->isConstexpr == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 					instr.func_call.target,
 					"Constexpr value cannot be a call to a function that is not constexpr",
-					Diagnostic::Info("Called function was defined here:", this->get_location(selected_func_id))
+					Diagnostic::Info("Called function was defined here:", this->get_location(*func_call_impl_res.value().selected_func_id))
 				);
 				return Result::ERROR;
 			}
 
 
-			const SymbolProc::WaitOnResult wait_on_result = selected_func.symbolProc.waitOnPIRReadyIfNeeded(
-				this->symbol_proc_id, this->context, selected_func.symbolProcID
+			const SymbolProc::WaitOnResult wait_on_result = func_call_impl_res.value().selected_func->symbolProc.waitOnPIRReadyIfNeeded(
+				this->symbol_proc_id, this->context, func_call_impl_res.value().selected_func->symbolProcID
 			);
 
 			switch(wait_on_result){
@@ -1918,17 +1851,17 @@ namespace pcit::panther{
 
 		}else{
 			if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
-				if(selected_func.isConstexpr == false){
+				if(func_call_impl_res.value().selected_func->isConstexpr == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 						instr.func_call.target,
 						"Cannot call a non-constexpr function within a constexpr function",
-						Diagnostic::Info("Called function was defined here:", this->get_location(selected_func_id))
+						Diagnostic::Info("Called function was defined here:", this->get_location(*func_call_impl_res.value().selected_func_id))
 					);
 					return Result::ERROR;
 				}
 
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(*func_call_impl_res.value().selected_func_id);
 			}
 
 			return Result::SUCCESS;
@@ -2086,6 +2019,10 @@ namespace pcit::panther{
 
 				case BaseType::Kind::STRUCT_TEMPLATE: {
 					evo::debugFatalBreak("Function cannot return a struct template");
+				} break;
+
+				case BaseType::Kind::TYPE_DEDUCER: {
+					evo::debugFatalBreak("Function cannot return a type deducer");
 				} break;
 			}
 		}
@@ -2802,7 +2739,8 @@ namespace pcit::panther{
 							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
 							arg.as<TypeInfo::VoidableID>(),
-							ast_template_pack.params[i].ident
+							ast_template_pack.params[i].ident,
+							sema::ScopeLevel::TemplateTypeParamFlag{}
 						);
 
 					}else{
@@ -3038,6 +2976,21 @@ namespace pcit::panther{
 		);
 		return Result::SUCCESS;
 	}
+
+	auto SemanticAnalyzer::instr_type_deducer(const Instruction::TypeDeducer& instr) -> Result {
+		const BaseType::ID new_type_deducer = this->context.type_manager.getOrCreateTypeDeducer(
+			BaseType::TypeDeducer(instr.type_deducer_token, this->source.getID())
+		);
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::TYPE,
+			TermInfo::ValueStage::CONSTEXPR,
+			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(new_type_deducer))),
+			std::nullopt
+		);
+		return Result::SUCCESS;
+	}
+
 
 
 
@@ -3453,20 +3406,14 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, sema::TemplatedStruct::ID>()){
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::TEMPLATE_TYPE,
-						TermInfo::ValueStage::CONSTEXPR,
-						ident_id,
-						std::nullopt
+						TermInfo::ValueCategory::TEMPLATE_TYPE, TermInfo::ValueStage::CONSTEXPR, ident_id, std::nullopt
 					)
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateTypeParam>()){
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::TYPE,
-						TermInfo::ValueStage::CONSTEXPR,
-						ident_id.typeID,
-						std::nullopt
+						TermInfo::ValueCategory::TYPE, TermInfo::ValueStage::CONSTEXPR, ident_id.typeID, std::nullopt
 					)
 				);
 
@@ -3477,6 +3424,13 @@ namespace pcit::panther{
 						TermInfo::ValueStage::CONSTEXPR,
 						ident_id.typeID,
 						ident_id.value
+					)
+				);
+
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::DeducedType>()){
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::TYPE, TermInfo::ValueStage::CONSTEXPR, ident_id.typeID, std::nullopt
 					)
 				);
 
@@ -3646,7 +3600,6 @@ namespace pcit::panther{
 			}
 		}
 	}
-
 
 
 
@@ -4031,10 +3984,99 @@ namespace pcit::panther{
 	}
 
 
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::func_call_impl(
+		const AST::FuncCall& func_call,
+		const TermInfo& target_term_info,
+		const evo::SmallVector<SymbolProcTermInfoID>& args
+	) -> evo::Result<FuncCallImplData> {
+		bool is_intrinsic = false;
+		if(target_term_info.value_category == TermInfo::ValueCategory::FUNCTION){
+			// do nothing...
+		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTRINSIC_FUNC){
+			is_intrinsic = true;
+		}else{
+			this->emit_error(
+				Diagnostic::Code::SEMA_CANNOT_CALL_LIKE_FUNCTION,
+				func_call.target,
+				"Cannot call expression like a function"
+			);
+			return evo::resultError;
+		}
 
-	auto SemanticAnalyzer::expr_in_func_is_valid_value_stage(
-		const TermInfo& term_info, const auto& node_location
-	) -> bool {
+		const TypeManager& type_manager = this->context.getTypeManager();
+
+
+		auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
+		if(is_intrinsic) [[unlikely]] {
+			const TypeInfo::ID type_info_id = target_term_info.type_id.as<TypeInfo::ID>();
+			const TypeInfo& type_info = type_manager.getTypeInfo(type_info_id);
+			const BaseType::Function& func_type = type_manager.getFunction(type_info.baseTypeID().funcID());
+			func_infos.emplace_back(std::nullopt, func_type);
+
+		}else{
+			using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>;
+			for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
+				if(func_overload.is<sema::Func::ID>()){
+					const sema::Func& sema_func =
+						this->context.getSemaBuffer().getFunc(func_overload.as<sema::Func::ID>());
+					const BaseType::Function& func_type = type_manager.getFunction(sema_func.typeID);
+					func_infos.emplace_back(func_overload.as<sema::Func::ID>(), func_type);
+				}
+			}
+		}
+
+
+		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>();
+		for(size_t i = 0; const SymbolProc::TermInfoID& arg : args){
+			TermInfo& arg_term_info = this->get_term_info(arg);
+
+			if constexpr(IS_CONSTEXPR){
+				if(arg_term_info.value_stage != TermInfo::ValueStage::CONSTEXPR){
+					this->emit_error(
+						Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
+						func_call.args[i].value,
+						"Arguments in a constexpr function call must have a value stage of constexpr",
+						Diagnostic::Info(
+							std::format(
+								"Value stage of the argument is {}",
+								arg_term_info.value_stage == TermInfo::ValueStage::COMPTIME ? "comptime" : "runtime"
+							)
+						)
+					);
+					return evo::resultError;
+				}
+			}else{
+				if(this->expr_in_func_is_valid_value_stage(arg_term_info, func_call.args[i].value) == false){
+					return evo::resultError;
+				}
+			}
+
+			arg_infos.emplace_back(arg_term_info, func_call.args[i]);
+			i += 1;
+		}
+
+
+		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
+			func_infos, arg_infos, func_call.target
+		);
+		if(selected_func_overload_index.isError()){ return evo::resultError; }
+
+
+		const std::optional<sema::Func::ID> selected_func_id = func_infos[selected_func_overload_index.value()].func_id;
+		const sema::Func* selected_func = nullptr;
+		if(!is_intrinsic){ selected_func = &this->context.sema_buffer.getFunc(*selected_func_id); }
+		const BaseType::Function& selected_func_type = func_infos[selected_func_overload_index.value()].func_type;
+
+
+		return FuncCallImplData(is_intrinsic, selected_func_id, selected_func, selected_func_type);
+	}
+
+
+
+
+	auto SemanticAnalyzer::expr_in_func_is_valid_value_stage(const TermInfo& term_info, const auto& node_location)
+	-> bool {
 		if(this->get_current_func().isConstexpr == false){ return true; }
 
 		if(term_info.value_stage != TermInfo::ValueStage::RUNTIME){ return true; }
@@ -4047,7 +4089,6 @@ namespace pcit::panther{
 
 		return false;
 	}
-
 
 
 
@@ -4076,7 +4117,9 @@ namespace pcit::panther{
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){return evo::resultError;}
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
 
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
@@ -4424,6 +4467,8 @@ namespace pcit::panther{
 			"first character of expected_type_location_name should be upper-case"
 		);
 
+		const TypeManager& type_manager = this->context.getTypeManager();
+
 		TypeInfo::ID actual_expected_type_id = this->get_actual_type<false>(expected_type_id);
 
 		switch(got_expr.value_category){
@@ -4441,15 +4486,37 @@ namespace pcit::panther{
 						location,
 						std::format("Cannot set {} with multiple values", name_copy)
 					);
-					return TypeCheckInfo(false, false);
+					return TypeCheckInfo::fail();
 				}
+
 
 				TypeInfo::ID actual_got_type_id = this->get_actual_type<false>(got_expr.type_id.as<TypeInfo::ID>());
 
 				// if types are not exact, check if implicit conversion is valid
 				if(actual_expected_type_id != actual_got_type_id){
-					const TypeInfo& expected_type = this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
-					const TypeInfo& got_type      = this->context.getTypeManager().getTypeInfo(actual_got_type_id);
+					const TypeInfo& expected_type = type_manager.getTypeInfo(actual_expected_type_id);
+					const TypeInfo& got_type      = type_manager.getTypeInfo(actual_got_type_id);
+
+
+					if(expected_type.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER){
+						evo::Result<evo::SmallVector<DeducedType>> extracted_type_deducers
+							= this->extract_type_deducers(actual_expected_type_id, actual_got_type_id);
+
+						if(extracted_type_deducers.isError()){
+							if constexpr(IS_NOT_ARGUMENT){
+								// TODO: better messaging
+								this->emit_error(
+									Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO: more specific code
+									location,
+									"Type deducer not able to deduce type"
+								);
+							}
+							return TypeCheckInfo::fail();
+						}
+
+						return TypeCheckInfo::success(false, std::move(extracted_type_deducers.value()));
+					}
+
 
 					if(
 						expected_type.baseTypeID()        != got_type.baseTypeID() || 
@@ -4461,7 +4528,7 @@ namespace pcit::panther{
 								expected_type_id, got_expr, expected_type_location_name, location
 							);
 						}
-						return TypeCheckInfo(false, false);
+						return TypeCheckInfo::fail();
 					}
 
 					// TODO: optimze this?
@@ -4475,7 +4542,7 @@ namespace pcit::panther{
 									expected_type_id, got_expr, expected_type_location_name, location
 								);
 							}
-							return TypeCheckInfo(false, false);
+							return TypeCheckInfo::fail();
 						}
 						if(expected_qualifier.isReadOnly == false && got_qualifier.isReadOnly){
 							if constexpr(IS_NOT_ARGUMENT){
@@ -4483,7 +4550,7 @@ namespace pcit::panther{
 									expected_type_id, got_expr, expected_type_location_name, location
 								);
 							}
-							return TypeCheckInfo(false, false);
+							return TypeCheckInfo::fail();
 						}
 					}
 				}
@@ -4492,30 +4559,40 @@ namespace pcit::panther{
 					EVO_DEFER([&](){ got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id); });
 				}
 
-				return TypeCheckInfo(true, got_expr.type_id.as<TypeInfo::ID>() != expected_type_id);
+				return TypeCheckInfo::success(got_expr.type_id.as<TypeInfo::ID>() != expected_type_id);
 			} break;
 
 			case TermInfo::ValueCategory::EPHEMERAL_FLUID: {
 				const TypeInfo& expected_type_info = 
-					this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
+					type_manager.getTypeInfo(actual_expected_type_id);
 
 				if(
 					expected_type_info.qualifiers().empty() == false || 
 					expected_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
 				){
 					if constexpr(IS_NOT_ARGUMENT){
-						this->error_type_mismatch(
-							expected_type_id, got_expr, expected_type_location_name, location
-						);
+						if(expected_type_info.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER){
+							// TODO: better messaging
+							this->emit_error(
+								Diagnostic::Code::SEMA_CANNOT_INFER_TYPE,
+								location,
+								"Cannot deduce the type of a fluid value"
+							);
+
+						}else{
+							this->error_type_mismatch(
+								expected_type_id, got_expr, expected_type_location_name, location
+							);
+						}
 					}
-					return TypeCheckInfo(false, false);
+					return TypeCheckInfo::fail();
 				}
 
 				const BaseType::Primitive::ID expected_type_primitive_id =
 					expected_type_info.baseTypeID().primitiveID();
 
 				const BaseType::Primitive& expected_type_primitive = 
-					this->context.getTypeManager().getPrimitive(expected_type_primitive_id);
+					type_manager.getPrimitive(expected_type_primitive_id);
 
 				if(got_expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 					bool is_unsigned = true;
@@ -4547,13 +4624,11 @@ namespace pcit::panther{
 									expected_type_id, got_expr, expected_type_location_name, location
 								);
 							}
-							return TypeCheckInfo(false, false);
+							return TypeCheckInfo::fail();
 						}
 					}
 
 					if constexpr(IS_NOT_ARGUMENT){
-						const TypeManager& type_manager = this->context.getTypeManager();
-
 						const sema::IntValue::ID int_value_id = got_expr.getExpr().intValueID();
 						sema::IntValue& int_value = this->context.sema_buffer.int_values[int_value_id];
 
@@ -4565,7 +4640,7 @@ namespace pcit::panther{
 									"Cannot implicitly convert this fluid value to the target type",
 									Diagnostic::Info("Fluid value is negative and target type is unsigned")
 								);
-								return TypeCheckInfo(false, false);
+								return TypeCheckInfo::fail();
 							}
 						}
 
@@ -4587,7 +4662,7 @@ namespace pcit::panther{
 										"Cannot implicitly convert this fluid value to the target type",
 										Diagnostic::Info("Requires truncation (maybe use [as] operator)")
 									);
-									return TypeCheckInfo(false, false);
+									return TypeCheckInfo::fail();
 								}
 							}else{
 								if(int_value.value.slt(target_min) || int_value.value.sgt(target_max)){
@@ -4597,7 +4672,7 @@ namespace pcit::panther{
 										"Cannot implicitly convert this fluid value to the target type",
 										Diagnostic::Info("Requires truncation (maybe use [as] operator)")
 									);
-									return TypeCheckInfo(false, false);
+									return TypeCheckInfo::fail();
 								}
 							}
 
@@ -4607,7 +4682,7 @@ namespace pcit::panther{
 						}
 
 
-						int_value.typeID = this->context.getTypeManager().getTypeInfo(expected_type_id).baseTypeID();
+						int_value.typeID = type_manager.getTypeInfo(expected_type_id).baseTypeID();
 					}
 
 				}else{
@@ -4631,13 +4706,11 @@ namespace pcit::panther{
 									expected_type_id, got_expr, expected_type_location_name, location
 								);
 							}
-							return TypeCheckInfo(false, false);
+							return TypeCheckInfo::fail();
 						}
 					}
 
 					if constexpr(IS_NOT_ARGUMENT){
-						const TypeManager& type_manager = this->context.getTypeManager();
-
 						const sema::FloatValue::ID float_value_id = got_expr.getExpr().floatValueID();
 						sema::FloatValue& float_value = this->context.sema_buffer.float_values[float_value_id];
 
@@ -4658,7 +4731,7 @@ namespace pcit::panther{
 								"Cannot implicitly convert this fluid value to the target type",
 								Diagnostic::Info("Requires truncation (maybe use [as] operator)")
 							);
-							return TypeCheckInfo(false, false);
+							return TypeCheckInfo::fail();
 						}
 
 
@@ -4670,7 +4743,7 @@ namespace pcit::panther{
 							break; case Token::Kind::TYPE_F80:  float_value.value = float_value.value.asF80();
 							break; case Token::Kind::TYPE_F128: float_value.value = float_value.value.asF128();
 							break; case Token::Kind::TYPE_C_LONG_DOUBLE: {
-								if(this->context.getTypeManager().sizeOf(expected_type_info.baseTypeID()) == 8){
+								if(type_manager.sizeOf(expected_type_info.baseTypeID()) == 8){
 									float_value.value = float_value.value.asF64();
 								}else{
 									float_value.value = float_value.value.asF128();
@@ -4678,7 +4751,7 @@ namespace pcit::panther{
 							}
 						}
 
-						float_value.typeID = this->context.getTypeManager().getTypeInfo(expected_type_id).baseTypeID();
+						float_value.typeID = type_manager.getTypeInfo(expected_type_id).baseTypeID();
 					}
 				}
 
@@ -4687,7 +4760,7 @@ namespace pcit::panther{
 					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
 				}
 
-				return TypeCheckInfo(true, true);
+				return TypeCheckInfo::success(true);
 			} break;
 
 			case TermInfo::ValueCategory::INITIALIZER:
@@ -4805,6 +4878,33 @@ namespace pcit::panther{
 			),
 			std::move(infos)
 		);
+	}
+
+
+
+	auto SemanticAnalyzer::extract_type_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
+	-> evo::Result<evo::SmallVector<DeducedType>> {
+		const TypeManager& type_manager = this->context.getTypeManager();
+
+		auto output = evo::SmallVector<DeducedType>();
+
+		const TypeInfo& deducer  = type_manager.getTypeInfo(deducer_id);
+		const TypeInfo& got_type = type_manager.getTypeInfo(got_type_id);
+
+		if(deducer.qualifiers() != got_type.qualifiers()){ return evo::resultError; }
+
+
+		const BaseType::TypeDeducer& type_deducer = type_manager.getTypeDeducer(deducer.baseTypeID().typeDeducerID());
+
+		// const Source& type_deducer_source = this->context.getSourceManager()[type_deducer.sourceID];
+		const Token& type_deducer_token = this->source.getTokenBuffer()[type_deducer.tokenID];
+
+		if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER){
+			return output;
+		}
+
+		output.emplace_back(got_type_id, type_deducer.tokenID);
+		return output;
 	}
 
 
@@ -4946,8 +5046,8 @@ namespace pcit::panther{
 			if constexpr(IS_FUNC_OVERLOAD_COLLISION){
 				const sema::Func& attempted_decl_func = this->context.getSemaBuffer().getFunc(*attempted_decl_func_id);
 
-				for(const evo::Variant<sema::Func::ID, sema::TemplatedFuncID>& overload_id : first_decl_ident_id){
-					if(overload_id.is<sema::TemplatedFuncID>()){ continue; }
+				for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>& overload_id : first_decl_ident_id){
+					if(overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
 
 					const sema::Func& overload = this->context.sema_buffer.getFunc(overload_id.as<sema::Func::ID>());
 					if(attempted_decl_func.isEquivalentOverload(overload, this->context)){

@@ -28,6 +28,7 @@ namespace pcit::panther{
 
 	struct SourceID : public core::UniqueID<uint32_t, struct SourceID> { 
 		using core::UniqueID<uint32_t, SourceID>::UniqueID;
+		using core::UniqueID<uint32_t, SourceID>::operator==;
 	};
 
 

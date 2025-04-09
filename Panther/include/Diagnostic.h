@@ -71,6 +71,7 @@ namespace pcit::panther{
 			PARSER_TOO_MANY_ATTRIBUTE_ARGS,
 			PARSER_EMPTY_ERROR_RETURN_PARAMS,
 			PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY,
+			PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
 
 
 			//////////////////
@@ -117,6 +118,7 @@ namespace pcit::panther{
 			SEMA_TYPE_MISMATCH,
 			SEMA_ALIAS_CANNOT_BE_VOID,
 			SEMA_CANNOT_INFER_TYPE,
+			SEMA_TYPE_DEDUCER_IN_GLOBAL_VAR,
 
 			// imports
 			SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
@@ -416,20 +418,21 @@ namespace pcit::panther{
 				case Code::TOK_FILE_LOCATION_LIMIT_OOB:             return "T15";
 				// case Code::TOK_DOUBLE_UNDERSCORE_NOT_ALLOWED:       return "T16";
 
-				case Code::PARSER_UNKNOWN_STMT_START:             return "P1";
-				case Code::PARSER_INCORRECT_STMT_CONTINUATION:    return "P2";
-				case Code::PARSER_UNEXPECTED_EOF:                 return "P3";
-				case Code::PARSER_INVALID_KIND_FOR_A_THIS_PARAM:  return "P4";
-				case Code::PARSER_OOO_DEFAULT_VALUE_PARAM:        return "P5";
-				case Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE:  return "P6";
-				case Code::PARSER_ASSUMED_TOKEN_NOT_PRESET:       return "P7";
-				case Code::PARSER_EMPTY_MULTI_ASSIGN:             return "P8";
-				case Code::PARSER_EMPTY_FUNC_RETURN_BLOCK:        return "P9";
-				case Code::PARSER_INVALID_NEW_EXPR:               return "P10";
-				case Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE:      return "P11";
-				case Code::PARSER_TOO_MANY_ATTRIBUTE_ARGS:        return "P12";
-				case Code::PARSER_EMPTY_ERROR_RETURN_PARAMS:      return "P13";
-				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY: return "P14";
+				case Code::PARSER_UNKNOWN_STMT_START:                   return "P1";
+				case Code::PARSER_INCORRECT_STMT_CONTINUATION:          return "P2";
+				case Code::PARSER_UNEXPECTED_EOF:                       return "P3";
+				case Code::PARSER_INVALID_KIND_FOR_A_THIS_PARAM:        return "P4";
+				case Code::PARSER_OOO_DEFAULT_VALUE_PARAM:              return "P5";
+				case Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE:        return "P6";
+				case Code::PARSER_ASSUMED_TOKEN_NOT_PRESET:             return "P7";
+				case Code::PARSER_EMPTY_MULTI_ASSIGN:                   return "P8";
+				case Code::PARSER_EMPTY_FUNC_RETURN_BLOCK:              return "P9";
+				case Code::PARSER_INVALID_NEW_EXPR:                     return "P10";
+				case Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE:            return "P11";
+				case Code::PARSER_TOO_MANY_ATTRIBUTE_ARGS:              return "P12";
+				case Code::PARSER_EMPTY_ERROR_RETURN_PARAMS:            return "P13";
+				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY:       return "P14";
+				case Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT: return "P15";
 
 				// TODO: give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_GLOBAL_STMT:
@@ -462,6 +465,7 @@ namespace pcit::panther{
 				case Code::SEMA_TYPE_MISMATCH:
 				case Code::SEMA_ALIAS_CANNOT_BE_VOID:
 				case Code::SEMA_CANNOT_INFER_TYPE:
+				case Code::SEMA_TYPE_DEDUCER_IN_GLOBAL_VAR:
 				case Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT:
 				case Code::SEMA_SYMBOL_NOT_PUB:
 				case Code::SEMA_FAILED_TO_IMPORT_MODULE:

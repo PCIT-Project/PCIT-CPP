@@ -133,5 +133,9 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, StructTemplateID>::UniqueID; 
 	};
 
+	struct TypeDeducerID : public core::UniqueID<uint32_t, struct TypeDeducerID> {
+		using core::UniqueID<uint32_t, TypeDeducerID>::UniqueID; 
+	};
+
 
 }

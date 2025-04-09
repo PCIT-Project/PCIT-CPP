@@ -193,15 +193,15 @@ namespace pcit::panther{
 			} break;
 
 
-			case AST::Kind::CONDITIONAL:     case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
-			case AST::Kind::UNREACHABLE:     case AST::Kind::BLOCK:            case AST::Kind::FUNC_CALL:
-			case AST::Kind::TEMPLATE_PACK:   case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:
-			case AST::Kind::INFIX:           case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:
-			case AST::Kind::NEW:             case AST::Kind::TYPE:             case AST::Kind::TYPEID_CONVERTER:
-			case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:        case AST::Kind::PRIMITIVE_TYPE:
-			case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:        case AST::Kind::LITERAL:
-			case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:         case AST::Kind::THIS:
-			case AST::Kind::DISCARD: {
+			case AST::Kind::CONDITIONAL:      case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
+			case AST::Kind::UNREACHABLE:      case AST::Kind::BLOCK:            case AST::Kind::FUNC_CALL:
+			case AST::Kind::TEMPLATE_PACK:    case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:
+			case AST::Kind::INFIX:            case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:
+			case AST::Kind::NEW:              case AST::Kind::TYPE_DEDUCER:     case AST::Kind::TYPE:
+			case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:  case AST::Kind::ATTRIBUTE:
+			case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:            case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:          case AST::Kind::UNINIT:           case AST::Kind::ZEROINIT:
+			case AST::Kind::THIS:             case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -225,21 +225,24 @@ namespace pcit::panther{
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 
-		auto type_id = std::optional<SymbolProc::TypeID>();
+		auto decl_def_type_id = std::optional<SymbolProc::TypeID>();
 		if(var_decl.type.has_value()){
 			const evo::Result<SymbolProc::TypeID> type_id_res = 
 				this->analyze_type(this->source.getASTBuffer().getType(*var_decl.type));
 			if(type_id_res.isError()){ return evo::resultError; }
 
 
-			if(var_decl.kind != AST::VarDecl::Kind::Def){
+			if(this->source.getASTBuffer().getType(*var_decl.type).base.kind() == AST::Kind::TYPE_DEDUCER){
+				decl_def_type_id = type_id_res.value();
+
+			}else if(var_decl.kind != AST::VarDecl::Kind::Def){
 				this->add_instruction(
 					Instruction::VarDecl(
 						var_decl, std::move(attribute_params_info.value()), type_id_res.value()
 					)
 				);
 			}else{
-				type_id = type_id_res.value();
+				decl_def_type_id = type_id_res.value();
 			}
 		}
 
@@ -254,15 +257,17 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TermInfoID> value_id = this->analyze_expr<true>(*var_decl.value);
 		if(value_id.isError()){ return evo::resultError; }
 
-		if(var_decl.type.has_value() && var_decl.kind != AST::VarDecl::Kind::Def){
-			this->add_instruction(
-				Instruction::VarDef(var_decl, value_id.value())
-			);
+		if(
+			var_decl.type.has_value()
+			&& var_decl.kind != AST::VarDecl::Kind::Def
+			&& decl_def_type_id.has_value() == false
+		){
+			this->add_instruction(Instruction::VarDef(var_decl, value_id.value()));
 
 		}else{
 			this->add_instruction(
 				Instruction::VarDeclDef(
-					var_decl, std::move(attribute_params_info.value()), type_id, value_id.value()
+					var_decl, std::move(attribute_params_info.value()), decl_def_type_id, value_id.value()
 				)
 			);
 		}
@@ -585,6 +590,14 @@ namespace pcit::panther{
 				return this->analyze_expr_ident<true>(ast_type_base);
 			} break;
 
+			case AST::Kind::TYPE_DEDUCER: {
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				this->add_instruction(
+					Instruction::TypeDeducer(ast_buffer.getTypeDeducer(ast_type_base), new_term_info_id)
+				);
+				return new_term_info_id;
+			} break;
+
 			case AST::Kind::TEMPLATED_EXPR: {
 				const AST::TemplatedExpr& templated_expr = ast_buffer.getTemplatedExpr(ast_type_base);
 
@@ -689,6 +702,7 @@ namespace pcit::panther{
 			case AST::Kind::POSTFIX:          evo::unimplemented("AST::Kind::POSTFIX");
 			case AST::Kind::MULTI_ASSIGN:     evo::unimplemented("AST::Kind::MULTI_ASSIGN");
 			case AST::Kind::NEW:              evo::unimplemented("AST::Kind::NEW");
+			case AST::Kind::TYPE_DEDUCER:     evo::unimplemented("AST::Kind::TYPE_DEDUCER");
 			case AST::Kind::TYPE:             evo::unimplemented("AST::Kind::TYPE");
 			case AST::Kind::TYPEID_CONVERTER: evo::unimplemented("AST::Kind::TYPEID_CONVERTER");
 			case AST::Kind::ATTRIBUTE_BLOCK:  evo::unimplemented("AST::Kind::ATTRIBUTE_BLOCK");
@@ -813,6 +827,19 @@ namespace pcit::panther{
 			case AST::Kind::UNINIT:         return this->analyze_expr_uninit(ast_buffer.getUninit(expr));
 			case AST::Kind::ZEROINIT:       return this->analyze_expr_zeroinit(ast_buffer.getZeroinit(expr));
 			case AST::Kind::THIS:           return this->analyze_expr_this(expr);
+
+			case AST::Kind::TYPE_DEDUCER: {
+				evo::debugAssert(
+					MUST_BE_EXPR == false, "Type deducer should never be allowed in a place where exprs might be"
+				);
+
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					expr,
+					"Building symbol proc of type deducer is unimplemented"
+				);
+				return evo::resultError;
+			} break;
 
 			case AST::Kind::TYPE: {
 				if constexpr(MUST_BE_EXPR){

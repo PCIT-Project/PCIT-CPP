@@ -103,6 +103,7 @@ namespace pcit::panther{
 			
 			enum class TypeKind{
 				EXPLICIT,
+				EXPLICIT_MAYBE_DEDUCER,
 				EXPR, // For use with `as`
 				TEMPLATE_ARG,
 			};

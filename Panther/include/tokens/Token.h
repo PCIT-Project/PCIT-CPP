@@ -20,8 +20,8 @@ namespace pcit::panther{
 	class Token{
 		public:
 			struct ID : public core::UniqueID<uint32_t, ID> { // ID lookup in TokenBuffer
-				public:
-					using core::UniqueID<uint32_t, ID>::UniqueID;
+				using core::UniqueID<uint32_t, ID>::UniqueID;
+				using core::UniqueID<uint32_t, ID>::operator==;
 			};
 
 			enum class Kind : uint32_t {
@@ -30,6 +30,8 @@ namespace pcit::panther{
 				IDENT,
 				INTRINSIC,
 				ATTRIBUTE,
+				TYPE_DEDUCER,
+				ANONYMOUS_TYPE_DEDUCER,
 
 				
 				///////////////////////////////////
@@ -272,8 +274,12 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getString() const -> std::string_view {
 				evo::debugAssert(
-					this->_kind == Kind::LITERAL_STRING || this->_kind == Kind::LITERAL_CHAR ||
-					this->_kind == Kind::IDENT || this->_kind == Kind::INTRINSIC || this->_kind == Kind::ATTRIBUTE,
+					this->_kind == Kind::LITERAL_STRING 
+					|| this->_kind == Kind::LITERAL_CHAR
+					|| this->_kind == Kind::IDENT 
+					|| this->_kind == Kind::INTRINSIC
+					|| this->_kind == Kind::ATTRIBUTE
+					|| this->_kind == Kind::TYPE_DEDUCER,
 					"Token does not have a string value"
 				);
 
@@ -303,6 +309,7 @@ namespace pcit::panther{
 
 
 				// length 2
+				if(op_str == "$$"){ return Kind::ANONYMOUS_TYPE_DEDUCER; }
 				if(op_str == "->"){ return Kind::RIGHT_ARROW; }
 				if(op_str == "&|"){ return Kind::READ_ONLY_ADDRESS_OF; }
 
@@ -388,6 +395,8 @@ namespace pcit::panther{
 					break; case Kind::IDENT:                    return "IDENT";
 					break; case Kind::INTRINSIC:                return "INTRINSIC";
 					break; case Kind::ATTRIBUTE:                return "ATTRIBUTE";
+					break; case Kind::TYPE_DEDUCER:             return "TYPE_DEDUCER";
+					break; case Kind::ANONYMOUS_TYPE_DEDUCER:   return "$$";
 
 
 					///////////////////////////////////

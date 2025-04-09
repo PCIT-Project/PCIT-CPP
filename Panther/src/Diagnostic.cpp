@@ -56,6 +56,7 @@ namespace pcit::panther{
 			case AST::Kind::POSTFIX:          return Location::get(ast_buffer.getPostfix(node), src);
 			case AST::Kind::MULTI_ASSIGN:     return Location::get(ast_buffer.getMultiAssign(node), src);
 			case AST::Kind::NEW:              return Location::get(ast_buffer.getNew(node), src);
+			case AST::Kind::TYPE_DEDUCER:     return Location::get(ast_buffer.getTypeDeducer(node), src);
 			case AST::Kind::TYPE:             return Location::get(ast_buffer.getType(node), src);
 			case AST::Kind::TYPEID_CONVERTER: return Location::get(ast_buffer.getTypeIDConverter(node), src);
 			case AST::Kind::ATTRIBUTE_BLOCK:  evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");

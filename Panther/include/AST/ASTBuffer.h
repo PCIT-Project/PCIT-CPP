@@ -55,6 +55,11 @@ namespace pcit::panther{
 				return node._value.token_id;
 			}
 
+			EVO_NODISCARD static auto getTypeDeducer(const AST::Node& node) -> Token::ID {
+				evo::debugAssert(node.kind() == AST::Kind::TYPE_DEDUCER, "Node is not a TypeDeducer");
+				return node._value.token_id;
+			}
+
 			EVO_NODISCARD static auto getUninit(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.kind() == AST::Kind::UNINIT, "Node is not a Uninit");
 				return node._value.token_id;
@@ -279,7 +284,6 @@ namespace pcit::panther{
 				evo::debugAssert(node.kind() == AST::Kind::NEW, "Node is not a New");
 				return this->news[node._value.node_index];
 			}
-
 
 
 			EVO_NODISCARD auto createType(auto&&... args) -> AST::Node {

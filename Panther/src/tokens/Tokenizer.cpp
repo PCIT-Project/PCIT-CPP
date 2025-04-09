@@ -247,6 +247,11 @@ namespace pcit::panther{
 			}else if(this->char_stream.peek() == '#'){
 				kind = Token::Kind::ATTRIBUTE;
 				this->char_stream.skip(1);
+
+			}else if(this->char_stream.peek() == '$'){
+				kind = Token::Kind::TYPE_DEDUCER;
+				this->char_stream.skip(1);
+
 			}else{
 				return false;
 			}
@@ -772,6 +777,14 @@ namespace pcit::panther{
 				if(ammount_left > 1 && this->char_stream.peek(1) == '>'){
 					this->char_stream.skip(evo::stringSize("}>"));
 					this->create_token(Token::lookupKind("}>"));
+					return true;
+				}
+			} break;
+
+			case '$': {
+				if(ammount_left > 1 && this->char_stream.peek(1) == '$'){
+					this->char_stream.skip(evo::stringSize("$$"));
+					this->create_token(Token::lookupKind("$$"));
 					return true;
 				}
 			} break;
@@ -1433,7 +1446,7 @@ namespace pcit::panther{
 				Diagnostic::Code::TOK_UNRECOGNIZED_CHARACTER,
 				current_location.value(),
 				std::format(
-					"Unrecognized or unexpected character \"{}\" (charcode: {})",
+					"Unrecognized or unexpected character \"{}\" (ASCII charcode: 0x{:x})",
 					evo::printCharName(peeked_char),
 					int(peeked_char)
 				)

@@ -192,6 +192,22 @@ namespace pcit::panther{
 					return std::string(token_buffer[struct_template_info.identTokenID].getString());
 				} break;
 
+				case BaseType::Kind::TYPE_DEDUCER: {
+					const BaseType::TypeDeducer::ID type_deducer_id = type_info.baseTypeID().typeDeducerID();
+					const BaseType::TypeDeducer& type_deducer = this->getTypeDeducer(type_deducer_id);
+
+					const Token& token = source_manager[type_deducer.sourceID].getTokenBuffer()[type_deducer.tokenID];
+
+					if(token.kind() == Token::Kind::TYPE_DEDUCER){
+						return std::format("${}", token.getString());
+					}else{
+						evo::debugAssert(
+							token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER, "Unknown type deducer kind"
+						);
+						return "$$";
+					}
+				} break;
+
 				case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
 			}
 
@@ -404,6 +420,29 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// type deducer
+
+	auto TypeManager::getTypeDeducer(BaseType::TypeDeducer::ID id) const -> const BaseType::TypeDeducer& {
+		const auto lock = std::scoped_lock(this->type_deducers_lock);
+		return this->type_deducers[id];
+	}
+
+
+	auto TypeManager::getOrCreateTypeDeducer(BaseType::TypeDeducer&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->type_deducers_lock);
+
+		for(uint32_t i = 0; i < this->type_deducers.size(); i+=1){
+			if(this->type_deducers[BaseType::TypeDeducer::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::TYPE_DEDUCER, i);
+			}
+		}
+
+		const BaseType::TypeDeducer::ID new_type_deducer = this->type_deducers.emplace_back(std::move(lookup_type));
+		return BaseType::ID(BaseType::Kind::TYPE_DEDUCER, new_type_deducer.get());
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
 	// type traits
 
 	// https://stackoverflow.com/a/1766566
@@ -508,6 +547,11 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE: {
 				// TODO: handle this better?
 				evo::debugAssert("Cannot get size of Struct Template");
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				// TODO: handle this better?
+				evo::debugAssert("Cannot get size of type deducer");
 			} break;
 
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
@@ -779,10 +823,10 @@ namespace pcit::panther{
 	// TODO: optimize this function
 	auto TypeManager::getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID> {
 		switch(id.kind()){
-			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
+			case BaseType::Kind::DUMMY:     evo::debugFatalBreak("Dummy type should not be used");
 			case BaseType::Kind::PRIMITIVE: break;
-			case BaseType::Kind::FUNCTION: return evo::resultError;
-			case BaseType::Kind::ARRAY: return evo::resultError;
+			case BaseType::Kind::FUNCTION:  return evo::resultError;
+			case BaseType::Kind::ARRAY:     return evo::resultError;
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
@@ -795,8 +839,9 @@ namespace pcit::panther{
 				);
 				return this->getUnderlyingType(*typedef_info.underlyingType.load());
 			} break;
-			case BaseType::Kind::STRUCT: return evo::resultError;
+			case BaseType::Kind::STRUCT:          return evo::resultError;
 			case BaseType::Kind::STRUCT_TEMPLATE: return evo::resultError;
+			case BaseType::Kind::TYPE_DEDUCER:    return evo::resultError;
 		}
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());

@@ -44,6 +44,7 @@ namespace pcit::panther{
 			TYPEDEF,
 			STRUCT,
 			STRUCT_TEMPLATE,
+			TYPE_DEDUCER,
 		};
 
 
@@ -272,6 +273,19 @@ namespace pcit::panther{
 		};
 
 
+		// TODO: is `.sourceID` ever actually used (outside of operator==), or can this `tokenID` be "inlined" into ID?
+		struct TypeDeducer{
+			using ID = TypeDeducerID;
+
+			Token::ID tokenID;
+			SourceID sourceID;
+
+			auto operator==(const TypeDeducer& rhs) const -> bool {
+				return this->tokenID == rhs.tokenID && this->sourceID == rhs.sourceID;
+			}
+		};
+
+
 
 		struct ID{
 			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
@@ -311,6 +325,11 @@ namespace pcit::panther{
 				return StructTemplate::ID(this->_id);
 			}
 
+			EVO_NODISCARD auto typeDeducerID() const -> TypeDeducer::ID {
+				evo::debugAssert(this->kind() == Kind::TYPE_DEDUCER, "not a type deducer");
+				return TypeDeducer::ID(this->_id);
+			}
+
 
 			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
 
@@ -320,13 +339,15 @@ namespace pcit::panther{
 			}
 
 
-			explicit ID(Primitive::ID id)      : _kind(Kind::PRIMITIVE),      _id(id.get()) {}
-			explicit ID(Function::ID id)       : _kind(Kind::FUNCTION),       _id(id.get()) {}
-			explicit ID(Array::ID id)          : _kind(Kind::ARRAY),          _id(id.get()) {}
-			explicit ID(Alias::ID id)          : _kind(Kind::ALIAS),          _id(id.get()) {}
-			explicit ID(Typedef::ID id)        : _kind(Kind::TYPEDEF),        _id(id.get()) {}
-			explicit ID(Struct::ID id)         : _kind(Kind::STRUCT),         _id(id.get()) {}
+			explicit ID(Primitive::ID id)      : _kind(Kind::PRIMITIVE),       _id(id.get()) {}
+			explicit ID(Function::ID id)       : _kind(Kind::FUNCTION),        _id(id.get()) {}
+			explicit ID(Array::ID id)          : _kind(Kind::ARRAY),           _id(id.get()) {}
+			explicit ID(Alias::ID id)          : _kind(Kind::ALIAS),           _id(id.get()) {}
+			explicit ID(Typedef::ID id)        : _kind(Kind::TYPEDEF),         _id(id.get()) {}
+			explicit ID(Struct::ID id)         : _kind(Kind::STRUCT),          _id(id.get()) {}
 			explicit ID(StructTemplate::ID id) : _kind(Kind::STRUCT_TEMPLATE), _id(id.get()) {}
+			explicit ID(TypeDeducer::ID id)    : _kind(Kind::TYPE_DEDUCER), _id(id.get()) {}
+
 
 			private:
 				constexpr ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
@@ -429,6 +450,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) const
 				-> const BaseType::StructTemplate&;
 			EVO_NODISCARD auto getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID;
+
+			EVO_NODISCARD auto getTypeDeducer(BaseType::TypeDeducer::ID id) const -> const BaseType::TypeDeducer&;
+			EVO_NODISCARD auto getOrCreateTypeDeducer(BaseType::TypeDeducer&& lookup_type) -> BaseType::ID;
 			
 			
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0); }
@@ -519,6 +543,9 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::StructTemplate, BaseType::StructTemplate::ID> struct_templates{};
 			mutable core::SpinLock struct_templates_lock{};
+
+			core::LinearStepAlloc<BaseType::TypeDeducer, BaseType::TypeDeducer::ID> type_deducers{};
+			mutable core::SpinLock type_deducers_lock{};
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable core::SpinLock types_lock{};

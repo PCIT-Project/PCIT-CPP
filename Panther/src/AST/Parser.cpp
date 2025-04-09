@@ -93,7 +93,7 @@ namespace pcit::panther{
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(":")){
 			if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::ERROR; }
 
-			const Result type_result = this->parse_type<TypeKind::EXPLICIT>();
+			const Result type_result = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
 			if(this->check_result_fail(type_result, "type after [:] in variable declaration")){
 				return Result::Code::ERROR;
 			}
@@ -671,6 +671,7 @@ namespace pcit::panther{
 	auto Parser::parse_type() -> Result {
 		const Token::ID start_location = this->reader.peek();
 		bool is_primitive = true;
+		bool is_type_deducer = false;
 		switch(this->reader[start_location].kind()){
 			case Token::Kind::TYPE_VOID:
 			case Token::Kind::TYPE_THIS:
@@ -710,6 +711,11 @@ namespace pcit::panther{
 
 			case Token::Kind::IDENT: case Token::Kind::INTRINSIC: {
 				is_primitive = false;
+			} break;
+
+			case Token::Kind::TYPE_DEDUCER: case Token::Kind::ANONYMOUS_TYPE_DEDUCER: {
+				is_primitive = false;
+				is_type_deducer = true;
 			} break;
 
 			default: return Result::Code::WRONG_TYPE;
@@ -761,6 +767,18 @@ namespace pcit::panther{
 
 				return Result(AST::Node(AST::Kind::PRIMITIVE_TYPE, base_type_token_id));
 
+			}else if(is_type_deducer){
+				if constexpr(KIND != TypeKind::EXPLICIT_MAYBE_DEDUCER){
+					this->context.emitError(
+						Diagnostic::Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						"Type deducers are not allowed in this context"
+					);
+					return Result(Result::Code::ERROR);
+				}else{
+					return Result(AST::Node(AST::Kind::TYPE_DEDUCER, this->reader.next()));
+				}
+
 			}else if(this->reader[start_location].kind() == Token::Kind::TYPE_TYPE){
 				if(this->assert_token_fail(Token::Kind::TYPE_TYPE)){ return Result(Result::Code::ERROR); }
 				if(this->assert_token_fail(Token::lookupKind("("))){ return Result(Result::Code::ERROR); }
@@ -777,7 +795,7 @@ namespace pcit::panther{
 				return Result(this->source.ast_buffer.createTypeIDConverter(type_id_expr.value()));
 
 			}else{
-				if constexpr(KIND == TypeKind::EXPLICIT){
+				if constexpr(KIND == TypeKind::EXPLICIT || KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
 					return this->parse_term<TermKind::EXPLICIT_TYPE>();
 
 				}else if constexpr(KIND == TypeKind::EXPR){

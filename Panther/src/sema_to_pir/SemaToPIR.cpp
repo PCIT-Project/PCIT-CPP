@@ -1021,6 +1021,10 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE: {
 				evo::debugFatalBreak("Cannot get type of struct template");
 			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				evo::debugFatalBreak("Cannot get type of type deducer");
+			} break;
 		}
 
 		return this->module.createIntegerType(12);

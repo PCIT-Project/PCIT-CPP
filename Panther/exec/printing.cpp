@@ -176,9 +176,10 @@ namespace pthr{
 
 			const std::string data_str = [&]() {
 				switch(token.kind()){
-					break; case panther::Token::Kind::IDENT:     return std::format(" {}", token.getString());
-					break; case panther::Token::Kind::INTRINSIC: return std::format(" @{}", token.getString());
-					break; case panther::Token::Kind::ATTRIBUTE: return std::format(" #{}", token.getString());
+					break; case panther::Token::Kind::IDENT:          return std::format(" {}", token.getString());
+					break; case panther::Token::Kind::INTRINSIC:      return std::format(" @{}", token.getString());
+					break; case panther::Token::Kind::ATTRIBUTE:      return std::format(" #{}", token.getString());
+					break; case panther::Token::Kind::TYPE_DEDUCER:   return std::format(" ${}", token.getString());
 
 					break; case panther::Token::Kind::LITERAL_BOOL:   return std::format(" {}", token.getBool());
 					break; case panther::Token::Kind::LITERAL_INT:    return std::format(" {}", token.getInt());
@@ -186,8 +187,8 @@ namespace pthr{
 					break; case panther::Token::Kind::LITERAL_CHAR:   return std::format(" \'{}\'", token.getString());
 					break; case panther::Token::Kind::LITERAL_STRING: return std::format(" \"{}\"", token.getString());
 
-					break; case panther::Token::Kind::TYPE_I_N: return std::format(" {}", token.getBitWidth());
-					break; case panther::Token::Kind::TYPE_UI_N: return std::format(" {}", token.getBitWidth());
+					break; case panther::Token::Kind::TYPE_I_N:       return std::format(" {}", token.getBitWidth());
+					break; case panther::Token::Kind::TYPE_UI_N:      return std::format(" {}", token.getBitWidth());
 
 					break; default: return std::string();
 				}
@@ -793,7 +794,6 @@ namespace pthr{
 						}else{
 							this->printer.printMagenta("{}", type_token.kind());
 						}
-
 					} break;
 
 					case panther::AST::Kind::IDENT: {
@@ -804,6 +804,23 @@ namespace pthr{
 					case panther::AST::Kind::INTRINSIC: {
 						const panther::Token::ID type_token_id = this->ast_buffer.getIntrinsic(base_type);
 						this->printer.printMagenta("@{}", this->source.getTokenBuffer()[type_token_id].getString());
+					} break;
+
+					case panther::AST::Kind::TYPE_DEDUCER: {
+						const panther::Token::ID type_token_id = this->ast_buffer.getTypeDeducer(base_type);
+						const panther::Token& type_token = this->source.getTokenBuffer()[type_token_id];
+
+						if(type_token.kind() == panther::Token::Kind::TYPE_DEDUCER){
+							this->printer.printMagenta("${}", type_token.getString());
+							
+						}else{
+							evo::debugAssert(
+								type_token.kind() == panther::Token::Kind::ANONYMOUS_TYPE_DEDUCER,
+								"Unknown type deducer kind"
+							);
+							this->printer.printMagenta("$$");
+						}
+
 					} break;
 
 					case panther::AST::Kind::INFIX: {

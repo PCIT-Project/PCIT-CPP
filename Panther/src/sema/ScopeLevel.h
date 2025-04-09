@@ -39,12 +39,19 @@ namespace pcit::panther::sema{
 				TypeInfoVoidableID typeID;
 				Token::ID location;
 			};
+			struct TemplateTypeParamFlag{}; // to differentiate which overload of addIdent
 
 			struct TemplateExprParam{
 				TypeInfoID typeID;
 				sema::Expr value;
 				Token::ID location;	
 			};
+
+			struct DeducedType{
+				TypeInfoVoidableID typeID;
+				Token::ID location;
+			};
+			struct DeducedTypeFlag{}; // to differentiate which overload of addIdent
 
 			using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
 
@@ -59,7 +66,8 @@ namespace pcit::panther::sema{
 				BaseType::StructID,
 				sema::TemplatedStructID,
 				TemplateTypeParam,
-				TemplateExprParam
+				TemplateExprParam,
+				DeducedType
 			>;
 
 		public:
@@ -93,10 +101,14 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::TypedefID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::StructID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult;
-			EVO_NODISCARD auto addIdent(std::string_view ident, TypeInfoVoidableID typeID, Token::ID location)
-				-> AddIdentResult;
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, TemplateTypeParamFlag
+			) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, TypeInfoID typeID, sema::Expr value, Token::ID location)
 				-> AddIdentResult;
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, DeducedTypeFlag
+			) -> AddIdentResult;
 
 			// returns false if is a redefinition
 			EVO_NODISCARD auto disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool;

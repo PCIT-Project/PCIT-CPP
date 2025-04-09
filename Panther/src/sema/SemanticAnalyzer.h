@@ -107,6 +107,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_literal(const Instruction::Literal& instr) -> Result;
 			EVO_NODISCARD auto instr_uninit(const Instruction::Uninit& instr) -> Result;
 			EVO_NODISCARD auto instr_zeroinit(const Instruction::Zeroinit& instr) -> Result;
+			EVO_NODISCARD auto instr_type_deducer(const Instruction::TypeDeducer& instr) -> Result;
 
 
 			///////////////////////////////////
@@ -167,6 +168,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID;
 
 
+
 			struct SelectFuncOverloadFuncInfo{
 				std::optional<sema::Func::ID> func_id; // nullopt means it's an intrinsic
 				const BaseType::Function& func_type;
@@ -183,6 +185,19 @@ namespace pcit::panther{
 				const auto& call_node
 			) -> evo::Result<size_t>; // returns index of selected overload
 
+
+			struct FuncCallImplData{
+				bool is_intrinsic;
+				std::optional<sema::Func::ID> selected_func_id;
+				const sema::Func* selected_func;
+				const BaseType::Function& selected_func_type;
+			};
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto func_call_impl(
+				const AST::FuncCall& func_call,
+				const TermInfo& target_term_info,
+				const evo::SmallVector<SymbolProcTermInfoID>& args
+			) -> evo::Result<FuncCallImplData>;
 
 
 			EVO_NODISCARD auto expr_in_func_is_valid_value_stage(
@@ -251,9 +266,31 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// error handling / diagnostics
 
+			struct DeducedType{
+				TypeInfo::VoidableID typeID;
+				Token::ID tokenID;
+			};
+
 			struct TypeCheckInfo{
 				bool ok;
 				bool requires_implicit_conversion; // value is undefined if .ok == false
+
+				evo::SmallVector<DeducedType> deduced_types;
+
+				public:
+					EVO_NODISCARD static auto fail() -> TypeCheckInfo { return TypeCheckInfo(false, false, {}); }
+					EVO_NODISCARD static auto success(bool requires_implicit_conversion) -> TypeCheckInfo {
+						return TypeCheckInfo(true, requires_implicit_conversion, {});
+					}
+					EVO_NODISCARD static auto success(
+						bool requires_implicit_conversion, evo::SmallVector<DeducedType>&& deduced_types
+					) -> TypeCheckInfo {
+						return TypeCheckInfo(true, requires_implicit_conversion, std::move(deduced_types));
+					}
+
+				private:
+					TypeCheckInfo(bool _ok, bool ric, evo::SmallVector<DeducedType>&& _deduced_types)
+						: ok(_ok), requires_implicit_conversion(ric), deduced_types(std::move(_deduced_types)) {}
 			};
 
 			template<bool IS_NOT_ARGUMENT>
@@ -270,6 +307,10 @@ namespace pcit::panther{
 				std::string_view expected_type_location_name,
 				const auto& location
 			) -> void;
+
+
+			EVO_NODISCARD auto extract_type_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
+				-> evo::Result<evo::SmallVector<DeducedType>>;
 
 
 			EVO_NODISCARD auto check_type_qualifiers(
@@ -368,6 +409,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_location(const sema::ScopeLevel::TemplateExprParam& template_expr_param) const
 			-> Diagnostic::Location {
 				return this->get_location(template_expr_param.location);
+			}
+
+			EVO_NODISCARD auto get_location(const sema::ScopeLevel::DeducedType& deduced_type) const
+			-> Diagnostic::Location {
+				return this->get_location(deduced_type.location);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::Func::ID& func) const -> Diagnostic::Location {

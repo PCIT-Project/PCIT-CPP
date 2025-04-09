@@ -73,6 +73,7 @@ namespace pcit::panther::sema{
 						this->scope_levels.pop_back();
 					}
 
+					EVO_NODISCARD auto isGlobalScope() const -> bool { return this->scope_levels.size() == 1; }
 					EVO_NODISCARD auto getGlobalLevel() const -> ScopeLevel::ID { return this->scope_levels.front(); }
 					EVO_NODISCARD auto getCurrentLevel() const -> ScopeLevel::ID { return this->scope_levels.back(); }
 
