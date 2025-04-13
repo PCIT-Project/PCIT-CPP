@@ -1,5 +1,7 @@
 
-def NUM: UI8 = 12;
-const foo: $FOO_TYPE = NUM;
-const bar: FOO_TYPE = NUM;
 
+const foo: UI8 = 12;
+
+func entry = () #entry -> UI8 {
+	return move foo;
+}

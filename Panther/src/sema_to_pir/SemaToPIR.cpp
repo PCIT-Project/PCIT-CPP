@@ -685,11 +685,33 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::COPY: {
-				evo::unimplemented("lower sema::Expr::Kind::Copy");
+				const sema::Expr& copy_expr = this->context.getSemaBuffer().getCopy(expr.copyID());
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->get_expr_register(copy_expr);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->get_expr_pointer(copy_expr);
+					
+				}else{
+					this->get_expr_store(copy_expr, store_locations);
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::MOVE: {
-				evo::unimplemented("lower sema::Expr::Kind::Move");
+				const sema::Expr& move_expr = this->context.getSemaBuffer().getMove(expr.moveID());
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->get_expr_register(move_expr);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->get_expr_pointer(move_expr);
+					
+				}else{
+					this->get_expr_store(move_expr, store_locations);
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::DESTRUCTIVE_MOVE: {

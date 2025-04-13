@@ -92,6 +92,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait& instr)
 				-> Result;
+			EVO_NODISCARD auto instr_copy(const Instruction::Copy& instr) -> Result;
+			EVO_NODISCARD auto instr_move(const Instruction::Move& instr) -> Result;
+
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result;

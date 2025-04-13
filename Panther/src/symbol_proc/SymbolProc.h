@@ -358,6 +358,19 @@ namespace pcit::panther{
 		};
 
 
+		struct Copy{
+			const AST::Prefix& prefix;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
+		struct Move{
+			const AST::Prefix& prefix;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
+
 		//////////////////
 		// accessors
 
@@ -469,6 +482,8 @@ namespace pcit::panther{
 			Import,
 			TemplatedTerm,
 			TemplatedTermWait,
+			Copy,
+			Move,
 
 			// accessors
 			Accessor<true>,

@@ -346,7 +346,7 @@ namespace pcit::panther{
 			explicit ID(Typedef::ID id)        : _kind(Kind::TYPEDEF),         _id(id.get()) {}
 			explicit ID(Struct::ID id)         : _kind(Kind::STRUCT),          _id(id.get()) {}
 			explicit ID(StructTemplate::ID id) : _kind(Kind::STRUCT_TEMPLATE), _id(id.get()) {}
-			explicit ID(TypeDeducer::ID id)    : _kind(Kind::TYPE_DEDUCER), _id(id.get()) {}
+			explicit ID(TypeDeducer::ID id)    : _kind(Kind::TYPE_DEDUCER),    _id(id.get()) {}
 
 
 			private:

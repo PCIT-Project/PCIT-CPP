@@ -164,6 +164,12 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTermWait>()){
 				return this->instr_templated_term_wait(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::Copy>()){
+				return this->instr_copy(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Move>()){
+				return this->instr_move(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::Accessor<true>>()){
 				return this->instr_expr_accessor<true>(instr);
 
@@ -2101,6 +2107,54 @@ namespace pcit::panther{
 
 		evo::unreachable();
 	}
+
+
+	auto SemanticAnalyzer::instr_copy(const Instruction::Copy& instr) -> Result {
+		const TermInfo& target = this->get_term_info(instr.target);
+
+		if(target.is_concrete() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_COPY_ARG_NOT_CONCRETE,
+				instr.prefix,
+				"Argument of operator `copy` must be concrete"
+			);
+			return Result::ERROR;
+		}
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			target.value_stage,
+			target.type_id,
+			sema::Expr(this->context.sema_buffer.createCopy(target.getExpr()))
+		);
+
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_move(const Instruction::Move& instr) -> Result {
+		const TermInfo& target = this->get_term_info(instr.target);
+
+		if(target.is_concrete() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_COPY_ARG_NOT_CONCRETE,
+				instr.prefix,
+				"Argument of operator `move` must be concrete"
+			);
+			return Result::ERROR;
+		}
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			target.value_stage,
+			target.type_id,
+			sema::Expr(this->context.sema_buffer.createMove(target.getExpr()))
+		);
+
+		return Result::SUCCESS;
+	}
+
 
 
 	template<bool NEEDS_DEF>
