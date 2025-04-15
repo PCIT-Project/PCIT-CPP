@@ -248,14 +248,17 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// template intrinsic instantiations
 
-			EVO_NODISCARD auto createTemplatedIntrinsicInstantiation(auto&&... args)
-			-> sema::TemplatedIntrinsicInstantiation::ID {
-				return this->templated_intrinsic_instantiations.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto createTemplateIntrinsicFuncInstantiation(auto&&... args)
+			-> sema::TemplateIntrinsicFuncInstantiation::ID {
+				return this->templated_intrinsic_func_instantiations.emplace_back(
+					std::forward<decltype(args)>(args)...
+				);
 			}
 
-			EVO_NODISCARD auto getTemplatedIntrinsicInstantiation(sema::TemplatedIntrinsicInstantiation::ID id) const
-			-> const sema::TemplatedIntrinsicInstantiation& {
-				return this->templated_intrinsic_instantiations[id];
+			EVO_NODISCARD auto getTemplateIntrinsicFuncInstantiation(
+				sema::TemplateIntrinsicFuncInstantiation::ID id
+			) const -> const sema::TemplateIntrinsicFuncInstantiation& {
+				return this->templated_intrinsic_func_instantiations[id];
 			}
 
 
@@ -370,8 +373,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
 
 			core::SyncLinearStepAlloc<
-				sema::TemplatedIntrinsicInstantiation, sema::TemplatedIntrinsicInstantiation::ID
-			> templated_intrinsic_instantiations{};
+				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID
+			> templated_intrinsic_func_instantiations{};
 
 			core::SyncLinearStepAlloc<sema::IntValue, sema::IntValue::ID> int_values{};
 			core::SyncLinearStepAlloc<sema::FloatValue, sema::FloatValue::ID> float_values{};

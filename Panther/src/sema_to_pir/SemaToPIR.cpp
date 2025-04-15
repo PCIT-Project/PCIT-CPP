@@ -872,7 +872,7 @@ namespace pcit::panther{
 				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_use_std_lib, std::move(args));
 			} break;
 
-			case IntrinsicFunc::Kind::_max_: {
+			case IntrinsicFunc::Kind::_MAX_: {
 				evo::debugFatalBreak("Invalid intrinsic func");
 			} break;
 		}

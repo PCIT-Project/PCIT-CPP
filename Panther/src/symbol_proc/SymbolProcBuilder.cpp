@@ -966,12 +966,34 @@ namespace pcit::panther{
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 
 		if(is_target_template){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				func_call.target,
-				"Templated function calls are currently unimplemented"
-			);
-			return evo::resultError;
+			const AST::TemplatedExpr& target_templated_expr = 
+				this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+
+			auto template_args = evo::SmallVector<SymbolProc::TermInfoID>();
+			template_args.reserve(target_templated_expr.args.size());
+			for(const AST::Node& arg : target_templated_expr.args){
+				const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_term<true>(arg);
+				if(arg_value.isError()){ return evo::resultError; }
+				template_args.emplace_back(arg_value.value());
+			}
+
+			if(this->source.getASTBuffer().getTemplatedExpr(func_call.target).base.kind() == AST::Kind::INTRINSIC){
+				this->add_instruction(
+					Instruction::TemplateIntrinsicFuncCall<IS_CONSTEXPR>(
+						func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
+					)
+				);
+
+				return new_term_info_id;
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					func_call.target,
+					"Templated non-intrinsic function calls  are currently unimplemented"
+				);
+				return evo::resultError;
+			}
 		}
 
 

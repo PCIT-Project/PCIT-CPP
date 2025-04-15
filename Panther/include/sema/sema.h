@@ -20,6 +20,7 @@
 #include "./Stmt.h"
 #include "./Expr.h"
 #include "../../src/symbol_proc/symbol_proc_ids.h"
+#include "../intrinsics.h"
 
 
 namespace pcit::panther{
@@ -63,13 +64,11 @@ namespace pcit::panther::sema{
 	};
 
 
-	struct TemplatedIntrinsicInstantiation{
-		using ID = TemplatedIntrinsicInstantiationID;
+	struct TemplateIntrinsicFuncInstantiation{
+		using ID = TemplateIntrinsicFuncInstantiationID;
 
-	// 	using TemplateArg = evo::Variant<TypeInfo::VoidableID, core::GenericInt, core::GenericFloat, char, bool>;
-
-	// 	TemplatedIntrinsic::Kind kind;
-	// 	evo::SmallVector<TemplateArg> templateArgs;
+		TemplateIntrinsicFunc::Kind kind;
+		evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>> templateArgs;
 	};
 
 
@@ -119,7 +118,7 @@ namespace pcit::panther::sema{
 	struct FuncCall{
 		using ID = FuncCallID;
 
-		evo::Variant<FuncID, IntrinsicFunc::Kind/*, TemplatedIntrinsicInstantiationID*/> target;
+		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID> target;
 		evo::SmallVector<Expr> args;
 		// SourceLocation location;
 	};

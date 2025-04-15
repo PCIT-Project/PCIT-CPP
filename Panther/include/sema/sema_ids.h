@@ -51,9 +51,9 @@ namespace pcit::panther::sema{
 	};
 
 
-	struct TemplatedIntrinsicInstantiationID 
-		: public core::UniqueID<uint32_t, struct TemplatedIntrinsicInstantiationID> {
-		using core::UniqueID<uint32_t, TemplatedIntrinsicInstantiationID>::UniqueID;
+	struct TemplateIntrinsicFuncInstantiationID 
+		: public core::UniqueID<uint32_t, struct TemplateIntrinsicFuncInstantiationID> {
+		using core::UniqueID<uint32_t, TemplateIntrinsicFuncInstantiationID>::UniqueID;
 	};
 
 

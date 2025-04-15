@@ -89,6 +89,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result;
 
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
+
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto instr_template_intrinsic_func_call(
+				const Instruction::TemplateIntrinsicFuncCall<IS_CONSTEXPR>& instr
+			) -> Result;
 			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait& instr)
 				-> Result;
@@ -190,16 +195,18 @@ namespace pcit::panther{
 
 
 			struct FuncCallImplData{
-				bool is_intrinsic;
-				std::optional<sema::Func::ID> selected_func_id;
-				const sema::Func* selected_func;
+				std::optional<sema::Func::ID> selected_func_id; // nullopt if is intrinsic
+				const sema::Func* selected_func; // nullptr if is intrinsic
 				const BaseType::Function& selected_func_type;
+
+				EVO_NODISCARD auto is_intrinsic() const -> bool { return !this->selected_func_id.has_value(); }
 			};
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto func_call_impl(
 				const AST::FuncCall& func_call,
 				const TermInfo& target_term_info,
-				const evo::SmallVector<SymbolProcTermInfoID>& args
+				evo::ArrayProxy<SymbolProcTermInfoID> args,
+				std::optional<evo::ArrayProxy<SymbolProcTermInfoID>> template_args
 			) -> evo::Result<FuncCallImplData>;
 
 

@@ -1,7 +1,3 @@
 
 
-const foo: UI8 = 12;
-
-func entry = () #entry -> UI8 {
-	return move foo;
-}
+const size: USize = @sizeOf<{F80}>();

@@ -7,43 +7,28 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#pragma once
+#include "./ConstexprIntrinsicEvaluator.h"
 
-#include <Evo.h>
-#include <PCIT_core.h>
+#include "../../include/sema/SemaBuffer.h"
 
-#include "./type_ids.h"
+
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
 
 namespace pcit::panther{
 
 	
-	namespace IntrinsicFunc{
-		enum class Kind {
-			ABORT,
-			BREAKPOINT,
-			BUILD_SET_NUM_THREADS,
-			BUILD_SET_OUTPUT,
-			BUILD_SET_USE_STD_LIB,
-
-			_MAX_,
-		};
-
-		EVO_NODISCARD auto lookupKind(std::string_view name) -> std::optional<Kind>;
-		auto initLookupTableIfNeeded() -> void;
-	};
-
-
-
-	namespace TemplateIntrinsicFunc{
-		enum class Kind{
-			SIZE_OF,
-
-			_MAX_,
-		};
-		
-
-		EVO_NODISCARD auto lookupKind(std::string_view name) -> std::optional<Kind>;
-		auto initLookupTableIfNeeded() -> void;
+	auto ConstexprIntrinsicEvaluator::sizeOf(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::CONSTEXPR,
+			TypeManager::getTypeUSize(),
+			sema::Expr(this->sema_buffer.createIntValue(
+				core::GenericInt(unsigned(this->type_manager.sizeOfPtr()), this->type_manager.sizeOf(type_id)),
+				this->type_manager.getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+			))
+		);
 	}
 
 

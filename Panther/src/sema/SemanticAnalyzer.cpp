@@ -13,6 +13,7 @@
 
 #include "../symbol_proc/SymbolProcBuilder.h"
 #include "./attributes.h"
+#include "./ConstexprIntrinsicEvaluator.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -146,17 +147,23 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::TypeToTerm>()){
 				return this->instr_type_to_term(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<false>>()){
-				return this->instr_func_call_expr<false>(instr);
-
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<true>>()){
 				return this->instr_func_call_expr<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<false>>()){
+				return this->instr_func_call_expr<false>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::ConstexprFuncCallRun>()){
 				return this->instr_constexpr_func_call_run(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Import>()){
 				return this->instr_import(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::TemplateIntrinsicFuncCall<true>>()){
+				return this->instr_template_intrinsic_func_call<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::TemplateIntrinsicFuncCall<false>>()){
+				return this->instr_template_intrinsic_func_call<false>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTerm>()){
 				return this->instr_templated_term(instr);
@@ -1616,7 +1623,7 @@ namespace pcit::panther{
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<false>(
-			instr.func_call, target_term_info, instr.args
+			instr.func_call, target_term_info, instr.args, std::nullopt
 		);
 		if(func_call_impl_res.isError()){ return Result::ERROR; }
 
@@ -1633,7 +1640,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>() && !func_call_impl_res.value().is_intrinsic){
+		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>() && !func_call_impl_res.value().is_intrinsic()){
 			if(func_call_impl_res.value().selected_func->isConstexpr == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
@@ -1659,7 +1666,7 @@ namespace pcit::panther{
 		}
 
 
-		if(func_call_impl_res.value().is_intrinsic) [[unlikely]] {
+		if(func_call_impl_res.value().is_intrinsic()) [[unlikely]] {
 			const IntrinsicFunc::Kind intrinsic_kind = target_term_info.getExpr().intrinsicFuncID();
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
@@ -1759,13 +1766,13 @@ namespace pcit::panther{
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<IS_CONSTEXPR>(
-			instr.func_call, target_term_info, instr.args
+			instr.func_call, target_term_info, instr.args, std::nullopt
 		);
 		if(func_call_impl_res.isError()){ return Result::ERROR; }
 
+
 		//////////////////////////////////////////////////////////////////////
 		// 
-
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
 		for(const SymbolProc::TermInfoID& arg : instr.args){
@@ -1793,20 +1800,23 @@ namespace pcit::panther{
 			}
 		}();
 
-		if(func_call_impl_res.value().selected_func_type.returnParams.size() == 1){ // single return
+		const evo::SmallVector<BaseType::Function::ReturnParam>& selected_func_type_return_params = 
+			func_call_impl_res.value().selected_func_type.returnParams;
+
+		if(selected_func_type_return_params.size() == 1){ // single return
 			this->return_term_info(instr.output,
 				TermInfo(
 					TermInfo::ValueCategory::EPHEMERAL,
 					value_stage,
-					func_call_impl_res.value().selected_func_type.returnParams[0].typeID.asTypeID(),
+					selected_func_type_return_params[0].typeID.asTypeID(),
 					sema::Expr(sema_func_call_id)
 				)
 			);
 			
 		}else{ // multi-return
 			auto return_types = evo::SmallVector<TypeInfo::ID>();
-			return_types.reserve(func_call_impl_res.value().selected_func_type.returnParams.size());
-			for(const BaseType::Function::ReturnParam& return_param : func_call_impl_res.value().selected_func_type.returnParams){
+			return_types.reserve(selected_func_type_return_params.size());
+			for(const BaseType::Function::ReturnParam& return_param : selected_func_type_return_params){
 				return_types.emplace_back(return_param.typeID.asTypeID());
 			}
 
@@ -1826,15 +1836,19 @@ namespace pcit::panther{
 					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 					instr.func_call.target,
 					"Constexpr value cannot be a call to a function that is not constexpr",
-					Diagnostic::Info("Called function was defined here:", this->get_location(*func_call_impl_res.value().selected_func_id))
+					Diagnostic::Info(
+						"Called function was defined here:",
+						this->get_location(*func_call_impl_res.value().selected_func_id)
+					)
 				);
 				return Result::ERROR;
 			}
 
 
-			const SymbolProc::WaitOnResult wait_on_result = func_call_impl_res.value().selected_func->symbolProc.waitOnPIRReadyIfNeeded(
-				this->symbol_proc_id, this->context, func_call_impl_res.value().selected_func->symbolProcID
-			);
+			const SymbolProc::WaitOnResult wait_on_result = func_call_impl_res.value().selected_func
+				->symbolProc.waitOnPIRReadyIfNeeded(
+					this->symbol_proc_id, this->context, func_call_impl_res.value().selected_func->symbolProcID
+				);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:
@@ -1862,12 +1876,17 @@ namespace pcit::panther{
 						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 						instr.func_call.target,
 						"Cannot call a non-constexpr function within a constexpr function",
-						Diagnostic::Info("Called function was defined here:", this->get_location(*func_call_impl_res.value().selected_func_id))
+						Diagnostic::Info(
+							"Called function was defined here:",
+							this->get_location(*func_call_impl_res.value().selected_func_id)
+						)
 					);
 					return Result::ERROR;
 				}
 
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(*func_call_impl_res.value().selected_func_id);
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
+					*func_call_impl_res.value().selected_func_id
+				);
 			}
 
 			return Result::SUCCESS;
@@ -2109,6 +2128,33 @@ namespace pcit::panther{
 	}
 
 
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::instr_template_intrinsic_func_call(
+		const Instruction::TemplateIntrinsicFuncCall<IS_CONSTEXPR>& instr
+	) -> Result {
+		const TermInfo& target_term_info = this->get_term_info(instr.target);
+
+		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<IS_CONSTEXPR>(
+			instr.func_call,
+			target_term_info,
+			instr.args,
+			instr.template_args
+		);
+
+
+		this->return_term_info(
+			instr.output,
+			ConstexprIntrinsicEvaluator(this->context.type_manager, this->context.sema_buffer)
+				.sizeOf(this->get_term_info(instr.template_args[0]).type_id.as<TypeInfo::VoidableID>().asTypeID())
+		);
+
+
+		return Result::SUCCESS;
+	}
+
+
+
+
 	auto SemanticAnalyzer::instr_copy(const Instruction::Copy& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
@@ -2152,316 +2198,6 @@ namespace pcit::panther{
 			sema::Expr(this->context.sema_buffer.createMove(target.getExpr()))
 		);
 
-		return Result::SUCCESS;
-	}
-
-
-
-	template<bool NEEDS_DEF>
-	auto SemanticAnalyzer::instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result {
-		const std::string_view rhs_ident_str = this->source.getTokenBuffer()[instr.rhs_ident].getString();
-		const TermInfo& lhs = this->get_term_info(instr.lhs);
-
-		if(lhs.type_id.is<Source::ID>()){
-			const Source& source_module = this->context.getSourceManager()[lhs.type_id.as<Source::ID>()];
-
-			const sema::ScopeManager::Scope& source_module_sema_scope = 
-				this->context.sema_buffer.scope_manager.getScope(*source_module.sema_scope_id);
-
-
-			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(
-				source_module_sema_scope.getGlobalLevel()
-			);
-
-			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-				&source_module.global_symbol_procs, rhs_ident_str
-			);
-
-
-			switch(wait_on_symbol_proc_result){
-				case WaitOnSymbolProcResult::ERROR: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
-					this->wait_on_symbol_proc_emit_error(
-						wait_on_symbol_proc_result,
-						instr.infix.rhs,
-						std::format("Module has no symbol named \"{}\"", rhs_ident_str)
-					);
-					return Result::ERROR;
-				} break;
-
-				case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
-					return Result::ERROR;
-				} break;
-
-				case WaitOnSymbolProcResult::NEED_TO_WAIT: {
-					return Result::NEED_TO_WAIT;
-				} break;
-
-				case WaitOnSymbolProcResult::SEMAS_READY: {
-					// do nothing...
-				} break;
-			}
-
-			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, true>(
-					instr.rhs_ident, rhs_ident_str, scope_level, true, true, &source_module
-				);
-
-
-			if(expr_ident.has_value()){
-				this->return_term_info(instr.output, std::move(expr_ident.value()));
-				return Result::SUCCESS;
-			}
-
-			switch(expr_ident.error()){
-				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST:
-					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
-
-				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF:
-					evo::debugFatalBreak(
-						"Sema doesn't have completed info for def despite SymbolProc saying it should"
-					);
-
-				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
-			}
-
-			evo::unreachable();
-
-
-		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
-			if(lhs.type_id.as<TypeInfo::VoidableID>().isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-					instr.infix.lhs,
-					"Accessor operator of type `Void` is invalid"
-				);
-				return Result::ERROR;
-			}
-
-			const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true>(
-				lhs.type_id.as<TypeInfo::VoidableID>().asTypeID()
-			);
-			const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
-
-			if(actual_lhs_type.qualifiers().empty() == false){
-				// TODO: better message
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-					instr.infix.lhs,
-					"Accessor operator of this LHS is unsupported"
-				);
-				return Result::ERROR;
-			}
-
-			if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::STRUCT){
-				// TODO: better message
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-					instr.infix.lhs,
-					"Accessor operator of this LHS is unsupported"
-				);
-				return Result::ERROR;	
-			}
-
-
-			const BaseType::Struct& lhs_struct = this->context.getTypeManager().getStruct(
-				actual_lhs_type.baseTypeID().structID()
-			);
-
-			const Source& struct_source = this->context.getSourceManager()[lhs_struct.sourceID];
-
-			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-				&lhs_struct.memberSymbols, rhs_ident_str
-			);
-
-
-			switch(wait_on_symbol_proc_result){
-				case WaitOnSymbolProcResult::ERROR: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
-					this->wait_on_symbol_proc_emit_error(
-						wait_on_symbol_proc_result,
-						instr.infix.rhs,
-						std::format("Struct has no member named \"{}\"", rhs_ident_str)
-					);
-					return Result::ERROR;
-				} break;
-
-				case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
-					return Result::ERROR;
-				} break;
-
-				case WaitOnSymbolProcResult::NEED_TO_WAIT: {
-					return Result::NEED_TO_WAIT;
-				} break;
-
-				case WaitOnSymbolProcResult::SEMAS_READY: {
-					// do nothing...
-				} break;
-			}
-
-
-			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-					instr.rhs_ident, rhs_ident_str, *lhs_struct.scopeLevel, true, true, &struct_source
-				);
-
-			if(expr_ident.has_value()){
-				this->return_term_info(instr.output, std::move(expr_ident.value()));
-				return Result::SUCCESS;
-			}
-
-			switch(expr_ident.error()){
-				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
-					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
-				}
-
-
-
-				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF:
-					evo::debugFatalBreak(
-						"Sema doesn't have completed info for def despite SymbolProc saying it should"
-					);
-
-				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
-			}
-
-			evo::unreachable();
-		}
-
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-			instr.infix.lhs,
-			"Accessor operator of this LHS is unimplemented"
-		);
-		return Result::ERROR;
-	}
-
-
-	auto SemanticAnalyzer::instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result {
-		auto base_type = std::optional<BaseType::ID>();
-
-		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.ast_type.base);
-		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
-
-		switch(primitive_type_token.kind()){
-			case Token::Kind::TYPE_VOID: {
-				if(instr.ast_type.qualifiers.empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_VOID_WITH_QUALIFIERS,
-						instr.ast_type.base,
-						"Type \"Void\" cannot have qualifiers"
-					);
-					return Result::ERROR;
-				}
-				this->return_type(instr.output, TypeInfo::VoidableID::Void());
-				return Result::SUCCESS;
-			} break;
-
-			case Token::Kind::TYPE_THIS: {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.ast_type,
-					"Type `This` is unimplemented"
-				);
-				return Result::ERROR;
-			} break;
-
-			case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
-			case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_F16:          case Token::Kind::TYPE_BF16:
-			case Token::Kind::TYPE_F32:         case Token::Kind::TYPE_F64:          case Token::Kind::TYPE_F80:
-			case Token::Kind::TYPE_F128:        case Token::Kind::TYPE_BYTE:         case Token::Kind::TYPE_BOOL:
-			case Token::Kind::TYPE_CHAR:        case Token::Kind::TYPE_RAWPTR:       case Token::Kind::TYPE_TYPEID:
-			case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
-			case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
-			case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
-			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
-			} break;
-
-			case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
-				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(
-					primitive_type_token.kind(), primitive_type_token.getBitWidth()
-				);
-			} break;
-
-
-			case Token::Kind::TYPE_TYPE: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
-					instr.ast_type,
-					"Type \"Type\" may only be used in a template pack declaration"
-				);
-				return Result::ERROR;
-			} break;
-
-			default: {
-				evo::debugFatalBreak("Unknown or unsupported PrimitiveType: {}", primitive_type_token.kind());
-			} break;
-		}
-
-		evo::debugAssert(base_type.has_value(), "Base type was not set");
-
-		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
-
-		this->return_type(
-			instr.output,
-			TypeInfo::VoidableID(
-				this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(*base_type, evo::copy(instr.ast_type.qualifiers))
-				)
-			)
-		);
-		return Result::SUCCESS;
-	}
-
-
-	auto SemanticAnalyzer::instr_user_type(const Instruction::UserType& instr) -> Result {
-		const TypeInfo::ID base_type_id = [&](){
-			const TermInfo& term_info = this->get_term_info(instr.base_type);
-
-			switch(term_info.value_category){
-				case TermInfo::ValueCategory::TYPE: {
-					evo::debugAssert(
-						this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
-						"`Void` is not a user-type"
-					);
-					return term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
-				} break;
-
-				case TermInfo::ValueCategory::TEMPLATE_TYPE: {
-					const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.getTemplatedStruct(
-						term_info.type_id.as<sema::TemplatedStruct::ID>()
-					);
-
-					return this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(sema_templated_struct.templateID))
-					);
-				} break;
-
-				default: evo::debugFatalBreak("Invalid user type base");
-			}
-		}();
-
-		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(base_type_id);
-
-		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
-
-		this->return_type(
-			instr.output,
-			TypeInfo::VoidableID(
-				this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(base_type.baseTypeID(), evo::copy(instr.ast_type.qualifiers))
-				)
-			)
-		);
-
-		return Result::SUCCESS;
-	}
-
-
-	auto SemanticAnalyzer::instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result {
-		const evo::Expected<TermInfo, Result> lookup_ident_result = this->lookup_ident_impl<true>(instr.ident);
-		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
-
-		this->return_term_info(instr.output, lookup_ident_result.value());
 		return Result::SUCCESS;
 	}
 
@@ -2906,6 +2642,319 @@ namespace pcit::panther{
 
 
 	template<bool NEEDS_DEF>
+	auto SemanticAnalyzer::instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result {
+		const std::string_view rhs_ident_str = this->source.getTokenBuffer()[instr.rhs_ident].getString();
+		const TermInfo& lhs = this->get_term_info(instr.lhs);
+
+		if(lhs.type_id.is<Source::ID>()){
+			const Source& source_module = this->context.getSourceManager()[lhs.type_id.as<Source::ID>()];
+
+			const sema::ScopeManager::Scope& source_module_sema_scope = 
+				this->context.sema_buffer.scope_manager.getScope(*source_module.sema_scope_id);
+
+
+			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(
+				source_module_sema_scope.getGlobalLevel()
+			);
+
+			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+				&source_module.global_symbol_procs, rhs_ident_str
+			);
+
+
+			switch(wait_on_symbol_proc_result){
+				case WaitOnSymbolProcResult::ERROR: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+					this->wait_on_symbol_proc_emit_error(
+						wait_on_symbol_proc_result,
+						instr.infix.rhs,
+						std::format("Module has no symbol named \"{}\"", rhs_ident_str)
+					);
+					return Result::ERROR;
+				} break;
+
+				case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+					return Result::ERROR;
+				} break;
+
+				case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+					return Result::NEED_TO_WAIT;
+				} break;
+
+				case WaitOnSymbolProcResult::SEMAS_READY: {
+					// do nothing...
+				} break;
+			}
+
+			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
+				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, true>(
+					instr.rhs_ident, rhs_ident_str, scope_level, true, true, &source_module
+				);
+
+
+			if(expr_ident.has_value()){
+				this->return_term_info(instr.output, std::move(expr_ident.value()));
+				return Result::SUCCESS;
+			}
+
+			switch(expr_ident.error()){
+				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST:
+					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
+
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF:
+					evo::debugFatalBreak(
+						"Sema doesn't have completed info for def despite SymbolProc saying it should"
+					);
+
+				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
+			}
+
+			evo::unreachable();
+
+
+		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
+			if(lhs.type_id.as<TypeInfo::VoidableID>().isVoid()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+					instr.infix.lhs,
+					"Accessor operator of type `Void` is invalid"
+				);
+				return Result::ERROR;
+			}
+
+			const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true>(
+				lhs.type_id.as<TypeInfo::VoidableID>().asTypeID()
+			);
+			const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
+
+			if(actual_lhs_type.qualifiers().empty() == false){
+				// TODO: better message
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+					instr.infix.lhs,
+					"Accessor operator of this LHS is unsupported"
+				);
+				return Result::ERROR;
+			}
+
+			if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::STRUCT){
+				// TODO: better message
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+					instr.infix.lhs,
+					"Accessor operator of this LHS is unsupported"
+				);
+				return Result::ERROR;	
+			}
+
+
+			const BaseType::Struct& lhs_struct = this->context.getTypeManager().getStruct(
+				actual_lhs_type.baseTypeID().structID()
+			);
+
+			const Source& struct_source = this->context.getSourceManager()[lhs_struct.sourceID];
+
+			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+				&lhs_struct.memberSymbols, rhs_ident_str
+			);
+
+
+			switch(wait_on_symbol_proc_result){
+				case WaitOnSymbolProcResult::ERROR: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+					this->wait_on_symbol_proc_emit_error(
+						wait_on_symbol_proc_result,
+						instr.infix.rhs,
+						std::format("Struct has no member named \"{}\"", rhs_ident_str)
+					);
+					return Result::ERROR;
+				} break;
+
+				case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+					return Result::ERROR;
+				} break;
+
+				case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+					return Result::NEED_TO_WAIT;
+				} break;
+
+				case WaitOnSymbolProcResult::SEMAS_READY: {
+					// do nothing...
+				} break;
+			}
+
+
+			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
+				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
+					instr.rhs_ident, rhs_ident_str, *lhs_struct.scopeLevel, true, true, &struct_source
+				);
+
+			if(expr_ident.has_value()){
+				this->return_term_info(instr.output, std::move(expr_ident.value()));
+				return Result::SUCCESS;
+			}
+
+			switch(expr_ident.error()){
+				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
+					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
+				}
+
+
+
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF:
+					evo::debugFatalBreak(
+						"Sema doesn't have completed info for def despite SymbolProc saying it should"
+					);
+
+				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
+			}
+
+			evo::unreachable();
+		}
+
+		this->emit_error(
+			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+			instr.infix.lhs,
+			"Accessor operator of this LHS is unimplemented"
+		);
+		return Result::ERROR;
+	}
+
+
+	auto SemanticAnalyzer::instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result {
+		auto base_type = std::optional<BaseType::ID>();
+
+		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.ast_type.base);
+		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
+
+		switch(primitive_type_token.kind()){
+			case Token::Kind::TYPE_VOID: {
+				if(instr.ast_type.qualifiers.empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_VOID_WITH_QUALIFIERS,
+						instr.ast_type.base,
+						"Type \"Void\" cannot have qualifiers"
+					);
+					return Result::ERROR;
+				}
+				this->return_type(instr.output, TypeInfo::VoidableID::Void());
+				return Result::SUCCESS;
+			} break;
+
+			case Token::Kind::TYPE_THIS: {
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.ast_type,
+					"Type `This` is unimplemented"
+				);
+				return Result::ERROR;
+			} break;
+
+			case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_F16:          case Token::Kind::TYPE_BF16:
+			case Token::Kind::TYPE_F32:         case Token::Kind::TYPE_F64:          case Token::Kind::TYPE_F80:
+			case Token::Kind::TYPE_F128:        case Token::Kind::TYPE_BYTE:         case Token::Kind::TYPE_BOOL:
+			case Token::Kind::TYPE_CHAR:        case Token::Kind::TYPE_RAWPTR:       case Token::Kind::TYPE_TYPEID:
+			case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
+			case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
+			case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_C_LONG_DOUBLE: {
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(
+					primitive_type_token.kind(), primitive_type_token.getBitWidth()
+				);
+			} break;
+
+
+			case Token::Kind::TYPE_TYPE: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
+					instr.ast_type,
+					"Type \"Type\" may only be used in a template pack declaration"
+				);
+				return Result::ERROR;
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Unknown or unsupported PrimitiveType: {}", primitive_type_token.kind());
+			} break;
+		}
+
+		evo::debugAssert(base_type.has_value(), "Base type was not set");
+
+		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+
+		this->return_type(
+			instr.output,
+			TypeInfo::VoidableID(
+				this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(*base_type, evo::copy(instr.ast_type.qualifiers))
+				)
+			)
+		);
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_user_type(const Instruction::UserType& instr) -> Result {
+		const TypeInfo::ID base_type_id = [&](){
+			const TermInfo& term_info = this->get_term_info(instr.base_type);
+
+			switch(term_info.value_category){
+				case TermInfo::ValueCategory::TYPE: {
+					evo::debugAssert(
+						this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
+						"`Void` is not a user-type"
+					);
+					return term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
+				} break;
+
+				case TermInfo::ValueCategory::TEMPLATE_TYPE: {
+					const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.getTemplatedStruct(
+						term_info.type_id.as<sema::TemplatedStruct::ID>()
+					);
+
+					return this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(BaseType::ID(sema_templated_struct.templateID))
+					);
+				} break;
+
+				default: evo::debugFatalBreak("Invalid user type base");
+			}
+		}();
+
+		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(base_type_id);
+
+		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+
+		this->return_type(
+			instr.output,
+			TypeInfo::VoidableID(
+				this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(base_type.baseTypeID(), evo::copy(instr.ast_type.qualifiers))
+				)
+			)
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result {
+		const evo::Expected<TermInfo, Result> lookup_ident_result = this->lookup_ident_impl<true>(instr.ident);
+		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
+
+		this->return_term_info(instr.output, lookup_ident_result.value());
+		return Result::SUCCESS;
+	}
+
+
+
+
+
+
+	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::instr_ident(const Instruction::Ident<NEEDS_DEF>& instr) -> Result {
 		const evo::Expected<TermInfo, Result> lookup_ident_result = this->lookup_ident_impl<NEEDS_DEF>(instr.ident);
 		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
@@ -2917,25 +2966,40 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_intrinsic(const Instruction::Intrinsic& instr) -> Result {
 		const std::string_view intrinsic_name = this->source.getTokenBuffer()[instr.intrinsic].getString();
+
+
 		const std::optional<IntrinsicFunc::Kind> intrinsic_kind = IntrinsicFunc::lookupKind(intrinsic_name);
-		if(intrinsic_kind.has_value() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTRINSIC_DOESNT_EXIST,
-				instr.intrinsic,
-				std::format("Intrinsic \"@{}\" doesn't exist", intrinsic_name)
+		if(intrinsic_kind.has_value()){
+			const TypeInfo::ID intrinsic_type = this->context.getIntrinsicFuncInfo(*intrinsic_kind).typeID;
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::INTRINSIC_FUNC,
+				TermInfo::ValueStage::CONSTEXPR,
+				intrinsic_type,
+				sema::Expr(*intrinsic_kind)
 			);
-			return Result::ERROR;
+			return Result::SUCCESS;
 		}
 
-		const TypeInfo::ID intrinsic_type = this->context.getIntrinsicFuncInfo(*intrinsic_kind).typeID;
+		const std::optional<TemplateIntrinsicFunc::Kind> template_intrinsic_kind = 
+			TemplateIntrinsicFunc::lookupKind(intrinsic_name);
+		if(template_intrinsic_kind.has_value()){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC,
+				TermInfo::ValueStage::CONSTEXPR,
+				*template_intrinsic_kind,
+				std::nullopt
+			);
+			return Result::SUCCESS;
+		}
 
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::INTRINSIC_FUNC,
-			TermInfo::ValueStage::CONSTEXPR,
-			intrinsic_type,
-			sema::Expr(*intrinsic_kind)
+
+		this->emit_error(
+			Diagnostic::Code::SEMA_INTRINSIC_DOESNT_EXIST,
+			instr.intrinsic,
+			std::format("Intrinsic \"@{}\" doesn't exist", intrinsic_name)
 		);
-		return Result::SUCCESS;
+		return Result::ERROR;
 	}
 
 
@@ -4042,33 +4106,14 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::func_call_impl(
 		const AST::FuncCall& func_call,
 		const TermInfo& target_term_info,
-		const evo::SmallVector<SymbolProcTermInfoID>& args
+		evo::ArrayProxy<SymbolProcTermInfoID> args,
+		std::optional<evo::ArrayProxy<SymbolProcTermInfoID>> template_args
 	) -> evo::Result<FuncCallImplData> {
-		bool is_intrinsic = false;
-		if(target_term_info.value_category == TermInfo::ValueCategory::FUNCTION){
-			// do nothing...
-		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTRINSIC_FUNC){
-			is_intrinsic = true;
-		}else{
-			this->emit_error(
-				Diagnostic::Code::SEMA_CANNOT_CALL_LIKE_FUNCTION,
-				func_call.target,
-				"Cannot call expression like a function"
-			);
-			return evo::resultError;
-		}
-
-		const TypeManager& type_manager = this->context.getTypeManager();
-
+		TypeManager& type_manager = this->context.type_manager;
 
 		auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
-		if(is_intrinsic) [[unlikely]] {
-			const TypeInfo::ID type_info_id = target_term_info.type_id.as<TypeInfo::ID>();
-			const TypeInfo& type_info = type_manager.getTypeInfo(type_info_id);
-			const BaseType::Function& func_type = type_manager.getFunction(type_info.baseTypeID().funcID());
-			func_infos.emplace_back(std::nullopt, func_type);
 
-		}else{
+		if(target_term_info.value_category == TermInfo::ValueCategory::FUNCTION){
 			using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>;
 			for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
 				if(func_overload.is<sema::Func::ID>()){
@@ -4078,6 +4123,37 @@ namespace pcit::panther{
 					func_infos.emplace_back(func_overload.as<sema::Func::ID>(), func_type);
 				}
 			}
+
+		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTRINSIC_FUNC){
+			const TypeInfo::ID type_info_id = target_term_info.type_id.as<TypeInfo::ID>();
+			const TypeInfo& type_info = type_manager.getTypeInfo(type_info_id);
+			const BaseType::Function& func_type = type_manager.getFunction(type_info.baseTypeID().funcID());
+			func_infos.emplace_back(std::nullopt, func_type);
+
+		}else if(target_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC){
+			auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
+			for(const SymbolProc::TermInfoID& arg : *template_args){
+				const TermInfo& arg_term_info = this->get_term_info(arg);
+
+				if(arg_term_info.value_category != TermInfo::ValueCategory::TYPE){
+					instantiation_args.emplace_back(arg_term_info.type_id.as<TypeInfo::ID>());
+				}else{
+					instantiation_args.emplace_back();
+				}
+			}
+			const Context::TemplateIntrinsicFuncInfo& func_info = this->context.getTemplateIntrinsicFuncInfo(
+				target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()
+			);
+
+			func_infos.emplace_back(std::nullopt, func_info.getTypeInstantiation(instantiation_args));
+
+		}else{
+			this->emit_error(
+				Diagnostic::Code::SEMA_CANNOT_CALL_LIKE_FUNCTION,
+				func_call.target,
+				"Cannot call expression like a function"
+			);
+			return evo::resultError;
 		}
 
 
@@ -4117,13 +4193,28 @@ namespace pcit::panther{
 		if(selected_func_overload_index.isError()){ return evo::resultError; }
 
 
-		const std::optional<sema::Func::ID> selected_func_id = func_infos[selected_func_overload_index.value()].func_id;
-		const sema::Func* selected_func = nullptr;
-		if(!is_intrinsic){ selected_func = &this->context.sema_buffer.getFunc(*selected_func_id); }
-		const BaseType::Function& selected_func_type = func_infos[selected_func_overload_index.value()].func_type;
 
+		switch(target_term_info.value_category){
+			case TermInfo::ValueCategory::FUNCTION: {
+				const std::optional<sema::Func::ID> selected_func_id = 
+					func_infos[selected_func_overload_index.value()].func_id;
 
-		return FuncCallImplData(is_intrinsic, selected_func_id, selected_func, selected_func_type);
+				return FuncCallImplData(
+					selected_func_id,
+					&this->context.sema_buffer.getFunc(*selected_func_id),
+					func_infos[selected_func_overload_index.value()].func_type
+				);
+			} break;
+
+			case TermInfo::ValueCategory::INTRINSIC_FUNC: case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: {
+				const BaseType::Function& selected_func_type = 
+					func_infos[selected_func_overload_index.value()].func_type;
+
+				return FuncCallImplData(std::nullopt, nullptr, selected_func_type);
+			} break;
+
+			default: evo::debugFatalBreak("Should have already been caught that value category is not callable func");
+		}
 	}
 
 
@@ -5195,7 +5286,11 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<TypeID, sema::TemplatedStruct::ID>()){
 				// TODO: actual name
-				return "{TemplatedStruct}";
+				return "{TEMPLATED_STRUCT}";
+
+			}else if constexpr(std::is_same<TypeID, TemplateIntrinsicFunc::Kind>()){
+				// TODO: actual name
+				return "{TEMPLATE_INTRINSIC_FUNC}";
 
 			}else{
 				static_assert(false, "Unsupported type id kind");

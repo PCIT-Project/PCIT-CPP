@@ -183,7 +183,7 @@ namespace pcit::panther{
 			this->type_manager.initPrimitives();
 		}
 
-		IntrinsicFunc::initLookupTableIfNeeded();
+		
 		this->initIntrinsicInfos();
 
 		if(this->constexpr_jit_engine.isInitialized() == false){
@@ -786,6 +786,9 @@ namespace pcit::panther{
 
 
 	auto Context::initIntrinsicInfos() -> void {
+		IntrinsicFunc::initLookupTableIfNeeded();
+		TemplateIntrinsicFunc::initLookupTableIfNeeded();
+
 		const auto create_func_type = [&](
 			evo::SmallVector<BaseType::Function::Param>&& params,
 			evo::SmallVector<BaseType::Function::ReturnParam>&& returns,
@@ -815,59 +818,54 @@ namespace pcit::panther{
 			{}
 		);
 
-		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-
-			.allowedInConstexpr = false,
-			.allowedInRuntime   = true,
-
-			.allowedInCompile     = false,
-			.allowedInScript      = false,
-			.allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInRuntime = true,
+			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
 		};
 			
-		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-
-			.allowedInConstexpr = false,
-			.allowedInRuntime   = true,
-
-			.allowedInCompile     = false,
-			.allowedInScript      = false,
-			.allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInRuntime = true,
+			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
 		};
 			
-		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS))] = IntrinsicFuncInfo{
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS))] = 
+		IntrinsicFuncInfo{
 			.typeID = ui32_arg_return_void,
-
-			.allowedInConstexpr = false,
-			.allowedInRuntime   = true,
-
-			.allowedInCompile     = false,
-			.allowedInScript      = false,
-			.allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInRuntime = true,
+			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
 		};
 			
-		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_OUTPUT))] = IntrinsicFuncInfo{
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_OUTPUT))] = IntrinsicFuncInfo{
 			.typeID = ui32_arg_return_void,
-
-			.allowedInConstexpr = false,
-			.allowedInRuntime   = true,
-
-			.allowedInCompile     = false,
-			.allowedInScript      = false,
-			.allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInRuntime = true,
+			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
 		};
 			
-		intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_USE_STD_LIB))] = IntrinsicFuncInfo{
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_USE_STD_LIB))] = 
+		IntrinsicFuncInfo{
 			.typeID = bool_arg_return_void,
+			.allowedInConstexpr = false, .allowedInRuntime = true,
+			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
+		};
 
-			.allowedInConstexpr = false,
-			.allowedInRuntime   = true,
 
-			.allowedInCompile     = false,
-			.allowedInScript      = false,
-			.allowedInBuildSystem = true,
+		//////////////////////////////////////////////////////////////////////
+		// template intrinsic infos
+
+		using TemplateParam = std::optional<TypeInfo::ID>;
+		using Param = Context::TemplateIntrinsicFuncInfo::Param;
+		using Return = Context::TemplateIntrinsicFuncInfo::ReturnParam;
+
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::SIZE_OF))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUSize()},
+			.allowedInConstexpr = false, .allowedInRuntime = true,
+			.allowedInCompile = true, .allowedInScript = true, .allowedInBuildSystem = true,
 		};
 	}
 
@@ -875,6 +873,10 @@ namespace pcit::panther{
 
 	auto Context::getIntrinsicFuncInfo(IntrinsicFunc::Kind kind) const -> const IntrinsicFuncInfo& {
 		return this->intrinsic_infos[size_t(evo::to_underlying(kind))];
+	}
+
+	auto Context::getTemplateIntrinsicFuncInfo(TemplateIntrinsicFunc::Kind kind) -> TemplateIntrinsicFuncInfo& {
+		return this->template_intrinsic_infos[size_t(evo::to_underlying(kind))];
 	}
 
 

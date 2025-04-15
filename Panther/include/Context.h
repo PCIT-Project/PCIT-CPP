@@ -341,6 +341,8 @@ namespace pcit::panther{
 
 
 
+			auto initIntrinsicInfos() -> void;
+
 			struct IntrinsicFuncInfo{
 				TypeInfoID typeID;
 
@@ -351,9 +353,65 @@ namespace pcit::panther{
 				bool allowedInScript;
 				bool allowedInBuildSystem;
 			};
-
-			auto initIntrinsicInfos() -> void;
 			EVO_NODISCARD auto getIntrinsicFuncInfo(IntrinsicFunc::Kind kind) const -> const IntrinsicFuncInfo&;
+
+
+			struct TemplateIntrinsicFuncInfo{
+				struct Param{
+					AST::FuncDecl::Param::Kind kind;
+					evo::Variant<TypeInfo::ID, uint32_t> type; // uint32_t is the index of the templateParam
+				};
+
+				using ReturnParam = evo::Variant<TypeInfo::VoidableID, uint32_t>; // uint32_t is the index of the templateParam
+
+				evo::SmallVector<std::optional<TypeInfo::ID>> templateParams; // nullopt means it's a `Type` param
+				evo::SmallVector<Param> params;
+				evo::SmallVector<ReturnParam> returns;
+
+				bool allowedInConstexpr;
+				bool allowedInRuntime;
+
+				bool allowedInCompile;
+				bool allowedInScript;
+				bool allowedInBuildSystem;
+
+				
+				EVO_NODISCARD auto getTypeInstantiation(
+					evo::ArrayProxy<std::optional<TypeInfo::VoidableID>> template_args// nullopt if is an expr argument
+				) const -> BaseType::Function {
+					auto instantiated_params = evo::SmallVector<BaseType::Function::Param>();
+					instantiated_params.reserve(this->params.size());
+					for(const Param& param : this->params){
+						const TypeInfo::ID param_type = param.type.visit([&](const auto& param_type) -> TypeInfo::ID {
+							if constexpr(std::is_same_v<std::decay_t<decltype(param_type)>, TypeInfo::ID>){
+								return param_type;
+							}else{
+								return template_args[param_type]->asTypeID();
+							}
+						});
+
+						instantiated_params.emplace_back(param_type, param.kind, false);
+					}
+
+					auto instantiated_returns = evo::SmallVector<BaseType::Function::ReturnParam>();
+					instantiated_returns.reserve(this->returns.size());
+					for(const ReturnParam& return_param : this->returns){
+						const TypeInfo::VoidableID return_type = return_param.visit([&](const auto& return_data){
+							if constexpr(std::is_same_v<std::decay_t<decltype(return_data)>, TypeInfo::VoidableID>){
+								return return_data;
+							}else{
+								return *template_args[return_data];
+							}
+						});
+
+						instantiated_returns.emplace_back(std::nullopt, return_type);
+					}
+
+					return BaseType::Function(std::move(instantiated_params), std::move(instantiated_returns), {});
+				}
+			};
+			EVO_NODISCARD auto getTemplateIntrinsicFuncInfo(TemplateIntrinsicFunc::Kind kind)
+				-> TemplateIntrinsicFuncInfo&;
 
 	
 		private:
@@ -386,7 +444,10 @@ namespace pcit::panther{
 
 			std::optional<sema::Func::ID> entry{};
 
-			std::array<IntrinsicFuncInfo, evo::to_underlying(IntrinsicFunc::Kind::_max_)> intrinsic_infos{};
+			std::array<IntrinsicFuncInfo, evo::to_underlying(IntrinsicFunc::Kind::_MAX_)> intrinsic_infos{};
+			std::array<
+				TemplateIntrinsicFuncInfo, evo::to_underlying(TemplateIntrinsicFunc::Kind::_MAX_)
+			> template_intrinsic_infos{};
 
 			pir::Module constexpr_pir_module;
 			SemaToPIR::Data constexpr_sema_to_pir_data;

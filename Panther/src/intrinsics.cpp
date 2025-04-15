@@ -55,4 +55,35 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// templated intrinsics
 
+
+	std::atomic<bool> template_intrinsic_lookup_tables_initialized = false;
+	static std::unordered_map<std::string_view, TemplateIntrinsicFunc::Kind> template_intrinsic_kinds{};
+	static std::optional<
+		std::unordered_map<std::string_view, TemplateIntrinsicFunc::Kind>::iterator
+	> template_intrinsic_kinds_end{};
+
+
+	auto TemplateIntrinsicFunc::lookupKind(std::string_view name) -> std::optional<Kind> {
+		evo::debugAssert(
+			template_intrinsic_lookup_tables_initialized.load(),
+			"TemplateIntrinsicFunc lookup tables weren't initialized"
+		);
+
+		const auto find = template_intrinsic_kinds.find(name);
+		if(find == template_intrinsic_kinds_end){ return std::nullopt; }
+		return find->second;
+	}
+
+
+	auto TemplateIntrinsicFunc::initLookupTableIfNeeded() -> void {
+		const bool was_initialized = template_intrinsic_lookup_tables_initialized.exchange(true);
+		if(was_initialized){ return; }
+
+		template_intrinsic_kinds = std::unordered_map<std::string_view, Kind>{
+			{"sizeOf", Kind::SIZE_OF},
+		};
+
+		template_intrinsic_kinds_end = template_intrinsic_kinds.end();
+	}
+
 }

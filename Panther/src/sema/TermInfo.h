@@ -36,7 +36,7 @@ namespace pcit::panther{
 			FUNCTION, // function, not func pointer
 			INTRINSIC_FUNC,
 			TEMPLATE_INTRINSIC_FUNC, // uninstantiated
-			TEMPLATE_TYPE, // uninstantiated
+			TEMPLATE_TYPE,           // uninstantiated
 			TYPE,
 		};
 
@@ -47,8 +47,8 @@ namespace pcit::panther{
 		};
 
 		struct InitializerType{};
-		
 		struct FluidType{};
+
 
 		using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
 
@@ -62,8 +62,8 @@ namespace pcit::panther{
 			TypeInfo::VoidableID,           // TYPE
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
-			sema::TemplatedStruct::ID       // TEMPLATE_TYPE
-			// TODO: TEMPLATE_INTRINSIC_FUNC
+			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE
+			TemplateIntrinsicFunc::Kind     // TEMPLATE_INTRINSIC_FUNC
 		>;
 
 		ValueCategory value_category;
@@ -171,7 +171,7 @@ namespace pcit::panther{
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
 					break; case ValueCategory::TEMPLATE_INTRINSIC_FUNC:
-						evo::unimplemented("ValueCategory::TEMPLATE_INTRINSIC_FUNC");
+						evo::debugFatalBreak("Incorrect TypeInfo creation");
 
 					break; case ValueCategory::TEMPLATE_TYPE:
 						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TypeInfo creation");
@@ -188,6 +188,7 @@ namespace pcit::panther{
 					|| this->value_category == ValueCategory::TEMPLATE_TYPE
 					|| this->value_category == ValueCategory::TYPE
 					|| this->value_category == ValueCategory::FUNCTION
+					|| this->value_category == ValueCategory::TEMPLATE_INTRINSIC_FUNC
 				);
 
 				evo::debugAssert(this->value_stage == ValueStage::CONSTEXPR);

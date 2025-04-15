@@ -344,6 +344,15 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		template<bool IS_CONSTEXPR>
+		struct TemplateIntrinsicFuncCall{
+			const AST::FuncCall& func_call;
+			evo::SmallVector<SymbolProcTermInfoID> template_args;
+			evo::SmallVector<SymbolProcTermInfoID> args;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
 
 		struct TemplatedTerm{
 			const AST::TemplatedExpr& templated_expr;
@@ -460,8 +469,8 @@ namespace pcit::panther{
 			VarDeclDef,
 			AliasDecl,
 			AliasDef,
-			StructDecl<false>,
 			StructDecl<true>,
+			StructDecl<false>,
 			StructDef,
 			TemplateStruct,
 			FuncDecl<false>,
@@ -476,10 +485,12 @@ namespace pcit::panther{
 
 			// misc expr
 			TypeToTerm,
-			FuncCallExpr<false>,
 			FuncCallExpr<true>,
+			FuncCallExpr<false>,
 			ConstexprFuncCallRun,
 			Import,
+			TemplateIntrinsicFuncCall<true>,
+			TemplateIntrinsicFuncCall<false>,
 			TemplatedTerm,
 			TemplatedTermWait,
 			Copy,
