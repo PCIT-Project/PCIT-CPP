@@ -32,6 +32,15 @@ namespace pcit::panther{
 		if(this->passed_on_by_when_cond){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
 		if(this->errored){ return WaitOnResult::WAS_ERRORED; }
 
+		if(id == self_id){
+			context.emitError(
+				Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
+				Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
+				"Detected a circular dependency when analyzing this symbol:",
+				Diagnostic::Info("Self dependency")
+			);
+			return WaitOnResult::CIRCULAR_DEP_DETECTED;
+		}
 
 		if(this->detect_circular_dependency(id, context) == false){ return WaitOnResult::CIRCULAR_DEP_DETECTED;; }
 
@@ -54,6 +63,15 @@ namespace pcit::panther{
 		if(this->passed_on_by_when_cond){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
 		if(this->errored){ return WaitOnResult::WAS_ERRORED; }
 
+		if(id == self_id){
+			context.emitError(
+				Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
+				Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
+				"Detected a circular dependency when analyzing this symbol:",
+				Diagnostic::Info("Self dependency")
+			);
+			return WaitOnResult::CIRCULAR_DEP_DETECTED;
+		}
 
 		if(this->detect_circular_dependency(id, context) == false){ return WaitOnResult::CIRCULAR_DEP_DETECTED; }
 

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.101.1"></a>
+## v0.0.101.1
+
+### Panther
+- Changed syntax to create type alias to `type alias {IDENT} = {TYPE};` (from `alias {IDENT} = {TYPE};`)
+- Fixed circular dependency checking not checking direct self dependency
+
+
+<!---------------------------------->
 <a name="v0.0.101.0"></a>
 ## v0.0.101.0
 

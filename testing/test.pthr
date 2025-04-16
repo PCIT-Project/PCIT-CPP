@@ -1,3 +1,14 @@
 
 
-const size: USize = @sizeOf<{F80}>();
+
+type Container = struct <{T: Type, VAL: T}> {
+	def VALUE: T = VAL;
+}
+
+
+
+func entry = () #entry -> UI8 {
+	return Container<{UI8, 12}>.VALUE;
+}
+
+

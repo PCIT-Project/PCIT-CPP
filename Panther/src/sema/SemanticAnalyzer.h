@@ -153,7 +153,8 @@ namespace pcit::panther{
 
 
 			enum class WaitOnSymbolProcResult{
-				ERROR,
+				NOT_FOUND,
+				CIRCULAR_DEP_DETECTED,
 				EXISTS_BUT_ERRORED,
 				ERROR_PASSED_BY_WHEN_COND,
 				NEED_TO_WAIT,

@@ -2477,6 +2477,9 @@ namespace pcit::panther{
 		}
 
 
+		///////////////////////////////////
+		// lookup / create instantiation
+
 		const BaseType::StructTemplate::InstantiationInfo instantiation_info =
 			struct_template.lookupInstantiation(std::move(instantiation_lookup_args));
 
@@ -2663,7 +2666,7 @@ namespace pcit::panther{
 
 
 			switch(wait_on_symbol_proc_result){
-				case WaitOnSymbolProcResult::ERROR: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
 					this->wait_on_symbol_proc_emit_error(
 						wait_on_symbol_proc_result,
 						instr.infix.rhs,
@@ -2672,7 +2675,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				} break;
 
-				case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
 					return Result::ERROR;
 				} break;
 
@@ -2759,7 +2762,7 @@ namespace pcit::panther{
 
 
 			switch(wait_on_symbol_proc_result){
-				case WaitOnSymbolProcResult::ERROR: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
 					this->wait_on_symbol_proc_emit_error(
 						wait_on_symbol_proc_result,
 						instr.infix.rhs,
@@ -2768,7 +2771,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				} break;
 
-				case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
 					return Result::ERROR;
 				} break;
 
@@ -3192,7 +3195,7 @@ namespace pcit::panther{
 		);
 
 		switch(wait_on_symbol_proc_result){
-			case WaitOnSymbolProcResult::ERROR: {
+			case WaitOnSymbolProcResult::NOT_FOUND: {
 				// Do nothing as it may be an ident might not have a symbol proc (such as template param)
 			} break;
 
@@ -3205,7 +3208,7 @@ namespace pcit::panther{
 				return evo::Unexpected(Result::ERROR);
 			} break;
 
-			case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
 				return evo::Unexpected(Result::ERROR);
 			} break;
 
@@ -3573,7 +3576,7 @@ namespace pcit::panther{
 			}			
 		}
 		if(found_range.has_value() == false){
-			return WaitOnSymbolProcResult::ERROR;
+			return WaitOnSymbolProcResult::NOT_FOUND;
 		}
 
 
@@ -3596,11 +3599,25 @@ namespace pcit::panther{
 			}();
 
 			switch(wait_on_result){
-				break; case SymbolProc::WaitOnResult::NOT_NEEDED:  any_ready = true;
-				break; case SymbolProc::WaitOnResult::WAITING:     any_waiting = true;
-				break; case SymbolProc::WaitOnResult::WAS_ERRORED: return WaitOnSymbolProcResult::EXISTS_BUT_ERRORED;
-				break; case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: // do nothing...
-				break; case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return WaitOnSymbolProcResult::ERROR;
+				case SymbolProc::WaitOnResult::NOT_NEEDED: {
+					any_ready = true;
+				} break;
+
+				case SymbolProc::WaitOnResult::WAITING: {
+					any_waiting = true;
+				} break;
+
+				case SymbolProc::WaitOnResult::WAS_ERRORED: {
+					return WaitOnSymbolProcResult::EXISTS_BUT_ERRORED;
+				} break;
+
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: {
+					// do nothing...
+				} break;
+
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: {
+					return WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED;
+				} break;
 			}
 		}
 
@@ -3623,11 +3640,11 @@ namespace pcit::panther{
 		WaitOnSymbolProcResult result, const auto& ident, std::string&& msg
 	) -> void {
 		switch(result){
-			case WaitOnSymbolProcResult::ERROR: {
+			case WaitOnSymbolProcResult::NOT_FOUND: {
 				this->emit_error(Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT, ident, std::move(msg));
 			} break;
 
-			case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
 				// do nothing...
 			} break;
 

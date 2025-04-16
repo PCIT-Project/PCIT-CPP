@@ -52,7 +52,6 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_CONST:       return this->parse_var_decl<AST::VarDecl::Kind::Const>();
 			case Token::Kind::KEYWORD_DEF:         return this->parse_var_decl<AST::VarDecl::Kind::Def>();
 			case Token::Kind::KEYWORD_FUNC:        return this->parse_func_decl();
-			case Token::Kind::KEYWORD_ALIAS:       return this->parse_alias_decl();
 			case Token::Kind::KEYWORD_TYPE:        return this->parse_type_decl();
 			case Token::Kind::KEYWORD_RETURN:      return this->parse_return();
 			case Token::Kind::KEYWORD_ERROR:       return this->parse_error();
@@ -219,6 +218,10 @@ namespace pcit::panther{
 	// TODO: check EOF
 	auto Parser::parse_type_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KEYWORD_TYPE)){ return Result::Code::ERROR; }
+
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ALIAS){
+			return this->parse_alias_decl();
+		}
 
 		const Result ident = this->parse_ident();
 		if(this->check_result_fail(ident, "identifier in type declaration")){ return Result::Code::ERROR; }
