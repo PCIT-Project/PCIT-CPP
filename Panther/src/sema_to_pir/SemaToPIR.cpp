@@ -677,11 +677,13 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::INTRINSIC_FUNC: {
-				evo::unimplemented("lower sema::Expr::Kind::Intrinsic");
+				evo::debugFatalBreak("sema::Expr::Kind::INTRINSIC_FUNC should be target of func call");
 			} break;
 
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION: {
-				evo::unimplemented("lower sema::Expr::Kind::TemplatedIntrinsicInstantiation");
+				evo::debugFatalBreak(
+					"sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION should be target of func call"
+				);
 			} break;
 
 			case sema::Expr::Kind::COPY: {
@@ -724,6 +726,11 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::FUNC_CALL: {
 				const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(expr.funcCallID());
+
+				if(func_call.target.is<sema::TemplateIntrinsicFuncInstantiation::ID>()){
+					return this->template_intrinsic_func_call<MODE>(func_call, store_locations);
+				}
+
 				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
 
 				auto args = evo::SmallVector<pir::Expr>();
@@ -803,6 +810,314 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::FUNC: {
 				evo::unimplemented("lower sema::Expr::Kind::Func");
+			} break;
+		}
+
+		evo::unreachable();
+	}
+
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::template_intrinsic_func_call(
+		const sema::FuncCall& func_call, evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		const sema::TemplateIntrinsicFuncInstantiation& instantiation = 
+			this->context.getSemaBuffer().getTemplateIntrinsicFuncInstantiation(
+				func_call.target.as<sema::TemplateIntrinsicFuncInstantiation::ID>()
+			);
+
+		switch(instantiation.kind){
+			case TemplateIntrinsicFunc::Kind::SIZE_OF: {
+				evo::debugFatalBreak("@sizeOf is constexpr only");
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
+				const pir::Type from_type = this->get_type(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+
+				if(from_type == to_type){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->get_expr_register(func_call.args[0]);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->get_expr_pointer(func_call.args[0]);
+
+					}else{
+						this->get_expr_store(func_call.args[0], store_locations);
+						return std::nullopt;
+					}
+				}
+
+
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createBitCast(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+
+			case TemplateIntrinsicFunc::Kind::TRUNC: {
+				const pir::Type from_type = this->get_type(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+
+				if(from_type == to_type){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->get_expr_register(func_call.args[0]);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->get_expr_pointer(func_call.args[0]);
+
+					}else{
+						this->get_expr_store(func_call.args[0], store_locations);
+						return std::nullopt;
+					}
+				}
+
+
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createTrunc(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FTRUNC: {
+				const pir::Type from_type = this->get_type(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+
+				if(from_type == to_type){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->get_expr_register(func_call.args[0]);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->get_expr_pointer(func_call.args[0]);
+
+					}else{
+						this->get_expr_store(func_call.args[0], store_locations);
+						return std::nullopt;
+					}
+				}
+
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createFTrunc(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::SEXT: {
+				const pir::Type from_type = this->get_type(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+
+				if(from_type == to_type){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->get_expr_register(func_call.args[0]);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->get_expr_pointer(func_call.args[0]);
+
+					}else{
+						this->get_expr_store(func_call.args[0], store_locations);
+						return std::nullopt;
+					}
+				}
+
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createSExt(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ZEXT: {
+				const pir::Type from_type = this->get_type(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+
+				if(from_type == to_type){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->get_expr_register(func_call.args[0]);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->get_expr_pointer(func_call.args[0]);
+
+					}else{
+						this->get_expr_store(func_call.args[0], store_locations);
+						return std::nullopt;
+					}
+				}
+
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createZExt(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FEXT: {
+				const pir::Type from_type = this->get_type(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+
+				if(from_type == to_type){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->get_expr_register(func_call.args[0]);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->get_expr_pointer(func_call.args[0]);
+
+					}else{
+						this->get_expr_store(func_call.args[0], store_locations);
+						return std::nullopt;
+					}
+				}
+
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createFExt(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::I_TO_F: {
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createIToF(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::UI_TO_F: {
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createUIToF(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::F_TO_I: {
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createFToI(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::F_TO_UI: {
+				const pir::Type to_type = this->get_type(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+				const pir::Expr register_value = this->agent.createFToUI(from_value, to_type);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return register_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
+					this->agent.createStore(pointer_alloca, register_value, false, pir::AtomicOrdering::NONE);
+					return pointer_alloca;
+
+				}else{
+					this->agent.createStore(store_locations[0], register_value, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+				}
+			} break;
+
+
+			case TemplateIntrinsicFunc::Kind::_MAX_: {
+				evo::debugFatalBreak("not a valid template intrinsic func");
 			} break;
 		}
 

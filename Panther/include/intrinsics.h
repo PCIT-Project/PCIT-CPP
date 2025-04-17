@@ -38,6 +38,17 @@ namespace pcit::panther{
 		enum class Kind{
 			SIZE_OF,
 
+			BIT_CAST,
+			TRUNC,
+			FTRUNC,
+			SEXT,
+			ZEXT,
+			FEXT,
+			I_TO_F,
+			UI_TO_F,
+			F_TO_I,
+			F_TO_UI,
+
 			_MAX_,
 		};
 		

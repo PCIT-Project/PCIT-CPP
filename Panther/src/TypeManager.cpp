@@ -476,7 +476,9 @@ namespace pcit::panther{
 						return this->sizeOfPtr();
 
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N:
-						return round_up_to_nearest_multiple_of_8(primitive.bitWidth()) / 8;
+						return round_up_to_nearest_multiple_of_8(
+							round_up_to_nearest_multiple_of_8(primitive.bitWidth()) / 8
+						);
 
 					case Token::Kind::TYPE_F16:    return 2;
 					case Token::Kind::TYPE_BF16:   return 2;

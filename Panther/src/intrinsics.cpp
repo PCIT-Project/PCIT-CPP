@@ -81,6 +81,17 @@ namespace pcit::panther{
 
 		template_intrinsic_kinds = std::unordered_map<std::string_view, Kind>{
 			{"sizeOf", Kind::SIZE_OF},
+
+			{"bitCast", Kind::BIT_CAST},
+			{"trunc",   Kind::TRUNC},
+			{"ftrunc",  Kind::FTRUNC},
+			{"sext",    Kind::SEXT},
+			{"zext",    Kind::ZEXT},
+			{"fext",    Kind::FEXT},
+			{"iToF",    Kind::I_TO_F},
+			{"uiToF",   Kind::UI_TO_F},
+			{"fToI",    Kind::F_TO_I},
+			{"fToUI",   Kind::F_TO_UI},
 		};
 
 		template_intrinsic_kinds_end = template_intrinsic_kinds.end();

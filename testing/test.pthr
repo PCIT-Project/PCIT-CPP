@@ -1,14 +1,23 @@
 
 
 
-type Container = struct <{T: Type, VAL: T}> {
-	def VALUE: T = VAL;
-}
+// type Container = struct <{T: Type, VAL: T}> {
+// 	def VALUE: T = VAL;
+// }
 
 
+
+// func entry = () #entry -> UI8 {
+// 	return Container<{UI8, 12}>.VALUE;
+// }
+
+
+
+const foo: UI8 = @fToUI<{F32, UI8}>(12.4);
+const bar: UI8 = @fToUI<{F32, UI8}>(1.4);
 
 func entry = () #entry -> UI8 {
-	return Container<{UI8, 12}>.VALUE;
+	return copy foo;
 }
 
 

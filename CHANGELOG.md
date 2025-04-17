@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.102.0"></a>
+## v0.0.102.0
+
+### Panther
+- Added type conversion intrinsics
+	- `@bitCast`
+	- `@trunc`, `@ftrunc`
+	- `@sext`, `@zext`, `@fext`
+	- `@iToF`, `@uiToF`, `@fToI`, `@fToUI`
+- Fixed `@sizeOf` not including padding for integers with a width larger than 64
+
+
+<!---------------------------------->
 <a name="v0.0.101.1"></a>
 ## v0.0.101.1
 

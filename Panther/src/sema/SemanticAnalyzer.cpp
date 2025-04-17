@@ -1040,11 +1040,6 @@ namespace pcit::panther{
 		}
 
 
-		const BaseType::ID created_func_base_type = this->context.type_manager.getOrCreateFunction(
-			BaseType::Function(std::move(params), std::move(return_params), std::move(error_return_params))
-		);
-
-
 		///////////////////////////////////
 		// checking attributes
 
@@ -1090,6 +1085,10 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// create func
+
+		const BaseType::ID created_func_base_type = this->context.type_manager.getOrCreateFunction(
+			BaseType::Function(std::move(params), std::move(return_params), std::move(error_return_params))
+		);
 
 		const bool is_constexpr = !func_attrs.value().is_runtime;
 
@@ -1666,13 +1665,15 @@ namespace pcit::panther{
 		}
 
 
+
 		if(func_call_impl_res.value().is_intrinsic()) [[unlikely]] {
 			const IntrinsicFunc::Kind intrinsic_kind = target_term_info.getExpr().intrinsicFuncID();
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
+
 			if(this->get_current_func().isConstexpr){
-				if(intrinsic_func_info.allowedInConstexpr == false){
+				if(intrinsic_func_info.allowedInComptime == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 						instr.func_call.target,
@@ -2134,7 +2135,7 @@ namespace pcit::panther{
 	) -> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<IS_CONSTEXPR>(
+		const evo::Result<FuncCallImplData> selected_func = this->func_call_impl<IS_CONSTEXPR>(
 			instr.func_call,
 			target_term_info,
 			instr.args,
@@ -2142,11 +2143,184 @@ namespace pcit::panther{
 		);
 
 
-		this->return_term_info(
-			instr.output,
-			ConstexprIntrinsicEvaluator(this->context.type_manager, this->context.sema_buffer)
-				.sizeOf(this->get_term_info(instr.template_args[0]).type_id.as<TypeInfo::VoidableID>().asTypeID())
-		);
+		const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
+			this->context.getTemplateIntrinsicFuncInfo(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>());
+
+		if constexpr(IS_CONSTEXPR){
+			if(template_intrinsic_func_info.allowedInConstexpr == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					instr.func_call.target,
+					"Cannot call a non-constexpr function as a constexpr value"
+				);
+				return Result::ERROR;
+			}
+
+		}else{
+			if(this->get_current_func().isConstexpr){
+				if(template_intrinsic_func_info.allowedInComptime == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+						instr.func_call.target,
+						"Cannot call a non-comptime function within a comptime function"
+					);
+					return Result::ERROR;
+				}
+
+			}else{
+				if(template_intrinsic_func_info.allowedInRuntime == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_RUNTIME,
+						instr.func_call.target,
+						"Cannot call a non-runtime function within a runtime function"
+					);
+					return Result::ERROR;
+				}
+			}
+		}
+
+
+		switch(this->context.getConfig().mode){
+			case Context::Config::Mode::COMPILE: {
+				if(template_intrinsic_func_info.allowedInCompile == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+						instr.func_call.target,
+						"Calling this intrinsic is not allowed in compile mode"
+					);
+					return Result::ERROR;
+				}
+			} break;
+
+			case Context::Config::Mode::SCRIPTING: {
+				if(template_intrinsic_func_info.allowedInScript == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+						instr.func_call.target,
+						"Calling this intrinsic is not allowed in scripting mode"
+					);
+					return Result::ERROR;
+				}
+			} break;
+
+			case Context::Config::Mode::BUILD_SYSTEM: {
+				if(template_intrinsic_func_info.allowedInBuildSystem == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+						instr.func_call.target,
+						"Calling this intrinsic is not allowed in build system mode"
+					);
+					return Result::ERROR;
+				}
+			} break;
+		}
+
+
+
+		const auto create_runtime_call = [&](evo::ArrayProxy<BaseType::Function::ReturnParam> return_params) -> void {
+			auto return_types = evo::SmallVector<TypeInfo::ID>();
+			for(
+				const BaseType::Function::ReturnParam& return_param : 
+				return_params
+			){
+				return_types.emplace_back(return_param.typeID.asTypeID());
+			}
+
+
+			auto template_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>();
+			for(const SymbolProcTermInfoID& template_arg_id : instr.template_args){
+				const TermInfo& template_arg = this->get_term_info(template_arg_id);
+
+				if(template_arg.value_category == TermInfo::ValueCategory::TYPE){
+					template_args.emplace_back(template_arg.type_id.as<TypeInfo::VoidableID>());
+				}else{
+					evo::unimplemented("Intrinsic template value arg");
+				}
+			}
+
+			const sema::TemplateIntrinsicFuncInstantiation::ID intrinsic_target = 
+				this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+					target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>(), std::move(template_args)
+				);
+
+			auto args = evo::SmallVector<sema::Expr>();
+			for(const SymbolProc::TermInfoID& arg_term_info_id : instr.args){
+				args.emplace_back(this->get_term_info(arg_term_info_id).getExpr());
+			}
+
+			if(return_types.size() == 1){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
+					return_types[0],
+					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
+				);
+
+			}else{
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
+					std::move(return_types),
+					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
+				);
+			}
+		};
+
+
+		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
+			case TemplateIntrinsicFunc::Kind::SIZE_OF: {
+				this->return_term_info(
+					instr.output,
+					ConstexprIntrinsicEvaluator(this->context.type_manager, this->context.sema_buffer).sizeOf(
+						this->get_term_info(instr.template_args[0]).type_id.as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::TRUNC: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FTRUNC: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::SEXT: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ZEXT: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FEXT: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::I_TO_F: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::UI_TO_F: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::F_TO_I: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::F_TO_UI: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::_MAX_: {
+				evo::debugFatalBreak("Invalid template intrinsic func");
+			} break;
+		}
 
 
 		return Result::SUCCESS;
@@ -4153,16 +4327,20 @@ namespace pcit::panther{
 				const TermInfo& arg_term_info = this->get_term_info(arg);
 
 				if(arg_term_info.value_category != TermInfo::ValueCategory::TYPE){
-					instantiation_args.emplace_back(arg_term_info.type_id.as<TypeInfo::ID>());
-				}else{
 					instantiation_args.emplace_back();
+				}else{
+					instantiation_args.emplace_back(arg_term_info.type_id.as<TypeInfo::VoidableID>());
 				}
 			}
 			const Context::TemplateIntrinsicFuncInfo& func_info = this->context.getTemplateIntrinsicFuncInfo(
 				target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()
 			);
 
-			func_infos.emplace_back(std::nullopt, func_info.getTypeInstantiation(instantiation_args));
+			const BaseType::ID instantiated_type = this->context.type_manager.getOrCreateFunction(
+				func_info.getTypeInstantiation(instantiation_args)
+			);
+
+			func_infos.emplace_back(std::nullopt, this->context.getTypeManager().getFunction(instantiated_type.funcID()));
 
 		}else{
 			this->emit_error(

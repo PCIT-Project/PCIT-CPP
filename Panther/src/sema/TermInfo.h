@@ -54,7 +54,7 @@ namespace pcit::panther{
 
 
 		using TypeID = evo::Variant<
-			InitializerType,                // Initializer
+			InitializerType,                // INITIALIZER
 			FluidType,                      // EPHEMERAL_FLUID
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_CONST_FORWARDABLE
 						                    //   |CONCRETE_CONST_DESTR_MOVABLE|EPHEMERAL|INTRINSIC_FUNC

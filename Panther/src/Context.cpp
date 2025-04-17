@@ -390,8 +390,8 @@ namespace pcit::panther{
 			#else
 				.useReadableNames = false,
 			#endif
-			.checkedMath = true, 
-			.isJIT = true,
+			.checkedMath        = true,
+			.isJIT              = true,
 			.addSourceLocations = true,
 		});
 		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
@@ -820,34 +820,34 @@ namespace pcit::panther{
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInConstexpr = false, .allowedInRuntime = true,
-			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime      = true,
+			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInConstexpr = false, .allowedInRuntime = true,
-			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInComptime = true,  .allowedInRuntime     = true,
+			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS))] = 
 		IntrinsicFuncInfo{
 			.typeID = ui32_arg_return_void,
-			.allowedInConstexpr = false, .allowedInRuntime = true,
-			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInComptime = true,  .allowedInRuntime     = true,
+			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_OUTPUT))] = IntrinsicFuncInfo{
 			.typeID = ui32_arg_return_void,
-			.allowedInConstexpr = false, .allowedInRuntime = true,
-			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInComptime = true,  .allowedInRuntime     = true,
+			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_USE_STD_LIB))] = 
 		IntrinsicFuncInfo{
 			.typeID = bool_arg_return_void,
-			.allowedInConstexpr = false, .allowedInRuntime = true,
-			.allowedInCompile = false, .allowedInScript = false, .allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInComptime = true,  .allowedInRuntime     = true,
+			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
 
 
@@ -864,8 +864,99 @@ namespace pcit::panther{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUSize()},
-			.allowedInConstexpr = false, .allowedInRuntime = true,
-			.allowedInCompile = true, .allowedInScript = true, .allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::BIT_CAST))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::TRUNC))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::FTRUNC))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::SEXT))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::ZEXT))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::FEXT))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::I_TO_F))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::UI_TO_F))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::F_TO_I))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::F_TO_UI))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
+			.params         = evo::SmallVector<Param>{Param(AST::FuncDecl::Param::Kind::Read, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
 		};
 	}
 

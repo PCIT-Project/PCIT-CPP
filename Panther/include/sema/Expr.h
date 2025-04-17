@@ -71,11 +71,10 @@ namespace pcit::panther::sema{
 
 		explicit Expr(IntrinsicFunc::Kind intrinsic_func_kind) :
 			_kind(Kind::INTRINSIC_FUNC), value{.intrinsic_func = intrinsic_func_kind} {};
-
-		// explicit Expr(TemplatedIntrinsicInstantiationID id)
-		// 	: _kind(Kind::TEMPLATED_INTRINSIC_INSTANTIATION), 
-		// 	  value{.templated_intrinsic_func_instantiation = id} 
-		// 	  {};
+		explicit Expr(TemplateIntrinsicFuncInstantiationID id)
+			: _kind(Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION), 
+			  value{.templated_intrinsic_func_instantiation = id} 
+			  {};
 
 		explicit Expr(CopyID id)            : _kind(Kind::COPY),             value{.copy = id}         {};
 		explicit Expr(MoveID id)            : _kind(Kind::MOVE),             value{.move = id}         {};
@@ -135,12 +134,13 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::INTRINSIC_FUNC, "not an IntrinsicFunc");
 			return this->value.intrinsic_func;
 		}
-		// EVO_NODISCARD auto templatedIntrinsicInstantiationID() const -> TemplatedIntrinsicInstantiationID {
-		// 	evo::debugAssert(
-		// 		this->kind() == Kind::TEMPLATED_INTRINSIC_INSTANTIATION, "not a TEMPLATED_INTRINSIC_INSTANTIATION"
-		// 	);
-		// 	return this->value.templated_intrinsic_func_instantiation;
-		// }
+		EVO_NODISCARD auto templatedIntrinsicInstantiationID() const -> TemplateIntrinsicFuncInstantiationID {
+			evo::debugAssert(
+				this->kind() == Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION,
+				"not a TEMPLATED_INTRINSIC_FUNC_INSTANTIATION"
+			);
+			return this->value.templated_intrinsic_func_instantiation;
+		}
 
 		EVO_NODISCARD auto copyID() const -> CopyID {
 			evo::debugAssert(this->kind() == Kind::COPY, "not a copy");
@@ -206,7 +206,7 @@ namespace pcit::panther::sema{
 				CharValueID char_value;
 
 				IntrinsicFunc::Kind intrinsic_func;
-				// TemplatedIntrinsicInstantiationID templated_intrinsic_func_instantiation;
+				TemplateIntrinsicFuncInstantiationID templated_intrinsic_func_instantiation;
 
 				CopyID copy;
 				MoveID move;
