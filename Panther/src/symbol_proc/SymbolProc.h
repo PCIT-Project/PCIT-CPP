@@ -336,6 +336,7 @@ namespace pcit::panther{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
+			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
 		struct Import{

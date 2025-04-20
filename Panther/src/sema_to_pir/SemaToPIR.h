@@ -62,6 +62,8 @@ namespace pcit::panther{
 			auto get_expr_impl(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 				-> std::optional<pir::Expr>;
 
+			
+
 			template<GetExprMode MODE>
 			auto template_intrinsic_func_call(
 				const sema::FuncCall& func_call, evo::ArrayProxy<pir::Expr> store_locations
@@ -94,6 +96,7 @@ namespace pcit::panther{
 			pir::Agent agent;
 
 			class Source* current_source = nullptr;
+			const Data::FuncInfo* current_func_info = nullptr;
 
 			Data& data;
 	};

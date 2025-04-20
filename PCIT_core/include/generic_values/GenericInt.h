@@ -282,6 +282,14 @@ namespace pcit::core{
 			}
 
 
+			//////////////////////////////////////////////////////////////////////
+			// misc
+
+			EVO_NODISCARD auto data() const -> const uint64_t* {
+				return this->ap_int.getRawData();
+			}
+
+
 		private:
 			GenericInt(llvmint::APInt&& _ap_int) : ap_int(std::move(_ap_int)) {}
 

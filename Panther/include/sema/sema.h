@@ -172,14 +172,14 @@ namespace pcit::panther::sema{
 		using ID = ParamID;
 
 	// 	Func::ID func;
-	// 	uint32_t index;
+		uint32_t index;
 	};
 
 	struct ReturnParam{
 		using ID = ReturnParamID;
 
 	// 	Func::ID func;
-	// 	uint32_t index;
+		uint32_t index;
 	};
 
 

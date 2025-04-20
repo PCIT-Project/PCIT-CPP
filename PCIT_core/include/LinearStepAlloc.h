@@ -82,6 +82,7 @@ namespace pcit::core{
 				return this->size_when_not_fully_deallocated();
 			}
 
+
 			EVO_NODISCARD auto empty() const -> bool { return this->size() == 0; }
 
 

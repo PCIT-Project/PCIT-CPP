@@ -66,7 +66,7 @@ namespace pcit::pir{
 
 			auto setInsertIndex(size_t index) -> void;
 			auto setInsertIndexAtEnd() -> void;
-			auto getInsertIndexAtEnd() const -> bool { return this->insert_index == std::numeric_limits<size_t>::max();}
+			auto getInsertIndexAtEnd() const -> bool {return this->insert_index == std::numeric_limits<size_t>::max();}
 
 
 			///////////////////////////////////

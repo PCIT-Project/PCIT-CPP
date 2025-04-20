@@ -48,9 +48,9 @@ namespace pcit::panther{
 		const Token& peeked_token = this->reader[this->reader.peek()];
 		
 		switch(peeked_token.kind()){
-			case Token::Kind::KEYWORD_VAR:         return this->parse_var_decl<AST::VarDecl::Kind::Var>();
-			case Token::Kind::KEYWORD_CONST:       return this->parse_var_decl<AST::VarDecl::Kind::Const>();
-			case Token::Kind::KEYWORD_DEF:         return this->parse_var_decl<AST::VarDecl::Kind::Def>();
+			case Token::Kind::KEYWORD_VAR:         return this->parse_var_decl<AST::VarDecl::Kind::VAR>();
+			case Token::Kind::KEYWORD_CONST:       return this->parse_var_decl<AST::VarDecl::Kind::CONST>();
+			case Token::Kind::KEYWORD_DEF:         return this->parse_var_decl<AST::VarDecl::Kind::DEF>();
 			case Token::Kind::KEYWORD_FUNC:        return this->parse_func_decl();
 			case Token::Kind::KEYWORD_TYPE:        return this->parse_type_decl();
 			case Token::Kind::KEYWORD_RETURN:      return this->parse_return();
@@ -74,10 +74,10 @@ namespace pcit::panther{
 	// TODO: check EOF
 	template<AST::VarDecl::Kind VAR_DECL_KIND>
 	auto Parser::parse_var_decl() -> Result {
-		if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::Var){
+		if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::VAR){
 			if(this->assert_token_fail(Token::Kind::KEYWORD_VAR)){ return Result::Code::ERROR; }
 
-		}else if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::Const){
+		}else if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::CONST){
 			if(this->assert_token_fail(Token::Kind::KEYWORD_CONST)){ return Result::Code::ERROR; }
 			
 		}else{
@@ -1607,12 +1607,12 @@ namespace pcit::panther{
 				switch(this->reader[this->reader.peek()].kind()){
 					case Token::Kind::KEYWORD_READ: {
 						this->reader.skip();
-						param_kind = ParamKind::Read;
+						param_kind = ParamKind::READ;
 					} break;
 
 					case Token::Kind::KEYWORD_MUT: {
 						this->reader.skip();
-						param_kind = ParamKind::Mut;
+						param_kind = ParamKind::MUT;
 					} break;
 
 					case Token::Kind::KEYWORD_IN: {
@@ -1664,21 +1664,21 @@ namespace pcit::panther{
 				switch(this->reader[this->reader.peek()].kind()){
 					case Token::Kind::KEYWORD_READ: {
 						this->reader.skip();
-						param_kind = ParamKind::Read;
+						param_kind = ParamKind::READ;
 					} break;
 
 					case Token::Kind::KEYWORD_MUT: {
 						this->reader.skip();
-						param_kind = ParamKind::Mut;
+						param_kind = ParamKind::MUT;
 					} break;
 
 					case Token::Kind::KEYWORD_IN: {
 						this->reader.skip();
-						param_kind = ParamKind::In;
+						param_kind = ParamKind::IN;
 					} break;
 
 					default: {
-						param_kind = ParamKind::Read;
+						param_kind = ParamKind::READ;
 					} break;
 				}
 			}

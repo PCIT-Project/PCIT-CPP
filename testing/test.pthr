@@ -1,23 +1,14 @@
 
 
-
-// type Container = struct <{T: Type, VAL: T}> {
-// 	def VALUE: T = VAL;
-// }
+const value: I128 = get_value(12);
 
 
-
-// func entry = () #entry -> UI8 {
-// 	return Container<{UI8, 12}>.VALUE;
-// }
-
-
-
-const foo: UI8 = @fToUI<{F32, UI8}>(12.4);
-const bar: UI8 = @fToUI<{F32, UI8}>(1.4);
-
-func entry = () #entry -> UI8 {
-	return copy foo;
+func get_value = (value_to_get: I128) -> I128 {
+	return copy value_to_get;
 }
 
+
+func entry = () #entry -> UI8 {
+	return @trunc<{I128, UI8}>(value);
+}
 

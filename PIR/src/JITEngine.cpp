@@ -108,7 +108,7 @@ namespace pcit::pir{
 
 		auto return_value = core::GenericValue();
 
-		this->getFuncPtr<void(*)(core::GenericValue*)>(func.getName())(&return_value);
+		this->getFuncPtr<void(*)(core::GenericValue*, core::GenericValue*)>(func.getName())(&return_value, args.data());
 
 		return return_value;
 	}
@@ -208,8 +208,42 @@ namespace pcit::pir{
 			),
 			FuncRegisterInfo(
 				"PIR.JIT.return_generic_char",
-				[](core::GenericValue* return_value, char value) -> void {
-					*return_value = core::GenericValue(value);
+				[](core::GenericValue* return_value, uint8_t value) -> void {
+					*return_value = core::GenericValue(char(value));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.get_generic_int",
+				[](core::GenericValue* source, void* value) -> void {
+					const core::GenericInt& generic_int = source->as<core::GenericInt>();
+
+					const size_t buffer_size = [&]() -> size_t {
+						if(generic_int.getBitWidth() <= 8){  return 1; }
+						if(generic_int.getBitWidth() <= 16){ return 2; }
+						if(generic_int.getBitWidth() <= 32){ return 4; }
+						if(generic_int.getBitWidth() <= 64){ return 8; }
+						return round_up_to_nearest_multiple_of_64(generic_int.getBitWidth()) / 64;
+					}();
+					std::memcpy(value, generic_int.data(), buffer_size);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.get_generic_bool",
+				[](core::GenericValue* source) -> bool {
+					return source->as<bool>();
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.get_generic_float",
+				[](core::GenericValue* source, void* value) -> void {
+					const core::GenericInt generic_int = source->as<core::GenericFloat>().bitCastToGenericInt();
+					std::memcpy(value, generic_int.data(), generic_int.getBitWidth() / 8);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.get_generic_char",
+				[](core::GenericValue* source) -> uint8_t {
+					return uint8_t(source->as<char>());
 				}
 			),
 		});

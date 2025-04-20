@@ -493,9 +493,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isUnsignedIntegral(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isUnsignedIntegral(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isFloatingPoint(TypeInfo::VoidableID id) const -> bool;
-			EVO_NODISCARD auto isFloatingPoint(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isFloatingPoint(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isFloat(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isFloat(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isFloat(BaseType::ID id) const -> bool;
 
 			// EVO_NODISCARD auto isBuiltin(TypeInfo::VoidableID id) const -> bool;
 			// EVO_NODISCARD auto isBuiltin(TypeInfo::ID id) const -> bool;

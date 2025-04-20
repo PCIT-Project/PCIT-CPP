@@ -31,9 +31,15 @@ namespace pcit::panther{
 			};
 			
 			struct FuncInfo{
+				struct Param{
+					std::optional<pir::Type> reference_type;
+
+					EVO_NODISCARD auto is_copy() const -> bool { return this->reference_type.has_value() == false; }
+				};
+
 				pir::Function::ID pir_id;
 				pir::Type return_type;
-				evo::SmallVector<bool> arg_is_copy;
+				evo::SmallVector<Param> params;
 				evo::SmallVector<pir::Expr> return_params; // only used if they are out params
 				std::optional<pir::Expr> error_return_param;
 				std::optional<pir::Type> error_return_type;
@@ -50,6 +56,11 @@ namespace pcit::panther{
 				pir::ExternalFunction::ID return_generic_f80  = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID return_generic_f128 = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID return_generic_char = pir::ExternalFunction::ID::dummy();
+
+				pir::ExternalFunction::ID get_generic_int   = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID get_generic_bool  = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID get_generic_float = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID get_generic_char  = pir::ExternalFunction::ID::dummy();
 			};
 
 			struct JITBuildFuncs{

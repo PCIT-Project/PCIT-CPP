@@ -56,14 +56,14 @@ namespace pcit::panther{
 	auto SemaToPIR::lowerGlobal(sema::GlobalVar::ID global_var_id) -> void {
 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 
-		if(global_var.kind == AST::VarDecl::Kind::Def){ return; }
+		if(global_var.kind == AST::VarDecl::Kind::DEF){ return; }
 
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
 			this->get_type(*global_var.typeID),
 			pir::Linkage::PRIVATE,
 			this->get_global_var_value(*global_var.expr.load()),
-			global_var.kind == AST::VarDecl::Kind::Const
+			global_var.kind == AST::VarDecl::Kind::CONST
 		);
 
 		this->data.create_global_var(global_var_id, new_global_var);
@@ -83,8 +83,8 @@ namespace pcit::panther{
 		auto params = evo::SmallVector<pir::Parameter>();
 		params.reserve(func_type.params.size() + func_type.returnParams.size() + func_type.errorParams.size());
 
-		auto arg_is_copy = evo::SmallVector<bool>();
-		arg_is_copy.reserve(func_type.params.size());
+		auto param_infos = evo::SmallVector<Data::FuncInfo::Param>();
+		param_infos.reserve(func_type.params.size());
 
 		bool no_params_need_alloca = true;
 		for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
@@ -100,15 +100,16 @@ namespace pcit::panther{
 
 			if(param.shouldCopy){
 				params.emplace_back(std::move(param_name), this->get_type(param.typeID));
+				param_infos.emplace_back(std::nullopt);
 
-				if(param.kind == AST::FuncDecl::Param::Kind::In){
+				if(param.kind == AST::FuncDecl::Param::Kind::IN){
 					no_params_need_alloca = false;
 				}
 			}else{
 				params.emplace_back(std::move(param_name), this->module.createPtrType());
+				param_infos.emplace_back(this->get_type(param.typeID));
 			}
 
-			arg_is_copy.emplace_back(param.shouldCopy);
 		}
 
 		auto return_params = evo::SmallVector<pir::Expr>();
@@ -184,7 +185,7 @@ namespace pcit::panther{
 			func_id,
 			new_func_id, // first arg of FuncInfo construction
 			return_type,
-			std::move(arg_is_copy),
+			std::move(param_infos),
 			std::move(return_params),
 			error_return_param,
 			error_return_type
@@ -236,6 +237,9 @@ namespace pcit::panther{
 
 		pir::Function& func = this->module.getFunction(this->data.get_func(func_id).pir_id);
 
+		this->current_func_info = &this->data.get_func(func_id);
+		EVO_DEFER([&](){ this->current_func_info = nullptr; });
+
 		this->agent.setTargetFunction(func);
 		this->agent.setTargetBasicBlockAtEnd();
 
@@ -258,7 +262,7 @@ namespace pcit::panther{
 
 					auto args = evo::SmallVector<pir::Expr>();
 					for(size_t i = 0; const sema::Expr& arg : func_call.args){
-						if(target_func_info.arg_is_copy[i]){
+						if(target_func_info.params[i].is_copy()){
 							args.emplace_back(this->get_expr_register(arg));
 						}else{
 							args.emplace_back(this->get_expr_pointer(arg));
@@ -388,9 +392,9 @@ namespace pcit::panther{
 		const pir::Function& target_pir_func = this->module.getFunction(pir_func_id);
 
 
-
 		auto params = evo::SmallVector<pir::Parameter>{
-			pir::Parameter("RET", this->module.createPtrType())
+			pir::Parameter("RET", this->module.createPtrType()),
+			pir::Parameter("ARGS", this->module.createPtrType()),
 		};
 
 		const pir::Function::ID jit_interface_func_id = this->module.createFunction(
@@ -409,6 +413,92 @@ namespace pcit::panther{
 		this->agent.createBasicBlock();
 		this->agent.setTargetBasicBlockAtEnd();
 
+		auto args = evo::SmallVector<pir::Expr>();
+		args.reserve(target_pir_func.getParameters().size());
+
+		for(size_t i = 0; const pir::Parameter& param : target_pir_func.getParameters()){
+			EVO_DEFER([&](){ i += 1; });
+
+			const pir::Expr arg_ptr = this->agent.createCalcPtr(
+				this->agent.createParamExpr(1),
+				this->module.createIntegerType(8),
+				evo::SmallVector<pir::CalcPtr::Index>{int64_t(i * sizeof(core::GenericValue))}
+			);
+
+			switch(param.getType().kind()){
+				case pir::Type::Kind::VOID: {
+					evo::debugFatalBreak("Function parameter cannot be type void");
+				} break;
+
+				case pir::Type::Kind::INTEGER: {
+					if(func_type.params[i].typeID == TypeManager::getTypeChar()) [[unlikely]] {
+						args.emplace_back(
+							this->agent.createCall(this->data.getJITInterfaceFuncs().get_generic_char, {arg_ptr})
+						);
+
+					}else{
+						const pir::Expr alloca = this->agent.createAlloca(param.getType());
+						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().get_generic_int, {arg_ptr, alloca});
+						args.emplace_back(
+							this->agent.createLoad(alloca, param.getType(), false, pir::AtomicOrdering::NONE)
+						);
+					}
+				} break;
+
+				case pir::Type::Kind::BOOL: {
+					args.emplace_back(
+						this->agent.createCall(this->data.getJITInterfaceFuncs().get_generic_bool, {arg_ptr})
+					);
+				} break;
+
+				case pir::Type::Kind::FLOAT: {
+					const pir::Expr alloca = this->agent.createAlloca(param.getType());
+					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca});
+					args.emplace_back(
+						this->agent.createLoad(alloca, param.getType(), false, pir::AtomicOrdering::NONE)
+					);
+				} break;
+
+				case pir::Type::Kind::BFLOAT: {
+					const pir::Expr alloca = this->agent.createAlloca(param.getType());
+					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca});
+					args.emplace_back(
+						this->agent.createLoad(alloca, param.getType(), false, pir::AtomicOrdering::NONE)
+					);
+				} break;
+
+				case pir::Type::Kind::PTR: {
+					if(this->context.getTypeManager().isIntegral(func_type.params[i].typeID)){
+						const pir::Expr alloca = this->agent.createAlloca(param.getType());
+						this->agent.createCallVoid(
+							this->data.getJITInterfaceFuncs().get_generic_int, {arg_ptr, alloca}
+						);
+						args.emplace_back(alloca);
+					}else{
+						evo::debugAssert(this->context.getTypeManager().isFloat(func_type.params[i].typeID));
+						const pir::Expr alloca = this->agent.createAlloca(param.getType());
+						this->agent.createCallVoid(
+							this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca}
+						);
+						args.emplace_back(alloca);
+
+					}
+				} break;
+
+				case pir::Type::Kind::ARRAY: {
+					evo::unimplemented();
+				} break;
+
+				case pir::Type::Kind::STRUCT: {
+					evo::unimplemented();
+				} break;
+
+				case pir::Type::Kind::FUNCTION: {
+					evo::unimplemented();
+				} break;
+			}
+		}
+
 
 		switch(target_pir_func.getReturnType().kind()){
 			case pir::Type::Kind::VOID: {
@@ -423,14 +513,14 @@ namespace pcit::panther{
 				if(returns_char){
 					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_char, {
 						this->agent.createParamExpr(0),
-						this->agent.createCall(pir_func_id, {})
+						this->agent.createCall(pir_func_id, std::move(args))
 					});
 
 				}else{
 					const uint32_t bit_width = target_pir_func.getReturnType().getWidth();
 
 					const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-					const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+					const pir::Expr target_call = this->agent.createCall(pir_func_id, std::move(args));
 					this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
 
 					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_int, {
@@ -449,7 +539,7 @@ namespace pcit::panther{
 			case pir::Type::Kind::BOOL: {
 				this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_bool, {
 					this->agent.createParamExpr(0),
-					this->agent.createCall(pir_func_id, {})
+					this->agent.createCall(pir_func_id, std::move(args))
 				});
 
 				this->agent.createRet();
@@ -459,7 +549,7 @@ namespace pcit::panther{
 				switch(target_pir_func.getReturnType().getWidth()){
 					case 16: {
 						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-						const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+						const pir::Expr target_call = this->agent.createCall(pir_func_id, std::move(args));
 						this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
 
 						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f16, {
@@ -471,7 +561,7 @@ namespace pcit::panther{
 					case 32: {
 						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f32, {
 							this->agent.createParamExpr(0),
-							this->agent.createCall(pir_func_id, {})
+							this->agent.createCall(pir_func_id, std::move(args))
 						});
 
 						this->agent.createRet();
@@ -480,7 +570,7 @@ namespace pcit::panther{
 					case 64: {
 						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f64, {
 							this->agent.createParamExpr(0),
-							this->agent.createCall(pir_func_id, {})
+							this->agent.createCall(pir_func_id, std::move(args))
 						});
 
 						this->agent.createRet();
@@ -488,7 +578,7 @@ namespace pcit::panther{
 
 					case 80: {
 						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-						const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+						const pir::Expr target_call = this->agent.createCall(pir_func_id, std::move(args));
 						this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
 
 						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f80, {
@@ -499,7 +589,7 @@ namespace pcit::panther{
 
 					case 128: {
 						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-						const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+						const pir::Expr target_call = this->agent.createCall(pir_func_id, std::move(args));
 						this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
 
 						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f128, {
@@ -512,7 +602,7 @@ namespace pcit::panther{
 			
 			case pir::Type::Kind::BFLOAT: {
 				const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-				const pir::Expr target_call = this->agent.createCall(pir_func_id, {});
+				const pir::Expr target_call = this->agent.createCall(pir_func_id, std::move(args));
 				this->agent.createStore(return_alloca, target_call, false, pir::AtomicOrdering::NONE);
 
 				this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_bf16, {
@@ -735,7 +825,7 @@ namespace pcit::panther{
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : func_call.args){
-					if(target_func_info.arg_is_copy[i]){
+					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
@@ -776,7 +866,59 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::PARAM: {
-				evo::unimplemented("lower sema::Expr::Kind::Param");
+				const sema::Param& sema_param = this->context.getSemaBuffer().getParam(expr.paramID());
+
+				if(this->current_func_info->params[sema_param.index].is_copy()){
+					const pir::Expr output = this->agent.createParamExpr(sema_param.index);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return output;
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
+						const pir::Expr alloca = this->agent.createAlloca(
+							current_func.getParameters()[sema_param.index].getType()
+						);
+						this->agent.createStore(alloca, output, false, pir::AtomicOrdering::NONE);
+						return alloca;
+						
+					}else{
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+						this->agent.createStore(store_locations.front(), output, false, pir::AtomicOrdering::NONE);
+						return std::nullopt;
+					}
+
+				}else{
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(
+							this->agent.createParamExpr(sema_param.index),
+							*this->current_func_info->params[sema_param.index].reference_type,
+							false,
+							pir::AtomicOrdering::NONE
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->agent.createParamExpr(sema_param.index);
+						
+					}else{
+						const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
+						const size_t param_type_size = this->module.getSize(
+							current_func.getParameters()[sema_param.index].getType()
+						);
+
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+						this->agent.createMemcpy(
+							store_locations[0],
+							this->agent.createParamExpr(sema_param.index),
+							this->agent.createNumber(
+								this->module.createIntegerType(unsigned(this->module.sizeOfPtr())),
+								core::GenericInt(unsigned(this->module.sizeOfPtr()), param_type_size)
+							),
+							false
+						);
+						return std::nullopt;
+					}
+				}
 			} break;
 
 			case sema::Expr::Kind::RETURN_PARAM: {

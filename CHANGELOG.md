@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.103.0"></a>
+## v0.0.103.0
+
+### Panther
+- Added parameter expressions
+- Added support for calling functions as constexpr values with parameters
+- Added checking that argument of `move` is mutable
+
+### PIR
+- Fixed asserts in `Agent::createCalcPtr` not allowing for non-aggregate types
+
+
+<!---------------------------------->
 <a name="v0.0.102.0"></a>
 ## v0.0.102.0
 

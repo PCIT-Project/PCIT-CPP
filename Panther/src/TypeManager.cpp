@@ -723,24 +723,24 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isFloatingPoint
+	// isFloat
 
-	auto TypeManager::isFloatingPoint(TypeInfo::VoidableID id) const -> bool {
+	auto TypeManager::isFloat(TypeInfo::VoidableID id) const -> bool {
 		if(id.isVoid()){ return false; }
-		return this->isFloatingPoint(id.asTypeID());
+		return this->isFloat(id.asTypeID());
 	}
 
 
-	auto TypeManager::isFloatingPoint(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isFloat(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		if(type_info.qualifiers().empty()){ return this->isFloatingPoint(type_info.baseTypeID()); }
+		if(type_info.qualifiers().empty()){ return this->isFloat(type_info.baseTypeID()); }
 
 		return false;
 	}
 
 
-	auto TypeManager::isFloatingPoint(BaseType::ID id) const -> bool {
+	auto TypeManager::isFloat(BaseType::ID id) const -> bool {
 		if(id.kind() != BaseType::Kind::PRIMITIVE){ return false; }
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());

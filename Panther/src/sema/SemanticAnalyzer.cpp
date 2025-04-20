@@ -268,7 +268,7 @@ namespace pcit::panther{
 
 
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
-			if(instr.var_decl.kind != AST::VarDecl::Kind::Var){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::VAR){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
 					instr.var_decl,
@@ -323,7 +323,7 @@ namespace pcit::panther{
 
 		TermInfo& value_term_info = this->get_term_info(instr.value_id);
 		if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
-			if(instr.var_decl.kind != AST::VarDecl::Kind::Def){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::DEF){
 				this->emit_error(
 					Diagnostic::Code::SEMA_MODULE_VAR_MUST_BE_DEF,
 					*instr.var_decl.value,
@@ -347,7 +347,7 @@ namespace pcit::panther{
 
 
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
-			if(instr.var_decl.kind != AST::VarDecl::Kind::Var){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::VAR){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
 					instr.var_decl,
@@ -387,7 +387,7 @@ namespace pcit::panther{
 		}
 
 		if(
-			instr.var_decl.kind != AST::VarDecl::Kind::Def &&
+			instr.var_decl.kind != AST::VarDecl::Kind::DEF &&
 			value_term_info.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
 		){
 			this->emit_error(
@@ -911,11 +911,11 @@ namespace pcit::panther{
 				}
 
 				const bool should_copy = [&](){
-					if(param.kind != AST::FuncDecl::Param::Kind::Read){ return false; }
+					if(param.kind != AST::FuncDecl::Param::Kind::READ){ return false; }
 					return this->context.getTypeManager().isTriviallyCopyable(param_type_id.asTypeID());
 				}();
 
-				if(param.kind == AST::FuncDecl::Param::Kind::In){
+				if(param.kind == AST::FuncDecl::Param::Kind::IN){
 					has_in_param = true;
 				}
 
@@ -1133,6 +1133,19 @@ namespace pcit::panther{
 		}
 
 		this->push_scope_level(&created_func.stmtBlock, created_func_id);
+
+
+		for(uint32_t i = 0; const AST::FuncDecl::Param& param : instr.func_decl.params){
+			EVO_DEFER([&](){ i += 1; });
+		
+			const std::string_view param_name = this->source.getTokenBuffer()[
+				this->source.getASTBuffer().getIdent(param.name)
+			].getString();
+
+			if(this->add_ident_to_scope(param_name, param, this->context.sema_buffer.createParam(i)).isError()){
+				return Result::ERROR;
+			}
+		}
 
 
 		///////////////////////////////////
@@ -1912,6 +1925,45 @@ namespace pcit::panther{
 		evo::debugAssert(target_func.defCompleted.load(), "def of func not completed");
 
 		auto jit_args = evo::SmallVector<core::GenericValue>();
+		jit_args.reserve(instr.args.size());
+		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
+			const TermInfo& arg = this->get_term_info(arg_id);
+
+			switch(arg.getExpr().kind()){
+				case sema::Expr::Kind::INT_VALUE: {
+					jit_args.emplace_back(
+						evo::copy(this->context.getSemaBuffer().getIntValue(arg.getExpr().intValueID()).value)
+					);
+				} break;
+
+				case sema::Expr::Kind::FLOAT_VALUE: {
+					jit_args.emplace_back(
+						evo::copy(this->context.getSemaBuffer().getFloatValue(arg.getExpr().floatValueID()).value)
+					);
+				} break;
+
+				case sema::Expr::Kind::BOOL_VALUE: {
+					jit_args.emplace_back(
+						evo::copy(this->context.getSemaBuffer().getBoolValue(arg.getExpr().boolValueID()).value)
+					);
+				} break;
+
+				case sema::Expr::Kind::STRING_VALUE: {
+					evo::unimplemented();
+				} break;
+
+				case sema::Expr::Kind::CHAR_VALUE: {
+					jit_args.emplace_back(
+						evo::copy(this->context.getSemaBuffer().getCharValue(arg.getExpr().charValueID()).value)
+					);
+				} break;
+
+				default: evo::debugFatalBreak("Invalid constexpr value");
+			}
+
+			i += 1;
+		}
+
 		core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
 			this->context.constexpr_pir_module, *target_func.constexprJITInterfaceFunc, jit_args
 		);
@@ -2355,12 +2407,21 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_move(const Instruction::Move& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
-		if(target.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_COPY_ARG_NOT_CONCRETE,
-				instr.prefix,
-				"Argument of operator `move` must be concrete"
-			);
+		if(target.value_category != TermInfo::ValueCategory::CONCRETE_MUT){
+			if(target.is_concrete() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_MOVE_ARG_NOT_CONCRETE,
+					instr.prefix,
+					"Argument of operator `move` must be concrete"
+				);
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
+					instr.prefix,
+					"Argument of operator `move` must be mutable"
+				);
+			}
+
 			return Result::ERROR;
 		}
 
@@ -3501,7 +3562,7 @@ namespace pcit::panther{
 				using ValueStage = TermInfo::ValueStage;
 
 				switch(sema_var.kind){
-					case AST::VarDecl::Kind::Var: {
+					case AST::VarDecl::Kind::VAR: {
 						if constexpr(NEEDS_DEF){
 							if(sema_var.expr.load().has_value() == false){
 								return ReturnType(
@@ -3529,7 +3590,7 @@ namespace pcit::panther{
 						));
 					} break;
 
-					case AST::VarDecl::Kind::Const: {
+					case AST::VarDecl::Kind::CONST: {
 						if constexpr(NEEDS_DEF){
 							if(sema_var.expr.load().has_value() == false){
 								return ReturnType(
@@ -3557,7 +3618,7 @@ namespace pcit::panther{
 						));
 					} break;
 
-					case AST::VarDecl::Kind::Def: {
+					case AST::VarDecl::Kind::DEF: {
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL, ValueStage::CONSTEXPR, *sema_var.typeID, *sema_var.expr.load()
@@ -3576,18 +3637,37 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Unknown or unsupported AST::VarDecl::Kind");
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ParamID>()){
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					ident,
-					"parameter identifiers are unimplemented"
+				const sema::Func& current_func = this->get_current_func();
+				const BaseType::Function& current_func_type = 
+					this->context.getTypeManager().getFunction(current_func.typeID);
+				const BaseType::Function::Param& param = current_func_type.params[
+					this->context.getSemaBuffer().getParam(ident_id).index
+				];
+
+				const TermInfo::ValueCategory value_category = [&](){
+					switch(param.kind){
+						case AST::FuncDecl::Param::Kind::READ: return TermInfo::ValueCategory::CONCRETE_CONST;
+						case AST::FuncDecl::Param::Kind::MUT:  return TermInfo::ValueCategory::CONCRETE_MUT;
+						case AST::FuncDecl::Param::Kind::IN:   return TermInfo::ValueCategory::CONCRETE_FORWARDABLE;
+					}
+
+					evo::unreachable();
+				}();
+
+				return ReturnType(
+					TermInfo(
+						value_category,
+						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						param.typeID,
+						sema::Expr(ident_id)
+					)
 				);
-				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ReturnParamID>()){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					ident,
-					"return parameter identifiers are unimplemented"
+					"Return parameter identifiers are unimplemented"
 				);
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
@@ -4020,11 +4100,11 @@ namespace pcit::panther{
 				// value kind
 
 				switch(func_info.func_type.params[arg_i].kind){
-					case AST::FuncDecl::Param::Kind::Read: {
+					case AST::FuncDecl::Param::Kind::READ: {
 						// accepts any value kind
 					} break;
 
-					case AST::FuncDecl::Param::Kind::Mut: {
+					case AST::FuncDecl::Param::Kind::MUT: {
 						if(arg_info.term_info.is_const()){
 							scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
 							arg_checking_failed = true;
@@ -4040,7 +4120,7 @@ namespace pcit::panther{
 						current_score += 1; // add 1 to prefer mut over read
 					} break;
 
-					case AST::FuncDecl::Param::Kind::In: {
+					case AST::FuncDecl::Param::Kind::IN: {
 						if(arg_info.term_info.is_ephemeral() == false){
 							scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
 							arg_checking_failed = true;
@@ -4188,17 +4268,17 @@ namespace pcit::panther{
 						);
 
 						switch(func_infos[i].func_type.params[reason.arg_index].kind){
-							case AST::FuncDecl::Param::Kind::Read: {
+							case AST::FuncDecl::Param::Kind::READ: {
 								evo::debugFatalBreak("Read parameters should never fail to accept value kind");
 							} break;
 
-							case AST::FuncDecl::Param::Kind::Mut: {
+							case AST::FuncDecl::Param::Kind::MUT: {
 								sub_infos.emplace_back(
-									"`mut` parameters can only accept concrete values that are mutable"
+									"`mut` parameters can only accept values that are concrete and mutable"
 								);
 							} break;
 
-							case AST::FuncDecl::Param::Kind::In: {
+							case AST::FuncDecl::Param::Kind::IN: {
 								sub_infos.emplace_back("`in` parameters can only accept ephemeral values");
 							} break;
 						}
@@ -4815,7 +4895,7 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::EPHEMERAL:
 			case TermInfo::ValueCategory::CONCRETE_CONST:
 			case TermInfo::ValueCategory::CONCRETE_MUT:
-			case TermInfo::ValueCategory::CONCRETE_CONST_FORWARDABLE:
+			case TermInfo::ValueCategory::CONCRETE_FORWARDABLE:
 			case TermInfo::ValueCategory::CONCRETE_CONST_DESTR_MOVABLE: {
 				if(got_expr.isMultiValue()){
 					auto name_copy = std::string(expected_type_location_name);

@@ -1182,46 +1182,54 @@ namespace pcit::pir{
 		evo::debugAssert(!indices.empty(), "There must be at least one index");
 		#if defined(PCIT_CONFIG_DEBUG)
 			Type target_type = ptr_type;
-			
-			for(size_t i = 1; i < indices.size(); i+=1){
-				const CalcPtr::Index& index = indices[i];
 
-				evo::debugAssert(target_type.isAggregate(), "ptr type must be an aggregate type");
-				evo::debugAssert(
-					index.is<int64_t>() || this->getExprType(index.as<Expr>()).kind() == Type::Kind::INTEGER,
-					"Index must be integer"
-				);
-
-				if(target_type.kind() == Type::Kind::ARRAY){
-					const ArrayType& array_type = this->module.getArrayType(target_type);
-
-					if(index.is<int64_t>()){
-						evo::debugAssert(
-							index.as<int64_t>() >= 0 && size_t(index.as<int64_t>()) < array_type.length,
-							"indexing into an array must be a valid index"
-						);
-						
-					}else if(index.as<Expr>().kind() == Expr::Kind::NUMBER){
-						const int64_t member_index = static_cast<int64_t>(this->getNumber(index.as<Expr>()).getInt());
-						evo::debugAssert(
-							member_index >= 0 && size_t(member_index) < array_type.length,
-							"indexing into an array must be a valid index"
-						);
-					}
-
-					target_type = array_type.elemType;
-
-				}else{
-					evo::debugAssert(index.is<int64_t>(), "Cannot index into a struct with a pcit::pir::Expr");
-
-					const StructType& struct_type = this->module.getStructType(target_type);
+			if(target_type.isAggregate()){
+				for(size_t i = 1; i < indices.size(); i+=1){
+					const CalcPtr::Index& index = indices[i];
 
 					evo::debugAssert(
-						index.as<int64_t>() >= 0 && size_t(index.as<int64_t>()) < struct_type.members.size(),
-						"indexing into a struct must be a valid member index"
+						index.is<int64_t>() || this->getExprType(index.as<Expr>()).kind() == Type::Kind::INTEGER,
+						"@calcPtr indicies must be integers"
 					);
-					target_type = struct_type.members[size_t(index.as<int64_t>())];
+
+					if(target_type.kind() == Type::Kind::ARRAY){
+						const ArrayType& array_type = this->module.getArrayType(target_type);
+
+						if(index.is<int64_t>()){
+							evo::debugAssert(
+								index.as<int64_t>() >= 0 && size_t(index.as<int64_t>()) < array_type.length,
+								"indexing into an array must be a valid index"
+							);
+							
+						}else if(index.as<Expr>().kind() == Expr::Kind::NUMBER){
+							const int64_t member_index = static_cast<int64_t>(
+								this->getNumber(index.as<Expr>()).getInt()
+							);
+							evo::debugAssert(
+								member_index >= 0 && size_t(member_index) < array_type.length,
+								"indexing into an array must be a valid index"
+							);
+						}
+
+						target_type = array_type.elemType;
+
+					}else if(target_type.kind() == Type::Kind::STRUCT){
+						evo::debugAssert(index.is<int64_t>(), "Cannot index into a struct with a pcit::pir::Expr");
+
+						const StructType& struct_type = this->module.getStructType(target_type);
+
+						evo::debugAssert(
+							index.as<int64_t>() >= 0 && size_t(index.as<int64_t>()) < struct_type.members.size(),
+							"indexing into a struct must be a valid member index"
+						);
+						target_type = struct_type.members[size_t(index.as<int64_t>())];
+
+					}else{
+						evo::debugAssert(i+1 == indices.size(), "@calcPtr cannot index a Non-aggregate type");
+					}
 				}
+			}else{
+				evo::debugAssert(indices.size() == 1, "Non-aggregate type for @calcPtr must have exactly 1 index");
 			}
 		#endif
 

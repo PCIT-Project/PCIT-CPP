@@ -139,9 +139,9 @@ namespace pcit::panther::AST{
 	
 	struct VarDecl{
 		enum class Kind : uint8_t {
-			Var,
-			Const,
-			Def,
+			VAR,
+			CONST,
+			DEF,
 		};
 		Kind kind;
 		Token::ID ident;
@@ -153,9 +153,9 @@ namespace pcit::panther::AST{
 	struct FuncDecl{
 		struct Param{
 			enum class Kind : uint8_t {
-				Read,
-				Mut,
-				In,
+				READ,
+				MUT,
+				IN,
 			};
 
 			Node name; // either identifier or `this`

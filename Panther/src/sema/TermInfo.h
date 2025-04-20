@@ -28,7 +28,7 @@ namespace pcit::panther{
 			EPHEMERAL_FLUID,
 			CONCRETE_CONST,
 			CONCRETE_MUT,
-			CONCRETE_CONST_FORWARDABLE,
+			CONCRETE_FORWARDABLE,
 			CONCRETE_CONST_DESTR_MOVABLE,
 
 			INITIALIZER, // uninit / zeroinit
@@ -56,7 +56,7 @@ namespace pcit::panther{
 		using TypeID = evo::Variant<
 			InitializerType,                // INITIALIZER
 			FluidType,                      // EPHEMERAL_FLUID
-			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_CONST_FORWARDABLE
+			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_FORWARDABLE
 						                    //   |CONCRETE_CONST_DESTR_MOVABLE|EPHEMERAL|INTRINSIC_FUNC
 			FuncOverloadList,               // FUNCTION
 			TypeInfo::VoidableID,           // TYPE
@@ -152,7 +152,7 @@ namespace pcit::panther{
 					break; case ValueCategory::CONCRETE_MUT:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
-					break; case ValueCategory::CONCRETE_CONST_FORWARDABLE:
+					break; case ValueCategory::CONCRETE_FORWARDABLE:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
 
 					break; case ValueCategory::CONCRETE_CONST_DESTR_MOVABLE:
@@ -214,7 +214,7 @@ namespace pcit::panther{
 		EVO_NODISCARD constexpr auto is_concrete() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST
 				|| this->value_category == ValueCategory::CONCRETE_MUT
-				|| this->value_category == ValueCategory::CONCRETE_CONST_FORWARDABLE
+				|| this->value_category == ValueCategory::CONCRETE_FORWARDABLE
 				|| this->value_category == ValueCategory::CONCRETE_CONST_DESTR_MOVABLE;
 		}
 

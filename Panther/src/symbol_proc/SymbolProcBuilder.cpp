@@ -235,7 +235,7 @@ namespace pcit::panther{
 			if(this->source.getASTBuffer().getType(*var_decl.type).base.kind() == AST::Kind::TYPE_DEDUCER){
 				decl_def_type_id = type_id_res.value();
 
-			}else if(var_decl.kind != AST::VarDecl::Kind::Def){
+			}else if(var_decl.kind != AST::VarDecl::Kind::DEF){
 				this->add_instruction(
 					Instruction::VarDecl(
 						var_decl, std::move(attribute_params_info.value()), type_id_res.value()
@@ -259,7 +259,7 @@ namespace pcit::panther{
 
 		if(
 			var_decl.type.has_value()
-			&& var_decl.kind != AST::VarDecl::Kind::Def
+			&& var_decl.kind != AST::VarDecl::Kind::DEF
 			&& decl_def_type_id.has_value() == false
 		){
 			this->add_instruction(Instruction::VarDef(var_decl, value_id.value()));
@@ -999,12 +999,14 @@ namespace pcit::panther{
 
 		if constexpr(IS_CONSTEXPR){
 			this->add_instruction(
-				Instruction::FuncCallExpr<true>(func_call, target.value(), new_term_info_id, std::move(args))
+				Instruction::FuncCallExpr<true>(func_call, target.value(), new_term_info_id, args)
 			);
 
 			const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 			this->add_instruction(
-				Instruction::ConstexprFuncCallRun(func_call, new_term_info_id, comptime_res_term_info_id)
+				Instruction::ConstexprFuncCallRun(
+					func_call, new_term_info_id, comptime_res_term_info_id, std::move(args)
+				)
 			);
 			return comptime_res_term_info_id;
 

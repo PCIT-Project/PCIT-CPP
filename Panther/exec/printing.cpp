@@ -315,9 +315,9 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Kind");
 					switch(var_decl.kind){
-						break; case panther::AST::VarDecl::Kind::Var:   this->printer.printMagenta(" var\n");
-						break; case panther::AST::VarDecl::Kind::Const: this->printer.printMagenta(" const\n");
-						break; case panther::AST::VarDecl::Kind::Def:   this->printer.printMagenta(" def\n");
+						break; case panther::AST::VarDecl::Kind::VAR:   this->printer.printMagenta(" var\n");
+						break; case panther::AST::VarDecl::Kind::CONST: this->printer.printMagenta(" const\n");
+						break; case panther::AST::VarDecl::Kind::DEF:   this->printer.printMagenta(" def\n");
 					}
 
 					this->indenter.print_arrow();
@@ -409,9 +409,9 @@ namespace pthr{
 								this->print_minor_header("Kind");
 								using ParamKind = panther::AST::FuncDecl::Param::Kind;
 								switch(param.kind){
-									break; case ParamKind::Read: this->printer.printMagenta(" {read}\n");
-									break; case ParamKind::Mut: this->printer.printMagenta(" {mut}\n");
-									break; case ParamKind::In: this->printer.printMagenta(" {in}\n");
+									break; case ParamKind::READ: this->printer.printMagenta(" {read}\n");
+									break; case ParamKind::MUT: this->printer.printMagenta(" {mut}\n");
+									break; case ParamKind::IN: this->printer.printMagenta(" {in}\n");
 								}
 
 								this->indenter.set_arrow();
