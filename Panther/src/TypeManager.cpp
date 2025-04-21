@@ -104,6 +104,10 @@ namespace pcit::panther{
 
 	auto TypeManager::getTypeInfo(TypeInfo::ID id) const -> const TypeInfo& {
 		const auto lock = std::scoped_lock(this->types_lock);
+		evo::debugAssert(id.get() != std::numeric_limits<uint32_t>::max(), "Attempted to lookup the Void TypeInfo");
+		evo::debugAssert(
+			id.isTemplateDeclInstantiation() == false, "Attempted to lookup the TemplateDeclInstantiation TypeInfo"
+		);
 		return this->types[id];
 	}
 

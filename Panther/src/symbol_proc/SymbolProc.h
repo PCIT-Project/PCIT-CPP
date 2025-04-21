@@ -367,6 +367,14 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct PushTemplateDeclInstantiationTypesScope{};
+		struct PopTemplateDeclInstantiationTypesScope{};
+		struct AddTemplateDeclInstantiationType{
+			std::string_view ident;
+		};
+
+
+
 
 		struct Copy{
 			const AST::Prefix& prefix;
@@ -494,6 +502,9 @@ namespace pcit::panther{
 			TemplateIntrinsicFuncCall<false>,
 			TemplatedTerm,
 			TemplatedTermWait,
+			PushTemplateDeclInstantiationTypesScope,
+			PopTemplateDeclInstantiationTypesScope,
+			AddTemplateDeclInstantiationType,
 			Copy,
 			Move,
 

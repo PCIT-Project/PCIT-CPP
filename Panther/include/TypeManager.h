@@ -222,17 +222,21 @@ namespace pcit::panther{
 			};
 
 			struct Param{
+				const AST::Type& astType;
 				std::optional<TypeInfoID> typeID;
 				evo::Variant<std::monostate, sema::Expr, TypeInfoVoidableID> defaultValue; // monostate if no default
 
-				EVO_NODISCARD auto operator==(const Param&) const -> bool = default;
+				EVO_NODISCARD auto isType() const -> bool { return this->typeID.has_value() == false; }
+				EVO_NODISCARD auto isExpr() const -> bool { return this->typeID.has_value(); }
+
+				EVO_NODISCARD auto operator==(const Param& rhs) const -> bool { return this->typeID == rhs.typeID; };
 			};
 
 
 			SourceID& sourceID;
 			Token::ID identTokenID;
 			evo::SmallVector<Param> params;
-			size_t minNumTemplateArgs; // TODO: make sure this optimization actually improves perf
+			size_t minNumTemplateArgs; // TODO(PERF): make sure this optimization actually improves perf
 
 			struct InstantiationInfo{
 				Instantiation& instantiation;

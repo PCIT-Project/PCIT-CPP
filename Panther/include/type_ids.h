@@ -27,6 +27,15 @@ namespace pcit::panther{
 	// is aliased as TypeInfo::ID
 	struct TypeInfoID : public core::UniqueID<uint32_t, struct TypeInfoID> {
 		using core::UniqueID<uint32_t, TypeInfoID>::UniqueID;
+
+
+		// This is not the most elegant way of doing this, but I don't want to overcomplicate things for one place
+		EVO_NODISCARD static auto createTemplateDeclInstantiation() -> TypeInfoID {
+			return TypeInfoID(std::numeric_limits<uint32_t>::max() - 1);
+		}
+		EVO_NODISCARD auto isTemplateDeclInstantiation() const -> bool {
+			return this->get() == (std::numeric_limits<uint32_t>::max() - 1);
+		}
 	};
 
 	struct TypeInfoIDOptInterface{

@@ -1,14 +1,22 @@
 
+def NEW_FEATURE: Bool = true;
 
-const value: I128 = get_value(12);
 
+when(NEW_FEATURE){
+	type Struct = struct <{TYPE: Type, VAL: TYPE}> {
+		def VALUE: TYPE = VAL;
+	}
 
-func get_value = (value_to_get: I128) -> I128 {
-	return copy value_to_get;
+	func entry = () #entry -> UI8 {
+		return Struct<{UI8, 12}>.VALUE;
+	}
+
+}else{
+	type Struct = struct <{T: Type}> {
+		def VALUE: T = 12;
+	}
+
+	func entry = () #entry -> UI8 {		
+		return Struct<{UI8}>.VALUE;
+	}
 }
-
-
-func entry = () #entry -> UI8 {
-	return @trunc<{I128, UI8}>(value);
-}
-

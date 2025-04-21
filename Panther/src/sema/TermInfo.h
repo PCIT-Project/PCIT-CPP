@@ -38,6 +38,7 @@ namespace pcit::panther{
 			TEMPLATE_INTRINSIC_FUNC, // uninstantiated
 			TEMPLATE_TYPE,           // uninstantiated
 			TYPE,
+			TEMPLATE_DECL_INSTANTIATION_TYPE,
 		};
 
 		enum class ValueStage{
@@ -48,6 +49,7 @@ namespace pcit::panther{
 
 		struct InitializerType{};
 		struct FluidType{};
+		struct TemplateDeclInstantiationType{};
 
 
 		using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
@@ -56,6 +58,7 @@ namespace pcit::panther{
 		using TypeID = evo::Variant<
 			InitializerType,                // INITIALIZER
 			FluidType,                      // EPHEMERAL_FLUID
+			TemplateDeclInstantiationType,  // TEMPLATE_DECL_INSTANTIATION_TYPE
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_FORWARDABLE
 						                    //   |CONCRETE_CONST_DESTR_MOVABLE|EPHEMERAL|INTRINSIC_FUNC
 			FuncOverloadList,               // FUNCTION
@@ -140,44 +143,49 @@ namespace pcit::panther{
 					break; case ValueCategory::EPHEMERAL:
 						evo::debugAssert(
 							this->type_id.is<TypeInfo::ID>() || this->type_id.is<evo::SmallVector<TypeInfo::ID>>(),
-							"Incorrect TypeInfo creation"
+							"Incorrect TermInfo creation"
 						);
 
 					break; case ValueCategory::EPHEMERAL_FLUID:
-						evo::debugAssert(this->type_id.is<FluidType>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<FluidType>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::CONCRETE_CONST:
-						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::CONCRETE_MUT:
-						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::CONCRETE_FORWARDABLE:
-						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::CONCRETE_CONST_DESTR_MOVABLE:
-						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::INITIALIZER:
-						evo::debugAssert(this->type_id.is<InitializerType>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<InitializerType>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::MODULE:
-						evo::debugAssert(this->type_id.is<SourceID>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<SourceID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::FUNCTION:
-						evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::INTRINSIC_FUNC:
-						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::TEMPLATE_INTRINSIC_FUNC:
-						evo::debugFatalBreak("Incorrect TypeInfo creation");
+						evo::debugFatalBreak("Incorrect TermInfo creation");
 
 					break; case ValueCategory::TEMPLATE_TYPE:
-						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::TYPE:
-						evo::debugAssert(this->type_id.is<TypeInfo::VoidableID>(), "Incorrect TypeInfo creation");
+						evo::debugAssert(this->type_id.is<TypeInfo::VoidableID>(), "Incorrect TermInfo creation");
+
+					break; case ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE:
+						evo::debugAssert(
+							this->type_id.is<TemplateDeclInstantiationType>(), "Incorrect TermInfo creation"
+						);
 				}
 			}
 
@@ -189,6 +197,7 @@ namespace pcit::panther{
 					|| this->value_category == ValueCategory::TYPE
 					|| this->value_category == ValueCategory::FUNCTION
 					|| this->value_category == ValueCategory::TEMPLATE_INTRINSIC_FUNC
+					|| this->value_category == ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE
 				);
 
 				evo::debugAssert(this->value_stage == ValueStage::CONSTEXPR);

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.104.0"></a>
+## v0.0.104.0
+
+### Panther
+- Added template expression parameters type allowed to be a previous template type parameter
+- Fixed when conditionals not being allowed at global scope
+
+
+<!---------------------------------->
 <a name="v0.0.103.0"></a>
 ## v0.0.103.0
 

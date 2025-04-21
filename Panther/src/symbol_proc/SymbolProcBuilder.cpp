@@ -184,24 +184,19 @@ namespace pcit::panther{
 				return token_buffer[ast_buffer.getStructDecl(stmt).ident].getString();
 			} break;
 
-			case AST::Kind::RETURN: {
+			case AST::Kind::WHEN_CONDITIONAL: {
 				return std::string_view();
 			} break;
 
-			case AST::Kind::ERROR: {
-				return std::string_view();
-			} break;
-
-
-			case AST::Kind::CONDITIONAL:      case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
-			case AST::Kind::UNREACHABLE:      case AST::Kind::BLOCK:            case AST::Kind::FUNC_CALL:
-			case AST::Kind::TEMPLATE_PACK:    case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:
-			case AST::Kind::INFIX:            case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:
-			case AST::Kind::NEW:              case AST::Kind::TYPE_DEDUCER:     case AST::Kind::TYPE:
-			case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:  case AST::Kind::ATTRIBUTE:
-			case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:            case AST::Kind::INTRINSIC:
-			case AST::Kind::LITERAL:          case AST::Kind::UNINIT:           case AST::Kind::ZEROINIT:
-			case AST::Kind::THIS:             case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:       case AST::Kind::ERROR:            case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:        case AST::Kind::UNREACHABLE:      case AST::Kind::BLOCK:
+			case AST::Kind::FUNC_CALL:    case AST::Kind::TEMPLATE_PACK:    case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:       case AST::Kind::INFIX:            case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN: case AST::Kind::NEW:              case AST::Kind::TYPE_DEDUCER:
+			case AST::Kind::TYPE:         case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
+			case AST::Kind::ATTRIBUTE:    case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
+			case AST::Kind::INTRINSIC:    case AST::Kind::LITERAL:          case AST::Kind::UNINIT:
+			case AST::Kind::ZEROINIT:     case AST::Kind::THIS:             case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -1264,6 +1259,7 @@ namespace pcit::panther{
 
 		auto template_param_infos = evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>();
 
+		this->add_instruction(Instruction::PushTemplateDeclInstantiationTypesScope());
 		for(const AST::TemplatePack::Param& param : template_pack.params){
 			const AST::Type& param_ast_type = ast_buffer.getType(param.type);
 			auto param_type = std::optional<SymbolProc::TypeID>();
@@ -1274,6 +1270,9 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TypeID> param_type_res = this->analyze_type(param_ast_type);
 				if(param_type_res.isError()){ return evo::resultError; }
 				param_type = param_type_res.value();
+			}else{
+				const std::string_view ident = this->source.getTokenBuffer()[param.ident].getString();
+				this->add_instruction(Instruction::AddTemplateDeclInstantiationType(ident));
 			}
 
 			auto default_value = std::optional<SymbolProc::TermInfoID>();
@@ -1286,6 +1285,7 @@ namespace pcit::panther{
 
 			template_param_infos.emplace_back(param, param_type, default_value);
 		}
+		this->add_instruction(Instruction::PopTemplateDeclInstantiationTypesScope());
 
 		return template_param_infos;
 	}

@@ -97,6 +97,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait& instr)
 				-> Result;
+			EVO_NODISCARD auto instr_push_template_decl_instantiation_types_scope() -> Result;
+			EVO_NODISCARD auto instr_pop_template_decl_instantiation_types_scope() -> Result;
+			EVO_NODISCARD auto instr_add_template_decl_instantiation_type(
+				const Instruction::AddTemplateDeclInstantiationType& instr
+			) -> Result;
 			EVO_NODISCARD auto instr_copy(const Instruction::Copy& instr) -> Result;
 			EVO_NODISCARD auto instr_move(const Instruction::Move& instr) -> Result;
 
@@ -214,6 +219,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto expr_in_func_is_valid_value_stage(
 				const TermInfo& term_info, const auto& node_location
 			) -> bool;
+
+
+			EVO_NODISCARD auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;
 
 
 			///////////////////////////////////

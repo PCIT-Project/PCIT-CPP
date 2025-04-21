@@ -39,7 +39,7 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::lowerStruct(BaseType::Struct::ID struct_id) -> void {
+	auto SemaToPIR::lowerStruct(BaseType::Struct::ID) -> void {
 		// const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
 		// const pir::Type new_type = this->module.createStructType(

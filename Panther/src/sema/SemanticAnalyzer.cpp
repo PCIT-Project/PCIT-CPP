@@ -171,6 +171,15 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTermWait>()){
 				return this->instr_templated_term_wait(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::PushTemplateDeclInstantiationTypesScope>()){
+				return this->instr_push_template_decl_instantiation_types_scope();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::PopTemplateDeclInstantiationTypesScope>()){
+				return this->instr_pop_template_decl_instantiation_types_scope();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::AddTemplateDeclInstantiationType>()){
+				return this->instr_add_template_decl_instantiation_type(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::Copy>()){
 				return this->instr_copy(instr);
 
@@ -775,8 +784,14 @@ namespace pcit::panther{
 		size_t minimum_num_template_args = 0;
 		auto params = evo::SmallVector<BaseType::StructTemplate::Param>();
 
-		for(const SymbolProc::Instruction::TemplateParamInfo& template_param_info : instr.template_param_infos){
-			auto type_id = std::optional<TypeInfo::ID>();
+		const AST::TemplatePack& ast_template_pack = 
+			this->source.getASTBuffer().getTemplatePack(*instr.struct_decl.templatePack);
+
+		using TemplateParamInfo = SymbolProc::Instruction::TemplateParamInfo;
+		for(size_t i = 0; const TemplateParamInfo& template_param_info : instr.template_param_infos){
+			EVO_DEFER([&](){ i += 1; });
+
+			auto type_id = std::optional<TypeInfoID>();
 			if(template_param_info.type_id.has_value()){
 				const TypeInfo::VoidableID type_info_voidable_id = this->get_type(*template_param_info.type_id);
 				if(type_info_voidable_id.isVoid()){
@@ -837,13 +852,23 @@ namespace pcit::panther{
 			}
 
 			if(default_value == nullptr){
-				params.emplace_back(type_id, std::monostate());
+				params.emplace_back(
+					this->source.getASTBuffer().getType(ast_template_pack.params[i].type), type_id, std::monostate()
+				);
 
 			}else if(default_value->value_category == TermInfo::ValueCategory::TYPE){
-				params.emplace_back(type_id, default_value->type_id.as<TypeInfo::VoidableID>());
+				params.emplace_back(
+					this->source.getASTBuffer().getType(ast_template_pack.params[i].type),
+					type_id,
+					default_value->type_id.as<TypeInfo::VoidableID>()
+				);
 
 			}else{
-				params.emplace_back(type_id, default_value->getExpr());
+				params.emplace_back(
+					this->source.getASTBuffer().getType(ast_template_pack.params[i].type),
+					type_id,
+					default_value->getExpr()
+				);
 			}
 		}
 
@@ -2519,6 +2544,9 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// get instantiation args
 
+		this->scope.pushTemplateDeclInstantiationTypesScope();
+		EVO_DEFER([&](){ this->scope.popTemplateDeclInstantiationTypesScope(); });
+
 		const SemaBuffer& sema_buffer = this->context.getSemaBuffer();
 
 		auto instantiation_lookup_args = evo::SmallVector<BaseType::StructTemplate::Arg>();
@@ -2542,7 +2570,7 @@ namespace pcit::panther{
 				}
 
 				if(arg_term_info.value_category == TermInfo::ValueCategory::TYPE){
-					if(struct_template.params[i].typeID.has_value()){
+					if(struct_template.params[i].isExpr()){
 						const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 						const AST::StructDecl& ast_struct =
 							ast_buffer.getStructDecl(sema_templated_struct.symbolProc.ast_node);
@@ -2565,7 +2593,7 @@ namespace pcit::panther{
 					continue;
 				}
 
-				if(struct_template.params[i].typeID.has_value() == false){
+				if(struct_template.params[i].isType()){
 					const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 					const AST::StructDecl& ast_struct =
 						ast_buffer.getStructDecl(sema_templated_struct.symbolProc.ast_node);
@@ -2583,10 +2611,40 @@ namespace pcit::panther{
 				}
 
 
-				const TypeCheckInfo type_check_info = this->type_check<true>(
-					*struct_template.params[i].typeID, arg_term_info, "Template argument", instr.templated_expr.args[i]
-				);
-				if(type_check_info.ok == false){
+
+				const evo::Result<TypeInfo::ID> expr_type_id = [&]() -> evo::Result<TypeInfo::ID> {
+					if(struct_template.params[i].typeID->isTemplateDeclInstantiation()){
+						const AST::StructDecl& ast_struct =
+							this->source.getASTBuffer().getStructDecl(sema_templated_struct.symbolProc.ast_node);
+						const AST::TemplatePack& ast_template_pack = 
+							this->source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
+
+						const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
+							this->source.getASTBuffer().getType(ast_template_pack.params[i].type)
+						);
+
+						if(resolved_type.isError()){ return evo::resultError; }
+
+						if(resolved_type.value().isVoid()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
+								ast_template_pack.params[i].type,
+								"Template parameter cannot be type `Void`"
+							);
+							return evo::resultError;
+						}
+
+						return resolved_type.value().asTypeID();
+					}else{
+						return *struct_template.params[i].typeID;
+					}
+				}();
+				if(expr_type_id.isError()){ return Result::ERROR; }
+				
+			
+				if(this->type_check<true>(
+					expr_type_id.value(), arg_term_info, "Template argument", instr.templated_expr.args[i]
+				).ok == false){
 					return Result::ERROR;
 				}
 
@@ -2627,11 +2685,11 @@ namespace pcit::panther{
 				}
 				
 			}else{
-				if(struct_template.params[i].typeID.has_value()){
-					const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-					const AST::StructDecl& ast_struct =
-						ast_buffer.getStructDecl(sema_templated_struct.symbolProc.ast_node);
-					const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
+				const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+				const AST::StructDecl& ast_struct = ast_buffer.getStructDecl(sema_templated_struct.symbolProc.ast_node);
+				const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
+
+				if(struct_template.params[i].isExpr()){
 
 					this->emit_error(
 						Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
@@ -2646,6 +2704,10 @@ namespace pcit::panther{
 				const TypeInfo::VoidableID type_id = this->get_type(arg.as<SymbolProc::TypeID>());
 				instantiation_lookup_args.emplace_back(type_id);
 				instantiation_args.emplace_back(type_id);
+
+				this->scope.addTemplateDeclInstantiationType(
+					this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(), type_id
+				);
 			}
 		}
 
@@ -2712,6 +2774,7 @@ namespace pcit::panther{
 		}
 
 
+
 		///////////////////////////////////
 		// lookup / create instantiation
 
@@ -2772,11 +2835,37 @@ namespace pcit::panther{
 						);
 
 					}else{
+						const TypeInfo::ID expr_type_id = [&]() -> TypeInfo::ID {
+							if(struct_template.params[i].typeID->isTemplateDeclInstantiation()){
+								const AST::StructDecl& ast_struct = this->source.getASTBuffer().getStructDecl(
+									sema_templated_struct.symbolProc.ast_node
+								);
+								const AST::TemplatePack& ast_template_pack = 
+									this->source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
+
+								const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
+									this->source.getASTBuffer().getType(ast_template_pack.params[i].type)
+								);
+
+								evo::debugAssert(
+									resolved_type.isError() == false, "Should have already checked not an error"
+								);
+
+								evo::debugAssert(
+									resolved_type.value().isVoid() == false, "Should have already checked not Void"
+								);
+
+								return resolved_type.value().asTypeID();
+							}else{
+								return *struct_template.params[i].typeID;
+							}
+						}();
+
 						return this->add_ident_to_scope(
 							instantiation_sema_scope,
 							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
-							*struct_template.params[i].typeID,
+							expr_type_id,
 							arg.as<sema::Expr>(),
 							ast_template_pack.params[i].ident	
 						);
@@ -2821,7 +2910,7 @@ namespace pcit::panther{
 		}else{
 			this->return_struct_instantiation(instr.instantiation, instantiation_info.instantiation);
 
-			// TODO: better way of doing this?
+			// TODO(FUTURE): better way of doing this?
 			while(instantiation_info.instantiation.symbolProcID.load().has_value() == false){
 				std::this_thread::yield();
 			}
@@ -2876,6 +2965,26 @@ namespace pcit::panther{
 
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_push_template_decl_instantiation_types_scope() -> Result {
+		this->scope.pushTemplateDeclInstantiationTypesScope();
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_pop_template_decl_instantiation_types_scope() -> Result {
+		this->scope.popTemplateDeclInstantiationTypesScope();
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_add_template_decl_instantiation_type(
+		const Instruction::AddTemplateDeclInstantiationType& instr
+	) -> Result {
+		this->scope.addTemplateDeclInstantiationType(instr.ident, std::nullopt);
+		return Result::SUCCESS;
+	}
+
+
 
 
 
@@ -3136,33 +3245,39 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_user_type(const Instruction::UserType& instr) -> Result {
-		const TypeInfo::ID base_type_id = [&](){
-			const TermInfo& term_info = this->get_term_info(instr.base_type);
+		auto base_type_id = std::optional<TypeInfo::ID>();
+		const TermInfo& term_info = this->get_term_info(instr.base_type);
+		switch(term_info.value_category){
+			case TermInfo::ValueCategory::TYPE: {
+				evo::debugAssert(
+					this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
+					"`Void` is not a user-type"
+				);
+				base_type_id = term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
+			} break;
 
-			switch(term_info.value_category){
-				case TermInfo::ValueCategory::TYPE: {
-					evo::debugAssert(
-						this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
-						"`Void` is not a user-type"
-					);
-					return term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
-				} break;
+			case TermInfo::ValueCategory::TEMPLATE_TYPE: {
+				const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.getTemplatedStruct(
+					term_info.type_id.as<sema::TemplatedStruct::ID>()
+				);
 
-				case TermInfo::ValueCategory::TEMPLATE_TYPE: {
-					const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.getTemplatedStruct(
-						term_info.type_id.as<sema::TemplatedStruct::ID>()
-					);
+				base_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(BaseType::ID(sema_templated_struct.templateID))
+				);
+			} break;
 
-					return this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(sema_templated_struct.templateID))
-					);
-				} break;
+			case TermInfo::ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE: {
+				this->return_type(
+					instr.output,
+					TypeInfo::VoidableID(TypeInfo::ID::createTemplateDeclInstantiation())
+				);
+				return Result::SUCCESS;
+			} break;
 
-				default: evo::debugFatalBreak("Invalid user type base");
-			}
-		}();
+			default: evo::debugFatalBreak("Invalid user type base");
+		}
 
-		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(base_type_id);
+		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
 
 		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
 
@@ -3174,7 +3289,6 @@ namespace pcit::panther{
 				)
 			)
 		);
-
 		return Result::SUCCESS;
 	}
 
@@ -3479,6 +3593,30 @@ namespace pcit::panther{
 			if(scope_level_lookup.error() == AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF){ break; }
 
 			i -= 1;
+		}
+
+
+		///////////////////////////////////
+		// look in template decl instantiation types
+
+		const evo::Result<std::optional<TypeInfo::VoidableID>> template_decl_instantiation = 
+			this->scope.lookupTemplateDeclInstantiationType(ident_str);
+		if(template_decl_instantiation.isSuccess()){
+			if(template_decl_instantiation.value().has_value()){
+				return TermInfo(
+					TermInfo::ValueCategory::TYPE,
+					TermInfo::ValueStage::CONSTEXPR,
+					template_decl_instantiation.value().value(),
+					std::nullopt
+				);
+			}else{
+				return TermInfo(
+					TermInfo::ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE,
+					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::TemplateDeclInstantiationType(),
+					std::nullopt
+				);
+			}
 		}
 
 
@@ -4508,6 +4646,64 @@ namespace pcit::panther{
 		);
 
 		return false;
+	}
+
+
+
+
+
+	auto SemanticAnalyzer::resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID> {
+		auto base_type_id = std::optional<BaseType::ID>();
+		switch(type.base.kind()){
+			case AST::Kind::PRIMITIVE_TYPE: {
+				evo::unimplemented();
+			} break;
+
+			case AST::Kind::IDENT: {
+				const evo::Expected<TermInfo, Result> lookup_ident_result = this->lookup_ident_impl<true>(
+					this->source.getASTBuffer().getIdent(type.base)
+				);
+
+				const TypeInfo::VoidableID looked_up_ident = 
+					lookup_ident_result.value().type_id.as<TypeInfo::VoidableID>();
+
+				if(looked_up_ident.isVoid()){
+					if(type.qualifiers.empty() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_VOID_WITH_QUALIFIERS,
+							type.base,
+							"Type \"Void\" cannot have qualifiers"
+						);
+						return evo::resultError;
+					}
+
+					return TypeInfo::VoidableID::Void();
+				}
+
+				base_type_id = this->context.getTypeManager().getTypeInfo(looked_up_ident.asTypeID()).baseTypeID();
+			} break;
+
+			case AST::Kind::TYPE_DEDUCER: {
+				evo::unimplemented();
+			} break;
+
+			case AST::Kind::TEMPLATED_EXPR: {
+				evo::unimplemented();
+			} break;
+
+			case AST::Kind::INFIX: {
+				evo::unimplemented();
+			} break;
+
+			case AST::Kind::TYPEID_CONVERTER: {
+				evo::unimplemented();
+			} break;
+
+			default: evo::debugFatalBreak("Should not ever fail");
+		}
+
+
+		return TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(*base_type_id)));
 	}
 
 
@@ -5547,7 +5743,7 @@ namespace pcit::panther{
 				return this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::FuncOverloadList>()){
-				// TODO: actual name
+				// TODO(FEATURE): actual name
 				return "{FUNCTION}";
 
 			}else if constexpr(std::is_same<TypeID, TypeInfo::VoidableID>()){
@@ -5560,12 +5756,16 @@ namespace pcit::panther{
 				return "{MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, sema::TemplatedStruct::ID>()){
-				// TODO: actual name
+				// TODO(FEATURE): actual name
 				return "{TEMPLATED_STRUCT}";
 
 			}else if constexpr(std::is_same<TypeID, TemplateIntrinsicFunc::Kind>()){
-				// TODO: actual name
+				// TODO(FEATURE): actual name
 				return "{TEMPLATE_INTRINSIC_FUNC}";
+
+			}else if constexpr(std::is_same<TypeID, TermInfo::TemplateDeclInstantiationType>()){
+				// TODO(FEATURE): actual name?
+				return "{TEMPLATE_DECL_INSTANTIATION_TYPE}";
 
 			}else{
 				static_assert(false, "Unsupported type id kind");

@@ -28,8 +28,7 @@ namespace pcit::panther::sema{
 						using core::UniqueID<uint32_t, ID>::UniqueID;
 					};
 
-					using FakeObjectScope = std::monostate;
-					using ObjectScope = evo::Variant<FakeObjectScope, sema::Func::ID, BaseType::Struct::ID>;
+					using ObjectScope = evo::Variant<sema::Func::ID, BaseType::Struct::ID>;
 
 				public:
 					Scope() = default;
@@ -58,10 +57,6 @@ namespace pcit::panther::sema{
 
 					auto popLevel() -> void {
 						evo::debugAssert(!this->scope_levels.empty(), "cannot pop scope level as there are none");
-						evo::debugAssert(
-							this->getCurrentObjectScope().is<FakeObjectScope>() == false,
-							"fake object scope was not popped"
-						);
 
 						if(
 							this->inObjectScope() && 
@@ -81,7 +76,7 @@ namespace pcit::panther::sema{
 					EVO_NODISCARD auto size() const -> size_t { return this->scope_levels.size(); }
 
 					// note: these are purposely reverse iterators
-					// TODO: figure out if doing lookup in reverse is indeed faster
+					// TODO(PERF): figure out if doing lookup in reverse is indeed faster
 
 					EVO_NODISCARD auto begin() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
 						return this->scope_levels.rbegin();
@@ -131,28 +126,55 @@ namespace pcit::panther::sema{
 					}
 
 
-					// must be popped manually
-					// be careful - only use when declaring things like params
-					EVO_NODISCARD auto pushFakeObjectScope() -> void {
-						this->object_scopes.emplace_back(FakeObjectScope(), uint32_t(this->scope_levels.size()) + 1);
+					///////////////////////////////////
+					// template instantiation types
+
+					auto pushTemplateDeclInstantiationTypesScope() -> void {
+						this->template_decl_instantiation_types.emplace_back();
 					}
 
-					EVO_NODISCARD auto popFakeObjectScope() -> void {
+					auto popTemplateDeclInstantiationTypesScope() -> void {
 						evo::debugAssert(
-							this->getCurrentObjectScope().is<FakeObjectScope>(), "not in a fake object scope"
+							this->template_decl_instantiation_types.empty() == false,
+							"no template instantiation type scopes exist"
 						);
-						this->object_scopes.pop_back();
+
+						this->template_decl_instantiation_types.pop_back();
 					}
-			
+
+					auto addTemplateDeclInstantiationType(
+						std::string_view ident, std::optional<TypeInfo::VoidableID> type
+					) -> void {
+						evo::debugAssert(
+							this->template_decl_instantiation_types.empty() == false,
+							"no template instantiation type scopes exist"
+						);
+
+						this->template_decl_instantiation_types.back().emplace(ident, type);
+					}
+
+					auto lookupTemplateDeclInstantiationType(std::string_view ident) const
+					-> evo::Result<std::optional<TypeInfo::VoidableID>> {
+						if(this->template_decl_instantiation_types.empty()){ return evo::resultError; }
+						
+						const auto find = this->template_decl_instantiation_types.back().find(ident);
+						if(find == this->template_decl_instantiation_types.back().end()){ return evo::resultError; }
+						return find->second;
+					}
+
+
 				private:
 					struct ObjectScopeData{
 						ObjectScope obj_scope;
 						uint32_t scope_level_index;
 					};
 
-					// TODO: use a stack?
+					// TODO(PERF): use a stack?
 					evo::SmallVector<ScopeLevel::ID> scope_levels{};
 					evo::SmallVector<ObjectScopeData> object_scopes{};
+					evo::SmallVector<
+						std::unordered_map<std::string_view, std::optional<TypeInfo::VoidableID>>
+					> template_decl_instantiation_types{};
 			};
 
 		public:
