@@ -32,7 +32,7 @@ namespace pcit::pir{
 			};
 
 			std::string value;
-			Type type; // TODO: remove this?
+			Type type; // TODO(FUTURE): remove this?
 		};
 
 		// Forward declaration
@@ -51,7 +51,7 @@ namespace pcit::pir{
 			// For lookup in Module
 			using ID = ArrayID;
 
-			Type type; // TODO: remove this?
+			Type type; // TODO(FUTURE): remove this?
 			std::vector<Value> values;
 		};
 
@@ -59,7 +59,7 @@ namespace pcit::pir{
 			// For lookup in Module
 			using ID = StructID;
 
-			Type type; // TODO: remove this?
+			Type type; // TODO(FUTURE): remove this?
 			std::vector<Value> values;
 		};
 

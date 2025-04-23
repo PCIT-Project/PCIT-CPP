@@ -831,7 +831,7 @@ namespace pthr{
 					} break;
 
 
-					// TODO: print this properly
+					// TODO(FUTURE): print this properly
 					case panther::AST::Kind::TEMPLATED_EXPR: {
 						const panther::AST::TemplatedExpr& templated_expr = 
 							this->ast_buffer.getTemplatedExpr(base_type);
@@ -854,7 +854,7 @@ namespace pthr{
 						this->printer.printMagenta("}>");
 					} break;
 
-					// TODO: print this properly
+					// TODO(FUTURE): print this properly
 					case panther::AST::Kind::TYPEID_CONVERTER: {
 						this->printer.printMagenta("Type(");
 						this->printer.printGray("...expr...");
@@ -1093,7 +1093,10 @@ namespace pthr{
 								} break;
 
 								default: {
-									evo::debugFatalBreak("Unknown or unsupported multi-assignment kind");
+									this->printer.println();
+									this->indenter.push();
+									this->print_expr(assign);
+									this->indenter.pop();
 								} break;
 							}
 

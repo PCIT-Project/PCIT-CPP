@@ -154,7 +154,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::PARAM_EXPR:       return false;
 
 				case Expr::Kind::CALL: {
-					// TODO: remove if func has no side-effects
+					// TODO(FUTURE): remove if func has no side-effects
 					// if(remove_unused_stmt(stmt)){ return true; }
 
 					const Call& call_inst = agent.getCall(stmt);

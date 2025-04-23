@@ -26,7 +26,7 @@ namespace pcit::panther{
 
 		if(special_name_path_find == this->priv.special_name_paths.end()){ return std::nullopt; }
 
-		// TODO: optimize this
+		// TODO(PERF): optimize this
 		// look for path
 		for(const Source::ID source_id : *this){
 			const Source& source = this->operator[](source_id);
@@ -40,7 +40,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: improve lookup times with a map maybe?
+	// TODO(PERF): improve lookup times with a map maybe?
 	auto SourceManager::lookupSourceID(std::string_view path) const	-> std::optional<Source::ID> {
 		const auto file_path = fs::path(path);
 

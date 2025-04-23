@@ -277,7 +277,8 @@ namespace pcit::panther{
 		};
 
 
-		// TODO: is `.sourceID` ever actually used (outside of operator==), or can this `tokenID` be "inlined" into ID?
+		// TODO(FUTURE): is `.sourceID` ever actually used (outside of operator==),
+		// 		and can this `tokenID` be "inlined" into ID?
 		struct TypeDeducer{
 			using ID = TypeDeducerID;
 
@@ -526,7 +527,7 @@ namespace pcit::panther{
 		private:
 			core::Platform platform;
 
-			// TODO: improve lookup times
+			// TODO(PERF): improve lookup times
 			core::LinearStepAlloc<BaseType::Primitive, BaseType::Primitive::ID> primitives{};
 			mutable core::SpinLock primitives_lock{};
 

@@ -538,7 +538,7 @@ namespace pcit::panther{
 
 		this->symbol_namespaces.back()->emplace("", this->get_current_symbol().symbol_proc_id);
 
-		// TODO: address these directly instead of moving them in
+		// TODO(PERF): address these directly instead of moving them in
 		current_symbol.symbol_proc.extra_info.emplace<SymbolProc::WhenCondInfo>(
 			std::move(then_symbol_scope), std::move(else_symbol_scope)
 		);
@@ -659,7 +659,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			} break;
 
-			// TODO: separate out into more kinds to be more specific (errors vs fatal)
+			// TODO(FUTURE): separate out into more kinds to be more specific (errors vs fatal)
 			default: {
 				this->emit_error(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_BASE_TYPE, ast_type_base, "Invalid base type"
@@ -671,7 +671,7 @@ namespace pcit::panther{
 
 
 
-	// TODO: error on invalid statements
+	// TODO(FUTURE): error on invalid statements
 	auto SymbolProcBuilder::analyze_stmt(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
@@ -693,9 +693,9 @@ namespace pcit::panther{
 			case AST::Kind::TEMPLATE_PACK:    evo::unimplemented("AST::Kind::TEMPLATE_PACK");
 			case AST::Kind::TEMPLATED_EXPR:   evo::unimplemented("AST::Kind::TEMPLATED_EXPR");
 			case AST::Kind::PREFIX:           evo::unimplemented("AST::Kind::PREFIX");
-			case AST::Kind::INFIX:            evo::unimplemented("AST::Kind::INFIX");
+			case AST::Kind::INFIX:            return this->analyze_assignment(ast_buffer.getInfix(stmt));
 			case AST::Kind::POSTFIX:          evo::unimplemented("AST::Kind::POSTFIX");
-			case AST::Kind::MULTI_ASSIGN:     evo::unimplemented("AST::Kind::MULTI_ASSIGN");
+			case AST::Kind::MULTI_ASSIGN:     return this->analyze_multi_assign(ast_buffer.getMultiAssign(stmt));
 			case AST::Kind::NEW:              evo::unimplemented("AST::Kind::NEW");
 			case AST::Kind::TYPE_DEDUCER:     evo::unimplemented("AST::Kind::TYPE_DEDUCER");
 			case AST::Kind::TYPE:             evo::unimplemented("AST::Kind::TYPE");
@@ -747,7 +747,7 @@ namespace pcit::panther{
 		}
 	}
 
-	// TODO: deduplicate with `analyze_expr_func_call`?
+	// TODO(FUTURE): deduplicate with `analyze_expr_func_call`?
 	auto SymbolProcBuilder::analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<> {
 		bool is_target_template = false;
 		const evo::Result<SymbolProc::TermInfoID> target = [&](){
@@ -786,6 +786,48 @@ namespace pcit::panther{
 		return evo::Result<>();
 	}
 
+
+
+	auto SymbolProcBuilder::analyze_assignment(const AST::Infix& infix) -> evo::Result<> {
+		if(infix.lhs.kind() == AST::Kind::DISCARD){
+			const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<false>(infix.rhs);
+			if(rhs.isError()){ return evo::resultError; }
+
+			this->add_instruction(Instruction::DiscardingAssignment(infix, rhs.value()));
+			return evo::Result<>();
+		}
+
+		const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
+		if(lhs.isError()){ return evo::resultError; }
+
+		const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<false>(infix.rhs);
+		if(rhs.isError()){ return evo::resultError; }
+
+		this->add_instruction(Instruction::Assignment(infix, lhs.value(), rhs.value()));
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_multi_assign(const AST::MultiAssign& multi_assign) -> evo::Result<> {
+		auto targets = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
+		targets.reserve(multi_assign.assigns.size());
+		for(const AST::Node assign : multi_assign.assigns){
+			if(assign.kind() != AST::Kind::DISCARD){
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(assign);
+				if(target.isError()){ return evo::resultError; }
+
+				targets.emplace_back(target.value());
+			}else{
+				targets.emplace_back();
+			}
+		}
+
+		const evo::Result<SymbolProc::TermInfoID> value = this->analyze_expr<false>(multi_assign.value);
+		if(value.isError()){ return evo::resultError; }
+
+		this->add_instruction(Instruction::MultiAssign(multi_assign, std::move(targets), value.value()));
+		return evo::Result<>();
+	}
 
 
 
@@ -876,7 +918,7 @@ namespace pcit::panther{
 			case AST::Kind::WHILE:          case AST::Kind::UNREACHABLE:     case AST::Kind::TEMPLATE_PACK:
 			case AST::Kind::MULTI_ASSIGN:   case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
 			case AST::Kind::PRIMITIVE_TYPE: case AST::Kind::DISCARD: {
-				// TODO: better messaging (specify what kind)
+				// TODO(FUTURE): better messaging (specify what kind)
 				this->emit_fatal(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,
 					Diagnostic::Location::NONE,

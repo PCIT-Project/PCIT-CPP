@@ -21,8 +21,6 @@ namespace pcit::panther::sema{
 
 
 
-	// TODO: make variant?
-
 	struct Expr{
 		enum class Kind : uint32_t {
 			NONE, // only use for optional
@@ -60,8 +58,8 @@ namespace pcit::panther::sema{
 			return Expr(Kind::MODULE_IDENT, id);
 		}
 
-		explicit Expr(UninitID id)      : _kind(Kind::UNINIT),      value{.uninit = id}       {};
-		explicit Expr(ZeroinitID id)    : _kind(Kind::ZEROINIT),    value{.zeroinit = id}     {};
+		explicit Expr(UninitID id)      : _kind(Kind::UNINIT),       value{.uninit = id}       {};
+		explicit Expr(ZeroinitID id)    : _kind(Kind::ZEROINIT),     value{.zeroinit = id}     {};
 
 		explicit Expr(IntValueID id)    : _kind(Kind::INT_VALUE),    value{.int_value = id}    {};
 		explicit Expr(FloatValueID id)  : _kind(Kind::FLOAT_VALUE),  value{.float_value = id}  {};

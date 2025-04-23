@@ -165,7 +165,7 @@ namespace pcit::llvmint{
 		static constexpr std::string_view cpu = "generic";
 		static constexpr std::string_view features = "";
 		
-		// TODO: https://llvm.org/doxygen/classllvm_1_1TargetOptions.html
+		// TODO(FUTURE): https://llvm.org/doxygen/classllvm_1_1TargetOptions.html
 		auto target_options = llvm::TargetOptions();
 
 		const std::optional<llvm::Reloc::Model> reloc_model = [&](){
@@ -352,7 +352,7 @@ namespace pcit::llvmint{
 		auto cgscc_analysis_manager = llvm::CGSCCAnalysisManager();
 		auto module_analysis_manager = llvm::ModuleAnalysisManager();
 
-		// TODO: check options of pipeline_tuning_options
+		// TODO(PERF): check options of pipeline_tuning_options
 		//       (https://llvm.org/doxygen/classllvm_1_1PipelineTuningOptions.html)
 		auto pipeline_tuning_options = llvm::PipelineTuningOptions();
 

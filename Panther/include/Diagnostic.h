@@ -162,6 +162,13 @@ namespace pcit::panther{
 			SEMA_DISCARDING_RETURNS,
 			SEMA_INVALID_MODE_FOR_INTRINSIC,
 
+			// Assignment
+			SEMA_ASSIGN_LHS_NOT_CONCRETE,
+			SEMA_ASSIGN_LHS_NOT_MUTABLE,
+			SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
+			SEMA_MULTI_ASSIGN_RHS_NOT_MULTI,
+			SEMA_MULTI_ASSIGN_RHS_WRONG_NUM,
+
 			// misc
 			SEMA_INCORRECT_RETURN_STMT_KIND,
 			SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS,
@@ -438,7 +445,7 @@ namespace pcit::panther{
 				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY:       return "P14";
 				case Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT: return "P15";
 
-				// TODO: give individual codes and put in correct order
+				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_GLOBAL_STMT:
 				case Code::SYMBOL_PROC_INVALID_BASE_TYPE:
 				case Code::SYMBOL_PROC_INVALID_EXPR_KIND:
@@ -448,7 +455,7 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_VAR_WITH_NO_VALUE:
 					return "SP";
 
-				// TODO: give individual codes and put in correct order
+				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SEMA_VOID_WITH_QUALIFIERS:
 				case Code::SEMA_INVALID_TYPE_QUALIFIERS:
 				case Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL:
@@ -502,6 +509,11 @@ namespace pcit::panther{
 				case Code::SEMA_FUNC_ISNT_RUNTIME:
 				case Code::SEMA_DISCARDING_RETURNS:
 				case Code::SEMA_INVALID_MODE_FOR_INTRINSIC:
+				case Code::SEMA_ASSIGN_LHS_NOT_CONCRETE:
+				case Code::SEMA_ASSIGN_LHS_NOT_MUTABLE:
+				case Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL:
+				case Code::SEMA_MULTI_ASSIGN_RHS_NOT_MULTI:
+				case Code::SEMA_MULTI_ASSIGN_RHS_WRONG_NUM:
 				case Code::SEMA_INCORRECT_RETURN_STMT_KIND:
 				case Code::SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS:
 				case Code::SEMA_RETURN_NOT_EPHEMERAL:

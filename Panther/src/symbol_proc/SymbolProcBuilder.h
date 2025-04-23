@@ -54,6 +54,8 @@ namespace pcit::panther{
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
 			auto analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<>;
+			auto analyze_assignment(const AST::Infix& infix) -> evo::Result<>;
+			auto analyze_multi_assign(const AST::MultiAssign& multi_assign) -> evo::Result<>;
 
 
 

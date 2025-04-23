@@ -51,7 +51,9 @@ namespace pcit::pir{
 
 				return this->functions.emplace_back(
 					*this,
-					ExternalFunction(std::move(func_name), std::move(parameters), callingConvention, linkage, returnType)
+					ExternalFunction(
+						std::move(func_name), std::move(parameters), callingConvention, linkage, returnType
+					)
 				);
 			}
 

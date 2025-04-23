@@ -20,7 +20,7 @@ namespace pcit::llvmint{
 	auto init() -> void {
 		evo::debugAssert(isInitialized() == false, "LLVM was already initialized");
 
-		// TODO: is this all needed?
+		// TODO(FUTURE): is this all needed?
 		
 		// LLVMLinkInInterpreter();
 		// auto force = ForceMCJITLinking();

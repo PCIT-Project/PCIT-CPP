@@ -144,6 +144,15 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
 				return this->instr_func_call(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::Assignment>()){
+				return this->instr_assignment(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::MultiAssign>()){
+				return this->instr_multi_assign(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::DiscardingAssignment>()){
+				return this->instr_discarding_assignment(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::TypeToTerm>()){
 				return this->instr_type_to_term(instr);
 
@@ -349,7 +358,7 @@ namespace pcit::panther{
 				var_attrs.value().is_pub
 			);
 
-			// TODO: propgate if `add_ident_result` errored?
+			// TODO(FUTURE): propgate if `add_ident_result` errored?
 			this->propagate_finished_decl_def();
 			return add_ident_result.isError() ? Result::ERROR : Result::SUCCESS;
 		}
@@ -487,7 +496,7 @@ namespace pcit::panther{
 			"Condition in when conditional",
 			instr.when_cond.cond
 		).ok == false){
-			// TODO: propgate error to children
+			// TODO(FUTURE): propgate error to children
 			return Result::ERROR;
 		}
 
@@ -762,7 +771,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_struct_def() -> Result {
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_struct_def: {}", this->symbol_proc.ident); });
 
-		this->pop_scope_level(); // TODO: needed?
+		this->pop_scope_level(); // TODO(FUTURE): needed?
 
 		this->propagate_finished_def();
 
@@ -973,7 +982,7 @@ namespace pcit::panther{
 					this->scope.getCurrentTypeScopeIfExists();
 
 				if(current_type_scope.has_value() == false){
-					// TODO: better messaging
+					// TODO(FUTURE): better messaging
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_SCOPE_FOR_THIS,
 						param.name,
@@ -1149,7 +1158,7 @@ namespace pcit::panther{
 
 
 		if constexpr(IS_INSTANTIATION == false){
-			// TODO: manage overloads
+			// TODO(FUTURE): manage overloads
 			const Token::ID ident = this->source.getASTBuffer().getIdent(instr.func_decl.name);
 			const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
 			if(this->add_ident_to_scope(ident_str, instr.func_decl, created_func_id, this->context).isError()){
@@ -1160,15 +1169,49 @@ namespace pcit::panther{
 		this->push_scope_level(&created_func.stmtBlock, created_func_id);
 
 
-		for(uint32_t i = 0; const AST::FuncDecl::Param& param : instr.func_decl.params){
-			EVO_DEFER([&](){ i += 1; });
-		
-			const std::string_view param_name = this->source.getTokenBuffer()[
-				this->source.getASTBuffer().getIdent(param.name)
-			].getString();
+		//////////////////
+		// adding params to scope
 
-			if(this->add_ident_to_scope(param_name, param, this->context.sema_buffer.createParam(i)).isError()){
-				return Result::ERROR;
+		{	
+			const BaseType::Function& func_type =
+				this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+
+			uint32_t abi_index = 0;
+
+			for(uint32_t i = 0; const AST::FuncDecl::Param& param : instr.func_decl.params){
+				EVO_DEFER([&](){ i += 1; });
+
+				if(this->context.getTypeManager().sizeOf(func_type.params[i].typeID) == 0){ continue; }
+
+				const std::string_view param_name = this->source.getTokenBuffer()[
+					this->source.getASTBuffer().getIdent(param.name)
+				].getString();
+
+				if(this->add_ident_to_scope(
+					param_name, param, this->context.sema_buffer.createParam(i, abi_index)
+				).isError()){
+					return Result::ERROR;
+				}
+
+				abi_index += 1;
+			}
+
+
+			if(func_type.hasNamedReturns()){
+				for(uint32_t i = 0; const AST::FuncDecl::Return& return_param : instr.func_decl.returns){
+					EVO_DEFER([&](){ i += 1; });
+
+					const std::string_view return_param_name =
+						this->source.getTokenBuffer()[*return_param.ident].getString();
+
+					if(this->add_ident_to_scope(
+						return_param_name, return_param, this->context.sema_buffer.createReturnParam(i, abi_index)
+					).isError()){
+						return Result::ERROR;
+					}
+
+					abi_index += 1;
+				}
 			}
 		}
 
@@ -1344,14 +1387,14 @@ namespace pcit::panther{
 			this->propagate_finished_pir_ready();
 		}
 
-		this->pop_scope_level(); // TODO: needed?
+		this->pop_scope_level(); // TODO(FUTURE): needed?
 
 		return Result::SUCCESS;
 	}
 
 
 
-	// TODO: condense this with template struct somehow?
+	// TODO(FUTURE): condense this with template struct somehow?
 	auto SemanticAnalyzer::instr_template_func(const Instruction::TemplateFunc& instr) -> Result {
 		EVO_DEFER([&](){
 			this->context.trace("SemanticAnalyzer::instr_template_func: {}", this->symbol_proc.ident);
@@ -1789,6 +1832,165 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_assignment(const Instruction::Assignment& instr) -> Result {
+		const TermInfo& lhs = this->get_term_info(instr.lhs);
+		TermInfo& rhs = this->get_term_info(instr.rhs);
+
+		if(lhs.is_concrete() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
+				instr.infix.lhs,
+				"LHS of assignment must be concrete"
+			);
+			return Result::ERROR;
+		}
+
+		if(lhs.is_const()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
+				instr.infix.lhs,
+				"LHS of assignment must be mutable"
+			);
+			return Result::ERROR;
+		}
+
+		if(rhs.is_ephemeral() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
+				instr.infix.rhs,
+				"RHS of assignment must be ephemeral"
+			);
+			return Result::ERROR;
+		}
+
+
+		if(this->type_check<true>(
+			lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of assignment", instr.infix.rhs
+		).ok == false){
+			return Result::ERROR;
+		}
+
+		this->get_current_scope_level().stmtBlock().emplace_back(
+			this->context.sema_buffer.createAssign(lhs.getExpr(), rhs.getExpr())
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_multi_assign(const Instruction::MultiAssign& instr) -> Result {
+		TermInfo& value = this->get_term_info(instr.value);
+
+		if(value.is_ephemeral() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
+				instr.multi_assign.value,
+				"RHS of assignment must be ephemeral"
+			);
+			return Result::ERROR;
+		}
+
+		if(value.isMultiValue() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MULTI_ASSIGN_RHS_NOT_MULTI,
+				instr.multi_assign.value,
+				"RHS of multi-assignment must multi-value"
+			);
+			return Result::ERROR;
+		}
+
+
+		if(value.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != instr.targets.size()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MULTI_ASSIGN_RHS_WRONG_NUM,
+				instr.multi_assign.value,
+				"RHS of multi-assignment has wrong number of assignment targets",
+				Diagnostic::Info(
+					std::format(
+						"Expression requires {}, got {}",
+						value.type_id.as<evo::SmallVector<TypeInfo::ID>>().size(),
+						instr.targets.size()
+					)
+				)
+			);
+			return Result::ERROR;
+		}
+
+
+		auto targets = evo::SmallVector<evo::Variant<sema::Expr, TypeInfo::ID>>();
+		targets.reserve(instr.targets.size());
+		for(size_t i = 0; const std::optional<SymbolProc::TermInfoID> target_id : instr.targets){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(target_id.has_value() == false){
+				targets.emplace_back(value.type_id.as<evo::SmallVector<TypeInfo::ID>>()[i]);
+				continue;
+			}
+
+			const TermInfo& target = this->get_term_info(*target_id);
+
+			if(target.is_concrete() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
+					instr.multi_assign.assigns[i],
+					"LHS of assignment must be concrete"
+				);
+				return Result::ERROR;
+			}
+
+			if(target.is_const()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
+					instr.multi_assign.assigns[i],
+					"LHS of assignment must be mutable"
+				);
+				return Result::ERROR;
+			}
+
+			if(this->type_check<true>(
+				target.type_id.as<TypeInfo::ID>(), value, "RHS of assignment", instr.multi_assign, unsigned(i)
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			targets.emplace_back(target.getExpr());
+		}
+
+		this->get_current_scope_level().stmtBlock().emplace_back(
+			this->context.sema_buffer.createMultiAssign(std::move(targets), value.getExpr())
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result {
+		const TermInfo& rhs = this->get_term_info(instr.rhs);
+
+		if(rhs.isMultiValue()){
+			auto targets = evo::SmallVector<evo::Variant<sema::Expr, TypeInfo::ID>>();
+			targets.reserve(rhs.type_id.as<evo::SmallVector<TypeInfo::ID>>().size());
+
+			for(TypeInfo::ID discard_type_id : rhs.type_id.as<evo::SmallVector<TypeInfo::ID>>()){
+				targets.emplace_back(discard_type_id);
+			}
+
+			this->get_current_scope_level().stmtBlock().emplace_back(
+				this->context.sema_buffer.createMultiAssign(std::move(targets), rhs.getExpr())
+			);
+
+		}else{
+			this->get_current_scope_level().stmtBlock().emplace_back(
+				this->context.sema_buffer.createAssign(std::nullopt, rhs.getExpr())
+			);
+		}
+
+		return Result::SUCCESS;
+	}
+
+
 
 
 
@@ -1994,7 +2196,7 @@ namespace pcit::panther{
 		);
 
 		if(target_func_type.hasErrorReturn()){
-			// 	// TODO: better messaging
+			// 	// TODO(FUTURE): better messaging
 			// 	this->emit_error(
 			// 		Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN,
 			// 		instr.func_call,
@@ -2138,7 +2340,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_import(const Instruction::Import& instr) -> Result {
 		const TermInfo& location = this->get_term_info(instr.location);
 
-		// TODO: type checking of location
+		// TODO(FUTURE): type checking of location
 
 		const std::string_view lookup_path = this->context.getSemaBuffer().getStringValue(
 			location.getExpr().stringValueID()
@@ -2170,7 +2372,7 @@ namespace pcit::panther{
 			} break;
 
 			case Context::LookupSourceIDError::SAME_AS_CALLER: {
-				// TODO: better messaging
+				// TODO(FUTURE): better messaging
 				this->emit_error(
 					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
 					instr.func_call.args[0].value,
@@ -3074,7 +3276,7 @@ namespace pcit::panther{
 			const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
 
 			if(actual_lhs_type.qualifiers().empty() == false){
-				// TODO: better message
+				// TODO(FUTURE): better message
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 					instr.infix.lhs,
@@ -3084,7 +3286,7 @@ namespace pcit::panther{
 			}
 
 			if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::STRUCT){
-				// TODO: better message
+				// TODO(FUTURE): better message
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 					instr.infix.lhs,
@@ -3637,8 +3839,8 @@ namespace pcit::panther{
 		const Token::ID& ident,
 		std::string_view ident_str,
 		const sema::ScopeLevel& scope_level,
-		bool variables_in_scope, // TODO: make this template argument?
-		bool is_global_scope, // TODO: make this template argumnet?
+		bool variables_in_scope, // TODO(FUTURE): make this template argument?
+		bool is_global_scope, // TODO(FUTURE): make this template argumnet?
 		const Source* source_module
 	) -> evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> {
 		if constexpr(PUB_REQUIRED){
@@ -3664,7 +3866,7 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::GlobalVar::ID>()){
 				if(!variables_in_scope){
-					// TODO: better messaging
+					// TODO(FUTURE): better messaging
 					this->emit_error(
 						Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
 						ident,
@@ -3802,12 +4004,21 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ReturnParamID>()){
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					ident,
-					"Return parameter identifiers are unimplemented"
+				const sema::Func& current_func = this->get_current_func();
+				const BaseType::Function& current_func_type = 
+					this->context.getTypeManager().getFunction(current_func.typeID);
+				const BaseType::Function::ReturnParam& return_param = current_func_type.returnParams[
+					this->context.getSemaBuffer().getReturnParam(ident_id).index
+				];
+
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::CONCRETE_MUT,
+						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						return_param.typeID.asTypeID(),
+						sema::Expr(ident_id)
+					)
 				);
-				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ModuleInfo>()){
 				if constexpr(PUB_REQUIRED){
@@ -4094,7 +4305,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool ALLOW_TYPEDEF>
+	template<bool LOOK_THROUGH_TYPEDEF>
 	auto SemanticAnalyzer::get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID {
 		const TypeManager& type_manager = this->context.getTypeManager();
 
@@ -4110,7 +4321,7 @@ namespace pcit::panther{
 				type_id = *alias.aliasedType.load();
 
 			}else if(type_info.baseTypeID().kind() == BaseType::Kind::TYPEDEF){
-				if constexpr(ALLOW_TYPEDEF){
+				if constexpr(LOOK_THROUGH_TYPEDEF){
 					const BaseType::Typedef& typedef_info = type_manager.getTypedef(type_info.baseTypeID().typedefID());
 
 					evo::debugAssert(
@@ -5071,12 +5282,13 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// error handling / diagnostics
 
-	template<bool IS_NOT_ARGUMENT>
+	template<bool MAY_IMPLICITLY_CONVERT_AND_ERROR>
 	auto SemanticAnalyzer::type_check(
 		TypeInfo::ID expected_type_id,
 		TermInfo& got_expr,
 		std::string_view expected_type_location_name,
-		const auto& location
+		const auto& location,
+		std::optional<unsigned> multi_type_index
 	) -> TypeCheckInfo {
 		evo::debugAssert(
 			std::isupper(int(expected_type_location_name[0])),
@@ -5085,7 +5297,7 @@ namespace pcit::panther{
 
 		const TypeManager& type_manager = this->context.getTypeManager();
 
-		TypeInfo::ID actual_expected_type_id = this->get_actual_type<false>(expected_type_id);
+		const TypeInfo::ID actual_expected_type_id = this->get_actual_type<false>(expected_type_id);
 
 		switch(got_expr.value_category){
 			case TermInfo::ValueCategory::EPHEMERAL:
@@ -5093,20 +5305,28 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::CONCRETE_MUT:
 			case TermInfo::ValueCategory::CONCRETE_FORWARDABLE:
 			case TermInfo::ValueCategory::CONCRETE_CONST_DESTR_MOVABLE: {
+				TypeInfo::ID actual_got_type_id = TypeInfo::ID::dummy();
 				if(got_expr.isMultiValue()){
-					auto name_copy = std::string(expected_type_location_name);
-					name_copy[0] = char(std::tolower(int(name_copy[0])));
+					if(multi_type_index.has_value() == false){
+						auto name_copy = std::string(expected_type_location_name);
+						name_copy[0] = char(std::tolower(int(name_copy[0])));
 
-					this->emit_error(
-						Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
-						location,
-						std::format("Cannot set {} with multiple values", name_copy)
+						this->emit_error(
+							Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
+							location,
+							std::format("Cannot set {} with multiple values", name_copy)
+						);
+						return TypeCheckInfo::fail();
+					}
+
+					actual_got_type_id = this->get_actual_type<false>(
+						got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index]
 					);
-					return TypeCheckInfo::fail();
+
+				}else{
+					actual_got_type_id = this->get_actual_type<false>(got_expr.type_id.as<TypeInfo::ID>());
 				}
 
-
-				TypeInfo::ID actual_got_type_id = this->get_actual_type<false>(got_expr.type_id.as<TypeInfo::ID>());
 
 				// if types are not exact, check if implicit conversion is valid
 				if(actual_expected_type_id != actual_got_type_id){
@@ -5119,10 +5339,10 @@ namespace pcit::panther{
 							= this->extract_type_deducers(actual_expected_type_id, actual_got_type_id);
 
 						if(extracted_type_deducers.isError()){
-							if constexpr(IS_NOT_ARGUMENT){
-								// TODO: better messaging
+							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+								// TODO(FUTURE): better messaging
 								this->emit_error(
-									Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO: more specific code
+									Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
 									location,
 									"Type deducer not able to deduce type"
 								);
@@ -5139,31 +5359,31 @@ namespace pcit::panther{
 						expected_type.qualifiers().size() != got_type.qualifiers().size()
 					){	
 
-						if constexpr(IS_NOT_ARGUMENT){
+						if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 							this->error_type_mismatch(
-								expected_type_id, got_expr, expected_type_location_name, location
+								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 							);
 						}
 						return TypeCheckInfo::fail();
 					}
 
-					// TODO: optimze this?
+					// TODO(PERF): optimze this?
 					for(size_t i = 0; i < expected_type.qualifiers().size(); i+=1){
 						const AST::Type::Qualifier& expected_qualifier = expected_type.qualifiers()[i];
 						const AST::Type::Qualifier& got_qualifier      = got_type.qualifiers()[i];
 
 						if(expected_qualifier.isPtr != got_qualifier.isPtr){
-							if constexpr(IS_NOT_ARGUMENT){
+							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 								);
 							}
 							return TypeCheckInfo::fail();
 						}
 						if(expected_qualifier.isReadOnly == false && got_qualifier.isReadOnly){
-							if constexpr(IS_NOT_ARGUMENT){
+							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 								);
 							}
 							return TypeCheckInfo::fail();
@@ -5171,11 +5391,23 @@ namespace pcit::panther{
 					}
 				}
 
-				if constexpr(IS_NOT_ARGUMENT){
-					EVO_DEFER([&](){ got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id); });
+				if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+					EVO_DEFER([&](){
+						if(multi_type_index.has_value() == false){
+							got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);	
+						}else{
+							got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index] = expected_type_id;
+						}
+					});
 				}
 
-				return TypeCheckInfo::success(got_expr.type_id.as<TypeInfo::ID>() != expected_type_id);
+				if(multi_type_index.has_value() == false){
+					return TypeCheckInfo::success(got_expr.type_id.as<TypeInfo::ID>() != expected_type_id);
+				}else{
+					return TypeCheckInfo::success(
+						got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index] != expected_type_id
+					);
+				}
 			} break;
 
 			case TermInfo::ValueCategory::EPHEMERAL_FLUID: {
@@ -5186,9 +5418,9 @@ namespace pcit::panther{
 					expected_type_info.qualifiers().empty() == false || 
 					expected_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
 				){
-					if constexpr(IS_NOT_ARGUMENT){
+					if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 						if(expected_type_info.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER){
-							// TODO: better messaging
+							// TODO(FUTURE): better messaging
 							this->emit_error(
 								Diagnostic::Code::SEMA_CANNOT_INFER_TYPE,
 								location,
@@ -5197,7 +5429,7 @@ namespace pcit::panther{
 
 						}else{
 							this->error_type_mismatch(
-								expected_type_id, got_expr, expected_type_location_name, location
+								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 							);
 						}
 					}
@@ -5235,16 +5467,16 @@ namespace pcit::panther{
 							break;
 
 						default: {
-							if constexpr(IS_NOT_ARGUMENT){
+							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 								);
 							}
 							return TypeCheckInfo::fail();
 						}
 					}
 
-					if constexpr(IS_NOT_ARGUMENT){
+					if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 						const sema::IntValue::ID int_value_id = got_expr.getExpr().intValueID();
 						sema::IntValue& int_value = this->context.sema_buffer.int_values[int_value_id];
 
@@ -5317,16 +5549,16 @@ namespace pcit::panther{
 							break;
 
 						default: {
-							if constexpr(IS_NOT_ARGUMENT){
+							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 								);
 							}
 							return TypeCheckInfo::fail();
 						}
 					}
 
-					if constexpr(IS_NOT_ARGUMENT){
+					if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 						const sema::FloatValue::ID float_value_id = got_expr.getExpr().floatValueID();
 						sema::FloatValue& float_value = this->context.sema_buffer.float_values[float_value_id];
 
@@ -5371,7 +5603,7 @@ namespace pcit::panther{
 					}
 				}
 
-				if constexpr(IS_NOT_ARGUMENT){
+				if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
 					got_expr.value_category = TermInfo::ValueCategory::EPHEMERAL;
 					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
 				}
@@ -5406,11 +5638,15 @@ namespace pcit::panther{
 		TypeInfo::ID expected_type_id,
 		const TermInfo& got_expr,
 		std::string_view expected_type_location_name,
-		const auto& location
+		const auto& location,
+		std::optional<unsigned> multi_type_index
 	) -> void {
 		evo::debugAssert(
 			std::isupper(int(expected_type_location_name[0])), "first character of name should be upper-case"
 		);
+
+		constexpr static bool LOCATION_IS_MULTI_ASSIGN = 
+			std::is_same<std::decay_t<decltype(location)>, AST::MultiAssign>();
 
 		std::string expected_type_str = std::string("Expected type: ");
 		auto got_type_str = std::string("Expression is type: ");
@@ -5424,13 +5660,21 @@ namespace pcit::panther{
 		}
 
 		auto infos = evo::SmallVector<Diagnostic::Info>();
+
+		if constexpr(LOCATION_IS_MULTI_ASSIGN){
+			infos.emplace_back(
+				std::format("Multi-assign index: {}", *multi_type_index),
+				this->get_location(location.assigns[*multi_type_index])
+			);
+		}
+
 		infos.emplace_back(
 			expected_type_str + 
 			this->context.getTypeManager().printType(expected_type_id, this->context.getSourceManager())
 		);
 
 		TypeInfo::ID actual_expected_type_id = expected_type_id;
-		// TODO: improve perf
+		// TODO(PERF): improve perf
 		while(true){
 			const TypeInfo& actual_expected_type = this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
 			if(actual_expected_type.qualifiers().empty() == false){ break; }
@@ -5455,11 +5699,21 @@ namespace pcit::panther{
 		}
 
 
-		infos.emplace_back(got_type_str + this->print_type(got_expr));
+		infos.emplace_back(got_type_str + this->print_type(got_expr, multi_type_index));
 
-		if(got_expr.type_id.is<TypeInfo::ID>()){
-			TypeInfo::ID actual_got_type_id = got_expr.type_id.as<TypeInfo::ID>();
-			// TODO: improve perf
+		if(
+			got_expr.type_id.is<TypeInfo::ID>()
+			|| (got_expr.type_id.is<evo::SmallVector<TypeInfo::ID>>() && multi_type_index.has_value())
+		){
+			TypeInfo::ID actual_got_type_id = [&](){
+				if(got_expr.type_id.is<TypeInfo::ID>()){
+					return got_expr.type_id.as<TypeInfo::ID>();
+				}else{
+					return got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index];
+				}
+			}();
+
+			// TODO(PERF): improve perf
 			while(true){
 				const TypeInfo& actual_got_type = this->context.getTypeManager().getTypeInfo(actual_got_type_id);
 				if(actual_got_type.qualifiers().empty() == false){ break; }
@@ -5484,9 +5738,19 @@ namespace pcit::panther{
 			}
 		}
 
+
+		const auto& actual_location = [&](){
+			if constexpr(LOCATION_IS_MULTI_ASSIGN){
+				return location.value;
+			}else{
+				return location;
+			}
+		}();
+
+
 		this->emit_error(
 			Diagnostic::Code::SEMA_TYPE_MISMATCH,
-			location,
+			actual_location,
 			std::format(
 				"{} cannot accept an expression of a different type, "
 					"and this expression cannot be implicitly converted to the correct type",
@@ -5667,7 +5931,7 @@ namespace pcit::panther{
 
 					const sema::Func& overload = this->context.sema_buffer.getFunc(overload_id.as<sema::Func::ID>());
 					if(attempted_decl_func.isEquivalentOverload(overload, this->context)){
-						// TODO: better messaging
+						// TODO(FUTURE): better messaging
 						infos.emplace_back(
 							"Overload collided with:", this->get_location(overload_id.as<sema::Func::ID>())
 						);
@@ -5722,7 +5986,9 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::print_type(const TermInfo& term_info) const -> std::string {
+	auto SemanticAnalyzer::print_type(
+		const TermInfo& term_info, std::optional<unsigned> multi_type_index
+	) const -> std::string {
 		return term_info.type_id.visit([&](const auto& type_id) -> std::string {
 			using TypeID = std::decay_t<decltype(type_id)>;
 
@@ -5750,7 +6016,9 @@ namespace pcit::panther{
 				return this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
 
 			}else if constexpr(std::is_same<TypeID, evo::SmallVector<TypeInfo::ID>>()){
-				return "{MULTIPLE-RETURN}";
+				return this->context.getTypeManager().printType(
+					type_id[*multi_type_index], this->context.getSourceManager()
+				);
 
 			}else if constexpr(std::is_same<TypeID, Source::ID>()){
 				return "{MODULE}";

@@ -298,9 +298,9 @@ namespace pcit::pir{
 
 	static_assert(std::atomic<std::optional<Expr>>::is_always_lock_free);
 	
-
 	struct Number{
-		Type type;
+		// TODO(PERF): need to have `.type`, or just have a function to get it based on `.value`?
+		const Type type;
 
 		EVO_NODISCARD auto getInt() const -> const core::GenericInt& {
 			evo::debugAssert(this->type.kind() == Type::Kind::INTEGER, "This number is not integral");

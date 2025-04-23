@@ -80,6 +80,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
 			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
+			EVO_NODISCARD auto instr_assignment(const Instruction::Assignment& instr) -> Result;
+			EVO_NODISCARD auto instr_multi_assign(const Instruction::MultiAssign& instr) -> Result;
+			EVO_NODISCARD auto instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result;
 
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
@@ -178,7 +181,7 @@ namespace pcit::panther{
 
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
 
-			template<bool ALLOW_TYPEDEF>
+			template<bool LOOK_THROUGH_TYPEDEF>
 			EVO_NODISCARD auto get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID;
 
 
@@ -312,19 +315,21 @@ namespace pcit::panther{
 						: ok(_ok), requires_implicit_conversion(ric), deduced_types(std::move(_deduced_types)) {}
 			};
 
-			template<bool IS_NOT_ARGUMENT>
+			template<bool MAY_IMPLICITLY_CONVERT_AND_ERROR>
 			EVO_NODISCARD auto type_check(
 				TypeInfo::ID expected_type_id,
 				TermInfo& got_expr,
 				std::string_view expected_type_location_name,
-				const auto& location
+				const auto& location,
+				std::optional<unsigned> multi_type_index = std::nullopt
 			) -> TypeCheckInfo;
 
 			auto error_type_mismatch(
 				TypeInfo::ID expected_type_id,
 				const TermInfo& got_expr,
 				std::string_view expected_type_location_name,
-				const auto& location
+				const auto& location,
+				std::optional<unsigned> multi_type_index = std::nullopt
 			) -> void;
 
 
@@ -388,7 +393,9 @@ namespace pcit::panther{
 			) -> void;
 
 
-			EVO_NODISCARD auto print_type(const TermInfo& term_info) const -> std::string;
+			EVO_NODISCARD auto print_type(
+				const TermInfo& term_info, std::optional<unsigned> multi_type_index = std::nullopt
+			) const -> std::string;
 
 
 			EVO_NODISCARD auto check_scope_isnt_terminated(const auto& location) -> evo::Result<>;

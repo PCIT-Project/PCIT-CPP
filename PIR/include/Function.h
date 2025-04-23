@@ -142,7 +142,7 @@ namespace pcit::pir{
 			Module& parent_module;
 
 			evo::SmallVector<BasicBlock::ID> basic_blocks{};
-			core::StepAlloc<Alloca, uint32_t> allocas{}; // TODO: make this a std::vector?
+			core::StepAlloc<Alloca, uint32_t> allocas{};
 
 			friend class ReaderAgent;
 			friend class Agent;

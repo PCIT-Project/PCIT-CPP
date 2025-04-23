@@ -154,12 +154,12 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::FUNCTION: {
-					// TODO: fix this
+					// TODO(FEATURE): fix this
 					return "{FUNCTION}";
 				} break;
 
 				case BaseType::Kind::ARRAY: {
-					// TODO: fix this
+					// TODO(FEATURE): fix this
 					return "{ARRAY}";
 				} break;
 
@@ -546,17 +546,17 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT: {
-				// TODO: 
+				// TODO(FEATURE): 
 				return 0;
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
-				// TODO: handle this better?
+				// TODO(FUTURE): handle this better?
 				evo::debugAssert("Cannot get size of Struct Template");
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
-				// TODO: handle this better?
+				// TODO(FUTURE): handle this better?
 				evo::debugAssert("Cannot get size of type deducer");
 			} break;
 
@@ -826,7 +826,7 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
-	// TODO: optimize this function
+	// TODO(PERF): optimize this function
 	auto TypeManager::getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID> {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY:     evo::debugFatalBreak("Dummy type should not be used");
@@ -1216,7 +1216,8 @@ namespace pcit::panther{
 				return core::GenericValue(core::GenericFloat::createF64(calc_float_max(64, 1023, 53)));
 
 			case Token::Kind::TYPE_F80:
-				// TODO: is this correct? Doing it the correct way seems to make `llvm::APFloat::toString` print "NaN"
+				// TODO(FUTURE): is this correct? 
+				// 		Doing it the correct way seems to make `llvm::APFloat::toString` print "NaN"
 				return core::GenericValue(core::GenericFloat::createF128(calc_float_max(128, 16383, 113)).asF80());
 				// return core::GenericValue(core::GenericFloat::createF80(calc_float_max(80, 16383, 64)));
 

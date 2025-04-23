@@ -90,6 +90,8 @@ namespace pcit::panther{
 		for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
 			EVO_DEFER([&](){ i += 1; });
 
+			if(this->context.getTypeManager().sizeOf(param.typeID) == 0){ continue; }
+
 			std::string param_name = [&](){
 				if(this->data.getConfig().useReadableNames == false){
 					return std::format(".{}", params.size());
@@ -207,12 +209,8 @@ namespace pcit::panther{
 				const pir::Type param_type = this->get_type(param.typeID);
 				const pir::Expr param_alloca = this->agent.createAlloca(
 					param_type,
-					this->name("{}.alloca", this->current_source->getTokenBuffer()[func.params[i].ident].getString())
+					this->name("ALLOCA.{}", this->current_source->getTokenBuffer()[func.params[i].ident].getString())
 				);
-
-				// this->param_infos.emplace(
-				// 	ASG::Param::LinkID(asg_func_link_id, func.params[i]), ParamInfo(param_alloca, param_type, i)
-				// );
 
 				this->agent.createStore(param_alloca, this->agent.createParamExpr(i), false, pir::AtomicOrdering::NONE);
 
@@ -244,7 +242,7 @@ namespace pcit::panther{
 		this->agent.setTargetBasicBlockAtEnd();
 
 		for(const sema::Stmt& stmt : sema_func.stmtBlock){
-			// TODO: move into separate function?
+			// TODO(FUTURE): move into separate function?
 			switch(stmt.kind()){
 				case sema::Stmt::Kind::GLOBAL_VAR: {
 					evo::unimplemented("To PIR of sema::Stmt::Kind::GLOBAL_VAR");
@@ -279,11 +277,34 @@ namespace pcit::panther{
 				} break;
 
 				case sema::Stmt::Kind::ASSIGN: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::ASSIGN");
+					const sema::Assign& assignment = this->context.getSemaBuffer().getAssign(stmt.assignID());
+
+					if(assignment.lhs.has_value()){
+						this->get_expr_store(assignment.rhs, this->get_expr_pointer(*assignment.lhs));
+					}else{
+						this->get_expr_discard(assignment.rhs);
+					}
 				} break;
 
 				case sema::Stmt::Kind::MULTI_ASSIGN: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::MULTI_ASSIGN");
+					const sema::MultiAssign& multi_assign = 
+						this->context.getSemaBuffer().getMultiAssign(stmt.multiAssignID());
+
+					auto targets = evo::SmallVector<pir::Expr>();
+					targets.reserve(multi_assign.targets.size());
+					for(const evo::Variant<sema::Expr, TypeInfo::ID>& target : multi_assign.targets){
+						if(target.is<sema::Expr>()){
+							targets.emplace_back(this->get_expr_pointer(target.as<sema::Expr>()));
+						}else{
+							targets.emplace_back(
+								this->agent.createAlloca(
+									this->get_type(target.as<TypeInfo::ID>()), this->name("DISCARD")
+								)
+							);
+						}
+					}
+
+					this->get_expr_store(multi_assign.value, targets);
 				} break;
 
 				case sema::Stmt::Kind::RETURN: {
@@ -468,14 +489,19 @@ namespace pcit::panther{
 				} break;
 
 				case pir::Type::Kind::PTR: {
-					if(this->context.getTypeManager().isIntegral(func_type.params[i].typeID)){
+					const TypeInfo::ID param_type_id = [&](){
+						if(i < func_type.params.size()){ return func_type.params[i].typeID; }
+						return func_type.returnParams[i - func_type.params.size()].typeID.asTypeID();
+					}();
+
+					if(this->context.getTypeManager().isIntegral(param_type_id)){
 						const pir::Expr alloca = this->agent.createAlloca(param.getType());
 						this->agent.createCallVoid(
 							this->data.getJITInterfaceFuncs().get_generic_int, {arg_ptr, alloca}
 						);
 						args.emplace_back(alloca);
 					}else{
-						evo::debugAssert(this->context.getTypeManager().isFloat(func_type.params[i].typeID));
+						evo::debugAssert(this->context.getTypeManager().isFloat(param_type_id));
 						const pir::Expr alloca = this->agent.createAlloca(param.getType());
 						this->agent.createCallVoid(
 							this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca}
@@ -502,7 +528,7 @@ namespace pcit::panther{
 
 		switch(target_pir_func.getReturnType().kind()){
 			case pir::Type::Kind::VOID: {
-				evo::unimplemented();
+				this->agent.createRet();
 			} break;
 			
 			case pir::Type::Kind::INTEGER: {
@@ -650,6 +676,10 @@ namespace pcit::panther{
 		this->get_expr_impl<GetExprMode::STORE>(expr, store_locations);
 	}
 
+	auto SemaToPIR::get_expr_discard(const sema::Expr expr) -> void {
+		this->get_expr_impl<GetExprMode::DISCARD>(expr, nullptr);
+	}
+
 
 
 	template<SemaToPIR::GetExprMode MODE>
@@ -692,9 +722,12 @@ namespace pcit::panther{
 					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::NONE);
 					return alloca;
 
-				}else{
+				}else if constexpr(MODE == GetExprMode::STORE){
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+
+				}else{
 					return std::nullopt;
 				}
 			} break;
@@ -712,9 +745,12 @@ namespace pcit::panther{
 					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::NONE);
 					return alloca;
 
-				}else{
+				}else if constexpr(MODE == GetExprMode::STORE){
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+
+				}else{
 					return std::nullopt;
 				}
 			} break;
@@ -733,9 +769,12 @@ namespace pcit::panther{
 					this->agent.createStore(alloca, boolean, false, pir::AtomicOrdering::NONE);
 					return alloca;
 
-				}else{
+				}else if constexpr(MODE == GetExprMode::STORE){
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 					this->agent.createStore(store_locations[0], boolean, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+
+				}else{
 					return std::nullopt;
 				}
 			} break;
@@ -759,9 +798,12 @@ namespace pcit::panther{
 					this->agent.createStore(alloca, number, false, pir::AtomicOrdering::NONE);
 					return alloca;
 
-				}else{
+				}else if constexpr(MODE == GetExprMode::STORE){
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 					this->agent.createStore(store_locations[0], number, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+
+				}else{
 					return std::nullopt;
 				}
 			} break;
@@ -785,8 +827,11 @@ namespace pcit::panther{
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					return this->get_expr_pointer(copy_expr);
 					
-				}else{
+				}else if constexpr(MODE == GetExprMode::STORE){
 					this->get_expr_store(copy_expr, store_locations);
+					return std::nullopt;
+
+				}else{
 					return std::nullopt;
 				}
 			} break;
@@ -800,8 +845,11 @@ namespace pcit::panther{
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					return this->get_expr_pointer(move_expr);
 					
-				}else{
+				}else if constexpr(MODE == GetExprMode::STORE){
 					this->get_expr_store(move_expr, store_locations);
+					return std::nullopt;
+
+				}else{
 					return std::nullopt;
 				}
 			} break;
@@ -834,27 +882,69 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				const pir::Expr output = [&](){
-					return this->agent.createCall(
+
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
+					this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID
+				);
+
+				if(target_type.hasNamedReturns()){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						const pir::Expr alloca = this->agent.createAlloca(target_func_info.return_type);
+
+						for(pir::Expr store_location : store_locations){
+							args.emplace_back(alloca);
+						}
+
+						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+
+						return this->agent.createLoad(
+							alloca, target_func_info.return_type, false, pir::AtomicOrdering::NONE
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr alloca = this->agent.createAlloca(target_func_info.return_type);
+
+						for(pir::Expr store_location : store_locations){
+							args.emplace_back(alloca);
+						}
+
+						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+
+						return alloca;
+						
+					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+						for(pir::Expr store_location : store_locations){
+							args.emplace_back(store_location);
+						}
+						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+						return std::nullopt;
+					}
+
+				}else{
+					const pir::Expr call_return  = this->agent.createCall(
 						target_func_info.pir_id,
 						std::move(args),
 						this->name("CALL.{}", this->mangle_name(func_call.target.as<sema::Func::ID>()))
 					);
-				}();
 
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return output;
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return call_return;
 
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->agent.createAlloca(target_func_info.return_type);
-					this->agent.createStore(alloca, output, false, pir::AtomicOrdering::NONE);
-					return alloca;
-					
-				}else{
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(store_locations.front(), output, false, pir::AtomicOrdering::NONE);
-					return std::nullopt;
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr alloca = this->agent.createAlloca(target_func_info.return_type);
+						this->agent.createStore(alloca, call_return, false, pir::AtomicOrdering::NONE);
+						return alloca;
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+						this->agent.createStore(store_locations.front(), call_return, false, pir::AtomicOrdering::NONE);
+						return std::nullopt;
+
+					}else{
+						return std::nullopt;
+					}
 				}
+				
 			} break;
 
 			case sema::Expr::Kind::ADDR_OF: {
@@ -868,8 +958,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::PARAM: {
 				const sema::Param& sema_param = this->context.getSemaBuffer().getParam(expr.paramID());
 
-				if(this->current_func_info->params[sema_param.index].is_copy()){
-					const pir::Expr output = this->agent.createParamExpr(sema_param.index);
+				if(this->current_func_info->params[sema_param.abiIndex].is_copy()){
+					const pir::Expr output = this->agent.createParamExpr(sema_param.abiIndex);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return output;
@@ -882,47 +972,75 @@ namespace pcit::panther{
 						this->agent.createStore(alloca, output, false, pir::AtomicOrdering::NONE);
 						return alloca;
 						
-					}else{
+					}else if constexpr(MODE == GetExprMode::STORE){
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 						this->agent.createStore(store_locations.front(), output, false, pir::AtomicOrdering::NONE);
+						return std::nullopt;
+
+					}else{
 						return std::nullopt;
 					}
 
 				}else{
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createLoad(
-							this->agent.createParamExpr(sema_param.index),
+							this->agent.createParamExpr(sema_param.abiIndex),
 							*this->current_func_info->params[sema_param.index].reference_type,
 							false,
 							pir::AtomicOrdering::NONE
 						);
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->agent.createParamExpr(sema_param.index);
+						return this->agent.createParamExpr(sema_param.abiIndex);
 						
-					}else{
-						const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
-						const size_t param_type_size = this->module.getSize(
-							current_func.getParameters()[sema_param.index].getType()
-						);
-
+					}else if constexpr(MODE == GetExprMode::STORE){
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+						const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
 						this->agent.createMemcpy(
 							store_locations[0],
-							this->agent.createParamExpr(sema_param.index),
-							this->agent.createNumber(
-								this->module.createIntegerType(unsigned(this->module.sizeOfPtr())),
-								core::GenericInt(unsigned(this->module.sizeOfPtr()), param_type_size)
-							),
+							this->agent.createParamExpr(sema_param.abiIndex),
+							current_func.getParameters()[sema_param.index].getType(),
 							false
 						);
+						return std::nullopt;
+
+					}else{
 						return std::nullopt;
 					}
 				}
 			} break;
 
 			case sema::Expr::Kind::RETURN_PARAM: {
-				evo::unimplemented("lower sema::Expr::Kind::ReturnParam");
+				const sema::ReturnParam& sema_return_param =
+					this->context.getSemaBuffer().getReturnParam(expr.returnParamID());
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createLoad(
+						this->agent.createParamExpr(sema_return_param.abiIndex),
+						*this->current_func_info->params[sema_return_param.index].reference_type,
+						false,
+						pir::AtomicOrdering::NONE
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->agent.createParamExpr(sema_return_param.abiIndex);
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+					const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
+					this->agent.createMemcpy(
+						store_locations[0],
+						this->agent.createParamExpr(sema_return_param.abiIndex),
+						current_func.getParameters()[sema_return_param.index].getType(),
+						false
+					);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::GLOBAL_VAR: {
@@ -935,17 +1053,22 @@ namespace pcit::panther{
 						pir_var.type,
 						false,
 						pir::AtomicOrdering::NONE,
-						this->name("{}.LOAD", this->mangle_name(expr.globalVarID()))
+						this->name("LOAD.{}", this->mangle_name(expr.globalVarID()))
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					return this->agent.createGlobalValue(pir_var_id);
 					
-				}else{
+				}else if constexpr(MODE == GetExprMode::STORE){
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(
-						store_locations[0], this->agent.createGlobalValue(pir_var_id), false, pir::AtomicOrdering::NONE
+
+					const pir::GlobalVar& pir_var = this->module.getGlobalVar(pir_var_id);
+					this->agent.createMemcpy(
+						store_locations[0], this->agent.createGlobalValue(pir_var_id), pir_var.type, false
 					);
+					return std::nullopt;
+
+				}else{
 					return std::nullopt;
 				}
 			} break;

@@ -110,7 +110,7 @@ namespace std{
 namespace pcit::panther{
 
 
-	// TODO: make this data oriented
+	// TODO(PERF): make this data oriented
 	struct SymbolProcInstruction{
 		using AttributeParams = evo::StaticVector<SymbolProcTermInfoID, 2>;
 
@@ -314,6 +314,24 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
+		struct Assignment{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
+			SymbolProcTermInfoID rhs;
+		};
+
+		struct MultiAssign{
+			const AST::MultiAssign& multi_assign;
+			evo::SmallVector<std::optional<SymbolProcTermInfoID>> targets;
+			SymbolProcTermInfoID value;
+		};
+
+		
+		struct DiscardingAssignment{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID rhs;
+		};
+
 
 
 		//////////////////
@@ -491,6 +509,9 @@ namespace pcit::panther{
 			Return,
 			Error,
 			FuncCall,
+			Assignment,
+			MultiAssign,
+			DiscardingAssignment,
 
 			// misc expr
 			TypeToTerm,
@@ -576,28 +597,28 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto isDeclDone() const -> bool {
-				const auto lock = std::scoped_lock( // TODO: needed to take all of these locks?
+				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
 					this->waiting_for_lock, this->decl_waited_on_lock, this->def_waited_on_lock
 				);
 				return this->decl_done;
 			}
 
 			EVO_NODISCARD auto isDefDone() const -> bool {
-				const auto lock = std::scoped_lock( // TODO: needed to take all of these locks?
+				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
 					this->waiting_for_lock, this->decl_waited_on_lock, this->def_waited_on_lock
 				);
 				return this->def_done;
 			}
 
 			EVO_NODISCARD auto isPIRLowerDone() const -> bool {
-				const auto lock = std::scoped_lock( // TODO: needed to take all of these locks?
+				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
 					this->waiting_for_lock, this->pir_lower_waited_on_lock
 				);
 				return this->pir_lower_done;
 			}
 
 			EVO_NODISCARD auto isPIRReadyDone() const -> bool {
-				const auto lock = std::scoped_lock( // TODO: needed to take all of these locks?
+				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
 					this->waiting_for_lock, this->pir_ready_waited_on_lock
 				);
 				return this->pir_lower_done;
@@ -655,7 +676,7 @@ namespace pcit::panther{
 
 			evo::SmallVector<Instruction> instructions{};
 
-			// TODO: optimize the memory usage here?
+			// TODO(PERF): optimize the memory usage here?
 			evo::SmallVector<std::optional<TermInfo>> term_infos{};
 			evo::SmallVector<std::optional<TypeInfo::VoidableID>> type_ids{};
 			evo::SmallVector<const BaseType::StructTemplate::Instantiation*> struct_instantiations{};

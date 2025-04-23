@@ -33,7 +33,7 @@ namespace pcit::plnk{
 		args.addArg("-defaultlib:libcmt");
 		args.addArg("-defaultlib:oldnames");
 
-		// TODO: how to add more than one
+		// TODO(FUTURE): how to add more than one
 		evo::debugAssert(object_file_paths.size() == 1, "only 1 object file is supported at this time");
 		args.addArg(object_file_paths.front().string());
 

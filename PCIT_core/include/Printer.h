@@ -17,7 +17,6 @@ namespace pcit::core{
 
 	class Printer{
 		private:
-			// TODO: optimize this with templates
 			enum class Mode{
 				CONSOLE_COLOR,
 				CONSOLE,

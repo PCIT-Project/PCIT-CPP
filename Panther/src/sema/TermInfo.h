@@ -130,7 +130,7 @@ namespace pcit::panther{
 			evo::SmallVector<sema::Expr>&& expr_list
 		)
 			: value_category(vc), value_stage(vs), type_id(InitializerType{}), exprs(std::move(expr_list)) {
-			// TODO: remove this and move directly into `type_id` when the MSVC bug is fixed
+			// TODO(FUTURE): remove this and move directly into `type_id` when the MSVC bug is fixed
 			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(type_ids));
 
 			evo::debugAssert(this->value_category == ValueCategory::EPHEMERAL, "multi-expr must be multi-return");
@@ -229,6 +229,7 @@ namespace pcit::panther{
 
 		EVO_NODISCARD constexpr auto is_const() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST 
+				|| this->value_category == ValueCategory::CONCRETE_CONST_DESTR_MOVABLE
 				|| this->value_category == ValueCategory::FUNCTION;
 		}
 
@@ -243,12 +244,16 @@ namespace pcit::panther{
 		}
 
 		EVO_NODISCARD auto getExpr() const -> const sema::Expr& {
-			evo::debugAssert(this->isSingleValue(), "does not hold expr value");
+			evo::debugAssert(
+				this->isSingleValue() || (this->isMultiValue() && this->exprs.size() == 1), "does not hold expr value"
+			);
 			return this->exprs[0];
 		}
 
 		EVO_NODISCARD auto getExpr() -> sema::Expr& {
-			evo::debugAssert(this->isSingleValue(), "does not hold expr value");
+			evo::debugAssert(
+				this->isSingleValue() || (this->isMultiValue() && this->exprs.size() == 1), "does not hold expr value"
+			);
 			return this->exprs[0];
 		}
 

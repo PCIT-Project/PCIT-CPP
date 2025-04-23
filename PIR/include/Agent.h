@@ -261,6 +261,20 @@ namespace pcit::pir{
 
 			auto createMemcpy(const Expr& dst, const Expr& src, const Expr& num_bytes, bool is_volatile) const -> Expr;
 
+			auto createMemcpy(const Expr& dst, const Expr& src, const Type& src_type, bool is_volatile) const -> Expr {
+				return this->createMemcpy(dst, src, this->module.getSize(src_type, true) * 8, is_volatile);
+			}
+
+			auto createMemcpy(const Expr& dst, const Expr& src, size_t num_bytes, bool is_volatile) const -> Expr {
+				const pir::Expr num_bytes_expr = this->createNumber(
+					this->module.createIntegerType(unsigned(this->module.sizeOfPtr())),
+					core::GenericInt(unsigned(this->module.sizeOfPtr()), unsigned(num_bytes))
+				);
+
+				return this->createMemcpy(dst, src, num_bytes_expr, is_volatile);
+			}
+
+
 			EVO_NODISCARD auto getMemcpy(const Expr&) const -> const Memcpy&;
 
 

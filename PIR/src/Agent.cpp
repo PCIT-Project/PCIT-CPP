@@ -48,7 +48,7 @@ namespace pcit::pir{
 
 	auto Agent::setTargetBasicBlock(BasicBlock::ID id) -> void {
 		evo::debugAssert(this->hasTargetFunction(), "No target function is set");
-		// TODO: check that block is in function
+		// TODO(FUTURE): check that block is in function
 
 		this->target_basic_block = &this->getBasicBlock(id);
 		this->insert_index = std::numeric_limits<size_t>::max();
@@ -56,7 +56,7 @@ namespace pcit::pir{
 
 	auto Agent::setTargetBasicBlock(BasicBlock& basic_block) -> void {
 		evo::debugAssert(this->hasTargetFunction(), "No target function is set");
-		// TODO: check that block is in function
+		// TODO(FUTURE): check that block is in function
 
 		this->target_basic_block = &basic_block;
 		this->insert_index = std::numeric_limits<size_t>::max();
@@ -82,7 +82,7 @@ namespace pcit::pir{
 
 	auto Agent::setInsertIndex(size_t index) -> void {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		// TODO: check that index is in block
+		// TODO(FUTURE): check that index is in block
 
 		this->insert_index = index;
 	}

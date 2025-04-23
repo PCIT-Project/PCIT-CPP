@@ -9,7 +9,7 @@
 
 //////////////////////////////////////////////////////////////////////
 // 
-// TODO: remove this entire file when no longer need Panther-old
+// TODO(FUTURE): remove this entire file when no longer need Panther-old
 // 
 //////////////////////////////////////////////////////////////////////
 
@@ -69,7 +69,7 @@ namespace pcit::core{
 		evo::SmallVector<Info> infos;
 
 
-		// TODO: create the rest of the overloads
+		// TODO(PERF): create the rest of the overloads
 		DiagnosticImpl(
 			DiagnosticLevel _level,
 			CodeEnum _code,

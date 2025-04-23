@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.105.0"></a>
+## v0.0.105.0
+
+### Panther
+- Added assignment
+- Added multi-assignment
+- Added discarding assignemtn
+- Optimized ABI to not include function parameters of types that are size 0
+- Fixed lowering of calls to functions that have named return values
+- Fixed multi-assigns silently failing if an assignment target was something else besides an identifier or a discard (`_`)
+
+
+<!---------------------------------->
 <a name="v0.0.104.0"></a>
 ## v0.0.104.0
 

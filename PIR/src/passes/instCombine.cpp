@@ -862,7 +862,7 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			// TODO: 
+			// TODO(PERF): 
 			case Expr::Kind::MEMCPY: return false;
 			case Expr::Kind::MEMSET: return false;
 
@@ -1089,7 +1089,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FADD: return false;
 
-			// TODO: 
+			// TODO(PERF): 
 			case Expr::Kind::SUB:               return false;
 			case Expr::Kind::SSUB_WRAP:         return false;
 			case Expr::Kind::SSUB_WRAP_RESULT:  return false;
@@ -1118,7 +1118,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::FREM:              return false;
 			case Expr::Kind::FNEG:              return false;
 
-			// TODO:
+			// TODO(PERF):
 			case Expr::Kind::IEQ:  return false;
 			case Expr::Kind::FEQ:  return false;
 			case Expr::Kind::INEQ: return false;
@@ -1136,7 +1136,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::UGTE: return false;
 			case Expr::Kind::FGTE: return false;
 
-			// TODO:
+			// TODO(PERF):
 			case Expr::Kind::AND:      return false;
 			case Expr::Kind::OR:       return false;
 			case Expr::Kind::XOR:      return false;

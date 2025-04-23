@@ -55,7 +55,6 @@ namespace pcit::panther{
 	}
 
 	
-
 	auto Tokenizer::tokenize() -> evo::Result<> {
 		EVO_DEFER([&](){ this->source.token_buffer.lock(); });
 
@@ -72,6 +71,7 @@ namespace pcit::panther{
 			this->current_token_collumn_start = collumn_result.value();
 
 
+			// TODO(PERF): switch to a state machine or something to cut down on number of conditionals needed per token
 			if(this->tokenize_whitespace()    ){ continue; }
 			if(this->tokenize_comment()       ){ continue; }
 			if(this->tokenize_identifier()    ){ continue; }
@@ -153,7 +153,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: change to not use global initialization
+	// TODO(FUTURE): change to not use global initialization
 	const static auto keyword_map = std::unordered_map<std::string_view, Token::Kind>{
 		// types
 		{"Void",        Token::Kind::TYPE_VOID},
@@ -367,7 +367,7 @@ namespace pcit::panther{
 
 				if(this->can_continue == false){ return false; }
 
-				// TODO: should keyword lookup be earlier?
+				// TODO(PERF): should keyword lookup be earlier?
 				if(is_integer == false){
 					const auto keyword_map_iter = keyword_map.find(ident_name);
 
@@ -415,7 +415,7 @@ namespace pcit::panther{
 		return true;
 	}
 
-	// TODO: improve the perf of this by having separate lookups based on the ammount left
+	// TODO(PERF): improve the perf of this by having separate lookups based on the ammount left
 		//   (no need to check length 3 ops if it's known to only have 1 char left)
 	auto Tokenizer::tokenize_operators() -> bool {
 		const size_t ammount_left = this->char_stream.ammount_left();

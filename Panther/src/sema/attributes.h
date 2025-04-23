@@ -39,7 +39,7 @@ namespace pcit::panther{
 				}
 
 				if(this->implicitly_set_location.has_value()){
-					// TODO: make this warning turn-off-able in settings
+					// TODO(FEATURE): make this warning turn-off-able in settings
 					this->sema.emit_warning(
 						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
 						location,
@@ -58,7 +58,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto implicitly_set(Token::ID location) -> void {
 				if(this->set_location.has_value()){
-					// TODO: make this warning turn-off-able in settings
+					// TODO(FEATURE): make this warning turn-off-able in settings
 					this->sema.emit_warning(
 						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
 						this->set_location.value(),
@@ -112,7 +112,7 @@ namespace pcit::panther{
 				}
 
 				if(this->implicitly_set_location.has_value()){
-					// TODO: make this warning turn-off-able in settings
+					// TODO(FEATURE): make this warning turn-off-able in settings
 					this->sema.emit_warning(
 						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
 						location,
@@ -133,7 +133,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto implicitly_set(Token::ID location, bool cond) -> void {
 				if(this->set_location.has_value()){
 					if(this->is_set_true){
-						// TODO: make this warning turn-off-able in settings
+						// TODO(FEATURE): make this warning turn-off-able in settings
 						this->sema.emit_warning(
 							Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
 							this->set_location.value(),

@@ -51,11 +51,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_expr_pointer(const sema::Expr expr) -> pir::Expr;
 			EVO_NODISCARD auto get_expr_store(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 				-> void;
+			EVO_NODISCARD auto get_expr_discard(const sema::Expr expr) -> void;
 
 			enum class GetExprMode{
 				REGISTER,
 				POINTER,
 				STORE,
+				DISCARD,
 			};
 
 			template<GetExprMode MODE>

@@ -97,7 +97,7 @@ namespace pcit::panther{
 				NOT_ALLOWED,
 				OPTIONAL,
 			};
-			// TODO: make label_requirement template?
+			// TODO(PERF): make label_requirement template?
 			EVO_NODISCARD auto parse_block(BlockLabelRequirement label_requirement) -> Result;
 
 			

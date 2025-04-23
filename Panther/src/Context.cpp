@@ -59,7 +59,7 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// build targets
 
-	// TODO: force shutdown when hit fail condition
+
 	auto Context::tokenize() -> evo::Result<> {
 		this->started_any_target = true;
 
@@ -504,7 +504,7 @@ namespace pcit::panther{
 			if(path_is_pthr_file(file_path)){
 				const fs::path normalized_path = normalize_path(file_path, compilation_config.basePath);
 
-				// TODO: optimize this, maybe with a map
+				// TODO(PERF): optimize this, maybe with a map
 				if(file_path.stem() == "std"){  this->source_manager.add_special_name_path("std", normalized_path);  }
 				if(file_path.stem() == "math"){ this->source_manager.add_special_name_path("math", normalized_path); }
 				if(file_path.stem() == "build_config"){
@@ -656,7 +656,7 @@ namespace pcit::panther{
 		}();
 			
 		if(current_dynamic_file_load_contains){
-			// TODO: better waiting
+			// TODO(PERF): better waiting
 			while(lookup_source_id.has_value() == false){
 				std::this_thread::yield();
 				std::this_thread::yield();

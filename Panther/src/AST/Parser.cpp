@@ -71,7 +71,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	template<AST::VarDecl::Kind VAR_DECL_KIND>
 	auto Parser::parse_var_decl() -> Result {
 		if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::VAR){
@@ -110,7 +110,7 @@ namespace pcit::panther{
 			if(this->assert_token_fail(Token::lookupKind("="))){ return Result::Code::ERROR; }
 				
 			const Result value_result = this->parse_expr();
-			// TODO: better messaging around block exprs missing a label
+			// TODO(FUTURE): better messaging around block exprs missing a label
 			if(this->check_result_fail(value_result, "expression after [=] in variable declaration")){
 				return Result::Code::ERROR;
 			}
@@ -128,7 +128,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_func_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KEYWORD_FUNC)){ return Result::Code::ERROR; }
 
@@ -177,7 +177,7 @@ namespace pcit::panther{
 		if(error_returns.isError()){ return Result::Code::ERROR; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
-		if(this->check_result_fail(block, "statement block in function declaration")){ // TODO: better messaging 
+		if(this->check_result_fail(block, "statement block in function declaration")){ // TODO(FUTURE): better messaging 
 			return Result::Code::ERROR;
 		}
 
@@ -193,7 +193,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_alias_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KEYWORD_ALIAS)){ return Result::Code::ERROR; }
 
@@ -215,7 +215,7 @@ namespace pcit::panther{
 		);
 	}
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_type_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KEYWORD_TYPE)){ return Result::Code::ERROR; }
 
@@ -246,7 +246,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
 		if(this->assert_token_fail(Token::Kind::KEYWORD_STRUCT)){ return Result::Code::ERROR; }
 
@@ -278,7 +278,7 @@ namespace pcit::panther{
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
-		if(this->check_result_fail(block, "statement block in struct declaration")){ // TODO: better messaging 
+		if(this->check_result_fail(block, "statement block in struct declaration")){ // TODO(FUTURE): better messaging 
 			return Result::Code::ERROR;
 		}
 
@@ -288,7 +288,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_return() -> Result {
 		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token_fail(Token::Kind::KEYWORD_RETURN)){ return Result::Code::ERROR; }
@@ -322,7 +322,7 @@ namespace pcit::panther{
 		return this->source.ast_buffer.createReturn(start_location, label, expr);
 	}
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_error() -> Result {
 		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token_fail(Token::Kind::KEYWORD_ERROR)){ return Result::Code::ERROR; }
@@ -348,7 +348,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_unreachable() -> Result {
 		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token_fail(Token::Kind::KEYWORD_UNREACHABLE)){ return Result::Code::ERROR; }
@@ -361,7 +361,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	template<bool IS_WHEN>
 	auto Parser::parse_conditional() -> Result {
 		const Token::ID keyword_token_id = this->reader.peek();
@@ -402,7 +402,7 @@ namespace pcit::panther{
 							"[when] after [else]",
 							this->reader.peek(),
 							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Cannot mix [if] and [when] in a chain"), // TODO: better messaging
+								Diagnostic::Info("Cannot mix [if] and [when] in a chain"), // TODO(FUTURE): better messaging
 							}
 						);
 					}else{
@@ -414,7 +414,7 @@ namespace pcit::panther{
 							"[if] after [else]",
 							this->reader.peek(),
 							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Cannot mix [if] and [when] in a chain"), // TODO: better messaging
+								Diagnostic::Info("Cannot mix [if] and [when] in a chain"), // TODO(FUTURE): better messaging
 							}
 						);
 					}else{
@@ -465,7 +465,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_assignment() -> Result {
 		const Token::ID start_location = this->reader.peek();
 
@@ -503,17 +503,12 @@ namespace pcit::panther{
 						break;
 					}
 
-					const Result assignment = [&]() {
-						const Result ident_result = this->parse_ident();
-						if(ident_result.code() != Result::Code::WRONG_TYPE){ return ident_result; }
-
-						const Token::ID peeked_token_id = this->reader.next();
-						const Token::Kind peeked_kind = this->reader[peeked_token_id].kind();
-						if(peeked_kind == Token::lookupKind("_")){
-							return Result(AST::Node(AST::Kind::DISCARD, peeked_token_id));
-						}else{
-							return Result(Result::Code::WRONG_TYPE);
+					const Result assignment = [&]() -> Result {
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
+							return AST::Node(AST::Kind::DISCARD, this->reader.next());
 						}
+
+						return this->parse_expr();
 					}();
 					if(assignment.code() != Result::Code::SUCCESS){ return Result::Code::ERROR; }
 
@@ -593,7 +588,7 @@ namespace pcit::panther{
 
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_block(BlockLabelRequirement label_requirement) -> Result {
 		const Token::ID start_location = this->reader.peek();
 
@@ -669,7 +664,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	template<Parser::TypeKind KIND>
 	auto Parser::parse_type() -> Result {
 		const Token::ID start_location = this->reader.peek();
@@ -903,7 +898,7 @@ namespace pcit::panther{
 
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_expr() -> Result {
 		Result result = this->parse_uninit();
 		if(result.code() != Result::Code::WRONG_TYPE){ return result; }
@@ -914,7 +909,7 @@ namespace pcit::panther{
 		return this->parse_sub_expr();
 	}
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_sub_expr() -> Result {
 		return this->parse_infix_expr();
 	}
@@ -961,7 +956,7 @@ namespace pcit::panther{
 		return -1;
 	}
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_infix_expr() -> Result {
 		const Result lhs_result = this->parse_prefix_expr();
 		if(lhs_result.code() != Result::Code::SUCCESS){ return lhs_result; }
@@ -1033,7 +1028,7 @@ namespace pcit::panther{
 
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_prefix_expr() -> Result {
 		const Token::ID op_token_id = this->reader.peek();
 		const Token::Kind op_token_kind = this->reader[op_token_id].kind();
@@ -1102,7 +1097,7 @@ namespace pcit::panther{
 
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	template<Parser::TermKind TERM_KIND>
 	auto Parser::parse_term() -> Result {
 		Result output = [&](){
@@ -1331,7 +1326,7 @@ namespace pcit::panther{
 	}
 
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_encapsulated_expr() -> Result {
 		const Result block_expr = this->parse_block(BlockLabelRequirement::REQUIRED);
 		if(block_expr.code() != Result::Code::WRONG_TYPE){ return block_expr; }
@@ -1363,7 +1358,7 @@ namespace pcit::panther{
 		return inner_expr;
 	}
 
-	// TODO: check EOF
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_atom() -> Result {
 		Result result = this->parse_ident();
 		if(result.code() != Result::Code::WRONG_TYPE){ return result; }

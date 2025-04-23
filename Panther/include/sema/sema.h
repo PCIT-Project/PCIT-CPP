@@ -127,15 +127,15 @@ namespace pcit::panther::sema{
 	struct Assign{
 		using ID = AssignID;
 
-	// 	Expr lhs;
-	// 	Expr rhs;
+		std::optional<Expr> lhs; // nullopt if is a discard
+		Expr rhs;
 	};
 
 	struct MultiAssign{
 		using ID = MultiAssignID;
 
-	// 	evo::SmallVector<std::optional<Expr>> targets;
-	// 	Expr value;
+		evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>> targets; // TypeInfo::ID if is a discard
+		Expr value;
 	};
 
 	struct Return{
@@ -171,15 +171,15 @@ namespace pcit::panther::sema{
 	struct Param{
 		using ID = ParamID;
 
-	// 	Func::ID func;
 		uint32_t index;
+		uint32_t abiIndex;
 	};
 
 	struct ReturnParam{
 		using ID = ReturnParamID;
 
-	// 	Func::ID func;
 		uint32_t index;
+		uint32_t abiIndex;
 	};
 
 
@@ -210,7 +210,7 @@ namespace pcit::panther::sema{
 		evo::SmallVector<Param> params;
 		SymbolProc& symbolProc;
 		SymbolProcID symbolProcID;
-		uint32_t minNumArgs; // TODO: make sure this optimization actually improves perf
+		uint32_t minNumArgs; // TODO(PERF): make sure this optimization actually improves perf
 		bool isPub;
 		bool isConstexpr;
 		bool hasInParam;

@@ -1,22 +1,29 @@
 
-def NEW_FEATURE: Bool = true;
+
+var foo: UI8 = zeroinit;
+var bar: UI8 = zeroinit;
 
 
-when(NEW_FEATURE){
-	type Struct = struct <{TYPE: Type, VAL: TYPE}> {
-		def VALUE: TYPE = VAL;
-	}
+func get_values = (a_val: UI8) -> (a: UI8, b: UI8) {
+	a = copy a_val;
+	b = 14;
+	return...;
+}
 
-	func entry = () #entry -> UI8 {
-		return Struct<{UI8, 12}>.VALUE;
-	}
 
-}else{
-	type Struct = struct <{T: Type}> {
-		def VALUE: T = 12;
-	}
 
-	func entry = () #entry -> UI8 {		
-		return Struct<{UI8}>.VALUE;
-	}
+func get_value = () -> UI8 {
+	return 12;
+}
+
+
+
+
+
+func entry = () #entry -> UI8 {
+	[foo, bar] = get_values(12);
+
+	_ = get_value();
+
+	return copy foo;
 }

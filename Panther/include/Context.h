@@ -291,7 +291,6 @@ namespace pcit::panther{
 				Source::CompilationConfig::ID compilation_config_id;
 			};
 
-			// TODO: needed anymore?
 			using Task = evo::Variant<FileToLoad, SymbolProc::ID>;
 
 			auto add_task_to_work_manager(auto&&... args) -> void {
