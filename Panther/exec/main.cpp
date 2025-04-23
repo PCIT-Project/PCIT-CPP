@@ -286,7 +286,7 @@ EVO_NODISCARD static auto run_compile(
 			return evo::Result<>();
 		} break;
 
-		case BuildSystemConfig::Output::ANALYZE_SEMANTICS: {
+		case BuildSystemConfig::Output::SEMANTIC_ANALYSIS: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -302,6 +302,17 @@ EVO_NODISCARD static auto run_compile(
 			}
 
 			context.lowerToAndPrintPIR(printer);
+
+			return evo::Result<>();
+		} break;
+
+		case BuildSystemConfig::Output::PRINT_LLVMIR: {
+			if(context.analyzeSemantics().isError()){
+				print_num_context_errors(context, printer);
+				return evo::resultError;
+			}
+
+			printer.print(context.lowerToLLVMIR());
 
 			return evo::Result<>();
 		} break;

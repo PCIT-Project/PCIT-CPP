@@ -1,29 +1,19 @@
 
 
-var foo: UI8 = zeroinit;
-var bar: UI8 = zeroinit;
+var bar: UI8 = get_value(12);
 
 
-func get_values = (a_val: UI8) -> (a: UI8, b: UI8) {
-	a = copy a_val;
-	b = 14;
-	return...;
+def USE_RVO: Bool = false;
+
+when(USE_RVO){
+	func get_value = (input: UI8) -> (output: UI8) {
+		output = copy input;
+		return...;
+	}
+	
+}else{
+	func get_value = (input: UI8) -> UI8 {
+		return copy input;
+	}
 }
 
-
-
-func get_value = () -> UI8 {
-	return 12;
-}
-
-
-
-
-
-func entry = () #entry -> UI8 {
-	[foo, bar] = get_values(12);
-
-	_ = get_value();
-
-	return copy foo;
-}

@@ -1309,6 +1309,7 @@ namespace pcit::panther{
 				}
 			}
 
+
 			this->propagate_finished_pir_lower();
 
 
@@ -2190,6 +2191,11 @@ namespace pcit::panther{
 
 			i += 1;
 		}
+
+		// {
+		// 	auto printer = core::Printer::createConsole();
+		// 	pir::printModule(this->context.constexpr_pir_module, printer);
+		// }
 
 		core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
 			this->context.constexpr_pir_module, *target_func.constexprJITInterfaceFunc, jit_args

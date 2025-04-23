@@ -349,6 +349,26 @@ namespace pcit::panther{
 	}
 
 
+	auto Context::lowerToLLVMIR() -> std::string {
+		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
+
+		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
+			.useReadableNames   = true,
+			.checkedMath        = true,
+			.isJIT              = false,
+			.addSourceLocations = true,
+		});
+
+		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
+			sema_to_pir_data.createJITBuildFuncDecls(module);
+		}
+
+		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
+		sema_to_pir.lower();
+
+		return pcit::pir::lowerToLLVMIR(module, pcit::pir::OptMode::NONE);
+	}
+
 
 	auto Context::lowerToASM() -> evo::Result<std::string> {
 		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);

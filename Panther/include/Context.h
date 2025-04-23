@@ -72,10 +72,11 @@ namespace pcit::panther{
 					PRINT_TOKENS       = 0,
 					PRINT_AST          = 1,
 					BUILD_SYMBOL_PROCS = 2,
-					ANALYZE_SEMANTICS  = 3,
+					SEMANTIC_ANALYSIS  = 3,
 					PRINT_PIR          = 4,
-					PRINT_ASSEMBLY     = 5,
-					RUN                = 6,
+					PRINT_LLVMIR       = 5,
+					PRINT_ASSEMBLY     = 6,
+					RUN                = 7,
 				};
 
 
@@ -182,6 +183,7 @@ namespace pcit::panther{
 			auto analyzeSemantics() -> evo::Result<>;
 
 			auto lowerToAndPrintPIR(core::Printer& printer) -> void;
+			auto lowerToLLVMIR() -> std::string;
 			auto lowerToASM() -> evo::Result<std::string>;
 
 			EVO_NODISCARD auto runEntry() -> evo::Result<uint8_t>;

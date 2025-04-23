@@ -459,7 +459,9 @@ namespace pcit::panther{
 
 					}else{
 						const pir::Expr alloca = this->agent.createAlloca(param.getType());
-						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().get_generic_int, {arg_ptr, alloca});
+						this->agent.createCallVoid(
+							this->data.getJITInterfaceFuncs().get_generic_int, {arg_ptr, alloca}
+						);
 						args.emplace_back(
 							this->agent.createLoad(alloca, param.getType(), false, pir::AtomicOrdering::NONE)
 						);
@@ -528,6 +530,7 @@ namespace pcit::panther{
 
 		switch(target_pir_func.getReturnType().kind()){
 			case pir::Type::Kind::VOID: {
+				// this->agent.createCallVoid(pir_func_id, std::move(args));
 				this->agent.createRet();
 			} break;
 			
