@@ -291,6 +291,15 @@ namespace pcit::panther{
 		if(this->symbol_proc_manager.notAllProcsDone() && this->num_errors == 0){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 
+			infos.emplace_back(
+				std::format(
+					"{}/{} symbols were completed ({} not completed)",
+					this->symbol_proc_manager.numProcs() - this->symbol_proc_manager.numProcsNotDone(),
+					this->symbol_proc_manager.numProcs(),
+					this->symbol_proc_manager.numProcsNotDone()
+				)
+			);
+
 			if(this->_config.numThreads.isMulti()){
 				infos.emplace_back("This may be caused by the multi-threading during semantic analysis. "
 							"Until a fix is made, try the single-threaded mode as it should be more stable.");
@@ -301,11 +310,7 @@ namespace pcit::panther{
 			this->emitFatal(
 				Diagnostic::Code::MISC_STALL_DETECTED,
 				Diagnostic::Location::NONE,
-				std::format(
-					"Stall detected while compiling ({}/{} symbols were not completed)",
-					this->symbol_proc_manager.numProcsNotDone(),
-					this->symbol_proc_manager.numProcs()
-				),
+				"Stall detected while compiling",
 				std::move(infos)
 			);
 
@@ -315,7 +320,11 @@ namespace pcit::panther{
 				for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
 					symbol_proc_list.emplace_back(&symbol_proc);
 				}
-				evo::breakpoint();
+
+				// Prevent escape from breakpoint
+				while(true){
+					evo::breakpoint();
+				}
 			#endif
 
 			return evo::resultError;
@@ -324,6 +333,7 @@ namespace pcit::panther{
 		
 		return evo::Result<>::fromBool(this->num_errors == 0);
 	}
+
 
 
 

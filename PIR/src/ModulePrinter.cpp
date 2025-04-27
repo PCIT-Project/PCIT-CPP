@@ -101,6 +101,46 @@ namespace pcit::pir{
 			this->printer.printRed(": ");
 			this->print_type(param.getType());
 
+			for(const pir::Parameter::Attribute& attribute_variant : param.attributes){
+				attribute_variant.visit([&](const auto& attribute) -> void {
+					using Attribute = std::decay_t<decltype(attribute)>;
+
+					if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::Unsigned>()){
+						this->printer.printRed(" #unsigned");
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::Signed>()){
+						this->printer.printRed(" #signed");
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNoAlias>()){
+						this->printer.printRed(" #ptrNoAlias");
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNonNull>()){
+						this->printer.printRed(" #ptrNonNull");
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrDereferencable>()){
+						this->printer.printRed(" #ptrDereferencable");
+						this->printer.print("(");
+						this->printer.printMagenta(std::to_string(attribute.size));
+						this->printer.print(")");
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrReadOnly>()){
+						this->printer.printRed(" #ptrReadOnly");
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWriteOnly>()){
+						this->printer.printRed(" #ptrWriteOnly");
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWritable>()){
+						this->printer.printRed(" #ptrWritable");
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrRVO>()){
+						this->printer.printRed(" #ptrRVO");
+						this->printer.print("(");
+						this->print_type(attribute.type);
+						this->printer.print(")");
+					}
+				});
+			}
+
 			if(i < func_decl.parameters.size() - 1){
 				this->printer.print(", ");
 			}

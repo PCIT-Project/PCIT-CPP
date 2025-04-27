@@ -15,6 +15,7 @@
 #include "./class_impls/enums.h"
 #include "./class_impls/stmts.h"
 #include "./class_impls/values.h"
+#include "./class_impls/types.h"
 
 namespace pcit::llvmint{
 
@@ -24,6 +25,17 @@ namespace pcit::llvmint{
 			~Argument() = default;
 
 			auto setName(std::string_view name) -> void;
+
+			auto setZeroExt() -> void;
+			auto setSignExt() -> void;
+			auto setNoAlias() -> void;
+			auto setNonNull() -> void;
+			auto setDereferencable(uint64_t size) -> void;
+			auto setReadOnly() -> void;
+			auto setWriteOnly() -> void;
+			auto setWritable() -> void;
+			auto setStructRet(const Type& type) -> void;
+
 
 			EVO_NODISCARD explicit operator Value() const;
 			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }

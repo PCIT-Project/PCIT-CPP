@@ -44,45 +44,69 @@ namespace pcit::core{
 
 
 			template<>
-			EVO_NODISCARD auto as<GenericInt>() const -> const GenericInt& { return this->value.as<GenericInt>(); }
+			EVO_NODISCARD auto as<GenericInt>() const -> const GenericInt& {
+				evo::debugAssert(this->value.is<GenericInt>(), "Generic Value is not this type");
+				return this->value.as<GenericInt>();
+			}
 
 			template<>
-			EVO_NODISCARD auto as<GenericInt>() -> GenericInt& { return this->value.as<GenericInt>(); }
+			EVO_NODISCARD auto as<GenericInt>() -> GenericInt& {
+				evo::debugAssert(this->value.is<GenericInt>(), "Generic Value is not this type");
+				return this->value.as<GenericInt>();
+			}
 
 
 			template<>
 			EVO_NODISCARD auto as<GenericFloat>() const -> const GenericFloat& {
+				evo::debugAssert(this->value.is<GenericFloat>(), "Generic Value is not this type");
 				return this->value.as<GenericFloat>();
 			}
 
 			template<>
-			EVO_NODISCARD auto as<GenericFloat>() -> GenericFloat& { return this->value.as<GenericFloat>(); }
+			EVO_NODISCARD auto as<GenericFloat>() -> GenericFloat& {
+				evo::debugAssert(this->value.is<GenericFloat>(), "Generic Value is not this type");
+				return this->value.as<GenericFloat>();
+			}
 
 
 			template<>
-			EVO_NODISCARD auto as<bool>() const -> const bool& { return this->value.as<bool>(); }
-
-			template<>
-			EVO_NODISCARD auto as<bool>() -> bool& { return this->value.as<bool>(); }
-
-
-
-			template<>
-			EVO_NODISCARD auto as<char>() const -> const char& { return this->value.as<char>(); }
-
-			template<>
-			EVO_NODISCARD auto as<char>() -> char& { return this->value.as<char>(); }
-
-
-
-			template<>
-			EVO_NODISCARD auto as<std::vector<GenericValue>>() const -> const std::vector<GenericValue>& {
-				return this->value.as<std::vector<GenericValue>>();
+			EVO_NODISCARD auto as<bool>() const -> const bool& {
+				evo::debugAssert(this->value.is<bool>(), "Generic Value is not this type");
+				return this->value.as<bool>();
 			}
 
 			template<>
-			EVO_NODISCARD auto as<std::vector<GenericValue>>() -> std::vector<GenericValue>& {
-				return this->value.as<std::vector<GenericValue>>();
+			EVO_NODISCARD auto as<bool>() -> bool& {
+				evo::debugAssert(this->value.is<bool>(), "Generic Value is not this type");
+				return this->value.as<bool>();
+			}
+
+
+
+			template<>
+			EVO_NODISCARD auto as<char>() const -> const char& {
+				evo::debugAssert(this->value.is<char>(), "Generic Value is not this type");
+				return this->value.as<char>();
+			}
+
+			template<>
+			EVO_NODISCARD auto as<char>() -> char& {
+				evo::debugAssert(this->value.is<char>(), "Generic Value is not this type");
+				return this->value.as<char>();
+			}
+
+
+
+			template<>
+			EVO_NODISCARD auto as<evo::SmallVector<GenericValue>>() const -> const evo::SmallVector<GenericValue>& {
+				evo::debugAssert(this->value.is<evo::SmallVector<GenericValue>>(), "Generic Value is not this type");
+				return this->value.as<evo::SmallVector<GenericValue>>();
+			}
+
+			template<>
+			EVO_NODISCARD auto as<evo::SmallVector<GenericValue>>() -> evo::SmallVector<GenericValue>& {
+				evo::debugAssert(this->value.is<evo::SmallVector<GenericValue>>(), "Generic Value is not this type");
+				return this->value.as<evo::SmallVector<GenericValue>>();
 			}
 
 
@@ -110,7 +134,7 @@ namespace pcit::core{
 					}else if constexpr(std::is_same<ValueT, char>()){
 						return std::to_string(value);
 						
-					}else if constexpr(std::is_same<ValueT, std::vector<GenericValue>>()){
+					}else if constexpr(std::is_same<ValueT, evo::SmallVector<GenericValue>>()){
 						auto output = std::string();
 
 						output += "{";
@@ -156,7 +180,7 @@ namespace pcit::core{
 					}else if constexpr(std::is_same<ValueT, char>()){
 						return std::hash<char>{}(value);
 						
-					}else if constexpr(std::is_same<ValueT, std::vector<GenericValue>>()){
+					}else if constexpr(std::is_same<ValueT, evo::SmallVector<GenericValue>>()){
 						size_t hash_value = 0;
 
 						for(const GenericValue& member : value){
@@ -173,7 +197,7 @@ namespace pcit::core{
 
 	
 		private:
-			evo::Variant<std::monostate, GenericInt, GenericFloat, bool, char, std::vector<GenericValue>> value;
+			evo::Variant<std::monostate, GenericInt, GenericFloat, bool, char, evo::SmallVector<GenericValue>> value;
 	};
 
 	
@@ -188,7 +212,7 @@ namespace pcit::core{
 
 	
 		private:
-			std::vector<GenericValue> values{};
+			evo::SmallVector<GenericValue> values{};
 
 			friend GenericValue;
 	};

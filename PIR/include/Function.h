@@ -22,13 +22,82 @@
 namespace pcit::pir{
 
 	class Parameter{
+		private:
+			struct AttributeUnsigned{};
+			struct AttributeSigned{};
+			struct AttributePtrNoAlias{};
+			struct AttributePtrNonNull{};
+			struct AttributePtrDereferencable{ uint64_t size; };
+			struct AttributePtrReadOnly{};
+			struct AttributePtrWriteOnly{};
+			struct AttributePtrWritable{};
+			struct AttributePtrRVO{ Type type; }; // only 1 may be used
+
 		public:
-			Parameter(std::string&& _name, Type _type) : name(std::move(_name)), type(_type) {}
+			struct Attribute : public evo::Variant<
+				AttributeUnsigned,
+				AttributeSigned,
+				AttributePtrNoAlias,
+				AttributePtrNonNull,
+				AttributePtrDereferencable,
+				AttributePtrReadOnly,
+				AttributePtrWriteOnly,
+				AttributePtrWritable,
+				AttributePtrRVO
+			>{
+				using Unsigned          = AttributeUnsigned;
+				using Signed            = AttributeSigned;
+				using PtrNoAlias        = AttributePtrNoAlias;
+				using PtrNonNull        = AttributePtrNonNull;
+				using PtrDereferencable = AttributePtrDereferencable;
+				using PtrReadOnly       = AttributePtrReadOnly;
+				using PtrWriteOnly      = AttributePtrWriteOnly;
+				using PtrWritable       = AttributePtrWritable;
+				using PtrRVO            = AttributePtrRVO;
+			};
+
+		public:
+			Parameter(std::string&& _name, Type _type) : name(std::move(_name)), type(_type), attributes() {}
+			Parameter(std::string&& _name, Type _type, evo::SmallVector<Attribute>&& _attributes)
+				: name(std::move(_name)), type(_type), attributes(std::move(_attributes)) {}
 			~Parameter() = default;
 
 			EVO_NODISCARD auto getName() const -> std::string_view { return this->name; }
 			EVO_NODISCARD auto getType() const -> const Type& { return this->type; }
-	
+
+
+			// Since `.attributes` is a public member you could add attributes directly,
+			// 		but using this function has the added benefit of debug checking
+			auto addAttribute(Attribute&& attribute) -> void {
+				#if defined(PCIT_CONFIG_DEBUG)
+					// TODO(FUTURE): Checking that checks previously added attributes
+					// 		(no duplicates, no conflicting, etc)
+					attribute.visit([&](const auto& attr) -> void {
+						using AttrType = std::decay_t<decltype(attr)>;
+
+						if constexpr(
+							std::is_same<AttrType, Attribute::Unsigned>() || std::is_same<AttrType, Attribute::Signed>()
+						){
+							evo::debugAssert(
+								this->type.kind() == Type::Kind::INTEGER,
+								"This attribute can only be added to a parameter with an integer type"
+							);
+						
+						}else{
+							evo::debugAssert(
+								this->type.kind() == Type::Kind::PTR,
+								"This attribute can only be added to a parameter with a pointer type"
+							);
+						}
+					});
+				#endif
+
+				this->attributes.emplace_back(std::move(attribute));
+			}
+
+		public:
+			evo::SmallVector<Attribute> attributes;
+
 		private:
 			std::string name;
 			Type type;

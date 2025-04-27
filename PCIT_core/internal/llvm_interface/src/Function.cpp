@@ -21,6 +21,47 @@ namespace pcit::llvmint{
 		this->native()->setName(name);
 	}
 
+
+	auto Argument::setZeroExt() -> void {
+		this->native()->addAttr(llvm::Attribute::AttrKind::ZExt);
+	}
+
+	auto Argument::setSignExt() -> void {
+		this->native()->addAttr(llvm::Attribute::AttrKind::SExt);
+	}
+
+	auto Argument::setNoAlias() -> void {
+		this->native()->addAttr(llvm::Attribute::AttrKind::NoAlias);
+	}
+
+	auto Argument::setNonNull() -> void {
+		this->native()->addAttr(llvm::Attribute::AttrKind::NonNull);
+	}
+
+	auto Argument::setDereferencable(uint64_t size) -> void {
+		this->native()->addAttr(llvm::Attribute::getWithDereferenceableBytes(this->native()->getContext(), size));
+	}
+
+	auto Argument::setReadOnly() -> void {
+		this->native()->addAttr(llvm::Attribute::AttrKind::ReadOnly);
+	}
+
+	auto Argument::setWriteOnly() -> void {
+		this->native()->addAttr(llvm::Attribute::AttrKind::WriteOnly);
+	}
+
+	auto Argument::setWritable() -> void {
+		this->native()->addAttr(llvm::Attribute::AttrKind::Writable);
+	}
+
+	auto Argument::setStructRet(const Type& type) -> void {
+		this->native()->addAttr(llvm::Attribute::getWithStructRetType(this->native()->getContext(), type.native()));
+	}
+
+
+
+
+
 	Argument::operator Value() const { return Value(static_cast<llvm::Value*>(this->native())); }
 
 

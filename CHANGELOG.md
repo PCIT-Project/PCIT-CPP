@@ -1,6 +1,26 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.107.0"></a>
+## v0.0.107.0
+
+### Panther
+- Added support for constexpr function calls with named return values
+
+### PIR
+- Added parameter attributes:
+	- `#unsigned`
+	- `#signed`
+	- `#ptrNoAlias`
+	- `#ptrNonNull`
+	- `#ptrDereferencable(n)`
+	- `#ptrReadOnly`
+	- `#ptrWriteOnly`
+	- `#ptrWritable`
+	- `#ptrRVO(type)`
+
+
+<!---------------------------------->
 <a name="v0.0.106.0"></a>
 ## v0.0.106.0
 

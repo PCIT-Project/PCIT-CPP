@@ -536,11 +536,15 @@ namespace pcit::panther{
 			SymbolProc::ID passed_symbol_id = passed_symbols.front();
 			passed_symbols.pop();
 
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				// TODO(NOW): remove if race condition found
+				evo::log::debug("passed_symbol_id: {}  --  (REMOVE WHEN RACE CONDITION FIXED)", passed_symbol_id.get());
+			#endif
+
 			SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_id);
 			passed_symbol.passed_on_by_when_cond = true;
 
-
-			auto waited_on_queue = std::queue<SymbolProc::ID>();
 
 			{
 				const auto lock = std::scoped_lock(passed_symbol.decl_waited_on_lock, passed_symbol.def_waited_on_lock);
@@ -2153,7 +2157,7 @@ namespace pcit::panther{
 		evo::debugAssert(target_func.defCompleted.load(), "def of func not completed");
 
 		auto jit_args = evo::SmallVector<core::GenericValue>();
-		jit_args.reserve(instr.args.size());
+		jit_args.reserve(instr.args.size() && size_t(target_func_type.hasNamedReturns()));
 		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
 			const TermInfo& arg = this->get_term_info(arg_id);
 
@@ -2192,6 +2196,11 @@ namespace pcit::panther{
 			i += 1;
 		}
 
+		if(target_func_type.hasNamedReturns()){
+			jit_args.emplace_back();
+		}
+
+		
 		// {
 		// 	auto printer = core::Printer::createConsole();
 		// 	pir::printModule(this->context.constexpr_pir_module, printer);
@@ -2222,6 +2231,10 @@ namespace pcit::panther{
 				target_func_type.returnParams[0].typeID.asTypeID()
 			);
 
+			if(target_func_type.hasNamedErrorReturns()){
+				run_result = std::move(jit_args.back());
+			}
+
 			if(return_type.qualifiers().empty() == false){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
@@ -2232,113 +2245,98 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			switch(return_type.baseTypeID().kind()){
-				case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
 
-				case BaseType::Kind::PRIMITIVE: {
-					const BaseType::Primitive& primitive_type = this->context.getTypeManager().getPrimitive(
-						return_type.baseTypeID().primitiveID()
-					);
+			const sema::Expr return_sema_expr = [&](){
+				switch(return_type.baseTypeID().kind()){
+					case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
 
-					switch(primitive_type.kind()){
-						case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
-						case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
-						case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
-						case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_TYPEID:
-						case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
-						case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
-						case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
-						case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
-							this->return_term_info(instr.output,
-								TermInfo(
-									TermInfo::ValueCategory::EPHEMERAL,
-									TermInfo::ValueStage::CONSTEXPR,
-									func_call_term.type_id,
-									sema::Expr(this->context.sema_buffer.createIntValue(
+					case BaseType::Kind::PRIMITIVE: {
+						const BaseType::Primitive& primitive_type = this->context.getTypeManager().getPrimitive(
+							return_type.baseTypeID().primitiveID()
+						);
+
+						switch(primitive_type.kind()){
+							case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
+							case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
+							case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
+							case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_TYPEID:
+							case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+							case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
+							case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
+							case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
+								return sema::Expr(
+									this->context.sema_buffer.createIntValue(
 										std::move(run_result.as<core::GenericInt>()), return_type.baseTypeID()
-									))
-								)
-							);
-							return Result::SUCCESS;
-						} break;
+									)
+								);
+							} break;
 
-						case Token::Kind::TYPE_F16:           case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
-						case Token::Kind::TYPE_F64:           case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128:
-						case Token::Kind::TYPE_C_LONG_DOUBLE: {
-							this->return_term_info(instr.output,
-								TermInfo(
-									TermInfo::ValueCategory::EPHEMERAL,
-									TermInfo::ValueStage::CONSTEXPR,
-									func_call_term.type_id,
-									sema::Expr(this->context.sema_buffer.createFloatValue(
+							case Token::Kind::TYPE_F16:        case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
+							case Token::Kind::TYPE_F64:        case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128:
+							case Token::Kind::TYPE_C_LONG_DOUBLE: {
+								return sema::Expr(
+									this->context.sema_buffer.createFloatValue(
 										std::move(run_result.as<core::GenericFloat>()), return_type.baseTypeID()
-									))
-								)
-							);
-							return Result::SUCCESS;
-						} break;
+									)
+								);
+							} break;
 
-						case Token::Kind::TYPE_BOOL: {
-							this->return_term_info(instr.output,
-								TermInfo(
-									TermInfo::ValueCategory::EPHEMERAL,
-									TermInfo::ValueStage::CONSTEXPR,
-									func_call_term.type_id,
-									sema::Expr(this->context.sema_buffer.createBoolValue(run_result.as<bool>()))
-								)
-							);
-							return Result::SUCCESS;
-						} break;
+							case Token::Kind::TYPE_BOOL: {
+								return sema::Expr(this->context.sema_buffer.createBoolValue(run_result.as<bool>()));
+							} break;
 
-						case Token::Kind::TYPE_CHAR: {
-							this->return_term_info(instr.output,
-								TermInfo(
-									TermInfo::ValueCategory::EPHEMERAL,
-									TermInfo::ValueStage::CONSTEXPR,
-									func_call_term.type_id,
-									sema::Expr(this->context.sema_buffer.createCharValue(run_result.as<char>()))
-								)
-							);
-							return Result::SUCCESS;
-						} break;
+							case Token::Kind::TYPE_CHAR: {
+								return sema::Expr(this->context.sema_buffer.createCharValue(run_result.as<char>()));
+							} break;
 
-						case Token::Kind::TYPE_RAWPTR: evo::unimplemented("Token::Kind::TYPE_RAWPTR");
+							case Token::Kind::TYPE_RAWPTR: evo::unimplemented("Token::Kind::TYPE_RAWPTR");
 
-						default: evo::debugFatalBreak("Invalid type");
-					}
-				} break;
+							default: evo::debugFatalBreak("Invalid type");
+						}
+					} break;
 
-				case BaseType::Kind::FUNCTION: {
-					evo::unimplemented("BaseType::Kind::FUNCTION");
-				} break;
+					case BaseType::Kind::FUNCTION: {
+						evo::unimplemented("BaseType::Kind::FUNCTION");
+					} break;
 
-				case BaseType::Kind::ARRAY: {
-					evo::unimplemented("BaseType::Kind::ARRAY");
-				} break;
+					case BaseType::Kind::ARRAY: {
+						evo::unimplemented("BaseType::Kind::ARRAY");
+					} break;
 
-				case BaseType::Kind::ALIAS: {
-					evo::unimplemented("BaseType::Kind::ALIAS");
-				} break;
+					case BaseType::Kind::ALIAS: {
+						evo::unimplemented("BaseType::Kind::ALIAS");
+					} break;
 
-				case BaseType::Kind::TYPEDEF: {
-					evo::unimplemented("BaseType::Kind::TYPEDEF");
-				} break;
+					case BaseType::Kind::TYPEDEF: {
+						evo::unimplemented("BaseType::Kind::TYPEDEF");
+					} break;
 
-				case BaseType::Kind::STRUCT: {
-					evo::unimplemented("BaseType::Kind::STRUCT");
-				} break;
+					case BaseType::Kind::STRUCT: {
+						evo::unimplemented("BaseType::Kind::STRUCT");
+					} break;
 
-				case BaseType::Kind::STRUCT_TEMPLATE: {
-					evo::debugFatalBreak("Function cannot return a struct template");
-				} break;
+					case BaseType::Kind::STRUCT_TEMPLATE: {
+						evo::debugFatalBreak("Function cannot return a struct template");
+					} break;
 
-				case BaseType::Kind::TYPE_DEDUCER: {
-					evo::debugFatalBreak("Function cannot return a type deducer");
-				} break;
-			}
+					case BaseType::Kind::TYPE_DEDUCER: {
+						evo::debugFatalBreak("Function cannot return a type deducer");
+					} break;
+				}
+				evo::unreachable();
+			}();
+
+			this->return_term_info(instr.output,
+				TermInfo(
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
+					func_call_term.type_id,
+					return_sema_expr
+				)
+			);
+			return Result::SUCCESS;
 		}
 
-		evo::unreachable();
 	}
 
 
@@ -5207,7 +5205,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::propagate_finished_decl_def() -> void {
-		const auto lock = std::scoped_lock(this->symbol_proc.decl_waited_on_lock, this->symbol_proc.def_waited_on_lock);		
+		const auto lock = std::scoped_lock(this->symbol_proc.decl_waited_on_lock, this->symbol_proc.def_waited_on_lock);
 
 		this->symbol_proc.decl_done = true;
 		this->symbol_proc.def_done = true;

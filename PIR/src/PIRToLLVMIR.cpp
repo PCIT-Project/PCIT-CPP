@@ -163,6 +163,41 @@ namespace pcit::pir{
 			llvmint::Argument arg = llvm_func.getArg(i);
 			arg.setName(param.getName());
 
+			for(const pir::Parameter::Attribute& attribute_variant : param.attributes){
+				attribute_variant.visit([&](const auto& attribute) -> void {
+					using Attribute = std::decay_t<decltype(attribute)>;
+
+					if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::Unsigned>()){
+						arg.setZeroExt();
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::Signed>()){
+						arg.setSignExt();
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNoAlias>()){
+						arg.setNoAlias();
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNonNull>()){
+						arg.setNonNull();
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrDereferencable>()){
+						arg.setDereferencable(attribute.size);
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrReadOnly>()){
+						arg.setReadOnly();
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWriteOnly>()){
+						arg.setWriteOnly();
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWritable>()){
+						arg.setWritable();
+
+					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrRVO>()){
+						arg.setStructRet(this->get_type(attribute.type));
+					}
+				});
+			}
+
+
 			i += 1;
 		}
 
