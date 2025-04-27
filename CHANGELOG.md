@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.107.1"></a>
+## v0.0.107.1
+
+### Panther
+- Fixed constexpr function call parameter being given the wrong value for any integer type width other than 256 (not including `Char` or `Bool`)
+- Fixed fatal error when lowering constexpr/runtime function call to a function with named return value when in not an assignment
+
+
+<!---------------------------------->
 <a name="v0.0.107.0"></a>
 ## v0.0.107.0
 

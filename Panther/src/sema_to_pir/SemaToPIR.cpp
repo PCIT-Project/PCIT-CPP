@@ -589,7 +589,15 @@ namespace pcit::panther{
 						}else{
 							const pir::Expr alloca = this->agent.createAlloca(param.getType());
 							this->agent.createCallVoid(
-								this->data.getJITInterfaceFuncs().get_generic_int, {arg_ptr, alloca}
+								this->data.getJITInterfaceFuncs().get_generic_int,
+								{
+									arg_ptr,
+									alloca,
+									this->agent.createNumber(
+										this->module.createIntegerType(64),
+										core::GenericInt(8, param.getType().getWidth() / 8)
+									)
+								}
 							);
 							args.emplace_back(
 								this->agent.createLoad(alloca, param.getType(), false, pir::AtomicOrdering::NONE)
@@ -632,7 +640,15 @@ namespace pcit::panther{
 						if(this->context.getTypeManager().isIntegral(param_type_id)){
 							const pir::Expr alloca = this->agent.createAlloca(this->get_type(param_type_id));
 							this->agent.createCallVoid(
-								this->data.getJITInterfaceFuncs().get_generic_int, {arg_ptr, alloca}
+								this->data.getJITInterfaceFuncs().get_generic_int,
+								{
+									arg_ptr,
+									alloca,
+									this->agent.createNumber(
+										this->module.createIntegerType(64),
+										core::GenericInt(8, param.getType().getWidth() / 8)
+									)
+								}
 							);
 							args.emplace_back(alloca);
 						}else{
@@ -1152,25 +1168,21 @@ namespace pcit::panther{
 
 				if(target_type.hasNamedReturns()){
 					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr alloca = this->agent.createAlloca(target_func_info.return_type);
+						const pir::Type return_type = this->get_type(target_type.returnParams[0].typeID.asTypeID());
 
-						for(pir::Expr store_location : store_locations){
-							args.emplace_back(alloca);
-						}
-
+						const pir::Expr alloca = this->agent.createAlloca(return_type);
+						args.emplace_back(alloca);
 						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
 
 						return this->agent.createLoad(
-							alloca, target_func_info.return_type, false, pir::AtomicOrdering::NONE
+							alloca, return_type, false, pir::AtomicOrdering::NONE
 						);
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr alloca = this->agent.createAlloca(target_func_info.return_type);
-
-						for(pir::Expr store_location : store_locations){
-							args.emplace_back(alloca);
-						}
-
+						const pir::Type return_type = this->get_type(target_type.returnParams[0].typeID.asTypeID());
+						
+						const pir::Expr alloca = this->agent.createAlloca(return_type);
+						args.emplace_back(alloca);
 						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
 
 						return alloca;

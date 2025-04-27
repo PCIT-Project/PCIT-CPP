@@ -79,7 +79,11 @@ namespace pcit::panther{
 
 		this->jit_interface_funcs.get_generic_int = module.createExternalFunction(
 			"PIR.JIT.get_generic_int",
-			{pir::Parameter("source", module.createPtrType()), pir::Parameter("value", module.createPtrType())},
+			{
+				pir::Parameter("source", module.createPtrType()),
+				pir::Parameter("value", module.createPtrType()),
+				pir::Parameter("num_bytes", module.createIntegerType(64)),
+			},
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
 			module.createVoidType()

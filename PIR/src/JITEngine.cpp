@@ -214,17 +214,9 @@ namespace pcit::pir{
 			),
 			FuncRegisterInfo(
 				"PIR.JIT.get_generic_int",
-				[](core::GenericValue* source, void* value) -> void {
+				[](core::GenericValue* source, void* value, uint64_t num_bytes) -> void {
 					const core::GenericInt& generic_int = source->as<core::GenericInt>();
-
-					const size_t buffer_size = [&]() -> size_t {
-						if(generic_int.getBitWidth() <= 8){  return 1; }
-						if(generic_int.getBitWidth() <= 16){ return 2; }
-						if(generic_int.getBitWidth() <= 32){ return 4; }
-						if(generic_int.getBitWidth() <= 64){ return 8; }
-						return round_up_to_nearest_multiple_of_64(generic_int.getBitWidth()) / 64;
-					}();
-					std::memcpy(value, generic_int.data(), buffer_size);
+					std::memcpy(value, generic_int.data(), num_bytes);
 				}
 			),
 			FuncRegisterInfo(

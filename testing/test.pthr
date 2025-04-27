@@ -1,6 +1,5 @@
 
 
-
 //////////////////////////////////////////////////////////////////////
 // 
 // the code in below sometimes creates a race codition preventing a stall
@@ -11,14 +10,14 @@
 // 	KEEP THIS SECTION UNTIL THE RACE CONDITION IS FIXED
 // 
 
-var bar: F64 = get_value();
+var bar: UI8 = get_value();
 
 
 def USE_RVO: Bool = true;
 
 when(USE_RVO){
-	func get_value = () -> (output: F64) {
-		output = 12.4;
+	func get_value = () -> (output: UI8) {
+		output = 12;
 		return...;
 	}
 	
@@ -26,5 +25,14 @@ when(USE_RVO){
 	func get_value = () -> UI8 {
 		return 12;
 	}
+}
+
+
+
+//////////////////////////////////////////////////////////////////////
+// new feature testing:
+
+func entry = () #entry -> UI8 {
+	return get_value();
 }
 
