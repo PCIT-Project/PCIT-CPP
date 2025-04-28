@@ -161,6 +161,9 @@ namespace pcit::panther{
 			SEMA_FUNC_ISNT_RUNTIME,
 			SEMA_DISCARDING_RETURNS,
 			SEMA_INVALID_MODE_FOR_INTRINSIC,
+			SEMA_FUNC_ERRORS,
+			SEMA_FUNC_DOESNT_ERROR,
+			SEMA_IMPORT_DOESNT_ERROR,
 
 			// Assignment
 			SEMA_ASSIGN_LHS_NOT_CONCRETE,
@@ -169,11 +172,16 @@ namespace pcit::panther{
 			SEMA_MULTI_ASSIGN_RHS_NOT_MULTI,
 			SEMA_MULTI_ASSIGN_RHS_WRONG_NUM,
 
+			// Try
+			SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL,
+			SEMA_TRY_ELSE_ATTEMPT_NOT_SINGLE,
+
 			// misc
 			SEMA_INCORRECT_RETURN_STMT_KIND,
 			SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS,
 			SEMA_RETURN_NOT_EPHEMERAL,
 			SEMA_SCOPE_IS_ALREADY_TERMINATED,
+			SEMA_NOT_ERRORING_FUNC_CALL,
 
 
 			//////////////////
@@ -257,6 +265,7 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::MultiAssign& multi_assign, const class Source& src)
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::New& new_expr, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::TryElse& try_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Type& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TypeIDConverter& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::AttributeBlock::Attribute& attr, const class Source& src)
@@ -509,15 +518,21 @@ namespace pcit::panther{
 				case Code::SEMA_FUNC_ISNT_RUNTIME:
 				case Code::SEMA_DISCARDING_RETURNS:
 				case Code::SEMA_INVALID_MODE_FOR_INTRINSIC:
+				case Code::SEMA_FUNC_ERRORS:
+				case Code::SEMA_FUNC_DOESNT_ERROR:
+				case Code::SEMA_IMPORT_DOESNT_ERROR:
 				case Code::SEMA_ASSIGN_LHS_NOT_CONCRETE:
 				case Code::SEMA_ASSIGN_LHS_NOT_MUTABLE:
 				case Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL:
 				case Code::SEMA_MULTI_ASSIGN_RHS_NOT_MULTI:
 				case Code::SEMA_MULTI_ASSIGN_RHS_WRONG_NUM:
+				case Code::SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL:
+				case Code::SEMA_TRY_ELSE_ATTEMPT_NOT_SINGLE:
 				case Code::SEMA_INCORRECT_RETURN_STMT_KIND:
 				case Code::SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS:
 				case Code::SEMA_RETURN_NOT_EPHEMERAL:
 				case Code::SEMA_SCOPE_IS_ALREADY_TERMINATED:
+				case Code::SEMA_NOT_ERRORING_FUNC_CALL:
 					return "S";
 
 				case Code::MISC_UNIMPLEMENTED_FEATURE: return "M0";

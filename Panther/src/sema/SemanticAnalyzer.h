@@ -87,8 +87,9 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR>& instr) -> Result;
+			template<bool IS_CONSTEXPR, bool ERRORS>
+			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR, ERRORS>& instr)
+				-> Result;
 			EVO_NODISCARD auto instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result;
 
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
@@ -107,6 +108,7 @@ namespace pcit::panther{
 			) -> Result;
 			EVO_NODISCARD auto instr_copy(const Instruction::Copy& instr) -> Result;
 			EVO_NODISCARD auto instr_move(const Instruction::Move& instr) -> Result;
+			EVO_NODISCARD auto instr_try_else(const Instruction::TryElse& instr) -> Result;
 
 
 			template<bool NEEDS_DEF>
@@ -210,7 +212,7 @@ namespace pcit::panther{
 
 				EVO_NODISCARD auto is_intrinsic() const -> bool { return !this->selected_func_id.has_value(); }
 			};
-			template<bool IS_CONSTEXPR>
+			template<bool IS_CONSTEXPR, bool ERRORS>
 			EVO_NODISCARD auto func_call_impl(
 				const AST::FuncCall& func_call,
 				const TermInfo& target_term_info,

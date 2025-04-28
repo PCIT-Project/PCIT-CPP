@@ -110,7 +110,6 @@ namespace pcit::panther{
 				
 				KEYWORD_COPY,
 				KEYWORD_MOVE,
-				KEYWORD_DESTRUCTIVE_MOVE,
 				KEYWORD_FORWARD,
 				KEYWORD_NEW,
 				KEYWORD_AS,
@@ -119,6 +118,8 @@ namespace pcit::panther{
 				KEYWORD_ELSE,
 				KEYWORD_WHEN,
 				KEYWORD_WHILE,
+
+				KEYWORD_TRY,
 
 
 				///////////////////////////////////
@@ -476,7 +477,6 @@ namespace pcit::panther{
 
 					break; case Kind::KEYWORD_COPY:             return "copy";
 					break; case Kind::KEYWORD_MOVE:             return "move";
-					break; case Kind::KEYWORD_DESTRUCTIVE_MOVE: return "!move";
 					break; case Kind::KEYWORD_FORWARD:          return "forward";
 					break; case Kind::KEYWORD_NEW:              return "new";
 					break; case Kind::KEYWORD_AS:               return "as";
@@ -485,6 +485,8 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_ELSE:             return "else";
 					break; case Kind::KEYWORD_WHEN:             return "when";
 					break; case Kind::KEYWORD_WHILE:            return "while";
+
+					break; case Kind::KEYWORD_TRY:              return "try";
 
 
 

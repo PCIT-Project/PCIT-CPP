@@ -41,11 +41,11 @@ namespace pcit::panther::sema{
 
 			COPY,
 			MOVE,
-			DESTRUCTIVE_MOVE,
 			FORWARD,
 			FUNC_CALL,
 			ADDR_OF,
 			DEREF,
+			TRY_ELSE,
 				
 			PARAM,
 			RETURN_PARAM,
@@ -76,11 +76,11 @@ namespace pcit::panther::sema{
 
 		explicit Expr(CopyID id)            : _kind(Kind::COPY),             value{.copy = id}         {};
 		explicit Expr(MoveID id)            : _kind(Kind::MOVE),             value{.move = id}         {};
-		explicit Expr(DestructiveMoveID id) : _kind(Kind::DESTRUCTIVE_MOVE), value{.dest_move = id}    {};
 		explicit Expr(ForwardID id)         : _kind(Kind::FORWARD),          value{.forward = id}      {};
 		explicit Expr(FuncCallID id)        : _kind(Kind::FUNC_CALL),        value{.func_call = id}    {};
 		explicit Expr(AddrOfID id)          : _kind(Kind::ADDR_OF),          value{.addr_of = id}      {};
 		explicit Expr(DerefID id)           : _kind(Kind::DEREF),            value{.deref = id}        {};
+		explicit Expr(TryElseID id)         : _kind(Kind::TRY_ELSE),         value{.try_else = id}  {};
 
 		explicit Expr(ParamID id)           : _kind(Kind::PARAM),            value{.param = id}        {};
 		explicit Expr(ReturnParamID id)     : _kind(Kind::RETURN_PARAM),     value{.return_param = id} {};
@@ -160,6 +160,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::DEREF, "not an deref");
 			return this->value.deref;
 		}
+		EVO_NODISCARD auto tryElseID() const -> TryElseID {
+			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not an try/else");
+			return this->value.try_else;
+		}
 
 		EVO_NODISCARD auto paramID() const -> ParamID {
 			evo::debugAssert(this->kind() == Kind::PARAM, "not a param");
@@ -208,11 +212,11 @@ namespace pcit::panther::sema{
 
 				CopyID copy;
 				MoveID move;
-				DestructiveMoveID dest_move;
 				ForwardID forward;
+				FuncCallID func_call;
 				AddrOfID addr_of;
 				DerefID deref;
-				FuncCallID func_call;
+				TryElseID try_else;
 
 				ParamID param;
 				ReturnParamID return_param;

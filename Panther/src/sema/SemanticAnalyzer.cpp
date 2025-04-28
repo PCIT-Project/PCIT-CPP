@@ -156,11 +156,17 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::TypeToTerm>()){
 				return this->instr_type_to_term(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<true>>()){
-				return this->instr_func_call_expr<true>(instr);
+			// }else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<true, true>>()){
+			// 	return this->instr_func_call_expr<true, true>(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<false>>()){
-				return this->instr_func_call_expr<false>(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<true, false>>()){
+				return this->instr_func_call_expr<true, false>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<false, true>>()){
+				return this->instr_func_call_expr<false, true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<false, false>>()){
+				return this->instr_func_call_expr<false, false>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::ConstexprFuncCallRun>()){
 				return this->instr_constexpr_func_call_run(instr);
@@ -194,6 +200,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Move>()){
 				return this->instr_move(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::TryElse>()){
+				return this->instr_try_else(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Accessor<true>>()){
 				return this->instr_expr_accessor<true>(instr);
@@ -1707,7 +1716,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<false>(
+		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<false, false>(
 			instr.func_call, target_term_info, instr.args, std::nullopt
 		);
 		if(func_call_impl_res.isError()){ return Result::ERROR; }
@@ -2007,18 +2016,16 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR>& instr) -> Result {
+	template<bool IS_CONSTEXPR, bool ERRORS>
+	auto SemanticAnalyzer::instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR, ERRORS>& instr)
+	-> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<IS_CONSTEXPR>(
+		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<IS_CONSTEXPR, ERRORS>(
 			instr.func_call, target_term_info, instr.args, std::nullopt
 		);
 		if(func_call_impl_res.isError()){ return Result::ERROR; }
 
-
-		//////////////////////////////////////////////////////////////////////
-		// 
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
 		for(const SymbolProc::TermInfoID& arg : instr.args){
@@ -2418,7 +2425,7 @@ namespace pcit::panther{
 	) -> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		const evo::Result<FuncCallImplData> selected_func = this->func_call_impl<IS_CONSTEXPR>(
+		const evo::Result<FuncCallImplData> selected_func = this->func_call_impl<IS_CONSTEXPR, false>(
 			instr.func_call,
 			target_term_info,
 			instr.args,
@@ -2664,6 +2671,70 @@ namespace pcit::panther{
 			sema::Expr(this->context.sema_buffer.createMove(target.getExpr()))
 		);
 
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_try_else(const Instruction::TryElse& instr) -> Result {
+		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
+		TermInfo& except_expr = this->get_term_info(instr.except_expr);
+
+		if(attempt_expr.value_category != TermInfo::ValueCategory::EPHEMERAL){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL,
+				instr.try_else.attemptExpr,
+				"Attempt in try/else expression is not function call"
+			);
+			return Result::ERROR;
+		}
+
+		if(attempt_expr.getExpr().kind() != sema::Expr::Kind::FUNC_CALL){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL,
+				instr.try_else.attemptExpr,
+				"Attempt in try/else expression is not function call"
+			);
+			return Result::ERROR;
+		}
+
+		if(attempt_expr.isMultiValue()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TRY_ELSE_ATTEMPT_NOT_SINGLE,
+				instr.try_else.attemptExpr,
+				"Attempt function call in try/else expression returns multiple values"
+			);
+			return Result::ERROR;
+		}
+
+		if(this->type_check<true>(
+			attempt_expr.type_id.as<TypeInfo::ID>(),
+			except_expr,
+			"Except in try/else expression",
+			instr.try_else.exceptExpr
+		).ok == false){
+			return Result::ERROR;
+		}
+
+		using ValueStage = TermInfo::ValueStage;
+		const ValueStage value_stage = [&](){
+			if(attempt_expr.value_stage == ValueStage::CONSTEXPR && except_expr.value_stage == ValueStage::CONSTEXPR){
+				return TermInfo::ValueStage::CONSTEXPR;
+			}
+
+			if(attempt_expr.value_stage >= ValueStage::COMPTIME && except_expr.value_stage >= ValueStage::COMPTIME){
+				return TermInfo::ValueStage::COMPTIME;
+			}
+
+			return TermInfo::ValueStage::RUNTIME;
+		}();
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			value_stage,
+			attempt_expr.type_id,
+			sema::Expr(this->context.sema_buffer.createTryElse(attempt_expr.getExpr(), except_expr.getExpr()))
+		);
 		return Result::SUCCESS;
 	}
 
@@ -4726,7 +4797,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_CONSTEXPR, bool ERRORS>
 	auto SemanticAnalyzer::func_call_impl(
 		const AST::FuncCall& func_call,
 		const TermInfo& target_term_info,
@@ -4820,6 +4891,26 @@ namespace pcit::panther{
 		);
 		if(selected_func_overload_index.isError()){ return evo::resultError; }
 
+
+		if constexpr(ERRORS){
+			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
+					func_call,
+					"Function doesn't error"
+				);
+				return evo::resultError;
+			}
+		}else{
+			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
+					func_call,
+					"Function error not handled"
+				);
+				return evo::resultError;
+			}
+		}
 
 
 		switch(target_term_info.value_category){
@@ -5307,8 +5398,7 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::EPHEMERAL:
 			case TermInfo::ValueCategory::CONCRETE_CONST:
 			case TermInfo::ValueCategory::CONCRETE_MUT:
-			case TermInfo::ValueCategory::CONCRETE_FORWARDABLE:
-			case TermInfo::ValueCategory::CONCRETE_CONST_DESTR_MOVABLE: {
+			case TermInfo::ValueCategory::CONCRETE_FORWARDABLE: {
 				TypeInfo::ID actual_got_type_id = TypeInfo::ID::dummy();
 				if(got_expr.isMultiValue()){
 					if(multi_type_index.has_value() == false){

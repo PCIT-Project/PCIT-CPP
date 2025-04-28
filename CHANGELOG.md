@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.108.0"></a>
+## v0.0.108.0
+
+### Panther
+- Added `try/else` expressions
+- Removed destructive move
+
+
+<!---------------------------------->
 <a name="v0.0.107.1"></a>
 ## v0.0.107.1
 

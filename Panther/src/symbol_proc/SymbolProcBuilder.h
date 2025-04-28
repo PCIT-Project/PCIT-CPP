@@ -58,21 +58,23 @@ namespace pcit::panther{
 			auto analyze_multi_assign(const AST::MultiAssign& multi_assign) -> evo::Result<>;
 
 
-
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR, bool MUST_BE_EXPR>
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto analyze_erroring_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
+
+			template<bool IS_CONSTEXPR, bool MUST_BE_EXPR, bool ERRORS>
 			EVO_NODISCARD auto analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;			
 
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_CONSTEXPR, bool ERRORS>
 			EVO_NODISCARD auto analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_CONSTEXPR>
@@ -89,6 +91,9 @@ namespace pcit::panther{
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
+
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto analyze_expr_try_else(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;

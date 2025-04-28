@@ -222,6 +222,8 @@ namespace pcit::panther{
 		{"when",        Token::Kind::KEYWORD_WHEN},
 		{"while",       Token::Kind::KEYWORD_WHILE},
 
+		{"try",         Token::Kind::KEYWORD_TRY},
+
 		// discard
 		{"_", Token::lookupKind("_")},
 	};
@@ -280,13 +282,7 @@ namespace pcit::panther{
 				this->create_token(Token::Kind::LITERAL_BOOL, false);
 
 			}else if(ident_name == "move") [[unlikely]] {
-				if(this->char_stream.peek() == '!'){
-					this->create_token(Token::Kind::KEYWORD_DESTRUCTIVE_MOVE);
-				}else{
-					this->create_token(Token::Kind::KEYWORD_MOVE);
-				}
-
-				return true;
+				this->create_token(Token::Kind::KEYWORD_MOVE);
 
 			}else{
 				bool is_integer = false;

@@ -56,6 +56,7 @@ namespace pcit::panther{
 			case AST::Kind::POSTFIX:          return Location::get(ast_buffer.getPostfix(node), src);
 			case AST::Kind::MULTI_ASSIGN:     return Location::get(ast_buffer.getMultiAssign(node), src);
 			case AST::Kind::NEW:              return Location::get(ast_buffer.getNew(node), src);
+			case AST::Kind::TRY_ELSE:         return Location::get(ast_buffer.getTryElse(node), src);
 			case AST::Kind::TYPE_DEDUCER:     return Location::get(ast_buffer.getTypeDeducer(node), src);
 			case AST::Kind::TYPE:             return Location::get(ast_buffer.getType(node), src);
 			case AST::Kind::TYPEID_CONVERTER: return Location::get(ast_buffer.getTypeIDConverter(node), src);
@@ -162,6 +163,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::New& new_expr, const Source& src) -> Location {
 		return Location::get(new_expr.type, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::TryElse& try_expr, const Source& src) -> Location {
+		return Location::get(try_expr.attemptExpr, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::Type& type, const Source& src) -> Location {

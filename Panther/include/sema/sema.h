@@ -80,10 +80,6 @@ namespace pcit::panther::sema{
 		using ID = MoveID;
 	}
 
-	namespace DestructiveMove{
-		using ID = DestructiveMoveID;
-	}
-
 	namespace Forward{
 		using ID = ForwardID;
 	}
@@ -107,6 +103,15 @@ namespace pcit::panther::sema{
 
 	// 	Expr expr;
 	// 	TypeInfo::ID typeID;
+	};
+
+
+
+	struct TryElse{
+		using ID = TryElseID;
+
+		Expr attempt;
+		Expr except;
 	};
 
 

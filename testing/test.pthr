@@ -10,19 +10,19 @@
 // 	KEEP THIS SECTION UNTIL THE RACE CONDITION IS FIXED
 // 
 
-var bar: UI8 = get_value();
+var _bar: UI8 = _get_value();
 
 
-def USE_RVO: Bool = true;
+def _USE_RVO: Bool = true;
 
-when(USE_RVO){
-	func get_value = () -> (output: UI8) {
-		output = 12;
+when(_USE_RVO){
+	func _get_value = () -> (_output: UI8) {
+		_output = 12;
 		return...;
 	}
 	
 }else{
-	func get_value = () -> UI8 {
+	func _get_value = () -> UI8 {
 		return 12;
 	}
 }
@@ -32,7 +32,16 @@ when(USE_RVO){
 //////////////////////////////////////////////////////////////////////
 // new feature testing:
 
-func entry = () #entry -> UI8 {
-	return get_value();
+
+var foo: UI8 = 0;
+
+func get_value = () -> UI8 <Void> {
+	// return 12;
+	error;
 }
 
+
+func entry = () #entry -> UI8 {
+	// foo = ;
+	return try get_value() else (try get_value() else 14);
+}

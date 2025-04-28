@@ -246,6 +246,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// try/else
+
+			EVO_NODISCARD auto createTryElse(auto&&... args) -> sema::TryElse::ID {
+				return this->try_elses.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getTryElse(sema::TryElse::ID id) const -> const sema::TryElse& {
+				return this->try_elses[id];
+			}
+
+
+			///////////////////////////////////
 			// template intrinsic instantiations
 
 			EVO_NODISCARD auto createTemplateIntrinsicFuncInstantiation(auto&&... args)
@@ -371,6 +383,7 @@ namespace pcit::panther{
 
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
+			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 
 			core::SyncLinearStepAlloc<
 				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID

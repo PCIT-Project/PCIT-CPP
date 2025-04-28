@@ -326,11 +326,11 @@ namespace pcit::panther{
 			SymbolProcTermInfoID value;
 		};
 
-		
 		struct DiscardingAssignment{
 			const AST::Infix& infix;
 			SymbolProcTermInfoID rhs;
 		};
+
 
 
 
@@ -342,7 +342,7 @@ namespace pcit::panther{
 			SymbolProcTermInfoID to;
 		};
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_CONSTEXPR, bool ERRORS>
 		struct FuncCallExpr{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID target;
@@ -403,6 +403,14 @@ namespace pcit::panther{
 		struct Move{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
+
+		struct TryElse{
+			const AST::TryElse& try_else;
+			SymbolProcTermInfoID attempt_expr;
+			SymbolProcTermInfoID except_expr;
 			SymbolProcTermInfoID output;
 		};
 
@@ -515,8 +523,10 @@ namespace pcit::panther{
 
 			// misc expr
 			TypeToTerm,
-			FuncCallExpr<true>,
-			FuncCallExpr<false>,
+			// FuncCallExpr<true, true>,
+			FuncCallExpr<true, false>,
+			FuncCallExpr<false, true>,
+			FuncCallExpr<false, false>,
 			ConstexprFuncCallRun,
 			Import,
 			TemplateIntrinsicFuncCall<true>,
@@ -528,6 +538,7 @@ namespace pcit::panther{
 			AddTemplateDeclInstantiationType,
 			Copy,
 			Move,
+			TryElse,
 
 			// accessors
 			Accessor<true>,

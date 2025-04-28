@@ -638,7 +638,8 @@ namespace pcit::panther{
 						}();
 
 						if(this->context.getTypeManager().isIntegral(param_type_id)){
-							const pir::Expr alloca = this->agent.createAlloca(this->get_type(param_type_id));
+							const pir::Type param_pir_type = this->get_type(param_type_id);
+							const pir::Expr alloca = this->agent.createAlloca(param_pir_type);
 							this->agent.createCallVoid(
 								this->data.getJITInterfaceFuncs().get_generic_int,
 								{
@@ -646,7 +647,7 @@ namespace pcit::panther{
 									alloca,
 									this->agent.createNumber(
 										this->module.createIntegerType(64),
-										core::GenericInt(8, param.getType().getWidth() / 8)
+										core::GenericInt(8, param_pir_type.getWidth() / 8)
 									)
 								}
 							);
@@ -1133,10 +1134,6 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case sema::Expr::Kind::DESTRUCTIVE_MOVE: {
-				evo::unimplemented("lower sema::Expr::Kind::DestructiveMove");
-			} break;
-
 			case sema::Expr::Kind::FORWARD: {
 				evo::unimplemented("lower sema::Expr::Kind::Forward");
 			} break;
@@ -1170,22 +1167,22 @@ namespace pcit::panther{
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Type return_type = this->get_type(target_type.returnParams[0].typeID.asTypeID());
 
-						const pir::Expr alloca = this->agent.createAlloca(return_type);
-						args.emplace_back(alloca);
+						const pir::Expr retunr_alloc = this->agent.createAlloca(return_type);
+						args.emplace_back(retunr_alloc);
 						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
 
 						return this->agent.createLoad(
-							alloca, return_type, false, pir::AtomicOrdering::NONE
+							retunr_alloc, return_type, false, pir::AtomicOrdering::NONE
 						);
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Type return_type = this->get_type(target_type.returnParams[0].typeID.asTypeID());
 						
-						const pir::Expr alloca = this->agent.createAlloca(return_type);
-						args.emplace_back(alloca);
+						const pir::Expr retunr_alloc = this->agent.createAlloca(return_type);
+						args.emplace_back(retunr_alloc);
 						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
 
-						return alloca;
+						return retunr_alloc;
 						
 					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
 						for(pir::Expr store_location : store_locations){
@@ -1223,11 +1220,79 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::ADDR_OF: {
-				evo::unimplemented("lower sema::Expr::Kind::AddrOf");
+				evo::unimplemented("lower sema::Expr::Kind::ADDR_OF");
 			} break;
 
 			case sema::Expr::Kind::DEREF: {
-				evo::unimplemented("lower sema::Expr::Kind::Deref");
+				evo::unimplemented("lower sema::Expr::Kind::DEREF");
+			} break;
+
+			case sema::Expr::Kind::TRY_ELSE: {
+				const sema::TryElse& try_else = this->context.getSemaBuffer().getTryElse(expr.tryElseID());
+				
+				const sema::FuncCall& attempt_func_call =
+					this->context.getSemaBuffer().getFuncCall(try_else.attempt.funcCallID());
+
+				const Data::FuncInfo& target_func_info = this->data.get_func(
+					attempt_func_call.target.as<sema::Func::ID>()
+				);
+
+				auto args = evo::SmallVector<pir::Expr>();
+				for(size_t i = 0; const sema::Expr& arg : attempt_func_call.args){
+					if(target_func_info.params[i].is_copy()){
+						args.emplace_back(this->get_expr_register(arg));
+					}else{
+						args.emplace_back(this->get_expr_pointer(arg));
+					}
+
+					i += 1;
+				}
+
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
+					this->context.getSemaBuffer().getFunc(attempt_func_call.target.as<sema::Func::ID>()).typeID
+				);
+
+
+				const pir::Expr return_address = [&](){
+					if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+						return store_locations[0];
+					}else{
+						return this->agent.createAlloca(this->get_type(target_type.returnParams[0].typeID));
+					}
+				}();
+
+
+				args.emplace_back(return_address);
+
+				const pir::Expr attempt = this->agent.createCall(target_func_info.pir_id, std::move(args));
+
+				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("TRY.END"));
+
+				this->agent.createCondBranch(attempt, end_block, if_error_block);
+
+				this->agent.setTargetBasicBlock(if_error_block);
+				this->get_expr_store(try_else.except, return_address);
+				this->agent.createBranch(end_block);
+
+				this->agent.setTargetBasicBlock(end_block);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					const pir::Type return_type = this->get_type(target_type.returnParams[0].typeID);
+					return this->agent.createLoad(
+						return_address, return_type, false, pir::AtomicOrdering::NONE
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return return_address;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::PARAM: {
@@ -1349,7 +1414,7 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::FUNC: {
-				evo::unimplemented("lower sema::Expr::Kind::Func");
+				evo::unimplemented("lower sema::Expr::Kind::FUNC");
 			} break;
 		}
 
@@ -1776,14 +1841,12 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:     case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT: case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:             case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::DESTRUCTIVE_MOVE: case sema::Expr::Kind::FORWARD:
-			case sema::Expr::Kind::FUNC_CALL:        case sema::Expr::Kind::ADDR_OF:
-			case sema::Expr::Kind::DEREF:            case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:     case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:         case sema::Expr::Kind::MOVE:    case sema::Expr::Kind::FORWARD:
+			case sema::Expr::Kind::FUNC_CALL:    case sema::Expr::Kind::ADDR_OF: case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::TRY_ELSE:     case sema::Expr::Kind::PARAM:   case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::GLOBAL_VAR:   case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

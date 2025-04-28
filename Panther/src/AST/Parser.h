@@ -116,12 +116,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_infix_expr_impl(AST::Node lhs, int prec_level) -> Result;
 			EVO_NODISCARD auto parse_prefix_expr() -> Result;
 			EVO_NODISCARD auto parse_new_expr() -> Result;
+			EVO_NODISCARD auto parse_try_expr() -> Result;
 
 			enum class TermKind{
 				EXPLICIT_TYPE,
 				AS_TYPE,
 				EXPR,
-				TEMPLATE_EXPR,
+				TEMPLATE_ARG,
 			};
 			template<TermKind TERM_KIND>
 			EVO_NODISCARD auto parse_term() -> Result; 

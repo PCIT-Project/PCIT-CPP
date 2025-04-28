@@ -65,10 +65,6 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, MoveID>::UniqueID;
 	};
 
-	struct DestructiveMoveID : public core::UniqueID<uint32_t, struct DestructiveMoveID> {
-		using core::UniqueID<uint32_t, DestructiveMoveID>::UniqueID;
-	};
-
 	struct ForwardID : public core::UniqueID<uint32_t, struct ForwardID> {
 		using core::UniqueID<uint32_t, ForwardID>::UniqueID;
 	};
@@ -79,6 +75,10 @@ namespace pcit::panther::sema{
 
 	struct DerefID : public core::UniqueID<uint32_t, struct DerefID> {
 		using core::UniqueID<uint32_t, DerefID>::UniqueID;
+	};
+
+	struct TryElseID : public core::UniqueID<uint32_t, struct TryElseID> {
+		using core::UniqueID<uint32_t, TryElseID>::UniqueID;
 	};
 
 

@@ -50,6 +50,7 @@ namespace pcit::panther::AST{
 		MULTI_ASSIGN,
 
 		NEW,
+		TRY_ELSE,
 
 		TYPE,
 		TYPEID_CONVERTER,
@@ -288,6 +289,11 @@ namespace pcit::panther::AST{
 	struct New{
 		Node type;
 		evo::SmallVector<FuncCall::Arg> args;
+	};
+
+	struct TryElse{
+		Node attemptExpr;
+		Node exceptExpr;
 	};
 
 

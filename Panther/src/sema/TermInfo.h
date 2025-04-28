@@ -29,7 +29,6 @@ namespace pcit::panther{
 			CONCRETE_CONST,
 			CONCRETE_MUT,
 			CONCRETE_FORWARDABLE,
-			CONCRETE_CONST_DESTR_MOVABLE,
 
 			INITIALIZER, // uninit / zeroinit
 			MODULE,
@@ -59,8 +58,7 @@ namespace pcit::panther{
 			InitializerType,                // INITIALIZER
 			FluidType,                      // EPHEMERAL_FLUID
 			TemplateDeclInstantiationType,  // TEMPLATE_DECL_INSTANTIATION_TYPE
-			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_FORWARDABLE
-						                    //   |CONCRETE_CONST_DESTR_MOVABLE|EPHEMERAL|INTRINSIC_FUNC
+			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
 			FuncOverloadList,               // FUNCTION
 			TypeInfo::VoidableID,           // TYPE
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
@@ -158,9 +156,6 @@ namespace pcit::panther{
 					break; case ValueCategory::CONCRETE_FORWARDABLE:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
-					break; case ValueCategory::CONCRETE_CONST_DESTR_MOVABLE:
-						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
-
 					break; case ValueCategory::INITIALIZER:
 						evo::debugAssert(this->type_id.is<InitializerType>(), "Incorrect TermInfo creation");
 
@@ -223,13 +218,11 @@ namespace pcit::panther{
 		EVO_NODISCARD constexpr auto is_concrete() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST
 				|| this->value_category == ValueCategory::CONCRETE_MUT
-				|| this->value_category == ValueCategory::CONCRETE_FORWARDABLE
-				|| this->value_category == ValueCategory::CONCRETE_CONST_DESTR_MOVABLE;
+				|| this->value_category == ValueCategory::CONCRETE_FORWARDABLE;
 		}
 
 		EVO_NODISCARD constexpr auto is_const() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST 
-				|| this->value_category == ValueCategory::CONCRETE_CONST_DESTR_MOVABLE
 				|| this->value_category == ValueCategory::FUNCTION;
 		}
 

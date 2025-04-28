@@ -285,6 +285,16 @@ namespace pcit::panther{
 				return this->news[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createTryElse(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->try_elses.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::TRY_ELSE, node_index);
+			}
+			EVO_NODISCARD auto getTryElse(const AST::Node& node) const -> const AST::TryElse& {
+				evo::debugAssert(node.kind() == AST::Kind::TRY_ELSE, "Node is not a TryElse");
+				return this->try_elses[node._value.node_index];
+			}
+
 
 			EVO_NODISCARD auto createType(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
@@ -355,6 +365,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::MultiAssign, uint32_t> multi_assigns{};
 
 			core::LinearStepAlloc<AST::New, uint32_t> news{};
+			core::LinearStepAlloc<AST::TryElse, uint32_t> try_elses{};
 
 			core::LinearStepAlloc<AST::Type, uint32_t> types{};
 			core::LinearStepAlloc<AST::TypeIDConverter, uint32_t> type_id_converters{};

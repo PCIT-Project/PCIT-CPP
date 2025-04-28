@@ -800,7 +800,7 @@ namespace pcit::panther{
 					return this->parse_term<TermKind::AS_TYPE>();
 
 				}else if constexpr(KIND == TypeKind::TEMPLATE_ARG){
-					return this->parse_term<TermKind::TEMPLATE_EXPR>();
+					return this->parse_term<TermKind::TEMPLATE_ARG>();
 
 				}else{
 					static_assert(false, "Unknown TypeKind");
@@ -1038,7 +1038,6 @@ namespace pcit::panther{
 			case Token::lookupKind("&|"):
 			case Token::Kind::KEYWORD_COPY:
 			case Token::Kind::KEYWORD_MOVE:
-			case Token::Kind::KEYWORD_DESTRUCTIVE_MOVE:
 			case Token::Kind::KEYWORD_FORWARD:
 			case Token::lookupKind("-"):
 			case Token::lookupKind("!"):
@@ -1047,6 +1046,9 @@ namespace pcit::panther{
 
 			case Token::Kind::KEYWORD_NEW:
 				return this->parse_new_expr();
+
+			case Token::Kind::KEYWORD_TRY:
+				return this->parse_try_expr();
 
 			default:
 				return this->parse_term<TermKind::EXPR>();
@@ -1091,6 +1093,35 @@ namespace pcit::panther{
 
 		this->expected_but_got(
 			"function call arguments or struct initializer list after type in operator [new]", this->reader.peek()
+		);
+		return Result::Code::ERROR;
+	}
+
+
+
+	auto Parser::parse_try_expr() -> Result {
+		if(this->assert_token_fail(Token::Kind::KEYWORD_TRY)){ return Result::Code::ERROR; }
+			
+		const Result attempt_expr = this->parse_term<TermKind::EXPR>();
+		if(this->check_result_fail(attempt_expr, "attempt expression in try/else expression")){
+			return Result::Code::ERROR;
+		}
+
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
+			if(this->assert_token_fail(Token::Kind::KEYWORD_ELSE)){ return Result::Code::ERROR; }
+
+			const Result except_expr = this->parse_term<TermKind::EXPR>();
+			if(this->check_result_fail(except_expr, "except expression in try/else expression")){
+				return Result::Code::ERROR;
+			}
+
+			return this->source.ast_buffer.createTryElse(attempt_expr.value(), except_expr.value());
+		}
+
+		this->context.emitError(
+			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+			Diagnostic::Location::get(attempt_expr.value(), this->source),
+			"`try` expressions are currently unsupported"
 		);
 		return Result::Code::ERROR;
 	}
@@ -1151,7 +1182,7 @@ namespace pcit::panther{
 						);
 						return Result::Code::ERROR;
 
-					}else if constexpr(TERM_KIND == TermKind::TEMPLATE_EXPR){
+					}else if constexpr(TERM_KIND == TermKind::TEMPLATE_ARG){
 						return Result::Code::WRONG_TYPE;
 
 					}else{
@@ -1180,7 +1211,7 @@ namespace pcit::panther{
 						);
 						return Result::Code::ERROR;
 
-					}else if constexpr(TERM_KIND == TermKind::TEMPLATE_EXPR){
+					}else if constexpr(TERM_KIND == TermKind::TEMPLATE_ARG){
 						return Result::Code::WRONG_TYPE;
 
 					}else{
@@ -1281,7 +1312,7 @@ namespace pcit::panther{
 				// 	}else if constexpr(TERM_KIND == TermKind::EXPR){
 				// 		return output;
 
-				// 	}else if constexpr(TERM_KIND == TermKind::TEMPLATE_EXPR){
+				// 	}else if constexpr(TERM_KIND == TermKind::TEMPLATE_ARG){
 				// 		const Token::ID start_location = this->reader.peek();
 
 				// 		if(this->assert_token_fail(Token::lookupKind("<"))){ return Result::Code::ERROR; }

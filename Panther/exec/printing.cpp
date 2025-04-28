@@ -931,6 +931,10 @@ namespace pthr{
 						this->print_new(this->ast_buffer.getNew(node));
 					} break;
 
+					case panther::AST::Kind::TRY_ELSE: {
+						this->print_try_else(this->ast_buffer.getTryElse(node));
+					} break;
+
 					case panther::AST::Kind::LITERAL: {
 						const panther::Token::ID token_id = this->ast_buffer.getLiteral(node);
 						const panther::Token& token = this->source.getTokenBuffer()[token_id];
@@ -1365,6 +1369,29 @@ namespace pthr{
 				this->indenter.print_end();
 				this->print_minor_header("Arguments");
 				this->print_func_call_args(new_expr.args);
+
+				this->indenter.pop();
+			}
+
+
+			auto print_try_else(const panther::AST::TryElse& try_else_expr) -> void {
+				this->print_major_header("Try/Else");
+
+				this->indenter.push();
+
+				this->indenter.print_arrow();
+				this->print_minor_header("Attempt");
+				this->printer.println();
+				this->indenter.push();
+				this->print_expr(try_else_expr.attemptExpr);
+				this->indenter.pop();
+				
+				this->indenter.print_end();
+				this->print_minor_header("Except");
+				this->printer.println();
+				this->indenter.push();
+				this->print_expr(try_else_expr.exceptExpr);
+				this->indenter.pop();
 
 				this->indenter.pop();
 			}
