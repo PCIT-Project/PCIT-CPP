@@ -119,7 +119,30 @@ namespace pcit::panther{
 		}
 
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "after variable declaration")){ return Result::Code::ERROR; }
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
+			if(this->assert_token_fail(Token::lookupKind(";"))){ return Result::Code::ERROR; }
+
+		}else if( // check for attributes in wrong place
+			type.has_value() == false
+			&& value.has_value() == false
+			&& this->reader[this->reader.peek()].kind() == Token::lookupKind(":")
+			&& this->source.getASTBuffer().getAttributeBlock(attributes.value()).attributes.empty() == false
+		){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
+				this->source.getTokenBuffer().getSourceLocation(this->reader.peek(-1), this->source.getID()),
+				"Attributes for variable declaration in the wrong place",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("If the variable is explicitly-typed, the attributes go after the type")
+				}
+			);
+			return Result::Code::ERROR;
+
+		}else{
+			this->expected_but_got("[;] at end of variable declaration", this->reader.peek());
+			return Result::Code::ERROR;
+		}
+
 
 
 		return this->source.ast_buffer.createVarDecl(
@@ -605,10 +628,14 @@ namespace pcit::panther{
 			}
 
 			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::ERROR; }
-			if(this->expect_token_fail(Token::lookupKind("("), "[(] around block label")){ return Result::Code::ERROR; }
+			if(this->expect_token_fail(Token::lookupKind("("), "before block label declaration")){
+				return Result::Code::ERROR;
+			}
 
 			const Result label_result = this->parse_ident();
-			if(this->check_result_fail(label_result, "identifier in block label")){ return Result::Code::ERROR; }
+			if(this->check_result_fail(label_result, "identifier in block label declaration")){
+				return Result::Code::ERROR;
+			}
 			label = label_result.value();
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(":")){
@@ -2047,7 +2074,6 @@ namespace pcit::panther{
 
 	auto Parser::expect_token_fail(Token::Kind kind, std::string_view location_str) -> bool {
 		const Token::ID next_token_id = this->reader.next();
-
 		if(this->reader[next_token_id].kind() == kind){ return false; }
 
 		this->expected_but_got(std::format("[{}] {}", kind, location_str), next_token_id);

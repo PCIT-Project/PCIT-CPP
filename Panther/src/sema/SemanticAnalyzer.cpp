@@ -546,11 +546,6 @@ namespace pcit::panther{
 			passed_symbols.pop();
 
 
-			#if defined(PCIT_CONFIG_DEBUG)
-				// TODO(NOW): remove if race condition found
-				evo::log::debug("passed_symbol_id: {}  --  (REMOVE WHEN RACE CONDITION FIXED)", passed_symbol_id.get());
-			#endif
-
 			SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_id);
 			passed_symbol.passed_on_by_when_cond = true;
 
@@ -2431,6 +2426,7 @@ namespace pcit::panther{
 			instr.args,
 			instr.template_args
 		);
+		if(selected_func.isError()){ return Result::ERROR; }
 
 
 		const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
@@ -4602,6 +4598,12 @@ namespace pcit::panther{
 
 			for(size_t i = 0; const OverloadScore& score : scores){
 				EVO_DEFER([&](){ i += 1; });
+
+				const auto get_func_location = [&]() -> Diagnostic::Location {
+					if(func_infos[i].func_id.has_value()){ return this->get_location(*func_infos[i].func_id); }
+					return Diagnostic::Location::NONE;
+				};
+
 			
 				score.reason.visit([&](const auto& reason) -> void {
 					using ReasonT = std::decay_t<decltype(reason)>;
@@ -4617,7 +4619,7 @@ namespace pcit::panther{
 									reason.min_num,
 									reason.got_num
 								),
-								this->get_location(*func_infos[i].func_id)
+								get_func_location()
 							);
 							
 						}else{
@@ -4627,7 +4629,7 @@ namespace pcit::panther{
 									reason.min_num,
 									reason.got_num
 								),
-								this->get_location(*func_infos[i].func_id)
+								get_func_location()
 							);
 						}
 
@@ -4639,7 +4641,7 @@ namespace pcit::panther{
 									reason.max_num,
 									reason.got_num
 								),
-								this->get_location(*func_infos[i].func_id)
+								get_func_location()
 							);
 							
 						}else{
@@ -4649,7 +4651,7 @@ namespace pcit::panther{
 									reason.max_num,
 									reason.got_num
 								),
-								this->get_location(*func_infos[i].func_id)
+								get_func_location()
 							);
 						}
 
@@ -4668,7 +4670,7 @@ namespace pcit::panther{
 
 						infos.emplace_back(
 							std::format("Failed to match: argument (index: {}) type mismatch", reason.arg_index),
-							this->get_location(*func_infos[i].func_id),
+							get_func_location(),
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info(
 									"This argument:", this->get_location(arg_infos[reason.arg_index].ast_arg.value)
@@ -4709,7 +4711,7 @@ namespace pcit::panther{
 
 						infos.emplace_back(
 							std::format("Failed to match: argument (index: {}) value kind mismatch", reason.arg_index),
-							this->get_location(*func_infos[i].func_id),
+							get_func_location(),
 							std::move(sub_infos)
 						);
 
@@ -4718,7 +4720,7 @@ namespace pcit::panther{
 
 						infos.emplace_back(
 							std::format("Failed to match: argument (index: {}) has incorrect label", reason.arg_index),
-							this->get_location(*func_infos[i].func_id),
+							get_func_location(),
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info(
 									"This label:", this->get_location(*arg_infos[reason.arg_index].ast_arg.label)
@@ -4764,7 +4766,11 @@ namespace pcit::panther{
 				EVO_DEFER([&](){ i += 1; });
 
 				if(score.score == best_score){
-					infos.emplace_back("Could be this one:", this->get_location(*func_infos[i].func_id));
+					if(func_infos[i].func_id.has_value()){
+						infos.emplace_back("Could be this one:", this->get_location(*func_infos[i].func_id));
+					}else{
+						infos.emplace_back("Could be this one:", Diagnostic::Location::NONE);
+					}
 				}
 			}
 

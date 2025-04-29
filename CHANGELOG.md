@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.108.1"></a>
+## v0.0.108.1
+
+### Panther
+- Added checking for attributes in the wrong place in parser
+- Fixed fatal error when selecting function overload failed for an intrinsic function
+- Fixed fatal error when encountering an error in semantic analysis of a call to a template intrinsic function
+
+
+<!---------------------------------->
 <a name="v0.0.108.0"></a>
 ## v0.0.108.0
 

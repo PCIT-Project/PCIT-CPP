@@ -1,47 +1,21 @@
 
-
-//////////////////////////////////////////////////////////////////////
-// 
-// the code in below sometimes creates a race codition preventing a stall
-// 	When looking at `symbol_proc_list`, it was found that `bar` was still waiting
-//  on the second `get_value` despite that `.passed_by_when_cond` was true
-// 	The race condition occurs so rarely that it's difficult to debug
-// 
-// 	KEEP THIS SECTION UNTIL THE RACE CONDITION IS FIXED
-// 
-
-var _bar: UI8 = _get_value();
-
-
-def _USE_RVO: Bool = true;
-
-when(_USE_RVO){
-	func _get_value = () -> (_output: UI8) {
-		_output = 12;
-		return...;
-	}
-	
-}else{
-	func _get_value = () -> UI8 {
-		return 12;
-	}
-}
-
-
-
-//////////////////////////////////////////////////////////////////////
-// new feature testing:
-
-
 var foo: UI8 = 0;
 
-func get_value = () -> UI8 <Void> {
-	// return 12;
-	error;
-}
+
+
+// func entry = () #entry -> UI8 {
+// 	foo = {->(foo_val)
+// 		return->foo_val 12;
+// 	};
+// 	return copy foo;
+// }
+
+
+def NUM: UI8 #pub = 12;
 
 
 func entry = () #entry -> UI8 {
-	// foo = ;
-	return try get_value() else (try get_value() else 14);
+	
+	
+	return @fToUI<{F64, UI8}>(NUM);
 }
