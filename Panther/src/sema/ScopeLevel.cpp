@@ -53,6 +53,11 @@ namespace pcit::panther::sema{
 		this->_stmt_block->setTerminated();
 	}
 
+	auto ScopeLevel::setLabelTerminated() -> void {
+		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
+		this->_stmt_block->setLabelTerminated();
+	}
+
 	auto ScopeLevel::isTerminated() const -> bool {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 		
@@ -60,9 +65,10 @@ namespace pcit::panther::sema{
 			|| (this->has_sub_scopes && this->num_sub_scopes_not_terminated == 0);
 	}
 
-	auto ScopeLevel::isNotTerminated() const -> bool {
+
+	auto ScopeLevel::isLabelTerminated() const -> bool {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
-		return !this->isTerminated();
+		return this->_stmt_block->isLabelTerminated();
 	}
 
 
@@ -137,6 +143,10 @@ namespace pcit::panther::sema{
 	}
 
 	auto ScopeLevel::addIdent(std::string_view ident, sema::ReturnParamID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::BlockExprOutputID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
 

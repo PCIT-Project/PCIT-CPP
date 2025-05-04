@@ -113,6 +113,18 @@ namespace pcit::panther{
 			}
 
 
+			///////////////////////////////////
+			// block expr outputs
+
+			EVO_NODISCARD auto createBlockExprOutput(auto&&... args) -> sema::BlockExprOutput::ID {
+				return this->block_expr_outputs.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getBlockExprOutput(sema::BlockExprOutput::ID id) const -> const sema::BlockExprOutput& {
+				return this->block_expr_outputs[id];
+			}
+
+
 
 			///////////////////////////////////
 			// func calls
@@ -256,6 +268,17 @@ namespace pcit::panther{
 				return this->try_elses[id];
 			}
 
+			///////////////////////////////////
+			// block expr
+
+			EVO_NODISCARD auto createBlockExpr(auto&&... args) -> sema::BlockExpr::ID {
+				return this->block_exprs.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getBlockExpr(sema::BlockExpr::ID id) const -> const sema::BlockExpr& {
+				return this->block_exprs[id];
+			}
+
 
 			///////////////////////////////////
 			// template intrinsic instantiations
@@ -372,6 +395,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::GlobalVar, sema::GlobalVar::ID> global_vars{};
 			core::SyncLinearStepAlloc<sema::Param, sema::Param::ID> params{};
 			core::SyncLinearStepAlloc<sema::ReturnParam, sema::ReturnParam::ID> return_params{};
+			core::SyncLinearStepAlloc<sema::BlockExprOutput, sema::BlockExprOutput::ID> block_expr_outputs{};
 
 			core::SyncLinearStepAlloc<sema::FuncCall, sema::FuncCall::ID> func_calls{};
 			core::SyncLinearStepAlloc<sema::Assign, sema::Assign::ID> assigns{};
@@ -384,6 +408,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
+			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 
 			core::SyncLinearStepAlloc<
 				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID

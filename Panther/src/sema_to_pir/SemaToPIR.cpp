@@ -9,6 +9,8 @@
 
 #include "./SemaToPIR.h"
 
+#include <ranges>
+
 #include "../../include/Context.h"
 
 
@@ -294,7 +296,7 @@ namespace pcit::panther{
 		this->current_source = &this->context.getSourceManager()[sema_func.sourceID];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
 
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
+		this->current_func_type = &this->context.getTypeManager().getFunction(sema_func.typeID);
 
 		pir::Function& func = this->module.getFunction(this->data.get_func(func_id).pir_id);
 
@@ -304,133 +306,16 @@ namespace pcit::panther{
 		this->agent.setTargetFunction(func);
 		this->agent.setTargetBasicBlockAtEnd();
 
+		this->push_scope_level();
+
 		for(const sema::Stmt& stmt : sema_func.stmtBlock){
-			// TODO(FUTURE): move into separate function?
-			switch(stmt.kind()){
-				case sema::Stmt::Kind::GLOBAL_VAR: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::GLOBAL_VAR");
-				} break;
-
-				case sema::Stmt::Kind::FUNC_CALL: {
-					const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(stmt.funcCallID());
-
-					if(func_call.target.is<IntrinsicFunc::Kind>()){ 
-						this->intrinsic_func_call(func_call);
-						continue;
-					}
-
-					const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
-
-					auto args = evo::SmallVector<pir::Expr>();
-					for(size_t i = 0; const sema::Expr& arg : func_call.args){
-						if(target_func_info.params[i].is_copy()){
-							args.emplace_back(this->get_expr_register(arg));
-						}else{
-							args.emplace_back(this->get_expr_pointer(arg));
-						}
-
-						i += 1;
-					}
-
-					if(target_func_info.return_type.kind() == pir::Type::Kind::VOID){
-						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
-					}else{
-						std::ignore = this->agent.createCall(target_func_info.pir_id, std::move(args));
-					}
-				} break;
-
-				case sema::Stmt::Kind::ASSIGN: {
-					const sema::Assign& assignment = this->context.getSemaBuffer().getAssign(stmt.assignID());
-
-					if(assignment.lhs.has_value()){
-						this->get_expr_store(assignment.rhs, this->get_expr_pointer(*assignment.lhs));
-					}else{
-						this->get_expr_discard(assignment.rhs);
-					}
-				} break;
-
-				case sema::Stmt::Kind::MULTI_ASSIGN: {
-					const sema::MultiAssign& multi_assign = 
-						this->context.getSemaBuffer().getMultiAssign(stmt.multiAssignID());
-
-					auto targets = evo::SmallVector<pir::Expr>();
-					targets.reserve(multi_assign.targets.size());
-					for(const evo::Variant<sema::Expr, TypeInfo::ID>& target : multi_assign.targets){
-						if(target.is<sema::Expr>()){
-							targets.emplace_back(this->get_expr_pointer(target.as<sema::Expr>()));
-						}else{
-							targets.emplace_back(
-								this->agent.createAlloca(
-									this->get_type(target.as<TypeInfo::ID>()), this->name("DISCARD")
-								)
-							);
-						}
-					}
-
-					this->get_expr_store(multi_assign.value, targets);
-				} break;
-
-				case sema::Stmt::Kind::RETURN: {
-					const sema::Return& return_stmt = this->context.getSemaBuffer().getReturn(stmt.returnID());
-
-					if(func_type.hasErrorReturn()){
-						if(return_stmt.value.has_value()){
-							this->agent.createStore(
-								this->data.get_func(func_id).return_params.front(),
-								this->get_expr_register(*return_stmt.value),
-								false,
-								pir::AtomicOrdering::NONE
-							);
-						}
-
-						this->agent.createRet(this->agent.createBoolean(true));
-
-					}else{
-						if(return_stmt.value.has_value()){
-							this->agent.createRet(this->get_expr_register(*return_stmt.value));
-
-						}else{
-							this->agent.createRet();
-						}
-					}
-				} break;
-
-				case sema::Stmt::Kind::ERROR: {
-					const sema::Error& error_stmt = this->context.getSemaBuffer().getError(stmt.errorID());
-
-					if(error_stmt.value.has_value()){
-						this->agent.createStore(
-							*this->data.get_func(func_id).error_return_param,
-							this->get_expr_register(*error_stmt.value),
-							false,
-							pir::AtomicOrdering::NONE
-						);
-						this->agent.createRet(this->agent.createBoolean(false));
-
-					}else{
-						this->agent.createRet(this->agent.createBoolean(false));
-					}
-					
-				} break;
-
-				case sema::Stmt::Kind::UNREACHABLE: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::UNREACHABLE");
-				} break;
-
-				case sema::Stmt::Kind::CONDITIONAL: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::CONDITIONAL");
-				} break;
-
-				case sema::Stmt::Kind::WHILE: {
-					evo::unimplemented("To PIR of sema::Stmt::Kind::WHILE");
-				} break;
-			}
+			this->lower_stmt(stmt);
 		}
 
 
 		if(sema_func.isTerminated == false){
-			if(func_type.returnsVoid()){
-				if(func_type.hasErrorReturn()){
+			if(this->current_func_type->returnsVoid()){
+				if(this->current_func_type->hasErrorReturn()){
 					this->agent.createRet(this->agent.createBoolean(true));
 				}else{
 					this->agent.createRet();
@@ -440,6 +325,11 @@ namespace pcit::panther{
 				this->agent.createUnreachable();
 			}
 		}
+
+
+		this->current_func_type = nullptr;
+
+		this->pop_scope_level();
 	}
 
 
@@ -940,6 +830,151 @@ namespace pcit::panther{
 
 
 
+
+
+	auto SemaToPIR::lower_stmt(const sema::Stmt& stmt) -> void {
+		switch(stmt.kind()){
+			case sema::Stmt::Kind::GLOBAL_VAR: {
+				evo::unimplemented("To PIR of sema::Stmt::Kind::GLOBAL_VAR");
+			} break;
+
+			case sema::Stmt::Kind::FUNC_CALL: {
+				const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(stmt.funcCallID());
+
+				if(func_call.target.is<IntrinsicFunc::Kind>()){ 
+					this->intrinsic_func_call(func_call);
+					return;
+				}
+
+				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
+
+				auto args = evo::SmallVector<pir::Expr>();
+				for(size_t i = 0; const sema::Expr& arg : func_call.args){
+					if(target_func_info.params[i].is_copy()){
+						args.emplace_back(this->get_expr_register(arg));
+					}else{
+						args.emplace_back(this->get_expr_pointer(arg));
+					}
+
+					i += 1;
+				}
+
+				if(target_func_info.return_type.kind() == pir::Type::Kind::VOID){
+					this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+				}else{
+					std::ignore = this->agent.createCall(target_func_info.pir_id, std::move(args));
+				}
+			} break;
+
+			case sema::Stmt::Kind::ASSIGN: {
+				const sema::Assign& assignment = this->context.getSemaBuffer().getAssign(stmt.assignID());
+
+				if(assignment.lhs.has_value()){
+					this->get_expr_store(assignment.rhs, this->get_expr_pointer(*assignment.lhs));
+				}else{
+					this->get_expr_discard(assignment.rhs);
+				}
+			} break;
+
+			case sema::Stmt::Kind::MULTI_ASSIGN: {
+				const sema::MultiAssign& multi_assign = 
+					this->context.getSemaBuffer().getMultiAssign(stmt.multiAssignID());
+
+				auto targets = evo::SmallVector<pir::Expr>();
+				targets.reserve(multi_assign.targets.size());
+				for(const evo::Variant<sema::Expr, TypeInfo::ID>& target : multi_assign.targets){
+					if(target.is<sema::Expr>()){
+						targets.emplace_back(this->get_expr_pointer(target.as<sema::Expr>()));
+					}else{
+						targets.emplace_back(
+							this->agent.createAlloca(
+								this->get_type(target.as<TypeInfo::ID>()), this->name("DISCARD")
+							)
+						);
+					}
+				}
+
+				this->get_expr_store(multi_assign.value, targets);
+			} break;
+
+			case sema::Stmt::Kind::RETURN: {
+				const sema::Return& return_stmt = this->context.getSemaBuffer().getReturn(stmt.returnID());
+
+				if(return_stmt.targetLabel.has_value()) [[unlikely]] {
+					const std::string_view label =
+						this->current_source->getTokenBuffer()[*return_stmt.targetLabel].getString();
+
+					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+						if(scope_level.label != label){ continue; }
+
+						if(return_stmt.value.has_value()){
+							this->get_expr_store(*return_stmt.value, scope_level.label_output_locations);	
+						}
+
+						this->agent.createBranch(*scope_level.end_block);
+						break;
+					}
+
+				}else{
+					if(this->current_func_type->hasErrorReturn()){
+						if(return_stmt.value.has_value()){
+							this->agent.createStore(
+								this->current_func_info->return_params.front(),
+								this->get_expr_register(*return_stmt.value),
+								false,
+								pir::AtomicOrdering::NONE
+							);
+						}
+
+						this->agent.createRet(this->agent.createBoolean(true));
+
+					}else{
+						if(return_stmt.value.has_value()){
+							this->agent.createRet(this->get_expr_register(*return_stmt.value));
+
+						}else{
+							this->agent.createRet();
+						}
+					}
+				}
+
+			} break;
+
+			case sema::Stmt::Kind::ERROR: {
+				const sema::Error& error_stmt = this->context.getSemaBuffer().getError(stmt.errorID());
+
+				if(error_stmt.value.has_value()){
+					this->agent.createStore(
+						*this->current_func_info->error_return_param,
+						this->get_expr_register(*error_stmt.value),
+						false,
+						pir::AtomicOrdering::NONE
+					);
+					this->agent.createRet(this->agent.createBoolean(false));
+
+				}else{
+					this->agent.createRet(this->agent.createBoolean(false));
+				}
+				
+			} break;
+
+			case sema::Stmt::Kind::UNREACHABLE: {
+				evo::unimplemented("To PIR of sema::Stmt::Kind::UNREACHABLE");
+			} break;
+
+			case sema::Stmt::Kind::CONDITIONAL: {
+				evo::unimplemented("To PIR of sema::Stmt::Kind::CONDITIONAL");
+			} break;
+
+			case sema::Stmt::Kind::WHILE: {
+				evo::unimplemented("To PIR of sema::Stmt::Kind::WHILE");
+			} break;
+		}
+	}
+
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// get expr
 
@@ -1227,6 +1262,58 @@ namespace pcit::panther{
 				evo::unimplemented("lower sema::Expr::Kind::DEREF");
 			} break;
 
+			case sema::Expr::Kind::BLOCK_EXPR: {
+				const sema::BlockExpr& block_expr = this->context.getSemaBuffer().getBlockExpr(expr.blockExprID());
+
+				const std::string_view label = this->current_source->getTokenBuffer()[block_expr.label].getString();
+
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock("BLOCK_EXPR.END");
+
+				if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
+					auto label_output_locations = evo::SmallVector<pir::Expr>();
+					const pir::Type output_type = this->get_type(block_expr.outputs[0].typeID);
+					label_output_locations.emplace_back(
+						this->agent.createAlloca(output_type, this->name("BLOCK_EXPR.OUTPUT"))
+					);
+
+					this->push_scope_level(label, std::move(label_output_locations), end_block);
+
+				}else{
+					this->push_scope_level(
+						label, evo::SmallVector<pir::Expr>(store_locations.begin(), store_locations.end()), end_block
+					);
+				}
+				
+
+				for(const sema::Stmt& stmt : block_expr.block){
+					this->lower_stmt(stmt);
+				}
+
+				this->agent.setTargetBasicBlock(end_block);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					const pir::Expr output = this->get_current_scope_level().label_output_locations[0];
+					this->pop_scope_level();
+					return this->agent.createLoad(
+						output,
+						this->agent.getAlloca(output).type,
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name("LOAD.BLOCK_EXPR.OUTPUT")
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr output = this->get_current_scope_level().label_output_locations[0];
+					this->pop_scope_level();
+					return output;
+
+				}else{
+					this->pop_scope_level();
+					return std::nullopt;
+				}
+
+			} break;
+
 			case sema::Expr::Kind::TRY_ELSE: {
 				const sema::TryElse& try_else = this->context.getSemaBuffer().getTryElse(expr.tryElseID());
 				
@@ -1380,6 +1467,47 @@ namespace pcit::panther{
 
 				}else{
 					return std::nullopt;
+				}
+			} break;
+
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
+				const sema::BlockExprOutput& block_expr_output_param =
+					this->context.getSemaBuffer().getBlockExprOutput(expr.blockExprOutputID());
+
+				const std::string_view label_str =
+					this->current_source->getTokenBuffer()[block_expr_output_param.label].getString();
+
+				for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+					if(scope_level.label != label_str){ continue; }
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(
+							scope_level.label_output_locations[block_expr_output_param.index],
+							this->get_type(block_expr_output_param.typeID),
+							false,
+							pir::AtomicOrdering::NONE,
+							"LOAD.BLOCK_EXPR_OUTPUT"
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return scope_level.label_output_locations[block_expr_output_param.index];
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+						this->agent.createMemcpy(
+							store_locations[0],
+							scope_level.label_output_locations[block_expr_output_param.index],
+							this->get_type(block_expr_output_param.typeID),
+							false
+						);
+						return std::nullopt;
+
+					}else{
+						return std::nullopt;
+					}
+
+					break;
 				}
 			} break;
 
@@ -1843,9 +1971,10 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::MODULE_IDENT: case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:         case sema::Expr::Kind::MOVE:    case sema::Expr::Kind::FORWARD:
-			case sema::Expr::Kind::FUNC_CALL:    case sema::Expr::Kind::ADDR_OF: case sema::Expr::Kind::DEREF:
-			case sema::Expr::Kind::TRY_ELSE:     case sema::Expr::Kind::PARAM:   case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::COPY:         case sema::Expr::Kind::MOVE:       case sema::Expr::Kind::FORWARD:
+			case sema::Expr::Kind::FUNC_CALL:    case sema::Expr::Kind::ADDR_OF:    case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::TRY_ELSE:     case sema::Expr::Kind::BLOCK_EXPR: case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::RETURN_PARAM: case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
 			case sema::Expr::Kind::GLOBAL_VAR:   case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
@@ -2045,6 +2174,22 @@ namespace pcit::panther{
 			return std::string();
 		}
 	}
+
+
+
+	auto SemaToPIR::push_scope_level(auto&&... scope_level_args) -> void {
+		this->scope_levels.emplace_back(std::forward<decltype(scope_level_args)>(scope_level_args)...);
+	}
+
+	auto SemaToPIR::pop_scope_level() -> void {
+		evo::debugAssert(this->scope_levels.empty() == false, "No scope levels to pop");
+		this->scope_levels.pop_back();
+	}
+
+	auto SemaToPIR::get_current_scope_level() -> ScopeLevel& {
+		return this->scope_levels.back();
+	}
+
 
 
 }

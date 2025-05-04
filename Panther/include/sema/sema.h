@@ -114,6 +114,22 @@ namespace pcit::panther::sema{
 		Expr except;
 	};
 
+	struct BlockExpr{
+		using ID = BlockExprID;
+
+		struct Output{
+			TypeInfo::ID typeID;
+			std::optional<Token::ID> ident;
+		};
+
+		Token::ID label;
+		evo::SmallVector<Output> outputs;
+		StmtBlock block;
+
+		EVO_NODISCARD auto hasNamedOutputs() const -> bool { return this->outputs[0].ident.has_value(); }
+	};
+
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -147,7 +163,9 @@ namespace pcit::panther::sema{
 		using ID = ReturnID;
 
 		std::optional<Expr> value; // nullopt means return void
+		std::optional<Token::ID> targetLabel;
 	};
+
 
 	struct Error{
 		using ID = ErrorID;
@@ -185,6 +203,14 @@ namespace pcit::panther::sema{
 
 		uint32_t index;
 		uint32_t abiIndex;
+	};
+
+	struct BlockExprOutput{
+		using ID = BlockExprOutputID;
+
+		uint32_t index;
+		Token::ID label;
+		TypeInfo::ID typeID;
 	};
 
 

@@ -233,9 +233,14 @@ namespace pcit::panther::AST{
 	};
 
 	struct Block{
+		struct Output{
+			std::optional<Token::ID> ident;
+			Node typeID;
+		};
+
 		Token::ID openBrace;
-		std::optional<Node> label;
-		std::optional<Node> labelExplicitType; // only if .label is not nullopt
+		std::optional<Token::ID> label;
+		evo::SmallVector<Output> outputs; // only used if `.label` has value
 		evo::SmallVector<Node> stmts;
 	};
 

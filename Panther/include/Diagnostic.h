@@ -72,6 +72,7 @@ namespace pcit::panther{
 			PARSER_EMPTY_ERROR_RETURN_PARAMS,
 			PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY,
 			PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
+			PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK,
 
 
 			//////////////////
@@ -84,6 +85,7 @@ namespace pcit::panther{
 			SYMBOL_PROC_CIRCULAR_DEP,
 			SYMBOL_PROC_TYPE_USED_AS_EXPR,
 			SYMBOL_PROC_VAR_WITH_NO_VALUE,
+			SYMBOL_PROC_LABELED_VOID_RETURN,
 
 
 			//////////////////
@@ -176,12 +178,17 @@ namespace pcit::panther{
 			SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL,
 			SEMA_TRY_ELSE_ATTEMPT_NOT_SINGLE,
 
-			// misc
+			// terminators
 			SEMA_INCORRECT_RETURN_STMT_KIND,
-			SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS,
 			SEMA_RETURN_NOT_EPHEMERAL,
+			SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS,
 			SEMA_SCOPE_IS_ALREADY_TERMINATED,
 			SEMA_NOT_ERRORING_FUNC_CALL,
+			SEMA_RETURN_LABEL_NOT_FOUND,
+
+			// misc
+			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
+			SEMA_BLOCK_EXPR_NOT_TERMINATED,
 
 
 			//////////////////
@@ -281,7 +288,9 @@ namespace pcit::panther{
 				) -> Location;
 
 				EVO_NODISCARD static auto get(
-					const sema::TemplatedFunc::ID& templated_func_id, const class Source& src, const class Context& context
+					const sema::TemplatedFunc::ID& templated_func_id,
+					const class Source& src,
+					const class Context& context
 				) -> Location;
 
 				EVO_NODISCARD static auto get(
@@ -453,6 +462,7 @@ namespace pcit::panther{
 				case Code::PARSER_EMPTY_ERROR_RETURN_PARAMS:            return "P13";
 				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY:       return "P14";
 				case Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT: return "P15";
+				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P16";
 
 				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_GLOBAL_STMT:
@@ -462,6 +472,7 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_CIRCULAR_DEP:
 				case Code::SYMBOL_PROC_TYPE_USED_AS_EXPR:
 				case Code::SYMBOL_PROC_VAR_WITH_NO_VALUE:
+				case Code::SYMBOL_PROC_LABELED_VOID_RETURN:
 					return "SP";
 
 				// TODO(FUTURE): give individual codes and put in correct order
@@ -533,6 +544,9 @@ namespace pcit::panther{
 				case Code::SEMA_RETURN_NOT_EPHEMERAL:
 				case Code::SEMA_SCOPE_IS_ALREADY_TERMINATED:
 				case Code::SEMA_NOT_ERRORING_FUNC_CALL:
+				case Code::SEMA_RETURN_LABEL_NOT_FOUND:
+				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
+				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
 					return "S";
 
 				case Code::MISC_UNIMPLEMENTED_FEATURE: return "M0";

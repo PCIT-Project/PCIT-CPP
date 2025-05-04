@@ -81,6 +81,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, TryElseID>::UniqueID;
 	};
 
+	struct BlockExprID : public core::UniqueID<uint32_t, struct BlockExprID> {
+		using core::UniqueID<uint32_t, BlockExprID>::UniqueID;
+	};
+
 
 	//////////////////////////////////////////////////////////////////////
 	// statements
@@ -140,6 +144,10 @@ namespace pcit::panther::sema{
 
 	struct ReturnParamID : public core::UniqueID<uint32_t, struct ReturnParamID> {
 		using core::UniqueID<uint32_t, ReturnParamID>::UniqueID;
+	};
+
+	struct BlockExprOutputID : public core::UniqueID<uint32_t, struct BlockExprOutputID> {
+		using core::UniqueID<uint32_t, BlockExprOutputID>::UniqueID;
 	};
 	
 }

@@ -161,7 +161,6 @@ namespace pcit::core{
 
 
 					EVO_NODISCARD auto is_working() const -> bool {
-						while(this->working_state == WorkingState::CHECKING){}
 						return this->working_state == WorkingState::WORKING;
 					}
 

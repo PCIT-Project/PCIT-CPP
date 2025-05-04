@@ -46,9 +46,11 @@ namespace pcit::panther::sema{
 			ADDR_OF,
 			DEREF,
 			TRY_ELSE,
+			BLOCK_EXPR,
 				
 			PARAM,
 			RETURN_PARAM,
+			BLOCK_EXPR_OUTPUT,
 
 			GLOBAL_VAR,
 			FUNC,
@@ -74,19 +76,21 @@ namespace pcit::panther::sema{
 			  value{.templated_intrinsic_func_instantiation = id} 
 			  {};
 
-		explicit Expr(CopyID id)            : _kind(Kind::COPY),             value{.copy = id}         {};
-		explicit Expr(MoveID id)            : _kind(Kind::MOVE),             value{.move = id}         {};
-		explicit Expr(ForwardID id)         : _kind(Kind::FORWARD),          value{.forward = id}      {};
-		explicit Expr(FuncCallID id)        : _kind(Kind::FUNC_CALL),        value{.func_call = id}    {};
-		explicit Expr(AddrOfID id)          : _kind(Kind::ADDR_OF),          value{.addr_of = id}      {};
-		explicit Expr(DerefID id)           : _kind(Kind::DEREF),            value{.deref = id}        {};
-		explicit Expr(TryElseID id)         : _kind(Kind::TRY_ELSE),         value{.try_else = id}  {};
+		explicit Expr(CopyID id)            : _kind(Kind::COPY),              value{.copy = id}              {};
+		explicit Expr(MoveID id)            : _kind(Kind::MOVE),              value{.move = id}              {};
+		explicit Expr(ForwardID id)         : _kind(Kind::FORWARD),           value{.forward = id}           {};
+		explicit Expr(FuncCallID id)        : _kind(Kind::FUNC_CALL),         value{.func_call = id}         {};
+		explicit Expr(AddrOfID id)          : _kind(Kind::ADDR_OF),           value{.addr_of = id}           {};
+		explicit Expr(DerefID id)           : _kind(Kind::DEREF),             value{.deref = id}             {};
+		explicit Expr(TryElseID id)         : _kind(Kind::TRY_ELSE),          value{.try_else = id}          {};
+		explicit Expr(BlockExprID id)       : _kind(Kind::BLOCK_EXPR),        value{.block_expr = id}        {};
 
-		explicit Expr(ParamID id)           : _kind(Kind::PARAM),            value{.param = id}        {};
-		explicit Expr(ReturnParamID id)     : _kind(Kind::RETURN_PARAM),     value{.return_param = id} {};
+		explicit Expr(ParamID id)           : _kind(Kind::PARAM),             value{.param = id}             {};
+		explicit Expr(ReturnParamID id)     : _kind(Kind::RETURN_PARAM),      value{.return_param = id}      {};
+		explicit Expr(BlockExprOutputID id) : _kind(Kind::BLOCK_EXPR_OUTPUT), value{.block_expr_output = id} {};
 
-		explicit Expr(GlobalVarID id)       : _kind(Kind::GLOBAL_VAR),       value{.global_var = id}   {};
-		explicit Expr(FuncID id)            : _kind(Kind::FUNC),             value{.func = id}         {};
+		explicit Expr(GlobalVarID id)       : _kind(Kind::GLOBAL_VAR),        value{.global_var = id}        {};
+		explicit Expr(FuncID id)            : _kind(Kind::FUNC),              value{.func = id}              {};
 
 
 		EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
@@ -164,6 +168,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not an try/else");
 			return this->value.try_else;
 		}
+		EVO_NODISCARD auto blockExprID() const -> BlockExprID {
+			evo::debugAssert(this->kind() == Kind::BLOCK_EXPR, "not an block expr");
+			return this->value.block_expr;
+		}
 
 		EVO_NODISCARD auto paramID() const -> ParamID {
 			evo::debugAssert(this->kind() == Kind::PARAM, "not a param");
@@ -172,6 +180,10 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto returnParamID() const -> ReturnParamID {
 			evo::debugAssert(this->kind() == Kind::RETURN_PARAM, "not a return param");
 			return this->value.return_param;
+		}
+		EVO_NODISCARD auto blockExprOutputID() const -> BlockExprOutputID {
+			evo::debugAssert(this->kind() == Kind::BLOCK_EXPR_OUTPUT, "not a block expr output");
+			return this->value.block_expr_output;
 		}
 
 		EVO_NODISCARD auto globalVarID() const -> GlobalVarID {
@@ -217,9 +229,11 @@ namespace pcit::panther::sema{
 				AddrOfID addr_of;
 				DerefID deref;
 				TryElseID try_else;
+				BlockExprID block_expr;
 
 				ParamID param;
 				ReturnParamID return_param;
+				BlockExprOutputID block_expr_output;
 
 				GlobalVarID global_var;
 				FuncID func;

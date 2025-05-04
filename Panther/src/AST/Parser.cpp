@@ -618,8 +618,8 @@ namespace pcit::panther{
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("{")){ return Result::Code::WRONG_TYPE; }
 		if(this->assert_token_fail(Token::lookupKind("{"))){ return Result::Code::ERROR; }
 
-		auto label = std::optional<AST::Node>();
-		auto label_type = std::optional<AST::Node>();
+		auto label = std::optional<Token::ID>();
+		auto outputs = evo::SmallVector<AST::Block::Output>();
 
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
 			if(label_requirement == BlockLabelRequirement::NOT_ALLOWED){
@@ -628,24 +628,21 @@ namespace pcit::panther{
 			}
 
 			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::ERROR; }
-			if(this->expect_token_fail(Token::lookupKind("("), "before block label declaration")){
-				return Result::Code::ERROR;
-			}
 
 			const Result label_result = this->parse_ident();
 			if(this->check_result_fail(label_result, "identifier in block label declaration")){
 				return Result::Code::ERROR;
 			}
-			label = label_result.value();
+			label = ASTBuffer::getIdent(label_result.value());
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(":")){
 				if(label_requirement == BlockLabelRequirement::OPTIONAL){
 					this->context.emitError(
 						Diagnostic::Code::PARSER_INCORRECT_STMT_CONTINUATION,
 						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
-						"This labeled block is not allowed to have an explicit type",
+						"This labeled block is not allowed to have outputs",
 						evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info("Note: Only expression blocks may have types")
+							Diagnostic::Info("Note: Only expression blocks may have outputs")
 						}
 					);
 					return Result::Code::ERROR;
@@ -653,18 +650,70 @@ namespace pcit::panther{
 
 				if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::ERROR; }
 
-				const Result type_result = this->parse_type<TypeKind::EXPLICIT>();
-				if(this->check_result_fail(type_result, "type in explicitly-typed labeled expression block")){
-					return Result::Code::ERROR;
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+					const Token::ID open_paren_loc = this->reader.peek();
+					if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::ERROR; }
+
+					while(true){
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
+							if(this->assert_token_fail(Token::lookupKind(")"))){ return Result::Code::ERROR; }
+							break;
+						}
+
+						const Result ident = this->parse_ident();
+						if(this->check_result_fail(ident, "identifier in expression block output parameter")){
+							return Result::Code::ERROR;
+						}
+
+						if(this->expect_token_fail(
+							Token::lookupKind(":"), "after identifier in expression block output parameter"
+						)){
+							return Result::Code::ERROR;
+						}
+
+
+						const Result type = this->parse_type<TypeKind::EXPLICIT>();
+						if(this->check_result_fail(type, "type in expression block output parameter")){
+							return Result::Code::ERROR;
+						}
+
+						outputs.emplace_back(ASTBuffer::getIdent(ident.value()), type.value());
+
+						// check if ending or should continue
+						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+						if(after_arg_next_token_kind != Token::lookupKind(",")){
+							if(after_arg_next_token_kind != Token::lookupKind(")")){
+								this->expected_but_got(
+									"[,] at end of expression block output parameter"
+									" or [)] at end of expression block output parameter block",
+									this->reader.peek(-1)
+								);
+								return Result::Code::ERROR;
+							}
+
+							break;
+						}
+					}
+
+
+					if(outputs.empty()){
+						this->context.emitError(
+							Diagnostic::Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK,
+							Diagnostic::Location::get(open_paren_loc, this->source),
+							"Cannot have empty block expression output block"
+						);
+					}
+					
+				}else{
+					const Result type_result = this->parse_type<TypeKind::EXPLICIT>();
+					if(this->check_result_fail(type_result, "type in explicitly-typed labeled expression block")){
+						return Result::Code::ERROR;
+					}
+
+					outputs.emplace_back(std::nullopt,type_result.value());
 				}
 
-
-				label_type = type_result.value();
 			}
-
-			if(this->expect_token_fail(
-				Token::lookupKind(")"), "after type in explicitly-typed labeled expression block")
-			){ return Result::Code::ERROR; }
 
 		}else if(label_requirement == BlockLabelRequirement::REQUIRED){
 			this->reader.go_back(start_location);
@@ -686,7 +735,7 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createBlock(
-			start_location, std::move(label), std::move(label_type), std::move(statements)
+			start_location, std::move(label), std::move(outputs), std::move(statements)
 		);
 	}
 
@@ -1148,7 +1197,7 @@ namespace pcit::panther{
 		this->context.emitError(
 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			Diagnostic::Location::get(attempt_expr.value(), this->source),
-			"`try` expressions are currently unsupported"
+			"[try] expressions are currently unsupported"
 		);
 		return Result::Code::ERROR;
 	}
@@ -1292,63 +1341,6 @@ namespace pcit::panther{
 
 					output = this->source.ast_buffer.createTemplatedExpr(output.value(), std::move(args));
 				} break;
-
-
-				// case Token::lookupKind("<"): {
-				// 	if(TERM_KIND == TermKind::ExplciitType || TERM_KIND == TermKind::AS_TYPE){
-				// 		if(this->assert_token_fail(Token::lookupKind("<"))){ return Result::Code::ERROR; }
-				
-				// 		auto args = evo::SmallVector<AST::Node>();
-
-				// 		while(true){
-				// 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
-				// 				if(this->assert_token_fail(Token::lookupKind(">"))){ return Result::Code::ERROR; }
-				// 				break;
-				// 			}
-							
-				// 			Result arg = this->parse_type<TypeKind::TEMPLATE_ARG>();
-				// 			if(arg.code() == Result::Code::ERROR){
-				// 				return Result::Code::ERROR;
-
-				// 			}else if(arg.code() == Result::Code::WRONG_TYPE){
-				// 				arg = this->parse_expr();
-				// 				if(this->check_result_fail(arg, "argument inside template pack")){
-				// 					return Result::Code::ERROR;
-				// 				}
-				// 			}
-
-				// 			args.emplace_back(arg.value());
-
-				// 			// check if ending or should continue
-				// 			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
-				// 			if(after_arg_next_token_kind != Token::lookupKind(",")){
-				// 				if(after_arg_next_token_kind != Token::lookupKind(">")){
-				// 					this->expected_but_got(
-				// 						"[,] at end of template argument or [>] at end of template argument block",
-				// 						this->reader.peek(-1)
-				// 					);
-				// 					return Result::Code::ERROR;
-				// 				}
-
-				// 				break;
-				// 			}
-				// 		}
-
-				// 		output = this->source.ast_buffer.createTemplatedExpr(output.value(), std::move(args));
-
-				// 	}else if constexpr(TERM_KIND == TermKind::EXPR){
-				// 		return output;
-
-				// 	}else if constexpr(TERM_KIND == TermKind::TEMPLATE_ARG){
-				// 		const Token::ID start_location = this->reader.peek();
-
-				// 		if(this->assert_token_fail(Token::lookupKind("<"))){ return Result::Code::ERROR; }
-
-
-				// 	}else{
-				// 		static_assert(false, "Unknown TermKind");
-				// 	}
-				// } break;
 
 
 				case Token::lookupKind("("): {
@@ -1683,17 +1675,8 @@ namespace pcit::panther{
 					} break;
 
 					default: {
-						this->context.emitError(
-							Diagnostic::Code::PARSER_INVALID_KIND_FOR_A_THIS_PARAM,
-							this->source.getTokenBuffer().getSourceLocation(
-								this->reader.peek(-1), this->source.getID()
-							),
-							"[this] parameters cannot have a default kind",
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Note: valid kinds are [read] and [mut]"),
-							}
-						);
-						return evo::resultError;
+						this->reader.skip();
+						param_kind = ParamKind::READ;
 					} break;
 				}
 
@@ -1894,7 +1877,7 @@ namespace pcit::panther{
 					),
 					Diagnostic::Info(
 						"If you want the function to have error return but no error return value, "
-							"the error return parameter block should only contain `Void`"
+							"the error return parameter block should only contain [Void]"
 					),
 				}
 			);

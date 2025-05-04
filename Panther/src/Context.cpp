@@ -407,7 +407,7 @@ namespace pcit::panther{
 			this->emitError(
 				Diagnostic::Code::MISC_NO_ENTRY,
 				Diagnostic::Location::NONE,
-				"No function with the `#entry` attribute found"
+				"No function with the [#entry] attribute found"
 			);
 			return evo::resultError;
 		}

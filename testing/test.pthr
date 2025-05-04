@@ -1,21 +1,17 @@
 
+
 var foo: UI8 = 0;
 
-
-
-// func entry = () #entry -> UI8 {
-// 	foo = {->(foo_val)
-// 		return->foo_val 12;
-// 	};
-// 	return copy foo;
-// }
-
-
-def NUM: UI8 #pub = 12;
-
-
 func entry = () #entry -> UI8 {
-	
-	
-	return @fToUI<{F64, UI8}>(NUM);
+	foo = {->expr:UI8
+		return->expr {->sub_expr:UI8
+			return->sub_expr 12;
+		};
+	};
+
+	return {->ret:(output: UI8)
+		output = copy foo;
+		return->ret ...;
+	};
 }
+

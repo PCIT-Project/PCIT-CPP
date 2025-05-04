@@ -725,11 +725,28 @@ namespace pcit::panther{
 				this->analyze_expr<false>(return_stmt.value.as<AST::Node>());
 			if(return_value.isError()){ return evo::resultError; }
 
-			this->add_instruction(Instruction::Return(return_stmt, return_value.value()));
+			if(return_stmt.label.has_value()) [[unlikely]] {
+				this->add_instruction(Instruction::LabeledReturn(return_stmt, return_value.value()));
+			}else{
+				this->add_instruction(Instruction::Return(return_stmt, return_value.value()));
+			}
 			return evo::Result<>();
 			
 		}else{
-			this->add_instruction(Instruction::Return(return_stmt, std::nullopt));
+			if(return_stmt.label.has_value()){
+				if(return_stmt.value.is<Token::ID>()){
+					this->add_instruction(Instruction::LabeledReturn(return_stmt, std::nullopt));
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_LABELED_VOID_RETURN,
+						return_stmt,
+						"Labeled return must have a value or [...]"
+					);
+					return evo::Result<>();
+				}
+			}else{
+				this->add_instruction(Instruction::Return(return_stmt, std::nullopt));
+			}
 			return evo::Result<>();
 		}
 	}
@@ -946,7 +963,7 @@ namespace pcit::panther{
 						Diagnostic::Location::NONE,
 						Diagnostic::createFatalMessage("Encountered expr of invalid AST kind")
 					);
-					return evo::resultError; 
+					return evo::resultError;
 				} break;
 			}
 
@@ -958,10 +975,29 @@ namespace pcit::panther{
 
 	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE, node, "Building symbol proc of block is unimplemented"
-		);
-		return evo::resultError;
+		const AST::Block& block = this->source.getASTBuffer().getBlock(node);
+
+		evo::debugAssert(block.label.has_value(), "Block expr must have label");
+
+		auto output_types = evo::SmallVector<SymbolProc::TypeID>();
+		output_types.reserve(block.outputs.size());
+		for(const AST::Block::Output& output : block.outputs){
+			const evo::Result<SymbolProc::TypeID> output_type = this->analyze_type(
+				this->source.getASTBuffer().getType(output.typeID)
+			);
+			if(output_type.isError()){ return evo::resultError; }
+			output_types.emplace_back(output_type.value());
+		}
+
+		this->add_instruction(Instruction::BeginExprBlock(block, *block.label, std::move(output_types)));
+
+		for(const AST::Node& stmt : block.stmts){
+			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		}
+
+		const SymbolProc::TermInfoID output_term_info = this->create_term_info();
+		this->add_instruction(Instruction::EndExprBlock(block, output_term_info));
+		return output_term_info;
 	}
 
 	
@@ -1150,7 +1186,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					node,
-					"Building symbol proc of prefix `&` is unimplemented"
+					"Building symbol proc of prefix [&] is unimplemented"
 				);
 				return evo::resultError;
 			} break;
@@ -1159,7 +1195,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					node,
-					"Building symbol proc of prefix `&|` is unimplemented"
+					"Building symbol proc of prefix [&|] is unimplemented"
 				);
 				return evo::resultError;
 			} break;
@@ -1199,7 +1235,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					node,
-					"Building symbol proc of prefix `-` is unimplemented"
+					"Building symbol proc of prefix [-] is unimplemented"
 				);
 				return evo::resultError;
 			} break;
@@ -1208,7 +1244,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					node,
-					"Building symbol proc of prefix `!` is unimplemented"
+					"Building symbol proc of prefix [!] is unimplemented"
 				);
 				return evo::resultError;
 			} break;
@@ -1217,7 +1253,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					node,
-					"Building symbol proc of prefix `~` is unimplemented"
+					"Building symbol proc of prefix [~] is unimplemented"
 				);
 				return evo::resultError;
 			} break;

@@ -91,6 +91,23 @@ namespace pcit::panther{
 			EVO_NODISCARD auto name(std::format_string<Args...> fmt, Args&&... args) const -> std::string;
 
 
+			struct ScopeLevel{
+				std::string_view label; // empty if no label
+				evo::SmallVector<pir::Expr> label_output_locations;
+				std::optional<pir::BasicBlock::ID> end_block; // only has value if has label
+
+				ScopeLevel() : label(), label_output_locations(), end_block() {}
+				ScopeLevel(
+					std::string_view _label,
+					evo::SmallVector<pir::Expr>&& _label_output_locations,
+					pir::BasicBlock::ID _end_block
+				) : label(_label), label_output_locations(std::move(_label_output_locations)), end_block(_end_block) {}
+			};
+
+			auto push_scope_level(auto&&... scope_level_args) -> void;
+			auto pop_scope_level() -> void;
+			EVO_NODISCARD auto get_current_scope_level() -> ScopeLevel&;
+
 	
 		private:
 			class Context& context;
@@ -99,6 +116,9 @@ namespace pcit::panther{
 
 			class Source* current_source = nullptr;
 			const Data::FuncInfo* current_func_info = nullptr;
+			const BaseType::Function* current_func_type = nullptr;
+
+			evo::SmallVector<ScopeLevel> scope_levels{}; // TODO(PERF): use stack?
 
 			Data& data;
 	};

@@ -78,6 +78,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
+			EVO_NODISCARD auto instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result;
 			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_assignment(const Instruction::Assignment& instr) -> Result;
@@ -109,6 +110,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_copy(const Instruction::Copy& instr) -> Result;
 			EVO_NODISCARD auto instr_move(const Instruction::Move& instr) -> Result;
 			EVO_NODISCARD auto instr_try_else(const Instruction::TryElse& instr) -> Result;
+			EVO_NODISCARD auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;
+			EVO_NODISCARD auto instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result;
 
 
 			template<bool NEEDS_DEF>
@@ -132,8 +135,13 @@ namespace pcit::panther{
 			// scope
 
 			EVO_NODISCARD auto get_current_scope_level() const -> sema::ScopeLevel&;
-			EVO_NODISCARD auto push_scope_level(sema::StmtBlock* stmt_block = nullptr) -> void;
+			EVO_NODISCARD auto push_scope_level() -> void;
+			EVO_NODISCARD auto push_scope_level(
+				sema::StmtBlock& stmt_block, Token::ID label, sema::ScopeLevel::LabelNode label_node
+			) -> void;
 			EVO_NODISCARD auto push_scope_level(sema::StmtBlock* stmt_block, const auto& object_scope_id) -> void;
+
+			template<bool IS_LABEL_TERMINATE = false>
 			EVO_NODISCARD auto pop_scope_level() -> void;
 
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;
@@ -463,6 +471,12 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_location(const sema::ReturnParamID& return_param) const -> Diagnostic::Location {
 				std::ignore = return_param;
+				evo::unimplemented();
+			}
+
+			EVO_NODISCARD auto get_location(const sema::BlockExprOutputID& block_expr_output) const
+			-> Diagnostic::Location {
+				std::ignore = block_expr_output;
 				evo::unimplemented();
 			}
 

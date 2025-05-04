@@ -965,8 +965,8 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::TOK_FLOAT_LITERAL_ENDING_IN_PERIOD,
 				current_location.value(),
-				"Float literal cannot end in a `.`",
-				Diagnostic::Info("Maybe add a `0` to the end")
+				"Float literal cannot end in a [.]",
+				Diagnostic::Info("Maybe add a [0] to the end")
 			);
 			return true;
 		}

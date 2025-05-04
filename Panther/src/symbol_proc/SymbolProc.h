@@ -276,9 +276,9 @@ namespace pcit::panther{
 			private:
 				evo::SmallVector<std::optional<SymbolProcTypeID>> types;
 
-				static_assert(
+				static_assert( // check that SymbolProcTypeID uses small std::optional optimization
 					sizeof(SymbolProcTypeID) == sizeof(std::optional<SymbolProcTypeID>),
-					"\"magically\" getting rid of the optional in `returns()` and `errorReturns()` is invalid"
+					"\"magically\" getting rid of the optional in `.returns()` and `.errorReturns()` is invalid"
 				);
 		};
 
@@ -299,6 +299,11 @@ namespace pcit::panther{
 		// stmt
 
 		struct Return{
+			const AST::Return& return_stmt;
+			std::optional<SymbolProcTermInfoID>	value;
+		};
+
+		struct LabeledReturn{
 			const AST::Return& return_stmt;
 			std::optional<SymbolProcTermInfoID>	value;
 		};
@@ -415,6 +420,18 @@ namespace pcit::panther{
 		};
 
 
+		struct BeginExprBlock{
+			const AST::Block& block;
+			Token::ID label;
+			evo::SmallVector<SymbolProcTypeID> output_types;
+		};
+
+		struct EndExprBlock{
+			const AST::Block& block;
+			SymbolProcTermInfoID output;
+		};
+
+
 		//////////////////
 		// accessors
 
@@ -515,6 +532,7 @@ namespace pcit::panther{
 
 			// stmt
 			Return,
+			LabeledReturn,
 			Error,
 			FuncCall,
 			Assignment,
@@ -539,6 +557,8 @@ namespace pcit::panther{
 			Copy,
 			Move,
 			TryElse,
+			BeginExprBlock,
+			EndExprBlock,
 
 			// accessors
 			Accessor<true>,

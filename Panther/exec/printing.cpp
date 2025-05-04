@@ -47,10 +47,10 @@ namespace pthr{
 			Indenter(core::Printer& _printer) : printer(_printer) {}
 			~Indenter() = default;
 
+
 			auto push() -> void {
 				this->indents.emplace_back(IndenterType::END_ARROW);
 			}
-
 
 			auto pop() -> void {
 				this->indents.pop_back();
@@ -639,7 +639,7 @@ namespace pthr{
 							this->indenter.pop();
 
 						}else if constexpr(std::is_same<ValueT, panther::Token::ID>()){
-							this->printer.printlnGray(" [...]");
+							this->printer.printlnGray(" {...}");
 
 						}else{
 							static_assert(sizeof(ValueT) < 0, "Unknown or unsupported return value kind");
@@ -736,13 +736,43 @@ namespace pthr{
 					this->print_ident(*block.label);
 
 					this->indenter.print_arrow();
-					this->print_minor_header("Label Explicit Type");
-					this->printer.print(" ");
-					if(block.labelExplicitType.has_value()){
-						this->print_type(this->source.getASTBuffer().getType(*block.labelExplicitType));
-						this->printer.println();
+					this->print_minor_header("Outputs");
+					if(block.outputs.empty()){
+						this->printer.printlnGray(" {NONE}");
 					}else{
-						this->printer.printlnGray("{NONE}");
+						this->printer.println();
+						this->indenter.push();
+						for(size_t i = 0; const panther::AST::Block::Output& output : block.outputs){
+							if(i + 1 < block.outputs.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+							this->print_major_header(std::format("Output Parameter {}", i));
+
+							this->indenter.push();
+
+							this->indenter.print_arrow();
+							this->print_minor_header("Identifier");
+							if(output.ident.has_value()){
+								this->printer.print(" ");
+								this->print_ident(*output.ident);
+							}else{
+								this->printer.printGray(" {NONE}\n");
+							}
+
+							this->indenter.print_end();
+							this->print_minor_header("Type");
+							this->printer.print(" ");
+							this->print_type(this->source.getASTBuffer().getType(output.typeID));
+							this->printer.println();
+
+							this->indenter.pop();
+
+							i += 1;
+						}
+						this->indenter.pop();
 					}
 
 				}else{

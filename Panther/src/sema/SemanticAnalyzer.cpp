@@ -36,7 +36,9 @@ namespace pcit::panther{
 		while(this->symbol_proc.being_worked_on.exchange(true)){
 			std::this_thread::yield();
 		}
-		EVO_DEFER([&](){ this->symbol_proc.being_worked_on = false; });
+		EVO_DEFER([&](){
+			evo::debugAssert(this->symbol_proc.being_worked_on == false, "Symbol Proc being worked on should be false");
+		});
 
 		while(this->symbol_proc.isAtEnd() == false){
 			evo::debugAssert(
@@ -61,6 +63,7 @@ namespace pcit::panther{
 						SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
 						if(struct_info.instantiation != nullptr){ struct_info.instantiation->errored = true; }
 					}
+					this->symbol_proc.being_worked_on = false;
 					return;
 				} break;
 
@@ -74,17 +77,26 @@ namespace pcit::panther{
 				} break;
 
 				case Result::NEED_TO_WAIT: {
+					const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
+					if(this->symbol_proc.waiting_for.empty()){ continue; } // prevent race condition
+
+					this->symbol_proc.being_worked_on = false;
 					return;
 				} break;
 
 				case Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR: {
+					const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
+					if(this->symbol_proc.waiting_for.empty()){ continue; } // prevent race condition
+
 					this->symbol_proc.nextInstruction();
+					this->symbol_proc.being_worked_on = false;
 					return;
 				} break;
 			}
 		}
 
 		this->context.trace("Finished semantic analysis of symbol: \"{}\"", this->symbol_proc.ident);
+		this->symbol_proc.being_worked_on = false;
 	}
 
 
@@ -137,6 +149,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Return>()){
 				return this->instr_return(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::LabeledReturn>()){
+				return this->instr_labeled_return(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Error>()){
 				return this->instr_error(instr);
@@ -204,6 +219,12 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::TryElse>()){
 				return this->instr_try_else(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::BeginExprBlock>()){
+				return this->instr_begin_expr_block(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::EndExprBlock>()){
+				return this->instr_end_expr_block(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::Accessor<true>>()){
 				return this->instr_expr_accessor<true>(instr);
 
@@ -263,7 +284,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_VAR_TYPE_VOID,
 				*instr.var_decl.type,
-				"Variables cannot be type `Void`"
+				"Variables cannot be type [Void]"
 			);
 			return Result::ERROR;
 		}
@@ -299,7 +320,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
 					instr.var_decl,
-					"Only `var` variables can be defined with an initializer value"
+					"Only [var] variables can be defined with an initializer value"
 				);
 				return Result::ERROR;
 			}
@@ -354,7 +375,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_MODULE_VAR_MUST_BE_DEF,
 					*instr.var_decl.value,
-					"Variable that has a module value must be declared as `def`"
+					"Variable that has a module value must be declared as [def]"
 				);
 				return Result::ERROR;
 			}
@@ -378,7 +399,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
 					instr.var_decl,
-					"Only `var` variables can be defined with an initializer value"
+					"Only [var] variables can be defined with an initializer value"
 				);
 				return Result::ERROR;
 			}else{
@@ -421,7 +442,7 @@ namespace pcit::panther{
 				Diagnostic::Code::SEMA_CANNOT_INFER_TYPE,
 				*instr.var_decl.value,
 				"Cannot infer the type of a fluid literal",
-				Diagnostic::Info("Did you mean this variable to be `def`? If not, give the variable an explicit type")
+				Diagnostic::Info("Did you mean this variable to be [def]? If not, give the variable an explicit type")
 			);
 			return Result::ERROR;
 		}
@@ -432,7 +453,7 @@ namespace pcit::panther{
 
 			if(got_type_info_id.isVoid()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_decl.type, "Variables cannot be type `Void`"
+					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_decl.type, "Variables cannot be type [Void]"
 				);
 				return Result::ERROR;
 			}
@@ -691,7 +712,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_ALIAS_CANNOT_BE_VOID,
 				instr.alias_decl.type,
-				"Alias cannot be type `Void`"
+				"Alias cannot be type [Void]"
 			);
 			return Result::ERROR;
 		}
@@ -779,7 +800,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_struct_def() -> Result {
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_struct_def: {}", this->symbol_proc.ident); });
 
-		this->pop_scope_level(); // TODO(FUTURE): needed?
+		this->pop_scope_level<>(); // TODO(FUTURE): needed?
 
 		this->propagate_finished_def();
 
@@ -815,7 +836,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 						template_param_info.param.type,
-						"Template parameter cannot be type `Void`"
+						"Template parameter cannot be type [Void]"
 					);
 					return Result::ERROR;
 				}
@@ -859,7 +880,7 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE,
 							*template_param_info.param.defaultValue,
-							"Default of a `Type` template parameter must be an type"
+							"Default of a [Type] template parameter must be an type"
 						);
 						return Result::ERROR;
 					}
@@ -938,7 +959,7 @@ namespace pcit::panther{
 			
 			evo::debugAssert(
 				symbol_proc_param_type_id.has_value() == (param.name.kind() != AST::Kind::THIS),
-				"`this` is the only must not have a type, and everything else must have a type"
+				"[this] is the only must not have a type, and everything else must have a type"
 			);
 
 
@@ -947,7 +968,7 @@ namespace pcit::panther{
 
 				if(param_type_id.isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_PARAM_TYPE_VOID, *param.type, "Function parameter cannot be type `Void`"
+						Diagnostic::Code::SEMA_PARAM_TYPE_VOID, *param.type, "Function parameter cannot be type [Void]"
 					);
 					return Result::ERROR;
 				}
@@ -985,7 +1006,7 @@ namespace pcit::panther{
 					min_num_args += 1;
 				}
 
-			}else{ // `this` param
+			}else{ // [this] param
 				const std::optional<sema::ScopeManager::Scope::ObjectScope> current_type_scope = 
 					this->scope.getCurrentTypeScopeIfExists();
 
@@ -994,7 +1015,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_SCOPE_FOR_THIS,
 						param.name,
-						"`this` parameters are only valid inside type scope"
+						"[this] parameters are only valid inside type scope"
 					);
 					return Result::ERROR;
 				}
@@ -1031,7 +1052,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
 						*ast_return_param.ident,
-						"A function return parameter that is type `Void` cannot be named"
+						"A function return parameter that is type [Void] cannot be named"
 					);
 					return Result::ERROR;
 				}
@@ -1040,7 +1061,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
 						ast_return_param.type,
-						"Only the first function return parameter can be type `Void`"
+						"Only the first function return parameter can be type [Void]"
 					);
 					return Result::ERROR;
 				}
@@ -1063,7 +1084,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
 						*ast_error_return_param.ident,
-						"A function error return parameter that is type `Void` cannot be named"
+						"A function error return parameter that is type [Void] cannot be named"
 					);
 					return Result::ERROR;
 				}
@@ -1072,7 +1093,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
 						ast_error_return_param.type,
-						"Only the first function error return parameter can be type `Void`"
+						"Only the first function error return parameter can be type [Void]"
 					);
 					return Result::ERROR;
 				}
@@ -1090,7 +1111,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ENTRY,
 					instr.func_decl.params[0],
-					"Functions with the `#entry` attribute cannot have parameters"
+					"Functions with the [#entry] attribute cannot have parameters"
 				);
 				return Result::ERROR;
 			}
@@ -1099,7 +1120,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ENTRY,
 					instr.func_decl.returns[0],
-					"Functions with the `#entry` attribute cannot have named returns"
+					"Functions with the [#entry] attribute cannot have named returns"
 				);
 				return Result::ERROR;
 			}
@@ -1108,7 +1129,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ENTRY,
 					instr.func_decl.returns[0].type,
-					"Functions with the `#entry` attribute must return `UI8`"
+					"Functions with the [#entry] attribute must return [UI8]"
 				);
 				return Result::ERROR;
 			}
@@ -1117,7 +1138,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ENTRY,
 					instr.func_decl.errorReturns[0],
-					"Functions with the `#entry` attribute cannot have error returns"
+					"Functions with the [#entry] attribute cannot have error returns"
 				);
 				return Result::ERROR;
 			}
@@ -1251,7 +1272,7 @@ namespace pcit::panther{
 					"Function isn't terminated",
 					Diagnostic::Info(
 						"A function is terminated when all control paths end in a [return], [error], [unreachable], "
-						"or a function call that has the attribute `#noReturn`"
+						"or a function call that has the attribute [#noReturn]"
 					)
 				);
 				return Result::ERROR;
@@ -1396,7 +1417,7 @@ namespace pcit::panther{
 			this->propagate_finished_pir_ready();
 		}
 
-		this->pop_scope_level(); // TODO(FUTURE): needed?
+		this->pop_scope_level<>(); // TODO(FUTURE): needed?
 
 		return Result::SUCCESS;
 	}
@@ -1421,7 +1442,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 						template_param_info.param.type,
-						"Template parameter cannot be type `Void`"
+						"Template parameter cannot be type [Void]"
 					);
 					return Result::ERROR;
 				}
@@ -1465,7 +1486,7 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE,
 							*template_param_info.param.defaultValue,
-							"Default of a `Type` template parameter must be an type"
+							"Default of a [Type] template parameter must be an type"
 						);
 						return Result::ERROR;
 					}
@@ -1505,16 +1526,9 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_return(const Instruction::Return& instr) -> Result {
-		if(this->check_scope_isnt_terminated(instr.return_stmt).isError()){ return Result::ERROR; }
+		evo::debugAssert(instr.return_stmt.label.has_value() == false, "Wrong instruction for a labeled return");
 
-		if(instr.return_stmt.label.has_value()){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.return_stmt.label.value(),
-				"return statements with labels are currently unsupported"
-			);
-			return Result::ERROR;
-		}
+		if(this->check_scope_isnt_terminated(instr.return_stmt).isError()){ return Result::ERROR; }
 
 		const sema::Func& current_func = this->get_current_func();
 		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
@@ -1526,7 +1540,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
-					"Functions that have a return type other than `Void` must return a value"
+					"Functions that have a return type other than [Void] must return a value"
 				);
 				return Result::ERROR;
 			}
@@ -1536,7 +1550,7 @@ namespace pcit::panther{
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Incorrect return statement kind for a function named return parameters",
-					Diagnostic::Info("Set all return values and use \"return...;\" instead")
+					Diagnostic::Info("Initialize/set all return values and use \"return...;\" instead")
 				);
 				return Result::ERROR;
 			}
@@ -1548,7 +1562,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
-					"Functions that have a return type of `Void` cannot return a value"
+					"Functions that have a return type of [Void] cannot return a value"
 				);
 				return Result::ERROR;
 			}
@@ -1557,8 +1571,8 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
-					"Incorrect return statement kind for a function named return parameters",
-					Diagnostic::Info("Set all return values and use \"return...;\" instead")
+					"Incorrect return statement kind for a function with named return parameters",
+					Diagnostic::Info("Initialize/set all return values and use \"return...;\" instead")
 				);
 				return Result::ERROR;
 			}
@@ -1593,7 +1607,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
-					"Functions that have a return type of `Void` cannot return a value"
+					"Functions that have a return type of [Void] cannot return a value"
 				);
 				return Result::ERROR;
 			}
@@ -1609,10 +1623,120 @@ namespace pcit::panther{
 			}
 		}
 
-		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(return_value);
+		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(return_value, std::nullopt);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
 		this->get_current_scope_level().setTerminated();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result {
+		evo::debugAssert(instr.return_stmt.label.has_value(), "Not a labeled return");
+
+		const Token::ID target_label_id = ASTBuffer::getIdent(*instr.return_stmt.label);
+		sema::ScopeLevel::ID scope_level_id = sema::ScopeLevel::ID::dummy();
+		const sema::ScopeLevel* scope_level = nullptr;
+
+		const std::string_view return_label = this->source.getTokenBuffer()[target_label_id].getString();
+
+		///////////////////////////////////
+		// find scope level
+
+		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+			EVO_DEFER([&](){ i -= 1; });
+
+			if(i == this->scope.getCurrentObjectScopeIndex()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_RETURN_LABEL_NOT_FOUND,
+					*instr.return_stmt.label,
+					std::format("Label \"{}\" not found", return_label)
+				);
+				return Result::ERROR;
+			}
+
+			scope_level = &this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+			if(scope_level->hasLabel() == false){ continue; }
+		
+			const std::string_view scope_label = this->source.getTokenBuffer()[scope_level->getLabel()].getString();
+
+			if(return_label == scope_label){ break; }
+		}
+
+
+		///////////////////////////////////
+		// analyze return value(s)
+
+		const sema::BlockExpr& target_block_expr = this->context.getSemaBuffer().getBlockExpr(
+			scope_level->getLabelNode().as<sema::BlockExpr::ID>()
+		);
+
+		auto return_value = std::optional<sema::Expr>();
+		if(instr.return_stmt.value.is<std::monostate>()){ // return;
+			this->emit_error(
+				Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
+				instr.return_stmt,
+				"Expression block must return a value"
+			);
+			return Result::ERROR;
+
+		}else if(instr.return_stmt.value.is<AST::Node>()){ // return {EXPRESSION};
+			evo::debugAssert(instr.value.has_value(), "Return value needs to have value analyzed");
+
+			if(target_block_expr.hasNamedOutputs()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
+					instr.return_stmt,
+					"Incorrect return statement kind for an expression block with named outputs",
+					Diagnostic::Info("Initialize/set all return values and use \"return...;\" instead")
+				);
+				return Result::ERROR;
+			}
+
+
+			TermInfo& return_value_term = this->get_term_info(*instr.value);
+
+			if(return_value_term.is_ephemeral() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
+					instr.return_stmt.value.as<AST::Node>(),
+					"Value of return statement is not ephemeral"
+				);
+				return Result::ERROR;
+			}
+
+			if(this->type_check<true>(
+				target_block_expr.outputs.front().typeID,
+				return_value_term,
+				"Labeled return",
+				instr.return_stmt.value.as<AST::Node>()
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			return_value = return_value_term.getExpr();
+			
+		}else{ // return...;
+			evo::debugAssert(instr.return_stmt.value.is<Token::ID>(), "Unknown return kind");
+			evo::debugAssert(instr.value.has_value() == false, "`return...;` should not have return value");
+
+			if(target_block_expr.hasNamedOutputs() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
+					instr.return_stmt,
+					"Incorrect return statement kind for single unnamed output value",
+					Diagnostic::Info("Use \"return {EXPRESSION};\" instead")
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(return_value, target_label_id);
+
+		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
+		this->get_current_scope_level().setLabelTerminated();
 
 		return Result::SUCCESS;
 	}
@@ -2622,7 +2746,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_COPY_ARG_NOT_CONCRETE,
 				instr.prefix,
-				"Argument of operator `copy` must be concrete"
+				"Argument of operator [copy] must be concrete"
 			);
 			return Result::ERROR;
 		}
@@ -2646,13 +2770,13 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_MOVE_ARG_NOT_CONCRETE,
 					instr.prefix,
-					"Argument of operator `move` must be concrete"
+					"Argument of operator [move] must be concrete"
 				);
 			}else{
 				this->emit_error(
 					Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
 					instr.prefix,
-					"Argument of operator `move` must be mutable"
+					"Argument of operator [move] must be mutable"
 				);
 			}
 
@@ -2733,6 +2857,118 @@ namespace pcit::panther{
 		);
 		return Result::SUCCESS;
 	}
+
+
+
+
+	auto SemanticAnalyzer::instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result {
+		const sema::BlockExpr::ID sema_block_expr_id = this->context.sema_buffer.createBlockExpr(instr.label);
+		sema::BlockExpr& sema_block_expr = this->context.sema_buffer.block_exprs[sema_block_expr_id];
+
+		///////////////////////////////////
+		// check for label reuse
+
+		const std::string_view label_str = this->source.getTokenBuffer()[instr.label].getString();
+		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+			EVO_DEFER([&](){ i -= 1; });
+
+			if(i == this->scope.getCurrentObjectScopeIndex()){ break; }
+
+			const sema::ScopeLevel& target_scope_level = 
+				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+
+			if(target_scope_level.hasLabel() == false){ continue; }
+
+			if(label_str == this->source.getTokenBuffer()[target_scope_level.getLabel()].getString()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE,
+					instr.label,
+					std::format("Label \"{}\" was already defined in this scope", label_str),
+					Diagnostic::Info("First defined here:", this->get_location(target_scope_level.getLabel()))
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+		///////////////////////////////////
+		// build outputs
+
+		this->push_scope_level(sema_block_expr.block, instr.label, sema_block_expr_id);
+
+		sema_block_expr.outputs.reserve(instr.output_types.size());
+		for(size_t i = 0; const SymbolProc::TypeID& output_type_id : instr.output_types){
+			const TypeInfo::VoidableID output_type = this->get_type(output_type_id);
+
+			if(output_type.isVoid()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
+					instr.block.outputs[i].typeID,
+					"Block expression output cannot be type [Void]"
+				);
+				return Result::ERROR;
+			}
+
+			sema_block_expr.outputs.emplace_back(output_type.asTypeID(), instr.block.outputs[i].ident);
+
+			if(instr.block.outputs[i].ident.has_value()){
+				const std::string_view ident_str = 
+					this->source.getTokenBuffer()[*instr.block.outputs[i].ident].getString();
+
+				const sema::BlockExprOutput::ID block_expr_output = 
+					this->context.sema_buffer.createBlockExprOutput(uint32_t(i), instr.label, output_type.asTypeID());
+
+				if(this->add_ident_to_scope(ident_str, *instr.block.outputs[i].ident, block_expr_output).isError()){
+					return Result::ERROR;
+				}
+			}
+
+			i += 1;
+		}
+
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result {
+		if(this->get_current_scope_level().isTerminated() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_BLOCK_EXPR_NOT_TERMINATED, instr.block, "Block expression not terminated"
+			);
+			return Result::ERROR;
+		}
+
+		const sema::BlockExpr::ID sema_block_expr_id =
+			this->get_current_scope_level().getLabelNode().as<sema::BlockExpr::ID>();
+		const sema::BlockExpr& sema_block_expr = this->context.sema_buffer.getBlockExpr(sema_block_expr_id);
+
+		if(sema_block_expr.outputs.size() == 1){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				sema_block_expr.outputs[0].typeID,
+				sema::Expr(sema_block_expr_id)
+			);
+		}else{
+			auto types = evo::SmallVector<TypeInfo::ID>();
+			types.reserve(sema_block_expr.outputs.size());
+			for(const sema::BlockExpr::Output& output : sema_block_expr.outputs){
+				types.emplace_back(output.typeID);
+			}
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				TermInfo::ValueStage::COMPTIME, // TODO(FUTURE): select correct based on function?
+				std::move(types),
+				sema::Expr(sema_block_expr_id)
+			);
+		}
+
+
+		this->pop_scope_level<true>();
+		return Result::SUCCESS;
+	}
+
+
 
 
 	auto SemanticAnalyzer::instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result {
@@ -2902,7 +3138,7 @@ namespace pcit::panther{
 							this->emit_error(
 								Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 								ast_template_pack.params[i].type,
-								"Template parameter cannot be type `Void`"
+								"Template parameter cannot be type [Void]"
 							);
 							return evo::resultError;
 						}
@@ -3336,7 +3572,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 					instr.infix.lhs,
-					"Accessor operator of type `Void` is invalid"
+					"Accessor operator of type [Void] is invalid"
 				);
 				return Result::ERROR;
 			}
@@ -3463,7 +3699,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					instr.ast_type,
-					"Type `This` is unimplemented"
+					"Type [This] is unimplemented"
 				);
 				return Result::ERROR;
 			} break;
@@ -3524,7 +3760,7 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::TYPE: {
 				evo::debugAssert(
 					this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
-					"`Void` is not a user-type"
+					"[Void] is not a user-type"
 				);
 				base_type_id = term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
 			} break;
@@ -3745,36 +3981,65 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block) -> void {
+	auto SemanticAnalyzer::push_scope_level() -> void {
 		if(this->scope.inObjectScope()){
 			this->get_current_scope_level().addSubScope();
 		}
-		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block));
+		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel());
+	}
+
+	auto SemanticAnalyzer::push_scope_level(
+		sema::StmtBlock& stmt_block, Token::ID label, sema::ScopeLevel::LabelNode label_node
+	) -> void {
+		if(this->scope.inObjectScope()){
+			this->get_current_scope_level().addSubScope();
+		}
+		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block, label, label_node));
 	}
 
 	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block, const auto& object_scope_id) -> void {
-		// if(this->scope.inObjectScope()){
-			this->get_current_scope_level().addSubScope();
-		// }
+		this->get_current_scope_level().addSubScope();
 		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block), object_scope_id);
 	}
 
+
+	template<bool IS_LABEL_TERMINATE>
 	auto SemanticAnalyzer::pop_scope_level() -> void {
 		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
 		const bool current_scope_is_terminated = current_scope_level.isTerminated();
 
 		if(
-			current_scope_level.hasStmtBlock()                      &&
-			current_scope_level.stmtBlock().isTerminated() == false &&
-			current_scope_level.isTerminated()
+			current_scope_level.hasStmtBlock()
+			&& current_scope_level.stmtBlock().isTerminated() == false
+			&& current_scope_level.isTerminated()
 		){
 			current_scope_level.stmtBlock().setTerminated();
 		}
 
-		this->scope.popLevel(); // `current_scope_level` is now invalid
+		if constexpr(IS_LABEL_TERMINATE){
+			const bool current_scope_is_label_terminated = current_scope_level.isLabelTerminated();
 
-		if(current_scope_is_terminated && this->scope.inObjectScope() && !this->scope.inObjectMainScope()){
-			this->get_current_scope_level().setSubScopeTerminated();
+			this->scope.popLevel(); // `current_scope_level` is now invalid
+
+			if(
+				current_scope_is_terminated
+				&& this->scope.inObjectScope()
+				&& !this->scope.inObjectMainScope()
+				&& current_scope_is_label_terminated == false
+
+			){
+				this->get_current_scope_level().setSubScopeTerminated();
+			}
+		}else{
+			this->scope.popLevel(); // `current_scope_level` is now invalid
+
+			if(
+				current_scope_is_terminated
+				&& this->scope.inObjectScope()
+				&& !this->scope.inObjectMainScope()
+			){
+				this->get_current_scope_level().setSubScopeTerminated();
+			}
 		}
 	}
 
@@ -4087,6 +4352,24 @@ namespace pcit::panther{
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
 						return_param.typeID.asTypeID(),
+						sema::Expr(ident_id)
+					)
+				);
+
+			}else if constexpr(std::is_same<IdentIDType, sema::BlockExprOutput::ID>()){
+				const sema::Func& current_func = this->get_current_func();
+
+				const sema::BlockExprOutput& sema_block_expr_output =
+					this->context.getSemaBuffer().getBlockExprOutput(ident_id);
+
+				const sema::BlockExpr::ID block_expr_id = scope_level.getLabelNode().as<sema::BlockExpr::ID>();
+				const sema::BlockExpr& block_expr = this->context.getSemaBuffer().getBlockExpr(block_expr_id);
+
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::CONCRETE_MUT,
+						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						block_expr.outputs[sema_block_expr_output.index].typeID,
 						sema::Expr(ident_id)
 					)
 				);
@@ -4700,12 +4983,12 @@ namespace pcit::panther{
 
 							case AST::FuncDecl::Param::Kind::MUT: {
 								sub_infos.emplace_back(
-									"`mut` parameters can only accept values that are concrete and mutable"
+									"[mut] parameters can only accept values that are concrete and mutable"
 								);
 							} break;
 
 							case AST::FuncDecl::Param::Kind::IN: {
-								sub_infos.emplace_back("`in` parameters can only accept ephemeral values");
+								sub_infos.emplace_back("[in] parameters can only accept ephemeral values");
 							} break;
 						}
 
@@ -5408,13 +5691,10 @@ namespace pcit::panther{
 				TypeInfo::ID actual_got_type_id = TypeInfo::ID::dummy();
 				if(got_expr.isMultiValue()){
 					if(multi_type_index.has_value() == false){
-						auto name_copy = std::string(expected_type_location_name);
-						name_copy[0] = char(std::tolower(int(name_copy[0])));
-
 						this->emit_error(
 							Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
 							location,
-							std::format("Cannot set {} with multiple values", name_copy)
+							std::format("{} cannot accept multiple values", expected_type_location_name)
 						);
 						return TypeCheckInfo::fail();
 					}

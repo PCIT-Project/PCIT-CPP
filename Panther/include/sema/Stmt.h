@@ -126,19 +126,39 @@ namespace pcit::panther::sema{
 
 
 	class StmtBlock{
-		public:
-			StmtBlock() : stmts(), _is_terminated(false){}
+		enum class TerminatedKind{
+			TERMINATED,
+			LABEL_TERMINATED, // for example, through `return->label 12;`
+			NOT_TERMINATED,
+		};
 
-			StmtBlock(evo::SmallVector<Stmt>&& statements, bool is_terminated = false)
-				: stmts(std::move(statements)), _is_terminated(is_terminated) {}
+		public:
+			StmtBlock() : stmts(), terminated_kind(TerminatedKind::NOT_TERMINATED){}
+
+			// TODO(FUTURE): is this constructor needed?
+			// StmtBlock(evo::SmallVector<Stmt>&& statements, bool is_terminated = false)
+			// 	: stmts(std::move(statements)), terminated_kind(is_terminated) {}
 
 			~StmtBlock() = default;
 
+			
+			EVO_NODISCARD auto isTerminated() const -> bool {
+				return this->terminated_kind != TerminatedKind::NOT_TERMINATED;
+			}
 
-			EVO_NODISCARD auto isTerminated() const -> bool { return this->_is_terminated; }
+			EVO_NODISCARD auto isLabelTerminated() const -> bool {
+				return this->terminated_kind == TerminatedKind::LABEL_TERMINATED;
+			}
+			
+
 			auto setTerminated() -> void {
 				evo::debugAssert(this->isTerminated() == false, "already terminated");
-				this->_is_terminated = true;
+				this->terminated_kind = TerminatedKind::TERMINATED;
+			}
+
+			auto setLabelTerminated() -> void {
+				evo::debugAssert(this->isTerminated() == false, "already terminated");
+				this->terminated_kind = TerminatedKind::LABEL_TERMINATED;
 			}
 
 
@@ -160,7 +180,7 @@ namespace pcit::panther::sema{
 	
 		private:
 			evo::SmallVector<Stmt> stmts;
-			bool _is_terminated;
+			TerminatedKind terminated_kind;
 	};
 
 

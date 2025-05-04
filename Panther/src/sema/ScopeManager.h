@@ -77,6 +77,7 @@ namespace pcit::panther::sema{
 
 					// note: these are purposely reverse iterators
 					// TODO(PERF): figure out if doing lookup in reverse is indeed faster
+					//             	If not, make sure to fix any place that assumes going in reverse
 
 					EVO_NODISCARD auto begin() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
 						return this->scope_levels.rbegin();
@@ -207,8 +208,8 @@ namespace pcit::panther::sema{
 				return this->levels[id];
 			}
 
-			EVO_NODISCARD auto createLevel(sema::StmtBlock* stmt_block = nullptr) -> ScopeLevel::ID {
-				return this->levels.emplace_back(stmt_block);
+			EVO_NODISCARD auto createLevel(auto&&... args) -> ScopeLevel::ID {
+				return this->levels.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
 	

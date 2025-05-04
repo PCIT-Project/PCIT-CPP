@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.109.0"></a>
+## v0.0.109.0
+
+### Panther
+- Added block expressions
+- Allowed `this` parameters to have default parameter kind (`read`)
+- Changed syntax of block expressions to allow for returning multiple values
+- Fixed race condition in semantic analysis
+
+### PCIT_core
+- Fixed race condition in `ThreadQueue::isWorking()`
+
+
+<!---------------------------------->
 <a name="v0.0.108.1"></a>
 ## v0.0.108.1
 

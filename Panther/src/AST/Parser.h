@@ -66,8 +66,10 @@ namespace pcit::panther{
 				private:
 					Code result_code;
 
+					struct DummyData{ evo::byte dummy_data[1]; };
+
 					union { // hack to allow for the node to be unitialized
-						evo::byte dummy_data[1];
+						DummyData dummy_data;
 						AST::Node node;
 					};
 			};
