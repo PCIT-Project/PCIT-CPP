@@ -97,7 +97,7 @@ namespace pcit::llvmint{
 	///
 	class [[nodiscard]] APInt {
 	public:
-		typedef uint64_t WordType;
+		using WordType = uint64_t;
 
 		/// This enum is used to hold the constants we needed for APInt.
 		enum : unsigned {

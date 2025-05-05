@@ -262,7 +262,7 @@ namespace pcit::pir{
 			auto createMemcpy(const Expr& dst, const Expr& src, const Expr& num_bytes, bool is_volatile) const -> Expr;
 
 			auto createMemcpy(const Expr& dst, const Expr& src, const Type& src_type, bool is_volatile) const -> Expr {
-				return this->createMemcpy(dst, src, this->module.getSize(src_type, true) * 8, is_volatile);
+				return this->createMemcpy(dst, src, this->module.getSize(src_type, true), is_volatile);
 			}
 
 			auto createMemcpy(const Expr& dst, const Expr& src, size_t num_bytes, bool is_volatile) const -> Expr {

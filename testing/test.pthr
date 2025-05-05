@@ -1,17 +1,29 @@
 
 
+func get_num = () #runtime -> UI8 <a: UI8, b: UI8> {
+	a = 10;
+	b = 12;
+	error...;
+	// return 12;
+}
+
+
+func get_num_2 = () #runtime -> UI8 <Void> {
+	return copy foo;
+	// error;
+}
+
+
+
 var foo: UI8 = 0;
 
 func entry = () #entry -> UI8 {
-	foo = {->expr:UI8
-		return->expr {->sub_expr:UI8
-			return->sub_expr 12;
-		};
+	foo = try get_num() else<_, b> {->expr:UI8
+		return->expr (move b);
 	};
 
-	return {->ret:(output: UI8)
-		output = copy foo;
-		return->ret ...;
-	};
+
+	foo = try get_num_2() else 154;
+
+	return copy foo;
 }
-

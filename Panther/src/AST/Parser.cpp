@@ -1184,14 +1184,56 @@ namespace pcit::panther{
 		}
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
-			if(this->assert_token_fail(Token::Kind::KEYWORD_ELSE)){ return Result::Code::ERROR; }
+			const Token::ID else_token_id = this->reader.next();
 
-			const Result except_expr = this->parse_term<TermKind::EXPR>();
+			auto except_params = evo::SmallVector<Token::ID>();
+
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
+				if(this->assert_token_fail(Token::lookupKind("<"))){ return Result::Code::ERROR; }
+
+				while(true){
+					if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
+						if(this->assert_token_fail(Token::lookupKind(">"))){ return Result::Code::ERROR; }
+						break;
+					}
+
+
+					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
+						except_params.emplace_back(this->reader.next());
+
+					}else{
+						const Result ident = this->parse_ident();
+						if(this->check_result_fail(ident, "identifier in except parameter block")){
+							return Result::Code::ERROR;
+						}
+
+						except_params.emplace_back(ASTBuffer::getIdent(ident.value()));
+					}
+
+					// check if ending or should continue
+					const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+					if(after_arg_next_token_kind != Token::lookupKind(",")){
+						if(after_arg_next_token_kind != Token::lookupKind(">")){
+							this->expected_but_got(
+								"[,] at end of except parameter or [>] at end of except parameter block",
+								this->reader.peek(-1)
+							);
+							return Result::Code::ERROR;
+						}
+
+						break;
+					}
+				}
+			}
+
+			const Result except_expr = this->parse_expr();
 			if(this->check_result_fail(except_expr, "except expression in try/else expression")){
 				return Result::Code::ERROR;
 			}
 
-			return this->source.ast_buffer.createTryElse(attempt_expr.value(), except_expr.value());
+			return this->source.ast_buffer.createTryElse(
+				attempt_expr.value(), except_expr.value(), std::move(except_params), else_token_id
+			);
 		}
 
 		this->context.emitError(

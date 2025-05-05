@@ -60,7 +60,9 @@ namespace pcit::panther::sema{
 				sema::GlobalVarID,
 				sema::ParamID,
 				sema::ReturnParamID,
+				sema::ErrorReturnParamID,
 				sema::BlockExprOutputID,
+				sema::ExceptParamID,
 				ModuleInfo,
 				BaseType::AliasID,
 				BaseType::TypedefID,
@@ -119,7 +121,9 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::GlobalVarID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ReturnParamID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ErrorReturnParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::BlockExprOutputID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ExceptParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub)
 				-> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult;

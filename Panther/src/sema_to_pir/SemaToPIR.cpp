@@ -220,9 +220,11 @@ namespace pcit::panther{
 			};
 
 			if(this->data.getConfig().useReadableNames){
-				params.emplace_back("ERR", this->module.createPtrType());
+				params.emplace_back("ERR", this->module.createPtrType(), std::move(attributes));
 			}else{
-				params.emplace_back(std::format(".{}", params.size()), this->module.createPtrType());
+				params.emplace_back(
+					std::format(".{}", params.size()), this->module.createPtrType(), std::move(attributes)
+				);
 			}
 		}
 
@@ -330,6 +332,7 @@ namespace pcit::panther{
 		this->current_func_type = nullptr;
 
 		this->pop_scope_level();
+		this->local_func_exprs.clear();
 	}
 
 
@@ -1339,7 +1342,6 @@ namespace pcit::panther{
 					this->context.getSemaBuffer().getFunc(attempt_func_call.target.as<sema::Func::ID>()).typeID
 				);
 
-
 				const pir::Expr return_address = [&](){
 					if constexpr(MODE == GetExprMode::STORE){
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
@@ -1351,6 +1353,34 @@ namespace pcit::panther{
 
 
 				args.emplace_back(return_address);
+
+				if(target_type.errorParams[0].typeID.isVoid() == false){
+					const pir::Expr error_value = this->agent.createAlloca(
+						*target_func_info.error_return_type, this->name("ERR.ALLOCA")
+					);
+
+					for(const sema::ExceptParam::ID except_param_id : try_else.exceptParams){
+						const sema::ExceptParam& except_param =
+							this->context.getSemaBuffer().getExceptParam(except_param_id);
+
+						const pir::Expr except_param_pir_expr = this->agent.createCalcPtr(
+							error_value,
+							*target_func_info.error_return_type,
+							evo::SmallVector<pir::CalcPtr::Index>{
+								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+							},
+							this->name(
+								"EXCEPT_PARAM.{}",
+								this->current_source->getTokenBuffer()[
+									this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+								].getString()
+							)
+						);
+						this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+					}
+
+					args.emplace_back(error_value);
+				}
 
 				const pir::Expr attempt = this->agent.createCall(target_func_info.pir_id, std::move(args));
 
@@ -1457,10 +1487,52 @@ namespace pcit::panther{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
 					const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
+
 					this->agent.createMemcpy(
 						store_locations[0],
 						this->agent.createParamExpr(sema_return_param.abiIndex),
 						current_func.getParameters()[sema_return_param.index].getType(),
+						false
+					);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
+			} break;
+
+
+			case sema::Expr::Kind::ERROR_RETURN_PARAM: {
+				const sema::ErrorReturnParam& sema_error_param =
+					this->context.getSemaBuffer().getErrorReturnParam(expr.errorReturnParamID());
+
+				const pir::Expr calc_ptr = this->agent.createCalcPtr(
+					this->agent.createParamExpr(sema_error_param.abiIndex),
+					*this->current_func_info->error_return_type,
+					evo::SmallVector<pir::CalcPtr::Index>{
+						pir::CalcPtr::Index(0),
+						pir::CalcPtr::Index(sema_error_param.index)
+					}
+				);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createLoad(
+						calc_ptr,
+						this->get_type(this->current_func_type->errorParams[sema_error_param.index].typeID.asTypeID()),
+						false,
+						pir::AtomicOrdering::NONE
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return calc_ptr;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+					this->agent.createMemcpy(
+						store_locations[0],
+						calc_ptr,
+						this->get_type(this->current_func_type->errorParams[sema_error_param.index].typeID.asTypeID()),
 						false
 					);
 					return std::nullopt;
@@ -1508,6 +1580,35 @@ namespace pcit::panther{
 					}
 
 					break;
+				}
+			} break;
+
+
+			case sema::Expr::Kind::EXCEPT_PARAM: {
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createLoad(
+						this->local_func_exprs.at(expr),
+						this->get_type(this->context.getSemaBuffer().getExceptParam(expr.exceptParamID()).typeID),
+						false,
+						pir::AtomicOrdering::NONE
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->local_func_exprs.at(expr);
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+					this->agent.createMemcpy(
+						store_locations[0],
+						this->local_func_exprs.at(expr),
+						this->get_type(this->context.getSemaBuffer().getExceptParam(expr.exceptParamID()).typeID),
+						false
+					);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
 				}
 			} break;
 
@@ -1969,13 +2070,16 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT: case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:       case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:         case sema::Expr::Kind::MOVE:       case sema::Expr::Kind::FORWARD:
-			case sema::Expr::Kind::FUNC_CALL:    case sema::Expr::Kind::ADDR_OF:    case sema::Expr::Kind::DEREF:
-			case sema::Expr::Kind::TRY_ELSE:     case sema::Expr::Kind::BLOCK_EXPR: case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM: case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::GLOBAL_VAR:   case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:               case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:            case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:            case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::TRY_ELSE:           case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::PARAM:              case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM: case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:       case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

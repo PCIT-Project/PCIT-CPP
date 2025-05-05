@@ -299,6 +299,8 @@ namespace pcit::panther::AST{
 	struct TryElse{
 		Node attemptExpr;
 		Node exceptExpr;
+		evo::SmallVector<Token::ID> exceptParams;
+		Token::ID elseTokenID;
 	};
 
 

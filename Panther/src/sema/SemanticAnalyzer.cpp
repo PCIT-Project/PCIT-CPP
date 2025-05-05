@@ -216,6 +216,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Move>()){
 				return this->instr_move(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::PrepareTryHandler>()){
+				return this->instr_prepare_try_handler(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::TryElse>()){
 				return this->instr_try_else(instr);
 
@@ -1240,6 +1243,27 @@ namespace pcit::panther{
 					}
 
 					abi_index += 1;
+				}
+			}
+
+
+			if(func_type.hasNamedErrorReturns()){
+				// account for the RET param
+				if(func_type.returnsVoid() == false && func_type.hasNamedReturns() == false){
+					abi_index += 1;
+				}
+
+				
+				for(uint32_t i = 0; const AST::FuncDecl::Return& error_return_param : instr.func_decl.errorReturns){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(this->add_ident_to_scope(
+						this->source.getTokenBuffer()[*error_return_param.ident].getString(),
+						error_return_param,
+						this->context.sema_buffer.createErrorReturnParam(i, abi_index)
+					).isError()){
+						return Result::ERROR;
+					}
 				}
 			}
 		}
@@ -2795,9 +2819,107 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result {
+		this->push_scope_level();
+
+		const SemaBuffer& sema_buffer = this->context.getSemaBuffer();
+
+		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
+		const sema::FuncCall& attempt_func_call = sema_buffer.getFuncCall(attempt_expr.getExpr().funcCallID());
+		const BaseType::Function& attempt_func_type = attempt_func_call.target.visit(
+			[&](const auto& target) -> const BaseType::Function& {
+			using Target = std::decay_t<decltype(target)>;
+
+			if constexpr(std::is_same<Target, sema::Func::ID>()){
+				return this->context.getTypeManager().getFunction(sema_buffer.getFunc(target).typeID);
+				
+			}else if constexpr(std::is_same<Target, IntrinsicFunc::Kind>()){
+				const TypeInfo::ID type_info_id = this->context.getIntrinsicFuncInfo(target).typeID;
+				const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_info_id);
+				return this->context.getTypeManager().getFunction(type_info.baseTypeID().funcID());
+				
+			}else if constexpr(std::is_same<Target, sema::TemplateIntrinsicFuncInstantiation::ID>()){
+				const sema::TemplateIntrinsicFuncInstantiation& instantiation =
+					this->context.getSemaBuffer().getTemplateIntrinsicFuncInstantiation(target);
+
+				const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
+					this->context.getTemplateIntrinsicFuncInfo(instantiation.kind);
+
+				auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
+				instantiation_args.reserve(instantiation.templateArgs.size());
+				using TemplateArg = evo::Variant<TypeInfo::VoidableID, core::GenericValue>;
+				for(const TemplateArg& template_arg : instantiation.templateArgs){
+					if(template_arg.is<TypeInfo::VoidableID>()){
+						instantiation_args.emplace_back(template_arg.as<TypeInfo::VoidableID>());
+					}else{
+						instantiation_args.emplace_back();
+					}
+				}
+
+				return this->context.getTypeManager().getFunction(
+					this->context.type_manager.getOrCreateFunction(
+						template_intrinsic_func_info.getTypeInstantiation(instantiation_args)
+					).funcID()
+				);
+				
+			}else{
+				static_assert(false, "Unsupported func call target");
+			}
+		});
+
+
+		if(
+			attempt_func_type.errorParams.size() != instr.except_params.size()
+			&& attempt_func_type.errorParams[0].typeID.isVoid() == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TRY_EXCEPT_PARAMS_WRONG_NUM,
+				instr.handler_kind_token_id,
+				"Number of except parameters does not match attempt function call",
+				Diagnostic::Info(
+					std::format("Expected {}, got {}", attempt_func_type.errorParams.size(), instr.except_params.size())
+				)
+			);
+			return Result::ERROR;
+		}
+
+		auto except_params = evo::SmallVector<sema::Expr>();
+		except_params.reserve(instr.except_params.size());
+		for(size_t i = 0; i < instr.except_params.size(); i+=1){
+			const Token& except_param_token = this->source.getTokenBuffer()[instr.except_params[i]];
+
+			if(except_param_token.kind() == Token::lookupKind("_")){
+				except_params.emplace_back(sema::Expr::createNone());
+				continue;
+			}
+
+			const std::string_view except_param_ident_str = except_param_token.getString();
+
+			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
+				instr.except_params[i], uint32_t(i), attempt_func_type.errorParams[i].typeID.asTypeID()
+			);
+			except_params.emplace_back(sema::Expr(except_param_id));
+
+			if(this->add_ident_to_scope(except_param_ident_str, instr.except_params[i], except_param_id).isError()){
+				return Result::ERROR;
+			}
+		}
+
+		this->return_term_info(instr.output_except_params,
+			TermInfo::ValueCategory::EXCEPT_PARAM_PACK,
+			this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+			TermInfo::ExceptParamPack{},
+			std::move(except_params)
+		);
+		return Result::SUCCESS;
+	}
+
+
 	auto SemanticAnalyzer::instr_try_else(const Instruction::TryElse& instr) -> Result {
 		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
 		TermInfo& except_expr = this->get_term_info(instr.except_expr);
+
+		EVO_DEFER([&](){ this->pop_scope_level(); });
 
 		if(attempt_expr.value_category != TermInfo::ValueCategory::EPHEMERAL){
 			this->emit_error(
@@ -2826,6 +2948,15 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(except_expr.is_ephemeral() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TRY_ELSE_EXCEPT_NOT_EPHEMERAL,
+				instr.try_else.exceptExpr,
+				"Except in try/else expression is not function call"
+			);
+			return Result::ERROR;
+		}
+
 		if(this->type_check<true>(
 			attempt_expr.type_id.as<TypeInfo::ID>(),
 			except_expr,
@@ -2834,6 +2965,16 @@ namespace pcit::panther{
 		).ok == false){
 			return Result::ERROR;
 		}
+
+		const TermInfo& except_params_term_info = this->get_term_info(instr.except_params);
+		auto except_params = evo::SmallVector<sema::ExceptParam::ID>();
+		except_params.reserve(except_params_term_info.getExceptParamPack().size());
+		for(const sema::Expr& except_param : except_params_term_info.getExceptParamPack()){
+			if(except_param.kind() == sema::Expr::Kind::EXCEPT_PARAM){
+				except_params.emplace_back(except_param.exceptParamID());
+			}
+		}
+
 
 		using ValueStage = TermInfo::ValueStage;
 		const ValueStage value_stage = [&](){
@@ -2848,12 +2989,15 @@ namespace pcit::panther{
 			return TermInfo::ValueStage::RUNTIME;
 		}();
 
-
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			value_stage,
 			attempt_expr.type_id,
-			sema::Expr(this->context.sema_buffer.createTryElse(attempt_expr.getExpr(), except_expr.getExpr()))
+			sema::Expr(
+				this->context.sema_buffer.createTryElse(
+					attempt_expr.getExpr(), except_expr.getExpr(), std::move(except_params)
+				)
+			)
 		);
 		return Result::SUCCESS;
 	}
@@ -2957,7 +3101,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				TermInfo::ValueStage::COMPTIME, // TODO(FUTURE): select correct based on function?
+				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
 				std::move(types),
 				sema::Expr(sema_block_expr_id)
 			);
@@ -4356,6 +4500,23 @@ namespace pcit::panther{
 					)
 				);
 
+			}else if constexpr(std::is_same<IdentIDType, sema::ErrorReturnParamID>()){
+				const sema::Func& current_func = this->get_current_func();
+				const BaseType::Function& current_func_type = 
+					this->context.getTypeManager().getFunction(current_func.typeID);
+				const BaseType::Function::ReturnParam& error_param = current_func_type.errorParams[
+					this->context.getSemaBuffer().getErrorReturnParam(ident_id).index
+				];
+
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::CONCRETE_MUT,
+						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						error_param.typeID.asTypeID(),
+						sema::Expr(ident_id)
+					)
+				);
+
 			}else if constexpr(std::is_same<IdentIDType, sema::BlockExprOutput::ID>()){
 				const sema::Func& current_func = this->get_current_func();
 
@@ -4370,6 +4531,19 @@ namespace pcit::panther{
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
 						block_expr.outputs[sema_block_expr_output.index].typeID,
+						sema::Expr(ident_id)
+					)
+				);
+
+			}else if constexpr(std::is_same<IdentIDType, sema::ExceptParam::ID>()){
+				const sema::Func& current_func = this->get_current_func();
+
+				const sema::ExceptParam& except_param = this->context.getSemaBuffer().getExceptParam(ident_id);
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::CONCRETE_MUT,
+						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						except_param.typeID,
 						sema::Expr(ident_id)
 					)
 				);
@@ -5133,7 +5307,9 @@ namespace pcit::panther{
 				func_info.getTypeInstantiation(instantiation_args)
 			);
 
-			func_infos.emplace_back(std::nullopt, this->context.getTypeManager().getFunction(instantiated_type.funcID()));
+			func_infos.emplace_back(
+				std::nullopt, this->context.getTypeManager().getFunction(instantiated_type.funcID())
+			);
 
 		}else{
 			this->emit_error(
@@ -6414,6 +6590,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<TypeID, TermInfo::TemplateDeclInstantiationType>()){
 				// TODO(FEATURE): actual name?
 				return "{TEMPLATE_DECL_INSTANTIATION_TYPE}";
+
+			}else if constexpr(std::is_same<TypeID, TermInfo::ExceptParamPack>()){
+				return "{EXCEPT_PARAM_PACK}";
 
 			}else{
 				static_assert(false, "Unsupported type id kind");

@@ -17,8 +17,12 @@
 #include "../intrinsics.h"
 
 
-namespace pcit::panther::sema{
+namespace pcit::panther{
+	class SemanticAnalyzer;
+}
 
+
+namespace pcit::panther::sema{
 
 
 	struct Expr{
@@ -50,13 +54,15 @@ namespace pcit::panther::sema{
 				
 			PARAM,
 			RETURN_PARAM,
+			ERROR_RETURN_PARAM,
 			BLOCK_EXPR_OUTPUT,
+			EXCEPT_PARAM,
 
 			GLOBAL_VAR,
 			FUNC,
 		};
 
-		static auto createModuleIdent(Token::ID id) -> Expr {
+		EVO_NODISCARD static auto createModuleIdent(Token::ID id) -> Expr {
 			return Expr(Kind::MODULE_IDENT, id);
 		}
 
@@ -76,21 +82,23 @@ namespace pcit::panther::sema{
 			  value{.templated_intrinsic_func_instantiation = id} 
 			  {};
 
-		explicit Expr(CopyID id)            : _kind(Kind::COPY),              value{.copy = id}              {};
-		explicit Expr(MoveID id)            : _kind(Kind::MOVE),              value{.move = id}              {};
-		explicit Expr(ForwardID id)         : _kind(Kind::FORWARD),           value{.forward = id}           {};
-		explicit Expr(FuncCallID id)        : _kind(Kind::FUNC_CALL),         value{.func_call = id}         {};
-		explicit Expr(AddrOfID id)          : _kind(Kind::ADDR_OF),           value{.addr_of = id}           {};
-		explicit Expr(DerefID id)           : _kind(Kind::DEREF),             value{.deref = id}             {};
-		explicit Expr(TryElseID id)         : _kind(Kind::TRY_ELSE),          value{.try_else = id}          {};
-		explicit Expr(BlockExprID id)       : _kind(Kind::BLOCK_EXPR),        value{.block_expr = id}        {};
+		explicit Expr(CopyID id)             : _kind(Kind::COPY),               value{.copy = id}               {};
+		explicit Expr(MoveID id)             : _kind(Kind::MOVE),               value{.move = id}               {};
+		explicit Expr(ForwardID id)          : _kind(Kind::FORWARD),            value{.forward = id}            {};
+		explicit Expr(FuncCallID id)         : _kind(Kind::FUNC_CALL),          value{.func_call = id}          {};
+		explicit Expr(AddrOfID id)           : _kind(Kind::ADDR_OF),            value{.addr_of = id}            {};
+		explicit Expr(DerefID id)            : _kind(Kind::DEREF),              value{.deref = id}              {};
+		explicit Expr(TryElseID id)          : _kind(Kind::TRY_ELSE),           value{.try_else = id}           {};
+		explicit Expr(BlockExprID id)        : _kind(Kind::BLOCK_EXPR),         value{.block_expr = id}         {};
 
-		explicit Expr(ParamID id)           : _kind(Kind::PARAM),             value{.param = id}             {};
-		explicit Expr(ReturnParamID id)     : _kind(Kind::RETURN_PARAM),      value{.return_param = id}      {};
-		explicit Expr(BlockExprOutputID id) : _kind(Kind::BLOCK_EXPR_OUTPUT), value{.block_expr_output = id} {};
+		explicit Expr(ParamID id)            : _kind(Kind::PARAM),              value{.param = id}              {};
+		explicit Expr(ReturnParamID id)      : _kind(Kind::RETURN_PARAM),       value{.return_param = id}       {};
+		explicit Expr(ErrorReturnParamID id) : _kind(Kind::ERROR_RETURN_PARAM), value{.error_return_param = id} {};
+		explicit Expr(BlockExprOutputID id)  : _kind(Kind::BLOCK_EXPR_OUTPUT),  value{.block_expr_output = id}  {};
+		explicit Expr(ExceptParamID id)      : _kind(Kind::EXCEPT_PARAM),       value{.except_param = id}       {};
 
-		explicit Expr(GlobalVarID id)       : _kind(Kind::GLOBAL_VAR),        value{.global_var = id}        {};
-		explicit Expr(FuncID id)            : _kind(Kind::FUNC),              value{.func = id}              {};
+		explicit Expr(GlobalVarID id)        : _kind(Kind::GLOBAL_VAR),         value{.global_var = id}         {};
+		explicit Expr(FuncID id)             : _kind(Kind::FUNC),               value{.func = id}               {};
 
 
 		EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
@@ -181,9 +189,17 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::RETURN_PARAM, "not a return param");
 			return this->value.return_param;
 		}
+		EVO_NODISCARD auto errorReturnParamID() const -> ErrorReturnParamID {
+			evo::debugAssert(this->kind() == Kind::ERROR_RETURN_PARAM, "not an error return param");
+			return this->value.error_return_param;
+		}
 		EVO_NODISCARD auto blockExprOutputID() const -> BlockExprOutputID {
 			evo::debugAssert(this->kind() == Kind::BLOCK_EXPR_OUTPUT, "not a block expr output");
 			return this->value.block_expr_output;
+		}
+		EVO_NODISCARD auto exceptParamID() const -> ExceptParamID {
+			evo::debugAssert(this->kind() == Kind::EXCEPT_PARAM, "not an except param");
+			return this->value.except_param;
 		}
 
 		EVO_NODISCARD auto globalVarID() const -> GlobalVarID {
@@ -203,6 +219,8 @@ namespace pcit::panther::sema{
 
 		private:
 			Expr(Kind k, Token::ID token) : _kind(k), value{.token = token} {}
+
+			EVO_NODISCARD static auto createNone() -> Expr { return Expr(Kind::NONE, Token::ID(0)); }
 
 		private:
 			Kind _kind;
@@ -230,9 +248,11 @@ namespace pcit::panther::sema{
 				DerefID deref;
 				TryElseID try_else;
 				BlockExprID block_expr;
+				ExceptParamID except_param;
 
 				ParamID param;
 				ReturnParamID return_param;
+				ErrorReturnParamID error_return_param;
 				BlockExprOutputID block_expr_output;
 
 				GlobalVarID global_var;
@@ -240,6 +260,7 @@ namespace pcit::panther::sema{
 			} value;
 
 			friend struct ExprOptInterface;
+			friend SemanticAnalyzer;
 	};
 
 
@@ -269,5 +290,14 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::sema::Expr, pcit::panther::sema::ExprOptInterface>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::Expr, pcit::panther::sema::ExprOptInterface>::operator=;
 	};
+
+
+	template<>
+	struct hash<pcit::panther::sema::Expr>{
+		auto operator()(const pcit::panther::sema::Expr& expr) const noexcept -> size_t {
+			return hash<uint64_t>{}(*(uint64_t*)&expr);
+		};
+	};
+
 
 }

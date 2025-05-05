@@ -112,6 +112,7 @@ namespace pcit::panther::sema{
 
 		Expr attempt;
 		Expr except;
+		evo::SmallVector<ExceptParamID> exceptParams;
 	};
 
 	struct BlockExpr{
@@ -205,11 +206,27 @@ namespace pcit::panther::sema{
 		uint32_t abiIndex;
 	};
 
+	struct ErrorReturnParam{
+		using ID = ErrorReturnParamID;
+
+		uint32_t index;
+		uint32_t abiIndex;
+	};
+
 	struct BlockExprOutput{
 		using ID = BlockExprOutputID;
 
 		uint32_t index;
 		Token::ID label;
+		TypeInfo::ID typeID;
+	};
+
+
+	struct ExceptParam{
+		using ID = ExceptParamID;
+
+		Token::ID ident;
+		uint32_t index;
 		TypeInfo::ID typeID;
 	};
 

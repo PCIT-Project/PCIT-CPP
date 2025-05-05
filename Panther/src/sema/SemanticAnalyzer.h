@@ -109,6 +109,7 @@ namespace pcit::panther{
 			) -> Result;
 			EVO_NODISCARD auto instr_copy(const Instruction::Copy& instr) -> Result;
 			EVO_NODISCARD auto instr_move(const Instruction::Move& instr) -> Result;
+			EVO_NODISCARD auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
 			EVO_NODISCARD auto instr_try_else(const Instruction::TryElse& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;
 			EVO_NODISCARD auto instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result;
@@ -474,9 +475,19 @@ namespace pcit::panther{
 				evo::unimplemented();
 			}
 
+			EVO_NODISCARD auto get_location(const sema::ErrorReturnParamID& error_param) const -> Diagnostic::Location {
+				std::ignore = error_param;
+				evo::unimplemented();
+			}
+
 			EVO_NODISCARD auto get_location(const sema::BlockExprOutputID& block_expr_output) const
 			-> Diagnostic::Location {
 				std::ignore = block_expr_output;
+				evo::unimplemented();
+			}
+
+			EVO_NODISCARD auto get_location(const sema::ExceptParamID& except_param) const -> Diagnostic::Location {
+				std::ignore = except_param;
 				evo::unimplemented();
 			}
 

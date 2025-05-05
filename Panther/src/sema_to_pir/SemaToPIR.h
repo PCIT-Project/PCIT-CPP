@@ -118,6 +118,7 @@ namespace pcit::panther{
 			const Data::FuncInfo* current_func_info = nullptr;
 			const BaseType::Function* current_func_type = nullptr;
 
+			std::unordered_map<sema::Expr, pir::Expr> local_func_exprs{};
 			evo::SmallVector<ScopeLevel> scope_levels{}; // TODO(PERF): use stack?
 
 			Data& data;

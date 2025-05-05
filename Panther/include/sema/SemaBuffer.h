@@ -114,6 +114,19 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// error return params
+
+			EVO_NODISCARD auto createErrorReturnParam(auto&&... args) -> sema::ErrorReturnParam::ID {
+				return this->error_return_params.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getErrorReturnParam(sema::ErrorReturnParam::ID id) const
+			-> const sema::ErrorReturnParam& {
+				return this->error_return_params[id];
+			}
+
+
+			///////////////////////////////////
 			// block expr outputs
 
 			EVO_NODISCARD auto createBlockExprOutput(auto&&... args) -> sema::BlockExprOutput::ID {
@@ -124,6 +137,17 @@ namespace pcit::panther{
 				return this->block_expr_outputs[id];
 			}
 
+
+			///////////////////////////////////
+			// except param
+
+			EVO_NODISCARD auto createExceptParam(auto&&... args) -> sema::ExceptParam::ID {
+				return this->except_params.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getExceptParam(sema::ExceptParam::ID id) const -> const sema::ExceptParam& {
+				return this->except_params[id];
+			}
 
 
 			///////////////////////////////////
@@ -395,7 +419,9 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::GlobalVar, sema::GlobalVar::ID> global_vars{};
 			core::SyncLinearStepAlloc<sema::Param, sema::Param::ID> params{};
 			core::SyncLinearStepAlloc<sema::ReturnParam, sema::ReturnParam::ID> return_params{};
+			core::SyncLinearStepAlloc<sema::ErrorReturnParam, sema::ErrorReturnParam::ID> error_return_params{};
 			core::SyncLinearStepAlloc<sema::BlockExprOutput, sema::BlockExprOutput::ID> block_expr_outputs{};
+			core::SyncLinearStepAlloc<sema::ExceptParam, sema::ExceptParam::ID> except_params{};
 
 			core::SyncLinearStepAlloc<sema::FuncCall, sema::FuncCall::ID> func_calls{};
 			core::SyncLinearStepAlloc<sema::Assign, sema::Assign::ID> assigns{};

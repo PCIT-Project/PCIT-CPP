@@ -156,11 +156,11 @@ namespace pcit::llvmint{
 	// implementation classes. This struct should not define any non-static data
 	// members.
 	struct APFloatBase {
-		typedef APInt::WordType integerPart;
+		using integerPart = APInt::WordType;
 		static constexpr unsigned integerPartWidth = APInt::APINT_BITS_PER_WORD;
 
 		/// A signed type to represent a floating point numbers unbiased exponent.
-		typedef int32_t ExponentType;
+		using ExponentType = int32_t;
 
 		/// \name Floating Point Semantics.
 		/// @{
@@ -782,8 +782,8 @@ namespace pcit::llvmint{
 	// This is a interface class that is currently forwarding functionalities from
 	// detail::IEEEFloat.
 	class APFloat : public APFloatBase {
-		typedef detail::IEEEFloat IEEEFloat;
-		typedef detail::DoubleAPFloat DoubleAPFloat;
+		using IEEEFloat = detail::IEEEFloat;
+		using DoubleAPFloat = detail::DoubleAPFloat;
 
 		static_assert(std::is_standard_layout<IEEEFloat>::value);
 

@@ -1309,13 +1309,22 @@ namespace pcit::panther{
 			this->analyze_erroring_expr<IS_CONSTEXPR>(try_else.attemptExpr);
 		if(attempt_expr.isError()){ return evo::resultError; }
 
+		const SymbolProc::TermInfoID except_params_term_info_id = this->create_term_info();
+		this->add_instruction(
+			Instruction::PrepareTryHandler(
+				try_else.exceptParams, attempt_expr.value(), except_params_term_info_id, try_else.elseTokenID
+			)
+		);
+
 		const evo::Result<SymbolProc::TermInfoID> except_expr =
 			this->analyze_expr<IS_CONSTEXPR>(try_else.exceptExpr);
 		if(except_expr.isError()){ return evo::resultError; }
 		
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			Instruction::TryElse(try_else, attempt_expr.value(), except_expr.value(), new_term_info_id)
+			Instruction::TryElse(
+				try_else, attempt_expr.value(), except_params_term_info_id, except_expr.value(), new_term_info_id
+			)
 		);
 		return new_term_info_id;
 	}

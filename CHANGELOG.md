@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.110.0"></a>
+## v0.0.110.0
+
+### Panther
+- Added except parameters to `try/else` expressions
+- Added checking that except expression in `try/except` expression is ephemeral
+- Fixed PIR of function error parameter not having attributes
+
+### PIR
+- Fixed `Agent::createMemcpy()` emitting incorrect number of bytes to copy
+
+
+<!---------------------------------->
 <a name="v0.0.109.0"></a>
 ## v0.0.109.0
 

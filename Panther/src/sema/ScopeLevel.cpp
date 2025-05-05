@@ -146,7 +146,15 @@ namespace pcit::panther::sema{
 		return this->add_ident_default_impl(ident, id);
 	}
 
+	auto ScopeLevel::addIdent(std::string_view ident, sema::ErrorReturnParamID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
 	auto ScopeLevel::addIdent(std::string_view ident, sema::BlockExprOutputID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::ExceptParamID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
 

@@ -412,9 +412,17 @@ namespace pcit::panther{
 		};
 
 
+		struct PrepareTryHandler{
+			evo::ArrayProxy<Token::ID> except_params;
+			SymbolProcTermInfoID attempt_expr;
+			SymbolProcTermInfoID output_except_params;
+			Token::ID handler_kind_token_id;
+		};
+
 		struct TryElse{
 			const AST::TryElse& try_else;
 			SymbolProcTermInfoID attempt_expr;
+			SymbolProcTermInfoID except_params;
 			SymbolProcTermInfoID except_expr;
 			SymbolProcTermInfoID output;
 		};
@@ -556,6 +564,7 @@ namespace pcit::panther{
 			AddTemplateDeclInstantiationType,
 			Copy,
 			Move,
+			PrepareTryHandler,
 			TryElse,
 			BeginExprBlock,
 			EndExprBlock,

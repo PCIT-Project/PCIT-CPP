@@ -38,6 +38,7 @@ namespace pcit::panther{
 			TEMPLATE_TYPE,           // uninstantiated
 			TYPE,
 			TEMPLATE_DECL_INSTANTIATION_TYPE,
+			EXCEPT_PARAM_PACK,
 		};
 
 		enum class ValueStage{
@@ -49,6 +50,7 @@ namespace pcit::panther{
 		struct InitializerType{};
 		struct FluidType{};
 		struct TemplateDeclInstantiationType{};
+		struct ExceptParamPack{};
 
 
 		using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
@@ -58,6 +60,7 @@ namespace pcit::panther{
 			InitializerType,                // INITIALIZER
 			FluidType,                      // EPHEMERAL_FLUID
 			TemplateDeclInstantiationType,  // TEMPLATE_DECL_INSTANTIATION_TYPE
+			ExceptParamPack,                // EXCEPT_PARAM_PACK
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
 			FuncOverloadList,               // FUNCTION
 			TypeInfo::VoidableID,           // TYPE
@@ -134,6 +137,10 @@ namespace pcit::panther{
 			evo::debugAssert(this->value_category == ValueCategory::EPHEMERAL, "multi-expr must be multi-return");
 		}
 
+
+		TermInfo(ValueCategory vc, ValueStage vs, ExceptParamPack, evo::SmallVector<sema::Expr>&& expr_list)
+			: value_category(vc), value_stage(vs), type_id(ExceptParamPack{}), exprs(std::move(expr_list)) {}
+
 		
 		#if defined(PCIT_CONFIG_DEBUG)
 			auto check_single_expr_construction() -> void {
@@ -181,6 +188,10 @@ namespace pcit::panther{
 						evo::debugAssert(
 							this->type_id.is<TemplateDeclInstantiationType>(), "Incorrect TermInfo creation"
 						);
+
+					break; case ValueCategory::EXCEPT_PARAM_PACK:
+						evo::debugFatalBreak("Incorrect TermInfo creation");
+
 				}
 			}
 
@@ -272,7 +283,20 @@ namespace pcit::panther{
 		}
 
 		EVO_NODISCARD auto getMultiExpr() const -> const evo::SmallVector<sema::Expr>& {
-			evo::debugAssert(this->isMultiValue(), "does not hold expr value");
+			evo::debugAssert(this->isMultiValue(), "does not hold multi expr value");
+			return this->exprs;
+		}
+
+
+		//////////////////
+		// multi-value
+
+		EVO_NODISCARD auto isExceptParamPack() const -> bool {
+			return this->type_id.is<ExceptParamPack>();
+		}
+
+		EVO_NODISCARD auto getExceptParamPack() const -> const evo::SmallVector<sema::Expr>& {
+			evo::debugAssert(this->isExceptParamPack(), "does not hold except param pack");
 			return this->exprs;
 		}
 

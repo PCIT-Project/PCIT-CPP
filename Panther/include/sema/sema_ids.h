@@ -146,8 +146,16 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, ReturnParamID>::UniqueID;
 	};
 
+	struct ErrorReturnParamID : public core::UniqueID<uint32_t, struct ErrorReturnParamID> {
+		using core::UniqueID<uint32_t, ErrorReturnParamID>::UniqueID;
+	};
+
 	struct BlockExprOutputID : public core::UniqueID<uint32_t, struct BlockExprOutputID> {
 		using core::UniqueID<uint32_t, BlockExprOutputID>::UniqueID;
+	};
+
+	struct ExceptParamID : public core::UniqueID<uint32_t, struct ExceptParamID> {
+		using core::UniqueID<uint32_t, ExceptParamID>::UniqueID;
 	};
 	
 }
