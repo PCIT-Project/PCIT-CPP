@@ -25,7 +25,6 @@ namespace pcit::pir{
 			case 0: return "";
 			case 1: return "    ";
 			case 2: return "        ";
-			case 3: return "            ";
 		}
 
 		evo::debugFatalBreak("Unsupported indent level");
@@ -42,6 +41,7 @@ namespace pcit::pir{
 				this->print_struct_type(struct_type);
 			}
 		}
+
 
 		if(this->get_module().getGlobalVarIter().empty() == false){
 			this->printer.println();
@@ -300,9 +300,10 @@ namespace pcit::pir{
 			} break;
 		}
 
-		this->printer.printRed("= ");
-
-		this->print_global_var_value(global_var.value);
+		if(global_var.value.is<GlobalVar::NoValue>() == false){
+			this->printer.printRed("= ");
+			this->print_global_var_value(global_var.value);
+		}
 
 		this->printer.println();
 	}
@@ -312,7 +313,11 @@ namespace pcit::pir{
 		global_var_value.visit([&](const auto& value) -> void {
 			using ValueT = std::decay_t<decltype(value)>;
 
-			if constexpr(std::is_same<ValueT, Expr>()){
+
+			if constexpr(std::is_same<ValueT, GlobalVar::NoValue>()){
+				evo::debugAssert("Cannot print GlobalVar::NoValue");
+
+			}else if constexpr(std::is_same<ValueT, Expr>()){
 				this->print_expr(value);
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
@@ -407,6 +412,9 @@ namespace pcit::pir{
 			}
 		});
 	}
+
+
+
 		
 
 	auto ModulePrinter::print_basic_block(const BasicBlock& basic_block) -> void {

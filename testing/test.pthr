@@ -1,29 +1,34 @@
 
 
-func get_num = () #runtime -> UI8 <a: UI8, b: UI8> {
-	a = 10;
-	b = 12;
-	error...;
-	// return 12;
+const pi: F32 = get_pi();
+
+func get_num = () -> UI8 {
+	return @fToUI<{F32, UI8}>(pi);
+}
+
+func get_num_2 = () -> UI8 {
+	return @fToUI<{F32, UI8}>(pi);
+}
+
+func get_num_3 = () -> UI8 {
+	return @fToUI<{F32, UI8}>(pi);
 }
 
 
-func get_num_2 = () #runtime -> UI8 <Void> {
-	return copy foo;
-	// error;
-}
+
+
+var foo: UI8 = get_num();
+var bar: UI8 = get_num_2();
 
 
 
-var foo: UI8 = 0;
+
 
 func entry = () #entry -> UI8 {
-	foo = try get_num() else<_, b> {->expr:UI8
-		return->expr (move b);
-	};
-
-
-	foo = try get_num_2() else 154;
-
 	return copy foo;
+}
+
+
+func get_pi = () -> F32 {
+	return @import("math").PI;
 }

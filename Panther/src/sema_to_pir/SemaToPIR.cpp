@@ -28,7 +28,8 @@ namespace pcit::panther{
 		}
 
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
-			this->lowerGlobal(global_var_id);
+			this->lowerGlobalDecl(global_var_id);
+			this->lowerGlobalDef(global_var_id);
 		}
 
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
@@ -55,20 +56,32 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::lowerGlobal(sema::GlobalVar::ID global_var_id) -> void {
-		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
+	auto SemaToPIR::lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID> {
+		const sema::GlobalVar& sema_global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 
-		if(global_var.kind == AST::VarDecl::Kind::DEF){ return; }
+		if(sema_global_var.kind == AST::VarDecl::Kind::DEF){ return std::nullopt; }
 
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
-			this->get_type(*global_var.typeID),
-			pir::Linkage::PRIVATE,
-			this->get_global_var_value(*global_var.expr.load()),
-			global_var.kind == AST::VarDecl::Kind::CONST
+			this->get_type(*sema_global_var.typeID),
+			this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
+			pir::GlobalVar::NoValue{},
+			sema_global_var.kind == AST::VarDecl::Kind::CONST
 		);
 
 		this->data.create_global_var(global_var_id, new_global_var);
+
+		return new_global_var;
+	}
+
+
+	auto SemaToPIR::lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void {
+		const sema::GlobalVar& sema_global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
+
+		if(sema_global_var.kind == AST::VarDecl::Kind::DEF){ return; }
+
+		const pir::GlobalVar::ID pir_var_id = this->data.get_global_var(global_var_id);
+		this->module.getGlobalVar(pir_var_id).value = this->get_global_var_value(*sema_global_var.expr.load());
 	}
 
 

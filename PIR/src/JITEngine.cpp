@@ -85,12 +85,13 @@ namespace pcit::pir{
 		llvm_module.init(module.getName(), llvm_context);
 
 		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
-		lowerer.lowerSubset(PIRToLLVMIR::Subsets{
-			.structs     = nullptr,
-			.globalVars  = nullptr,
-			.externFuncs = module_subsets.externFuncs,
-			.funcDecls   = module_subsets.funcDecls,
-			.funcs       = module_subsets.funcs,
+		lowerer.lowerSubset(PIRToLLVMIR::Subset{
+			.structs          = module_subsets.structs,
+			.globalVars       = module_subsets.globalVars,
+			.globalVarDecls   = module_subsets.globalVarDecls,
+			.externFuncs      = module_subsets.externFuncs,
+			.funcDecls        = module_subsets.funcDecls,
+			.funcs            = module_subsets.funcs,
 		});
 
 		return this->data->orc_jit.addModule(std::move(llvm_context), std::move(llvm_module));

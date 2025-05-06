@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.111.0"></a>
+## v0.0.111.0
+
+### Panther
+- Added checking for use of runtime identifiers in constexpr functions
+- Added support for const variables in constexpr functions
+- Changed attribute `#runtime` to `#rt`
+
+### PIR
+- Added external global variables
+
+
+<!---------------------------------->
 <a name="v0.0.110.0"></a>
 ## v0.0.110.0
 
@@ -1074,7 +1087,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 - Fixed incorrect error diagnostic being emitted that the function scope was terminated after a sub-function declaration
 - Fixed fatal error when trying to run a compile-time function declared inside a runtime function
 
-## Misc
+### Misc
 - Updated README to move Panther example to new [PCIT website](pcit-project.github.io)
 
 
@@ -1168,7 +1181,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 - Fixed fatal error caused by in some cases having a type mismatch in a failed overload resolution
 - Fixed fatal error when printing `...` token
 
-## Misc
+### Misc
 - Slight tweaks to README
 
 

@@ -4,7 +4,7 @@ def build = @import("build");
 func entry = () #entry -> UI8 {
 	@buildSetOutput(build.Output.PRINT_PIR);
 	@buildSetNumThreads(12);
-	@buildSetUseStdLib(false);
+	@buildSetUseStdLib(true);
 	
 	return 0;
 }

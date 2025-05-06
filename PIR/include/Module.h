@@ -157,7 +157,10 @@ namespace pcit::pir{
 						value.visit([&](const auto& element) -> void {
 							using ValueT = std::decay_t<decltype(element)>;
 
-							if constexpr(std::is_same<ValueT, Expr>()){
+							if constexpr(std::is_same<ValueT, GlobalVar::NoValue>()){
+								evo::debugAssert("Cannot have array element with no value");
+
+							}else if constexpr(std::is_same<ValueT, Expr>()){
 								evo::debugAssert(element.isConstant(), "Array element must be a constant");
 								this->check_expr_type_match(element_type, element);
 
@@ -218,7 +221,10 @@ namespace pcit::pir{
 			 			value.visit([&](const auto& member_value) -> void {
 			 				using MemberValueT = std::decay_t<decltype(member_value)>;
 
-			 				if constexpr(std::is_same<MemberValueT, Expr>()){
+			 				if constexpr(std::is_same<MemberValueT, GlobalVar::NoValue>()){
+			 					evo::debugAssert("Cannot have struct element with no value");
+
+			 				}else if constexpr(std::is_same<MemberValueT, Expr>()){
 			 					this->check_expr_type_match(member_type, member_value);
 
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
@@ -276,7 +282,10 @@ namespace pcit::pir{
 					value.visit([&](const auto& member_value) -> void {
 						using MemberValueT = std::decay_t<decltype(member_value)>;
 
-						if constexpr(std::is_same<MemberValueT, Expr>()){
+						if constexpr(std::is_same<MemberValueT, GlobalVar::NoValue>()){
+							// Do nothing...
+
+						}else if constexpr(std::is_same<MemberValueT, Expr>()){
 							this->check_expr_type_match(type, member_value);
 
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
@@ -339,7 +348,6 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getGlobalVarsConstIter() const -> core::IterRange<GlobalVarsConstIter> {
 				return core::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
 			}
-
 
 
 

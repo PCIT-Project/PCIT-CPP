@@ -22,6 +22,7 @@ namespace pcit::pir{
 
 
 	struct GlobalVar{
+		struct NoValue{};
 		struct Zeroinit{};
 		struct Uninit{};
 
@@ -45,7 +46,7 @@ namespace pcit::pir{
 			using core::UniqueID<uint32_t, StructID>::UniqueID;
 		};
 
-		using Value = evo::Variant<Expr, Zeroinit, Uninit, String::ID, ArrayID, StructID>;
+		using Value = evo::Variant<NoValue, Expr, Zeroinit, Uninit, String::ID, ArrayID, StructID>;
 
 		struct Array{
 			// For lookup in Module

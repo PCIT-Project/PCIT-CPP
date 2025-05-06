@@ -44,26 +44,30 @@ namespace pcit::pir{
 
 
 
-	auto PIRToLLVMIR::lowerSubset(const Subsets& subsets) -> void {
-		for(const Type& struct_type : subsets.structs){
+	auto PIRToLLVMIR::lowerSubset(const Subset& subset) -> void {
+		for(const Type& struct_type : subset.structs){
 			this->lower_struct_type(this->module.getStructType(struct_type));
 		}
 
-		for(const GlobalVar::ID global_var_id : subsets.globalVars){
+		for(const GlobalVar::ID global_var_id : subset.globalVars){
 			this->lower_global_var(this->module.getGlobalVar(global_var_id));
 		}
 
-		for(const ExternalFunction::ID external_function_id : subsets.externFuncs){
+		for(const GlobalVar::ID global_var_decl_id : subset.globalVarDecls){
+			this->lower_global_var_decl(this->module.getGlobalVar(global_var_decl_id));
+		}
+
+		for(const ExternalFunction::ID external_function_id : subset.externFuncs){
 			this->lower_external_func(this->module.getExternalFunction(external_function_id));
 		}
 
-		for(const Function::ID function_id : subsets.funcDecls){
+		for(const Function::ID function_id : subset.funcDecls){
 			this->lower_function_decl(this->module.getFunction(function_id));
 		}
 
 
 		auto func_setups = std::vector<FuncLoweredSetup>();
-		for(const Function::ID func_id : subsets.funcs){
+		for(const Function::ID func_id : subset.funcs){
 			func_setups.emplace_back(this->lower_function_setup(this->module.getFunction(func_id)));
 		}
 
@@ -87,12 +91,25 @@ namespace pcit::pir{
 		this->struct_types.emplace(struct_type.name, llvm_struct_type);
 	}
 
+
 	auto PIRToLLVMIR::lower_global_var(const GlobalVar& global) -> void {
 		const llvmint::Constant constant_value = this->get_global_var_value(global.value, global.type);
-		const llvmint::Type constant_type = constant_value.getType();
+		const llvmint::Type constant_type = this->get_type(global.type);
 
 		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
 			constant_value, constant_type, this->get_linkage(global.linkage), global.isConstant, global.name
+		);
+
+		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
+
+		this->global_vars.emplace(global.name, llvm_global_var);
+	}
+
+	auto PIRToLLVMIR::lower_global_var_decl(const GlobalVar& global) -> void {
+		const llvmint::Type constant_type = this->get_type(global.type);
+
+		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
+			llvmint::Constant(nullptr), constant_type, llvmint::LinkageType::External, global.isConstant, global.name
 		);
 
 		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
@@ -1254,7 +1271,10 @@ namespace pcit::pir{
 		return global_var_value.visit([&](const auto& value) -> llvmint::Constant {
 			using ValueT = std::decay_t<decltype(value)>;
 
-			if constexpr(std::is_same<ValueT, Expr>()){
+			if constexpr(std::is_same<ValueT, GlobalVar::NoValue>()){
+				return llvmint::Constant(nullptr);
+
+			}else if constexpr(std::is_same<ValueT, Expr>()){
 				return this->get_constant_value(value);
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){

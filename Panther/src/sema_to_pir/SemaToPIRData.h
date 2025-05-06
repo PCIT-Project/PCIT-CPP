@@ -143,16 +143,19 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_struct(const BaseType::Struct::ID struct_id) -> pir::Type {
 				const auto lock = std::scoped_lock(this->structs_lock);
+				evo::debugAssert(this->structs.contains(struct_id.get()), "Doesn't have this struct");
 				return this->structs.at(struct_id.get());
 			}
 
 			EVO_NODISCARD auto get_global_var(const sema::GlobalVar::ID global_var_id) -> pir::GlobalVar::ID {
 				const auto lock = std::scoped_lock(this->global_vars_lock);
+				evo::debugAssert(this->global_vars.contains(global_var_id.get()), "Doesn't have this global var");
 				return this->global_vars.at(global_var_id.get());
 			}
 
 			EVO_NODISCARD auto get_func(const sema::Func::ID func_id) -> FuncInfo& {
 				const auto lock = std::scoped_lock(this->funcs_lock);
+				evo::debugAssert(this->funcs.contains(func_id.get()), "Doesn't have this func");
 				return *this->funcs.at(func_id.get());
 			}
 	

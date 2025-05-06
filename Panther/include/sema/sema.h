@@ -241,6 +241,10 @@ namespace pcit::panther::sema{
 		std::atomic<std::optional<Expr>> expr; // is nullopt if decl is done, but not def
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPub;
+		SymbolProc& symbolProc;
+		SymbolProcID symbolProcID;
+
+		std::optional<pir::GlobalVar::ID> constexprJITGlobal{};
 	};
 
 

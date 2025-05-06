@@ -650,18 +650,11 @@ namespace pcit::panther{
 				return this->def_done;
 			}
 
-			EVO_NODISCARD auto isPIRLowerDone() const -> bool {
-				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
-					this->waiting_for_lock, this->pir_lower_waited_on_lock
-				);
-				return this->pir_lower_done;
-			}
-
 			EVO_NODISCARD auto isPIRReadyDone() const -> bool {
 				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
 					this->waiting_for_lock, this->pir_ready_waited_on_lock
 				);
-				return this->pir_lower_done;
+				return this->pir_ready;
 			}
 
 			EVO_NODISCARD auto hasErrored() const -> bool { return this->errored; }
@@ -699,7 +692,6 @@ namespace pcit::panther{
 
 			auto waitOnDeclIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
 			auto waitOnDefIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
-			auto waitOnPIRLowerIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
 			auto waitOnPIRReadyIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
 
 
@@ -732,9 +724,6 @@ namespace pcit::panther{
 			evo::SmallVector<ID> def_waited_on_by{};
 			mutable core::SpinLock def_waited_on_lock{};
 
-			evo::SmallVector<ID> pir_lower_waited_on_by{};
-			mutable core::SpinLock pir_lower_waited_on_lock{};
-
 			evo::SmallVector<ID> pir_ready_waited_on_by{};
 			mutable core::SpinLock pir_ready_waited_on_lock{};
 
@@ -764,6 +753,7 @@ namespace pcit::panther{
 			// Only needed if the func is comptime
 			struct FuncInfo{
 				std::unordered_set<sema::Func::ID> dependent_funcs{};
+				std::unordered_set<sema::GlobalVar::ID> dependent_vars{};
 			};
 
 			evo::Variant<std::monostate, GlobalVarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo> extra_info{};

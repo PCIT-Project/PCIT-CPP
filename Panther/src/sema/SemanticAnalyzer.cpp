@@ -298,12 +298,23 @@ namespace pcit::panther{
 			this->source.getID(),
 			std::optional<sema::Expr>(),
 			got_type_info_id.asTypeID(),
-			var_attrs.value().is_pub
+			var_attrs.value().is_pub,
+			this->symbol_proc,
+			this->symbol_proc_id
 		);
 
 		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::GlobalVarInfo>(new_sema_var);
+
+		if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
+
+			sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
+			sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+		}
 
 		this->propagate_finished_decl();
 		return Result::SUCCESS;
@@ -357,6 +368,38 @@ namespace pcit::panther{
 		}
 
 		sema_var.expr = value_term_info.getExpr();
+
+		if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
+
+			sema_to_pir.lowerGlobalDef(sema_var_id);
+
+			
+
+			const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+				this->context.constexpr_jit_engine.addModuleSubset(
+					this->context.constexpr_pir_module,
+					pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+				);
+
+			if(add_module_subset_result.has_value() == false){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				for(const std::string& error : add_module_subset_result.error()){
+					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				}
+
+				this->emit_fatal(
+					Diagnostic::Code::MISC_LLVM_ERROR,
+					instr.var_decl,
+					Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+		}
+
 
 		this->propagate_finished_def();
 		return Result::SUCCESS;
@@ -508,7 +551,9 @@ namespace pcit::panther{
 			this->source.getID(),
 			std::optional<sema::Expr>(value_term_info.getExpr()),
 			type_id,
-			var_attrs.value().is_pub
+			var_attrs.value().is_pub,
+			this->symbol_proc,
+			this->symbol_proc_id
 		);
 
 		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
@@ -1328,11 +1373,18 @@ namespace pcit::panther{
 				}
 
 
-				auto dependent_pir_funcs = evo::SmallVector<pir::Function::ID>();
 				const SymbolProc::FuncInfo func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+				auto dependent_pir_funcs = evo::SmallVector<pir::Function::ID>();
 				for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
 					const sema::Func& dependent_func = this->context.sema_buffer.getFunc(dependent_func_id);
 					dependent_pir_funcs.emplace_back(*dependent_func.constexprJITFunc);
+				}
+
+				auto dependent_pir_globals = evo::SmallVector<pir::GlobalVar::ID>();
+				for(sema::GlobalVar::ID dependent_var_id : func_info.dependent_vars){
+					const sema::GlobalVar& dependent_var = this->context.sema_buffer.getGlobalVar(dependent_var_id);
+					dependent_pir_globals.emplace_back(*dependent_var.constexprJITGlobal);
 				}
 
 
@@ -1340,9 +1392,10 @@ namespace pcit::panther{
 					this->context.constexpr_jit_engine.addModuleSubset(
 						this->context.constexpr_pir_module,
 						pir::JITEngine::ModuleSubsets{
-							.funcs       = module_subset_funcs,
-							.funcDecls   = dependent_pir_funcs,
-							.externFuncs = this->context.constexpr_sema_to_pir_data.getJITInterfaceFuncsArray(),
+							.globalVarDecls = dependent_pir_globals,
+							.funcs          = module_subset_funcs,
+							.funcDecls      = dependent_pir_funcs,
+							.externFuncs    = this->context.constexpr_sema_to_pir_data.getJITInterfaceFuncsArray(),
 						}
 					);
 
@@ -1362,8 +1415,6 @@ namespace pcit::panther{
 				}
 			}
 
-
-			this->propagate_finished_pir_lower();
 
 
 			auto dependent_funcs = std::unordered_set<sema::Func::ID>();
@@ -1416,6 +1467,32 @@ namespace pcit::panther{
 						evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
+			for(
+				sema::GlobalVar::ID dependent_var_id
+				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_vars
+			){
+				const sema::GlobalVar& dependent_var = this->context.sema_buffer.getGlobalVar(dependent_var_id);
+				const SymbolProc::WaitOnResult wait_on_result = dependent_var.symbolProc.waitOnDefIfNeeded(
+					this->symbol_proc_id, this->context, dependent_var.symbolProcID
+				);
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NOT_NEEDED:
+						break;
+
+					case SymbolProc::WaitOnResult::WAITING:
+						any_waiting = true; break;
+
+					case SymbolProc::WaitOnResult::WAS_ERRORED:
+						return Result::ERROR;
+
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						evo::debugFatalBreak("Shouldn't be possible");
+
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+						evo::debugFatalBreak("Shouldn't be possible");
+				}
+			}
 
 			if(any_waiting){
 				if(this->symbol_proc.shouldContinueRunning()){
@@ -1441,7 +1518,7 @@ namespace pcit::panther{
 			this->propagate_finished_pir_ready();
 		}
 
-		this->pop_scope_level<>(); // TODO(FUTURE): needed?
+		this->pop_scope_level<>();
 
 		return Result::SUCCESS;
 	}
@@ -2350,7 +2427,6 @@ namespace pcit::panther{
 			jit_args.emplace_back();
 		}
 
-		
 		// {
 		// 	auto printer = core::Printer::createConsole();
 		// 	pir::printModule(this->context.constexpr_pir_module, printer);
@@ -3964,6 +4040,14 @@ namespace pcit::panther{
 		const evo::Expected<TermInfo, Result> lookup_ident_result = this->lookup_ident_impl<NEEDS_DEF>(instr.ident);
 		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
 
+		if(
+			this->scope.inObjectScope()
+			&& this->scope.getCurrentObjectScope().is<sema::Func::ID>()
+			&& this->expr_in_func_is_valid_value_stage(lookup_ident_result.value(), instr.ident) == false
+		){
+			return Result::ERROR;
+		}
+
 		this->return_term_info(instr.output, std::move(lookup_ident_result.value()));
 		return Result::SUCCESS;
 	}
@@ -4432,6 +4516,10 @@ namespace pcit::panther{
 								return ValueStage::RUNTIME;
 							}
 						}();
+
+						if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
+							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_vars.emplace(ident_id);
+						}
 
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_CONST, value_stage, *sema_var.typeID, sema::Expr(ident_id)
@@ -5612,7 +5700,7 @@ namespace pcit::panther{
 		const AST::FuncDecl& func_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<FuncAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
-		auto attr_runtime = ConditionalAttribute(*this, "runtime");
+		auto attr_rt = ConditionalAttribute(*this, "rt");
 		auto attr_entry = Attribute(*this, "entry");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -5656,9 +5744,9 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-			}else if(attribute_str == "runtime"){
+			}else if(attribute_str == "rt"){
 				if(attribute_params_info[i].empty()){
-					if(attr_runtime.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_rt.set(attribute.attribute, true).isError()){ return evo::resultError; } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
@@ -5669,22 +5757,22 @@ namespace pcit::panther{
 					if(this->type_check<true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #runtime",
+						"Condition in #rt",
 						attribute.args[0]
 					).ok == false){
 						return evo::resultError;
 					}
 
-					const bool runtime_cond = this->context.sema_buffer
+					const bool rt_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_runtime.set(attribute.attribute, runtime_cond).isError()){ return evo::resultError; }
+					if(attr_rt.set(attribute.attribute, rt_cond).isError()){ return evo::resultError; }
 
 				}else{
 					this->emit_error(
 						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args[1],
-						"Attribute #runtime does not accept more than 1 argument"
+						"Attribute #rt does not accept more than 1 argument"
 					);
 					return evo::resultError;
 				}
@@ -5700,7 +5788,7 @@ namespace pcit::panther{
 				}
 
 				if(attr_entry.set(attribute.attribute).isError()){ return evo::resultError; }
-				attr_runtime.implicitly_set(attribute.attribute, true);
+				attr_rt.implicitly_set(attribute.attribute, true);
 
 			}else{
 				this->emit_error(
@@ -5712,7 +5800,7 @@ namespace pcit::panther{
 			}
 		}
 
-		return FuncAttrs(attr_pub.is_set(), attr_runtime.is_set(), attr_entry.is_set());
+		return FuncAttrs(attr_pub.is_set(), attr_rt.is_set(), attr_entry.is_set());
 	}
 
 
@@ -5772,13 +5860,6 @@ namespace pcit::panther{
 		this->context.symbol_proc_manager.symbol_proc_done();
 	}
 
-
-	auto SemanticAnalyzer::propagate_finished_pir_lower() -> void {
-		const auto lock = std::scoped_lock(this->symbol_proc.pir_lower_waited_on_lock);
-
-		this->symbol_proc.pir_lower_done = true;
-		this->propagate_finished_impl(this->symbol_proc.pir_lower_waited_on_by);
-	}
 
 	auto SemanticAnalyzer::propagate_finished_pir_ready() -> void {
 		const auto lock = std::scoped_lock(this->symbol_proc.pir_ready_waited_on_lock);

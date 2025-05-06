@@ -156,7 +156,6 @@ namespace pcit::llvmint{
 			) -> GlobalVariable;
 
 
-
 			EVO_NODISCARD auto print() const -> std::string;
 			EVO_NODISCARD auto lowerToObject() -> evo::Result<std::vector<evo::byte>>;
 			EVO_NODISCARD auto lowerToAssembly() -> evo::Result<std::string>;

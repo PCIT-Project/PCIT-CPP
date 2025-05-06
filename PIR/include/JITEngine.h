@@ -15,6 +15,8 @@
 
 
 #include "./Function.h"
+#include "./GlobalVar.h"
+#include "./Type.h"
 
 
 namespace pcit::pir{
@@ -51,6 +53,9 @@ namespace pcit::pir{
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
 
 			struct ModuleSubsets{
+				evo::ArrayProxy<Type> structs;
+				evo::ArrayProxy<GlobalVar::ID> globalVars;
+				evo::ArrayProxy<GlobalVar::ID> globalVarDecls;
 				evo::ArrayProxy<Function::ID> funcs;
 				evo::ArrayProxy<Function::ID> funcDecls;
 				evo::ArrayProxy<ExternalFunction::ID> externFuncs;

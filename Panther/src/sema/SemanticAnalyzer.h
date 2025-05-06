@@ -274,7 +274,6 @@ namespace pcit::panther{
 			auto propagate_finished_decl() -> void;
 			auto propagate_finished_def() -> void;
 			auto propagate_finished_decl_def() -> void;
-			auto propagate_finished_pir_lower() -> void;
 			auto propagate_finished_pir_ready() -> void;
 
 

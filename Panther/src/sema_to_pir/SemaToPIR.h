@@ -34,7 +34,8 @@ namespace pcit::panther{
 			auto lower() -> void;
 
 			auto lowerStruct(BaseType::Struct::ID struct_id) -> void;
-			auto lowerGlobal(sema::GlobalVar::ID global_var_id) -> void;
+			auto lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID>;
+			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
 			auto lowerFuncDecl(sema::Func::ID func_id) -> pir::Function::ID;
 			auto lowerFuncDef(sema::Func::ID func_id) -> void;
 			

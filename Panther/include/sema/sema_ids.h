@@ -171,6 +171,13 @@ namespace std{
 			return std::hash<uint32_t>{}(func_id.get());
 		};
 	};
+
+	template<>
+	struct hash<pcit::panther::sema::GlobalVarID>{
+		auto operator()(pcit::panther::sema::GlobalVarID global_id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(global_id.get());
+		};
+	};
 	
 }
 
