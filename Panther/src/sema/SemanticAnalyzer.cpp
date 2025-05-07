@@ -105,14 +105,14 @@ namespace pcit::panther{
 			using InstrType = std::decay_t<decltype(instr)>;
 
 
-			if constexpr(std::is_same<InstrType, Instruction::VarDecl>()){
-				return this->instr_var_decl(instr);
+			if constexpr(std::is_same<InstrType, Instruction::GlobalVarDecl>()){
+				return this->instr_global_var_decl(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::VarDef>()){
-				return this->instr_var_def(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDef>()){
+				return this->instr_global_var_def(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::VarDeclDef>()){
-				return this->instr_var_decl_def(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDeclDef>()){
+				return this->instr_global_var_decl_def(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::WhenCond>()){
 				return this->instr_when_cond(instr);
@@ -146,6 +146,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplateFunc>()){
 				return this->instr_template_func(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::LocalVar>()){
+				return this->instr_local_var(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Return>()){
 				return this->instr_return(instr);
@@ -272,12 +275,13 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_var_decl(const Instruction::VarDecl& instr) -> Result {
+	auto SemanticAnalyzer::instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_decl: {}", this->symbol_proc.ident); });
 
-		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_params_info);
+		const evo::Result<GlobalVarAttrs> var_attrs =
+			this->analyze_global_var_attrs(instr.var_decl, instr.attribute_params_info);
 		if(var_attrs.isError()){ return Result::ERROR; }
 
 
@@ -321,7 +325,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_var_def(const Instruction::VarDef& instr) -> Result {
+	auto SemanticAnalyzer::instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result {
 		const sema::GlobalVar::ID sema_var_id =
 			this->symbol_proc.extra_info.as<SymbolProc::GlobalVarInfo>().sema_var_id;
 		sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
@@ -376,8 +380,6 @@ namespace pcit::panther{
 
 			sema_to_pir.lowerGlobalDef(sema_var_id);
 
-			
-
 			const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
 				this->context.constexpr_jit_engine.addModuleSubset(
 					this->context.constexpr_pir_module,
@@ -406,12 +408,13 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_var_decl_def(const Instruction::VarDeclDef& instr) -> Result {
+	auto SemanticAnalyzer::instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_decl_def: {}", this->symbol_proc.ident); });
 
-		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_params_info);
+		const evo::Result<GlobalVarAttrs> var_attrs =
+			this->analyze_global_var_attrs(instr.var_decl, instr.attribute_params_info);
 		if(var_attrs.isError()){ return Result::ERROR; }
 
 
@@ -558,6 +561,38 @@ namespace pcit::panther{
 
 		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
 
+
+		if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
+
+			sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
+			sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+			sema_to_pir.lowerGlobalDef(new_sema_var);
+
+			const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+				this->context.constexpr_jit_engine.addModuleSubset(
+					this->context.constexpr_pir_module,
+					pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+				);
+
+			if(add_module_subset_result.has_value() == false){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				for(const std::string& error : add_module_subset_result.error()){
+					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				}
+
+				this->emit_fatal(
+					Diagnostic::Code::MISC_LLVM_ERROR,
+					instr.var_decl,
+					Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+		}
+
 		this->propagate_finished_decl_def();
 		return Result::SUCCESS;
 	}
@@ -636,6 +671,9 @@ namespace pcit::panther{
 				using ExtraInfo = std::decay_t<decltype(extra_info)>;
 
 				if constexpr(std::is_same<ExtraInfo, std::monostate>()){
+					return;
+
+				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::VarInfo>()){
 					return;
 
 				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::GlobalVarInfo>()){
@@ -1023,7 +1061,8 @@ namespace pcit::panther{
 
 				const bool should_copy = [&](){
 					if(param.kind != AST::FuncDecl::Param::Kind::READ){ return false; }
-					return this->context.getTypeManager().isTriviallyCopyable(param_type_id.asTypeID());
+					return this->context.getTypeManager().isTriviallyCopyable(param_type_id.asTypeID())
+						&& this->context.getTypeManager().isTriviallySized(param_type_id.asTypeID());
 				}();
 
 				if(param.kind == AST::FuncDecl::Param::Kind::IN){
@@ -1624,6 +1663,146 @@ namespace pcit::panther{
 		return Result::SUCCESS;
 	}
 
+
+	auto SemanticAnalyzer::instr_local_var(const Instruction::LocalVar& instr) -> Result {
+		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
+
+		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_params_info);
+		if(var_attrs.isError()){ return Result::ERROR; }
+
+		if(var_attrs.value().is_static){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.var_decl,
+				"Static variables are currently unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+
+		TermInfo& value_term_info = this->get_term_info(instr.value);
+		if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::DEF){
+				this->emit_error(
+					Diagnostic::Code::SEMA_MODULE_VAR_MUST_BE_DEF,
+					*instr.var_decl.value,
+					"Variable that has a module value must be declared as [def]"
+				);
+				return Result::ERROR;
+			}
+
+			const evo::Result<> add_ident_result = this->add_ident_to_scope(
+				var_ident,
+				instr.var_decl,
+				value_term_info.type_id.as<Source::ID>(),
+				instr.var_decl.ident,
+				false
+			);
+
+			return add_ident_result.isError() ? Result::ERROR : Result::SUCCESS;
+		}
+
+
+		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::VAR){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
+					instr.var_decl,
+					"Only [var] variables can be defined with an initializer value"
+				);
+				return Result::ERROR;
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
+					*instr.var_decl.value,
+					"Cannot define a variable with an initializer value without an explicit type"
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+		if(value_term_info.is_ephemeral() == false){
+			if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){ return Result::ERROR; }
+
+			this->emit_error(
+				Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
+				*instr.var_decl.value,
+				"Cannot define a variable with a non-ephemeral value"
+			);
+			return Result::ERROR;
+		}
+
+			
+		if(value_term_info.isMultiValue()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
+				*instr.var_decl.value,
+				"Cannot define a variable with multiple values"
+			);
+			return Result::ERROR;
+		}
+
+
+		if(instr.type_id.has_value()){
+			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
+
+			if(got_type_info_id.isVoid()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_decl.type, "Variables cannot be type [Void]"
+				);
+				return Result::ERROR;
+			}
+
+
+			const TypeCheckInfo type_check_info = this->type_check<true>(
+				got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_decl.value
+			);
+
+			if(type_check_info.ok == false){ return Result::ERROR; }
+
+			for(const DeducedType& deduced_type : type_check_info.deduced_types){
+				const std::string_view deduced_type_ident_str = 
+					this->source.getTokenBuffer()[deduced_type.tokenID].getString();
+
+				if(this->add_ident_to_scope(
+					deduced_type_ident_str,
+					deduced_type.tokenID,
+					deduced_type.typeID,
+					deduced_type.tokenID,
+					sema::ScopeLevel::DeducedTypeFlag{}
+				).isError()){ return Result::ERROR; }
+			}
+
+		}else if(
+			instr.var_decl.kind != AST::VarDecl::Kind::DEF &&
+			value_term_info.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_CANNOT_INFER_TYPE,
+				*instr.var_decl.value,
+				"Cannot infer the type of a fluid literal",
+				Diagnostic::Info("Did you mean this variable to be [def]? If not, give the variable an explicit type")
+			);
+			return Result::ERROR;
+		}
+
+		const std::optional<TypeInfo::ID> type_id = [&](){
+			if(value_term_info.type_id.is<TypeInfo::ID>()){
+				return std::optional<TypeInfo::ID>(value_term_info.type_id.as<TypeInfo::ID>());
+			}
+			return std::optional<TypeInfo::ID>();
+		}();
+
+		const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
+			instr.var_decl.kind, instr.var_decl.ident, value_term_info.getExpr(), type_id
+		);
+		this->get_current_scope_level().stmtBlock().emplace_back(new_sema_var);
+
+		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
+
+		return Result::SUCCESS;
+	}
 
 
 	auto SemanticAnalyzer::instr_return(const Instruction::Return& instr) -> Result {
@@ -4428,7 +4607,7 @@ namespace pcit::panther{
 					TermInfo(TermInfo::ValueCategory::FUNCTION, TermInfo::ValueStage::CONSTEXPR, ident_id, std::nullopt)
 				);
 
-			}else if constexpr(std::is_same<IdentIDType, sema::GlobalVar::ID>()){
+			}else if constexpr(std::is_same<IdentIDType, sema::Var::ID>()){
 				if(!variables_in_scope){
 					// TODO(FUTURE): better messaging
 					this->emit_error(
@@ -4444,6 +4623,50 @@ namespace pcit::panther{
 					return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 				}
 
+				const sema::Var& sema_var = this->context.getSemaBuffer().getVar(ident_id);
+
+
+				using ValueCategory = TermInfo::ValueCategory;
+				using ValueStage = TermInfo::ValueStage;
+
+				switch(sema_var.kind){
+					case AST::VarDecl::Kind::VAR: {
+						return ReturnType(TermInfo(
+							ValueCategory::CONCRETE_MUT,
+							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							*sema_var.typeID,
+							sema::Expr(ident_id)
+						));
+					} break;
+
+					case AST::VarDecl::Kind::CONST: {
+						return ReturnType(TermInfo(
+							ValueCategory::CONCRETE_CONST,
+							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							*sema_var.typeID,
+							sema::Expr(ident_id)
+						));
+					} break;
+
+					case AST::VarDecl::Kind::DEF: {
+						if(sema_var.typeID.has_value()){
+							return ReturnType(TermInfo(
+								ValueCategory::EPHEMERAL, ValueStage::CONSTEXPR, *sema_var.typeID, sema_var.expr
+							));
+						}else{
+							return ReturnType(TermInfo(
+								ValueCategory::EPHEMERAL_FLUID,
+								ValueStage::CONSTEXPR,
+								TermInfo::FluidType{},
+								sema_var.expr
+							));
+						}
+					} break;
+				}
+
+				evo::debugFatalBreak("Unknown or unsupported AST::VarDecl::Kind");
+
+			}else if constexpr(std::is_same<IdentIDType, sema::GlobalVar::ID>()){
 				const sema::GlobalVar& sema_var = this->context.getSemaBuffer().getGlobalVar(ident_id);
 
 				if constexpr(PUB_REQUIRED){
@@ -5573,9 +5796,9 @@ namespace pcit::panther{
 	// attributes
 
 
-	auto SemanticAnalyzer::analyze_var_attrs(
+	auto SemanticAnalyzer::analyze_global_var_attrs(
 		const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<VarAttrs> {
+	) -> evo::Result<GlobalVarAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -5623,6 +5846,56 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
 					attribute.attribute,
+					std::format("Unknown global variable attribute #{}", attribute_str)
+				);
+				return evo::resultError;
+			}
+		}
+
+
+		return GlobalVarAttrs(attr_pub.is_set());
+	}
+
+
+	auto SemanticAnalyzer::analyze_var_attrs(
+		const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+	) -> evo::Result<VarAttrs> {
+		auto attr_static = Attribute(*this, "static");
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+
+			if(attribute_str == "static"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #static does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_static.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else if(attribute_str == "pub"){
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+					attribute.attribute,
+					std::format("Unknown variable attribute #{}", attribute_str),
+					Diagnostic::Info("Note: attribute `#pub` is not allowed on local variables")
+				);
+				return evo::resultError;
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+					attribute.attribute,
 					std::format("Unknown variable attribute #{}", attribute_str)
 				);
 				return evo::resultError;
@@ -5630,7 +5903,7 @@ namespace pcit::panther{
 		}
 
 
-		return VarAttrs(attr_pub.is_set());
+		return VarAttrs(attr_static.is_set());
 	}
 
 
@@ -6475,7 +6748,8 @@ namespace pcit::panther{
 		sema::ScopeLevel& current_scope_level = 
 			this->context.sema_buffer.scope_manager.getLevel(target_scope.getCurrentLevel());
 
-		const sema::ScopeLevel::AddIdentResult add_ident_result = current_scope_level.addIdent(
+		const sema::ScopeLevel::AddIdentResult add_ident_result = current_scope_level.
+			addIdent(
 			ident_str, std::forward<decltype(ident_id_info)>(ident_id_info)...
 		);
 

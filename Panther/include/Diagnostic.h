@@ -86,6 +86,7 @@ namespace pcit::panther{
 			SYMBOL_PROC_TYPE_USED_AS_EXPR,
 			SYMBOL_PROC_VAR_WITH_NO_VALUE,
 			SYMBOL_PROC_LABELED_VOID_RETURN,
+			SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR,
 
 
 			//////////////////
@@ -282,6 +283,9 @@ namespace pcit::panther{
 
 				// sema / types
 				EVO_NODISCARD static auto get(
+					const sema::Var::ID& sema_var_id, const class Source& src, const class Context& context
+				) -> Location;
+				EVO_NODISCARD static auto get(
 					const sema::GlobalVar::ID& sema_var_id, const class Source& src, const class Context& context
 				) -> Location;
 
@@ -475,6 +479,7 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_TYPE_USED_AS_EXPR:
 				case Code::SYMBOL_PROC_VAR_WITH_NO_VALUE:
 				case Code::SYMBOL_PROC_LABELED_VOID_RETURN:
+				case Code::SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR:
 					return "SP";
 
 				// TODO(FUTURE): give individual codes and put in correct order

@@ -186,6 +186,11 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// sema
 
+	auto Diagnostic::Location::get(const sema::Var::ID& sema_var_id, const Source& src, const Context& context)
+	-> Location {
+		return Location::get(context.getSemaBuffer().getVar(sema_var_id).ident, src);
+	}
+
 	auto Diagnostic::Location::get(const sema::GlobalVar::ID& sema_var_id, const Source& src, const Context& context)
 	-> Location {
 		return Location::get(context.getSemaBuffer().getGlobalVar(sema_var_id).ident, src);

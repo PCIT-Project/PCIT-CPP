@@ -1,34 +1,15 @@
 
-
-const pi: F32 = get_pi();
-
 func get_num = () -> UI8 {
-	return @fToUI<{F32, UI8}>(pi);
+	return 12;
 }
-
-func get_num_2 = () -> UI8 {
-	return @fToUI<{F32, UI8}>(pi);
-}
-
-func get_num_3 = () -> UI8 {
-	return @fToUI<{F32, UI8}>(pi);
-}
-
-
-
-
-var foo: UI8 = get_num();
-var bar: UI8 = get_num_2();
-
-
 
 
 
 func entry = () #entry -> UI8 {
-	return copy foo;
+	def FOO: $Integer = get_num();
+	var bar: Integer = FOO;
+
+	return move bar;
 }
 
 
-func get_pi = () -> F32 {
-	return @import("math").PI;
-}

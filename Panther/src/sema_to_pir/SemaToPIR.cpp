@@ -850,8 +850,19 @@ namespace pcit::panther{
 
 	auto SemaToPIR::lower_stmt(const sema::Stmt& stmt) -> void {
 		switch(stmt.kind()){
-			case sema::Stmt::Kind::GLOBAL_VAR: {
-				evo::unimplemented("To PIR of sema::Stmt::Kind::GLOBAL_VAR");
+			case sema::Stmt::Kind::VAR: {
+				const sema::Var& var = this->context.getSemaBuffer().getVar(stmt.varID());
+
+				if(var.kind == AST::VarDecl::Kind::DEF){ return; }
+
+				const pir::Expr var_alloca = this->agent.createAlloca(
+					this->get_type(*var.typeID),
+					this->name("{}.ALLOCA", this->current_source->getTokenBuffer()[var.ident].getString())
+				);
+
+				this->local_func_exprs.emplace(sema::Expr(stmt.varID()), var_alloca);
+
+				this->get_expr_store(var.expr, var_alloca);
 			} break;
 
 			case sema::Stmt::Kind::FUNC_CALL: {
@@ -1625,6 +1636,31 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Expr::Kind::VAR: {
+				if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Expr var_alloca = this->local_func_exprs.at(expr);
+
+					return this->agent.createLoad(
+						var_alloca, this->agent.getAlloca(var_alloca).type, false, pir::AtomicOrdering::NONE
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->local_func_exprs.at(expr);
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+					const pir::Expr var_alloca = this->local_func_exprs.at(expr);
+					this->agent.createMemcpy(
+						store_locations[0], var_alloca, this->agent.getAlloca(var_alloca).type, false
+					);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
+			} break;
+
 			case sema::Expr::Kind::GLOBAL_VAR: {
 				const pir::GlobalVar::ID pir_var_id = this->data.get_global_var(expr.globalVarID());
 				
@@ -2091,8 +2127,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::TRY_ELSE:           case sema::Expr::Kind::BLOCK_EXPR:
 			case sema::Expr::Kind::PARAM:              case sema::Expr::Kind::RETURN_PARAM:
 			case sema::Expr::Kind::ERROR_RETURN_PARAM: case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:       case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::EXCEPT_PARAM:       case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:         case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

@@ -231,6 +231,16 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct Var{
+		using ID = VarID;
+
+		AST::VarDecl::Kind kind;
+		Token::ID ident;
+		Expr expr;
+		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
+	};
+
+
 
 	struct GlobalVar{
 		using ID = GlobalVarID;
@@ -242,7 +252,7 @@ namespace pcit::panther::sema{
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPub;
 		SymbolProc& symbolProc;
-		SymbolProcID symbolProcID;
+		SymbolProcID symbolProcID; // TODO(FUTURE): need both id and ref?
 
 		std::optional<pir::GlobalVar::ID> constexprJITGlobal{};
 	};
@@ -261,7 +271,7 @@ namespace pcit::panther::sema{
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
 		SymbolProc& symbolProc;
-		SymbolProcID symbolProcID;
+		SymbolProcID symbolProcID; // TODO(FUTURE): need both id and ref?
 		uint32_t minNumArgs; // TODO(PERF): make sure this optimization actually improves perf
 		bool isPub;
 		bool isConstexpr;

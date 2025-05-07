@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.112.0"></a>
+## v0.0.112.0
+
+### Panther
+- Added local variables
+- Added checking for constexpr block expressions
+
+
+<!---------------------------------->
 <a name="v0.0.111.0"></a>
 ## v0.0.111.0
 

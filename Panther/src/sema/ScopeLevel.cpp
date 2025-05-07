@@ -133,10 +133,14 @@ namespace pcit::panther::sema{
 		}
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, sema::GlobalVarID id) -> AddIdentResult {
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::VarID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
 
+	auto ScopeLevel::addIdent(std::string_view ident, sema::GlobalVarID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
 
 	auto ScopeLevel::addIdent(std::string_view ident, sema::ParamID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);

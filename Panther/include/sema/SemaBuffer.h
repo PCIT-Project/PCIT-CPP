@@ -69,6 +69,27 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// vars
+
+			EVO_NODISCARD auto createVar(auto&&... args) -> sema::Var::ID {
+				return this->vars.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getVar(sema::Var::ID id) const -> const sema::Var& {
+				return this->vars[id];
+			}
+
+			EVO_NODISCARD auto getVars() const -> core::IterRange<sema::Var::ID::Iterator> {
+				return core::IterRange<sema::Var::ID::Iterator>(
+					sema::Var::ID::Iterator(sema::Var::ID(0)),
+					sema::Var::ID::Iterator(sema::Var::ID(uint32_t(this->vars.size())))
+				);
+			};
+
+			EVO_NODISCARD auto numVars() const -> size_t { return this->vars.size(); }
+
+
+			///////////////////////////////////
 			// global vars
 
 			EVO_NODISCARD auto createGlobalVar(auto&&... args) -> sema::GlobalVar::ID {
@@ -416,6 +437,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Func, sema::Func::ID> funcs{};
 			core::SyncLinearStepAlloc<sema::TemplatedFunc, sema::TemplatedFunc::ID> templated_funcs{};
 			core::SyncLinearStepAlloc<sema::TemplatedStruct, sema::TemplatedStruct::ID> templated_structs{};
+			core::SyncLinearStepAlloc<sema::Var, sema::Var::ID> vars{};
 			core::SyncLinearStepAlloc<sema::GlobalVar, sema::GlobalVar::ID> global_vars{};
 			core::SyncLinearStepAlloc<sema::Param, sema::Param::ID> params{};
 			core::SyncLinearStepAlloc<sema::ReturnParam, sema::ReturnParam::ID> return_params{};

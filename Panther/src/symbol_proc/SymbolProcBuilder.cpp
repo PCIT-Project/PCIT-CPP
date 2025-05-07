@@ -233,7 +233,7 @@ namespace pcit::panther{
 
 			}else if(var_decl.kind != AST::VarDecl::Kind::DEF){
 				this->add_instruction(
-					Instruction::VarDecl(
+					Instruction::GlobalVarDecl(
 						var_decl, std::move(attribute_params_info.value()), type_id_res.value()
 					)
 				);
@@ -258,11 +258,11 @@ namespace pcit::panther{
 			&& var_decl.kind != AST::VarDecl::Kind::DEF
 			&& decl_def_type_id.has_value() == false
 		){
-			this->add_instruction(Instruction::VarDef(var_decl, value_id.value()));
+			this->add_instruction(Instruction::GlobalVarDef(var_decl, value_id.value()));
 
 		}else{
 			this->add_instruction(
-				Instruction::VarDeclDef(
+				Instruction::GlobalVarDeclDef(
 					var_decl, std::move(attribute_params_info.value()), decl_def_type_id, value_id.value()
 				)
 			);
@@ -678,7 +678,7 @@ namespace pcit::panther{
 
 		switch(stmt.kind()){
 			case AST::Kind::NONE:             evo::debugFatalBreak("Not a valid AST node");
-			case AST::Kind::VAR_DECL:         evo::unimplemented("AST::Kind::VAR_DECL");
+			case AST::Kind::VAR_DECL:         return this->analyze_var(ast_buffer.getVarDecl(stmt));
 			case AST::Kind::FUNC_DECL:        evo::unimplemented("AST::Kind::FUNC_DECL");
 			case AST::Kind::ALIAS_DECL:       evo::unimplemented("AST::Kind::ALIAS_DECL");
 			case AST::Kind::TYPEDEF_DECL:     evo::unimplemented("AST::Kind::TYPEDEF_DECL");
@@ -715,6 +715,44 @@ namespace pcit::panther{
 		}
 
 		evo::unreachable();
+	}
+
+
+
+	auto SymbolProcBuilder::analyze_var(const AST::VarDecl& var_decl) -> evo::Result<> {
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
+			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock)
+		);
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		auto type_id = std::optional<SymbolProc::TypeID>();
+		if(var_decl.type.has_value()){
+			const evo::Result<SymbolProc::TypeID> type_id_res = this->analyze_type(
+				this->source.getASTBuffer().getType(*var_decl.type)
+			);
+			if(type_id_res.isError()){ return evo::resultError; }
+			type_id = type_id_res.value();
+		}
+
+		if(var_decl.value.has_value() == false){
+			this->emit_error(
+				Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE, var_decl, "Variables need to be defined with a value"
+			);
+			return evo::resultError;
+		}
+		const evo::Result<SymbolProc::TermInfoID> value = [&](){
+			if(var_decl.kind == AST::VarDecl::Kind::DEF){
+				return this->analyze_expr<true>(*var_decl.value);
+			}else{
+				return this->analyze_expr<false>(*var_decl.value);
+			}
+		}();
+		if(value.isError()){ return evo::resultError; }
+
+		this->add_instruction(
+			Instruction::LocalVar(var_decl, std::move(attribute_params_info.value()), type_id, value.value())
+		);
+		return evo::Result<>();
 	}
 
 
@@ -979,25 +1017,33 @@ namespace pcit::panther{
 
 		evo::debugAssert(block.label.has_value(), "Block expr must have label");
 
-		auto output_types = evo::SmallVector<SymbolProc::TypeID>();
-		output_types.reserve(block.outputs.size());
-		for(const AST::Block::Output& output : block.outputs){
-			const evo::Result<SymbolProc::TypeID> output_type = this->analyze_type(
-				this->source.getASTBuffer().getType(output.typeID)
+		if constexpr(IS_CONSTEXPR){
+			this->emit_error(
+				Diagnostic::Code::SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR, block, "Block expressions cannot be constexpr"
 			);
-			if(output_type.isError()){ return evo::resultError; }
-			output_types.emplace_back(output_type.value());
+			return evo::resultError;
+
+		}else{
+			auto output_types = evo::SmallVector<SymbolProc::TypeID>();
+			output_types.reserve(block.outputs.size());
+			for(const AST::Block::Output& output : block.outputs){
+				const evo::Result<SymbolProc::TypeID> output_type = this->analyze_type(
+					this->source.getASTBuffer().getType(output.typeID)
+				);
+				if(output_type.isError()){ return evo::resultError; }
+				output_types.emplace_back(output_type.value());
+			}
+
+			this->add_instruction(Instruction::BeginExprBlock(block, *block.label, std::move(output_types)));
+
+			for(const AST::Node& stmt : block.stmts){
+				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+			}
+
+			const SymbolProc::TermInfoID output_term_info = this->create_term_info();
+			this->add_instruction(Instruction::EndExprBlock(block, output_term_info));
+			return output_term_info;
 		}
-
-		this->add_instruction(Instruction::BeginExprBlock(block, *block.label, std::move(output_types)));
-
-		for(const AST::Node& stmt : block.stmts){
-			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
-		}
-
-		const SymbolProc::TermInfoID output_term_info = this->create_term_info();
-		this->add_instruction(Instruction::EndExprBlock(block, output_term_info));
-		return output_term_info;
 	}
 
 	

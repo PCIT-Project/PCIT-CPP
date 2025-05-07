@@ -480,6 +480,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto sizeOfPtr() const -> uint64_t;
 			EVO_NODISCARD auto sizeOfGeneralRegister() const -> uint64_t;
 
+			EVO_NODISCARD auto isTriviallySized(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallySized(BaseType::ID id) const -> bool;
+
 			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyCopyable(BaseType::ID id) const -> bool;
 

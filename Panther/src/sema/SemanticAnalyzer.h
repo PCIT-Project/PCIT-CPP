@@ -58,9 +58,9 @@ namespace pcit::panther{
 
 			auto analyze_instr(const Instruction& instruction) -> Result;
 
-			EVO_NODISCARD auto instr_var_decl(const Instruction::VarDecl& instr) -> Result;
-			EVO_NODISCARD auto instr_var_def(const Instruction::VarDef& instr) -> Result;
-			EVO_NODISCARD auto instr_var_decl_def(const Instruction::VarDeclDef& instr) -> Result;
+			EVO_NODISCARD auto instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result;
+			EVO_NODISCARD auto instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result;
 			EVO_NODISCARD auto instr_when_cond(const Instruction::WhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_alias_decl(const Instruction::AliasDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_alias_def(const Instruction::AliasDef& instr) -> Result;
@@ -77,6 +77,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_template_func(const Instruction::TemplateFunc& instr) -> Result;
 
 
+			EVO_NODISCARD auto instr_local_var(const Instruction::LocalVar& instr) -> Result;
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
 			EVO_NODISCARD auto instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result;
 			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
@@ -241,8 +242,16 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// attributes
 
-			struct VarAttrs{
+			struct GlobalVarAttrs{
 				bool is_pub;
+			};
+			EVO_NODISCARD auto analyze_global_var_attrs(
+				const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<GlobalVarAttrs>;
+
+
+			struct VarAttrs{
+				bool is_static;
 			};
 			EVO_NODISCARD auto analyze_var_attrs(
 				const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
@@ -464,28 +473,37 @@ namespace pcit::panther{
 				return Diagnostic::Location::get(var, this->source, this->context);
 			}
 
+			EVO_NODISCARD auto get_location(const sema::VarID& var) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(var, this->source, this->context);
+			}
+
 			EVO_NODISCARD auto get_location(const sema::ParamID& param) const -> Diagnostic::Location {
+				// TODO(FUTURE): 
 				std::ignore = param;
 				evo::unimplemented();
 			}
 
 			EVO_NODISCARD auto get_location(const sema::ReturnParamID& return_param) const -> Diagnostic::Location {
+				// TODO(FUTURE): 
 				std::ignore = return_param;
 				evo::unimplemented();
 			}
 
 			EVO_NODISCARD auto get_location(const sema::ErrorReturnParamID& error_param) const -> Diagnostic::Location {
+				// TODO(FUTURE): 
 				std::ignore = error_param;
 				evo::unimplemented();
 			}
 
 			EVO_NODISCARD auto get_location(const sema::BlockExprOutputID& block_expr_output) const
 			-> Diagnostic::Location {
+				// TODO(FUTURE): 
 				std::ignore = block_expr_output;
 				evo::unimplemented();
 			}
 
 			EVO_NODISCARD auto get_location(const sema::ExceptParamID& except_param) const -> Diagnostic::Location {
+				// TODO(FUTURE): 
 				std::ignore = except_param;
 				evo::unimplemented();
 			}
@@ -496,6 +514,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto get_location(const BaseType::Typedef::ID& typedef_id) const -> Diagnostic::Location {
+				// TODO(FUTURE): 
 				std::ignore = typedef_id;
 				evo::unimplemented();
 			}

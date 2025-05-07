@@ -30,7 +30,7 @@ namespace pcit::panther::sema{
 
 	struct Stmt{
 		enum class Kind : uint32_t {
-			GLOBAL_VAR,
+			VAR,
 			FUNC_CALL,
 			ASSIGN,
 			MULTI_ASSIGN,
@@ -41,7 +41,7 @@ namespace pcit::panther::sema{
 			WHILE,
 		};
 
-		explicit Stmt(GlobalVarID global_var_id) : _kind(Kind::GLOBAL_VAR),   value{.global_var_id = global_var_id} {}
+		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),          value{.var_id = var_id}               {}
 		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FUNC_CALL),    value{.func_call_id = func_call_id}   {}
 		explicit Stmt(AssignID assign_id)        : _kind(Kind::ASSIGN),       value{.assign_id = assign_id}         {}
 		explicit Stmt(MultiAssignID multi_assign_id)
@@ -56,9 +56,9 @@ namespace pcit::panther::sema{
 
 		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
 
-		EVO_NODISCARD auto globalVarID() const -> GlobalVarID {
-			evo::debugAssert(this->kind() == Kind::GLOBAL_VAR, "not a global_var");
-			return this->value.global_var_id;
+		EVO_NODISCARD auto varID() const -> VarID {
+			evo::debugAssert(this->kind() == Kind::VAR, "not a var");
+			return this->value.var_id;
 		}
 
 		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
@@ -110,7 +110,7 @@ namespace pcit::panther::sema{
 			Kind _kind;
 			union {
 				Token::ID token_id;
-				GlobalVarID global_var_id;
+				VarID var_id;
 				FuncCallID func_call_id;
 				AssignID assign_id;
 				MultiAssignID multi_assign_id;

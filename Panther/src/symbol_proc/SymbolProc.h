@@ -130,18 +130,18 @@ namespace pcit::panther{
 		//////////////////
 		// stmts valid in global scope
 
-		struct VarDecl{
+		struct GlobalVarDecl{
 			const AST::VarDecl& var_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			SymbolProcTypeID type_id;
 		};
 
-		struct VarDef{
+		struct GlobalVarDef{
 			const AST::VarDecl& var_decl;
 			SymbolProcTermInfoID value_id;
 		};
 
-		struct VarDeclDef{
+		struct GlobalVarDeclDef{
 			const AST::VarDecl& var_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			std::optional<SymbolProcTypeID> type_id;
@@ -297,6 +297,13 @@ namespace pcit::panther{
 
 		//////////////////
 		// stmt
+
+		struct LocalVar{
+			const AST::VarDecl& var_decl;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			std::optional<SymbolProcTypeID> type_id;
+			SymbolProcTermInfoID value;
+		};
 
 		struct Return{
 			const AST::Return& return_stmt;
@@ -524,9 +531,9 @@ namespace pcit::panther{
 		evo::Variant<
 			// stmts valid in global scope
 			WhenCond,
-			VarDecl,
-			VarDef,
-			VarDeclDef,
+			GlobalVarDecl,
+			GlobalVarDef,
+			GlobalVarDeclDef,
 			AliasDecl,
 			AliasDef,
 			StructDecl<true>,
@@ -539,6 +546,7 @@ namespace pcit::panther{
 			TemplateFunc,
 
 			// stmt
+			LocalVar,
 			Return,
 			LabeledReturn,
 			Error,
@@ -732,6 +740,10 @@ namespace pcit::panther{
 				sema::GlobalVar::ID sema_var_id;
 			};
 
+			struct VarInfo{
+				sema::Var::ID sema_var_id;
+			};
+
 			struct WhenCondInfo{
 				evo::SmallVector<SymbolProcID> then_ids;
 				evo::SmallVector<SymbolProcID> else_ids;
@@ -756,7 +768,9 @@ namespace pcit::panther{
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{};
 			};
 
-			evo::Variant<std::monostate, GlobalVarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo> extra_info{};
+			evo::Variant<
+				std::monostate, GlobalVarInfo, VarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo
+			> extra_info{};
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
 

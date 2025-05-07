@@ -570,6 +570,22 @@ namespace pcit::panther{
 	auto TypeManager::sizeOfGeneralRegister() const -> uint64_t { return 8; }
 
 
+
+	///////////////////////////////////
+	// isTriviallySized
+
+	auto TypeManager::isTriviallySized(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+		if(type_info.isPointer()){ return true; }
+		if(type_info.qualifiers().back().isOptional){ evo::unimplemented("Trivially Copyable of optionals"); }
+		return this->isTriviallySized(type_info.baseTypeID());
+	}
+
+	auto TypeManager::isTriviallySized(BaseType::ID id) const -> bool {
+		return this->sizeOf(id) <= this->sizeOfPtr();
+	}
+
+
 	///////////////////////////////////
 	// isTriviallyCopyable
 
@@ -581,7 +597,7 @@ namespace pcit::panther{
 	}
 
 	auto TypeManager::isTriviallyCopyable(BaseType::ID id) const -> bool {
-		return this->sizeOf(id) <= this->sizeOfPtr();
+		return true;
 	}
 
 

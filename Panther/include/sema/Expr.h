@@ -58,6 +58,7 @@ namespace pcit::panther::sema{
 			BLOCK_EXPR_OUTPUT,
 			EXCEPT_PARAM,
 
+			VAR,
 			GLOBAL_VAR,
 			FUNC,
 		};
@@ -97,6 +98,7 @@ namespace pcit::panther::sema{
 		explicit Expr(BlockExprOutputID id)  : _kind(Kind::BLOCK_EXPR_OUTPUT),  value{.block_expr_output = id}  {};
 		explicit Expr(ExceptParamID id)      : _kind(Kind::EXCEPT_PARAM),       value{.except_param = id}       {};
 
+		explicit Expr(VarID id)              : _kind(Kind::VAR),                value{.var = id}                {};
 		explicit Expr(GlobalVarID id)        : _kind(Kind::GLOBAL_VAR),         value{.global_var = id}         {};
 		explicit Expr(FuncID id)             : _kind(Kind::FUNC),               value{.func = id}               {};
 
@@ -202,6 +204,10 @@ namespace pcit::panther::sema{
 			return this->value.except_param;
 		}
 
+		EVO_NODISCARD auto varID() const -> VarID {
+			evo::debugAssert(this->kind() == Kind::VAR, "not a var");
+			return this->value.var;
+		}
 		EVO_NODISCARD auto globalVarID() const -> GlobalVarID {
 			evo::debugAssert(this->kind() == Kind::GLOBAL_VAR, "not a global var");
 			return this->value.global_var;
@@ -255,6 +261,7 @@ namespace pcit::panther::sema{
 				ErrorReturnParamID error_return_param;
 				BlockExprOutputID block_expr_output;
 
+				VarID var;
 				GlobalVarID global_var;
 				FuncID func;
 			} value;
