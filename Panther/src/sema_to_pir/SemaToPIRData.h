@@ -28,6 +28,8 @@ namespace pcit::panther{
 				bool checkedMath;
 				bool isJIT;
 				bool addSourceLocations;
+
+				bool useDebugUnreachables;
 			};
 			
 			struct FuncInfo{

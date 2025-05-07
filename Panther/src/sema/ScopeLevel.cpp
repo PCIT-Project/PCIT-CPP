@@ -72,6 +72,12 @@ namespace pcit::panther::sema{
 	}
 
 
+	auto ScopeLevel::resetSubScopes() -> void {
+		this->num_sub_scopes_not_terminated = 0;
+		this->has_sub_scopes = false;
+	}
+
+
 
 
 

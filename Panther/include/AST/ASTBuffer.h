@@ -191,6 +191,16 @@ namespace pcit::panther{
 				return this->whiles[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createDefer(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->defers.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::DEFER, node_index);
+			}
+			EVO_NODISCARD auto getDefer(const AST::Node& node) const -> const AST::Defer& {
+				evo::debugAssert(node.kind() == AST::Kind::DEFER, "Node is not a Defer");
+				return this->defers[node._value.node_index];
+			}
+
 
 			EVO_NODISCARD auto createBlock(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
@@ -352,6 +362,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::Conditional, uint32_t> conditionals{};
 			core::LinearStepAlloc<AST::WhenConditional, uint32_t> when_conditionals{};
 			core::LinearStepAlloc<AST::While, uint32_t> whiles{};
+			core::LinearStepAlloc<AST::Defer, uint32_t> defers{};
 
 			core::LinearStepAlloc<AST::Block, uint32_t> blocks{};
 			core::LinearStepAlloc<AST::FuncCall, uint32_t> func_calls{};

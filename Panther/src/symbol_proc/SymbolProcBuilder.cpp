@@ -188,16 +188,16 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:          case AST::Kind::ERROR:         case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:           case AST::Kind::UNREACHABLE:   case AST::Kind::BLOCK:
-			case AST::Kind::FUNC_CALL:       case AST::Kind::TEMPLATE_PACK: case AST::Kind::TEMPLATED_EXPR:
-			case AST::Kind::PREFIX:          case AST::Kind::INFIX:         case AST::Kind::POSTFIX:
-			case AST::Kind::MULTI_ASSIGN:    case AST::Kind::NEW:           case AST::Kind::TRY_ELSE:
-			case AST::Kind::TYPE_DEDUCER:    case AST::Kind::TYPE:          case AST::Kind::TYPEID_CONVERTER:
-			case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE:
-			case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:     case AST::Kind::LITERAL:
-			case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:      case AST::Kind::THIS:
-			case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:           case AST::Kind::ERROR:           case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:            case AST::Kind::DEFER:           case AST::Kind::UNREACHABLE:
+			case AST::Kind::BLOCK:            case AST::Kind::FUNC_CALL:       case AST::Kind::TEMPLATE_PACK:
+			case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:          case AST::Kind::INFIX:
+			case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:    case AST::Kind::NEW:
+			case AST::Kind::TRY_ELSE:         case AST::Kind::TYPE_DEDUCER:    case AST::Kind::TYPE:
+			case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
+			case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:          case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:
+			case AST::Kind::THIS:             case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -688,8 +688,9 @@ namespace pcit::panther{
 			case AST::Kind::CONDITIONAL:      evo::unimplemented("AST::Kind::CONDITIONAL");
 			case AST::Kind::WHEN_CONDITIONAL: evo::unimplemented("AST::Kind::WHEN_CONDITIONAL");
 			case AST::Kind::WHILE:            evo::unimplemented("AST::Kind::WHILE");
-			case AST::Kind::UNREACHABLE:      evo::unimplemented("AST::Kind::UNREACHABLE");
-			case AST::Kind::BLOCK:            evo::unimplemented("AST::Kind::BLOCK");
+			case AST::Kind::DEFER:            return this->analyze_defer(ast_buffer.getDefer(stmt));
+			case AST::Kind::UNREACHABLE:      return this->analyze_unreachable(ast_buffer.getUnreachable(stmt));
+			case AST::Kind::BLOCK:            return this->analyze_stmt_block(ast_buffer.getBlock(stmt));
 			case AST::Kind::FUNC_CALL:        return this->analyze_func_call(ast_buffer.getFuncCall(stmt));
 			case AST::Kind::TEMPLATE_PACK:    evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TEMPLATED_EXPR:   evo::debugFatalBreak("Invalid statment");
@@ -705,13 +706,17 @@ namespace pcit::panther{
 			case AST::Kind::ATTRIBUTE_BLOCK:  evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ATTRIBUTE:        evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::PRIMITIVE_TYPE:   evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::IDENT:            evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::INTRINSIC:        evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::LITERAL:          evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::UNINIT:           evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ZEROINIT:         evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::THIS:             evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::DISCARD:          evo::debugFatalBreak("Invalid statment");
+
+			case AST::Kind::IDENT:
+			case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:
+			case AST::Kind::THIS: {
+				this->emit_error(Diagnostic::Code::SYMBOL_PROC_INVALID_STMT, stmt, "Invalid statement");
+				return evo::resultError;
+			} break;
 		}
 
 		evo::unreachable();
@@ -803,6 +808,40 @@ namespace pcit::panther{
 			return evo::Result<>();
 		}
 	}
+
+
+	auto SymbolProcBuilder::analyze_defer(const AST::Defer& defer) -> evo::Result<> {
+		this->add_instruction(Instruction::BeginDefer(defer));
+
+		const AST::Block& block = this->source.getASTBuffer().getBlock(defer.block);
+		for(const AST::Node& stmt : block.stmts){
+			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		}
+
+		this->add_instruction(Instruction::EndDefer());
+
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_unreachable(Token::ID unreachable_token) -> evo::Result<> {
+		this->add_instruction(Instruction::Unreachable(unreachable_token));
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_stmt_block(const AST::Block& stmt_block) -> evo::Result<> {
+		this->add_instruction(Instruction::BeginStmtBlock(stmt_block));
+
+		for(const AST::Node& stmt : stmt_block.stmts){
+			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		}
+
+		this->add_instruction(Instruction::EndStmtBlock());
+
+		return evo::Result<>();
+	}
+
 
 	// TODO(FUTURE): deduplicate with `analyze_expr_func_call`?
 	auto SymbolProcBuilder::analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<> {
@@ -989,12 +1028,12 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case AST::Kind::VAR_DECL:       case AST::Kind::FUNC_DECL:       case AST::Kind::ALIAS_DECL:
-				case AST::Kind::TYPEDEF_DECL:   case AST::Kind::STRUCT_DECL:     case AST::Kind::RETURN:
-				case AST::Kind::ERROR:          case AST::Kind::CONDITIONAL:     case AST::Kind::WHEN_CONDITIONAL:
-				case AST::Kind::WHILE:          case AST::Kind::UNREACHABLE:     case AST::Kind::TEMPLATE_PACK:
-				case AST::Kind::MULTI_ASSIGN:   case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
-				case AST::Kind::PRIMITIVE_TYPE: case AST::Kind::DISCARD: {
+				case AST::Kind::VAR_DECL:      case AST::Kind::FUNC_DECL:      case AST::Kind::ALIAS_DECL:
+				case AST::Kind::TYPEDEF_DECL:  case AST::Kind::STRUCT_DECL:    case AST::Kind::RETURN:
+				case AST::Kind::ERROR:         case AST::Kind::CONDITIONAL:    case AST::Kind::WHEN_CONDITIONAL:
+				case AST::Kind::WHILE:         case AST::Kind::DEFER:          case AST::Kind::UNREACHABLE:
+				case AST::Kind::TEMPLATE_PACK: case AST::Kind::MULTI_ASSIGN:   case AST::Kind::ATTRIBUTE_BLOCK:
+				case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE: case AST::Kind::DISCARD: {
 					// TODO(FUTURE): better messaging (specify what kind)
 					this->emit_fatal(
 						Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,

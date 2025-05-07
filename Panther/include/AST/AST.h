@@ -36,6 +36,7 @@ namespace pcit::panther::AST{
 		CONDITIONAL,
 		WHEN_CONDITIONAL,
 		WHILE,
+		DEFER,
 		UNREACHABLE,
 
 		BLOCK,
@@ -229,6 +230,11 @@ namespace pcit::panther::AST{
 	struct While{
 		Token::ID keyword;
 		Node cond;
+		Node block;
+	};
+
+	struct Defer{
+		Token::ID keyword;
 		Node block;
 	};
 

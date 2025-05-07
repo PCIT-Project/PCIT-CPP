@@ -189,6 +189,12 @@ namespace pcit::panther::sema{
 	// 	StmtBlock block;
 	};
 
+	struct Defer{
+		using ID = DeferID;
+
+		bool isErrorDefer;
+		StmtBlock block{};
+	};
 
 
 

@@ -78,6 +78,7 @@ namespace pcit::panther{
 			//////////////////
 			// symbol proc
 
+			SYMBOL_PROC_INVALID_STMT,
 			SYMBOL_PROC_INVALID_GLOBAL_STMT,
 			SYMBOL_PROC_INVALID_BASE_TYPE,
 			SYMBOL_PROC_INVALID_EXPR_KIND,
@@ -188,6 +189,9 @@ namespace pcit::panther{
 			SEMA_SCOPE_IS_ALREADY_TERMINATED,
 			SEMA_NOT_ERRORING_FUNC_CALL,
 			SEMA_RETURN_LABEL_NOT_FOUND,
+			SEMA_UNLABELED_RETURN_IN_DEFER,
+			SEMA_ERROR_IN_DEFER,
+			SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC,
 
 			// misc
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
@@ -265,6 +269,7 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::WhenConditional& when_cond, const class Source& src)
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::While& while_loop, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::Defer& defer, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Block& block, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::FuncCall& func_call, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TemplatedExpr& templated_expr, const class Source& src)
@@ -471,6 +476,7 @@ namespace pcit::panther{
 				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P16";
 
 				// TODO(FUTURE): give individual codes and put in correct order
+				case Code::SYMBOL_PROC_INVALID_STMT:
 				case Code::SYMBOL_PROC_INVALID_GLOBAL_STMT:
 				case Code::SYMBOL_PROC_INVALID_BASE_TYPE:
 				case Code::SYMBOL_PROC_INVALID_EXPR_KIND:
@@ -554,6 +560,9 @@ namespace pcit::panther{
 				case Code::SEMA_SCOPE_IS_ALREADY_TERMINATED:
 				case Code::SEMA_NOT_ERRORING_FUNC_CALL:
 				case Code::SEMA_RETURN_LABEL_NOT_FOUND:
+				case Code::SEMA_UNLABELED_RETURN_IN_DEFER:
+				case Code::SEMA_ERROR_IN_DEFER:
+				case Code::SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
 					return "S";

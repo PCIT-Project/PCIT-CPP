@@ -10,6 +10,10 @@
 #include "./printing.h"
 
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
 
 namespace pthr{
 
@@ -276,6 +280,10 @@ namespace pthr{
 
 					case panther::AST::Kind::WHILE: {
 						this->print_while(this->ast_buffer.getWhile(stmt));
+					} break;
+
+					case panther::AST::Kind::DEFER: {
+						this->print_defer(this->ast_buffer.getDefer(stmt));
 					} break;
 
 					case panther::AST::Kind::INFIX: {
@@ -716,6 +724,22 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("Block");
 					this->print_block(this->source.getASTBuffer().getBlock(while_loop.block));
+
+					this->indenter.pop();
+				}
+			}
+
+
+			auto print_defer(const panther::AST::Defer& defer_stmt) -> void {
+				this->indenter.print();
+				this->print_major_header("Defer");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_end();
+					this->print_minor_header("Block");
+					this->print_block(this->source.getASTBuffer().getBlock(defer_stmt.block));
 
 					this->indenter.pop();
 				}

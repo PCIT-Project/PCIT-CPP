@@ -104,12 +104,17 @@ namespace pcit::panther::sema{
 				return this->_label_node;
 			}
 
+			auto setIsDeferMainScope() -> void { this->is_defer_main_scope = true; }
+			EVO_NODISCARD auto isDeferMainScope() const -> bool { return this->is_defer_main_scope; }
+
 			auto addSubScope() -> void;
 			auto setSubScopeTerminated() -> void;
 			auto setTerminated() -> void;
 			auto setLabelTerminated() -> void;
 			EVO_NODISCARD auto isTerminated() const -> bool;
 			EVO_NODISCARD auto isLabelTerminated() const -> bool;
+
+			auto resetSubScopes() -> void;
 
 
 
@@ -161,6 +166,7 @@ namespace pcit::panther::sema{
 			sema::StmtBlock* _stmt_block;
 			std::optional<Token::ID> _label;
 			LabelNode _label_node;
+			bool is_defer_main_scope = false;
 
 			unsigned num_sub_scopes_not_terminated = 0;
 			bool has_sub_scopes = false;

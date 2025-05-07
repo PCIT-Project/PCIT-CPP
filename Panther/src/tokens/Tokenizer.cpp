@@ -221,6 +221,8 @@ namespace pcit::panther{
 		{"else",        Token::Kind::KEYWORD_ELSE},
 		{"when",        Token::Kind::KEYWORD_WHEN},
 		{"while",       Token::Kind::KEYWORD_WHILE},
+		{"defer",       Token::Kind::KEYWORD_DEFER},
+		{"errorDefer",  Token::Kind::KEYWORD_ERROR_DEFER},
 
 		{"try",         Token::Kind::KEYWORD_TRY},
 

@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.113.0"></a>
+## v0.0.113.0
+
+### Panther
+- Added `defer`/`errorDefer` statements
+- Added `unreachable` statements
+- Added block statements
+- Added missing checks for scope being terminated
+- Transitioned Panther standard library to using new standalone project ([Panther-std](https://github.com/PCIT-Project/Panther-std))
+- Fixed fatal on certain invalid statements in symbol proc building
+
+
+<!---------------------------------->
 <a name="v0.0.112.0"></a>
 ## v0.0.112.0
 

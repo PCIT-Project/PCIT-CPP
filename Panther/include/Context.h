@@ -104,9 +104,10 @@ namespace pcit::panther{
 					#else
 						.useReadableNames = false,
 					#endif
-					.checkedMath        = true,
-					.isJIT              = true,
-					.addSourceLocations = true,
+					.checkedMath          = true,
+					.isJIT                = true,
+					.addSourceLocations   = true,
+					.useDebugUnreachables = true,
 				})
 			{
 				evo::debugAssert(config.platform.os != core::Platform::OS::UNKNOWN, "OS must be known");
@@ -126,9 +127,10 @@ namespace pcit::panther{
 					#else
 						.useReadableNames = false,
 					#endif
-					.checkedMath        = true,
-					.isJIT              = true,
-					.addSourceLocations = true,
+					.checkedMath          = true,
+					.isJIT                = true,
+					.addSourceLocations   = true,
+					.useDebugUnreachables = true,
 				})
 			{
 				evo::debugAssert(config.platform.os != core::Platform::OS::UNKNOWN, "OS must be known");

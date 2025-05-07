@@ -81,6 +81,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
 			EVO_NODISCARD auto instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result;
 			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
+			EVO_NODISCARD auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
+			EVO_NODISCARD auto instr_end_defer() -> Result;
+			EVO_NODISCARD auto instr_unreachable(const Instruction::Unreachable& instr) -> Result;
+			EVO_NODISCARD auto instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result;
+			EVO_NODISCARD auto instr_end_stmt_block() -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_assignment(const Instruction::Assignment& instr) -> Result;
 			EVO_NODISCARD auto instr_multi_assign(const Instruction::MultiAssign& instr) -> Result;
@@ -137,7 +142,7 @@ namespace pcit::panther{
 			// scope
 
 			EVO_NODISCARD auto get_current_scope_level() const -> sema::ScopeLevel&;
-			EVO_NODISCARD auto push_scope_level() -> void;
+			EVO_NODISCARD auto push_scope_level(sema::StmtBlock* stmt_block = nullptr) -> void;
 			EVO_NODISCARD auto push_scope_level(
 				sema::StmtBlock& stmt_block, Token::ID label, sema::ScopeLevel::LabelNode label_node
 			) -> void;

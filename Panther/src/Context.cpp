@@ -342,10 +342,11 @@ namespace pcit::panther{
 		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
 
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
-			.useReadableNames   = true,
-			.checkedMath        = true,
-			.isJIT              = false,
-			.addSourceLocations = true,
+			.useReadableNames     = true,
+			.checkedMath          = true,
+			.isJIT                = false,
+			.addSourceLocations   = true,
+			.useDebugUnreachables = false,
 		});
 
 		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
@@ -363,10 +364,11 @@ namespace pcit::panther{
 		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
 
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
-			.useReadableNames   = true,
-			.checkedMath        = true,
-			.isJIT              = false,
-			.addSourceLocations = true,
+			.useReadableNames     = true,
+			.checkedMath          = true,
+			.isJIT                = false,
+			.addSourceLocations   = true,
+			.useDebugUnreachables = false,
 		});
 
 		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
@@ -384,10 +386,11 @@ namespace pcit::panther{
 		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
 
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
-			.useReadableNames   = true,
-			.checkedMath        = true,
-			.isJIT              = false,
-			.addSourceLocations = true,
+			.useReadableNames     = true,
+			.checkedMath          = true,
+			.isJIT                = false,
+			.addSourceLocations   = true,
+			.useDebugUnreachables = false,
 		});
 
 		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
@@ -420,9 +423,10 @@ namespace pcit::panther{
 			#else
 				.useReadableNames = false,
 			#endif
-			.checkedMath        = true,
-			.isJIT              = true,
-			.addSourceLocations = true,
+			.checkedMath          = true,
+			.isJIT                = true,
+			.addSourceLocations   = true,
+			.useDebugUnreachables = true,
 		});
 		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
 			sema_to_pir_data.createJITBuildFuncDecls(module);

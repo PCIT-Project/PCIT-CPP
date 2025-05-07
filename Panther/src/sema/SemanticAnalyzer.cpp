@@ -159,6 +159,21 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Error>()){
 				return this->instr_error(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::BeginDefer>()){
+				return this->instr_begin_defer(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::EndDefer>()){
+				return this->instr_end_defer();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Unreachable>()){
+				return this->instr_unreachable(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::BeginStmtBlock>()){
+				return this->instr_begin_stmt_block(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::EndStmtBlock>()){
+				return this->instr_end_stmt_block();
+
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
 				return this->instr_func_call(instr);
 
@@ -1665,6 +1680,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_local_var(const Instruction::LocalVar& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.var_decl).isError()){ return Result::ERROR; }
+
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
 		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_params_info);
@@ -1810,6 +1827,24 @@ namespace pcit::panther{
 
 		if(this->check_scope_isnt_terminated(instr.return_stmt).isError()){ return Result::ERROR; }
 
+		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+			EVO_DEFER([&](){ i -= 1; });
+
+			if(i == this->scope.getCurrentObjectScopeIndex()){ break; }
+
+			const sema::ScopeLevel& target_scope_level = 
+				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+
+			if(target_scope_level.isDeferMainScope()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNLABELED_RETURN_IN_DEFER,
+					instr.return_stmt,
+					"Unlabeled return statements are not allowed in [defer]/[errorDefer] blocks"
+				);
+				return Result::ERROR;
+			}
+		}
+
 		const sema::Func& current_func = this->get_current_func();
 		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
@@ -1914,6 +1949,8 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result {
 		evo::debugAssert(instr.return_stmt.label.has_value(), "Not a labeled return");
+
+		if(this->check_scope_isnt_terminated(instr.return_stmt).isError()){ return Result::ERROR; }
 
 		const Token::ID target_label_id = ASTBuffer::getIdent(*instr.return_stmt.label);
 		sema::ScopeLevel::ID scope_level_id = sema::ScopeLevel::ID::dummy();
@@ -2027,6 +2064,24 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_error(const Instruction::Error& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.error_stmt).isError()){ return Result::ERROR; }
 
+		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+			EVO_DEFER([&](){ i -= 1; });
+
+			if(i == this->scope.getCurrentObjectScopeIndex()){ break; }
+
+			const sema::ScopeLevel& target_scope_level = 
+				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+
+			if(target_scope_level.isDeferMainScope()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_ERROR_IN_DEFER,
+					instr.error_stmt,
+					"Error statements are not allowed in [defer]/[errorDefer] blocks"
+				);
+				return Result::ERROR;
+			}
+		}
+
 		const sema::Func& current_func = this->get_current_func();
 		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
@@ -2112,7 +2167,73 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_begin_defer(const Instruction::BeginDefer& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.defer_stmt).isError()){ return Result::ERROR; }
+
+		const bool is_error_defer = 
+			this->source.getTokenBuffer()[instr.defer_stmt.keyword].kind() == Token::Kind::KEYWORD_ERROR_DEFER;
+
+		if(
+			is_error_defer &&
+			this->context.getTypeManager().getFunction(this->get_current_func().typeID).hasErrorReturn() == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC,
+				instr.defer_stmt,
+				"Functions that do not error cannot have [errorDefer] statements"
+			);
+			return Result::ERROR;
+		}
+
+
+		const sema::Defer::ID sema_defer_id = this->context.sema_buffer.createDefer(is_error_defer);
+		this->get_current_scope_level().stmtBlock().emplace_back(sema_defer_id);
+
+		sema::Defer& sema_defer = this->context.sema_buffer.defers[sema_defer_id];
+		this->push_scope_level(&sema_defer.block);
+
+		this->get_current_scope_level().setIsDeferMainScope();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_end_defer() -> Result {
+		this->pop_scope_level();
+		this->get_current_scope_level().resetSubScopes();
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_unreachable(const Instruction::Unreachable& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.keyword).isError()){ return Result::ERROR; }
+		
+		this->get_current_scope_level().stmtBlock().emplace_back(sema::Stmt::createUnreachable(instr.keyword));
+		this->get_current_scope_level().setTerminated();
+
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.stmt_block).isError()){ return Result::ERROR; }
+
+		this->push_scope_level(&this->get_current_scope_level().stmtBlock());
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_end_stmt_block() -> Result {
+		this->pop_scope_level();
+		this->get_current_scope_level().resetSubScopes();
+		return Result::SUCCESS;
+	}
+
+
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.func_call).isError()){ return Result::ERROR; }
+
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<false, false>(
@@ -2246,6 +2367,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_assignment(const Instruction::Assignment& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
+
 		const TermInfo& lhs = this->get_term_info(instr.lhs);
 		TermInfo& rhs = this->get_term_info(instr.rhs);
 
@@ -2293,6 +2416,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_multi_assign(const Instruction::MultiAssign& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.multi_assign).isError()){ return Result::ERROR; }
+
 		TermInfo& value = this->get_term_info(instr.value);
 
 		if(value.is_ephemeral() == false){
@@ -2380,6 +2505,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
+
 		const TermInfo& rhs = this->get_term_info(instr.rhs);
 
 		if(rhs.isMultiValue()){
@@ -3364,6 +3491,7 @@ namespace pcit::panther{
 
 
 		this->pop_scope_level<true>();
+		this->get_current_scope_level().resetSubScopes();
 		return Result::SUCCESS;
 	}
 
@@ -4388,11 +4516,11 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::push_scope_level() -> void {
+	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block) -> void {
 		if(this->scope.inObjectScope()){
 			this->get_current_scope_level().addSubScope();
 		}
-		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel());
+		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block));
 	}
 
 	auto SemanticAnalyzer::push_scope_level(

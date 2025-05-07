@@ -39,6 +39,7 @@ namespace pcit::panther::sema{
 			UNREACHABLE,
 			CONDITIONAL,
 			WHILE,
+			DEFER,
 		};
 
 		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),          value{.var_id = var_id}               {}
@@ -50,6 +51,7 @@ namespace pcit::panther::sema{
 		explicit Stmt(ErrorID error_id)          : _kind(Kind::ERROR),       value{.error_id = error_id}           {}
 		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::CONDITIONAL), value{.cond_id = cond_id}             {}
 		explicit Stmt(WhileID while_id)          : _kind(Kind::WHILE),       value{.while_id = while_id}           {}
+		explicit Stmt(DeferID defer_id)          : _kind(Kind::DEFER),       value{.defer_id = defer_id}           {}
 
 		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::UNREACHABLE); }
 
@@ -101,6 +103,11 @@ namespace pcit::panther::sema{
 			return this->value.while_id;
 		}
 
+		EVO_NODISCARD auto deferID() const -> DeferID {
+			evo::debugAssert(this->kind() == Kind::DEFER, "not an defer");
+			return this->value.defer_id;
+		}
+
 
 		private:
 			Stmt(Token::ID token_id, Kind stmt_kind) : _kind(stmt_kind), value{.token_id = token_id} {}
@@ -118,6 +125,7 @@ namespace pcit::panther::sema{
 				ErrorID error_id;
 				ConditionalID cond_id;
 				WhileID while_id;
+				DeferID defer_id;
 			} value;
 	};
 

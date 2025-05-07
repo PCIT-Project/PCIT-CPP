@@ -54,6 +54,9 @@ namespace pcit::panther{
 			auto analyze_var(const AST::VarDecl& var) -> evo::Result<>;
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
+			auto analyze_defer(const AST::Defer& defer_stmt) -> evo::Result<>;
+			auto analyze_unreachable(Token::ID unreachable_token) -> evo::Result<>;
+			auto analyze_stmt_block(const AST::Block& stmt_block) -> evo::Result<>;
 			auto analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<>;
 			auto analyze_assignment(const AST::Infix& infix) -> evo::Result<>;
 			auto analyze_multi_assign(const AST::MultiAssign& multi_assign) -> evo::Result<>;

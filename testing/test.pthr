@@ -1,15 +1,26 @@
 
-func get_num = () -> UI8 {
-	return 12;
-}
+func test = () -> UI8 <Void> {
+	var foo: UI8 = 5;
+	defer{
+		foo = 2;
+		foo = 1;
+	};
+	errorDefer{ foo = 3; };
+
+	{
+		const bar: Int = 12;
+	}
 
 
 
-func entry = () #entry -> UI8 {
-	def FOO: $Integer = get_num();
-	var bar: Integer = FOO;
+	foo = {->expr:UI8
+		// return 5;
+		return->expr 4;
+	};
 
-	return move bar;
+	return copy foo;
+	// error;
+	// unreachable;
 }
 
 

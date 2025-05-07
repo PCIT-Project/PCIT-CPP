@@ -596,7 +596,7 @@ namespace pcit::panther{
 		return this->isTriviallyCopyable(type_info.baseTypeID());
 	}
 
-	auto TypeManager::isTriviallyCopyable(BaseType::ID id) const -> bool {
+	auto TypeManager::isTriviallyCopyable(BaseType::ID) const -> bool {
 		return true;
 	}
 

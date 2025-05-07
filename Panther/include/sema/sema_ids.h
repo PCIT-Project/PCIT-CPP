@@ -118,6 +118,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, WhileID>::UniqueID;
 	};
 
+	struct DeferID : public core::UniqueID<uint32_t, struct DeferID> {
+		using core::UniqueID<uint32_t, DeferID>::UniqueID;
+	};
+	
 	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {
 		using core::UniqueID<uint32_t, FuncID>::UniqueID;
 	};

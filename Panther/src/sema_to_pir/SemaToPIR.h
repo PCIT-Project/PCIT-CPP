@@ -92,10 +92,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto name(std::format_string<Args...> fmt, Args&&... args) const -> std::string;
 
 
+			struct DeferItem{
+				sema::Defer::ID defer_id;
+				bool error_only;
+			};
+
 			struct ScopeLevel{
 				std::string_view label; // empty if no label
 				evo::SmallVector<pir::Expr> label_output_locations;
 				std::optional<pir::BasicBlock::ID> end_block; // only has value if has label
+				evo::SmallVector<DeferItem> defers{};
 
 				ScopeLevel() : label(), label_output_locations(), end_block() {}
 				ScopeLevel(
@@ -108,6 +114,10 @@ namespace pcit::panther{
 			auto push_scope_level(auto&&... scope_level_args) -> void;
 			auto pop_scope_level() -> void;
 			EVO_NODISCARD auto get_current_scope_level() -> ScopeLevel&;
+
+
+			template<bool INCLUDE_ERRORS>
+			auto output_defers_for_scope_level(const ScopeLevel& scope_level) -> void;
 
 	
 		private:

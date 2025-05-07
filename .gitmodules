@@ -1,3 +1,6 @@
 [submodule "extern/Evo"]
 	path = extern/Evo
 	url = https://github.com/12Thanjo/Evo
+[submodule "extern/Panther-std"]
+	path = extern/Panther-std
+	url = https://github.com/PCIT-Project/Panther-std.git

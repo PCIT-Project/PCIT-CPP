@@ -256,6 +256,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// defers
+
+			EVO_NODISCARD auto createDefer(auto&&... args) -> sema::Defer::ID {
+				return this->defers.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getDefer(sema::Defer::ID id) const -> const sema::Defer& {
+				return this->defers[id];
+			}
+
+
+			///////////////////////////////////
 			// copies
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> sema::Copy::ID {
@@ -452,6 +464,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Error, sema::Error::ID> errors{};
 			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
+			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
 
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};

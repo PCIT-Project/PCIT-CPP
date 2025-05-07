@@ -320,6 +320,22 @@ namespace pcit::panther{
 			std::optional<SymbolProcTermInfoID>	value;
 		};
 
+		struct BeginDefer{
+			const AST::Defer& defer_stmt;
+		};
+
+		struct EndDefer{};
+
+		struct Unreachable{
+			Token::ID keyword;
+		};
+
+		struct BeginStmtBlock{
+			const AST::Block& stmt_block;
+		};
+
+		struct EndStmtBlock{};
+
 		struct FuncCall{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID target;
@@ -550,6 +566,11 @@ namespace pcit::panther{
 			Return,
 			LabeledReturn,
 			Error,
+			BeginDefer,
+			EndDefer,
+			Unreachable,
+			BeginStmtBlock,
+			EndStmtBlock,
 			FuncCall,
 			Assignment,
 			MultiAssign,

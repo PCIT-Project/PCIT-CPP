@@ -59,6 +59,8 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_IF:          return this->parse_conditional<false>();
 			case Token::Kind::KEYWORD_WHEN:        return this->parse_conditional<true>();
 			case Token::Kind::KEYWORD_WHILE:       return this->parse_while();
+			case Token::Kind::KEYWORD_DEFER:       return this->parse_defer<false>();
+			case Token::Kind::KEYWORD_ERROR_DEFER: return this->parse_defer<true>();
 		}
 
 		Result result = this->parse_assignment();
@@ -469,9 +471,9 @@ namespace pcit::panther{
 	}
 
 
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_while() -> Result {
 		const Token::ID start_location = this->reader.peek();
-		
 		if(this->assert_token_fail(Token::Kind::KEYWORD_WHILE)){ return Result::Code::ERROR; }
 
 		if(this->expect_token_fail(Token::lookupKind("("), "in while loop")){ return Result::Code::ERROR; }
@@ -485,6 +487,26 @@ namespace pcit::panther{
 		if(this->check_result_fail(block, "statement block in while loop")){ return Result::Code::ERROR; }
 
 		return this->source.ast_buffer.createWhile(start_location, cond.value(), block.value());
+	}
+
+
+	// TODO(FUTURE): check EOF
+	template<bool IS_ERROR_DEFER>
+	auto Parser::parse_defer() -> Result {
+		const Token::ID start_location = this->reader.peek();
+
+		if constexpr(IS_ERROR_DEFER){
+			if(this->assert_token_fail(Token::Kind::KEYWORD_ERROR_DEFER)){ return Result::Code::ERROR; }
+		}else{
+			if(this->assert_token_fail(Token::Kind::KEYWORD_DEFER)){ return Result::Code::ERROR; }
+		}
+
+		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+		if(this->check_result_fail(block, "block in defer")){ return Result::Code::ERROR; }
+
+		if(this->expect_token_fail(Token::lookupKind(";"), "at end of defer statement")){ return Result::Code::ERROR; }
+
+		return this->source.ast_buffer.createDefer(start_location, block.value());
 	}
 
 

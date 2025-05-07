@@ -344,7 +344,6 @@ namespace pcit::panther{
 
 		this->current_func_type = nullptr;
 
-		this->pop_scope_level();
 		this->local_func_exprs.clear();
 	}
 
@@ -931,12 +930,27 @@ namespace pcit::panther{
 					const std::string_view label =
 						this->current_source->getTokenBuffer()[*return_stmt.targetLabel].getString();
 
+					const std::optional<pir::Expr> ret_value = [&]() -> std::optional<pir::Expr> {
+						if(return_stmt.value.has_value()){
+							return this->get_expr_register(*return_stmt.value);
+						}else{
+							return std::nullopt;
+						}
+					}();
+
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-						if(scope_level.label != label){ continue; }
+						if(scope_level.label != label){
+							this->output_defers_for_scope_level<false>(scope_level);
+							continue;
+						}
 
 						if(return_stmt.value.has_value()){
-							this->get_expr_store(*return_stmt.value, scope_level.label_output_locations);	
+							this->agent.createStore(
+								scope_level.label_output_locations[0], *ret_value, false, pir::AtomicOrdering::NONE
+							);
 						}
+
+						this->output_defers_for_scope_level<false>(scope_level);
 
 						this->agent.createBranch(*scope_level.end_block);
 						break;
@@ -945,9 +959,15 @@ namespace pcit::panther{
 				}else{
 					if(this->current_func_type->hasErrorReturn()){
 						if(return_stmt.value.has_value()){
+							const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);
+
+							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+								this->output_defers_for_scope_level<false>(scope_level);
+							}
+
 							this->agent.createStore(
 								this->current_func_info->return_params.front(),
-								this->get_expr_register(*return_stmt.value),
+								ret_value,
 								false,
 								pir::AtomicOrdering::NONE
 							);
@@ -957,9 +977,18 @@ namespace pcit::panther{
 
 					}else{
 						if(return_stmt.value.has_value()){
-							this->agent.createRet(this->get_expr_register(*return_stmt.value));
+							const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);
+
+							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+								this->output_defers_for_scope_level<false>(scope_level);
+							}
+
+							this->agent.createRet(ret_value);
 
 						}else{
+							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+								this->output_defers_for_scope_level<false>(scope_level);
+							}
 							this->agent.createRet();
 						}
 					}
@@ -977,16 +1006,27 @@ namespace pcit::panther{
 						false,
 						pir::AtomicOrdering::NONE
 					);
+					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+						this->output_defers_for_scope_level<true>(scope_level);
+					}
 					this->agent.createRet(this->agent.createBoolean(false));
 
 				}else{
+					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+						this->output_defers_for_scope_level<true>(scope_level);
+					}
 					this->agent.createRet(this->agent.createBoolean(false));
 				}
 				
 			} break;
 
 			case sema::Stmt::Kind::UNREACHABLE: {
-				evo::unimplemented("To PIR of sema::Stmt::Kind::UNREACHABLE");
+				if(this->data.getConfig().useDebugUnreachables){
+					this->agent.createBreakpoint();
+				}
+
+				// TODO(FUTURE): proper panic
+				this->agent.createUnreachable();
 			} break;
 
 			case sema::Stmt::Kind::CONDITIONAL: {
@@ -995,6 +1035,11 @@ namespace pcit::panther{
 
 			case sema::Stmt::Kind::WHILE: {
 				evo::unimplemented("To PIR of sema::Stmt::Kind::WHILE");
+			} break;
+
+			case sema::Stmt::Kind::DEFER: {
+				const sema::Defer& defer_stmt = this->context.getSemaBuffer().getDefer(stmt.deferID());
+				this->get_current_scope_level().defers.emplace_back(stmt.deferID(), defer_stmt.isErrorDefer);
 			} break;
 		}
 	}
@@ -2336,11 +2381,31 @@ namespace pcit::panther{
 
 	auto SemaToPIR::pop_scope_level() -> void {
 		evo::debugAssert(this->scope_levels.empty() == false, "No scope levels to pop");
+
 		this->scope_levels.pop_back();
 	}
 
 	auto SemaToPIR::get_current_scope_level() -> ScopeLevel& {
 		return this->scope_levels.back();
+	}
+
+
+
+	template<bool INCLUDE_ERRORS>
+	auto SemaToPIR::output_defers_for_scope_level(const ScopeLevel& scope_level) -> void {
+		for(const DeferItem& defer_item : scope_level.defers | std::views::reverse){
+			if constexpr(INCLUDE_ERRORS == false){
+				if(defer_item.error_only){
+					continue;
+				}		
+			}
+
+			const sema::Defer& sema_defer = this->context.getSemaBuffer().getDefer(defer_item.defer_id);
+
+			for(const sema::Stmt& stmt : sema_defer.block){
+				this->lower_stmt(stmt);
+			}
+		}
 	}
 
 
