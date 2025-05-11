@@ -3033,36 +3033,71 @@ namespace pcit::panther{
 
 
 
+		auto template_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>();
+		for(const SymbolProcTermInfoID& template_arg_id : instr.template_args){
+			const TermInfo& template_arg = this->get_term_info(template_arg_id);
+
+			if(template_arg.value_category == TermInfo::ValueCategory::TYPE){
+				template_args.emplace_back(template_arg.type_id.as<TypeInfo::VoidableID>());
+			}else{
+				const sema::Expr& value_expr = template_arg.getExpr();
+
+				switch(value_expr.kind()){
+					case sema::Expr::Kind::INT_VALUE: {
+						template_args.emplace_back(
+							core::GenericValue(
+								evo::copy(this->context.sema_buffer.getIntValue(value_expr.intValueID()).value)
+							)
+						);
+					} break;
+					case sema::Expr::Kind::FLOAT_VALUE: {
+						template_args.emplace_back(
+							core::GenericValue(
+								evo::copy(this->context.sema_buffer.getFloatValue(value_expr.floatValueID()).value)
+							)
+						);
+					} break;
+					case sema::Expr::Kind::BOOL_VALUE: {
+						template_args.emplace_back(
+							core::GenericValue(
+								this->context.sema_buffer.getBoolValue(value_expr.boolValueID()).value
+							)
+						);
+					} break;
+					case sema::Expr::Kind::STRING_VALUE: {
+						evo::unimplemented("String values");
+						// template_args.emplace_back(
+						// 	core::GenericValue(
+						// 		this->context.sema_buffer.getStringValue(value_expr.stringValueID()).value
+						// 	)
+						// );
+					} break;
+					case sema::Expr::Kind::CHAR_VALUE: {
+						template_args.emplace_back(
+							core::GenericValue(
+								this->context.sema_buffer.getCharValue(value_expr.charValueID()).value
+							)
+						);
+					} break;
+				}
+			}
+		}
+
+		auto args = evo::SmallVector<sema::Expr>();
+		for(const SymbolProc::TermInfoID& arg_term_info_id : instr.args){
+			args.emplace_back(this->get_term_info(arg_term_info_id).getExpr());
+		}
+
 		const auto create_runtime_call = [&](evo::ArrayProxy<BaseType::Function::ReturnParam> return_params) -> void {
 			auto return_types = evo::SmallVector<TypeInfo::ID>();
-			for(
-				const BaseType::Function::ReturnParam& return_param : 
-				return_params
-			){
+			for(const BaseType::Function::ReturnParam& return_param : return_params){
 				return_types.emplace_back(return_param.typeID.asTypeID());
-			}
-
-
-			auto template_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>();
-			for(const SymbolProcTermInfoID& template_arg_id : instr.template_args){
-				const TermInfo& template_arg = this->get_term_info(template_arg_id);
-
-				if(template_arg.value_category == TermInfo::ValueCategory::TYPE){
-					template_args.emplace_back(template_arg.type_id.as<TypeInfo::VoidableID>());
-				}else{
-					evo::unimplemented("Intrinsic template value arg");
-				}
 			}
 
 			const sema::TemplateIntrinsicFuncInstantiation::ID intrinsic_target = 
 				this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 					target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>(), std::move(template_args)
 				);
-
-			auto args = evo::SmallVector<sema::Expr>();
-			for(const SymbolProc::TermInfoID& arg_term_info_id : instr.args){
-				args.emplace_back(this->get_term_info(arg_term_info_id).getExpr());
-			}
 
 			if(return_types.size() == 1){
 				this->return_term_info(instr.output,
@@ -3083,13 +3118,22 @@ namespace pcit::panther{
 		};
 
 
+		auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
+			this->context.type_manager, this->context.sema_buffer
+		);
+
 		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
 			case TemplateIntrinsicFunc::Kind::SIZE_OF: {
 				this->return_term_info(
 					instr.output,
-					ConstexprIntrinsicEvaluator(this->context.type_manager, this->context.sema_buffer).sizeOf(
-						this->get_term_info(instr.template_args[0]).type_id.as<TypeInfo::VoidableID>().asTypeID()
-					)
+					constexpr_intrinsic_evaluator.sizeOf(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::BIT_WIDTH: {
+				this->return_term_info(
+					instr.output,
+					constexpr_intrinsic_evaluator.bitWidth(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
 				);
 			} break;
 
@@ -3098,39 +3142,618 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::TRUNC: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.trunc(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FTRUNC: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.ftrunc(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SEXT: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.sext(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ZEXT: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.zext(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FEXT: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fext(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::I_TO_F: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.iToF(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}(selected_func.value().selected_func_type.returnParams);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::UI_TO_F: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.uiToF(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}(selected_func.value().selected_func_type.returnParams);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::F_TO_I: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fToUI(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}(selected_func.value().selected_func_type.returnParams);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::F_TO_UI: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fToUI(
+						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ADD: {
+				if constexpr(IS_CONSTEXPR){
+					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.add(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<core::GenericValue>().as<bool>(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					);
+
+					if(result.isError()){
+						// TODO(FUTURE): better messaging
+						this->emit_error(
+							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							instr.func_call,
+							"Constexpr intrinsic @add wrapped"
+						);
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output, std::move(result.value()));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ADD_WRAP: {
 				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ADD_SAT: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.addSat(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FADD: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fadd(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::SUB: {
+				if constexpr(IS_CONSTEXPR){
+					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.sub(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<core::GenericValue>().as<bool>(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					);
+
+					if(result.isError()){
+						// TODO(FUTURE): better messaging
+						this->emit_error(
+							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							instr.func_call,
+							"Constexpr intrinsic @sub wrapped"
+						);
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output, std::move(result.value()));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::SUB_WRAP: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::SUB_SAT: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.subSat(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FSUB: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fsub(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::MUL: {
+				if constexpr(IS_CONSTEXPR){
+					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.mul(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<core::GenericValue>().as<bool>(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					);
+
+					if(result.isError()){
+						// TODO(FUTURE): better messaging
+						this->emit_error(
+							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							instr.func_call,
+							"Constexpr intrinsic @mul wrapped"
+						);
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output, std::move(result.value()));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::MUL_WRAP: {
+				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::MUL_SAT: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.mulSat(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FMUL: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fmul(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::DIV: {
+				if constexpr(IS_CONSTEXPR){
+					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.div(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<core::GenericValue>().as<bool>(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					);
+
+					if(result.isError()){
+						// TODO(FUTURE): better messaging
+						this->emit_error(
+							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							instr.func_call,
+							"Constexpr intrinsic @div was not exact"
+						);
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output, std::move(result.value()));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FDIV: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fdiv(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::REM: {
+				if constexpr(IS_CONSTEXPR){
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+
+					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.rem(
+							arg_type,
+							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+						));
+					}else{
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.rem(
+							arg_type,
+							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+						));
+					}
+
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::FNEG: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fneg(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::EQ: {
+				if constexpr(IS_CONSTEXPR){
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+
+					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.eq(
+							arg_type,
+							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+						));
+					}else{
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.eq(
+							arg_type,
+							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+						));
+					}
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::NEQ: {
+				if constexpr(IS_CONSTEXPR){
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+
+					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.neq(
+							arg_type,
+							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+						));
+					}else{
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.neq(
+							arg_type,
+							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+						));
+					}
+
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::LT: {
+				if constexpr(IS_CONSTEXPR){
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+
+					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
+						this->return_term_info(instr.output,  constexpr_intrinsic_evaluator.lt(
+							arg_type,
+							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+						));
+					}else{
+						this->return_term_info(instr.output,  constexpr_intrinsic_evaluator.lt(
+							arg_type,
+							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+						));
+					}
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::LTE: {
+				if constexpr(IS_CONSTEXPR){
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+
+					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.lte(
+							arg_type,
+							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+						));
+					}else{
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.lte(
+							arg_type,
+							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+						));
+					}
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::GT: {
+				if constexpr(IS_CONSTEXPR){
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+
+					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.gt(
+							arg_type,
+							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+						));
+					}else{
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.gt(
+							arg_type,
+							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+						));
+					}
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::GTE: {
+				if constexpr(IS_CONSTEXPR){
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+
+					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.gte(
+							arg_type,
+							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
+						));
+					}else{
+						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.gte(
+							arg_type,
+							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+						));
+					}
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::AND: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bitwiseAnd(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::OR: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bitwiseOr(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::XOR: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bitwiseXor(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::SHL: {
+				if constexpr(IS_CONSTEXPR){
+					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.shl(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[2].as<core::GenericValue>().as<bool>(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					);
+
+					if(result.isError()){
+						// TODO(FUTURE): better messaging
+						this->emit_error(
+							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							instr.func_call,
+							"Constexpr intrinsic @shl wrapped"
+						);
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output, std::move(result.value()));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::SHL_SAT: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.shlSat(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::SHR: {
+				if constexpr(IS_CONSTEXPR){
+					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.shr(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[2].as<core::GenericValue>().as<bool>(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
+						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
+					);
+
+					if(result.isError()){
+						// TODO(FUTURE): better messaging
+						this->emit_error(
+							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							instr.func_call,
+							"Constexpr intrinsic @shr wrapped"
+						);
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output, std::move(result.value()));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::BIT_REVERSE: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bitReverse(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::BSWAP: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bSwap(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::CTPOP: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.ctPop(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::CTLZ: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.ctlz(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::CTTZ: {
+				if constexpr(IS_CONSTEXPR){
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.cttz(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
+					));
+				}else{
+					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::_MAX_: {

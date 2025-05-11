@@ -47,6 +47,12 @@ namespace pcit::llvmint{
 				USHL_SAT,
 				USUB_SAT,
 				USUB_OVERFLOW,
+
+				BIT_REVERSE,
+				BSWAP,
+				CTPOP,
+				CTLZ,
+				CTTZ,
 			};
 
 		public:

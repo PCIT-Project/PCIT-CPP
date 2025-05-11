@@ -189,7 +189,7 @@ namespace pcit::core{
 
 
 			///////////////////////////////////
-			// bitsize
+			// bitwise
 
 			EVO_NODISCARD auto bitwiseAnd(const GenericInt& rhs) const -> GenericInt {
 				return GenericInt(this->ap_int & rhs.ap_int);
@@ -237,6 +237,30 @@ namespace pcit::core{
 				llvmint::APInt result = this->ap_int.lshr(rhs.ap_int);
 				const bool wrapped = result.ne(this->ap_int);
 				return WrapResult(GenericInt(std::move(result)), wrapped);
+			}
+
+
+			//////////////////////////////////////////////////////////////////////
+			// bit operations
+
+			EVO_NODISCARD auto bitReverse() const -> GenericInt {
+				return GenericInt(this->ap_int.reverseBits());
+			}
+
+			EVO_NODISCARD auto bSwap() const -> GenericInt {
+				return GenericInt(this->ap_int.byteSwap());
+			}
+
+			EVO_NODISCARD auto ctPop() const -> GenericInt {
+				return GenericInt(this->getBitWidth(), this->ap_int.popcount());
+			}
+
+			EVO_NODISCARD auto ctlz() const -> GenericInt {
+				return GenericInt(this->getBitWidth(), this->ap_int.countLeadingZeros());
+			}
+
+			EVO_NODISCARD auto cttz() const -> GenericInt {
+				return GenericInt(this->getBitWidth(), this->ap_int.countTrailingZeros());
 			}
 
 
@@ -292,6 +316,13 @@ namespace pcit::core{
 
 		private:
 			GenericInt(llvmint::APInt&& _ap_int) : ap_int(std::move(_ap_int)) {}
+
+
+			EVO_NODISCARD auto data_span() -> std::span<uint64_t> {
+				return std::span<uint64_t>(
+					const_cast<uint64_t*>(this->ap_int.getRawData()), size_t(this->ap_int.getNumWords())
+				);
+			}
 
 			
 		private:

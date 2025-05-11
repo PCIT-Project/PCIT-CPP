@@ -134,6 +134,12 @@ namespace pcit::llvmint{
 				case IntrinsicID::USHL_SAT:      return llvm::Intrinsic::IndependentIntrinsics::ushl_sat;
 				case IntrinsicID::USUB_SAT:      return llvm::Intrinsic::IndependentIntrinsics::usub_sat;
 				case IntrinsicID::USUB_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::usub_with_overflow;
+
+				case IntrinsicID::BIT_REVERSE:   return llvm::Intrinsic::IndependentIntrinsics::bitreverse;
+				case IntrinsicID::BSWAP:         return llvm::Intrinsic::IndependentIntrinsics::bswap;
+				case IntrinsicID::CTPOP:         return llvm::Intrinsic::IndependentIntrinsics::ctpop;
+				case IntrinsicID::CTLZ:          return llvm::Intrinsic::IndependentIntrinsics::ctlz;
+				case IntrinsicID::CTTZ:          return llvm::Intrinsic::IndependentIntrinsics::cttz;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported intrinsic id");

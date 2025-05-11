@@ -133,6 +133,11 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::USHL_SAT:          func_metadata.emplace(expr);
 					break; case Expr::Kind::SSHR:              func_metadata.emplace(expr);
 					break; case Expr::Kind::USHR:              func_metadata.emplace(expr);
+					break; case Expr::Kind::BIT_REVERSE:       func_metadata.emplace(expr);
+					break; case Expr::Kind::BSWAP:             func_metadata.emplace(expr);
+					break; case Expr::Kind::CTPOP:             func_metadata.emplace(expr);
+					break; case Expr::Kind::CTLZ:              func_metadata.emplace(expr);
+					break; case Expr::Kind::CTTZ:              func_metadata.emplace(expr);
 				}
 			};
 
@@ -937,6 +942,51 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
+				case Expr::Kind::BIT_REVERSE: {
+					if(remove_unused_stmt()){ return true; }
+
+					const BitReverse& bit_reverse = agent.getBitReverse(stmt);
+					see_expr(bit_reverse.arg);
+
+					return false;
+				} break;
+
+				case Expr::Kind::BSWAP: {
+					if(remove_unused_stmt()){ return true; }
+
+					const BSwap& bswap = agent.getBSwap(stmt);
+					see_expr(bswap.arg);
+
+					return false;
+				} break;
+
+				case Expr::Kind::CTPOP: {
+					if(remove_unused_stmt()){ return true; }
+
+					const CtPop& ctpop = agent.getCtPop(stmt);
+					see_expr(ctpop.arg);
+
+					return false;
+				} break;
+
+
+				case Expr::Kind::CTLZ: {
+					if(remove_unused_stmt()){ return true; }
+
+					const CTLZ& ctlz = agent.getCTLZ(stmt);
+					see_expr(ctlz.arg);
+
+					return false;
+				} break;
+
+				case Expr::Kind::CTTZ: {
+					if(remove_unused_stmt()){ return true; }
+
+					const CTTZ& cttz = agent.getCTTZ(stmt);
+					see_expr(cttz.arg);
+
+					return false;
+				} break;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.kind()));

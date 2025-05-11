@@ -11,6 +11,7 @@
 #include <Evo.h>
 
 #include "../../internal/llvm_interface/include/AP_numbers/APFloat.h"
+#include "./GenericInt.h"
 
 namespace pcit::core{
 
@@ -60,6 +61,56 @@ namespace pcit::core{
 			}
 			EVO_NODISCARD static auto createF128(float64_t value) -> GenericFloat {
 				return GenericFloat::createF64(value).asF128();
+			}
+
+
+
+			EVO_NODISCARD static auto createBF16FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
+				auto output = createBF16(0);
+				output.ap_float.convertFromAPInt(
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+				);
+				return GenericFloat(std::move(output));
+			}
+
+			EVO_NODISCARD static auto createF16FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
+				auto output = createF16(0);
+				output.ap_float.convertFromAPInt(
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+				);
+				return GenericFloat(std::move(output));
+			}
+
+			EVO_NODISCARD static auto createF32FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
+				auto output = createF32(0);
+				output.ap_float.convertFromAPInt(
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+				);
+				return GenericFloat(std::move(output));
+			}
+
+			EVO_NODISCARD static auto createF64FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
+				auto output = createF64(0);
+				output.ap_float.convertFromAPInt(
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+				);
+				return GenericFloat(std::move(output));
+			}
+
+			EVO_NODISCARD static auto createF80FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
+				auto output = createF80(0);
+				output.ap_float.convertFromAPInt(
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+				);
+				return GenericFloat(std::move(output));
+			}
+
+			EVO_NODISCARD static auto createF128FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
+				auto output = createF128(0);
+				output.ap_float.convertFromAPInt(
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+				);
+				return GenericFloat(std::move(output));
 			}
 
 
@@ -216,8 +267,17 @@ namespace pcit::core{
 
 
 
-			EVO_NODISCARD auto bitCastToGenericInt() -> GenericInt {
+			EVO_NODISCARD auto bitCastToGenericInt() const -> GenericInt {
 				return this->ap_float.bitcastToAPInt();
+			}
+
+			EVO_NODISCARD auto toGenericInt(unsigned width, bool is_signed) const -> GenericInt {
+				auto output = core::GenericInt(width, 0, is_signed);
+				bool is_exact;
+				this->ap_float.convertToInteger(
+					output.data_span(), width, is_signed, llvmint::glue::RoundingMode::TowardZero, &is_exact
+				);
+				return output;
 			}
 
 

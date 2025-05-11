@@ -37,7 +37,9 @@ namespace pcit::panther{
 	namespace TemplateIntrinsicFunc{
 		enum class Kind{
 			SIZE_OF,
+			BIT_WIDTH,
 
+			// type conversion
 			BIT_CAST,
 			TRUNC,
 			FTRUNC,
@@ -48,6 +50,45 @@ namespace pcit::panther{
 			UI_TO_F,
 			F_TO_I,
 			F_TO_UI,
+
+			// arithmetic
+			ADD,
+			ADD_WRAP,
+			ADD_SAT,
+			FADD,
+			SUB,
+			SUB_WRAP,
+			SUB_SAT,
+			FSUB,
+			MUL,
+			MUL_WRAP,
+			MUL_SAT,
+			FMUL,
+			DIV,
+			FDIV,
+			REM,
+			FNEG,
+
+			// comparison
+			EQ,
+			NEQ,
+			LT,
+			LTE,
+			GT,
+			GTE,
+
+			// bitwise
+			AND,
+			OR,
+			XOR,
+			SHL,
+			SHL_SAT,
+			SHR,
+			BIT_REVERSE,
+			BSWAP,
+			CTPOP,
+			CTLZ,
+			CTTZ,
 
 			_MAX_,
 		};

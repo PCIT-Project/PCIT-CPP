@@ -1,6 +1,44 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.114.0"></a>
+## v0.0.114.0
+
+### Panther
+- Added arithmetic intrinsics:
+	- `@add`, `@addWrap`, `@addSat`, `@fadd`
+	- `@sub`, `@subWrap`, `@subSat`, `@fsub`
+	- `@mul`, `@mulWrap`, `@mulSat`, `@fmul`
+	- `@div`, `@fdiv`
+	- `@rem`, `@fneg`
+- Added comparison intrinsics:
+	- `@eq`, `@neq`
+	- `@lt`, `@lte`
+	- `@gt`, `@gte`
+- Added bitwise intrinsics:
+	- `@and`, `@or`, `@xor`
+	- `@shl`, `@shlSat`, `@shr`
+	- `@bitReverse`
+	- `@bSwap`
+	- `@ctPop`
+	- `@ctLZ`, `@ctTZ`
+- Added type traits intrinsics:
+	- `@bitWidth`
+- Added constexpr execution type conversion intrinsics:
+	- `@trunc`, `@ftrunc`
+	- `@sext`, `@zext`, `@fext`
+	- `@iToF`, `@uiToF`, `@fToI`, `@fToUI`
+
+### PIR
+- Added bitwise instructions:
+	- `@bitReverse`
+	- `@bSwap`
+	- `@ctPop`
+	- `@ctLZ`
+	- `@ctTZ`
+
+
+<!---------------------------------->
 <a name="v0.0.113.0"></a>
 ## v0.0.113.0
 

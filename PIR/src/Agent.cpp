@@ -645,6 +645,36 @@ namespace pcit::pir{
 						if(ushr.rhs == original){ ushr.rhs = replacement; }
 					} break;
 
+					case Expr::Kind::BIT_REVERSE: {
+						BitReverse& bit_reverse = this->module.bit_reverses[stmt.index];
+
+						if(bit_reverse.arg == original){ bit_reverse.arg = replacement; }
+					} break;
+
+					case Expr::Kind::BSWAP: {
+						BSwap& bswap = this->module.bswaps[stmt.index];
+
+						if(bswap.arg == original){ bswap.arg = replacement; }
+					} break;
+
+					case Expr::Kind::CTPOP: {
+						CtPop& ctpop = this->module.ctpops[stmt.index];
+
+						if(ctpop.arg == original){ ctpop.arg = replacement; }
+					} break;
+
+					case Expr::Kind::CTLZ: {
+						CTLZ& ctlz = this->module.ctlzs[stmt.index];
+
+						if(ctlz.arg == original){ ctlz.arg = replacement; }
+					} break;
+
+					case Expr::Kind::CTTZ: {
+						CTTZ& cttz = this->module.cttzs[stmt.index];
+
+						if(cttz.arg == original){ cttz.arg = replacement; }
+					} break;
+
 				}
 			}
 		}
@@ -2739,6 +2769,105 @@ namespace pcit::pir{
 	}
 
 
+	//////////////////////////////////////////////////////////////////////
+	// bit operations
+
+	auto Agent::createBitReverse(const Expr& expr, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(expr.isValue(), "Expr must be value");
+		evo::debugAssert(
+			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @bitReverse instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::BIT_REVERSE, this->module.bit_reverses.emplace_back(this->get_stmt_name(std::move(name)), expr)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getBitReverse(const Expr& expr) const -> const BitReverse& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getBitReverse(expr);
+	}
+
+
+	auto Agent::createBSwap(const Expr& expr, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(expr.isValue(), "Expr must be value");
+		evo::debugAssert(
+			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @bswap instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::BSWAP, this->module.bswaps.emplace_back(this->get_stmt_name(std::move(name)), expr)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getBSwap(const Expr& expr) const -> const BSwap& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getBSwap(expr);
+	}
+
+
+	auto Agent::createCtPop(const Expr& expr, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(expr.isValue(), "Expr must be value");
+		evo::debugAssert(
+			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @ctPop instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::CTPOP, this->module.ctpops.emplace_back(this->get_stmt_name(std::move(name)), expr)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getCtPop(const Expr& expr) const -> const CtPop& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getCtPop(expr);
+	}
+
+
+	auto Agent::createCTLZ(const Expr& expr, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(expr.isValue(), "Expr must be value");
+		evo::debugAssert(
+			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @ctlz instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::CTLZ, this->module.ctlzs.emplace_back(this->get_stmt_name(std::move(name)), expr)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getCTLZ(const Expr& expr) const -> const CTLZ& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getCTLZ(expr);
+	}
+
+
+	auto Agent::createCTTZ(const Expr& expr, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(expr.isValue(), "Expr must be value");
+		evo::debugAssert(
+			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @ctTZ instruction only supports integers"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::CTTZ, this->module.cttzs.emplace_back(this->get_stmt_name(std::move(name)), expr)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getCTTZ(const Expr& expr) const -> const CTTZ& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getCTTZ(expr);
+	}
+
+
+
 
 
 
@@ -2853,6 +2982,11 @@ namespace pcit::pir{
 			break; case Expr::Kind::USHL_SAT:          this->module.ushlsats.erase(expr.index);
 			break; case Expr::Kind::SSHR:              this->module.sshrs.erase(expr.index);
 			break; case Expr::Kind::USHR:              this->module.ushrs.erase(expr.index);
+			break; case Expr::Kind::BIT_REVERSE:       this->module.bit_reverses.erase(expr.index);
+			break; case Expr::Kind::BSWAP:             this->module.bswaps.erase(expr.index);
+			break; case Expr::Kind::CTPOP:             this->module.ctpops.erase(expr.index);
+			break; case Expr::Kind::CTLZ:              this->module.ctlzs.erase(expr.index);
+			break; case Expr::Kind::CTTZ:              this->module.cttzs.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -2966,40 +3100,45 @@ namespace pcit::pir{
 					} break;
 					case Expr::Kind::UMUL_WRAP_RESULT:  continue;
 					case Expr::Kind::UMUL_WRAP_WRAPPED: continue;
-					case Expr::Kind::SMUL_SAT: if(this->getSMulSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::UMUL_SAT: if(this->getUMulSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::FMUL:     if(this->getFMul(stmt).name == name){    return true; } continue;
-					case Expr::Kind::SDIV:     if(this->getSDiv(stmt).name == name){    return true; } continue;
-					case Expr::Kind::UDIV:     if(this->getUDiv(stmt).name == name){    return true; } continue;
-					case Expr::Kind::FDIV:     if(this->getFDiv(stmt).name == name){    return true; } continue;
-					case Expr::Kind::SREM:     if(this->getSRem(stmt).name == name){    return true; } continue;
-					case Expr::Kind::UREM:     if(this->getURem(stmt).name == name){    return true; } continue;
-					case Expr::Kind::FREM:     if(this->getFRem(stmt).name == name){    return true; } continue;
-					case Expr::Kind::FNEG:     if(this->getFNeg(stmt).name == name){    return true; } continue;
-					case Expr::Kind::IEQ:      if(this->getIEq(stmt).name == name){     return true; } continue;
-					case Expr::Kind::FEQ:      if(this->getFEq(stmt).name == name){     return true; } continue;
-					case Expr::Kind::INEQ:     if(this->getINeq(stmt).name == name){    return true; } continue;
-					case Expr::Kind::FNEQ:     if(this->getFNeq(stmt).name == name){    return true; } continue;
-					case Expr::Kind::SLT:      if(this->getSLT(stmt).name == name){     return true; } continue;
-					case Expr::Kind::ULT:      if(this->getULT(stmt).name == name){     return true; } continue;
-					case Expr::Kind::FLT:      if(this->getFLT(stmt).name == name){     return true; } continue;
-					case Expr::Kind::SLTE:     if(this->getSLTE(stmt).name == name){    return true; } continue;
-					case Expr::Kind::ULTE:     if(this->getULTE(stmt).name == name){    return true; } continue;
-					case Expr::Kind::FLTE:     if(this->getFLTE(stmt).name == name){    return true; } continue;
-					case Expr::Kind::SGT:      if(this->getSGT(stmt).name == name){     return true; } continue;
-					case Expr::Kind::UGT:      if(this->getUGT(stmt).name == name){     return true; } continue;
-					case Expr::Kind::FGT:      if(this->getFGT(stmt).name == name){     return true; } continue;
-					case Expr::Kind::SGTE:     if(this->getSGTE(stmt).name == name){    return true; } continue;
-					case Expr::Kind::UGTE:     if(this->getUGTE(stmt).name == name){    return true; } continue;
-					case Expr::Kind::FGTE:     if(this->getFGTE(stmt).name == name){    return true; } continue;
-					case Expr::Kind::AND:      if(this->getAnd(stmt).name == name){     return true; } continue;
-					case Expr::Kind::OR:       if(this->getOr(stmt).name == name){      return true; } continue;
-					case Expr::Kind::XOR:      if(this->getXor(stmt).name == name){     return true; } continue;
-					case Expr::Kind::SHL:      if(this->getSHL(stmt).name == name){     return true; } continue;
-					case Expr::Kind::SSHL_SAT: if(this->getSSHLSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::USHL_SAT: if(this->getUSHLSat(stmt).name == name){ return true; } continue;
-					case Expr::Kind::SSHR:     if(this->getSSHR(stmt).name == name){    return true; } continue;
-					case Expr::Kind::USHR:     if(this->getUSHR(stmt).name == name){    return true; } continue;
+					case Expr::Kind::SMUL_SAT:    if(this->getSMulSat(stmt).name == name){    return true; } continue;
+					case Expr::Kind::UMUL_SAT:    if(this->getUMulSat(stmt).name == name){    return true; } continue;
+					case Expr::Kind::FMUL:        if(this->getFMul(stmt).name == name){       return true; } continue;
+					case Expr::Kind::SDIV:        if(this->getSDiv(stmt).name == name){       return true; } continue;
+					case Expr::Kind::UDIV:        if(this->getUDiv(stmt).name == name){       return true; } continue;
+					case Expr::Kind::FDIV:        if(this->getFDiv(stmt).name == name){       return true; } continue;
+					case Expr::Kind::SREM:        if(this->getSRem(stmt).name == name){       return true; } continue;
+					case Expr::Kind::UREM:        if(this->getURem(stmt).name == name){       return true; } continue;
+					case Expr::Kind::FREM:        if(this->getFRem(stmt).name == name){       return true; } continue;
+					case Expr::Kind::FNEG:        if(this->getFNeg(stmt).name == name){       return true; } continue;
+					case Expr::Kind::IEQ:         if(this->getIEq(stmt).name == name){        return true; } continue;
+					case Expr::Kind::FEQ:         if(this->getFEq(stmt).name == name){        return true; } continue;
+					case Expr::Kind::INEQ:        if(this->getINeq(stmt).name == name){       return true; } continue;
+					case Expr::Kind::FNEQ:        if(this->getFNeq(stmt).name == name){       return true; } continue;
+					case Expr::Kind::SLT:         if(this->getSLT(stmt).name == name){        return true; } continue;
+					case Expr::Kind::ULT:         if(this->getULT(stmt).name == name){        return true; } continue;
+					case Expr::Kind::FLT:         if(this->getFLT(stmt).name == name){        return true; } continue;
+					case Expr::Kind::SLTE:        if(this->getSLTE(stmt).name == name){       return true; } continue;
+					case Expr::Kind::ULTE:        if(this->getULTE(stmt).name == name){       return true; } continue;
+					case Expr::Kind::FLTE:        if(this->getFLTE(stmt).name == name){       return true; } continue;
+					case Expr::Kind::SGT:         if(this->getSGT(stmt).name == name){        return true; } continue;
+					case Expr::Kind::UGT:         if(this->getUGT(stmt).name == name){        return true; } continue;
+					case Expr::Kind::FGT:         if(this->getFGT(stmt).name == name){        return true; } continue;
+					case Expr::Kind::SGTE:        if(this->getSGTE(stmt).name == name){       return true; } continue;
+					case Expr::Kind::UGTE:        if(this->getUGTE(stmt).name == name){       return true; } continue;
+					case Expr::Kind::FGTE:        if(this->getFGTE(stmt).name == name){       return true; } continue;
+					case Expr::Kind::AND:         if(this->getAnd(stmt).name == name){        return true; } continue;
+					case Expr::Kind::OR:          if(this->getOr(stmt).name == name){         return true; } continue;
+					case Expr::Kind::XOR:         if(this->getXor(stmt).name == name){        return true; } continue;
+					case Expr::Kind::SHL:         if(this->getSHL(stmt).name == name){        return true; } continue;
+					case Expr::Kind::SSHL_SAT:    if(this->getSSHLSat(stmt).name == name){    return true; } continue;
+					case Expr::Kind::USHL_SAT:    if(this->getUSHLSat(stmt).name == name){    return true; } continue;
+					case Expr::Kind::SSHR:        if(this->getSSHR(stmt).name == name){       return true; } continue;
+					case Expr::Kind::USHR:        if(this->getUSHR(stmt).name == name){       return true; } continue;
+					case Expr::Kind::BIT_REVERSE: if(this->getBitReverse(stmt).name == name){ return true; } continue;
+					case Expr::Kind::BSWAP:       if(this->getBSwap(stmt).name == name){      return true; } continue;
+					case Expr::Kind::CTPOP:       if(this->getCtPop(stmt).name == name){      return true; } continue;
+					case Expr::Kind::CTLZ:        if(this->getCTLZ(stmt).name == name){       return true; } continue;
+					case Expr::Kind::CTTZ:        if(this->getCTTZ(stmt).name == name){       return true; } continue;
 				}
 			}
 		}

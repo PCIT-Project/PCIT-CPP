@@ -800,6 +800,65 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
+			case Expr::Kind::BIT_REVERSE: {
+				const BitReverse& bit_reverse = agent.getBitReverse(stmt);
+				if(bit_reverse.arg.kind() != Expr::Kind::NUMBER){
+					return false;
+				}
+				const Number& arg = agent.getNumber(bit_reverse.arg);
+
+				const Expr result_expr = agent.createNumber(arg.type, arg.getInt().bitReverse());
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::BSWAP: {
+				const BSwap& bswap = agent.getBSwap(stmt);
+				if(bswap.arg.kind() != Expr::Kind::NUMBER){
+					return false;
+				}
+				const Number& arg = agent.getNumber(bswap.arg);
+
+				const Expr result_expr = agent.createNumber(arg.type, arg.getInt().bSwap());
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::CTPOP: {
+				const CtPop& ctpop = agent.getCtPop(stmt);
+				if(ctpop.arg.kind() != Expr::Kind::NUMBER){
+					return false;
+				}
+				const Number& arg = agent.getNumber(ctpop.arg);
+
+				const Expr result_expr = agent.createNumber(arg.type, arg.getInt().ctPop());
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::CTLZ: {
+				const CTLZ& ctlz = agent.getCTLZ(stmt);
+				if(ctlz.arg.kind() != Expr::Kind::NUMBER){
+					return false;
+				}
+				const Number& arg = agent.getNumber(ctlz.arg);
+
+				const Expr result_expr = agent.createNumber(arg.type, arg.getInt().ctlz());
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
+
+			case Expr::Kind::CTTZ: {
+				const CTTZ& cttz = agent.getCTTZ(stmt);
+				if(cttz.arg.kind() != Expr::Kind::NUMBER){
+					return false;
+				}
+				const Number& arg = agent.getNumber(cttz.arg);
+
+				const Expr result_expr = agent.createNumber(arg.type, arg.getInt().cttz());
+				agent.replaceExpr(stmt, result_expr);
+				return true;
+			} break;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -862,7 +921,7 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			// TODO(PERF): 
+			// TODO(FEATURE): 
 			case Expr::Kind::MEMCPY: return false;
 			case Expr::Kind::MEMSET: return false;
 
@@ -1089,7 +1148,7 @@ namespace pcit::pir::passes{
 
 			case Expr::Kind::FADD: return false;
 
-			// TODO(PERF): 
+			// TODO(FEATURE): 
 			case Expr::Kind::SUB:               return false;
 			case Expr::Kind::SSUB_WRAP:         return false;
 			case Expr::Kind::SSUB_WRAP_RESULT:  return false;
@@ -1118,7 +1177,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::FREM:              return false;
 			case Expr::Kind::FNEG:              return false;
 
-			// TODO(PERF):
+			// TODO(FEATURE):
 			case Expr::Kind::IEQ:  return false;
 			case Expr::Kind::FEQ:  return false;
 			case Expr::Kind::INEQ: return false;
@@ -1136,7 +1195,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::UGTE: return false;
 			case Expr::Kind::FGTE: return false;
 
-			// TODO(PERF):
+			// TODO(FEATURE):
 			case Expr::Kind::AND:      return false;
 			case Expr::Kind::OR:       return false;
 			case Expr::Kind::XOR:      return false;
@@ -1145,6 +1204,13 @@ namespace pcit::pir::passes{
 			case Expr::Kind::USHL_SAT: return false;
 			case Expr::Kind::SSHR:     return false;
 			case Expr::Kind::USHR:     return false;
+
+			// TODO(FEATURE): 
+			case Expr::Kind::BIT_REVERSE: return false;
+			case Expr::Kind::BSWAP:       return false;
+			case Expr::Kind::CTPOP:       return false;
+			case Expr::Kind::CTLZ:        return false;
+			case Expr::Kind::CTTZ:        return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

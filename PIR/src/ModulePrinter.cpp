@@ -866,6 +866,31 @@ namespace pcit::pir{
 				const USHR& ushr = this->reader.getUSHR(expr);
 				this->printer.print("${}", ushr.name);
 			} break;
+
+			case Expr::Kind::BIT_REVERSE: {
+				const BitReverse& bit_reverse = this->reader.getBitReverse(expr);
+				this->printer.print("${}", bit_reverse.name);
+			} break;
+
+			case Expr::Kind::BSWAP: {
+				const BSwap& bswap = this->reader.getBSwap(expr);
+				this->printer.print("${}", bswap.name);
+			} break;
+
+			case Expr::Kind::CTPOP: {
+				const CtPop& ctpop = this->reader.getCtPop(expr);
+				this->printer.print("${}", ctpop.name);
+			} break;
+
+			case Expr::Kind::CTLZ: {
+				const CTLZ& ctlz = this->reader.getCTLZ(expr);
+				this->printer.print("${}", ctlz.name);
+			} break;
+
+			case Expr::Kind::CTTZ: {
+				const CTTZ& cttz = this->reader.getCTTZ(expr);
+				this->printer.print("${}", cttz.name);
+			} break;
 		}
 	}
 
@@ -1726,6 +1751,50 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 
+			case Expr::Kind::BIT_REVERSE: {
+				const BitReverse& bit_reverse = this->reader.getBitReverse(stmt);
+
+				this->printer.print("{}${} ", tabs(2), bit_reverse.name);
+				this->printer.printRed("= @bitReverse ");
+				this->print_expr(bit_reverse.arg);
+				this->printer.println();
+			} break;
+			
+			case Expr::Kind::BSWAP: {
+				const BSwap& bswap = this->reader.getBSwap(stmt);
+
+				this->printer.print("{}${} ", tabs(2), bswap.name);
+				this->printer.printRed("= @bSwap ");
+				this->print_expr(bswap.arg);
+				this->printer.println();
+			} break;
+			
+			case Expr::Kind::CTPOP: {
+				const CtPop& ctpop = this->reader.getCtPop(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ctpop.name);
+				this->printer.printRed("= @ctPop ");
+				this->print_expr(ctpop.arg);
+				this->printer.println();
+			} break;
+			
+			case Expr::Kind::CTLZ: {
+				const CTLZ& ctlz = this->reader.getCTLZ(stmt);
+
+				this->printer.print("{}${} ", tabs(2), ctlz.name);
+				this->printer.printRed("= @ctlz ");
+				this->print_expr(ctlz.arg);
+				this->printer.println();
+			} break;
+			
+			case Expr::Kind::CTTZ: {
+				const CTTZ& cttz = this->reader.getCTTZ(stmt);
+
+				this->printer.print("{}${} ", tabs(2), cttz.name);
+				this->printer.printRed("= @cttz ");
+				this->print_expr(cttz.arg);
+				this->printer.println();
+			} break;
 		}
 	}
 

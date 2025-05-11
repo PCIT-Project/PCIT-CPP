@@ -1,26 +1,9 @@
 
-func test = () -> UI8 <Void> {
-	var foo: UI8 = 5;
-	defer{
-		foo = 2;
-		foo = 1;
-	};
-	errorDefer{ foo = 3; };
 
-	{
-		const bar: Int = 12;
-	}
+const foo = @fadd<{F32}>(@iToF<{Int, F32}>(12), 0.4);
 
 
-
-	foo = {->expr:UI8
-		// return 5;
-		return->expr 4;
-	};
-
-	return copy foo;
-	// error;
-	// unreachable;
+func entry = () #entry -> UI8 {	
+	return @add<{UI8, false}>(10, 12);
 }
-
 

@@ -1,0 +1,20 @@
+////////////////////////////////////////////////////////////////////////////////////
+//                                                                                //
+// Part of Panther-STD, under the MIT License with PCIT Exceptions.               //
+// You may not use this file except in compliance with the License.               //
+// See `https://github.com/PCIT-Project/Panther-std/blob/main/LICENSE`for info.   //
+//                                                                                //
+////////////////////////////////////////////////////////////////////////////////////
+
+
+// NOTE: this is a hack to get around not having enums yet
+type Output = struct #pub {
+	def PRINT_TOKENS       : UI32 = 0;
+	def PRINT_AST          : UI32 = 1;
+	def BUILD_SYMBOL_PROCS : UI32 = 2;
+	def SEMANTIC_ANALYSIS  : UI32 = 3;
+	def PRINT_PIR          : UI32 = 4;
+	def PRINT_LLVMIR       : UI32 = 5;
+	def PRINT_ASSEMBLY     : UI32 = 6;
+	def RUN                : UI32 = 7;
+}

@@ -123,6 +123,12 @@ namespace pcit::pir{
 				USHL_SAT,
 				SSHR,
 				USHR,
+
+				BIT_REVERSE,
+				BSWAP,
+				CTPOP,
+				CTLZ,
+				CTTZ,
 			};
 
 		public:
@@ -158,7 +164,8 @@ namespace pcit::pir{
 					case Kind::UGTE:              case Kind::FGTE:              case Kind::AND:
 					case Kind::OR:                case Kind::XOR:               case Kind::SHL:
 					case Kind::SSHL_SAT:          case Kind::USHL_SAT:          case Kind::SSHR:
-					case Kind::USHR: {
+					case Kind::USHR:              case Kind::BIT_REVERSE:       case Kind::BSWAP:
+					case Kind::CTPOP:             case Kind::CTLZ:              case Kind::CTTZ: {
 						return true;
 					} break;
 					default: return false;
@@ -202,7 +209,8 @@ namespace pcit::pir{
 					case Kind::UGTE:              case Kind::FGTE:              case Kind::AND:
 					case Kind::OR:                case Kind::XOR:               case Kind::SHL:
 					case Kind::SSHL_SAT:          case Kind::USHL_SAT:          case Kind::SSHR:
-					case Kind::USHR: {
+					case Kind::USHR:              case Kind::BIT_REVERSE:       case Kind::BSWAP:
+					case Kind::CTPOP:             case Kind::CTLZ:              case Kind::CTTZ: {
 						return true;
 					} break;
 					default: return false;
@@ -816,6 +824,36 @@ namespace pcit::pir{
 		Expr rhs;
 		bool isExact;
 	};
+
+
+	//////////////////////////////////////////////////////////////////////
+	// bit operations
+
+	struct BitReverse{
+		std::string name;
+		Expr arg;
+	};
+
+	struct BSwap{
+		std::string name;
+		Expr arg;
+	};
+
+	struct CtPop{
+		std::string name;
+		Expr arg;
+	};
+
+	struct CTLZ{
+		std::string name;
+		Expr arg;
+	};
+
+	struct CTTZ{
+		std::string name;
+		Expr arg;
+	};
+
 
 
 }

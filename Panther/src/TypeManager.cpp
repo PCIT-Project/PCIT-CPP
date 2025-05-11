@@ -743,24 +743,78 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isFloat
+	// isSignedIntegral
 
-	auto TypeManager::isFloat(TypeInfo::VoidableID id) const -> bool {
+	auto TypeManager::isSignedIntegral(TypeInfo::VoidableID id) const -> bool {
 		if(id.isVoid()){ return false; }
-		return this->isFloat(id.asTypeID());
+		return this->isSignedIntegral(id.asTypeID());
 	}
 
-
-	auto TypeManager::isFloat(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isSignedIntegral(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		if(type_info.qualifiers().empty()){ return this->isFloat(type_info.baseTypeID()); }
+		if(type_info.qualifiers().empty()){ return this->isSignedIntegral(type_info.baseTypeID()); }
 
 		return false;
 	}
 
 
-	auto TypeManager::isFloat(BaseType::ID id) const -> bool {
+	auto TypeManager::isSignedIntegral(BaseType::ID id) const -> bool {
+		if(id.kind() != BaseType::Kind::PRIMITIVE){ return false; }
+
+		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+
+		switch(primitive.kind()){
+			case Token::Kind::TYPE_INT:           return true;
+			case Token::Kind::TYPE_ISIZE:         return true;
+			case Token::Kind::TYPE_I_N:           return true;
+			case Token::Kind::TYPE_UINT:          return false;
+			case Token::Kind::TYPE_USIZE:         return false;
+			case Token::Kind::TYPE_UI_N:          return false;
+			case Token::Kind::TYPE_F16:           return false;
+			case Token::Kind::TYPE_BF16:          return false;
+			case Token::Kind::TYPE_F32:           return false;
+			case Token::Kind::TYPE_F64:           return false;
+			case Token::Kind::TYPE_F80:           return false;
+			case Token::Kind::TYPE_F128:          return false;
+			case Token::Kind::TYPE_BYTE:          return false;
+			case Token::Kind::TYPE_BOOL:          return false;
+			case Token::Kind::TYPE_CHAR:          return false;
+			case Token::Kind::TYPE_RAWPTR:        return false;
+			case Token::Kind::TYPE_TYPEID:        return false;
+			case Token::Kind::TYPE_C_SHORT:       return true;
+			case Token::Kind::TYPE_C_USHORT:      return false;
+			case Token::Kind::TYPE_C_INT:         return true;
+			case Token::Kind::TYPE_C_UINT:        return false;
+			case Token::Kind::TYPE_C_LONG:        return true;
+			case Token::Kind::TYPE_C_ULONG:       return false;
+			case Token::Kind::TYPE_C_LONG_LONG:   return true;
+			case Token::Kind::TYPE_C_ULONG_LONG:  return false;
+			case Token::Kind::TYPE_C_LONG_DOUBLE: return false;
+			default: evo::debugFatalBreak("Not a type");
+		}
+	}
+
+
+	///////////////////////////////////
+	// isFloatingPoint
+
+	auto TypeManager::isFloatingPoint(TypeInfo::VoidableID id) const -> bool {
+		if(id.isVoid()){ return false; }
+		return this->isFloatingPoint(id.asTypeID());
+	}
+
+
+	auto TypeManager::isFloatingPoint(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.qualifiers().empty()){ return this->isFloatingPoint(type_info.baseTypeID()); }
+
+		return false;
+	}
+
+
+	auto TypeManager::isFloatingPoint(BaseType::ID id) const -> bool {
 		if(id.kind() != BaseType::Kind::PRIMITIVE){ return false; }
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
@@ -794,41 +848,7 @@ namespace pcit::panther{
 			default: evo::debugFatalBreak("Not a type");
 		}
 	}
-
-
-	///////////////////////////////////
-	// isBuiltin
-
-	// auto TypeManager::isBuiltin(TypeInfo::VoidableID id) const -> bool {
-	// 	if(id.isVoid()){ return true; }
-	// 	return this->isBuiltin(id.asTypeID());
-	// }
-
-	// auto TypeManager::isBuiltin(TypeInfo::ID id) const -> bool {
-	// 	const TypeInfo& type_info = this->getTypeInfo(id);
-
-	// 	for(auto iter = type_info.qualifiers().rbegin(); iter != type_info.qualifiers().rend(); ++iter){
-	// 		if(iter->isPtr){ return true; }
-	// 	}
-
-	// 	return this->isBuiltin(type_info.baseTypeID());
-	// }
-
-	// auto TypeManager::isBuiltin(BaseType::ID id) const -> bool {
-	// 	switch(id.kind()){
-	// 		case BaseType::Kind::PRIMITIVE: return true;
-	// 		case BaseType::Kind::FUNCTION:  return false;
-	// 		case BaseType::Kind::ARRAY:     
-	// 		case BaseType::Kind::ALIAS:     return this->isBuiltin(this->getAlias(id.aliasID()).aliasedType);
-	// 		case BaseType::Kind::TYPEDEF:   return false;
-
-	// 		case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
-	// 	}
-
-	// 	evo::debugFatalBreak("Unknown BaseType::Kind");
-	// }
-
-
+	
 	///////////////////////////////////
 	// getUnderlyingType
 

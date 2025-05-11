@@ -1224,6 +1224,75 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, ushr_value);
 					} break;
 
+					case Expr::Kind::BIT_REVERSE: {
+						const BitReverse& bit_reverse = this->reader.getBitReverse(stmt);
+
+						const llvmint::Value arg = this->get_value(bit_reverse.arg);
+
+						const llvmint::Value bit_reverse_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::BIT_REVERSE,
+							this->get_type(this->reader.getExprType(bit_reverse.arg)),
+							arg,
+							bit_reverse.name
+						).asValue();
+						this->stmt_values.emplace(stmt, bit_reverse_value);
+					} break;
+
+					case Expr::Kind::BSWAP: {
+						const BSwap& bswap = this->reader.getBSwap(stmt);
+
+						const llvmint::Value arg = this->get_value(bswap.arg);
+
+						const llvmint::Value bswap_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::BSWAP,
+							this->get_type(this->reader.getExprType(bswap.arg)),
+							arg,
+							bswap.name
+						).asValue();
+						this->stmt_values.emplace(stmt, bswap_value);
+					} break;
+
+					case Expr::Kind::CTPOP: {
+						const CtPop& ctpop = this->reader.getCtPop(stmt);
+
+						const llvmint::Value arg = this->get_value(ctpop.arg);
+
+						const llvmint::Value ctpop_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::CTPOP,
+							this->get_type(this->reader.getExprType(ctpop.arg)),
+							arg,
+							ctpop.name
+						).asValue();
+						this->stmt_values.emplace(stmt, ctpop_value);
+					} break;
+
+					case Expr::Kind::CTLZ: {
+						const CTLZ& ctlz = this->reader.getCTLZ(stmt);
+
+						const llvmint::Value arg = this->get_value(ctlz.arg);
+
+						const llvmint::Value ctlz_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::CTLZ,
+							this->get_type(this->reader.getExprType(ctlz.arg)),
+							{arg, this->builder.getValueBool(false).asValue()},
+							ctlz.name
+						).asValue();
+						this->stmt_values.emplace(stmt, ctlz_value);
+					} break;
+
+					case Expr::Kind::CTTZ: {
+						const CTTZ& cttz = this->reader.getCTTZ(stmt);
+
+						const llvmint::Value arg = this->get_value(cttz.arg);
+
+						const llvmint::Value cttz_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::CTTZ,
+							this->get_type(this->reader.getExprType(cttz.arg)),
+							{arg, this->builder.getValueBool(false).asValue()},
+							cttz.name
+						).asValue();
+						this->stmt_values.emplace(stmt, cttz_value);
+					} break;
 				}
 			}
 		}
@@ -1496,42 +1565,48 @@ namespace pcit::pir{
 			case Expr::Kind::UMUL_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractUMulWrapWrapped(expr));
 			} break;
-			case Expr::Kind::SMUL_SAT: return this->stmt_values.at(expr);
-			case Expr::Kind::UMUL_SAT: return this->stmt_values.at(expr);
-			case Expr::Kind::FMUL:     return this->stmt_values.at(expr);
+			case Expr::Kind::SMUL_SAT:    return this->stmt_values.at(expr);
+			case Expr::Kind::UMUL_SAT:    return this->stmt_values.at(expr);
+			case Expr::Kind::FMUL:        return this->stmt_values.at(expr);
 
-			case Expr::Kind::SDIV:     return this->stmt_values.at(expr);
-			case Expr::Kind::UDIV:     return this->stmt_values.at(expr);
-			case Expr::Kind::FDIV:     return this->stmt_values.at(expr);
-			case Expr::Kind::SREM:     return this->stmt_values.at(expr);
-			case Expr::Kind::UREM:     return this->stmt_values.at(expr);
-			case Expr::Kind::FREM:     return this->stmt_values.at(expr);
-			case Expr::Kind::FNEG:     return this->stmt_values.at(expr);
+			case Expr::Kind::SDIV:        return this->stmt_values.at(expr);
+			case Expr::Kind::UDIV:        return this->stmt_values.at(expr);
+			case Expr::Kind::FDIV:        return this->stmt_values.at(expr);
+			case Expr::Kind::SREM:        return this->stmt_values.at(expr);
+			case Expr::Kind::UREM:        return this->stmt_values.at(expr);
+			case Expr::Kind::FREM:        return this->stmt_values.at(expr);
+			case Expr::Kind::FNEG:        return this->stmt_values.at(expr);
 
-			case Expr::Kind::IEQ:      return this->stmt_values.at(expr);
-			case Expr::Kind::FEQ:      return this->stmt_values.at(expr);
-			case Expr::Kind::INEQ:     return this->stmt_values.at(expr);
-			case Expr::Kind::FNEQ:     return this->stmt_values.at(expr);
-			case Expr::Kind::SLT:      return this->stmt_values.at(expr);
-			case Expr::Kind::ULT:      return this->stmt_values.at(expr);
-			case Expr::Kind::FLT:      return this->stmt_values.at(expr);
-			case Expr::Kind::SLTE:     return this->stmt_values.at(expr);
-			case Expr::Kind::ULTE:     return this->stmt_values.at(expr);
-			case Expr::Kind::FLTE:     return this->stmt_values.at(expr);
-			case Expr::Kind::SGT:      return this->stmt_values.at(expr);
-			case Expr::Kind::UGT:      return this->stmt_values.at(expr);
-			case Expr::Kind::FGT:      return this->stmt_values.at(expr);
-			case Expr::Kind::SGTE:     return this->stmt_values.at(expr);
-			case Expr::Kind::UGTE:     return this->stmt_values.at(expr);
-			case Expr::Kind::FGTE:     return this->stmt_values.at(expr);
-			case Expr::Kind::AND:      return this->stmt_values.at(expr);
-			case Expr::Kind::OR:       return this->stmt_values.at(expr);
-			case Expr::Kind::XOR:      return this->stmt_values.at(expr);
-			case Expr::Kind::SHL:      return this->stmt_values.at(expr);
-			case Expr::Kind::SSHL_SAT: return this->stmt_values.at(expr);
-			case Expr::Kind::USHL_SAT: return this->stmt_values.at(expr);
-			case Expr::Kind::SSHR:     return this->stmt_values.at(expr);
-			case Expr::Kind::USHR:     return this->stmt_values.at(expr);
+			case Expr::Kind::IEQ:         return this->stmt_values.at(expr);
+			case Expr::Kind::FEQ:         return this->stmt_values.at(expr);
+			case Expr::Kind::INEQ:        return this->stmt_values.at(expr);
+			case Expr::Kind::FNEQ:        return this->stmt_values.at(expr);
+			case Expr::Kind::SLT:         return this->stmt_values.at(expr);
+			case Expr::Kind::ULT:         return this->stmt_values.at(expr);
+			case Expr::Kind::FLT:         return this->stmt_values.at(expr);
+			case Expr::Kind::SLTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::ULTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::FLTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::SGT:         return this->stmt_values.at(expr);
+			case Expr::Kind::UGT:         return this->stmt_values.at(expr);
+			case Expr::Kind::FGT:         return this->stmt_values.at(expr);
+			case Expr::Kind::SGTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::UGTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::FGTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::AND:         return this->stmt_values.at(expr);
+			case Expr::Kind::OR:          return this->stmt_values.at(expr);
+			case Expr::Kind::XOR:         return this->stmt_values.at(expr);
+			case Expr::Kind::SHL:         return this->stmt_values.at(expr);
+			case Expr::Kind::SSHL_SAT:    return this->stmt_values.at(expr);
+			case Expr::Kind::USHL_SAT:    return this->stmt_values.at(expr);
+			case Expr::Kind::SSHR:        return this->stmt_values.at(expr);
+			case Expr::Kind::USHR:        return this->stmt_values.at(expr);
+
+			case Expr::Kind::BIT_REVERSE: return this->stmt_values.at(expr);
+			case Expr::Kind::BSWAP:       return this->stmt_values.at(expr);
+			case Expr::Kind::CTPOP:       return this->stmt_values.at(expr);
+			case Expr::Kind::CTLZ:        return this->stmt_values.at(expr);
+			case Expr::Kind::CTTZ:        return this->stmt_values.at(expr);
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

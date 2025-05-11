@@ -618,6 +618,25 @@ namespace pcit::pir{
 
 
 
+			//////////////////////////////////////////////////////////////////////
+			// bit operations
+			
+			EVO_NODISCARD auto createBitReverse(const Expr& expr, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getBitReverse(const Expr& expr) const -> const BitReverse&;
+
+			EVO_NODISCARD auto createBSwap(const Expr& expr, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getBSwap(const Expr& expr) const -> const BSwap&;
+
+			EVO_NODISCARD auto createCtPop(const Expr& expr, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getCtPop(const Expr& expr) const -> const CtPop&;
+
+			EVO_NODISCARD auto createCTLZ(const Expr& expr, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getCTLZ(const Expr& expr) const -> const CTLZ&;
+
+			EVO_NODISCARD auto createCTTZ(const Expr& expr, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getCTTZ(const Expr& expr) const -> const CTTZ&;
+
+
 
 		private:
 			auto insert_stmt(const Expr& stmt) const -> void;
