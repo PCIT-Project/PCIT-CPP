@@ -234,6 +234,15 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Move>()){
 				return this->instr_move(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::AddrOf<true>>()){
+				return this->instr_addr_of(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::AddrOf<false>>()){
+				return this->instr_addr_of(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Deref>()){
+				return this->instr_deref(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::PrepareTryHandler>()){
 				return this->instr_prepare_try_handler(instr);
 
@@ -3818,6 +3827,103 @@ namespace pcit::panther{
 			target.value_stage,
 			target.type_id,
 			sema::Expr(this->context.sema_buffer.createMove(target.getExpr()))
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+	template<bool IS_READ_ONLY>
+	auto SemanticAnalyzer::instr_addr_of(const Instruction::AddrOf<IS_READ_ONLY>& instr) -> Result {
+		const TermInfo& target = this->get_term_info(instr.target);
+
+		if(target.is_concrete() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ADDR_OF_ARG_NOT_CONCRETE,
+				instr.prefix,
+				"Argument of operator prefix [&] must be concrete"
+			);
+			return Result::ERROR;
+		}
+
+		const bool is_read_only = [&](){
+			if constexpr(IS_READ_ONLY){
+				return true;
+			}else{
+				return target.value_category == TermInfo::ValueCategory::CONCRETE_CONST;
+			}
+		}();
+
+
+		const TypeInfo& target_type = this->context.type_manager.getTypeInfo(target.type_id.as<TypeInfo::ID>());
+
+		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		resultant_qualifiers.reserve(target_type.qualifiers().size() + 1);
+		for(const AST::Type::Qualifier& qualifier : target_type.qualifiers()){
+			resultant_qualifiers.emplace_back(qualifier);
+		}
+		resultant_qualifiers.emplace_back(true, is_read_only, false);
+
+		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
+		);
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			target.value_stage,
+			resultant_type_id,
+			sema::Expr(this->context.sema_buffer.createAddrOf(target.getExpr()))
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_deref(const Instruction::Deref& instr) -> Result {
+		const TermInfo& target = this->get_term_info(instr.target);
+
+		if(target.type_id.is<TypeInfo::ID>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
+				instr.postfix,
+				"Argument of operator postfix [.*] must be a pointer"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
+
+		if(target_type.isPointer() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
+				instr.postfix,
+				"Argument of operator postfix [.*] must be a pointer"
+			);
+			return Result::ERROR;
+		}
+
+		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		if(resultant_qualifiers.empty() == false){
+			resultant_qualifiers.reserve(target_type.qualifiers().size() - 1);
+			for(size_t i = 0; i < target_type.qualifiers().size() - 1; i+=1){
+				resultant_qualifiers.emplace_back(target_type.qualifiers()[i]);
+			}
+		}
+
+		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
+		);
+
+
+		using ValueCategory = TermInfo::ValueCategory;
+
+		this->return_term_info(instr.output,
+			target_type.qualifiers().back().isReadOnly ? ValueCategory::CONCRETE_CONST : ValueCategory::CONCRETE_MUT,
+			target.value_stage,
+			resultant_type_id,
+			sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), resultant_type_id))
 		);
 
 		return Result::SUCCESS;
@@ -7437,14 +7543,19 @@ namespace pcit::panther{
 
 		const BaseType::TypeDeducer& type_deducer = type_manager.getTypeDeducer(deducer.baseTypeID().typeDeducerID());
 
-		// const Source& type_deducer_source = this->context.getSourceManager()[type_deducer.sourceID];
 		const Token& type_deducer_token = this->source.getTokenBuffer()[type_deducer.tokenID];
 
 		if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER){
 			return output;
 		}
 
-		output.emplace_back(got_type_id, type_deducer.tokenID);
+		if(deducer.qualifiers().empty()){
+			output.emplace_back(got_type_id, type_deducer.tokenID);
+		}else{
+			output.emplace_back(
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(got_type.baseTypeID())), type_deducer.tokenID
+			);
+		}
 		return output;
 	}
 

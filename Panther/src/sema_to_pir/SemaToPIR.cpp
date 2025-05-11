@@ -1329,11 +1329,56 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::ADDR_OF: {
-				evo::unimplemented("lower sema::Expr::Kind::ADDR_OF");
+				const sema::Expr& target = this->context.getSemaBuffer().getAddrOf(expr.addrOfID());
+				const pir::Expr address = this->get_expr_pointer(target);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return address;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr alloca = this->agent.createAlloca(this->module.createPtrType());
+					this->agent.createStore(alloca, address, false, pir::AtomicOrdering::NONE);
+					return alloca;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+					this->agent.createStore(store_locations.front(), address, false, pir::AtomicOrdering::NONE);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::DEREF: {
-				evo::unimplemented("lower sema::Expr::Kind::DEREF");
+				const sema::Deref& deref = this->context.getSemaBuffer().getDeref(expr.derefID());
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createLoad(
+						this->get_expr_register(deref.expr),
+						this->get_type(deref.typeID),
+						false,
+						pir::AtomicOrdering::NONE,
+						"DEREF"
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->get_expr_register(deref.expr);
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+					this->agent.createMemcpy(
+						store_locations.front(),
+						this->get_expr_register(deref.expr),
+						this->get_type(deref.typeID),
+						false
+					);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::BLOCK_EXPR: {

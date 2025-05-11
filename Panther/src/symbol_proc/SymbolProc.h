@@ -434,6 +434,19 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		template<bool IS_READ_ONLY>
+		struct AddrOf{
+			const AST::Prefix& prefix;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
+		struct Deref{
+			const AST::Postfix& postfix;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
 
 		struct PrepareTryHandler{
 			evo::ArrayProxy<Token::ID> except_params;
@@ -593,6 +606,9 @@ namespace pcit::panther{
 			AddTemplateDeclInstantiationType,
 			Copy,
 			Move,
+			AddrOf<true>,
+			AddrOf<false>,
+			Deref,
 			PrepareTryHandler,
 			TryElse,
 			BeginExprBlock,

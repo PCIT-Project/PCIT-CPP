@@ -387,6 +387,8 @@ namespace pcit::panther{
 			explicit TypeInfo(const BaseType::ID& id) : base_type(id), _qualifiers() {};
 			TypeInfo(const BaseType::ID& id, const evo::SmallVector<AST::Type::Qualifier>& qualifiers_list)
 				: base_type(id), _qualifiers(qualifiers_list) {};
+			TypeInfo(const BaseType::ID& id, evo::SmallVector<AST::Type::Qualifier>&& qualifiers_list)
+				: base_type(id), _qualifiers(std::move(qualifiers_list)) {};
 			~TypeInfo() = default;
 
 

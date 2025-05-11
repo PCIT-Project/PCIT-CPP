@@ -101,8 +101,8 @@ namespace pcit::panther::sema{
 	struct Deref{
 		using ID = DerefID;
 
-	// 	Expr expr;
-	// 	TypeInfo::ID typeID;
+		Expr expr;
+		TypeInfo::ID typeID;
 	};
 
 

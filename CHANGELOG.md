@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.115.0"></a>
+## v0.0.115.0
+
+### Panther
+- Added prefix operators `&` and `&|`
+- Added postfix operator `.*`
+- Fixed type deducers when they have qualifiers
+
+
+<!---------------------------------->
 <a name="v0.0.114.0"></a>
 ## v0.0.114.0
 

@@ -1268,21 +1268,25 @@ namespace pcit::panther{
 
 		switch(this->source.getTokenBuffer()[prefix.opTokenID].kind()){
 			case Token::lookupKind("&"): {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					node,
-					"Building symbol proc of prefix [&] is unimplemented"
-				);
-				return evo::resultError;
+				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				if(target.isError()){ return evo::resultError; }
+
+				this->add_instruction(Instruction::AddrOf<false>(prefix, target.value(), created_term_info_id));
+
+				return created_term_info_id;
 			} break;
 
 			case Token::lookupKind("&|"): {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					node,
-					"Building symbol proc of prefix [&|] is unimplemented"
-				);
-				return evo::resultError;
+				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				if(target.isError()){ return evo::resultError; }
+
+				this->add_instruction(Instruction::AddrOf<true>(prefix, target.value(), created_term_info_id));
+
+				return created_term_info_id;
 			} break;
 
 			case Token::Kind::KEYWORD_COPY: {
@@ -1372,10 +1376,31 @@ namespace pcit::panther{
 
 	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE, node, "Building symbol proc of postfix is unimplemented"
-		);
-		return evo::resultError;
+		const AST::Postfix& postfix = this->source.getASTBuffer().getPostfix(node);
+
+		switch(this->source.getTokenBuffer()[postfix.opTokenID].kind()){
+			case Token::lookupKind(".*"): {
+				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(postfix.lhs);
+				if(target.isError()){ return evo::resultError; }
+
+				this->add_instruction(Instruction::Deref(postfix, target.value(), created_term_info_id));
+
+				return created_term_info_id;
+			} break;
+
+			case Token::lookupKind(".?"): {
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					node,
+					"Building symbol proc of postfix [.?] is unimplemented"
+				);
+				return evo::resultError;
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported postfix operator");
 	}
 
 	template<bool IS_CONSTEXPR>

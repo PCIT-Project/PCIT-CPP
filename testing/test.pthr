@@ -1,9 +1,12 @@
 
 
-const foo = @fadd<{F32}>(@iToF<{Int, F32}>(12), 0.4);
 
+func entry = () #entry -> UI8 {
+	var foo: UI8 = 9;
+	const foo_ptr: $IntType* = &foo;
 
-func entry = () #entry -> UI8 {	
-	return @add<{UI8, false}>(10, 12);
+	foo_ptr.* = @add<{IntType, true}>(12, 14);
+
+	return copy foo_ptr.*;
 }
 
