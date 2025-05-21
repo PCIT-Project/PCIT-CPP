@@ -21,80 +21,98 @@ namespace pcit::pir{
 	
 	auto PIRToLLVMIR::lower() -> void {
 		for(const StructType& struct_type : this->module.getStructTypeIter()){
-			this->lower_struct_type(struct_type);
+			this->lower_struct_type<true>(struct_type);
 		}
 
 		for(const GlobalVar& global_var : this->module.getGlobalVarIter()){
-			this->lower_global_var(global_var);
+			this->lower_global_var<false>(global_var);
 		}
 
 		for(const ExternalFunction& external_function : this->module.getExternalFunctionIter()){
-			this->lower_external_func(external_function);
+			this->lower_external_func<false>(external_function);
 		}
 
 		auto func_setups = std::vector<FuncLoweredSetup>();
 		for(const Function& function : this->module.getFunctionIter()){
-			func_setups.emplace_back(this->lower_function_setup(function));
+			func_setups.emplace_back(this->lower_function_setup<false>(function));
 		}
 
 		for(const FuncLoweredSetup& func_setup : func_setups){
-			this->lower_func_body(func_setup.func, func_setup.llvm_func);
+			this->lower_func_body<false>(func_setup.func, func_setup.llvm_func);
 		}
 	}
 
 
 
 	auto PIRToLLVMIR::lowerSubset(const Subset& subset) -> void {
+		this->lower_subset_impl<false>(subset);
+	}
+
+	auto PIRToLLVMIR::lowerSubsetWithWeakDependencies(const Subset& subset) -> void {
+		this->lower_subset_impl<true>(subset);
+	}
+
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::lower_subset_impl(const Subset& subset) -> void {
 		for(const Type& struct_type : subset.structs){
-			this->lower_struct_type(this->module.getStructType(struct_type));
+			this->lower_struct_type<ADD_WEAK_DEPS>(this->module.getStructType(struct_type));
 		}
 
 		for(const GlobalVar::ID global_var_id : subset.globalVars){
-			this->lower_global_var(this->module.getGlobalVar(global_var_id));
+			this->lower_global_var<ADD_WEAK_DEPS>(this->module.getGlobalVar(global_var_id));
 		}
 
 		for(const GlobalVar::ID global_var_decl_id : subset.globalVarDecls){
-			this->lower_global_var_decl(this->module.getGlobalVar(global_var_decl_id));
+			this->lower_global_var_decl<ADD_WEAK_DEPS>(this->module.getGlobalVar(global_var_decl_id));
 		}
 
 		for(const ExternalFunction::ID external_function_id : subset.externFuncs){
-			this->lower_external_func(this->module.getExternalFunction(external_function_id));
+			this->lower_external_func<ADD_WEAK_DEPS>(this->module.getExternalFunction(external_function_id));
 		}
 
 		for(const Function::ID function_id : subset.funcDecls){
-			this->lower_function_decl(this->module.getFunction(function_id));
+			this->lower_function_decl<ADD_WEAK_DEPS>(this->module.getFunction(function_id));
 		}
 
 
 		auto func_setups = std::vector<FuncLoweredSetup>();
 		for(const Function::ID func_id : subset.funcs){
-			func_setups.emplace_back(this->lower_function_setup(this->module.getFunction(func_id)));
+			func_setups.emplace_back(this->lower_function_setup<ADD_WEAK_DEPS>(this->module.getFunction(func_id)));
 		}
 
 		for(const FuncLoweredSetup& func_setup : func_setups){
-			this->lower_func_body(func_setup.func, func_setup.llvm_func);
+			this->lower_func_body<ADD_WEAK_DEPS>(func_setup.func, func_setup.llvm_func);
 		}
 	}
 
-
-
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_struct_type(const StructType& struct_type) -> void {
+		if constexpr(ADD_WEAK_DEPS){
+			if(this->struct_types.contains(&struct_type)){ return; }
+		}
+
 		auto members = evo::SmallVector<llvmint::Type>();
 		for(const Type& member : struct_type.members){
-			members.emplace_back(this->get_type(member));
+			members.emplace_back(this->get_type<ADD_WEAK_DEPS>(member));
 		}
 
 		const llvmint::StructType llvm_struct_type = this->builder.createStructType(
 			members, struct_type.isPacked, struct_type.name
 		);
 
-		this->struct_types.emplace(struct_type.name, llvm_struct_type);
+		this->struct_types.emplace(&struct_type, llvm_struct_type);
 	}
 
-
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_global_var(const GlobalVar& global) -> void {
+		if constexpr(ADD_WEAK_DEPS){
+			if(this->global_vars.contains(&global)){ return; }
+		}
+
+		const llvmint::Type constant_type = this->get_type<ADD_WEAK_DEPS>(global.type); // this *MUST* come before value
 		const llvmint::Constant constant_value = this->get_global_var_value(global.value, global.type);
-		const llvmint::Type constant_type = this->get_type(global.type);
 
 		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
 			constant_value, constant_type, this->get_linkage(global.linkage), global.isConstant, global.name
@@ -102,11 +120,16 @@ namespace pcit::pir{
 
 		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
 
-		this->global_vars.emplace(global.name, llvm_global_var);
+		this->global_vars.emplace(&global, llvm_global_var);
 	}
 
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_global_var_decl(const GlobalVar& global) -> void {
-		const llvmint::Type constant_type = this->get_type(global.type);
+		if constexpr(ADD_WEAK_DEPS){
+			if(this->global_vars.contains(&global)){ return; }
+		}
+
+		const llvmint::Type constant_type = this->get_type<ADD_WEAK_DEPS>(global.type);
 
 		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
 			llvmint::Constant(nullptr), constant_type, llvmint::LinkageType::External, global.isConstant, global.name
@@ -114,18 +137,23 @@ namespace pcit::pir{
 
 		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
 
-		this->global_vars.emplace(global.name, llvm_global_var);
+		this->global_vars.emplace(&global, llvm_global_var);
 	}
 
 
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_external_func(const ExternalFunction& func_decl) -> void {
+		if constexpr(ADD_WEAK_DEPS){
+			if(this->funcs.contains(&func_decl)){ return; }
+		}
+
 		auto param_types = evo::SmallVector<llvmint::Type>();
 		for(const Parameter& param : func_decl.parameters){
-			param_types.emplace_back(this->get_type(param.getType()));
+			param_types.emplace_back(this->get_type<ADD_WEAK_DEPS>(param.getType()));
 		}
 
 		const llvmint::FunctionType func_type = this->builder.getFuncProto(
-			this->get_type(func_decl.returnType), param_types, false
+			this->get_type<ADD_WEAK_DEPS>(func_decl.returnType), param_types, false
 		);
 
 		const llvmint::LinkageType linkage = this->get_linkage(func_decl.linkage);
@@ -134,18 +162,22 @@ namespace pcit::pir{
 		llvm_func_decl.setNoThrow();
 		llvm_func_decl.setCallingConv(this->get_calling_conv(func_decl.callingConvention));
 
-		this->funcs.emplace(func_decl.name, llvm_func_decl);
+		this->funcs.emplace(&func_decl, llvm_func_decl);
 	}
 
-
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_function_decl(const Function& func) -> void {
+		if constexpr(ADD_WEAK_DEPS){
+			if(this->funcs.contains(&func)){ return; }
+		}
+
 		auto param_types = evo::SmallVector<llvmint::Type>();
 		for(const Parameter& param : func.getParameters()){
-			param_types.emplace_back(this->get_type(param.getType()));
+			param_types.emplace_back(this->get_type<ADD_WEAK_DEPS>(param.getType()));
 		}
 
 		const llvmint::FunctionType func_type = this->builder.getFuncProto(
-			this->get_type(func.getReturnType()), param_types, false
+			this->get_type<ADD_WEAK_DEPS>(func.getReturnType()), param_types, false
 		);
 
 		const llvmint::LinkageType linkage = this->get_linkage(func.getLinkage());
@@ -154,19 +186,19 @@ namespace pcit::pir{
 		llvm_func_decl.setNoThrow();
 		llvm_func_decl.setCallingConv(this->get_calling_conv(func.getCallingConvention()));
 
-		this->funcs.emplace(func.getName(), llvm_func_decl);
+		this->funcs.emplace(&func, llvm_func_decl);
 	}
 
 
-	
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_function_setup(const Function& func) -> FuncLoweredSetup {
 		auto param_types = evo::SmallVector<llvmint::Type>();
 		for(const Parameter& param : func.getParameters()){
-			param_types.emplace_back(this->get_type(param.getType()));
+			param_types.emplace_back(this->get_type<ADD_WEAK_DEPS>(param.getType()));
 		}
 
 		const llvmint::FunctionType func_type = this->builder.getFuncProto(
-			this->get_type(func.getReturnType()), param_types, false
+			this->get_type<ADD_WEAK_DEPS>(func.getReturnType()), param_types, false
 		);
 
 		const llvmint::LinkageType linkage = this->get_linkage(func.getLinkage());
@@ -180,36 +212,36 @@ namespace pcit::pir{
 			llvmint::Argument arg = llvm_func.getArg(i);
 			arg.setName(param.getName());
 
-			for(const pir::Parameter::Attribute& attribute_variant : param.attributes){
+			for(const Parameter::Attribute& attribute_variant : param.attributes){
 				attribute_variant.visit([&](const auto& attribute) -> void {
 					using Attribute = std::decay_t<decltype(attribute)>;
 
-					if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::Unsigned>()){
+					if constexpr(std::is_same<Attribute, Parameter::Attribute::Unsigned>()){
 						arg.setZeroExt();
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::Signed>()){
+					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::Signed>()){
 						arg.setSignExt();
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNoAlias>()){
+					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrNoAlias>()){
 						arg.setNoAlias();
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNonNull>()){
+					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrNonNull>()){
 						arg.setNonNull();
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrDereferencable>()){
+					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrDereferencable>()){
 						arg.setDereferencable(attribute.size);
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrReadOnly>()){
+					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrReadOnly>()){
 						arg.setReadOnly();
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWriteOnly>()){
+					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrWriteOnly>()){
 						arg.setWriteOnly();
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWritable>()){
+					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrWritable>()){
 						arg.setWritable();
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrRVO>()){
-						arg.setStructRet(this->get_type(attribute.type));
+					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrRVO>()){
+						arg.setStructRet(this->get_type<ADD_WEAK_DEPS>(attribute.type));
 					}
 				});
 			}
@@ -218,11 +250,11 @@ namespace pcit::pir{
 			i += 1;
 		}
 
-		this->funcs.emplace(func.getName(), llvm_func);
+		this->funcs.emplace(&func, llvm_func);
 		return FuncLoweredSetup(func, llvm_func);
 	}
 
-
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_func_body(const Function& func, const llvmint::Function& llvm_func) -> void {
 		auto basic_block_map = std::unordered_map<BasicBlock::ID, llvmint::BasicBlock>();
 
@@ -235,7 +267,7 @@ namespace pcit::pir{
 
 			for(const Alloca& alloca_info : func.getAllocasRange()){
 				const llvmint::Alloca llvm_alloca = this->builder.createAlloca(
-					this->get_type(alloca_info.type), alloca_info.name
+					this->get_type<ADD_WEAK_DEPS>(alloca_info.type), alloca_info.name
 				);
 
 				this->allocas.emplace(&alloca_info, llvm_alloca);
@@ -270,6 +302,7 @@ namespace pcit::pir{
 					case Expr::Kind::FUNCTION_POINTER: evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::NUMBER:           evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::BOOLEAN:          evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::NULLPTR:          evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::PARAM_EXPR:       evo::debugFatalBreak("Not a valid stmt");
 
 					case Expr::Kind::CALL: {
@@ -277,7 +310,7 @@ namespace pcit::pir{
 
 						auto call_args = evo::SmallVector<llvmint::Value>();
 						for(const Expr& arg : call.args){
-							call_args.emplace_back(this->get_value(arg));
+							call_args.emplace_back(this->get_value<ADD_WEAK_DEPS>(arg));
 						}
 
 						const llvmint::Value call_value = call.target.visit(
@@ -288,25 +321,20 @@ namespace pcit::pir{
 								if constexpr(std::is_same<TargetT, Function::ID>()){
 									const Function& func_target = this->module.getFunction(target);
 
-									evo::debugAssert(
-										this->funcs.contains(func_target.getName()),
-										"Func {} was not lowered", func_target.getName()
-									);
-
 									return this->builder.createCall(
-										this->funcs.at(func_target.getName()), call_args
+										this->get_func<ADD_WEAK_DEPS>(func_target), call_args
 									).asValue();
 
 								}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
 									const ExternalFunction& func_target = this->module.getExternalFunction(target);
 
 									evo::debugAssert(
-										this->funcs.contains(func_target.name),
+										this->funcs.contains(&func_target),
 										"Func {} was not lowered", func_target.name
 									);
 
 									llvmint::CallInst call_inst = 
-										this->builder.createCall(this->funcs.at(func_target.name), call_args);
+										this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
 									call_inst.setCallingConv(
 										this->get_calling_conv(func_target.callingConvention)
 									);
@@ -315,8 +343,8 @@ namespace pcit::pir{
 
 								}else if constexpr(std::is_same<TargetT, PtrCall>()){
 									const llvmint::FunctionType target_func_type = 
-										this->get_func_type(target.funcType);
-									const llvmint::Value func_target = this->get_value(target.location);
+										this->get_func_type<ADD_WEAK_DEPS>(target.funcType);
+									const llvmint::Value func_target = this->get_value<ADD_WEAK_DEPS>(target.location);
 
 									llvmint::CallInst call_inst = 
 										this->builder.createCall(func_target, target_func_type, call_args);
@@ -342,7 +370,7 @@ namespace pcit::pir{
 
 						auto call_args = evo::SmallVector<llvmint::Value>();
 						for(const Expr& arg : call_void.args){
-							call_args.emplace_back(this->get_value(arg));
+							call_args.emplace_back(this->get_value<ADD_WEAK_DEPS>(arg));
 						}
 
 						call_void.target.visit([&](const auto& target) -> void {
@@ -350,19 +378,19 @@ namespace pcit::pir{
 
 							if constexpr(std::is_same<TargetT, Function::ID>()){
 								const Function& func_target = this->module.getFunction(target);
-								this->builder.createCall(this->funcs.at(func_target.getName()), call_args);
+								this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
 
 							}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
 								const ExternalFunction& func_target = this->module.getExternalFunction(target);
 
 								llvmint::CallInst call_inst = 
-									this->builder.createCall(this->funcs.at(func_target.name), call_args);
+									this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
 								call_inst.setCallingConv(this->get_calling_conv(func_target.callingConvention));
 
 							}else if constexpr(std::is_same<TargetT, PtrCall>()){
 								const llvmint::FunctionType target_func_type = 
-									this->get_func_type(target.funcType);
-								const llvmint::Value func_target = this->get_value(target.location);
+									this->get_func_type<ADD_WEAK_DEPS>(target.funcType);
+								const llvmint::Value func_target = this->get_value<ADD_WEAK_DEPS>(target.location);
 
 								llvmint::CallInst call_inst = 
 									this->builder.createCall(func_target, target_func_type, call_args);
@@ -392,7 +420,7 @@ namespace pcit::pir{
 					case Expr::Kind::RET: {
 						const Ret& ret = this->reader.getRet(stmt);
 						if(ret.value.has_value()){
-							this->builder.createRet(this->get_value(*ret.value));
+							this->builder.createRet(this->get_value<ADD_WEAK_DEPS>(*ret.value));
 						}else{
 							this->builder.createRet();
 						}
@@ -406,7 +434,7 @@ namespace pcit::pir{
 					case Expr::Kind::COND_BRANCH: {
 						const CondBranch& branch = this->reader.getCondBranch(stmt);
 						this->builder.createCondBranch(
-							this->get_value(branch.cond),
+							this->get_value<ADD_WEAK_DEPS>(branch.cond),
 							basic_block_map.at(branch.thenBlock),
 							basic_block_map.at(branch.elseBlock)
 						);
@@ -422,8 +450,8 @@ namespace pcit::pir{
 						const Load& load = this->reader.getLoad(stmt);
 
 						const llvmint::LoadInst load_inst = this->builder.createLoad(
-							this->get_value(load.source),
-							this->get_type(load.type),
+							this->get_value<ADD_WEAK_DEPS>(load.source),
+							this->get_type<ADD_WEAK_DEPS>(load.type),
 							load.isVolatile,
 							this->get_atomic_ordering(load.atomicOrdering),
 							load.name
@@ -436,8 +464,8 @@ namespace pcit::pir{
 						const Store& store = this->reader.getStore(stmt);
 
 						this->builder.createStore(
-							this->get_value(store.destination),
-							this->get_value(store.value),
+							this->get_value<ADD_WEAK_DEPS>(store.destination),
+							this->get_value<ADD_WEAK_DEPS>(store.value),
 							store.isVolatile,
 							this->get_atomic_ordering(store.atomicOrdering)
 						);
@@ -451,13 +479,13 @@ namespace pcit::pir{
 							if(index.is<int64_t>()){
 								indices.emplace_back(this->builder.getValueI32(int32_t(index.as<int64_t>())));
 							}else{
-								indices.emplace_back(this->get_value(index.as<Expr>()));
+								indices.emplace_back(this->get_value<ADD_WEAK_DEPS>(index.as<Expr>()));
 							}
 						}
 
 						const llvmint::Value gep = this->builder.createGetElementPtr(
-							this->get_type(calc_ptr.ptrType),
-							this->get_value(calc_ptr.basePtr),
+							this->get_type<ADD_WEAK_DEPS>(calc_ptr.ptrType),
+							this->get_value<ADD_WEAK_DEPS>(calc_ptr.basePtr),
 							indices,
 							calc_ptr.name
 						);
@@ -469,9 +497,9 @@ namespace pcit::pir{
 						const Memcpy& memcpy = this->reader.getMemcpy(stmt);
 
 						this->builder.createMemCpyInline(
-							this->get_value(memcpy.dst),
-							this->get_value(memcpy.src),
-							this->get_value(memcpy.numBytes),
+							this->get_value<ADD_WEAK_DEPS>(memcpy.dst),
+							this->get_value<ADD_WEAK_DEPS>(memcpy.src),
+							this->get_value<ADD_WEAK_DEPS>(memcpy.numBytes),
 							memcpy.isVolatile
 						);
 					} break;
@@ -480,9 +508,9 @@ namespace pcit::pir{
 						const Memset& memset = this->reader.getMemset(stmt);
 
 						this->builder.createMemSetInline(
-							this->get_value(memset.dst),
-							this->get_value(memset.value),
-							this->get_value(memset.numBytes),
+							this->get_value<ADD_WEAK_DEPS>(memset.dst),
+							this->get_value<ADD_WEAK_DEPS>(memset.value),
+							this->get_value<ADD_WEAK_DEPS>(memset.numBytes),
 							memset.isVolatile
 						);
 					} break;
@@ -490,8 +518,8 @@ namespace pcit::pir{
 					case Expr::Kind::BIT_CAST: {
 						const BitCast& bitcast = this->reader.getBitCast(stmt);
 
-						const llvmint::Value from_value = this->get_value(bitcast.fromValue);
-						const llvmint::Type to_type = this->get_type(bitcast.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(bitcast.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(bitcast.toType);
 
 						const llvmint::Value llvm_bitcast = 
 							this->builder.createBitCast(from_value, to_type, bitcast.name);
@@ -501,8 +529,8 @@ namespace pcit::pir{
 					case Expr::Kind::TRUNC: {
 						const Trunc& trunc = this->reader.getTrunc(stmt);
 
-						const llvmint::Value from_value = this->get_value(trunc.fromValue);
-						const llvmint::Type to_type = this->get_type(trunc.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(trunc.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(trunc.toType);
 
 						const llvmint::Value llvm_trunc = this->builder.createTrunc(from_value, to_type, trunc.name);
 						this->stmt_values.emplace(stmt, llvm_trunc);
@@ -511,8 +539,8 @@ namespace pcit::pir{
 					case Expr::Kind::FTRUNC: {
 						const FTrunc& ftrunc = this->reader.getFTrunc(stmt);
 
-						const llvmint::Value from_value = this->get_value(ftrunc.fromValue);
-						const llvmint::Type to_type = this->get_type(ftrunc.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(ftrunc.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(ftrunc.toType);
 
 						const llvmint::Value llvm_ftrunc = this->builder.createFTrunc(from_value, to_type, ftrunc.name);
 						this->stmt_values.emplace(stmt, llvm_ftrunc);
@@ -521,8 +549,8 @@ namespace pcit::pir{
 					case Expr::Kind::SEXT: {
 						const SExt& sext = this->reader.getSExt(stmt);
 
-						const llvmint::Value from_value = this->get_value(sext.fromValue);
-						const llvmint::Type to_type = this->get_type(sext.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(sext.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(sext.toType);
 
 						const llvmint::Value llvm_sext = this->builder.createSExt(from_value, to_type, sext.name);
 						this->stmt_values.emplace(stmt, llvm_sext);
@@ -531,8 +559,8 @@ namespace pcit::pir{
 					case Expr::Kind::ZEXT: {
 						const ZExt& zext = this->reader.getZExt(stmt);
 
-						const llvmint::Value from_value = this->get_value(zext.fromValue);
-						const llvmint::Type to_type = this->get_type(zext.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(zext.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(zext.toType);
 
 						const llvmint::Value llvm_zext = this->builder.createZExt(from_value, to_type, zext.name);
 						this->stmt_values.emplace(stmt, llvm_zext);
@@ -541,8 +569,8 @@ namespace pcit::pir{
 					case Expr::Kind::FEXT: {
 						const FExt& fext = this->reader.getFExt(stmt);
 
-						const llvmint::Value from_value = this->get_value(fext.fromValue);
-						const llvmint::Type to_type = this->get_type(fext.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(fext.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(fext.toType);
 
 						const llvmint::Value llvm_fext = this->builder.createFExt(from_value, to_type, fext.name);
 						this->stmt_values.emplace(stmt, llvm_fext);
@@ -551,8 +579,8 @@ namespace pcit::pir{
 					case Expr::Kind::ITOF: {
 						const IToF& itof = this->reader.getIToF(stmt);
 
-						const llvmint::Value from_value = this->get_value(itof.fromValue);
-						const llvmint::Type to_type = this->get_type(itof.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(itof.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(itof.toType);
 
 						const llvmint::Value llvm_itof = this->builder.createIToF(from_value, to_type, itof.name);
 						this->stmt_values.emplace(stmt, llvm_itof);
@@ -561,8 +589,8 @@ namespace pcit::pir{
 					case Expr::Kind::UITOF: {
 						const UIToF& uitof = this->reader.getUIToF(stmt);
 
-						const llvmint::Value from_value = this->get_value(uitof.fromValue);
-						const llvmint::Type to_type = this->get_type(uitof.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(uitof.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(uitof.toType);
 
 						const llvmint::Value llvm_uitof = this->builder.createUIToF(from_value, to_type, uitof.name);
 						this->stmt_values.emplace(stmt, llvm_uitof);
@@ -571,8 +599,8 @@ namespace pcit::pir{
 					case Expr::Kind::FTOI: {
 						const FToI& ftoi = this->reader.getFToI(stmt);
 
-						const llvmint::Value from_value = this->get_value(ftoi.fromValue);
-						const llvmint::Type to_type = this->get_type(ftoi.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(ftoi.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(ftoi.toType);
 
 						const llvmint::Value llvm_ftoi = this->builder.createFToI(from_value, to_type, ftoi.name);
 						this->stmt_values.emplace(stmt, llvm_ftoi);
@@ -581,8 +609,8 @@ namespace pcit::pir{
 					case Expr::Kind::FTOUI: {
 						const FToUI& ftoui = this->reader.getFToUI(stmt);
 
-						const llvmint::Value from_value = this->get_value(ftoui.fromValue);
-						const llvmint::Type to_type = this->get_type(ftoui.toType);
+						const llvmint::Value from_value = this->get_value<ADD_WEAK_DEPS>(ftoui.fromValue);
+						const llvmint::Type to_type = this->get_type<ADD_WEAK_DEPS>(ftoui.toType);
 
 						const llvmint::Value llvm_ftoui = this->builder.createFToUI(from_value, to_type, ftoui.name);
 						this->stmt_values.emplace(stmt, llvm_ftoui);
@@ -592,8 +620,8 @@ namespace pcit::pir{
 					case Expr::Kind::ADD: {
 						const Add& add = this->reader.getAdd(stmt);
 
-						const llvmint::Value lhs = this->get_value(add.lhs);
-						const llvmint::Value rhs = this->get_value(add.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(add.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(add.rhs);
 
 						const llvmint::Value add_value = this->builder.createAdd(lhs, rhs, add.nuw, add.nsw, add.name);
 						this->stmt_values.emplace(stmt, add_value);
@@ -604,13 +632,16 @@ namespace pcit::pir{
 						const Type& sadd_type = this->reader.getExprType(sadd_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type(sadd_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(sadd_type), this->builder.getTypeBool().asType()}
 						).asType();
 
 						const llvmint::Value sadd_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SADD_OVERFLOW,
 							return_type,
-							{this->get_value(sadd_wrap.lhs), this->get_value(sadd_wrap.rhs)},
+							{
+								this->get_value<ADD_WEAK_DEPS>(sadd_wrap.lhs),
+								this->get_value<ADD_WEAK_DEPS>(sadd_wrap.rhs)
+							},
 							"ADD_WRAP"
 						).asValue();
 
@@ -633,13 +664,16 @@ namespace pcit::pir{
 						const Type& uadd_type = this->reader.getExprType(uadd_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type(uadd_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(uadd_type), this->builder.getTypeBool().asType()}
 						).asType();
 
 						const llvmint::Value uadd_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::UADD_OVERFLOW,
 							return_type,
-							{this->get_value(uadd_wrap.lhs), this->get_value(uadd_wrap.rhs)},
+							{
+								this->get_value<ADD_WEAK_DEPS>(uadd_wrap.lhs),
+								this->get_value<ADD_WEAK_DEPS>(uadd_wrap.rhs)
+							},
 							"ADD_WRAP"
 						).asValue();
 
@@ -663,8 +697,11 @@ namespace pcit::pir{
 
 						const llvmint::Value sadd_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SADD_SAT,
-							this->get_type(sadd_sat_type),
-							{this->get_value(sadd_sat.lhs), this->get_value(sadd_sat.rhs)},
+							this->get_type<ADD_WEAK_DEPS>(sadd_sat_type),
+							{
+								this->get_value<ADD_WEAK_DEPS>(sadd_sat.lhs),
+								this->get_value<ADD_WEAK_DEPS>(sadd_sat.rhs)
+							},
 							sadd_sat.name
 						).asValue();
 						this->stmt_values.emplace(stmt, sadd_sat_value);
@@ -676,8 +713,11 @@ namespace pcit::pir{
 
 						const llvmint::Value uadd_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::UADD_SAT,
-							this->get_type(uadd_sat_type),
-							{this->get_value(uadd_sat.lhs), this->get_value(uadd_sat.rhs)},
+							this->get_type<ADD_WEAK_DEPS>(uadd_sat_type),
+							{
+								this->get_value<ADD_WEAK_DEPS>(uadd_sat.lhs),
+								this->get_value<ADD_WEAK_DEPS>(uadd_sat.rhs)
+							},
 							uadd_sat.name
 						).asValue();
 						this->stmt_values.emplace(stmt, uadd_sat_value);
@@ -686,8 +726,8 @@ namespace pcit::pir{
 					case Expr::Kind::FADD: {
 						const FAdd& add = this->reader.getFAdd(stmt);
 
-						const llvmint::Value lhs = this->get_value(add.lhs);
-						const llvmint::Value rhs = this->get_value(add.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(add.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(add.rhs);
 
 						const llvmint::Value add_value = this->builder.createFAdd(lhs, rhs, add.name);
 						this->stmt_values.emplace(stmt, add_value);
@@ -697,8 +737,8 @@ namespace pcit::pir{
 					case Expr::Kind::SUB: {
 						const Sub& sub = this->reader.getSub(stmt);
 
-						const llvmint::Value lhs = this->get_value(sub.lhs);
-						const llvmint::Value rhs = this->get_value(sub.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(sub.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(sub.rhs);
 
 						const llvmint::Value sub_value = this->builder.createSub(lhs, rhs, sub.nuw, sub.nsw, sub.name);
 						this->stmt_values.emplace(stmt, sub_value);
@@ -709,13 +749,16 @@ namespace pcit::pir{
 						const Type& ssub_type = this->reader.getExprType(ssub_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type(ssub_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(ssub_type), this->builder.getTypeBool().asType()}
 						).asType();
 
 						const llvmint::Value ssub_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SSUB_OVERFLOW,
 							return_type,
-							{this->get_value(ssub_wrap.lhs), this->get_value(ssub_wrap.rhs)},
+							{
+								this->get_value<ADD_WEAK_DEPS>(ssub_wrap.lhs),
+								this->get_value<ADD_WEAK_DEPS>(ssub_wrap.rhs)
+							},
 							"ADD_WRAP"
 						).asValue();
 
@@ -738,13 +781,16 @@ namespace pcit::pir{
 						const Type& usub_type = this->reader.getExprType(usub_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type(usub_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(usub_type), this->builder.getTypeBool().asType()}
 						).asType();
 
 						const llvmint::Value usub_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::USUB_OVERFLOW,
 							return_type,
-							{this->get_value(usub_wrap.lhs), this->get_value(usub_wrap.rhs)},
+							{
+								this->get_value<ADD_WEAK_DEPS>(usub_wrap.lhs),
+								this->get_value<ADD_WEAK_DEPS>(usub_wrap.rhs)
+							},
 							"ADD_WRAP"
 						).asValue();
 
@@ -768,8 +814,11 @@ namespace pcit::pir{
 
 						const llvmint::Value ssub_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SSUB_SAT,
-							this->get_type(ssub_sat_type),
-							{this->get_value(ssub_sat.lhs), this->get_value(ssub_sat.rhs)},
+							this->get_type<ADD_WEAK_DEPS>(ssub_sat_type),
+							{
+								this->get_value<ADD_WEAK_DEPS>(ssub_sat.lhs),
+								this->get_value<ADD_WEAK_DEPS>(ssub_sat.rhs)
+							},
 							ssub_sat.name
 						).asValue();
 						this->stmt_values.emplace(stmt, ssub_sat_value);
@@ -781,8 +830,11 @@ namespace pcit::pir{
 
 						const llvmint::Value usub_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::USUB_SAT,
-							this->get_type(usub_sat_type),
-							{this->get_value(usub_sat.lhs), this->get_value(usub_sat.rhs)},
+							this->get_type<ADD_WEAK_DEPS>(usub_sat_type),
+							{
+								this->get_value<ADD_WEAK_DEPS>(usub_sat.lhs),
+								this->get_value<ADD_WEAK_DEPS>(usub_sat.rhs)
+							},
 							usub_sat.name
 						).asValue();
 						this->stmt_values.emplace(stmt, usub_sat_value);
@@ -791,8 +843,8 @@ namespace pcit::pir{
 					case Expr::Kind::FSUB: {
 						const FSub& add = this->reader.getFSub(stmt);
 
-						const llvmint::Value lhs = this->get_value(add.lhs);
-						const llvmint::Value rhs = this->get_value(add.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(add.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(add.rhs);
 
 						const llvmint::Value add_value = this->builder.createFSub(lhs, rhs, add.name);
 						this->stmt_values.emplace(stmt, add_value);
@@ -801,8 +853,8 @@ namespace pcit::pir{
 					case Expr::Kind::MUL: {
 						const Mul& mul = this->reader.getMul(stmt);
 
-						const llvmint::Value lhs = this->get_value(mul.lhs);
-						const llvmint::Value rhs = this->get_value(mul.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(mul.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(mul.rhs);
 
 						const llvmint::Value mul_value = this->builder.createMul(lhs, rhs, mul.nuw, mul.nsw, mul.name);
 						this->stmt_values.emplace(stmt, mul_value);
@@ -813,13 +865,16 @@ namespace pcit::pir{
 						const Type& smul_type = this->reader.getExprType(smul_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type(smul_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(smul_type), this->builder.getTypeBool().asType()}
 						).asType();
 
 						const llvmint::Value smul_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SMUL_OVERFLOW,
 							return_type,
-							{this->get_value(smul_wrap.lhs), this->get_value(smul_wrap.rhs)},
+							{
+								this->get_value<ADD_WEAK_DEPS>(smul_wrap.lhs),
+								this->get_value<ADD_WEAK_DEPS>(smul_wrap.rhs)
+							},
 							"ADD_WRAP"
 						).asValue();
 
@@ -842,13 +897,16 @@ namespace pcit::pir{
 						const Type& umul_type = this->reader.getExprType(umul_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type(umul_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(umul_type), this->builder.getTypeBool().asType()}
 						).asType();
 
 						const llvmint::Value umul_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::UMUL_OVERFLOW,
 							return_type,
-							{this->get_value(umul_wrap.lhs), this->get_value(umul_wrap.rhs)},
+							{
+								this->get_value<ADD_WEAK_DEPS>(umul_wrap.lhs),
+								this->get_value<ADD_WEAK_DEPS>(umul_wrap.rhs)
+							},
 							"ADD_WRAP"
 						).asValue();
 
@@ -872,8 +930,11 @@ namespace pcit::pir{
 
 						const llvmint::Value smul_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SMUL_FIX_SAT,
-							this->get_type(smul_sat_type),
-							{this->get_value(smul_sat.lhs), this->get_value(smul_sat.rhs)},
+							this->get_type<ADD_WEAK_DEPS>(smul_sat_type),
+							{
+								this->get_value<ADD_WEAK_DEPS>(smul_sat.lhs),
+								this->get_value<ADD_WEAK_DEPS>(smul_sat.rhs)
+							},
 							smul_sat.name
 						).asValue();
 						this->stmt_values.emplace(stmt, smul_sat_value);
@@ -885,8 +946,11 @@ namespace pcit::pir{
 
 						const llvmint::Value umul_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::UMUL_FIX_SAT,
-							this->get_type(umul_sat_type),
-							{this->get_value(umul_sat.lhs), this->get_value(umul_sat.rhs)},
+							this->get_type<ADD_WEAK_DEPS>(umul_sat_type),
+							{
+								this->get_value<ADD_WEAK_DEPS>(umul_sat.lhs),
+								this->get_value<ADD_WEAK_DEPS>(umul_sat.rhs)
+							},
 							umul_sat.name
 						).asValue();
 						this->stmt_values.emplace(stmt, umul_sat_value);
@@ -895,8 +959,8 @@ namespace pcit::pir{
 					case Expr::Kind::FMUL: {
 						const FMul& fmul = this->reader.getFMul(stmt);
 
-						const llvmint::Value lhs = this->get_value(fmul.lhs);
-						const llvmint::Value rhs = this->get_value(fmul.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(fmul.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(fmul.rhs);
 
 						const llvmint::Value fmul_value = this->builder.createFMul(lhs, rhs, fmul.name);
 						this->stmt_values.emplace(stmt, fmul_value);
@@ -905,8 +969,8 @@ namespace pcit::pir{
 					case Expr::Kind::SDIV: {
 						const SDiv& sdiv = this->reader.getSDiv(stmt);
 
-						const llvmint::Value lhs = this->get_value(sdiv.lhs);
-						const llvmint::Value rhs = this->get_value(sdiv.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(sdiv.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(sdiv.rhs);
 
 						const llvmint::Value sdiv_value = this->builder.createSDiv(lhs, rhs, sdiv.isExact, sdiv.name);
 						this->stmt_values.emplace(stmt, sdiv_value);
@@ -915,8 +979,8 @@ namespace pcit::pir{
 					case Expr::Kind::UDIV: {
 						const UDiv& udiv = this->reader.getUDiv(stmt);
 
-						const llvmint::Value lhs = this->get_value(udiv.lhs);
-						const llvmint::Value rhs = this->get_value(udiv.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(udiv.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(udiv.rhs);
 
 						const llvmint::Value udiv_value = this->builder.createUDiv(lhs, rhs, udiv.isExact, udiv.name);
 						this->stmt_values.emplace(stmt, udiv_value);
@@ -925,8 +989,8 @@ namespace pcit::pir{
 					case Expr::Kind::FDIV: {
 						const FDiv& fdiv = this->reader.getFDiv(stmt);
 
-						const llvmint::Value lhs = this->get_value(fdiv.lhs);
-						const llvmint::Value rhs = this->get_value(fdiv.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(fdiv.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(fdiv.rhs);
 
 						const llvmint::Value fdiv_value = this->builder.createFDiv(lhs, rhs, fdiv.name);
 						this->stmt_values.emplace(stmt, fdiv_value);
@@ -935,8 +999,8 @@ namespace pcit::pir{
 					case Expr::Kind::SREM: {
 						const SRem& srem = this->reader.getSRem(stmt);
 
-						const llvmint::Value lhs = this->get_value(srem.lhs);
-						const llvmint::Value rhs = this->get_value(srem.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(srem.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(srem.rhs);
 
 						const llvmint::Value srem_value = this->builder.createSRem(lhs, rhs, srem.name);
 						this->stmt_values.emplace(stmt, srem_value);
@@ -945,8 +1009,8 @@ namespace pcit::pir{
 					case Expr::Kind::UREM: {
 						const URem& urem = this->reader.getURem(stmt);
 
-						const llvmint::Value lhs = this->get_value(urem.lhs);
-						const llvmint::Value rhs = this->get_value(urem.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(urem.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(urem.rhs);
 
 						const llvmint::Value urem_value = this->builder.createURem(lhs, rhs, urem.name);
 						this->stmt_values.emplace(stmt, urem_value);
@@ -955,8 +1019,8 @@ namespace pcit::pir{
 					case Expr::Kind::FREM: {
 						const FRem& frem = this->reader.getFRem(stmt);
 
-						const llvmint::Value lhs = this->get_value(frem.lhs);
-						const llvmint::Value rhs = this->get_value(frem.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(frem.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(frem.rhs);
 
 						const llvmint::Value frem_value = this->builder.createFRem(lhs, rhs, frem.name);
 						this->stmt_values.emplace(stmt, frem_value);
@@ -965,7 +1029,7 @@ namespace pcit::pir{
 					case Expr::Kind::FNEG: {
 						const FNeg& fneg = this->reader.getFNeg(stmt);
 
-						const llvmint::Value rhs = this->get_value(fneg.rhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(fneg.rhs);
 
 						const llvmint::Value fneg_value = this->builder.createFNeg(rhs, fneg.name);
 						this->stmt_values.emplace(stmt, fneg_value);
@@ -975,8 +1039,8 @@ namespace pcit::pir{
 					case Expr::Kind::IEQ: {
 						const IEq& ieq = this->reader.getIEq(stmt);
 
-						const llvmint::Value lhs = this->get_value(ieq.lhs);
-						const llvmint::Value rhs = this->get_value(ieq.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ieq.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ieq.rhs);
 
 						const llvmint::Value ieq_value = this->builder.createICmpEQ(lhs, rhs, ieq.name);
 						this->stmt_values.emplace(stmt, ieq_value);
@@ -985,8 +1049,8 @@ namespace pcit::pir{
 					case Expr::Kind::FEQ: {
 						const FEq& feq = this->reader.getFEq(stmt);
 
-						const llvmint::Value lhs = this->get_value(feq.lhs);
-						const llvmint::Value rhs = this->get_value(feq.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(feq.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(feq.rhs);
 
 						const llvmint::Value feq_value = this->builder.createFCmpEQ(lhs, rhs, feq.name);
 						this->stmt_values.emplace(stmt, feq_value);
@@ -995,8 +1059,8 @@ namespace pcit::pir{
 					case Expr::Kind::INEQ: {
 						const INeq& ineq = this->reader.getINeq(stmt);
 
-						const llvmint::Value lhs = this->get_value(ineq.lhs);
-						const llvmint::Value rhs = this->get_value(ineq.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ineq.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ineq.rhs);
 
 						const llvmint::Value ineq_value = this->builder.createICmpNE(lhs, rhs, ineq.name);
 						this->stmt_values.emplace(stmt, ineq_value);
@@ -1005,8 +1069,8 @@ namespace pcit::pir{
 					case Expr::Kind::FNEQ: {
 						const FNeq& fneq = this->reader.getFNeq(stmt);
 
-						const llvmint::Value lhs = this->get_value(fneq.lhs);
-						const llvmint::Value rhs = this->get_value(fneq.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(fneq.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(fneq.rhs);
 
 						const llvmint::Value fneq_value = this->builder.createFCmpNE(lhs, rhs, fneq.name);
 						this->stmt_values.emplace(stmt, fneq_value);
@@ -1015,8 +1079,8 @@ namespace pcit::pir{
 					case Expr::Kind::SLT: {
 						const SLT& slt = this->reader.getSLT(stmt);
 
-						const llvmint::Value lhs = this->get_value(slt.lhs);
-						const llvmint::Value rhs = this->get_value(slt.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(slt.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(slt.rhs);
 
 						const llvmint::Value slt_value = this->builder.createICmpSLT(lhs, rhs, slt.name);
 						this->stmt_values.emplace(stmt, slt_value);
@@ -1025,8 +1089,8 @@ namespace pcit::pir{
 					case Expr::Kind::ULT: {
 						const ULT& ult = this->reader.getULT(stmt);
 
-						const llvmint::Value lhs = this->get_value(ult.lhs);
-						const llvmint::Value rhs = this->get_value(ult.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ult.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ult.rhs);
 
 						const llvmint::Value ult_value = this->builder.createICmpULT(lhs, rhs, ult.name);
 						this->stmt_values.emplace(stmt, ult_value);
@@ -1035,8 +1099,8 @@ namespace pcit::pir{
 					case Expr::Kind::FLT: {
 						const FLT& flt = this->reader.getFLT(stmt);
 
-						const llvmint::Value lhs = this->get_value(flt.lhs);
-						const llvmint::Value rhs = this->get_value(flt.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(flt.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(flt.rhs);
 
 						const llvmint::Value flt_value = this->builder.createFCmpLT(lhs, rhs, flt.name);
 						this->stmt_values.emplace(stmt, flt_value);
@@ -1045,8 +1109,8 @@ namespace pcit::pir{
 					case Expr::Kind::SLTE: {
 						const SLTE& slte = this->reader.getSLTE(stmt);
 
-						const llvmint::Value lhs = this->get_value(slte.lhs);
-						const llvmint::Value rhs = this->get_value(slte.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(slte.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(slte.rhs);
 
 						const llvmint::Value slte_value = this->builder.createICmpSLE(lhs, rhs, slte.name);
 						this->stmt_values.emplace(stmt, slte_value);
@@ -1055,8 +1119,8 @@ namespace pcit::pir{
 					case Expr::Kind::ULTE: {
 						const ULTE& ulte = this->reader.getULTE(stmt);
 
-						const llvmint::Value lhs = this->get_value(ulte.lhs);
-						const llvmint::Value rhs = this->get_value(ulte.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ulte.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ulte.rhs);
 
 						const llvmint::Value ulte_value = this->builder.createICmpULE(lhs, rhs, ulte.name);
 						this->stmt_values.emplace(stmt, ulte_value);
@@ -1065,8 +1129,8 @@ namespace pcit::pir{
 					case Expr::Kind::FLTE: {
 						const FLTE& flte = this->reader.getFLTE(stmt);
 
-						const llvmint::Value lhs = this->get_value(flte.lhs);
-						const llvmint::Value rhs = this->get_value(flte.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(flte.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(flte.rhs);
 
 						const llvmint::Value flte_value = this->builder.createFCmpLE(lhs, rhs, flte.name);
 						this->stmt_values.emplace(stmt, flte_value);
@@ -1075,8 +1139,8 @@ namespace pcit::pir{
 					case Expr::Kind::SGT: {
 						const SGT& sgt = this->reader.getSGT(stmt);
 
-						const llvmint::Value lhs = this->get_value(sgt.lhs);
-						const llvmint::Value rhs = this->get_value(sgt.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(sgt.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(sgt.rhs);
 
 						const llvmint::Value sgt_value = this->builder.createICmpSGT(lhs, rhs, sgt.name);
 						this->stmt_values.emplace(stmt, sgt_value);
@@ -1085,8 +1149,8 @@ namespace pcit::pir{
 					case Expr::Kind::UGT: {
 						const UGT& ugt = this->reader.getUGT(stmt);
 
-						const llvmint::Value lhs = this->get_value(ugt.lhs);
-						const llvmint::Value rhs = this->get_value(ugt.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ugt.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ugt.rhs);
 
 						const llvmint::Value ugt_value = this->builder.createICmpUGT(lhs, rhs, ugt.name);
 						this->stmt_values.emplace(stmt, ugt_value);
@@ -1095,8 +1159,8 @@ namespace pcit::pir{
 					case Expr::Kind::FGT: {
 						const FGT& fgt = this->reader.getFGT(stmt);
 
-						const llvmint::Value lhs = this->get_value(fgt.lhs);
-						const llvmint::Value rhs = this->get_value(fgt.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(fgt.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(fgt.rhs);
 
 						const llvmint::Value fgt_value = this->builder.createFCmpGT(lhs, rhs, fgt.name);
 						this->stmt_values.emplace(stmt, fgt_value);
@@ -1105,8 +1169,8 @@ namespace pcit::pir{
 					case Expr::Kind::SGTE: {
 						const SGTE& sgte = this->reader.getSGTE(stmt);
 
-						const llvmint::Value lhs = this->get_value(sgte.lhs);
-						const llvmint::Value rhs = this->get_value(sgte.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(sgte.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(sgte.rhs);
 
 						const llvmint::Value sgte_value = this->builder.createICmpSGE(lhs, rhs, sgte.name);
 						this->stmt_values.emplace(stmt, sgte_value);
@@ -1115,8 +1179,8 @@ namespace pcit::pir{
 					case Expr::Kind::UGTE: {
 						const UGTE& ugte = this->reader.getUGTE(stmt);
 
-						const llvmint::Value lhs = this->get_value(ugte.lhs);
-						const llvmint::Value rhs = this->get_value(ugte.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ugte.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ugte.rhs);
 
 						const llvmint::Value ugte_value = this->builder.createICmpUGE(lhs, rhs, ugte.name);
 						this->stmt_values.emplace(stmt, ugte_value);
@@ -1125,8 +1189,8 @@ namespace pcit::pir{
 					case Expr::Kind::FGTE: {
 						const FGTE& fgte = this->reader.getFGTE(stmt);
 
-						const llvmint::Value lhs = this->get_value(fgte.lhs);
-						const llvmint::Value rhs = this->get_value(fgte.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(fgte.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(fgte.rhs);
 
 						const llvmint::Value fgte_value = this->builder.createFCmpGE(lhs, rhs, fgte.name);
 						this->stmt_values.emplace(stmt, fgte_value);
@@ -1135,8 +1199,8 @@ namespace pcit::pir{
 					case Expr::Kind::AND: {
 						const And& and_stmt = this->reader.getAnd(stmt);
 
-						const llvmint::Value lhs = this->get_value(and_stmt.lhs);
-						const llvmint::Value rhs = this->get_value(and_stmt.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(and_stmt.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(and_stmt.rhs);
 
 						const llvmint::Value and_value = this->builder.createAnd(lhs, rhs, and_stmt.name);
 						this->stmt_values.emplace(stmt, and_value);
@@ -1145,8 +1209,8 @@ namespace pcit::pir{
 					case Expr::Kind::OR: {
 						const Or& or_stmt = this->reader.getOr(stmt);
 
-						const llvmint::Value lhs = this->get_value(or_stmt.lhs);
-						const llvmint::Value rhs = this->get_value(or_stmt.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(or_stmt.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(or_stmt.rhs);
 
 						const llvmint::Value or_value = this->builder.createOr(lhs, rhs, or_stmt.name);
 						this->stmt_values.emplace(stmt, or_value);
@@ -1155,8 +1219,8 @@ namespace pcit::pir{
 					case Expr::Kind::XOR: {
 						const Xor& xor_stmt = this->reader.getXor(stmt);
 
-						const llvmint::Value lhs = this->get_value(xor_stmt.lhs);
-						const llvmint::Value rhs = this->get_value(xor_stmt.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(xor_stmt.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(xor_stmt.rhs);
 
 						const llvmint::Value xor_value = this->builder.createXor(lhs, rhs, xor_stmt.name);
 						this->stmt_values.emplace(stmt, xor_value);
@@ -1165,8 +1229,8 @@ namespace pcit::pir{
 					case Expr::Kind::SHL: {
 						const SHL& shl = this->reader.getSHL(stmt);
 
-						const llvmint::Value lhs = this->get_value(shl.lhs);
-						const llvmint::Value rhs = this->get_value(shl.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(shl.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(shl.rhs);
 
 						const llvmint::Value shl_value = this->builder.createSHL(lhs, rhs, shl.nuw, shl.nsw, shl.name);
 						this->stmt_values.emplace(stmt, shl_value);
@@ -1176,13 +1240,16 @@ namespace pcit::pir{
 						const SSHLSat& sshl_sat = this->reader.getSSHLSat(stmt);
 						const Type& sshlsat_type = this->reader.getExprType(sshl_sat.lhs);
 
-						const llvmint::Value lhs = this->get_value(sshl_sat.lhs);
-						const llvmint::Value rhs = this->get_value(sshl_sat.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(sshl_sat.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(sshl_sat.rhs);
 
 						const llvmint::Value sshl_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SSHL_SAT,
-							this->get_type(sshlsat_type),
-							{this->get_value(sshl_sat.lhs), this->get_value(sshl_sat.rhs)},
+							this->get_type<ADD_WEAK_DEPS>(sshlsat_type),
+							{
+								this->get_value<ADD_WEAK_DEPS>(sshl_sat.lhs),
+								this->get_value<ADD_WEAK_DEPS>(sshl_sat.rhs)
+							},
 							sshl_sat.name
 						).asValue();
 						this->stmt_values.emplace(stmt, sshl_sat_value);
@@ -1192,13 +1259,16 @@ namespace pcit::pir{
 						const USHLSat& ushl_sat = this->reader.getUSHLSat(stmt);
 						const Type& ushlsat_type = this->reader.getExprType(ushl_sat.lhs);
 
-						const llvmint::Value lhs = this->get_value(ushl_sat.lhs);
-						const llvmint::Value rhs = this->get_value(ushl_sat.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ushl_sat.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ushl_sat.rhs);
 
 						const llvmint::Value ushl_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::USHL_SAT,
-							this->get_type(ushlsat_type),
-							{this->get_value(ushl_sat.lhs), this->get_value(ushl_sat.rhs)},
+							this->get_type<ADD_WEAK_DEPS>(ushlsat_type),
+							{
+								this->get_value<ADD_WEAK_DEPS>(ushl_sat.lhs),
+								this->get_value<ADD_WEAK_DEPS>(ushl_sat.rhs)
+							},
 							ushl_sat.name
 						).asValue();
 						this->stmt_values.emplace(stmt, ushl_sat_value);
@@ -1207,8 +1277,8 @@ namespace pcit::pir{
 					case Expr::Kind::SSHR: {
 						const SSHR& sshr = this->reader.getSSHR(stmt);
 
-						const llvmint::Value lhs = this->get_value(sshr.lhs);
-						const llvmint::Value rhs = this->get_value(sshr.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(sshr.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(sshr.rhs);
 
 						const llvmint::Value sshr_value = this->builder.createASHR(lhs, rhs, sshr.isExact, sshr.name);
 						this->stmt_values.emplace(stmt, sshr_value);
@@ -1217,8 +1287,8 @@ namespace pcit::pir{
 					case Expr::Kind::USHR: {
 						const USHR& ushr = this->reader.getUSHR(stmt);
 
-						const llvmint::Value lhs = this->get_value(ushr.lhs);
-						const llvmint::Value rhs = this->get_value(ushr.rhs);
+						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ushr.lhs);
+						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ushr.rhs);
 
 						const llvmint::Value ushr_value = this->builder.createLSHR(lhs, rhs, ushr.isExact, ushr.name);
 						this->stmt_values.emplace(stmt, ushr_value);
@@ -1227,11 +1297,11 @@ namespace pcit::pir{
 					case Expr::Kind::BIT_REVERSE: {
 						const BitReverse& bit_reverse = this->reader.getBitReverse(stmt);
 
-						const llvmint::Value arg = this->get_value(bit_reverse.arg);
+						const llvmint::Value arg = this->get_value<ADD_WEAK_DEPS>(bit_reverse.arg);
 
 						const llvmint::Value bit_reverse_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::BIT_REVERSE,
-							this->get_type(this->reader.getExprType(bit_reverse.arg)),
+							this->get_type<ADD_WEAK_DEPS>(this->reader.getExprType(bit_reverse.arg)),
 							arg,
 							bit_reverse.name
 						).asValue();
@@ -1241,11 +1311,11 @@ namespace pcit::pir{
 					case Expr::Kind::BSWAP: {
 						const BSwap& bswap = this->reader.getBSwap(stmt);
 
-						const llvmint::Value arg = this->get_value(bswap.arg);
+						const llvmint::Value arg = this->get_value<ADD_WEAK_DEPS>(bswap.arg);
 
 						const llvmint::Value bswap_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::BSWAP,
-							this->get_type(this->reader.getExprType(bswap.arg)),
+							this->get_type<ADD_WEAK_DEPS>(this->reader.getExprType(bswap.arg)),
 							arg,
 							bswap.name
 						).asValue();
@@ -1255,11 +1325,11 @@ namespace pcit::pir{
 					case Expr::Kind::CTPOP: {
 						const CtPop& ctpop = this->reader.getCtPop(stmt);
 
-						const llvmint::Value arg = this->get_value(ctpop.arg);
+						const llvmint::Value arg = this->get_value<ADD_WEAK_DEPS>(ctpop.arg);
 
 						const llvmint::Value ctpop_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::CTPOP,
-							this->get_type(this->reader.getExprType(ctpop.arg)),
+							this->get_type<ADD_WEAK_DEPS>(this->reader.getExprType(ctpop.arg)),
 							arg,
 							ctpop.name
 						).asValue();
@@ -1269,11 +1339,11 @@ namespace pcit::pir{
 					case Expr::Kind::CTLZ: {
 						const CTLZ& ctlz = this->reader.getCTLZ(stmt);
 
-						const llvmint::Value arg = this->get_value(ctlz.arg);
+						const llvmint::Value arg = this->get_value<ADD_WEAK_DEPS>(ctlz.arg);
 
 						const llvmint::Value ctlz_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::CTLZ,
-							this->get_type(this->reader.getExprType(ctlz.arg)),
+							this->get_type<ADD_WEAK_DEPS>(this->reader.getExprType(ctlz.arg)),
 							{arg, this->builder.getValueBool(false).asValue()},
 							ctlz.name
 						).asValue();
@@ -1283,11 +1353,11 @@ namespace pcit::pir{
 					case Expr::Kind::CTTZ: {
 						const CTTZ& cttz = this->reader.getCTTZ(stmt);
 
-						const llvmint::Value arg = this->get_value(cttz.arg);
+						const llvmint::Value arg = this->get_value<ADD_WEAK_DEPS>(cttz.arg);
 
 						const llvmint::Value cttz_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::CTTZ,
-							this->get_type(this->reader.getExprType(cttz.arg)),
+							this->get_type<ADD_WEAK_DEPS>(this->reader.getExprType(cttz.arg)),
 							{arg, this->builder.getValueBool(false).asValue()},
 							cttz.name
 						).asValue();
@@ -1307,11 +1377,17 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_constant_value(const Expr& expr) -> llvmint::Constant {
 		evo::debugAssert(
-			expr.kind() == Expr::Kind::NUMBER || expr.kind() == Expr::Kind::BOOLEAN, "Not a valid constant"
+			expr.kind() == Expr::Kind::NUMBER
+			|| expr.kind() == Expr::Kind::BOOLEAN
+			|| expr.kind() == Expr::Kind::NULLPTR,
+			"Not a valid constant"
 		);
 
 		if(expr.kind() == Expr::Kind::BOOLEAN){
 			return this->builder.getValueBool(this->reader.getBoolean(expr)).asConstant();
+
+		}else if(expr.kind() == Expr::Kind::NULLPTR){
+			return this->builder.getValueNull();
 		}
 
 		const Number& number = this->reader.getNumber(expr);
@@ -1322,7 +1398,7 @@ namespace pcit::pir{
 			} break;
 
 			case Type::Kind::FLOAT: {
-				return this->builder.getValueFloat(this->get_type(number.type), number.getFloat());
+				return this->builder.getValueFloat(this->get_type<false>(number.type), number.getFloat());
 			} break;
 
 			case Type::Kind::BFLOAT: {
@@ -1377,12 +1453,12 @@ namespace pcit::pir{
 					} break;
 
 					default: {
-						return this->builder.getValueGlobalAggregateZero(this->get_type(type));
+						return this->builder.getValueGlobalAggregateZero(this->get_type<false>(type));
 					} break;
 				}
 
 			}else if constexpr(std::is_same<ValueT,GlobalVar::Uninit>()){
-				return this->builder.getValueGlobalUndefValue(this->get_type(type));
+				return this->builder.getValueGlobalUndefValue(this->get_type<false>(type));
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
 				return this->builder.getValueGlobalStr(this->module.getGlobalString(value).value);
@@ -1411,7 +1487,7 @@ namespace pcit::pir{
 					i += 1;
 				}
 
-				return this->builder.getValueGlobalStruct(this->get_struct_type(type), values);
+				return this->builder.getValueGlobalStruct(this->get_struct_type<false>(struct_type), values);
 
 			}else{
 				static_assert(false, "Unknown GlobalVar::Value");
@@ -1420,18 +1496,19 @@ namespace pcit::pir{
 	}
 
 
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::get_value(const Expr& expr) -> llvmint::Value {
 		switch(expr.kind()){
 			case Expr::Kind::NONE: evo::debugFatalBreak("Not a valid expr");
 
 			case Expr::Kind::GLOBAL_VALUE: {
 				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
-				return this->global_vars.at(global_var.name).asValue();
+				return this->get_global_var<ADD_WEAK_DEPS>(global_var).asValue();
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {
 				const Function& func = this->reader.getFunctionPointer(expr);
-				return this->funcs.at(func.getName()).asValue();
+				return this->get_func<ADD_WEAK_DEPS>(func).asValue();
 			} break;
 
 			case Expr::Kind::NUMBER: {
@@ -1445,15 +1522,15 @@ namespace pcit::pir{
 					case Type::Kind::FLOAT: {
 						core::GenericFloat float_value = [&](){
 							switch(number.type.getWidth()){
-								case 16: return number.getFloat().asF16();
-								case 32: return number.getFloat().asF32();
-								case 64: return number.getFloat().asF64();
-								case 80: return number.getFloat().asF80();
+								case 16:  return number.getFloat().asF16();
+								case 32:  return number.getFloat().asF32();
+								case 64:  return number.getFloat().asF64();
+								case 80:  return number.getFloat().asF80();
 								case 128: return number.getFloat().asF128();
-								default: evo::debugFatalBreak("Unsupported float width ({})", number.type.getWidth());
+								default:  evo::debugFatalBreak("Unsupported float width ({})", number.type.getWidth());
 							}
 						}();
-						return this->builder.getValueFloat(this->get_type(number.type), float_value).asValue();
+						return this->builder.getValueFloat(this->get_type<false>(number.type), float_value).asValue();
 					} break;
 
 					case Type::Kind::BFLOAT: {
@@ -1468,6 +1545,10 @@ namespace pcit::pir{
 
 			case Expr::Kind::BOOLEAN: {
 				return this->builder.getValueBool(this->reader.getBoolean(expr)).asValue();
+			} break;
+
+			case Expr::Kind::NULLPTR: {
+				return this->builder.getValueNull().asValue();
 			} break;
 
 			case Expr::Kind::PARAM_EXPR: {
@@ -1612,7 +1693,7 @@ namespace pcit::pir{
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
 	}
 
-
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::get_type(const Type& type) -> llvmint::Type {
 		switch(type.kind()){
 			case Type::Kind::VOID:     return this->builder.getTypeVoid();
@@ -1632,15 +1713,17 @@ namespace pcit::pir{
 
 			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->module.getArrayType(type);
-				return this->builder.getArrayType(this->get_type(array_type.elemType), array_type.length).asType();
+				return this->builder.getArrayType(
+					this->get_type<ADD_WEAK_DEPS>(array_type.elemType), array_type.length
+				).asType();
 			} break;
 
 			case Type::Kind::STRUCT: {
-				return this->get_struct_type(type).asType();
+				return this->get_struct_type<ADD_WEAK_DEPS>(this->module.getStructType(type)).asType();
 			} break;
 
 			case Type::Kind::FUNCTION: {
-				return this->get_func_type(type).asType();
+				return this->get_func_type<ADD_WEAK_DEPS>(type).asType();
 			} break;
 		}
 
@@ -1648,22 +1731,90 @@ namespace pcit::pir{
 	}
 
 
-	auto PIRToLLVMIR::get_struct_type(const Type& type) -> llvmint::StructType {
-		const StructType& struct_type = this->module.getStructType(type);
-		return this->struct_types.at(struct_type.name);
-	}
-
-
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::get_func_type(const Type& type) -> llvmint::FunctionType {
 		const FunctionType& func_type = this->module.getFunctionType(type);
 
 		auto params = evo::SmallVector<llvmint::Type>();
 		for(const Type& param : func_type.parameters){
-			params.emplace_back(this->get_type(param));
+			params.emplace_back(this->get_type<ADD_WEAK_DEPS>(param));
 		}
 
-		return this->builder.getFuncProto(this->get_type(func_type.returnType), params, false);
+		return this->builder.getFuncProto(this->get_type<ADD_WEAK_DEPS>(func_type.returnType), params, false);
 	}
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::get_struct_type(const StructType& type) -> llvmint::StructType {
+		if constexpr(ADD_WEAK_DEPS){
+			this->lower_struct_type<true>(type);
+			evo::debugAssert(
+				this->struct_types.contains(&type),
+				"Struct \"{}\" was not lowered - somehow weak dep was not added",
+				type.name
+			);
+		}else{
+			evo::debugAssert(this->struct_types.contains(&type), "Struct \"{}\" was not lowered", type.name);
+		}
+
+		return this->struct_types.at(&type);
+	}
+
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::get_func(const Function& func) -> llvmint::Function {
+		if constexpr(ADD_WEAK_DEPS){
+			this->lower_function_decl<true>(func);
+			evo::debugAssert(
+				this->funcs.contains(&func),
+				"Function \"{}\" was not lowered - somehow weak dep was not added",
+				func.getName()
+			);
+		}else{
+			evo::debugAssert(this->funcs.contains(&func), "Function \"{}\" was not lowered", func.getName());
+		}
+
+		return this->funcs.at(&func);
+	}
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::get_func(const ExternalFunction& func) -> llvmint::Function {
+		if constexpr(ADD_WEAK_DEPS){
+			this->lower_external_func<true>(func);
+			evo::debugAssert(
+				this->funcs.contains(&func),
+				"ExternalFunction \"{}\" was not lowered - somehow weak dep was not added",
+				func.name
+			);
+		}else{
+			evo::debugAssert(this->funcs.contains(&func), "ExternalFunction \"{}\" was not lowered", func.name);
+		}
+
+		return this->funcs.at(&func);
+	}
+
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::get_global_var(const GlobalVar& global_var) -> llvmint::GlobalVariable {
+		if constexpr(ADD_WEAK_DEPS){
+			this->lower_global_var_decl<true>(global_var);
+			evo::debugAssert(
+				this->global_vars.contains(&global_var),
+				"Global var \"{}\" was not lowered - somehow weak dep was not added",
+				global_var.name
+			);
+		}else{
+			evo::debugAssert(
+				this->global_vars.contains(&global_var), "Global var \"{}\" was not lowered", global_var.name
+			);
+		}
+
+		return this->global_vars.at(&global_var);
+	}
+
 
 
 	auto PIRToLLVMIR::get_linkage(const Linkage& linkage) -> llvmint::LinkageType {

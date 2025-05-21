@@ -26,6 +26,7 @@ namespace pcit::pir{
 			case Expr::Kind::FUNCTION_POINTER: return this->module.createPtrType();
 			case Expr::Kind::NUMBER:           return this->getNumber(expr).type;
 			case Expr::Kind::BOOLEAN:          return this->module.createBoolType();
+			case Expr::Kind::NULLPTR:          return this->module.createPtrType();
 			case Expr::Kind::PARAM_EXPR: {
 				evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 

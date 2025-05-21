@@ -38,6 +38,7 @@ namespace pcit::panther::sema{
 			FLOAT_VALUE,
 			BOOL_VALUE,
 			STRING_VALUE,
+			AGGREGATE_VALUE,
 			CHAR_VALUE,
 
 			INTRINSIC_FUNC,
@@ -49,6 +50,7 @@ namespace pcit::panther::sema{
 			FUNC_CALL,
 			ADDR_OF,
 			DEREF,
+			ACCESSOR,
 			TRY_ELSE,
 			BLOCK_EXPR,
 				
@@ -67,14 +69,15 @@ namespace pcit::panther::sema{
 			return Expr(Kind::MODULE_IDENT, id);
 		}
 
-		explicit Expr(UninitID id)      : _kind(Kind::UNINIT),       value{.uninit = id}       {};
-		explicit Expr(ZeroinitID id)    : _kind(Kind::ZEROINIT),     value{.zeroinit = id}     {};
+		explicit Expr(UninitID id)         : _kind(Kind::UNINIT),          value{.uninit = id}          {};
+		explicit Expr(ZeroinitID id)       : _kind(Kind::ZEROINIT),        value{.zeroinit = id}        {};
 
-		explicit Expr(IntValueID id)    : _kind(Kind::INT_VALUE),    value{.int_value = id}    {};
-		explicit Expr(FloatValueID id)  : _kind(Kind::FLOAT_VALUE),  value{.float_value = id}  {};
-		explicit Expr(BoolValueID id)   : _kind(Kind::BOOL_VALUE),   value{.bool_value = id}   {};
-		explicit Expr(StringValueID id) : _kind(Kind::STRING_VALUE), value{.string_value = id} {};
-		explicit Expr(CharValueID id)   : _kind(Kind::CHAR_VALUE),   value{.char_value = id}   {};
+		explicit Expr(IntValueID id)       : _kind(Kind::INT_VALUE),       value{.int_value = id}       {};
+		explicit Expr(FloatValueID id)     : _kind(Kind::FLOAT_VALUE),     value{.float_value = id}     {};
+		explicit Expr(BoolValueID id)      : _kind(Kind::BOOL_VALUE),      value{.bool_value = id}      {};
+		explicit Expr(StringValueID id)    : _kind(Kind::STRING_VALUE),    value{.string_value = id}    {};
+		explicit Expr(AggregateValueID id) : _kind(Kind::AGGREGATE_VALUE), value{.aggregate_value = id} {};
+		explicit Expr(CharValueID id)      : _kind(Kind::CHAR_VALUE),      value{.char_value = id}      {};
 
 		explicit Expr(IntrinsicFunc::Kind intrinsic_func_kind) :
 			_kind(Kind::INTRINSIC_FUNC), value{.intrinsic_func = intrinsic_func_kind} {};
@@ -89,6 +92,7 @@ namespace pcit::panther::sema{
 		explicit Expr(FuncCallID id)         : _kind(Kind::FUNC_CALL),          value{.func_call = id}          {};
 		explicit Expr(AddrOfID id)           : _kind(Kind::ADDR_OF),            value{.addr_of = id}            {};
 		explicit Expr(DerefID id)            : _kind(Kind::DEREF),              value{.deref = id}              {};
+		explicit Expr(AccessorID id)         : _kind(Kind::ACCESSOR),           value{.accessor = id}           {};
 		explicit Expr(TryElseID id)          : _kind(Kind::TRY_ELSE),           value{.try_else = id}           {};
 		explicit Expr(BlockExprID id)        : _kind(Kind::BLOCK_EXPR),         value{.block_expr = id}         {};
 
@@ -134,8 +138,12 @@ namespace pcit::panther::sema{
 			return this->value.bool_value;
 		}
 		EVO_NODISCARD auto stringValueID() const -> StringValueID {
-			evo::debugAssert(this->kind() == Kind::STRING_VALUE, "not a StringValue");
+			evo::debugAssert(this->kind() == Kind::STRING_VALUE, "not an StringValue");
 			return this->value.string_value;
+		}
+		EVO_NODISCARD auto aggregateValueID() const -> AggregateValueID {
+			evo::debugAssert(this->kind() == Kind::AGGREGATE_VALUE, "not an AggregateValue");
+			return this->value.aggregate_value;
 		}
 		EVO_NODISCARD auto charValueID() const -> CharValueID {
 			evo::debugAssert(this->kind() == Kind::CHAR_VALUE, "not a CharValue");
@@ -171,8 +179,12 @@ namespace pcit::panther::sema{
 			return this->value.addr_of;
 		}
 		EVO_NODISCARD auto derefID() const -> DerefID {
-			evo::debugAssert(this->kind() == Kind::DEREF, "not an deref");
+			evo::debugAssert(this->kind() == Kind::DEREF, "not a deref");
 			return this->value.deref;
+		}
+		EVO_NODISCARD auto accessorID() const -> AccessorID {
+			evo::debugAssert(this->kind() == Kind::ACCESSOR, "not an accessor");
+			return this->value.accessor;
 		}
 		EVO_NODISCARD auto tryElseID() const -> TryElseID {
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not an try/else");
@@ -241,6 +253,7 @@ namespace pcit::panther::sema{
 				FloatValueID float_value;
 				BoolValueID bool_value;
 				StringValueID string_value;
+				AggregateValueID aggregate_value;
 				CharValueID char_value;
 
 				IntrinsicFunc::Kind intrinsic_func;
@@ -252,6 +265,7 @@ namespace pcit::panther::sema{
 				FuncCallID func_call;
 				AddrOfID addr_of;
 				DerefID deref;
+				AccessorID accessor;
 				TryElseID try_else;
 				BlockExprID block_expr;
 				ExceptParamID except_param;

@@ -105,7 +105,18 @@ namespace pcit::panther{
 			TypeInfoID id;
 	};
 
+}
 
+
+namespace std{
+	
+	template<>
+	struct hash<pcit::panther::TypeInfoVoidableID>{
+		auto operator()(const pcit::panther::TypeInfoVoidableID& voidable_id) const noexcept -> size_t {
+			return voidable_id.hash();
+		};
+	};
+	
 }
 
 
@@ -147,4 +158,69 @@ namespace pcit::panther::BaseType{
 	};
 
 
+}
+
+
+
+
+
+namespace std{
+
+
+	template<>
+	struct hash<pcit::panther::BaseType::PrimitiveID>{
+		auto operator()(const pcit::panther::BaseType::PrimitiveID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::FunctionID>{
+		auto operator()(const pcit::panther::BaseType::FunctionID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::ArrayID>{
+		auto operator()(const pcit::panther::BaseType::ArrayID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::AliasID>{
+		auto operator()(const pcit::panther::BaseType::AliasID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::TypedefID>{
+		auto operator()(const pcit::panther::BaseType::TypedefID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::StructID>{
+		auto operator()(const pcit::panther::BaseType::StructID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::StructTemplateID>{
+		auto operator()(const pcit::panther::BaseType::StructTemplateID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::TypeDeducerID>{
+		auto operator()(const pcit::panther::BaseType::TypeDeducerID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+	
 }

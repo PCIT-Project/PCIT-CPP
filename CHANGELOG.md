@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.116.0"></a>
+## v0.0.116.0
+
+### Panther
+- Added struct member variables
+- Added struct attributes `#ordered` and `#packed`
+- Added variable attribute `#global`
+- Fixed declaring local variables with initializer values
+- Fixed parsing of function parameter `this` with a default kind
+- Fixed race condition in semantic analysis
+
+
+<!---------------------------------->
 <a name="v0.0.115.0"></a>
 ## v0.0.115.0
 

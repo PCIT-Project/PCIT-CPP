@@ -53,6 +53,11 @@ namespace pcit::panther::sema{
 			};
 			struct DeducedTypeFlag{}; // to differentiate which overload of addIdent
 
+			struct MemberVar{
+				Token::ID location;
+			};
+			struct MemberVarFlag{};
+
 			using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
 
 			using IdentID = evo::Variant<
@@ -71,7 +76,8 @@ namespace pcit::panther::sema{
 				sema::TemplatedStructID,
 				TemplateTypeParam,
 				TemplateExprParam,
-				DeducedType
+				DeducedType,
+				MemberVar
 			>;
 
 			using NoLabelNode = std::monostate;
@@ -145,6 +151,7 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(
 				std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, DeducedTypeFlag
 			) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, Token::ID location, MemberVarFlag) -> AddIdentResult;
 
 			// returns false if is a redefinition
 			EVO_NODISCARD auto disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool;

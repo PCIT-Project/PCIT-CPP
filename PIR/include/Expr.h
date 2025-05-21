@@ -30,6 +30,7 @@ namespace pcit::pir{
 				NUMBER,
 				BOOLEAN,
 				PARAM_EXPR,
+				NULLPTR,
 
 				// stmts
 				CALL,
@@ -139,33 +140,34 @@ namespace pcit::pir{
 			EVO_NODISCARD auto isValue() const -> bool {
                 switch(this->_kind){
 					case Kind::NUMBER:            case Kind::BOOLEAN:           case Kind::GLOBAL_VALUE:
-					case Kind::PARAM_EXPR:        case Kind::CALL:              case Kind::ALLOCA:
-					case Kind::LOAD:              case Kind::CALC_PTR:          case Kind::BIT_CAST:
-					case Kind::TRUNC:             case Kind::FTRUNC:            case Kind::SEXT:
-					case Kind::ZEXT:              case Kind::FEXT:              case Kind::ITOF:
-					case Kind::UITOF:             case Kind::FTOI:              case Kind::FTOUI:
-					case Kind::ADD:               case Kind::SADD_WRAP:         case Kind::SADD_WRAP_RESULT:
-					case Kind::SADD_WRAP_WRAPPED: case Kind::UADD_WRAP:         case Kind::UADD_WRAP_RESULT:
-					case Kind::UADD_WRAP_WRAPPED: case Kind::SADD_SAT:          case Kind::UADD_SAT:
-					case Kind::FADD:              case Kind::SUB:               case Kind::SSUB_WRAP:
-					case Kind::SSUB_WRAP_RESULT:  case Kind::SSUB_WRAP_WRAPPED: case Kind::USUB_WRAP:
-					case Kind::USUB_WRAP_RESULT:  case Kind::USUB_WRAP_WRAPPED: case Kind::SSUB_SAT:
-					case Kind::USUB_SAT:          case Kind::FSUB:              case Kind::MUL:
-					case Kind::SMUL_WRAP:         case Kind::SMUL_WRAP_RESULT:  case Kind::SMUL_WRAP_WRAPPED:
-					case Kind::UMUL_WRAP:         case Kind::UMUL_WRAP_RESULT:  case Kind::UMUL_WRAP_WRAPPED:
-					case Kind::SMUL_SAT:          case Kind::UMUL_SAT:          case Kind::FMUL:
-					case Kind::SDIV:              case Kind::UDIV:              case Kind::FDIV:
-					case Kind::SREM:              case Kind::UREM:              case Kind::FREM:
-					case Kind::FNEG:              case Kind::IEQ:               case Kind::FEQ:
-					case Kind::INEQ:              case Kind::FNEQ:              case Kind::SLT:
-					case Kind::ULT:               case Kind::FLT:               case Kind::SLTE:
-					case Kind::ULTE:              case Kind::FLTE:              case Kind::SGT:
-					case Kind::UGT:               case Kind::FGT:               case Kind::SGTE:
-					case Kind::UGTE:              case Kind::FGTE:              case Kind::AND:
-					case Kind::OR:                case Kind::XOR:               case Kind::SHL:
-					case Kind::SSHL_SAT:          case Kind::USHL_SAT:          case Kind::SSHR:
-					case Kind::USHR:              case Kind::BIT_REVERSE:       case Kind::BSWAP:
-					case Kind::CTPOP:             case Kind::CTLZ:              case Kind::CTTZ: {
+					case Kind::PARAM_EXPR:        case Kind::NULLPTR:           case Kind::CALL:
+					case Kind::ALLOCA:            case Kind::LOAD:              case Kind::CALC_PTR:
+					case Kind::BIT_CAST:          case Kind::TRUNC:             case Kind::FTRUNC:
+					case Kind::SEXT:              case Kind::ZEXT:              case Kind::FEXT:
+					case Kind::ITOF:              case Kind::UITOF:             case Kind::FTOI:
+					case Kind::FTOUI:             case Kind::ADD:               case Kind::SADD_WRAP:
+					case Kind::SADD_WRAP_RESULT:  case Kind::SADD_WRAP_WRAPPED: case Kind::UADD_WRAP:
+					case Kind::UADD_WRAP_RESULT:  case Kind::UADD_WRAP_WRAPPED: case Kind::SADD_SAT:
+					case Kind::UADD_SAT:          case Kind::FADD:              case Kind::SUB:
+					case Kind::SSUB_WRAP:         case Kind::SSUB_WRAP_RESULT:  case Kind::SSUB_WRAP_WRAPPED:
+					case Kind::USUB_WRAP:         case Kind::USUB_WRAP_RESULT:  case Kind::USUB_WRAP_WRAPPED:
+					case Kind::SSUB_SAT:          case Kind::USUB_SAT:          case Kind::FSUB:
+					case Kind::MUL:               case Kind::SMUL_WRAP:         case Kind::SMUL_WRAP_RESULT:
+					case Kind::SMUL_WRAP_WRAPPED: case Kind::UMUL_WRAP:         case Kind::UMUL_WRAP_RESULT:
+					case Kind::UMUL_WRAP_WRAPPED: case Kind::SMUL_SAT:          case Kind::UMUL_SAT:
+					case Kind::FMUL:              case Kind::SDIV:              case Kind::UDIV:
+					case Kind::FDIV:              case Kind::SREM:              case Kind::UREM:
+					case Kind::FREM:              case Kind::FNEG:              case Kind::IEQ:
+					case Kind::FEQ:               case Kind::INEQ:              case Kind::FNEQ:
+					case Kind::SLT:               case Kind::ULT:               case Kind::FLT:
+					case Kind::SLTE:              case Kind::ULTE:              case Kind::FLTE:
+					case Kind::SGT:               case Kind::UGT:               case Kind::FGT:
+					case Kind::SGTE:              case Kind::UGTE:              case Kind::FGTE:
+					case Kind::AND:               case Kind::OR:                case Kind::XOR:
+					case Kind::SHL:               case Kind::SSHL_SAT:          case Kind::USHL_SAT:
+					case Kind::SSHR:              case Kind::USHR:              case Kind::BIT_REVERSE:
+					case Kind::BSWAP:             case Kind::CTPOP:             case Kind::CTLZ:
+					case Kind::CTTZ: {
 						return true;
 					} break;
 					default: return false;

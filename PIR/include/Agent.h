@@ -108,6 +108,12 @@ namespace pcit::pir{
 			EVO_NODISCARD static auto getBoolean(const Expr& expr) -> bool;
 
 
+			///////////////////////////////////
+			// nullptr
+
+			EVO_NODISCARD static auto createNullptr() -> Expr;
+
+
 
 			///////////////////////////////////
 			// param exprs
@@ -228,8 +234,8 @@ namespace pcit::pir{
 			EVO_NODISCARD auto createLoad(
 				const Expr& source,
 				const Type& type,
-				bool is_volatile,
-				AtomicOrdering atomic_ordering,
+				bool is_volatile = false,
+				AtomicOrdering atomic_ordering = AtomicOrdering::NONE,
 				std::string&& name = ""
 			) const -> Expr;
 			EVO_NODISCARD auto getLoad(const Expr& expr) const -> const Load&;
@@ -239,7 +245,10 @@ namespace pcit::pir{
 			// store
 
 			EVO_NODISCARD auto createStore(
-				const Expr& destination, const Expr& value, bool is_volatile, AtomicOrdering atomic_ordering
+				const Expr& destination,
+				const Expr& value,
+				bool is_volatile = false,
+				AtomicOrdering atomic_ordering = AtomicOrdering::NONE
 			) const -> void;
 			EVO_NODISCARD auto getStore(const Expr& expr) const -> const Store&;
 
@@ -259,13 +268,16 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// memcpy
 
-			auto createMemcpy(const Expr& dst, const Expr& src, const Expr& num_bytes, bool is_volatile) const -> Expr;
+			auto createMemcpy(const Expr& dst, const Expr& src, const Expr& num_bytes, bool is_volatile = false) const
+				-> Expr;
 
-			auto createMemcpy(const Expr& dst, const Expr& src, const Type& src_type, bool is_volatile) const -> Expr {
+			auto createMemcpy(const Expr& dst, const Expr& src, const Type& src_type, bool is_volatile = false) const
+			-> Expr {
 				return this->createMemcpy(dst, src, this->module.getSize(src_type, true), is_volatile);
 			}
 
-			auto createMemcpy(const Expr& dst, const Expr& src, size_t num_bytes, bool is_volatile) const -> Expr {
+			auto createMemcpy(const Expr& dst, const Expr& src, size_t num_bytes, bool is_volatile = false) const
+			-> Expr {
 				const pir::Expr num_bytes_expr = this->createNumber(
 					this->module.createIntegerType(unsigned(this->module.sizeOfPtr())),
 					core::GenericInt(unsigned(this->module.sizeOfPtr()), unsigned(num_bytes))
@@ -281,8 +293,23 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// memset
 
-			auto createMemset(const Expr& dst, const Expr& value, const Expr& num_bytes, bool is_volatile) const
+			auto createMemset(const Expr& dst, const Expr& value, const Expr& num_bytes, bool is_volatile = false) const
 				-> Expr;
+
+			auto createMemset(const Expr& dst, const Expr& value, const Type& dst_type, bool is_volatile = false) const
+			-> Expr {
+				return this->createMemset(dst, value, this->module.getSize(dst_type, true), is_volatile);
+			}
+
+			auto createMemset(const Expr& dst, const Expr& value, size_t num_bytes, bool is_volatile = false) const
+			-> Expr {
+				const pir::Expr num_bytes_expr = this->createNumber(
+					this->module.createIntegerType(unsigned(this->module.sizeOfPtr())),
+					core::GenericInt(unsigned(this->module.sizeOfPtr()), unsigned(num_bytes))
+				);
+
+				return this->createMemset(dst, value, num_bytes_expr, is_volatile);
+			}
 
 			EVO_NODISCARD auto getMemset(const Expr&) const -> const Memset&;
 

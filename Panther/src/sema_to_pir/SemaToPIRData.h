@@ -59,10 +59,19 @@ namespace pcit::panther{
 				pir::ExternalFunction::ID return_generic_f128 = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID return_generic_char = pir::ExternalFunction::ID::dummy();
 
+				pir::ExternalFunction::ID prepare_return_generic_aggregate = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID return_generic_aggregate_int     = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID return_generic_aggregate_bool    = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID return_generic_aggregate_f16     = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID return_generic_aggregate_bf16    = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID return_generic_aggregate_f32     = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID return_generic_aggregate_f64     = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID return_generic_aggregate_f80     = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID return_generic_aggregate_f128    = pir::ExternalFunction::ID::dummy();
+
 				pir::ExternalFunction::ID get_generic_int   = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID get_generic_bool  = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID get_generic_float = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID get_generic_char  = pir::ExternalFunction::ID::dummy();
 			};
 
 			struct JITBuildFuncs{
@@ -160,6 +169,16 @@ namespace pcit::panther{
 				evo::debugAssert(this->funcs.contains(func_id.get()), "Doesn't have this func");
 				return *this->funcs.at(func_id.get());
 			}
+
+
+
+			EVO_NODISCARD auto has_struct(const BaseType::Struct::ID struct_id) -> bool {
+				const auto lock = std::scoped_lock(this->structs_lock);
+				return this->structs.contains(struct_id.get());
+			}
+
+
+
 	
 		private:
 			Config config;

@@ -19,10 +19,16 @@
 
 namespace pcit::pir{
 
+	//////////////////////////////////////////////////////////////////////
+	// 
 	// Create types through Module
+	// Lookup extra info about types in Module as well
+	// 
+
+
 	class Type{
 		public:
-			enum class Kind{
+			enum class Kind : uint32_t {
 				VOID,
 				INTEGER,
 				BOOL,
@@ -40,15 +46,8 @@ namespace pcit::pir{
 			Type(const Type&) = default;
 			Type(Type&&) = default;
 
-			auto operator=(const Type& rhs) -> Type& {
-				std::construct_at(this, rhs);
-				return *this;
-			}
-
-			auto operator=(Type&& rhs) -> Type& {
-				std::construct_at(this, std::move(rhs));
-				return *this;
-			}
+			auto operator=(const Type& rhs) -> Type& = default;
+			auto operator=(Type&& rhs) -> Type& = default;
 
 			EVO_NODISCARD auto operator==(const Type&) const -> bool = default;
 
@@ -76,10 +75,6 @@ namespace pcit::pir{
 				return this->_kind == Kind::INTEGER || this->isFloat();
 			}
 
-			EVO_NODISCARD auto isConstant() const -> bool {
-				return this->isNumeric() || this->_kind == Kind::BOOL;
-			}
-
 			EVO_NODISCARD auto isAggregate() const -> bool {
 				return this->_kind == Kind::ARRAY || this->_kind == Kind::STRUCT;
 			}
@@ -100,11 +95,18 @@ namespace pcit::pir{
 			friend class Module;
 	};
 
+	static_assert(sizeof(Type) == sizeof(uint64_t), "Unexpected size for pir::Type");
+	static_assert(std::is_trivially_copyable<Type>(), "pir::Type is not trivially copyable");
+
 
 
 	struct ArrayType{
 		Type elemType;
 		uint64_t length;
+
+		EVO_NODISCARD auto isString() const -> bool {
+			return this->elemType.kind() == Type::Kind::INTEGER && this->elemType.getWidth() == 8;
+		}
 	};
  
 	struct StructType{
@@ -126,6 +128,19 @@ namespace pcit::pir{
 	};
 
 
+}
+
+
+
+namespace std{
+	
+	template<>
+	struct hash<pcit::pir::Type>{
+		auto operator()(const pcit::pir::Type& type) const noexcept -> size_t {
+			return std::hash<uint64_t>{}(evo::bitCast<uint64_t>(type));
+		};
+	};
+	
 }
 
 

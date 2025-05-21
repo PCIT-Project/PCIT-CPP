@@ -489,6 +489,10 @@ namespace pcit::pir{
 				this->printer.printMagenta(evo::boolStr(this->reader.getBoolean(expr)));
 			} break;
 
+			case Expr::Kind::NULLPTR: {
+				this->printer.printMagenta("null");
+			} break;
+
 			case Expr::Kind::PARAM_EXPR: {
 				const ParamExpr param_expr = this->reader.getParamExpr(expr);
 				this->printer.print(
@@ -899,12 +903,13 @@ namespace pcit::pir{
 		switch(stmt.kind()){
 			case Expr::Kind::NONE: evo::debugFatalBreak("Not valid expr");
 
-			case Expr::Kind::GLOBAL_VALUE: evo::debugFatalBreak("Expr::Kind::GlobalValue is not a valid statement");
+			case Expr::Kind::GLOBAL_VALUE: evo::debugFatalBreak("Expr::Kind::GLOBAL_VALUE is not a valid statement");
 			case Expr::Kind::FUNCTION_POINTER: 
-				evo::debugFatalBreak("Expr::Kind::FunctionPointer is not a valid statement");
-			case Expr::Kind::NUMBER:      evo::debugFatalBreak("Expr::Kind::Number is not a valid statement");
-			case Expr::Kind::BOOLEAN:     evo::debugFatalBreak("Expr::Kind::Boolean is not a valid statement");
-			case Expr::Kind::PARAM_EXPR: evo::debugFatalBreak("Expr::Kind::ParamExpr is not a valid statement");
+				evo::debugFatalBreak("Expr::Kind::FUNCTION_POINTER is not a valid statement");
+			case Expr::Kind::NUMBER:      evo::debugFatalBreak("Expr::Kind::NUMBER is not a valid statement");
+			case Expr::Kind::BOOLEAN:     evo::debugFatalBreak("Expr::Kind::BOOLEAN is not a valid statement");
+			case Expr::Kind::NULLPTR:     evo::debugFatalBreak("Expr::Kind::NULLPTR is not a valid statement");
+			case Expr::Kind::PARAM_EXPR:  evo::debugFatalBreak("Expr::Kind::PARAM_EXPR is not a valid statement");
 
 			case Expr::Kind::CALL: {
 				const Call& call_inst = this->reader.getCall(stmt);

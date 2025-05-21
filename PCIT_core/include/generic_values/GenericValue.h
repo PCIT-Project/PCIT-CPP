@@ -31,82 +31,103 @@ namespace pcit::core{
 			explicit GenericValue(GenericInt&& val)   : value(std::move(val))   {}
 			explicit GenericValue(GenericFloat&& val) : value(std::move(val))   {}
 			explicit GenericValue(bool val)           : value(std::move(val))   {}
-			explicit GenericValue(char val)           : value(std::move(val))   {}
+			explicit GenericValue(std::string val)    : value(std::move(val))   {}
 			explicit GenericValue(class GenericAggregateBuilder&& builder);
 			~GenericValue() = default;
 
 
 			template<class T>
-			EVO_NODISCARD auto as() const -> const T& { static_assert(sizeof(T) == 0, "Not a valid type"); }
+			EVO_NODISCARD auto as() const& -> const T& { static_assert(sizeof(T) == 0, "Not a valid type"); }
 
 			template<class T>
-			EVO_NODISCARD auto as() -> T& { static_assert(sizeof(T) == 0, "Not a valid type"); }
+			EVO_NODISCARD auto as() & -> T& { static_assert(sizeof(T) == 0, "Not a valid type"); }
+
+			template<class T>
+			EVO_NODISCARD auto as() && -> T&& { static_assert(sizeof(T) == 0, "Not a valid type"); }
 
 
 			template<>
-			EVO_NODISCARD auto as<GenericInt>() const -> const GenericInt& {
+			EVO_NODISCARD auto as<GenericInt>() const& -> const GenericInt& {
 				evo::debugAssert(this->value.is<GenericInt>(), "Generic Value is not this type");
 				return this->value.as<GenericInt>();
 			}
-
 			template<>
-			EVO_NODISCARD auto as<GenericInt>() -> GenericInt& {
+			EVO_NODISCARD auto as<GenericInt>() & -> GenericInt& {
 				evo::debugAssert(this->value.is<GenericInt>(), "Generic Value is not this type");
 				return this->value.as<GenericInt>();
 			}
+			template<>
+			EVO_NODISCARD auto as<GenericInt>() && -> GenericInt&& {
+				evo::debugAssert(this->value.is<GenericInt>(), "Generic Value is not this type");
+				return std::move(this->value.as<GenericInt>());
+			}
 
 
 			template<>
-			EVO_NODISCARD auto as<GenericFloat>() const -> const GenericFloat& {
+			EVO_NODISCARD auto as<GenericFloat>() const& -> const GenericFloat& {
 				evo::debugAssert(this->value.is<GenericFloat>(), "Generic Value is not this type");
 				return this->value.as<GenericFloat>();
 			}
-
 			template<>
-			EVO_NODISCARD auto as<GenericFloat>() -> GenericFloat& {
+			EVO_NODISCARD auto as<GenericFloat>() & -> GenericFloat& {
 				evo::debugAssert(this->value.is<GenericFloat>(), "Generic Value is not this type");
 				return this->value.as<GenericFloat>();
 			}
+			template<>
+			EVO_NODISCARD auto as<GenericFloat>() && -> GenericFloat&& {
+				evo::debugAssert(this->value.is<GenericFloat>(), "Generic Value is not this type");
+				return std::move(this->value.as<GenericFloat>());
+			}
 
 
 			template<>
-			EVO_NODISCARD auto as<bool>() const -> const bool& {
+			EVO_NODISCARD auto as<bool>() const& -> const bool& {
 				evo::debugAssert(this->value.is<bool>(), "Generic Value is not this type");
 				return this->value.as<bool>();
 			}
-
 			template<>
-			EVO_NODISCARD auto as<bool>() -> bool& {
+			EVO_NODISCARD auto as<bool>() & -> bool& {
 				evo::debugAssert(this->value.is<bool>(), "Generic Value is not this type");
 				return this->value.as<bool>();
 			}
-
-
-
 			template<>
-			EVO_NODISCARD auto as<char>() const -> const char& {
-				evo::debugAssert(this->value.is<char>(), "Generic Value is not this type");
-				return this->value.as<char>();
-			}
-
-			template<>
-			EVO_NODISCARD auto as<char>() -> char& {
-				evo::debugAssert(this->value.is<char>(), "Generic Value is not this type");
-				return this->value.as<char>();
+			EVO_NODISCARD auto as<bool>() && -> bool&& {
+				evo::debugAssert(this->value.is<bool>(), "Generic Value is not this type");
+				return std::move(this->value.as<bool>());
 			}
 
 
+			template<>
+			EVO_NODISCARD auto as<std::string>() const& -> const std::string& {
+				evo::debugAssert(this->value.is<std::string>(), "Generic Value is not this type");
+				return this->value.as<std::string>();
+			}
+			template<>
+			EVO_NODISCARD auto as<std::string>() & -> std::string& {
+				evo::debugAssert(this->value.is<std::string>(), "Generic Value is not this type");
+				return this->value.as<std::string>();
+			}
+			template<>
+			EVO_NODISCARD auto as<std::string>() && -> std::string&& {
+				evo::debugAssert(this->value.is<std::string>(), "Generic Value is not this type");
+				return std::move(this->value.as<std::string>());
+			}
+
 
 			template<>
-			EVO_NODISCARD auto as<evo::SmallVector<GenericValue>>() const -> const evo::SmallVector<GenericValue>& {
+			EVO_NODISCARD auto as<evo::SmallVector<GenericValue>>() const& -> const evo::SmallVector<GenericValue>& {
 				evo::debugAssert(this->value.is<evo::SmallVector<GenericValue>>(), "Generic Value is not this type");
 				return this->value.as<evo::SmallVector<GenericValue>>();
 			}
-
 			template<>
-			EVO_NODISCARD auto as<evo::SmallVector<GenericValue>>() -> evo::SmallVector<GenericValue>& {
+			EVO_NODISCARD auto as<evo::SmallVector<GenericValue>>() & -> evo::SmallVector<GenericValue>& {
 				evo::debugAssert(this->value.is<evo::SmallVector<GenericValue>>(), "Generic Value is not this type");
 				return this->value.as<evo::SmallVector<GenericValue>>();
+			}
+			template<>
+			EVO_NODISCARD auto as<evo::SmallVector<GenericValue>>() && -> evo::SmallVector<GenericValue>&& {
+				evo::debugAssert(this->value.is<evo::SmallVector<GenericValue>>(), "Generic Value is not this type");
+				return std::move(this->value.as<evo::SmallVector<GenericValue>>());
 			}
 
 
@@ -131,8 +152,8 @@ namespace pcit::core{
 					}else if constexpr(std::is_same<ValueT, bool>()){
 						return evo::boolStr(value);
 						
-					}else if constexpr(std::is_same<ValueT, char>()){
-						return std::to_string(value);
+					}else if constexpr(std::is_same<ValueT, std::string>()){
+						return value;
 						
 					}else if constexpr(std::is_same<ValueT, evo::SmallVector<GenericValue>>()){
 						auto output = std::string();
@@ -177,8 +198,8 @@ namespace pcit::core{
 					}else if constexpr(std::is_same<ValueT, bool>()){
 						return std::hash<bool>{}(value);
 						
-					}else if constexpr(std::is_same<ValueT, char>()){
-						return std::hash<char>{}(value);
+					}else if constexpr(std::is_same<ValueT, std::string>()){
+						return std::hash<std::string>{}(value);
 						
 					}else if constexpr(std::is_same<ValueT, evo::SmallVector<GenericValue>>()){
 						size_t hash_value = 0;
@@ -197,7 +218,9 @@ namespace pcit::core{
 
 	
 		private:
-			evo::Variant<std::monostate, GenericInt, GenericFloat, bool, char, evo::SmallVector<GenericValue>> value;
+			evo::Variant<
+				std::monostate, GenericInt, GenericFloat, bool, std::string, evo::SmallVector<GenericValue>
+			> value;
 	};
 
 	
@@ -205,6 +228,12 @@ namespace pcit::core{
 	class GenericAggregateBuilder{
 		public:
 			GenericAggregateBuilder() = default;
+			GenericAggregateBuilder(size_t num_elems) : values() {
+				this->values.reserve(num_elems);
+				for(size_t i = 0; i < num_elems; i+=1){
+					this->values.emplace_back();
+				}
+			}
 			~GenericAggregateBuilder() = default;
 
 			auto addMember(const GenericValue& value) -> void { this->values.emplace_back(value); }

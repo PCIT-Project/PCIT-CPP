@@ -233,7 +233,7 @@ namespace pcit::panther{
 
 			}else if(var_decl.kind != AST::VarDecl::Kind::DEF){
 				this->add_instruction(
-					Instruction::GlobalVarDecl(
+					Instruction::NonLocalVarDecl(
 						var_decl, std::move(attribute_params_info.value()), type_id_res.value()
 					)
 				);
@@ -243,27 +243,47 @@ namespace pcit::panther{
 		}
 
 
-		if(var_decl.value.has_value() == false){
-			this->emit_error(
-				Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE, var_decl, "Variables need to be defined with a value"
-			);
-			return evo::resultError;
+
+		auto value_id = std::optional<SymbolProc::TermInfoID>();
+		if(var_decl.value.has_value()){
+			const evo::Result<SymbolProc::TermInfoID> value_id_res = this->analyze_expr<true>(*var_decl.value);
+			if(value_id_res.isError()){ return evo::resultError; }
+
+			value_id = value_id_res.value();
+			
+		}else{
+			if(var_decl.kind == AST::VarDecl::Kind::DEF){
+				this->emit_error(
+					Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
+					var_decl,
+					"All [def] variables need to be defined with a value"
+				);
+				return evo::resultError;
+			}
+
+			if(var_decl.type.has_value() == false){
+				this->emit_error(
+					Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
+					var_decl,
+					"Variables must be defined with a type and/or a value"
+				);
+				return evo::resultError;
+			}
 		}
 
-		const evo::Result<SymbolProc::TermInfoID> value_id = this->analyze_expr<true>(*var_decl.value);
-		if(value_id.isError()){ return evo::resultError; }
+	
 
 		if(
 			var_decl.type.has_value()
 			&& var_decl.kind != AST::VarDecl::Kind::DEF
 			&& decl_def_type_id.has_value() == false
 		){
-			this->add_instruction(Instruction::GlobalVarDef(var_decl, value_id.value()));
+			this->add_instruction(Instruction::NonLocalVarDef(var_decl, value_id));
 
 		}else{
 			this->add_instruction(
-				Instruction::GlobalVarDeclDef(
-					var_decl, std::move(attribute_params_info.value()), decl_def_type_id, value_id.value()
+				Instruction::NonLocalVarDeclDef(
+					var_decl, std::move(attribute_params_info.value()), decl_def_type_id, *value_id
 				)
 			);
 		}
@@ -678,7 +698,7 @@ namespace pcit::panther{
 
 		switch(stmt.kind()){
 			case AST::Kind::NONE:             evo::debugFatalBreak("Not a valid AST node");
-			case AST::Kind::VAR_DECL:         return this->analyze_var(ast_buffer.getVarDecl(stmt));
+			case AST::Kind::VAR_DECL:         return this->analyze_local_var(ast_buffer.getVarDecl(stmt));
 			case AST::Kind::FUNC_DECL:        evo::unimplemented("AST::Kind::FUNC_DECL");
 			case AST::Kind::ALIAS_DECL:       evo::unimplemented("AST::Kind::ALIAS_DECL");
 			case AST::Kind::TYPEDEF_DECL:     evo::unimplemented("AST::Kind::TYPEDEF_DECL");
@@ -724,7 +744,7 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::analyze_var(const AST::VarDecl& var_decl) -> evo::Result<> {
+	auto SymbolProcBuilder::analyze_local_var(const AST::VarDecl& var_decl) -> evo::Result<> {
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
 			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock)
 		);
@@ -741,7 +761,9 @@ namespace pcit::panther{
 
 		if(var_decl.value.has_value() == false){
 			this->emit_error(
-				Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE, var_decl, "Variables need to be defined with a value"
+				Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
+				var_decl,
+				"Local variables need to be defined with a value"
 			);
 			return evo::resultError;
 		}

@@ -302,6 +302,7 @@ namespace pcit::panther{
 				return this->misc_exprs[id.get()];
 			}
 
+
 			///////////////////////////////////
 			// dereferences
 
@@ -311,6 +312,18 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getDeref(sema::Deref::ID id) const -> const sema::Deref& {
 				return this->derefs[id];
+			}
+
+
+			///////////////////////////////////
+			// accessors
+
+			EVO_NODISCARD auto createAccessor(auto&&... args) -> sema::Accessor::ID {
+				return this->accessors.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getAccessor(sema::Accessor::ID id) const -> const sema::Accessor& {
+				return this->accessors[id];
 			}
 
 
@@ -392,20 +405,38 @@ namespace pcit::panther{
 				return this->bool_values[id];
 			}
 
-
 			///////////////////////////////////
 			// strings
 
-			EVO_NODISCARD auto createStringValue(std::string&& str) -> sema::StringValue::ID {
-				return this->string_values.emplace_back(str);
+			EVO_NODISCARD auto createStringValue(std::string&& value) -> sema::StringValue::ID {
+				return this->string_values.emplace_back(std::move(value));
 			}
 
-			EVO_NODISCARD auto createStringValue(const std::string& str) -> sema::StringValue::ID {
-				return this->string_values.emplace_back(str);
+			EVO_NODISCARD auto createStringValue(const std::string& value) -> sema::StringValue::ID {
+				return this->string_values.emplace_back(value);
 			}
 
 			EVO_NODISCARD auto getStringValue(sema::StringValue::ID id) const -> const sema::StringValue& {
 				return this->string_values[id];
+			}
+
+
+			///////////////////////////////////
+			// aggregates
+
+			EVO_NODISCARD auto createAggregateValue(evo::SmallVector<sema::Expr>&& values, BaseType::ID typeID)
+			-> sema::AggregateValue::ID {
+				return this->aggregate_values.emplace_back(std::move(values), typeID);
+			}
+
+			EVO_NODISCARD auto createAggregateValue(
+				const evo::SmallVector<sema::Expr>& values, BaseType::ID typeID
+			) -> sema::AggregateValue::ID {
+				return this->aggregate_values.emplace_back(values, typeID);
+			}
+
+			EVO_NODISCARD auto getAggregateValue(sema::AggregateValue::ID id) const -> const sema::AggregateValue& {
+				return this->aggregate_values[id];
 			}
 
 
@@ -468,6 +499,7 @@ namespace pcit::panther{
 
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
+			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 
@@ -479,6 +511,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::FloatValue, sema::FloatValue::ID> float_values{};
 			core::SyncLinearStepAlloc<sema::BoolValue, sema::BoolValue::ID> bool_values{};
 			core::SyncLinearStepAlloc<sema::StringValue, sema::StringValue::ID> string_values{};
+			core::SyncLinearStepAlloc<sema::AggregateValue, sema::AggregateValue::ID> aggregate_values{};
 			core::SyncLinearStepAlloc<sema::CharValue, sema::CharValue::ID> char_values{};
 
 			core::SyncLinearStepAlloc<Token::ID, uint32_t> misc_tokens{};

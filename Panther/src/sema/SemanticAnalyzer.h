@@ -58,9 +58,9 @@ namespace pcit::panther{
 
 			auto analyze_instr(const Instruction& instruction) -> Result;
 
-			EVO_NODISCARD auto instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result;
-			EVO_NODISCARD auto instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result;
-			EVO_NODISCARD auto instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result;
+			EVO_NODISCARD auto instr_non_local_var_decl(const Instruction::NonLocalVarDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_non_local_var_def(const Instruction::NonLocalVarDef& instr) -> Result;
+			EVO_NODISCARD auto instr_non_local_var_decl_def(const Instruction::NonLocalVarDeclDef& instr) -> Result;
 			EVO_NODISCARD auto instr_when_cond(const Instruction::WhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_alias_decl(const Instruction::AliasDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_alias_def(const Instruction::AliasDef& instr) -> Result;
@@ -247,11 +247,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;
 
 
+			EVO_NODISCARD auto genericValueToSemaExpr(core::GenericValue& value, const TypeInfo& target_type)
+				-> sema::Expr;
+
+
 			///////////////////////////////////
 			// attributes
 
 			struct GlobalVarAttrs{
 				bool is_pub;
+				bool is_global;
 			};
 			EVO_NODISCARD auto analyze_global_var_attrs(
 				const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
@@ -259,7 +264,7 @@ namespace pcit::panther{
 
 
 			struct VarAttrs{
-				bool is_static;
+				bool is_global;
 			};
 			EVO_NODISCARD auto analyze_var_attrs(
 				const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
@@ -268,6 +273,8 @@ namespace pcit::panther{
 
 			struct StructAttrs{
 				bool is_pub;
+				bool is_ordered;
+				bool is_packed;
 			};
 			EVO_NODISCARD auto analyze_struct_attrs(
 				const AST::StructDecl& struct_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
@@ -467,6 +474,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_location(const sema::ScopeLevel::DeducedType& deduced_type) const
 			-> Diagnostic::Location {
 				return this->get_location(deduced_type.location);
+			}
+
+			EVO_NODISCARD auto get_location(const sema::ScopeLevel::MemberVar& member_var) const
+			-> Diagnostic::Location {
+				return this->get_location(member_var.location);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::Func::ID& func) const -> Diagnostic::Location {

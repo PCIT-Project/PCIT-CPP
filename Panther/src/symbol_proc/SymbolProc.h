@@ -130,18 +130,18 @@ namespace pcit::panther{
 		//////////////////
 		// stmts valid in global scope
 
-		struct GlobalVarDecl{
+		struct NonLocalVarDecl{
 			const AST::VarDecl& var_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			SymbolProcTypeID type_id;
 		};
 
-		struct GlobalVarDef{
+		struct NonLocalVarDef{
 			const AST::VarDecl& var_decl;
-			SymbolProcTermInfoID value_id;
+			std::optional<SymbolProcTermInfoID> value_id;
 		};
 
-		struct GlobalVarDeclDef{
+		struct NonLocalVarDeclDef{
 			const AST::VarDecl& var_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			std::optional<SymbolProcTypeID> type_id;
@@ -560,9 +560,9 @@ namespace pcit::panther{
 		evo::Variant<
 			// stmts valid in global scope
 			WhenCond,
-			GlobalVarDecl,
-			GlobalVarDef,
-			GlobalVarDeclDef,
+			NonLocalVarDecl,
+			NonLocalVarDef,
+			NonLocalVarDeclDef,
 			AliasDecl,
 			AliasDef,
 			StructDecl<true>,
@@ -773,8 +773,9 @@ namespace pcit::panther{
 			mutable core::SpinLock pir_ready_waited_on_lock{};
 
 
-			struct GlobalVarInfo{
-				sema::GlobalVar::ID sema_var_id;
+			struct NonLocalVarInfo{
+				evo::Variant<sema::GlobalVar::ID, uint32_t> sema_id; // uint32_t is for member index
+				                                                     //  (invalid after struct def)
 			};
 
 			struct VarInfo{
@@ -806,7 +807,7 @@ namespace pcit::panther{
 			};
 
 			evo::Variant<
-				std::monostate, GlobalVarInfo, VarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo
+				std::monostate, NonLocalVarInfo, VarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo
 			> extra_info{};
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};

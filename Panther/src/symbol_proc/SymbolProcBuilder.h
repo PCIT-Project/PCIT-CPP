@@ -51,7 +51,7 @@ namespace pcit::panther{
 
 
 			auto analyze_stmt(const AST::Node& stmt) -> evo::Result<>;
-			auto analyze_var(const AST::VarDecl& var) -> evo::Result<>;
+			auto analyze_local_var(const AST::VarDecl& var) -> evo::Result<>;
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
 			auto analyze_defer(const AST::Defer& defer_stmt) -> evo::Result<>;

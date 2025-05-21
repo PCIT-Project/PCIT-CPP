@@ -57,6 +57,13 @@ namespace pcit::panther::sema{
 		std::string value;
 	};
 
+	struct AggregateValue{
+		using ID = AggregateValueID;
+
+		evo::SmallVector<Expr> values;
+		BaseType::ID typeID;
+	};
+
 	struct CharValue{
 		using ID = CharValueID;
 
@@ -103,6 +110,15 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID typeID;
+	};
+
+
+	struct Accessor{
+		using ID = AccessorID;
+
+		Expr target;
+		TypeInfo::ID targetTypeID;
+		Token::ID member; // done this way to facilitate member reordering (yes, even if `#ordered`/`#extern`)
 	};
 
 

@@ -33,7 +33,12 @@ namespace pcit::panther{
 
 			auto lower() -> void;
 
-			auto lowerStruct(BaseType::Struct::ID struct_id) -> void;
+			
+			auto lowerStruct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>;
+
+			// not thread-safe
+			auto lowerStructAndDependencies(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>; 
+
 			auto lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID>;
 			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
 			auto lowerFuncDecl(sema::Func::ID func_id) -> pir::Function::ID;
@@ -46,6 +51,9 @@ namespace pcit::panther{
 
 
 		private:
+			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe if true
+			EVO_NODISCARD auto lower_struct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>;
+
 			auto lower_stmt(const sema::Stmt& stmt) -> void;
 
 			EVO_NODISCARD auto get_expr_register(const sema::Expr expr) -> pir::Expr;
@@ -65,6 +73,17 @@ namespace pcit::panther{
 			auto get_expr_impl(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 				-> std::optional<pir::Expr>;
 
+
+			// for indices, just create an 
+			auto jit_interface_return_aggregate(pir::Type return_type, pir::Expr return_alloca) -> void;
+
+			auto jit_interface_return_aggregate_impl(
+				pir::Type return_type,
+				pir::Expr return_alloca,
+				pir::Type target_type,
+				evo::SmallVector<pir::CalcPtr::Index>& indices
+			) -> void;
+
 			
 
 			template<GetExprMode MODE>
@@ -76,9 +95,13 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
 
+			template<bool MAY_ADD_WEAK_DEPENDENCIES>
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID voidable_type_id) -> pir::Type;
+			template<bool MAY_ADD_WEAK_DEPENDENCIES>
 			EVO_NODISCARD auto get_type(const TypeInfo::ID type_id) -> pir::Type;
+			template<bool MAY_ADD_WEAK_DEPENDENCIES>
 			EVO_NODISCARD auto get_type(const TypeInfo& type_info) -> pir::Type;
+			template<bool MAY_ADD_WEAK_DEPENDENCIES>
 			EVO_NODISCARD auto get_type(const BaseType::ID base_type_id) -> pir::Type;
 
 			EVO_NODISCARD auto mangle_name(const BaseType::Struct::ID struct_id) const -> std::string;

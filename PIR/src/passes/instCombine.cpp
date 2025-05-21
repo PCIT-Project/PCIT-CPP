@@ -30,6 +30,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::FUNCTION_POINTER: return false;
 			case Expr::Kind::NUMBER:           return false;
 			case Expr::Kind::BOOLEAN:          return false;
+			case Expr::Kind::NULLPTR:          return false;
 			case Expr::Kind::PARAM_EXPR:       return false;
 			case Expr::Kind::CALL:             return false;
 			case Expr::Kind::CALL_VOID:        return false;
@@ -872,6 +873,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::FUNCTION_POINTER: return false;
 			case Expr::Kind::NUMBER:           return false;
 			case Expr::Kind::BOOLEAN:          return false;
+			case Expr::Kind::NULLPTR:          return false;
 			case Expr::Kind::PARAM_EXPR:       return false;
 			case Expr::Kind::CALL:             return false;
 			case Expr::Kind::CALL_VOID:        return false;

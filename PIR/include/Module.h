@@ -150,7 +150,7 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto createGlobalArray(
-				Type element_type, std::vector<GlobalVar::Value> values
+				Type element_type, evo::SmallVector<GlobalVar::Value> values
 			) -> GlobalVar::Array::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					for(const GlobalVar::Value& value : values){
@@ -208,7 +208,7 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto createGlobalStruct(
-				Type type, std::vector<GlobalVar::Value> values
+				Type type, evo::SmallVector<GlobalVar::Value> values
 			) -> GlobalVar::Struct::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					const StructType& struct_type = this->getStructType(type);
@@ -378,8 +378,8 @@ namespace pcit::pir{
 
 
 
-			EVO_NODISCARD auto createArrayType(auto&&... args) -> Type {
-				const uint32_t array_type_index = this->array_types.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto createArrayType(Type elem_type, uint64_t length) -> Type {
+				const uint32_t array_type_index = this->array_types.emplace_back(elem_type, length);
 				return Type(Type::Kind::ARRAY, array_type_index);
 			}
 

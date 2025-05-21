@@ -1,12 +1,63 @@
 
+//////////////////////////////////////////////////////////////////////
+// 
+// Yes, this file contains code that is technically UB
+// 
+//////////////////////////////////////////////////////////////////////
+
+
+
+
+const global_thing: Thing = get_thing();
+
+
+
+
+func get_thing = () -> (output: Thing) {
+	// var output: Thing = uninit;
+	output.vec2 = get_vec2();
+	output.foo = 12;
+	return...;
+}
+
+
+
+
+func get_vec2 = () -> Vec2 {
+	var output: Vec2 = uninit;
+	output.x = 12.0;
+	output.y = 3.5;
+	return move output;
+}
+
+
+
+type Thing = struct #ordered {
+	var vec2_first: Vec2;
+	var vec2: Vec2;
+	var foo: I17;
+}
+
+
+type Vec2 = struct #packed {
+	var x: F16;
+	var y: F16;
+}
+
+
 
 
 func entry = () #entry -> UI8 {
-	var foo: UI8 = 9;
-	const foo_ptr: $IntType* = &foo;
+	var thing: Thing = uninit;
 
-	foo_ptr.* = @add<{IntType, true}>(12, 14);
+	const vec2_ptr: Vec2* = &thing.vec2;
+	vec2_ptr.* = get_thing().vec2;
 
-	return copy foo_ptr.*;
+
+	// var foo: F16* = &foo.bar;
+	
+	// return copy Vec2.foo;
+	return @fToUI<{F16, UI8}>(@fdiv<{F16, false}>(thing.vec2.x, global_thing.vec2.y));
+	// return 0;
 }
 

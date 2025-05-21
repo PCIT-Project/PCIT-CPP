@@ -139,8 +139,9 @@ namespace pcit::pir{
 					
 					case Expr::Kind::GLOBAL_VALUE:     continue;
 					case Expr::Kind::FUNCTION_POINTER: continue;
-					case Expr::Kind::NUMBER:          continue;
-					case Expr::Kind::BOOLEAN:         continue;
+					case Expr::Kind::NUMBER:           continue;
+					case Expr::Kind::BOOLEAN:          continue;
+					case Expr::Kind::NULLPTR:          continue;
 					case Expr::Kind::PARAM_EXPR:       continue;
 					
 					case Expr::Kind::CALL: {
@@ -793,6 +794,15 @@ namespace pcit::pir{
 	auto Agent::getBoolean(const Expr& expr) -> bool {
 		return ReaderAgent::getBoolean(expr);
 	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// nullptr
+
+	auto Agent::createNullptr() -> Expr {
+		return Expr(Expr::Kind::NULLPTR, 0);
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -2896,6 +2906,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::FUNCTION_POINTER:  return;
 			break; case Expr::Kind::NUMBER:            this->module.numbers.erase(expr.index);
 			break; case Expr::Kind::BOOLEAN:           return;
+			break; case Expr::Kind::NULLPTR:           return;
 			break; case Expr::Kind::PARAM_EXPR:        return;
 			break; case Expr::Kind::CALL:              this->module.calls.erase(expr.index);
 			break; case Expr::Kind::CALL_VOID:         this->module.call_voids.erase(expr.index);
@@ -3018,6 +3029,7 @@ namespace pcit::pir{
 					case Expr::Kind::FUNCTION_POINTER: continue;
 					case Expr::Kind::NUMBER:           continue;
 					case Expr::Kind::BOOLEAN:          continue;
+					case Expr::Kind::NULLPTR:          continue;
 					case Expr::Kind::PARAM_EXPR:       continue;
 					case Expr::Kind::CALL:             if(this->getCall(stmt).name == name){ return true; } continue;
 					case Expr::Kind::CALL_VOID:        continue;

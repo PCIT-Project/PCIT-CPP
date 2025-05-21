@@ -54,7 +54,7 @@ namespace pcit::core{
 			auto lock_shared() -> void { this->lock(); }
 	
 		private:
-			std::atomic<uint32_t> flag = 0;
+			std::atomic<uint32_t> flag = 0; // surprisingly, this was measured to be faster than uint64_t
 	};
 
 

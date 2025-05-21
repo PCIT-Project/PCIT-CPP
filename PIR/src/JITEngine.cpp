@@ -86,12 +86,36 @@ namespace pcit::pir{
 
 		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
 		lowerer.lowerSubset(PIRToLLVMIR::Subset{
-			.structs          = module_subsets.structs,
-			.globalVars       = module_subsets.globalVars,
-			.globalVarDecls   = module_subsets.globalVarDecls,
-			.externFuncs      = module_subsets.externFuncs,
-			.funcDecls        = module_subsets.funcDecls,
-			.funcs            = module_subsets.funcs,
+			.structs        = module_subsets.structs,
+			.globalVars     = module_subsets.globalVars,
+			.globalVarDecls = module_subsets.globalVarDecls,
+			.externFuncs    = module_subsets.externFuncs,
+			.funcDecls      = module_subsets.funcDecls,
+			.funcs          = module_subsets.funcs,
+		});
+
+		return this->data->orc_jit.addModule(std::move(llvm_context), std::move(llvm_module));
+	}
+
+
+	auto JITEngine::addModuleSubsetWithWeakDependencies(const class Module& module, const ModuleSubsets& module_subsets)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
+		auto llvm_context = llvmint::LLVMContext();
+		llvm_context.init();
+
+		auto llvm_module = llvmint::Module();
+		llvm_module.init(module.getName(), llvm_context);
+
+		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
+		lowerer.lowerSubsetWithWeakDependencies(PIRToLLVMIR::Subset{
+			.structs        = module_subsets.structs,
+			.globalVars     = module_subsets.globalVars,
+			.globalVarDecls = module_subsets.globalVarDecls,
+			.externFuncs    = module_subsets.externFuncs,
+			.funcDecls      = module_subsets.funcDecls,
+			.funcs          = module_subsets.funcs,
 		});
 
 		return this->data->orc_jit.addModule(std::move(llvm_context), std::move(llvm_module));
@@ -150,9 +174,9 @@ namespace pcit::pir{
 		return this->registerFuncs({
 			FuncRegisterInfo(
 				"PIR.JIT.return_generic_int",
-				[](core::GenericValue* return_value, uint64_t* data, uint64_t bitwidth) -> void {
+				[](core::GenericValue* return_value, uint64_t* data, uint32_t bitwidth) -> void {
 					*return_value = core::GenericValue(core::GenericInt(
-						unsigned(bitwidth),
+						bitwidth,
 						evo::ArrayProxy<uint64_t>(data, round_up_to_nearest_multiple_of_64(bitwidth) / 64)
 					));
 				}
@@ -208,6 +232,185 @@ namespace pcit::pir{
 				}
 			),
 			FuncRegisterInfo(
+				"PIR.JIT.prepare_return_generic_aggregate",
+				[](
+					core::GenericValue* return_value,
+					uint32_t num_elems,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(core::GenericAggregateBuilder(num_elems));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_aggregate_int",
+				[](
+					core::GenericValue* return_value,
+					uint64_t* data,
+					uint32_t bitwidth,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(core::GenericInt(
+						bitwidth,
+						evo::ArrayProxy<uint64_t>(data, round_up_to_nearest_multiple_of_64(bitwidth) / 64)
+					));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_aggregate_bool",
+				[](
+					core::GenericValue* return_value,
+					bool value,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(value);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_aggregate_f16",
+				[](
+					core::GenericValue* return_value,
+					uint16_t* value,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(core::GenericFloat::createF16(*value));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_aggregate_bf16",
+				[](
+					core::GenericValue* return_value,
+					uint16_t* value,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(core::GenericFloat::createBF16(*value));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_aggregate_f32",
+				[](
+					core::GenericValue* return_value,
+					float32_t value,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(core::GenericFloat::createF32(value));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_aggregate_f64",
+				[](
+					core::GenericValue* return_value,
+					float64_t value,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(core::GenericFloat::createF64(value));
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_aggregate_f80",
+				[](
+					core::GenericValue* return_value,
+					uint64_t* value,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(
+						core::GenericFloat::createF80(core::GenericInt(80, evo::ArrayProxy<uint64_t>(value, 2)))
+					);
+				}
+			),
+			FuncRegisterInfo(
+				"PIR.JIT.return_generic_aggregate_f128",
+				[](
+					core::GenericValue* return_value,
+					uint64_t* value,
+					uint32_t[] target_index_arr,
+					uint32_t target_num_indices
+				) -> void {
+					core::GenericValue* target = return_value;
+
+					if(target_index_arr != nullptr){
+						for(size_t i = 0; i < target_num_indices; i+=1){
+							target = &target->as<evo::SmallVector<core::GenericValue>>()[target_index_arr[i]];
+						}						
+					}
+
+					*target = core::GenericValue(
+						core::GenericFloat::createF128(core::GenericInt(128, evo::ArrayProxy<uint64_t>(value, 2)))
+					);
+				}
+			),
+			FuncRegisterInfo(
 				"PIR.JIT.return_generic_char",
 				[](core::GenericValue* return_value, uint8_t value) -> void {
 					*return_value = core::GenericValue(char(value));
@@ -231,12 +434,6 @@ namespace pcit::pir{
 				[](core::GenericValue* source, void* value) -> void {
 					const core::GenericInt generic_int = source->as<core::GenericFloat>().bitCastToGenericInt();
 					std::memcpy(value, generic_int.data(), generic_int.getBitWidth() / 8);
-				}
-			),
-			FuncRegisterInfo(
-				"PIR.JIT.get_generic_char",
-				[](core::GenericValue* source) -> uint8_t {
-					return uint8_t(source->as<char>());
 				}
 			),
 		});

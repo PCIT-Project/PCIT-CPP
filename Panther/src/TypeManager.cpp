@@ -323,6 +323,11 @@ namespace pcit::panther{
 		return this->aliases[id];
 	}
 
+	auto TypeManager::getAlias(BaseType::Alias::ID id) -> BaseType::Alias& {
+		const auto lock = std::scoped_lock(this->aliases_lock);
+		return this->aliases[id];
+	}
+
 
 	auto TypeManager::getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID {
 		const auto lock = std::scoped_lock(this->aliases_lock);
@@ -344,6 +349,11 @@ namespace pcit::panther{
 	// typedefs
 
 	auto TypeManager::getTypedef(BaseType::Typedef::ID id) const -> const BaseType::Typedef& {
+		const auto lock = std::scoped_lock(this->typedefs_lock);
+		return this->typedefs[id];
+	}
+
+	auto TypeManager::getTypedef(BaseType::Typedef::ID id) -> BaseType::Typedef& {
 		const auto lock = std::scoped_lock(this->typedefs_lock);
 		return this->typedefs[id];
 	}
@@ -374,6 +384,17 @@ namespace pcit::panther{
 	}
 
 
+	auto TypeManager::getStruct(BaseType::Struct::ID id) -> BaseType::Struct& {
+		const auto lock = std::scoped_lock(this->structs_lock);
+		return this->structs[id];
+	}
+
+	auto TypeManager::getNumStructs() const -> size_t {
+		const auto lock = std::scoped_lock(this->structs_lock);
+		return this->structs.size();
+	}
+
+
 	auto TypeManager::getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID {
 		const auto lock = std::scoped_lock(this->structs_lock);
 
@@ -387,9 +408,12 @@ namespace pcit::panther{
 			lookup_type.sourceID,
 			lookup_type.identTokenID,
 			lookup_type.instantiation,
-			lookup_type.memberSymbols,
+			std::move(lookup_type.memberVars),
+			lookup_type.namespacedMembers,
 			lookup_type.scopeLevel,
-			lookup_type.isPub
+			lookup_type.isPub,
+			lookup_type.isOrdered,
+			lookup_type.isPacked
 		);
 		return BaseType::ID(BaseType::Kind::STRUCT, new_struct.get());
 	}
@@ -402,6 +426,12 @@ namespace pcit::panther{
 		const auto lock = std::scoped_lock(this->struct_templates_lock);
 		return this->struct_templates[id];
 	}
+
+	auto TypeManager::getStructTemplate(BaseType::StructTemplate::ID id) -> BaseType::StructTemplate& {
+		const auto lock = std::scoped_lock(this->struct_templates_lock);
+		return this->struct_templates[id];
+	}
+
 
 
 	auto TypeManager::getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID {
@@ -546,8 +576,15 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT: {
-				// TODO(FEATURE): 
-				return 0;
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+				
+				size_t total = 0;
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					total += this->sizeOf(member_var.typeID);
+				}
+
+				return total;
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {

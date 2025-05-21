@@ -52,6 +52,8 @@ namespace pcit::pir{
 			EVO_NODISCARD auto addModule(const class Module& module)
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
 
+
+
 			struct ModuleSubsets{
 				evo::ArrayProxy<Type> structs;
 				evo::ArrayProxy<GlobalVar::ID> globalVars;
@@ -60,8 +62,15 @@ namespace pcit::pir{
 				evo::ArrayProxy<Function::ID> funcDecls;
 				evo::ArrayProxy<ExternalFunction::ID> externFuncs;
 			};
+
 			EVO_NODISCARD auto addModuleSubset(const class Module& module, const ModuleSubsets& module_subsets)
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
+
+			EVO_NODISCARD auto addModuleSubsetWithWeakDependencies(
+				const class Module& module, const ModuleSubsets& module_subsets
+			) -> evo::Expected<void, evo::SmallVector<std::string>>;
+
+
 
 
 			EVO_NODISCARD auto runFunc(

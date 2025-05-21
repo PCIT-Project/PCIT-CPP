@@ -438,6 +438,11 @@ namespace pcit::llvmint{
 	// values
 
 
+	auto IRBuilder::getValueNull() const -> Constant {
+		return llvmint::Constant(llvm::Constant::getNullValue(this->builder->getPtrTy()));
+	}
+
+
 	auto IRBuilder::getValueBool(bool value) const -> ConstantInt {
 		return ConstantInt(this->builder->getInt1(value));
 	}

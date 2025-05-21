@@ -105,14 +105,14 @@ namespace pcit::panther{
 			using InstrType = std::decay_t<decltype(instr)>;
 
 
-			if constexpr(std::is_same<InstrType, Instruction::GlobalVarDecl>()){
-				return this->instr_global_var_decl(instr);
+			if constexpr(std::is_same<InstrType, Instruction::NonLocalVarDecl>()){
+				return this->instr_non_local_var_decl(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDef>()){
-				return this->instr_global_var_def(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::NonLocalVarDef>()){
+				return this->instr_non_local_var_def(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::GlobalVarDeclDef>()){
-				return this->instr_global_var_decl_def(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::NonLocalVarDeclDef>()){
+				return this->instr_non_local_var_decl_def(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::WhenCond>()){
 				return this->instr_when_cond(instr);
@@ -299,7 +299,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_global_var_decl(const Instruction::GlobalVarDecl& instr) -> Result {
+	auto SemanticAnalyzer::instr_non_local_var_decl(const Instruction::NonLocalVarDecl& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_decl: {}", this->symbol_proc.ident); });
@@ -319,120 +319,216 @@ namespace pcit::panther{
 			);
 			return Result::ERROR;
 		}
+		
+		bool is_global = true;
+		if(instr.var_decl.kind == AST::VarDecl::Kind::DEF){
+			if(var_attrs.value().is_global){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_DEF_WITH_ATTR_GLOBAL,
+					instr.var_decl,
+					"A [def] variable should not have the attribute `#global`"
+				);
+				return Result::ERROR;
+			}
 
-		const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
-			instr.var_decl.kind,
-			instr.var_decl.ident,
-			this->source.getID(),
-			std::optional<sema::Expr>(),
-			got_type_info_id.asTypeID(),
-			var_attrs.value().is_pub,
-			this->symbol_proc,
-			this->symbol_proc_id
-		);
+		}else if(this->scope.isGlobalScope()){
+			if(var_attrs.value().is_global){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_GLOBAL_VAR_WITH_ATTR_GLOBAL,
+					instr.var_decl,
+					"Global variable should not have the attribute `#global`"
+				);
+				return Result::ERROR;
+			}
+			
+		}else{
+			is_global = var_attrs.value().is_global;
+		}
 
-		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
 
-		this->symbol_proc.extra_info.emplace<SymbolProc::GlobalVarInfo>(new_sema_var);
-
-		if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+		if(is_global){
+			const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
+				instr.var_decl.kind,
+				instr.var_decl.ident,
+				this->source.getID(),
+				std::optional<sema::Expr>(),
+				got_type_info_id.asTypeID(),
+				var_attrs.value().is_pub,
+				this->symbol_proc,
+				this->symbol_proc_id
 			);
 
-			sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
-			sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+			if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
+
+			this->symbol_proc.extra_info.emplace<SymbolProc::NonLocalVarInfo>(new_sema_var);
+
+			if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
+				auto sema_to_pir = SemaToPIR(
+					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+				);
+
+				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
+				sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+			}
+		}else{
+			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+				this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+			);
+
+			const uint32_t member_index = [&](){
+				const auto lock = std::scoped_lock(current_struct.memberVarsLock);
+				current_struct.memberVars.emplace_back(
+					instr.var_decl.kind, instr.var_decl.ident, got_type_info_id.asTypeID()
+				);
+				return uint32_t(current_struct.memberVars.size() - 1);
+			}();
+
+			if(this->add_ident_to_scope(
+				var_ident, instr.var_decl.ident, instr.var_decl.ident, sema::ScopeLevel::MemberVarFlag{}
+			).isError()){
+				return Result::ERROR;
+			}
+
+			this->symbol_proc.extra_info.emplace<SymbolProc::NonLocalVarInfo>(member_index);
 		}
+
 
 		this->propagate_finished_decl();
 		return Result::SUCCESS;
 	}
 
 
-	auto SemanticAnalyzer::instr_global_var_def(const Instruction::GlobalVarDef& instr) -> Result {
-		const sema::GlobalVar::ID sema_var_id =
-			this->symbol_proc.extra_info.as<SymbolProc::GlobalVarInfo>().sema_var_id;
-		sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
+	auto SemanticAnalyzer::instr_non_local_var_def(const Instruction::NonLocalVarDef& instr) -> Result {
+		const bool is_global = 
+			this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.is<sema::GlobalVar::ID>();
 
-		TermInfo& value_term_info = this->get_term_info(instr.value_id);
+		const TypeInfo::ID var_type_id = [&](){
+			if(is_global){
+				const sema::GlobalVar::ID sema_var_id =
+					this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<sema::GlobalVar::ID>();
+				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
+				return *sema_var.typeID;
 
+			}else{
+				const uint32_t member_index =
+					this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<uint32_t>();
 
-		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
-			if(instr.var_decl.kind != AST::VarDecl::Kind::VAR){
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
-					instr.var_decl,
-					"Only [var] variables can be defined with an initializer value"
+				BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+					this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
 				);
-				return Result::ERROR;
+
+				const auto lock = std::scoped_lock(current_struct.memberVarsLock);
+				return current_struct.memberVars[member_index].typeID;
 			}
+		}();
 
-		}else{
-			if(value_term_info.is_ephemeral() == false){
-				if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){
-					return Result::ERROR;
-				}
+		if(instr.value_id.has_value()){
+			TermInfo& value_term_info = this->get_term_info(*instr.value_id);
 
-				if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
-					this->error_type_mismatch(
-						*sema_var.typeID, value_term_info, "Variable definition", *instr.var_decl.value
+			if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
+				if(instr.var_decl.kind != AST::VarDecl::Kind::VAR){
+					this->emit_error(
+						Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
+						instr.var_decl,
+						"Only [var] variables can be defined with an initializer value"
 					);
 					return Result::ERROR;
 				}
 
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
-					*instr.var_decl.value,
-					"Cannot define a variable with a non-ephemeral value"
-				);
-				return Result::ERROR;
+			}else{
+				if(value_term_info.is_ephemeral() == false){
+					if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){
+						return Result::ERROR;
+					}
+
+					if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
+						this->error_type_mismatch(
+							var_type_id, value_term_info, "Variable definition", *instr.var_decl.value
+						);
+						return Result::ERROR;
+					}
+
+					this->emit_error(
+						Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
+						*instr.var_decl.value,
+						"Cannot define a variable with a non-ephemeral value"
+					);
+					return Result::ERROR;
+				}
+				
+				if(this->type_check<true>(
+					var_type_id, value_term_info, "Variable definition", *instr.var_decl.value
+				).ok == false){
+					return Result::ERROR;
+				}
 			}
-			
-			if(this->type_check<true>(
-				*sema_var.typeID, value_term_info, "Variable definition", *instr.var_decl.value
-			).ok == false){
-				return Result::ERROR;
-			}
+
+		}else if(is_global){
+			this->emit_error(
+				Diagnostic::Code::SEMA_VAR_GLOBAL_LIFETIME_VAR_WITHOUT_VALUE,
+				instr.var_decl,
+				"Varibales with global lifetime must be declared with a value"
+			);
+			return Result::ERROR;
 		}
 
-		sema_var.expr = value_term_info.getExpr();
 
-		if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+
+		if(is_global){
+			const sema::GlobalVar::ID sema_var_id =
+				this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<sema::GlobalVar::ID>();
+			sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
+
+			sema_var.expr = this->get_term_info(*instr.value_id).getExpr();
+
+			if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
+				auto sema_to_pir = SemaToPIR(
+					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+				);
+
+				sema_to_pir.lowerGlobalDef(sema_var_id);
+
+				const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+					this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
+						this->context.constexpr_pir_module,
+						pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+					);
+
+				if(add_module_subset_result.has_value() == false){
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					for(const std::string& error : add_module_subset_result.error()){
+						infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+					}
+
+					this->emit_fatal(
+						Diagnostic::Code::MISC_LLVM_ERROR,
+						instr.var_decl,
+						Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
+						std::move(infos)
+					);
+					return Result::ERROR;
+				}
+			}
+
+		}else if(instr.value_id.has_value()){ // member var with default value
+			const uint32_t member_index =
+				this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<uint32_t>();
+
+			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+				this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
 			);
 
-			sema_to_pir.lowerGlobalDef(sema_var_id);
-
-			const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				this->context.constexpr_jit_engine.addModuleSubset(
-					this->context.constexpr_pir_module,
-					pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
-				);
-
-			if(add_module_subset_result.has_value() == false){
-				auto infos = evo::SmallVector<Diagnostic::Info>();
-				for(const std::string& error : add_module_subset_result.error()){
-					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-				}
-
-				this->emit_fatal(
-					Diagnostic::Code::MISC_LLVM_ERROR,
-					instr.var_decl,
-					Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
-					std::move(infos)
-				);
-				return Result::ERROR;
-			}
+			const auto lock = std::scoped_lock(current_struct.memberVarsLock);
+			current_struct.memberVars[member_index].defaultValue = this->get_term_info(*instr.value_id).getExpr();
 		}
-
+		
 
 		this->propagate_finished_def();
 		return Result::SUCCESS;
 	}
 
 
-	auto SemanticAnalyzer::instr_global_var_decl_def(const Instruction::GlobalVarDeclDef& instr) -> Result {
+	auto SemanticAnalyzer::instr_non_local_var_decl_def(const Instruction::NonLocalVarDeclDef& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_decl_def: {}", this->symbol_proc.ident); });
@@ -572,47 +668,95 @@ namespace pcit::panther{
 			return std::optional<TypeInfo::ID>();
 		}();
 
-		const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
-			instr.var_decl.kind,
-			instr.var_decl.ident,
-			this->source.getID(),
-			std::optional<sema::Expr>(value_term_info.getExpr()),
-			type_id,
-			var_attrs.value().is_pub,
-			this->symbol_proc,
-			this->symbol_proc_id
-		);
-
-		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
 
 
-		if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+		bool is_global = true;
+		if(instr.var_decl.kind == AST::VarDecl::Kind::DEF){
+			if(var_attrs.value().is_global){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_DEF_WITH_ATTR_GLOBAL,
+					instr.var_decl,
+					"A [def] variable should not have the attribute `#global`"
+				);
+				return Result::ERROR;
+			}
+
+		}else if(this->scope.isGlobalScope()){
+			if(var_attrs.value().is_global){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_GLOBAL_VAR_WITH_ATTR_GLOBAL,
+					instr.var_decl,
+					"Global variable should not have the attribute `#global`"
+				);
+				return Result::ERROR;
+			}
+			
+		}else{
+			is_global = var_attrs.value().is_global;
+		}
+
+
+		if(is_global){
+			const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
+				instr.var_decl.kind,
+				instr.var_decl.ident,
+				this->source.getID(),
+				std::optional<sema::Expr>(value_term_info.getExpr()),
+				type_id,
+				var_attrs.value().is_pub,
+				this->symbol_proc,
+				this->symbol_proc_id
 			);
 
-			sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
-			sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
-			sema_to_pir.lowerGlobalDef(new_sema_var);
+			if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
 
-			const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				this->context.constexpr_jit_engine.addModuleSubset(
-					this->context.constexpr_pir_module,
-					pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+
+			if(instr.var_decl.kind == AST::VarDecl::Kind::CONST){
+				auto sema_to_pir = SemaToPIR(
+					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
 				);
 
-			if(add_module_subset_result.has_value() == false){
-				auto infos = evo::SmallVector<Diagnostic::Info>();
-				for(const std::string& error : add_module_subset_result.error()){
-					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
+				sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+				sema_to_pir.lowerGlobalDef(new_sema_var);
+
+				const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+					this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
+						this->context.constexpr_pir_module,
+						pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+					);
+
+				if(add_module_subset_result.has_value() == false){
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					for(const std::string& error : add_module_subset_result.error()){
+						infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+					}
+
+					this->emit_fatal(
+						Diagnostic::Code::MISC_LLVM_ERROR,
+						instr.var_decl,
+						Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
+						std::move(infos)
+					);
+					return Result::ERROR;
 				}
+			}
 
-				this->emit_fatal(
-					Diagnostic::Code::MISC_LLVM_ERROR,
-					instr.var_decl,
-					Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
-					std::move(infos)
+		}else{
+			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+				this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+			);
+
+			{
+				const auto lock = std::scoped_lock(current_struct.memberVarsLock);
+				current_struct.memberVars.emplace_back(
+					instr.var_decl.kind, instr.var_decl.ident, *type_id, value_term_info.getExpr()
 				);
+			}
+
+			if(this->add_ident_to_scope(
+				var_ident, instr.var_decl.ident, instr.var_decl.ident, sema::ScopeLevel::MemberVarFlag{}
+			).isError()){
 				return Result::ERROR;
 			}
 		}
@@ -633,7 +777,7 @@ namespace pcit::panther{
 			"Condition in when conditional",
 			instr.when_cond.cond
 		).ok == false){
-			// TODO(FUTURE): propgate error to children
+			// TODO(FUTURE): propgate error to children?
 			return Result::ERROR;
 		}
 
@@ -700,7 +844,7 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::VarInfo>()){
 					return;
 
-				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::GlobalVarInfo>()){
+				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::NonLocalVarInfo>()){
 					return;
 
 				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::WhenCondInfo>()){
@@ -813,9 +957,9 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_alias_def(const Instruction::AliasDef& instr) -> Result {
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_def: {}", this->symbol_proc.ident); });
 
-		BaseType::Alias& alias_info = this->context.type_manager.aliases[
+		BaseType::Alias& alias_info = this->context.type_manager.getAlias(
 			this->symbol_proc.extra_info.as<SymbolProc::AliasInfo>().alias_id
-		];
+		);
 
 		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
 		if(aliased_type.isVoid()){
@@ -851,14 +995,17 @@ namespace pcit::panther{
 
 
 		const BaseType::ID created_struct = this->context.type_manager.getOrCreateStruct(
-			BaseType::Struct(
-				this->source.getID(),
-				instr.struct_decl.ident,
-				instr.instantiation_id,
-				struct_info.member_symbols,
-				nullptr,
-				struct_attrs.value().is_pub
-			)
+			BaseType::Struct{
+				.sourceID          = this->source.getID(),
+				.identTokenID      = instr.struct_decl.ident,
+				.instantiation     = instr.instantiation_id,
+				.memberVars        = evo::SmallVector<BaseType::Struct::MemberVar>(),
+				.namespacedMembers = struct_info.member_symbols,
+				.scopeLevel        = nullptr,
+				.isPub             = struct_attrs.value().is_pub,
+				.isOrdered         = struct_attrs.value().is_ordered,
+				.isPacked          = struct_attrs.value().is_packed,
+			}
 		);
 
 		struct_info.struct_id = created_struct.structID();
@@ -876,7 +1023,7 @@ namespace pcit::panther{
 
 		this->push_scope_level(nullptr, created_struct.structID());
 
-		BaseType::Struct& created_struct_ref = this->context.type_manager.structs[created_struct.structID()];
+		BaseType::Struct& created_struct_ref = this->context.type_manager.getStruct(created_struct.structID());
 		created_struct_ref.scopeLevel = &this->get_current_scope_level();
 
 
@@ -912,11 +1059,37 @@ namespace pcit::panther{
 
 		this->pop_scope_level<>(); // TODO(FUTURE): needed?
 
+
+		const BaseType::Struct::ID created_struct_id =
+			this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id;
+		BaseType::Struct& created_struct = this->context.type_manager.getStruct(created_struct_id);
+
+
+		if(created_struct.isOrdered){
+			const auto sorting_func = [](
+				const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
+			) -> bool {
+				return lhs.identTokenID.get() < rhs.identTokenID.get();
+			};
+
+			std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
+
+		}else{
+			// TODO(FEATURE): optimal ordering
+		}
+
+
+		auto sema_to_pir = SemaToPIR(
+			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+		);
+
+		created_struct.constexprJITType = sema_to_pir.lowerStruct(created_struct_id);
+
 		this->propagate_finished_def();
 
-		this->context.type_manager.structs[
+		this->context.type_manager.getStruct(
 			this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id
-		].defCompleted = true;
+		).defCompleted = true;
 
 		return Result::SUCCESS;
 	}
@@ -1436,30 +1609,10 @@ namespace pcit::panther{
 				}
 
 
-				const SymbolProc::FuncInfo func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-
-				auto dependent_pir_funcs = evo::SmallVector<pir::Function::ID>();
-				for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
-					const sema::Func& dependent_func = this->context.sema_buffer.getFunc(dependent_func_id);
-					dependent_pir_funcs.emplace_back(*dependent_func.constexprJITFunc);
-				}
-
-				auto dependent_pir_globals = evo::SmallVector<pir::GlobalVar::ID>();
-				for(sema::GlobalVar::ID dependent_var_id : func_info.dependent_vars){
-					const sema::GlobalVar& dependent_var = this->context.sema_buffer.getGlobalVar(dependent_var_id);
-					dependent_pir_globals.emplace_back(*dependent_var.constexprJITGlobal);
-				}
-
-
 				const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-					this->context.constexpr_jit_engine.addModuleSubset(
+					this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
 						this->context.constexpr_pir_module,
-						pir::JITEngine::ModuleSubsets{
-							.globalVarDecls = dependent_pir_globals,
-							.funcs          = module_subset_funcs,
-							.funcDecls      = dependent_pir_funcs,
-							.externFuncs    = this->context.constexpr_sema_to_pir_data.getJITInterfaceFuncsArray(),
-						}
+						pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
 					);
 
 				if(add_module_subset_result.has_value() == false){
@@ -1696,7 +1849,7 @@ namespace pcit::panther{
 		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_decl, instr.attribute_params_info);
 		if(var_attrs.isError()){ return Result::ERROR; }
 
-		if(var_attrs.value().is_static){
+		if(var_attrs.value().is_global){
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				instr.var_decl,
@@ -1737,7 +1890,7 @@ namespace pcit::panther{
 					"Only [var] variables can be defined with an initializer value"
 				);
 				return Result::ERROR;
-			}else{
+			}else if(instr.type_id.has_value() == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
 					*instr.var_decl.value,
@@ -1745,16 +1898,13 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}
-		}
-
-
-		if(value_term_info.is_ephemeral() == false){
+		}else if(value_term_info.is_ephemeral() == false){
 			if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){ return Result::ERROR; }
 
 			this->emit_error(
 				Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
 				*instr.var_decl.value,
-				"Cannot define a variable with a non-ephemeral value"
+				"Cannot define a variable with a value that is not ephemeral or an initializer value"
 			);
 			return Result::ERROR;
 		}
@@ -1781,23 +1931,25 @@ namespace pcit::panther{
 			}
 
 
-			const TypeCheckInfo type_check_info = this->type_check<true>(
-				got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_decl.value
-			);
+			if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
+				const TypeCheckInfo type_check_info = this->type_check<true>(
+					got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_decl.value
+				);
 
-			if(type_check_info.ok == false){ return Result::ERROR; }
+				if(type_check_info.ok == false){ return Result::ERROR; }
 
-			for(const DeducedType& deduced_type : type_check_info.deduced_types){
-				const std::string_view deduced_type_ident_str = 
-					this->source.getTokenBuffer()[deduced_type.tokenID].getString();
+				for(const DeducedType& deduced_type : type_check_info.deduced_types){
+					const std::string_view deduced_type_ident_str = 
+						this->source.getTokenBuffer()[deduced_type.tokenID].getString();
 
-				if(this->add_ident_to_scope(
-					deduced_type_ident_str,
-					deduced_type.tokenID,
-					deduced_type.typeID,
-					deduced_type.tokenID,
-					sema::ScopeLevel::DeducedTypeFlag{}
-				).isError()){ return Result::ERROR; }
+					if(this->add_ident_to_scope(
+						deduced_type_ident_str,
+						deduced_type.tokenID,
+						deduced_type.typeID,
+						deduced_type.tokenID,
+						sema::ScopeLevel::DeducedTypeFlag{}
+					).isError()){ return Result::ERROR; }
+				}
 			}
 
 		}else if(
@@ -1813,10 +1965,15 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const std::optional<TypeInfo::ID> type_id = [&](){
+		const std::optional<TypeInfo::ID> type_id = [&]() -> std::optional<TypeInfo::ID> {
 			if(value_term_info.type_id.is<TypeInfo::ID>()){
 				return std::optional<TypeInfo::ID>(value_term_info.type_id.as<TypeInfo::ID>());
 			}
+
+			if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
+				return this->get_type(*instr.type_id).asTypeID();
+			}
+
 			return std::optional<TypeInfo::ID>();
 		}();
 
@@ -2726,6 +2883,10 @@ namespace pcit::panther{
 					evo::unimplemented();
 				} break;
 
+				case sema::Expr::Kind::AGGREGATE_VALUE: {
+					evo::unimplemented();
+				} break;
+
 				case sema::Expr::Kind::CHAR_VALUE: {
 					jit_args.emplace_back(
 						evo::copy(this->context.getSemaBuffer().getCharValue(arg.getExpr().charValueID()).value)
@@ -2768,7 +2929,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 
 		}else{
-			const TypeInfo& return_type = this->context.getTypeManager().getTypeInfo(
+			const TypeInfo& target_func_return_type = this->context.getTypeManager().getTypeInfo(
 				target_func_type.returnParams[0].typeID.asTypeID()
 			);
 
@@ -2776,7 +2937,7 @@ namespace pcit::panther{
 				run_result = std::move(jit_args.back());
 			}
 
-			if(return_type.qualifiers().empty() == false){
+			if(target_func_return_type.qualifiers().empty() == false){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					instr.func_call,
@@ -2787,85 +2948,7 @@ namespace pcit::panther{
 			}
 
 
-			const sema::Expr return_sema_expr = [&](){
-				switch(return_type.baseTypeID().kind()){
-					case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
-
-					case BaseType::Kind::PRIMITIVE: {
-						const BaseType::Primitive& primitive_type = this->context.getTypeManager().getPrimitive(
-							return_type.baseTypeID().primitiveID()
-						);
-
-						switch(primitive_type.kind()){
-							case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
-							case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
-							case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
-							case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_TYPEID:
-							case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
-							case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
-							case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
-							case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
-								return sema::Expr(
-									this->context.sema_buffer.createIntValue(
-										std::move(run_result.as<core::GenericInt>()), return_type.baseTypeID()
-									)
-								);
-							} break;
-
-							case Token::Kind::TYPE_F16:        case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
-							case Token::Kind::TYPE_F64:        case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128:
-							case Token::Kind::TYPE_C_LONG_DOUBLE: {
-								return sema::Expr(
-									this->context.sema_buffer.createFloatValue(
-										std::move(run_result.as<core::GenericFloat>()), return_type.baseTypeID()
-									)
-								);
-							} break;
-
-							case Token::Kind::TYPE_BOOL: {
-								return sema::Expr(this->context.sema_buffer.createBoolValue(run_result.as<bool>()));
-							} break;
-
-							case Token::Kind::TYPE_CHAR: {
-								return sema::Expr(this->context.sema_buffer.createCharValue(run_result.as<char>()));
-							} break;
-
-							case Token::Kind::TYPE_RAWPTR: evo::unimplemented("Token::Kind::TYPE_RAWPTR");
-
-							default: evo::debugFatalBreak("Invalid type");
-						}
-					} break;
-
-					case BaseType::Kind::FUNCTION: {
-						evo::unimplemented("BaseType::Kind::FUNCTION");
-					} break;
-
-					case BaseType::Kind::ARRAY: {
-						evo::unimplemented("BaseType::Kind::ARRAY");
-					} break;
-
-					case BaseType::Kind::ALIAS: {
-						evo::unimplemented("BaseType::Kind::ALIAS");
-					} break;
-
-					case BaseType::Kind::TYPEDEF: {
-						evo::unimplemented("BaseType::Kind::TYPEDEF");
-					} break;
-
-					case BaseType::Kind::STRUCT: {
-						evo::unimplemented("BaseType::Kind::STRUCT");
-					} break;
-
-					case BaseType::Kind::STRUCT_TEMPLATE: {
-						evo::debugFatalBreak("Function cannot return a struct template");
-					} break;
-
-					case BaseType::Kind::TYPE_DEDUCER: {
-						evo::debugFatalBreak("Function cannot return a type deducer");
-					} break;
-				}
-				evo::unreachable();
-			}();
+			const sema::Expr return_sema_expr = this->genericValueToSemaExpr(run_result, target_func_return_type);
 
 			this->return_term_info(instr.output,
 				TermInfo(
@@ -3075,6 +3158,14 @@ namespace pcit::panther{
 					} break;
 					case sema::Expr::Kind::STRING_VALUE: {
 						evo::unimplemented("String values");
+						// template_args.emplace_back(
+						// 	core::GenericValue(
+						// 		this->context.sema_buffer.getStringValue(value_expr.stringValueID()).value
+						// 	)
+						// );
+					} break;
+					case sema::Expr::Kind::AGGREGATE_VALUE: {
+						evo::unimplemented("Aggregate values");
 						// template_args.emplace_back(
 						// 	core::GenericValue(
 						// 		this->context.sema_buffer.getStringValue(value_expr.stringValueID()).value
@@ -4244,7 +4335,7 @@ namespace pcit::panther{
 		];
 
 		BaseType::StructTemplate& struct_template = 
-			this->context.type_manager.struct_templates[sema_templated_struct.templateID];
+			this->context.type_manager.getStructTemplate(sema_templated_struct.templateID);
 
 
 		///////////////////////////////////
@@ -4440,6 +4531,12 @@ namespace pcit::panther{
 						);
 					} break;
 
+					case sema::Expr::Kind::AGGREGATE_VALUE: {
+						evo::debugFatalBreak(
+							"Aggregate value template args are not supported yet (getting here should be impossible)"
+						);
+					} break;
+
 					case sema::Expr::Kind::CHAR_VALUE: {
 						instantiation_lookup_args.emplace_back(
 							core::GenericValue(evo::copy(sema_buffer.getCharValue(arg_expr.charValueID()).value))
@@ -4511,6 +4608,12 @@ namespace pcit::panther{
 						} break;
 
 						case sema::Expr::Kind::STRING_VALUE: {
+							evo::debugFatalBreak(
+								"String value template args are not supported yet (getting here should be impossible)"
+							);
+						} break;
+
+						case sema::Expr::Kind::AGGREGATE_VALUE: {
 							evo::debugFatalBreak(
 								"String value template args are not supported yet (getting here should be impossible)"
 							);
@@ -4855,7 +4958,7 @@ namespace pcit::panther{
 					instr.infix.lhs,
 					"Accessor operator of this LHS is unsupported"
 				);
-				return Result::ERROR;	
+				return Result::ERROR;
 			}
 
 
@@ -4866,7 +4969,7 @@ namespace pcit::panther{
 			const Source& struct_source = this->context.getSourceManager()[lhs_struct.sourceID];
 
 			const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-				&lhs_struct.memberSymbols, rhs_ident_str
+				&lhs_struct.namespacedMembers, rhs_ident_str
 			);
 
 
@@ -4907,14 +5010,13 @@ namespace pcit::panther{
 			switch(expr_ident.error()){
 				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
 					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
-				}
+				} break;
 
-
-
-				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF:
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
 					evo::debugFatalBreak(
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
+				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
 			}
@@ -4922,10 +5024,85 @@ namespace pcit::panther{
 			evo::unreachable();
 		}
 
+		if(lhs.type_id.is<TypeInfo::ID>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+				instr.infix.lhs,
+				"Accessor operator of this LHS is invalid"
+			);
+			return Result::ERROR;
+		}
+
+
+		const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>());
+		const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
+
+		if(actual_lhs_type.qualifiers().empty() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+				instr.infix.lhs,
+				"Accessor operator of this LHS is unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+		if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::STRUCT){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+				instr.infix.lhs,
+				"Accessor operator of this LHS is unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+
+		const BaseType::Struct& lhs_type_struct = this->context.getTypeManager().getStruct(
+			actual_lhs_type.baseTypeID().structID()
+		);
+
+		const Source& struct_source = this->context.getSourceManager()[lhs_type_struct.sourceID];
+
+		const auto lock = std::scoped_lock(lhs_type_struct.memberVarsLock);
+		for(const BaseType::Struct::MemberVar& member_var : lhs_type_struct.memberVars){
+			const std::string_view member_ident_str = 
+				struct_source.getTokenBuffer()[member_var.identTokenID].getString();
+
+			if(member_ident_str == rhs_ident_str){
+				const TermInfo::ValueCategory value_category = [&](){
+					if(lhs.is_ephemeral()){ return lhs.value_category; }
+
+					if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
+						return TermInfo::ValueCategory::CONCRETE_CONST;
+					}
+
+					if(member_var.kind == AST::VarDecl::Kind::CONST){
+						return TermInfo::ValueCategory::CONCRETE_CONST;
+					}else{
+						return TermInfo::ValueCategory::CONCRETE_MUT;
+					}
+				}();
+
+				using ValueStage = TermInfo::ValueStage;
+
+				this->return_term_info(instr.output,
+					value_category,
+					this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+					member_var.typeID,
+					sema::Expr(
+						this->context.sema_buffer.createAccessor(
+							lhs.getExpr(), actual_lhs_type_id, member_var.identTokenID
+						)
+					)
+				);
+				return Result::SUCCESS;
+			}
+		}
+
+		// TODO(FUTURE): better messaging (looking at namespacedMembers for passed by when cond, not a member var)
 		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-			instr.infix.lhs,
-			"Accessor operator of this LHS is unimplemented"
+			Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
+			instr.rhs_ident,
+			std::format("Struct doesn't have a member variable named \"{}\"", rhs_ident_str)
 		);
 		return Result::ERROR;
 	}
@@ -5854,6 +6031,15 @@ namespace pcit::panther{
 					)
 				);
 
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::MemberVar>()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
+					ident,
+					std::format("Variable \"{}\" is not accessable in this scope", ident_str),
+					Diagnostic::Info(std::format("Did you mean `this.{}`?", ident_str))
+				);
+				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
 			}else{
 				static_assert(false, "Unsupported IdentID");
 			}
@@ -6648,6 +6834,113 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::genericValueToSemaExpr(core::GenericValue& value, const TypeInfo& target_type)
+	-> sema::Expr {
+		switch(target_type.baseTypeID().kind()){
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
+
+			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive_type = this->context.getTypeManager().getPrimitive(
+					target_type.baseTypeID().primitiveID()
+				);
+
+				switch(primitive_type.kind()){
+					case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
+					case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
+					case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
+					case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_TYPEID:
+					case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+					case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
+					case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
+					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
+						return sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								std::move(value.as<core::GenericInt>()), target_type.baseTypeID()
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_F16:        case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
+					case Token::Kind::TYPE_F64:        case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128:
+					case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						return sema::Expr(
+							this->context.sema_buffer.createFloatValue(
+								std::move(value.as<core::GenericFloat>()), target_type.baseTypeID()
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_BOOL: {
+						return sema::Expr(this->context.sema_buffer.createBoolValue(value.as<bool>()));
+					} break;
+
+					case Token::Kind::TYPE_CHAR: {
+						return sema::Expr(
+							this->context.sema_buffer.createCharValue(static_cast<char>(value.as<core::GenericInt>()))
+						);
+					} break;
+
+					case Token::Kind::TYPE_RAWPTR: evo::unimplemented("Token::Kind::TYPE_RAWPTR");
+
+					default: evo::debugFatalBreak("Invalid type");
+				}
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				evo::unimplemented("BaseType::Kind::FUNCTION");
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				evo::unimplemented("BaseType::Kind::ARRAY");
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				evo::unimplemented("BaseType::Kind::ALIAS");
+			} break;
+
+			case BaseType::Kind::TYPEDEF: {
+				evo::unimplemented("BaseType::Kind::TYPEDEF");
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_type =
+					this->context.getTypeManager().getStruct(target_type.baseTypeID().structID());
+
+				auto values = evo::SmallVector<sema::Expr>();
+				values.reserve(value.as<evo::SmallVector<core::GenericValue>>().size());
+
+				for(size_t i = 0; core::GenericValue& member_value : value.as<evo::SmallVector<core::GenericValue>>()){
+					values.emplace_back(
+						this->genericValueToSemaExpr(
+							member_value,
+							this->context.getTypeManager().getTypeInfo(struct_type.memberVars[i].typeID)
+						)
+					);
+				
+					i += 1;
+				}
+
+
+				return sema::Expr(
+					this->context.sema_buffer.createAggregateValue(std::move(values), target_type.baseTypeID())
+				);
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: {
+				evo::debugFatalBreak("Function cannot return a struct template");
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				evo::debugFatalBreak("Function cannot return a type deducer");
+			} break;
+		}
+
+		evo::unreachable();
+	}
+
+
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// attributes
@@ -6657,6 +6950,7 @@ namespace pcit::panther{
 		const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<GlobalVarAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_global = Attribute(*this, "global");
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
@@ -6699,6 +6993,18 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "global"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #global does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_global.set(attribute.attribute).isError()){ return evo::resultError; }
+
 			}else{
 				this->emit_error(
 					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
@@ -6710,14 +7016,14 @@ namespace pcit::panther{
 		}
 
 
-		return GlobalVarAttrs(attr_pub.is_set());
+		return GlobalVarAttrs(attr_pub.is_set(), attr_global.is_set());
 	}
 
 
 	auto SemanticAnalyzer::analyze_var_attrs(
 		const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<VarAttrs> {
-		auto attr_static = Attribute(*this, "static");
+		auto attr_global = Attribute(*this, "global");
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
@@ -6728,17 +7034,17 @@ namespace pcit::panther{
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
 
-			if(attribute_str == "static"){
+			if(attribute_str == "global"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args.front(),
-						"Attribute #static does not accept any arguments"
+						"Attribute #global does not accept any arguments"
 					);
 					return evo::resultError;
 				}
 
-				if(attr_static.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_global.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else if(attribute_str == "pub"){
 				this->emit_error(
@@ -6760,7 +7066,7 @@ namespace pcit::panther{
 		}
 
 
-		return VarAttrs(attr_static.is_set());
+		return VarAttrs(attr_global.is_set());
 	}
 
 
@@ -6769,6 +7075,10 @@ namespace pcit::panther{
 		const AST::StructDecl& struct_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<StructAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_packed = Attribute(*this, "packed");
+		auto attr_ordered = Attribute(*this, "ordered");
+		// auto attr_extern = Attribute(*this, "extern");
+
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(struct_decl.attributeBlock);
@@ -6811,6 +7121,30 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "ordered"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #ordered does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_ordered.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else if(attribute_str == "packed"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #packed does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_packed.set(attribute.attribute).isError()){ return evo::resultError; }
+
 			}else{
 				this->emit_error(
 					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
@@ -6822,7 +7156,7 @@ namespace pcit::panther{
 		}
 
 
-		return StructAttrs(attr_pub.is_set());
+		return StructAttrs(attr_pub.is_set(), attr_ordered.is_set(), attr_packed.is_set());
 	}
 
 

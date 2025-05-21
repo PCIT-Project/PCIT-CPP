@@ -262,6 +262,9 @@ namespace pcit::llvmint{
 			//////////////////////////////////////////////////////////////////////
 			// values
 			
+			EVO_NODISCARD auto getValueNull() const -> Constant;
+
+
 			EVO_NODISCARD auto getValueBool(bool value) const -> ConstantInt;
 
 			EVO_NODISCARD auto getValueI8(uint8_t value) const -> ConstantInt;

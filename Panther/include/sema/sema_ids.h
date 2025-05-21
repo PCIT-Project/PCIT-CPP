@@ -46,6 +46,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, StringValueID>::UniqueID;
 	};
 
+	struct AggregateValueID : public core::UniqueID<uint32_t, struct AggregateValueID> {
+		using core::UniqueID<uint32_t, AggregateValueID>::UniqueID;
+	};
+
 	struct CharValueID : public core::UniqueID<uint32_t, struct CharValueID> {
 		using core::UniqueID<uint32_t, CharValueID>::UniqueID;
 	};
@@ -75,6 +79,10 @@ namespace pcit::panther::sema{
 
 	struct DerefID : public core::UniqueID<uint32_t, struct DerefID> {
 		using core::UniqueID<uint32_t, DerefID>::UniqueID;
+	};
+
+	struct AccessorID : public core::UniqueID<uint32_t, struct AccessorID> {
+		using core::UniqueID<uint32_t, AccessorID>::UniqueID;
 	};
 
 	struct TryElseID : public core::UniqueID<uint32_t, struct TryElseID> {

@@ -228,6 +228,15 @@ namespace pcit::panther::sema{
 		return &this->ids.emplace(ident, DeducedType(typeID, location)).first->second;
 	}
 
+	auto ScopeLevel::addIdent(std::string_view ident, Token::ID location, MemberVarFlag) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+
+		return &this->ids.emplace(ident, MemberVar(location)).first->second;
+	}
+
 
 	auto ScopeLevel::disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool {
 		evo::debugAssert(id != nullptr, "`id` cannot be nullptr");

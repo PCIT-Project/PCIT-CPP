@@ -1739,7 +1739,6 @@ namespace pcit::panther{
 					} break;
 
 					default: {
-						this->reader.skip();
 						param_kind = ParamKind::READ;
 					} break;
 				}

@@ -53,7 +53,7 @@ namespace pcit::pir{
 			using ID = ArrayID;
 
 			Type type; // TODO(FUTURE): remove this?
-			std::vector<Value> values;
+			evo::SmallVector<Value> values;
 		};
 
 		struct Struct{
@@ -61,7 +61,7 @@ namespace pcit::pir{
 			using ID = StructID;
 
 			Type type; // TODO(FUTURE): remove this?
-			std::vector<Value> values;
+			evo::SmallVector<Value> values;
 		};
 
 

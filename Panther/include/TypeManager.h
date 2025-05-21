@@ -13,6 +13,7 @@
 
 #include <Evo.h>
 #include <PCIT_core.h>
+#include <PIR.h>
 
 #include "./source/source_data.h"
 #include "./tokens/Token.h"
@@ -190,15 +191,28 @@ namespace pcit::panther{
 		struct Struct{
 			using ID = StructID;
 
+			struct MemberVar{
+				AST::VarDecl::Kind kind;
+				Token::ID identTokenID;
+				TypeInfoID typeID;
+				std::optional<sema::Expr> defaultValue;
+			};
+
 			SourceID sourceID;
 			Token::ID identTokenID;
 			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uin32_t max if not instantiation
-			SymbolProcNamespace& memberSymbols;
+			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock)
+			SymbolProcNamespace& namespacedMembers;
 			sema::ScopeLevel* scopeLevel; // is pointer because it needs to be set after construction (so never nullptr)
 			bool isPub;
+			bool isOrdered;
+			bool isPacked;
+
+			std::optional<pir::Type> constexprJITType{}; // if nullopt and `defCompleted == true`, means no member vars
 
 			std::atomic<bool> defCompleted = false;
 
+			mutable core::SpinLock memberVarsLock{}; // only needed before definition is completed
 
 			EVO_NODISCARD auto operator==(const Struct& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID
@@ -446,16 +460,21 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
 
 			EVO_NODISCARD auto getAlias(BaseType::Alias::ID id) const -> const BaseType::Alias&;
+			EVO_NODISCARD auto getAlias(BaseType::Alias::ID id)       ->       BaseType::Alias&;
 			EVO_NODISCARD auto getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getTypedef(BaseType::Typedef::ID id) const -> const BaseType::Typedef&;
+			EVO_NODISCARD auto getTypedef(BaseType::Typedef::ID id)       ->       BaseType::Typedef&;
 			EVO_NODISCARD auto getOrCreateTypedef(BaseType::Typedef&& lookup_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getStruct(BaseType::Struct::ID id) const -> const BaseType::Struct&;
+			EVO_NODISCARD auto getStruct(BaseType::Struct::ID id)       ->       BaseType::Struct&;
 			EVO_NODISCARD auto getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto getNumStructs() const -> size_t; // I don't love this design
 
 			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) const
 				-> const BaseType::StructTemplate&;
+			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) -> BaseType::StructTemplate&;
 			EVO_NODISCARD auto getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getTypeDeducer(BaseType::TypeDeducer::ID id) const -> const BaseType::TypeDeducer&;
@@ -559,10 +578,6 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable core::SpinLock types_lock{};
-
-
-			friend class SemanticAnalyzer;
-			friend class SemaToPIR;
 	};
 
 }
@@ -581,12 +596,5 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::BaseType::ID, pcit::panther::BaseType::IDOptInterface>::operator=;
 	};
 
-
-	template<>
-	struct hash<pcit::panther::TypeInfo::VoidableID>{
-		auto operator()(const pcit::panther::TypeInfo::VoidableID& voidable_id) const noexcept -> size_t {
-			return voidable_id.hash();
-		};
-	};
 	
 }

@@ -35,7 +35,7 @@ namespace pcit::panther{
 			{
 				pir::Parameter("target", module.createPtrType()),
 				pir::Parameter("data", module.createPtrType()),
-				pir::Parameter("size", module.createIntegerType(64)),
+				pir::Parameter("size", module.createIntegerType(32)),
 			}
 		);
 
@@ -77,12 +77,102 @@ namespace pcit::panther{
 
 
 
+		this->jit_interface_funcs.prepare_return_generic_aggregate = create_return_func_decl(
+			"PIR.JIT.prepare_return_generic_aggregate",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("num_elems", module.createIntegerType(32)),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+
+		this->jit_interface_funcs.return_generic_aggregate_int = create_return_func_decl(
+			"PIR.JIT.return_generic_aggregate_int",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("data", module.createPtrType()),
+				pir::Parameter("size", module.createIntegerType(32)),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+
+		this->jit_interface_funcs.return_generic_aggregate_bool = create_return_func_decl(
+			"PIR.JIT.return_generic_aggregate_bool",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("value", module.createBoolType()),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+
+		this->jit_interface_funcs.return_generic_aggregate_f16 = create_return_func_decl(
+			"PIR.JIT.return_generic_aggregate_f16",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("value", module.createPtrType()),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+		this->jit_interface_funcs.return_generic_aggregate_bf16 = create_return_func_decl(
+			"PIR.JIT.return_generic_aggregate_bf16",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("value", module.createPtrType()),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+		this->jit_interface_funcs.return_generic_aggregate_f32 = create_return_func_decl(
+			"PIR.JIT.return_generic_aggregate_f32",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("value", module.createFloatType(32)),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+		this->jit_interface_funcs.return_generic_aggregate_f64 = create_return_func_decl(
+			"PIR.JIT.return_generic_aggregate_f64",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("value", module.createFloatType(64)),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+		this->jit_interface_funcs.return_generic_aggregate_f80 = create_return_func_decl(
+			"PIR.JIT.return_generic_aggregate_f80",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("value", module.createPtrType()),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+		this->jit_interface_funcs.return_generic_aggregate_f128 = create_return_func_decl(
+			"PIR.JIT.return_generic_aggregate_f128",
+			{
+				pir::Parameter("target", module.createPtrType()),
+				pir::Parameter("value", module.createPtrType()),
+				pir::Parameter("target_index_arr", module.createPtrType()),
+				pir::Parameter("target_num_indices", module.createIntegerType(32)),
+			}
+		);
+
+
+
+
+
 		this->jit_interface_funcs.get_generic_int = module.createExternalFunction(
 			"PIR.JIT.get_generic_int",
 			{
 				pir::Parameter("source", module.createPtrType()),
 				pir::Parameter("value", module.createPtrType()),
-				pir::Parameter("num_bytes", module.createIntegerType(64)),
+				pir::Parameter("num_bytes", module.createIntegerType(32)),
 			},
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
@@ -103,14 +193,6 @@ namespace pcit::panther{
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
 			module.createVoidType()
-		);
-
-		this->jit_interface_funcs.get_generic_char = module.createExternalFunction(
-			"PIR.JIT.get_generic_char",
-			{pir::Parameter("source", module.createPtrType())},
-			pir::CallingConvention::C,
-			pir::Linkage::EXTERNAL,
-			module.createIntegerType(8)
 		);
 	}
 

@@ -51,6 +51,10 @@ namespace pcit::core{
 			EVO_NODISCARD explicit operator uint8_t()  const { return uint8_t(*this->ap_int.getRawData());  }
 			EVO_NODISCARD explicit operator int8_t()   const { return int8_t(*this->ap_int.getRawData());   }
 
+			// not entirely sure why this is needed, but static_cast<char>(GenericInt) doesn't work otherwise
+			EVO_NODISCARD explicit operator char()     const { return char(*this->ap_int.getRawData());     }
+			
+
 
 			EVO_NODISCARD auto getBitWidth() const -> unsigned { return this->ap_int.getBitWidth(); }
 
