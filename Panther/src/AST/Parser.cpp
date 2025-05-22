@@ -44,7 +44,7 @@ namespace pcit::panther{
 	}
 
 
-	auto Parser::parse_stmt() -> Result {
+	auto Parser::parse_stmt() -> Result {		
 		const Token& peeked_token = this->reader[this->reader.peek()];
 		
 		switch(peeked_token.kind()){

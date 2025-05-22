@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.116.1"></a>
+## v0.0.116.1
+
+### Panther
+- Fixed various bugs by updating to [Evo v1.30.1](https://github.com/12Thanjo/Evo/blob/main/CHANGELOG.md#v1.30.1)
+
+
+<!---------------------------------->
 <a name="v0.0.116.0"></a>
 ## v0.0.116.0
 
