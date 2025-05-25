@@ -1180,12 +1180,10 @@ namespace pcit::panther{
 			} break;
 
 			case Token::lookupKind("{"): {
-				this->context.emitError(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
-					"Struct initializer lists are currently unsupported"
-				);
-				return Result::Code::ERROR;
+				evo::Result<evo::SmallVector<AST::StructInitNew::MemberInit>> member_inits = this->parse_struct_init();
+				if(member_inits.isError()){ return Result::Code::ERROR; }
+
+				return this->source.ast_buffer.createStructInitNew(type.value(), std::move(member_inits.value()));
 			} break;
 		}
 
@@ -2053,6 +2051,54 @@ namespace pcit::panther{
 		}
 
 		return args;
+	}
+
+
+
+
+	auto Parser::parse_struct_init() -> evo::Result<evo::SmallVector<AST::StructInitNew::MemberInit>> {
+		if(this->assert_token_fail(Token::lookupKind("{"))){ return evo::resultError; }
+		
+		auto initValues = evo::SmallVector<AST::StructInitNew::MemberInit>();
+
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
+				if(this->assert_token_fail(Token::lookupKind("}"))){ return evo::resultError; }
+				break;
+			}
+
+
+			const Result ident = this->parse_ident();
+			if(this->check_result_fail(ident, "identifier in struct initializer value")){ return evo::resultError; }
+			
+			if(this->expect_token_fail(Token::lookupKind("="), "after identifier in struct initializer value")){
+				return evo::resultError;
+			}
+
+			const Result expr = this->parse_expr();
+			if(this->check_result_fail(expr, "expression after [=] in struct initializer value")){
+				return evo::resultError;
+			}
+
+			initValues.emplace_back(ASTBuffer::getIdent(ident.value()), expr.value());
+
+			// check if ending or should continue
+			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+			if(after_arg_next_token_kind != Token::lookupKind(",")){
+				if(after_arg_next_token_kind != Token::lookupKind("}")){
+					this->expected_but_got(
+						"[,] at end of struct initializer value"
+						" or [}] at end of struct initializer",
+						this->reader.peek(-1)
+					);
+					return evo::resultError;
+				}
+
+				break;
+			}
+		}
+
+		return initValues;
 	}
 
 

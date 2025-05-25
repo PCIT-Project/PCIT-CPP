@@ -293,7 +293,7 @@ namespace pcit::panther{
 				i += 1;
 			}
 
-			this->agent.createBranch(begin_block);
+			this->agent.createJump(begin_block);
 		}
 
 
@@ -418,56 +418,18 @@ namespace pcit::panther{
 
 			
 			if(param_is_ptr_rvo){
-				switch(param.getType().kind()){
-					case pir::Type::Kind::VOID: {
-						evo::debugFatalBreak("Function parameter cannot be type void");
-					} break;
+				evo::debugAssert(
+					param.getType().kind() == pir::Type::Kind::PTR,
+					"attribute `#ptrRVO` should only go pointer PIR parameters"
+				);
 
-					case pir::Type::Kind::INTEGER: {
-						args.emplace_back(
-							this->agent.createNumber(param.getType(), core::GenericInt(param.getType().getWidth(), 0))
-						);
-					} break;
+				const TypeInfo::ID param_type_id = [&](){
+					if(i < func_type.params.size()){ return func_type.params[i].typeID; }
+					return func_type.returnParams[i - func_type.params.size()].typeID.asTypeID();
+				}();
 
-					case pir::Type::Kind::BOOL: {
-						args.emplace_back(this->agent.createBoolean(false));
-					} break;
-
-					case pir::Type::Kind::FLOAT: {
-						// TODO(FUTURE): separate out creating GenericFloats for each type?
-						args.emplace_back(
-							this->agent.createNumber(param.getType(), core::GenericFloat::createF128(0.0))
-						);
-					} break;
-
-					case pir::Type::Kind::BFLOAT: {
-						args.emplace_back(
-							this->agent.createNumber(param.getType(), core::GenericFloat::createBF16(0))
-						);
-					} break;
-
-					case pir::Type::Kind::PTR: {
-						const TypeInfo::ID param_type_id = [&](){
-							if(i < func_type.params.size()){ return func_type.params[i].typeID; }
-							return func_type.returnParams[i - func_type.params.size()].typeID.asTypeID();
-						}();
-
-						const pir::Expr alloca = this->agent.createAlloca(this->get_type<false>(param_type_id));
-						args.emplace_back(alloca);
-					} break;
-
-					case pir::Type::Kind::ARRAY: {
-						evo::unimplemented("Constexpr interface with RVO array");
-					} break;
-
-					case pir::Type::Kind::STRUCT: {
-						evo::unimplemented("Constexpr interface with RVO struct");
-					} break;
-
-					case pir::Type::Kind::FUNCTION: {
-						evo::unimplemented("Constexpr interface with RVO function");
-					} break;
-				}
+				const pir::Expr alloca = this->agent.createAlloca(this->get_type<false>(param_type_id));
+				args.emplace_back(alloca);
 
 			}else{
 				const pir::Expr arg_ptr = this->agent.createCalcPtr(
@@ -520,32 +482,45 @@ namespace pcit::panther{
 					} break;
 
 					case pir::Type::Kind::PTR: {
+						bool is_normal_param = true;
+
 						const TypeInfo::ID param_type_id = [&](){
 							if(i < func_type.params.size()){ return func_type.params[i].typeID; }
+
+							is_normal_param = false;
 							return func_type.returnParams[i - func_type.params.size()].typeID.asTypeID();
 						}();
 
+						const pir::Type param_pir_type = this->get_type<false>(param_type_id);
+
 						if(this->context.getTypeManager().isIntegral(param_type_id)){
-							const pir::Type param_pir_type = this->get_type<false>(param_type_id);
 							const pir::Expr alloca = this->agent.createAlloca(param_pir_type);
-							this->agent.createCallVoid(
-								this->data.getJITInterfaceFuncs().get_generic_int,
-								{
-									arg_ptr,
-									alloca,
-									this->agent.createNumber(
-										this->module.createIntegerType(64),
-										core::GenericInt(8, param_pir_type.getWidth() / 8)
-									)
-								}
-							);
+
+							if(is_normal_param){
+								this->agent.createCallVoid(
+									this->data.getJITInterfaceFuncs().get_generic_int,
+									{
+										arg_ptr,
+										alloca,
+										this->agent.createNumber(
+											this->module.createIntegerType(64),
+											core::GenericInt(8, param_pir_type.getWidth() / 8)
+										)
+									}
+								);
+							}
+
 							args.emplace_back(alloca);
 
 						}else if(this->context.getTypeManager().isFloatingPoint(param_type_id)){
-							const pir::Expr alloca = this->agent.createAlloca(this->get_type<false>(param_type_id));
-							this->agent.createCallVoid(
-								this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca}
-							);
+							const pir::Expr alloca = this->agent.createAlloca(param_pir_type);
+
+							if(is_normal_param){
+								this->agent.createCallVoid(
+									this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca}
+								);
+							}
+
 							args.emplace_back(alloca);
 
 						}else{
@@ -557,7 +532,14 @@ namespace pcit::panther{
 								"Unsupported constexpr param type"
 							);
 
-							evo::unimplemented("Constexpr interface with struct ptr param");
+
+							const pir::Expr alloca = this->agent.createAlloca(param_pir_type);
+
+							if(is_normal_param){
+								evo::unimplemented("Constexpr interface with struct ptr normal param");
+							}
+
+							args.emplace_back(alloca);
 						}
 					} break;
 
@@ -853,8 +835,8 @@ namespace pcit::panther{
 
 		auto member_var_types = evo::SmallVector<pir::Type>();
 		member_var_types.reserve(struct_type.memberVars.size());
-		for(const BaseType::Struct::MemberVar& member_var : struct_type.memberVars){
-			member_var_types.emplace_back(this->get_type<MAY_LOWER_DEPENDENCY>(member_var.typeID));
+		for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
+			member_var_types.emplace_back(this->get_type<MAY_LOWER_DEPENDENCY>(member_var->typeID));
 		}
 
 		const pir::Type new_type = this->module.createStructType(
@@ -971,7 +953,7 @@ namespace pcit::panther{
 
 						this->output_defers_for_scope_level<false>(scope_level);
 
-						this->agent.createBranch(*scope_level.end_block);
+						this->agent.createJump(*scope_level.end_block);
 						break;
 					}
 
@@ -1434,31 +1416,24 @@ namespace pcit::panther{
 					target_type.baseTypeID().structID()
 				);
 
-				const int64_t index = [&](){
-					for(int64_t i = 0; const BaseType::Struct::MemberVar& member_var : target_struct_type.memberVars){
-						if(member_var.identTokenID == accessor.member){ return i; }
-						i += 1;
-					}
-					evo::unreachable();
-				}();
-
 				if constexpr(MODE == GetExprMode::REGISTER){
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
 						this->get_expr_pointer(accessor.target),
 						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, index},
+						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
 						this->name("ACCESSOR")
 					);
 
 					return this->agent.createLoad(
-						calc_ptr, this->get_type<false>(target_struct_type.memberVars[size_t(index)].typeID)
+						calc_ptr,
+						this->get_type<false>(target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID)
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					return this->agent.createCalcPtr(
 						this->get_expr_pointer(accessor.target),
 						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, index},
+						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
 						this->name("ACCESSOR")
 					);
 
@@ -1466,18 +1441,63 @@ namespace pcit::panther{
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
 						this->get_expr_pointer(accessor.target),
 						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, index},
+						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
 						this->name("ACCESSOR")
 					);
 
 					this->agent.createMemcpy(
 						store_locations[0],
 						calc_ptr,
-						this->get_type<false>(target_struct_type.memberVars[size_t(index)].typeID)
+						this->get_type<false>(target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID)
 					);
 					return std::nullopt;
 
 				}else{
+					return std::nullopt;
+				}
+			} break;
+
+			case sema::Expr::Kind::STRUCT_INIT: {
+				const sema::StructInit& struct_init = this->context.getSemaBuffer().getStructInit(expr.structInitID());
+
+
+				if constexpr(MODE != GetExprMode::DISCARD){
+					const pir::Type pir_type = this->get_type<false>(struct_init.typeID);
+
+					const pir::Expr initialization_target = [&](){
+						if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
+							return this->agent.createAlloca(pir_type);
+						}else{
+							evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+							return store_locations[0];
+						}
+					}();
+
+
+					for(uint32_t i = 0; const sema::Expr& member_expr : struct_init.memberExprs){
+						const pir::Expr calc_ptr = this->agent.createCalcPtr(
+							initialization_target, pir_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
+						);
+
+						this->get_expr_store(member_expr, calc_ptr);
+
+						i += 1;
+					}
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(initialization_target, pir_type);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return initialization_target;
+
+					}else{
+						return std::nullopt;
+					}
+
+				}else{
+					for(const sema::Expr& member_expr : struct_init.memberExprs){
+						this->get_expr_discard(member_expr);
+					}
 					return std::nullopt;
 				}
 			} break;
@@ -1604,11 +1624,11 @@ namespace pcit::panther{
 				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
 				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("TRY.END"));
 
-				this->agent.createCondBranch(attempt, end_block, if_error_block);
+				this->agent.createBranch(attempt, end_block, if_error_block);
 
 				this->agent.setTargetBasicBlock(if_error_block);
 				this->get_expr_store(try_else.except, return_address);
-				this->agent.createBranch(end_block);
+				this->agent.createJump(end_block);
 
 				this->agent.setTargetBasicBlock(end_block);
 
@@ -3491,17 +3511,17 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:      case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:       case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:              case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:           case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:           case sema::Expr::Kind::DEREF:
-			case sema::Expr::Kind::ACCESSOR:          case sema::Expr::Kind::TRY_ELSE:
-			case sema::Expr::Kind::BLOCK_EXPR:        case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:      case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::VAR:               case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:               case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:            case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:            case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::ACCESSOR:           case sema::Expr::Kind::STRUCT_INIT:
+			case sema::Expr::Kind::TRY_ELSE:           case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::PARAM:              case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM: case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:       case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:         case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

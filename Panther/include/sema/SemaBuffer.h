@@ -328,6 +328,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// struct_inits
+
+			EVO_NODISCARD auto createStructInit(auto&&... args) -> sema::StructInit::ID {
+				return this->struct_inits.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getStructInit(sema::StructInit::ID id) const -> const sema::StructInit& {
+				return this->struct_inits[id];
+			}
+
+
+			///////////////////////////////////
 			// try/else
 
 			EVO_NODISCARD auto createTryElse(auto&&... args) -> sema::TryElse::ID {
@@ -500,6 +512,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
 			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
+			core::SyncLinearStepAlloc<sema::StructInit, sema::StructInit::ID> struct_inits{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 

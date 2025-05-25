@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.117.0"></a>
+## v0.0.117.0
+
+### Panther
+- Added struct initializer new expressions
+- Added constexpr accessor
+
+### PIR
+- Changed `@branch` to `@jump`
+- Changed `@condBranch` to `@branch`
+
+
+<!---------------------------------->
 <a name="v0.0.116.1"></a>
 ## v0.0.116.1
 

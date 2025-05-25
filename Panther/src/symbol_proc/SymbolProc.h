@@ -448,6 +448,13 @@ namespace pcit::panther{
 		};
 
 
+		struct StructInitNew{
+			const AST::StructInitNew& struct_init_new;
+			SymbolProcTypeID type_id;
+			SymbolProcTermInfoID output;
+			evo::SmallVector<SymbolProcTermInfoID> member_init_exprs;
+		};
+
 		struct PrepareTryHandler{
 			evo::ArrayProxy<Token::ID> except_params;
 			SymbolProcTermInfoID attempt_expr;
@@ -609,6 +616,7 @@ namespace pcit::panther{
 			AddrOf<true>,
 			AddrOf<false>,
 			Deref,
+			StructInitNew,
 			PrepareTryHandler,
 			TryElse,
 			BeginExprBlock,

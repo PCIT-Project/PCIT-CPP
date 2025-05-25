@@ -426,13 +426,13 @@ namespace pcit::pir{
 						}
 					} break;
 
-					case Expr::Kind::BRANCH: {
-						const Branch& branch = this->reader.getBranch(stmt);
-						this->builder.createBranch(basic_block_map.at(branch.target));
+					case Expr::Kind::JUMP: {
+						const Jump& jump = this->reader.getJump(stmt);
+						this->builder.createBranch(basic_block_map.at(jump.target));
 					} break;
 
-					case Expr::Kind::COND_BRANCH: {
-						const CondBranch& branch = this->reader.getCondBranch(stmt);
+					case Expr::Kind::BRANCH: {
+						const Branch& branch = this->reader.getBranch(stmt);
 						this->builder.createCondBranch(
 							this->get_value<ADD_WEAK_DEPS>(branch.cond),
 							basic_block_map.at(branch.thenBlock),
@@ -1564,8 +1564,8 @@ namespace pcit::pir{
 			case Expr::Kind::ABORT:       evo::debugFatalBreak("Not a value");
 			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Not a value");
 			case Expr::Kind::RET:         evo::debugFatalBreak("Not a value");
-			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Not a value");
-			case Expr::Kind::COND_BRANCH: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::JUMP:        evo::debugFatalBreak("Not a value");
+			case Expr::Kind::BRANCH:   evo::debugFatalBreak("Not a value");
 			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Not a value");
 
 			case Expr::Kind::ALLOCA: {

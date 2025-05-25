@@ -188,16 +188,16 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:           case AST::Kind::ERROR:           case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:            case AST::Kind::DEFER:           case AST::Kind::UNREACHABLE:
-			case AST::Kind::BLOCK:            case AST::Kind::FUNC_CALL:       case AST::Kind::TEMPLATE_PACK:
-			case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:          case AST::Kind::INFIX:
-			case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:    case AST::Kind::NEW:
-			case AST::Kind::TRY_ELSE:         case AST::Kind::TYPE_DEDUCER:    case AST::Kind::TYPE:
-			case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
-			case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:
-			case AST::Kind::LITERAL:          case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:
-			case AST::Kind::THIS:             case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:          case AST::Kind::ERROR:            case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:           case AST::Kind::DEFER:            case AST::Kind::UNREACHABLE:
+			case AST::Kind::BLOCK:           case AST::Kind::FUNC_CALL:        case AST::Kind::TEMPLATE_PACK:
+			case AST::Kind::TEMPLATED_EXPR:  case AST::Kind::PREFIX:           case AST::Kind::INFIX:
+			case AST::Kind::POSTFIX:         case AST::Kind::MULTI_ASSIGN:     case AST::Kind::NEW:
+			case AST::Kind::STRUCT_INIT_NEW: case AST::Kind::TRY_ELSE:         case AST::Kind::TYPE_DEDUCER:
+			case AST::Kind::TYPE:            case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
+			case AST::Kind::ATTRIBUTE:       case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
+			case AST::Kind::INTRINSIC:       case AST::Kind::LITERAL:          case AST::Kind::UNINIT:
+			case AST::Kind::ZEROINIT:        case AST::Kind::THIS:             case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -719,6 +719,7 @@ namespace pcit::panther{
 			case AST::Kind::POSTFIX:          evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::MULTI_ASSIGN:     return this->analyze_multi_assign(ast_buffer.getMultiAssign(stmt));
 			case AST::Kind::NEW:              evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::STRUCT_INIT_NEW:  evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TRY_ELSE:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE_DEDUCER:     evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE:             evo::debugFatalBreak("Invalid statment");
@@ -988,20 +989,21 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Invalid AST::Node");
 				} break;
 
-				case AST::Kind::BLOCK:          return this->analyze_expr_block<IS_CONSTEXPR>(expr);
-				case AST::Kind::FUNC_CALL:      return this->analyze_expr_func_call<IS_CONSTEXPR, false>(expr);
-				case AST::Kind::TEMPLATED_EXPR: return this->analyze_expr_templated<IS_CONSTEXPR>(expr);
-				case AST::Kind::PREFIX:         return this->analyze_expr_prefix<IS_CONSTEXPR>(expr);
-				case AST::Kind::INFIX:          return this->analyze_expr_infix<IS_CONSTEXPR>(expr);
-				case AST::Kind::POSTFIX:        return this->analyze_expr_postfix<IS_CONSTEXPR>(expr);
-				case AST::Kind::NEW:            return this->analyze_expr_new<IS_CONSTEXPR>(expr);
-				case AST::Kind::TRY_ELSE:       return this->analyze_expr_try_else<IS_CONSTEXPR>(expr);
-				case AST::Kind::IDENT:          return this->analyze_expr_ident<IS_CONSTEXPR>(expr);
-				case AST::Kind::INTRINSIC:      return this->analyze_expr_intrinsic(expr);
-				case AST::Kind::LITERAL:        return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
-				case AST::Kind::UNINIT:         return this->analyze_expr_uninit(ast_buffer.getUninit(expr));
-				case AST::Kind::ZEROINIT:       return this->analyze_expr_zeroinit(ast_buffer.getZeroinit(expr));
-				case AST::Kind::THIS:           return this->analyze_expr_this(expr);
+				case AST::Kind::BLOCK:           return this->analyze_expr_block<IS_CONSTEXPR>(expr);
+				case AST::Kind::FUNC_CALL:       return this->analyze_expr_func_call<IS_CONSTEXPR, false>(expr);
+				case AST::Kind::TEMPLATED_EXPR:  return this->analyze_expr_templated<IS_CONSTEXPR>(expr);
+				case AST::Kind::PREFIX:          return this->analyze_expr_prefix<IS_CONSTEXPR>(expr);
+				case AST::Kind::INFIX:           return this->analyze_expr_infix<IS_CONSTEXPR>(expr);
+				case AST::Kind::POSTFIX:         return this->analyze_expr_postfix<IS_CONSTEXPR>(expr);
+				case AST::Kind::NEW:             return this->analyze_expr_new<IS_CONSTEXPR>(expr);
+				case AST::Kind::STRUCT_INIT_NEW: return this->analyze_expr_struct_init_new<IS_CONSTEXPR>(expr);
+				case AST::Kind::TRY_ELSE:        return this->analyze_expr_try_else<IS_CONSTEXPR>(expr);
+				case AST::Kind::IDENT:           return this->analyze_expr_ident<IS_CONSTEXPR>(expr);
+				case AST::Kind::INTRINSIC:       return this->analyze_expr_intrinsic(expr);
+				case AST::Kind::LITERAL:         return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
+				case AST::Kind::UNINIT:          return this->analyze_expr_uninit(ast_buffer.getUninit(expr));
+				case AST::Kind::ZEROINIT:        return this->analyze_expr_zeroinit(ast_buffer.getZeroinit(expr));
+				case AST::Kind::THIS:            return this->analyze_expr_this(expr);
 
 				case AST::Kind::TYPE_DEDUCER: {
 					evo::debugAssert(
@@ -1428,9 +1430,36 @@ namespace pcit::panther{
 	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE, node, "Building symbol proc of new is unimplemented"
+			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE, node, "Building symbol proc of [new] is unimplemented"
 		);
 		return evo::resultError;
+	}
+
+	template<bool IS_CONSTEXPR>
+	auto SymbolProcBuilder::analyze_expr_struct_init_new(const AST::Node& node)
+	-> evo::Result<SymbolProc::TermInfoID> {
+		const AST::StructInitNew& struct_init_new =  this->source.getASTBuffer().getStructInitNew(node);
+
+		const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type(
+			this->source.getASTBuffer().getType(struct_init_new.type)
+		);
+		if(type_id.isError()){ return evo::resultError; }
+
+		auto member_inits = evo::SmallVector<SymbolProc::TermInfoID>();
+		member_inits.reserve(struct_init_new.memberInits.size());
+		for(const AST::StructInitNew::MemberInit& member_init : struct_init_new.memberInits){
+			const evo::Result<SymbolProc::TermInfoID> member_init_expr =
+				this->analyze_expr<IS_CONSTEXPR>(member_init.expr);
+			if(member_init_expr.isError()){ return evo::resultError; }
+
+			member_inits.emplace_back(member_init_expr.value());
+		}
+
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		this->add_instruction(
+			Instruction::StructInitNew(struct_init_new, type_id.value(), new_term_info_id, std::move(member_inits))
+		);
+		return new_term_info_id;
 	}
 
 	template<bool IS_CONSTEXPR>

@@ -148,6 +148,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;
 			EVO_NODISCARD auto parse_func_error_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;
 			EVO_NODISCARD auto parse_func_call_args() -> evo::Result<evo::SmallVector<AST::FuncCall::Arg>>;
+			EVO_NODISCARD auto parse_struct_init() -> evo::Result<evo::SmallVector<AST::StructInitNew::MemberInit>>;
 
 
 			///////////////////////////////////

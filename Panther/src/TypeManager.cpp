@@ -409,6 +409,7 @@ namespace pcit::panther{
 			lookup_type.identTokenID,
 			lookup_type.instantiation,
 			std::move(lookup_type.memberVars),
+			std::move(lookup_type.memberVarsABI),
 			lookup_type.namespacedMembers,
 			lookup_type.scopeLevel,
 			lookup_type.isPub,

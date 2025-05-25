@@ -509,8 +509,8 @@ namespace pcit::pir{
 			case Expr::Kind::ABORT:       evo::debugFatalBreak("Expr::Kind::ABORT is not a valid expression");
 			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Expr::Kind::BREAKPOINT is not a valid expression");
 			case Expr::Kind::RET:         evo::debugFatalBreak("Expr::Kind::RET is not a valid expression");
+			case Expr::Kind::JUMP:        evo::debugFatalBreak("Expr::Kind::JUMP is not a valid expression");
 			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Expr::Kind::BRANCH is not a valid expression");
-			case Expr::Kind::COND_BRANCH: evo::debugFatalBreak("Expr::Kind::COND_BRANCH is not a valid expression");
 			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Expr::Kind::UNREACHABLE is not a valid expression");
 
 			case Expr::Kind::ALLOCA: {
@@ -949,21 +949,21 @@ namespace pcit::pir{
 			} break;
 
 
-			case Expr::Kind::BRANCH: {
-				this->printer.printRed("{}@branch ", tabs(2));
-				const BasicBlock::ID basic_block_id = reader.getBranch(stmt).target;
+			case Expr::Kind::JUMP: {
+				this->printer.printRed("{}@jump ", tabs(2));
+				const BasicBlock::ID basic_block_id = reader.getJump(stmt).target;
 				this->printer.println("${}", reader.getBasicBlock(basic_block_id).getName());
 			} break;
 
-			case Expr::Kind::COND_BRANCH: {
-				const CondBranch& cond_branch = this->reader.getCondBranch(stmt);
+			case Expr::Kind::BRANCH: {
+				const Branch& branch = this->reader.getBranch(stmt);
 
-				this->printer.printRed("{}@condBranch ", tabs(2));
-				this->print_expr(cond_branch.cond);
+				this->printer.printRed("{}@branch ", tabs(2));
+				this->print_expr(branch.cond);
 				this->printer.println(
 					", ${}, ${}", 
-					reader.getBasicBlock(cond_branch.thenBlock).getName(),
-					reader.getBasicBlock(cond_branch.elseBlock).getName()
+					reader.getBasicBlock(branch.thenBlock).getName(),
+					reader.getBasicBlock(branch.elseBlock).getName()
 				);
 			} break;
 

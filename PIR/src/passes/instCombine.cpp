@@ -37,8 +37,8 @@ namespace pcit::pir::passes{
 			case Expr::Kind::ABORT:            return false;
 			case Expr::Kind::BREAKPOINT:       return false;
 			case Expr::Kind::RET:              return false;
+			case Expr::Kind::JUMP:             return false;
 			case Expr::Kind::BRANCH:           return false;
-			case Expr::Kind::COND_BRANCH:      return false;
 			case Expr::Kind::UNREACHABLE:      return false;
 			case Expr::Kind::ALLOCA:           return false;
 			case Expr::Kind::LOAD:             return false;
@@ -880,21 +880,21 @@ namespace pcit::pir::passes{
 			case Expr::Kind::ABORT:            return false;
 			case Expr::Kind::BREAKPOINT:       return false;
 			case Expr::Kind::RET:              return false;
-			case Expr::Kind::BRANCH:           return false;
+			case Expr::Kind::JUMP:             return false;
 
-			case Expr::Kind::COND_BRANCH: {
-				const CondBranch& cond_branch = agent.getCondBranch(stmt);
+			case Expr::Kind::BRANCH: {
+				const Branch& branch = agent.getBranch(stmt);
 
-				if(cond_branch.cond.kind() != Expr::Kind::BOOLEAN){ return false; }
+				if(branch.cond.kind() != Expr::Kind::BOOLEAN){ return false; }
 
-				if(agent.getBoolean(cond_branch.cond)){
-					const BasicBlock::ID then_block = cond_branch.thenBlock;
+				if(agent.getBoolean(branch.cond)){
+					const BasicBlock::ID then_block = branch.thenBlock;
 					agent.removeStmt(stmt);
-					agent.createBranch(then_block);
+					agent.createJump(then_block);
 				}else{
-					const BasicBlock::ID else_block = cond_branch.elseBlock;
+					const BasicBlock::ID else_block = branch.elseBlock;
 					agent.removeStmt(stmt);
-					agent.createBranch(else_block);
+					agent.createJump(else_block);
 				}
 
 				return true;

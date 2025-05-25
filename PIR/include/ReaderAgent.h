@@ -56,8 +56,8 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getCall(const Expr& expr) const -> const Call&;
 			EVO_NODISCARD auto getCallVoid(const Expr& expr) const -> const CallVoid&;
 			EVO_NODISCARD auto getRet(const Expr& expr) const -> const Ret&;
-			EVO_NODISCARD static auto getBranch(const Expr& expr) -> Branch;
-			EVO_NODISCARD auto getCondBranch(const Expr& expr) const -> const CondBranch&;
+			EVO_NODISCARD static auto getJump(const Expr& expr) -> Jump;
+			EVO_NODISCARD auto getBranch(const Expr& expr) const -> const Branch&;
 
 			EVO_NODISCARD auto getAlloca(const Expr& expr) const -> const Alloca&;
 			EVO_NODISCARD auto getLoad(const Expr& expr) const -> const Load&;

@@ -51,6 +51,7 @@ namespace pcit::panther::sema{
 			ADDR_OF,
 			DEREF,
 			ACCESSOR,
+			STRUCT_INIT,
 			TRY_ELSE,
 			BLOCK_EXPR,
 				
@@ -93,6 +94,7 @@ namespace pcit::panther::sema{
 		explicit Expr(AddrOfID id)           : _kind(Kind::ADDR_OF),            value{.addr_of = id}            {};
 		explicit Expr(DerefID id)            : _kind(Kind::DEREF),              value{.deref = id}              {};
 		explicit Expr(AccessorID id)         : _kind(Kind::ACCESSOR),           value{.accessor = id}           {};
+		explicit Expr(StructInitID id)       : _kind(Kind::STRUCT_INIT),        value{.struct_init = id}        {};
 		explicit Expr(TryElseID id)          : _kind(Kind::TRY_ELSE),           value{.try_else = id}           {};
 		explicit Expr(BlockExprID id)        : _kind(Kind::BLOCK_EXPR),         value{.block_expr = id}         {};
 
@@ -186,6 +188,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::ACCESSOR, "not an accessor");
 			return this->value.accessor;
 		}
+		EVO_NODISCARD auto structInitID() const -> StructInitID {
+			evo::debugAssert(this->kind() == Kind::STRUCT_INIT, "not an structInit");
+			return this->value.struct_init;
+		}
 		EVO_NODISCARD auto tryElseID() const -> TryElseID {
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not an try/else");
 			return this->value.try_else;
@@ -265,6 +271,7 @@ namespace pcit::panther::sema{
 				FuncCallID func_call;
 				AddrOfID addr_of;
 				DerefID deref;
+				StructInitID struct_init;
 				AccessorID accessor;
 				TryElseID try_else;
 				BlockExprID block_expr;

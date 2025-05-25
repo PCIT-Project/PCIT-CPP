@@ -63,8 +63,8 @@ namespace pcit::pir{
 			case Expr::Kind::ABORT:             evo::unreachable();
 			case Expr::Kind::BREAKPOINT:        evo::unreachable();
 			case Expr::Kind::RET:               evo::unreachable();
+			case Expr::Kind::JUMP:              evo::unreachable();
 			case Expr::Kind::BRANCH:            evo::unreachable();
-			case Expr::Kind::COND_BRANCH:       evo::unreachable();
 			case Expr::Kind::UNREACHABLE:       evo::unreachable();
 			case Expr::Kind::ALLOCA:            return this->module.createPtrType();
 			case Expr::Kind::LOAD:              return this->getLoad(expr).type;
@@ -213,18 +213,18 @@ namespace pcit::pir{
 
 
 
-	auto ReaderAgent::getBranch(const Expr& expr) -> Branch {
-		evo::debugAssert(expr.kind() == Expr::Kind::BRANCH, "Not a br");
+	auto ReaderAgent::getJump(const Expr& expr) -> Jump {
+		evo::debugAssert(expr.kind() == Expr::Kind::JUMP, "Not a jump");
 
-		return Branch(BasicBlock::ID(expr.index));
+		return Jump(BasicBlock::ID(expr.index));
 	}
 
 
-	auto ReaderAgent::getCondBranch(const Expr& expr) const -> const CondBranch& {
+	auto ReaderAgent::getBranch(const Expr& expr) const -> const Branch& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.kind() == Expr::Kind::COND_BRANCH, "Not an cond branch");
+		evo::debugAssert(expr.kind() == Expr::Kind::BRANCH, "Not a branch");
 
-		return this->module.cond_branches[expr.index];
+		return this->module.branches[expr.index];
 	}
 
 

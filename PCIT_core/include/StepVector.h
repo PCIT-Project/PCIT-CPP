@@ -260,14 +260,7 @@ namespace pcit::core{
 			EVO_NODISCARD auto cend() const -> ConstIter { return ConstIter(this->size(), *this); }
 
 
-			EVO_NODISCARD auto rbegin()        ->      Iter { return Iter(this->size() - 1, *this);      }
-			EVO_NODISCARD auto rbegin()  const -> ConstIter { return ConstIter(this->size() - 1, *this); }
-			EVO_NODISCARD auto crbegin() const -> ConstIter { return ConstIter(this->size() - 1, *this); }
-
-			EVO_NODISCARD auto rend()        ->      Iter { return Iter(~0ull, *this);      }
-			EVO_NODISCARD auto rend()  const -> ConstIter { return ConstIter(~0ull, *this); }
-			EVO_NODISCARD auto crend() const -> ConstIter { return ConstIter(~0ull, *this); }
-
+			// TODO(FUTURE): reverse iterators?
 
 
 		private:

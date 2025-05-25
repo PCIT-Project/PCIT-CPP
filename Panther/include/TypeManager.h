@@ -202,6 +202,7 @@ namespace pcit::panther{
 			Token::ID identTokenID;
 			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uin32_t max if not instantiation
 			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock)
+			evo::SmallVector<MemberVar*> memberVarsABI; // this is the order that members are for ABI
 			SymbolProcNamespace& namespacedMembers;
 			sema::ScopeLevel* scopeLevel; // is pointer because it needs to be set after construction (so never nullptr)
 			bool isPub;

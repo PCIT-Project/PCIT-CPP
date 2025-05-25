@@ -118,10 +118,15 @@ namespace pcit::panther::sema{
 
 		Expr target;
 		TypeInfo::ID targetTypeID;
-		Token::ID member; // done this way to facilitate member reordering (yes, even if `#ordered`/`#extern`)
+		uint32_t memberABIIndex;
 	};
 
+	struct StructInit{
+		using ID = StructInitID;
 
+		TypeInfo::ID typeID;
+		evo::SmallVector<Expr> memberExprs;
+	};
 
 	struct TryElse{
 		using ID = TryElseID;

@@ -243,6 +243,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Deref>()){
 				return this->instr_deref(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::StructInitNew>()){
+				return this->instr_struct_init_new(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::PrepareTryHandler>()){
 				return this->instr_prepare_try_handler(instr);
 
@@ -1000,6 +1003,7 @@ namespace pcit::panther{
 				.identTokenID      = instr.struct_decl.ident,
 				.instantiation     = instr.instantiation_id,
 				.memberVars        = evo::SmallVector<BaseType::Struct::MemberVar>(),
+				.memberVarsABI     = evo::SmallVector<BaseType::Struct::MemberVar*>(),
 				.namespacedMembers = struct_info.member_symbols,
 				.scopeLevel        = nullptr,
 				.isPub             = struct_attrs.value().is_pub,
@@ -1065,17 +1069,25 @@ namespace pcit::panther{
 		BaseType::Struct& created_struct = this->context.type_manager.getStruct(created_struct_id);
 
 
-		if(created_struct.isOrdered){
-			const auto sorting_func = [](
-				const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
-			) -> bool {
-				return lhs.identTokenID.get() < rhs.identTokenID.get();
-			};
+		const auto sorting_func = [](
+			const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
+		) -> bool {
+			return lhs.identTokenID.get() < rhs.identTokenID.get();
+		};
 
-			std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
+		std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
+
+		if(created_struct.isOrdered){
+			for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+				created_struct.memberVarsABI.emplace_back(&member_var);
+			}
 
 		}else{
 			// TODO(FEATURE): optimal ordering
+
+			for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+				created_struct.memberVarsABI.emplace_back(&member_var);
+			}
 		}
 
 
@@ -4021,6 +4033,194 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_struct_init_new(const Instruction::StructInitNew& instr) -> Result {
+		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
+		if(target_type_id.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
+				instr.struct_init_new.type,
+				"Operator [new] cannot accept type [Void]"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id.asTypeID());
+		if(
+			target_type_info.qualifiers().empty() == false
+			|| target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
+				instr.struct_init_new.type,
+				"Struct initializer operator [new] cannot accept a type that's not a struct"
+			);
+			return Result::ERROR;
+		}
+
+		const BaseType::Struct& target_type = this->context.getTypeManager().getStruct(
+			target_type_info.baseTypeID().structID()
+		);
+
+		if(target_type.memberVars.empty()){
+			if(instr.struct_init_new.memberInits.empty()){
+				evo::unimplemented("Initialization of empty struct");
+			}
+
+			evo::unimplemented("Too many member initializers");
+		}
+
+
+		const Source& target_type_source = this->context.getSourceManager()[target_type.sourceID];
+
+
+		const auto struct_has_member = [&](std::string_view ident) -> bool {
+			for(const BaseType::Struct::MemberVar& member_var : target_type.memberVars){
+				const std::string_view member_var_ident =
+					target_type_source.getTokenBuffer()[member_var.identTokenID].getString();
+			
+				if(member_var_ident == ident){ return true; }
+			}
+
+			return false;
+		};
+
+
+
+		auto values = evo::SmallVector<sema::Expr>();
+		values.reserve(target_type.memberVars.size());
+
+		size_t member_init_i = 0;
+		for(const BaseType::Struct::MemberVar* member_var : target_type.memberVarsABI){
+			const std::string_view member_var_ident =
+				target_type_source.getTokenBuffer()[member_var->identTokenID].getString();
+
+			if(member_init_i >= instr.struct_init_new.memberInits.size()){
+				if(member_var->defaultValue.has_value()){
+					values.emplace_back(*member_var->defaultValue);
+					continue;
+				}
+
+				if(instr.struct_init_new.memberInits.empty()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
+						instr.struct_init_new,
+						std::format("Member \"{}\" was not set in struct initializer operator [new]", member_var_ident)
+					);
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
+						instr.struct_init_new,
+						std::format("Member \"{}\" was not set in struct initializer operator [new]", member_var_ident),
+						Diagnostic::Info(
+							std::format("Member initializer for \"{}\" should go after this one", member_var_ident),
+							this->get_location(instr.struct_init_new.memberInits[member_init_i - 1].ident)
+						)
+					);
+				}
+
+				return Result::ERROR;
+
+			}else{
+				const AST::StructInitNew::MemberInit& member_init =
+					instr.struct_init_new.memberInits[member_init_i];
+
+
+				const std::string_view member_init_ident =
+					target_type_source.getTokenBuffer()[member_init.ident].getString();
+
+				if(member_var_ident != member_init_ident){
+					if(member_var->defaultValue.has_value()){
+						values.emplace_back(*member_var->defaultValue);
+						continue;
+					}
+
+					if(struct_has_member(member_init_ident)){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
+							instr.struct_init_new,
+							std::format(
+								"Member \"{}\" was not set in struct initializer operator [new]", member_var_ident
+							),
+							Diagnostic::Info(
+								std::format(
+									"Member initializer for \"{}\" should go before this one", member_var_ident
+								),
+								this->get_location(member_init.ident)
+							)
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
+							member_init.ident,
+							std::format("This struct has no member \"{}\"", member_init_ident),
+							Diagnostic::Info(
+								"Struct was declared here:",
+								Diagnostic::Location::get(target_type.identTokenID, target_type_source)
+							)
+						);
+						return Result::ERROR;
+					}
+
+					return Result::ERROR;
+				}
+
+				TermInfo& member_init_expr = this->get_term_info(instr.member_init_exprs[member_init_i]);
+
+				if(member_init_expr.is_ephemeral() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_VAL_NOT_EPHEMERAL,
+						member_init.expr,
+						"Member initializer value is not ephemeral"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->type_check<true>(
+					member_var->typeID, member_init_expr, "Member initializer", member_init.expr
+				).ok == false){
+					return Result::ERROR;
+				}
+
+				values.emplace_back(member_init_expr.getExpr());
+
+				member_init_i += 1;
+			}
+		}
+
+
+		if(member_init_i < instr.struct_init_new.memberInits.size()){
+			const AST::StructInitNew::MemberInit& member_init = instr.struct_init_new.memberInits[member_init_i];
+
+			const std::string_view member_init_ident =
+				target_type_source.getTokenBuffer()[member_init.ident].getString();
+
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
+				member_init.ident,
+				std::format("This struct has no member \"{}\"", member_init_ident),
+				Diagnostic::Info(
+					"Struct was declared here:", Diagnostic::Location::get(target_type.identTokenID, target_type_source)
+				)
+			);
+			return Result::ERROR;
+		}
+
+
+		const sema::StructInit::ID created_struct_init = this->context.sema_buffer.createStructInit(
+			target_type_id.asTypeID(), std::move(values)
+		);
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+			target_type_id.asTypeID(),
+			sema::Expr(created_struct_init)
+		);
+		return Result::SUCCESS;
+	}
+
+
 	auto SemanticAnalyzer::instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result {
 		this->push_scope_level();
 
@@ -5063,9 +5263,9 @@ namespace pcit::panther{
 		const Source& struct_source = this->context.getSourceManager()[lhs_type_struct.sourceID];
 
 		const auto lock = std::scoped_lock(lhs_type_struct.memberVarsLock);
-		for(const BaseType::Struct::MemberVar& member_var : lhs_type_struct.memberVars){
+		for(size_t i = 0; const BaseType::Struct::MemberVar* member_var : lhs_type_struct.memberVarsABI){
 			const std::string_view member_ident_str = 
-				struct_source.getTokenBuffer()[member_var.identTokenID].getString();
+				struct_source.getTokenBuffer()[member_var->identTokenID].getString();
 
 			if(member_ident_str == rhs_ident_str){
 				const TermInfo::ValueCategory value_category = [&](){
@@ -5075,7 +5275,7 @@ namespace pcit::panther{
 						return TermInfo::ValueCategory::CONCRETE_CONST;
 					}
 
-					if(member_var.kind == AST::VarDecl::Kind::CONST){
+					if(member_var->kind == AST::VarDecl::Kind::CONST){
 						return TermInfo::ValueCategory::CONCRETE_CONST;
 					}else{
 						return TermInfo::ValueCategory::CONCRETE_MUT;
@@ -5084,18 +5284,33 @@ namespace pcit::panther{
 
 				using ValueStage = TermInfo::ValueStage;
 
-				this->return_term_info(instr.output,
-					value_category,
-					this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
-					member_var.typeID,
-					sema::Expr(
-						this->context.sema_buffer.createAccessor(
-							lhs.getExpr(), actual_lhs_type_id, member_var.identTokenID
+
+				if(lhs.value_stage == ValueStage::CONSTEXPR){
+					const sema::AggregateValue& lhs_aggregate_value =
+						this->context.getSemaBuffer().getAggregateValue(lhs.getExpr().aggregateValueID());
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						ValueStage::CONSTEXPR,
+						member_var->typeID,
+						lhs_aggregate_value.values[i]
+					);
+					
+				}else{
+					this->return_term_info(instr.output,
+						value_category,
+						this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+						member_var->typeID,
+						sema::Expr(
+							this->context.sema_buffer.createAccessor(lhs.getExpr(), actual_lhs_type_id, uint32_t(i))
 						)
-					)
-				);
+					);
+				}
+
 				return Result::SUCCESS;
 			}
+
+			i += 1;
 		}
 
 		// TODO(FUTURE): better messaging (looking at namespacedMembers for passed by when cond, not a member var)

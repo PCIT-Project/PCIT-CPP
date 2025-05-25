@@ -51,6 +51,7 @@ namespace pcit::panther::AST{
 		MULTI_ASSIGN,
 
 		NEW,
+		STRUCT_INIT_NEW,
 		TRY_ELSE,
 
 		TYPE,
@@ -300,6 +301,16 @@ namespace pcit::panther::AST{
 	struct New{
 		Node type;
 		evo::SmallVector<FuncCall::Arg> args;
+	};
+
+	struct StructInitNew{
+		struct MemberInit{
+			Token::ID ident;
+			Node expr;
+		};
+
+		Node type;
+		evo::SmallVector<MemberInit> memberInits;
 	};
 
 	struct TryElse{

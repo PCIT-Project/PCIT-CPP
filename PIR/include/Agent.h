@@ -204,15 +204,15 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// branch instructions
 
-			auto createBranch(BasicBlock::ID basic_block_id) const -> Expr;
-			EVO_NODISCARD static auto getBranch(const Expr& expr) -> Branch;
+			auto createJump(BasicBlock::ID basic_block_id) const -> Expr;
+			EVO_NODISCARD static auto getJump(const Expr& expr) -> Jump;
 
 
 			///////////////////////////////////
 			// condiitonal branch instructions
 
-			auto createCondBranch(const Expr& cond, BasicBlock::ID then_block, BasicBlock::ID else_block) const -> Expr;
-			EVO_NODISCARD auto getCondBranch(const Expr& expr) const -> CondBranch;
+			auto createBranch(const Expr& cond, BasicBlock::ID then_block, BasicBlock::ID else_block) const -> Expr;
+			EVO_NODISCARD auto getBranch(const Expr& expr) const -> Branch;
 
 
 			///////////////////////////////////
@@ -279,8 +279,8 @@ namespace pcit::pir{
 			auto createMemcpy(const Expr& dst, const Expr& src, size_t num_bytes, bool is_volatile = false) const
 			-> Expr {
 				const pir::Expr num_bytes_expr = this->createNumber(
-					this->module.createIntegerType(unsigned(this->module.sizeOfPtr())),
-					core::GenericInt(unsigned(this->module.sizeOfPtr()), unsigned(num_bytes))
+					this->module.createIntegerType(unsigned(this->module.sizeOfPtr() * 8)),
+					core::GenericInt(unsigned(this->module.sizeOfPtr() * 8), unsigned(num_bytes))
 				);
 
 				return this->createMemcpy(dst, src, num_bytes_expr, is_volatile);
@@ -304,8 +304,8 @@ namespace pcit::pir{
 			auto createMemset(const Expr& dst, const Expr& value, size_t num_bytes, bool is_volatile = false) const
 			-> Expr {
 				const pir::Expr num_bytes_expr = this->createNumber(
-					this->module.createIntegerType(unsigned(this->module.sizeOfPtr())),
-					core::GenericInt(unsigned(this->module.sizeOfPtr()), unsigned(num_bytes))
+					this->module.createIntegerType(unsigned(this->module.sizeOfPtr() * 8)),
+					core::GenericInt(unsigned(this->module.sizeOfPtr() * 8), unsigned(num_bytes))
 				);
 
 				return this->createMemset(dst, value, num_bytes_expr, is_volatile);
