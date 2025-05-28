@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.117.2"></a>
+## v0.0.117.2
+
+### Panther
+- Fixed circular dependency detection error diagnostic not always giving correct information (declaration vs definition)
+
+
+<!---------------------------------->
 <a name="v0.0.117.1"></a>
 ## v0.0.117.1
 

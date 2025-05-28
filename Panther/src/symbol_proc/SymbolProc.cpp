@@ -42,7 +42,9 @@ namespace pcit::panther{
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
-		if(this->detect_circular_dependency(id, context) == false){ return WaitOnResult::CIRCULAR_DEP_DETECTED;; }
+		if(this->detect_circular_dependency(id, context, DependencyKind::DEF) == false){
+			return WaitOnResult::CIRCULAR_DEP_DETECTED;
+		}
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
@@ -91,7 +93,9 @@ namespace pcit::panther{
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
-		if(this->detect_circular_dependency(id, context) == false){ return WaitOnResult::CIRCULAR_DEP_DETECTED; }
+		if(this->detect_circular_dependency(id, context, DependencyKind::DEF) == false){
+			return WaitOnResult::CIRCULAR_DEP_DETECTED;
+		}
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
@@ -126,13 +130,14 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProc::detect_circular_dependency(ID id, Context& context) const -> bool {
+	auto SymbolProc::detect_circular_dependency(ID id, Context& context, DependencyKind initial_dependency_kind) const
+	-> bool {
 		auto visited_queue = std::queue<ID>();
 
 		{
 			const auto lock = std::scoped_lock(this->waiting_for_lock);
-			for(const ID& waited_for_id : this->waiting_for){
-				visited_queue.push(waited_for_id);
+			for(const ID& waiting_for_id : this->waiting_for){
+				visited_queue.push(waiting_for_id);
 			}
 		}
 		
@@ -143,59 +148,69 @@ namespace pcit::panther{
 			const SymbolProc& visited = context.symbol_proc_manager.getSymbolProc(visited_id);
 
 			if(visited_id == id){
+				this->emit_diagnostic_on_circular_dependency(id, context, initial_dependency_kind);
+				return false;
+			}
+
+
+			{
+				const auto lock = std::scoped_lock(visited.waiting_for_lock);
+				for(const ID& waiting_for_id : visited.waiting_for){
+					visited_queue.push(waiting_for_id);
+				}
+			}
+		}
+
+		return true;
+	}
+
+
+
+
+	// This is a separate function from `detect_circular_dependency` since the computation required to have the 
+	//     extra information is much slower, so only do the slow case if a circular dependency is known to exist
+	auto SymbolProc::emit_diagnostic_on_circular_dependency(
+		ID id, Context& context, DependencyKind initial_dependency_kind
+	) const -> void {
+		struct VisitedInfo{
+			ID id;
+			DependencyKind kind;
+		};
+
+
+		auto visited_queue = std::queue<VisitedInfo>();
+
+		{
+			const auto lock = std::scoped_lock(this->waiting_for_lock);
+			for(const ID& waiting_for_id : this->waiting_for){
+				visited_queue.emplace(waiting_for_id, initial_dependency_kind);
+			}
+		}
+		
+		while(true){
+			const VisitedInfo visited_info = visited_queue.front();
+			visited_queue.pop();
+
+			const SymbolProc& visited = context.symbol_proc_manager.getSymbolProc(visited_info.id);
+
+			if(visited_info.id == id){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 
-				bool found_wait_target = false;
-
-				{
-					const auto lock = std::scoped_lock(this->decl_waited_on_lock);
-
-					if(std::ranges::find(this->decl_waited_on_by, visited_id) != this->decl_waited_on_by.end()){
-						found_wait_target = true;
+				switch(visited_info.kind){
+					case DependencyKind::DECL: {
 						infos.emplace_back(
 							"Requries declaration of this symbol:",
 							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
 						);
-					}
-				}
+					} break;
 
-				if(!found_wait_target){
-					const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock);
-
-					if(std::ranges::find(this->pir_decl_waited_on_by, visited_id) != this->pir_decl_waited_on_by.end()){
-						found_wait_target = true;
-						infos.emplace_back(
-							"Requries constexpr declaration of this symbol:",
-							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
-						);
-					}
-				}
-
-				if(!found_wait_target){
-					const auto lock = std::scoped_lock(this->decl_waited_on_lock);
-
-					if(std::ranges::find(this->def_waited_on_by, visited_id) != this->def_waited_on_by.end()){
-						found_wait_target = true;
+					case DependencyKind::DEF: {
 						infos.emplace_back(
 							"Requries definition of this symbol:",
 							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
 						);
-					}
+					} break;
 				}
-
-				if(!found_wait_target){
-					const auto lock = std::scoped_lock(this->pir_def_waited_on_lock);
-
-					if(std::ranges::find(this->pir_def_waited_on_by, visited_id) != this->pir_def_waited_on_by.end()){
-						found_wait_target = true;
-						infos.emplace_back(
-							"Requries constexpr definition of this symbol:",
-							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
-						);
-					}
-				}
-
-				evo::debugAssert(found_wait_target, "Didn't find wait target");
 
 				context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
@@ -204,20 +219,45 @@ namespace pcit::panther{
 					std::move(infos)
 				);
 
-				evo::breakpoint();
-				return false;
+				return;
 			}
 
 
 			{
 				const auto lock = std::scoped_lock(visited.waiting_for_lock);
-				for(const ID& waited_for_id : visited.waiting_for){
-					visited_queue.push(waited_for_id);
+				for(const ID& waiting_for_id : visited.waiting_for){
+					const SymbolProc& waiting_for_symbol = context.symbol_proc_manager.getSymbolProc(waiting_for_id);
+
+					{ // declaration
+						const auto decl_lock = std::scoped_lock(waiting_for_symbol.decl_waited_on_lock);
+
+						if(
+							std::ranges::find(waiting_for_symbol.decl_waited_on_by, visited_info.id)
+							!= waiting_for_symbol.decl_waited_on_by.end()
+						){
+							visited_queue.emplace(waiting_for_id, DependencyKind::DECL);
+							continue;
+						}
+					}
+
+
+					{ // definition
+						const auto def_lock = std::scoped_lock(waiting_for_symbol.def_waited_on_lock);
+
+						if(
+							std::ranges::find(waiting_for_symbol.def_waited_on_by, visited_info.id)
+							!= waiting_for_symbol.def_waited_on_by.end()
+						){
+							visited_queue.emplace(waiting_for_id, DependencyKind::DEF);
+							continue;
+						}
+					}
+
 				}
 			}
 		}
 
-		return true;
 	}
+
 
 }

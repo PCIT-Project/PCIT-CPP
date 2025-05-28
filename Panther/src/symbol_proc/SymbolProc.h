@@ -763,7 +763,18 @@ namespace pcit::panther{
 
 
 		private:
-			EVO_NODISCARD auto detect_circular_dependency(ID id, class Context& context) const -> bool;
+			enum class DependencyKind{
+				DECL,
+				DEF,
+			};
+
+			EVO_NODISCARD auto detect_circular_dependency(
+				ID id, class Context& context, DependencyKind initial_dependency_kind
+			) const -> bool;
+
+			auto emit_diagnostic_on_circular_dependency(
+				ID id, class Context& constext, DependencyKind initial_dependency_kind
+			) const -> void;
 
 		private:
 			AST::Node ast_node;

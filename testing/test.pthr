@@ -1,37 +1,7 @@
- 
-type A = struct {
-	var x: UI8 = 0;
-	var b: B;
-	var y: UI8 = 0;
 
-	func create = () -> (output: A) {
-		output = new A{
-			b = new B{},
-			y = @sub<{UI8, false}>(B.add(5, 9), 2),
-		};
-		return...;
-	}
+
+type Node = struct {
+	var value: Int;
+	var next: Node*;
 }
-
-
-type B = struct {
-	func add = (lhs: UI8, rhs: UI8) -> UI8 {
-		return @add<{UI8, false}>(lhs, rhs);
-	}
-}
- 
-
-def A_VAL: A = A.create();
-
-func entry = () #entry -> UI8 {
-	return A_VAL.y;
-}
-
-
-
-
-
-
-
-
 
