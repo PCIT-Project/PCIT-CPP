@@ -72,7 +72,13 @@ namespace pcit::panther{
 
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
+			EVO_NODISCARD auto instr_func_prepare_scope_and_pir_decl(
+				const Instruction::FuncPrepareScopeAndPIRDecl& instr
+			) -> Result;
 			EVO_NODISCARD auto instr_func_def(const Instruction::FuncDef& instr) -> Result;
+			EVO_NODISCARD auto instr_func_prepare_constexpr_pir_if_needed(
+				const Instruction::FuncPrepareConstexprPIRIfNeeded& instr
+			) -> Result;
 			EVO_NODISCARD auto instr_func_constexpr_pir_ready_if_needed() -> Result;
 			EVO_NODISCARD auto instr_template_func(const Instruction::TemplateFunc& instr) -> Result;
 
@@ -299,7 +305,8 @@ namespace pcit::panther{
 			auto propagate_finished_decl() -> void;
 			auto propagate_finished_def() -> void;
 			auto propagate_finished_decl_def() -> void;
-			auto propagate_finished_pir_ready() -> void;
+			auto propagate_finished_pir_decl() -> void;
+			auto propagate_finished_pir_def() -> void;
 
 
 			///////////////////////////////////

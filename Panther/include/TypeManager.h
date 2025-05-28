@@ -137,13 +137,13 @@ namespace pcit::panther{
 			evo::SmallVector<uint64_t> lengths;
 			std::optional<core::GenericValue> terminator;
 
+			EVO_NODISCARD auto isArrayPtr() const -> bool { return this->lengths.empty(); }
 
 			Array(
 				TypeInfoID elem_type_id,
 				evo::SmallVector<uint64_t>&& _lengths,
 				std::optional<core::GenericValue> _terminator
 			) : elementTypeID(elem_type_id), lengths(_lengths), terminator(_terminator) {
-				evo::debugAssert(this->lengths.size() >= 1, "Must have at least 1 length");
 				evo::debugAssert(
 					!(this->lengths.size() > 1 && this->terminator.has_value()),
 					"multi-dimensional arrays cannot be terminated"
@@ -531,8 +531,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isFloatingPoint(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isFloatingPoint(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto getUnderlyingType(TypeInfo::ID id) -> evo::Result<TypeInfo::ID>;
-			EVO_NODISCARD auto getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID>;
+			EVO_NODISCARD auto getUnderlyingType(TypeInfo::ID id) -> TypeInfo::ID; // yes, this operation is not const
+			EVO_NODISCARD auto getUnderlyingType(BaseType::ID id) -> TypeInfo::ID; // yes, this operation is not const
 
 			EVO_NODISCARD auto getMin(TypeInfo::ID id) const -> core::GenericValue;
 			EVO_NODISCARD auto getMin(BaseType::ID id) const -> core::GenericValue;

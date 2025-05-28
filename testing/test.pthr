@@ -1,36 +1,37 @@
+ 
+type A = struct {
+	var x: UI8 = 0;
+	var b: B;
+	var y: UI8 = 0;
 
-
-type Vec2 = struct {
-	var x: F32;
-	var y: F32;
+	func create = () -> (output: A) {
+		output = new A{
+			b = new B{},
+			y = @sub<{UI8, false}>(B.add(5, 9), 2),
+		};
+		return...;
+	}
 }
 
 
-def GLOBAL: Vec2 = get_vec2();
-def GLOBAL_Y: F32 = GLOBAL.y;
-
-func get_vec2 = () -> (output: Vec2) {
-	output = new Vec2{
-		x = 12.0,
-		y = 3.5,
-	};
-	return...;
+type B = struct {
+	func add = (lhs: UI8, rhs: UI8) -> UI8 {
+		return @add<{UI8, false}>(lhs, rhs);
+	}
 }
+ 
 
-
-
-func make_ones = (vec2: Vec2 mut) -> Void {
-	vec2.x = 1.0;
-	vec2.y = 1.0;
-}
-
-
-
+def A_VAL: A = A.create();
 
 func entry = () #entry -> UI8 {
-	var vec2: Vec2 = get_vec2();
-
-	// make_ones(vec2);
-
-	return @fToUI<{F32, UI8}>(@fdiv<{F32, false}>(vec2.x, GLOBAL_Y));
+	return A_VAL.y;
 }
+
+
+
+
+
+
+
+
+

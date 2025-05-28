@@ -46,7 +46,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto build_when_conditional(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_func_call(const AST::Node& stmt) -> evo::Result<>;
 
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto analyze_type(const AST::Type& ast_type) -> evo::Result<SymbolProc::TypeID>;
+
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto analyze_type_base(const AST::Node& ast_type_base) -> evo::Result<SymbolProc::TermInfoID>;
 
 

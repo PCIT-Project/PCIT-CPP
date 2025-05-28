@@ -224,7 +224,7 @@ namespace pcit::panther{
 		auto decl_def_type_id = std::optional<SymbolProc::TypeID>();
 		if(var_decl.type.has_value()){
 			const evo::Result<SymbolProc::TypeID> type_id_res = 
-				this->analyze_type(this->source.getASTBuffer().getType(*var_decl.type));
+				this->analyze_type<true>(this->source.getASTBuffer().getType(*var_decl.type));
 			if(type_id_res.isError()){ return evo::resultError; }
 
 
@@ -340,7 +340,8 @@ namespace pcit::panther{
 					break;
 				}
 					
-				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(ast_buffer.getType(*param.type));
+				const evo::Result<SymbolProc::TypeID> param_type =
+					this->analyze_type<false>(ast_buffer.getType(*param.type));
 				if(param_type.isError()){ return evo::resultError; }
 				types.emplace_back(param_type.value());
 
@@ -356,7 +357,7 @@ namespace pcit::panther{
 			}
 
 			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
-				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(
+				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<false>(
 					ast_buffer.getType(return_param.type)
 				);
 				if(param_type.isError()){ return evo::resultError; }
@@ -364,7 +365,7 @@ namespace pcit::panther{
 			}
 
 			for(const AST::FuncDecl::Return& error_return_param : func_decl.errorReturns){
-				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type(
+				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<false>(
 					ast_buffer.getType(error_return_param.type)
 				);
 				if(param_type.isError()){ return evo::resultError; }
@@ -380,11 +381,28 @@ namespace pcit::panther{
 				)
 			);
 
+
+			// make sure definitions are ready for body of function
+			// TODO(PERF): better way of doing this
+			for(const AST::FuncDecl::Param& param : func_decl.params){
+				std::ignore = this->analyze_type<true>(ast_buffer.getType(*param.type));
+			}
+			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
+				std::ignore = this->analyze_type<true>(ast_buffer.getType(return_param.type));
+			}
+			for(const AST::FuncDecl::Return& error_return_param : func_decl.errorReturns){
+				std::ignore = this->analyze_type<true>(ast_buffer.getType(error_return_param.type));
+			}
+
+			this->add_instruction(Instruction::FuncPrepareScopeAndPIRDecl(func_decl));
+
+
 			for(const AST::Node& func_stmt : ast_buffer.getBlock(func_decl.block).stmts){
 				if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 			}
 
 			this->add_instruction(Instruction::FuncDef(func_decl));
+			this->add_instruction(Instruction::FuncPrepareConstexprPIRIfNeeded(func_decl));
 			this->add_instruction(Instruction::FuncConstexprPIRReadyIfNeeded());
 
 			// need to set again as address may have changed
@@ -422,7 +440,8 @@ namespace pcit::panther{
 
 		this->add_instruction(Instruction::AliasDecl(alias_decl, std::move(attribute_params_info.value())));
 		
-		const evo::Result<SymbolProc::TypeID> aliased_type = this->analyze_type(ast_buffer.getType(alias_decl.type));
+		const evo::Result<SymbolProc::TypeID> aliased_type =
+			this->analyze_type<false>(ast_buffer.getType(alias_decl.type));
 		if(aliased_type.isError()){ return evo::resultError; }
 
 		this->add_instruction(Instruction::AliasDef(alias_decl, aliased_type.value()));
@@ -579,7 +598,7 @@ namespace pcit::panther{
 
 
 
-
+	template<bool NEEDS_DEF>
 	auto SymbolProcBuilder::analyze_type(const AST::Type& ast_type) -> evo::Result<SymbolProc::TypeID> {
 		const SymbolProc::TypeID created_type_id = this->create_type();
 
@@ -587,7 +606,7 @@ namespace pcit::panther{
 			this->add_instruction(Instruction::PrimitiveType(ast_type, created_type_id));
 			return created_type_id;
 		}else{
-			const evo::Result<SymbolProc::TermInfoID> type_base = this->analyze_type_base(ast_type.base);
+			const evo::Result<SymbolProc::TermInfoID> type_base = this->analyze_type_base<NEEDS_DEF>(ast_type.base);
 			if(type_base.isError()){ return evo::resultError; }
 
 			this->add_instruction(Instruction::UserType(ast_type, type_base.value(), created_type_id));
@@ -597,13 +616,13 @@ namespace pcit::panther{
 
 
 
-
+	template<bool NEEDS_DEF>
 	auto SymbolProcBuilder::analyze_type_base(const AST::Node& ast_type_base) -> evo::Result<SymbolProc::TermInfoID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		switch(ast_type_base.kind()){
 			case AST::Kind::IDENT: { 
-				return this->analyze_expr_ident<true>(ast_type_base);
+				return this->analyze_expr_ident<NEEDS_DEF>(ast_type_base);
 			} break;
 
 			case AST::Kind::TYPE_DEDUCER: {
@@ -617,14 +636,16 @@ namespace pcit::panther{
 			case AST::Kind::TEMPLATED_EXPR: {
 				const AST::TemplatedExpr& templated_expr = ast_buffer.getTemplatedExpr(ast_type_base);
 
-				const evo::Result<SymbolProc::TermInfoID> base_type = this->analyze_type_base(templated_expr.base);
+				const evo::Result<SymbolProc::TermInfoID> base_type =
+					this->analyze_type_base<NEEDS_DEF>(templated_expr.base);
 				if(base_type.isError()){ return evo::resultError; }
 
 				auto args = evo::SmallVector<evo::Variant<SymbolProc::TermInfoID, SymbolProc::TypeID>>();
 				args.reserve(templated_expr.args.size());
 				for(const AST::Node& arg : templated_expr.args){
 					if(arg.kind() == AST::Kind::TYPE){
-						const evo::Result<SymbolProc::TypeID> arg_type = this->analyze_type(ast_buffer.getType(arg));
+						const evo::Result<SymbolProc::TypeID> arg_type =
+							this->analyze_type<true>(ast_buffer.getType(arg));
 						if(arg_type.isError()){ return evo::resultError; }
 
 						args.emplace_back(arg_type.value());
@@ -656,7 +677,8 @@ namespace pcit::panther{
 			case AST::Kind::INFIX: { 
 				const AST::Infix& base_type_infix = ast_buffer.getInfix(ast_type_base);
 
-				const evo::Result<SymbolProc::TermInfoID> base_lhs = this->analyze_type_base(base_type_infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> base_lhs =
+					this->analyze_type_base<NEEDS_DEF>(base_type_infix.lhs);
 				if(base_lhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
@@ -753,7 +775,7 @@ namespace pcit::panther{
 
 		auto type_id = std::optional<SymbolProc::TypeID>();
 		if(var_decl.type.has_value()){
-			const evo::Result<SymbolProc::TypeID> type_id_res = this->analyze_type(
+			const evo::Result<SymbolProc::TypeID> type_id_res = this->analyze_type<true>(
 				this->source.getASTBuffer().getType(*var_decl.type)
 			);
 			if(type_id_res.isError()){ return evo::resultError; }
@@ -1025,7 +1047,8 @@ namespace pcit::panther{
 					}else{
 						const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 
-						const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type(ast_buffer.getType(expr));
+						const evo::Result<SymbolProc::TypeID> type_id =
+							this->analyze_type<true>(ast_buffer.getType(expr));
 						if(type_id.isError()){ return evo::resultError; }
 
 						this->add_instruction(Instruction::TypeToTerm(type_id.value(), new_term_info_id));
@@ -1034,22 +1057,22 @@ namespace pcit::panther{
 				} break;
 
 				case AST::Kind::TYPEID_CONVERTER: {
-					if constexpr(MUST_BE_EXPR){
+					// if constexpr(MUST_BE_EXPR){
 						this->emit_error(
 							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 							expr,
 							"Type ID converter is currently unimplemented"
 						);
 						return evo::resultError;
-					}else{
-						const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					// }else{
+					// 	const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 
-						const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type(ast_buffer.getType(expr));
-						if(type_id.isError()){ return evo::resultError; }
+					// 	const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type(ast_buffer.getType(expr));
+					// 	if(type_id.isError()){ return evo::resultError; }
 
-						this->add_instruction(Instruction::TypeToTerm(type_id.value(), new_term_info_id));
-						return new_term_info_id;
-					}
+					// 	this->add_instruction(Instruction::TypeToTerm(type_id.value(), new_term_info_id));
+					// 	return new_term_info_id;
+					// }
 				} break;
 
 				case AST::Kind::VAR_DECL:      case AST::Kind::FUNC_DECL:      case AST::Kind::ALIAS_DECL:
@@ -1090,7 +1113,7 @@ namespace pcit::panther{
 			auto output_types = evo::SmallVector<SymbolProc::TypeID>();
 			output_types.reserve(block.outputs.size());
 			for(const AST::Block::Output& output : block.outputs){
-				const evo::Result<SymbolProc::TypeID> output_type = this->analyze_type(
+				const evo::Result<SymbolProc::TypeID> output_type = this->analyze_type<true>(
 					this->source.getASTBuffer().getType(output.typeID)
 				);
 				if(output_type.isError()){ return evo::resultError; }
@@ -1257,7 +1280,7 @@ namespace pcit::panther{
 		args.reserve(templated_expr.args.size());
 		for(const AST::Node& arg : templated_expr.args){
 			if(arg.kind() == AST::Kind::TYPE){
-				const evo::Result<SymbolProc::TypeID> arg_type = this->analyze_type(ast_buffer.getType(arg));
+				const evo::Result<SymbolProc::TypeID> arg_type = this->analyze_type<true>(ast_buffer.getType(arg));
 				if(arg_type.isError()){ return evo::resultError; }
 
 				args.emplace_back(arg_type.value());
@@ -1440,7 +1463,7 @@ namespace pcit::panther{
 	-> evo::Result<SymbolProc::TermInfoID> {
 		const AST::StructInitNew& struct_init_new =  this->source.getASTBuffer().getStructInitNew(node);
 
-		const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type(
+		const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
 			this->source.getASTBuffer().getType(struct_init_new.type)
 		);
 		if(type_id.isError()){ return evo::resultError; }
@@ -1570,7 +1593,7 @@ namespace pcit::panther{
 				param_ast_type.base.kind() != AST::Kind::PRIMITIVE_TYPE 
 				|| token_buffer[ast_buffer.getPrimitiveType(param_ast_type.base)].kind() != Token::Kind::TYPE_TYPE
 			){
-				const evo::Result<SymbolProc::TypeID> param_type_res = this->analyze_type(param_ast_type);
+				const evo::Result<SymbolProc::TypeID> param_type_res = this->analyze_type<false>(param_ast_type);
 				if(param_type_res.isError()){ return evo::resultError; }
 				param_type = param_type_res.value();
 			}else{

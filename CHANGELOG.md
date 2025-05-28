@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.117.1"></a>
+## v0.0.117.1
+
+### Panther
+- Added more information to circular dependency detection error diagnostic
+- Fixed circular dependency checking methods with the declarations containing the parent struct
+- Fixed fatal error caused by trying to a struct with all members being zero-sized
+- Fixed many issues with empty structs
+
+
+<!---------------------------------->
 <a name="v0.0.117.0"></a>
 ## v0.0.117.0
 

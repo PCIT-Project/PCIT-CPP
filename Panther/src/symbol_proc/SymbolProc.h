@@ -282,7 +282,15 @@ namespace pcit::panther{
 				);
 		};
 
+		struct FuncPrepareScopeAndPIRDecl{
+			const AST::FuncDecl& func_decl;
+		};
+
 		struct FuncDef{
+			const AST::FuncDecl& func_decl;
+		};
+
+		struct FuncPrepareConstexprPIRIfNeeded{
 			const AST::FuncDecl& func_decl;
 		};
 
@@ -577,7 +585,9 @@ namespace pcit::panther{
 			StructDef,
 			TemplateStruct,
 			FuncDecl<false>,
+			FuncPrepareScopeAndPIRDecl,
 			FuncDef,
+			FuncPrepareConstexprPIRIfNeeded,
 			FuncConstexprPIRReadyIfNeeded,
 			TemplateFunc,
 
@@ -696,6 +706,11 @@ namespace pcit::panther{
 				return this->decl_done;
 			}
 
+			EVO_NODISCARD auto isPIRDeclDone() const -> bool {
+				const auto lock = std::scoped_lock(this->waiting_for_lock, this->pir_decl_waited_on_lock);
+				return this->pir_decl_done;
+			}
+
 			EVO_NODISCARD auto isDefDone() const -> bool {
 				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
 					this->waiting_for_lock, this->decl_waited_on_lock, this->def_waited_on_lock
@@ -703,11 +718,9 @@ namespace pcit::panther{
 				return this->def_done;
 			}
 
-			EVO_NODISCARD auto isPIRReadyDone() const -> bool {
-				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
-					this->waiting_for_lock, this->pir_ready_waited_on_lock
-				);
-				return this->pir_ready;
+			EVO_NODISCARD auto isPIRDefDone() const -> bool {
+				const auto lock = std::scoped_lock(this->waiting_for_lock, this->pir_def_waited_on_lock);
+				return this->pir_def_done;
 			}
 
 			EVO_NODISCARD auto hasErrored() const -> bool { return this->errored; }
@@ -744,13 +757,13 @@ namespace pcit::panther{
 			};
 
 			auto waitOnDeclIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
+			auto waitOnPIRDeclIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
 			auto waitOnDefIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
-			auto waitOnPIRReadyIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
+			auto waitOnPIRDefIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
 
 
 		private:
-			auto detect_circular_dependency(ID id, class Context& context) const -> bool;
-
+			EVO_NODISCARD auto detect_circular_dependency(ID id, class Context& context) const -> bool;
 
 		private:
 			AST::Node ast_node;
@@ -774,11 +787,14 @@ namespace pcit::panther{
 			evo::SmallVector<ID> decl_waited_on_by{};
 			mutable core::SpinLock decl_waited_on_lock{};
 
+			evo::SmallVector<ID> pir_decl_waited_on_by{};
+			mutable core::SpinLock pir_decl_waited_on_lock{};
+
 			evo::SmallVector<ID> def_waited_on_by{};
 			mutable core::SpinLock def_waited_on_lock{};
 
-			evo::SmallVector<ID> pir_ready_waited_on_by{};
-			mutable core::SpinLock pir_ready_waited_on_lock{};
+			evo::SmallVector<ID> pir_def_waited_on_by{};
+			mutable core::SpinLock pir_def_waited_on_lock{};
 
 
 			struct NonLocalVarInfo{
@@ -786,9 +802,6 @@ namespace pcit::panther{
 				                                                     //  (invalid after struct def)
 			};
 
-			struct VarInfo{
-				sema::Var::ID sema_var_id;
-			};
 
 			struct WhenCondInfo{
 				evo::SmallVector<SymbolProcID> then_ids;
@@ -815,7 +828,7 @@ namespace pcit::panther{
 			};
 
 			evo::Variant<
-				std::monostate, NonLocalVarInfo, VarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo
+				std::monostate, NonLocalVarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo
 			> extra_info{};
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
@@ -825,7 +838,8 @@ namespace pcit::panther{
 			bool decl_done = false;
 			bool def_done = false;
 			bool pir_lower_done = false;
-			bool pir_ready = false;
+			bool pir_decl_done = false;
+			bool pir_def_done = false;
 			std::atomic<bool> passed_on_by_when_cond = false;
 			std::atomic<bool> errored = false;
 

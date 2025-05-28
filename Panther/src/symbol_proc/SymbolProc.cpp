@@ -56,6 +56,24 @@ namespace pcit::panther{
 		return WaitOnResult::WAITING;
 	}
 
+	auto SymbolProc::waitOnPIRDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
+
+		if(this->isPIRDeclDone()){ return WaitOnResult::NOT_NEEDED; }
+		if(this->errored){ return WaitOnResult::WAS_ERRORED; }
+
+		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
+
+		const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock, waiting_symbol.waiting_for_lock);
+
+		if(this->pir_decl_done){ return WaitOnResult::NOT_NEEDED; }
+
+		this->pir_decl_waited_on_by.emplace_back(id);
+		waiting_symbol.waiting_for.emplace_back(self_id);
+
+		return WaitOnResult::WAITING;
+	}
+
 	auto SymbolProc::waitOnDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
@@ -88,19 +106,19 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProc::waitOnPIRReadyIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+	auto SymbolProc::waitOnPIRDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
-		if(this->isPIRReadyDone()){ return WaitOnResult::NOT_NEEDED; }
+		if(this->isPIRDefDone()){ return WaitOnResult::NOT_NEEDED; }
 		if(this->errored){ return WaitOnResult::WAS_ERRORED; }
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
-		const auto lock = std::scoped_lock(this->pir_ready_waited_on_lock, waiting_symbol.waiting_for_lock);
+		const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock, waiting_symbol.waiting_for_lock);
 
-		if(this->pir_ready){ return WaitOnResult::NOT_NEEDED; }
+		if(this->pir_def_done){ return WaitOnResult::NOT_NEEDED; }
 
-		this->pir_ready_waited_on_by.emplace_back(id);
+		this->pir_def_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
 
 		return WaitOnResult::WAITING;
@@ -125,15 +143,68 @@ namespace pcit::panther{
 			const SymbolProc& visited = context.symbol_proc_manager.getSymbolProc(visited_id);
 
 			if(visited_id == id){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+
+				bool found_wait_target = false;
+
+				{
+					const auto lock = std::scoped_lock(this->decl_waited_on_lock);
+
+					if(std::ranges::find(this->decl_waited_on_by, visited_id) != this->decl_waited_on_by.end()){
+						found_wait_target = true;
+						infos.emplace_back(
+							"Requries declaration of this symbol:",
+							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
+						);
+					}
+				}
+
+				if(!found_wait_target){
+					const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock);
+
+					if(std::ranges::find(this->pir_decl_waited_on_by, visited_id) != this->pir_decl_waited_on_by.end()){
+						found_wait_target = true;
+						infos.emplace_back(
+							"Requries constexpr declaration of this symbol:",
+							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
+						);
+					}
+				}
+
+				if(!found_wait_target){
+					const auto lock = std::scoped_lock(this->decl_waited_on_lock);
+
+					if(std::ranges::find(this->def_waited_on_by, visited_id) != this->def_waited_on_by.end()){
+						found_wait_target = true;
+						infos.emplace_back(
+							"Requries definition of this symbol:",
+							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
+						);
+					}
+				}
+
+				if(!found_wait_target){
+					const auto lock = std::scoped_lock(this->pir_def_waited_on_lock);
+
+					if(std::ranges::find(this->pir_def_waited_on_by, visited_id) != this->pir_def_waited_on_by.end()){
+						found_wait_target = true;
+						infos.emplace_back(
+							"Requries constexpr definition of this symbol:",
+							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
+						);
+					}
+				}
+
+				evo::debugAssert(found_wait_target, "Didn't find wait target");
+
 				context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
 					Diagnostic::Location::get(visited.ast_node, context.getSourceManager()[visited.source_id]),
 					"Detected a circular dependency when analyzing this symbol:",
-					Diagnostic::Info(
-						"Requires this symbol:",
-						Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
-					)
+					std::move(infos)
 				);
+
+				evo::breakpoint();
 				return false;
 			}
 

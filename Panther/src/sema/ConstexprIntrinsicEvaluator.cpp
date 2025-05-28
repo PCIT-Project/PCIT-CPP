@@ -417,7 +417,7 @@ namespace pcit::panther{
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
-			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id).value();
+			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id);
 			const TypeInfo& underlying_type = this->type_manager.getTypeInfo(underlying_id);
 			const BaseType::Primitive& primitive = this->type_manager.getPrimitive(
 				underlying_type.baseTypeID().primitiveID()
@@ -938,7 +938,7 @@ namespace pcit::panther{
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
-			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id).value();
+			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id);
 			const TypeInfo& underlying_type = this->type_manager.getTypeInfo(underlying_id);
 			const BaseType::Primitive& primitive = this->type_manager.getPrimitive(
 				underlying_type.baseTypeID().primitiveID()
@@ -960,7 +960,7 @@ namespace pcit::panther{
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
-			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id).value();
+			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id);
 			const TypeInfo& underlying_type = this->type_manager.getTypeInfo(underlying_id);
 			const BaseType::Primitive& primitive = this->type_manager.getPrimitive(
 				underlying_type.baseTypeID().primitiveID()
@@ -982,7 +982,7 @@ namespace pcit::panther{
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
-			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id).value();
+			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id);
 			const TypeInfo& underlying_type = this->type_manager.getTypeInfo(underlying_id);
 			const BaseType::Primitive& primitive = this->type_manager.getPrimitive(
 				underlying_type.baseTypeID().primitiveID()
@@ -1004,7 +1004,7 @@ namespace pcit::panther{
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
-			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id).value();
+			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id);
 			const TypeInfo& underlying_type = this->type_manager.getTypeInfo(underlying_id);
 			const BaseType::Primitive& primitive = this->type_manager.getPrimitive(
 				underlying_type.baseTypeID().primitiveID()
@@ -1026,7 +1026,7 @@ namespace pcit::panther{
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
-			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id).value();
+			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id);
 			const TypeInfo& underlying_type = this->type_manager.getTypeInfo(underlying_id);
 			const BaseType::Primitive& primitive = this->type_manager.getPrimitive(
 				underlying_type.baseTypeID().primitiveID()
@@ -1113,7 +1113,7 @@ namespace pcit::panther{
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
-			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id).value();
+			const TypeInfo::ID underlying_id = this->type_manager.getUnderlyingType(type_id);
 			const TypeInfo& underlying_type = this->type_manager.getTypeInfo(underlying_id);
 			const BaseType::Primitive& primitive = this->type_manager.getPrimitive(
 				underlying_type.baseTypeID().primitiveID()

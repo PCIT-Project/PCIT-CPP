@@ -138,8 +138,14 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncDecl<false>>()){
 				return this->instr_func_decl<false>(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncPrepareScopeAndPIRDecl>()){
+				return this->instr_func_prepare_scope_and_pir_decl(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncDef>()){
 				return this->instr_func_def(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncPrepareConstexprPIRIfNeeded>()){
+				return this->instr_func_prepare_constexpr_pir_if_needed(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncConstexprPIRReadyIfNeeded>()){
 				return this->instr_func_constexpr_pir_ready_if_needed();
@@ -844,9 +850,6 @@ namespace pcit::panther{
 				if constexpr(std::is_same<ExtraInfo, std::monostate>()){
 					return;
 
-				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::VarInfo>()){
-					return;
-
 				}else if constexpr(std::is_same<ExtraInfo, SymbolProc::NonLocalVarInfo>()){
 					return;
 
@@ -1038,9 +1041,16 @@ namespace pcit::panther{
 				*this->symbol_proc.sema_scope_id
 			);
 
-			const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.def_waited_on_lock);
-			this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
-			member_stmt.def_waited_on_by.emplace_back(this->symbol_proc_id);
+			if(member_stmt.ast_node.kind() == AST::Kind::FUNC_DECL){
+				const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.decl_waited_on_lock);
+				this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
+				member_stmt.decl_waited_on_by.emplace_back(this->symbol_proc_id);
+
+			}else{
+				const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.def_waited_on_lock);
+				this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
+				member_stmt.def_waited_on_by.emplace_back(this->symbol_proc_id);
+			}
 		}
 
 
@@ -1077,17 +1087,10 @@ namespace pcit::panther{
 
 		std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
 
-		if(created_struct.isOrdered){
-			for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
-				created_struct.memberVarsABI.emplace_back(&member_var);
-			}
+		// TODO(FEATURE): optimal ordering (when not #ordered)
 
-		}else{
-			// TODO(FEATURE): optimal ordering
-
-			for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
-				created_struct.memberVarsABI.emplace_back(&member_var);
-			}
+		for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+			created_struct.memberVarsABI.emplace_back(&member_var);
 		}
 
 
@@ -1469,18 +1472,6 @@ namespace pcit::panther{
 			this->context.entry = created_func_id;
 		}
 
-		sema::Func& created_func = this->context.sema_buffer.funcs[created_func_id];
-
-		if(is_constexpr){
-			this->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
-
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-			);
-
-			created_func.constexprJITFunc = sema_to_pir.lowerFuncDecl(created_func_id);
-		}
-
 
 		if constexpr(IS_INSTANTIATION == false){
 			// TODO(FUTURE): manage overloads
@@ -1491,76 +1482,9 @@ namespace pcit::panther{
 			}
 		}
 
+
+		sema::Func& created_func = this->context.sema_buffer.funcs[created_func_id];
 		this->push_scope_level(&created_func.stmtBlock, created_func_id);
-
-
-		//////////////////
-		// adding params to scope
-
-		{	
-			const BaseType::Function& func_type =
-				this->context.getTypeManager().getFunction(created_func_base_type.funcID());
-
-			uint32_t abi_index = 0;
-
-			for(uint32_t i = 0; const AST::FuncDecl::Param& param : instr.func_decl.params){
-				EVO_DEFER([&](){ i += 1; });
-
-				if(this->context.getTypeManager().sizeOf(func_type.params[i].typeID) == 0){ continue; }
-
-				const std::string_view param_name = this->source.getTokenBuffer()[
-					this->source.getASTBuffer().getIdent(param.name)
-				].getString();
-
-				if(this->add_ident_to_scope(
-					param_name, param, this->context.sema_buffer.createParam(i, abi_index)
-				).isError()){
-					return Result::ERROR;
-				}
-
-				abi_index += 1;
-			}
-
-
-			if(func_type.hasNamedReturns()){
-				for(uint32_t i = 0; const AST::FuncDecl::Return& return_param : instr.func_decl.returns){
-					EVO_DEFER([&](){ i += 1; });
-
-					const std::string_view return_param_name =
-						this->source.getTokenBuffer()[*return_param.ident].getString();
-
-					if(this->add_ident_to_scope(
-						return_param_name, return_param, this->context.sema_buffer.createReturnParam(i, abi_index)
-					).isError()){
-						return Result::ERROR;
-					}
-
-					abi_index += 1;
-				}
-			}
-
-
-			if(func_type.hasNamedErrorReturns()){
-				// account for the RET param
-				if(func_type.returnsVoid() == false && func_type.hasNamedReturns() == false){
-					abi_index += 1;
-				}
-
-				
-				for(uint32_t i = 0; const AST::FuncDecl::Return& error_return_param : instr.func_decl.errorReturns){
-					EVO_DEFER([&](){ i += 1; });
-
-					if(this->add_ident_to_scope(
-						this->source.getTokenBuffer()[*error_return_param.ident].getString(),
-						error_return_param,
-						this->context.sema_buffer.createErrorReturnParam(i, abi_index)
-					).isError()){
-						return Result::ERROR;
-					}
-				}
-			}
-		}
-
 
 		///////////////////////////////////
 		// done
@@ -1569,6 +1493,95 @@ namespace pcit::panther{
 
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_func_prepare_scope_and_pir_decl(const Instruction::FuncPrepareScopeAndPIRDecl& instr) 
+	-> Result {
+		const sema::Func::ID current_func_id = this->scope.getCurrentObjectScope().as<sema::Func::ID>();
+		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+
+
+		//////////////////
+		// prepare pir
+
+		if(current_func.isConstexpr){
+			this->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
+
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
+
+			current_func.constexprJITFunc = sema_to_pir.lowerFuncDecl(current_func_id);
+
+			this->propagate_finished_pir_decl();
+		}
+
+
+		//////////////////
+		// adding params to scope
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
+
+		uint32_t abi_index = 0;
+
+		for(uint32_t i = 0; const AST::FuncDecl::Param& param : instr.func_decl.params){
+			EVO_DEFER([&](){ i += 1; });
+
+			const std::string_view param_name = this->source.getTokenBuffer()[
+				this->source.getASTBuffer().getIdent(param.name)
+			].getString();
+
+			if(this->add_ident_to_scope(
+				param_name, param, this->context.sema_buffer.createParam(i, abi_index)
+			).isError()){
+				return Result::ERROR;
+			}
+
+			abi_index += 1;
+		}
+
+
+		if(func_type.hasNamedReturns()){
+			for(uint32_t i = 0; const AST::FuncDecl::Return& return_param : instr.func_decl.returns){
+				EVO_DEFER([&](){ i += 1; });
+
+				const std::string_view return_param_name =
+					this->source.getTokenBuffer()[*return_param.ident].getString();
+
+				if(this->add_ident_to_scope(
+					return_param_name, return_param, this->context.sema_buffer.createReturnParam(i, abi_index)
+				).isError()){
+					return Result::ERROR;
+				}
+
+				abi_index += 1;
+			}
+		}
+
+
+		if(func_type.hasNamedErrorReturns()){
+			// account for the RET param
+			if(func_type.returnsVoid() == false && func_type.hasNamedReturns() == false){
+				abi_index += 1;
+			}
+
+			
+			for(uint32_t i = 0; const AST::FuncDecl::Return& error_return_param : instr.func_decl.errorReturns){
+				EVO_DEFER([&](){ i += 1; });
+
+				if(this->add_ident_to_scope(
+					this->source.getTokenBuffer()[*error_return_param.ident].getString(),
+					error_return_param,
+					this->context.sema_buffer.createErrorReturnParam(i, abi_index)
+				).isError()){
+					return Result::ERROR;
+				}
+			}
+		}
+
+		return Result::SUCCESS;
+	}
+
 
 
 	auto SemanticAnalyzer::instr_func_def(const Instruction::FuncDef& instr) -> Result {
@@ -1598,6 +1611,59 @@ namespace pcit::panther{
 
 		this->get_current_func().defCompleted = true;
 		this->propagate_finished_def();
+
+
+		if(current_func.isConstexpr){
+			bool any_waiting = false;
+			for(
+				sema::Func::ID dependent_func_id
+				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
+			){
+				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
+				const SymbolProc::WaitOnResult wait_on_result = dependent_func.symbolProc.waitOnPIRDeclIfNeeded(
+					this->symbol_proc_id, this->context, dependent_func.symbolProcID
+				);
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NOT_NEEDED:
+						break;
+
+					case SymbolProc::WaitOnResult::WAITING:
+						any_waiting = true; break;
+
+					case SymbolProc::WaitOnResult::WAS_ERRORED:
+						return Result::ERROR;
+
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						evo::debugFatalBreak("Shouldn't be possible");
+
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+						evo::debugFatalBreak("Shouldn't be possible");
+				}
+			}
+
+
+			if(any_waiting){
+				if(this->symbol_proc.shouldContinueRunning()){
+					return Result::SUCCESS;
+				}else{
+					return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				}
+
+			}else{
+				return Result::SUCCESS;
+			}
+		}
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_func_prepare_constexpr_pir_if_needed(
+		const Instruction::FuncPrepareConstexprPIRIfNeeded& instr
+	) -> Result {
+		const sema::Func& current_func = this->get_current_func();
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
 		if(current_func.isConstexpr){
 			{
@@ -1645,36 +1711,13 @@ namespace pcit::panther{
 
 
 
-			auto dependent_funcs = std::unordered_set<sema::Func::ID>();
-			auto dependent_funcs_queue = std::queue<sema::Func::ID>();
-
-			{
-				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-				for(sema::Func::ID dependent_func : func_info.dependent_funcs){
-					dependent_funcs_queue.emplace(dependent_func);
-				}
-			}
-
-			while(dependent_funcs_queue.empty() == false){
-				const sema::Func::ID func_id = dependent_funcs_queue.front();
-				dependent_funcs_queue.pop();
-				if(dependent_funcs.contains(func_id)){ continue; }
-
-				const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
-
-				SymbolProc::FuncInfo& func_info = func.symbolProc.extra_info.as<SymbolProc::FuncInfo>();
-				for(sema::Func::ID dependent_func : func_info.dependent_funcs){
-					dependent_funcs_queue.emplace(dependent_func);
-				}
-
-				dependent_funcs.emplace(func_id);
-			}
-
-
 			bool any_waiting = false;
-			for(sema::Func::ID dependent_func_id : dependent_funcs){
+			for(
+				sema::Func::ID dependent_func_id
+				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
+			){
 				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
-				const SymbolProc::WaitOnResult wait_on_result = dependent_func.symbolProc.waitOnPIRReadyIfNeeded(
+				const SymbolProc::WaitOnResult wait_on_result = dependent_func.symbolProc.waitOnPIRDefIfNeeded(
 					this->symbol_proc_id, this->context, dependent_func.symbolProcID
 				);
 
@@ -1734,7 +1777,6 @@ namespace pcit::panther{
 			}
 		}
 
-
 		return Result::SUCCESS;
 	}
 
@@ -1743,7 +1785,7 @@ namespace pcit::panther{
 		const sema::Func& current_func = this->get_current_func();
 
 		if(current_func.isConstexpr){
-			this->propagate_finished_pir_ready();
+			this->propagate_finished_pir_def();
 		}
 
 		this->pop_scope_level<>();
@@ -2803,7 +2845,7 @@ namespace pcit::panther{
 
 
 			const SymbolProc::WaitOnResult wait_on_result = func_call_impl_res.value().selected_func
-				->symbolProc.waitOnPIRReadyIfNeeded(
+				->symbolProc.waitOnPIRDefIfNeeded(
 					this->symbol_proc_id, this->context, func_call_impl_res.value().selected_func->symbolProcID
 				);
 
@@ -4061,16 +4103,44 @@ namespace pcit::panther{
 			target_type_info.baseTypeID().structID()
 		);
 
+		const Source& target_type_source = this->context.getSourceManager()[target_type.sourceID];
+
+
 		if(target_type.memberVars.empty()){
-			if(instr.struct_init_new.memberInits.empty()){
-				evo::unimplemented("Initialization of empty struct");
+			if(instr.struct_init_new.memberInits.empty() == false){
+				const AST::StructInitNew::MemberInit& member_init = instr.struct_init_new.memberInits[0];
+
+				const std::string_view member_init_ident =
+					target_type_source.getTokenBuffer()[member_init.ident].getString();
+
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
+					member_init.ident,
+					std::format("This struct has no member \"{}\"", member_init_ident),
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("Struct is empty"),
+						Diagnostic::Info(
+							"Struct was declared here:",
+							Diagnostic::Location::get(target_type.identTokenID, target_type_source)
+						)
+					}
+				);
+				return Result::ERROR;
 			}
 
-			evo::unimplemented("Too many member initializers");
+
+			const sema::StructInit::ID created_struct_init = this->context.sema_buffer.createStructInit(
+				target_type_id.asTypeID(), evo::SmallVector<sema::Expr>()
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				target_type_id.asTypeID(),
+				sema::Expr(created_struct_init)
+			);
+			return Result::SUCCESS;
 		}
-
-
-		const Source& target_type_source = this->context.getSourceManager()[target_type.sourceID];
 
 
 		const auto struct_has_member = [&](std::string_view ident) -> bool {
@@ -4083,8 +4153,6 @@ namespace pcit::panther{
 
 			return false;
 		};
-
-
 
 		auto values = evo::SmallVector<sema::Expr>();
 		values.reserve(target_type.memberVars.size());
@@ -7124,15 +7192,21 @@ namespace pcit::panther{
 				auto values = evo::SmallVector<sema::Expr>();
 				values.reserve(value.as<evo::SmallVector<core::GenericValue>>().size());
 
-				for(size_t i = 0; core::GenericValue& member_value : value.as<evo::SmallVector<core::GenericValue>>()){
-					values.emplace_back(
-						this->genericValueToSemaExpr(
-							member_value,
-							this->context.getTypeManager().getTypeInfo(struct_type.memberVars[i].typeID)
-						)
-					);
-				
-					i += 1;
+
+				if(struct_type.memberVars.empty() == false){
+					evo::SmallVector<core::GenericValue>& member_values =
+						value.as<evo::SmallVector<core::GenericValue>>();
+
+					for(size_t i = 0; core::GenericValue& member_value : member_values){
+						values.emplace_back(
+							this->genericValueToSemaExpr(
+								member_value,
+								this->context.getTypeManager().getTypeInfo(struct_type.memberVars[i].typeID)
+							)
+						);
+					
+						i += 1;
+					}
 				}
 
 
@@ -7540,11 +7614,18 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::propagate_finished_pir_ready() -> void {
-		const auto lock = std::scoped_lock(this->symbol_proc.pir_ready_waited_on_lock);
+	auto SemanticAnalyzer::propagate_finished_pir_decl() -> void {
+		const auto lock = std::scoped_lock(this->symbol_proc.pir_decl_waited_on_lock);
 
-		this->symbol_proc.pir_ready = true;
-		this->propagate_finished_impl(this->symbol_proc.pir_ready_waited_on_by);
+		this->symbol_proc.pir_decl_done = true;
+		this->propagate_finished_impl(this->symbol_proc.pir_decl_waited_on_by);
+	}
+
+	auto SemanticAnalyzer::propagate_finished_pir_def() -> void {
+		const auto lock = std::scoped_lock(this->symbol_proc.pir_def_waited_on_lock);
+
+		this->symbol_proc.pir_def_done = true;
+		this->propagate_finished_impl(this->symbol_proc.pir_def_waited_on_by);
 	}
 
 

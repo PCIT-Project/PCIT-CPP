@@ -890,23 +890,23 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// getUnderlyingType
 
-	auto TypeManager::getUnderlyingType(TypeInfo::ID id) -> evo::Result<TypeInfo::ID> {
+	auto TypeManager::getUnderlyingType(TypeInfo::ID id) -> TypeInfo::ID {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
 		if(type_info.qualifiers().empty()){ return this->getUnderlyingType(type_info.baseTypeID()); }
 		
 		if(type_info.qualifiers().back().isPtr){ return TypeManager::getTypeRawPtr(); }
 
-		return evo::resultError;
+		return id;
 	}
 
 	// TODO(PERF): optimize this function
-	auto TypeManager::getUnderlyingType(BaseType::ID id) -> evo::Result<TypeInfo::ID> {
+	auto TypeManager::getUnderlyingType(BaseType::ID id) -> TypeInfo::ID {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY:     evo::debugFatalBreak("Dummy type should not be used");
 			case BaseType::Kind::PRIMITIVE: break;
-			case BaseType::Kind::FUNCTION:  return evo::resultError;
-			case BaseType::Kind::ARRAY:     return evo::resultError;
+			case BaseType::Kind::FUNCTION:  return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ARRAY:     return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
@@ -919,9 +919,9 @@ namespace pcit::panther{
 				);
 				return this->getUnderlyingType(*typedef_info.underlyingType.load());
 			} break;
-			case BaseType::Kind::STRUCT:          return evo::resultError;
-			case BaseType::Kind::STRUCT_TEMPLATE: return evo::resultError;
-			case BaseType::Kind::TYPE_DEDUCER:    return evo::resultError;
+			case BaseType::Kind::STRUCT:          return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::STRUCT_TEMPLATE: evo::debugFatalBreak("Cannot get underlying type of this kind");
+			case BaseType::Kind::TYPE_DEDUCER:    evo::debugFatalBreak("Cannot get underlying type of this kind");
 		}
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());

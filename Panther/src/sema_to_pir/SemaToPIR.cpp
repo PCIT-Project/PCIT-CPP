@@ -101,8 +101,6 @@ namespace pcit::panther{
 		for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
 			EVO_DEFER([&](){ i += 1; });
 
-			if(this->context.getTypeManager().sizeOf(param.typeID) == 0){ continue; }
-
 			std::string param_name = [&](){
 				if(this->data.getConfig().useReadableNames == false){
 					return std::format(".{}", params.size());
@@ -831,12 +829,16 @@ namespace pcit::panther{
 			}
 		}
 
-		if(struct_type.memberVars.empty()){ return std::nullopt; }
 
 		auto member_var_types = evo::SmallVector<pir::Type>();
-		member_var_types.reserve(struct_type.memberVars.size());
-		for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
-			member_var_types.emplace_back(this->get_type<MAY_LOWER_DEPENDENCY>(member_var->typeID));
+
+		if(struct_type.memberVarsABI.empty()){
+			member_var_types.emplace_back(this->module.createIntegerType(1));
+		}else{
+			member_var_types.reserve(struct_type.memberVarsABI.size());
+			for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
+				member_var_types.emplace_back(this->get_type<MAY_LOWER_DEPENDENCY>(member_var->typeID));
+			}
 		}
 
 		const pir::Type new_type = this->module.createStructType(
@@ -1459,7 +1461,6 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::STRUCT_INIT: {
 				const sema::StructInit& struct_init = this->context.getSemaBuffer().getStructInit(expr.structInitID());
-
 
 				if constexpr(MODE != GetExprMode::DISCARD){
 					const pir::Type pir_type = this->get_type<false>(struct_init.typeID);
@@ -3493,6 +3494,13 @@ namespace pcit::panther{
 				const pir::Type aggregate_type = this->get_type<false>(aggregate_value.typeID);
 
 				if(aggregate_type.kind() == pir::Type::Kind::STRUCT){
+					// for empty structs
+					if(values.empty()){
+						values.emplace_back(
+							this->agent.createNumber(this->module.createIntegerType(1), core::GenericInt(1, 0))
+						);
+					}
+
 					return this->module.createGlobalStruct(aggregate_type, std::move(values));
 
 				}else{
