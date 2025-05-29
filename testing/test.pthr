@@ -1,7 +1,15 @@
 
-
-type Node = struct {
-	var value: Int;
-	var next: Node*;
+type Vec2 = struct {
+	var x: F32;
+	var y: F32;
 }
 
+
+func entry = () #entry -> UI8 {
+	def vec2 = new Vec2{
+		x = 0.1,
+		y = 0.2,
+	};	
+	
+	return @fToI<{F32, UI8}>(vec2.y);
+}

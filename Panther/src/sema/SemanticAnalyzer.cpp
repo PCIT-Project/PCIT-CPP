@@ -249,8 +249,11 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Deref>()){
 				return this->instr_deref(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::StructInitNew>()){
-				return this->instr_struct_init_new(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::StructInitNew<true>>()){
+				return this->instr_struct_init_new<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::StructInitNew<false>>()){
+				return this->instr_struct_init_new<false>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::PrepareTryHandler>()){
 				return this->instr_prepare_try_handler(instr);
@@ -4074,8 +4077,8 @@ namespace pcit::panther{
 		return Result::SUCCESS;
 	}
 
-
-	auto SemanticAnalyzer::instr_struct_init_new(const Instruction::StructInitNew& instr) -> Result {
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::instr_struct_init_new(const Instruction::StructInitNew<IS_CONSTEXPR>& instr) -> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
 			this->emit_error(
@@ -4129,15 +4132,33 @@ namespace pcit::panther{
 			}
 
 
-			const sema::StructInit::ID created_struct_init = this->context.sema_buffer.createStructInit(
-				target_type_id.asTypeID(), evo::SmallVector<sema::Expr>()
+			const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
+				evo::SmallVector<sema::Expr>(), target_type_info.baseTypeID()
 			);
+
+			const TermInfo::ValueStage value_stage = [&](){
+				if constexpr(IS_CONSTEXPR){
+					return TermInfo::ValueStage::CONSTEXPR;
+				}else{
+					if(
+						this->scope.inObjectScope() == false
+						|| this->scope.getCurrentObjectScope().is<sema::Func::ID>() == false
+					){
+						return TermInfo::ValueStage::CONSTEXPR;
+					}else if(this->get_current_func().isConstexpr){
+						return TermInfo::ValueStage::COMPTIME;
+					}else{
+						return TermInfo::ValueStage::RUNTIME;
+					}
+				}
+			}();
+
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				value_stage,
 				target_type_id.asTypeID(),
-				sema::Expr(created_struct_init)
+				sema::Expr(created_aggregate_value)
 			);
 			return Result::SUCCESS;
 		}
@@ -4274,16 +4295,33 @@ namespace pcit::panther{
 		}
 
 
-		const sema::StructInit::ID created_struct_init = this->context.sema_buffer.createStructInit(
-			target_type_id.asTypeID(), std::move(values)
+		const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
+			std::move(values), target_type_info.baseTypeID()
 		);
+
+		const TermInfo::ValueStage value_stage = [&](){
+			if constexpr(IS_CONSTEXPR){
+				return TermInfo::ValueStage::CONSTEXPR;
+			}else{
+				if(
+					this->scope.inObjectScope() == false
+					|| this->scope.getCurrentObjectScope().is<sema::Func::ID>() == false
+				){
+					return TermInfo::ValueStage::CONSTEXPR;
+				}else if(this->get_current_func().isConstexpr){
+					return TermInfo::ValueStage::COMPTIME;
+				}else{
+					return TermInfo::ValueStage::RUNTIME;
+				}
+			}
+		}();
 
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+			value_stage,
 			target_type_id.asTypeID(),
-			sema::Expr(created_struct_init)
+			sema::Expr(created_aggregate_value)
 		);
 		return Result::SUCCESS;
 	}

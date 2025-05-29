@@ -456,6 +456,7 @@ namespace pcit::panther{
 		};
 
 
+		template<bool IS_CONSTEXPR>
 		struct StructInitNew{
 			const AST::StructInitNew& struct_init_new;
 			SymbolProcTypeID type_id;
@@ -626,7 +627,8 @@ namespace pcit::panther{
 			AddrOf<true>,
 			AddrOf<false>,
 			Deref,
-			StructInitNew,
+			StructInitNew<true>,
+			StructInitNew<false>,
 			PrepareTryHandler,
 			TryElse,
 			BeginExprBlock,

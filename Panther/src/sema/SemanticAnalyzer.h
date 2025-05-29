@@ -124,7 +124,10 @@ namespace pcit::panther{
 			template<bool IS_READ_ONLY>
 			EVO_NODISCARD auto instr_addr_of(const Instruction::AddrOf<IS_READ_ONLY>& instr) -> Result;
 			EVO_NODISCARD auto instr_deref(const Instruction::Deref& instr) -> Result;
-			EVO_NODISCARD auto instr_struct_init_new(const Instruction::StructInitNew& instr) -> Result;
+
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto instr_struct_init_new(const Instruction::StructInitNew<IS_CONSTEXPR>& instr) -> Result;
+
 			EVO_NODISCARD auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
 			EVO_NODISCARD auto instr_try_else(const Instruction::TryElse& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;

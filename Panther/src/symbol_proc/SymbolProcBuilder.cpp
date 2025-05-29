@@ -1480,7 +1480,9 @@ namespace pcit::panther{
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			Instruction::StructInitNew(struct_init_new, type_id.value(), new_term_info_id, std::move(member_inits))
+			Instruction::StructInitNew<IS_CONSTEXPR>(
+				struct_init_new, type_id.value(), new_term_info_id, std::move(member_inits)
+			)
 		);
 		return new_term_info_id;
 	}

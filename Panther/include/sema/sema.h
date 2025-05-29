@@ -121,12 +121,6 @@ namespace pcit::panther::sema{
 		uint32_t memberABIIndex;
 	};
 
-	struct StructInit{
-		using ID = StructInitID;
-
-		TypeInfo::ID typeID;
-		evo::SmallVector<Expr> memberExprs;
-	};
 
 	struct TryElse{
 		using ID = TryElseID;
