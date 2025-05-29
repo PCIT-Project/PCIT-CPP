@@ -168,11 +168,11 @@ namespace pcit::panther{
 	}
 
 	auto Diagnostic::Location::get(const AST::New& new_expr, const Source& src) -> Location {
-		return Location::get(new_expr.type, src);
+		return Location::get(new_expr.keyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::StructInitNew& new_expr, const Source& src) -> Location {
-		return Location::get(new_expr.type, src);
+		return Location::get(new_expr.keyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::TryElse& try_expr, const Source& src) -> Location {

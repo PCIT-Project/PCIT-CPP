@@ -299,6 +299,7 @@ namespace pcit::panther::AST{
 	};
 
 	struct New{
+		Token::ID keyword;
 		Node type;
 		evo::SmallVector<FuncCall::Arg> args;
 	};
@@ -309,6 +310,7 @@ namespace pcit::panther::AST{
 			Node expr;
 		};
 
+		Token::ID keyword;
 		Node type;
 		evo::SmallVector<MemberInit> memberInits;
 	};

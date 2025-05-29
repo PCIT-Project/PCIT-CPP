@@ -1166,6 +1166,7 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_new_expr() -> Result {
+		const Token::ID keyword_new = this->reader.peek();
 		if(this->assert_token_fail(Token::Kind::KEYWORD_NEW)){ return Result::Code::ERROR; }
 			
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
@@ -1176,14 +1177,16 @@ namespace pcit::panther{
 				evo::Result<evo::SmallVector<AST::FuncCall::Arg>> args = this->parse_func_call_args();
 				if(args.isError()){ return Result::Code::ERROR; }
 
-				return this->source.ast_buffer.createNew(type.value(), std::move(args.value()));
+				return this->source.ast_buffer.createNew(keyword_new, type.value(), std::move(args.value()));
 			} break;
 
 			case Token::lookupKind("{"): {
 				evo::Result<evo::SmallVector<AST::StructInitNew::MemberInit>> member_inits = this->parse_struct_init();
 				if(member_inits.isError()){ return Result::Code::ERROR; }
 
-				return this->source.ast_buffer.createStructInitNew(type.value(), std::move(member_inits.value()));
+				return this->source.ast_buffer.createStructInitNew(
+					keyword_new, type.value(), std::move(member_inits.value())
+				);
 			} break;
 		}
 

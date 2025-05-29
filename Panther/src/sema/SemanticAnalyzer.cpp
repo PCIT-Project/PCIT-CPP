@@ -957,6 +957,10 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		this->context.symbol_proc_manager.addTypeSymbolProc(
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc_id
+		);
+
 		this->propagate_finished_decl();
 		return Result::SUCCESS;
 	}
@@ -1060,6 +1064,10 @@ namespace pcit::panther{
 		if constexpr(IS_INSTANTIATION){
 			struct_info.instantiation->structID = created_struct.structID();
 		}
+
+		this->context.symbol_proc_manager.addTypeSymbolProc(
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_struct)), this->symbol_proc_id
+		);
 
 		this->propagate_finished_decl();
 
@@ -4063,6 +4071,24 @@ namespace pcit::panther{
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
 			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
 		);
+
+
+		const std::optional<SymbolProc::ID> resultant_type_symbol_proc_id =
+			this->context.symbol_proc_manager.getTypeSymbolProc(resultant_type_id);
+
+		if(resultant_type_symbol_proc_id.has_value()){
+			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+				.getSymbolProc(*resultant_type_symbol_proc_id)
+				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *resultant_type_symbol_proc_id);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+			}
+		}
 
 
 		using ValueCategory = TermInfo::ValueCategory;

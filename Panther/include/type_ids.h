@@ -29,6 +29,9 @@ namespace pcit::panther{
 		using core::UniqueID<uint32_t, TypeInfoID>::UniqueID;
 
 
+		EVO_NODISCARD auto hash() const -> size_t { return std::hash<uint32_t>{}(this->get()); }
+
+
 		// This is not the most elegant way of doing this, but I don't want to overcomplicate things for one place
 		EVO_NODISCARD static auto createTemplateDeclInstantiation() -> TypeInfoID {
 			return TypeInfoID(std::numeric_limits<uint32_t>::max() - 1);
@@ -61,6 +64,14 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>::Optional;
 			using pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>::operator=;
+	};
+
+
+	template<>
+	struct hash<pcit::panther::TypeInfoID>{
+		auto operator()(const pcit::panther::TypeInfoID& voidable_id) const noexcept -> size_t {
+			return voidable_id.hash();
+		};
 	};
 
 }

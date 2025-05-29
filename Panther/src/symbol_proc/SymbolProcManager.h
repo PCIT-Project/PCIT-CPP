@@ -46,6 +46,20 @@ namespace pcit::panther{
 			EVO_NODISCARD auto numProcs() const -> size_t { return this->symbol_procs.size(); }
 
 
+			auto addTypeSymbolProc(TypeInfo::ID type_info_id, SymbolProc::ID symbol_proc_id) -> void {
+				const auto lock = std::scoped_lock(this->type_symbol_procs_lock);
+				this->type_symbol_procs.emplace(type_info_id, symbol_proc_id);
+			}
+
+			EVO_NODISCARD auto getTypeSymbolProc(TypeInfo::ID type_info_id) const -> std::optional<SymbolProc::ID> {
+				const auto lock = std::scoped_lock(this->type_symbol_procs_lock);
+				const std::unordered_map<TypeInfo::ID, SymbolProc::ID>::const_iterator find =
+					this->type_symbol_procs.find(type_info_id);
+
+				if(find != this->type_symbol_procs.end()){ return find->second; }
+				return std::nullopt;
+			}
+
 
 		private:
 			auto create_symbol_proc(auto&&... args) -> SymbolProc::ID {
@@ -66,6 +80,9 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<SymbolProc, SymbolProc::ID> symbol_procs{};
 
 			std::atomic<size_t> num_procs_not_done = 0;
+
+			std::unordered_map<TypeInfo::ID, SymbolProc::ID> type_symbol_procs{};
+			mutable core::SpinLock type_symbol_procs_lock{};
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

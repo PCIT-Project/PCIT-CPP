@@ -1,12 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.117.4"></a>
+## v0.0.117.4
+
+### Panther
+- Fixed requiring the definition of the base if the type is a pointer
+- Fixed diagnostic locations of `new` expressions pointing to the type instead of the keyword `new`
+
+
+<!---------------------------------->
 <a name="v0.0.117.3"></a>
 ## v0.0.117.3
 
 ### Panther
 - Fixed constexpr struct initializer
-
 
 
 <!---------------------------------->

@@ -606,7 +606,17 @@ namespace pcit::panther{
 			this->add_instruction(Instruction::PrimitiveType(ast_type, created_type_id));
 			return created_type_id;
 		}else{
-			const evo::Result<SymbolProc::TermInfoID> type_base = this->analyze_type_base<NEEDS_DEF>(ast_type.base);
+			const evo::Result<SymbolProc::TermInfoID> type_base = [&](){
+				if constexpr(NEEDS_DEF){
+					if(ast_type.qualifiers.empty() == false && ast_type.qualifiers.back().isPtr){
+						return this->analyze_type_base<false>(ast_type.base);
+					}else{
+						return this->analyze_type_base<true>(ast_type.base);
+					}
+				}else{
+					return this->analyze_type_base<false>(ast_type.base);
+				}
+			}();
 			if(type_base.isError()){ return evo::resultError; }
 
 			this->add_instruction(Instruction::UserType(ast_type, type_base.value(), created_type_id));
