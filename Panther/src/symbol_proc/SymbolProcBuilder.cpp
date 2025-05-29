@@ -385,13 +385,23 @@ namespace pcit::panther{
 			// make sure definitions are ready for body of function
 			// TODO(PERF): better way of doing this
 			for(const AST::FuncDecl::Param& param : func_decl.params){
-				std::ignore = this->analyze_type<true>(ast_buffer.getType(*param.type));
+				if(param.type.has_value() == false){ continue; }
+				const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
+					ast_buffer.getType(*param.type)
+				);
+				evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 			}
 			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
-				std::ignore = this->analyze_type<true>(ast_buffer.getType(return_param.type));
+				const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
+					ast_buffer.getType(return_param.type)
+				);
+				evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 			}
 			for(const AST::FuncDecl::Return& error_return_param : func_decl.errorReturns){
-				std::ignore = this->analyze_type<true>(ast_buffer.getType(error_return_param.type));
+				const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
+					ast_buffer.getType(error_return_param.type)
+				);
+				evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 			}
 
 			this->add_instruction(Instruction::FuncPrepareScopeAndPIRDecl(func_decl));
@@ -1038,21 +1048,14 @@ namespace pcit::panther{
 				case AST::Kind::THIS:            return this->analyze_expr_this(expr);
 
 				case AST::Kind::TYPE_DEDUCER: {
-					evo::debugAssert(
-						MUST_BE_EXPR == false, "Type deducer should never be allowed in a place where exprs might be"
-					);
-
-					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						expr,
-						"Building symbol proc of type deducer is unimplemented"
-					);
-					return evo::resultError;
+					evo::debugFatalBreak("Type deducer should not be allowed in this context");
 				} break;
 
 				case AST::Kind::TYPE: {
 					if constexpr(MUST_BE_EXPR){
-						this->emit_error(Diagnostic::Code::SYMBOL_PROC_TYPE_USED_AS_EXPR, expr, "Type used as expression");
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_TYPE_USED_AS_EXPR, expr, "Type used as expression"
+						);
 						return evo::resultError;
 					}else{
 						const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();

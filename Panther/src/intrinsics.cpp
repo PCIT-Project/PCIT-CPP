@@ -90,9 +90,7 @@ namespace pcit::panther{
 			{"zext",       Kind::ZEXT},
 			{"fext",       Kind::FEXT},
 			{"iToF",       Kind::I_TO_F},
-			{"uiToF",      Kind::UI_TO_F},
 			{"fToI",       Kind::F_TO_I},
-			{"fToUI",      Kind::F_TO_UI},
 
 			{"add",        Kind::ADD},
 			{"addWrap",    Kind::ADD_WRAP},

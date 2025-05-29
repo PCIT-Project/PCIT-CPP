@@ -109,12 +109,20 @@ namespace pcit::panther::sema{
 		using ID = DerefID;
 
 		Expr expr;
-		TypeInfo::ID typeID;
+		TypeInfo::ID targetTypeID;
 	};
 
 
 	struct Accessor{
 		using ID = AccessorID;
+
+		Expr target;
+		TypeInfo::ID targetTypeID;
+		uint32_t memberABIIndex;
+	};
+
+	struct PtrAccessor{
+		using ID = PtrAccessorID;
 
 		Expr target;
 		TypeInfo::ID targetTypeID;

@@ -51,6 +51,7 @@ namespace pcit::panther::sema{
 			ADDR_OF,
 			DEREF,
 			ACCESSOR,
+			PTR_ACCESSOR,
 			TRY_ELSE,
 			BLOCK_EXPR,
 				
@@ -93,6 +94,7 @@ namespace pcit::panther::sema{
 		explicit Expr(AddrOfID id)           : _kind(Kind::ADDR_OF),            value{.addr_of = id}            {};
 		explicit Expr(DerefID id)            : _kind(Kind::DEREF),              value{.deref = id}              {};
 		explicit Expr(AccessorID id)         : _kind(Kind::ACCESSOR),           value{.accessor = id}           {};
+		explicit Expr(PtrAccessorID id)      : _kind(Kind::PTR_ACCESSOR),       value{.ptr_accessor = id}       {};
 		explicit Expr(TryElseID id)          : _kind(Kind::TRY_ELSE),           value{.try_else = id}           {};
 		explicit Expr(BlockExprID id)        : _kind(Kind::BLOCK_EXPR),         value{.block_expr = id}         {};
 
@@ -186,6 +188,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::ACCESSOR, "not an accessor");
 			return this->value.accessor;
 		}
+		EVO_NODISCARD auto ptrAccessorID() const -> PtrAccessorID {
+			evo::debugAssert(this->kind() == Kind::PTR_ACCESSOR, "not a ptr accessor");
+			return this->value.ptr_accessor;
+		}
 		EVO_NODISCARD auto tryElseID() const -> TryElseID {
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not an try/else");
 			return this->value.try_else;
@@ -266,6 +272,7 @@ namespace pcit::panther::sema{
 				AddrOfID addr_of;
 				DerefID deref;
 				AccessorID accessor;
+				PtrAccessorID ptr_accessor;
 				TryElseID try_else;
 				BlockExprID block_expr;
 				ExceptParamID except_param;

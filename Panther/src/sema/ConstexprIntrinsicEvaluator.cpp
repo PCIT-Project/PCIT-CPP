@@ -101,14 +101,17 @@ namespace pcit::panther{
 		const BaseType::Primitive& to_type_primitive =
 			this->type_manager.getPrimitive(to_type.baseTypeID().primitiveID());
 
+
+		const bool is_signed = this->type_manager.isSignedIntegral(to_type_id);
+
 		core::GenericFloat result = [&](){
 			switch(to_type_primitive.kind()){
-				case Token::Kind::TYPE_F16:  return core::GenericFloat::createF16FromInt(arg, true);
-				case Token::Kind::TYPE_BF16: return core::GenericFloat::createBF16FromInt(arg, true);
-				case Token::Kind::TYPE_F32:  return core::GenericFloat::createF32FromInt(arg, true);
-				case Token::Kind::TYPE_F64:  return core::GenericFloat::createF64FromInt(arg, true);
-				case Token::Kind::TYPE_F80:  return core::GenericFloat::createF80FromInt(arg, true);
-				case Token::Kind::TYPE_F128: return core::GenericFloat::createF128FromInt(arg, true);
+				case Token::Kind::TYPE_F16:  return core::GenericFloat::createF16FromInt(arg, is_signed);
+				case Token::Kind::TYPE_BF16: return core::GenericFloat::createBF16FromInt(arg, is_signed);
+				case Token::Kind::TYPE_F32:  return core::GenericFloat::createF32FromInt(arg, is_signed);
+				case Token::Kind::TYPE_F64:  return core::GenericFloat::createF64FromInt(arg, is_signed);
+				case Token::Kind::TYPE_F80:  return core::GenericFloat::createF80FromInt(arg, is_signed);
+				case Token::Kind::TYPE_F128: return core::GenericFloat::createF128FromInt(arg, is_signed);
 				default: evo::debugFatalBreak("Invalid float type");
 			}
 		}();
@@ -120,32 +123,6 @@ namespace pcit::panther{
 			sema::Expr(this->sema_buffer.createFloatValue(std::move(result), to_type.baseTypeID()))
 		);
 	}
-
-	auto ConstexprIntrinsicEvaluator::uiToF(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
-		const TypeInfo& to_type = this->type_manager.getTypeInfo(to_type_id);
-		const BaseType::Primitive& to_type_primitive =
-			this->type_manager.getPrimitive(to_type.baseTypeID().primitiveID());
-
-		core::GenericFloat result = [&](){
-			switch(to_type_primitive.kind()){
-				case Token::Kind::TYPE_F16:  return core::GenericFloat::createF16FromInt(arg, false);
-				case Token::Kind::TYPE_BF16: return core::GenericFloat::createBF16FromInt(arg, false);
-				case Token::Kind::TYPE_F32:  return core::GenericFloat::createF32FromInt(arg, false);
-				case Token::Kind::TYPE_F64:  return core::GenericFloat::createF64FromInt(arg, false);
-				case Token::Kind::TYPE_F80:  return core::GenericFloat::createF80FromInt(arg, false);
-				case Token::Kind::TYPE_F128: return core::GenericFloat::createF128FromInt(arg, false);
-				default: evo::debugFatalBreak("Invalid float type");
-			}
-		}();
-
-		return TermInfo(
-			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
-			to_type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(std::move(result), to_type.baseTypeID()))
-		);
-	}
-
 
 
 	auto ConstexprIntrinsicEvaluator::fToI(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
@@ -154,32 +131,18 @@ namespace pcit::panther{
 			return this->type_manager.getPrimitive(type_info.baseTypeID().primitiveID()).bitWidth();
 		}();
 
-		return TermInfo(
-			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
-			to_type_id,
-			sema::Expr(this->sema_buffer.createIntValue(
-				arg.toGenericInt(unsigned(bit_width), true), this->type_manager.getTypeInfo(to_type_id).baseTypeID())
-			)
-		);
-	}
-
-	auto ConstexprIntrinsicEvaluator::fToUI(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
-		const size_t bit_width = [&](){
-			const TypeInfo& type_info = this->type_manager.getTypeInfo(to_type_id);
-			return this->type_manager.getPrimitive(type_info.baseTypeID().primitiveID()).bitWidth();
-		}();
+		const bool is_signed = this->type_manager.isSignedIntegral(to_type_id);
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(
-				arg.toGenericInt(unsigned(bit_width), false), this->type_manager.getTypeInfo(to_type_id).baseTypeID())
+				arg.toGenericInt(unsigned(bit_width), is_signed),
+				this->type_manager.getTypeInfo(to_type_id).baseTypeID())
 			)
 		);
 	}
-
 
 
 

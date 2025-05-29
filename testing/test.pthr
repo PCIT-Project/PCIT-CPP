@@ -1,22 +1,18 @@
 
-
-const vec2: Vec2 = new Vec2{
-	x = 1,
-	y = 2,
-};
-
-
 type Vec2 = struct {
-	var x: UI8;
-	var y: UI8;
+	var x: F32;
+	var y: F32;
 }
 
 
 
 func entry = () #entry -> UI8 {
-	return copy (&vec2).*.y;
+	const vec2 = new Vec2{
+		x = 8.4,
+		y = 3.6,
+	};
+
+	const vec2_ptr: Vec2*| = &vec2;
+	
+	return @fToI<{F32, UI8}>(@iToF<{UI8, F32}>(@fToI<{F32, UI8}>(vec2_ptr.y)));
 }
-
-
-
-

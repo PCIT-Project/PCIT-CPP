@@ -44,9 +44,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto zext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo;
 			EVO_NODISCARD auto fext(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo;
 			EVO_NODISCARD auto iToF(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo;
-			EVO_NODISCARD auto uiToF(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo;
 			EVO_NODISCARD auto fToI(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo;
-			EVO_NODISCARD auto fToUI(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo;
 
 
 

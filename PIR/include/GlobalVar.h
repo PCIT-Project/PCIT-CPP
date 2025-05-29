@@ -66,11 +66,11 @@ namespace pcit::pir{
 
 
 
-		std::string name;
-		Type type;
-		Linkage linkage;
+		const std::string name;
+		const Type type;
+		const Linkage linkage;
 		Value value;
-		bool isConstant;
+		const bool isConstant;
 
 		// For lookup in Module
 		struct ID : public core::UniqueID<uint32_t, struct ID> {

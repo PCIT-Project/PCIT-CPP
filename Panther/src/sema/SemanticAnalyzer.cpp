@@ -3369,34 +3369,12 @@ namespace pcit::panther{
 					));
 				}else{
 					create_runtime_call(selected_func.value().selected_func_type.returnParams);
-				}(selected_func.value().selected_func_type.returnParams);
-			} break;
-
-			case TemplateIntrinsicFunc::Kind::UI_TO_F: {
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.uiToF(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
-						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
-					));
-				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
-				}(selected_func.value().selected_func_type.returnParams);
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::F_TO_I: {
 				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fToUI(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
-						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
-					));
-				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
-				}(selected_func.value().selected_func_type.returnParams);
-			} break;
-
-			case TemplateIntrinsicFunc::Kind::F_TO_UI: {
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fToUI(
+					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fToI(
 						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
@@ -5369,13 +5347,28 @@ namespace pcit::panther{
 		const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>());
 		const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
 
+		bool is_pointer = false;
+
 		if(actual_lhs_type.qualifiers().empty() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-				instr.infix.lhs,
-				"Accessor operator of this LHS is unimplemented"
-			);
-			return Result::ERROR;
+			if(lhs.value_stage == TermInfo::ValueStage::CONSTEXPR){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+					instr.infix.lhs,
+					"Accessor operator of this LHS is unimplemented"
+				);
+				return Result::ERROR;
+			}else{
+				if(actual_lhs_type.qualifiers().size() > 1){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+						instr.infix.lhs,
+						"Accessor operator of this LHS is invalid"
+					);
+					return Result::ERROR;
+				}
+
+				is_pointer = true;
+			}
 		}
 
 		if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::STRUCT){
@@ -5429,13 +5422,29 @@ namespace pcit::panther{
 					);
 					
 				}else{
+					const sema::Expr sema_expr = [&](){
+						if(is_pointer){
+							const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+								TypeInfo(actual_lhs_type.baseTypeID())
+							);
+
+							return sema::Expr(
+								this->context.sema_buffer.createPtrAccessor(
+									lhs.getExpr(), resultant_type_id, uint32_t(i)
+								)
+							);
+						}else{
+							return sema::Expr(
+								this->context.sema_buffer.createAccessor(lhs.getExpr(), actual_lhs_type_id, uint32_t(i))
+							);
+						}
+					}();
+
 					this->return_term_info(instr.output,
 						value_category,
 						this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
 						member_var->typeID,
-						sema::Expr(
-							this->context.sema_buffer.createAccessor(lhs.getExpr(), actual_lhs_type_id, uint32_t(i))
-						)
+						sema_expr
 					);
 				}
 

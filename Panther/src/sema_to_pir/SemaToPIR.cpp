@@ -1424,7 +1424,7 @@ namespace pcit::panther{
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createLoad(
 						this->get_expr_register(deref.expr),
-						this->get_type<false>(deref.typeID),
+						this->get_type<false>(deref.targetTypeID),
 						false,
 						pir::AtomicOrdering::NONE,
 						"DEREF"
@@ -1439,7 +1439,7 @@ namespace pcit::panther{
 					this->agent.createMemcpy(
 						store_locations.front(),
 						this->get_expr_register(deref.expr),
-						this->get_type<false>(deref.typeID)
+						this->get_type<false>(deref.targetTypeID)
 					);
 					return std::nullopt;
 
@@ -1482,6 +1482,57 @@ namespace pcit::panther{
 				}else if constexpr(MODE == GetExprMode::STORE){
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
 						this->get_expr_pointer(accessor.target),
+						target_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
+						this->name("ACCESSOR")
+					);
+
+					this->agent.createMemcpy(
+						store_locations[0],
+						calc_ptr,
+						this->get_type<false>(target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID)
+					);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
+			} break;
+
+			case sema::Expr::Kind::PTR_ACCESSOR: {
+				const sema::PtrAccessor& accessor = this->context.getSemaBuffer().getPtrAccessor(expr.ptrAccessorID());
+
+				const pir::Type target_pir_type = this->get_type<false>(accessor.targetTypeID);
+
+				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(accessor.targetTypeID);
+				const BaseType::Struct& target_struct_type = this->context.getTypeManager().getStruct(
+					target_type.baseTypeID().structID()
+				);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					const pir::Expr calc_ptr = this->agent.createCalcPtr(
+						this->get_expr_register(accessor.target),
+						target_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
+						this->name("ACCESSOR")
+					);
+
+					return this->agent.createLoad(
+						calc_ptr,
+						this->get_type<false>(target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID)
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->agent.createCalcPtr(
+						this->get_expr_register(accessor.target),
+						target_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
+						this->name("ACCESSOR")
+					);
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					const pir::Expr calc_ptr = this->agent.createCalcPtr(
+						this->get_expr_register(accessor.target),
 						target_pir_type,
 						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
 						this->name("ACCESSOR")
@@ -2270,32 +2321,21 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::I_TO_F: {
-				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+				const pir::Type to_type = this->get_type<false>(
+					instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID()
+				);
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createIToF(from_value, to_type);
 
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return register_value;
+				const pir::Expr register_value = [&](){
+					const TypeInfo::ID from_type_id = 
+						instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
 
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
-					this->agent.createStore(pointer_alloca, register_value);
-					return pointer_alloca;
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					this->agent.createStore(store_locations[0], register_value);
-					return std::nullopt;
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case TemplateIntrinsicFunc::Kind::UI_TO_F: {
-				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
-				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createUIToF(from_value, to_type);
+					if(this->context.type_manager.isUnsignedIntegral(from_type_id)){
+						return this->agent.createUIToF(from_value, to_type);
+					}else{
+						return this->agent.createIToF(from_value, to_type);
+					}
+				}();
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -2314,10 +2354,18 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::F_TO_I: {
-				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+				const TypeInfo::VoidableID to_type_id =
+					instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
+				const pir::Type to_type = this->get_type<false>(to_type_id);
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createFToI(from_value, to_type);
+
+				const pir::Expr register_value = [&](){
+					if(this->context.getTypeManager().isUnsignedIntegral(to_type_id)){
+						return this->agent.createFToUI(from_value, to_type);
+					}else{
+						return this->agent.createFToI(from_value, to_type);
+					}
+				}();
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -2334,29 +2382,6 @@ namespace pcit::panther{
 					return std::nullopt;
 				}
 			} break;
-
-			case TemplateIntrinsicFunc::Kind::F_TO_UI: {
-				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
-				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createFToUI(from_value, to_type);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return register_value;
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
-					this->agent.createStore(pointer_alloca, register_value);
-					return pointer_alloca;
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					this->agent.createStore(store_locations[0], register_value);
-					return std::nullopt;
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
 
 			case TemplateIntrinsicFunc::Kind::ADD: {
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
@@ -3515,17 +3540,17 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:      case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:       case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:              case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:           case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:           case sema::Expr::Kind::DEREF:
-			case sema::Expr::Kind::ACCESSOR:          case sema::Expr::Kind::TRY_ELSE:
-			case sema::Expr::Kind::BLOCK_EXPR:        case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:      case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::VAR:               case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:               case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:            case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:            case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::ACCESSOR:           case sema::Expr::Kind::PTR_ACCESSOR:
+			case sema::Expr::Kind::TRY_ELSE:           case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::PARAM:              case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM: case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:       case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:         case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

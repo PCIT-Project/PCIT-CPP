@@ -328,6 +328,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// ptr accessors
+
+			EVO_NODISCARD auto createPtrAccessor(auto&&... args) -> sema::PtrAccessor::ID {
+				return this->ptr_accessors.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getPtrAccessor(sema::PtrAccessor::ID id) const -> const sema::PtrAccessor& {
+				return this->ptr_accessors[id];
+			}
+
+
+			///////////////////////////////////
 			// try/else
 
 			EVO_NODISCARD auto createTryElse(auto&&... args) -> sema::TryElse::ID {
@@ -500,6 +512,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
 			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
+			core::SyncLinearStepAlloc<sema::PtrAccessor, sema::PtrAccessor::ID> ptr_accessors{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 

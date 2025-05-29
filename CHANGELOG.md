@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.118.0"></a>
+## v0.0.118.0
+
+### Panther
+- Added auto-dereferencing accessor operator
+- Combined `@fToI` and `@fToUI`
+- Combined `@iToF` and `@uiToF`
+
+
+<!---------------------------------->
 <a name="v0.0.117.4"></a>
 ## v0.0.117.4
 

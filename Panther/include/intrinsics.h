@@ -47,9 +47,7 @@ namespace pcit::panther{
 			ZEXT,
 			FEXT,
 			I_TO_F,
-			UI_TO_F,
 			F_TO_I,
-			F_TO_UI,
 
 			// arithmetic
 			ADD,

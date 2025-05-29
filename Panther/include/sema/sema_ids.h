@@ -85,6 +85,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, AccessorID>::UniqueID;
 	};
 
+	struct PtrAccessorID : public core::UniqueID<uint32_t, struct PtrAccessorID> {
+		using core::UniqueID<uint32_t, PtrAccessorID>::UniqueID;
+	};
+
 	struct TryElseID : public core::UniqueID<uint32_t, struct TryElseID> {
 		using core::UniqueID<uint32_t, TryElseID>::UniqueID;
 	};
