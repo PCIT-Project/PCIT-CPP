@@ -350,6 +350,7 @@ namespace pcit::panther{
 				return this->try_elses[id];
 			}
 
+
 			///////////////////////////////////
 			// block expr
 
@@ -359,6 +360,18 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getBlockExpr(sema::BlockExpr::ID id) const -> const sema::BlockExpr& {
 				return this->block_exprs[id];
+			}
+
+
+			///////////////////////////////////
+			// method this
+
+			EVO_NODISCARD auto createFakeTermInfo(auto&&... args) -> sema::FakeTermInfo::ID {
+				return this->fake_term_infos.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getFakeTermInfo(sema::FakeTermInfo::ID id) const -> const sema::FakeTermInfo& {
+				return this->fake_term_infos[id];
 			}
 
 
@@ -515,6 +528,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::PtrAccessor, sema::PtrAccessor::ID> ptr_accessors{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
+			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};
 
 			core::SyncLinearStepAlloc<
 				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID

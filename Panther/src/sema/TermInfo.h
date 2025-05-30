@@ -33,6 +33,7 @@ namespace pcit::panther{
 			INITIALIZER, // uninit / zeroinit
 			MODULE,
 			FUNCTION, // function, not func pointer
+			METHOD_CALL, // the expr is the 'this'
 			INTRINSIC_FUNC,
 			TEMPLATE_INTRINSIC_FUNC, // uninstantiated
 			TEMPLATE_TYPE,           // uninstantiated
@@ -62,7 +63,7 @@ namespace pcit::panther{
 			TemplateDeclInstantiationType,  // TEMPLATE_DECL_INSTANTIATION_TYPE
 			ExceptParamPack,                // EXCEPT_PARAM_PACK
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
-			FuncOverloadList,               // FUNCTION
+			FuncOverloadList,               // FUNCTION|METHOD_CALL
 			TypeInfo::VoidableID,           // TYPE
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
@@ -170,6 +171,10 @@ namespace pcit::panther{
 						evo::debugAssert(this->type_id.is<SourceID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::FUNCTION:
+						// evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TermInfo creation");
+						evo::debugFatalBreak("Incorrect TermInfo creation");
+
+					break; case ValueCategory::METHOD_CALL:
 						evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::INTRINSIC_FUNC:
@@ -218,6 +223,37 @@ namespace pcit::panther{
 		#endif
 
 
+		EVO_NODISCARD static auto fromFakeTermInfo(const sema::FakeTermInfo& fake_term_info) -> TermInfo {
+			const ValueCategory value_category = [&](){
+				switch(fake_term_info.valueCategory){
+					case sema::FakeTermInfo::ValueCategory::EPHEMERAL:
+						return ValueCategory::EPHEMERAL;
+
+					case sema::FakeTermInfo::ValueCategory::CONCRETE_CONST:
+						return ValueCategory::CONCRETE_CONST;
+
+					case sema::FakeTermInfo::ValueCategory::CONCRETE_MUT:
+						return ValueCategory::CONCRETE_MUT;
+
+					case sema::FakeTermInfo::ValueCategory::CONCRETE_FORWARDABLE:
+						return ValueCategory::CONCRETE_FORWARDABLE;
+				}
+				evo::unreachable();
+			}();
+
+			const ValueStage value_stage = [&](){
+				switch(fake_term_info.valueStage){
+					case sema::FakeTermInfo::ValueStage::CONSTEXPR: return ValueStage::CONSTEXPR;
+					case sema::FakeTermInfo::ValueStage::COMPTIME:  return ValueStage::COMPTIME;
+					case sema::FakeTermInfo::ValueStage::RUNTIME:   return ValueStage::RUNTIME;
+				}
+				evo::unreachable();
+			}();
+
+			return TermInfo(value_category, value_stage, fake_term_info.typeID, fake_term_info.expr);
+		}
+
+
 		///////////////////////////////////
 		// value type checking
 
@@ -234,7 +270,8 @@ namespace pcit::panther{
 
 		EVO_NODISCARD constexpr auto is_const() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST 
-				|| this->value_category == ValueCategory::FUNCTION;
+				|| this->value_category == ValueCategory::FUNCTION
+				|| this->value_category == ValueCategory::METHOD_CALL;
 		}
 
 
@@ -244,7 +281,8 @@ namespace pcit::panther{
 		EVO_NODISCARD auto isSingleValue() const -> bool {
 			return this->type_id.is<TypeInfo::ID>()
 				|| this->type_id.is<FluidType>()
-				|| this->type_id.is<InitializerType>();
+				|| this->type_id.is<InitializerType>()
+				|| this->value_category == ValueCategory::METHOD_CALL;
 		}
 
 		EVO_NODISCARD auto getExpr() const -> const sema::Expr& {

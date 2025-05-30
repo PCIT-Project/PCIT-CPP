@@ -127,6 +127,34 @@ namespace pcit::panther::sema{
 					}
 
 
+
+					auto addThisParam(sema::Param::ID param_id) -> void {
+						evo::debugAssert(
+							this->object_scopes.empty() == false
+								&& this->object_scopes.back().obj_scope.is<sema::Func::ID>(),
+							"Cannot set [this] param not in an a func object scope"
+						);
+
+						evo::debugAssert(
+							this->object_scopes.back().this_param.has_value() == false,
+							"[this] param was already set for this function scope"
+						);
+
+						this->object_scopes.back().this_param = param_id;
+					}
+
+
+					EVO_NODISCARD auto getThisParam() const -> std::optional<sema::Param::ID> {
+						evo::debugAssert(
+							this->object_scopes.empty() == false
+								&& this->object_scopes.back().obj_scope.is<sema::Func::ID>(),
+							"Cannot get [this] param not in an a func object scope"
+						);
+
+						return this->object_scopes.back().this_param;
+					}
+
+
 					///////////////////////////////////
 					// template instantiation types
 
@@ -168,6 +196,7 @@ namespace pcit::panther::sema{
 					struct ObjectScopeData{
 						ObjectScope obj_scope;
 						uint32_t scope_level_index;
+						std::optional<sema::Param::ID> this_param;
 					};
 
 					// TODO(PERF): use a stack?

@@ -1,13 +1,5 @@
 
 
-
-
-func get_num_templ = <{T: Type}> () #pub -> T {
-	return 12;
-}
-
-
-
-func get_num = () #pub -> UI8 {
-	return 12;
+func test = () #pub -> UI8 {
+	return 14;
 }

@@ -105,7 +105,14 @@ namespace pcit::panther{
 				if(this->data.getConfig().useReadableNames == false){
 					return std::format(".{}", params.size());
 				}else{
-					return std::string(this->current_source->getTokenBuffer()[func.params[i].ident].getString());
+					const Token& token = this->current_source->getTokenBuffer()[func.params[i].ident];
+
+					if(token.kind() == Token::Kind::KEYWORD_THIS){
+						return std::string("this");
+					}else{
+						return std::string(token.getString());
+					}
+
 				}
 			}();
 
@@ -1599,7 +1606,10 @@ namespace pcit::panther{
 					this->pop_scope_level();
 					return std::nullopt;
 				}
+			} break;
 
+			case sema::Expr::Kind::FAKE_TERM_INFO: {
+				evo::debugFatalBreak("Should never lower fake term info");
 			} break;
 
 			case sema::Expr::Kind::TRY_ELSE: {
@@ -3540,17 +3550,18 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:       case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:      case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:               case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:            case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:            case sema::Expr::Kind::DEREF:
-			case sema::Expr::Kind::ACCESSOR:           case sema::Expr::Kind::PTR_ACCESSOR:
-			case sema::Expr::Kind::TRY_ELSE:           case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::PARAM:              case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM: case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:       case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::GLOBAL_VAR:         case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:              case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:           case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:           case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::ACCESSOR:          case sema::Expr::Kind::PTR_ACCESSOR:
+			case sema::Expr::Kind::TRY_ELSE:          case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:    case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:      case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::VAR:               case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

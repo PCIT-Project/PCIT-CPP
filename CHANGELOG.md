@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.119.0"></a>
+## v0.0.119.0
+
+### Panther
+- Added struct methods
+
+### Misc
+- Updated to [Panther-std v0.0.2.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.2.0)
+
+
+<!---------------------------------->
 <a name="v0.0.118.0"></a>
 ## v0.0.118.0
 

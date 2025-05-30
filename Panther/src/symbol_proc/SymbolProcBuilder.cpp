@@ -329,6 +329,7 @@ namespace pcit::panther{
 				this->analyze_attributes(ast_buffer.getAttributeBlock(func_decl.attributeBlock));
 			if(attribute_params_info.isError()){ return evo::resultError; }
 
+
 			auto types = evo::SmallVector<std::optional<SymbolProcTypeID>>();
 			types.reserve(func_decl.params.size() + func_decl.returns.size() + func_decl.errorReturns.size());
 
@@ -337,7 +338,8 @@ namespace pcit::panther{
 			for(const AST::FuncDecl::Param& param : func_decl.params){
 				if(param.type.has_value() == false){
 					types.emplace_back();
-					break;
+					default_param_values.emplace_back();
+					continue;
 				}
 					
 				const evo::Result<SymbolProc::TypeID> param_type =
@@ -385,11 +387,14 @@ namespace pcit::panther{
 			// make sure definitions are ready for body of function
 			// TODO(PERF): better way of doing this
 			for(const AST::FuncDecl::Param& param : func_decl.params){
-				if(param.type.has_value() == false){ continue; }
-				const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
-					ast_buffer.getType(*param.type)
-				);
-				evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
+				if(param.type.has_value()){
+					const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
+						ast_buffer.getType(*param.type)
+					);
+					evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
+				}else{
+					this->add_instruction(Instruction::RequireThisDef{});
+				}
 			}
 			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
 				const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
@@ -1045,7 +1050,7 @@ namespace pcit::panther{
 				case AST::Kind::LITERAL:         return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
 				case AST::Kind::UNINIT:          return this->analyze_expr_uninit(ast_buffer.getUninit(expr));
 				case AST::Kind::ZEROINIT:        return this->analyze_expr_zeroinit(ast_buffer.getZeroinit(expr));
-				case AST::Kind::THIS:            return this->analyze_expr_this(expr);
+				case AST::Kind::THIS:            return this->analyze_expr_this(ast_buffer.getThis(expr));
 
 				case AST::Kind::TYPE_DEDUCER: {
 					evo::debugFatalBreak("Type deducer should not be allowed in this context");
@@ -1564,11 +1569,10 @@ namespace pcit::panther{
 		return new_term_info_id;
 	}
 
-	auto SymbolProcBuilder::analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE, node, "Building symbol proc of this is unimplemented"
-		);
-		return evo::resultError;
+	auto SymbolProcBuilder::analyze_expr_this(const Token::ID& this_token) -> evo::Result<SymbolProc::TermInfoID> {
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		this->add_instruction(Instruction::This(this_token, new_term_info_id));
+		return new_term_info_id;
 	}
 
 

@@ -378,6 +378,8 @@ namespace pcit::panther{
 			SymbolProcTermInfoID to;
 		};
 
+		struct RequireThisDef{};
+
 		template<bool IS_CONSTEXPR, bool ERRORS>
 		struct FuncCallExpr{
 			const AST::FuncCall& func_call;
@@ -556,6 +558,11 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct This{
+			Token::ID this_token;
+			SymbolProcTermInfoID output;
+		};
+
 		struct TypeDeducer{
 			Token::ID type_deducer_token;
 			SymbolProcTermInfoID output;
@@ -609,6 +616,7 @@ namespace pcit::panther{
 
 			// misc expr
 			TypeToTerm,
+			RequireThisDef,
 			// FuncCallExpr<true, true>,
 			FuncCallExpr<true, false>,
 			FuncCallExpr<false, true>,
@@ -650,6 +658,7 @@ namespace pcit::panther{
 			Literal,
 			Uninit,
 			Zeroinit,
+			This,
 			TypeDeducer
 		> inst;
 	};

@@ -99,6 +99,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
+			EVO_NODISCARD auto instr_require_this_def() -> Result;
 
 			template<bool IS_CONSTEXPR, bool ERRORS>
 			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR, ERRORS>& instr)
@@ -148,7 +149,28 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_literal(const Instruction::Literal& instr) -> Result;
 			EVO_NODISCARD auto instr_uninit(const Instruction::Uninit& instr) -> Result;
 			EVO_NODISCARD auto instr_zeroinit(const Instruction::Zeroinit& instr) -> Result;
+			EVO_NODISCARD auto instr_this(const Instruction::This& instr) -> Result;
 			EVO_NODISCARD auto instr_type_deducer(const Instruction::TypeDeducer& instr) -> Result;
+
+
+
+			///////////////////////////////////
+			// accessors
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto module_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs
+			) -> Result;
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto struct_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs
+			) -> Result;
+
 
 
 			///////////////////////////////////
@@ -223,7 +245,8 @@ namespace pcit::panther{
 
 			struct SelectFuncOverloadArgInfo{
 				TermInfo& term_info;
-				const AST::FuncCall::Arg& ast_arg;
+				AST::Node ast_node;
+				std::optional<Token::ID> label;
 			};
 
 			EVO_NODISCARD auto select_func_overload(
@@ -310,6 +333,8 @@ namespace pcit::panther{
 			auto propagate_finished_decl_def() -> void;
 			auto propagate_finished_pir_decl() -> void;
 			auto propagate_finished_pir_def() -> void;
+
+
 
 
 			///////////////////////////////////

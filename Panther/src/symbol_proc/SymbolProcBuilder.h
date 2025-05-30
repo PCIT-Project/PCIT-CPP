@@ -115,7 +115,7 @@ namespace pcit::panther{
 				-> evo::Result<SymbolProc::TermInfoID>;
 			EVO_NODISCARD auto analyze_expr_zeroinit(const Token::ID& zeroinit_token)
 				-> evo::Result<SymbolProc::TermInfoID>;
-			EVO_NODISCARD auto analyze_expr_this(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
+			EVO_NODISCARD auto analyze_expr_this(const Token::ID& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 
 			EVO_NODISCARD auto analyze_attributes(const AST::AttributeBlock& attribute_block)

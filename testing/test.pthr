@@ -1,18 +1,25 @@
 
+
 type Vec2 = struct {
 	var x: F32;
 	var y: F32;
+
+	func sum = (this) #rt -> F32 {
+		return @fadd<{F32}>(this.x, this.y);
+	}
+
+	func increment = (this mut, ammount: F32 = 1.0) #rt -> Vec2* {
+		this.x = @fadd<{F32}>(this.x, copy ammount);
+		this.y = @fadd<{F32}>(this.y, copy ammount);
+
+		return &this;
+	}
 }
 
 
 
 func entry = () #entry -> UI8 {
-	const vec2 = new Vec2{
-		x = 8.4,
-		y = 3.6,
-	};
+	const vec2 = copy (new Vec2{x = 8.4, y = 3.6}).increment().*;
 
-	const vec2_ptr: Vec2*| = &vec2;
-	
-	return @fToI<{F32, UI8}>(@iToF<{UI8, F32}>(@fToI<{F32, UI8}>(vec2_ptr.y)));
+	return @fToI<{F32, UI8}>(vec2.sum());
 }

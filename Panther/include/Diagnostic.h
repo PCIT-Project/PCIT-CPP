@@ -154,7 +154,8 @@ namespace pcit::panther{
 
 			// functions
 			SEMA_PARAM_TYPE_VOID,
-			SEMA_INVALID_SCOPE_FOR_THIS,
+			SEMA_THIS_PARAM_NOT_FIRST,
+			SEMA_INVALID_SCOPE_FOR_THIS_PARAM,
 			SEMA_NAMED_VOID_RETURN,
 			SEMA_NOT_FIRST_RETURN_VOID,
 			SEMA_FUNC_ISNT_TERMINATED,
@@ -209,6 +210,7 @@ namespace pcit::panther{
 			// misc
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
 			SEMA_BLOCK_EXPR_NOT_TERMINATED,
+			SEMA_FUNC_HAS_NO_THIS_PARAM,
 
 
 			//////////////////
@@ -546,7 +548,8 @@ namespace pcit::panther{
 				case Code::SEMA_TEMPLATE_TOO_MANY_ARGS:
 				case Code::SEMA_TEMPLATE_INVALID_ARG:
 				case Code::SEMA_PARAM_TYPE_VOID:
-				case Code::SEMA_INVALID_SCOPE_FOR_THIS:
+				case Code::SEMA_THIS_PARAM_NOT_FIRST:
+				case Code::SEMA_INVALID_SCOPE_FOR_THIS_PARAM:
 				case Code::SEMA_NAMED_VOID_RETURN:
 				case Code::SEMA_NOT_FIRST_RETURN_VOID:
 				case Code::SEMA_FUNC_ISNT_TERMINATED:
@@ -589,6 +592,7 @@ namespace pcit::panther{
 				case Code::SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
+				case Code::SEMA_FUNC_HAS_NO_THIS_PARAM:
 					return "S";
 
 				case Code::MISC_UNIMPLEMENTED_FEATURE: return "M0";
@@ -631,7 +635,7 @@ namespace pcit::panther{
 
 		EVO_NODISCARD static auto _debug_analyze_message(std::string_view message) -> void {
 			evo::debugAssert(message.empty() == false, "Diagnostic message cannot be empty");
-			evo::debugAssert(std::isupper(int(message[0])), "Diagnostic message must start with an upper letter");
+			evo::debugAssert(std::islower(int(message[0])) == false, "Diagnostic message cannot be lower-case");
 		}
 
 

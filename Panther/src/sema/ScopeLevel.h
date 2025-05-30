@@ -153,6 +153,8 @@ namespace pcit::panther::sema{
 			) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, Token::ID location, MemberVarFlag) -> AddIdentResult;
 
+
+
 			// returns false if is a redefinition
 			EVO_NODISCARD auto disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool;
 

@@ -238,6 +238,8 @@ namespace pcit::panther::sema{
 	}
 
 
+
+
 	auto ScopeLevel::disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool {
 		evo::debugAssert(id != nullptr, "`id` cannot be nullptr");
 		const auto lock = std::scoped_lock(this->idents_lock);

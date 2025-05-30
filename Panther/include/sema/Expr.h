@@ -54,6 +54,7 @@ namespace pcit::panther::sema{
 			PTR_ACCESSOR,
 			TRY_ELSE,
 			BLOCK_EXPR,
+			FAKE_TERM_INFO,
 				
 			PARAM,
 			RETURN_PARAM,
@@ -97,6 +98,7 @@ namespace pcit::panther::sema{
 		explicit Expr(PtrAccessorID id)      : _kind(Kind::PTR_ACCESSOR),       value{.ptr_accessor = id}       {};
 		explicit Expr(TryElseID id)          : _kind(Kind::TRY_ELSE),           value{.try_else = id}           {};
 		explicit Expr(BlockExprID id)        : _kind(Kind::BLOCK_EXPR),         value{.block_expr = id}         {};
+		explicit Expr(FakeTermInfoID id)       : _kind(Kind::FAKE_TERM_INFO),        value{.fake_term_infos = id}        {};
 
 		explicit Expr(ParamID id)            : _kind(Kind::PARAM),              value{.param = id}              {};
 		explicit Expr(ReturnParamID id)      : _kind(Kind::RETURN_PARAM),       value{.return_param = id}       {};
@@ -193,12 +195,16 @@ namespace pcit::panther::sema{
 			return this->value.ptr_accessor;
 		}
 		EVO_NODISCARD auto tryElseID() const -> TryElseID {
-			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not an try/else");
+			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not a try/else");
 			return this->value.try_else;
 		}
 		EVO_NODISCARD auto blockExprID() const -> BlockExprID {
-			evo::debugAssert(this->kind() == Kind::BLOCK_EXPR, "not an block expr");
+			evo::debugAssert(this->kind() == Kind::BLOCK_EXPR, "not a block expr");
 			return this->value.block_expr;
+		}
+		EVO_NODISCARD auto fakeTermInfoID() const -> FakeTermInfoID {
+			evo::debugAssert(this->kind() == Kind::FAKE_TERM_INFO, "not a fake term info");
+			return this->value.fake_term_infos;
 		}
 
 		EVO_NODISCARD auto paramID() const -> ParamID {
@@ -275,6 +281,7 @@ namespace pcit::panther::sema{
 				PtrAccessorID ptr_accessor;
 				TryElseID try_else;
 				BlockExprID block_expr;
+				FakeTermInfoID fake_term_infos;
 				ExceptParamID except_param;
 
 				ParamID param;

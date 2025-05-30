@@ -154,6 +154,29 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct FakeTermInfo{
+		using ID = FakeTermInfoID;
+
+		enum class ValueCategory{
+			EPHEMERAL,
+			CONCRETE_CONST,
+			CONCRETE_MUT,
+			CONCRETE_FORWARDABLE,
+		};
+
+		enum class ValueStage{
+			CONSTEXPR,
+			COMPTIME,
+			RUNTIME,
+		};
+		
+		ValueCategory valueCategory;
+		ValueStage valueStage;
+		TypeInfo::ID typeID;
+		Expr expr;
+	};
+
+
 
 
 	//////////////////////////////////////////////////////////////////////
