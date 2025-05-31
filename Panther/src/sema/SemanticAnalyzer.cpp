@@ -2532,10 +2532,25 @@ namespace pcit::panther{
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
 		if(target_term_info.value_category == TermInfo::ValueCategory::METHOD_CALL){
-			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
-				target_term_info.getExpr().fakeTermInfoID()
-			);
-			sema_args.emplace_back(fake_term_info.expr);
+			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+					target_term_info.getExpr().fakeTermInfoID()
+				);
+				sema_args.emplace_back(fake_term_info.expr);
+
+			}else if(this->getCompilationConfig().warn.methodCallOnNonMethod){
+				this->emit_warning(
+					Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+					instr.func_call,
+					"Making a method call to a function that is not a method",
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("Call the function through the type instead"), // TODO(FUTURE): better message
+						Diagnostic::Info(
+							"Function declared here:", this->get_location(*func_call_impl_res.value().selected_func_id)
+						),
+					}
+				);
+			}
 		}
 		for(const SymbolProc::TermInfoID& arg : instr.args){
 			sema_args.emplace_back(this->get_term_info(arg).getExpr());
@@ -2842,13 +2857,27 @@ namespace pcit::panther{
 		);
 		if(func_call_impl_res.isError()){ return Result::ERROR; }
 
-
 		auto sema_args = evo::SmallVector<sema::Expr>();
 		if(target_term_info.value_category == TermInfo::ValueCategory::METHOD_CALL){
-			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
-				target_term_info.getExpr().fakeTermInfoID()
-			);
-			sema_args.emplace_back(fake_term_info.expr);
+			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+					target_term_info.getExpr().fakeTermInfoID()
+				);
+				sema_args.emplace_back(fake_term_info.expr);
+
+			}else if(this->getCompilationConfig().warn.methodCallOnNonMethod){
+				this->emit_warning(
+					Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+					instr.func_call,
+					"Making a method call to a function that is not a method",
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("Call the function through the type instead"), // TODO(FUTURE): better message
+						Diagnostic::Info(
+							"Function declared here:", this->get_location(*func_call_impl_res.value().selected_func_id)
+						),
+					}
+				);
+			}
 		}
 		for(const SymbolProc::TermInfoID& arg : instr.args){
 			sema_args.emplace_back(this->get_term_info(arg).getExpr());
@@ -6815,7 +6844,8 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::select_func_overload(
 		evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
 		evo::SmallVector<SelectFuncOverloadArgInfo>& arg_infos,
-		const auto& call_node
+		const auto& call_node,
+		bool is_member_call
 	) -> evo::Result<size_t> {
 		evo::debugAssert(func_infos.empty() == false, "need at least 1 function");
 
@@ -6861,25 +6891,28 @@ namespace pcit::panther{
 			unsigned current_score = 0;
 
 			const sema::Func* sema_func = nullptr;
+			bool need_to_skip_this_arg = false; 
+			
 
 			if(func_info.func_id.has_value()){ // isn't intrinsic
 				sema_func = &this->context.getSemaBuffer().getFunc(*func_info.func_id);
+				need_to_skip_this_arg = is_member_call && sema_func->isMethod(this->context) == false;
 
-				if(arg_infos.size() < sema_func->minNumArgs){
+				const size_t num_args = arg_infos.size() - size_t(need_to_skip_this_arg);
+
+				if(num_args < sema_func->minNumArgs){
 					scores.emplace_back(OverloadScore::TooFewArgs(
-						sema_func->minNumArgs,
-						arg_infos.size(),
-						sema_func->minNumArgs != func_info.func_type.params.size())
-					);
+						sema_func->minNumArgs, num_args, sema_func->minNumArgs != func_info.func_type.params.size()
+					));
 					continue;
 				}
 
-				if(arg_infos.size() > func_info.func_type.params.size()){
+				if(num_args > func_info.func_type.params.size()){
 					scores.emplace_back(OverloadScore::TooManyArgs(
 						func_info.func_type.params.size(),
-						arg_infos.size(),
-						sema_func->minNumArgs != func_info.func_type.params.size())
-					);
+						num_args,
+						sema_func->minNumArgs != func_info.func_type.params.size()
+					));
 					continue;
 				}
 			}else{
@@ -6895,6 +6928,11 @@ namespace pcit::panther{
 			bool arg_checking_failed = false;
 			for(size_t arg_i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
 				EVO_DEFER([&](){ arg_i += 1; });
+
+				if(need_to_skip_this_arg){
+					arg_i -= 1;
+					continue;
+				}
 
 
 				///////////////////////////////////
@@ -7097,11 +7135,7 @@ namespace pcit::panther{
 							
 						// 	const sema::Func& target_func =
 						// 		this->context.getSemaBuffer().getFunc(*func_infos[i].func_id);
-						// 	if(target_func.params.empty()){ return false; }
-
-						// 	const Source& target_func_source = this->context.getSourceManager()[target_func.sourceID];
-						// 	const Token& first_token = target_func_source.getTokenBuffer()[target_func.params[0].ident];
-						// 	return first_token.kind() == Token::Kind::KEYWORD_THIS;
+						// 	return target_func.isMethod(this->context);
 						// }();
 
 						// This is done this way beause the IILE version causes an internal compiler error in MSVC
@@ -7112,13 +7146,8 @@ namespace pcit::panther{
 							if(reason.arg_index != 0){ break; }
 							if(func_infos[i].func_id.has_value() == false){ break; }
 
-							const sema::Func& target_func =
-								this->context.getSemaBuffer().getFunc(*func_infos[i].func_id);
-							if(target_func.params.empty()){ break; }
-
-							const Source& target_func_source = this->context.getSourceManager()[target_func.sourceID];
-							const Token& first_token = target_func_source.getTokenBuffer()[target_func.params[0].ident];
-							is_method_this_param = first_token.kind() == Token::Kind::KEYWORD_THIS;
+							is_method_this_param =
+								this->context.getSemaBuffer().getFunc(*func_infos[i].func_id).isMethod(this->context);
 						}while(false);
 
 						if(is_method_this_param){
@@ -7236,7 +7265,16 @@ namespace pcit::panther{
 
 		const SelectFuncOverloadFuncInfo& selected_func = func_infos[best_score_index];
 
+		bool is_first = true;
 		for(size_t i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
+			if(is_first && is_member_call && selected_func.func_id.has_value()){
+				is_first = false;
+				const sema::Func& selected_sema_func = this->context.getSemaBuffer().getFunc(*selected_func.func_id);
+				if(selected_sema_func.isMethod(this->context) == false){ continue; }
+			}
+
+			is_first = false;
+
 			if(this->type_check<true>( // this is to implicitly convert all the required args
 				selected_func.func_type.params[i].typeID,
 				arg_info.term_info,
@@ -7374,7 +7412,7 @@ namespace pcit::panther{
 
 
 		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
-			func_infos, arg_infos, func_call.target
+			func_infos, arg_infos, func_call.target, method_this_term_info.has_value()
 		);
 		if(selected_func_overload_index.isError()){ return evo::resultError; }
 
@@ -7610,6 +7648,13 @@ namespace pcit::panther{
 		}
 
 		evo::unreachable();
+	}
+
+
+
+
+	auto SemanticAnalyzer::getCompilationConfig() const -> const Source::CompilationConfig& {
+		return this->context.getSourceManager().getSourceCompilationConfig(this->source.getCompilationConfigID());
 	}
 
 

@@ -14,12 +14,19 @@ type Vec2 = struct {
 
 		return &this;
 	}
+
+
+	func get_int = (num: UI8) -> Void {
+		// do nothing..
+	}
 }
 
 
 
 func entry = () #entry -> UI8 {
-	const vec2 = copy (new Vec2{x = 8.4, y = 3.6}).increment().*;
+	const vec2 = copy (new Vec2{x = 8.4, y = 3.6}).increment(1.4).*;
+
+	vec2.get_int(12);
 
 	return @fToI<{F32, UI8}>(vec2.sum());
 }

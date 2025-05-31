@@ -214,6 +214,12 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// sema warn
+
+			SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+
+
+			//////////////////
 			// misc
 
 			MISC_UNIMPLEMENTED_FEATURE, // M0
@@ -502,7 +508,7 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_VAR_WITH_NO_VALUE:
 				case Code::SYMBOL_PROC_LABELED_VOID_RETURN:
 				case Code::SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR:
-					return "SP";
+					return "SPx";
 
 				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SEMA_VOID_WITH_QUALIFIERS:
@@ -593,7 +599,10 @@ namespace pcit::panther{
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
 				case Code::SEMA_FUNC_HAS_NO_THIS_PARAM:
-					return "S";
+					return "Sxx";
+
+				case Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD:
+					return "SWx";
 
 				case Code::MISC_UNIMPLEMENTED_FEATURE: return "M0";
 				case Code::MISC_UNKNOWN_ERROR:         return "M1";

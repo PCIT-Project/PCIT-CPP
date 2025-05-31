@@ -152,6 +152,9 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	const panther::Source::CompilationConfig::ID comp_config = context.getSourceManager().createSourceCompilationConfig(
 		panther::Source::CompilationConfig{
 			.basePath = current_path.value(),
+			.warn = panther::Source::CompilationConfig::Warns{
+				.methodCallOnNonMethod = true,
+			},
 		}
 	);
 
@@ -244,6 +247,9 @@ EVO_NODISCARD static auto run_compile(
 	const panther::Source::CompilationConfig::ID comp_config = context.getSourceManager().createSourceCompilationConfig(
 		panther::Source::CompilationConfig{
 			.basePath = current_path.value(),
+			.warn = panther::Source::CompilationConfig::Warns{
+				.methodCallOnNonMethod = true,
+			},
 		}
 	);
 

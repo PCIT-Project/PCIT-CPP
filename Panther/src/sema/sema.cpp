@@ -38,6 +38,15 @@ namespace pcit::panther::sema{
 	}
 
 
+	auto Func::isMethod(const Context& context) const -> bool {
+		if(this->params.empty()){ return false; }
+
+		const Source& source = context.getSourceManager()[this->sourceID];
+		const Token& first_token = source.getTokenBuffer()[this->params[0].ident];
+		return first_token.kind() == Token::Kind::KEYWORD_THIS;
+	}
+
+
 
 
 	auto TemplatedFunc::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {

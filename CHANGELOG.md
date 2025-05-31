@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.120.0"></a>
+## v0.0.120.0
+
+### Panther
+- Added wanring option when making a method call to a function that is not a method
+- Fixed method call to functions that are not methods
+
+
+<!---------------------------------->
 <a name="v0.0.119.0"></a>
 ## v0.0.119.0
 

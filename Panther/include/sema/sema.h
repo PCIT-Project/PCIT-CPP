@@ -340,6 +340,8 @@ namespace pcit::panther::sema{
 		std::optional<pir::Function::ID> constexprJITInterfaceFunc{};
 
 		EVO_NODISCARD auto isEquivalentOverload(const Func& rhs, const class panther::Context& context) const -> bool;
+
+		EVO_NODISCARD auto isMethod(const class panther::Context& context) const -> bool;
 	};
 
 

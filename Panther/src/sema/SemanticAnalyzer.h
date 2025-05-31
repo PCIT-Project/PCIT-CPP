@@ -252,7 +252,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto select_func_overload(
 				evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
 				evo::SmallVector<SelectFuncOverloadArgInfo>& arg_infos,
-				const auto& call_node
+				const auto& call_node,
+				bool is_member_call
 			) -> evo::Result<size_t>; // returns index of selected overload
 
 
@@ -282,6 +283,9 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto genericValueToSemaExpr(core::GenericValue& value, const TypeInfo& target_type)
 				-> sema::Expr;
+
+
+			EVO_NODISCARD auto getCompilationConfig() const -> const Source::CompilationConfig&;
 
 
 			///////////////////////////////////
