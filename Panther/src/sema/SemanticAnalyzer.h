@@ -134,6 +134,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;
 			EVO_NODISCARD auto instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result;
 
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto instr_expr_as(const Instruction::As<IS_CONSTEXPR>& instr) -> Result;
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result;
@@ -389,7 +391,7 @@ namespace pcit::panther{
 						: ok(_ok), requires_implicit_conversion(ric), deduced_types(std::move(_deduced_types)) {}
 			};
 
-			template<bool MAY_IMPLICITLY_CONVERT_AND_ERROR>
+			template<bool MAY_IMPLICITLY_CONVERT, bool MAY_EMIT_ERROR>
 			EVO_NODISCARD auto type_check(
 				TypeInfo::ID expected_type_id,
 				TermInfo& got_expr,

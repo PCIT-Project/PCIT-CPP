@@ -270,6 +270,12 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::EndExprBlock>()){
 				return this->instr_end_expr_block(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::As<true>>()){
+				return this->instr_expr_as<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::As<false>>()){
+				return this->instr_expr_as<false>(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::Accessor<true>>()){
 				return this->instr_expr_accessor<true>(instr);
 
@@ -474,7 +480,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 				
-				if(this->type_check<true>(
+				if(this->type_check<true, true>(
 					var_type_id, value_term_info, "Variable definition", *instr.var_decl.value
 				).ok == false){
 					return Result::ERROR;
@@ -646,7 +652,7 @@ namespace pcit::panther{
 			}
 
 
-			const TypeCheckInfo type_check_info = this->type_check<true>(
+			const TypeCheckInfo type_check_info = this->type_check<true, true>(
 				got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_decl.value
 			);
 
@@ -789,7 +795,7 @@ namespace pcit::panther{
 		TermInfo& cond_term_info = this->get_term_info(instr.cond);
 		if(this->check_term_isnt_type(cond_term_info, instr.when_cond.cond).isError()){ return Result::ERROR; }
 
-		if(this->type_check<true>(
+		if(this->type_check<true, true>(
 			this->context.getTypeManager().getTypeBool(),
 			cond_term_info,
 			"Condition in when conditional",
@@ -913,7 +919,7 @@ namespace pcit::panther{
 					TermInfo& cond_term_info = this->get_term_info(instr.attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){ return Result::ERROR; }
 
-					if(this->type_check<true>(
+					if(this->type_check<true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
@@ -1180,7 +1186,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					const TypeCheckInfo type_check_info = this->type_check<true>(
+					const TypeCheckInfo type_check_info = this->type_check<true, true>(
 						*type_id,
 						*default_value,
 						"Default value of template parameter",
@@ -1304,7 +1310,7 @@ namespace pcit::panther{
 					TermInfo default_param_value = this->get_term_info(*instr.default_param_values[i]);
 
 					if(
-						this->type_check<true>(
+						this->type_check<true, true>(
 							param_type_id.asTypeID(),
 							default_param_value,
 							"Default value of function parameter",
@@ -1879,7 +1885,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					const TypeCheckInfo type_check_info = this->type_check<true>(
+					const TypeCheckInfo type_check_info = this->type_check<true, true>(
 						*type_id,
 						*default_value,
 						"Default value of template parameter",
@@ -2023,7 +2029,7 @@ namespace pcit::panther{
 
 
 			if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
-				const TypeCheckInfo type_check_info = this->type_check<true>(
+				const TypeCheckInfo type_check_info = this->type_check<true, true>(
 					got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_decl.value
 				);
 
@@ -2161,7 +2167,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true>(
+			if(this->type_check<true, true>(
 				current_func_type.returnParams.front().typeID.asTypeID(),
 				return_value_term,
 				"Return",
@@ -2280,7 +2286,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true>(
+			if(this->type_check<true, true>(
 				target_block_expr.outputs.front().typeID,
 				return_value_term,
 				"Labeled return",
@@ -2390,7 +2396,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true>(
+			if(this->type_check<true, true>(
 				current_func_type.errorParams.front().typeID.asTypeID(),
 				error_value_term,
 				"Error return",
@@ -2677,7 +2683,7 @@ namespace pcit::panther{
 		}
 
 
-		if(this->type_check<true>(
+		if(this->type_check<true, true>(
 			lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of assignment", instr.infix.rhs
 		).ok == false){
 			return Result::ERROR;
@@ -2763,7 +2769,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true>(
+			if(this->type_check<true, true>(
 				target.type_id.as<TypeInfo::ID>(), value, "RHS of assignment", instr.multi_assign, unsigned(i)
 			).ok == false){
 				return Result::ERROR;
@@ -4363,7 +4369,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->type_check<true>(
+				if(this->type_check<true, true>(
 					member_var->typeID, member_init_expr, "Member initializer", member_init.expr
 				).ok == false){
 					return Result::ERROR;
@@ -4564,7 +4570,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->type_check<true>(
+		if(this->type_check<true, true>(
 			attempt_expr.type_id.as<TypeInfo::ID>(),
 			except_expr,
 			"Except in try/else expression",
@@ -4903,7 +4909,7 @@ namespace pcit::panther{
 				if(expr_type_id.isError()){ return Result::ERROR; }
 				
 			
-				if(this->type_check<true>(
+				if(this->type_check<true, true>(
 					expr_type_id.value(), arg_term_info, "Template argument", instr.templated_expr.args[i]
 				).ok == false){
 					return Result::ERROR;
@@ -5257,6 +5263,393 @@ namespace pcit::panther{
 		return Result::SUCCESS;
 	}
 
+
+
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::instr_expr_as(const Instruction::As<IS_CONSTEXPR>& instr) -> Result {
+		TermInfo& expr = this->get_term_info(instr.expr);
+		const TypeInfo::VoidableID target_type = this->get_type(instr.target_type);
+
+		if(target_type.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_AS_TO_VOID,
+				instr.infix.rhs,
+				"Operator [as] cannot convert to type [Void]"
+			);
+			return Result::ERROR;
+		}
+
+		if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
+			if(this->type_check<true, false>(target_type.asTypeID(), expr, "", instr.infix).ok == false){
+				// TODO(FUTURE): 
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.infix,
+					"Converting an fluid value to a type that it's not implicitly convertable to is unimplemented"
+				);
+				return Result::ERROR;
+			}
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL_FLUID,
+				TermInfo::ValueStage::CONSTEXPR,
+				target_type.asTypeID(),
+				expr.getExpr()
+			);
+			return Result::SUCCESS;
+		}
+
+
+		TypeManager& type_manager = this->context.type_manager;
+
+
+		const TypeInfo::ID from_underlying_type_id = type_manager.getUnderlyingType(expr.type_id.as<TypeInfo::ID>());
+		const TypeInfo& from_underlying_type = type_manager.getTypeInfo(from_underlying_type_id);
+
+		if(from_underlying_type.qualifiers().empty() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_AS_INVALID_FROM,
+				instr.infix.lhs,
+				"No valid operator [as] for this type"
+			);
+			return Result::ERROR;
+		}
+
+		if(from_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.infix.lhs,
+				"Operator [as] from a non-primitive underlying type is unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo::ID to_underlying_type_id = type_manager.getUnderlyingType(target_type.asTypeID());
+		const TypeInfo& to_underlying_type = type_manager.getTypeInfo(to_underlying_type_id);
+
+		if(to_underlying_type.qualifiers().empty() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_AS_INVALID_TO,
+				instr.infix.rhs,
+				"No valid operator [as] to this type"
+			);
+			return Result::ERROR;
+		}
+
+		if(to_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.infix.lhs,
+				"Operator [as] to a non-primitive underlying type is unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+		const BaseType::Primitive& from_primitive =
+			type_manager.getPrimitive(from_underlying_type.baseTypeID().primitiveID());
+
+		const BaseType::Primitive& to_primitive =
+			type_manager.getPrimitive(to_underlying_type.baseTypeID().primitiveID());
+
+
+
+
+		if(from_primitive.kind() == Token::Kind::TYPE_RAWPTR){
+			if(to_primitive.kind() != Token::Kind::TYPE_RAWPTR){
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix,
+					"Operator [as] cannot convert a pointer to this type"
+				);
+				return Result::ERROR;
+			}
+
+			const TypeInfo& from_type = type_manager.getTypeInfo(expr.type_id.as<TypeInfo::ID>());
+			const TypeInfo& to_type = type_manager.getTypeInfo(target_type.asTypeID());
+
+			if(from_type.isPointer() && to_type.isPointer()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix,
+					"Operator [as] cannot convert from a pointer to a pointer"
+				);
+				return Result::ERROR;
+			}
+
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL, expr.value_stage, target_type.asTypeID(), expr.getExpr()
+			);
+			return Result::SUCCESS;
+			
+		}else if(to_primitive.kind() == Token::Kind::TYPE_RAWPTR){
+			this->emit_error(
+				Diagnostic::Code::SEMA_AS_INVALID_TO,
+				instr.infix.rhs,
+				"No valid operator [as] to this type"
+			);
+			return Result::ERROR;
+		}
+
+
+		// if converting to same type, no conversion needed
+		if(from_underlying_type_id == to_underlying_type_id){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				expr.value_stage,
+				target_type.asTypeID(),
+				expr.getExpr()
+			);
+			return Result::SUCCESS;
+		}
+
+
+		if(from_underlying_type_id == TypeManager::getTypeBool()){
+			switch(to_primitive.kind()){
+				case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+					using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+					const InstantiationID instantiation_id =
+						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::ZEXT,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								from_underlying_type_id, to_underlying_type_id
+							}
+						);
+
+					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+						instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+					);
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						expr.value_stage,
+						target_type.asTypeID(),
+						sema::Expr(created_func_call_id)
+					);
+					return Result::SUCCESS;
+				} break;
+
+				case Token::Kind::TYPE_F16: case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
+				case Token::Kind::TYPE_F64: case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128: {
+					using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+
+					const TypeInfo::ID type_id_UI1 = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 1))
+					);
+
+
+					const InstantiationID bitcast_instantiation_id =
+						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::BIT_CAST,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								from_underlying_type_id, TypeInfo::VoidableID(type_id_UI1)
+							}
+						);
+
+					const sema::FuncCall::ID bitcast_call = this->context.sema_buffer.createFuncCall(
+						bitcast_instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+					);
+
+
+					const InstantiationID conv_instantiation_id =
+						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::I_TO_F,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								TypeInfo::VoidableID(type_id_UI1), to_underlying_type_id
+							}
+						);
+
+					const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
+						conv_instantiation_id, evo::SmallVector<sema::Expr>{sema::Expr(bitcast_call)}
+					);
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						expr.value_stage,
+						target_type.asTypeID(),
+						sema::Expr(conversion_call)
+					);
+					return Result::SUCCESS;
+				} break;
+
+				default: evo::debugFatalBreak("Invalid primitive type");
+			}
+
+		}else if(to_underlying_type_id == TypeManager::getTypeBool()){
+			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+			const InstantiationID instantiation_id = this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+				TemplateIntrinsicFunc::Kind::NEQ,
+				evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+					from_underlying_type_id, to_underlying_type_id
+				}
+			);
+
+			const sema::Expr zero = [&](){
+				switch(from_primitive.kind()){
+					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+						return sema::Expr(this->context.sema_buffer.createIntValue(
+							core::GenericInt(from_primitive.bitWidth(), 0), from_underlying_type.baseTypeID()
+						));
+					} break;
+
+					case Token::Kind::TYPE_F16: {
+						return sema::Expr(this->context.sema_buffer.createFloatValue(
+							core::GenericFloat::createF16(0), from_underlying_type.baseTypeID()
+						));
+					} break;
+
+					case Token::Kind::TYPE_BF16: {
+						return sema::Expr(this->context.sema_buffer.createFloatValue(
+							core::GenericFloat::createBF16(0), from_underlying_type.baseTypeID()
+						));
+					} break;
+
+					case Token::Kind::TYPE_F32: {
+						return sema::Expr(this->context.sema_buffer.createFloatValue(
+							core::GenericFloat::createF32(0), from_underlying_type.baseTypeID()
+						));
+					} break;
+
+					case Token::Kind::TYPE_F64: {
+						return sema::Expr(this->context.sema_buffer.createFloatValue(
+							core::GenericFloat::createF64(0), from_underlying_type.baseTypeID()
+						));
+					} break;
+
+					case Token::Kind::TYPE_F80: {
+						return sema::Expr(this->context.sema_buffer.createFloatValue(
+							core::GenericFloat::createF80(0), from_underlying_type.baseTypeID()
+						));
+					} break;
+
+					case Token::Kind::TYPE_F128: {
+						return sema::Expr(this->context.sema_buffer.createFloatValue(
+							core::GenericFloat::createF128(0), from_underlying_type.baseTypeID()
+						));
+					} break;
+
+					default: evo::debugFatalBreak("Unknown or unsupported underlying type");
+				}
+			}();
+
+			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), zero}
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				expr.value_stage,
+				target_type.asTypeID(),
+				sema::Expr(created_func_call_id)
+			);
+			return Result::SUCCESS;
+		}
+
+
+		struct TypeConversionData{
+			enum class Kind{
+				INTEGER,
+				UNSIGNED_INTEGER,
+				FLOAT,
+			} kind;
+			unsigned width;
+		};
+
+		auto get_type_conversion_data = [this](const BaseType::Primitive& primitive_type) -> TypeConversionData {
+			switch(primitive_type.kind()){
+				case Token::Kind::TYPE_I_N:
+					return TypeConversionData(TypeConversionData::Kind::INTEGER, primitive_type.bitWidth());
+				case Token::Kind::TYPE_UI_N:
+					return TypeConversionData(TypeConversionData::Kind::UNSIGNED_INTEGER, primitive_type.bitWidth());
+				case Token::Kind::TYPE_F16:  return TypeConversionData(TypeConversionData::Kind::FLOAT, 16);
+				case Token::Kind::TYPE_BF16: return TypeConversionData(TypeConversionData::Kind::FLOAT, 16);
+				case Token::Kind::TYPE_F32:  return TypeConversionData(TypeConversionData::Kind::FLOAT, 32);
+				case Token::Kind::TYPE_F64:  return TypeConversionData(TypeConversionData::Kind::FLOAT, 64);
+				case Token::Kind::TYPE_F80:  return TypeConversionData(TypeConversionData::Kind::FLOAT, 80);
+				case Token::Kind::TYPE_F128: return TypeConversionData(TypeConversionData::Kind::FLOAT, 128);
+
+				default: evo::debugFatalBreak("Unknown or unsupported underlying type");
+			}
+		};
+
+		const TypeConversionData from_data = get_type_conversion_data(from_primitive);
+		const TypeConversionData to_data = get_type_conversion_data(to_primitive);
+		
+
+		const TemplateIntrinsicFunc::Kind intrinsic_kind = [&](){
+			switch(from_data.kind){
+				case TypeConversionData::Kind::INTEGER: {
+					switch(to_data.kind){
+						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
+							if(from_data.width < to_data.width){
+								return TemplateIntrinsicFunc::Kind::SEXT;
+							}else{
+								return TemplateIntrinsicFunc::Kind::TRUNC;
+							}
+						} break;
+
+						case TypeConversionData::Kind::FLOAT: {
+							return TemplateIntrinsicFunc::Kind::I_TO_F;
+						} break;
+					}
+				} break;
+
+				case TypeConversionData::Kind::UNSIGNED_INTEGER: {
+					switch(to_data.kind){
+						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
+							if(from_data.width < to_data.width){
+								return TemplateIntrinsicFunc::Kind::ZEXT;
+							}else{
+								return TemplateIntrinsicFunc::Kind::TRUNC;
+							}
+						} break;
+
+						case TypeConversionData::Kind::FLOAT: {
+							return TemplateIntrinsicFunc::Kind::I_TO_F;
+						} break;
+					}
+				} break;
+
+				case TypeConversionData::Kind::FLOAT: {
+					switch(to_data.kind){
+						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
+							return TemplateIntrinsicFunc::Kind::F_TO_I;
+						} break;
+
+						case TypeConversionData::Kind::FLOAT: {
+							if(from_data.width < to_data.width){
+								return TemplateIntrinsicFunc::Kind::FEXT;
+							}else{
+								return TemplateIntrinsicFunc::Kind::FTRUNC;
+							}
+						} break;
+					}
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown or unsupported TypeConversionData::Kind");
+		}();
+
+		using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+		const InstantiationID instantiation_id = this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+			intrinsic_kind,
+			evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+				from_underlying_type_id, to_underlying_type_id
+			}
+		);
+
+		const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+			instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+		);
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			expr.value_stage,
+			target_type.asTypeID(),
+			sema::Expr(created_func_call_id)
+		);
+		return Result::SUCCESS;
+	}
 
 
 
@@ -6938,11 +7331,8 @@ namespace pcit::panther{
 				///////////////////////////////////
 				// check type mismatch
 
-				const TypeCheckInfo& type_check_info = this->type_check<false>(
-					func_info.func_type.params[arg_i].typeID,
-					arg_info.term_info,
-					"Function call argument",
-					arg_info.ast_node
+				const TypeCheckInfo& type_check_info = this->type_check<false, false>(
+					func_info.func_type.params[arg_i].typeID, arg_info.term_info, "", arg_info.ast_node
 				);
 
 				if(type_check_info.ok == false){
@@ -7275,7 +7665,7 @@ namespace pcit::panther{
 
 			is_first = false;
 
-			if(this->type_check<true>( // this is to implicitly convert all the required args
+			if(this->type_check<true, true>( // this is to implicitly convert all the required args
 				selected_func.func_type.params[i].typeID,
 				arg_info.term_info,
 				"Function call argument",
@@ -7689,7 +8079,7 @@ namespace pcit::panther{
 						return evo::resultError;
 					}
 
-					if(this->type_check<true>(
+					if(this->type_check<true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
@@ -7817,7 +8207,7 @@ namespace pcit::panther{
 						return evo::resultError;
 					}
 
-					if(this->type_check<true>(
+					if(this->type_check<true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
@@ -7904,7 +8294,7 @@ namespace pcit::panther{
 						return evo::resultError;
 					}
 
-					if(this->type_check<true>(
+					if(this->type_check<true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
@@ -7937,7 +8327,7 @@ namespace pcit::panther{
 						return evo::resultError;
 					}
 
-					if(this->type_check<true>(
+					if(this->type_check<true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #rt",
@@ -8113,7 +8503,7 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// error handling / diagnostics
 
-	template<bool MAY_IMPLICITLY_CONVERT_AND_ERROR>
+	template<bool MAY_IMPLICITLY_CONVERT, bool MAY_EMIT_ERROR>
 	auto SemanticAnalyzer::type_check(
 		TypeInfo::ID expected_type_id,
 		TermInfo& got_expr,
@@ -8121,10 +8511,20 @@ namespace pcit::panther{
 		const auto& location,
 		std::optional<unsigned> multi_type_index
 	) -> TypeCheckInfo {
-		evo::debugAssert(
-			std::isupper(int(expected_type_location_name[0])),
-			"first character of expected_type_location_name should be upper-case"
-		);
+		if constexpr(MAY_EMIT_ERROR){
+			evo::debugAssert(
+				expected_type_location_name.empty() == false, "Error emitting `type_check` requires a message"
+			);
+			evo::debugAssert(
+				std::isupper(int(expected_type_location_name[0])),
+				"first character of expected_type_location_name should be upper-case"
+			);
+		}else{
+			evo::debugAssert(
+				expected_type_location_name.empty(), "Non-error emitting `type_check` should not have a message"
+			);
+		}
+
 
 		const TypeManager& type_manager = this->context.getTypeManager();
 
@@ -8166,7 +8566,7 @@ namespace pcit::panther{
 							= this->extract_type_deducers(actual_expected_type_id, actual_got_type_id);
 
 						if(extracted_type_deducers.isError()){
-							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+							if constexpr(MAY_EMIT_ERROR){
 								// TODO(FUTURE): better messaging
 								this->emit_error(
 									Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
@@ -8186,7 +8586,7 @@ namespace pcit::panther{
 						expected_type.qualifiers().size() != got_type.qualifiers().size()
 					){	
 
-						if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+						if constexpr(MAY_EMIT_ERROR){
 							this->error_type_mismatch(
 								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 							);
@@ -8200,7 +8600,7 @@ namespace pcit::panther{
 						const AST::Type::Qualifier& got_qualifier      = got_type.qualifiers()[i];
 
 						if(expected_qualifier.isPtr != got_qualifier.isPtr){
-							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+							if constexpr(MAY_EMIT_ERROR){
 								this->error_type_mismatch(
 									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 								);
@@ -8208,7 +8608,7 @@ namespace pcit::panther{
 							return TypeCheckInfo::fail();
 						}
 						if(expected_qualifier.isReadOnly == false && got_qualifier.isReadOnly){
-							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+							if constexpr(MAY_EMIT_ERROR){
 								this->error_type_mismatch(
 									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 								);
@@ -8218,7 +8618,7 @@ namespace pcit::panther{
 					}
 				}
 
-				if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+				if constexpr(MAY_IMPLICITLY_CONVERT){
 					EVO_DEFER([&](){
 						if(multi_type_index.has_value() == false){
 							got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);	
@@ -8245,7 +8645,7 @@ namespace pcit::panther{
 					expected_type_info.qualifiers().empty() == false || 
 					expected_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
 				){
-					if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+					if constexpr(MAY_EMIT_ERROR){
 						if(expected_type_info.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER){
 							// TODO(FUTURE): better messaging
 							this->emit_error(
@@ -8294,7 +8694,7 @@ namespace pcit::panther{
 							break;
 
 						default: {
-							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+							if constexpr(MAY_EMIT_ERROR){
 								this->error_type_mismatch(
 									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 								);
@@ -8303,18 +8703,20 @@ namespace pcit::panther{
 						}
 					}
 
-					if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+					if constexpr(MAY_IMPLICITLY_CONVERT){
 						const sema::IntValue::ID int_value_id = got_expr.getExpr().intValueID();
 						sema::IntValue& int_value = this->context.sema_buffer.int_values[int_value_id];
 
 						if(is_unsigned){
 							if(int_value.value.slt(core::GenericInt(256, 0, true))){
-								this->emit_error(
-									Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-									location,
-									"Cannot implicitly convert this fluid value to the target type",
-									Diagnostic::Info("Fluid value is negative and target type is unsigned")
-								);
+								if constexpr(MAY_EMIT_ERROR){
+									this->emit_error(
+										Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
+										location,
+										"Cannot implicitly convert this fluid value to the target type",
+										Diagnostic::Info("Fluid value is negative and target type is unsigned")
+									);
+								}
 								return TypeCheckInfo::fail();
 							}
 						}
@@ -8331,22 +8733,26 @@ namespace pcit::panther{
 
 							if(is_unsigned){
 								if(int_value.value.ult(target_min) || int_value.value.ugt(target_max)){
-									this->emit_error(
-										Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-										location,
-										"Cannot implicitly convert this fluid value to the target type",
-										Diagnostic::Info("Requires truncation (maybe use [as] operator)")
-									);
+									if constexpr(MAY_EMIT_ERROR){
+										this->emit_error(
+											Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
+											location,
+											"Cannot implicitly convert this fluid value to the target type",
+											Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+										);
+									}
 									return TypeCheckInfo::fail();
 								}
 							}else{
 								if(int_value.value.slt(target_min) || int_value.value.sgt(target_max)){
-									this->emit_error(
-										Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-										location,
-										"Cannot implicitly convert this fluid value to the target type",
-										Diagnostic::Info("Requires truncation (maybe use [as] operator)")
-									);
+									if constexpr(MAY_EMIT_ERROR){
+										this->emit_error(
+											Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
+											location,
+											"Cannot implicitly convert this fluid value to the target type",
+											Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+										);
+									}
 									return TypeCheckInfo::fail();
 								}
 							}
@@ -8376,7 +8782,7 @@ namespace pcit::panther{
 							break;
 
 						default: {
-							if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+							if constexpr(MAY_EMIT_ERROR){
 								this->error_type_mismatch(
 									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
 								);
@@ -8385,7 +8791,7 @@ namespace pcit::panther{
 						}
 					}
 
-					if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+					if constexpr(MAY_IMPLICITLY_CONVERT){
 						const sema::FloatValue::ID float_value_id = got_expr.getExpr().floatValueID();
 						sema::FloatValue& float_value = this->context.sema_buffer.float_values[float_value_id];
 
@@ -8400,12 +8806,14 @@ namespace pcit::panther{
 						const core::GenericFloat converted_literal = float_value.value.asF128();
 
 						if(converted_literal.lt(target_min) || converted_literal.gt(target_max)){
-							this->emit_error(
-								Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-								location,
-								"Cannot implicitly convert this fluid value to the target type",
-								Diagnostic::Info("Requires truncation (maybe use [as] operator)")
-							);
+							if constexpr(MAY_EMIT_ERROR){
+								this->emit_error(
+									Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
+									location,
+									"Cannot implicitly convert this fluid value to the target type",
+									Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+								);
+							}
 							return TypeCheckInfo::fail();
 						}
 
@@ -8430,7 +8838,7 @@ namespace pcit::panther{
 					}
 				}
 
-				if constexpr(MAY_IMPLICITLY_CONVERT_AND_ERROR){
+				if constexpr(MAY_IMPLICITLY_CONVERT){
 					got_expr.value_category = TermInfo::ValueCategory::EPHEMERAL;
 					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
 				}

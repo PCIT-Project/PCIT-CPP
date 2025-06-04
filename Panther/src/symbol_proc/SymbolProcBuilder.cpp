@@ -1420,23 +1420,42 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::Infix& infix = this->source.getASTBuffer().getInfix(node);
 
-		if(this->source.getTokenBuffer()[infix.opTokenID].kind() == Token::lookupKind(".")){
-			const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
-			if(lhs.isError()){ return evo::resultError; }
+		switch(this->source.getTokenBuffer()[infix.opTokenID].kind()){
+			case Token::lookupKind("."): {
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				if(lhs.isError()){ return evo::resultError; }
 
-			const Token::ID rhs = this->source.getASTBuffer().getIdent(infix.rhs);
+				const Token::ID rhs = this->source.getASTBuffer().getIdent(infix.rhs);
 
-			const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-			this->add_instruction(Instruction::Accessor<IS_CONSTEXPR>(infix, lhs.value(), rhs, new_term_info_id));
-			return new_term_info_id;
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				this->add_instruction(Instruction::Accessor<IS_CONSTEXPR>(infix, lhs.value(), rhs, new_term_info_id));
+				return new_term_info_id;
+			} break;
+
+			case Token::Kind::KEYWORD_AS: {
+				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				if(expr.isError()){ return evo::resultError; }
+
+				const evo::Result<SymbolProc::TypeID> target_type =
+					this->analyze_type<true>(this->source.getASTBuffer().getType(infix.rhs));
+				if(target_type.isError()){ return evo::resultError; }
+
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				this->add_instruction(
+					Instruction::As<IS_CONSTEXPR>(infix, expr.value(), target_type.value(), new_term_info_id)
+				);
+				return new_term_info_id;
+			} break;
+
+			default: {
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					node,
+					"Building symbol proc of infix (not [.] or [as]) is unimplemented"
+				);
+				return evo::resultError;
+			} break;
 		}
-
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-			node,
-			"Building symbol proc of infix (not [.]) is unimplemented"
-		);
-		return evo::resultError;
 	}
 
 	template<bool IS_CONSTEXPR>

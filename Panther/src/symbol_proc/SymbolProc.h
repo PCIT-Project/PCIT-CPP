@@ -494,6 +494,15 @@ namespace pcit::panther{
 		};
 
 
+		template<bool IS_CONSTEXPR>
+		struct As{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID expr;
+			SymbolProcTypeID target_type;
+			SymbolProcTermInfoID output;
+		};
+
+
 		//////////////////
 		// accessors
 
@@ -641,6 +650,8 @@ namespace pcit::panther{
 			TryElse,
 			BeginExprBlock,
 			EndExprBlock,
+			As<true>,
+			As<false>,
 
 			// accessors
 			Accessor<true>,

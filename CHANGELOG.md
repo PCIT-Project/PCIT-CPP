@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.121.0"></a>
+## v0.0.121.0
+
+### Panther
+- Added operator `as`
+- Fixed `TypeManager::getUnderlyingType()` for `Int`, `ISize`, `UInt`, and `USize`
+
+
+<!---------------------------------->
 <a name="v0.0.120.0"></a>
 ## v0.0.120.0
 

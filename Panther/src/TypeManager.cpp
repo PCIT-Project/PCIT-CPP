@@ -930,7 +930,7 @@ namespace pcit::panther{
 				return this->getOrCreateTypeInfo(
 					TypeInfo(
 						this->getOrCreatePrimitiveBaseType(
-							Token::Kind::TYPE_I_N, uint32_t(this->sizeOfGeneralRegister())
+							Token::Kind::TYPE_I_N, uint32_t(this->sizeOfGeneralRegister()) * 8
 						)
 					)
 				);
@@ -938,7 +938,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_ISIZE:{
 				return this->getOrCreateTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, uint32_t(this->sizeOfPtr())))
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, uint32_t(this->sizeOfPtr()) * 8))
 				);
 			} break;
 
@@ -950,7 +950,7 @@ namespace pcit::panther{
 				return this->getOrCreateTypeInfo(
 					TypeInfo(
 						this->getOrCreatePrimitiveBaseType(
-							Token::Kind::TYPE_UI_N, uint32_t(this->sizeOfGeneralRegister())
+							Token::Kind::TYPE_UI_N, uint32_t(this->sizeOfGeneralRegister()) * 8
 						)
 					)
 				);
@@ -958,7 +958,9 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_USIZE: {
 				return this->getOrCreateTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, uint32_t(this->sizeOfPtr())))
+					TypeInfo(
+						this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, uint32_t(this->sizeOfPtr()) * 8)
+					)
 				);
 			} break;
 
@@ -997,9 +999,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_BOOL: {
-				return this->getOrCreateTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 1))
-				);
+				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
 			case Token::Kind::TYPE_CHAR: {
