@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.121.1"></a>
+## v0.0.121.1
+
+### Panther
+- Added checking for use of a non-instantiated templated type
+
+
+<!---------------------------------->
 <a name="v0.0.121.0"></a>
 ## v0.0.121.0
 

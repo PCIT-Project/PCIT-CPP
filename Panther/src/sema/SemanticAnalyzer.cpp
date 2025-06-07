@@ -4866,14 +4866,27 @@ namespace pcit::panther{
 						ast_buffer.getStructDecl(sema_templated_struct.symbolProc.ast_node);
 					const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
-					this->emit_error(
-						Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
-						instr.templated_expr.args[i],
-						"Expected a type template argument, got an expression",
-						Diagnostic::Info(
-							"Parameter declared here:", this->get_location(ast_template_pack.params[i].ident)
-						)
-					);
+					if(arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE){
+						this->emit_error(
+							Diagnostic::Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
+							instr.templated_expr.args[i],
+							"Templated type needs to be instantiated",
+							Diagnostic::Info(
+								"Type declared here:",
+								this->get_location(arg_term_info.type_id.as<sema::TemplatedStruct::ID>())
+							)
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
+							instr.templated_expr.args[i],
+							"Expected a type template argument, got an expression",
+							Diagnostic::Info(
+								"Parameter declared here:", this->get_location(ast_template_pack.params[i].ident)
+							)
+						);
+					}
+
 					return Result::ERROR;
 				}
 
@@ -5993,20 +6006,19 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE: {
-				const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.getTemplatedStruct(
-					term_info.type_id.as<sema::TemplatedStruct::ID>()
+				this->emit_error(
+					Diagnostic::Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
+					instr.ast_type.base,
+					"Templated type needs to be instantiated",
+					Diagnostic::Info(
+						"Type declared here:", this->get_location(term_info.type_id.as<sema::TemplatedStruct::ID>())
+					)
 				);
-
-				base_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(BaseType::ID(sema_templated_struct.templateID))
-				);
+				return Result::ERROR;
 			} break;
 
 			case TermInfo::ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE: {
-				this->return_type(
-					instr.output,
-					TypeInfo::VoidableID(TypeInfo::ID::createTemplateDeclInstantiation())
-				);
+				this->return_type(instr.output, TypeInfo::VoidableID(TypeInfo::ID::createTemplateDeclInstantiation()));
 				return Result::SUCCESS;
 			} break;
 

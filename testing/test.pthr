@@ -1,7 +1,27 @@
 
+type Vec2 = struct <{T: Type}> {
+	var x: T;
+	var y: T;
+}
+
+// type Vec2F64 = struct {
+// 	var x: F64;
+// 	var y: F64;
+// }
+
+
+
 
 func entry = () #entry -> UI8 {
-	const foo: Int = 0xf0c;
+	var test: Vec2 = uninit;
+
+	// const vec = new Vec2<{F32}>{
+	// 	x = 12.4,
+	// 	y = 19.6,
+	// };
 	
-	return foo as BF16 as Bool as UI8;
+	// return asdf.x as UI8;
+
+	return 0;
 }
+
