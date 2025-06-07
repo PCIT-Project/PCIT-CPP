@@ -225,8 +225,11 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTerm>()){
 				return this->instr_templated_term(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTermWait>()){
-				return this->instr_templated_term_wait(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTermWait<true>>()){
+				return this->instr_templated_term_wait<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTermWait<false>>()){
+				return this->instr_templated_term_wait<false>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::PushTemplateDeclInstantiationTypesScope>()){
 				return this->instr_push_template_decl_instantiation_types_scope();
@@ -5237,8 +5240,9 @@ namespace pcit::panther{
 	}
 
 
-
-	auto SemanticAnalyzer::instr_templated_term_wait(const Instruction::TemplatedTermWait& instr) -> Result {
+	template<bool WAIT_FOR_DEF>
+	auto SemanticAnalyzer::instr_templated_term_wait(const Instruction::TemplatedTermWait<WAIT_FOR_DEF>& instr)
+	-> Result {
 		const BaseType::StructTemplate::Instantiation& instantiation =
 			this->get_struct_instantiation(instr.instantiation);
 
@@ -5246,12 +5250,31 @@ namespace pcit::panther{
 		// if(instantiation.structID.load().has_value() == false){ return Result::NEED_TO_WAITOnInstantiation; }
 		evo::debugAssert(instantiation.structID.has_value(), "Should already be completed");
 
+		const TypeInfo::ID target_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(BaseType::ID(*instantiation.structID))
+		);
+
+		if constexpr(WAIT_FOR_DEF){
+			const SymbolProc::ID target_symbol_proc_id =
+				*this->context.symbol_proc_manager.getTypeSymbolProc(target_type_id);
+
+			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+				.getSymbolProc(target_symbol_proc_id)
+				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, target_symbol_proc_id);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+			}
+		}
+
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::TYPE,
 			TermInfo::ValueStage::CONSTEXPR,
-			TypeInfo::VoidableID(
-				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(*instantiation.structID)))
-			),
+			TypeInfo::VoidableID(target_type_id),
 			std::nullopt
 		);
 

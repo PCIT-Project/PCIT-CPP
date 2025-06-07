@@ -693,7 +693,7 @@ namespace pcit::panther{
 				);
 
 				this->add_instruction(
-					Instruction::TemplatedTermWait(created_struct_inst_id, created_base_term_info_id)
+					Instruction::TemplatedTermWait<NEEDS_DEF>(created_struct_inst_id, created_base_term_info_id)
 				);
 
 				return created_base_term_info_id;
@@ -1321,7 +1321,7 @@ namespace pcit::panther{
 		);
 
 		this->add_instruction(
-			Instruction::TemplatedTermWait(created_struct_inst_id, created_base_term_info_id)
+			Instruction::TemplatedTermWait<true>(created_struct_inst_id, created_base_term_info_id)
 		);
 
 		return created_base_term_info_id;

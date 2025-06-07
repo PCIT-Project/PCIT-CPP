@@ -418,6 +418,7 @@ namespace pcit::panther{
 			SymbolProcStructInstantiationID instantiation;
 		};
 
+		template<bool WAIT_FOR_DEF>
 		struct TemplatedTermWait{
 			SymbolProcStructInstantiationID instantiation;
 			SymbolProcTermInfoID output;
@@ -635,7 +636,8 @@ namespace pcit::panther{
 			TemplateIntrinsicFuncCall<true>,
 			TemplateIntrinsicFuncCall<false>,
 			TemplatedTerm,
-			TemplatedTermWait,
+			TemplatedTermWait<true>,
+			TemplatedTermWait<false>,
 			PushTemplateDeclInstantiationTypesScope,
 			PopTemplateDeclInstantiationTypesScope,
 			AddTemplateDeclInstantiationType,

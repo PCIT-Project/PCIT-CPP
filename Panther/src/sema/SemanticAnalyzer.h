@@ -113,8 +113,11 @@ namespace pcit::panther{
 				const Instruction::TemplateIntrinsicFuncCall<IS_CONSTEXPR>& instr
 			) -> Result;
 			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
-			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait& instr)
+
+			template<bool WAIT_FOR_DEF>
+			EVO_NODISCARD auto instr_templated_term_wait(const Instruction::TemplatedTermWait<WAIT_FOR_DEF>& instr)
 				-> Result;
+
 			EVO_NODISCARD auto instr_push_template_decl_instantiation_types_scope() -> Result;
 			EVO_NODISCARD auto instr_pop_template_decl_instantiation_types_scope() -> Result;
 			EVO_NODISCARD auto instr_add_template_decl_instantiation_type(

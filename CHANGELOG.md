@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.121.2"></a>
+## v0.0.121.2
+
+### Panther
+- Fixed member variables of templated structs sometimes being considered to not exist
+
+
+<!---------------------------------->
 <a name="v0.0.121.1"></a>
 ## v0.0.121.1
 
