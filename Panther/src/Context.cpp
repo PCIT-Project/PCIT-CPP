@@ -273,6 +273,7 @@ namespace pcit::panther{
 			#if defined(PCIT_CONFIG_DEBUG)
 				for(size_t i = 0; i < 100; i+=1){
 					std::this_thread::yield();
+					if(this->symbol_proc_manager.allProcsDone()){ break; }
 					evo::debugAssert(work_manager_inst.isWorking() == false, "Thought was done working, was not...");
 				}
 			#endif

@@ -51,6 +51,7 @@ namespace pcit::panther{
 				"symbol was errored - should not be analyzed"
 			);
 
+
 			switch(this->analyze_instr(this->symbol_proc.getInstruction())){
 				case Result::SUCCESS: {
 					this->symbol_proc.nextInstruction();
@@ -1511,18 +1512,148 @@ namespace pcit::panther{
 		}
 
 
+		sema::Func& created_func = this->context.sema_buffer.funcs[created_func_id];
+
 		if constexpr(IS_INSTANTIATION == false){
-			// TODO(FUTURE): manage overloads
-			const Token::ID ident = this->source.getASTBuffer().getIdent(instr.func_decl.name);
-			const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
-			if(this->add_ident_to_scope(ident_str, instr.func_decl, created_func_id, this->context).isError()){
-				return Result::ERROR;
+			const Token& name_token = this->source.getTokenBuffer()[instr.func_decl.name];
+
+			switch(name_token.kind()){
+				case Token::Kind::IDENT: {
+					const std::string_view ident_str = name_token.getString();
+					if(this->add_ident_to_scope(ident_str, instr.func_decl, created_func_id, this->context).isError()){
+						return Result::ERROR;
+					}
+				} break;
+
+				case Token::Kind::KEYWORD_AS: {
+					if(this->scope.inObjectScope() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_decl,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+
+					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_decl,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+
+
+					if(created_func.params.size() != 1){
+						if(created_func.params.size() > 1){
+							if(
+								this->source.getTokenBuffer()[created_func.params[0].ident].kind()
+								== Token::Kind::KEYWORD_THIS
+							){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
+									created_func.params[1].ident,
+									"Operator [as] overload can only have a [this] parameter"
+								);
+							}else{
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
+									created_func.params[0].ident,
+									"Operator [as] overload can only have a [this] parameter"
+								);
+							}
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
+								created_func_id,
+								"Operator [as] overload must have a [this] parameter"
+							);
+						}
+
+						return Result::ERROR;
+					}
+
+					if(this->source.getTokenBuffer()[created_func.params[0].ident].kind() != Token::Kind::KEYWORD_THIS){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
+							created_func.params[1].ident,
+							"Operator [as] overload can only have a [this] parameter"
+						);
+						return Result::ERROR;
+					}
+
+					const BaseType::Function& created_func_type =
+						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+
+					if(created_func_type.returnParams.size() != 1){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
+							created_func_type.returnParams[1].ident.value_or(created_func.name),
+							"Operator [as] overload can only have single return"
+						);
+						return Result::ERROR;
+					}
+
+					if(created_func_type.returnParams[0].typeID.isVoid()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
+							created_func_type.returnParams[1].ident.value_or(created_func.name),
+							"Operator [as] overload must return a value"
+						);
+						return Result::ERROR;
+					}
+
+
+					if(created_func_type.errorParams.empty() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
+							created_func_type.errorParams[0].ident.value_or(created_func.name),
+							"Operator [as] overload cannot error"
+						);
+						return Result::ERROR;
+					}
+
+
+					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+					);
+
+					const TypeInfo::ID conversion_type = created_func_type.returnParams[0].typeID.asTypeID();
+
+					const auto lock = std::scoped_lock(current_struct.operatorAsOverloadsLock);
+
+					const auto find = current_struct.operatorAsOverloads.find(conversion_type);
+					if(find != current_struct.operatorAsOverloads.end()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
+							created_func_type.returnParams[0].ident.value_or(created_func.name),
+							"Operator [as] overload for this type already defined",
+							Diagnostic::Info("Defined here:", this->get_location(find->second))
+						);
+						return Result::ERROR;
+					}
+
+					current_struct.operatorAsOverloads.emplace(conversion_type, created_func_id);
+				} break;
+
+				default: {
+					this->emit_error(
+						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+						instr.func_decl.name,
+						"This operator overload is currently unimplemented"
+					);
+					return Result::ERROR;
+				} break;
 			}
+
 		}
 
 
-		sema::Func& created_func = this->context.sema_buffer.funcs[created_func_id];
 		this->push_scope_level(&created_func.stmtBlock, created_func_id);
+
 
 		///////////////////////////////////
 		// done
@@ -1847,6 +1978,18 @@ namespace pcit::panther{
 			this->context.trace("SemanticAnalyzer::instr_template_func: {}", this->symbol_proc.ident);
 		});
 
+		const Token& name_token = this->source.getTokenBuffer()[instr.func_decl.name];
+
+		if(name_token.kind() != Token::Kind::IDENT){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
+				instr.func_decl.name,
+				"Operator overload cannot be a template"
+			);
+			return Result::ERROR;
+		}
+		
+
 
 		size_t minimum_num_template_args = 0;
 		auto params = evo::SmallVector<sema::TemplatedFunc::Param>();
@@ -1923,15 +2066,12 @@ namespace pcit::panther{
 			}
 		}
 
-		evo::debugAssert(instr.func_decl.name.kind() == AST::Kind::IDENT, "templated overloads are not allowed");
-		const Token::ID ident = this->source.getASTBuffer().getIdent(instr.func_decl.name);
-		const std::string_view ident_str = this->source.getTokenBuffer()[ident].getString();
-		
+
 		const sema::TemplatedFunc::ID new_templated_func = this->context.sema_buffer.createTemplatedFunc(
 			this->symbol_proc, minimum_num_template_args, std::move(params)
 		);
 
-		if(this->add_ident_to_scope(ident_str, instr.func_decl, new_templated_func).isError()){
+		if(this->add_ident_to_scope(name_token.getString(), instr.func_decl, new_templated_func).isError()){
 			return Result::ERROR;
 		}
 
@@ -5351,11 +5491,40 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(from_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
+		if(from_underlying_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+			const BaseType::Struct& from_struct = this->context.getTypeManager().getStruct(
+				from_underlying_type.baseTypeID().structID()
+			);
+
+			const auto find = from_struct.operatorAsOverloads.find(target_type.asTypeID());
+
+			if(find == from_struct.operatorAsOverloads.end()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix.rhs,
+					"No valid operator [as] to this type"
+				);
+				return Result::ERROR;
+			}
+
+			const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
+				find->second, evo::SmallVector<sema::Expr>{expr.getExpr()}
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				expr.value_stage,
+				target_type.asTypeID(),
+				sema::Expr(conversion_call)
+			);
+			return Result::SUCCESS;
+
+
+		}else if(from_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				instr.infix.lhs,
-				"Operator [as] from a non-primitive underlying type is unimplemented"
+				"Operator [as] for this kind of type is unimplemented"
 			);
 			return Result::ERROR;
 		}

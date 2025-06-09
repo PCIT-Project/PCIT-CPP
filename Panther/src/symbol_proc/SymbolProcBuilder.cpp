@@ -165,8 +165,10 @@ namespace pcit::panther{
 
 			case AST::Kind::FUNC_DECL: {
 				const AST::FuncDecl& func_decl = ast_buffer.getFuncDecl(stmt);
-				if(func_decl.name.kind() == AST::Kind::IDENT){
-					return token_buffer[ast_buffer.getIdent(func_decl.name)].getString();
+				const Token& name_token = token_buffer[func_decl.name];
+
+				if(name_token.kind() == Token::Kind::IDENT){
+					return name_token.getString();
 				}else{
 					return std::string_view();
 				}

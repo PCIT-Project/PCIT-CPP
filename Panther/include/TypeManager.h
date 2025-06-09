@@ -215,6 +215,10 @@ namespace pcit::panther{
 
 			mutable core::SpinLock memberVarsLock{}; // only needed before definition is completed
 
+
+			std::unordered_map<TypeInfoID, sema::FuncID> operatorAsOverloads{};
+			mutable core::SpinLock operatorAsOverloadsLock{};
+
 			EVO_NODISCARD auto operator==(const Struct& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID
 					&& this->identTokenID == rhs.identTokenID

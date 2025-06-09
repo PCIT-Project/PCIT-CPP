@@ -157,11 +157,30 @@ namespace pcit::panther{
 	auto Parser::parse_func_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KEYWORD_FUNC)){ return Result::Code::ERROR; }
 
-		const Result ident = this->parse_ident();
-		if(this->check_result_fail(ident, "identifier after [func] in function declaration")){
-			return Result::Code::ERROR;
-		}
+		const Token::ID name = this->reader.next();
 
+		switch(this->reader[name].kind()){
+			case Token::Kind::IDENT:              case Token::Kind::KEYWORD_COPY:    case Token::Kind::KEYWORD_MOVE:
+			case Token::Kind::KEYWORD_NEW:        case Token::Kind::KEYWORD_AS:      case Token::Kind::PLUS:
+			case Token::Kind::ADD_WRAP:           case Token::Kind::ADD_SAT:         case Token::Kind::MINUS:
+			case Token::Kind::SUB_WRAP:           case Token::Kind::SUB_SAT:         case Token::Kind::ASTERISK:
+			case Token::Kind::MUL_WRAP:           case Token::Kind::MUL_SAT:         case Token::Kind::FORWARD_SLASH:
+			case Token::Kind::MOD:                case Token::Kind::EQUAL:           case Token::Kind::NOT_EQUAL:
+			case Token::Kind::LESS_THAN:          case Token::Kind::LESS_THAN_EQUAL: case Token::Kind::GREATER_THAN:
+			case Token::Kind::GREATER_THAN_EQUAL: case Token::Kind::NOT:             case Token::Kind::AND:
+			case Token::Kind::OR:                 case Token::Kind::SHIFT_LEFT:      case Token::Kind::SHIFT_LEFT_SAT:
+			case Token::Kind::SHIFT_RIGHT:        case Token::Kind::BITWISE_AND:     case Token::Kind::BITWISE_OR:
+			case Token::Kind::BITWISE_XOR:        case Token::Kind::BITWISE_NOT: {
+				break;
+			}
+
+			default: {
+				this->expected_but_got(
+					"identifier or overloadable operator after [func] in function declaration", this->reader.peek(-1)
+				);
+				return Result::Code::ERROR;
+			}
+		}
 
 		if(this->expect_token_fail(Token::lookupKind("="), "after identifier in function declaration")){
 			if(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
@@ -207,7 +226,7 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createFuncDecl(
-			ident.value(),
+			name,
 			template_pack_node,
 			std::move(params.value()),
 			attribute_block.value(),

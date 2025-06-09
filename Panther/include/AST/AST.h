@@ -173,7 +173,7 @@ namespace pcit::panther::AST{
 			Node type;
 		};
 
-		Node name; // either identifier or operator
+		Token::ID name; // either identifier or operator
 		std::optional<Node> templatePack;
 		evo::SmallVector<Param> params;
 		Node attributeBlock;

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.122.0"></a>
+## v0.0.122.0
+
+### Panther
+- Added overloading of operator `as`
+- Fixed assert (that checks all symbol procs finished incorrectly) firing in debug mode
+
+
+<!---------------------------------->
 <a name="v0.0.121.2"></a>
 ## v0.0.121.2
 

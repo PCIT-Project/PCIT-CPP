@@ -318,7 +318,7 @@ namespace pcit::panther::sema{
 			std::optional<Expr> defaultValue;
 		};
 
-		AST::Node name;
+		Token::ID name;
 		SourceID sourceID;
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;

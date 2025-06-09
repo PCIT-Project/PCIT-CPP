@@ -1,4 +1,5 @@
 
+
 type Vec2 = struct <{T: Type}> {
 	var x: T;
 	var y: T;
@@ -6,24 +7,28 @@ type Vec2 = struct <{T: Type}> {
 	func get_sum = (this) #rt -> T {
 		return @fadd<{T}>(this.x, this.y);
 	}
+
+
+	func as = (this) #rt -> Vec2<{F64}> {
+		return new Vec2<{F64}>{
+			x = this.x as F64,
+			y = this.y as F64,
+		};
+	}
+
 }
 
-// type Vec2F64 = struct {
-// 	var x: F64;
-// 	var y: F64;
-// }
+
 
 
 
 
 func entry = () #entry -> UI8 {
-	// var test: Vec2<{F32}> = uninit;
-
 	const vec = new Vec2<{F32}>{
 		x = 12.4,
 		y = 19.6,
 	};
 	
-	return vec.get_sum() as UI8;
+	return (vec as Vec2<{F64}>).get_sum() as UI8;
 }
 

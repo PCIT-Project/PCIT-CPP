@@ -3733,19 +3733,18 @@ namespace pcit::panther{
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 		const Source& source = this->context.getSourceManager()[func.sourceID];
 
-		if(func.name.kind() == AST::Kind::IDENT){
+		const Token& name_token = source.getTokenBuffer()[func.name];
+
+		if(name_token.kind() == Token::Kind::IDENT){
 			if(this->data.getConfig().useReadableNames){
-				return std::format(
-					"PTHR.f{}.{}",
-					func_id.get(),
-					source.getTokenBuffer()[source.getASTBuffer().getIdent(func.name)].getString()
-				);
+				return std::format("PTHR.f{}.{}", func_id.get(), name_token.getString());
 			}else{
 				return std::format("PTHR.f{}", func_id.get());
 			}
 
 		}else{
-			evo::unimplemented("Name mangling of operator overload func name");
+			// TODO(FUTURE): better naming of overloads
+			return std::format("PTHR.f{}", func_id.get());
 		}
 	}
 
