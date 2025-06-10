@@ -170,6 +170,7 @@ namespace pcit::panther{
 		struct StructDecl{
 			const AST::StructDecl& struct_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
+			std::optional<BaseType::StructTemplate::ID> struct_template_id{};
 			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
 
 			StructDecl(
@@ -179,10 +180,12 @@ namespace pcit::panther{
 			StructDecl(
 				const AST::StructDecl& _struct_decl,
 				evo::SmallVector<AttributeParams>&& _attribute_params_info,
+				BaseType::StructTemplate::ID _struct_template_id,
 				uint32_t _instantiation_id
 			) requires(IS_INSTANTIATION) :
 				struct_decl(_struct_decl),
 				attribute_params_info(_attribute_params_info),
+				struct_template_id(_struct_template_id),
 				instantiation_id(_instantiation_id)
 			{}
 		};
@@ -503,6 +506,20 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		enum class MathInfixKind{
+			COMPARATIVE,
+			INTEGRAL_MATH,
+			MATH,
+		};
+
+		template<bool IS_CONSTEXPR, MathInfixKind MATH_INFIX_KIND>
+		struct MathInfix{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
+			SymbolProcTermInfoID rhs;
+			SymbolProcTermInfoID output;
+		};
+
 
 		//////////////////
 		// accessors
@@ -654,6 +671,12 @@ namespace pcit::panther{
 			EndExprBlock,
 			As<true>,
 			As<false>,
+			MathInfix<true, MathInfixKind::COMPARATIVE>,
+			MathInfix<true, MathInfixKind::MATH>,
+			MathInfix<true, MathInfixKind::INTEGRAL_MATH>,
+			MathInfix<false, MathInfixKind::COMPARATIVE>,
+			MathInfix<false, MathInfixKind::MATH>,
+			MathInfix<false, MathInfixKind::INTEGRAL_MATH>,
 
 			// accessors
 			Accessor<true>,

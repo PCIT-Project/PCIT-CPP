@@ -32,6 +32,7 @@ namespace pcit::panther{
 				const SymbolProc& template_symbol_proc,
 				BaseType::StructTemplate::Instantiation& instantiation,
 				sema::ScopeManager::Scope::ID sema_scope_id,
+				BaseType::StructTemplate::ID struct_template_id,
 				uint32_t instantiation_id
 			) -> evo::Result<SymbolProc::ID>;
 

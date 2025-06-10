@@ -19,8 +19,11 @@ namespace pcit::panther{
 	
 	namespace IntrinsicFunc{
 		enum class Kind {
+			// operational
 			ABORT,
 			BREAKPOINT,
+
+			// build system
 			BUILD_SET_NUM_THREADS,
 			BUILD_SET_OUTPUT,
 			BUILD_SET_USE_STD_LIB,

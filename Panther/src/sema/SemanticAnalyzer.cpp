@@ -280,6 +280,36 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::As<false>>()){
 				return this->instr_expr_as<false>(instr);
 
+			}else if constexpr(
+				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>>()
+			){
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::COMPARATIVE>(instr);
+
+			}else if constexpr(
+				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::MATH>>()
+			){
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::MATH>(instr);
+
+			}else if constexpr(
+				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>>()
+			){
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::INTEGRAL_MATH>(instr);
+
+			}else if constexpr(
+				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::COMPARATIVE>>()
+			){
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::COMPARATIVE>(instr);
+
+			}else if constexpr(
+				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::MATH>>()
+			){
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::MATH>(instr);
+
+			}else if constexpr(
+				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::INTEGRAL_MATH>>()
+			){
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::INTEGRAL_MATH>(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::Accessor<true>>()){
 				return this->instr_expr_accessor<true>(instr);
 
@@ -1027,6 +1057,7 @@ namespace pcit::panther{
 			BaseType::Struct{
 				.sourceID          = this->source.getID(),
 				.identTokenID      = instr.struct_decl.ident,
+				.templateID        = instr.struct_template_id,
 				.instantiation     = instr.instantiation_id,
 				.memberVars        = evo::SmallVector<BaseType::Struct::MemberVar>(),
 				.memberVarsABI     = evo::SmallVector<BaseType::Struct::MemberVar*>(),
@@ -5106,7 +5137,9 @@ namespace pcit::panther{
 
 					case sema::Expr::Kind::CHAR_VALUE: {
 						instantiation_lookup_args.emplace_back(
-							core::GenericValue(evo::copy(sema_buffer.getCharValue(arg_expr.charValueID()).value))
+							core::GenericValue(
+								core::GenericInt::create<char>((sema_buffer.getCharValue(arg_expr.charValueID()).value))
+							)
 						);
 					} break;
 
@@ -5189,7 +5222,9 @@ namespace pcit::panther{
 						case sema::Expr::Kind::CHAR_VALUE: {
 							instantiation_lookup_args.emplace_back(
 								core::GenericValue(
-									evo::copy(sema_buffer.getCharValue(default_value.charValueID()).value)
+									core::GenericInt::create<char>(
+										sema_buffer.getCharValue(default_value.charValueID()).value
+									)
 								)
 							);
 						} break;
@@ -5234,6 +5269,7 @@ namespace pcit::panther{
 				sema_templated_struct.symbolProc,
 				instantiation_info.instantiation,
 				instantiation_sema_scope_id,
+				sema_templated_struct.templateID,
 				*instantiation_info.instantiationID
 			);
 			if(instantiation_symbol_proc_id.isError()){ return Result::ERROR; }
@@ -5857,6 +5893,67 @@ namespace pcit::panther{
 	}
 
 
+	template<bool IS_CONSTEXPR, Instruction::MathInfixKind MATH_INFIX_KIND>
+	auto SemanticAnalyzer::instr_expr_math_infix(const Instruction::MathInfix<IS_CONSTEXPR, MATH_INFIX_KIND>& instr)
+	-> Result {
+		this->emit_error(
+			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+			instr.infix,
+			"Semantic Analysis of infix math operator is unimplemented"
+		);
+
+		return Result::ERROR;
+
+
+	// 	TermInfo& lhs = this->get_term_info(instr.lhs);
+	// 	TermInfo& rhs = this->get_term_info(instr.rhs);
+
+	// 	if(lhs.isSingleNormalValue() == false){
+	// 		this->emit_error(
+	// 			Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS, instr.infix.lhs, "Invalid LHS of math infix operator"
+	// 		);
+	// 		return Result::ERROR;
+	// 	}
+
+	// 	if(rhs.isSingleNormalValue() == false){
+	// 		this->emit_error(
+	// 			Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS, instr.infix.rhs, "Invalid RHS of math infix operator"
+	// 		);
+	// 		return Result::ERROR;
+	// 	}
+
+
+		// const TypeInfo& lhs_type_info = this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>());
+		// const TypeInfo& rhs_type_info = this->context.getTypeManager().getTypeInfo(rhs.type_id.as<TypeInfo::ID>());
+
+
+
+		// if(lhs.type_id.is<TypeInfo::ID>()){
+		// 	if(rhs.type_id.is<TypeInfo::ID>()){ // neither lhs nor rhs fluid
+
+		// 	}else{ // rhs fluid
+		// 		evo::unimplemented();
+		// 	}
+		// }else if(rhs.type_id.is<TypeInfo::ID>()){ // lhs fluid
+		// 	evo::unimplemented();
+		// }else{ // both lhs and rhs fluid
+		// 	evo::unimplemented();
+		// }
+
+
+		// if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::COMPARATIVE){
+		// 	evo::unimplemented();
+			
+		// }else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
+		// 	evo::unimplemented();
+		
+		// }else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
+		// 	evo::unimplemented();
+			
+		// }
+
+		// evo::unimplemented();
+	}
 
 
 	template<bool NEEDS_DEF>

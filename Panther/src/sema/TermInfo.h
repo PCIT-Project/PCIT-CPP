@@ -285,6 +285,10 @@ namespace pcit::panther{
 				|| this->value_category == ValueCategory::METHOD_CALL;
 		}
 
+		EVO_NODISCARD auto isSingleNormalValue() const -> bool {
+			return this->type_id.is<TypeInfo::ID>() || this->type_id.is<FluidType>();
+		}
+
 		EVO_NODISCARD auto getExpr() const -> const sema::Expr& {
 			evo::debugAssert(
 				this->isSingleValue() || (this->isMultiValue() && this->exprs.size() == 1), "does not hold expr value"

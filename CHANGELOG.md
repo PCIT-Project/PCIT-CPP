@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.123.0"></a>
+## v0.0.123.0
+
+### Panther
+- Improved printing of templated types in diagnostics to include template args
+- Fixed `Char` template args causing weird behavior
+
+
+<!---------------------------------->
 <a name="v0.0.122.0"></a>
 ## v0.0.122.0
 

@@ -39,6 +39,22 @@ namespace pcit::panther{
 
 
 
+	auto BaseType::StructTemplate::getInstantiationArgs(uint32_t instantiation_id) const -> evo::SmallVector<Arg> {
+		const auto lock = std::scoped_lock(this->instantiation_lock);
+
+		const Instantiation* instantiation_ptr = &this->instantiations[instantiation_id];
+
+		for(const auto& instantiation_map_item : this->instantiation_map){
+			if(&instantiation_map_item.second == instantiation_ptr){
+				return instantiation_map_item.first;
+			}
+		}
+
+		evo::debugFatalBreak("Didn't find instantiation: {}", instantiation_id);
+	}
+
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// type manager
@@ -183,9 +199,62 @@ namespace pcit::panther{
 					const BaseType::Struct::ID struct_id = type_info.baseTypeID().structID();
 					const BaseType::Struct& struct_info = this->getStruct(struct_id);
 
-					return std::string(
-						source_manager[struct_info.sourceID].getTokenBuffer()[struct_info.identTokenID].getString()
-					);
+					const std::string_view struct_name =
+						source_manager[struct_info.sourceID].getTokenBuffer()[struct_info.identTokenID].getString();
+
+					if(struct_info.templateID.has_value() == false){
+						return std::string(struct_name);
+					}
+
+					const BaseType::StructTemplate& struct_template = this->getStructTemplate(*struct_info.templateID);
+
+					auto builder = std::string();
+					builder += struct_name;
+
+					builder += "<{";
+
+					const evo::SmallVector<BaseType::StructTemplate::Arg> template_args =
+						struct_template.getInstantiationArgs(struct_info.instantiation);
+
+
+					// TODO(PERF): 
+					for(size_t i = 0; const BaseType::StructTemplate::Arg& template_arg : template_args){
+						if(template_arg.is<TypeInfo::VoidableID>()){
+							builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), source_manager);
+
+						}else if(*struct_template.params[i].typeID == TypeManager::getTypeBool()){
+							builder += evo::boolStr(template_arg.as<core::GenericValue>().as<bool>());
+
+						}else if(*struct_template.params[i].typeID == TypeManager::getTypeChar()){
+							builder += "'";
+							builder += char(template_arg.as<core::GenericValue>().as<core::GenericInt>());
+							builder += "'";
+
+						}else if(this->isUnsignedIntegral(*struct_template.params[i].typeID)){
+							builder += template_arg.as<core::GenericValue>().as<core::GenericInt>().toString(false);
+
+						}else if(this->isIntegral(*struct_template.params[i].typeID)){
+							builder += template_arg.as<core::GenericValue>().as<core::GenericInt>().toString(true);
+
+						}else if(this->isFloatingPoint(*struct_template.params[i].typeID)){
+							builder += template_arg.as<core::GenericValue>().as<core::GenericFloat>().toString();
+							
+						}else{
+							builder += "<EXPR>";
+						}
+
+
+						if(i + 1 < template_args.size()){
+							builder += ", ";
+						}
+					
+						i += 1;
+					}
+
+					builder += "}>";
+
+					return builder;
+
 				} break;
 
 				case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -407,6 +476,7 @@ namespace pcit::panther{
 		const BaseType::Struct::ID new_struct = this->structs.emplace_back(
 			lookup_type.sourceID,
 			lookup_type.identTokenID,
+			lookup_type.templateID,
 			lookup_type.instantiation,
 			std::move(lookup_type.memberVars),
 			std::move(lookup_type.memberVarsABI),

@@ -200,6 +200,7 @@ namespace pcit::panther{
 
 			SourceID sourceID;
 			Token::ID identTokenID;
+			std::optional<StructTemplateID> templateID; // nullopt if not instantiated
 			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uin32_t max if not instantiation
 			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock)
 			evo::SmallVector<MemberVar*> memberVarsABI; // this is the order that members are for ABI
@@ -268,6 +269,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto hasAnyDefaultParams() const -> bool {
 				return this->minNumTemplateArgs != this->params.size();
 			}
+
+
+			EVO_NODISCARD auto getInstantiationArgs(uint32_t instantiation_id) const -> evo::SmallVector<Arg>;
 
 
 			auto operator==(const StructTemplate& rhs) const -> bool {

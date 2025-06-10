@@ -140,6 +140,10 @@ namespace pcit::panther{
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_expr_as(const Instruction::As<IS_CONSTEXPR>& instr) -> Result;
 
+			template<bool IS_CONSTEXPR, Instruction::MathInfixKind MATH_INFIX_KIND>
+			EVO_NODISCARD auto instr_expr_math_infix(const Instruction::MathInfix<IS_CONSTEXPR, MATH_INFIX_KIND>& instr)
+				-> Result;
+
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result;
 
