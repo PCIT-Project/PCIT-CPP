@@ -220,6 +220,7 @@ namespace pcit::panther{
 			// math infix
 			SEMA_MATH_INFIX_INVALID_LHS,
 			SEMA_MATH_INFIX_INVALID_RHS,
+			SEMA_MATH_INFIX_NO_MATCHING_OP,
 
 			// misc
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
@@ -620,6 +621,7 @@ namespace pcit::panther{
 				case Code::SEMA_AS_POINTER_CONVERSION:
 				case Code::SEMA_MATH_INFIX_INVALID_LHS:
 				case Code::SEMA_MATH_INFIX_INVALID_RHS:
+				case Code::SEMA_MATH_INFIX_NO_MATCHING_OP:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
 				case Code::SEMA_FUNC_HAS_NO_THIS_PARAM:

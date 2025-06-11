@@ -274,7 +274,19 @@ namespace pcit::panther{
 				for(size_t i = 0; i < 100; i+=1){
 					std::this_thread::yield();
 					if(this->symbol_proc_manager.allProcsDone()){ break; }
-					evo::debugAssert(work_manager_inst.isWorking() == false, "Thought was done working, was not...");
+
+					if(work_manager_inst.isWorking() == false){
+						evo::log::debug("Collecting data to look at in the debugger (`symbol_proc_list`)...");
+						auto symbol_proc_list = std::vector<const SymbolProc*>();
+						for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
+							symbol_proc_list.emplace_back(&symbol_proc);
+						}
+
+						// Prevent escape from breakpoint
+						while(true){
+							evo::breakpoint();
+						}
+					}
 				}
 			#endif
 
@@ -897,7 +909,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// type traits
 
-		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::SIZE_OF))] = 
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::NUM_BYTES))] = 
 		TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>(),
@@ -906,7 +918,7 @@ namespace pcit::panther{
 			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
 		};
 
-		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::BIT_WIDTH))] = 
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::NUM_BITS))] = 
 		TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>(),

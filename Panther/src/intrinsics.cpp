@@ -80,8 +80,8 @@ namespace pcit::panther{
 		if(was_initialized){ return; }
 
 		template_intrinsic_kinds = std::unordered_map<std::string_view, Kind>{
-			{"sizeOf",     Kind::SIZE_OF},
-			{"bitWidth",   Kind::BIT_WIDTH},
+			{"numBytes",   Kind::NUM_BYTES},
+			{"numBits",    Kind::NUM_BITS},
 
 			{"bitCast",    Kind::BIT_CAST},
 			{"trunc",      Kind::TRUNC},

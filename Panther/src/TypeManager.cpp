@@ -71,7 +71,7 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TYPE_F32);
 		this->primitives.emplace_back(Token::Kind::TYPE_F64);
 		this->primitives.emplace_back(Token::Kind::TYPE_F80);
-		this->primitives.emplace_back(Token::Kind::TYPE_F128);
+		const BaseType::Primitive::ID type_f128  =  this->primitives.emplace_back(Token::Kind::TYPE_F128);
 		this->primitives.emplace_back(Token::Kind::TYPE_BYTE);
 		const BaseType::Primitive::ID type_bool    = this->primitives.emplace_back(Token::Kind::TYPE_BOOL);
 		const BaseType::Primitive::ID type_char    = this->primitives.emplace_back(Token::Kind::TYPE_CHAR);
@@ -98,6 +98,8 @@ namespace pcit::panther{
 		const BaseType::Primitive::ID type_ui32 = this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 32);
 		const BaseType::Primitive::ID type_ui64 = this->primitives.emplace_back(Token::Kind::TYPE_UI_N, 64);
 
+		const BaseType::Primitive::ID type_i256 = this->primitives.emplace_back(Token::Kind::TYPE_I_N, 256);
+
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_bool.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_char.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_ui8.get())));
@@ -107,6 +109,8 @@ namespace pcit::panther{
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_usize.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_type_id.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_raw_ptr.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_i256.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f128.get())));
 	}
 
 	auto TypeManager::primitivesInitialized() const -> bool {
@@ -555,30 +559,30 @@ namespace pcit::panther{
 		return (num + (8 - 1)) & ~(8 - 1);
 	}
 
-	auto TypeManager::sizeOf(TypeInfo::ID id) const -> size_t {
+	auto TypeManager::numBytes(TypeInfo::ID id) const -> size_t {
 		const TypeInfo& type_info = this->getTypeInfo(id);
-		if(type_info.qualifiers().empty()){ return this->sizeOf(type_info.baseTypeID()); }
+		if(type_info.qualifiers().empty()){ return this->numBytes(type_info.baseTypeID()); }
 
 		evo::debugAssert(
 			type_info.qualifiers().back().isPtr || !type_info.qualifiers().back().isOptional,
 			"optionals are not supported yet"
 		);
 
-		return this->sizeOfPtr();
+		return this->numBytesOfPtr();
 	}
 
 
-	auto TypeManager::sizeOf(BaseType::ID id) const -> uint64_t {
+	auto TypeManager::numBytes(BaseType::ID id) const -> uint64_t {
 		switch(id.kind()){
 			case BaseType::Kind::PRIMITIVE: {
 				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 
 				switch(primitive.kind()){
 					case Token::Kind::TYPE_INT: case Token::Kind::TYPE_UINT:
-						return this->sizeOfGeneralRegister();
+						return this->numBytesOfGeneralRegister();
 
 					case Token::Kind::TYPE_ISIZE: case Token::Kind::TYPE_USIZE:
-						return this->sizeOfPtr();
+						return this->numBytesOfPtr();
 
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N:
 						return round_up_to_nearest_multiple_of_8(
@@ -594,7 +598,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_BYTE:   return 1;
 					case Token::Kind::TYPE_BOOL:   return 1;
 					case Token::Kind::TYPE_CHAR:   return 1;
-					case Token::Kind::TYPE_RAWPTR: return this->sizeOfPtr();
+					case Token::Kind::TYPE_RAWPTR: return this->numBytesOfPtr();
 					case Token::Kind::TYPE_TYPEID: return 4;
 
 					// https://en.cppreference.com/w/cpp/language/types
@@ -618,12 +622,12 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::FUNCTION: {
-				return this->sizeOfPtr();
+				return this->numBytesOfPtr();
 			} break;
 
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
-				const uint64_t elem_size = this->sizeOf(array.elementTypeID);
+				const uint64_t elem_size = this->numBytes(array.elementTypeID);
 
 				if(array.terminator.has_value()){ return elem_size * array.lengths.back() + 1; }
 
@@ -637,13 +641,13 @@ namespace pcit::panther{
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-				return this->sizeOf(*alias.aliasedType.load());
+				return this->numBytes(*alias.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::TYPEDEF: {
 				const BaseType::Typedef& type_def = this->getTypedef(id.typedefID());
 				evo::debugAssert(type_def.underlyingType.load().has_value(), "Definition of typedef was not completed");
-				return this->sizeOf(*type_def.underlyingType.load());
+				return this->numBytes(*type_def.underlyingType.load());
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -652,7 +656,7 @@ namespace pcit::panther{
 				size_t total = 0;
 
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					total += this->sizeOf(member_var.typeID);
+					total += this->numBytes(member_var.typeID);
 				}
 
 				return total;
@@ -674,8 +678,119 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported base-type kind");
 	}
 
-	auto TypeManager::sizeOfPtr() const -> uint64_t { return 8; }
-	auto TypeManager::sizeOfGeneralRegister() const -> uint64_t { return 8; }
+	auto TypeManager::numBytesOfPtr() const -> uint64_t { return 8; }
+	auto TypeManager::numBytesOfGeneralRegister() const -> uint64_t { return 8; }
+
+
+	///////////////////////////////////
+	// numBits
+
+	auto TypeManager::numBits(TypeInfo::ID id) const -> size_t {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+		if(type_info.qualifiers().empty()){ return this->numBits(type_info.baseTypeID()); }
+
+		evo::debugAssert(type_info.isOptionalNotPointer(), "optionals are not supported yet");
+
+		return this->numBitsOfPtr();
+	}
+
+
+	auto TypeManager::numBits(BaseType::ID id) const -> uint64_t {
+		switch(id.kind()){
+			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+
+				switch(primitive.kind()){
+					case Token::Kind::TYPE_INT: case Token::Kind::TYPE_UINT:
+						return this->numBitsOfGeneralRegister();
+
+					case Token::Kind::TYPE_ISIZE: case Token::Kind::TYPE_USIZE:
+						return this->numBitsOfPtr();
+
+					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N:
+						return primitive.bitWidth();
+
+					case Token::Kind::TYPE_F16:    return 16;
+					case Token::Kind::TYPE_BF16:   return 16;
+					case Token::Kind::TYPE_F32:    return 32;
+					case Token::Kind::TYPE_F64:    return 64;
+					case Token::Kind::TYPE_F80:    return 80;
+					case Token::Kind::TYPE_F128:   return 128;
+					case Token::Kind::TYPE_BYTE:   return 8;
+					case Token::Kind::TYPE_BOOL:   return 1;
+					case Token::Kind::TYPE_CHAR:   return 8;
+					case Token::Kind::TYPE_RAWPTR: return this->numBitsOfPtr();
+					case Token::Kind::TYPE_TYPEID: return 32;
+
+					// https://en.cppreference.com/w/cpp/language/types
+					case Token::Kind::TYPE_C_SHORT: case Token::Kind::TYPE_C_USHORT:
+					    return 16;
+
+					case Token::Kind::TYPE_C_INT: case Token::Kind::TYPE_C_UINT:
+						return 32;
+
+					case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_ULONG:
+						return this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64;
+
+					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
+						return 64;
+
+					case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						if(this->platform.os == core::Platform::OS::WINDOWS){
+							return 64;
+						}
+						
+						return this->platform.arch == core::Platform::Architecture::X86_64 ? 80 : 128;
+					} break;
+
+					default: evo::debugFatalBreak("Unknown or unsupported built-in type");
+				}
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return this->numBitsOfPtr();
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				return this->numBytes(id) * 8;
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
+				return this->numBits(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::TYPEDEF: {
+				const BaseType::Typedef& type_def = this->getTypedef(id.typedefID());
+				evo::debugAssert(type_def.underlyingType.load().has_value(), "Definition of typedef was not completed");
+				return this->numBits(*type_def.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				return this->numBytes(id) * 8;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: {
+				// TODO(FUTURE): handle this better?
+				evo::debugAssert("Cannot get size of Struct Template");
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugAssert("Cannot get size of type deducer");
+			} break;
+
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported base-type kind");
+	}
+
+
+
+	auto TypeManager::numBitsOfPtr() const -> uint64_t { return 64; }
+	auto TypeManager::numBitsOfGeneralRegister() const -> uint64_t { return 64; }
 
 
 
@@ -690,7 +805,7 @@ namespace pcit::panther{
 	}
 
 	auto TypeManager::isTriviallySized(BaseType::ID id) const -> bool {
-		return this->sizeOf(id) <= this->sizeOfPtr();
+		return this->numBytes(id) <= this->numBytesOfPtr();
 	}
 
 
@@ -1000,7 +1115,7 @@ namespace pcit::panther{
 				return this->getOrCreateTypeInfo(
 					TypeInfo(
 						this->getOrCreatePrimitiveBaseType(
-							Token::Kind::TYPE_I_N, uint32_t(this->sizeOfGeneralRegister()) * 8
+							Token::Kind::TYPE_I_N, uint32_t(this->numBytesOfGeneralRegister()) * 8
 						)
 					)
 				);
@@ -1008,7 +1123,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_ISIZE:{
 				return this->getOrCreateTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, uint32_t(this->sizeOfPtr()) * 8))
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, uint32_t(this->numBytesOfPtr()) * 8))
 				);
 			} break;
 
@@ -1020,7 +1135,7 @@ namespace pcit::panther{
 				return this->getOrCreateTypeInfo(
 					TypeInfo(
 						this->getOrCreatePrimitiveBaseType(
-							Token::Kind::TYPE_UI_N, uint32_t(this->sizeOfGeneralRegister()) * 8
+							Token::Kind::TYPE_UI_N, uint32_t(this->numBytesOfGeneralRegister()) * 8
 						)
 					)
 				);
@@ -1029,7 +1144,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_USIZE: {
 				return this->getOrCreateTypeInfo(
 					TypeInfo(
-						this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, uint32_t(this->sizeOfPtr()) * 8)
+						this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, uint32_t(this->numBytesOfPtr()) * 8)
 					)
 				);
 			} break;
@@ -1171,15 +1286,15 @@ namespace pcit::panther{
 	auto TypeManager::getMin(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_min_signed(this->sizeOfGeneralRegister() * 8));
-			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_min_signed(this->sizeOfPtr() * 8));
+			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_min_signed(this->numBytesOfGeneralRegister() * 8));
+			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_min_signed(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_I_N:   return core::GenericValue(calc_min_signed(primitive.bitWidth()));
 
 			case Token::Kind::TYPE_UINT:
-				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfGeneralRegister() * 8), 0));
+				return core::GenericValue(core::GenericInt(unsigned(this->numBytesOfGeneralRegister() * 8), 0));
 
 			case Token::Kind::TYPE_USIZE: 
-				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr() * 8), 0));
+				return core::GenericValue(core::GenericInt(unsigned(this->numBytesOfPtr() * 8), 0));
 
 			case Token::Kind::TYPE_UI_N:  return core::GenericValue(core::GenericInt(primitive.bitWidth(), 0));
 
@@ -1209,7 +1324,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_CHAR:   return core::GenericValue(calc_min_signed(8));
 
 			case Token::Kind::TYPE_RAWPTR:
-				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr() * 8), 0));
+				return core::GenericValue(core::GenericInt(unsigned(this->numBytesOfPtr() * 8), 0));
 
 			case Token::Kind::TYPE_TYPEID: return core::GenericValue(core::GenericInt(32, 0));
 			case Token::Kind::TYPE_C_SHORT: return core::GenericValue(calc_min_signed(16));
@@ -1257,15 +1372,15 @@ namespace pcit::panther{
 	auto TypeManager::getNormalizedMin(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_min_signed(this->sizeOfGeneralRegister() * 8));
-			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_min_signed(this->sizeOfPtr() * 8));
+			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_min_signed(this->numBytesOfGeneralRegister() * 8));
+			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_min_signed(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_I_N:   return core::GenericValue(calc_min_signed(primitive.bitWidth()));
 
 			case Token::Kind::TYPE_UINT:
-				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfGeneralRegister() * 8), 0));
+				return core::GenericValue(core::GenericInt(unsigned(this->numBytesOfGeneralRegister() * 8), 0));
 
 			case Token::Kind::TYPE_USIZE:
-				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr() * 8), 0));
+				return core::GenericValue(core::GenericInt(unsigned(this->numBytesOfPtr() * 8), 0));
 				
 			case Token::Kind::TYPE_UI_N: return core::GenericValue(core::GenericInt(primitive.bitWidth(), 0));
 
@@ -1293,7 +1408,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_CHAR:   return core::GenericValue(calc_min_signed(8));
 
 			case Token::Kind::TYPE_RAWPTR:
-				return core::GenericValue(core::GenericInt(unsigned(this->sizeOfPtr() * 8), 0));
+				return core::GenericValue(core::GenericInt(unsigned(this->numBytesOfPtr() * 8), 0));
 
 			case Token::Kind::TYPE_TYPEID: return core::GenericValue(core::GenericInt(32, 0));
 			case Token::Kind::TYPE_C_SHORT: return core::GenericValue(calc_min_signed(16));
@@ -1337,14 +1452,14 @@ namespace pcit::panther{
 	auto TypeManager::getMax(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_max_signed(this->sizeOfGeneralRegister() * 8));
-			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_max_signed(this->sizeOfPtr() * 8));
+			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_max_signed(this->numBytesOfGeneralRegister() * 8));
+			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_max_signed(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_I_N:   return core::GenericValue(calc_max_signed(primitive.bitWidth()));
 
 			case Token::Kind::TYPE_UINT:
-				return core::GenericValue(calc_max_unsigned(this->sizeOfGeneralRegister() * 8));
+				return core::GenericValue(calc_max_unsigned(this->numBytesOfGeneralRegister() * 8));
 
-			case Token::Kind::TYPE_USIZE: return core::GenericValue(calc_max_unsigned(this->sizeOfPtr() * 8));
+			case Token::Kind::TYPE_USIZE: return core::GenericValue(calc_max_unsigned(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_UI_N:  return core::GenericValue(calc_max_unsigned(primitive.bitWidth()));
 
 			case Token::Kind::TYPE_F16:
@@ -1372,7 +1487,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_BYTE:   return core::GenericValue(calc_max_unsigned(8));
 			case Token::Kind::TYPE_BOOL:   return core::GenericValue(true);
 			case Token::Kind::TYPE_CHAR:   return core::GenericValue(calc_max_signed(8));
-			case Token::Kind::TYPE_RAWPTR: return core::GenericValue(calc_max_unsigned(this->sizeOfPtr() * 8));
+			case Token::Kind::TYPE_RAWPTR: return core::GenericValue(calc_max_unsigned(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_TYPEID: return core::GenericValue(calc_max_unsigned(32));
 			case Token::Kind::TYPE_C_SHORT: return core::GenericValue(calc_max_signed(16));
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_max_signed(32));

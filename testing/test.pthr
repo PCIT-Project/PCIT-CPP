@@ -1,16 +1,16 @@
 
 
-type Vec2 = struct <{T: Type, VALUE: Char = 'd'}> {
+type Vec2 = struct <{T: Type}> {
 	var x: T;
 	var y: T;
 
 	func get_sum = (this) #rt -> T {
-		return @fadd<{T,}>(this.x, this.y);
+		return this.x + this.y + 1.0;
 	}
 
 
-	func as = (this) #rt -> Vec2<{F64, VALUE}> {
-		return new Vec2<{F64, VALUE}>{
+	func as = (this) #rt -> Vec2<{F64}> {
+		return new Vec2<{F64}>{
 			x = this.x as F64,
 			y = this.y as F64,
 		};
@@ -21,17 +21,13 @@ type Vec2 = struct <{T: Type, VALUE: Char = 'd'}> {
 
 
 
-
-
 func entry = () #entry -> UI8 {
-	const vec = new Vec2<{F32, 'a'}>{
+	const vec = new Vec2<{F32}>{
 		x = 12.4,
 		y = 19.6,
 	};
-
-
-	const vec_f64: Vec2<{F64}> = copy vec;
 	
-	return vec_f64.get_sum() as UI8;
+	const shift_ammount: UInt = 2 + 6 / 4;
+	return (vec as Vec2<{F64}>).get_sum() as UI8 << shift_ammount as UI3;
 }
 

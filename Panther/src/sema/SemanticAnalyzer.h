@@ -297,6 +297,24 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getCompilationConfig() const -> const Source::CompilationConfig&;
 
 
+			struct DeducedType{
+				TypeInfo::VoidableID typeID;
+				Token::ID tokenID;
+			};
+
+			EVO_NODISCARD auto extract_type_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
+				-> evo::Result<evo::SmallVector<DeducedType>>;
+
+
+
+
+			EVO_NODISCARD auto constexpr_infix_math(Token::Kind op, sema::Expr lhs, sema::Expr rhs) -> TermInfo;
+
+			EVO_NODISCARD auto constexpr_infix_math_prep(const TermInfo& term_info) -> TermInfo;
+			EVO_NODISCARD auto constexpr_infix_math_prep(const evo::Result<TermInfo>& term_info) -> TermInfo;
+			EVO_NODISCARD auto constexpr_infix_math_cmp_prep(const TermInfo& term_info) -> TermInfo;
+
+
 			///////////////////////////////////
 			// attributes
 
@@ -371,11 +389,6 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// error handling / diagnostics
 
-			struct DeducedType{
-				TypeInfo::VoidableID typeID;
-				Token::ID tokenID;
-			};
-
 			struct TypeCheckInfo{
 				bool ok;
 				bool requires_implicit_conversion; // value is undefined if .ok == false
@@ -415,9 +428,26 @@ namespace pcit::panther{
 				std::optional<unsigned> multi_type_index = std::nullopt
 			) -> void;
 
+			auto diagnostic_print_type_info(
+				TypeInfo::ID type_id,
+				evo::SmallVector<Diagnostic::Info>& infos,
+				std::string_view message
+			) const -> void;
 
-			EVO_NODISCARD auto extract_type_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
-				-> evo::Result<evo::SmallVector<DeducedType>>;
+			auto diagnostic_print_type_info(
+				const TermInfo& term_info,
+				std::optional<unsigned> multi_type_index,
+				evo::SmallVector<Diagnostic::Info>& infos,
+				std::string_view message
+			) const -> void;
+
+
+			auto diagnostic_print_type_info_impl(
+				TypeInfo::ID type_id,
+				evo::SmallVector<Diagnostic::Info>& infos,
+				std::string_view message
+			) const -> void;
+
 
 
 			EVO_NODISCARD auto check_type_qualifiers(
@@ -476,7 +506,7 @@ namespace pcit::panther{
 			) -> void;
 
 
-			EVO_NODISCARD auto print_type(
+			EVO_NODISCARD auto print_term_type(
 				const TermInfo& term_info, std::optional<unsigned> multi_type_index = std::nullopt
 			) const -> std::string;
 

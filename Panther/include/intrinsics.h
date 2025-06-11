@@ -39,8 +39,9 @@ namespace pcit::panther{
 
 	namespace TemplateIntrinsicFunc{
 		enum class Kind{
-			SIZE_OF,
-			BIT_WIDTH,
+			// type traits
+			NUM_BYTES,
+			NUM_BITS,
 
 			// type conversion
 			BIT_CAST,

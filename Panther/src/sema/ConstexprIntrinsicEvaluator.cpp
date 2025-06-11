@@ -19,28 +19,25 @@
 namespace pcit::panther{
 
 	
-	auto ConstexprIntrinsicEvaluator::sizeOf(TypeInfo::ID type_id) -> TermInfo {
+	auto ConstexprIntrinsicEvaluator::numBytes(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
-				core::GenericInt(unsigned(this->type_manager.sizeOfPtr()) * 8, this->type_manager.sizeOf(type_id)),
+				core::GenericInt(unsigned(this->type_manager.numBitsOfPtr()), this->type_manager.numBytes(type_id)),
 				this->type_manager.getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
 			))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::bitWidth(TypeInfo::ID type_id) -> TermInfo {
-		const TypeInfo& type_info = this->type_manager.getTypeInfo(type_id);
-		const BaseType::Primitive& primitive = this->type_manager.getPrimitive(type_info.baseTypeID().primitiveID());
-
+	auto ConstexprIntrinsicEvaluator::numBits(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
-				core::GenericInt(unsigned(this->type_manager.sizeOfPtr()) * 8, primitive.bitWidth()),
+				core::GenericInt(unsigned(this->type_manager.numBitsOfPtr()), this->type_manager.numBits(type_id)),
 				this->type_manager.getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
 			))
 		);
@@ -407,6 +404,12 @@ namespace pcit::panther{
 				if(result->smul(rhs_converted).result.neq(lhs_converted)){
 					return evo::resultError;
 				}
+			}
+		}else{
+			if(this->type_manager.isUnsignedIntegral(type_id)){
+				result = lhs_converted.udiv(rhs_converted);
+			}else{
+				result = lhs_converted.sdiv(rhs_converted);
 			}
 		}
 

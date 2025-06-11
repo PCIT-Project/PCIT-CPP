@@ -296,6 +296,11 @@ namespace pcit::panther{
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::INTEGRAL_MATH>(instr);
 
 			}else if constexpr(
+				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::SHIFT>>()
+			){
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::SHIFT>(instr);
+
+			}else if constexpr(
 				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::COMPARATIVE>>()
 			){
 				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::COMPARATIVE>(instr);
@@ -309,6 +314,11 @@ namespace pcit::panther{
 				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::INTEGRAL_MATH>>()
 			){
 				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::INTEGRAL_MATH>(instr);
+
+			}else if constexpr(
+				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::SHIFT>>()
+			){
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::SHIFT>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::Accessor<true>>()){
 				return this->instr_expr_accessor<true>(instr);
@@ -3563,17 +3573,17 @@ namespace pcit::panther{
 		);
 
 		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
-			case TemplateIntrinsicFunc::Kind::SIZE_OF: {
+			case TemplateIntrinsicFunc::Kind::NUM_BYTES: {
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.sizeOf(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
+					constexpr_intrinsic_evaluator.numBytes(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
 				);
 			} break;
 
-			case TemplateIntrinsicFunc::Kind::BIT_WIDTH: {
+			case TemplateIntrinsicFunc::Kind::NUM_BITS: {
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.bitWidth(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
+					constexpr_intrinsic_evaluator.numBits(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
 				);
 			} break;
 
@@ -5503,7 +5513,7 @@ namespace pcit::panther{
 			}
 
 			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL_FLUID,
+				TermInfo::ValueCategory::EPHEMERAL,
 				TermInfo::ValueStage::CONSTEXPR,
 				target_type.asTypeID(),
 				expr.getExpr()
@@ -5896,63 +5906,554 @@ namespace pcit::panther{
 	template<bool IS_CONSTEXPR, Instruction::MathInfixKind MATH_INFIX_KIND>
 	auto SemanticAnalyzer::instr_expr_math_infix(const Instruction::MathInfix<IS_CONSTEXPR, MATH_INFIX_KIND>& instr)
 	-> Result {
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-			instr.infix,
-			"Semantic Analysis of infix math operator is unimplemented"
-		);
+		TermInfo& lhs = this->get_term_info(instr.lhs);
+		TermInfo& rhs = this->get_term_info(instr.rhs);
 
-		return Result::ERROR;
+		if(lhs.isSingleNormalValue() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS, instr.infix.lhs, "Invalid LHS of math infix operator"
+			);
+			return Result::ERROR;
+		}
 
-
-	// 	TermInfo& lhs = this->get_term_info(instr.lhs);
-	// 	TermInfo& rhs = this->get_term_info(instr.rhs);
-
-	// 	if(lhs.isSingleNormalValue() == false){
-	// 		this->emit_error(
-	// 			Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS, instr.infix.lhs, "Invalid LHS of math infix operator"
-	// 		);
-	// 		return Result::ERROR;
-	// 	}
-
-	// 	if(rhs.isSingleNormalValue() == false){
-	// 		this->emit_error(
-	// 			Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS, instr.infix.rhs, "Invalid RHS of math infix operator"
-	// 		);
-	// 		return Result::ERROR;
-	// 	}
+		if(rhs.isSingleNormalValue() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS, instr.infix.rhs, "Invalid RHS of math infix operator"
+			);
+			return Result::ERROR;
+		}
 
 
-		// const TypeInfo& lhs_type_info = this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>());
-		// const TypeInfo& rhs_type_info = this->context.getTypeManager().getTypeInfo(rhs.type_id.as<TypeInfo::ID>());
+		if(lhs.type_id.is<TypeInfo::ID>()){
+			if(rhs.type_id.is<TypeInfo::ID>()){ // neither lhs nor rhs fluid
+				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
+					if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
+						this->emit_error(
+							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS,
+							instr.infix.lhs,
+							"LHS of bitshift operator must be integral",
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+
+					if(this->context.getTypeManager().isUnsignedIntegral(rhs.type_id.as<TypeInfo::ID>()) == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS type: ");
+						this->emit_error(
+							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
+							instr.infix.lhs,
+							"RHS of bitshift operator must be unsigned integral",
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+
+					const uint64_t num_bits_lhs_type =
+						this->context.getTypeManager().numBits(lhs.type_id.as<TypeInfo::ID>());
+
+					const uint64_t num_bits_rhs_type =
+						this->context.getTypeManager().numBits(rhs.type_id.as<TypeInfo::ID>());
+
+					const uint64_t expected_num_bits_rhs_type =
+						uint64_t(std::ceil(std::log2(double(num_bits_lhs_type))));
+
+					if(num_bits_rhs_type != expected_num_bits_rhs_type){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						infos.emplace_back(std::format("Correct type: UI{}", expected_num_bits_rhs_type));
+						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "LHS type:     ");
+						this->emit_error(
+							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
+							instr.infix.rhs,
+							"RHS of bitshift operator is incorrect bit-width for this LHS",
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+
+				}else{
+					if(this->type_check<true, true>(
+						lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of infix math operator", instr.infix
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
+						if(
+							this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false
+							&& this->context.getTypeManager().isFloatingPoint(lhs.type_id.as<TypeInfo::ID>()) == false
+						){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+							this->emit_error(
+								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+								instr.infix,
+								"No matching operation for this type",
+								std::move(infos)
+							);
+							return Result::ERROR;
+						}
+					
+					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
+						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+							this->emit_error(
+								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+								instr.infix,
+								"No matching operation for this type",
+								std::move(infos)
+							);
+							return Result::ERROR;
+						}
+					}
+				}
 
 
+			}else{ // rhs fluid
+				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
+					if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
+						this->emit_error(
+							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS,
+							instr.infix.lhs,
+							"LHS of bitshift operator must be integral",
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
 
-		// if(lhs.type_id.is<TypeInfo::ID>()){
-		// 	if(rhs.type_id.is<TypeInfo::ID>()){ // neither lhs nor rhs fluid
+				}else{
+					if(this->type_check<true, true>(
+						lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of infix math operator", instr.infix
+					).ok == false){
+						return Result::ERROR;
+					}
 
-		// 	}else{ // rhs fluid
-		// 		evo::unimplemented();
-		// 	}
-		// }else if(rhs.type_id.is<TypeInfo::ID>()){ // lhs fluid
-		// 	evo::unimplemented();
-		// }else{ // both lhs and rhs fluid
-		// 	evo::unimplemented();
-		// }
+					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
+						if(
+							this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false
+							&& this->context.getTypeManager().isFloatingPoint(lhs.type_id.as<TypeInfo::ID>()) == false
+						){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+							this->emit_error(
+								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+								instr.infix,
+								"No matching operation for this type",
+								std::move(infos)
+							);
+							return Result::ERROR;
+						}
+					
+					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
+						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+							this->emit_error(
+								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+								instr.infix,
+								"No matching operation for this type",
+								std::move(infos)
+							);
+							return Result::ERROR;
+						}
+					}
+				}
+			}
+
+		}else if(rhs.type_id.is<TypeInfo::ID>()){ // lhs fluid
+			if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
+				if(this->context.getTypeManager().isUnsignedIntegral(rhs.type_id.as<TypeInfo::ID>()) == false){
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS type: ");
+					this->emit_error(
+						Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
+						instr.infix.rhs,
+						"RHS of bitshift operator must be unsigned integral",
+						std::move(infos)
+					);
+					return Result::ERROR;
+				}
+
+			}else{
+				if(this->type_check<true, true>(
+					rhs.type_id.as<TypeInfo::ID>(), lhs, "LHS of infix math operator", instr.infix
+				).ok == false){
+					return Result::ERROR;
+				}
+
+				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
+					if(
+						this->context.getTypeManager().isIntegral(rhs.type_id.as<TypeInfo::ID>()) == false
+						&& this->context.getTypeManager().isFloatingPoint(rhs.type_id.as<TypeInfo::ID>()) == false
+					){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+						this->emit_error(
+							Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+							instr.infix,
+							"No matching operation for this type",
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+				
+				}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
+					if(this->context.getTypeManager().isIntegral(rhs.type_id.as<TypeInfo::ID>()) == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+						this->emit_error(
+							Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+							instr.infix,
+							"No matching operation for this type",
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+				}
+			}
+
+		}else{ // both lhs and rhs fluid
+			if(lhs.getExpr().kind() != rhs.getExpr().kind()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+					instr.infix,
+					"LHS and RHS of infix math must match fluid kind"
+				);
+				return Result::ERROR;
+			}
 
 
-		// if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::COMPARATIVE){
-		// 	evo::unimplemented();
-			
-		// }else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
-		// 	evo::unimplemented();
-		
-		// }else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
-		// 	evo::unimplemented();
-			
-		// }
+			this->return_term_info(instr.output,
+				this->constexpr_infix_math(
+					this->source.getTokenBuffer()[instr.infix.opTokenID].kind(), lhs.getExpr(), rhs.getExpr()
+				)
+			);
+			return Result::SUCCESS;
+		}
 
-		// evo::unimplemented();
+
+		if constexpr(IS_CONSTEXPR){
+			this->return_term_info(instr.output,
+				this->constexpr_infix_math(
+					this->source.getTokenBuffer()[instr.infix.opTokenID].kind(), lhs.getExpr(), rhs.getExpr()
+				)
+			);
+			return Result::SUCCESS;
+
+		}else{
+			auto resultant_type = std::optional<TypeInfo::ID>();
+
+			const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = [&](){
+				switch(this->source.getTokenBuffer()[instr.infix.opTokenID].kind()){
+					case Token::lookupKind("=="): {
+						resultant_type = TypeManager::getTypeBool();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::EQ,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("!="): {
+						resultant_type = TypeManager::getTypeBool();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::NEQ,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("<"): {
+						resultant_type = TypeManager::getTypeBool();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::LT,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("<="): {
+						resultant_type = TypeManager::getTypeBool();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::LTE,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind(">"): {
+						resultant_type = TypeManager::getTypeBool();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::GT,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind(">="): {
+						resultant_type = TypeManager::getTypeBool();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::GTE,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("&"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::AND,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("|"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::OR,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("^"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::XOR,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("<<"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::SHL,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>(), rhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
+							}
+						);
+					} break;
+
+					case Token::lookupKind("<<|"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::SHL_SAT,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>(), rhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind(">>"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::SHR,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>(), rhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
+							}
+						);
+					} break;
+
+					case Token::lookupKind("+"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>())){
+							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::ADD,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+								}
+							);
+						}else{
+							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::FADD,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									lhs.type_id.as<TypeInfo::ID>()
+								}
+							);
+						}
+					} break;
+
+					case Token::lookupKind("+%"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::ADD_WRAP,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("+|"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::ADD_SAT,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("-"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>())){
+							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::SUB,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+								}
+							);
+						}else{
+							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::FSUB,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									lhs.type_id.as<TypeInfo::ID>()
+								}
+							);
+						}
+					} break;
+
+					case Token::lookupKind("-%"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::SUB_WRAP,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("-|"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::SUB_SAT,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("*"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>())){
+							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::MUL,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+								}
+							);
+						}else{
+							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::FMUL,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									lhs.type_id.as<TypeInfo::ID>()
+								}
+							);
+						}
+					} break;
+
+					case Token::lookupKind("*%"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::MUL_WRAP,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("*|"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::MUL_SAT,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					case Token::lookupKind("/"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>())){
+							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::DIV,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+								}
+							);
+						}else{
+							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::FDIV,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									lhs.type_id.as<TypeInfo::ID>()
+								}
+							);
+						}
+					} break;
+
+					case Token::lookupKind("%"): {
+						resultant_type = lhs.type_id.as<TypeInfo::ID>();
+
+						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::REM,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs.type_id.as<TypeInfo::ID>()
+							}
+						);
+					} break;
+
+					default: {
+						evo::debugFatalBreak("Invalid infix math operator");
+					} break;
+				}
+			}();
+
+			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+				instantiation_id, evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()}
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL, lhs.value_stage, *resultant_type, sema::Expr(created_func_call_id)
+			);
+			return Result::SUCCESS;
+		}
 	}
 
 
@@ -7807,7 +8308,7 @@ namespace pcit::panther{
 								Diagnostic::Info(
 									"This argument:", this->get_location(arg_infos[reason.arg_index].ast_node)
 								),
-								Diagnostic::Info(std::format("Argument type:  {}", this->print_type(got_arg))),
+								Diagnostic::Info(std::format("Argument type:  {}", this->print_term_type(got_arg))),
 								Diagnostic::Info(
 									std::format(
 										"Parameter type: {}",
@@ -8348,6 +8849,435 @@ namespace pcit::panther{
 		return this->context.getSourceManager().getSourceCompilationConfig(this->source.getCompilationConfigID());
 	}
 
+
+
+	auto SemanticAnalyzer::extract_type_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
+	-> evo::Result<evo::SmallVector<DeducedType>> {
+		const TypeManager& type_manager = this->context.getTypeManager();
+
+		auto output = evo::SmallVector<DeducedType>();
+
+		const TypeInfo& deducer  = type_manager.getTypeInfo(deducer_id);
+		const TypeInfo& got_type = type_manager.getTypeInfo(got_type_id);
+
+		if(deducer.qualifiers() != got_type.qualifiers()){ return evo::resultError; }
+
+
+		const BaseType::TypeDeducer& type_deducer = type_manager.getTypeDeducer(deducer.baseTypeID().typeDeducerID());
+
+		const Token& type_deducer_token = this->source.getTokenBuffer()[type_deducer.tokenID];
+
+		if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER){
+			return output;
+		}
+
+		if(deducer.qualifiers().empty()){
+			output.emplace_back(got_type_id, type_deducer.tokenID);
+		}else{
+			output.emplace_back(
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(got_type.baseTypeID())), type_deducer.tokenID
+			);
+		}
+		return output;
+	}
+
+
+
+	auto SemanticAnalyzer::constexpr_infix_math(Token::Kind op, sema::Expr lhs, sema::Expr rhs) -> TermInfo {
+		auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
+			this->context.type_manager, this->context.sema_buffer
+		);
+
+		switch(op){
+			case Token::lookupKind("=="): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.eq(
+							TypeManager::getTypeI256(),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.eq(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind("!="): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.neq(
+							TypeManager::getTypeI256(),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.neq(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind("<"): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.lt(
+							TypeManager::getTypeI256(),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.lt(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind("<="): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.lte(
+							TypeManager::getTypeI256(),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.lte(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind(">"): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.gt(
+							TypeManager::getTypeI256(),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.gt(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind(">="): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.gte(
+							TypeManager::getTypeI256(),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_cmp_prep(
+						constexpr_intrinsic_evaluator.gte(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind("&"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.bitwiseAnd(
+						TypeManager::getTypeI256(),
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("|"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.bitwiseOr(
+						TypeManager::getTypeI256(),
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("^"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.bitwiseXor(
+						TypeManager::getTypeI256(),
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("<<"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.shl(
+						TypeManager::getTypeI256(),
+						true,
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("<<|"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.shlSat(
+						TypeManager::getTypeI256(),
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind(">>"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.shr(
+						TypeManager::getTypeI256(),
+						true,
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("+"): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.add(
+							TypeManager::getTypeI256(),
+							true,
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.fadd(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind("+%"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.add(
+						TypeManager::getTypeI256(),
+						true,
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("+|"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.addSat(
+						TypeManager::getTypeI256(),
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("-"): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.sub(
+							TypeManager::getTypeI256(),
+							true,
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.fsub(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind("-%"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.sub(
+						TypeManager::getTypeI256(),
+						true,
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("-|"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.subSat(
+						TypeManager::getTypeI256(),
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("*"): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.mul(
+							TypeManager::getTypeI256(),
+							true,
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.fmul(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind("*%"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.mul(
+						TypeManager::getTypeI256(),
+						true,
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("*|"): {
+				return this->constexpr_infix_math_prep(
+					constexpr_intrinsic_evaluator.mulSat(
+						TypeManager::getTypeI256(),
+						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+					)
+				);
+			} break;
+
+			case Token::lookupKind("/"): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.div(
+							TypeManager::getTypeI256(),
+							false,
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.fdiv(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			case Token::lookupKind("%"): {
+				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.rem(
+							TypeManager::getTypeI256(),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						)
+					);
+
+				}else{
+					return this->constexpr_infix_math_prep(
+						constexpr_intrinsic_evaluator.rem(
+							TypeManager::getTypeF128(),
+							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+						)
+					);
+				}
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Invalid infix op");
+			} break;
+		}
+	}
+
+
+
+	auto SemanticAnalyzer::constexpr_infix_math_prep(const TermInfo& term_info) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL_FLUID,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::FluidType{},
+			term_info.getExpr()
+		);
+	}
+
+	auto SemanticAnalyzer::constexpr_infix_math_prep(const evo::Result<TermInfo>& term_info) -> TermInfo {
+		return this->constexpr_infix_math_prep(term_info.value());
+	}
+
+	auto SemanticAnalyzer::constexpr_infix_math_cmp_prep(const TermInfo& term_info) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TypeManager::getTypeBool(),
+			term_info.getExpr()
+		);
+	}
 
 
 
@@ -9127,7 +10057,7 @@ namespace pcit::panther{
 							break; case Token::Kind::TYPE_F80:  float_value.value = float_value.value.asF80();
 							break; case Token::Kind::TYPE_F128: float_value.value = float_value.value.asF128();
 							break; case Token::Kind::TYPE_C_LONG_DOUBLE: {
-								if(type_manager.sizeOf(expected_type_info.baseTypeID()) == 8){
+								if(type_manager.numBytes(expected_type_info.baseTypeID()) == 8){
 									float_value.value = float_value.value.asF64();
 								}else{
 									float_value.value = float_value.value.asF128();
@@ -9204,75 +10134,10 @@ namespace pcit::panther{
 			);
 		}
 
-		infos.emplace_back(
-			expected_type_str + 
-			this->context.getTypeManager().printType(expected_type_id, this->context.getSourceManager())
-		);
 
-		TypeInfo::ID actual_expected_type_id = expected_type_id;
-		// TODO(PERF): improve perf
-		while(true){
-			const TypeInfo& actual_expected_type = this->context.getTypeManager().getTypeInfo(actual_expected_type_id);
-			if(actual_expected_type.qualifiers().empty() == false){ break; }
-			if(actual_expected_type.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
+		this->diagnostic_print_type_info(expected_type_id, infos, expected_type_str);
 
-			const BaseType::Alias& expected_alias = this->context.getTypeManager().getAlias(
-				actual_expected_type.baseTypeID().aliasID()
-			);
-
-			evo::debugAssert(expected_alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-			actual_expected_type_id = *expected_alias.aliasedType.load();
-
-			auto alias_of_str = std::string("\\-> Alias of: ");
-			while(alias_of_str.size() < got_type_str.size()){
-				alias_of_str += ' ';
-			}
-
-			infos.emplace_back(
-				alias_of_str + 
-				this->context.getTypeManager().printType(actual_expected_type_id, this->context.getSourceManager())
-			);
-		}
-
-
-		infos.emplace_back(got_type_str + this->print_type(got_expr, multi_type_index));
-
-		if(
-			got_expr.type_id.is<TypeInfo::ID>()
-			|| (got_expr.type_id.is<evo::SmallVector<TypeInfo::ID>>() && multi_type_index.has_value())
-		){
-			TypeInfo::ID actual_got_type_id = [&](){
-				if(got_expr.type_id.is<TypeInfo::ID>()){
-					return got_expr.type_id.as<TypeInfo::ID>();
-				}else{
-					return got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index];
-				}
-			}();
-
-			// TODO(PERF): improve perf
-			while(true){
-				const TypeInfo& actual_got_type = this->context.getTypeManager().getTypeInfo(actual_got_type_id);
-				if(actual_got_type.qualifiers().empty() == false){ break; }
-				if(actual_got_type.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
-
-				const BaseType::Alias& got_alias = this->context.getTypeManager().getAlias(
-					actual_got_type.baseTypeID().aliasID()
-				);
-
-				evo::debugAssert(got_alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-				actual_got_type_id = *got_alias.aliasedType.load();
-
-				auto alias_of_str = std::string("\\-> Alias of: ");
-				while(alias_of_str.size() < got_type_str.size()){
-					alias_of_str += ' ';
-				}
-
-				infos.emplace_back(
-					alias_of_str + 
-					this->context.getTypeManager().printType(actual_got_type_id, this->context.getSourceManager())
-				);
-			}
-		}
+		this->diagnostic_print_type_info(got_expr, multi_type_index, infos, got_type_str);
 
 
 		const auto& actual_location = [&](){
@@ -9298,35 +10163,82 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::extract_type_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
-	-> evo::Result<evo::SmallVector<DeducedType>> {
-		const TypeManager& type_manager = this->context.getTypeManager();
+	auto SemanticAnalyzer::diagnostic_print_type_info(
+		TypeInfo::ID type_id, evo::SmallVector<Diagnostic::Info>& infos, std::string_view message
+	) const -> void {
+		auto initial_type_str = std::string();
+		initial_type_str += message;
+		initial_type_str += this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
+		infos.emplace_back(std::move(initial_type_str));
 
-		auto output = evo::SmallVector<DeducedType>();
-
-		const TypeInfo& deducer  = type_manager.getTypeInfo(deducer_id);
-		const TypeInfo& got_type = type_manager.getTypeInfo(got_type_id);
-
-		if(deducer.qualifiers() != got_type.qualifiers()){ return evo::resultError; }
-
-
-		const BaseType::TypeDeducer& type_deducer = type_manager.getTypeDeducer(deducer.baseTypeID().typeDeducerID());
-
-		const Token& type_deducer_token = this->source.getTokenBuffer()[type_deducer.tokenID];
-
-		if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER){
-			return output;
-		}
-
-		if(deducer.qualifiers().empty()){
-			output.emplace_back(got_type_id, type_deducer.tokenID);
-		}else{
-			output.emplace_back(
-				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(got_type.baseTypeID())), type_deducer.tokenID
-			);
-		}
-		return output;
+		this->diagnostic_print_type_info_impl(type_id, infos, message);
 	}
+
+
+	auto SemanticAnalyzer::diagnostic_print_type_info(
+		const TermInfo& term_info,
+		std::optional<unsigned> multi_type_index,
+		evo::SmallVector<Diagnostic::Info>& infos,
+		std::string_view message
+	) const -> void {
+		auto initial_type_str = std::string();
+		initial_type_str += message;
+		initial_type_str += this->print_term_type(term_info, multi_type_index);
+		infos.emplace_back(std::move(initial_type_str));
+
+		if(
+			term_info.type_id.is<TypeInfo::ID>()
+			|| (term_info.type_id.is<evo::SmallVector<TypeInfo::ID>>() && multi_type_index.has_value())
+		){
+			const TypeInfo::ID actual_got_type_id = [&](){
+				if(term_info.type_id.is<TypeInfo::ID>()){
+					return term_info.type_id.as<TypeInfo::ID>();
+				}else{
+					return term_info.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index];
+				}
+			}();
+
+			this->diagnostic_print_type_info_impl(actual_got_type_id, infos, message);
+		}
+	}
+
+
+
+	auto SemanticAnalyzer::diagnostic_print_type_info_impl(
+		TypeInfo::ID type_id, evo::SmallVector<Diagnostic::Info>& infos, std::string_view message
+	) const -> void {
+		evo::debugAssert(
+			message.size() >= evo::stringSize("  > Alias of: "),
+			"Message must be at least {} characters",
+			evo::stringSize("  > Alias of: ")
+		);
+
+
+		while(true){
+			const TypeInfo& actual_expected_type = this->context.getTypeManager().getTypeInfo(type_id);
+			if(actual_expected_type.qualifiers().empty() == false){ break; }
+			if(actual_expected_type.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
+
+			const BaseType::Alias& expected_alias = this->context.getTypeManager().getAlias(
+				actual_expected_type.baseTypeID().aliasID()
+			);
+
+			evo::debugAssert(expected_alias.aliasedType.load().has_value(), "Definition of alias was not completed");
+			type_id = *expected_alias.aliasedType.load();
+
+			auto alias_of_str = std::string();
+			alias_of_str.reserve(message.size());
+			alias_of_str += "  > Alias of: ";
+			while(alias_of_str.size() < message.size()){
+				alias_of_str += ' ';
+			}
+
+			alias_of_str += this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
+
+			infos.emplace_back(std::move(alias_of_str));
+		}
+	}
+
 
 
 
@@ -9528,7 +10440,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::print_type(
+	auto SemanticAnalyzer::print_term_type(
 		const TermInfo& term_info, std::optional<unsigned> multi_type_index
 	) const -> std::string {
 		return term_info.type_id.visit([&](const auto& type_id) -> std::string {

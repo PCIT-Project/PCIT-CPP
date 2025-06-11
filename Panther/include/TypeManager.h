@@ -490,25 +490,31 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateTypeDeducer(BaseType::TypeDeducer&& lookup_type) -> BaseType::ID;
 			
 			
-			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0); }
-			EVO_NODISCARD static auto getTypeChar()   -> TypeInfo::ID { return TypeInfo::ID(1); }
-			EVO_NODISCARD static auto getTypeUI8()    -> TypeInfo::ID { return TypeInfo::ID(2); }
-			EVO_NODISCARD static auto getTypeUI16()   -> TypeInfo::ID { return TypeInfo::ID(3); }
-			EVO_NODISCARD static auto getTypeUI32()   -> TypeInfo::ID { return TypeInfo::ID(4); }
-			EVO_NODISCARD static auto getTypeUI64()   -> TypeInfo::ID { return TypeInfo::ID(5); }
-			EVO_NODISCARD static auto getTypeUSize()  -> TypeInfo::ID { return TypeInfo::ID(6); }
-			EVO_NODISCARD static auto getTypeTypeID() -> TypeInfo::ID { return TypeInfo::ID(7); }
-			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(8); }
+			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0);  }
+			EVO_NODISCARD static auto getTypeChar()   -> TypeInfo::ID { return TypeInfo::ID(1);  }
+			EVO_NODISCARD static auto getTypeUI8()    -> TypeInfo::ID { return TypeInfo::ID(2);  }
+			EVO_NODISCARD static auto getTypeUI16()   -> TypeInfo::ID { return TypeInfo::ID(3);  }
+			EVO_NODISCARD static auto getTypeUI32()   -> TypeInfo::ID { return TypeInfo::ID(4);  }
+			EVO_NODISCARD static auto getTypeUI64()   -> TypeInfo::ID { return TypeInfo::ID(5);  }
+			EVO_NODISCARD static auto getTypeUSize()  -> TypeInfo::ID { return TypeInfo::ID(6);  }
+			EVO_NODISCARD static auto getTypeTypeID() -> TypeInfo::ID { return TypeInfo::ID(7);  }
+			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(8);  }
+			EVO_NODISCARD static auto getTypeI256()   -> TypeInfo::ID { return TypeInfo::ID(9);  }
+			EVO_NODISCARD static auto getTypeF128()   -> TypeInfo::ID { return TypeInfo::ID(10); } 
 
 
 			///////////////////////////////////
 			// type traits
 
-			EVO_NODISCARD auto sizeOf(TypeInfo::ID id) const -> uint64_t;
-			EVO_NODISCARD auto sizeOf(BaseType::ID id) const -> uint64_t;
+			EVO_NODISCARD auto numBytes(TypeInfo::ID id) const -> uint64_t;
+			EVO_NODISCARD auto numBytes(BaseType::ID id) const -> uint64_t;
+			EVO_NODISCARD auto numBytesOfPtr() const -> uint64_t;
+			EVO_NODISCARD auto numBytesOfGeneralRegister() const -> uint64_t;
 
-			EVO_NODISCARD auto sizeOfPtr() const -> uint64_t;
-			EVO_NODISCARD auto sizeOfGeneralRegister() const -> uint64_t;
+			EVO_NODISCARD auto numBits(TypeInfo::ID id) const -> uint64_t;
+			EVO_NODISCARD auto numBits(BaseType::ID id) const -> uint64_t;
+			EVO_NODISCARD auto numBitsOfPtr() const -> uint64_t;
+			EVO_NODISCARD auto numBitsOfGeneralRegister() const -> uint64_t;
 
 			EVO_NODISCARD auto isTriviallySized(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallySized(BaseType::ID id) const -> bool;

@@ -1479,7 +1479,6 @@ namespace pcit::panther{
 			} break;
 
 			case Token::lookupKind("&"):  case Token::lookupKind("|"):   case Token::lookupKind("^"):
-			case Token::lookupKind("<<"): case Token::lookupKind("<<|"): case Token::lookupKind(">>"):
 			case Token::lookupKind("+%"): case Token::lookupKind("+|"):  case Token::lookupKind("-%"):
 			case Token::lookupKind("-|"): case Token::lookupKind("*%"):  case Token::lookupKind("*|"): {
 				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
@@ -1508,6 +1507,23 @@ namespace pcit::panther{
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 				this->add_instruction(
 					Instruction::MathInfix<IS_CONSTEXPR, Instruction::MathInfixKind::MATH>(
+						infix, lhs.value(), rhs.value(), new_term_info_id
+					)
+				);
+				return new_term_info_id;
+			} break;
+
+
+			case Token::lookupKind("<<"): case Token::lookupKind("<<|"): case Token::lookupKind(">>"): {
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				if(lhs.isError()){ return evo::resultError; }
+
+				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+				if(rhs.isError()){ return evo::resultError; }
+
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				this->add_instruction(
+					Instruction::MathInfix<IS_CONSTEXPR, Instruction::MathInfixKind::SHIFT>(
 						infix, lhs.value(), rhs.value(), new_term_info_id
 					)
 				);

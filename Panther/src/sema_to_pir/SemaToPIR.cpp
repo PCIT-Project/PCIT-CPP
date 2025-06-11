@@ -139,7 +139,7 @@ namespace pcit::panther{
 			}else{
 				attributes.emplace_back(pir::Parameter::Attribute::PtrNonNull());
 				attributes.emplace_back(
-					pir::Parameter::Attribute::PtrDereferencable(this->context.getTypeManager().sizeOf(param.typeID))
+					pir::Parameter::Attribute::PtrDereferencable(this->context.getTypeManager().numBytes(param.typeID))
 				);
 
 				if(param.kind == AST::FuncDecl::Param::Kind::READ){
@@ -164,7 +164,7 @@ namespace pcit::panther{
 					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
 					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNonNull()),
 					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrDereferencable(
-						this->context.getTypeManager().sizeOf(return_param.typeID.asTypeID())
+						this->context.getTypeManager().numBytes(return_param.typeID.asTypeID())
 					)),
 					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrWritable()),
 				};
@@ -195,7 +195,7 @@ namespace pcit::panther{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNonNull()),
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrDereferencable(
-					this->context.getTypeManager().sizeOf(func_type.returnParams[0].typeID.asTypeID())
+					this->context.getTypeManager().numBytes(func_type.returnParams[0].typeID.asTypeID())
 				)),
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrWritable()),
 			};
@@ -2175,8 +2175,12 @@ namespace pcit::panther{
 			);
 
 		switch(instantiation.kind){
-			case TemplateIntrinsicFunc::Kind::SIZE_OF: {
-				evo::debugFatalBreak("@sizeOf is constexpr only");
+			case TemplateIntrinsicFunc::Kind::NUM_BYTES: {
+				evo::debugFatalBreak("@numBytes is constexpr only");
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::NUM_BITS: {
+				evo::debugFatalBreak("@numBits is constexpr only");
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
@@ -3615,7 +3619,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_C_LONG:   case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG:
 					case Token::Kind::TYPE_C_ULONG_LONG:
 						return this->module.createIntegerType(
-							uint32_t(this->context.getTypeManager().sizeOf(base_type_id) * 8)
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
 						);
 
 					case Token::Kind::TYPE_I_N:
@@ -3636,9 +3640,9 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_RAWPTR: return this->module.createPtrType();
 
 					case Token::Kind::TYPE_C_LONG_DOUBLE: 
-						return this->context.getTypeManager().sizeOf(base_type_id) 
-							? this->module.createFloatType(64)
-							: this->module.createFloatType(128);
+						return this->module.createFloatType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
 
 					default: evo::debugFatalBreak("Unknown builtin type");
 				}
@@ -3744,7 +3748,7 @@ namespace pcit::panther{
 
 		}else{
 			// TODO(FUTURE): better naming of overloads
-			return std::format("PTHR.f{}", func_id.get());
+			return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(name_token.kind()));
 		}
 	}
 

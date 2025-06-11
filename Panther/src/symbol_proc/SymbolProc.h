@@ -510,6 +510,7 @@ namespace pcit::panther{
 			COMPARATIVE,
 			INTEGRAL_MATH,
 			MATH,
+			SHIFT,
 		};
 
 		template<bool IS_CONSTEXPR, MathInfixKind MATH_INFIX_KIND>
@@ -674,9 +675,11 @@ namespace pcit::panther{
 			MathInfix<true, MathInfixKind::COMPARATIVE>,
 			MathInfix<true, MathInfixKind::MATH>,
 			MathInfix<true, MathInfixKind::INTEGRAL_MATH>,
+			MathInfix<true, MathInfixKind::SHIFT>,
 			MathInfix<false, MathInfixKind::COMPARATIVE>,
 			MathInfix<false, MathInfixKind::MATH>,
 			MathInfix<false, MathInfixKind::INTEGRAL_MATH>,
+			MathInfix<false, MathInfixKind::SHIFT>,
 
 			// accessors
 			Accessor<true>,

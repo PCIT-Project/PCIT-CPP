@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.124.0"></a>
+## v0.0.124.0
+
+### Panther
+- Added infix operators
+	- `==`, `!=`, `<`, `<=`, `>`, `>=`
+	- `&`, `|`, `^`
+	- `<<`, `<<|`, `>>`
+	- `+`, `+%`, `+|`
+	- `-`, `-%`, `-|`
+	- `*`, `*%`, `*|`
+	- `/`, `%`
+- Fixed compiler crashing for constexpr `@div` when `IS_EXACT` is `true`
+- Fixed constexpr operator `as`
+
+
+<!---------------------------------->
 <a name="v0.0.123.0"></a>
 ## v0.0.123.0
 
