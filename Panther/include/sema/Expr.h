@@ -98,7 +98,7 @@ namespace pcit::panther::sema{
 		explicit Expr(PtrAccessorID id)      : _kind(Kind::PTR_ACCESSOR),       value{.ptr_accessor = id}       {};
 		explicit Expr(TryElseID id)          : _kind(Kind::TRY_ELSE),           value{.try_else = id}           {};
 		explicit Expr(BlockExprID id)        : _kind(Kind::BLOCK_EXPR),         value{.block_expr = id}         {};
-		explicit Expr(FakeTermInfoID id)       : _kind(Kind::FAKE_TERM_INFO),        value{.fake_term_infos = id}        {};
+		explicit Expr(FakeTermInfoID id)     : _kind(Kind::FAKE_TERM_INFO),     value{.fake_term_infos = id}    {};
 
 		explicit Expr(ParamID id)            : _kind(Kind::PARAM),              value{.param = id}              {};
 		explicit Expr(ReturnParamID id)      : _kind(Kind::RETURN_PARAM),       value{.return_param = id}       {};

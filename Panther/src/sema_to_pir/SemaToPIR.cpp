@@ -3724,11 +3724,11 @@ namespace pcit::panther{
 
 		if(this->data.getConfig().useReadableNames){
 			return std::format(
-				"PTHR.v{}.{}", global_var_id.get(), source.getTokenBuffer()[global_var.ident].getString()
+				"PTHR.g{}.{}", global_var_id.get(), source.getTokenBuffer()[global_var.ident].getString()
 			);
 			
 		}else{
-			return std::format("PTHR.v{}", global_var_id.get());
+			return std::format("PTHR.g{}", global_var_id.get());
 		}
 	}
 

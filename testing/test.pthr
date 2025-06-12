@@ -12,14 +12,20 @@ type Struct = struct <{T: Type}> {
 
 	func some_func = () -> T {
 		func do_thing = () -> T {
-			return 12 as UInt as T;
+			return 12 as T;
 		}
 
 		def OUTPUT: T = do_thing();
 
-		return OUTPUT;
+		return OUTPUT as T;
 	}
 }
+
+
+
+def INT: Int = 12;
+const float: F32 = INT as F32;
+
 
 
 

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.126.0"></a>
+## v0.0.126.0
+
+### Panther
+- Added operator `as` for fluid values
+- Added constexpr operator `as`
+- Changed name mangling for global variables to use the letter 'g' (for global) instead of the letter 'v'
+
+
+<!---------------------------------->
 <a name="v0.0.125.0"></a>
 ## v0.0.125.0
 

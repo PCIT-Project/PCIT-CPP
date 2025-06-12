@@ -5572,23 +5572,57 @@ namespace pcit::panther{
 		}
 
 		if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
-			if(this->type_check<true, false>(target_type.asTypeID(), expr, "", instr.infix).ok == false){
-				// TODO(FUTURE): 
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.infix,
-					"Converting a fluid value to a type that it's not implicitly convertable to is unimplemented"
+			// implicitly convert if possible
+			if(this->type_check<true, false>(target_type.asTypeID(), expr, "", instr.infix).ok){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
+					target_type.asTypeID(),
+					expr.getExpr()
 				);
-				return Result::ERROR;
+				return Result::SUCCESS;
 			}
 
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				TermInfo::ValueStage::CONSTEXPR,
-				target_type.asTypeID(),
-				expr.getExpr()
-			);
+
+			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){ // convert int to float
+				const sema::IntValue& initial_val = 
+					this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
+
+				const sema::FloatValue::ID new_float_value = this->context.sema_buffer.createFloatValue(
+					core::GenericFloat::createF128FromInt(initial_val.value, true),
+					this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
+				);
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
+					target_type.asTypeID(),
+					sema::Expr(new_float_value)
+				);
+
+
+			}else{ // convert float to int
+				const unsigned width = unsigned(this->context.getTypeManager().numBits(target_type.asTypeID()));
+				const bool is_signed = this->context.getTypeManager().isSignedIntegral(target_type.asTypeID());
+
+				const sema::FloatValue& initial_val = 
+					this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID());
+
+				const sema::IntValue::ID new_int_value = this->context.sema_buffer.createIntValue(
+					initial_val.value.toGenericInt(width, is_signed),
+					this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
+				);
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
+					target_type.asTypeID(),
+					sema::Expr(new_int_value)
+				);
+			}
+
 			return Result::SUCCESS;
+
 		}
 
 
@@ -5797,14 +5831,6 @@ namespace pcit::panther{
 			}
 
 		}else if(to_underlying_type_id == TypeManager::getTypeBool()){
-			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
-			const InstantiationID instantiation_id = this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-				TemplateIntrinsicFunc::Kind::NEQ,
-				evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-					from_underlying_type_id, to_underlying_type_id
-				}
-			);
-
 			const sema::Expr zero = [&](){
 				switch(from_primitive.kind()){
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
@@ -5853,6 +5879,16 @@ namespace pcit::panther{
 				}
 			}();
 
+
+
+			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+			const InstantiationID instantiation_id = this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+				TemplateIntrinsicFunc::Kind::NEQ,
+				evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+					from_underlying_type_id, to_underlying_type_id
+				}
+			);
+
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), zero}
 			);
@@ -5895,22 +5931,41 @@ namespace pcit::panther{
 
 		const TypeConversionData from_data = get_type_conversion_data(from_primitive);
 		const TypeConversionData to_data = get_type_conversion_data(to_primitive);
-		
 
-		const TemplateIntrinsicFunc::Kind intrinsic_kind = [&](){
+
+		if constexpr(IS_CONSTEXPR){
+			auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
+				this->context.type_manager, this->context.sema_buffer
+			);
+
 			switch(from_data.kind){
 				case TypeConversionData::Kind::INTEGER: {
 					switch(to_data.kind){
 						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
 							if(from_data.width < to_data.width){
-								return TemplateIntrinsicFunc::Kind::SEXT;
+								this->return_term_info(instr.output,
+									constexpr_intrinsic_evaluator.sext(
+										target_type.asTypeID(),
+										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
+									)
+								);
 							}else{
-								return TemplateIntrinsicFunc::Kind::TRUNC;
+								this->return_term_info(instr.output,
+									constexpr_intrinsic_evaluator.trunc(
+										target_type.asTypeID(),
+										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
+									)
+								);
 							}
 						} break;
 
 						case TypeConversionData::Kind::FLOAT: {
-							return TemplateIntrinsicFunc::Kind::I_TO_F;
+							this->return_term_info(instr.output,
+								constexpr_intrinsic_evaluator.iToF(
+									target_type.asTypeID(),
+									this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
+								)
+							);
 						} break;
 					}
 				} break;
@@ -5919,14 +5974,29 @@ namespace pcit::panther{
 					switch(to_data.kind){
 						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
 							if(from_data.width < to_data.width){
-								return TemplateIntrinsicFunc::Kind::ZEXT;
+								this->return_term_info(instr.output,
+									constexpr_intrinsic_evaluator.iToF(
+										target_type.asTypeID(),
+										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
+									)
+								);
 							}else{
-								return TemplateIntrinsicFunc::Kind::TRUNC;
+								this->return_term_info(instr.output,
+									constexpr_intrinsic_evaluator.trunc(
+										target_type.asTypeID(),
+										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
+									)
+								);
 							}
 						} break;
 
 						case TypeConversionData::Kind::FLOAT: {
-							return TemplateIntrinsicFunc::Kind::I_TO_F;
+							this->return_term_info(instr.output,
+								constexpr_intrinsic_evaluator.iToF(
+									target_type.asTypeID(),
+									this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
+								)
+							);
 						} break;
 					}
 				} break;
@@ -5934,42 +6004,112 @@ namespace pcit::panther{
 				case TypeConversionData::Kind::FLOAT: {
 					switch(to_data.kind){
 						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
-							return TemplateIntrinsicFunc::Kind::F_TO_I;
+							this->return_term_info(instr.output,
+								constexpr_intrinsic_evaluator.fToI(
+									target_type.asTypeID(),
+									this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID()).value
+								)
+							);
 						} break;
 
 						case TypeConversionData::Kind::FLOAT: {
 							if(from_data.width < to_data.width){
-								return TemplateIntrinsicFunc::Kind::FEXT;
+								this->return_term_info(instr.output,
+									constexpr_intrinsic_evaluator.fext(
+										target_type.asTypeID(),
+										this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID()).value
+									)
+								);
 							}else{
-								return TemplateIntrinsicFunc::Kind::FTRUNC;
+								this->return_term_info(instr.output,
+									constexpr_intrinsic_evaluator.ftrunc(
+										target_type.asTypeID(),
+										this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID()).value
+									)
+								);
 							}
 						} break;
 					}
 				} break;
 			}
 
-			evo::debugFatalBreak("Unknown or unsupported TypeConversionData::Kind");
-		}();
+			return Result::SUCCESS;
 
-		using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
-		const InstantiationID instantiation_id = this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-			intrinsic_kind,
-			evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-				from_underlying_type_id, to_underlying_type_id
-			}
-		);
+		}else{
+			const TemplateIntrinsicFunc::Kind intrinsic_kind = [&](){
+				switch(from_data.kind){
+					case TypeConversionData::Kind::INTEGER: {
+						switch(to_data.kind){
+							case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
+								if(from_data.width < to_data.width){
+									return TemplateIntrinsicFunc::Kind::SEXT;
+								}else{
+									return TemplateIntrinsicFunc::Kind::TRUNC;
+								}
+							} break;
 
-		const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-			instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
-		);
+							case TypeConversionData::Kind::FLOAT: {
+								return TemplateIntrinsicFunc::Kind::I_TO_F;
+							} break;
+						}
+					} break;
 
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::EPHEMERAL,
-			expr.value_stage,
-			target_type.asTypeID(),
-			sema::Expr(created_func_call_id)
-		);
-		return Result::SUCCESS;
+					case TypeConversionData::Kind::UNSIGNED_INTEGER: {
+						switch(to_data.kind){
+							case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
+								if(from_data.width < to_data.width){
+									return TemplateIntrinsicFunc::Kind::ZEXT;
+								}else{
+									return TemplateIntrinsicFunc::Kind::TRUNC;
+								}
+							} break;
+
+							case TypeConversionData::Kind::FLOAT: {
+								return TemplateIntrinsicFunc::Kind::I_TO_F;
+							} break;
+						}
+					} break;
+
+					case TypeConversionData::Kind::FLOAT: {
+						switch(to_data.kind){
+							case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
+								return TemplateIntrinsicFunc::Kind::F_TO_I;
+							} break;
+
+							case TypeConversionData::Kind::FLOAT: {
+								if(from_data.width < to_data.width){
+									return TemplateIntrinsicFunc::Kind::FEXT;
+								}else{
+									return TemplateIntrinsicFunc::Kind::FTRUNC;
+								}
+							} break;
+						}
+					} break;
+				}
+
+				evo::debugFatalBreak("Unknown or unsupported TypeConversionData::Kind");
+			}();
+
+			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+			const InstantiationID instantiation_id = this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+				intrinsic_kind,
+				evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+					from_underlying_type_id, to_underlying_type_id
+				}
+			);
+
+			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				expr.value_stage,
+				target_type.asTypeID(),
+				sema::Expr(created_func_call_id)
+			);
+			return Result::SUCCESS;
+		}
 	}
 
 
