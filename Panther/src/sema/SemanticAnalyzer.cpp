@@ -157,6 +157,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::LocalVar>()){
 				return this->instr_local_var(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::LocalAlias>()){
+				return this->instr_local_alias(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::Return>()){
 				return this->instr_return(instr);
 
@@ -198,6 +201,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<InstrType, Instruction::RequireThisDef>()){
 				return this->instr_require_this_def();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::WaitOnSubSymbolProcDef>()){
+				return this->instr_wait_on_sub_symbol_proc_def(instr);
 
 			// }else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<true, true>>()){
 			// 	return this->instr_func_call_expr<true, true>(instr);
@@ -1139,7 +1145,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_struct_def() -> Result {
 		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_struct_def: {}", this->symbol_proc.ident); });
 
-		this->pop_scope_level<>(); // TODO(FUTURE): needed?
+		this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>();
 
 
 		const BaseType::Struct::ID created_struct_id =
@@ -2006,7 +2012,7 @@ namespace pcit::panther{
 			this->propagate_finished_pir_def();
 		}
 
-		this->pop_scope_level<>();
+		this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>();
 
 		return Result::SUCCESS;
 	}
@@ -2267,6 +2273,46 @@ namespace pcit::panther{
 
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_local_alias(const Instruction::LocalAlias& instr) -> Result {
+		if(instr.attribute_params_info.empty() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+				this->source.getASTBuffer().getAttributeBlock(instr.alias_decl.attributeBlock).attributes[0].attribute,
+				"Unknown local alias attribute"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
+		if(aliased_type.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ALIAS_CANNOT_BE_VOID,
+				instr.alias_decl.type,
+				"Alias cannot be type [Void]"
+			);
+			return Result::ERROR;
+		}
+
+
+		const BaseType::ID created_alias_id = this->context.type_manager.getOrCreateAlias(
+			BaseType::Alias(
+				this->source.getID(),
+				instr.alias_decl.ident,
+				std::atomic<std::optional<TypeInfo::ID>>(aliased_type.asTypeID()),
+				false
+			)
+		);
+
+		const std::string_view alias_ident = this->source.getTokenBuffer()[instr.alias_decl.ident].getString();
+		if(this->add_ident_to_scope(alias_ident, instr.alias_decl.ident, created_alias_id.aliasID()).isError()){
+			return Result::ERROR;
+		}
+
+		return Result::SUCCESS;
+	}
+
 
 
 	auto SemanticAnalyzer::instr_return(const Instruction::Return& instr) -> Result {
@@ -3024,6 +3070,30 @@ namespace pcit::panther{
 		const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
 			.getSymbolProc(*current_struct_symbol_proc)
 			.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *current_struct_symbol_proc);
+
+		switch(wait_on_result){
+			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
+			case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+			case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
+			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+		}
+
+		evo::unreachable();
+	}
+
+
+	auto SemanticAnalyzer::instr_wait_on_sub_symbol_proc_def(const Instruction::WaitOnSubSymbolProcDef& instr)
+	-> Result {
+		SymbolProc& sub_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(instr.symbol_proc_id);
+
+		sub_symbol_proc.sema_scope_id = 
+			this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
+
+		this->context.add_task_to_work_manager(instr.symbol_proc_id);
+
+		const SymbolProc::WaitOnResult wait_on_result = 
+			sub_symbol_proc.waitOnDefIfNeeded(this->symbol_proc_id, this->context, instr.symbol_proc_id);
 
 		switch(wait_on_result){
 			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
@@ -4905,7 +4975,7 @@ namespace pcit::panther{
 		}
 
 
-		this->pop_scope_level<true>();
+		this->pop_scope_level<PopScopeLevelKind::LABEL_TERMINATE>();
 		this->get_current_scope_level().resetSubScopes();
 		return Result::SUCCESS;
 	}
@@ -5507,7 +5577,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					instr.infix,
-					"Converting an fluid value to a type that it's not implicitly convertable to is unimplemented"
+					"Converting a fluid value to a type that it's not implicitly convertable to is unimplemented"
 				);
 				return Result::ERROR;
 			}
@@ -7257,44 +7327,51 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_LABEL_TERMINATE>
+	template<SemanticAnalyzer::PopScopeLevelKind POP_SCOPE_LEVEL_KIND>
 	auto SemanticAnalyzer::pop_scope_level() -> void {
-		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
-		const bool current_scope_is_terminated = current_scope_level.isTerminated();
+		if constexpr(POP_SCOPE_LEVEL_KIND == PopScopeLevelKind::SYMBOL_END){
+			this->scope.popLevel();
 
-		if(
-			current_scope_level.hasStmtBlock()
-			&& current_scope_level.stmtBlock().isTerminated() == false
-			&& current_scope_level.isTerminated()
-		){
-			current_scope_level.stmtBlock().setTerminated();
-		}
-
-		if constexpr(IS_LABEL_TERMINATE){
-			const bool current_scope_is_label_terminated = current_scope_level.isLabelTerminated();
-
-			this->scope.popLevel(); // `current_scope_level` is now invalid
-
-			if(
-				current_scope_is_terminated
-				&& this->scope.inObjectScope()
-				&& !this->scope.inObjectMainScope()
-				&& current_scope_is_label_terminated == false
-
-			){
-				this->get_current_scope_level().setSubScopeTerminated();
-			}
 		}else{
-			this->scope.popLevel(); // `current_scope_level` is now invalid
+			sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
+			const bool current_scope_is_terminated = current_scope_level.isTerminated();
 
 			if(
-				current_scope_is_terminated
-				&& this->scope.inObjectScope()
-				&& !this->scope.inObjectMainScope()
+				current_scope_level.hasStmtBlock()
+				&& current_scope_level.stmtBlock().isTerminated() == false
+				&& current_scope_level.isTerminated()
 			){
-				this->get_current_scope_level().setSubScopeTerminated();
+				current_scope_level.stmtBlock().setTerminated();
+			}
+
+			if constexpr(POP_SCOPE_LEVEL_KIND == PopScopeLevelKind::LABEL_TERMINATE){
+				const bool current_scope_is_label_terminated = current_scope_level.isLabelTerminated();
+
+				this->scope.popLevel(); // `current_scope_level` is now invalid
+
+				if(
+					current_scope_is_terminated
+					&& this->scope.inObjectScope()
+					&& !this->scope.inObjectMainScope()
+					&& current_scope_is_label_terminated == false
+
+				){
+					this->get_current_scope_level().setSubScopeTerminated();
+				}
+
+			}else if constexpr(POP_SCOPE_LEVEL_KIND == PopScopeLevelKind::NORMAL){
+				this->scope.popLevel(); // `current_scope_level` is now invalid
+
+				if(
+					current_scope_is_terminated
+					&& this->scope.inObjectScope()
+					&& !this->scope.inObjectMainScope()
+				){
+					this->get_current_scope_level().setSubScopeTerminated();
+				}
 			}
 		}
+
 	}
 
 

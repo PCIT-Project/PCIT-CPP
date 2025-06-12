@@ -21,7 +21,7 @@ namespace pcit::panther{
 	using Instruction = SymbolProc::Instruction;
 	
 
-	auto SymbolProcBuilder::build(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build(const AST::Node& stmt) -> evo::Result<SymbolProc::ID> {
 		const evo::Result<std::string_view> symbol_ident = this->get_symbol_ident(stmt);
 		if(symbol_ident.isError()){ return evo::resultError; }
 
@@ -80,7 +80,7 @@ namespace pcit::panther{
 
 		this->context.trace("Finished building symbol proc of \"{}\"", symbol_ident.value());
 
-		return evo::Result<>();
+		return symbol_proc_id;
 	}
 
 
@@ -295,7 +295,7 @@ namespace pcit::panther{
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
 
-		if(this->is_child_symbol()){
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
 			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
 
 			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
@@ -304,7 +304,11 @@ namespace pcit::panther{
 			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
 		}
 
-		this->symbol_namespaces.back()->emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id
+			);
+		}
 
 		return evo::Result<>();
 	}
@@ -417,9 +421,13 @@ namespace pcit::panther{
 			this->add_instruction(Instruction::FuncPrepareScopeAndPIRDecl(func_decl));
 
 
+			this->symbol_scopes.emplace_back(nullptr);
+			this->symbol_namespaces.emplace_back(nullptr);
 			for(const AST::Node& func_stmt : ast_buffer.getBlock(func_decl.block).stmts){
 				if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 			}
+			this->symbol_namespaces.pop_back();
+			this->symbol_scopes.pop_back();
 
 			this->add_instruction(Instruction::FuncDef(func_decl));
 			this->add_instruction(Instruction::FuncPrepareConstexprPIRIfNeeded(func_decl));
@@ -433,7 +441,7 @@ namespace pcit::panther{
 		}
 
 
-		if(this->is_child_symbol()){
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
 			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
 
 			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
@@ -442,7 +450,11 @@ namespace pcit::panther{
 			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
 		}
 
-		this->symbol_namespaces.back()->emplace(current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id);
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
+			);
+		}
 
 		return evo::Result<>();
 	}
@@ -469,7 +481,7 @@ namespace pcit::panther{
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
 
-		if(this->is_child_symbol()){
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
 			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
 
 			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
@@ -478,7 +490,11 @@ namespace pcit::panther{
 			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
 		}
 
-		this->symbol_namespaces.back()->emplace(current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id);
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id
+			);
+		}
 
 		return evo::Result<>();
 	}
@@ -540,7 +556,7 @@ namespace pcit::panther{
 		}
 
 
-		if(this->is_child_symbol()){
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
 			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
 
 			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
@@ -549,7 +565,11 @@ namespace pcit::panther{
 			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
 		}
 
-		this->symbol_namespaces.back()->emplace(current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id);
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
+			);
+		}
 
 		return evo::Result<>();
 	}
@@ -587,7 +607,7 @@ namespace pcit::panther{
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
 
-		if(this->is_child_symbol()){
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
 			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
 
 			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
@@ -596,7 +616,9 @@ namespace pcit::panther{
 			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
 		}
 
-		this->symbol_namespaces.back()->emplace("", this->get_current_symbol().symbol_proc_id);
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace("", this->get_current_symbol().symbol_proc_id);
+		}
 
 		// TODO(PERF): address these directly instead of moving them in
 		current_symbol.symbol_proc.extra_info.emplace<SymbolProc::WhenCondInfo>(
@@ -751,10 +773,10 @@ namespace pcit::panther{
 		switch(stmt.kind()){
 			case AST::Kind::NONE:             evo::debugFatalBreak("Not a valid AST node");
 			case AST::Kind::VAR_DECL:         return this->analyze_local_var(ast_buffer.getVarDecl(stmt));
-			case AST::Kind::FUNC_DECL:        evo::unimplemented("AST::Kind::FUNC_DECL");
-			case AST::Kind::ALIAS_DECL:       evo::unimplemented("AST::Kind::ALIAS_DECL");
+			case AST::Kind::FUNC_DECL:        return this->analyze_local_func(stmt);
+			case AST::Kind::ALIAS_DECL:       return this->analyze_local_alias(ast_buffer.getAliasDecl(stmt));
 			case AST::Kind::TYPEDEF_DECL:     evo::unimplemented("AST::Kind::TYPEDEF_DECL");
-			case AST::Kind::STRUCT_DECL:      evo::unimplemented("AST::Kind::STRUCT_DECL");
+			case AST::Kind::STRUCT_DECL:      return this->analyze_local_struct(stmt);
 			case AST::Kind::RETURN:           return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:            return this->analyze_error(ast_buffer.getError(stmt));
 			case AST::Kind::CONDITIONAL:      evo::unimplemented("AST::Kind::CONDITIONAL");
@@ -832,6 +854,51 @@ namespace pcit::panther{
 		this->add_instruction(
 			Instruction::LocalVar(var_decl, std::move(attribute_params_info.value()), type_id, value.value())
 		);
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_local_func(const AST::Node& stmt) -> evo::Result<> {
+		evo::debugAssert(stmt.kind() == AST::Kind::FUNC_DECL, "Not a func decl");
+
+		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		if(func_symbol_proc_id.isError()){ return evo::resultError; }
+
+		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_sub_symbol = true;
+
+		this->add_instruction(Instruction::WaitOnSubSymbolProcDef(func_symbol_proc_id.value()));
+		return evo::Result<>();
+	}
+
+
+
+	auto SymbolProcBuilder::analyze_local_alias(const AST::AliasDecl& alias_decl) -> evo::Result<> {
+		const evo::Result<SymbolProc::TypeID> aliased_type =
+			this->analyze_type<true>(this->source.getASTBuffer().getType(alias_decl.type));
+		if(aliased_type.isError()){ return evo::resultError; }
+
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
+			this->source.getASTBuffer().getAttributeBlock(alias_decl.attributeBlock)
+		);
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		this->add_instruction(
+			Instruction::LocalAlias(alias_decl, std::move(attribute_params_info.value()), aliased_type.value())
+		);
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_local_struct(const AST::Node& stmt) -> evo::Result<> {
+		evo::debugAssert(stmt.kind() == AST::Kind::STRUCT_DECL, "Not a struct decl");
+
+		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		if(func_symbol_proc_id.isError()){ return evo::resultError; }
+
+		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_sub_symbol = true;
+
+		this->add_instruction(Instruction::WaitOnSubSymbolProcDef(func_symbol_proc_id.value()));
 		return evo::Result<>();
 	}
 

@@ -316,6 +316,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID value;
 		};
 
+		struct LocalAlias{
+			const AST::AliasDecl& alias_decl;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			SymbolProcTypeID aliased_type;
+		};
+
 		struct Return{
 			const AST::Return& return_stmt;
 			std::optional<SymbolProcTermInfoID>	value;
@@ -382,6 +388,10 @@ namespace pcit::panther{
 		};
 
 		struct RequireThisDef{};
+
+		struct WaitOnSubSymbolProcDef{
+			SymbolProcID symbol_proc_id;
+		};
 
 		template<bool IS_CONSTEXPR, bool ERRORS>
 		struct FuncCallExpr{
@@ -629,6 +639,7 @@ namespace pcit::panther{
 
 			// stmt
 			LocalVar,
+			LocalAlias,
 			Return,
 			LabeledReturn,
 			Error,
@@ -645,6 +656,7 @@ namespace pcit::panther{
 			// misc expr
 			TypeToTerm,
 			RequireThisDef,
+			WaitOnSubSymbolProcDef,
 			// FuncCallExpr<true, true>,
 			FuncCallExpr<true, false>,
 			FuncCallExpr<false, true>,
@@ -785,7 +797,9 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto isReadyToBeAddedToWorkQueue() const -> bool {
-				return this->isWaiting() == false && this->isTemplateSubSymbol() == false;
+				return this->isWaiting() == false
+					&& this->isTemplateSubSymbol() == false
+					&& this->is_sub_symbol == false;
 			}
 
 			// this should be called after starting to wait
@@ -896,6 +910,7 @@ namespace pcit::panther{
 
 
 			size_t inst_index = 0;
+			bool is_sub_symbol = false;
 			bool decl_done = false;
 			bool def_done = false;
 			bool pir_lower_done = false;

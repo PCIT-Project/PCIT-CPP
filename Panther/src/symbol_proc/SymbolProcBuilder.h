@@ -26,7 +26,7 @@ namespace pcit::panther{
 			}
 			~SymbolProcBuilder() = default;
 
-			EVO_NODISCARD auto build(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build(const AST::Node& stmt) -> evo::Result<SymbolProc::ID>;
 
 			EVO_NODISCARD auto buildTemplateInstance(
 				const SymbolProc& template_symbol_proc,
@@ -56,6 +56,9 @@ namespace pcit::panther{
 
 			auto analyze_stmt(const AST::Node& stmt) -> evo::Result<>;
 			auto analyze_local_var(const AST::VarDecl& var) -> evo::Result<>;
+			auto analyze_local_func(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
+			auto analyze_local_alias(const AST::AliasDecl& alias_decl) -> evo::Result<>;
+			auto analyze_local_struct(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
 			auto analyze_defer(const AST::Defer& defer_stmt) -> evo::Result<>;
@@ -205,8 +208,8 @@ namespace pcit::panther{
 
 			evo::SmallVector<SymbolProcInfo> symbol_proc_infos{};
 			using SymbolScope = evo::SmallVector<SymbolProc::ID>;
-			evo::SmallVector<SymbolScope*> symbol_scopes{};
-			evo::SmallVector<SymbolProc::Namespace*> symbol_namespaces{};
+			evo::SmallVector<SymbolScope*> symbol_scopes{}; // nullptr if is function
+			evo::SmallVector<SymbolProc::Namespace*> symbol_namespaces{}; // nullptr if function
 	};
 
 

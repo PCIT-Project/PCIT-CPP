@@ -84,6 +84,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto instr_local_var(const Instruction::LocalVar& instr) -> Result;
+			EVO_NODISCARD auto instr_local_alias(const Instruction::LocalAlias& instr) -> Result;
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
 			EVO_NODISCARD auto instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result;
 			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
@@ -100,6 +101,8 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_require_this_def() -> Result;
+			EVO_NODISCARD auto instr_wait_on_sub_symbol_proc_def(const Instruction::WaitOnSubSymbolProcDef& instr)
+				-> Result;
 
 			template<bool IS_CONSTEXPR, bool ERRORS>
 			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR, ERRORS>& instr)
@@ -192,7 +195,12 @@ namespace pcit::panther{
 			) -> void;
 			EVO_NODISCARD auto push_scope_level(sema::StmtBlock* stmt_block, const auto& object_scope_id) -> void;
 
-			template<bool IS_LABEL_TERMINATE = false>
+			enum class PopScopeLevelKind{
+				LABEL_TERMINATE,
+				NORMAL,
+				SYMBOL_END,
+			};
+			template<PopScopeLevelKind POP_SCOPE_LEVEL_KIND = PopScopeLevelKind::NORMAL>
 			EVO_NODISCARD auto pop_scope_level() -> void;
 
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;

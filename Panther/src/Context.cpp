@@ -274,8 +274,10 @@ namespace pcit::panther{
 				for(size_t i = 0; i < 100; i+=1){
 					std::this_thread::yield();
 					if(this->symbol_proc_manager.allProcsDone()){ break; }
+					if(this->num_errors > 0 || this->encountered_fatal){ break; }
 
 					if(work_manager_inst.isWorking() == false){
+						evo::log::fatal("Thought was done working, was not...");
 						evo::log::debug("Collecting data to look at in the debugger (`symbol_proc_list`)...");
 						auto symbol_proc_list = std::vector<const SymbolProc*>();
 						for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){

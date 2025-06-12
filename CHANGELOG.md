@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.125.0"></a>
+## v0.0.125.0
+
+### Panther
+- Added aliases declared in function scope
+- Added functions declared in function scope
+- Added structs declared in function scope
+- Fixed debug check for multithreading failing incorrectly
+
+
+<!---------------------------------->
 <a name="v0.0.124.0"></a>
 ## v0.0.124.0
 

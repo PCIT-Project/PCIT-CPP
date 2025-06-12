@@ -1,33 +1,59 @@
 
 
-type Vec2 = struct <{T: Type}> {
-	var x: T;
-	var y: T;
 
-	func get_sum = (this) #rt -> T {
-		return this.x + this.y + 1.0;
+// func get_vec_bad = () -> Vec2 <Void> {
+// 	error;
+// }
+
+
+type Struct = struct <{T: Type}> {
+	var foo: T;
+
+
+	func some_func = () -> T {
+		func do_thing = () -> T {
+			return 12 as UInt as T;
+		}
+
+		def OUTPUT: T = do_thing();
+
+		return OUTPUT;
 	}
-
-
-	func as = (this) #rt -> Vec2<{F64}> {
-		return new Vec2<{F64}>{
-			x = this.x as F64,
-			y = this.y as F64,
-		};
-	}
-
 }
 
 
 
 
+
+
 func entry = () #entry -> UI8 {
-	const vec = new Vec2<{F32}>{
-		x = 12.4,
-		y = 19.6,
-	};
-	
-	const shift_ammount: UInt = 2 + 6 / 4;
-	return (vec as Vec2<{F64}>).get_sum() as UI8 << shift_ammount as UI3;
+	type alias uint8_t = UI8;
+
+	type Vec2 = struct {
+		var x: uint8_t;	
+		var y: uint8_t;
+	}
+
+
+	func get_num = () -> uint8_t {
+		return 12;
+	}
+
+	func get_vec = () -> Vec2 {
+		return new Vec2{
+			x = 2,
+			y = 4,
+		};
+	}
+
+
+	type alias Foo = Struct<{Int}>;
+	type alias Bar = Struct<{F32}>;
+
+
+
+	// return get_vec().x;
+
+	return Foo.some_func() as UI8;
 }
 
