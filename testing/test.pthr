@@ -1,65 +1,12 @@
 
 
 
-// func get_vec_bad = () -> Vec2 <Void> {
-// 	error;
-// }
-
-
-type Struct = struct <{T: Type}> {
-	var foo: T;
-
-
-	func some_func = () -> T {
-		func do_thing = () -> T {
-			return 12 as T;
-		}
-
-		def OUTPUT: T = do_thing();
-
-		return OUTPUT as T;
-	}
-}
-
-
-
-def INT: Int = 12;
-const float: F32 = INT as F32;
-
-
-
-
-
-
-
 func entry = () #entry -> UI8 {
-	type alias uint8_t = UI8;
-
-	type Vec2 = struct {
-		var x: uint8_t;	
-		var y: uint8_t;
+	if(1){
+		return true;	
+	}else if(2){
+		return 0;
+	}else{
+		
 	}
-
-
-	func get_num = () -> uint8_t {
-		return 12;
-	}
-
-	func get_vec = () -> Vec2 {
-		return new Vec2{
-			x = 2,
-			y = 4,
-		};
-	}
-
-
-	type alias Foo = Struct<{Int}>;
-	type alias Bar = Struct<{F32}>;
-
-
-
-	// return get_vec().x;
-
-	return Foo.some_func() as UI8;
 }
-

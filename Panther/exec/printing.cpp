@@ -696,10 +696,23 @@ namespace pthr{
 					this->print_block(this->source.getASTBuffer().getBlock(then_block));
 
 					this->indenter.print_end();
-					this->print_minor_header("Else");
 					if(else_block.has_value()){
-						this->print_block(this->source.getASTBuffer().getBlock(*else_block));
+						if(else_block->kind() == panther::AST::Kind::BLOCK){
+							this->print_minor_header("Else");
+							this->print_block(this->source.getASTBuffer().getBlock(*else_block));
+						}else{
+							this->print_minor_header("Else If");
+							this->printer.println();
+							this->indenter.push();
+							if constexpr(IS_WHEN){
+								this->print_conditional(this->source.getASTBuffer().getWhenConditional(*else_block));
+							}else{
+								this->print_conditional(this->source.getASTBuffer().getConditional(*else_block));
+							}
+							this->indenter.pop();
+						}
 					}else{
+						this->print_minor_header("Else");
 						this->printer.printlnGray(" {NONE}");
 					}
 
