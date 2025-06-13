@@ -294,20 +294,10 @@ namespace pcit::panther::sema{
 				FuncID func;
 			} value;
 
-			friend struct ExprOptInterface;
+			friend struct core::OptionalInterface<Expr>;
 			friend SemanticAnalyzer;
 	};
 
-
-	struct ExprOptInterface{
-		static constexpr auto init(Expr* expr) -> void {
-			expr->_kind = Expr::Kind::NONE;
-		}
-
-		static constexpr auto has_value(const Expr& expr) -> bool {
-			return expr._kind != Expr::Kind::NONE;
-		}
-	};
 
 	static_assert(sizeof(Expr) == 8, "sema::Expr is different size than expected");
 	static_assert(std::is_trivially_copyable_v<Expr>, "sema::Expr is not trivially copyable");
@@ -315,15 +305,32 @@ namespace pcit::panther::sema{
 }
 
 
+
+
+namespace pcit::core{
+	
+	template<>
+	struct OptionalInterface<panther::sema::Expr>{
+		static constexpr auto init(panther::sema::Expr* expr) -> void {
+			expr->_kind = panther::sema::Expr::Kind::NONE;
+		}
+
+		static constexpr auto has_value(const panther::sema::Expr& expr) -> bool {
+			return expr._kind != panther::sema::Expr::Kind::NONE;
+		}
+	};
+
+}
+
+
+
 namespace std{
 	
 	template<>
-	class optional<pcit::panther::sema::Expr> 
-		: public pcit::core::Optional<pcit::panther::sema::Expr, pcit::panther::sema::ExprOptInterface>{
-
+	class optional<pcit::panther::sema::Expr> : public pcit::core::Optional<pcit::panther::sema::Expr>{
 		public:
-			using pcit::core::Optional<pcit::panther::sema::Expr, pcit::panther::sema::ExprOptInterface>::Optional;
-			using pcit::core::Optional<pcit::panther::sema::Expr, pcit::panther::sema::ExprOptInterface>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::Expr>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::Expr>::operator=;
 	};
 
 

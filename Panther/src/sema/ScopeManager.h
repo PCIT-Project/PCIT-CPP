@@ -248,16 +248,23 @@ namespace pcit::panther::sema{
 	};
 
 
-	struct ScopeManagerScopeIDOptInterface{
-		static constexpr auto init(ScopeManager::Scope::ID* id) -> void {
+
+}
+
+
+
+namespace pcit::core{
+
+	template<>
+	struct OptionalInterface<panther::sema::ScopeManager::Scope::ID>{
+		static constexpr auto init(panther::sema::ScopeManager::Scope::ID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const ScopeManager::Scope::ID& id) -> bool {
+		static constexpr auto has_value(const panther::sema::ScopeManager::Scope::ID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
-
 
 }
 
@@ -268,18 +275,11 @@ namespace std{
 
 	template<>
 	class optional<pcit::panther::sema::ScopeManager::Scope::ID> 
-		: public pcit::core::Optional<
-			pcit::panther::sema::ScopeManager::Scope::ID, pcit::panther::sema::ScopeManagerScopeIDOptInterface
-		>{
-
+		: public pcit::core::Optional<pcit::panther::sema::ScopeManager::Scope::ID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ScopeManager::Scope::ID, pcit::panther::sema::ScopeManagerScopeIDOptInterface
-			>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ScopeManager::Scope::ID>::Optional;
 
-			using pcit::core::Optional<
-				pcit::panther::sema::ScopeManager::Scope::ID, pcit::panther::sema::ScopeManagerScopeIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ScopeManager::Scope::ID>::operator=;
 	};
 
 	

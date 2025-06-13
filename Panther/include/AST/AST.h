@@ -102,18 +102,8 @@ namespace pcit::panther::AST{
 
 
 			friend ASTBuffer;
-			friend struct NodeOptInterface;
+			friend struct core::OptionalInterface<Node>;
 			friend std::hash<Node>;
-	};
-
-	struct NodeOptInterface{
-		static constexpr auto init(Node* node) -> void {
-			node->_kind = Kind::NONE;
-		}
-
-		static constexpr auto has_value(const Node& node) -> bool {
-			return node.kind() != Kind::NONE;
-		}
 	};
 
 
@@ -124,15 +114,28 @@ namespace pcit::panther::AST{
 
 
 
+namespace pcit::core{
+	
+	template<>
+	struct OptionalInterface<panther::AST::Node>{
+		static constexpr auto init(panther::AST::Node* node) -> void {
+			node->_kind = panther::AST::Kind::NONE;
+		}
+
+		static constexpr auto has_value(const panther::AST::Node& node) -> bool {
+			return node.kind() != panther::AST::Kind::NONE;
+		}
+	};
+
+}
+
+
 namespace std{
 	
 	template<>
-	class optional<pcit::panther::AST::Node> 
-		: public pcit::core::Optional<pcit::panther::AST::Node, pcit::panther::AST::NodeOptInterface>{
-
-		public:
-			using pcit::core::Optional<pcit::panther::AST::Node, pcit::panther::AST::NodeOptInterface>::Optional;
-			using pcit::core::Optional<pcit::panther::AST::Node, pcit::panther::AST::NodeOptInterface>::operator=;
+	class optional<pcit::panther::AST::Node> : public pcit::core::Optional<pcit::panther::AST::Node>{
+		using pcit::core::Optional<pcit::panther::AST::Node>::Optional;
+		using pcit::core::Optional<pcit::panther::AST::Node>::operator=;
 	};
 
 }

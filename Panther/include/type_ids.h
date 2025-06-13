@@ -41,12 +41,19 @@ namespace pcit::panther{
 		}
 	};
 
-	struct TypeInfoIDOptInterface{
-		static constexpr auto init(TypeInfoID* id) -> void {
+}
+
+
+
+namespace pcit::core{
+
+	template<>
+	struct OptionalInterface<panther::TypeInfoID>{
+		static constexpr auto init(panther::TypeInfoID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const TypeInfoID& id) -> bool {
+		static constexpr auto has_value(const panther::TypeInfoID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -58,12 +65,11 @@ namespace pcit::panther{
 namespace std{
 
 	template<>
-	class optional<pcit::panther::TypeInfoID> 
-		: public pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>{
+	class optional<pcit::panther::TypeInfoID> : public pcit::core::Optional<pcit::panther::TypeInfoID>{
 
 		public:
-			using pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>::Optional;
-			using pcit::core::Optional<pcit::panther::TypeInfoID, pcit::panther::TypeInfoIDOptInterface>::operator=;
+			using pcit::core::Optional<pcit::panther::TypeInfoID>::Optional;
+			using pcit::core::Optional<pcit::panther::TypeInfoID>::operator=;
 	};
 
 

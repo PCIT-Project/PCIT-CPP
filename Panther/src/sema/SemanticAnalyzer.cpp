@@ -1716,13 +1716,13 @@ namespace pcit::panther{
 		const sema::Func::ID current_func_id = this->scope.getCurrentObjectScope().as<sema::Func::ID>();
 		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
 
+		this->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
+
 
 		//////////////////
 		// prepare pir
 
 		if(current_func.isConstexpr){
-			this->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
-
 			auto sema_to_pir = SemaToPIR(
 				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
 			);
@@ -2746,7 +2746,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>() && !func_call_impl_res.value().is_intrinsic()){
+		if(this->get_current_func().isConstexpr && !func_call_impl_res.value().is_intrinsic()){
 			if(func_call_impl_res.value().selected_func->isConstexpr == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
@@ -3235,7 +3235,7 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
+			if(this->get_current_func().isConstexpr){
 				if(func_call_impl_res.value().selected_func->isConstexpr == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
@@ -7804,7 +7804,7 @@ namespace pcit::panther{
 							}
 						}();
 
-						if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
+						if(this->get_current_func().isConstexpr){
 							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_vars.emplace(ident_id);
 						}
 

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.127.0"></a>
+## v0.0.127.0
+
+### PCIT_core
+- Added support to `Optional` for non-trivial types
+- Improved the interface for `Optional`
+- Added custom wait thresholds to `SpinLock`
+
+
+<!---------------------------------->
 <a name="v0.0.126.1"></a>
 ## v0.0.126.1
 

@@ -20,13 +20,14 @@
 namespace pcit::core{
 
 	// adapted from: https://www.youtube.com/watch?v=rmGJc9PXpuE
-	class SpinLock{
+	template<int INITIAL_WAIT_THRESHOLD = 8>
+	class SpinLockBase{
 		public:
-			SpinLock() = default;
-			~SpinLock() = default;
+			SpinLockBase() = default;
+			~SpinLockBase() = default;
 
 			auto lock() -> void {
-				int wait_threshold = 8;
+				int wait_threshold = INITIAL_WAIT_THRESHOLD;
 				int wait_iter = 0;
 
 				while(this->try_lock() == false){
@@ -42,8 +43,8 @@ namespace pcit::core{
 			}
 
 			auto try_lock() -> bool {
-				return !this->flag.load(std::memory_order_relaxed) 
-					&& !this->flag.exchange(1, std::memory_order_acquire);
+				return this->flag.load(std::memory_order_relaxed) == 0
+					&& this->flag.exchange(1, std::memory_order_acquire) == 0;
 			}
 
 			auto unlock() -> void {
@@ -56,6 +57,9 @@ namespace pcit::core{
 		private:
 			std::atomic<uint32_t> flag = 0; // surprisingly, this was measured to be faster than uint64_t
 	};
+
+
+	using SpinLock = SpinLockBase<>;
 
 
 }

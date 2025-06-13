@@ -24,253 +24,82 @@ namespace pcit::panther::sema{
 	struct UninitID : public core::UniqueID<uint32_t, struct UninitID> {
 		using core::UniqueID<uint32_t, UninitID>::UniqueID;
 	};
-	struct UninitIDOptInterface{
-		static constexpr auto init(UninitID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const UninitID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct ZeroinitID : public core::UniqueID<uint32_t, struct ZeroinitID> {
 		using core::UniqueID<uint32_t, ZeroinitID>::UniqueID;
-	};
-	struct ZeroinitIDOptInterface{
-		static constexpr auto init(ZeroinitID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ZeroinitID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 
 	struct IntValueID : public core::UniqueID<uint32_t, struct IntValueID> {
 		using core::UniqueID<uint32_t, IntValueID>::UniqueID;
 	};
-	struct IntValueIDOptInterface{
-		static constexpr auto init(IntValueID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const IntValueID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct FloatValueID : public core::UniqueID<uint32_t, struct FloatValueID> {
 		using core::UniqueID<uint32_t, FloatValueID>::UniqueID;
-	};
-	struct FloatValueIDOptInterface{
-		static constexpr auto init(FloatValueID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const FloatValueID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct BoolValueID : public core::UniqueID<uint32_t, struct BoolValueID> {
 		using core::UniqueID<uint32_t, BoolValueID>::UniqueID;
 	};
-	struct BoolValueIDOptInterface{
-		static constexpr auto init(BoolValueID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const BoolValueID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct StringValueID : public core::UniqueID<uint32_t, struct StringValueID> {
 		using core::UniqueID<uint32_t, StringValueID>::UniqueID;
-	};
-	struct StringValueIDOptInterface{
-		static constexpr auto init(StringValueID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const StringValueID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct AggregateValueID : public core::UniqueID<uint32_t, struct AggregateValueID> {
 		using core::UniqueID<uint32_t, AggregateValueID>::UniqueID;
 	};
-	struct AggregateValueIDOptInterface{
-		static constexpr auto init(AggregateValueID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const AggregateValueID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct CharValueID : public core::UniqueID<uint32_t, struct CharValueID> {
 		using core::UniqueID<uint32_t, CharValueID>::UniqueID;
 	};
-	struct CharValueIDOptInterface{
-		static constexpr auto init(CharValueID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const CharValueID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 
-	struct TemplateIntrinsicFuncInstantiationID 
+	struct TemplateIntrinsicFuncInstantiationID
 		: public core::UniqueID<uint32_t, struct TemplateIntrinsicFuncInstantiationID> {
 		using core::UniqueID<uint32_t, TemplateIntrinsicFuncInstantiationID>::UniqueID;
-	};
-	struct TemplateIntrinsicFuncInstantiationIDOptInterface{
-		static constexpr auto init(TemplateIntrinsicFuncInstantiationID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const TemplateIntrinsicFuncInstantiationID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 
 	struct CopyID : public core::UniqueID<uint32_t, struct CopyID> {
 		using core::UniqueID<uint32_t, CopyID>::UniqueID;
 	};
-	struct CopyIDOptInterface{
-		static constexpr auto init(CopyID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const CopyID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct MoveID : public core::UniqueID<uint32_t, struct MoveID> {
 		using core::UniqueID<uint32_t, MoveID>::UniqueID;
-	};
-	struct MoveIDOptInterface{
-		static constexpr auto init(MoveID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const MoveID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct ForwardID : public core::UniqueID<uint32_t, struct ForwardID> {
 		using core::UniqueID<uint32_t, ForwardID>::UniqueID;
 	};
-	struct ForwardIDOptInterface{
-		static constexpr auto init(ForwardID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ForwardID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct AddrOfID : public core::UniqueID<uint32_t, struct AddrOfID> {
 		using core::UniqueID<uint32_t, AddrOfID>::UniqueID;
-	};
-	struct AddrOfIDOptInterface{
-		static constexpr auto init(AddrOfID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const AddrOfID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct DerefID : public core::UniqueID<uint32_t, struct DerefID> {
 		using core::UniqueID<uint32_t, DerefID>::UniqueID;
 	};
-	struct DerefIDOptInterface{
-		static constexpr auto init(DerefID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const DerefID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct AccessorID : public core::UniqueID<uint32_t, struct AccessorID> {
 		using core::UniqueID<uint32_t, AccessorID>::UniqueID;
-	};
-	struct AccessorIDOptInterface{
-		static constexpr auto init(AccessorID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const AccessorID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct PtrAccessorID : public core::UniqueID<uint32_t, struct PtrAccessorID> {
 		using core::UniqueID<uint32_t, PtrAccessorID>::UniqueID;
 	};
-	struct PtrAccessorIDOptInterface{
-		static constexpr auto init(PtrAccessorID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const PtrAccessorID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct TryElseID : public core::UniqueID<uint32_t, struct TryElseID> {
 		using core::UniqueID<uint32_t, TryElseID>::UniqueID;
-	};
-	struct TryElseIDOptInterface{
-		static constexpr auto init(TryElseID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const TryElseID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct BlockExprID : public core::UniqueID<uint32_t, struct BlockExprID> {
 		using core::UniqueID<uint32_t, BlockExprID>::UniqueID;
 	};
-	struct BlockExprIDOptInterface{
-		static constexpr auto init(BlockExprID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const BlockExprID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 
 	struct FakeTermInfoID : public core::UniqueID<uint32_t, struct FakeTermInfoID> {
 		using core::UniqueID<uint32_t, FakeTermInfoID>::UniqueID;
-	};
-	struct FakeTermInfoIDOptInterface{
-		static constexpr auto init(FakeTermInfoID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const FakeTermInfoID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 
@@ -281,118 +110,37 @@ namespace pcit::panther::sema{
 	struct FuncCallID : public core::UniqueID<uint32_t, struct FuncCallID> {
 		using core::UniqueID<uint32_t, FuncCallID>::UniqueID;
 	};
-	struct FuncCallIDOptInterface{
-		static constexpr auto init(FuncCallID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const FuncCallID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct AssignID : public core::UniqueID<uint32_t, struct AssignID> {
 		using core::UniqueID<uint32_t, AssignID>::UniqueID;
-	};
-	struct AssignIDOptInterface{
-		static constexpr auto init(AssignID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const AssignID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct MultiAssignID : public core::UniqueID<uint32_t, struct MultiAssignID> {
 		using core::UniqueID<uint32_t, MultiAssignID>::UniqueID;
 	};
-	struct MultiAssignIDOptInterface{
-		static constexpr auto init(MultiAssignID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const MultiAssignID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct ReturnID : public core::UniqueID<uint32_t, struct ReturnID> {
 		using core::UniqueID<uint32_t, ReturnID>::UniqueID;
-	};
-	struct ReturnIDOptInterface{
-		static constexpr auto init(ReturnID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ReturnID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct ErrorID : public core::UniqueID<uint32_t, struct ErrorID> {
 		using core::UniqueID<uint32_t, ErrorID>::UniqueID;
 	};
-	struct ErrorIDOptInterface{
-		static constexpr auto init(ErrorID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ErrorID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct ConditionalID : public core::UniqueID<uint32_t, struct ConditionalID> {
 		using core::UniqueID<uint32_t, ConditionalID>::UniqueID;
-	};
-	struct ConditionalIDOptInterface{
-		static constexpr auto init(ConditionalID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ConditionalID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct WhileID : public core::UniqueID<uint32_t, struct WhileID> {
 		using core::UniqueID<uint32_t, WhileID>::UniqueID;
 	};
-	struct WhileIDOptInterface{
-		static constexpr auto init(WhileID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const WhileID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct DeferID : public core::UniqueID<uint32_t, struct DeferID> {
 		using core::UniqueID<uint32_t, DeferID>::UniqueID;
 	};
-	struct DeferIDOptInterface{
-		static constexpr auto init(DeferID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const DeferID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 	
 	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {
 		using core::UniqueID<uint32_t, FuncID>::UniqueID;
-	};
-	struct FuncIDOptInterface{
-		static constexpr auto init(FuncID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const FuncID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	using Parent = evo::Variant<std::monostate, FuncID>;
@@ -401,122 +149,461 @@ namespace pcit::panther::sema{
 	struct TemplatedFuncID : public core::UniqueID<uint32_t, struct TemplatedFuncID> {
 		using core::UniqueID<uint32_t, TemplatedFuncID>::UniqueID;
 	};
-	struct TemplatedFuncIDOptInterface{
-		static constexpr auto init(TemplatedFuncID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const TemplatedFuncID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct TemplatedStructID : public core::UniqueID<uint32_t, struct TemplatedStructID> {
 		using core::UniqueID<uint32_t, TemplatedStructID>::UniqueID;
-	};
-	struct TemplatedStructIDOptInterface{
-		static constexpr auto init(TemplatedStructID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const TemplatedStructID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 
 	struct VarID : public core::UniqueID<uint32_t, struct VarID> {
 		using core::UniqueID<uint32_t, VarID>::UniqueID;
 	};
-	struct VarIDOptInterface{
-		static constexpr auto init(VarID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const VarID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct GlobalVarID : public core::UniqueID<uint32_t, struct GlobalVarID> {
 		using core::UniqueID<uint32_t, GlobalVarID>::UniqueID;
-	};
-	struct GlobalVarIDOptInterface{
-		static constexpr auto init(GlobalVarID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const GlobalVarID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct ParamID : public core::UniqueID<uint32_t, struct ParamID> {
 		using core::UniqueID<uint32_t, ParamID>::UniqueID;
 	};
-	struct ParamIDOptInterface{
-		static constexpr auto init(ParamID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ParamID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct ReturnParamID : public core::UniqueID<uint32_t, struct ReturnParamID> {
 		using core::UniqueID<uint32_t, ReturnParamID>::UniqueID;
-	};
-	struct ReturnParamIDOptInterface{
-		static constexpr auto init(ReturnParamID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ReturnParamID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct ErrorReturnParamID : public core::UniqueID<uint32_t, struct ErrorReturnParamID> {
 		using core::UniqueID<uint32_t, ErrorReturnParamID>::UniqueID;
 	};
-	struct ErrorReturnParamIDOptInterface{
-		static constexpr auto init(ErrorReturnParamID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const ErrorReturnParamID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	struct BlockExprOutputID : public core::UniqueID<uint32_t, struct BlockExprOutputID> {
 		using core::UniqueID<uint32_t, BlockExprOutputID>::UniqueID;
-	};
-	struct BlockExprOutputIDOptInterface{
-		static constexpr auto init(BlockExprOutputID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const BlockExprOutputID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 	struct ExceptParamID : public core::UniqueID<uint32_t, struct ExceptParamID> {
 		using core::UniqueID<uint32_t, ExceptParamID>::UniqueID;
 	};
-	struct ExceptParamIDOptInterface{
-		static constexpr auto init(ExceptParamID* id) -> void {
+	
+}
+
+
+
+namespace pcit::core{
+		
+	template<>
+	struct core::OptionalInterface<panther::sema::UninitID>{
+		static constexpr auto init(panther::sema::UninitID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const ExceptParamID& id) -> bool {
+		static constexpr auto has_value(const panther::sema::UninitID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
-	
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ZeroinitID>{
+		static constexpr auto init(panther::sema::ZeroinitID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ZeroinitID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::IntValueID>{
+		static constexpr auto init(panther::sema::IntValueID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::IntValueID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::FloatValueID>{
+		static constexpr auto init(panther::sema::FloatValueID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::FloatValueID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::BoolValueID>{
+		static constexpr auto init(panther::sema::BoolValueID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::BoolValueID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::StringValueID>{
+		static constexpr auto init(panther::sema::StringValueID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::StringValueID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::AggregateValueID>{
+		static constexpr auto init(panther::sema::AggregateValueID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::AggregateValueID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::CharValueID>{
+		static constexpr auto init(panther::sema::CharValueID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::CharValueID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::TemplateIntrinsicFuncInstantiationID>{
+		static constexpr auto init(panther::sema::TemplateIntrinsicFuncInstantiationID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::TemplateIntrinsicFuncInstantiationID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::CopyID>{
+		static constexpr auto init(panther::sema::CopyID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::CopyID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::MoveID>{
+		static constexpr auto init(panther::sema::MoveID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::MoveID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ForwardID>{
+		static constexpr auto init(panther::sema::ForwardID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ForwardID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::AddrOfID>{
+		static constexpr auto init(panther::sema::AddrOfID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::AddrOfID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::DerefID>{
+		static constexpr auto init(panther::sema::DerefID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::DerefID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::AccessorID>{
+		static constexpr auto init(panther::sema::AccessorID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::AccessorID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::PtrAccessorID>{
+		static constexpr auto init(panther::sema::PtrAccessorID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::PtrAccessorID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::TryElseID>{
+		static constexpr auto init(panther::sema::TryElseID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::TryElseID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::BlockExprID>{
+		static constexpr auto init(panther::sema::BlockExprID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::BlockExprID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::FakeTermInfoID>{
+		static constexpr auto init(panther::sema::FakeTermInfoID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::FakeTermInfoID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::FuncCallID>{
+		static constexpr auto init(panther::sema::FuncCallID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::FuncCallID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::AssignID>{
+		static constexpr auto init(panther::sema::AssignID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::AssignID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::MultiAssignID>{
+		static constexpr auto init(panther::sema::MultiAssignID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::MultiAssignID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ReturnID>{
+		static constexpr auto init(panther::sema::ReturnID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ReturnID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ErrorID>{
+		static constexpr auto init(panther::sema::ErrorID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ErrorID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ConditionalID>{
+		static constexpr auto init(panther::sema::ConditionalID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ConditionalID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::WhileID>{
+		static constexpr auto init(panther::sema::WhileID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::WhileID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::DeferID>{
+		static constexpr auto init(panther::sema::DeferID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::DeferID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::FuncID>{
+		static constexpr auto init(panther::sema::FuncID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::FuncID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::TemplatedFuncID>{
+		static constexpr auto init(panther::sema::TemplatedFuncID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::TemplatedFuncID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::TemplatedStructID>{
+		static constexpr auto init(panther::sema::TemplatedStructID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::TemplatedStructID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::VarID>{
+		static constexpr auto init(panther::sema::VarID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::VarID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::GlobalVarID>{
+		static constexpr auto init(panther::sema::GlobalVarID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::GlobalVarID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ParamID>{
+		static constexpr auto init(panther::sema::ParamID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ParamID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ReturnParamID>{
+		static constexpr auto init(panther::sema::ReturnParamID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ReturnParamID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ErrorReturnParamID>{
+		static constexpr auto init(panther::sema::ErrorReturnParamID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ErrorReturnParamID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::BlockExprOutputID>{
+		static constexpr auto init(panther::sema::BlockExprOutputID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::BlockExprOutputID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ExceptParamID>{
+		static constexpr auto init(panther::sema::ExceptParamID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ExceptParamID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
 }
+
+
+
+
+
 
 
 
@@ -530,16 +617,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::UninitID>
-		: public pcit::core::Optional<pcit::panther::sema::UninitID, pcit::panther::sema::UninitIDOptInterface>{
-
+	class optional<pcit::panther::sema::UninitID> : public pcit::core::Optional<pcit::panther::sema::UninitID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::UninitID, pcit::panther::sema::UninitIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::UninitID, pcit::panther::sema::UninitIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::UninitID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::UninitID>::operator=;
 	};
 
 
@@ -551,16 +632,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::ZeroinitID>
-		: public pcit::core::Optional<pcit::panther::sema::ZeroinitID, pcit::panther::sema::ZeroinitIDOptInterface>{
-
+	class optional<pcit::panther::sema::ZeroinitID> : public pcit::core::Optional<pcit::panther::sema::ZeroinitID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ZeroinitID, pcit::panther::sema::ZeroinitIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ZeroinitID, pcit::panther::sema::ZeroinitIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ZeroinitID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ZeroinitID>::operator=;
 	};
 
 
@@ -572,16 +647,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::IntValueID>
-		: public pcit::core::Optional<pcit::panther::sema::IntValueID, pcit::panther::sema::IntValueIDOptInterface>{
-
+	class optional<pcit::panther::sema::IntValueID> : public pcit::core::Optional<pcit::panther::sema::IntValueID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::IntValueID, pcit::panther::sema::IntValueIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::IntValueID, pcit::panther::sema::IntValueIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::IntValueID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::IntValueID>::operator=;
 	};
 
 
@@ -593,16 +662,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::FloatValueID>
-		: public pcit::core::Optional<pcit::panther::sema::FloatValueID, pcit::panther::sema::FloatValueIDOptInterface>{
-
+	class optional<pcit::panther::sema::FloatValueID> : public pcit::core::Optional<pcit::panther::sema::FloatValueID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::FloatValueID, pcit::panther::sema::FloatValueIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::FloatValueID, pcit::panther::sema::FloatValueIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::FloatValueID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::FloatValueID>::operator=;
 	};
 
 
@@ -614,16 +677,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::BoolValueID>
-		: public pcit::core::Optional<pcit::panther::sema::BoolValueID, pcit::panther::sema::BoolValueIDOptInterface>{
-
+	class optional<pcit::panther::sema::BoolValueID> : public pcit::core::Optional<pcit::panther::sema::BoolValueID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::BoolValueID, pcit::panther::sema::BoolValueIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::BoolValueID, pcit::panther::sema::BoolValueIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::BoolValueID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::BoolValueID>::operator=;
 	};
 
 
@@ -635,18 +692,11 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::StringValueID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::StringValueID, pcit::panther::sema::StringValueIDOptInterface
-		>{
-
+	class optional<pcit::panther::sema::StringValueID> 
+		: public pcit::core::Optional<pcit::panther::sema::StringValueID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::StringValueID, pcit::panther::sema::StringValueIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::StringValueID, pcit::panther::sema::StringValueIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::StringValueID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::StringValueID>::operator=;
 	};
 
 
@@ -659,17 +709,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::AggregateValueID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::AggregateValueID, pcit::panther::sema::AggregateValueIDOptInterface
-		>{
-
+		: public pcit::core::Optional<pcit::panther::sema::AggregateValueID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::AggregateValueID, pcit::panther::sema::AggregateValueIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::AggregateValueID, pcit::panther::sema::AggregateValueIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::AggregateValueID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::AggregateValueID>::operator=;
 	};
 
 
@@ -681,16 +724,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::CharValueID>
-		: public pcit::core::Optional<pcit::panther::sema::CharValueID, pcit::panther::sema::CharValueIDOptInterface>{
-
+	class optional<pcit::panther::sema::CharValueID> : public pcit::core::Optional<pcit::panther::sema::CharValueID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::CharValueID, pcit::panther::sema::CharValueIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::CharValueID, pcit::panther::sema::CharValueIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::CharValueID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::CharValueID>::operator=;
 	};
 
 
@@ -703,20 +740,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::TemplateIntrinsicFuncInstantiationID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::TemplateIntrinsicFuncInstantiationID,
-			pcit::panther::sema::TemplateIntrinsicFuncInstantiationIDOptInterface
-		>{
-
+		: public pcit::core::Optional<pcit::panther::sema::TemplateIntrinsicFuncInstantiationID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::TemplateIntrinsicFuncInstantiationID,
-				pcit::panther::sema::TemplateIntrinsicFuncInstantiationIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::TemplateIntrinsicFuncInstantiationID,
-				pcit::panther::sema::TemplateIntrinsicFuncInstantiationIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::TemplateIntrinsicFuncInstantiationID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::TemplateIntrinsicFuncInstantiationID>::operator=;
 	};
 
 
@@ -728,16 +755,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::CopyID>
-		: public pcit::core::Optional<pcit::panther::sema::CopyID, pcit::panther::sema::CopyIDOptInterface>{
-
+	class optional<pcit::panther::sema::CopyID> : public pcit::core::Optional<pcit::panther::sema::CopyID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::CopyID, pcit::panther::sema::CopyIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::CopyID, pcit::panther::sema::CopyIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::CopyID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::CopyID>::operator=;
 	};
 
 
@@ -750,15 +771,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::MoveID>
-		: public pcit::core::Optional<pcit::panther::sema::MoveID, pcit::panther::sema::MoveIDOptInterface>{
-
+		: public pcit::core::Optional<pcit::panther::sema::MoveID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::MoveID, pcit::panther::sema::MoveIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::MoveID, pcit::panther::sema::MoveIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::MoveID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::MoveID>::operator=;
 	};
 
 
@@ -770,16 +786,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::ForwardID>
-		: public pcit::core::Optional<pcit::panther::sema::ForwardID, pcit::panther::sema::ForwardIDOptInterface>{
-
+	class optional<pcit::panther::sema::ForwardID> : public pcit::core::Optional<pcit::panther::sema::ForwardID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ForwardID, pcit::panther::sema::ForwardIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ForwardID, pcit::panther::sema::ForwardIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ForwardID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ForwardID>::operator=;
 	};
 
 
@@ -791,16 +801,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::AddrOfID>
-		: public pcit::core::Optional<pcit::panther::sema::AddrOfID, pcit::panther::sema::AddrOfIDOptInterface>{
-
+	class optional<pcit::panther::sema::AddrOfID> : public pcit::core::Optional<pcit::panther::sema::AddrOfID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::AddrOfID, pcit::panther::sema::AddrOfIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::AddrOfID, pcit::panther::sema::AddrOfIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::AddrOfID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::AddrOfID>::operator=;
 	};
 
 
@@ -812,16 +816,11 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::DerefID>
-		: public pcit::core::Optional<pcit::panther::sema::DerefID, pcit::panther::sema::DerefIDOptInterface>{
+	class optional<pcit::panther::sema::DerefID> : public pcit::core::Optional<pcit::panther::sema::DerefID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::DerefID, pcit::panther::sema::DerefIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::DerefID, pcit::panther::sema::DerefIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::DerefID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::DerefID>::operator=;
 	};
 
 
@@ -833,16 +832,11 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::AccessorID>
-		: public pcit::core::Optional<pcit::panther::sema::AccessorID, pcit::panther::sema::AccessorIDOptInterface>{
+	class optional<pcit::panther::sema::AccessorID> : public pcit::core::Optional<pcit::panther::sema::AccessorID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::AccessorID, pcit::panther::sema::AccessorIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::AccessorID, pcit::panther::sema::AccessorIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::AccessorID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::AccessorID>::operator=;
 	};
 
 
@@ -854,18 +848,11 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::PtrAccessorID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::PtrAccessorID, pcit::panther::sema::PtrAccessorIDOptInterface
-		>{
-
+	class optional<pcit::panther::sema::PtrAccessorID> 
+		: public pcit::core::Optional<pcit::panther::sema::PtrAccessorID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::PtrAccessorID, pcit::panther::sema::PtrAccessorIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::PtrAccessorID, pcit::panther::sema::PtrAccessorIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::PtrAccessorID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::PtrAccessorID>::operator=;
 	};
 
 
@@ -877,16 +864,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::TryElseID>
-		: public pcit::core::Optional<pcit::panther::sema::TryElseID, pcit::panther::sema::TryElseIDOptInterface>{
-
+	class optional<pcit::panther::sema::TryElseID> : public pcit::core::Optional<pcit::panther::sema::TryElseID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::TryElseID, pcit::panther::sema::TryElseIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::TryElseID, pcit::panther::sema::TryElseIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::TryElseID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::TryElseID>::operator=;
 	};
 
 
@@ -898,16 +879,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::BlockExprID>
-		: public pcit::core::Optional<pcit::panther::sema::BlockExprID, pcit::panther::sema::BlockExprIDOptInterface>{
-
+	class optional<pcit::panther::sema::BlockExprID> : public pcit::core::Optional<pcit::panther::sema::BlockExprID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::BlockExprID, pcit::panther::sema::BlockExprIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::BlockExprID, pcit::panther::sema::BlockExprIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::BlockExprID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::BlockExprID>::operator=;
 	};
 
 
@@ -920,15 +895,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::FakeTermInfoID>
-		: public pcit::core::Optional<pcit::panther::sema::FakeTermInfoID, pcit::panther::sema::FakeTermInfoIDOptInterface>{
-
+		: public pcit::core::Optional<pcit::panther::sema::FakeTermInfoID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::FakeTermInfoID, pcit::panther::sema::FakeTermInfoIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::FakeTermInfoID, pcit::panther::sema::FakeTermInfoIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::FakeTermInfoID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::FakeTermInfoID>::operator=;
 	};
 
 
@@ -940,16 +910,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::FuncCallID>
-		: public pcit::core::Optional<pcit::panther::sema::FuncCallID, pcit::panther::sema::FuncCallIDOptInterface>{
-
+	class optional<pcit::panther::sema::FuncCallID> : public pcit::core::Optional<pcit::panther::sema::FuncCallID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::FuncCallID, pcit::panther::sema::FuncCallIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::FuncCallID, pcit::panther::sema::FuncCallIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::FuncCallID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::FuncCallID>::operator=;
 	};
 
 
@@ -961,16 +925,11 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::AssignID>
-		: public pcit::core::Optional<pcit::panther::sema::AssignID, pcit::panther::sema::AssignIDOptInterface>{
+	class optional<pcit::panther::sema::AssignID> : public pcit::core::Optional<pcit::panther::sema::AssignID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::AssignID, pcit::panther::sema::AssignIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::AssignID, pcit::panther::sema::AssignIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::AssignID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::AssignID>::operator=;
 	};
 
 
@@ -983,17 +942,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::MultiAssignID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::MultiAssignID, pcit::panther::sema::MultiAssignIDOptInterface
-		>{
-
+		: public pcit::core::Optional<pcit::panther::sema::MultiAssignID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::MultiAssignID, pcit::panther::sema::MultiAssignIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::MultiAssignID, pcit::panther::sema::MultiAssignIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::MultiAssignID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::MultiAssignID>::operator=;
 	};
 
 
@@ -1005,16 +957,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::ReturnID>
-		: public pcit::core::Optional<pcit::panther::sema::ReturnID, pcit::panther::sema::ReturnIDOptInterface>{
-
+	class optional<pcit::panther::sema::ReturnID> : public pcit::core::Optional<pcit::panther::sema::ReturnID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ReturnID, pcit::panther::sema::ReturnIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ReturnID, pcit::panther::sema::ReturnIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ReturnID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ReturnID>::operator=;
 	};
 
 
@@ -1026,16 +972,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::ErrorID>
-		: public pcit::core::Optional<pcit::panther::sema::ErrorID, pcit::panther::sema::ErrorIDOptInterface>{
-
+	class optional<pcit::panther::sema::ErrorID> : public pcit::core::Optional<pcit::panther::sema::ErrorID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ErrorID, pcit::panther::sema::ErrorIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ErrorID, pcit::panther::sema::ErrorIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ErrorID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ErrorID>::operator=;
 	};
 
 
@@ -1048,17 +988,11 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::ConditionalID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::ConditionalID, pcit::panther::sema::ConditionalIDOptInterface
-		>{
+		: public pcit::core::Optional<pcit::panther::sema::ConditionalID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ConditionalID, pcit::panther::sema::ConditionalIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ConditionalID, pcit::panther::sema::ConditionalIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ConditionalID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ConditionalID>::operator=;
 	};
 
 
@@ -1070,16 +1004,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::WhileID>
-		: public pcit::core::Optional<pcit::panther::sema::WhileID, pcit::panther::sema::WhileIDOptInterface>{
-
+	class optional<pcit::panther::sema::WhileID> : public pcit::core::Optional<pcit::panther::sema::WhileID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::WhileID, pcit::panther::sema::WhileIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::WhileID, pcit::panther::sema::WhileIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::WhileID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::WhileID>::operator=;
 	};
 
 
@@ -1091,16 +1019,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::DeferID>
-		: public pcit::core::Optional<pcit::panther::sema::DeferID, pcit::panther::sema::DeferIDOptInterface>{
-
+	class optional<pcit::panther::sema::DeferID> : public pcit::core::Optional<pcit::panther::sema::DeferID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::DeferID, pcit::panther::sema::DeferIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::DeferID, pcit::panther::sema::DeferIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::DeferID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::DeferID>::operator=;
 	};
 
 
@@ -1112,16 +1034,10 @@ namespace std{
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::FuncID>
-		: public pcit::core::Optional<pcit::panther::sema::FuncID, pcit::panther::sema::FuncIDOptInterface>{
-
+	class optional<pcit::panther::sema::FuncID> : public pcit::core::Optional<pcit::panther::sema::FuncID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::FuncID, pcit::panther::sema::FuncIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::FuncID, pcit::panther::sema::FuncIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::FuncID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::FuncID>::operator=;
 	};
 
 
@@ -1134,17 +1050,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::TemplatedFuncID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::TemplatedFuncID, pcit::panther::sema::TemplatedFuncIDOptInterface
-		>{
-
+		: public pcit::core::Optional<pcit::panther::sema::TemplatedFuncID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::TemplatedFuncID, pcit::panther::sema::TemplatedFuncIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::TemplatedFuncID, pcit::panther::sema::TemplatedFuncIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::TemplatedFuncID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::TemplatedFuncID>::operator=;
 	};
 
 
@@ -1157,17 +1066,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::TemplatedStructID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::TemplatedStructID, pcit::panther::sema::TemplatedStructIDOptInterface
-		>{
-
+		: public pcit::core::Optional<pcit::panther::sema::TemplatedStructID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::TemplatedStructID, pcit::panther::sema::TemplatedStructIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::TemplatedStructID, pcit::panther::sema::TemplatedStructIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::TemplatedStructID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::TemplatedStructID>::operator=;
 	};
 
 
@@ -1180,15 +1082,11 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::VarID>
-		: public pcit::core::Optional<pcit::panther::sema::VarID, pcit::panther::sema::VarIDOptInterface>{
+		: public pcit::core::Optional<pcit::panther::sema::VarID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::VarID, pcit::panther::sema::VarIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::VarID, pcit::panther::sema::VarIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::VarID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::VarID>::operator=;
 	};
 
 
@@ -1201,15 +1099,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::GlobalVarID>
-		: public pcit::core::Optional<pcit::panther::sema::GlobalVarID, pcit::panther::sema::GlobalVarIDOptInterface>{
-
+		: public pcit::core::Optional<pcit::panther::sema::GlobalVarID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::GlobalVarID, pcit::panther::sema::GlobalVarIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::GlobalVarID, pcit::panther::sema::GlobalVarIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::GlobalVarID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::GlobalVarID>::operator=;
 	};
 
 
@@ -1222,15 +1115,10 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::ParamID>
-		: public pcit::core::Optional<pcit::panther::sema::ParamID, pcit::panther::sema::ParamIDOptInterface>{
-
+		: public pcit::core::Optional<pcit::panther::sema::ParamID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ParamID, pcit::panther::sema::ParamIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ParamID, pcit::panther::sema::ParamIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ParamID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ParamID>::operator=;
 	};
 
 
@@ -1243,17 +1131,11 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::ReturnParamID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::ReturnParamID, pcit::panther::sema::ReturnParamIDOptInterface
-		>{
+		: public pcit::core::Optional<pcit::panther::sema::ReturnParamID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ReturnParamID, pcit::panther::sema::ReturnParamIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ReturnParamID, pcit::panther::sema::ReturnParamIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ReturnParamID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ReturnParamID>::operator=;
 	};
 
 
@@ -1266,17 +1148,11 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::ErrorReturnParamID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::ErrorReturnParamID, pcit::panther::sema::ErrorReturnParamIDOptInterface
-		>{
+		: public pcit::core::Optional<pcit::panther::sema::ErrorReturnParamID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ErrorReturnParamID, pcit::panther::sema::ErrorReturnParamIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ErrorReturnParamID, pcit::panther::sema::ErrorReturnParamIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ErrorReturnParamID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ErrorReturnParamID>::operator=;
 	};
 
 
@@ -1289,17 +1165,11 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::BlockExprOutputID>
-		: public pcit::core::Optional<
-			pcit::panther::sema::BlockExprOutputID, pcit::panther::sema::BlockExprOutputIDOptInterface
-		>{
+		: public pcit::core::Optional<pcit::panther::sema::BlockExprOutputID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::BlockExprOutputID, pcit::panther::sema::BlockExprOutputIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::BlockExprOutputID, pcit::panther::sema::BlockExprOutputIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::BlockExprOutputID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::BlockExprOutputID>::operator=;
 	};
 
 
@@ -1312,15 +1182,11 @@ namespace std{
 	};
 	template<>
 	class optional<pcit::panther::sema::ExceptParamID>
-		: public pcit::core::Optional<pcit::panther::sema::ExceptParamID, pcit::panther::sema::ExceptParamIDOptInterface>{
+		: public pcit::core::Optional<pcit::panther::sema::ExceptParamID>{
 
 		public:
-			using pcit::core::Optional<
-				pcit::panther::sema::ExceptParamID, pcit::panther::sema::ExceptParamIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::sema::ExceptParamID, pcit::panther::sema::ExceptParamIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::ExceptParamID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ExceptParamID>::operator=;
 	};
 
 

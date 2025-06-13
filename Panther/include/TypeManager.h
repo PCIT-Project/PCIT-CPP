@@ -385,19 +385,9 @@ namespace pcit::panther{
 				uint32_t _id;
 
 				friend TypeManager;
-				friend struct IDOptInterface;
+				friend struct core::OptionalInterface<ID>;
 		};
 
-
-		struct IDOptInterface{
-			static constexpr auto init(ID* id) -> void {
-				new(id) ID(Kind::DUMMY, std::numeric_limits<uint32_t>::max());
-			}
-
-			static constexpr auto has_value(const BaseType::ID& id) -> bool {
-				return id._kind != Kind::DUMMY;
-			}
-		};
 	};
 
 
@@ -598,17 +588,32 @@ namespace pcit::panther{
 }
 
 
+namespace pcit::core{
+
+	template<>
+	struct OptionalInterface<panther::BaseType::ID>{
+		static constexpr auto init(panther::BaseType::ID* id) -> void {
+			new(id) panther::BaseType::ID(panther::BaseType::Kind::DUMMY, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::ID& id) -> bool {
+			return id._kind != panther::BaseType::Kind::DUMMY;
+		}
+	};
+
+}
+
+
+
 
 namespace std{
 
 
 	template<>
-	class optional<pcit::panther::BaseType::ID> 
-		: public pcit::core::Optional<pcit::panther::BaseType::ID, pcit::panther::BaseType::IDOptInterface>{
-
+	class optional<pcit::panther::BaseType::ID> : public pcit::core::Optional<pcit::panther::BaseType::ID>{
 		public:
-			using pcit::core::Optional<pcit::panther::BaseType::ID, pcit::panther::BaseType::IDOptInterface>::Optional;
-			using pcit::core::Optional<pcit::panther::BaseType::ID, pcit::panther::BaseType::IDOptInterface>::operator=;
+			using pcit::core::Optional<pcit::panther::BaseType::ID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::ID>::operator=;
 	};
 
 	

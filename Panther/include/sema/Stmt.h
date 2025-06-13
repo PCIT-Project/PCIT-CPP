@@ -135,6 +135,8 @@ namespace pcit::panther::sema{
 
 	class StmtBlock{
 		enum class TerminatedKind{
+			NONE, // only used for optional interface
+
 			TERMINATED,
 			LABEL_TERMINATED, // for example, through `return->label 12;`
 			NOT_TERMINATED,
@@ -189,7 +191,41 @@ namespace pcit::panther::sema{
 		private:
 			evo::SmallVector<Stmt> stmts;
 			TerminatedKind terminated_kind;
+
+			friend struct core::OptionalInterface<StmtBlock>;
 	};
 
 
+
+}
+
+
+namespace pcit::core{
+
+	template<>
+	struct OptionalInterface<panther::sema::StmtBlock>{
+		static constexpr auto init(panther::sema::StmtBlock* block) -> void {
+			block->terminated_kind = panther::sema::StmtBlock::TerminatedKind::NONE;
+		}
+
+		static constexpr auto has_value(const panther::sema::StmtBlock& block) -> bool {
+			return block.terminated_kind != panther::sema::StmtBlock::TerminatedKind::NONE;
+		}
+	};
+
+}
+
+
+
+namespace std{
+
+
+	template<>
+	class optional<pcit::panther::sema::StmtBlock> : public pcit::core::Optional<pcit::panther::sema::StmtBlock>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::StmtBlock>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::StmtBlock>::operator=;
+	};
+
+	
 }

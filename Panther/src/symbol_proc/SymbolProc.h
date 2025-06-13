@@ -28,29 +28,9 @@ namespace pcit::panther{
 		using core::UniqueID<uint32_t, SymbolProcTermInfoID>::UniqueID;
 	};
 
-	struct SymbolProcTermInfoIDOptInterface{
-		static constexpr auto init(SymbolProcTermInfoID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const SymbolProcTermInfoID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
-
 
 	struct SymbolProcTypeID : public core::UniqueID<uint32_t, struct SymbolProcTypeID> { 
 		using core::UniqueID<uint32_t, SymbolProcTypeID>::UniqueID;
-	};
-
-	struct SymbolProcTypeIDOptInterface{
-		static constexpr auto init(SymbolProcTypeID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const SymbolProcTypeID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
 	};
 
 
@@ -58,12 +38,45 @@ namespace pcit::panther{
 		using core::UniqueID<uint32_t, SymbolProcStructInstantiationID>::UniqueID;
 	};
 
-	struct SymbolProcStructInstantiationIDOptInterface{
-		static constexpr auto init(SymbolProcStructInstantiationID* id) -> void {
+
+}
+
+
+
+
+namespace pcit::core{
+
+	template<>
+	struct OptionalInterface<panther::SymbolProcTermInfoID>{
+		static constexpr auto init(panther::SymbolProcTermInfoID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const SymbolProcStructInstantiationID& id) -> bool {
+		static constexpr auto has_value(const panther::SymbolProcTermInfoID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+	template<>
+	struct OptionalInterface<panther::SymbolProcTypeID>{
+		static constexpr auto init(panther::SymbolProcTypeID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::SymbolProcTypeID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+	template<>
+	struct OptionalInterface<panther::SymbolProcStructInstantiationID>{
+		static constexpr auto init(panther::SymbolProcStructInstantiationID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::SymbolProcStructInstantiationID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -71,37 +84,35 @@ namespace pcit::panther{
 }
 
 
+
+
+
 namespace std{
 
 	template<>
 	class optional<pcit::panther::SymbolProcTermInfoID> 
-		: public pcit::core::Optional<
-			pcit::panther::SymbolProcTermInfoID, pcit::panther::SymbolProcTermInfoIDOptInterface
-		>{
-
+		: public pcit::core::Optional<pcit::panther::SymbolProcTermInfoID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::SymbolProcTermInfoID, pcit::panther::SymbolProcTermInfoIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::SymbolProcTermInfoID, pcit::panther::SymbolProcTermInfoIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::SymbolProcTermInfoID>::Optional;
+			using pcit::core::Optional<pcit::panther::SymbolProcTermInfoID>::operator=;
 	};
 
 
 	template<>
 	class optional<pcit::panther::SymbolProcTypeID> 
-		: public pcit::core::Optional<
-			pcit::panther::SymbolProcTypeID, pcit::panther::SymbolProcTypeIDOptInterface
-		>{
-
+		: public pcit::core::Optional<pcit::panther::SymbolProcTypeID>{
 		public:
-			using pcit::core::Optional<
-				pcit::panther::SymbolProcTypeID, pcit::panther::SymbolProcTypeIDOptInterface
-			>::Optional;
-			using pcit::core::Optional<
-				pcit::panther::SymbolProcTypeID, pcit::panther::SymbolProcTypeIDOptInterface
-			>::operator=;
+			using pcit::core::Optional<pcit::panther::SymbolProcTypeID>::Optional;
+			using pcit::core::Optional<pcit::panther::SymbolProcTypeID>::operator=;
+	};
+
+
+	template<>
+	class optional<pcit::panther::SymbolProcStructInstantiationID> 
+		: public pcit::core::Optional<pcit::panther::SymbolProcStructInstantiationID>{
+		public:
+			using pcit::core::Optional<pcit::panther::SymbolProcStructInstantiationID>::Optional;
+			using pcit::core::Optional<pcit::panther::SymbolProcStructInstantiationID>::operator=;
 	};
 
 }
@@ -336,6 +347,7 @@ namespace pcit::panther{
 			const AST::Error& error_stmt;
 			std::optional<SymbolProcTermInfoID>	value;
 		};
+
 
 		struct BeginDefer{
 			const AST::Defer& defer_stmt;
@@ -896,10 +908,10 @@ namespace pcit::panther{
 			};
 
 
-			// Only needed if the func is comptime
+			
 			struct FuncInfo{
-				std::unordered_set<sema::Func::ID> dependent_funcs{};
-				std::unordered_set<sema::GlobalVar::ID> dependent_vars{};
+				std::unordered_set<sema::Func::ID> dependent_funcs{}; // Only needed if the func is comptime
+				std::unordered_set<sema::GlobalVar::ID> dependent_vars{}; // Only needed if the func is comptime
 			};
 
 			evo::Variant<

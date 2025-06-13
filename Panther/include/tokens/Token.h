@@ -629,18 +629,25 @@ namespace pcit::panther{
 	static_assert(sizeof(Token) == 16, "sizeof pcit::panther::Token is different than expected");
 	static_assert(sizeof(Token::Location) == 16, "sizeof pcit::panther::Token::Location is different than expected");
 
+}
 
-	struct TokenIDOptInterface{
-		static constexpr auto init(Token::ID* id) -> void {
+
+
+namespace pcit::core{
+	
+	template<>
+	struct OptionalInterface<panther::Token::ID>{
+		static constexpr auto init(panther::Token::ID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const Token::ID& id) -> bool {
+		static constexpr auto has_value(const panther::Token::ID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
 
 }
+
 
 
 namespace std{
@@ -657,11 +664,11 @@ namespace std{
 
 	template<>
 	class optional<pcit::panther::Token::ID> 
-		: public pcit::core::Optional<pcit::panther::Token::ID, pcit::panther::TokenIDOptInterface>{
+		: public pcit::core::Optional<pcit::panther::Token::ID>{
 
 		public:
-			using pcit::core::Optional<pcit::panther::Token::ID, pcit::panther::TokenIDOptInterface>::Optional;
-			using pcit::core::Optional<pcit::panther::Token::ID, pcit::panther::TokenIDOptInterface>::operator=;
+			using pcit::core::Optional<pcit::panther::Token::ID>::Optional;
+			using pcit::core::Optional<pcit::panther::Token::ID>::operator=;
 	};
 
 	

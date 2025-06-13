@@ -254,7 +254,7 @@ namespace pcit::pir{
 			Kind _kind;
 			uint32_t index;
 
-			friend struct ExprOptInterface;
+			friend struct core::OptionalInterface<Expr>;
 			friend class ReaderAgent;
 			friend class Agent;
 			friend class PassManager;
@@ -264,18 +264,22 @@ namespace pcit::pir{
 	static_assert(std::is_trivially_copyable<Expr>());
 
 
-	struct ExprOptInterface{
-		static constexpr auto init(Expr* expr) -> void {
-			*expr = Expr(Expr::Kind::NONE);
+}
+
+
+
+namespace pcit::core{
+	
+	template<>
+	struct OptionalInterface<pir::Expr>{
+		static constexpr auto init(pir::Expr* expr) -> void {
+			*expr = pir::Expr(pir::Expr::Kind::NONE);
 		}
 
-		static constexpr auto has_value(const Expr& expr) -> bool {
-			return expr.kind() != Expr::Kind::NONE;
+		static constexpr auto has_value(const pir::Expr& expr) -> bool {
+			return expr.kind() != pir::Expr::Kind::NONE;
 		}
 	};
-
-
-
 
 }
 
@@ -291,12 +295,10 @@ namespace std{
 
 
 	template<>
-	class optional<pcit::pir::Expr> 
-		: public pcit::core::Optional<pcit::pir::Expr, pcit::pir::ExprOptInterface>{
-
+	class optional<pcit::pir::Expr> : public pcit::core::Optional<pcit::pir::Expr>{
 		public:
-			using pcit::core::Optional<pcit::pir::Expr, pcit::pir::ExprOptInterface>::Optional;
-			using pcit::core::Optional<pcit::pir::Expr, pcit::pir::ExprOptInterface>::operator=;
+			using pcit::core::Optional<pcit::pir::Expr>::Optional;
+			using pcit::core::Optional<pcit::pir::Expr>::operator=;
 	};
 
 	
