@@ -39,6 +39,10 @@ namespace pcit::panther{
 	};
 
 
+
+	struct SymbolProcInstructionIndex : public core::UniqueID<uint32_t, struct SymbolProcInstructionIndex> { 
+		using core::UniqueID<uint32_t, SymbolProcInstructionIndex>::UniqueID;
+	};
 }
 
 
@@ -81,6 +85,19 @@ namespace pcit::core{
 		}
 	};
 
+
+
+	template<>
+	struct OptionalInterface<panther::SymbolProcInstructionIndex>{
+		static constexpr auto init(panther::SymbolProcInstructionIndex* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::SymbolProcInstructionIndex& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
 }
 
 
@@ -113,6 +130,15 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::SymbolProcStructInstantiationID>::Optional;
 			using pcit::core::Optional<pcit::panther::SymbolProcStructInstantiationID>::operator=;
+	};
+
+
+	template<>
+	class optional<pcit::panther::SymbolProcInstructionIndex> 
+		: public pcit::core::Optional<pcit::panther::SymbolProcInstructionIndex>{
+		public:
+			using pcit::core::Optional<pcit::panther::SymbolProcInstructionIndex>::Optional;
+			using pcit::core::Optional<pcit::panther::SymbolProcInstructionIndex>::operator=;
 	};
 
 }
@@ -358,6 +384,17 @@ namespace pcit::panther{
 		struct CondElseIf{};
 		struct EndCond{};
 		struct EndCondSet{};
+
+
+		struct BeginLocalWhenCond{
+			const AST::WhenConditional& when_cond;
+			SymbolProcTermInfoID cond_expr;
+			SymbolProcInstructionIndex else_index;
+		};
+
+		struct EndLocalWhenCond{
+			SymbolProcInstructionIndex end_index;
+		};
 
 
 
@@ -634,7 +671,7 @@ namespace pcit::panther{
 		//////////////////
 		// instruction impl
 
-		auto visit(auto callable) const { return this->inst.visit(callable); }
+		auto visit(auto callable) const { return this->inst.visit(std::forward<decltype(callable)>(callable)); }
 
 		template<class T>
 		EVO_NODISCARD auto is() const -> bool { return this->inst.is<T>(); }
@@ -673,6 +710,8 @@ namespace pcit::panther{
 			CondElseIf,
 			EndCond,
 			EndCondSet,
+			BeginLocalWhenCond,
+			EndLocalWhenCond,
 			BeginDefer,
 			EndDefer,
 			Unreachable,
@@ -753,6 +792,7 @@ namespace pcit::panther{
 			using TermInfoID = SymbolProcTermInfoID;
 			using StructInstantiationID = SymbolProcStructInstantiationID;
 			using TypeID = SymbolProcTypeID;
+			using InstructionIndex = SymbolProcInstructionIndex;
 
 			using Namespace = SymbolProcNamespace;
 			
@@ -762,10 +802,11 @@ namespace pcit::panther{
 			~SymbolProc() = default;
 
 
-			EVO_NODISCARD auto getInstruction() const -> const SymbolProc::Instruction& {
+			EVO_NODISCARD auto getInstruction() const -> const Instruction& {
 				return this->instructions[this->inst_index];
 			}
-			EVO_NODISCARD auto nextInstruction() -> void { this->inst_index += 1; }
+			auto nextInstruction() -> void { this->inst_index += 1; }
+			auto setInstructionIndex(InstructionIndex new_index) -> void { this->inst_index = size_t(new_index.get()); }
 
 			EVO_NODISCARD auto isAtEnd() const -> bool {
 				return this->inst_index >= this->instructions.size();
@@ -877,7 +918,7 @@ namespace pcit::panther{
 									// 	(is when cond, func call, or operator function)
 			SymbolProc* parent; // nullptr means no parent
 
-			evo::SmallVector<Instruction> instructions{};
+			core::StepVector<Instruction> instructions{};
 
 			// TODO(PERF): optimize the memory usage here?
 			evo::SmallVector<std::optional<TermInfo>> term_infos{};

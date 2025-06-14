@@ -94,6 +94,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_cond_else_if() -> Result;
 			EVO_NODISCARD auto instr_end_cond() -> Result;
 			EVO_NODISCARD auto instr_end_cond_set() -> Result;
+			EVO_NODISCARD auto instr_begin_local_when_cond(const Instruction::BeginLocalWhenCond& instr) -> Result;
+			EVO_NODISCARD auto instr_end_local_when_cond(const Instruction::EndLocalWhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
 			EVO_NODISCARD auto instr_end_defer() -> Result;
 			EVO_NODISCARD auto instr_unreachable(const Instruction::Unreachable& instr) -> Result;

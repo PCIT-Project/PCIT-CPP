@@ -780,7 +780,7 @@ namespace pcit::panther{
 			case AST::Kind::RETURN:           return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:            return this->analyze_error(ast_buffer.getError(stmt));
 			case AST::Kind::CONDITIONAL:      return this->analyze_conditional(ast_buffer.getConditional(stmt));
-			case AST::Kind::WHEN_CONDITIONAL: evo::unimplemented("AST::Kind::WHEN_CONDITIONAL");
+			case AST::Kind::WHEN_CONDITIONAL: return this->analyze_when_cond(ast_buffer.getWhenConditional(stmt));
 			case AST::Kind::WHILE:            evo::unimplemented("AST::Kind::WHILE");
 			case AST::Kind::DEFER:            return this->analyze_defer(ast_buffer.getDefer(stmt));
 			case AST::Kind::UNREACHABLE:      return this->analyze_unreachable(ast_buffer.getUnreachable(stmt));
@@ -989,6 +989,60 @@ namespace pcit::panther{
 		}
 
 		this->add_instruction(Instruction::EndCondSet{});
+
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_when_cond(const AST::WhenConditional& when_stmt) -> evo::Result<> {
+		auto end_when_instrs = evo::SmallVector<Instruction*>();
+
+		const AST::WhenConditional* target_when = &when_stmt;
+
+		while(true){
+			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(target_when->cond);
+			if(cond.isError()){ return evo::resultError; }
+
+			Instruction& new_instr = this->add_instruction(
+				Instruction::BeginLocalWhenCond(when_stmt, cond.value(), SymbolProc::InstructionIndex::dummy())
+			);
+
+			const AST::Block& then_block = this->source.getASTBuffer().getBlock(target_when->thenBlock);
+			for(const AST::Node& stmt : then_block.stmts){
+				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+			}
+			end_when_instrs.emplace_back(
+				&this->add_instruction(Instruction::EndLocalWhenCond(SymbolProc::InstructionIndex::dummy()))
+			);
+
+			new_instr.inst.as<Instruction::BeginLocalWhenCond>().else_index = SymbolProc::InstructionIndex(
+				uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1)
+			);
+
+			if(target_when->elseBlock.has_value() == false){
+				break;
+			}
+
+			if(target_when->elseBlock->kind() == AST::Kind::BLOCK){
+				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*target_when->elseBlock);
+				for(const AST::Node& stmt : else_block.stmts){
+					if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+				}
+
+				end_when_instrs.emplace_back(
+					&this->add_instruction(Instruction::EndLocalWhenCond(SymbolProc::InstructionIndex::dummy()))
+				);
+				break;
+			}
+
+			target_when = &this->source.getASTBuffer().getWhenConditional(*target_when->elseBlock);
+		}
+
+		for(Instruction* end_when_instr : end_when_instrs){
+			end_when_instr->inst.as<Instruction::EndLocalWhenCond>().end_index = SymbolProc::InstructionIndex(
+				uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1)
+			);
+		}
 
 		return evo::Result<>();
 	}

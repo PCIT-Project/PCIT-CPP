@@ -187,6 +187,12 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::EndCondSet>()){
 				return this->instr_end_cond_set();
 
+			}else if constexpr(std::is_same<InstrType, Instruction::BeginLocalWhenCond>()){
+				return this->instr_begin_local_when_cond(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::EndLocalWhenCond>()){
+				return this->instr_end_local_when_cond(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::BeginDefer>()){
 				return this->instr_begin_defer(instr);
 
@@ -2740,6 +2746,31 @@ namespace pcit::panther{
 		}
 
 		this->get_current_scope_level().resetSubScopes();
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_begin_local_when_cond(const Instruction::BeginLocalWhenCond& instr) -> Result {
+		TermInfo& cond = this->get_term_info(instr.cond_expr);
+
+		if(this->type_check<true, true>(
+			TypeManager::getTypeBool(), cond, "Condition in [when] condtional", instr.when_cond.cond
+		).ok == false){
+			return Result::ERROR;
+		}
+
+		const bool when_cond_value = this->context.getSemaBuffer().getBoolValue(cond.getExpr().boolValueID()).value;
+
+		if(when_cond_value == false){
+			this->symbol_proc.setInstructionIndex(instr.else_index);
+		}
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_end_local_when_cond(const Instruction::EndLocalWhenCond& instr) -> Result {
+		this->symbol_proc.setInstructionIndex(instr.end_index);
 		return Result::SUCCESS;
 	}
 
