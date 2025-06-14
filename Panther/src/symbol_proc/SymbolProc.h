@@ -349,6 +349,18 @@ namespace pcit::panther{
 		};
 
 
+		struct BeginCond{
+			const AST::Conditional& conditional;
+			SymbolProcTermInfoID cond_expr;
+		};
+		struct CondNoElse{}; // needed to maintain proper termination tracking
+		struct CondElse{};
+		struct CondElseIf{};
+		struct EndCond{};
+		struct EndCondSet{};
+
+
+
 		struct BeginDefer{
 			const AST::Defer& defer_stmt;
 		};
@@ -655,6 +667,12 @@ namespace pcit::panther{
 			Return,
 			LabeledReturn,
 			Error,
+			BeginCond,
+			CondNoElse,
+			CondElse,
+			CondElseIf,
+			EndCond,
+			EndCondSet,
 			BeginDefer,
 			EndDefer,
 			Unreachable,
@@ -910,6 +928,8 @@ namespace pcit::panther{
 
 			
 			struct FuncInfo{
+				std::stack<sema::Stmt> subscopes{};
+
 				std::unordered_set<sema::Func::ID> dependent_funcs{}; // Only needed if the func is comptime
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{}; // Only needed if the func is comptime
 			};

@@ -61,6 +61,7 @@ namespace pcit::panther{
 			auto analyze_local_struct(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
+			auto analyze_conditional(const AST::Conditional& conditional_stmt) -> evo::Result<>;
 			auto analyze_defer(const AST::Defer& defer_stmt) -> evo::Result<>;
 			auto analyze_unreachable(Token::ID unreachable_token) -> evo::Result<>;
 			auto analyze_stmt_block(const AST::Block& stmt_block) -> evo::Result<>;

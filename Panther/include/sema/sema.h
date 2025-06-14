@@ -224,8 +224,8 @@ namespace pcit::panther::sema{
 		using ID = ConditionalID;
 
 		Expr cond;
-		StmtBlock thenStmts;
-		std::optional<StmtBlock> elseStmts;
+		StmtBlock thenStmts{};
+		StmtBlock elseStmts{};
 	};
 
 	struct While{

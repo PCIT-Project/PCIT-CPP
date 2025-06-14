@@ -523,8 +523,6 @@ namespace pcit::panther{
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
 		if(this->check_result_fail(block, "block in defer")){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at end of defer statement")){ return Result::Code::ERROR; }
-
 		return this->source.ast_buffer.createDefer(start_location, block.value());
 	}
 

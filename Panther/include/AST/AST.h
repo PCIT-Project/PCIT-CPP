@@ -134,8 +134,9 @@ namespace std{
 	
 	template<>
 	class optional<pcit::panther::AST::Node> : public pcit::core::Optional<pcit::panther::AST::Node>{
-		using pcit::core::Optional<pcit::panther::AST::Node>::Optional;
-		using pcit::core::Optional<pcit::panther::AST::Node>::operator=;
+		public:
+			using pcit::core::Optional<pcit::panther::AST::Node>::Optional;
+			using pcit::core::Optional<pcit::panther::AST::Node>::operator=;
 	};
 
 }

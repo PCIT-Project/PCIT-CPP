@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.128.0"></a>
+## v0.0.128.0
+
+### PCIT_core
+- Added conditionals
+- Removed the required ';' at end of `defer` statement
+- Fixed potential compilation error
+
+
+<!---------------------------------->
 <a name="v0.0.127.0"></a>
 ## v0.0.127.0
 

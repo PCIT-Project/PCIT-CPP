@@ -779,7 +779,7 @@ namespace pcit::panther{
 			case AST::Kind::STRUCT_DECL:      return this->analyze_local_struct(stmt);
 			case AST::Kind::RETURN:           return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:            return this->analyze_error(ast_buffer.getError(stmt));
-			case AST::Kind::CONDITIONAL:      evo::unimplemented("AST::Kind::CONDITIONAL");
+			case AST::Kind::CONDITIONAL:      return this->analyze_conditional(ast_buffer.getConditional(stmt));
 			case AST::Kind::WHEN_CONDITIONAL: evo::unimplemented("AST::Kind::WHEN_CONDITIONAL");
 			case AST::Kind::WHILE:            evo::unimplemented("AST::Kind::WHILE");
 			case AST::Kind::DEFER:            return this->analyze_defer(ast_buffer.getDefer(stmt));
@@ -952,10 +952,52 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::analyze_defer(const AST::Defer& defer) -> evo::Result<> {
-		this->add_instruction(Instruction::BeginDefer(defer));
+	auto SymbolProcBuilder::analyze_conditional(const AST::Conditional& conditional_stmt) -> evo::Result<> {
+		const AST::Conditional* target_conditional = &conditional_stmt;
 
-		const AST::Block& block = this->source.getASTBuffer().getBlock(defer.block);
+		while(true){
+			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(target_conditional->cond);
+			if(cond.isError()){ return evo::resultError; }
+
+			this->add_instruction(Instruction::BeginCond(conditional_stmt, cond.value()));
+
+			const AST::Block& then_block = this->source.getASTBuffer().getBlock(target_conditional->thenBlock);
+			for(const AST::Node& stmt : then_block.stmts){
+				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+			}
+
+			if(target_conditional->elseBlock.has_value() == false){
+				this->add_instruction(Instruction::CondNoElse{});
+				break;
+			}
+
+			if(target_conditional->elseBlock->kind() == AST::Kind::BLOCK){
+				this->add_instruction(Instruction::CondElse{});
+
+				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*target_conditional->elseBlock);
+				for(const AST::Node& stmt : else_block.stmts){
+					if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+				}
+
+				this->add_instruction(Instruction::EndCond{});
+
+				break;
+			}
+
+			this->add_instruction(Instruction::CondElseIf{});
+			target_conditional = &this->source.getASTBuffer().getConditional(*target_conditional->elseBlock);
+		}
+
+		this->add_instruction(Instruction::EndCondSet{});
+
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_defer(const AST::Defer& defer_stmt) -> evo::Result<> {
+		this->add_instruction(Instruction::BeginDefer(defer_stmt));
+
+		const AST::Block& block = this->source.getASTBuffer().getBlock(defer_stmt.block);
 		for(const AST::Node& stmt : block.stmts){
 			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 		}

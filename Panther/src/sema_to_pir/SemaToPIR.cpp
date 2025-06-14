@@ -1034,7 +1034,83 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Stmt::Kind::CONDITIONAL: {
-				evo::unimplemented("To PIR of sema::Stmt::Kind::CONDITIONAL");
+				const sema::Conditional& conditional_stmt = 
+					this->context.getSemaBuffer().getConditional(stmt.conditionalID());
+
+				const pir::BasicBlock::ID then_block = this->agent.createBasicBlock("IF.THEN");
+				auto end_block = std::optional<pir::BasicBlock::ID>();
+
+				const pir::Expr cond_value = this->get_expr_register(conditional_stmt.cond);
+
+				if(conditional_stmt.elseStmts.empty()){
+					end_block = this->agent.createBasicBlock("IF.END");
+
+					this->agent.createBranch(cond_value, then_block, *end_block);
+
+					this->agent.setTargetBasicBlock(then_block);
+					this->push_scope_level();
+					for(const sema::Stmt& block_stmt : conditional_stmt.thenStmts){
+						this->lower_stmt(block_stmt);
+					}
+					const bool then_terminated = conditional_stmt.thenStmts.isTerminated();
+					if(then_terminated == false){
+						this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					}
+					this->pop_scope_level();
+					if(then_terminated == false){
+						this->agent.createJump(*end_block);
+					}
+				}else{
+					const pir::BasicBlock::ID else_block = this->agent.createBasicBlock("IF.ELSE");
+
+					const bool then_terminated = conditional_stmt.thenStmts.isTerminated();
+					const bool else_terminated = conditional_stmt.elseStmts.isTerminated();
+
+					this->agent.createBranch(cond_value, then_block, else_block);
+
+					// then block
+					this->agent.setTargetBasicBlock(then_block);
+					this->push_scope_level();
+					for(const sema::Stmt& block_stmt : conditional_stmt.thenStmts){
+						this->lower_stmt(block_stmt);
+					}
+					if(then_terminated == false){
+						this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					}
+					this->pop_scope_level();
+
+					// required because stuff in the then block might add basic blocks
+					pir::BasicBlock& then_block_end = this->agent.getTargetBasicBlock();
+
+					// else block
+					this->push_scope_level();
+					this->agent.setTargetBasicBlock(else_block);
+					for(const sema::Stmt& block_stmt : conditional_stmt.elseStmts){
+						this->lower_stmt(block_stmt);
+					}
+					if(else_terminated == false){
+						this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					}
+					this->pop_scope_level();
+
+					// end block
+
+					if(else_terminated && then_terminated){ return; }
+
+					end_block = this->agent.createBasicBlock("IF.END");
+
+					if(else_terminated == false){
+						this->agent.createJump(*end_block);
+					}
+
+					if(then_terminated == false){
+						this->agent.setTargetBasicBlock(then_block_end);
+						this->agent.createJump(*end_block);
+					}
+				}
+
+
+				this->agent.setTargetBasicBlock(*end_block);
 			} break;
 
 			case sema::Stmt::Kind::WHILE: {

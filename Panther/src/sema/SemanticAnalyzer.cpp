@@ -169,6 +169,24 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Error>()){
 				return this->instr_error(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::BeginCond>()){
+				return this->instr_begin_cond(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::CondNoElse>()){
+				return this->instr_cond_no_else();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::CondElse>()){
+				return this->instr_cond_else();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::CondElseIf>()){
+				return this->instr_cond_else_if();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::EndCond>()){
+				return this->instr_end_cond();
+
+			}else if constexpr(std::is_same<InstrType, Instruction::EndCondSet>()){
+				return this->instr_end_cond_set();
+
 			}else if constexpr(std::is_same<InstrType, Instruction::BeginDefer>()){
 				return this->instr_begin_defer(instr);
 
@@ -2658,6 +2676,74 @@ namespace pcit::panther{
 
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_begin_cond(const Instruction::BeginCond& instr) -> Result {
+		TermInfo& cond = this->get_term_info(instr.cond_expr);
+
+		if(this->type_check<true, true>(
+			TypeManager::getTypeBool(), cond, "Condition in [if] condtional", instr.conditional.cond
+		).ok == false){
+			return Result::ERROR;
+		}
+
+
+		const sema::Conditional::ID new_sema_conditional_id = 
+			this->context.sema_buffer.createConditional(cond.getExpr());
+
+		this->get_current_scope_level().stmtBlock().emplace_back(new_sema_conditional_id);
+
+		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.emplace(new_sema_conditional_id);
+
+		sema::Conditional& new_sema_conditional = this->context.sema_buffer.conds[new_sema_conditional_id];
+		this->push_scope_level(&new_sema_conditional.thenStmts);
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_cond_no_else() -> Result {
+		this->pop_scope_level();
+		this->get_current_scope_level().addSubScope();
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_cond_else() -> Result {
+		this->pop_scope_level();
+
+		const sema::Stmt current_cond_stmt = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.top();
+		sema::Conditional& current_conditional = this->context.sema_buffer.conds[current_cond_stmt.conditionalID()];
+
+		this->push_scope_level(&current_conditional.elseStmts);
+
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_cond_else_if() -> Result {
+		this->pop_scope_level();
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_end_cond() -> Result {
+		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.pop();
+		this->pop_scope_level();
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_end_cond_set() -> Result {
+		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
+
+		if(current_scope_level.isTerminated() && current_scope_level.stmtBlock().isTerminated() == false){
+			current_scope_level.stmtBlock().setTerminated();
+		}
+
+		this->get_current_scope_level().resetSubScopes();
+		return Result::SUCCESS;
+	}
+
+
 
 
 	auto SemanticAnalyzer::instr_begin_defer(const Instruction::BeginDefer& instr) -> Result {
@@ -7479,7 +7565,7 @@ namespace pcit::panther{
 			if(
 				current_scope_level.hasStmtBlock()
 				&& current_scope_level.stmtBlock().isTerminated() == false
-				&& current_scope_level.isTerminated()
+				&& current_scope_is_terminated
 			){
 				current_scope_level.stmtBlock().setTerminated();
 			}

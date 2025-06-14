@@ -88,6 +88,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
 			EVO_NODISCARD auto instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result;
 			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
+			EVO_NODISCARD auto instr_begin_cond(const Instruction::BeginCond& instr) -> Result;
+			EVO_NODISCARD auto instr_cond_no_else() -> Result;
+			EVO_NODISCARD auto instr_cond_else() -> Result;
+			EVO_NODISCARD auto instr_cond_else_if() -> Result;
+			EVO_NODISCARD auto instr_end_cond() -> Result;
+			EVO_NODISCARD auto instr_end_cond_set() -> Result;
 			EVO_NODISCARD auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
 			EVO_NODISCARD auto instr_end_defer() -> Result;
 			EVO_NODISCARD auto instr_unreachable(const Instruction::Unreachable& instr) -> Result;
