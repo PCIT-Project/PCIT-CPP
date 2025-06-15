@@ -100,6 +100,7 @@ namespace pcit::panther{
 
 		const BaseType::Primitive::ID type_i256 = this->primitives.emplace_back(Token::Kind::TYPE_I_N, 256);
 
+
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_bool.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_char.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_ui8.get())));

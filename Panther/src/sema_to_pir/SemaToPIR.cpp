@@ -2251,12 +2251,16 @@ namespace pcit::panther{
 			);
 
 		switch(instantiation.kind){
+			case TemplateIntrinsicFunc::Kind::GET_TYPE_ID: {
+				evo::debugFatalBreak("@getTypeID is constexpr evaluated");
+			} break;
+
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES: {
-				evo::debugFatalBreak("@numBytes is constexpr only");
+				evo::debugFatalBreak("@numBytes is constexpr evaluated");
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::NUM_BITS: {
-				evo::debugFatalBreak("@numBits is constexpr only");
+				evo::debugFatalBreak("@numBits is constexpr evaluated");
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {

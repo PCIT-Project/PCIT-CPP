@@ -1,20 +1,15 @@
 
-var num: Int = 0;
 
-func entry = () #entry -> UI8 {
+func get_ui8 = () -> TypeID {
+	return @getTypeID<{Char}>();
+}
 
-	when(false){
-		num = 1;
 
-	}else when(false){
-		num = 2;
 
-	}else when(true){
-		when(true){ }
-		num = 3;
-	}else{
-		num = 4;
-	}
+type alias uint8_t = Type(get_ui8());
 
-	return num as UI8;
+func entry = () #entry -> uint8_t {
+	const type_id: TypeID = @getTypeID<{USize}>();
+
+	return type_id as uint8_t;
 }

@@ -322,7 +322,9 @@ namespace pcit::panther{
 				);
 		};
 
-		struct FuncPrepareScopeAndPIRDecl{
+
+		// Stuff that needs to happen after the decl but before body. This is separate so type definitions can be gotten
+		struct FuncPreBody{ 
 			const AST::FuncDecl& func_decl;
 		};
 
@@ -614,6 +616,12 @@ namespace pcit::panther{
 			SymbolProcTypeID output;
 		};
 
+		struct TypeIDConverter{
+			const AST::TypeIDConverter& type_id_converter;
+			SymbolProcTermInfoID expr;
+			SymbolProcTermInfoID output;	
+		};
+
 		struct UserType{
 			const AST::Type& ast_type;
 			SymbolProcTermInfoID base_type;
@@ -692,7 +700,7 @@ namespace pcit::panther{
 			StructDef,
 			TemplateStruct,
 			FuncDecl<false>,
-			FuncPrepareScopeAndPIRDecl,
+			FuncPreBody,
 			FuncDef,
 			FuncPrepareConstexprPIRIfNeeded,
 			FuncConstexprPIRReadyIfNeeded,
@@ -768,6 +776,7 @@ namespace pcit::panther{
 
 			// types
 			PrimitiveType,
+			TypeIDConverter,
 			UserType,
 			BaseTypeIdent,
 
@@ -781,6 +790,8 @@ namespace pcit::panther{
 			This,
 			TypeDeducer
 		> inst;
+
+		EVO_NODISCARD auto print() const -> std::string_view;
 	};
 
 

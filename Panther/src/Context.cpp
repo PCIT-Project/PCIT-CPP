@@ -911,6 +911,15 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// type traits
 
+		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::GET_TYPE_ID))] = 
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeTypeID()},
+			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
 		this->template_intrinsic_infos[size_t(evo::to_underlying(TemplateIntrinsicFunc::Kind::NUM_BYTES))] = 
 		TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},

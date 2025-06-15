@@ -40,6 +40,7 @@ namespace pcit::panther{
 	namespace TemplateIntrinsicFunc{
 		enum class Kind{
 			// type traits
+			GET_TYPE_ID,
 			NUM_BYTES,
 			NUM_BITS,
 

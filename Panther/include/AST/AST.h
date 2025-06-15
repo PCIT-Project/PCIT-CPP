@@ -344,6 +344,7 @@ namespace pcit::panther::AST{
 	};
 
 	struct TypeIDConverter{ // example: Type(@getTypeID<{Int}>())
+		Token::ID keyword;
 		Node expr;
 	};
 

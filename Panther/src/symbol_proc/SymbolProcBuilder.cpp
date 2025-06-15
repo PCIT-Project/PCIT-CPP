@@ -418,7 +418,7 @@ namespace pcit::panther{
 				evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 			}
 
-			this->add_instruction(Instruction::FuncPrepareScopeAndPIRDecl(func_decl));
+			this->add_instruction(Instruction::FuncPreBody(func_decl));
 
 
 			this->symbol_scopes.emplace_back(nullptr);
@@ -746,12 +746,17 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::TYPEID_CONVERTER: { 
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					ast_type_base,
-					"Type ID converters are unimplemented"
+				const AST::TypeIDConverter& type_id_converter = ast_buffer.getTypeIDConverter(ast_type_base);
+
+				const evo::Result<SymbolProc::TermInfoID> target_type_id =
+					this->analyze_expr<true>(type_id_converter.expr);
+				if(target_type_id.isError()){ return evo::resultError; }
+
+				const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
+				this->add_instruction(
+					Instruction::TypeIDConverter(type_id_converter, target_type_id.value(), created_base_type_type)
 				);
-				return evo::resultError;
+				return created_base_type_type;
 			} break;
 
 			// TODO(FUTURE): separate out into more kinds to be more specific (errors vs fatal)

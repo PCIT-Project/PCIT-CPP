@@ -905,7 +905,7 @@ namespace pcit::panther{
 					return Result(Result::Code::ERROR);
 				}
 
-				return Result(this->source.ast_buffer.createTypeIDConverter(type_id_expr.value()));
+				return Result(this->source.ast_buffer.createTypeIDConverter(start_location, type_id_expr.value()));
 
 			}else{
 				if constexpr(KIND == TypeKind::EXPLICIT || KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){

@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.130.0"></a>
+## v0.0.130.0
+
+### Panther
+- Added intrinsic `@getTypeID`
+- Added Type ID converter
+- Added better diagnostics for incorrect operator `as`
+- Fixed diagnostic location pointing for Type ID converter
+- Fixed checking for correct return value of the entry function not looking through aliases
+
+
+<!---------------------------------->
 <a name="v0.0.129.0"></a>
 ## v0.0.129.0
 

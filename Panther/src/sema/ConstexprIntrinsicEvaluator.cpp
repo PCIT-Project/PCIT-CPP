@@ -18,6 +18,18 @@
 
 namespace pcit::panther{
 
+	auto ConstexprIntrinsicEvaluator::getTypeID(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::CONSTEXPR,
+			TypeManager::getTypeTypeID(),
+			sema::Expr(this->sema_buffer.createIntValue(
+				core::GenericInt::create<uint32_t>(type_id.get()),
+				this->type_manager.getTypeInfo(TypeManager::getTypeTypeID()).baseTypeID()
+			))
+		);
+	}
+
 	
 	auto ConstexprIntrinsicEvaluator::numBytes(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(

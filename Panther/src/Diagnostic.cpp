@@ -184,7 +184,7 @@ namespace pcit::panther{
 	}
 
 	auto Diagnostic::Location::get(const AST::TypeIDConverter& type, const Source& src) -> Location {
-		return Location::get(type.expr, src);
+		return Location::get(type.keyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::AttributeBlock::Attribute& attr, const Source& src) -> Location {

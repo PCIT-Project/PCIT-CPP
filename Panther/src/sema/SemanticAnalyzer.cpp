@@ -139,8 +139,8 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncDecl<false>>()){
 				return this->instr_func_decl<false>(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncPrepareScopeAndPIRDecl>()){
-				return this->instr_func_prepare_scope_and_pir_decl(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::FuncPreBody>()){
+				return this->instr_func_pre_body(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::FuncDef>()){
 				return this->instr_func_def(instr);
@@ -358,6 +358,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<InstrType, Instruction::PrimitiveType>()){
 				return this->instr_primitive_type(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::TypeIDConverter>()){
+				return this->instr_type_id_converter(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::UserType>()){
 				return this->instr_user_type(instr);
@@ -1512,48 +1515,6 @@ namespace pcit::panther{
 		}
 
 
-		///////////////////////////////////
-		// checking attributes
-
-		if(func_attrs.value().is_entry){
-			if(params.empty() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					instr.func_decl.params[0],
-					"Functions with the [#entry] attribute cannot have parameters"
-				);
-				return Result::ERROR;
-			}
-
-			if(instr.func_decl.returns[0].ident.has_value()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					instr.func_decl.returns[0],
-					"Functions with the [#entry] attribute cannot have named returns"
-				);
-				return Result::ERROR;
-			}
-
-			if(return_params[0].typeID.isVoid() || return_params[0].typeID != TypeManager::getTypeUI8()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					instr.func_decl.returns[0].type,
-					"Functions with the [#entry] attribute must return [UI8]"
-				);
-				return Result::ERROR;
-			}
-
-			if(error_return_params.empty() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					instr.func_decl.errorReturns[0],
-					"Functions with the [#entry] attribute cannot have error returns"
-				);
-				return Result::ERROR;
-			}
-		}
-
-
 
 		///////////////////////////////////
 		// create func
@@ -1735,12 +1696,61 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_func_prepare_scope_and_pir_decl(const Instruction::FuncPrepareScopeAndPIRDecl& instr) 
-	-> Result {
+	auto SemanticAnalyzer::instr_func_pre_body(const Instruction::FuncPreBody& instr) -> Result {
 		const sema::Func::ID current_func_id = this->scope.getCurrentObjectScope().as<sema::Func::ID>();
 		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
+
+
+		//////////////////
+		// check entry has valid signature
+
+		if(this->context.entry == current_func_id){
+			if(func_type.params.empty() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					current_func.params[0].ident,
+					"Functions with the [#entry] attribute cannot have parameters"
+				);
+				return Result::ERROR;
+			}
+
+			if(instr.func_decl.returns[0].ident.has_value()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					instr.func_decl.returns[0],
+					"Functions with the [#entry] attribute cannot have named returns"
+				);
+				return Result::ERROR;
+			}
+
+			if(
+				func_type.returnParams[0].typeID.isVoid() ||
+				this->get_actual_type<false>(func_type.returnParams[0].typeID.asTypeID()) != TypeManager::getTypeUI8()
+			){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(func_type.returnParams[0].typeID.asTypeID(), infos, "Returned type: ");
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					instr.func_decl.returns[0].type,
+					"Functions with the [#entry] attribute must return [UI8]",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+
+			if(func_type.errorParams.empty() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					instr.func_decl.errorReturns[0],
+					"Functions with the [#entry] attribute cannot have error returns"
+				);
+				return Result::ERROR;
+			}
+		}
 
 
 		//////////////////
@@ -1759,8 +1769,6 @@ namespace pcit::panther{
 
 		//////////////////
 		// adding params to scope
-
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
 		uint32_t abi_index = 0;
 
@@ -3760,6 +3768,13 @@ namespace pcit::panther{
 		);
 
 		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
+			case TemplateIntrinsicFunc::Kind::GET_TYPE_ID: {
+				this->return_term_info(
+					instr.output,
+					constexpr_intrinsic_evaluator.getTypeID(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
+				);
+			} break;
+
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES: {
 				this->return_term_info(
 					instr.output,
@@ -5750,10 +5765,14 @@ namespace pcit::panther{
 		const TypeInfo& from_underlying_type = type_manager.getTypeInfo(from_underlying_type_id);
 
 		if(from_underlying_type.qualifiers().empty() == false){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
 			this->emit_error(
 				Diagnostic::Code::SEMA_AS_INVALID_FROM,
 				instr.infix.lhs,
-				"No valid operator [as] for this type"
+				"No valid operator [as] for this type",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -5766,10 +5785,14 @@ namespace pcit::panther{
 			const auto find = from_struct.operatorAsOverloads.find(target_type.asTypeID());
 
 			if(find == from_struct.operatorAsOverloads.end()){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
 				this->emit_error(
 					Diagnostic::Code::SEMA_AS_INVALID_TO,
 					instr.infix.rhs,
-					"No valid operator [as] to this type"
+					"No valid operator [as] to this type",
+					std::move(infos)
 				);
 				return Result::ERROR;
 			}
@@ -5791,7 +5814,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				instr.infix.lhs,
-				"Operator [as] for this kind of type is unimplemented"
+				"Operator [as] from this kind of type is unimplemented"
 			);
 			return Result::ERROR;
 		}
@@ -5800,10 +5823,14 @@ namespace pcit::panther{
 		const TypeInfo& to_underlying_type = type_manager.getTypeInfo(to_underlying_type_id);
 
 		if(to_underlying_type.qualifiers().empty() == false){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
 			this->emit_error(
 				Diagnostic::Code::SEMA_AS_INVALID_TO,
 				instr.infix.rhs,
-				"No valid operator [as] to this type"
+				"No valid operator [as] to this type",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -5812,7 +5839,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				instr.infix.lhs,
-				"Operator [as] to a non-primitive underlying type is unimplemented"
+				"Operator [as] to this kind of type is unimplemented"
 			);
 			return Result::ERROR;
 		}
@@ -5828,10 +5855,14 @@ namespace pcit::panther{
 
 		if(from_primitive.kind() == Token::Kind::TYPE_RAWPTR){
 			if(to_primitive.kind() != Token::Kind::TYPE_RAWPTR){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
 				this->emit_error(
 					Diagnostic::Code::SEMA_AS_INVALID_TO,
 					instr.infix,
-					"Operator [as] cannot convert a pointer to this type"
+					"Operator [as] cannot convert a pointer to this type",
+					std::move(infos)
 				);
 				return Result::ERROR;
 			}
@@ -5855,10 +5886,14 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 			
 		}else if(to_primitive.kind() == Token::Kind::TYPE_RAWPTR){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
 			this->emit_error(
 				Diagnostic::Code::SEMA_AS_INVALID_TO,
 				instr.infix.rhs,
-				"No valid operator [as] to this type"
+				"No valid operator [as] to this type",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -7105,6 +7140,30 @@ namespace pcit::panther{
 					TypeInfo(*base_type, evo::copy(instr.ast_type.qualifiers))
 				)
 			)
+		);
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result {
+		TermInfo& type_id_expr = this->get_term_info(instr.expr);
+
+		if(this->type_check<true, true>(
+			TypeManager::getTypeTypeID(), type_id_expr, "Type ID converter", instr.type_id_converter.expr
+		).ok == false){
+			return Result::ERROR;
+		}
+
+		const sema::IntValue& int_value =
+			this->context.getSemaBuffer().getIntValue(type_id_expr.getExpr().intValueID());
+
+		const TypeInfo::ID target_type_id = TypeInfo::ID(uint32_t(int_value.value));
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::TYPE,
+			TermInfo::ValueStage::CONSTEXPR,
+			TypeInfo::VoidableID(target_type_id),
+			std::nullopt
 		);
 		return Result::SUCCESS;
 	}
