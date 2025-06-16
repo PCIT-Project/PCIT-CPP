@@ -205,13 +205,13 @@ namespace pcit::pir{
 			),
 			FuncRegisterInfo(
 				"PIR.JIT.return_generic_f32",
-				[](core::GenericValue* return_value, float32_t value) -> void {
+				[](core::GenericValue* return_value, evo::float32_t value) -> void {
 					*return_value = core::GenericValue(core::GenericFloat::createF32(value));
 				}
 			),
 			FuncRegisterInfo(
 				"PIR.JIT.return_generic_f64",
-				[](core::GenericValue* return_value, float64_t value) -> void {
+				[](core::GenericValue* return_value, evo::float64_t value) -> void {
 					*return_value = core::GenericValue(core::GenericFloat::createF64(value));
 				}
 			),
@@ -334,7 +334,7 @@ namespace pcit::pir{
 				"PIR.JIT.return_generic_aggregate_f32",
 				[](
 					core::GenericValue* return_value,
-					float32_t value,
+					evo::float32_t value,
 					uint32_t[] target_index_arr,
 					uint32_t target_num_indices
 				) -> void {
@@ -353,7 +353,7 @@ namespace pcit::pir{
 				"PIR.JIT.return_generic_aggregate_f64",
 				[](
 					core::GenericValue* return_value,
-					float64_t value,
+					evo::float64_t value,
 					uint32_t[] target_index_arr,
 					uint32_t target_num_indices
 				) -> void {

@@ -1058,10 +1058,10 @@ namespace pcit::panther{
 		// check exponent isn't too large
 
 		if(exponent_number != 0){
-			const float64_t floating_point_exponent_number = float64_t(exponent_number);
+			const evo::float64_t floating_point_exponent_number = evo::float64_t(exponent_number);
 
 			if(has_decimal_point){
-				const static float64_t max_float_exp = std::log10(std::numeric_limits<float64_t>::max()) + 1;
+				const static evo::float64_t max_float_exp = std::log10(std::numeric_limits<evo::float64_t>::max()) + 1;
 
 				if(floating_point_exponent_number > max_float_exp){
 					const evo::Result<Source::Location> current_location = this->get_current_location_token();
@@ -1077,7 +1077,7 @@ namespace pcit::panther{
 				}
 
 			}else{
-				const static float64_t max_int_exp = std::log10(std::numeric_limits<uint64_t>::max()) + 1;
+				const static evo::float64_t max_int_exp = std::log10(std::numeric_limits<uint64_t>::max()) + 1;
 
 				if(floating_point_exponent_number > max_int_exp){
 					const evo::Result<Source::Location> current_location = this->get_current_location_token();
@@ -1100,8 +1100,8 @@ namespace pcit::panther{
 		// parse / save number (with some checking)
 
 		if(has_decimal_point){
-			const evo::Expected<float64_t, StrToNumError> converted_parsed_number = 
-				str_to_num<float64_t>(number_string, base);
+			const evo::Expected<evo::float64_t, StrToNumError> converted_parsed_number = 
+				str_to_num<evo::float64_t>(number_string, base);
 
 			if(converted_parsed_number.has_value() == false){
 				switch(converted_parsed_number.error()){
@@ -1131,12 +1131,12 @@ namespace pcit::panther{
 				}
 			}
 
-			const float64_t parsed_number = converted_parsed_number.value();
+			const evo::float64_t parsed_number = converted_parsed_number.value();
 
 
 			if(
 				parsed_number == 0.0 && 
-				std::numeric_limits<float64_t>::max() / parsed_number < std::pow(10, exponent_number)
+				std::numeric_limits<evo::float64_t>::max() / parsed_number < std::pow(10, exponent_number)
 			){
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
 				if(current_location.isError()){ return true; }
@@ -1151,7 +1151,7 @@ namespace pcit::panther{
 			}
 
 
-			float64_t output_number = parsed_number;
+			evo::float64_t output_number = parsed_number;
 			if(exponent_number != 0){
 				output_number *= std::pow(10, exponent_number);
 			}

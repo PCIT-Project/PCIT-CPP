@@ -492,31 +492,31 @@ namespace pcit::llvmint{
 
 
 
-	auto IRBuilder::getValueF16(float64_t value) const -> Constant {
+	auto IRBuilder::getValueF16(evo::float64_t value) const -> Constant {
 		return this->getValueFloat(this->getTypeF16(), value);
 	}
 
-	auto IRBuilder::getValueBF16(float64_t value) const -> Constant {
+	auto IRBuilder::getValueBF16(evo::float64_t value) const -> Constant {
 		return this->getValueFloat(this->getTypeBF16(), value);
 	}
 
-	auto IRBuilder::getValueF32(float64_t value) const -> Constant {
+	auto IRBuilder::getValueF32(evo::float64_t value) const -> Constant {
 		return this->getValueFloat(this->getTypeF32(), value);
 	}
 
-	auto IRBuilder::getValueF64(float64_t value) const -> Constant {
+	auto IRBuilder::getValueF64(evo::float64_t value) const -> Constant {
 		return this->getValueFloat(this->getTypeF64(), value);
 	}
 
-	auto IRBuilder::getValueF80(float64_t value) const -> Constant {
+	auto IRBuilder::getValueF80(evo::float64_t value) const -> Constant {
 		return this->getValueFloat(this->getTypeF80(), value);
 	}
 
-	auto IRBuilder::getValueF128(float64_t value) const -> Constant {
+	auto IRBuilder::getValueF128(evo::float64_t value) const -> Constant {
 		return this->getValueFloat(this->getTypeF128(), value);
 	}
 
-	auto IRBuilder::getValueFloat(const Type& type, float64_t value) const -> Constant {
+	auto IRBuilder::getValueFloat(const Type& type, evo::float64_t value) const -> Constant {
 		return Constant(llvm::ConstantFP::get(type.native(), value));
 	}
 

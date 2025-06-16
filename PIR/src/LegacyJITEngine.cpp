@@ -190,15 +190,15 @@ namespace pcit::pir{
 					} break;
 
 					case 32: {
-						const evo::Result<float32_t> result =
-							this->data->execution_engine.runFunctionDirectly<float32_t>(func.getName());
+						const evo::Result<evo::float32_t> result =
+							this->data->execution_engine.runFunctionDirectly<evo::float32_t>(func.getName());
 						if(result.isError()){ return evo::resultError; }
 						return core::GenericValue(core::GenericFloat(result.value()));
 					} break;
 
 					case 64: {
-						const evo::Result<float64_t> result =
-							this->data->execution_engine.runFunctionDirectly<float64_t>(func.getName());
+						const evo::Result<evo::float64_t> result =
+							this->data->execution_engine.runFunctionDirectly<evo::float64_t>(func.getName());
 						if(result.isError()){ return evo::resultError; }
 						return core::GenericValue(core::GenericFloat(result.value()));
 					} break;

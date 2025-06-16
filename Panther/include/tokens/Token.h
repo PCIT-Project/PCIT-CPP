@@ -233,7 +233,7 @@ namespace pcit::panther{
 			Token(Kind token_kind, bool val) : _kind(token_kind) { this->get_value<bool>() = val; }
 			Token(Kind token_kind, char val) : _kind(token_kind) { this->get_value<char>() = val; }
 			Token(Kind token_kind, uint64_t val) : _kind(token_kind) { this->get_value<uint64_t>() = val; }
-			Token(Kind token_kind, float64_t val) : _kind(token_kind) { this->get_value<float64_t>() = val; }
+			Token(Kind token_kind, evo::float64_t val) : _kind(token_kind) { this->get_value<evo::float64_t>() = val; }
 
 			Token(Kind token_kind, std::string_view val) : _kind(token_kind) {
 				SmallStringView& value_str = this->get_value<SmallStringView>();
@@ -270,9 +270,9 @@ namespace pcit::panther{
 				return uint32_t(this->get_value<uint64_t>());
 			}
 
-			EVO_NODISCARD auto getFloat() const -> float64_t {
+			EVO_NODISCARD auto getFloat() const -> evo::float64_t {
 				evo::debugAssert(this->_kind == Kind::LITERAL_FLOAT, "Token does not have a float value");
-				return this->get_value<float64_t>();
+				return this->get_value<evo::float64_t>();
 			}
 
 			EVO_NODISCARD auto getString() const -> std::string_view {
@@ -606,11 +606,11 @@ namespace pcit::panther{
 				return *(uint64_t*)&this->value;
 			}
 
-			template<> EVO_NODISCARD auto get_value<float64_t>() const -> const float64_t& {
-				return *(float64_t*)&this->value;
+			template<> EVO_NODISCARD auto get_value<evo::float64_t>() const -> const evo::float64_t& {
+				return *(evo::float64_t*)&this->value;
 			}
-			template<> EVO_NODISCARD auto get_value<float64_t>()       ->       float64_t& {
-				return *(float64_t*)&this->value;
+			template<> EVO_NODISCARD auto get_value<evo::float64_t>()       ->       evo::float64_t& {
+				return *(evo::float64_t*)&this->value;
 			}
 
 			template<> EVO_NODISCARD auto get_value<SmallStringView>() const -> const SmallStringView& {

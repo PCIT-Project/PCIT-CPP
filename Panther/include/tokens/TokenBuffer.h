@@ -36,7 +36,7 @@ namespace pcit::panther{
 			auto createToken(Token::Kind kind, Token::Location location, bool value) -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, char value) -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, uint64_t value) -> Token::ID;
-			auto createToken(Token::Kind kind, Token::Location location, float64_t value) -> Token::ID;
+			auto createToken(Token::Kind kind, Token::Location location, evo::float64_t value) -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, std::string_view value) -> Token::ID;
 			auto createToken(Token::Kind kind, Token::Location location, const std::string& value) -> Token::ID;
 

@@ -29,8 +29,8 @@ namespace pcit::panther{
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 		
 		if(this->isDeclDone()){ return WaitOnResult::NOT_NEEDED; }
-		if(this->passed_on_by_when_cond){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
-		if(this->errored){ return WaitOnResult::WAS_ERRORED; }
+		if(this->passedOnByWhenCond()){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->hasErrored()){ return WaitOnResult::WAS_ERRORED; }
 
 		if(id == self_id){
 			context.emitError(
@@ -62,7 +62,7 @@ namespace pcit::panther{
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
 		if(this->isPIRDeclDone()){ return WaitOnResult::NOT_NEEDED; }
-		if(this->errored){ return WaitOnResult::WAS_ERRORED; }
+		if(this->hasErrored()){ return WaitOnResult::WAS_ERRORED; }
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
@@ -80,8 +80,8 @@ namespace pcit::panther{
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
 		if(this->isDefDone()){ return WaitOnResult::NOT_NEEDED; }
-		if(this->passed_on_by_when_cond){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
-		if(this->errored){ return WaitOnResult::WAS_ERRORED; }
+		if(this->passedOnByWhenCond()){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->hasErrored()){ return WaitOnResult::WAS_ERRORED; }
 
 		if(id == self_id){
 			context.emitError(
@@ -114,7 +114,7 @@ namespace pcit::panther{
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
 		if(this->isPIRDefDone()){ return WaitOnResult::NOT_NEEDED; }
-		if(this->errored){ return WaitOnResult::WAS_ERRORED; }
+		if(this->hasErrored()){ return WaitOnResult::WAS_ERRORED; }
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 

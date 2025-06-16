@@ -257,6 +257,7 @@ namespace pcit::panther{
 
 				if(symbol_proc.isReadyToBeAddedToWorkQueue()){
 					work_manager_inst.addTask(SymbolProc::ID(i));
+					this->symbol_proc_manager.getSymbolProc(SymbolProc::ID(i)).setStatusInQueue();
 				}
 			}
 		};

@@ -232,8 +232,8 @@ namespace pcit::panther{
 
 
 
-	auto Diagnostic::get_ast_node_from_symbol_proc(const SymbolProc& symbol_proc) -> const AST::Node& {
-		return symbol_proc.ast_node;
+	auto Diagnostic::get_ast_node_from_symbol_proc(const SymbolProc& symbol_proc) -> AST::Node {
+		return symbol_proc.getASTNode();
 	}
 
 

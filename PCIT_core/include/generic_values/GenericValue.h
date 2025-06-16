@@ -193,7 +193,7 @@ namespace pcit::core{
 						return std::hash<size_t>{}(static_cast<size_t>(value));
 
 					}else if constexpr(std::is_same<ValueT, GenericFloat>()){
-						return std::hash<float64_t>{}(static_cast<float64_t>(value));
+						return std::hash<evo::float64_t>{}(static_cast<evo::float64_t>(value));
 						
 					}else if constexpr(std::is_same<ValueT, bool>()){
 						return std::hash<bool>{}(value);

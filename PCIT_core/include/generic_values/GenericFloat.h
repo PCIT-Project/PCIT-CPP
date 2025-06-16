@@ -18,8 +18,8 @@ namespace pcit::core{
 
 	class GenericFloat{
 		public:
-			explicit GenericFloat(float32_t val) : ap_float(val) {}
-			explicit GenericFloat(float64_t val) : ap_float(val) {}
+			explicit GenericFloat(evo::float32_t val) : ap_float(val) {}
+			explicit GenericFloat(evo::float64_t val) : ap_float(val) {}
 
 			EVO_NODISCARD static auto createF16(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::IEEEhalf(), std::move(value));
@@ -38,28 +38,28 @@ namespace pcit::core{
 			EVO_NODISCARD static auto createF32(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::IEEEsingle(), std::move(value));
 			}
-			EVO_NODISCARD static auto createF32(float32_t value) -> GenericFloat {
+			EVO_NODISCARD static auto createF32(evo::float32_t value) -> GenericFloat {
 				return GenericFloat(value);
 			}
 
 			EVO_NODISCARD static auto createF64(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::IEEEdouble(), std::move(value));
 			}
-			EVO_NODISCARD static auto createF64(float64_t value) -> GenericFloat {
+			EVO_NODISCARD static auto createF64(evo::float64_t value) -> GenericFloat {
 				return GenericFloat(value);
 			}
 
 			EVO_NODISCARD static auto createF80(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::x87DoubleExtended(), std::move(value));
 			}
-			EVO_NODISCARD static auto createF80(float64_t value) -> GenericFloat {
+			EVO_NODISCARD static auto createF80(evo::float64_t value) -> GenericFloat {
 				return GenericFloat::createF64(value).asF80();
 			}
 
 			EVO_NODISCARD static auto createF128(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::IEEEquad(), std::move(value));
 			}
-			EVO_NODISCARD static auto createF128(float64_t value) -> GenericFloat {
+			EVO_NODISCARD static auto createF128(evo::float64_t value) -> GenericFloat {
 				return GenericFloat::createF64(value).asF128();
 			}
 
@@ -122,10 +122,10 @@ namespace pcit::core{
 			}
 
 
-			EVO_NODISCARD explicit operator float64_t() const {
+			EVO_NODISCARD explicit operator evo::float64_t() const {
 				return this->asF64().ap_float.convertToDouble();
 			}
-			EVO_NODISCARD explicit operator float32_t() const {
+			EVO_NODISCARD explicit operator evo::float32_t() const {
 				return this->asF32().ap_float.convertToFloat(); 
 			}
 

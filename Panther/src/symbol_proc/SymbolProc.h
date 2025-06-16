@@ -806,11 +806,27 @@ namespace pcit::panther{
 			using InstructionIndex = SymbolProcInstructionIndex;
 
 			using Namespace = SymbolProcNamespace;
+
+			enum class Status{
+				WAITING,
+				IN_QUEUE,
+				WORKING,
+				PASSED_ON_BY_WHEN_COND,
+				ERRORED,
+				DONE,
+			};
 			
 		public:
 			SymbolProc(AST::Node node, SourceID _source_id, std::string_view _ident, SymbolProc* _parent)
 				: ast_node(node), source_id(_source_id), ident(_ident), parent(_parent) {}
 			~SymbolProc() = default;
+
+			SymbolProc(const SymbolProc&) = delete;
+			SymbolProc(SymbolProc&&) = delete;
+
+			EVO_NODISCARD auto getASTNode() const -> AST::Node { return this->ast_node; }
+			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
+			EVO_NODISCARD auto getIdent() const -> std::string_view { return this->ident; }
 
 
 			EVO_NODISCARD auto getInstruction() const -> const Instruction& {
@@ -867,11 +883,12 @@ namespace pcit::panther{
 				return this->pir_def_done;
 			}
 
-			EVO_NODISCARD auto hasErrored() const -> bool { return this->errored; }
-			EVO_NODISCARD auto passedOnByWhenCond() const -> bool { return this->passed_on_by_when_cond; }
+			EVO_NODISCARD auto hasErrored() const -> bool { return this->status == Status::ERRORED; }
+			EVO_NODISCARD auto passedOnByWhenCond() const -> bool {
+				return this->status == Status::PASSED_ON_BY_WHEN_COND;
+			}
 
-			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
-			EVO_NODISCARD auto getIdent() const -> std::string_view { return this->ident; }
+			
 
 			EVO_NODISCARD auto isWaiting() const -> bool {
 				const auto lock = std::scoped_lock(this->waiting_for_lock);
@@ -886,12 +903,58 @@ namespace pcit::panther{
 
 			// this should be called after starting to wait
 			EVO_NODISCARD auto shouldContinueRunning() -> bool {
-				evo::debugAssert(this->being_worked_on.load(), "only should call this func if being worked on");
+				evo::debugAssert(this->status == Status::WORKING, "only should call this func if being worked on");
 				const auto lock = std::scoped_lock(this->waiting_for_lock);
 				const bool is_waiting = this->waiting_for.empty() == false;
-				if(is_waiting){ this->being_worked_on = false; }
+				// if(is_waiting){ this->status = Status::WAITING; }
 				return is_waiting == false;
 			}
+
+
+
+			auto setStatusWaiting() -> void {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const Status current_status = this->status.load();
+					evo::debugAssert(
+						current_status == Status::WORKING,
+						"Can only set `WAITING` if status is `WORKING` (symbol: {})",
+						this->ident
+					);
+				#endif
+
+				this->status = Status::WAITING;
+			}
+
+			auto setStatusInQueue() -> void {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const Status current_status = this->status.load();
+					evo::debugAssert(
+						current_status == Status::WAITING,
+						"Can only set `IN_QUEUE` if status is `WAITING` (symbol: {})",
+						this->ident
+					);
+				#endif
+
+				this->status = Status::IN_QUEUE;
+			}
+
+			auto setStatusWorking() -> void {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const Status current_status = this->status.load();
+					evo::debugAssert(
+						current_status == Status::IN_QUEUE,
+						"Can only set `WORKING` if status is `IN_QUEUE` (symbol: {})",
+						this->ident
+					);
+				#endif
+
+				this->status = Status::WORKING;
+			}
+
+			auto setStatusPassedOnByWhenCond() -> void { this->status = Status::PASSED_ON_BY_WHEN_COND; }
+			auto setStatusErrored() -> void { this->status = Status::ERRORED; }
+			auto setStatusDone() -> void { this->status = Status::DONE; }
+
 
 
 			enum class WaitOnResult{
@@ -1000,14 +1063,11 @@ namespace pcit::panther{
 			bool pir_lower_done = false;
 			bool pir_decl_done = false;
 			bool pir_def_done = false;
-			std::atomic<bool> passed_on_by_when_cond = false;
-			std::atomic<bool> errored = false;
 
-			std::atomic<bool> being_worked_on = false;
+			std::atomic<Status> status = Status::WAITING; // if changing this, probably get the lock `waiting_for_lock`
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;
-			friend struct Diagnostic;
 	};
 
 

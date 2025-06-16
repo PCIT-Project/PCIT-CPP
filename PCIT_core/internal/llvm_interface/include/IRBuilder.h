@@ -280,14 +280,14 @@ namespace pcit::llvmint{
 
 			EVO_NODISCARD auto getValueIntegral(const IntegerType& type, uint64_t value) const -> ConstantInt;
 
-			EVO_NODISCARD auto getValueF16(float64_t value) const -> Constant;
-			EVO_NODISCARD auto getValueBF16(float64_t value) const -> Constant;
-			EVO_NODISCARD auto getValueF32(float64_t value) const -> Constant;
-			EVO_NODISCARD auto getValueF64(float64_t value) const -> Constant;
-			EVO_NODISCARD auto getValueF80(float64_t value) const -> Constant;
-			EVO_NODISCARD auto getValueF128(float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF16(evo::float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueBF16(evo::float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF32(evo::float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF64(evo::float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF80(evo::float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueF128(evo::float64_t value) const -> Constant;
 
-			EVO_NODISCARD auto getValueFloat(const Type& type, float64_t value) const -> Constant;
+			EVO_NODISCARD auto getValueFloat(const Type& type, evo::float64_t value) const -> Constant;
 			EVO_NODISCARD auto getValueFloat(const Type& type, const class core::GenericFloat& value) const -> Constant;
 
 			EVO_NODISCARD auto getNaNF16() const -> Constant;

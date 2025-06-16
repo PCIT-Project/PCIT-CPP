@@ -675,7 +675,7 @@ namespace pcit::panther{
 
 
 		private:
-			EVO_NODISCARD static auto get_ast_node_from_symbol_proc(const SymbolProc& symbol_proc) -> const AST::Node&;
+			EVO_NODISCARD static auto get_ast_node_from_symbol_proc(const SymbolProc& symbol_proc) -> AST::Node;
 
 			friend class Location;
 	};

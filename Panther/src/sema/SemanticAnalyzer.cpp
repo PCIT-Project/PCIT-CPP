@@ -31,26 +31,32 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze() -> void {
-		if(this->symbol_proc.passed_on_by_when_cond){ return; }
+		if(this->symbol_proc.passedOnByWhenCond()){ return; }
 
-		while(this->symbol_proc.being_worked_on.exchange(true)){
-			std::this_thread::yield();
+		
+		{
+			const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
+			this->symbol_proc.setStatusWorking();
 		}
+
+
 		EVO_DEFER([&](){
-			evo::debugAssert(this->symbol_proc.being_worked_on == false, "Symbol Proc being worked on should be false");
+			evo::debugAssert(
+				this->symbol_proc.status != SymbolProc::Status::WORKING, "Symbol Proc being worked on should be false"
+			);
 		});
 
 		while(this->symbol_proc.isAtEnd() == false){
-			evo::debugAssert(
-				this->symbol_proc.passed_on_by_when_cond == false,
-				"symbol was passed on by when cond - should not be analyzed"
-			);
-
-			evo::debugAssert(
-				this->symbol_proc.errored == false,
-				"symbol was errored - should not be analyzed"
-			);
-
+			#if defined(PCIT_CONFIG_DEBUG)
+				{
+					// separate var to prevent debugging race conditons
+					const SymbolProc::Status current_status = this->symbol_proc.status.load();
+					evo::debugAssert(
+						current_status == SymbolProc::Status::WORKING,
+						"Symbol Proc should only be working if the status is `WORKING`"
+					);
+				}
+			#endif
 
 			switch(this->analyze_instr(this->symbol_proc.getInstruction())){
 				case Result::SUCCESS: {
@@ -59,45 +65,47 @@ namespace pcit::panther{
 
 				case Result::ERROR: {
 					this->context.symbol_proc_manager.symbol_proc_done();
-					this->symbol_proc.errored = true;
 					if(this->symbol_proc.extra_info.is<SymbolProc::StructInfo>()){
 						SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
 						if(struct_info.instantiation != nullptr){ struct_info.instantiation->errored = true; }
 					}
-					this->symbol_proc.being_worked_on = false;
+					this->symbol_proc.setStatusErrored();
 					return;
 				} break;
 
 				case Result::RECOVERABLE_ERROR: {
-					this->symbol_proc.errored = true;
-					if(this->symbol_proc.extra_info.is<SymbolProc::StructInfo>()){
-						SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
-						if(struct_info.instantiation != nullptr){ struct_info.instantiation->errored = true; }
-					}
-					this->symbol_proc.nextInstruction();
+					evo::unimplemented("recoverable errors");
+					// this->symbol_proc.status = SymbolProc::Status::ERRORED;
+					// if(this->symbol_proc.extra_info.is<SymbolProc::StructInfo>()){
+					// 	SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
+					// 	if(struct_info.instantiation != nullptr){ struct_info.instantiation->errored = true; }
+					// }
+					// this->symbol_proc.nextInstruction();
 				} break;
 
 				case Result::NEED_TO_WAIT: {
 					const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
-					if(this->symbol_proc.waiting_for.empty()){ continue; } // prevent race condition
 
-					this->symbol_proc.being_worked_on = false;
+					if(this->symbol_proc.waiting_for.empty()){ continue; } // prevent race condition
+					
+					this->symbol_proc.setStatusWaiting();
 					return;
 				} break;
 
 				case Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR: {
 					const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
+
 					if(this->symbol_proc.waiting_for.empty()){ continue; } // prevent race condition
 
 					this->symbol_proc.nextInstruction();
-					this->symbol_proc.being_worked_on = false;
+					this->symbol_proc.setStatusWaiting();
 					return;
 				} break;
 			}
 		}
 
 		this->context.trace("Finished semantic analysis of symbol: \"{}\"", this->symbol_proc.ident);
-		this->symbol_proc.being_worked_on = false;
+		this->symbol_proc.setStatusDone();
 	}
 
 
@@ -920,7 +928,7 @@ namespace pcit::panther{
 
 
 			SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_id);
-			passed_symbol.passed_on_by_when_cond = true;
+			passed_symbol.setStatusPassedOnByWhenCond();
 
 
 			{
@@ -3215,7 +3223,13 @@ namespace pcit::panther{
 		sub_symbol_proc.sema_scope_id = 
 			this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
 
-		this->context.add_task_to_work_manager(instr.symbol_proc_id);
+
+		{
+			const auto lock = std::scoped_lock(sub_symbol_proc.waiting_for_lock);
+			sub_symbol_proc.setStatusInQueue();
+			this->context.add_task_to_work_manager(instr.symbol_proc_id);
+		}
+
 
 		const SymbolProc::WaitOnResult wait_on_result = 
 			sub_symbol_proc.waitOnDefIfNeeded(this->symbol_proc_id, this->context, instr.symbol_proc_id);
@@ -5585,8 +5599,8 @@ namespace pcit::panther{
 			this->return_struct_instantiation(instr.instantiation, instantiation_info.instantiation);
 
 
+			instantiation_symbol_proc.setStatusInQueue();
 			this->context.add_task_to_work_manager(instantiation_symbol_proc_id.value());
-
 
 			return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 
@@ -8382,12 +8396,11 @@ namespace pcit::panther{
 		target.waiting_for.pop_back();
 
 		if(
-			target.waiting_for.empty() && 
-			target.passed_on_by_when_cond == false && 
-			target.errored == false && 
-			target.isTemplateSubSymbol() == false &&
-			target.being_worked_on == false // prevent race condition of target actively adding more to wait on
+			target.waiting_for.empty()
+			&& target.isTemplateSubSymbol() == false
+			&& target.status == SymbolProc::Status::WAITING
 		){
+			target.setStatusInQueue();
 			this->context.add_task_to_work_manager(target_id);
 		}
 	}
@@ -10020,7 +10033,12 @@ namespace pcit::panther{
 			waited_on.waiting_for.pop_back();
 
 			if(waited_on.waiting_for.empty() && waited_on.isTemplateSubSymbol() == false){
-				this->context.add_task_to_work_manager(waited_on_id);
+				if(waited_on.hasErrored()){ continue; }
+
+				if(waited_on.status != SymbolProc::Status::WORKING){ // prevent race condition of setting up waits
+					waited_on.setStatusInQueue();
+					this->context.add_task_to_work_manager(waited_on_id);
+				}
 			}
 		}
 	}
@@ -10601,9 +10619,9 @@ namespace pcit::panther{
 		TypeInfo::ID type_id, evo::SmallVector<Diagnostic::Info>& infos, std::string_view message
 	) const -> void {
 		evo::debugAssert(
-			message.size() >= evo::stringSize("  > Alias of: "),
+			message.size() >= evo::stringSize(" > Alias of: "),
 			"Message must be at least {} characters",
-			evo::stringSize("  > Alias of: ")
+			evo::stringSize(" > Alias of: ")
 		);
 
 
@@ -10621,7 +10639,7 @@ namespace pcit::panther{
 
 			auto alias_of_str = std::string();
 			alias_of_str.reserve(message.size());
-			alias_of_str += "  > Alias of: ";
+			alias_of_str += " > Alias of: ";
 			while(alias_of_str.size() < message.size()){
 				alias_of_str += ' ';
 			}

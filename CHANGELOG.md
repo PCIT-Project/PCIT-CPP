@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.130.1"></a>
+## v0.0.130.1
+
+### Panther
+- Fixed 2 race conditions in semantic analysis
+- Removed `lib` directory for being extraneous
+- Made project C++23 compliant
+	- Project still only requires C++20 compliant compiler
+
+
+<!---------------------------------->
 <a name="v0.0.130.0"></a>
 ## v0.0.130.0
 

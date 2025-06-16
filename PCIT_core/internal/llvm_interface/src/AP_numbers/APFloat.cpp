@@ -1728,7 +1728,7 @@ namespace pcit::llvmint{
 	IEEEFloat::opStatus IEEEFloat::addOrSubtractSpecials(const IEEEFloat &rhs, bool subtract) {
 		switch (PackCategoriesIntoKey(category, rhs.category)) {
 		default:
-			evo::debugFatalBreak(nullptr);
+			evo::debugFatalBreak("");
 
 		case PackCategoriesIntoKey(fcZero, fcNaN):
 		case PackCategoriesIntoKey(fcNormal, fcNaN):
@@ -1851,7 +1851,7 @@ namespace pcit::llvmint{
 	IEEEFloat::opStatus IEEEFloat::multiplySpecials(const IEEEFloat &rhs) {
 		switch (PackCategoriesIntoKey(category, rhs.category)) {
 		default:
-			evo::debugFatalBreak(nullptr);
+			evo::debugFatalBreak("");
 
 		case PackCategoriesIntoKey(fcZero, fcNaN):
 		case PackCategoriesIntoKey(fcNormal, fcNaN):
@@ -1895,7 +1895,7 @@ namespace pcit::llvmint{
 	IEEEFloat::opStatus IEEEFloat::divideSpecials(const IEEEFloat &rhs) {
 		switch (PackCategoriesIntoKey(category, rhs.category)) {
 		default:
-			evo::debugFatalBreak(nullptr);
+			evo::debugFatalBreak("");
 
 		case PackCategoriesIntoKey(fcZero, fcNaN):
 		case PackCategoriesIntoKey(fcNormal, fcNaN):
@@ -1944,7 +1944,7 @@ namespace pcit::llvmint{
 	IEEEFloat::opStatus IEEEFloat::modSpecials(const IEEEFloat &rhs) {
 		switch (PackCategoriesIntoKey(category, rhs.category)) {
 		default:
-			evo::debugFatalBreak(nullptr);
+			evo::debugFatalBreak("");
 
 		case PackCategoriesIntoKey(fcZero, fcNaN):
 		case PackCategoriesIntoKey(fcNormal, fcNaN):
@@ -1982,7 +1982,7 @@ namespace pcit::llvmint{
 	IEEEFloat::opStatus IEEEFloat::remainderSpecials(const IEEEFloat &rhs) {
 		switch (PackCategoriesIntoKey(category, rhs.category)) {
 		default:
-			evo::debugFatalBreak(nullptr);
+			evo::debugFatalBreak("");
 
 		case PackCategoriesIntoKey(fcZero, fcNaN):
 		case PackCategoriesIntoKey(fcNormal, fcNaN):
@@ -2385,7 +2385,7 @@ namespace pcit::llvmint{
 
 		switch (PackCategoriesIntoKey(category, rhs.category)) {
 		default:
-			evo::debugFatalBreak(nullptr);
+			evo::debugFatalBreak("");
 
 		case PackCategoriesIntoKey(fcNaN, fcZero):
 		case PackCategoriesIntoKey(fcNaN, fcNormal):
@@ -3912,7 +3912,7 @@ namespace pcit::llvmint{
 		if (Sem == &semFloatTF32)
 			return initFromFloatTF32APInt(api);
 
-		evo::debugFatalBreak(nullptr);
+		evo::debugFatalBreak("");
 	}
 
 	/// Make this number the largest magnitude normal number in the given

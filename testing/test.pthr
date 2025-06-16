@@ -1,12 +1,14 @@
 
 
-func get_ui8 = () -> TypeID {
-	return @getTypeID<{Char}>();
-}
+// func get_ui8 = () -> TypeID {
+// 	return @getTypeID<{Char}>();
+// }
 
 
 
-type alias uint8_t = Type(get_ui8());
+// type alias uint8_t = Type(get_ui8());
+type alias uint8_t = Char;
+
 
 func entry = () #entry -> uint8_t {
 	const type_id: TypeID = @getTypeID<{USize}>();

@@ -55,7 +55,7 @@ namespace pcit::panther{
 		return Token::ID(uint32_t(this->tokens.size()));
 	}
 
-	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, float64_t value) -> Token::ID {
+	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, evo::float64_t value) -> Token::ID {
 		evo::debugAssert(this->is_locked == false, "Cannot add tokens as buffer is locked");
 
 		this->tokens.emplace_back(kind, value);

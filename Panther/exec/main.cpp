@@ -235,7 +235,7 @@ EVO_NODISCARD static auto run_compile(
 		&& config.output != BuildSystemConfig::Output::PRINT_AST
 	){
 		const panther::Context::AddSourceResult add_std_lib_res = 
-			context.addStdLib(current_path.value() / "../lib/std");
+			context.addStdLib(current_path.value() / "../extern/Panther-std/std");
 
 		if(add_std_lib_res != panther::Context::AddSourceResult::SUCCESS){
 			error_failed_to_add_std_lib(add_std_lib_res, printer);
