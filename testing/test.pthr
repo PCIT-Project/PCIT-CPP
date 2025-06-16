@@ -1,17 +1,24 @@
 
 
-// func get_ui8 = () -> TypeID {
-// 	return @getTypeID<{Char}>();
-// }
+def COND: Bool = true;
+
+
+when(COND){
+	func get_num = () -> UI8 {
+		return 12;
+	}
+
+}else{
+	func get_num = () -> UI8 {
+		return 14;
+	}	
+}
 
 
 
-// type alias uint8_t = Type(get_ui8());
-type alias uint8_t = Char;
 
 
-func entry = () #entry -> uint8_t {
-	const type_id: TypeID = @getTypeID<{USize}>();
 
-	return type_id as uint8_t;
+func entry = () #entry -> UI8 {
+	return get_num();
 }

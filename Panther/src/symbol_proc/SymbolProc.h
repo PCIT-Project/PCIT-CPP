@@ -883,8 +883,17 @@ namespace pcit::panther{
 				return this->pir_def_done;
 			}
 
-			EVO_NODISCARD auto hasErrored() const -> bool { return this->status == Status::ERRORED; }
+			EVO_NODISCARD auto hasErrored() const -> bool {
+				const auto lock = std::scoped_lock(this->waiting_for_lock);
+				return this->hasErroredNoLock();
+			}
+
+			EVO_NODISCARD auto hasErroredNoLock() const -> bool {
+				return this->status == Status::ERRORED;
+			}
+
 			EVO_NODISCARD auto passedOnByWhenCond() const -> bool {
+				const auto lock = std::scoped_lock(this->waiting_for_lock);
 				return this->status == Status::PASSED_ON_BY_WHEN_COND;
 			}
 
@@ -1058,11 +1067,11 @@ namespace pcit::panther{
 
 			size_t inst_index = 0;
 			bool is_sub_symbol = false;
-			bool decl_done = false;
-			bool def_done = false;
-			bool pir_lower_done = false;
-			bool pir_decl_done = false;
-			bool pir_def_done = false;
+			std::atomic<bool> decl_done = false;
+			std::atomic<bool> def_done = false;
+			std::atomic<bool> pir_lower_done = false;
+			std::atomic<bool> pir_decl_done = false;
+			std::atomic<bool> pir_def_done = false;
 
 			std::atomic<Status> status = Status::WAITING; // if changing this, probably get the lock `waiting_for_lock`
 

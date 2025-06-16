@@ -95,7 +95,7 @@ namespace pcit::core{
 					if(worker.is_working()){ return true; }
 				}
 
-				if(this->priv.tasks.empty()){ return false; }
+				if(this->priv.tasks.empty() == false){ return true; }
 
 				return false;
 			}

@@ -928,7 +928,11 @@ namespace pcit::panther{
 
 
 			SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_id);
-			passed_symbol.setStatusPassedOnByWhenCond();
+
+			{
+				const auto lock = std::scoped_lock(passed_symbol.waiting_for_lock);
+				passed_symbol.setStatusPassedOnByWhenCond();
+			}
 
 
 			{
@@ -10033,7 +10037,7 @@ namespace pcit::panther{
 			waited_on.waiting_for.pop_back();
 
 			if(waited_on.waiting_for.empty() && waited_on.isTemplateSubSymbol() == false){
-				if(waited_on.hasErrored()){ continue; }
+				if(waited_on.hasErroredNoLock()){ continue; }
 
 				if(waited_on.status != SymbolProc::Status::WORKING){ // prevent race condition of setting up waits
 					waited_on.setStatusInQueue();

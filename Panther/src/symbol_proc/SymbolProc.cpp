@@ -21,16 +21,17 @@
 
 namespace pcit::panther{
 
-	// Is there a faster way of doing this than just locking the whole thing?
+	// TODO(PERF): Is there a faster way of doing this than just locking the whole thing?
 	static core::SpinLock wait_on_if_needed_lock{};
 	
 
 	auto SymbolProc::waitOnDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 		
-		if(this->isDeclDone()){ return WaitOnResult::NOT_NEEDED; }
-		if(this->passedOnByWhenCond()){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
-		if(this->hasErrored()){ return WaitOnResult::WAS_ERRORED; }
+		// TODO(PERF): is doing these checks before taking locks faster
+		if(this->decl_done){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		if(id == self_id){
 			context.emitError(
@@ -51,6 +52,8 @@ namespace pcit::panther{
 		const auto lock = std::scoped_lock(this->decl_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->decl_done){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		this->decl_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
@@ -61,14 +64,16 @@ namespace pcit::panther{
 	auto SymbolProc::waitOnPIRDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
-		if(this->isPIRDeclDone()){ return WaitOnResult::NOT_NEEDED; }
-		if(this->hasErrored()){ return WaitOnResult::WAS_ERRORED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
 		const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->pir_decl_done){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		this->pir_decl_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
@@ -79,9 +84,9 @@ namespace pcit::panther{
 	auto SymbolProc::waitOnDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
-		if(this->isDefDone()){ return WaitOnResult::NOT_NEEDED; }
-		if(this->passedOnByWhenCond()){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
-		if(this->hasErrored()){ return WaitOnResult::WAS_ERRORED; }
+		if(this->def_done){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		if(id == self_id){
 			context.emitError(
@@ -102,6 +107,8 @@ namespace pcit::panther{
 		const auto lock = std::scoped_lock(this->def_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->def_done){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		this->def_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
@@ -113,14 +120,16 @@ namespace pcit::panther{
 	auto SymbolProc::waitOnPIRDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
-		if(this->isPIRDefDone()){ return WaitOnResult::NOT_NEEDED; }
-		if(this->hasErrored()){ return WaitOnResult::WAS_ERRORED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
 		const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->pir_def_done){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		this->pir_def_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
