@@ -1559,30 +1559,42 @@ namespace pcit::panther{
 			} break;
 
 			case Token::lookupKind("-"): {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					node,
-					"Building symbol proc of prefix [-] is unimplemented"
+				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				if(expr.isError()){ return evo::resultError; }
+
+				this->add_instruction(
+					Instruction::PrefixNegate<IS_CONSTEXPR>(prefix, expr.value(), created_term_info_id)
 				);
-				return evo::resultError;
+
+				return created_term_info_id;
 			} break;
 
 			case Token::lookupKind("!"): {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					node,
-					"Building symbol proc of prefix [!] is unimplemented"
+				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				if(expr.isError()){ return evo::resultError; }
+
+				this->add_instruction(
+					Instruction::PrefixNot<IS_CONSTEXPR>(prefix, expr.value(), created_term_info_id)
 				);
-				return evo::resultError;
+
+				return created_term_info_id;
 			} break;
 
 			case Token::lookupKind("~"): {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					node,
-					"Building symbol proc of prefix [~] is unimplemented"
+				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				if(expr.isError()){ return evo::resultError; }
+
+				this->add_instruction(
+					Instruction::PrefixBitwiseNot<IS_CONSTEXPR>(prefix, expr.value(), created_term_info_id)
 				);
-				return evo::resultError;
+
+				return created_term_info_id;
 			} break;
 		}
 

@@ -291,6 +291,24 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::AddrOf<false>>()){
 				return this->instr_addr_of(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::PrefixNegate<true>>()){
+				return this->instr_prefix_negate<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::PrefixNegate<false>>()){
+				return this->instr_prefix_negate<false>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::PrefixNot<true>>()){
+				return this->instr_prefix_not<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::PrefixNot<false>>()){
+				return this->instr_prefix_not<false>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::PrefixBitwiseNot<true>>()){
+				return this->instr_prefix_bitwise_not<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::PrefixBitwiseNot<false>>()){
+				return this->instr_prefix_bitwise_not<false>(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::Deref>()){
 				return this->instr_deref(instr);
 
@@ -4517,6 +4535,227 @@ namespace pcit::panther{
 
 		return Result::SUCCESS;
 	}
+
+
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::instr_prefix_negate(const Instruction::PrefixNegate<IS_CONSTEXPR>& instr) -> Result {
+		TermInfo& expr = this->get_term_info(instr.expr);
+
+		if(expr.isSingleValue() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
+				instr.prefix.rhs,
+				"Operator prefix [-] cannot accept multiple values"
+			);
+			return Result::ERROR;
+		}
+
+		if constexpr(IS_CONSTEXPR){
+			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
+				sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
+				int_value.value = core::GenericInt(int_value.value.getBitWidth(), 0).ssub(int_value.value).result;
+
+				this->return_term_info(instr.output, expr);
+				return Result::SUCCESS;
+				
+			}else{
+				sema::FloatValue& float_value =
+					this->context.sema_buffer.float_values[expr.getExpr().floatValueID()];
+				float_value.value = float_value.value.neg();
+
+				this->return_term_info(instr.output, expr);
+				return Result::SUCCESS;
+			}
+
+		}else{
+			if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
+				if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
+					sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
+					int_value.value = core::GenericInt(int_value.value.getBitWidth(), 0).ssub(int_value.value).result;
+
+					this->return_term_info(instr.output, expr);
+					return Result::SUCCESS;
+					
+				}else{
+					sema::FloatValue& float_value =
+						this->context.sema_buffer.float_values[expr.getExpr().floatValueID()];
+					float_value.value = float_value.value.neg();
+
+					this->return_term_info(instr.output, expr);
+					return Result::SUCCESS;
+				}
+
+			}else{
+				if(this->context.getTypeManager().isIntegral(expr.type_id.as<TypeInfo::ID>())){
+					using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+					const InstantiationID instantiation_id =
+						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::SUB,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								expr.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+							}
+						);
+
+					const sema::IntValue::ID zero = this->context.sema_buffer.createIntValue(
+						core::GenericInt::create<int64_t>(0), // TODO(FUTURE): set to same width as expr?
+						this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>()).baseTypeID()
+					);
+
+					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+						instantiation_id, evo::SmallVector<sema::Expr>{sema::Expr(zero), expr.getExpr()}
+					);
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						expr.value_stage,
+						expr.type_id.as<TypeInfo::ID>(),
+						sema::Expr(created_func_call_id)
+					);
+					return Result::SUCCESS;
+
+					
+				}else if(this->context.getTypeManager().isFloatingPoint(expr.type_id.as<TypeInfo::ID>())){
+					using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+					const InstantiationID instantiation_id =
+						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::FNEG,
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								expr.type_id.as<TypeInfo::ID>()
+							}
+						);
+
+					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+						instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+					);
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						expr.value_stage,
+						expr.type_id.as<TypeInfo::ID>(),
+						sema::Expr(created_func_call_id)
+					);
+					return Result::SUCCESS;
+					
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEGATE_ARG_INVALID_TYPE,
+						instr.prefix.rhs,
+						"Operator prefix [-] can only accept integrals and floats"
+					);
+					return Result::ERROR;
+				}
+			}
+		}
+	}
+
+
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::instr_prefix_not(const Instruction::PrefixNot<IS_CONSTEXPR>& instr) -> Result {
+		TermInfo& expr = this->get_term_info(instr.expr);
+
+		if(this->type_check<true, true>(
+			TypeManager::getTypeBool(), expr, "RHS of operator [!]", instr.prefix.rhs
+		).ok == false){
+			return Result::ERROR;
+		}
+
+
+		if constexpr(IS_CONSTEXPR){
+			sema::BoolValue& bool_value = this->context.sema_buffer.bool_values[expr.getExpr().boolValueID()];
+			bool_value.value = !bool_value.value;
+
+			this->return_term_info(instr.output, expr);
+			return Result::SUCCESS;
+
+		}else{
+			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+			const InstantiationID instantiation_id =
+				this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+					TemplateIntrinsicFunc::Kind::XOR,
+					evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+						expr.type_id.as<TypeInfo::ID>()
+					}
+				);
+
+			const sema::BoolValue::ID true_value = this->context.sema_buffer.createBoolValue(true);
+
+			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(true_value)}
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				expr.value_stage,
+				TypeManager::getTypeBool(),
+				sema::Expr(created_func_call_id)
+			);
+			return Result::SUCCESS;
+		}
+	}
+
+
+
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::instr_prefix_bitwise_not(const Instruction::PrefixBitwiseNot<IS_CONSTEXPR>& instr)
+	-> Result {
+		TermInfo& expr = this->get_term_info(instr.expr);
+
+		if(expr.isSingleValue() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
+				instr.prefix.rhs,
+				"Operator [~] cannot accept multiple values"
+			);
+			return Result::ERROR;
+		}
+
+		if(this->context.getTypeManager().isIntegral(expr.type_id.as<TypeInfo::ID>()) == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_BITWISE_NOT_ARG_NOT_INTEGRAL,
+				instr.prefix.rhs,
+				"Operator [~] can only accept integrals"
+			);
+			return Result::ERROR;
+		}
+
+
+		if constexpr(IS_CONSTEXPR){
+			sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
+			int_value.value =
+				int_value.value.bitwiseXor(core::GenericInt(int_value.value.getBitWidth(), 0).bitwiseNot());
+
+			this->return_term_info(instr.output, expr);
+			return Result::SUCCESS;
+
+		}else{
+			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+			const InstantiationID instantiation_id =
+				this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+					TemplateIntrinsicFunc::Kind::XOR,
+					evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+						expr.type_id.as<TypeInfo::ID>()
+					}
+				);
+
+			const sema::IntValue::ID all_ones = this->context.sema_buffer.createIntValue(
+				core::GenericInt::create<int64_t>(0).bitwiseNot(), // TODO(FUTURE): set to same width as expr?
+				this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>()).baseTypeID()
+			);
+
+			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(all_ones)}
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				expr.value_stage,
+				expr.type_id.as<TypeInfo::ID>(),
+				sema::Expr(created_func_call_id)
+			);
+			return Result::SUCCESS;
+		}
+	}
+
 
 
 

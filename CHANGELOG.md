@@ -1,11 +1,29 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.131.0"></a>
+## v0.0.131.0
+
+### Panther
+- Added prefix operators:
+	- `-`
+	- `!`
+	- `~`
+- Fixed fatal error when doing semantic analysis of compile-time functions
+
+### PIR
+- Fixed assert incorrectly stating that `@ieq` can only supports integers (it can also supports Bools)
+
+
+<!---------------------------------->
 <a name="v0.0.130.2"></a>
 ## v0.0.130.2
 
 ### Panther
 - Fixed a race condition in semantic analysis
+
+### PCIT_core
+- Fixed bug in `ThreadQueue::isWorking`
 
 
 <!---------------------------------->

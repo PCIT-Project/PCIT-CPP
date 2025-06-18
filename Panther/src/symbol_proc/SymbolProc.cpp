@@ -456,6 +456,24 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, AddrOf<false>>()){
 				return "AddrOf<false>";
 
+			}else if constexpr(std::is_same<InstrType, PrefixNegate<true>>()){
+				return "PrefixNegate<true>";
+
+			}else if constexpr(std::is_same<InstrType, PrefixNegate<false>>()){
+				return "PrefixNegate<false>";
+
+			}else if constexpr(std::is_same<InstrType, PrefixNot<true>>()){
+				return "PrefixNot<true>";
+
+			}else if constexpr(std::is_same<InstrType, PrefixNot<false>>()){
+				return "PrefixNot<false>";
+
+			}else if constexpr(std::is_same<InstrType, PrefixBitwiseNot<true>>()){
+				return "PrefixBitwiseNot<true>";
+
+			}else if constexpr(std::is_same<InstrType, PrefixBitwiseNot<false>>()){
+				return "PrefixBitwiseNot<false>";
+
 			}else if constexpr(std::is_same<InstrType, Deref>()){
 				return "Deref";
 

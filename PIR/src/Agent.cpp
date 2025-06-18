@@ -2267,7 +2267,8 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ieq instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER || this->getExprType(lhs).kind() == Type::Kind::BOOL,
+			"The @ieq instruction only supports integers and Bools"
 		);
 
 		const auto new_expr = Expr(

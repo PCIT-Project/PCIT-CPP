@@ -328,11 +328,6 @@ namespace pcit::pir{
 								}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
 									const ExternalFunction& func_target = this->module.getExternalFunction(target);
 
-									evo::debugAssert(
-										this->funcs.contains(&func_target),
-										"Func {} was not lowered", func_target.name
-									);
-
 									llvmint::CallInst call_inst = 
 										this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
 									call_inst.setCallingConv(

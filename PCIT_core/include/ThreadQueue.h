@@ -84,6 +84,7 @@ namespace pcit::core{
 				this->priv.tasks.emplace_front(std::forward<decltype(args)>(args)...);
 			}
 
+			// TODO(PERF): feel like there's a way to make this faster, but testing is needed
 			EVO_NODISCARD auto isWorking() const -> bool {
 				for(const Worker& worker : this->priv.workers){
 					if(worker.is_working()){ return true; }

@@ -528,6 +528,27 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		template<bool IS_CONSTEXPR>
+		struct PrefixNegate{
+			const AST::Prefix& prefix;
+			SymbolProcTermInfoID expr;
+			SymbolProcTermInfoID output;
+		};
+
+		template<bool IS_CONSTEXPR>
+		struct PrefixNot{
+			const AST::Prefix& prefix;
+			SymbolProcTermInfoID expr;
+			SymbolProcTermInfoID output;
+		};
+
+		template<bool IS_CONSTEXPR>
+		struct PrefixBitwiseNot{
+			const AST::Prefix& prefix;
+			SymbolProcTermInfoID expr;
+			SymbolProcTermInfoID output;
+		};
+
 		struct Deref{
 			const AST::Postfix& postfix;
 			SymbolProcTermInfoID target;
@@ -752,6 +773,12 @@ namespace pcit::panther{
 			Move,
 			AddrOf<true>,
 			AddrOf<false>,
+			PrefixNegate<true>,
+			PrefixNegate<false>,
+			PrefixNot<true>,
+			PrefixNot<false>,
+			PrefixBitwiseNot<true>,
+			PrefixBitwiseNot<false>,
 			Deref,
 			StructInitNew<true>,
 			StructInitNew<false>,
