@@ -928,7 +928,8 @@ namespace pcit::pir{
 							this->get_type<ADD_WEAK_DEPS>(smul_sat_type),
 							{
 								this->get_value<ADD_WEAK_DEPS>(smul_sat.lhs),
-								this->get_value<ADD_WEAK_DEPS>(smul_sat.rhs)
+								this->get_value<ADD_WEAK_DEPS>(smul_sat.rhs),
+								this->builder.getValueI32(0).asValue()
 							},
 							smul_sat.name
 						).asValue();
@@ -944,7 +945,8 @@ namespace pcit::pir{
 							this->get_type<ADD_WEAK_DEPS>(umul_sat_type),
 							{
 								this->get_value<ADD_WEAK_DEPS>(umul_sat.lhs),
-								this->get_value<ADD_WEAK_DEPS>(umul_sat.rhs)
+								this->get_value<ADD_WEAK_DEPS>(umul_sat.rhs),
+								this->builder.getValueI32(0).asValue()
 							},
 							umul_sat.name
 						).asValue();

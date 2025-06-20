@@ -1,16 +1,9 @@
 
 
-func test = (val: UI32) -> UI32 {
-	return ~val;
-}
+
+
 
 
 func entry = () #entry -> UI8 {
-	
-	// return -num as UI8;
-	// return (not(false) == false) as UI8;
-
-	const num: Int = 12;
-
-	return ~num as UI8;
+	return 7 % 3;
 }

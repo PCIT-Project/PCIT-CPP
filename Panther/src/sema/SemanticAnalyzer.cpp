@@ -6925,9 +6925,9 @@ namespace pcit::panther{
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-							TemplateIntrinsicFunc::Kind::ADD_WRAP,
+							TemplateIntrinsicFunc::Kind::ADD,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
+								lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
 							}
 						);
 					} break;
@@ -6967,9 +6967,9 @@ namespace pcit::panther{
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-							TemplateIntrinsicFunc::Kind::SUB_WRAP,
+							TemplateIntrinsicFunc::Kind::SUB,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
+								lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
 							}
 						);
 					} break;
@@ -7009,9 +7009,9 @@ namespace pcit::panther{
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-							TemplateIntrinsicFunc::Kind::MUL_WRAP,
+							TemplateIntrinsicFunc::Kind::MUL,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
+								lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
 							}
 						);
 					} break;

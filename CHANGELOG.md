@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.131.1"></a>
+## v0.0.131.1
+
+### Panther
+- Fixed integral wrapping operators:
+	- `+%`
+	- `-%`
+	- `*%`
+
+### PIR
+- Fixed lowering to LLVM-IR of `@umulSat` and `@smulSat`
+
+
+<!---------------------------------->
 <a name="v0.0.131.0"></a>
 ## v0.0.131.0
 
@@ -56,7 +70,7 @@
 ### Panther
 - Added local `when` conditionals
 
-
+ 
 <!---------------------------------->
 <a name="v0.0.128.0"></a>
 ## v0.0.128.0
