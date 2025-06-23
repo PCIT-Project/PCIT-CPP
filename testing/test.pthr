@@ -5,5 +5,5 @@
 
 
 func entry = () #entry -> UI8 {
-	return 7 % 3;
-}
+	return (~(0b10101110 as UI8) == 0b01010001) as UI8;
+}	

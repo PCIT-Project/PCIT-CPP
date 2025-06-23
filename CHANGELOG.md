@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.131.2"></a>
+## v0.0.131.2
+
+### Panther
+- Improved diagnostic error message for fluid conversion requiring truncation
+- Fixed crashing when lowering to PIR of where the LHS xor RHS of an operator `<<|` is fluid
+- Fixed operator `as` not properly erroring when a fluid conversion would require truncation (which caused further issues)
+- Added chedking for fluid argument to operator `~`
+
+
+<!---------------------------------->
 <a name="v0.0.131.1"></a>
 ## v0.0.131.1
 

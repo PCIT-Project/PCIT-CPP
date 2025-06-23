@@ -4709,6 +4709,16 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
+			this->emit_error(
+				Diagnostic::Code::SEMA_BITWISE_NOT_ARG_FLUID,
+				instr.prefix.rhs,
+				"Operator [~] cannot accept fluid values"
+			);
+			return Result::ERROR;
+		}
+
+			
 		if(this->context.getTypeManager().isIntegral(expr.type_id.as<TypeInfo::ID>()) == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_BITWISE_NOT_ARG_NOT_INTEGRAL,
@@ -4728,31 +4738,41 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
-			const InstantiationID instantiation_id =
-				this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-					TemplateIntrinsicFunc::Kind::XOR,
-					evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-						expr.type_id.as<TypeInfo::ID>()
-					}
+			if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
+				sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
+				int_value.value =
+					int_value.value.bitwiseXor(core::GenericInt(int_value.value.getBitWidth(), 0).bitwiseNot());
+
+				this->return_term_info(instr.output, expr);
+				return Result::SUCCESS;
+				
+			}else{
+				using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+				const InstantiationID instantiation_id =
+					this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+						TemplateIntrinsicFunc::Kind::XOR,
+						evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							expr.type_id.as<TypeInfo::ID>()
+						}
+					);
+
+				const sema::IntValue::ID all_ones = this->context.sema_buffer.createIntValue(
+					core::GenericInt::create<int64_t>(0).bitwiseNot(), // TODO(FUTURE): set to same width as expr?
+					this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>()).baseTypeID()
 				);
 
-			const sema::IntValue::ID all_ones = this->context.sema_buffer.createIntValue(
-				core::GenericInt::create<int64_t>(0).bitwiseNot(), // TODO(FUTURE): set to same width as expr?
-				this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>()).baseTypeID()
-			);
+				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+					instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(all_ones)}
+				);
 
-			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(all_ones)}
-			);
-
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				expr.value_stage,
-				expr.type_id.as<TypeInfo::ID>(),
-				sema::Expr(created_func_call_id)
-			);
-			return Result::SUCCESS;
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					expr.value_stage,
+					expr.type_id.as<TypeInfo::ID>(),
+					sema::Expr(created_func_call_id)
+				);
+				return Result::SUCCESS;
+			}
 		}
 	}
 
@@ -5961,57 +5981,82 @@ namespace pcit::panther{
 		}
 
 		if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
-			// implicitly convert if possible
-			if(this->type_check<true, false>(target_type.asTypeID(), expr, "", instr.infix).ok){
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
-					target_type.asTypeID(),
-					expr.getExpr()
-				);
-				return Result::SUCCESS;
+			
+
+
+			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
+				if(this->context.getTypeManager().isIntegral(target_type.asTypeID())){ // int to int
+					if(this->type_check<true, true>(
+						target_type.asTypeID(), expr, "Operator [as]", instr.infix
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						target_type.asTypeID(),
+						expr.getExpr()
+					);
+					return Result::SUCCESS;
+
+				}else{ // int to float
+					const sema::IntValue& initial_val = 
+						this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
+
+					const sema::FloatValue::ID new_float_value = this->context.sema_buffer.createFloatValue(
+						core::GenericFloat::createF128FromInt(initial_val.value, true),
+						this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
+					);
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						target_type.asTypeID(),
+						sema::Expr(new_float_value)
+					);
+					return Result::SUCCESS;
+
+				}
+
+			}else{
+				if(this->context.getTypeManager().isIntegral(target_type.asTypeID())){ // float to int
+					const unsigned width = unsigned(this->context.getTypeManager().numBits(target_type.asTypeID()));
+					const bool is_signed = this->context.getTypeManager().isSignedIntegral(target_type.asTypeID());
+
+					const sema::FloatValue& initial_val = 
+						this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID());
+
+					const sema::IntValue::ID new_int_value = this->context.sema_buffer.createIntValue(
+						initial_val.value.toGenericInt(width, is_signed),
+						this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
+					);
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						target_type.asTypeID(),
+						sema::Expr(new_int_value)
+					);
+
+					return Result::SUCCESS;
+
+				}else{ // float to float
+					if(this->type_check<true, true>(
+						target_type.asTypeID(), expr, "Operator [as]", instr.infix
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						target_type.asTypeID(),
+						expr.getExpr()
+					);
+					return Result::SUCCESS;
+				}
 			}
-
-
-			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){ // convert int to float
-				const sema::IntValue& initial_val = 
-					this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
-
-				const sema::FloatValue::ID new_float_value = this->context.sema_buffer.createFloatValue(
-					core::GenericFloat::createF128FromInt(initial_val.value, true),
-					this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
-				);
-
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
-					target_type.asTypeID(),
-					sema::Expr(new_float_value)
-				);
-
-
-			}else{ // convert float to int
-				const unsigned width = unsigned(this->context.getTypeManager().numBits(target_type.asTypeID()));
-				const bool is_signed = this->context.getTypeManager().isSignedIntegral(target_type.asTypeID());
-
-				const sema::FloatValue& initial_val = 
-					this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID());
-
-				const sema::IntValue::ID new_int_value = this->context.sema_buffer.createIntValue(
-					initial_val.value.toGenericInt(width, is_signed),
-					this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
-				);
-
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
-					target_type.asTypeID(),
-					sema::Expr(new_int_value)
-				);
-			}
-
-			return Result::SUCCESS;
-
 		}
 
 
@@ -6645,9 +6690,30 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
+					const uint64_t num_bits_lhs_type =
+						this->context.getTypeManager().numBits(lhs.type_id.as<TypeInfo::ID>());
+
+					const uint32_t expected_num_bits_rhs_type =
+						uint32_t(std::ceil(std::log2(double(num_bits_lhs_type))));
+
+					const TypeInfo::ID expected_rhs_type = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->context.type_manager.getOrCreatePrimitiveBaseType(
+								Token::Kind::TYPE_UI_N, expected_num_bits_rhs_type
+							)
+						)
+					);
+
+					if(this->type_check<true, true>(
+						expected_rhs_type, rhs, "RHS of this bitshift operator", instr.infix.rhs
+					).ok == false){
+						return Result::ERROR;
+					}
+
+
 				}else{
 					if(this->type_check<true, true>(
-						lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of infix math operator", instr.infix
+						lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of infix math operator", instr.infix.rhs
 					).ok == false){
 						return Result::ERROR;
 					}
@@ -6697,6 +6763,27 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}
+
+
+				const uint64_t num_bits_rhs_type =
+					this->context.getTypeManager().numBits(rhs.type_id.as<TypeInfo::ID>());
+
+				const uint32_t expected_num_bits_lhs_type = uint32_t(1 << num_bits_rhs_type);
+
+				const TypeInfo::ID expected_lhs_type = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(
+						this->context.type_manager.getOrCreatePrimitiveBaseType(
+							Token::Kind::TYPE_UI_N, expected_num_bits_lhs_type
+						)
+					)
+				);
+
+				if(this->type_check<true, true>(
+					expected_lhs_type, lhs, "LHS of this bitshift operator", instr.infix
+				).ok == false){
+					return Result::ERROR;
+				}
+
 
 			}else{
 				if(this->type_check<true, true>(
@@ -10592,19 +10679,20 @@ namespace pcit::panther{
 						const sema::IntValue::ID int_value_id = got_expr.getExpr().intValueID();
 						sema::IntValue& int_value = this->context.sema_buffer.int_values[int_value_id];
 
-						if(is_unsigned){
-							if(int_value.value.slt(core::GenericInt(256, 0, true))){
-								if constexpr(MAY_EMIT_ERROR){
-									this->emit_error(
-										Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-										location,
-										"Cannot implicitly convert this fluid value to the target type",
-										Diagnostic::Info("Fluid value is negative and target type is unsigned")
-									);
-								}
-								return TypeCheckInfo::fail();
-							}
-						}
+						// TODO(FEATURE): figure out how to do this check properly
+						// if(is_unsigned){
+						// 	if(int_value.value.slt(core::GenericInt(256, 0, true))){
+						// 		if constexpr(MAY_EMIT_ERROR){
+						// 			this->emit_error(
+						// 				Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
+						// 				location,
+						// 				"Cannot implicitly convert this fluid value to the target type",
+						// 				Diagnostic::Info("Fluid value is negative and target type is unsigned")
+						// 			);
+						// 		}
+						// 		return TypeCheckInfo::fail();
+						// 	}
+						// }
 
 						core::GenericInt target_min = type_manager.getMin(expected_type_info.baseTypeID())
 							.as<core::GenericInt>();
@@ -10619,11 +10707,14 @@ namespace pcit::panther{
 							if(is_unsigned){
 								if(int_value.value.ult(target_min) || int_value.value.ugt(target_max)){
 									if constexpr(MAY_EMIT_ERROR){
+										auto infos = evo::SmallVector<Diagnostic::Info>();
+										this->diagnostic_print_type_info(expected_type_id, infos, "Target type: ");
 										this->emit_error(
 											Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
 											location,
-											"Cannot implicitly convert this fluid value to the target type",
-											Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+											"Cannot implicitly convert this fluid value to the target type "
+												"as it would require truncation",
+											std::move(infos)
 										);
 									}
 									return TypeCheckInfo::fail();
@@ -10631,11 +10722,14 @@ namespace pcit::panther{
 							}else{
 								if(int_value.value.slt(target_min) || int_value.value.sgt(target_max)){
 									if constexpr(MAY_EMIT_ERROR){
+										auto infos = evo::SmallVector<Diagnostic::Info>();
+										this->diagnostic_print_type_info(expected_type_id, infos, "Target type: ");
 										this->emit_error(
 											Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
 											location,
-											"Cannot implicitly convert this fluid value to the target type",
-											Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+											"Cannot implicitly convert this fluid value to the target type "
+												"as it would require truncation",
+											std::move(infos)
 										);
 									}
 									return TypeCheckInfo::fail();
@@ -10692,11 +10786,14 @@ namespace pcit::panther{
 
 						if(converted_literal.lt(target_min) || converted_literal.gt(target_max)){
 							if constexpr(MAY_EMIT_ERROR){
+								auto infos = evo::SmallVector<Diagnostic::Info>();
+								this->diagnostic_print_type_info(expected_type_id, infos, "Target type: ");
 								this->emit_error(
 									Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
 									location,
-									"Cannot implicitly convert this fluid value to the target type",
-									Diagnostic::Info("Requires truncation (maybe use [as] operator)")
+									"Cannot implicitly convert this fluid value to the target type "
+										"as it would require truncation",
+									std::move(infos)
 								);
 							}
 							return TypeCheckInfo::fail();
