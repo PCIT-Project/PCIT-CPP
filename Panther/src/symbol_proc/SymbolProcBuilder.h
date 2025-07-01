@@ -44,6 +44,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto build_alias_decl(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_typedef_decl(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_struct_decl(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_interface_decl(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_interface_impl(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_when_conditional(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_func_call(const AST::Node& stmt) -> evo::Result<>;
 
@@ -59,6 +61,7 @@ namespace pcit::panther{
 			auto analyze_local_func(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_local_alias(const AST::AliasDecl& alias_decl) -> evo::Result<>;
 			auto analyze_local_struct(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
+			auto analyze_local_interface(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
 			auto analyze_conditional(const AST::Conditional& conditional_stmt) -> evo::Result<>;
@@ -210,8 +213,8 @@ namespace pcit::panther{
 
 			evo::SmallVector<SymbolProcInfo> symbol_proc_infos{};
 			using SymbolScope = evo::SmallVector<SymbolProc::ID>;
-			evo::SmallVector<SymbolScope*> symbol_scopes{}; // nullptr if is function
-			evo::SmallVector<SymbolProc::Namespace*> symbol_namespaces{}; // nullptr if function
+			evo::SmallVector<SymbolScope*> symbol_scopes{}; // nullptr if is function or interface
+			evo::SmallVector<SymbolProc::Namespace*> symbol_namespaces{}; // nullptr if function or interface
 	};
 
 

@@ -34,7 +34,7 @@ namespace pcit::panther{
 				evo::debugAssert(peek_location >= 0, "cannot peek past beginning of buffer");
 				evo::debugAssert(
 					size_t(peek_location) < this->buffer.size(),
-					"cannot peek past beginning of buffer(peek location: {}, buffer size: {})",
+					"cannot peek past beginning of buffer (peek index: {}, buffer size: {})",
 					size_t(peek_location),
 					this->buffer.size()
 				);

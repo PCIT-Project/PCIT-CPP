@@ -18,6 +18,22 @@
 namespace pcit::panther{
 
 
+	auto SemaToPIRData::getInterfacePtrType(pir::Module& module) -> pir::Type {
+		const auto lock = std::scoped_lock(this->vtables_lock);
+
+		if(this->interface_ptr_type.has_value() == false){
+			this->interface_ptr_type = module.createStructType(
+				"PTHR.interface_ptr",
+				evo::SmallVector<pir::Type>{module.createPtrType(), module.createPtrType()},
+				false
+			);
+		}
+
+		return *this->interface_ptr_type;
+	}
+
+
+
 	auto SemaToPIRData::createJITInterfaceFuncDecls(pir::Module& module) -> void {
 		const auto create_return_func_decl = [&](std::string_view name, evo::SmallVector<pir::Parameter>&& params){
 			return module.createExternalFunction(

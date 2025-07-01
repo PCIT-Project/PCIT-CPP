@@ -32,6 +32,7 @@ namespace pcit::panther::sema{
 		enum class Kind : uint32_t {
 			VAR,
 			FUNC_CALL,
+			INTERFACE_CALL,
 			ASSIGN,
 			MULTI_ASSIGN,
 			RETURN,
@@ -44,6 +45,8 @@ namespace pcit::panther::sema{
 
 		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),          value{.var_id = var_id}               {}
 		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FUNC_CALL),    value{.func_call_id = func_call_id}   {}
+		explicit Stmt(InterfaceCallID interface_call_id) 
+			: _kind(Kind::INTERFACE_CALL), value{.interface_call_id = interface_call_id} {}
 		explicit Stmt(AssignID assign_id)        : _kind(Kind::ASSIGN),       value{.assign_id = assign_id}         {}
 		explicit Stmt(MultiAssignID multi_assign_id)
 			: _kind(Kind::MULTI_ASSIGN), value{.multi_assign_id = multi_assign_id} {}
@@ -66,6 +69,11 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
 			evo::debugAssert(this->kind() == Kind::FUNC_CALL, "not a func call");
 			return this->value.func_call_id;
+		}
+
+		EVO_NODISCARD auto interfaceCallID() const -> InterfaceCallID {
+			evo::debugAssert(this->kind() == Kind::INTERFACE_CALL, "not an interface call");
+			return this->value.interface_call_id;
 		}
 
 		EVO_NODISCARD auto assignID() const -> AssignID {
@@ -119,6 +127,7 @@ namespace pcit::panther::sema{
 				Token::ID token_id;
 				VarID var_id;
 				FuncCallID func_call_id;
+				InterfaceCallID interface_call_id;
 				AssignID assign_id;
 				MultiAssignID multi_assign_id;
 				ReturnID return_id;

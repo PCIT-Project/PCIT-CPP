@@ -33,9 +33,7 @@ namespace pcit::panther{
 			using DiagnosticCallback = std::function<void(Context&, const Diagnostic&)>;
 
 			struct NumThreads{
-				NumThreads(uint32_t num_threads) : num(num_threads){
-					evo::debugAssert(num_threads != 0, "For single threaded, use NumThreads::single()");
-				}
+				NumThreads(uint32_t num_threads) : num(num_threads){} // 0 is single-threaded
 
 				EVO_NODISCARD auto isSingle() const -> bool { return this->num == 0; }
 				EVO_NODISCARD auto isMulti() const -> bool { return this->num != 0; }
@@ -44,7 +42,7 @@ namespace pcit::panther{
 					return num;
 				}
 
-				EVO_NODISCARD static auto single() -> NumThreads { return evo::bitCast<NumThreads>(uint32_t(0)); }
+				EVO_NODISCARD static auto single() -> NumThreads { return NumThreads(0); }
 				EVO_NODISCARD static auto optimalMulti() -> NumThreads;
 
 				private:

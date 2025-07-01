@@ -73,6 +73,7 @@ namespace pcit::panther::sema{
 				BaseType::AliasID,
 				BaseType::TypedefID,
 				BaseType::StructID,
+				BaseType::InterfaceID,
 				sema::TemplatedStructID,
 				TemplateTypeParam,
 				TemplateExprParam,
@@ -113,6 +114,9 @@ namespace pcit::panther::sema{
 			auto setIsDeferMainScope() -> void { this->is_defer_main_scope = true; }
 			EVO_NODISCARD auto isDeferMainScope() const -> bool { return this->is_defer_main_scope; }
 
+			auto setDontDoShadowingChecks() -> void { this->do_shadowing_checks = false; }
+			EVO_NODISCARD auto doesShadowingChecks() const -> bool { return this->do_shadowing_checks; }
+
 			auto addSubScope() -> void;
 			auto setSubScopeTerminated() -> void;
 			auto setTerminated() -> void;
@@ -142,6 +146,7 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::TypedefID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::StructID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(
 				std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, TemplateTypeParamFlag
@@ -176,6 +181,7 @@ namespace pcit::panther::sema{
 			std::optional<Token::ID> _label;
 			LabelNode _label_node;
 			bool is_defer_main_scope = false;
+			bool do_shadowing_checks = true; // only for this level, doesn't affect sub-scopes or super-scopes
 
 			unsigned num_sub_scopes_not_terminated = 0;
 			bool has_sub_scopes = false;

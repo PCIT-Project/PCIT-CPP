@@ -103,6 +103,7 @@ namespace pcit::llvmint{
 
 
 	Function::operator Value() const { return Value(static_cast<llvm::Value*>(this->native())); }
+	Function::operator Constant() const { return Constant(static_cast<llvm::Constant*>(this->native())); }
 
 
 

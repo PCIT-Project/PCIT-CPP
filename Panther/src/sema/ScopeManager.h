@@ -28,11 +28,12 @@ namespace pcit::panther::sema{
 						using core::UniqueID<uint32_t, ID>::UniqueID;
 					};
 
-					using ObjectScope = evo::Variant<sema::Func::ID, BaseType::Struct::ID>;
+					using ObjectScope = evo::Variant<sema::Func::ID, BaseType::Struct::ID, BaseType::Interface::ID>;
 
 				public:
 					Scope() = default;
 					~Scope() = default;
+					
 
 					///////////////////////////////////
 					// scope level
@@ -121,6 +122,14 @@ namespace pcit::panther::sema{
 					EVO_NODISCARD auto getCurrentTypeScopeIfExists() const -> std::optional<ObjectScope> {
 						for(auto iter = this->object_scopes.rbegin(); iter != this->object_scopes.rend(); ++iter){
 							if(iter->obj_scope.is<BaseType::Struct::ID>()){ return iter->obj_scope; }
+						}
+
+						return std::nullopt;
+					}
+
+					EVO_NODISCARD auto getCurrentInterfaceScopeIfExists() const -> std::optional<ObjectScope> {
+						for(auto iter = this->object_scopes.rbegin(); iter != this->object_scopes.rend(); ++iter){
+							if(iter->obj_scope.is<BaseType::Interface::ID>()){ return iter->obj_scope; }
 						}
 
 						return std::nullopt;

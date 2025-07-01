@@ -52,6 +52,12 @@ namespace pcit::panther{
 			break; case AST::Kind::STRUCT_DECL:
 				if(this->build_struct_decl(stmt).isError()){ return evo::resultError; }
 
+			break; case AST::Kind::INTERFACE_DECL:
+				if(this->build_interface_decl(stmt).isError()){ return evo::resultError; }
+
+			break; case AST::Kind::INTERFACE_IMPL:
+				if(this->build_interface_impl(stmt).isError()){ return evo::resultError; }
+
 			break; case AST::Kind::WHEN_CONDITIONAL:
 				if(this->build_when_conditional(stmt).isError()){ return evo::resultError; }
 
@@ -187,6 +193,14 @@ namespace pcit::panther{
 
 			case AST::Kind::STRUCT_DECL: {
 				return token_buffer[ast_buffer.getStructDecl(stmt).ident].getString();
+			} break;
+
+			case AST::Kind::INTERFACE_DECL: {
+				return token_buffer[ast_buffer.getInterfaceDecl(stmt).ident].getString();
+			} break;
+
+			case AST::Kind::INTERFACE_IMPL: {
+				return std::string_view();
 			} break;
 
 			case AST::Kind::WHEN_CONDITIONAL: {
@@ -418,25 +432,41 @@ namespace pcit::panther{
 				evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 			}
 
-			this->add_instruction(Instruction::FuncPreBody(func_decl));
 
+			if(func_decl.block.has_value()){
+				this->add_instruction(Instruction::FuncPreBody(func_decl));
 
-			this->symbol_scopes.emplace_back(nullptr);
-			this->symbol_namespaces.emplace_back(nullptr);
-			for(const AST::Node& func_stmt : ast_buffer.getBlock(func_decl.block).stmts){
-				if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
+				this->symbol_scopes.emplace_back(nullptr);
+				this->symbol_namespaces.emplace_back(nullptr);
+				for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_decl.block).stmts){
+					if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
+				}
+				this->symbol_namespaces.pop_back();
+				this->symbol_scopes.pop_back();
+
+				this->add_instruction(Instruction::FuncDef(func_decl));
+				this->add_instruction(Instruction::FuncPrepareConstexprPIRIfNeeded(func_decl));
+				this->add_instruction(Instruction::FuncConstexprPIRReadyIfNeeded());
+
+			}else{
+				this->add_instruction(Instruction::InterfaceFuncDef(func_decl));
 			}
-			this->symbol_namespaces.pop_back();
-			this->symbol_scopes.pop_back();
 
-			this->add_instruction(Instruction::FuncDef(func_decl));
-			this->add_instruction(Instruction::FuncPrepareConstexprPIRIfNeeded(func_decl));
-			this->add_instruction(Instruction::FuncConstexprPIRReadyIfNeeded());
 
 			// need to set again as address may have changed
 			current_symbol = &this->get_current_symbol();
 
 		}else{
+			if(func_decl.block.has_value() == false){
+				this->emit_error(
+					Diagnostic::Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
+					func_decl,
+					"Interface methods cannot be templates"
+				);
+				return evo::resultError;
+			}
+
+
 			this->add_instruction(Instruction::TemplateFunc(func_decl, std::move(template_param_infos)));
 		}
 
@@ -573,6 +603,88 @@ namespace pcit::panther{
 
 		return evo::Result<>();
 	}
+
+
+	auto SymbolProcBuilder::build_interface_decl(const AST::Node& stmt) -> evo::Result<> {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::InterfaceDecl& interface_decl = ast_buffer.getInterfaceDecl(stmt);
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(ast_buffer.getAttributeBlock(interface_decl.attributeBlock));
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		this->add_instruction(Instruction::InterfaceDecl(interface_decl, std::move(attribute_params_info.value())));
+
+		this->symbol_scopes.emplace_back(nullptr);
+		this->symbol_namespaces.emplace_back(nullptr);
+		for(const AST::Node& method : interface_decl.methods){
+			if(this->analyze_local_func(method).isError()){ return evo::resultError; }
+		}
+		this->symbol_namespaces.pop_back();
+		this->symbol_scopes.pop_back();
+
+		this->add_instruction(Instruction::InterfaceDef{});
+
+		SymbolProcInfo* current_symbol = &this->get_current_symbol();
+		
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
+			current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
+			);
+		}
+
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::build_interface_impl(const AST::Node& stmt) -> evo::Result<> {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::InterfaceImpl& interface_impl = ast_buffer.getInterfaceImpl(stmt);
+
+		const evo::Result<SymbolProc::TypeID> target = 
+			this->analyze_type<true>(this->source.getASTBuffer().getType(interface_impl.target));
+
+		if(target.isError()){ return evo::resultError; }
+
+
+		this->add_instruction(Instruction::InterfaceImplDecl(interface_impl, target.value()));
+
+		for(const AST::InterfaceImpl::Method& method : interface_impl.methods){
+			this->add_instruction(Instruction::InterfaceImplMethodLookup(method.value));
+		}
+
+		this->add_instruction(Instruction::InterfaceImplDef(interface_impl));
+		this->add_instruction(Instruction::InterfaceImplConstexprPIR());
+
+
+		SymbolProcInfo* current_symbol = &this->get_current_symbol();
+
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
+			current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace("impl", current_symbol->symbol_proc_id);
+		}
+
+		return evo::Result<>();
+	}
+
+
 
 	auto SymbolProcBuilder::build_when_conditional(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
@@ -782,6 +894,8 @@ namespace pcit::panther{
 			case AST::Kind::ALIAS_DECL:       return this->analyze_local_alias(ast_buffer.getAliasDecl(stmt));
 			case AST::Kind::TYPEDEF_DECL:     evo::unimplemented("AST::Kind::TYPEDEF_DECL");
 			case AST::Kind::STRUCT_DECL:      return this->analyze_local_struct(stmt);
+			case AST::Kind::INTERFACE_DECL:   return this->analyze_local_interface(stmt);
+			case AST::Kind::INTERFACE_IMPL:   evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::RETURN:           return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:            return this->analyze_error(ast_buffer.getError(stmt));
 			case AST::Kind::CONDITIONAL:      return this->analyze_conditional(ast_buffer.getConditional(stmt));
@@ -897,6 +1011,19 @@ namespace pcit::panther{
 
 	auto SymbolProcBuilder::analyze_local_struct(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::STRUCT_DECL, "Not a struct decl");
+
+		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		if(func_symbol_proc_id.isError()){ return evo::resultError; }
+
+		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_sub_symbol = true;
+
+		this->add_instruction(Instruction::WaitOnSubSymbolProcDef(func_symbol_proc_id.value()));
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_local_interface(const AST::Node& stmt) -> evo::Result<> {
+		evo::debugAssert(stmt.kind() == AST::Kind::INTERFACE_DECL, "Not an interface decl");
 
 		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
@@ -1266,12 +1393,13 @@ namespace pcit::panther{
 					// }
 				} break;
 
-				case AST::Kind::VAR_DECL:      case AST::Kind::FUNC_DECL:      case AST::Kind::ALIAS_DECL:
-				case AST::Kind::TYPEDEF_DECL:  case AST::Kind::STRUCT_DECL:    case AST::Kind::RETURN:
-				case AST::Kind::ERROR:         case AST::Kind::CONDITIONAL:    case AST::Kind::WHEN_CONDITIONAL:
-				case AST::Kind::WHILE:         case AST::Kind::DEFER:          case AST::Kind::UNREACHABLE:
-				case AST::Kind::TEMPLATE_PACK: case AST::Kind::MULTI_ASSIGN:   case AST::Kind::ATTRIBUTE_BLOCK:
-				case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE: case AST::Kind::DISCARD: {
+				case AST::Kind::VAR_DECL:       case AST::Kind::FUNC_DECL:        case AST::Kind::ALIAS_DECL:
+				case AST::Kind::TYPEDEF_DECL:   case AST::Kind::STRUCT_DECL:      case AST::Kind::INTERFACE_DECL:
+				case AST::Kind::INTERFACE_IMPL: case AST::Kind::RETURN:           case AST::Kind::ERROR:
+				case AST::Kind::CONDITIONAL:    case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
+				case AST::Kind::DEFER:          case AST::Kind::UNREACHABLE:      case AST::Kind::TEMPLATE_PACK:
+				case AST::Kind::MULTI_ASSIGN:   case AST::Kind::ATTRIBUTE_BLOCK:  case AST::Kind::ATTRIBUTE:
+				case AST::Kind::PRIMITIVE_TYPE: case AST::Kind::DISCARD: {
 					// TODO(FUTURE): better messaging (specify what kind)
 					this->emit_fatal(
 						Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,

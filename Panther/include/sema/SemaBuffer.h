@@ -364,7 +364,7 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// method this
+			// fake term info
 
 			EVO_NODISCARD auto createFakeTermInfo(auto&&... args) -> sema::FakeTermInfo::ID {
 				return this->fake_term_infos.emplace_back(std::forward<decltype(args)>(args)...);
@@ -372,6 +372,31 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getFakeTermInfo(sema::FakeTermInfo::ID id) const -> const sema::FakeTermInfo& {
 				return this->fake_term_infos[id];
+			}
+
+
+			///////////////////////////////////
+			// make interface ptr
+
+			EVO_NODISCARD auto createMakeInterfacePtr(auto&&... args) -> sema::MakeInterfacePtr::ID {
+				return this->make_interface_ptrs.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getMakeInterfacePtr(sema::MakeInterfacePtr::ID id) const
+			-> const sema::MakeInterfacePtr& {
+				return this->make_interface_ptrs[id];
+			}
+
+
+			///////////////////////////////////
+			// interface call
+
+			EVO_NODISCARD auto createInterfaceCall(auto&&... args) -> sema::InterfaceCall::ID {
+				return this->interface_calls.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getInterfaceCall(sema::InterfaceCall::ID id) const -> const sema::InterfaceCall& {
+				return this->interface_calls[id];
 			}
 
 
@@ -529,6 +554,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};
+			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};
+			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
 
 			core::SyncLinearStepAlloc<
 				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID

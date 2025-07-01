@@ -55,6 +55,8 @@ namespace pcit::panther::sema{
 			TRY_ELSE,
 			BLOCK_EXPR,
 			FAKE_TERM_INFO,
+			MAKE_INTERFACE_PTR,
+			INTERFACE_CALL,
 				
 			PARAM,
 			RETURN_PARAM,
@@ -98,7 +100,9 @@ namespace pcit::panther::sema{
 		explicit Expr(PtrAccessorID id)      : _kind(Kind::PTR_ACCESSOR),       value{.ptr_accessor = id}       {};
 		explicit Expr(TryElseID id)          : _kind(Kind::TRY_ELSE),           value{.try_else = id}           {};
 		explicit Expr(BlockExprID id)        : _kind(Kind::BLOCK_EXPR),         value{.block_expr = id}         {};
-		explicit Expr(FakeTermInfoID id)     : _kind(Kind::FAKE_TERM_INFO),     value{.fake_term_infos = id}    {};
+		explicit Expr(FakeTermInfoID id)     : _kind(Kind::FAKE_TERM_INFO),     value{.fake_term_info = id}     {};
+		explicit Expr(MakeInterfacePtrID id) : _kind(Kind::MAKE_INTERFACE_PTR), value{.make_interface_ptr = id} {};
+		explicit Expr(InterfaceCallID id)    : _kind(Kind::INTERFACE_CALL),     value{.interface_call = id}     {};
 
 		explicit Expr(ParamID id)            : _kind(Kind::PARAM),              value{.param = id}              {};
 		explicit Expr(ReturnParamID id)      : _kind(Kind::RETURN_PARAM),       value{.return_param = id}       {};
@@ -204,7 +208,15 @@ namespace pcit::panther::sema{
 		}
 		EVO_NODISCARD auto fakeTermInfoID() const -> FakeTermInfoID {
 			evo::debugAssert(this->kind() == Kind::FAKE_TERM_INFO, "not a fake term info");
-			return this->value.fake_term_infos;
+			return this->value.fake_term_info;
+		}
+		EVO_NODISCARD auto makeInterfacePtrID() const -> MakeInterfacePtrID {
+			evo::debugAssert(this->kind() == Kind::MAKE_INTERFACE_PTR, "not a make interface ptr");
+			return this->value.make_interface_ptr;
+		}
+		EVO_NODISCARD auto interfaceCallID() const -> InterfaceCallID {
+			evo::debugAssert(this->kind() == Kind::INTERFACE_CALL, "not an interface call");
+			return this->value.interface_call;
 		}
 
 		EVO_NODISCARD auto paramID() const -> ParamID {
@@ -281,7 +293,9 @@ namespace pcit::panther::sema{
 				PtrAccessorID ptr_accessor;
 				TryElseID try_else;
 				BlockExprID block_expr;
-				FakeTermInfoID fake_term_infos;
+				FakeTermInfoID fake_term_info;
+				MakeInterfacePtrID make_interface_ptr;
+				InterfaceCallID interface_call;
 				ExceptParamID except_param;
 
 				ParamID param;

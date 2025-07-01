@@ -592,8 +592,11 @@ namespace pcit::llvmint{
 		return llvm::ConstantAggregateZero::get(type.native());
 	}
 
-	auto IRBuilder::getValueGlobalArray(evo::ArrayProxy<Constant> values) const -> Constant {
-		return llvm::ConstantDataArray::get(this->builder->getContext(), createArrayRef<llvm::Constant>(values));
+	auto IRBuilder::getValueGlobalArray(const Type& elem_type, evo::ArrayProxy<Constant> values) const -> Constant {
+		// return llvm::ConstantDataArray::get(this->builder->getContext(), createArrayRef<llvm::Constant>(values));
+		return llvm::ConstantArray::get(
+			this->getArrayType(elem_type, values.size()).native(), createArrayRef<llvm::Constant>(values)
+		);
 	}
 
 	auto IRBuilder::getValueGlobalStruct(const StructType& type, evo::ArrayProxy<Constant> values) const -> Constant {

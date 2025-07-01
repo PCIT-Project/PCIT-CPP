@@ -30,6 +30,8 @@ namespace pcit::panther::AST{
 		ALIAS_DECL,
 		TYPEDEF_DECL,
 		STRUCT_DECL,
+		INTERFACE_DECL,
+		INTERFACE_IMPL,
 
 		RETURN,
 		ERROR,
@@ -183,7 +185,7 @@ namespace pcit::panther::AST{
 		Node attributeBlock;
 		evo::SmallVector<Return> returns;
 		evo::SmallVector<Return> errorReturns;
-		Node block;
+		std::optional<Node> block; // only nullopt if is an interface method with no default implementation
 	};
 
 	struct AliasDecl{
@@ -204,6 +206,24 @@ namespace pcit::panther::AST{
 		std::optional<Node> templatePack;
 		Node attributeBlock;
 		Node block;
+	};
+
+
+	struct InterfaceDecl{
+		Token::ID ident;
+		Node attributeBlock;
+		evo::SmallVector<Node> methods; // Nodes are all FuncDecl
+	};
+
+
+	struct InterfaceImpl{
+		struct Method{
+			Token::ID method;
+			Token::ID value;
+		};
+
+		Node target;
+		evo::SmallVector<Method> methods;
 	};
 
 

@@ -369,6 +369,7 @@ namespace pcit::panther{
 			sema_to_pir_data.createJITBuildFuncDecls(module);
 		}
 
+
 		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
 		sema_to_pir.lower();
 

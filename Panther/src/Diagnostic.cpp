@@ -41,6 +41,8 @@ namespace pcit::panther{
 			case AST::Kind::ALIAS_DECL:       return Location::get(ast_buffer.getAliasDecl(node), src);
 			case AST::Kind::TYPEDEF_DECL:     return Location::get(ast_buffer.getTypedefDecl(node), src);
 			case AST::Kind::STRUCT_DECL:      return Location::get(ast_buffer.getStructDecl(node), src);
+			case AST::Kind::INTERFACE_DECL:   return Location::get(ast_buffer.getInterfaceDecl(node), src);
+			case AST::Kind::INTERFACE_IMPL:   return Location::get(ast_buffer.getInterfaceImpl(node), src);
 			case AST::Kind::RETURN:           return Location::get(ast_buffer.getReturn(node), src);
 			case AST::Kind::ERROR:            return Location::get(ast_buffer.getError(node), src);
 			case AST::Kind::CONDITIONAL:      return Location::get(ast_buffer.getConditional(node), src);
@@ -108,6 +110,14 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::StructDecl& struct_decl, const Source& src) -> Location {
 		return Location::get(struct_decl.ident, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::InterfaceDecl& interface_decl, const Source& src) -> Location {
+		return Location::get(interface_decl.ident, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::InterfaceImpl& interface_impl, const Source& src) -> Location {
+		return Location::get(interface_impl.target, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::Return& return_stmt, const Source& src) -> Location {
@@ -228,6 +238,11 @@ namespace pcit::panther{
 	auto Diagnostic::Location::get(const BaseType::Struct::ID& struct_id, const Source& src, const Context& context)
 	-> Location {
 		return Location::get(context.getTypeManager().getStruct(struct_id).identTokenID, src);
+	}
+
+	auto Diagnostic::Location::get(const BaseType::Interface::ID& struct_id, const Source& src, const Context& context)
+	-> Location {
+		return Location::get(context.getTypeManager().getInterface(struct_id).identTokenID, src);
 	}
 
 

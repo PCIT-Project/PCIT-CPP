@@ -34,6 +34,7 @@ namespace pcit::panther{
 			MODULE,
 			FUNCTION, // function, not func pointer
 			METHOD_CALL, // the expr is the 'this'
+			INTERFACE_CALL, // the expr is the interface ptr
 			INTRINSIC_FUNC,
 			TEMPLATE_INTRINSIC_FUNC, // uninstantiated
 			TEMPLATE_TYPE,           // uninstantiated
@@ -63,7 +64,7 @@ namespace pcit::panther{
 			TemplateDeclInstantiationType,  // TEMPLATE_DECL_INSTANTIATION_TYPE
 			ExceptParamPack,                // EXCEPT_PARAM_PACK
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
-			FuncOverloadList,               // FUNCTION|METHOD_CALL
+			FuncOverloadList,               // FUNCTION|METHOD_CALL|INTERFACE_CALL
 			TypeInfo::VoidableID,           // TYPE
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
@@ -177,6 +178,9 @@ namespace pcit::panther{
 					break; case ValueCategory::METHOD_CALL:
 						evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TermInfo creation");
 
+					break; case ValueCategory::INTERFACE_CALL:
+						evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TermInfo creation");
+
 					break; case ValueCategory::INTRINSIC_FUNC:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
@@ -271,7 +275,8 @@ namespace pcit::panther{
 		EVO_NODISCARD constexpr auto is_const() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST 
 				|| this->value_category == ValueCategory::FUNCTION
-				|| this->value_category == ValueCategory::METHOD_CALL;
+				|| this->value_category == ValueCategory::METHOD_CALL
+				|| this->value_category == ValueCategory::INTERFACE_CALL;
 		}
 
 
@@ -282,7 +287,8 @@ namespace pcit::panther{
 			return this->type_id.is<TypeInfo::ID>()
 				|| this->type_id.is<FluidType>()
 				|| this->type_id.is<InitializerType>()
-				|| this->value_category == ValueCategory::METHOD_CALL;
+				|| this->value_category == ValueCategory::METHOD_CALL
+				|| this->value_category == ValueCategory::INTERFACE_CALL;
 		}
 
 		EVO_NODISCARD auto isSingleNormalValue() const -> bool {

@@ -174,6 +174,11 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, TypeDeducerID>::UniqueID; 
 	};
 
+	struct InterfaceID : public core::UniqueID<uint32_t, struct InterfaceID> {
+		using core::UniqueID<uint32_t, InterfaceID>::UniqueID; 
+	};
+
+
 
 }
 
@@ -236,6 +241,13 @@ namespace std{
 	template<>
 	struct hash<pcit::panther::BaseType::TypeDeducerID>{
 		auto operator()(const pcit::panther::BaseType::TypeDeducerID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::InterfaceID>{
+		auto operator()(const pcit::panther::BaseType::InterfaceID& id) const noexcept -> size_t {
 			return hash<uint32_t>{}(id.get());
 		};
 	};

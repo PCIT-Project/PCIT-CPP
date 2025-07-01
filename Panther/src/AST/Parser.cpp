@@ -51,8 +51,10 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_VAR:         return this->parse_var_decl<AST::VarDecl::Kind::VAR>();
 			case Token::Kind::KEYWORD_CONST:       return this->parse_var_decl<AST::VarDecl::Kind::CONST>();
 			case Token::Kind::KEYWORD_DEF:         return this->parse_var_decl<AST::VarDecl::Kind::DEF>();
-			case Token::Kind::KEYWORD_FUNC:        return this->parse_func_decl();
+			case Token::Kind::KEYWORD_FUNC:        return this->parse_func_decl<true>();
 			case Token::Kind::KEYWORD_TYPE:        return this->parse_type_decl();
+			case Token::Kind::KEYWORD_INTERFACE:   return this->parse_interface_decl();
+			case Token::Kind::KEYWORD_IMPL:        return this->parse_interface_impl();
 			case Token::Kind::KEYWORD_RETURN:      return this->parse_return();
 			case Token::Kind::KEYWORD_ERROR:       return this->parse_error();
 			case Token::Kind::KEYWORD_UNREACHABLE: return this->parse_unreachable();
@@ -154,6 +156,7 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
+	template<bool MUST_HAVE_BODY>
 	auto Parser::parse_func_decl() -> Result {
 		if(this->assert_token_fail(Token::Kind::KEYWORD_FUNC)){ return Result::Code::ERROR; }
 
@@ -221,19 +224,63 @@ namespace pcit::panther{
 		if(error_returns.isError()){ return Result::Code::ERROR; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
-		if(this->check_result_fail(block, "statement block in function declaration")){ // TODO(FUTURE): better messaging 
-			return Result::Code::ERROR;
+
+		if constexpr(MUST_HAVE_BODY){
+			// TODO(FUTURE): better messaging 
+			if(this->check_result_fail(block, "statement block in function declaration")){
+				return Result::Code::ERROR;
+			}
+
+			return this->source.ast_buffer.createFuncDecl(
+				name,
+				template_pack_node,
+				std::move(params.value()),
+				attribute_block.value(),
+				std::move(returns.value()),
+				std::move(error_returns.value()),
+				block.value()
+			);
+
+		}else{
+			switch(block.code()){
+				case Result::Code::SUCCESS: {
+					return this->source.ast_buffer.createFuncDecl(
+						name,
+						template_pack_node,
+						std::move(params.value()),
+						attribute_block.value(),
+						std::move(returns.value()),
+						std::move(error_returns.value()),
+						block.value()
+					);
+				} break;
+
+				case Result::Code::WRONG_TYPE: {
+					if(this->expect_token_fail(
+						Token::lookupKind(";"), "or function block at end of function declaration")
+					){
+						return Result::Code::ERROR;
+					}
+
+					return this->source.ast_buffer.createFuncDecl(
+						name,
+						template_pack_node,
+						std::move(params.value()),
+						attribute_block.value(),
+						std::move(returns.value()),
+						std::move(error_returns.value()),
+						std::nullopt
+					);
+				} break;
+
+				case Result::Code::ERROR: {
+					return Result::Code::ERROR;
+				} break;
+			}
+
+			evo::unreachable();
 		}
 
-		return this->source.ast_buffer.createFuncDecl(
-			name,
-			template_pack_node,
-			std::move(params.value()),
-			attribute_block.value(),
-			std::move(returns.value()),
-			std::move(error_returns.value()),
-			block.value()
-		);
 	}
 
 
@@ -313,9 +360,9 @@ namespace pcit::panther{
 		auto template_pack_node = std::optional<AST::Node>();
 		const Result template_pack_result = this->parse_template_pack();
 		switch(template_pack_result.code()){
-			case Result::Code::SUCCESS:   template_pack_node = template_pack_result.value(); break;
+			case Result::Code::SUCCESS:    template_pack_node = template_pack_result.value(); break;
 			case Result::Code::WRONG_TYPE: break;
-			case Result::Code::ERROR:     return Result::Code::ERROR;	
+			case Result::Code::ERROR:      return Result::Code::ERROR;	
 		}
 
 		const Result attributes = this->parse_attribute_block();
@@ -330,6 +377,109 @@ namespace pcit::panther{
 			ASTBuffer::getIdent(ident), template_pack_node, std::move(attributes.value()), block.value()
 		);
 	}
+
+
+	// TODO(FUTURE): check EOF
+	auto Parser::parse_interface_decl() -> Result {
+		if(this->assert_token_fail(Token::Kind::KEYWORD_INTERFACE)){ return Result::Code::ERROR; }
+
+		const Result ident = this->parse_ident();
+		if(this->check_result_fail(ident, "identifier in interface declaration")){ return Result::Code::ERROR; }
+
+		if(this->expect_token_fail(Token::lookupKind("="), "after identifier in interface declaration")){
+			return Result::Code::ERROR;
+		}
+
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+		if(this->expect_token_fail(Token::lookupKind("{"), "after [=] in interface declaration")){
+			return Result::Code::ERROR;
+		}
+
+
+		auto methods = evo::SmallVector<AST::Node>();
+
+		while(this->reader[this->reader.peek()].kind() != Token::lookupKind("}")){
+			if(this->reader[this->reader.peek()].kind() != Token::Kind::KEYWORD_FUNC){
+				this->expected_but_got(
+					"interface method declaration or end of interface declaration", this->reader.peek()
+				);
+				return Result::Code::ERROR;
+			}
+
+			const Result method = this->parse_func_decl<false>();
+			if(this->check_result_fail(method, "interface method declaration or end of interface declaration")){
+				return Result::Code::ERROR;
+			}
+
+			methods.emplace_back(method.value());
+		}
+
+		if(this->expect_token_fail(Token::lookupKind("}"), "at end of interface declaration")){
+			return Result::Code::ERROR;
+		}
+
+		return this->source.ast_buffer.createInterfaceDecl(
+			ASTBuffer::getIdent(ident.value()), attributes.value(), std::move(methods)
+		);
+	}
+
+
+	// TODO(FUTURE): check EOF
+	auto Parser::parse_interface_impl() -> Result {
+		if(this->assert_token_fail(Token::Kind::KEYWORD_IMPL)){ return Result::Code::ERROR; }
+
+		const Result target = this->parse_type<TypeKind::EXPLICIT>();
+		if(this->check_result_fail(target, "interface impl target")){ return Result::Code::ERROR; }
+
+		if(this->expect_token_fail(Token::lookupKind("{"), "after target interface in interface impl")){
+			return Result::Code::ERROR;
+		}
+
+
+		auto methods = evo::SmallVector<AST::InterfaceImpl::Method>();
+
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
+				if(this->assert_token_fail(Token::lookupKind("}"))){ return Result::Code::ERROR; }
+				break;
+			}
+
+			const Result method_ident = this->parse_ident();
+			if(this->check_result_fail(method_ident, "method identifier in interface impl")){
+				return Result::Code::ERROR;
+			}
+
+			if(this->expect_token_fail(Token::lookupKind("="), "after method identifier in interface impl")){
+				return Result::Code::ERROR;
+			}
+
+			const Result method_value = this->parse_ident();
+			if(this->check_result_fail(method_value, "method value in interface impl")){ return Result::Code::ERROR; }
+
+
+			methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), ASTBuffer::getIdent(method_value.value()));
+
+
+			// check if ending or should continue
+			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+			if(after_arg_next_token_kind != Token::lookupKind(",")){
+				if(after_arg_next_token_kind != Token::lookupKind("}")){
+					this->expected_but_got(
+						"[,] at end of interface impl method or [}] at end of interface impl",
+						this->reader.peek(-1)
+					);
+					return Result::Code::ERROR;
+				}
+
+				break;
+			}
+		}
+
+		return this->source.ast_buffer.createInterfaceImpl(target.value(), std::move(methods));
+	}
+
 
 
 	// TODO(FUTURE): check EOF

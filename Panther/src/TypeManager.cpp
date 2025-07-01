@@ -274,7 +274,8 @@ namespace pcit::panther{
 					const BaseType::TypeDeducer::ID type_deducer_id = type_info.baseTypeID().typeDeducerID();
 					const BaseType::TypeDeducer& type_deducer = this->getTypeDeducer(type_deducer_id);
 
-					const Token& token = source_manager[type_deducer.sourceID].getTokenBuffer()[type_deducer.tokenID];
+					const Token& token =
+						source_manager[type_deducer.sourceID].getTokenBuffer()[type_deducer.identTokenID];
 
 					if(token.kind() == Token::Kind::TYPE_DEDUCER){
 						return std::format("${}", token.getString());
@@ -284,6 +285,14 @@ namespace pcit::panther{
 						);
 						return "$$";
 					}
+				} break;
+
+				case BaseType::Kind::INTERFACE: {
+					const BaseType::Interface::ID interface_id = type_info.baseTypeID().interfaceID();
+					const BaseType::Interface& interface_info = this->getInterface(interface_id);
+
+					const TokenBuffer& token_buffer = source_manager[interface_info.sourceID].getTokenBuffer();
+					return std::string(token_buffer[interface_info.identTokenID].getString());
 				} break;
 
 				case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
@@ -553,6 +562,52 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// interfaces
+
+	auto TypeManager::getInterface(BaseType::Interface::ID id) const -> const BaseType::Interface& {
+		const auto lock = std::scoped_lock(this->interfaces_lock);
+		return this->interfaces[id];
+	}
+
+	auto TypeManager::getInterface(BaseType::Interface::ID id) -> BaseType::Interface& {
+		const auto lock = std::scoped_lock(this->interfaces_lock);
+		return this->interfaces[id];
+	}
+
+
+	auto TypeManager::getOrCreateInterface(BaseType::Interface&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->interfaces_lock);
+
+		for(uint32_t i = 0; i < this->interfaces.size(); i+=1){
+			if(this->interfaces[BaseType::Interface::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::INTERFACE, i);
+			}
+		}
+
+		const BaseType::Interface::ID new_interface = this->interfaces.emplace_back(
+			lookup_type.identTokenID,
+			lookup_type.sourceID,
+			lookup_type.symbolProcID,
+			lookup_type.isPub
+		);
+
+		return BaseType::ID(BaseType::Kind::INTERFACE, new_interface.get());
+	}
+
+
+	auto TypeManager::getNumInterfaces() const -> size_t {
+		const auto lock = std::scoped_lock(this->interfaces_lock);
+		return this->interfaces.size();
+	}
+
+
+	auto TypeManager::createInterfaceImpl() -> BaseType::Interface::Impl& {
+		return this->interface_impls[this->interface_impls.emplace_back()];
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// type traits
 
 	// https://stackoverflow.com/a/1766566
@@ -569,7 +624,11 @@ namespace pcit::panther{
 			"optionals are not supported yet"
 		);
 
-		return this->numBytesOfPtr();
+		if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+			return this->numBytesOfPtr() * 2;
+		}else{
+			return this->numBytesOfPtr();
+		}
 	}
 
 
@@ -673,6 +732,11 @@ namespace pcit::panther{
 				evo::debugAssert("Cannot get size of type deducer");
 			} break;
 
+			case BaseType::Kind::INTERFACE: {
+				// TODO(FUTURE): handle this better?
+				evo::debugAssert("Cannot get size of type deducer");
+			} break;
+
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
 		}
 
@@ -692,7 +756,11 @@ namespace pcit::panther{
 
 		evo::debugAssert(type_info.isOptionalNotPointer(), "optionals are not supported yet");
 
-		return this->numBitsOfPtr();
+		if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+			return this->numBitsOfPtr() * 2;
+		}else{
+			return this->numBitsOfPtr();
+		}
 	}
 
 
@@ -782,6 +850,11 @@ namespace pcit::panther{
 				evo::debugAssert("Cannot get size of type deducer");
 			} break;
 
+			case BaseType::Kind::INTERFACE: {
+				// TODO(FUTURE): handle this better?
+				evo::debugAssert("Cannot get size of type deducer");
+			} break;
+
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
 		}
 
@@ -799,10 +872,7 @@ namespace pcit::panther{
 	// isTriviallySized
 
 	auto TypeManager::isTriviallySized(TypeInfo::ID id) const -> bool {
-		const TypeInfo& type_info = this->getTypeInfo(id);
-		if(type_info.isPointer()){ return true; }
-		if(type_info.qualifiers().back().isOptional){ evo::unimplemented("Trivially Copyable of optionals"); }
-		return this->isTriviallySized(type_info.baseTypeID());
+		return this->numBytes(id) <= this->numBytesOfPtr();
 	}
 
 	auto TypeManager::isTriviallySized(BaseType::ID id) const -> bool {
@@ -1081,7 +1151,14 @@ namespace pcit::panther{
 
 		if(type_info.qualifiers().empty()){ return this->getUnderlyingType(type_info.baseTypeID()); }
 		
-		if(type_info.qualifiers().back().isPtr){ return TypeManager::getTypeRawPtr(); }
+		if(type_info.qualifiers().back().isPtr){
+			if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+				return id;
+
+			}else{
+				return TypeManager::getTypeRawPtr();
+			}
+		}
 
 		return id;
 	}
@@ -1108,6 +1185,7 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT:          return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::STRUCT_TEMPLATE: evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::TYPE_DEDUCER:    evo::debugFatalBreak("Cannot get underlying type of this kind");
+			case BaseType::Kind::INTERFACE:       evo::debugFatalBreak("Cannot get underlying type of this kind");
 		}
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
@@ -1124,7 +1202,9 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_ISIZE:{
 				return this->getOrCreateTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, uint32_t(this->numBytesOfPtr()) * 8))
+					TypeInfo(this->getOrCreatePrimitiveBaseType(
+						Token::Kind::TYPE_I_N, uint32_t(this->numBytesOfPtr()) * 8
+					))
 				);
 			} break;
 
@@ -1287,7 +1367,7 @@ namespace pcit::panther{
 	auto TypeManager::getMin(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_min_signed(this->numBytesOfGeneralRegister() * 8));
+			case Token::Kind::TYPE_INT: return core::GenericValue(calc_min_signed(this->numBytesOfGeneralRegister()*8));
 			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_min_signed(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_I_N:   return core::GenericValue(calc_min_signed(primitive.bitWidth()));
 
@@ -1373,7 +1453,7 @@ namespace pcit::panther{
 	auto TypeManager::getNormalizedMin(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_min_signed(this->numBytesOfGeneralRegister() * 8));
+			case Token::Kind::TYPE_INT: return core::GenericValue(calc_min_signed(this->numBytesOfGeneralRegister()*8));
 			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_min_signed(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_I_N:   return core::GenericValue(calc_min_signed(primitive.bitWidth()));
 
@@ -1453,7 +1533,7 @@ namespace pcit::panther{
 	auto TypeManager::getMax(BaseType::ID id) const -> core::GenericValue {
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TYPE_INT:   return core::GenericValue(calc_max_signed(this->numBytesOfGeneralRegister() * 8));
+			case Token::Kind::TYPE_INT: return core::GenericValue(calc_max_signed(this->numBytesOfGeneralRegister()*8));
 			case Token::Kind::TYPE_ISIZE: return core::GenericValue(calc_max_signed(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_I_N:   return core::GenericValue(calc_max_signed(primitive.bitWidth()));
 

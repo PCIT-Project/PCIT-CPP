@@ -1,6 +1,28 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.132.0"></a>
+## v0.0.132.0
+
+### Panther
+- Added interfaces
+- Fixed crashing when printing AST of struct initalizer new
+- Improved names of PIR registers
+- Fixed functions that have the same type and have return parameters usually incorrectly registering as different types
+
+### PIR
+- Added printing of function pointer calls
+- Added printing of function types
+- Fixed function pointer exprs not being considered a constant or a value
+- Fixed some asserts in `Module` sometimes incorrectly saying two types were not equivalent
+- Fixed lowering to LLVMIR of global arrays of certain types
+- Fixed lowering to LLVMIR not including names of call expressions
+
+### Misc
+- Updated README
+
+
+<!---------------------------------->
 <a name="v0.0.131.2"></a>
 ## v0.0.131.2
 

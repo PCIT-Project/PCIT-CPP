@@ -41,8 +41,9 @@ HOW TO USE:
 
 			template<>
 			class optional<T> : public pcit::core::Optional<T>{
-				using pcit::core::Optional<T>::Optional;
-				using pcit::core::Optional<T>::operator=;
+				public:
+					using pcit::core::Optional<T>::Optional;
+					using pcit::core::Optional<T>::operator=;
 			};
 
 		}

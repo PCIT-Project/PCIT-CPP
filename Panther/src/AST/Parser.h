@@ -47,7 +47,9 @@ namespace pcit::panther{
 					};
 
 				public:
-					Result(Code res_code) : result_code(res_code) {}
+					Result(Code res_code) : result_code(res_code) {
+						evo::debugAssert(this->result_code != Code::SUCCESS, "Incorrect constructor for this code");
+					}
 					Result(AST::Node val) : result_code(Code::SUCCESS), node(val) {}
 
 					// Result(const Result& rhs) = default;
@@ -81,10 +83,14 @@ namespace pcit::panther{
 			template<AST::VarDecl::Kind VAR_DECL_KIND>
 			EVO_NODISCARD auto parse_var_decl() -> Result;
 
+			template<bool MUST_HAVE_BODY>
 			EVO_NODISCARD auto parse_func_decl() -> Result;
+
 			EVO_NODISCARD auto parse_alias_decl() -> Result;
 			EVO_NODISCARD auto parse_type_decl() -> Result;
 			EVO_NODISCARD auto parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
+			EVO_NODISCARD auto parse_interface_decl() -> Result;
+			EVO_NODISCARD auto parse_interface_impl() -> Result;
 			EVO_NODISCARD auto parse_return() -> Result;
 			EVO_NODISCARD auto parse_error() -> Result;
 			EVO_NODISCARD auto parse_unreachable() -> Result;

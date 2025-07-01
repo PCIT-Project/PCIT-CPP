@@ -186,8 +186,11 @@ namespace pcit::panther::sema{
 		return this->add_ident_default_impl(ident, id);
 	}
 
-
 	auto ScopeLevel::addIdent(std::string_view ident, BaseType::StructID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
 
@@ -202,7 +205,9 @@ namespace pcit::panther::sema{
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
-		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
 
 		return &this->ids.emplace(ident, TemplateTypeParam(typeID, location)).first->second;
 	}
@@ -212,7 +217,9 @@ namespace pcit::panther::sema{
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
-		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
 		
 		return &this->ids.emplace(ident, TemplateExprParam(typeID, value, location)).first->second;
 	}
@@ -223,7 +230,9 @@ namespace pcit::panther::sema{
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
-		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
 
 		return &this->ids.emplace(ident, DeducedType(typeID, location)).first->second;
 	}
@@ -232,7 +241,9 @@ namespace pcit::panther::sema{
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
-		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
 
 		return &this->ids.emplace(ident, MemberVar(location)).first->second;
 	}
@@ -242,6 +253,9 @@ namespace pcit::panther::sema{
 
 	auto ScopeLevel::disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool {
 		evo::debugAssert(id != nullptr, "`id` cannot be nullptr");
+
+		if(this->do_shadowing_checks == false){ return true; }
+
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return false; }
@@ -263,6 +277,8 @@ namespace pcit::panther::sema{
 
 
 	auto ScopeLevel::lookupDisallowedIdentForShadowing(std::string_view ident) const -> const IdentID* {
+		evo::debugAssert(this->do_shadowing_checks, "This scope level doesn't do shadowing checks");
+
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		const std::unordered_map<std::string_view, const IdentID*>::const_iterator ident_find =
@@ -278,7 +294,9 @@ namespace pcit::panther::sema{
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
-		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
 		
 		return &this->ids.emplace(ident, id).first->second;
 	}

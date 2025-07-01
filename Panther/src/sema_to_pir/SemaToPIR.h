@@ -33,9 +33,8 @@ namespace pcit::panther{
 
 			auto lower() -> void;
 
-			
-			auto lowerStruct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>;
 
+			auto lowerStruct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>;
 			// not thread-safe
 			auto lowerStructAndDependencies(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>; 
 
@@ -43,6 +42,9 @@ namespace pcit::panther{
 			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
 			auto lowerFuncDecl(sema::Func::ID func_id) -> pir::Function::ID;
 			auto lowerFuncDef(sema::Func::ID func_id) -> void;
+			auto lowerInterfaceVTable(
+				BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+			) -> void;
 			
 			auto createJITEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
 
@@ -95,13 +97,13 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
 
-			template<bool MAY_ADD_WEAK_DEPENDENCIES>
+			template<bool MAY_LOWER_DEPENDENCY>
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID voidable_type_id) -> pir::Type;
-			template<bool MAY_ADD_WEAK_DEPENDENCIES>
+			template<bool MAY_LOWER_DEPENDENCY>
 			EVO_NODISCARD auto get_type(const TypeInfo::ID type_id) -> pir::Type;
-			template<bool MAY_ADD_WEAK_DEPENDENCIES>
+			template<bool MAY_LOWER_DEPENDENCY>
 			EVO_NODISCARD auto get_type(const TypeInfo& type_info) -> pir::Type;
-			template<bool MAY_ADD_WEAK_DEPENDENCIES>
+			template<bool MAY_LOWER_DEPENDENCY>
 			EVO_NODISCARD auto get_type(const BaseType::ID base_type_id) -> pir::Type;
 
 			EVO_NODISCARD auto mangle_name(const BaseType::Struct::ID struct_id) const -> std::string;
@@ -109,8 +111,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto mangle_name(const sema::Func::ID func_id) const -> std::string;
 
 
+			// Note on naming: use a '.' prefix if the operation is an intermediate (not returned by some sema expr)
 			EVO_NODISCARD auto name(std::string_view str) const -> std::string;
-			
 			template<class... Args>
 			EVO_NODISCARD auto name(std::format_string<Args...> fmt, Args&&... args) const -> std::string;
 

@@ -18,6 +18,37 @@
 #include "../../include/sema/sema.h"
 
 
+
+namespace pcit::panther{
+	
+	struct SemaToPIRDataVTableID{
+		BaseType::Interface::ID interface_id;
+		BaseType::ID impl_id;
+
+		EVO_NODISCARD auto operator==(const SemaToPIRDataVTableID&) const -> bool = default;
+	};
+
+}
+
+
+
+namespace std{
+
+
+	template<>
+	struct hash<pcit::panther::SemaToPIRDataVTableID>{
+		auto operator()(const pcit::panther::SemaToPIRDataVTableID& key) const noexcept -> size_t {
+			return evo::hashCombine(
+				std::hash<uint32_t>{}(key.interface_id.get()), std::hash<pcit::panther::BaseType::ID>{}(key.impl_id)
+			);
+		};
+	};
+
+	
+}
+
+
+
 namespace pcit::panther{
 
 
@@ -80,11 +111,15 @@ namespace pcit::panther{
 				pir::ExternalFunction::ID build_set_use_std_lib = pir::ExternalFunction::ID::dummy();
 			};
 
+			using VTableID = SemaToPIRDataVTableID;
+
 		public:
 			SemaToPIRData(Config&& _config) : config(_config) {}
 			~SemaToPIRData() = default;
 
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
+
+			auto getInterfacePtrType(pir::Module& module) -> pir::Type;
 
 
 			//////////////////
@@ -94,12 +129,6 @@ namespace pcit::panther{
 				return this->jit_interface_funcs;
 			}
 
-			EVO_NODISCARD auto getJITInterfaceFuncsArray() const -> evo::ArrayProxy<pir::ExternalFunction::ID> {
-				return evo::ArrayProxy<pir::ExternalFunction::ID>(
-					reinterpret_cast<const pir::ExternalFunction::ID*>(&this->jit_interface_funcs),
-					sizeof(JITInterfaceFuncs) / sizeof(pir::ExternalFunction::ID)
-				);
-			}
 
 			auto createJITInterfaceFuncDecls(pir::Module& module) -> void;
 
@@ -110,13 +139,6 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getJITBuildFuncs() const -> const JITBuildFuncs& {
 				return this->jit_build_funcs;
-			}
-
-			EVO_NODISCARD auto getJITBuildFuncsArray() const -> evo::ArrayProxy<pir::ExternalFunction::ID> {
-				return evo::ArrayProxy<pir::ExternalFunction::ID>(
-					reinterpret_cast<const pir::ExternalFunction::ID*>(&this->jit_build_funcs),
-					sizeof(JITBuildFuncs) / sizeof(pir::ExternalFunction::ID)
-				);
 			}
 
 			auto createJITBuildFuncDecls(pir::Module& module) -> void;
@@ -151,6 +173,13 @@ namespace pcit::panther{
 			}
 
 
+			auto create_vtable(VTableID vtable_id, pir::GlobalVar::ID pir_id) -> void {
+				const auto lock = std::scoped_lock(this->vtables_lock);
+				const auto emplace_result = this->vtables.emplace(vtable_id, pir_id);
+				evo::debugAssert(emplace_result.second, "This vtable id was already added to PIR lower");
+			}
+
+
 
 			EVO_NODISCARD auto get_struct(const BaseType::Struct::ID struct_id) -> pir::Type {
 				const auto lock = std::scoped_lock(this->structs_lock);
@@ -170,6 +199,12 @@ namespace pcit::panther{
 				return *this->funcs.at(func_id.get());
 			}
 
+			EVO_NODISCARD auto get_vtable(const VTableID vtable_id) -> pir::GlobalVar::ID {
+				const auto lock = std::scoped_lock(this->vtables_lock);
+				evo::debugAssert(this->vtables.contains(vtable_id), "Doesn't have this vtable");
+				return this->vtables.at(vtable_id);
+			}
+
 
 
 			EVO_NODISCARD auto has_struct(const BaseType::Struct::ID struct_id) -> bool {
@@ -182,6 +217,9 @@ namespace pcit::panther{
 	
 		private:
 			Config config;
+
+			std::optional<pir::Type> interface_ptr_type = std::nullopt;
+			mutable core::SpinLock interface_ptr_type_lock{};			
 
 			std::unordered_map<uint32_t, pir::Type> structs{};
 			mutable core::SpinLock structs_lock{};
@@ -196,8 +234,12 @@ namespace pcit::panther{
 			JITInterfaceFuncs jit_interface_funcs{};
 			JITBuildFuncs jit_build_funcs{};
 
+			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};
+			mutable core::SpinLock vtables_lock{};
+
 			friend class SemaToPIR;
 	};
 
 
 }
+

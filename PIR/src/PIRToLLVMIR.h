@@ -74,8 +74,10 @@ namespace pcit::pir{
 			template<bool ADD_WEAK_DEPS>
 			auto lower_func_body(const Function& func, const llvmint::Function& llvm_func) -> void;
 
-
+			template<bool ADD_WEAK_DEPS>
 			EVO_NODISCARD auto get_constant_value(const Expr& expr) -> llvmint::Constant;
+
+			template<bool ADD_WEAK_DEPS>
 			EVO_NODISCARD auto get_global_var_value(const GlobalVar::Value& global_var_value, const Type& type)
 				-> llvmint::Constant;
 

@@ -24,10 +24,7 @@ namespace pcit::pir{
 			this->lower_struct_type<true>(struct_type);
 		}
 
-		for(const GlobalVar& global_var : this->module.getGlobalVarIter()){
-			this->lower_global_var<false>(global_var);
-		}
-
+		
 		for(const ExternalFunction& external_function : this->module.getExternalFunctionIter()){
 			this->lower_external_func<false>(external_function);
 		}
@@ -35,6 +32,10 @@ namespace pcit::pir{
 		auto func_setups = std::vector<FuncLoweredSetup>();
 		for(const Function& function : this->module.getFunctionIter()){
 			func_setups.emplace_back(this->lower_function_setup<false>(function));
+		}
+
+		for(const GlobalVar& global_var : this->module.getGlobalVarIter()){
+			this->lower_global_var<false>(global_var);
 		}
 
 		for(const FuncLoweredSetup& func_setup : func_setups){
@@ -112,7 +113,7 @@ namespace pcit::pir{
 		}
 
 		const llvmint::Type constant_type = this->get_type<ADD_WEAK_DEPS>(global.type); // this *MUST* come before value
-		const llvmint::Constant constant_value = this->get_global_var_value(global.value, global.type);
+		const llvmint::Constant constant_value = this->get_global_var_value<ADD_WEAK_DEPS>(global.value, global.type);
 
 		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
 			constant_value, constant_type, this->get_linkage(global.linkage), global.isConstant, global.name
@@ -322,14 +323,15 @@ namespace pcit::pir{
 									const Function& func_target = this->module.getFunction(target);
 
 									return this->builder.createCall(
-										this->get_func<ADD_WEAK_DEPS>(func_target), call_args
+										this->get_func<ADD_WEAK_DEPS>(func_target), call_args, call.name
 									).asValue();
 
 								}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
 									const ExternalFunction& func_target = this->module.getExternalFunction(target);
 
-									llvmint::CallInst call_inst = 
-										this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
+									llvmint::CallInst call_inst = this->builder.createCall(
+										this->get_func<ADD_WEAK_DEPS>(func_target), call_args, call.name
+									);
 									call_inst.setCallingConv(
 										this->get_calling_conv(func_target.callingConvention)
 									);
@@ -342,7 +344,7 @@ namespace pcit::pir{
 									const llvmint::Value func_target = this->get_value<ADD_WEAK_DEPS>(target.location);
 
 									llvmint::CallInst call_inst = 
-										this->builder.createCall(func_target, target_func_type, call_args);
+										this->builder.createCall(func_target, target_func_type, call_args, call.name);
 									call_inst.setCallingConv(
 										this->get_calling_conv(
 											this->module.getFunctionType(target.funcType).callingConvention
@@ -1371,12 +1373,13 @@ namespace pcit::pir{
 		this->args.clear();
 	}
 
-
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::get_constant_value(const Expr& expr) -> llvmint::Constant {
 		evo::debugAssert(
 			expr.kind() == Expr::Kind::NUMBER
 			|| expr.kind() == Expr::Kind::BOOLEAN
-			|| expr.kind() == Expr::Kind::NULLPTR,
+			|| expr.kind() == Expr::Kind::NULLPTR
+			|| expr.kind() == Expr::Kind::FUNCTION_POINTER,
 			"Not a valid constant"
 		);
 
@@ -1385,6 +1388,9 @@ namespace pcit::pir{
 
 		}else if(expr.kind() == Expr::Kind::NULLPTR){
 			return this->builder.getValueNull();
+
+		}else if(expr.kind() == Expr::Kind::FUNCTION_POINTER){
+			return this->get_func<ADD_WEAK_DEPS>(this->reader.getFunctionPointer(expr)).asConstant();
 		}
 
 		const Number& number = this->reader.getNumber(expr);
@@ -1407,7 +1413,7 @@ namespace pcit::pir{
 		}
 	}
 
-
+	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::get_global_var_value(const GlobalVar::Value& global_var_value, const Type& type)
 	-> llvmint::Constant {
 		return global_var_value.visit([&](const auto& value) -> llvmint::Constant {
@@ -1417,7 +1423,7 @@ namespace pcit::pir{
 				return llvmint::Constant(nullptr);
 
 			}else if constexpr(std::is_same<ValueT, Expr>()){
-				return this->get_constant_value(value);
+				return this->get_constant_value<ADD_WEAK_DEPS>(value);
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
 				switch(type.kind()){
@@ -1450,12 +1456,12 @@ namespace pcit::pir{
 					} break;
 
 					default: {
-						return this->builder.getValueGlobalAggregateZero(this->get_type<false>(type));
+						return this->builder.getValueGlobalAggregateZero(this->get_type<ADD_WEAK_DEPS>(type));
 					} break;
 				}
 
 			}else if constexpr(std::is_same<ValueT,GlobalVar::Uninit>()){
-				return this->builder.getValueGlobalUndefValue(this->get_type<false>(type));
+				return this->builder.getValueGlobalUndefValue(this->get_type<ADD_WEAK_DEPS>(type));
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
 				return this->builder.getValueGlobalStr(this->module.getGlobalString(value).value);
@@ -1467,10 +1473,10 @@ namespace pcit::pir{
 				auto values = std::vector<llvmint::Constant>();
 				values.reserve(array.values.size());
 				for(const GlobalVar::Value& arr_value : array.values){
-					values.emplace_back(this->get_global_var_value(arr_value, array_elem_type));
+					values.emplace_back(this->get_global_var_value<ADD_WEAK_DEPS>(arr_value, array_elem_type));
 				}
 
-				return this->builder.getValueGlobalArray(values);
+				return this->builder.getValueGlobalArray(this->get_type<ADD_WEAK_DEPS>(array_elem_type), values);
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
 				const GlobalVar::Struct& global_struct = this->module.getGlobalStruct(value);
@@ -1479,12 +1485,12 @@ namespace pcit::pir{
 				auto values = std::vector<llvmint::Constant>();
 				values.reserve(global_struct.values.size());
 				for(size_t i = 0; const GlobalVar::Value& arr_value : global_struct.values){
-					values.emplace_back(this->get_global_var_value(arr_value, struct_type.members[i]));
+					values.emplace_back(this->get_global_var_value<ADD_WEAK_DEPS>(arr_value, struct_type.members[i]));
 
 					i += 1;
 				}
 
-				return this->builder.getValueGlobalStruct(this->get_struct_type<false>(struct_type), values);
+				return this->builder.getValueGlobalStruct(this->get_struct_type<ADD_WEAK_DEPS>(struct_type), values);
 
 			}else{
 				static_assert(false, "Unknown GlobalVar::Value");

@@ -33,12 +33,30 @@ namespace pcit::panther{
 		}
 
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
+			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
+
 			this->lowerFuncDecl(func_id);
 		}
+
+		for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
+			const auto interface_id = BaseType::Interface::ID(i);
+
+			const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
+
+			for(const auto& [target_type_id, impl] : interface.impls){
+				this->lowerInterfaceVTable(interface_id, target_type_id, impl.methods);
+			}
+		}
+
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
+			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
+
 			this->lowerFuncDef(func_id);
 		}
 	}
+
 
 
 	
@@ -83,6 +101,11 @@ namespace pcit::panther{
 
 	auto SemaToPIR::lowerFuncDecl(sema::Func::ID func_id) -> pir::Function::ID {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+
+		evo::debugAssert(
+			func.status != sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT, "Incorrect status for lowering func decl"
+		);
+
 		this->current_source = &this->context.getSourceManager()[func.sourceID];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
 
@@ -290,7 +313,7 @@ namespace pcit::panther{
 				const pir::Type param_type = this->get_type<false>(param.typeID);
 				const pir::Expr param_alloca = this->agent.createAlloca(
 					param_type,
-					this->name("ALLOCA.{}", this->current_source->getTokenBuffer()[func.params[i].ident].getString())
+					this->name("{}.ALLOCA", this->current_source->getTokenBuffer()[func.params[i].ident].getString())
 				);
 
 				this->agent.createStore(param_alloca, this->agent.createParamExpr(i));
@@ -309,6 +332,8 @@ namespace pcit::panther{
 
 	auto SemaToPIR::lowerFuncDef(sema::Func::ID func_id) -> void {
 		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
+		evo::debugAssert(sema_func.status == sema::Func::Status::DEF_DONE, "Incorrect status for lowering func def");
+
 		this->current_source = &this->context.getSourceManager()[sema_func.sourceID];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
 
@@ -347,6 +372,55 @@ namespace pcit::panther{
 
 		this->local_func_exprs.clear();
 	}
+
+
+
+
+	auto SemaToPIR::lowerInterfaceVTable(
+		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+	) -> void {
+		std::string vtable_name = [&](){
+			switch(type.kind()){
+				case BaseType::Kind::PRIMITIVE:
+					return std::format("PTHR.vtable.i{}.p{}", interface_id.get(), type.primitiveID().get());
+
+				case BaseType::Kind::ARRAY:
+					return std::format("PTHR.vtable.i{}.a{}", interface_id.get(), type.arrayID().get());
+
+				case BaseType::Kind::TYPEDEF:
+					return std::format("PTHR.vtable.i{}.t{}", interface_id.get(), type.typedefID().get());
+
+				case BaseType::Kind::STRUCT:
+					return std::format("PTHR.vtable.i{}.s{}", interface_id.get(), type.structID().get());
+
+				case BaseType::Kind::DUMMY:        case BaseType::Kind::FUNCTION:
+				case BaseType::Kind::ALIAS:        case BaseType::Kind::STRUCT_TEMPLATE:
+				case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+					evo::debugFatalBreak("Not valid base type for VTable");
+				} break;
+			}
+
+			evo::unreachable();
+		}();
+
+
+		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
+		vtable_values.reserve(funcs.size());
+		for(sema::Func::ID func_id : funcs){
+			vtable_values.emplace_back(this->agent.createFunctionPointer(this->data.get_func(func_id).pir_id));
+		}
+
+		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
+			std::move(vtable_name),
+			this->module.createArrayType(this->module.createPtrType(), uint64_t(funcs.size())),
+			pir::Linkage::EXTERNAL,
+			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values)),
+			true
+		);
+
+		this->data.create_vtable(SemaToPIRData::VTableID(interface_id, type), vtable);
+	}
+
 
 
 
@@ -904,6 +978,101 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Stmt::Kind::INTERFACE_CALL: {
+				const sema::InterfaceCall& interface_call =
+					this->context.getSemaBuffer().getInterfaceCall(stmt.interfaceCallID());
+
+
+				///////////////////////////////////
+				// create target func type
+
+				const BaseType::Function& target_func_type =
+					this->context.getTypeManager().getFunction(interface_call.funcTypeID);
+
+				const pir::Type return_type = [&](){
+					if(target_func_type.hasNamedReturns()){ return this->module.createVoidType(); }
+					if(target_func_type.returnsVoid()){ return this->module.createVoidType(); }
+					return this->get_type<false>(target_func_type.returnParams[0].typeID.asTypeID());
+				}();
+
+				auto param_types = evo::SmallVector<pir::Type>();
+				for(const BaseType::Function::Param& param : target_func_type.params){
+					if(param.shouldCopy){
+						param_types.emplace_back(this->get_type<false>(param.typeID));
+					}else{
+						param_types.emplace_back(this->module.createPtrType());
+					}
+				}
+				if(target_func_type.hasNamedReturns()){
+					for(size_t i = 0; i < target_func_type.returnParams.size(); i+=1){
+						param_types.emplace_back(this->module.createPtrType());
+					}
+				}
+
+
+				const pir::Type func_pir_type = this->module.createFunctionType(
+					std::move(param_types),
+					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
+					return_type
+				);
+
+
+				///////////////////////////////////
+				// get func pointer
+
+				const pir::Expr target_interface_ptr = this->get_expr_pointer(interface_call.value);
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+
+				const pir::Expr vtable_ptr = this->agent.createCalcPtr(
+					target_interface_ptr,
+					interface_ptr_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".VTABLE.PTR")
+				);
+				const pir::Expr vtable = this->agent.createLoad(
+					vtable_ptr,
+					this->module.createPtrType(),
+					false,
+					pir::AtomicOrdering::NONE,
+					this->name(".VTABLE")
+				);
+
+				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
+					vtable,
+					this->module.createPtrType(),
+					evo::SmallVector<pir::CalcPtr::Index>{interface_call.index},
+					this->name(".VTABLE.FUNC.PTR")
+				);
+				const pir::Expr target_func = this->agent.createLoad(
+					target_func_ptr,
+					this->module.createPtrType(),
+					false,
+					pir::AtomicOrdering::NONE,
+					this->name(".VTABLE.FUNC")
+				);
+
+
+				///////////////////////////////////
+				// make call
+
+				auto args = evo::SmallVector<pir::Expr>();
+				for(size_t i = 0; const sema::Expr& arg : interface_call.args){
+					if(target_func_type.params[i].shouldCopy){
+						args.emplace_back(this->get_expr_register(arg));
+					}else{
+						args.emplace_back(this->get_expr_pointer(arg));
+					}
+
+					i += 1;
+				}
+
+				if(return_type.kind() == pir::Type::Kind::VOID){
+					this->agent.createCallVoid(target_func, func_pir_type, std::move(args));
+				}else{
+					std::ignore = this->agent.createCall(target_func, func_pir_type, std::move(args));
+				}
+			} break;
+
 			case sema::Stmt::Kind::ASSIGN: {
 				const sema::Assign& assignment = this->context.getSemaBuffer().getAssign(stmt.assignID());
 
@@ -926,7 +1095,7 @@ namespace pcit::panther{
 					}else{
 						targets.emplace_back(
 							this->agent.createAlloca(
-								this->get_type<false>(target.as<TypeInfo::ID>()), this->name("DISCARD")
+								this->get_type<false>(target.as<TypeInfo::ID>()), this->name(".DISCARD")
 							)
 						);
 					}
@@ -1212,7 +1381,7 @@ namespace pcit::panther{
 					return number;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name("NUMBER.ALLOCA"));
+					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
 					this->agent.createStore(alloca, number);
 					return alloca;
 
@@ -1235,7 +1404,7 @@ namespace pcit::panther{
 					return number;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name("NUMBER.ALLOCA"));
+					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
 					this->agent.createStore(alloca, number);
 					return alloca;
 
@@ -1258,7 +1427,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr alloca = this->agent.createAlloca(
-						this->module.createBoolType(), this->name("BOOLEAN.ALLOCA")
+						this->module.createBoolType(), this->name(".BOOLEAN.ALLOCA")
 					);
 					this->agent.createStore(alloca, boolean);
 					return alloca;
@@ -1278,14 +1447,17 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::AGGREGATE_VALUE: {
-				const sema::AggregateValue& aggregate = this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
+				const sema::AggregateValue& aggregate =
+					this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
+
+
 
 				if constexpr(MODE != GetExprMode::DISCARD){
 					const pir::Type pir_type = this->get_type<false>(aggregate.typeID);
 
 					const pir::Expr initialization_target = [&](){
 						if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
-							return this->agent.createAlloca(pir_type);
+							return this->agent.createAlloca(pir_type, ".AGGREGATE");
 						}else{
 							evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 							return store_locations[0];
@@ -1293,15 +1465,46 @@ namespace pcit::panther{
 					}();
 
 
-					for(uint32_t i = 0; const sema::Expr& value : aggregate.values){
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							initialization_target, pir_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
-						);
+					if(aggregate.typeID.kind() == BaseType::Kind::STRUCT){
+						const BaseType::Struct& struct_info =
+							this->context.getTypeManager().getStruct(aggregate.typeID.structID());
 
-						this->get_expr_store(value, calc_ptr);
+						const Source& struct_source = this->context.getSourceManager()[struct_info.sourceID];
+						const TokenBuffer& token_buffer = struct_source.getTokenBuffer();
 
-						i += 1;
+						const std::string_view struct_name = token_buffer[struct_info.identTokenID].getString();
+
+						for(uint32_t i = 0; const sema::Expr& value : aggregate.values){
+							const pir::Expr calc_ptr = this->agent.createCalcPtr(
+								initialization_target,
+								pir_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, i},
+								this->name(
+									".NEW.{}.{}",
+									struct_name,
+									token_buffer[struct_info.memberVarsABI[i]->identTokenID].getString()
+								)
+							);
+
+							this->get_expr_store(value, calc_ptr);
+
+							i += 1;
+						}
+
+					}else{
+						for(uint32_t i = 0; const sema::Expr& value : aggregate.values){
+							const pir::Expr calc_ptr = this->agent.createCalcPtr(
+								initialization_target, pir_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
+							);
+
+							this->get_expr_store(value, calc_ptr);
+
+							i += 1;
+						}
 					}
+					
+
+
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createLoad(initialization_target, pir_type);
@@ -1332,7 +1535,7 @@ namespace pcit::panther{
 					return number;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name("NUMBER.ALLOCA"));
+					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
 					this->agent.createStore(alloca, number);
 					return alloca;
 
@@ -1426,23 +1629,23 @@ namespace pcit::panther{
 						const pir::Type return_type =
 							this->get_type<false>(target_type.returnParams[0].typeID.asTypeID());
 
-						const pir::Expr retunr_alloc = this->agent.createAlloca(return_type);
-						args.emplace_back(retunr_alloc);
+						const pir::Expr return_alloc = this->agent.createAlloca(return_type);
+						args.emplace_back(return_alloc);
 						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
 
 						return this->agent.createLoad(
-							retunr_alloc, return_type
+							return_alloc, return_type
 						);
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Type return_type =
 							this->get_type<false>(target_type.returnParams[0].typeID.asTypeID());
 						
-						const pir::Expr retunr_alloc = this->agent.createAlloca(return_type);
-						args.emplace_back(retunr_alloc);
+						const pir::Expr return_alloc = this->agent.createAlloca(return_type);
+						args.emplace_back(return_alloc);
 						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
 
-						return retunr_alloc;
+						return return_alloc;
 						
 					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
 						for(pir::Expr store_location : store_locations){
@@ -1456,7 +1659,7 @@ namespace pcit::panther{
 					const pir::Expr call_return  = this->agent.createCall(
 						target_func_info.pir_id,
 						std::move(args),
-						this->name("CALL.{}", this->mangle_name(func_call.target.as<sema::Func::ID>()))
+						this->name("{}.CALL", this->mangle_name(func_call.target.as<sema::Func::ID>()))
 					);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -1567,7 +1770,7 @@ namespace pcit::panther{
 						this->get_expr_pointer(accessor.target),
 						target_pir_type,
 						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
-						this->name("ACCESSOR")
+						this->name(".ACCESSOR")
 					);
 
 					this->agent.createMemcpy(
@@ -1618,7 +1821,7 @@ namespace pcit::panther{
 						this->get_expr_register(accessor.target),
 						target_pir_type,
 						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
-						this->name("ACCESSOR")
+						this->name(".ACCESSOR")
 					);
 
 					this->agent.createMemcpy(
@@ -1644,7 +1847,7 @@ namespace pcit::panther{
 					auto label_output_locations = evo::SmallVector<pir::Expr>();
 					const pir::Type output_type = this->get_type<false>(block_expr.outputs[0].typeID);
 					label_output_locations.emplace_back(
-						this->agent.createAlloca(output_type, this->name("BLOCK_EXPR.OUTPUT"))
+						this->agent.createAlloca(output_type, this->name(".BLOCK_EXPR.OUTPUT.ALLOCA"))
 					);
 
 					this->push_scope_level(label, std::move(label_output_locations), end_block);
@@ -1670,7 +1873,7 @@ namespace pcit::panther{
 						this->agent.getAlloca(output).type,
 						false,
 						pir::AtomicOrdering::NONE,
-						this->name("LOAD.BLOCK_EXPR.OUTPUT")
+						this->name("BLOCK_EXPR.OUTPUT")
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -1686,6 +1889,217 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::FAKE_TERM_INFO: {
 				evo::debugFatalBreak("Should never lower fake term info");
+			} break;
+
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+					
+				}else{
+					const sema::MakeInterfacePtr& make_interface_ptr =
+						this->context.getSemaBuffer().getMakeInterfacePtr(expr.makeInterfacePtrID());
+
+					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+
+					const pir::GlobalVar::ID vtable = this->data.get_vtable(
+						SemaToPIRData::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
+					);
+
+
+					const pir::Expr target = [&](){
+						if constexpr(MODE == GetExprMode::STORE){
+							return store_locations[0];
+						}else{
+							return this->agent.createAlloca(interface_ptr_type);
+						}
+					}();
+
+
+					const pir::Expr value_ptr = this->agent.createCalcPtr(
+						target,
+						interface_ptr_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(".MAKE_INTERFACE_PTR.VALUE")
+					);
+					this->get_expr_store(make_interface_ptr.expr, value_ptr);
+
+					const pir::Expr vtable_ptr = this->agent.createCalcPtr(
+						target,
+						interface_ptr_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(".MAKE_INTERFACE_PTR.VTABLE")
+					);
+					this->agent.createStore(vtable_ptr, this->agent.createGlobalValue(vtable));
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(target, interface_ptr_type);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return target;
+
+					}else if constexpr(MODE == GetExprMode::STORE){
+						return std::nullopt;
+					}
+				}
+			} break;
+
+			case sema::Expr::Kind::INTERFACE_CALL: {
+				const sema::InterfaceCall& interface_call =
+					this->context.getSemaBuffer().getInterfaceCall(expr.interfaceCallID());
+
+
+				///////////////////////////////////
+				// create target func type
+
+				const BaseType::Function& target_func_type =
+					this->context.getTypeManager().getFunction(interface_call.funcTypeID);
+
+				const pir::Type return_type = [&](){
+					if(target_func_type.hasNamedReturns()){ return this->module.createVoidType(); }
+
+					return this->get_type<false>(target_func_type.returnParams[0].typeID.asTypeID());
+				}();
+
+				auto param_types = evo::SmallVector<pir::Type>();
+				for(const BaseType::Function::Param& param : target_func_type.params){
+					if(param.shouldCopy){
+						param_types.emplace_back(this->get_type<false>(param.typeID));
+					}else{
+						param_types.emplace_back(this->module.createPtrType());
+					}
+				}
+				if(target_func_type.hasNamedReturns()){
+					for(size_t i = 0; i < target_func_type.returnParams.size(); i+=1){
+						param_types.emplace_back(this->module.createPtrType());
+					}
+				}
+
+
+				const pir::Type func_pir_type = this->module.createFunctionType(
+					std::move(param_types),
+					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
+					return_type
+				);
+
+
+				///////////////////////////////////
+				// get func pointer
+
+				const pir::Expr target_interface_ptr = this->get_expr_pointer(interface_call.value);
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+
+				const pir::Expr vtable_ptr = this->agent.createCalcPtr(
+					target_interface_ptr,
+					interface_ptr_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".VTABLE.PTR")
+				);
+				const pir::Expr vtable = this->agent.createLoad(
+					vtable_ptr,
+					this->module.createPtrType(),
+					false,
+					pir::AtomicOrdering::NONE,
+					this->name(".VTABLE")
+				);
+
+				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
+					vtable,
+					this->module.createPtrType(),
+					evo::SmallVector<pir::CalcPtr::Index>{interface_call.index},
+					this->name(".VTABLE.FUNC.PTR")
+				);
+				const pir::Expr target_func = this->agent.createLoad(
+					target_func_ptr,
+					this->module.createPtrType(),
+					false,
+					pir::AtomicOrdering::NONE,
+					this->name(".VTABLE.FUNC")
+				);
+
+
+				///////////////////////////////////
+				// make call
+
+				auto args = evo::SmallVector<pir::Expr>();
+				for(size_t i = 0; const sema::Expr& arg : interface_call.args){
+					if(target_func_type.params[i].shouldCopy){
+						args.emplace_back(this->get_expr_register(arg));
+					}else{
+						args.emplace_back(this->get_expr_pointer(arg));
+					}
+
+					i += 1;
+				}
+
+
+				if(target_func_type.hasNamedReturns()){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						const pir::Type actual_return_type =
+							this->get_type<false>(target_func_type.returnParams[0].typeID.asTypeID());
+
+						const pir::Expr return_alloc = this->agent.createAlloca(
+							actual_return_type, this->name(".INTERFACE_CALL.ALLOCA")
+						);
+						args.emplace_back(return_alloc);
+						this->agent.createCallVoid(target_func, func_pir_type, std::move(args));
+
+						return this->agent.createLoad(
+							return_alloc,
+							actual_return_type,
+							false,
+							pir::AtomicOrdering::NONE,
+							this->name("INTERFACE_CALL")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Type actual_return_type =
+							this->get_type<false>(target_func_type.returnParams[0].typeID.asTypeID());
+
+						const pir::Expr return_alloc = this->agent.createAlloca(
+							actual_return_type, this->name("INTERFACE_CALL.ALLOCA")
+						);
+						args.emplace_back(return_alloc);
+						this->agent.createCallVoid(target_func, func_pir_type, std::move(args));
+
+						return return_alloc;
+						
+					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+						for(pir::Expr store_location : store_locations){
+							args.emplace_back(store_location);
+						}
+						this->agent.createCallVoid(target_func, func_pir_type, std::move(args));
+						return std::nullopt;
+					}
+
+				}else{
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createCall(
+							target_func, func_pir_type, std::move(args), this->name("INTERFACE_CALL")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr call_return = this->agent.createCall(
+							target_func, func_pir_type, std::move(args), this->name(".INTERFACE_CALL")
+						);
+
+						const pir::Expr alloca = this->agent.createAlloca(
+							return_type, this->name("INTERFACE_CALL.ALLOCA")
+						);
+						this->agent.createStore(alloca, call_return);
+						return alloca;
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+						const pir::Expr call_return = this->agent.createCall(
+							target_func, func_pir_type, std::move(args), this->name(".INTERFACE_CALL")
+						);
+						this->agent.createStore(store_locations.front(), call_return);
+						return std::nullopt;
+
+					}else{
+						return std::nullopt;
+					}
+				}
 			} break;
 
 			case sema::Expr::Kind::TRY_ELSE: {
@@ -2007,7 +2421,7 @@ namespace pcit::panther{
 						pir_var.type,
 						false,
 						pir::AtomicOrdering::NONE,
-						this->name("LOAD.{}", this->mangle_name(expr.globalVarID()))
+						this->name("{}.LOAD", this->mangle_name(expr.globalVarID()))
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -2270,7 +2684,8 @@ namespace pcit::panther{
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createBitCast(from_value, to_type);
+				const pir::Expr register_value =
+					this->agent.createBitCast(from_value, to_type, this->name("BIT_CAST"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -2296,7 +2711,7 @@ namespace pcit::panther{
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createTrunc(from_value, to_type);
+				const pir::Expr register_value = this->agent.createTrunc(from_value, to_type, this->name("TRUNC"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -2321,7 +2736,7 @@ namespace pcit::panther{
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createFTrunc(from_value, to_type);
+				const pir::Expr register_value = this->agent.createFTrunc(from_value, to_type, this->name("FTRUNC"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -2346,7 +2761,7 @@ namespace pcit::panther{
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createSExt(from_value, to_type);
+				const pir::Expr register_value = this->agent.createSExt(from_value, to_type, this->name("SEXT"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -2371,7 +2786,7 @@ namespace pcit::panther{
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createZExt(from_value, to_type);
+				const pir::Expr register_value = this->agent.createZExt(from_value, to_type, this->name("ZEXT"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -2396,7 +2811,7 @@ namespace pcit::panther{
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value = this->agent.createFExt(from_value, to_type);
+				const pir::Expr register_value = this->agent.createFExt(from_value, to_type, this->name("FEXT"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -2425,9 +2840,9 @@ namespace pcit::panther{
 						instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
 
 					if(this->context.type_manager.isUnsignedIntegral(from_type_id)){
-						return this->agent.createUIToF(from_value, to_type);
+						return this->agent.createUIToF(from_value, to_type, this->name("UI_TO_F"));
 					}else{
-						return this->agent.createIToF(from_value, to_type);
+						return this->agent.createIToF(from_value, to_type, this->name("I_TO_F"));
 					}
 				}();
 
@@ -2455,9 +2870,9 @@ namespace pcit::panther{
 
 				const pir::Expr register_value = [&](){
 					if(this->context.getTypeManager().isUnsignedIntegral(to_type_id)){
-						return this->agent.createFToUI(from_value, to_type);
+						return this->agent.createFToUI(from_value, to_type, this->name("F_TO_UI"));
 					}else{
-						return this->agent.createFToI(from_value, to_type);
+						return this->agent.createFToI(from_value, to_type, this->name("F_TO_I"));
 					}
 				}();
 
@@ -3641,7 +4056,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::ADDR_OF:           case sema::Expr::Kind::DEREF:
 			case sema::Expr::Kind::ACCESSOR:          case sema::Expr::Kind::PTR_ACCESSOR:
 			case sema::Expr::Kind::TRY_ELSE:          case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::FAKE_TERM_INFO:    case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::FAKE_TERM_INFO:    case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+			case sema::Expr::Kind::INTERFACE_CALL:    case sema::Expr::Kind::PARAM:
 			case sema::Expr::Kind::RETURN_PARAM:      case sema::Expr::Kind::ERROR_RETURN_PARAM:
 			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: case sema::Expr::Kind::EXCEPT_PARAM:
 			case sema::Expr::Kind::VAR:               case sema::Expr::Kind::GLOBAL_VAR:
@@ -3659,31 +4075,32 @@ namespace pcit::panther{
 	// get type
 
 
-	template<bool MAY_BUILD_STRUCT>
+	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::get_type(const TypeInfo::VoidableID voidable_type_id) -> pir::Type {
 		if(voidable_type_id.isVoid()){ return this->module.createVoidType(); }
-		return this->get_type<MAY_BUILD_STRUCT>(voidable_type_id.asTypeID());
+		return this->get_type<MAY_LOWER_DEPENDENCY>(voidable_type_id.asTypeID());
 	}
 
 
-	template<bool MAY_BUILD_STRUCT>
+	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::get_type(const TypeInfo::ID type_id) -> pir::Type {
-		return this->get_type<MAY_BUILD_STRUCT>(this->context.getTypeManager().getTypeInfo(type_id));
+		return this->get_type<MAY_LOWER_DEPENDENCY>(this->context.getTypeManager().getTypeInfo(type_id));
 	}
 
-	template<bool MAY_BUILD_STRUCT>
+	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::get_type(const TypeInfo& type_info) -> pir::Type {
+		if(type_info.isInterfacePointer()){ return this->data.getInterfacePtrType(this->module); }
 		if(type_info.isPointer()){ return this->module.createPtrType(); }
 
 		if(type_info.isOptionalNotPointer()){
 			evo::unimplemented("Optional type");
 		}
 
-		return this->get_type<MAY_BUILD_STRUCT>(type_info.baseTypeID());
+		return this->get_type<MAY_LOWER_DEPENDENCY>(type_info.baseTypeID());
 	}
 
 
-	template<bool MAY_BUILD_STRUCT>
+	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::get_type(const BaseType::ID base_type_id) -> pir::Type {
 		switch(base_type_id.kind()){
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Not a valid base type");
@@ -3758,7 +4175,7 @@ namespace pcit::panther{
 			} break;
 			
 			case BaseType::Kind::STRUCT: {
-				if constexpr(MAY_BUILD_STRUCT){
+				if constexpr(MAY_LOWER_DEPENDENCY){
 					if(this->data.has_struct(base_type_id.structID()) == false){
 						this->lowerStructAndDependencies(base_type_id.structID());
 					}
@@ -3785,10 +4202,9 @@ namespace pcit::panther{
 	// name mangling
 
 	auto SemaToPIR::mangle_name(const BaseType::Struct::ID struct_id) const -> std::string {
-		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
-		const Source& source = this->context.getSourceManager()[struct_type.sourceID];
-
 		if(this->data.getConfig().useReadableNames){
+			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
+			const Source& source = this->context.getSourceManager()[struct_type.sourceID];
 			return std::format(
 				"PTHR.s{}.{}", struct_id.get(), source.getTokenBuffer()[struct_type.identTokenID].getString()
 			);
@@ -3848,7 +4264,7 @@ namespace pcit::panther{
 	template<class... Args>
 	auto SemaToPIR::name(std::format_string<Args...> fmt, Args&&... args) const -> std::string {
 		if(this->data.getConfig().useReadableNames) [[unlikely]] {
-			return std::format(fmt, std::forward<Args...>(args)...);
+			return std::format(fmt, std::forward<decltype(args)>(args)...);
 		}else{
 			return std::string();
 		}

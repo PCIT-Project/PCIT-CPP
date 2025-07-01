@@ -1,9 +1,16 @@
+<p align="center">
+	<a href="https://www.pcitproject.org">
+		<img src="https://www.pcitproject.org/assets/LogoBig.png" alt="PCIT Project Logo">
+	</a>
+</p>
+
+
 # PCIT-CPP
 
 PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the PCIT Project website ([www.pcitproject.org](https://www.pcitproject.org)) for more information.
 
 > [!NOTE]
-> This is in the very early stages and as such is not usable yet. If you really want to try it now (without any documentation), you can modify `Panther-old/exec/main.cpp`.
+> This is in the very early stages and as such is not usable yet. If you really want to try it now (with little documentation), you can run the `pthr` executable (once compiled) and modify the files found in `testing`.
 
 ## Tools
 - [Panther](https://www.pcitproject.org/site/Panther.html): Statically-typed, high-performance, general-purpose programming language
@@ -12,7 +19,11 @@ PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, 
 
 
 ## Building:
-The build instructions can be found [here](https://www.pcitproject.org/site/build.html).
+The build instructions can be found on the [Building PCIT Project Software](https://www.pcitproject.org/site/build.html) page.
+
+
+## Updates:
+List of changes for each version can be found [here](CHANGELOG.md). Note: very small changes may not be listed.
 
 
 ## Versioning:
@@ -31,7 +42,3 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 	- TBD
 - 1.0:
 	- The project is "released" and is production ready
-
-
-## Updates:
-List of changes for each version can be found [here](CHANGELOG.md). Note: very small changes may not be listed.

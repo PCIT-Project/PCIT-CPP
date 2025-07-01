@@ -48,6 +48,8 @@ namespace pcit::pir{
 			auto print_non_standard_name(std::string_view) -> void;
 
 			auto print_atomic_ordering(AtomicOrdering ordering) -> void;
+			auto print_calling_convention(CallingConvention convention) -> void;
+			auto print_linkage(Linkage linkage) -> void;
 
 
 			EVO_NODISCARD auto get_module() const -> const Module& { return this->reader.getModule(); }

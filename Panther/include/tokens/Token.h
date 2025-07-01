@@ -94,6 +94,8 @@ namespace pcit::panther{
 				KEYWORD_ALIAS,
 				KEYWORD_TYPE,
 				KEYWORD_STRUCT,
+				KEYWORD_INTERFACE,
+				KEYWORD_IMPL,
 
 				KEYWORD_RETURN,
 				KEYWORD_ERROR,
@@ -463,6 +465,8 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_ALIAS:            return "alias";
 					break; case Kind::KEYWORD_TYPE:             return "type";
 					break; case Kind::KEYWORD_STRUCT:           return "struct";
+					break; case Kind::KEYWORD_INTERFACE:        return "interface";
+					break; case Kind::KEYWORD_IMPL:             return "impl";
 
 					break; case Kind::KEYWORD_RETURN:           return "return";
 					break; case Kind::KEYWORD_ERROR:            return "error";

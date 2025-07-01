@@ -1,5 +1,0 @@
-
-
-func test = () #pub -> UI8 {
-	return 14;
-}

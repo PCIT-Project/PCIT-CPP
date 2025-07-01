@@ -1,7 +1,0 @@
-
-alias Integer #pub = Int;
-
-type Struct = struct #pub {
-	
-}
-

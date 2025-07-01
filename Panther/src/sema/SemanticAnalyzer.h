@@ -79,6 +79,15 @@ namespace pcit::panther{
 			) -> Result;
 			EVO_NODISCARD auto instr_func_constexpr_pir_ready_if_needed() -> Result;
 			EVO_NODISCARD auto instr_template_func(const Instruction::TemplateFunc& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_decl(const Instruction::InterfaceDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_def() -> Result;
+			EVO_NODISCARD auto instr_interface_func_def(const Instruction::InterfaceFuncDef& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_impl_decl(const Instruction::InterfaceImplDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_impl_method_lookup(const Instruction::InterfaceImplMethodLookup& instr)
+				-> Result;
+			EVO_NODISCARD auto instr_interface_impl_def(const Instruction::InterfaceImplDef& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_impl_constexpr_pir() -> Result;
+
 
 
 			EVO_NODISCARD auto instr_local_var(const Instruction::LocalVar& instr) -> Result;
@@ -113,7 +122,17 @@ namespace pcit::panther{
 			template<bool IS_CONSTEXPR, bool ERRORS>
 			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR, ERRORS>& instr)
 				-> Result;
+
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto interface_func_call(
+				const TermInfo& target_term_info,
+				evo::SmallVector<sema::Expr>&& args,
+				sema::Func::ID selected_func_call_id,
+				SymbolProc::TermInfoID output
+			) -> Result;
+
 			EVO_NODISCARD auto instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result;
+
 
 			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
 
@@ -160,6 +179,15 @@ namespace pcit::panther{
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_expr_as(const Instruction::As<IS_CONSTEXPR>& instr) -> Result;
 
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto operator_as_interface_ptr(
+				const Instruction::As<IS_CONSTEXPR>& instr,
+				const TermInfo& from_expr,
+				const TypeInfo& from_type_info,
+				const TypeInfo& to_type_info
+			) -> Result;
+
+
 			template<bool IS_CONSTEXPR, Instruction::MathInfixKind MATH_INFIX_KIND>
 			EVO_NODISCARD auto instr_expr_math_infix(const Instruction::MathInfix<IS_CONSTEXPR, MATH_INFIX_KIND>& instr)
 				-> Result;
@@ -196,6 +224,13 @@ namespace pcit::panther{
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto struct_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs
+			) -> Result;
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto interface_accessor(
 				const Instruction::Accessor<NEEDS_DEF>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs
@@ -379,6 +414,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_func_attrs(
 				const AST::FuncDecl& func_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<FuncAttrs>;
+
+
+
+			struct InterfaceAttrs{
+				bool is_pub;
+			};
+			EVO_NODISCARD auto analyze_interface_attrs(
+				const AST::InterfaceDecl& interface_decl,
+				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<InterfaceAttrs>;
 
 
 			///////////////////////////////////
@@ -646,6 +691,10 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_location(const BaseType::Struct::ID& struct_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(struct_id, this->source, this->context);
+			}
+
+			EVO_NODISCARD auto get_location(const BaseType::Interface::ID& interface_id) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(interface_id, this->source, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::TemplatedStruct::ID& templated_struct_id) const

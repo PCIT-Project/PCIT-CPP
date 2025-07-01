@@ -177,6 +177,25 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct MakeInterfacePtr{
+		using ID = MakeInterfacePtrID;
+
+		Expr expr;
+		BaseType::Interface::ID interfaceID;
+		BaseType::ID implTypeID;
+	};
+
+
+	struct InterfaceCall{
+		using ID = InterfaceCallID;
+
+		Expr value;
+		BaseType::Function::ID funcTypeID;
+		uint32_t index;
+		evo::SmallVector<Expr> args;
+	};
+
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -318,6 +337,12 @@ namespace pcit::panther::sema{
 			std::optional<Expr> defaultValue;
 		};
 
+		enum class Status{
+			NOT_DONE,
+			INTERFACE_METHOD_NO_DEFAULT,
+			DEF_DONE,
+		};
+
 		Token::ID name;
 		SourceID sourceID;
 		BaseType::Function::ID typeID;
@@ -334,7 +359,7 @@ namespace pcit::panther::sema{
 		sema::StmtBlock stmtBlock{};
 
 		bool isTerminated = false;
-		std::atomic<bool> defCompleted = false;
+		std::atomic<Status> status = Status::NOT_DONE;
 
 		std::optional<pir::Function::ID> constexprJITFunc{};
 		std::optional<pir::Function::ID> constexprJITInterfaceFunc{};

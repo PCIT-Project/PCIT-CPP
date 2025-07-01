@@ -332,6 +332,8 @@ namespace pcit::panther{
 			const AST::FuncDecl& func_decl;
 		};
 
+
+
 		struct FuncPrepareConstexprPIRIfNeeded{
 			const AST::FuncDecl& func_decl;
 		};
@@ -343,6 +345,37 @@ namespace pcit::panther{
 			const AST::FuncDecl& func_decl;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
+
+
+
+
+		struct InterfaceDecl{
+			const AST::InterfaceDecl& interface_decl;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+		};
+
+		struct InterfaceDef{};
+
+		struct InterfaceFuncDef{
+			const AST::FuncDecl& func_decl;
+		};
+
+
+
+		struct InterfaceImplDecl{
+			const AST::InterfaceImpl& interface_impl;
+			SymbolProcTypeID target;
+		};
+
+		struct InterfaceImplMethodLookup{
+			Token::ID method_name;
+		};
+
+		struct InterfaceImplDef{
+			const AST::InterfaceImpl& interface_impl;
+		};
+
+		struct InterfaceImplConstexprPIR{};
 
 
 		//////////////////
@@ -726,6 +759,13 @@ namespace pcit::panther{
 			FuncPrepareConstexprPIRIfNeeded,
 			FuncConstexprPIRReadyIfNeeded,
 			TemplateFunc,
+			InterfaceDecl,
+			InterfaceDef,
+			InterfaceFuncDef,
+			InterfaceImplDecl,
+			InterfaceImplMethodLookup,
+			InterfaceImplDef,
+			InterfaceImplConstexprPIR,
 
 			// stmt
 			LocalVar,
@@ -818,7 +858,9 @@ namespace pcit::panther{
 			TypeDeducer
 		> inst;
 
-		EVO_NODISCARD auto print() const -> std::string_view;
+		#if defined(PCIT_CONFIG_DEBUG)
+			EVO_NODISCARD auto print() const -> std::string_view;
+		#endif
 	};
 
 
@@ -1076,8 +1118,6 @@ namespace pcit::panther{
 				BaseType::Struct::ID struct_id = BaseType::Struct::ID::dummy();
 			};
 
-
-			
 			struct FuncInfo{
 				std::stack<sema::Stmt> subscopes{};
 
@@ -1085,8 +1125,16 @@ namespace pcit::panther{
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{}; // Only needed if the func is comptime
 			};
 
+			struct InterfaceImplInfo{
+				BaseType::Interface::ID target_interface_id;
+				BaseType::Interface& target_interface;
+				const BaseType::Struct& current_struct;
+				BaseType::Interface::Impl& interface_impl;
+				evo::SmallVector<TermInfo> targets{};
+			};
+
 			evo::Variant<
-				std::monostate, NonLocalVarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo
+				std::monostate, NonLocalVarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo, InterfaceImplInfo
 			> extra_info{};
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};

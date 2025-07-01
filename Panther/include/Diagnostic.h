@@ -88,6 +88,7 @@ namespace pcit::panther{
 			SYMBOL_PROC_VAR_WITH_NO_VALUE,
 			SYMBOL_PROC_LABELED_VOID_RETURN,
 			SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR,
+			SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
 
 
 			//////////////////
@@ -222,6 +223,15 @@ namespace pcit::panther{
 			SEMA_MATH_INFIX_INVALID_RHS,
 			SEMA_MATH_INFIX_NO_MATCHING_OP,
 
+			// interfaces
+			SEMA_INTERFACE_NO_IMPL_FOR_TYPE,
+			SEMA_INTERFACE_NO_METHOD_WITH_THAT_NAME,
+			SEMA_INTERFACE_IMPL_TARGET_NOT_INTERFACE,
+			SEMA_INTERFACE_IMPL_NOT_DEFINED_IN_STRUCT,
+			SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
+			SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
+			SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
+
 			// misc
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
 			SEMA_BLOCK_EXPR_NOT_TERMINATED,
@@ -302,6 +312,10 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::TypedefDecl& typedef_decl, const class Source& src)
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::StructDecl& struct_decl, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::InterfaceDecl& interface_decl, const class Source& src)
+					-> Location;
+				EVO_NODISCARD static auto get(const AST::InterfaceImpl& interface_impl, const class Source& src)
+					-> Location;
 				EVO_NODISCARD static auto get(const AST::Return& return_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Error& error_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Conditional& conditional, const class Source& src) -> Location;
@@ -350,6 +364,10 @@ namespace pcit::panther{
 
 				EVO_NODISCARD static auto get(
 					const BaseType::Struct::ID& struct_id, const class Source& src, const class Context& context
+				) -> Location;
+
+				EVO_NODISCARD static auto get(
+					const BaseType::Interface::ID& interface_id, const class Source& src, const class Context& context
 				) -> Location;
 		
 			private:
@@ -526,6 +544,7 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_VAR_WITH_NO_VALUE:
 				case Code::SYMBOL_PROC_LABELED_VOID_RETURN:
 				case Code::SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR:
+				case Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD:
 					return "SPx";
 
 				// TODO(FUTURE): give individual codes and put in correct order
@@ -625,6 +644,13 @@ namespace pcit::panther{
 				case Code::SEMA_MATH_INFIX_INVALID_LHS:
 				case Code::SEMA_MATH_INFIX_INVALID_RHS:
 				case Code::SEMA_MATH_INFIX_NO_MATCHING_OP:
+				case Code::SEMA_INTERFACE_NO_IMPL_FOR_TYPE:
+				case Code::SEMA_INTERFACE_NO_METHOD_WITH_THAT_NAME:
+				case Code::SEMA_INTERFACE_IMPL_TARGET_NOT_INTERFACE:
+				case Code::SEMA_INTERFACE_IMPL_NOT_DEFINED_IN_STRUCT:
+				case Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET:
+				case Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST:
+				case Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
 				case Code::SEMA_FUNC_HAS_NO_THIS_PARAM:

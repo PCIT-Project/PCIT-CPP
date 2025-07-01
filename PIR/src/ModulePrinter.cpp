@@ -147,47 +147,11 @@ namespace pcit::pir{
 		}
 		this->printer.print(") ");
 
-		switch(func_decl.callingConvention){
-			case CallingConvention::DEFAULT: {
-				// do nothing
-			} break;
+		this->print_calling_convention(func_decl.callingConvention);
+		this->printer.print(" ");
 
-			case CallingConvention::C: {
-				this->printer.printRed("#callConv");
-				this->printer.print("(c) ");
-			} break;
-
-			case CallingConvention::FAST: {
-				this->printer.printRed("#callConv");
-				this->printer.print("(fast) ");
-			} break;
-
-			case CallingConvention::COLD: {
-				this->printer.printRed("#callConv");
-				this->printer.print("(cold) ");
-			} break;
-		}
-
-		switch(func_decl.linkage){
-			case Linkage::DEFAULT: {
-				// do nothing
-			} break;
-
-			case Linkage::PRIVATE: {
-				this->printer.printRed("#linkage");
-				this->printer.print("(private) ");
-			} break;
-
-			case Linkage::INTERNAL: {
-				this->printer.printRed("#linkage");
-				this->printer.print("(internal) ");
-			} break;
-
-			case Linkage::EXTERNAL: {
-				this->printer.printRed("#linkage");
-				this->printer.print("(external) ");
-			} break;
-		}
+		this->print_linkage(func_decl.linkage);
+		this->printer.print(" ");
 
 		this->printer.printRed("-> ");
 		this->print_type(func_decl.returnType);
@@ -279,26 +243,8 @@ namespace pcit::pir{
 		this->print_type(global_var.type);
 		this->printer.print(" ");
 
-		switch(global_var.linkage){
-			case Linkage::DEFAULT: {
-				// do nothing
-			} break;
-
-			case Linkage::PRIVATE: {
-				this->printer.printRed("#linkage");
-				this->printer.print("(private) ");
-			} break;
-
-			case Linkage::INTERNAL: {
-				this->printer.printRed("#linkage");
-				this->printer.print("(internal) ");
-			} break;
-
-			case Linkage::EXTERNAL: {
-				this->printer.printRed("#linkage");
-				this->printer.print("(external) ");
-			} break;
-		}
+		this->print_linkage(global_var.linkage);
+		this->printer.print(" ");
 
 		if(global_var.value.is<GlobalVar::NoValue>() == false){
 			this->printer.printRed("= ");
@@ -452,7 +398,13 @@ namespace pcit::pir{
 				printer.print("&{}", struct_type.name);
 			} break;
 
-			case Type::Kind::FUNCTION: evo::debugFatalBreak("Cannot print function type");
+			case Type::Kind::FUNCTION: {
+				const FunctionType& func_type = this->get_module().getFunctionType(type);
+
+				this->print_type(func_type.returnType);
+				printer.print(" ");
+				this->print_calling_convention(func_type.callingConvention);
+			} break;
 		}
 
 	}
@@ -1834,8 +1786,9 @@ namespace pcit::pir{
 
 				
 			}else if constexpr(std::is_same_v<ValueT, PtrCall>){
-				// TODO(FUTURE): 
-				evo::debugFatalBreak("UNIMPLEMENTED (printing of pointer call)");
+				this->print_type(target.funcType);
+				this->printer.print(" ");
+				this->print_expr(target.location);
 
 			}else{
 				static_assert(false, "Unsupported call inst target");
@@ -1911,6 +1864,54 @@ namespace pcit::pir{
 				this->printer.print("(sequentiallyConsistent)");
 			} break;
 
+		}
+	}
+
+
+	auto ModulePrinter::print_calling_convention(CallingConvention convention) -> void {
+		switch(convention){
+			case CallingConvention::DEFAULT: {
+				// do nothing
+			} break;
+
+			case CallingConvention::C: {
+				this->printer.printRed("#callConv");
+				this->printer.print("(c)");
+			} break;
+
+			case CallingConvention::FAST: {
+				this->printer.printRed("#callConv");
+				this->printer.print("(fast)");
+			} break;
+
+			case CallingConvention::COLD: {
+				this->printer.printRed("#callConv");
+				this->printer.print("(cold)");
+			} break;
+		}
+	}
+
+
+	auto ModulePrinter::print_linkage(Linkage linkage) -> void {
+		switch(linkage){
+			case Linkage::DEFAULT: {
+				// do nothing
+			} break;
+
+			case Linkage::PRIVATE: {
+				this->printer.printRed("#linkage");
+				this->printer.print("(private)");
+			} break;
+
+			case Linkage::INTERNAL: {
+				this->printer.printRed("#linkage");
+				this->printer.print("(internal)");
+			} break;
+
+			case Linkage::EXTERNAL: {
+				this->printer.printRed("#linkage");
+				this->printer.print("(external)");
+			} break;
 		}
 	}
 

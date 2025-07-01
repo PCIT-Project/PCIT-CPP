@@ -266,6 +266,14 @@ namespace pthr{
 						this->print_struct_decl(this->ast_buffer.getStructDecl(stmt));
 					} break;
 
+					case panther::AST::Kind::INTERFACE_DECL: {
+						this->print_interface_decl(this->ast_buffer.getInterfaceDecl(stmt));
+					} break;
+
+					case panther::AST::Kind::INTERFACE_IMPL: {
+						this->print_interface_impl(this->ast_buffer.getInterfaceImpl(stmt));
+					} break;
+
 					case panther::AST::Kind::RETURN: {
 						this->print_return(this->ast_buffer.getReturn(stmt));
 					} break;
@@ -531,7 +539,12 @@ namespace pthr{
 
 					this->indenter.print_end();
 					this->print_minor_header("Statement Block");
-					this->print_block(this->ast_buffer.getBlock(func_decl.block));
+
+					if(func_decl.block.has_value()){
+						this->print_block(this->ast_buffer.getBlock(*func_decl.block));
+					}else{
+						this->printer.printGray("{NONE}\n");
+					}
 
 					this->indenter.pop();
 				}
@@ -609,6 +622,106 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("Statement Block");
 					this->print_block(this->ast_buffer.getBlock(struct_decl.block));
+
+					this->indenter.pop();
+				}
+			}
+
+			auto print_interface_decl(const panther::AST::InterfaceDecl& interface_decl) -> void {
+				this->indenter.print();
+				this->print_major_header("Interface Declaration");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.print(" ");
+					this->print_ident(interface_decl.ident);
+
+
+					this->indenter.print_end();
+					this->print_minor_header("Methods");
+					{
+						this->indenter.push();
+
+						this->printer.println();
+
+						for(size_t i = 0; const panther::AST::Node& func : interface_decl.methods){
+							if(i + 1 < interface_decl.methods.size()){
+								this->indenter.set_arrow();
+							}else{
+								this->indenter.set_end();
+							}
+
+							this->print_func_decl(this->ast_buffer.getFuncDecl(func));
+
+							i += 1;
+						}
+
+						this->indenter.pop();
+					}
+					this->printer.println();
+
+					this->indenter.pop();
+				}
+			}
+
+
+
+			auto print_interface_impl(const panther::AST::InterfaceImpl& interface_impl) -> void {
+				this->indenter.print();
+				this->print_major_header("Interface Impl");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Target");
+					this->printer.print(" ");
+					this->print_type(this->ast_buffer.getType(interface_impl.target));
+					this->printer.println();
+
+					this->indenter.print_end();
+					this->print_minor_header("Methods");
+					this->printer.println();
+					{
+						this->indenter.push();
+
+						for(size_t i = 0; const panther::AST::InterfaceImpl::Method& method : interface_impl.methods){
+							if(i + 1 < interface_impl.methods.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+
+							this->print_major_header(std::format("Method {}", i));
+
+							{
+								this->indenter.push();
+
+								this->indenter.print_arrow();
+								this->print_minor_header("Name");
+								this->printer.print(" ");
+								this->print_ident(method.method);
+
+								this->indenter.print_end();
+								this->print_minor_header("Target");
+								this->printer.print(" ");
+								this->print_ident(method.value);
+
+								this->indenter.pop();
+							}
+
+
+							
+							i += 1;
+						}
+
+						this->indenter.pop();
+					}
+
 
 					this->indenter.pop();
 				}
@@ -1068,8 +1181,24 @@ namespace pthr{
 						this->printer.printMagenta("[_]\n");
 					} break;
 
+					case panther::AST::Kind::STRUCT_INIT_NEW: {
+						this->print_struct_init_new(this->ast_buffer.getStructInitNew(node));
+					} break;
 
-					default: evo::debugFatalBreak("Unknown or unsupported expr type");
+
+					case panther::AST::Kind::NONE:            case panther::AST::Kind::VAR_DECL:
+					case panther::AST::Kind::FUNC_DECL:       case panther::AST::Kind::ALIAS_DECL:
+					case panther::AST::Kind::TYPEDEF_DECL:    case panther::AST::Kind::STRUCT_DECL:
+					case panther::AST::Kind::INTERFACE_DECL:  case panther::AST::Kind::INTERFACE_IMPL:
+					case panther::AST::Kind::RETURN:          case panther::AST::Kind::ERROR:
+					case panther::AST::Kind::CONDITIONAL:     case panther::AST::Kind::WHEN_CONDITIONAL:
+					case panther::AST::Kind::WHILE:           case panther::AST::Kind::DEFER:
+					case panther::AST::Kind::UNREACHABLE:     case panther::AST::Kind::TEMPLATE_PACK:
+					case panther::AST::Kind::MULTI_ASSIGN:    case panther::AST::Kind::TYPEID_CONVERTER:
+					case panther::AST::Kind::ATTRIBUTE_BLOCK: case panther::AST::Kind::ATTRIBUTE:
+					case panther::AST::Kind::TYPE_DEDUCER:    case panther::AST::Kind::PRIMITIVE_TYPE: {
+						evo::debugFatalBreak("Unsupported expr type");
+					} break;
 				}
 			}
 
@@ -1436,6 +1565,64 @@ namespace pthr{
 				this->indenter.print_end();
 				this->print_minor_header("Arguments");
 				this->print_func_call_args(new_expr.args);
+
+				this->indenter.pop();
+			}
+
+
+			auto print_struct_init_new(const panther::AST::StructInitNew& struct_init_new) -> void {
+				this->print_major_header("Struct Initializer New");
+
+				this->indenter.push();
+
+				this->indenter.print_arrow();
+				this->print_minor_header("Type");
+				this->printer.print(" ");
+				this->print_type(this->ast_buffer.getType(struct_init_new.type));
+				this->printer.println();
+
+				this->indenter.print_end();
+				this->print_minor_header("Arguments");
+				
+				{
+					this->printer.println();
+					this->indenter.push();
+
+					for(
+						size_t i = 0; 
+						const panther::AST::StructInitNew::MemberInit& member_init : struct_init_new.memberInits
+					){
+						if(i + 1 < struct_init_new.memberInits.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
+						}
+
+						this->print_major_header(std::format("Initializer {}", i));
+
+						{
+							this->indenter.push();
+
+							this->indenter.print_arrow();
+							this->print_minor_header("Identifier");
+							this->printer.print(" ");
+							this->print_ident(member_init.ident);
+
+							this->indenter.print_end();
+							this->print_minor_header("Value");
+							this->printer.println();
+							this->indenter.push();
+							this->print_expr(member_init.expr);
+							this->indenter.pop();
+
+							this->indenter.pop();
+						}
+
+						i += 1;
+					}
+
+					this->indenter.pop();
+				}
 
 				this->indenter.pop();
 			}

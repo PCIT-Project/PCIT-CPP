@@ -198,6 +198,8 @@ namespace pcit::panther{
 		{"alias",       Token::Kind::KEYWORD_ALIAS},
 		{"type",        Token::Kind::KEYWORD_TYPE},
 		{"struct",      Token::Kind::KEYWORD_STRUCT},
+		{"interface",   Token::Kind::KEYWORD_INTERFACE},
+		{"impl",        Token::Kind::KEYWORD_IMPL},
 
 		{"return",      Token::Kind::KEYWORD_RETURN},
 		{"error",       Token::Kind::KEYWORD_ERROR},

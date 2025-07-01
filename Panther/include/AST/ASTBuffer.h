@@ -139,6 +139,26 @@ namespace pcit::panther{
 				return this->struct_decls[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createInterfaceDecl(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->interface_decls.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::INTERFACE_DECL, node_index);
+			}
+			EVO_NODISCARD auto getInterfaceDecl(const AST::Node& node) const -> const AST::InterfaceDecl& {
+				evo::debugAssert(node.kind() == AST::Kind::INTERFACE_DECL, "Node is not an InterfaceDecl");
+				return this->interface_decls[node._value.node_index];
+			}
+
+			EVO_NODISCARD auto createInterfaceImpl(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->interface_impls.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::INTERFACE_IMPL, node_index);
+			}
+			EVO_NODISCARD auto getInterfaceImpl(const AST::Node& node) const -> const AST::InterfaceImpl& {
+				evo::debugAssert(node.kind() == AST::Kind::INTERFACE_IMPL, "Node is not an InterfaceImpl");
+				return this->interface_impls[node._value.node_index];
+			}
+
 
 			EVO_NODISCARD auto createReturn(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
@@ -149,7 +169,6 @@ namespace pcit::panther{
 				evo::debugAssert(node.kind() == AST::Kind::RETURN, "Node is not a Return");
 				return this->returns[node._value.node_index];
 			}
-
 
 			EVO_NODISCARD auto createError(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
@@ -368,6 +387,8 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::AliasDecl, uint32_t> alias_decls{};
 			core::LinearStepAlloc<AST::TypedefDecl, uint32_t> typedefs{};
 			core::LinearStepAlloc<AST::StructDecl, uint32_t> struct_decls{};
+			core::LinearStepAlloc<AST::InterfaceDecl, uint32_t> interface_decls{};
+			core::LinearStepAlloc<AST::InterfaceImpl, uint32_t> interface_impls{};
 
 			core::LinearStepAlloc<AST::Return, uint32_t> returns{};
 			core::LinearStepAlloc<AST::Error, uint32_t> errors{};

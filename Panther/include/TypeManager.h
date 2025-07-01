@@ -35,7 +35,7 @@ namespace pcit::panther{
 	// base type
 
 	namespace BaseType{
-		enum class Kind : uint8_t {
+		enum class Kind : uint32_t {
 			DUMMY,
 
 			PRIMITIVE,
@@ -46,8 +46,142 @@ namespace pcit::panther{
 			STRUCT,
 			STRUCT_TEMPLATE,
 			TYPE_DEDUCER,
+			INTERFACE,
 		};
 
+
+		struct ID{
+			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
+
+			EVO_NODISCARD auto primitiveID() const -> PrimitiveID {
+				evo::debugAssert(this->kind() == Kind::PRIMITIVE, "not a Primitive");
+				return PrimitiveID(this->_id);
+			}
+
+			EVO_NODISCARD auto funcID() const -> FunctionID {
+				evo::debugAssert(this->kind() == Kind::FUNCTION, "not a Function");
+				return FunctionID(this->_id);
+			}
+
+			EVO_NODISCARD auto arrayID() const -> ArrayID {
+				evo::debugAssert(this->kind() == Kind::ARRAY, "not a Array");
+				return ArrayID(this->_id);
+			}
+
+			EVO_NODISCARD auto aliasID() const -> AliasID {
+				evo::debugAssert(this->kind() == Kind::ALIAS, "not an Alias");
+				return AliasID(this->_id);
+			}
+
+			EVO_NODISCARD auto typedefID() const -> TypedefID {
+				evo::debugAssert(this->kind() == Kind::TYPEDEF, "not a Typedef");
+				return TypedefID(this->_id);
+			}
+
+			EVO_NODISCARD auto structID() const -> StructID {
+				evo::debugAssert(this->kind() == Kind::STRUCT, "not a Struct");
+				return StructID(this->_id);
+			}
+
+			EVO_NODISCARD auto structTemplateID() const -> StructTemplateID {
+				evo::debugAssert(this->kind() == Kind::STRUCT_TEMPLATE, "not a StructTemplate");
+				return StructTemplateID(this->_id);
+			}
+
+			EVO_NODISCARD auto typeDeducerID() const -> TypeDeducerID {
+				evo::debugAssert(this->kind() == Kind::TYPE_DEDUCER, "not a type deducer");
+				return TypeDeducerID(this->_id);
+			}
+
+			EVO_NODISCARD auto interfaceID() const -> InterfaceID {
+				evo::debugAssert(this->kind() == Kind::INTERFACE, "not an interface");
+				return InterfaceID(this->_id);
+			}
+
+
+			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
+
+
+			EVO_NODISCARD static constexpr auto dummy() -> ID {
+				return ID(Kind::DUMMY, std::numeric_limits<uint32_t>::max());
+			}
+
+
+			explicit ID(PrimitiveID id)      : _kind(Kind::PRIMITIVE),       _id(id.get()) {}
+			explicit ID(FunctionID id)       : _kind(Kind::FUNCTION),        _id(id.get()) {}
+			explicit ID(ArrayID id)          : _kind(Kind::ARRAY),           _id(id.get()) {}
+			explicit ID(AliasID id)          : _kind(Kind::ALIAS),           _id(id.get()) {}
+			explicit ID(TypedefID id)        : _kind(Kind::TYPEDEF),         _id(id.get()) {}
+			explicit ID(StructID id)         : _kind(Kind::STRUCT),          _id(id.get()) {}
+			explicit ID(StructTemplateID id) : _kind(Kind::STRUCT_TEMPLATE), _id(id.get()) {}
+			explicit ID(TypeDeducerID id)    : _kind(Kind::TYPE_DEDUCER),    _id(id.get()) {}
+			explicit ID(InterfaceID id)      : _kind(Kind::INTERFACE),       _id(id.get()) {}
+
+
+
+			EVO_NODISCARD auto hash() const -> size_t {
+				return std::hash<uint64_t>{}(evo::bitCast<uint64_t>(*this));
+			}
+
+
+			private:
+				constexpr ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
+
+			private:
+				Kind _kind;
+				uint32_t _id;
+
+				friend TypeManager;
+				friend struct core::OptionalInterface<ID>;
+		};
+
+	}
+
+}
+
+namespace pcit::core{
+
+	template<>
+	struct OptionalInterface<panther::BaseType::ID>{
+		static constexpr auto init(panther::BaseType::ID* id) -> void {
+			new(id) panther::BaseType::ID(panther::BaseType::Kind::DUMMY, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::ID& id) -> bool {
+			return id._kind != panther::BaseType::Kind::DUMMY;
+		}
+	};
+
+}
+
+
+namespace std{
+
+
+	template<>
+	class optional<pcit::panther::BaseType::ID> : public pcit::core::Optional<pcit::panther::BaseType::ID>{
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::ID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::ID>::operator=;
+	};
+
+
+	template<>
+	struct hash<pcit::panther::BaseType::ID>{
+		auto operator()(const pcit::panther::BaseType::ID& id) const noexcept -> size_t {
+			return id.hash();
+		};
+	};
+
+	
+}
+
+
+
+
+namespace pcit::panther{
+	
+	namespace BaseType{
 
 		struct Primitive{
 			using ID = PrimitiveID;
@@ -107,7 +241,9 @@ namespace pcit::panther{
 				std::optional<Token::ID> ident;
 				TypeInfoVoidableID typeID;
 
-				EVO_NODISCARD auto operator==(const ReturnParam&) const -> bool = default;
+				EVO_NODISCARD auto operator==(const ReturnParam& rhs) const -> bool {
+					return this->ident.has_value() == rhs.ident.has_value() && this->typeID == rhs.typeID;
+				}
 			};
 
 			evo::SmallVector<Param> params;
@@ -301,91 +437,42 @@ namespace pcit::panther{
 
 
 		// TODO(FUTURE): is `.sourceID` ever actually used (outside of operator==),
-		// 		and can this `tokenID` be "inlined" into ID?
+		// 		and can this `identTokenID` be "inlined" into ID?
 		struct TypeDeducer{
 			using ID = TypeDeducerID;
 
-			Token::ID tokenID;
+			Token::ID identTokenID;
 			SourceID sourceID;
 
 			auto operator==(const TypeDeducer& rhs) const -> bool {
-				return this->tokenID == rhs.tokenID && this->sourceID == rhs.sourceID;
+				return this->identTokenID == rhs.identTokenID && this->sourceID == rhs.sourceID;
 			}
 		};
 
 
 
-		struct ID{
-			EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
+		struct Interface{
+			using ID = InterfaceID;
 
-			EVO_NODISCARD auto primitiveID() const -> Primitive::ID {
-				evo::debugAssert(this->kind() == Kind::PRIMITIVE, "not a Primitive");
-				return Primitive::ID(this->_id);
+			struct Impl{
+				evo::SmallVector<sema::FuncID> methods;
+			};
+			
+			Token::ID identTokenID;
+			SourceID sourceID;
+			SymbolProcID symbolProcID;
+			bool isPub;
+
+			evo::SmallVector<sema::FuncID> methods{};
+
+			std::unordered_map<BaseType::ID, const Impl&> impls{};
+			mutable core::SpinLock implsLock{};
+
+			std::atomic<bool> defCompleted = false;
+
+			auto operator==(const Interface& rhs) const -> bool {
+				return this->identTokenID == rhs.identTokenID && this->sourceID == rhs.sourceID;
 			}
-
-			EVO_NODISCARD auto funcID() const -> Function::ID {
-				evo::debugAssert(this->kind() == Kind::FUNCTION, "not a Function");
-				return Function::ID(this->_id);
-			}
-
-			EVO_NODISCARD auto arrayID() const -> Array::ID {
-				evo::debugAssert(this->kind() == Kind::ARRAY, "not a Array");
-				return Array::ID(this->_id);
-			}
-
-			EVO_NODISCARD auto aliasID() const -> Alias::ID {
-				evo::debugAssert(this->kind() == Kind::ALIAS, "not an Alias");
-				return Alias::ID(this->_id);
-			}
-
-			EVO_NODISCARD auto typedefID() const -> Typedef::ID {
-				evo::debugAssert(this->kind() == Kind::TYPEDEF, "not a Typedef");
-				return Typedef::ID(this->_id);
-			}
-
-			EVO_NODISCARD auto structID() const -> Struct::ID {
-				evo::debugAssert(this->kind() == Kind::STRUCT, "not a Struct");
-				return Struct::ID(this->_id);
-			}
-
-			EVO_NODISCARD auto structTemplateID() const -> StructTemplate::ID {
-				evo::debugAssert(this->kind() == Kind::STRUCT_TEMPLATE, "not a StructTemplate");
-				return StructTemplate::ID(this->_id);
-			}
-
-			EVO_NODISCARD auto typeDeducerID() const -> TypeDeducer::ID {
-				evo::debugAssert(this->kind() == Kind::TYPE_DEDUCER, "not a type deducer");
-				return TypeDeducer::ID(this->_id);
-			}
-
-
-			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
-
-
-			EVO_NODISCARD static constexpr auto dummy() -> ID {
-				return ID(Kind::DUMMY, std::numeric_limits<uint32_t>::max());
-			}
-
-
-			explicit ID(Primitive::ID id)      : _kind(Kind::PRIMITIVE),       _id(id.get()) {}
-			explicit ID(Function::ID id)       : _kind(Kind::FUNCTION),        _id(id.get()) {}
-			explicit ID(Array::ID id)          : _kind(Kind::ARRAY),           _id(id.get()) {}
-			explicit ID(Alias::ID id)          : _kind(Kind::ALIAS),           _id(id.get()) {}
-			explicit ID(Typedef::ID id)        : _kind(Kind::TYPEDEF),         _id(id.get()) {}
-			explicit ID(Struct::ID id)         : _kind(Kind::STRUCT),          _id(id.get()) {}
-			explicit ID(StructTemplate::ID id) : _kind(Kind::STRUCT_TEMPLATE), _id(id.get()) {}
-			explicit ID(TypeDeducer::ID id)    : _kind(Kind::TYPE_DEDUCER),    _id(id.get()) {}
-
-
-			private:
-				constexpr ID(Kind base_type_kind, uint32_t base_type_id) : _kind(base_type_kind), _id(base_type_id) {};
-
-			private:
-				Kind _kind;
-				uint32_t _id;
-
-				friend TypeManager;
-				friend struct core::OptionalInterface<ID>;
 		};
 
 	};
@@ -412,6 +499,14 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto isPointer() const -> bool {
 				return this->qualifiers().empty() == false && this->qualifiers().back().isPtr;
+			}
+
+			EVO_NODISCARD auto isNormalPointer() const -> bool {
+				return this->isPointer() && this->base_type.kind() != BaseType::Kind::INTERFACE;
+			}
+
+			EVO_NODISCARD auto isInterfacePointer() const -> bool {
+				return this->isPointer() && this->base_type.kind() == BaseType::Kind::INTERFACE;
 			}
 
 			EVO_NODISCARD auto isOptionalNotPointer() const -> bool {
@@ -478,6 +573,12 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getTypeDeducer(BaseType::TypeDeducer::ID id) const -> const BaseType::TypeDeducer&;
 			EVO_NODISCARD auto getOrCreateTypeDeducer(BaseType::TypeDeducer&& lookup_type) -> BaseType::ID;
+
+			EVO_NODISCARD auto getInterface(BaseType::Interface::ID id) const -> const BaseType::Interface&;
+			EVO_NODISCARD auto getInterface(BaseType::Interface::ID id)       ->       BaseType::Interface&;
+			EVO_NODISCARD auto getOrCreateInterface(BaseType::Interface&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto getNumInterfaces() const -> size_t; // I don't love this design
+			EVO_NODISCARD auto createInterfaceImpl() -> BaseType::Interface::Impl&;
 			
 			
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0);  }
@@ -581,40 +682,12 @@ namespace pcit::panther{
 			core::LinearStepAlloc<BaseType::TypeDeducer, BaseType::TypeDeducer::ID> type_deducers{};
 			mutable core::SpinLock type_deducers_lock{};
 
+			core::LinearStepAlloc<BaseType::Interface, BaseType::Interface::ID> interfaces{};
+			mutable core::SpinLock interfaces_lock{};
+			core::SyncLinearStepAlloc<BaseType::Interface::Impl, uint64_t> interface_impls{};
+
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable core::SpinLock types_lock{};
 	};
 
-}
-
-
-namespace pcit::core{
-
-	template<>
-	struct OptionalInterface<panther::BaseType::ID>{
-		static constexpr auto init(panther::BaseType::ID* id) -> void {
-			new(id) panther::BaseType::ID(panther::BaseType::Kind::DUMMY, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const panther::BaseType::ID& id) -> bool {
-			return id._kind != panther::BaseType::Kind::DUMMY;
-		}
-	};
-
-}
-
-
-
-
-namespace std{
-
-
-	template<>
-	class optional<pcit::panther::BaseType::ID> : public pcit::core::Optional<pcit::panther::BaseType::ID>{
-		public:
-			using pcit::core::Optional<pcit::panther::BaseType::ID>::Optional;
-			using pcit::core::Optional<pcit::panther::BaseType::ID>::operator=;
-	};
-
-	
 }

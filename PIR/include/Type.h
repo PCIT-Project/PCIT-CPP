@@ -85,14 +85,15 @@ namespace pcit::pir{
 
 
 		private:
-			Type(Kind type_kind, uint32_t _number) : _kind(type_kind), number(_number) {}
-			Type(Kind type_kind) : _kind(type_kind), number(0) {}
+			constexpr Type(Kind type_kind, uint32_t _number) : _kind(type_kind), number(_number) {}
+			constexpr Type(Kind type_kind) : _kind(type_kind), number(0) {}
 	
 		private:
 			Kind _kind;
 			uint32_t number; // might be width, might be ID, might be nothing
 
 			friend class Module;
+			friend struct core::OptionalInterface<Type>;
 	};
 
 	static_assert(sizeof(Type) == sizeof(uint64_t), "Unexpected size for pir::Type");
@@ -132,6 +133,23 @@ namespace pcit::pir{
 
 
 
+namespace pcit::core{
+
+	template<>
+	struct OptionalInterface<pir::Type>{
+		static constexpr auto init(pir::Type* t) -> void {
+			new(t) pir::Type(pir::Type::Kind::VOID, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const pir::Type& t) -> bool {
+			return t.number != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+}
+
+
+
 namespace std{
 	
 	template<>
@@ -139,6 +157,14 @@ namespace std{
 		auto operator()(const pcit::pir::Type& type) const noexcept -> size_t {
 			return std::hash<uint64_t>{}(evo::bitCast<uint64_t>(type));
 		};
+	};
+
+
+	template<>
+	class optional<pcit::pir::Type> : public pcit::core::Optional<pcit::pir::Type>{
+		public:
+			using pcit::core::Optional<pcit::pir::Type>::Optional;
+			using pcit::core::Optional<pcit::pir::Type>::operator=;
 	};
 	
 }
