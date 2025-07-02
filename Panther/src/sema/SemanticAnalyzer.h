@@ -153,6 +153,7 @@ namespace pcit::panther{
 			) -> Result;
 			EVO_NODISCARD auto instr_copy(const Instruction::Copy& instr) -> Result;
 			EVO_NODISCARD auto instr_move(const Instruction::Move& instr) -> Result;
+			EVO_NODISCARD auto instr_forward(const Instruction::Forward& instr) -> Result;
 			template<bool IS_READ_ONLY>
 			EVO_NODISCARD auto instr_addr_of(const Instruction::AddrOf<IS_READ_ONLY>& instr) -> Result;
 

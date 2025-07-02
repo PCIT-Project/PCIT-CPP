@@ -66,11 +66,12 @@ namespace pcit::panther{
 			struct FuncInfo{
 				struct Param{
 					std::optional<pir::Type> reference_type;
+					std::optional<uint32_t> in_param_index;
 
 					EVO_NODISCARD auto is_copy() const -> bool { return this->reference_type.has_value() == false; }
 				};
 
-				pir::Function::ID pir_id;
+				evo::SmallVector<pir::Function::ID> pir_ids;
 				pir::Type return_type;
 				evo::SmallVector<Param> params;
 				evo::SmallVector<pir::Expr> return_params; // only used if they are out params

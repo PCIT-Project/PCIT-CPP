@@ -306,6 +306,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Move>()){
 				return this->instr_move(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::Forward>()){
+				return this->instr_forward(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::AddrOf<true>>()){
 				return this->instr_addr_of(instr);
 
@@ -1815,7 +1818,7 @@ namespace pcit::panther{
 				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
 			);
 
-			current_func.constexprJITFunc = sema_to_pir.lowerFuncDecl(current_func_id);
+			current_func.constexprJITFunc = sema_to_pir.lowerFuncDeclConstexpr(current_func_id);
 
 			this->propagate_finished_pir_decl();
 		}
@@ -3321,6 +3324,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.func_call).isError()){ return Result::ERROR; }
 
+
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		const evo::Result<FuncCallImplData> func_call_impl_res = this->func_call_impl<false, false>(
@@ -3453,7 +3457,7 @@ namespace pcit::panther{
 
 
 			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-				intrinsic_kind, std::move(sema_args)
+				intrinsic_kind, std::move(sema_args), 0
 			);
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -3492,8 +3496,27 @@ namespace pcit::panther{
 				}
 
 			}else{
+				uint32_t in_param_bitmap = 0;
+				unsigned num_in_params = 0;
+
+				for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(func_call_impl_res.value().selected_func_type.params[i].kind != AST::FuncDecl::Param::Kind::IN){
+						continue;
+					}
+
+					const sema::Expr& arg = this->get_term_info(arg_id).getExpr();
+
+					if(arg.kind() == sema::Expr::Kind::COPY){
+						in_param_bitmap |= 1 << num_in_params;
+					}
+
+					num_in_params += 1;
+				}
+
 				const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-					*func_call_impl_res.value().selected_func_id, std::move(sema_args)
+					*func_call_impl_res.value().selected_func_id, std::move(sema_args), in_param_bitmap
 				);
 
 				this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -3787,8 +3810,26 @@ namespace pcit::panther{
 			);
 		}
 
+		uint32_t in_param_bitmap = 0;
+		unsigned num_in_params = 0;
+		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(func_call_impl_res.value().selected_func_type.params[i].kind != AST::FuncDecl::Param::Kind::IN){
+				continue;
+			}
+
+			const sema::Expr& arg = this->get_term_info(arg_id).getExpr();
+
+			if(arg.kind() == sema::Expr::Kind::COPY){
+				in_param_bitmap |= 1 << num_in_params;
+			}
+
+			num_in_params += 1;
+		}
+
 		const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-			*func_call_impl_res.value().selected_func_id, std::move(sema_args)
+			*func_call_impl_res.value().selected_func_id, std::move(sema_args), in_param_bitmap
 		);
 
 
@@ -5007,6 +5048,31 @@ namespace pcit::panther{
 			target.value_stage,
 			target.type_id,
 			sema::Expr(this->context.sema_buffer.createMove(target.getExpr()))
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_forward(const Instruction::Forward& instr) -> Result {
+		const TermInfo& target = this->get_term_info(instr.target);
+
+		if(target.value_category != TermInfo::ValueCategory::CONCRETE_FORWARDABLE){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
+				instr.prefix,
+				"Argument of operator [forward] must be forwardable"
+			);
+
+			return Result::ERROR;
+		}
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			target.value_stage,
+			target.type_id,
+			sema::Expr(this->context.sema_buffer.createForward(target.getExpr()))
 		);
 
 		return Result::SUCCESS;

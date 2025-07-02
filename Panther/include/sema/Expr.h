@@ -178,6 +178,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::MOVE, "not a move");
 			return this->value.move;
 		}
+		EVO_NODISCARD auto forwardID() const -> ForwardID {
+			evo::debugAssert(this->kind() == Kind::FORWARD, "not a forward");
+			return this->value.forward;
+		}
 		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
 			evo::debugAssert(this->kind() == Kind::FUNC_CALL, "not a func call");
 			return this->value.func_call;

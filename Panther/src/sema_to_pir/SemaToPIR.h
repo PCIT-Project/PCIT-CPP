@@ -40,7 +40,8 @@ namespace pcit::panther{
 
 			auto lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID>;
 			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
-			auto lowerFuncDecl(sema::Func::ID func_id) -> pir::Function::ID;
+			EVO_NODISCARD auto lowerFuncDeclConstexpr(sema::Func::ID func_id) -> pir::Function::ID;
+			auto lowerFuncDecl(sema::Func::ID func_id) -> void;
 			auto lowerFuncDef(sema::Func::ID func_id) -> void;
 			auto lowerInterfaceVTable(
 				BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
@@ -55,6 +56,8 @@ namespace pcit::panther{
 		private:
 			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe if true
 			EVO_NODISCARD auto lower_struct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>;
+
+			auto lower_func_decl(sema::Func::ID func_id, bool is_constexpr) -> pir::Function::ID;
 
 			auto lower_stmt(const sema::Stmt& stmt) -> void;
 
@@ -156,6 +159,8 @@ namespace pcit::panther{
 
 			std::unordered_map<sema::Expr, pir::Expr> local_func_exprs{};
 			evo::SmallVector<ScopeLevel> scope_levels{}; // TODO(PERF): use stack?
+
+			uint32_t in_param_bitmap = 0; // 0 bit means move, 1 bit means copy
 
 			Data& data;
 	};

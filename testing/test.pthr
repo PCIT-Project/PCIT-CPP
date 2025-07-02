@@ -1,57 +1,14 @@
 
 
-type Quad = struct {
-	var width: F32;
-	var height: F32;
-
-	func num_sides = () -> USize { return 4; }
-
-	// func area = (this) #rt -> F32 {
-	// 	return this.width * this.height;
-	// }
-
-	impl Shape{
-		num_sides = num_sides,
-	}
+func in_param_test = (lhs: Int in, rhs: Int in) -> Int {
+	const lhs_val: Int = forward lhs;
+	return lhs + rhs;
 }
 
-
-type Circle = struct {
-	var radius: F32;
-
-	func num_sides = () -> USize { return 0; }
-
-	// func area = (this) #rt -> F32 {
-	// 	return 3.14 * this.radius * this.radius;
-	// }
-
-	impl Shape{
-		num_sides = num_sides,
-	}
-}
-
-
-interface Shape = {
-	func num_sides = () -> USize;
-	func do_nothing = () -> Void {}
-	// func area = (this) #rt -> F32;
-}
 
 
 func entry = () #entry -> UI8 {
-	const quad = new Quad{
-		width = 3.0,
-		height = 2.0,
-	};
-
-	const circle = new Circle{
-		radius = 2.0,
-	};
-
-
-	const shape: Shape* = &quad as Shape*;
-
-	shape.do_nothing();
-
-	return shape.num_sides() as UI8;
+	var num: Int = 12;
+	const output: Int = in_param_test(copy num, 14);
+	return output as UI8;
 }

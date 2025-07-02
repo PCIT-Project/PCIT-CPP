@@ -472,6 +472,9 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, Move>()){
 					return "Move";
 
+				}else if constexpr(std::is_same<InstrType, Forward>()){
+					return "Forward";
+
 				}else if constexpr(std::is_same<InstrType, AddrOf<true>>()){
 					return "AddrOf<true>";
 

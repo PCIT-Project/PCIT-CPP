@@ -554,6 +554,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct Forward{
+			const AST::Prefix& prefix;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
 		template<bool IS_READ_ONLY>
 		struct AddrOf{
 			const AST::Prefix& prefix;
@@ -811,6 +817,7 @@ namespace pcit::panther{
 			AddTemplateDeclInstantiationType,
 			Copy,
 			Move,
+			Forward,
 			AddrOf<true>,
 			AddrOf<false>,
 			PrefixNegate<true>,

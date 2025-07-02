@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.133.0"></a>
+## v0.0.133.0
+
+### Panther
+- Added support for lowering in parameters 
+- Fixed fatal when lowering a discarding function call that has named returns
+- Fixed crashing of constexpr functions with integer parameters
+
+
+<!---------------------------------->
 <a name="v0.0.132.0"></a>
 ## v0.0.132.0
 

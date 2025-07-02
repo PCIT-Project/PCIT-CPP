@@ -99,7 +99,18 @@ namespace pcit::panther{
 	}
 
 
-	auto SemaToPIR::lowerFuncDecl(sema::Func::ID func_id) -> pir::Function::ID {
+
+	auto SemaToPIR::lowerFuncDeclConstexpr(sema::Func::ID func_id) -> pir::Function::ID {
+		return this->lower_func_decl(func_id, true);
+	}
+
+	auto SemaToPIR::lowerFuncDecl(sema::Func::ID func_id) -> void {
+		this->lower_func_decl(func_id, false);
+	}
+
+
+
+	auto SemaToPIR::lower_func_decl(sema::Func::ID func_id, bool is_constexpr) -> pir::Function::ID {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
 		evo::debugAssert(
@@ -109,18 +120,15 @@ namespace pcit::panther{
 		this->current_source = &this->context.getSourceManager()[func.sourceID];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
 
-		if(func.hasInParam){ evo::unimplemented("functions with `in` parameter"); }
-
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
-
 
 		auto params = evo::SmallVector<pir::Parameter>();
 		params.reserve(func_type.params.size() + func_type.returnParams.size() + func_type.errorParams.size());
 
+		uint32_t in_param_index = 0;
 		auto param_infos = evo::SmallVector<Data::FuncInfo::Param>();
 		param_infos.reserve(func_type.params.size());
 
-		bool no_params_need_alloca = true;
 		for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
 			EVO_DEFER([&](){ i += 1; });
 
@@ -154,11 +162,14 @@ namespace pcit::panther{
 
 
 				params.emplace_back(std::move(param_name), param_type, std::move(attributes));
-				param_infos.emplace_back(std::nullopt);
 
 				if(param.kind == AST::FuncDecl::Param::Kind::IN){
-					no_params_need_alloca = false;
+					param_infos.emplace_back(std::nullopt, in_param_index);
+					in_param_index += 1;
+				}else{
+					param_infos.emplace_back(std::nullopt, std::nullopt);
 				}
+
 			}else{
 				attributes.emplace_back(pir::Parameter::Attribute::PtrNonNull());
 				attributes.emplace_back(
@@ -173,7 +184,13 @@ namespace pcit::panther{
 				}
 
 				params.emplace_back(std::move(param_name), this->module.createPtrType(), std::move(attributes));
-				param_infos.emplace_back(this->get_type<false>(param.typeID));
+
+				if(param.kind == AST::FuncDecl::Param::Kind::IN){
+					param_infos.emplace_back(this->get_type<false>(param.typeID), in_param_index);
+					in_param_index += 1;
+				}else{
+					param_infos.emplace_back(this->get_type<false>(param.typeID), std::nullopt);
+				}
 			}
 
 		}
@@ -277,53 +294,69 @@ namespace pcit::panther{
 			}
 		}();
 
-		const pir::Function::ID new_func_id = this->module.createFunction(
-			this->mangle_name(func_id),
-			std::move(params),
-			this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
-			this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
-			return_type
-		);
 
-		this->agent.setTargetFunction(new_func_id);
+		auto pir_funcs = evo::SmallVector<pir::Function::ID>();
+
+		if(is_constexpr || func.hasInParam == false){
+			const pir::Function::ID new_func_id = this->module.createFunction(
+				this->mangle_name(func_id),
+				std::move(params),
+				this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
+				this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
+				return_type
+			);
+
+			pir_funcs.emplace_back(new_func_id);
+
+			this->agent.setTargetFunction(new_func_id);
+			this->agent.createBasicBlock(this->name("begin"));
+			this->agent.removeTargetFunction();
+
+		}else{
+			const size_t num_instantiations = 1ull << size_t(in_param_index);
+			pir_funcs.reserve(num_instantiations);
+
+			for(size_t i = 0; i < num_instantiations; i+=1){
+				std::string name = this->mangle_name(func_id);
+
+				if(this->data.getConfig().useReadableNames){
+					name += ".in_";
+					for(size_t j = 0; j < in_param_index; j+=1){
+						name += bool((i >> j) & 1) ? 'C' : 'M';
+					}
+				}else{
+					name += ".in";
+					name += std::to_string(i);
+				}
+
+				const pir::Function::ID new_func_id = this->module.createFunction(
+					std::move(name),
+					evo::copy(params),
+					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
+					this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
+					return_type
+				);
+
+				this->agent.setTargetFunction(new_func_id);
+				this->agent.createBasicBlock(this->name("begin"));
+				this->agent.removeTargetFunction();
+
+				pir_funcs.emplace_back(new_func_id);
+			}
+		}
+
+
+		const pir::Function::ID new_func_id = pir_funcs.front();
 
 		this->data.create_func(
 			func_id,
-			new_func_id, // first arg of FuncInfo construction
+			std::move(pir_funcs), // first arg of FuncInfo construction
 			return_type,
 			std::move(param_infos),
 			std::move(return_params),
 			error_return_param,
 			error_return_type
 		);
-
-
-		if(func_type.params.empty() | no_params_need_alloca){
-			this->agent.createBasicBlock(this->name("begin"));
-
-		}else{
-			const pir::BasicBlock::ID setup_block = this->agent.createBasicBlock(this->name("setup"));
-			const pir::BasicBlock::ID begin_block = this->agent.createBasicBlock(this->name("begin"));
-
-			this->agent.setTargetBasicBlock(setup_block);
-
-			for(uint32_t i = 0; const BaseType::Function::Param& param : func_type.params){
-				if(param.shouldCopy == false){ continue; }
-
-				const pir::Type param_type = this->get_type<false>(param.typeID);
-				const pir::Expr param_alloca = this->agent.createAlloca(
-					param_type,
-					this->name("{}.ALLOCA", this->current_source->getTokenBuffer()[func.params[i].ident].getString())
-				);
-
-				this->agent.createStore(param_alloca, this->agent.createParamExpr(i));
-
-				i += 1;
-			}
-
-			this->agent.createJump(begin_block);
-		}
-
 
 		return new_func_id;
 	}
@@ -339,38 +372,46 @@ namespace pcit::panther{
 
 		this->current_func_type = &this->context.getTypeManager().getFunction(sema_func.typeID);
 
-		pir::Function& func = this->module.getFunction(this->data.get_func(func_id).pir_id);
+		const SemaToPIRData::FuncInfo& func_info = this->data.get_func(func_id);
 
-		this->current_func_info = &this->data.get_func(func_id);
-		EVO_DEFER([&](){ this->current_func_info = nullptr; });
+		this->in_param_bitmap = 0;
+		for(const pir::Function::ID pir_id : func_info.pir_ids){
+			pir::Function& func = this->module.getFunction(pir_id);
 
-		this->agent.setTargetFunction(func);
-		this->agent.setTargetBasicBlockAtEnd();
+			this->current_func_info = &this->data.get_func(func_id);
+			EVO_DEFER([&](){ this->current_func_info = nullptr; });
 
-		this->push_scope_level();
+			this->agent.setTargetFunction(func);
+			this->agent.setTargetBasicBlockAtEnd();
 
-		for(const sema::Stmt& stmt : sema_func.stmtBlock){
-			this->lower_stmt(stmt);
-		}
+			this->push_scope_level();
 
-
-		if(sema_func.isTerminated == false){
-			if(this->current_func_type->returnsVoid()){
-				if(this->current_func_type->hasErrorReturn()){
-					this->agent.createRet(this->agent.createBoolean(true));
-				}else{
-					this->agent.createRet();
-				}
-				
-			}else{
-				this->agent.createUnreachable();
+			for(const sema::Stmt& stmt : sema_func.stmtBlock){
+				this->lower_stmt(stmt);
 			}
-		}
 
+
+			if(sema_func.isTerminated == false){
+				if(this->current_func_type->returnsVoid()){
+					if(this->current_func_type->hasErrorReturn()){
+						this->agent.createRet(this->agent.createBoolean(true));
+					}else{
+						this->agent.createRet();
+					}
+					
+				}else{
+					this->agent.createUnreachable();
+				}
+			}
+
+			this->pop_scope_level();
+
+			this->local_func_exprs.clear();
+
+			this->in_param_bitmap += 1;
+		}
 
 		this->current_func_type = nullptr;
-
-		this->local_func_exprs.clear();
 	}
 
 
@@ -407,7 +448,7 @@ namespace pcit::panther{
 		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
 		vtable_values.reserve(funcs.size());
 		for(sema::Func::ID func_id : funcs){
-			vtable_values.emplace_back(this->agent.createFunctionPointer(this->data.get_func(func_id).pir_id));
+			vtable_values.emplace_back(this->agent.createFunctionPointer(this->data.get_func(func_id).pir_ids[0]));
 		}
 
 		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
@@ -439,7 +480,7 @@ namespace pcit::panther{
 		this->agent.createBasicBlock();
 		this->agent.setTargetBasicBlockAtEnd();
 
-		const pir::Expr entry_call = this->agent.createCall(target_entry_func_info.pir_id, {});
+		const pir::Expr entry_call = this->agent.createCall(target_entry_func_info.pir_ids[0], {});
 		this->agent.createRet(entry_call);
 
 		return entry_func_id;
@@ -531,7 +572,7 @@ namespace pcit::panther{
 								alloca,
 								this->agent.createNumber(
 									this->module.createIntegerType(32),
-									core::GenericInt(8, param.getType().getWidth() / 8)
+									core::GenericInt::create<uint32_t>(param.getType().getWidth() / 8)
 								)
 							}
 						);
@@ -582,8 +623,8 @@ namespace pcit::panther{
 										arg_ptr,
 										alloca,
 										this->agent.createNumber(
-											this->module.createIntegerType(64),
-											core::GenericInt(8, param_pir_type.getWidth() / 8)
+											this->module.createIntegerType(32),
+											core::GenericInt::create<uint32_t>(param_pir_type.getWidth() / 8)
 										)
 									}
 								);
@@ -972,9 +1013,11 @@ namespace pcit::panther{
 				}
 
 				if(target_func_info.return_type.kind() == pir::Type::Kind::VOID){
-					this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+					this->agent.createCallVoid(target_func_info.pir_ids[func_call.in_param_bitmap], std::move(args));
 				}else{
-					std::ignore = this->agent.createCall(target_func_info.pir_id, std::move(args));
+					std::ignore = this->agent.createCall(
+						target_func_info.pir_ids[func_call.in_param_bitmap], std::move(args)
+					);
 				}
 			} break;
 
@@ -1596,7 +1639,27 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::FORWARD: {
-				evo::unimplemented("lower sema::Expr::Kind::Forward");
+				const sema::Expr& forward_expr = this->context.getSemaBuffer().getForward(expr.forwardID());
+
+				// const bool param_is_copy = [&](){
+				// 	const sema::Param& target_param = this->context.getSemaBuffer().getParam(forward_expr.paramID());
+				// 	const uint32_t in_param_index = *this->current_func_info->params[target_param.index].in_param_index;
+				// 	return bool((this->in_param_bitmap >> in_param_index) & 1);
+				// }();
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->get_expr_register(forward_expr);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->get_expr_pointer(forward_expr);
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					this->get_expr_store(forward_expr, store_locations);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::FUNC_CALL: {
@@ -1631,7 +1694,7 @@ namespace pcit::panther{
 
 						const pir::Expr return_alloc = this->agent.createAlloca(return_type);
 						args.emplace_back(return_alloc);
-						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+						this->agent.createCallVoid(target_func_info.pir_ids[0], std::move(args));
 
 						return this->agent.createLoad(
 							return_alloc, return_type
@@ -1643,21 +1706,40 @@ namespace pcit::panther{
 						
 						const pir::Expr return_alloc = this->agent.createAlloca(return_type);
 						args.emplace_back(return_alloc);
-						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+						this->agent.createCallVoid(
+							target_func_info.pir_ids[func_call.in_param_bitmap], std::move(args)
+						);
 
 						return return_alloc;
 						
-					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+					}else if constexpr(MODE == GetExprMode::STORE){
 						for(pir::Expr store_location : store_locations){
 							args.emplace_back(store_location);
 						}
-						this->agent.createCallVoid(target_func_info.pir_id, std::move(args));
+						this->agent.createCallVoid(
+							target_func_info.pir_ids[func_call.in_param_bitmap], std::move(args)
+						);
+						return std::nullopt;
+
+					}else{
+						const pir::Function& target_func = this->module.getFunction(
+							target_func_info.pir_ids[func_call.in_param_bitmap]
+						);
+
+						const size_t current_num_args = args.size();
+						for(size_t i = current_num_args; i < target_func.getParameters().size(); i+=1){
+							args.emplace_back(this->agent.createAlloca(target_func.getParameters()[i].getType()));
+						}
+
+						this->agent.createCallVoid(
+							target_func_info.pir_ids[func_call.in_param_bitmap], std::move(args)
+						);
 						return std::nullopt;
 					}
 
 				}else{
 					const pir::Expr call_return  = this->agent.createCall(
-						target_func_info.pir_id,
+						target_func_info.pir_ids[func_call.in_param_bitmap],
 						std::move(args),
 						this->name("{}.CALL", this->mangle_name(func_call.target.as<sema::Func::ID>()))
 					);
@@ -2167,7 +2249,9 @@ namespace pcit::panther{
 					args.emplace_back(error_value);
 				}
 
-				const pir::Expr attempt = this->agent.createCall(target_func_info.pir_id, std::move(args));
+				const pir::Expr attempt = this->agent.createCall(
+					target_func_info.pir_ids[attempt_func_call.in_param_bitmap], std::move(args)
+				);
 
 				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
 				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("TRY.END"));
@@ -2205,7 +2289,8 @@ namespace pcit::panther{
 						return output;
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
+						const pir::Function& current_func =
+							this->module.getFunction(this->current_func_info->pir_ids[0]);
 						const pir::Expr alloca = this->agent.createAlloca(
 							current_func.getParameters()[sema_param.index].getType()
 						);
@@ -2234,7 +2319,8 @@ namespace pcit::panther{
 					}else if constexpr(MODE == GetExprMode::STORE){
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
-						const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
+						const pir::Function& current_func =
+							this->module.getFunction(this->current_func_info->pir_ids[0]);
 						this->agent.createMemcpy(
 							store_locations[0],
 							this->agent.createParamExpr(sema_param.abiIndex),
@@ -2264,7 +2350,7 @@ namespace pcit::panther{
 				}else if constexpr(MODE == GetExprMode::STORE){
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
-					const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_id);
+					const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_ids[0]);
 
 					this->agent.createMemcpy(
 						store_locations[0],

@@ -1678,12 +1678,14 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::KEYWORD_FORWARD: {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					node,
-					"Building symbol proc of prefix KEYWORD_FORWARD is unimplemented"
-				);
-				return evo::resultError;
+				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				if(target.isError()){ return evo::resultError; }
+
+				this->add_instruction(Instruction::Forward(prefix, target.value(), created_term_info_id));
+
+				return created_term_info_id;
 			} break;
 
 			case Token::lookupKind("-"): {

@@ -292,6 +292,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// forwards
+
+			EVO_NODISCARD auto createForward(auto&&... args) -> sema::Forward::ID {
+				return sema::Forward::ID(this->misc_exprs.emplace_back(std::forward<decltype(args)>(args)...));
+			}
+
+			EVO_NODISCARD auto getForward(sema::Forward::ID id) const -> const sema::Expr& {
+				return this->misc_exprs[id.get()];
+			}
+
+
+			///////////////////////////////////
 			// address ofs
 
 			EVO_NODISCARD auto createAddrOf(auto&&... args) -> sema::AddrOf::ID {

@@ -207,6 +207,7 @@ namespace pcit::panther::sema{
 
 		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID> target;
 		evo::SmallVector<Expr> args;
+		uint32_t in_param_bitmap = 0;
 		// SourceLocation location;
 	};
 
