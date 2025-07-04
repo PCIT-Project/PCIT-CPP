@@ -153,7 +153,8 @@ namespace pcit::panther{
 				const pir::Type param_type = this->get_type<false>(param.typeID);
 
 				if(param_type.kind() == pir::Type::Kind::INTEGER){
-					if(this->context.getTypeManager().isUnsignedIntegral(param.typeID)){
+					const TypeInfo::ID underlying_id = this->context.type_manager.getUnderlyingType(param.typeID);
+					if(this->context.getTypeManager().isUnsignedIntegral(underlying_id)){
 						attributes.emplace_back(pir::Parameter::Attribute::Unsigned());
 					}else{
 						attributes.emplace_back(pir::Parameter::Attribute::Signed());

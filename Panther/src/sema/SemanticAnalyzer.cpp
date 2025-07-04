@@ -7299,8 +7299,11 @@ namespace pcit::panther{
 
 		if(lhs.type_id.is<TypeInfo::ID>()){
 			if(rhs.type_id.is<TypeInfo::ID>()){ // neither lhs nor rhs fluid
+				const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false>(lhs.type_id.as<TypeInfo::ID>());
+				const TypeInfo::ID rhs_actual_type_id = this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
-					if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false){
+					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
 						this->emit_error(
@@ -7312,7 +7315,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->context.getTypeManager().isUnsignedIntegral(rhs.type_id.as<TypeInfo::ID>()) == false){
+					if(this->context.getTypeManager().isUnsignedIntegral(rhs_actual_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS type: ");
 						this->emit_error(
@@ -7325,10 +7328,10 @@ namespace pcit::panther{
 					}
 
 					const uint64_t num_bits_lhs_type =
-						this->context.getTypeManager().numBits(lhs.type_id.as<TypeInfo::ID>());
+						this->context.getTypeManager().numBits(lhs_actual_type_id);
 
 					const uint64_t num_bits_rhs_type =
-						this->context.getTypeManager().numBits(rhs.type_id.as<TypeInfo::ID>());
+						this->context.getTypeManager().numBits(rhs_actual_type_id);
 
 					const uint64_t expected_num_bits_rhs_type =
 						uint64_t(std::ceil(std::log2(double(num_bits_lhs_type))));
@@ -7355,8 +7358,8 @@ namespace pcit::panther{
 
 					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 						if(
-							this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false
-							&& this->context.getTypeManager().isFloatingPoint(lhs.type_id.as<TypeInfo::ID>()) == false
+							this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false
+							&& this->context.getTypeManager().isFloatingPoint(lhs_actual_type_id) == false
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
@@ -7370,7 +7373,7 @@ namespace pcit::panther{
 						}
 					
 					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
-						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false){
+						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
 							this->emit_error(
@@ -7386,8 +7389,10 @@ namespace pcit::panther{
 
 
 			}else{ // rhs fluid
+				const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false>(lhs.type_id.as<TypeInfo::ID>());
+
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
-					if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false){
+					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
 						this->emit_error(
@@ -7400,7 +7405,7 @@ namespace pcit::panther{
 					}
 
 					const uint64_t num_bits_lhs_type =
-						this->context.getTypeManager().numBits(lhs.type_id.as<TypeInfo::ID>());
+						this->context.getTypeManager().numBits(lhs_actual_type_id);
 
 					const uint32_t expected_num_bits_rhs_type =
 						uint32_t(std::ceil(std::log2(double(num_bits_lhs_type))));
@@ -7422,18 +7427,18 @@ namespace pcit::panther{
 
 				}else{
 					if(this->type_check<true, true>(
-						lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of infix math operator", instr.infix.rhs
+						lhs_actual_type_id, rhs, "RHS of infix math operator", instr.infix.rhs
 					).ok == false){
 						return Result::ERROR;
 					}
 
 					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 						if(
-							this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false
-							&& this->context.getTypeManager().isFloatingPoint(lhs.type_id.as<TypeInfo::ID>()) == false
+							this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false
+							&& this->context.getTypeManager().isFloatingPoint(lhs_actual_type_id) == false
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
-							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+							this->diagnostic_print_type_info(lhs_actual_type_id, infos, "Argument type: ");
 							this->emit_error(
 								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
 								instr.infix,
@@ -7444,7 +7449,7 @@ namespace pcit::panther{
 						}
 					
 					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
-						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>()) == false){
+						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
 							this->emit_error(
@@ -7460,8 +7465,10 @@ namespace pcit::panther{
 			}
 
 		}else if(rhs.type_id.is<TypeInfo::ID>()){ // lhs fluid
+			const TypeInfo::ID rhs_actual_type_id = this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+
 			if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
-				if(this->context.getTypeManager().isUnsignedIntegral(rhs.type_id.as<TypeInfo::ID>()) == false){
+				if(this->context.getTypeManager().isUnsignedIntegral(rhs_actual_type_id) == false){
 					auto infos = evo::SmallVector<Diagnostic::Info>();
 					this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS type: ");
 					this->emit_error(
@@ -7475,7 +7482,7 @@ namespace pcit::panther{
 
 
 				const uint64_t num_bits_rhs_type =
-					this->context.getTypeManager().numBits(rhs.type_id.as<TypeInfo::ID>());
+					this->context.getTypeManager().numBits(rhs_actual_type_id);
 
 				const uint32_t expected_num_bits_lhs_type = uint32_t(1 << num_bits_rhs_type);
 
@@ -7496,15 +7503,15 @@ namespace pcit::panther{
 
 			}else{
 				if(this->type_check<true, true>(
-					rhs.type_id.as<TypeInfo::ID>(), lhs, "LHS of infix math operator", instr.infix
+					rhs_actual_type_id, lhs, "LHS of infix math operator", instr.infix
 				).ok == false){
 					return Result::ERROR;
 				}
 
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 					if(
-						this->context.getTypeManager().isIntegral(rhs.type_id.as<TypeInfo::ID>()) == false
-						&& this->context.getTypeManager().isFloatingPoint(rhs.type_id.as<TypeInfo::ID>()) == false
+						this->context.getTypeManager().isIntegral(rhs_actual_type_id) == false
+						&& this->context.getTypeManager().isFloatingPoint(rhs_actual_type_id) == false
 					){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
@@ -7518,7 +7525,7 @@ namespace pcit::panther{
 					}
 				
 				}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
-					if(this->context.getTypeManager().isIntegral(rhs.type_id.as<TypeInfo::ID>()) == false){
+					if(this->context.getTypeManager().isIntegral(rhs_actual_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
 						this->emit_error(
@@ -7563,6 +7570,8 @@ namespace pcit::panther{
 		}else{
 			auto resultant_type = std::optional<TypeInfo::ID>();
 
+			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false>(lhs.type_id.as<TypeInfo::ID>());
+
 			const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = [&](){
 				switch(this->source.getTokenBuffer()[instr.infix.opTokenID].kind()){
 					case Token::lookupKind("=="): {
@@ -7570,9 +7579,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::EQ,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
@@ -7581,9 +7588,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::NEQ,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
@@ -7592,9 +7597,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::LT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
@@ -7603,9 +7606,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::LTE,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
@@ -7614,9 +7615,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::GT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
@@ -7625,9 +7624,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::GTE,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
@@ -7636,9 +7633,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::AND,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
@@ -7647,9 +7642,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::OR,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
@@ -7658,41 +7651,48 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::XOR,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
 					case Token::lookupKind("<<"): {
+						const TypeInfo::ID rhs_actual_type_id = 
+							this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHL,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>(), rhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
+								lhs_actual_type_id, rhs_actual_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
 
 					case Token::lookupKind("<<|"): {
+						const TypeInfo::ID rhs_actual_type_id = 
+							this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHL_SAT,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>(), rhs.type_id.as<TypeInfo::ID>()
+								lhs_actual_type_id, rhs_actual_type_id
 							}
 						);
 					} break;
 
 					case Token::lookupKind(">>"): {
+						const TypeInfo::ID rhs_actual_type_id = 
+							this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHR,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>(), rhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
+								lhs_actual_type_id, rhs_actual_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
@@ -7700,18 +7700,18 @@ namespace pcit::panther{
 					case Token::lookupKind("+"): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
-						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>())){
+						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::ADD,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+									lhs_actual_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FADD,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs.type_id.as<TypeInfo::ID>()
+									lhs_actual_type_id
 								}
 							);
 						}
@@ -7723,7 +7723,7 @@ namespace pcit::panther{
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::ADD,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
+								lhs_actual_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
@@ -7733,27 +7733,25 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::ADD_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
 					case Token::lookupKind("-"): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
-						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>())){
+						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::SUB,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+									lhs_actual_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FSUB,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs.type_id.as<TypeInfo::ID>()
+									lhs_actual_type_id
 								}
 							);
 						}
@@ -7765,7 +7763,7 @@ namespace pcit::panther{
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SUB,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
+								lhs_actual_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
@@ -7775,27 +7773,25 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SUB_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
 					case Token::lookupKind("*"): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
-						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>())){
+						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::MUL,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+									lhs_actual_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FMUL,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs.type_id.as<TypeInfo::ID>()
+									lhs_actual_type_id
 								}
 							);
 						}
@@ -7807,7 +7803,7 @@ namespace pcit::panther{
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::MUL,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(true)
+								lhs_actual_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
@@ -7817,27 +7813,25 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::MUL_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 
 					case Token::lookupKind("/"): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
-						if(this->context.getTypeManager().isIntegral(lhs.type_id.as<TypeInfo::ID>())){
+						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::DIV,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
+									lhs_actual_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FDIV,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs.type_id.as<TypeInfo::ID>()
+									lhs_actual_type_id
 								}
 							);
 						}
@@ -7848,9 +7842,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::REM,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs.type_id.as<TypeInfo::ID>()
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
 						);
 					} break;
 

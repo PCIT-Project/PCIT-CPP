@@ -1,14 +1,15 @@
 
+type alias T = UI17;
 
-func in_param_test = (lhs: Int in, rhs: Int in) -> Int {
-	const lhs_val: Int = forward lhs;
+func add = (lhs: T, rhs: T) -> T {
 	return lhs + rhs;
 }
 
 
 
-func entry = () #entry -> UI8 {
-	var num: Int = 12;
-	const output: Int = in_param_test(copy num, 14);
-	return output as UI8;
-}
+// func entry = () #entry -> UI8 {
+// 	return add<{UI8}>(12, 14);
+// }
+
+
+

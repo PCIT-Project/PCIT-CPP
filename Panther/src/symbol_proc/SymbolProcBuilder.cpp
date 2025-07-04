@@ -1548,7 +1548,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					func_call.target,
-					"Templated non-intrinsic function calls  are currently unimplemented"
+					"Templated non-intrinsic function calls are currently unimplemented"
 				);
 				return evo::resultError;
 			}

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.133.1"></a>
+## v0.0.133.1
+
+### Panther
+- Fixed infix operators with arguments that have a type that is an alias
+- Fixed lowering to PIR of parameters have a type that is an alias of an unsigned integral having the PIR attribute of `#signed`
+
+
+<!---------------------------------->
 <a name="v0.0.133.0"></a>
 ## v0.0.133.0
 
