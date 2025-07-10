@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.134.0"></a>
+## v0.0.134.0
+
+### Panther
+- Added function templates
+	- function template args
+	- function parameters with a type of an interface
+	- function parameters with a type of a type deducer 
+- Fixed shadowing redefinition check sometimes emitting an error diagnostic pointing to the wrong source location
+- Fixed race condition in semantic analysis when calling when analyzing an accessor operator (`.`) on an interface pointer
+
+
+<!---------------------------------->
 <a name="v0.0.133.1"></a>
 ## v0.0.133.1
 

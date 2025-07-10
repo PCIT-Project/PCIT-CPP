@@ -24,7 +24,11 @@ project "Panther"
 		"PCIT_core",
 		"PIR",
 	}
-	
+
+
+	filter "action:vs*"
+		buildoptions{ "/bigobj" }
+	filter {}
 
 project "*"
 
@@ -59,6 +63,7 @@ project "pthr"
 		"PIR",
 		"Panther",
 	}
+
 
 
 project "*"

@@ -341,6 +341,7 @@ namespace pcit::panther::sema{
 		enum class Status{
 			NOT_DONE,
 			INTERFACE_METHOD_NO_DEFAULT,
+			SUSPENDED,
 			DEF_DONE,
 		};
 
@@ -379,21 +380,23 @@ namespace pcit::panther::sema{
 
 		struct Instantiation{
 			std::atomic<std::optional<SymbolProcID>> symbolProcID{}; // nullopt means its being generated
-			std::optional<BaseType::Function::ID> funcID{}; // nullopt means it's being worked on
-			std::atomic<bool> errored = false;
+			std::optional<Func::ID> funcID{}; // nullopt means it's being worked on
+			bool errored = false;
 
 			Instantiation() = default;
 			Instantiation(const Instantiation&) = delete;
+			Instantiation(Instantiation&&) = delete;
 		};
 
-		struct Param{
+		struct TemplateParam{
 			std::optional<TypeInfo::ID> typeID;
 			evo::Variant<std::monostate, Expr, TypeInfo::VoidableID> defaultValue;
 		};
 
 		SymbolProc& symbolProc;
 		size_t minNumTemplateArgs;
-		evo::SmallVector<Param> params;
+		evo::SmallVector<TemplateParam> templateParams;
+		evo::SmallVector<bool> paramIsTemplate; // if a func param is an interface or a type deducer
 
 		struct InstantiationInfo{
 			Instantiation& instantiation;
@@ -404,12 +407,21 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
 
 		EVO_NODISCARD auto hasAnyDefaultParams() const -> bool {
-			return this->minNumTemplateArgs != this->params.size();
+			return this->minNumTemplateArgs != this->templateParams.size();
 		}
 
 
-		TemplatedFunc(SymbolProc& symbol_proc, size_t min_num_template_args, evo::SmallVector<Param>&& _params)
-			: symbolProc(symbol_proc), minNumTemplateArgs(min_num_template_args), params(std::move(_params)) {}
+		TemplatedFunc(
+			SymbolProc& symbol_proc,
+			size_t min_num_template_args,
+			evo::SmallVector<TemplateParam>&& template_params,
+			evo::SmallVector<bool>&& param_is_template
+		) : 
+			symbolProc(symbol_proc), 
+			minNumTemplateArgs(min_num_template_args),
+			templateParams(std::move(template_params)),
+			paramIsTemplate(std::move(param_is_template))
+		{}
 
 		private:
 			core::LinearStepAlloc<Instantiation, size_t> instantiations{};

@@ -28,12 +28,22 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto build(const AST::Node& stmt) -> evo::Result<SymbolProc::ID>;
 
+			// for struct
 			EVO_NODISCARD auto buildTemplateInstance(
 				const SymbolProc& template_symbol_proc,
 				BaseType::StructTemplate::Instantiation& instantiation,
 				sema::ScopeManager::Scope::ID sema_scope_id,
 				BaseType::StructTemplate::ID struct_template_id,
 				uint32_t instantiation_id
+			) -> evo::Result<SymbolProc::ID>;
+
+			// for func
+			EVO_NODISCARD auto buildTemplateInstance(
+				const SymbolProc& template_symbol_proc,
+				sema::TemplatedFunc::Instantiation& instantiation,
+				sema::ScopeManager::Scope::ID sema_scope_id,
+				uint32_t instantiation_id,
+				evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types
 			) -> evo::Result<SymbolProc::ID>;
 
 		private:
@@ -132,6 +142,13 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto analyze_template_param_pack(const AST::TemplatePack& template_pack)
 				-> evo::Result<evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>>;
+
+
+			EVO_NODISCARD auto is_type_deducer(const AST::Type& type) const -> bool;
+
+			EVO_NODISCARD auto extract_type_deducer_names(const AST::Type& type) const 
+				-> evo::SmallVector<std::string_view>;
+
 
 
 			auto add_instruction(auto&& instruction) -> SymbolProc::Instruction& {

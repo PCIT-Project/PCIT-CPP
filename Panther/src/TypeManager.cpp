@@ -607,6 +607,19 @@ namespace pcit::panther{
 
 
 
+
+	//////////////////////////////////////////////////////////////////////
+	// misc
+
+	auto TypeManager::isTypeDeducer(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		return type_info.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER;
+	}
+
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// type traits
 

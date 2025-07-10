@@ -283,8 +283,9 @@ namespace pcit::panther{
 			return this->inst.visit([](const auto& instr) -> std::string_view {
 				using InstrType = std::decay_t<decltype(instr)>;
 
-				if constexpr(std::is_same<InstrType, WhenCond>()){
-					return "WhenCond";
+
+				if constexpr(std::is_same<InstrType, SuspendSymbolProc>()){
+					return "SuspendSymbolProc";
 
 				}else if constexpr(std::is_same<InstrType, NonLocalVarDecl>()){
 					return "NonLocalVarDecl";
@@ -294,6 +295,9 @@ namespace pcit::panther{
 
 				}else if constexpr(std::is_same<InstrType, NonLocalVarDeclDef>()){
 					return "NonLocalVarDeclDef";
+
+				}else if constexpr(std::is_same<InstrType, WhenCond>()){
+					return "WhenCond";
 
 				}else if constexpr(std::is_same<InstrType, AliasDecl>()){
 					return "AliasDecl";
@@ -313,6 +317,12 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, TemplateStruct>()){
 					return "TemplateStruct";
 
+				}else if constexpr(std::is_same<InstrType, FuncDeclExtractDeducersIfNeeded>()){
+					return "FuncDeclExtractDeducersIfNeeded";
+
+				}else if constexpr(std::is_same<InstrType, FuncDecl<true>>()){
+					return "FuncDecl<true>";
+
 				}else if constexpr(std::is_same<InstrType, FuncDecl<false>>()){
 					return "FuncDecl<false>";
 
@@ -328,8 +338,17 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, FuncConstexprPIRReadyIfNeeded>()){
 					return "FuncConstexprPIRReadyIfNeeded";
 
-				}else if constexpr(std::is_same<InstrType, TemplateFunc>()){
-					return "TemplateFunc";
+				}else if constexpr(std::is_same<InstrType, TemplateFuncBegin>()){
+					return "TemplateFuncBegin";
+
+				}else if constexpr(std::is_same<InstrType, TemplateFuncCheckParamIsInterface>()){
+					return "TemplateFuncCheckParamIsInterface";
+
+				}else if constexpr(std::is_same<InstrType, TemplateFuncSetParamIsDeducer>()){
+					return "TemplateFuncSetParamIsDeducer";
+
+				}else if constexpr(std::is_same<InstrType, TemplateFuncEnd>()){
+					return "TemplateFuncEnd";
 
 				}else if constexpr(std::is_same<InstrType, InterfaceDecl>()){
 					return "InterfaceDecl";

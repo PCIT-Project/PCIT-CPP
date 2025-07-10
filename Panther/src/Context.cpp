@@ -309,10 +309,11 @@ namespace pcit::panther{
 
 			infos.emplace_back(
 				std::format(
-					"{}/{} symbols were completed ({} not completed)",
+					"{}/{} symbols were completed ({} not completed, {} suspended)",
 					this->symbol_proc_manager.numProcs() - this->symbol_proc_manager.numProcsNotDone(),
 					this->symbol_proc_manager.numProcs(),
-					this->symbol_proc_manager.numProcsNotDone()
+					this->symbol_proc_manager.numProcsNotDone(),
+					this->symbol_proc_manager.numProcsSuspended()
 				)
 			);
 

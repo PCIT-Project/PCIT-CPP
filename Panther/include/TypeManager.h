@@ -506,7 +506,13 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto isInterfacePointer() const -> bool {
-				return this->isPointer() && this->base_type.kind() == BaseType::Kind::INTERFACE;
+				return this->_qualifiers.size() == 1
+					&& this->isPointer()
+					&& this->base_type.kind() == BaseType::Kind::INTERFACE;
+			}
+
+			EVO_NODISCARD auto isInterface() const -> bool {
+				return this->_qualifiers.empty() && this->base_type.kind() == BaseType::Kind::INTERFACE;
 			}
 
 			EVO_NODISCARD auto isOptionalNotPointer() const -> bool {
@@ -592,6 +598,9 @@ namespace pcit::panther{
 			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(8);  }
 			EVO_NODISCARD static auto getTypeI256()   -> TypeInfo::ID { return TypeInfo::ID(9);  }
 			EVO_NODISCARD static auto getTypeF128()   -> TypeInfo::ID { return TypeInfo::ID(10); } 
+
+
+			EVO_NODISCARD auto isTypeDeducer(TypeInfo::ID id) const -> bool;
 
 
 			///////////////////////////////////

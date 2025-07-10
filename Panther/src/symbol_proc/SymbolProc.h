@@ -164,6 +164,14 @@ namespace pcit::panther{
 		};
 
 
+
+		//////////////////
+		// misc symbol proc
+
+		struct SuspendSymbolProc{};
+
+
+
 		//////////////////
 		// stmts valid in global scope
 
@@ -232,6 +240,12 @@ namespace pcit::panther{
 		struct TemplateStruct{
 			const AST::StructDecl& struct_decl;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
+		};
+
+
+		struct FuncDeclExtractDeducersIfNeeded{
+			SymbolProcTypeID param_type;
+			size_t param_index;
 		};
 
 
@@ -341,11 +355,23 @@ namespace pcit::panther{
 		struct FuncConstexprPIRReadyIfNeeded{};
 
 
-		struct TemplateFunc{
+		struct TemplateFuncBegin{
 			const AST::FuncDecl& func_decl;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
+		
+		struct TemplateFuncCheckParamIsInterface{
+			SymbolProcTypeID param_type;
+			size_t param_index;
+		};
 
+		struct TemplateFuncSetParamIsDeducer{
+			size_t param_index;
+		};
+
+		struct TemplateFuncEnd{
+			const AST::FuncDecl& func_decl;
+		};
 
 
 
@@ -492,9 +518,10 @@ namespace pcit::panther{
 		template<bool IS_CONSTEXPR, bool ERRORS>
 		struct FuncCallExpr{
 			const AST::FuncCall& func_call;
+			evo::SmallVector<SymbolProcTermInfoID> template_args;
+			evo::SmallVector<SymbolProcTermInfoID> args;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
-			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
 		struct ConstexprFuncCallRun{
@@ -655,9 +682,6 @@ namespace pcit::panther{
 		};
 
 
-		//////////////////
-		// accessors
-
 		template<bool NEEDS_DEF>
 		struct Accessor{
 			const AST::Infix& infix;
@@ -748,23 +772,31 @@ namespace pcit::panther{
 		EVO_NODISCARD auto as() const -> const T& { return this->inst.as<T>(); }
 
 		evo::Variant<
+			// misc symbol proc
+			SuspendSymbolProc,
+
 			// stmts valid in global scope
-			WhenCond,
 			NonLocalVarDecl,
 			NonLocalVarDef,
 			NonLocalVarDeclDef,
+			WhenCond,
 			AliasDecl,
 			AliasDef,
 			StructDecl<true>,
 			StructDecl<false>,
 			StructDef,
 			TemplateStruct,
+			FuncDeclExtractDeducersIfNeeded,
+			FuncDecl<true>,
 			FuncDecl<false>,
 			FuncPreBody,
 			FuncDef,
 			FuncPrepareConstexprPIRIfNeeded,
 			FuncConstexprPIRReadyIfNeeded,
-			TemplateFunc,
+			TemplateFuncBegin,
+			TemplateFuncCheckParamIsInterface,
+			TemplateFuncSetParamIsDeducer,
+			TemplateFuncEnd,
 			InterfaceDecl,
 			InterfaceDef,
 			InterfaceFuncDef,
@@ -885,6 +917,7 @@ namespace pcit::panther{
 
 			enum class Status{
 				WAITING,
+				SUSPENDED,
 				IN_QUEUE,
 				WORKING,
 				PASSED_ON_BY_WHEN_COND,
@@ -1014,8 +1047,8 @@ namespace pcit::panther{
 				#if defined(PCIT_CONFIG_DEBUG)
 					const Status current_status = this->status.load();
 					evo::debugAssert(
-						current_status == Status::WAITING,
-						"Can only set `IN_QUEUE` if status is `WAITING` (symbol: {})",
+						current_status == Status::WAITING || current_status == Status::SUSPENDED,
+						"Can only set `IN_QUEUE` if status is `WAITING` or `SUSPENDED` (symbol: {})",
 						this->ident
 					);
 				#endif
@@ -1036,9 +1069,38 @@ namespace pcit::panther{
 				this->status = Status::WORKING;
 			}
 
+			// returns if actually suspended
+			auto setStatusSuspended() -> bool {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const Status current_status = this->status.load();
+					evo::debugAssert(
+						current_status == Status::WORKING,
+						"Can only set `SUSPENDED` if status is `WORKING` (symbol: {})",
+						this->ident
+					);
+				#endif
+
+				if(this->should_suspend.exchange(true)){
+					this->status = Status::SUSPENDED;
+					return true;
+				}else{
+					return false;
+				}
+			}
+
 			auto setStatusPassedOnByWhenCond() -> void { this->status = Status::PASSED_ON_BY_WHEN_COND; }
 			auto setStatusErrored() -> void { this->status = Status::ERRORED; }
 			auto setStatusDone() -> void { this->status = Status::DONE; }
+
+
+
+			auto unsuspendIfNeeded() -> bool {
+				this->should_suspend = false;
+				Status expected = Status::SUSPENDED;
+				const bool was_suspended = this->status.compare_exchange_strong(expected, Status::IN_QUEUE);
+				return was_suspended;
+			}
+
 
 
 
@@ -1128,8 +1190,16 @@ namespace pcit::panther{
 			struct FuncInfo{
 				std::stack<sema::Stmt> subscopes{};
 
+				sema::TemplatedFunc::Instantiation* instantiation = nullptr;
+				evo::SmallVector<std::optional<TypeInfo::ID>> instantiation_param_arg_types{};
+
 				std::unordered_set<sema::Func::ID> dependent_funcs{}; // Only needed if the func is comptime
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{}; // Only needed if the func is comptime
+			};
+
+			struct TemplateFuncInfo{
+				sema::TemplatedFunc::ID templated_func_id;
+				sema::TemplatedFunc& templated_func;
 			};
 
 			struct InterfaceImplInfo{
@@ -1141,7 +1211,14 @@ namespace pcit::panther{
 			};
 
 			evo::Variant<
-				std::monostate, NonLocalVarInfo, WhenCondInfo, AliasInfo, StructInfo, FuncInfo, InterfaceImplInfo
+				std::monostate,
+				NonLocalVarInfo,
+				WhenCondInfo,
+				AliasInfo,
+				StructInfo,
+				FuncInfo,
+				TemplateFuncInfo,
+				InterfaceImplInfo
 			> extra_info{};
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
@@ -1156,6 +1233,7 @@ namespace pcit::panther{
 			std::atomic<bool> pir_def_done = false;
 
 			std::atomic<Status> status = Status::WAITING; // if changing this, probably get the lock `waiting_for_lock`
+			std::atomic<bool> should_suspend = true;
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

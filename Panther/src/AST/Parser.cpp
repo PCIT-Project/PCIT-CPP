@@ -1035,7 +1035,7 @@ namespace pcit::panther{
 					this->context.emitError(
 						Diagnostic::Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
 						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
-						"Type deducers are not allowed in this context"
+						"Type deducers are not allowed here"
 					);
 					return Result(Result::Code::ERROR);
 				}else{
@@ -1922,7 +1922,7 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				const Result type = this->parse_type<TypeKind::EXPLICIT>();
+				const Result type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
 				if(this->check_result_fail(type, "type after [:] in function parameter declaration")){
 					return evo::resultError;
 				}

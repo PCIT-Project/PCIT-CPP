@@ -35,6 +35,7 @@ namespace pcit::panther{
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
+			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
 
 			this->lowerFuncDecl(func_id);
 		}
@@ -52,6 +53,7 @@ namespace pcit::panther{
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
+			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
 
 			this->lowerFuncDef(func_id);
 		}
@@ -4277,6 +4279,10 @@ namespace pcit::panther{
 
 			case BaseType::Kind::TYPE_DEDUCER: {
 				evo::debugFatalBreak("Cannot get type of type deducer");
+			} break;
+
+			case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Cannot get type of interface");
 			} break;
 		}
 

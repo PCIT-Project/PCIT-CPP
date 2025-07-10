@@ -39,10 +39,13 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto allProcsDone() const -> bool { return this->num_procs_not_done == 0; }
-			EVO_NODISCARD auto notAllProcsDone() const -> bool { return this->num_procs_not_done != 0; }
+			EVO_NODISCARD auto allProcsDone() const -> bool {
+				return this->num_procs_not_done.load() - this->num_procs_suspended.load() == 0;
+			}
+			EVO_NODISCARD auto notAllProcsDone() const -> bool { return !this->allProcsDone(); }
 
 			EVO_NODISCARD auto numProcsNotDone() const -> size_t { return this->num_procs_not_done; }
+			EVO_NODISCARD auto numProcsSuspended() const -> size_t { return this->num_procs_suspended; }
 			EVO_NODISCARD auto numProcs() const -> size_t { return this->symbol_procs.size(); }
 
 
@@ -75,14 +78,27 @@ namespace pcit::panther{
 				#endif
 			}
 
+			auto symbol_proc_suspended() -> void {
+				this->num_procs_suspended += 1;
+			}
+
+			auto symbol_proc_unsuspended() -> void {
+				#if defined(PCIT_BUILD_DEBUG)
+					evo::debugAssert(this->num_procs_suspended.fetch_sub(1) > 0, "No symbols currently suspended");
+				#else
+					this->num_procs_suspended -= 1;
+				#endif
+			}
+
 	
 		private:
 			core::SyncLinearStepAlloc<SymbolProc, SymbolProc::ID> symbol_procs{};
 
-			std::atomic<size_t> num_procs_not_done = 0;
-
 			std::unordered_map<TypeInfo::ID, SymbolProc::ID> type_symbol_procs{};
 			mutable core::SpinLock type_symbol_procs_lock{};
+
+			std::atomic<size_t> num_procs_not_done = 0;
+			std::atomic<size_t> num_procs_suspended = 0;
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

@@ -45,11 +45,14 @@ namespace pcit::panther{
 		private:
 			enum class Result{
 				SUCCESS,
+				FINISHED_EARLY,
 				ERROR,
 				RECOVERABLE_ERROR,
 				NEED_TO_WAIT,
 				NEED_TO_WAIT_BEFORE_NEXT_INSTR,
+				SUSPEND,
 			};
+
 
 			///////////////////////////////////
 			// instructions
@@ -57,6 +60,8 @@ namespace pcit::panther{
 			using Instruction = SymbolProc::Instruction;
 
 			auto analyze_instr(const Instruction& instruction) -> Result;
+
+			EVO_NODISCARD auto instr_suspend_symbol_proc() -> Result;
 
 			EVO_NODISCARD auto instr_non_local_var_decl(const Instruction::NonLocalVarDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_non_local_var_def(const Instruction::NonLocalVarDef& instr) -> Result;
@@ -70,6 +75,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_struct_def() -> Result;
 			EVO_NODISCARD auto instr_template_struct(const Instruction::TemplateStruct& instr) -> Result;
 
+			EVO_NODISCARD auto instr_func_decl_extract_deducers_if_needed(
+				const Instruction::FuncDeclExtractDeducersIfNeeded& instr
+			) -> Result;
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
 			EVO_NODISCARD auto instr_func_pre_body(const Instruction::FuncPreBody& instr) -> Result;
@@ -78,7 +86,16 @@ namespace pcit::panther{
 				const Instruction::FuncPrepareConstexprPIRIfNeeded& instr
 			) -> Result;
 			EVO_NODISCARD auto instr_func_constexpr_pir_ready_if_needed() -> Result;
-			EVO_NODISCARD auto instr_template_func(const Instruction::TemplateFunc& instr) -> Result;
+
+			EVO_NODISCARD auto instr_template_func_begin(const Instruction::TemplateFuncBegin& instr) -> Result;
+			EVO_NODISCARD auto instr_template_func_check_param_is_interface(
+				const Instruction::TemplateFuncCheckParamIsInterface& instr
+			) -> Result;
+			EVO_NODISCARD auto instr_template_set_param_is_deducer(
+				const Instruction::TemplateFuncSetParamIsDeducer& instr
+			) -> Result;
+			EVO_NODISCARD auto instr_template_func_end(const Instruction::TemplateFuncEnd& instr) -> Result;
+
 			EVO_NODISCARD auto instr_interface_decl(const Instruction::InterfaceDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_interface_def() -> Result;
 			EVO_NODISCARD auto instr_interface_func_def(const Instruction::InterfaceFuncDef& instr) -> Result;
@@ -310,7 +327,10 @@ namespace pcit::panther{
 
 
 			struct SelectFuncOverloadFuncInfo{
-				std::optional<sema::Func::ID> func_id; // nullopt means it's an intrinsic
+				struct IntrinsicFlag{};
+				using FuncID = evo::Variant<IntrinsicFlag, sema::Func::ID, sema::TemplatedFunc::InstantiationInfo>;
+
+				FuncID func_id;
 				const BaseType::Function& func_type;
 			};
 
@@ -341,7 +361,14 @@ namespace pcit::panther{
 				const TermInfo& target_term_info,
 				evo::ArrayProxy<SymbolProcTermInfoID> args,
 				std::optional<evo::ArrayProxy<SymbolProcTermInfoID>> template_args
-			) -> evo::Result<FuncCallImplData>;
+			) -> evo::Expected<FuncCallImplData, bool>; // unexpected true == error, unexpected false == need to wait
+
+			// non-nullopt error if ran ok, just waiting
+			EVO_NODISCARD auto get_select_func_overload_func_info_for_template(
+				sema::TemplatedFunc::ID func_id,
+				evo::ArrayProxy<SymbolProcTermInfoID> args,
+				std::optional<evo::ArrayProxy<SymbolProcTermInfoID>> template_args
+			) -> evo::Result<sema::TemplatedFunc::InstantiationInfo>;
 
 
 			EVO_NODISCARD auto expr_in_func_is_valid_value_stage(
