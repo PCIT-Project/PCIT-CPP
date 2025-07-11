@@ -11,6 +11,7 @@
 
 
 #include <Evo.h>
+#include <PCIT_core.h>
 
 
 namespace pcit::plnk{
@@ -29,7 +30,7 @@ namespace pcit::plnk{
 			auto addArg(const std::string& string) -> void = delete;
 
 			auto addArg(const char* string) -> void {
-				this->args.emplace_back(string);	
+				this->args.emplace_back(string);
 			}
 
 			EVO_NODISCARD auto getArgs() const -> evo::ArrayProxy<const char*> {
@@ -37,8 +38,8 @@ namespace pcit::plnk{
 			}
 	
 		private:
-			std::vector<std::string> string_holder{};
-			std::vector<const char*> args{};
+			core::StepVector<std::string> string_holder{};
+			evo::SmallVector<const char*> args{};
 	};
 
 }

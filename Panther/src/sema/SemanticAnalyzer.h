@@ -437,6 +437,7 @@ namespace pcit::panther{
 			struct FuncAttrs{
 				bool is_pub;
 				bool is_runtime;
+				bool is_export;
 				bool is_entry;
 			};
 			EVO_NODISCARD auto analyze_func_attrs(

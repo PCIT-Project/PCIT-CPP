@@ -67,14 +67,17 @@ namespace pcit::panther{
 
 			struct BuildSystemConfig{
 				enum class Output : uint32_t {
-					PRINT_TOKENS       = 0,
-					PRINT_AST          = 1,
-					BUILD_SYMBOL_PROCS = 2,
-					SEMANTIC_ANALYSIS  = 3,
-					PRINT_PIR          = 4,
-					PRINT_LLVMIR       = 5,
-					PRINT_ASSEMBLY     = 6,
-					RUN                = 7,
+					TOKENS              = 0,
+					AST                 = 1,
+					BUILD_SYMBOL_PROCS  = 2,
+					SEMANTIC_ANALYSIS   = 3,
+					PIR                 = 4,
+					LLVMIR              = 5,
+					ASSEMBLY            = 6,
+					OBJECT              = 7,
+					RUN                 = 8,
+					CONSOLE_EXECUTABLE  = 9,
+					WINDOWED_EXECUTABLE = 10,
 				};
 
 
@@ -182,10 +185,16 @@ namespace pcit::panther{
 			auto buildSymbolProcs() -> evo::Result<>;
 			auto analyzeSemantics() -> evo::Result<>;
 
-			auto lowerToAndPrintPIR(core::Printer& printer) -> void;
-			auto lowerToLLVMIR() -> std::string;
-			auto lowerToASM() -> evo::Result<std::string>;
 
+
+			enum class EntryKind{
+				NONE,
+				CONSOLE_EXECUTABLE,
+				WINDOWED_EXECUTABLE,
+			};
+
+			// call analyzeSemantics before any of these
+			EVO_NODISCARD auto lowerToPIR(EntryKind entry_kind, pir::Module& module) -> evo::Result<>;
 			EVO_NODISCARD auto runEntry() -> evo::Result<uint8_t>;
 
 

@@ -1767,6 +1767,7 @@ namespace pcit::panther{
 			min_num_args,
 			func_attrs.value().is_pub,
 			is_constexpr,
+			func_attrs.value().is_export,
 			has_in_param,
 			instr.instantiation_id
 		);
@@ -11886,6 +11887,7 @@ namespace pcit::panther{
 	) -> evo::Result<FuncAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_rt = ConditionalAttribute(*this, "rt");
+		auto attr_export = Attribute(*this, "export");
 		auto attr_entry = Attribute(*this, "entry");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -11962,12 +11964,43 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "export"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #export does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_entry.is_set()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
+						attribute.attribute,
+						"A function cannot have both attribute #export and #entry"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_export.set(attribute.attribute).isError()){ return evo::resultError; }
+
+
 			}else if(attribute_str == "entry"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args.front(),
 						"Attribute #entry does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_entry.is_set()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
+						attribute.attribute,
+						"A function cannot have both attribute #entry and #export"
 					);
 					return evo::resultError;
 				}
@@ -11985,7 +12018,12 @@ namespace pcit::panther{
 			}
 		}
 
-		return FuncAttrs(attr_pub.is_set(), attr_rt.is_set(), attr_entry.is_set());
+		return FuncAttrs{
+			.is_pub     = attr_pub.is_set(),
+			.is_runtime = attr_rt.is_set(),
+			.is_export  = attr_export.is_set(),
+			.is_entry   = attr_entry.is_set()
+		};
 	}
 
 

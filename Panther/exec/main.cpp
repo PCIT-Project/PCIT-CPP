@@ -13,6 +13,9 @@
 #include <Panther.h>
 namespace core = pcit::core;
 namespace panther = pcit::panther;
+namespace pir = pcit::pir;
+#include <PLNK.h>
+namespace plnk = pcit::plnk;
 
 #include "./printing.h"
 
@@ -231,8 +234,8 @@ EVO_NODISCARD static auto run_compile(
 
 	if(
 		config.useStdLib 
-		&& config.output != BuildSystemConfig::Output::PRINT_TOKENS
-		&& config.output != BuildSystemConfig::Output::PRINT_AST
+		&& config.output != BuildSystemConfig::Output::TOKENS
+		&& config.output != BuildSystemConfig::Output::AST
 	){
 		const panther::Context::AddSourceResult add_std_lib_res = 
 			context.addStdLib(current_path.value() / "../extern/Panther-std/std");
@@ -257,7 +260,7 @@ EVO_NODISCARD static auto run_compile(
 
 
 	switch(config.output){
-		case BuildSystemConfig::Output::PRINT_TOKENS: {
+		case BuildSystemConfig::Output::TOKENS: {
 			if(context.tokenize().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -270,7 +273,7 @@ EVO_NODISCARD static auto run_compile(
 			return evo::Result<>();
 		} break;
 
-		case BuildSystemConfig::Output::PRINT_AST: {
+		case BuildSystemConfig::Output::AST: {
 			if(context.parse().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -301,35 +304,42 @@ EVO_NODISCARD static auto run_compile(
 			return evo::Result<>();
 		} break;
 
-		case BuildSystemConfig::Output::PRINT_PIR: {
+		case BuildSystemConfig::Output::PIR: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
 			}
 
-			context.lowerToAndPrintPIR(printer);
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
+			pir::printModule(module, printer);
 
 			return evo::Result<>();
 		} break;
 
-		case BuildSystemConfig::Output::PRINT_LLVMIR: {
+		case BuildSystemConfig::Output::LLVMIR: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
 			}
 
-			printer.print(context.lowerToLLVMIR());
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
+			printer.print(pir::lowerToLLVMIR(module, pir::OptMode::O0));
 
 			return evo::Result<>();
 		} break;
 
-		case BuildSystemConfig::Output::PRINT_ASSEMBLY: {
+		case BuildSystemConfig::Output::ASSEMBLY: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
 			}
 
-			const evo::Result<std::string> asm_result = context.lowerToASM();
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
+
+			const evo::Result<std::string> asm_result = pir::lowerToAssembly(module, pir::OptMode::O0);
 			if(asm_result.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -340,7 +350,41 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			printer.printCyan(asm_result.value());
+			printer.print(asm_result.value());
+
+			return evo::Result<>();
+		} break;
+
+		case BuildSystemConfig::Output::OBJECT: {
+			if(context.analyzeSemantics().isError()){
+				print_num_context_errors(context, printer);
+				return evo::resultError;
+			}
+
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
+
+			const evo::Result<std::vector<evo::byte>> object_data = pir::lowerToObject(module, pir::OptMode::O0);
+			if(object_data.isError()){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_ASM,
+					panther::Diagnostic::Location::NONE,
+					"Failed to output assembly code"
+				));
+				return evo::resultError;
+			}
+
+			if(evo::fs::writeBinaryFile("output.o", object_data.value()) == false){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
+					panther::Diagnostic::Location::NONE,
+					"Failed to output obj",
+					panther::Diagnostic::Info("Failed to write file")
+				));
+				return evo::resultError;
+			}
 
 			return evo::Result<>();
 		} break;
@@ -354,6 +398,102 @@ EVO_NODISCARD static auto run_compile(
 			const evo::Result<uint8_t> entry_res = context.runEntry();
 			if(entry_res.isError()){ return evo::resultError; }
 			printer.printlnSuccess("Value returned from entry: {}", entry_res.value());
+			return evo::Result<>();
+		} break;
+
+		case BuildSystemConfig::Output::CONSOLE_EXECUTABLE: case BuildSystemConfig::Output::WINDOWED_EXECUTABLE: {
+			if(context.analyzeSemantics().isError()){
+				print_num_context_errors(context, printer);
+				return evo::resultError;
+			}
+
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+
+			const panther::Context::EntryKind entry_kind = [&](){
+				if(config.output == BuildSystemConfig::Output::CONSOLE_EXECUTABLE){
+					return panther::Context::EntryKind::CONSOLE_EXECUTABLE;
+				}else{
+					return panther::Context::EntryKind::WINDOWED_EXECUTABLE;
+				}
+			}();
+
+			if(context.lowerToPIR(entry_kind, module).isError()){
+				return evo::resultError;
+			}
+
+			const evo::Result<std::vector<evo::byte>> object_data = pir::lowerToObject(module, pir::OptMode::O0);
+			if(object_data.isError()){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_ASM,
+					panther::Diagnostic::Location::NONE,
+					"Failed to output assembly code"
+				));
+				return evo::resultError;
+			}
+
+			{
+				std::error_code ec;
+				std::filesystem::create_directories(std::filesystem::path("build"), ec);
+				if(ec){
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						panther::Diagnostic::Code::FRONTEND_FAILED_TO_GET_REL_DIR,
+						panther::Diagnostic::Location::NONE,
+						"Failed to create directory \"build\"",
+						evo::SmallVector<panther::Diagnostic::Info>{
+							panther::Diagnostic::Info(std::format("\tcode: \"{}\"", ec.value())),
+							panther::Diagnostic::Info(std::format("\tmessage: \"{}\"", ec.message())),
+						}
+					));
+
+					return evo::resultError;
+				}
+			}
+
+			if(evo::fs::writeBinaryFile("build/output.o", object_data.value()) == false){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
+					panther::Diagnostic::Location::NONE,
+					"Failed to output obj",
+					panther::Diagnostic::Info("Failed to write file")
+				));
+				return evo::resultError;
+			}
+
+			auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
+			plnk_options.outputFilePath = "build/output.exe";
+			plnk_options.getWindowsSpecific().subsystem = [&](){
+				if(config.output == BuildSystemConfig::Output::CONSOLE_EXECUTABLE){
+					return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
+				}else{
+					return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
+				}
+			}();
+
+			const plnk::LinkResult link_result = plnk::link({std::filesystem::path("build/output.o")}, plnk_options);
+
+			if(link_result.messages.empty() == false){
+				printer.printlnCyan("<Info:L> Linker messages");
+				for(const std::string& message : link_result.messages){
+					printer.printCyan(message);
+				}
+			}
+
+			if(link_result.errMessages.empty() == false){
+				if(link_result.errMessages.size() == 1){
+					printer.printlnRed("<Error:L> Linking failed with 1 error:");
+				}else{
+					printer.printlnRed("<Error:L> Linking failed with {} errors:", link_result.errMessages.size());
+				}
+
+				for(const std::string& err_message : link_result.errMessages){
+					printer.printCyan(err_message);
+				}
+				return evo::resultError;
+			}
+
 			return evo::Result<>();
 		} break;
 	}

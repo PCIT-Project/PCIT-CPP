@@ -1,53 +1,6 @@
 
-interface Shape = {
-	func num_sides = () -> UInt;
-}
-
-
-
-type Rect = struct {
-	var width: F32;
-	var height: F32;
-
-	func num_sides = () -> UInt { return 4; }
-
-	impl Shape{
-		num_sides = num_sides,
-	}
-}
-
-
-type Circle = struct {
-	var radius: F32;
-
-	func num_sides = () -> UInt { return 0; }
-
-	impl Shape{
-		num_sides = num_sides,
-	}
-}
-
-
-
-
-func get_num_sides = <{RETURN_TYPE: Type}> (shape: Shape) #rt -> RETURN_TYPE {
-	return shape.num_sides() as RETURN_TYPE;
-}
-
-
 
 
 func entry = () #entry -> UI8 {
-	const rect = new Rect{
-		width  = 2.0,
-		height = 3.0,
-	};
-
-	const circle = new Circle{
-		radius = 2.0,
-	};
-
-	const num_sides_total: UI8 = get_num_sides<{UI8}>(rect) + get_num_sides<{UI8}>(circle);
-
-	return copy num_sides_total;
+	return 12;
 }

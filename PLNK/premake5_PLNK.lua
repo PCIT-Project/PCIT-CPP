@@ -1,5 +1,7 @@
 -- premake5
 
+
+
 project "PLNK_lib"
 	kind "StaticLib"
 	-- staticruntime "On"
@@ -23,6 +25,9 @@ project "PLNK_lib"
 		"Evo",
 		"PCIT_core",
 	}
+
+	LLVM.link.all_platforms()
+	LLD.link_all()
 
 
 project "*"

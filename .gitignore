@@ -5,6 +5,7 @@ testing/local
 dependencies/LLVM_build
 
 # outputs
+testing/build
 testing/*.o
 testing/*.exe
 testing/*.pdb

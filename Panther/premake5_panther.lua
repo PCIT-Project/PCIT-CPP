@@ -51,8 +51,9 @@ project "pthr"
 
 	includedirs{
 		(config.location .. "/dependencies"),
+		(config.location .. "/PCIT_core/include"),
+		(config.location .. "/PLNK/include"),
 		(config.location .. "/PIR/include"),
-		(config.location .. "/PCIT_core/include"),		
 
 		"./include/",
 	}
@@ -60,6 +61,7 @@ project "pthr"
 	links{
 		"Evo",
 		"PCIT_core",
+		"PLNK_lib",
 		"PIR",
 		"Panther",
 	}

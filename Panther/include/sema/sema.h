@@ -354,6 +354,7 @@ namespace pcit::panther::sema{
 		uint32_t minNumArgs; // TODO(PERF): make sure this optimization actually improves perf
 		bool isPub;
 		bool isConstexpr;
+		bool isExport;
 		bool hasInParam;
 		
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation

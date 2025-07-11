@@ -145,6 +145,7 @@ namespace pcit::panther{
 			SEMA_UNKNOWN_ATTRIBUTE,
 			SEMA_ATTRIBUTE_IMPLICT_SET,
 			SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+			SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
 
 			// templates
 			SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
@@ -266,6 +267,7 @@ namespace pcit::panther{
 			FRONTEND_BUILD_SYSTEM_RETURNED_ERROR, // F2
 			FRONTEND_FAILED_TO_ADD_STD_LIB,       // F3
 			FRONTEND_FAILED_TO_OUTPUT_ASM,        // F4
+			FRONTEND_FAILED_TO_OUTPUT_OBJ,        // F5
 		};
 
 
@@ -585,6 +587,7 @@ namespace pcit::panther{
 				case Code::SEMA_UNKNOWN_ATTRIBUTE:
 				case Code::SEMA_ATTRIBUTE_IMPLICT_SET:
 				case Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS:
+				case Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED:
 				case Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID:
 				case Code::SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE:
 				case Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR:
@@ -674,6 +677,7 @@ namespace pcit::panther{
 				case Code::FRONTEND_BUILD_SYSTEM_RETURNED_ERROR: return "F2";
 				case Code::FRONTEND_FAILED_TO_ADD_STD_LIB:       return "F3";
 				case Code::FRONTEND_FAILED_TO_OUTPUT_ASM:        return "F4";
+				case Code::FRONTEND_FAILED_TO_OUTPUT_OBJ:        return "F5";
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::panther::Diagnostic::Code");

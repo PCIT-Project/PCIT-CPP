@@ -134,6 +134,19 @@ LLD = {
 }
 
 
+function LLD.link_all()
+	links{
+		LLD.libs.COFF,
+		LLD.libs.Common,
+		LLD.libs.ELF,
+		LLD.libs.MachO,
+		LLD.libs.MinGW,
+		LLD.libs.Wasm,
+	}
+end
+
+
+
 
 
 ------------------------------------------------------------------------------
@@ -525,6 +538,18 @@ function LLVM.link.SystemZ()
 	}
 end
 
+
+function LLVM.link.VE()
+	links{
+		LLVM.libs.VEAsmParser,
+		LLVM.libs.VECodeGen,
+		LLVM.libs.Vectorize,
+		LLVM.libs.VEDesc,
+		LLVM.libs.VEDisassembler,
+		LLVM.libs.VEInfo,
+	}
+end
+
 function LLVM.link.WebAssembly()
 	links{
 		LLVM.libs.WebAssemblyAsmParser,
@@ -575,6 +600,7 @@ function LLVM.link.all_platforms()
 	LLVM.link.Sparc()
 	LLVM.link.SPIRV()
 	LLVM.link.SystemZ()
+	LLVM.link.VE()
 	LLVM.link.WebAssembly()
 	LLVM.link.X86()
 	LLVM.link.XCore()

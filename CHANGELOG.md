@@ -1,6 +1,26 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.135.0"></a>
+## v0.0.135.0
+
+### Panther
+- Added build targets:
+	- OBJECT
+	- CONSOLE_EXECUTABLE
+	- WINDOWED_EXECUTABLE
+
+### PLNK
+- Added Subsystem option to Windows target specific settings
+- Fixed windows args potentially referencing freed memory
+- Fixed options not setting target specific settings
+- Fixed windows no correctly using output file path
+
+### Misc
+- Updated to [Panther-std v0.0.3.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.3.0)
+
+
+<!---------------------------------->
 <a name="v0.0.134.0"></a>
 ## v0.0.134.0
 

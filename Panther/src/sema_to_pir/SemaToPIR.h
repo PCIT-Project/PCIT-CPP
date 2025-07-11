@@ -47,7 +47,11 @@ namespace pcit::panther{
 				BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
 			) -> void;
 			
+
 			auto createJITEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
+			auto createConsoleExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
+			auto createWindowedExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
+
 
 			EVO_NODISCARD auto createFuncJITInterface(sema::Func::ID func_id, pir::Function::ID pir_func_id)
 				-> pir::Function::ID;

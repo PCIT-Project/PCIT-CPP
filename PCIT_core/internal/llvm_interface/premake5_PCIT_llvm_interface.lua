@@ -2,7 +2,7 @@
 
 project "PCIT_llvm_interface"
 	kind "StaticLib"
-
+	-- staticruntime "On"
 
 	
 	targetdir(target.lib)
@@ -131,12 +131,8 @@ project "PCIT_llvm_interface"
 		LLVM.libs.TextAPI,
 		LLVM.libs.TextAPIBinaryReader,
 		LLVM.libs.TransformUtils,
-		LLVM.libs.VEAsmParser,
-		LLVM.libs.VECodeGen,
+		-- VE
 		LLVM.libs.Vectorize,
-		LLVM.libs.VEDesc,
-		LLVM.libs.VEDisassembler,
-		LLVM.libs.VEInfo,
 		-- WebAssembly
 		LLVM.libs.WindowsDriver,
 		LLVM.libs.WindowsManifest,

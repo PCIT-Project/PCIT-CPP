@@ -25,41 +25,42 @@ namespace pcit::core{
 			SyncLinearStepAlloc() = default;
 			~SyncLinearStepAlloc() = default;
 
-			SyncLinearStepAlloc(const SyncLinearStepAlloc&) = delete;
-			SyncLinearStepAlloc(SyncLinearStepAlloc&&) = delete;
+			SyncLinearStepAlloc(const SyncLinearStepAlloc& rhs) = delete;
+			SyncLinearStepAlloc(SyncLinearStepAlloc&& rhs) = default;
+
 
 
 			auto emplace_back(auto&&... args) -> ID {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
 			
 			auto operator[](const ID& id) const -> const T& {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc[id];
 			}
 
 			auto operator[](const ID& id) -> T& {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc[id];	
 			}
 
 
 			EVO_NODISCARD auto size() const -> size_t {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.size();
 			}
 
 			EVO_NODISCARD auto empty() const -> bool {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.empty();
 			}
 
 
 
 			auto clear() -> void {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				this->linear_step_alloc.clear();
 			}
 
@@ -77,34 +78,34 @@ namespace pcit::core{
 			EVO_NODISCARD auto cbegin() const -> ConstIter { return this->linear_step_alloc.cbegin(); }
 
 			EVO_NODISCARD auto end() -> Iter {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.end(); 
 			}
 
 			EVO_NODISCARD auto end()  const -> ConstIter {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.end(); 
 			}
 
 			EVO_NODISCARD auto cend() const -> ConstIter {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.cend();
 			}
 
 
 
 			EVO_NODISCARD auto rbegin() -> Iter {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.rbegin(); 
 			}
 
 			EVO_NODISCARD auto rbegin()  const -> ConstIter {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.rbegin(); 
 			}
 
 			EVO_NODISCARD auto crbegin() const -> ConstIter {
-				const auto lock = std::lock_guard(this->spin_lock);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				return this->linear_step_alloc.crbegin();
 			}
 

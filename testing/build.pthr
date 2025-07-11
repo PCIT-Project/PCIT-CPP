@@ -2,7 +2,7 @@ def build = @import("build");
 
 
 func entry = () #entry -> UI8 {
-	@buildSetOutput(build.Output.PRINT_PIR);
+	@buildSetOutput(build.Output.CONSOLE_EXECUTABLE);
 	@buildSetNumThreads(12);
 	@buildSetUseStdLib(false);
 	

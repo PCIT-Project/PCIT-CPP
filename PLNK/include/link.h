@@ -24,8 +24,6 @@ namespace pcit::plnk{
 		bool mayRunAgain;
 		std::vector<std::string> messages;
 		std::vector<std::string> errMessages;
-
-		EVO_NODISCARD constexpr auto success() const -> bool { return returnCode == 0; }
 	};
 
 

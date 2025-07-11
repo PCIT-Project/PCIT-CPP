@@ -43,8 +43,6 @@ namespace pcit::core{
 				std::free(this->buffers.back());
 			};
 
-			StepVector(const StepVector&) = delete;
-			StepVector(StepVector&&) = delete;
 
 
 			auto emplace_back(auto&&... args) -> T& {

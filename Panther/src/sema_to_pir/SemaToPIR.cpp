@@ -300,13 +300,22 @@ namespace pcit::panther{
 
 		auto pir_funcs = evo::SmallVector<pir::Function::ID>();
 
+
+		const pir::CallingConvention calling_conv = [&](){
+			if(this->data.getConfig().isJIT || func.isExport){ return pir::CallingConvention::C; }
+			return pir::CallingConvention::FAST;
+		}();
+
+		const pir::Linkage linkage = [&](){
+			if(this->data.getConfig().isJIT || func.isExport){ return pir::Linkage::EXTERNAL; }
+			return pir::Linkage::PRIVATE;
+		}();
+
+
+
 		if(is_constexpr || func.hasInParam == false){
 			const pir::Function::ID new_func_id = this->module.createFunction(
-				this->mangle_name(func_id),
-				std::move(params),
-				this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
-				this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
-				return_type
+				this->mangle_name(func_id), std::move(params), calling_conv, linkage, return_type
 			);
 
 			pir_funcs.emplace_back(new_func_id);
@@ -333,11 +342,7 @@ namespace pcit::panther{
 				}
 
 				const pir::Function::ID new_func_id = this->module.createFunction(
-					std::move(name),
-					evo::copy(params),
-					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
-					this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
-					return_type
+					std::move(name), evo::copy(params), calling_conv, linkage, return_type
 				);
 
 				this->agent.setTargetFunction(new_func_id);
@@ -488,6 +493,82 @@ namespace pcit::panther{
 
 		return entry_func_id;
 	}
+
+
+	auto SemaToPIR::createConsoleExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
+		const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
+
+
+		const pir::Function::ID entry_func_id = this->module.createFunction(
+			"main",
+			{
+				pir::Parameter("argc", this->module.createIntegerType(32)),
+				pir::Parameter("argv", this->module.createPtrType()),
+			},
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			this->module.createIntegerType(32)
+		);
+
+		pir::Function& entry_func = this->module.getFunction(entry_func_id);
+
+		this->agent.setTargetFunction(entry_func);
+
+		this->agent.createBasicBlock();
+		this->agent.setTargetBasicBlockAtEnd();
+
+		const pir::Expr entry_call = this->agent.createCall(target_entry_func_info.pir_ids[0], {});
+		const pir::Expr zext = this->agent.createZExt(entry_call, this->module.createIntegerType(32));
+		this->agent.createRet(zext);
+
+		return entry_func_id;
+	}
+
+
+	auto SemaToPIR::createWindowedExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
+		switch(this->context.getConfig().platform.os){
+			case core::Platform::OS::WINDOWS: {
+				const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
+
+				const pir::Function::ID entry_func_id = this->module.createFunction(
+					"WinMain",
+					{
+						pir::Parameter("hInstance", this->module.createPtrType()),
+						pir::Parameter("hPrevInstance", this->module.createPtrType()),
+						pir::Parameter("lpCmdLine", this->module.createPtrType()),
+						pir::Parameter("nShowCmd", this->module.createIntegerType(32)),
+					},
+					pir::CallingConvention::C,
+					pir::Linkage::EXTERNAL,
+					this->module.createIntegerType(32)
+				);
+
+				pir::Function& entry_func = this->module.getFunction(entry_func_id);
+
+				this->agent.setTargetFunction(entry_func);
+
+				this->agent.createBasicBlock();
+				this->agent.setTargetBasicBlockAtEnd();
+
+				std::ignore = this->agent.createCall(target_entry_func_info.pir_ids[0], {});
+
+				this->agent.createRet(
+					this->agent.createNumber(this->module.createIntegerType(32), core::GenericInt::create<uint32_t>(0))
+				);
+
+				return entry_func_id;
+			} break;
+
+			case core::Platform::OS::LINUX: case core::Platform::OS::UNKNOWN: {
+				return this->createConsoleExecutableEntry(target_entry_func);
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown platform OS");
+	}
+
+
+
 
 
 	auto SemaToPIR::createFuncJITInterface(sema::Func::ID func_id, pir::Function::ID pir_func_id) -> pir::Function::ID {
@@ -4328,17 +4409,23 @@ namespace pcit::panther{
 
 		const Token& name_token = source.getTokenBuffer()[func.name];
 
-		if(name_token.kind() == Token::Kind::IDENT){
-			if(this->data.getConfig().useReadableNames){
-				return std::format("PTHR.f{}.{}", func_id.get(), name_token.getString());
-			}else{
-				return std::format("PTHR.f{}", func_id.get());
-			}
-
+		if(func.isExport) [[unlikely]] {
+			return std::string(name_token.getString());
+			
 		}else{
-			// TODO(FUTURE): better naming of overloads
-			return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(name_token.kind()));
+			if(name_token.kind() == Token::Kind::IDENT){
+				if(this->data.getConfig().useReadableNames){
+					return std::format("PTHR.f{}.{}", func_id.get(), name_token.getString());
+				}else{
+					return std::format("PTHR.f{}", func_id.get());
+				}
+
+			}else{
+				// TODO(FUTURE): better naming of overloads
+				return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(name_token.kind()));
+			}
 		}
+
 	}
 
 

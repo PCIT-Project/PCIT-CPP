@@ -69,27 +69,23 @@ namespace pcit::plnk{
 		}
 
 		auto crc = llvm::CrashRecoveryContext();
-		if(crc.RunSafely([&]() -> void {
-			lld::CommonLinkerContext::destroy();
-		})){
+		if(crc.RunSafely([&]() -> void { lld::CommonLinkerContext::destroy(); })){
 			return LinkResult(return_code, false, std::move(std_os.messages), std::move(err_os.messages));
+		}else{
+			return LinkResult(return_code, true, std::move(std_os.messages), std::move(err_os.messages));
 		}
-
-		return LinkResult(return_code, true, std::move(std_os.messages), std::move(err_os.messages));
 	}
 
 
 
-	auto link(
-		Target target, evo::ArrayProxy<std::filesystem::path> object_file_paths, const Options& options
-	) -> LinkResult {
+	auto link(evo::ArrayProxy<std::filesystem::path> object_file_paths, const Options& options) -> LinkResult {
 		struct LinkData{
 			lld::Driver driver;
 			Args args;
 		};
 
 		LinkData link_data = [&](){
-			switch(target){
+			switch(options.getTarget()){
 				case Target::WINDOWS:
 					return LinkData(&lld::coff::link, get_windows_args(object_file_paths, options));
 
@@ -103,7 +99,7 @@ namespace pcit::plnk{
 					return LinkData(&lld::wasm::link, get_wasm_args(object_file_paths, options));
 			}
 
-			evo::unreachable();
+			evo::debugFatalBreak("Unknown Target");
 		}();
 
 		return run_driver({link_data.args.getArgs().data(), link_data.args.getArgs().size()}, link_data.driver);

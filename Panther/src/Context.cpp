@@ -354,10 +354,7 @@ namespace pcit::panther{
 
 
 
-
-	auto Context::lowerToAndPrintPIR(core::Printer& printer) -> void {
-		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
-
+	auto Context::lowerToPIR(EntryKind entry_kind, pir::Module& module) -> evo::Result<> {
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
 			.useReadableNames     = true,
 			.checkedMath          = true,
@@ -374,51 +371,39 @@ namespace pcit::panther{
 		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
 		sema_to_pir.lower();
 
-		pcit::pir::printModule(module, printer);
-	}
+		switch(entry_kind){
+			case EntryKind::NONE: {
+				// do nothing
+			} break;
 
+			case EntryKind::CONSOLE_EXECUTABLE: {
+				if(this->entry.has_value() == false){
+					this->emitError(
+						Diagnostic::Code::MISC_NO_ENTRY,
+						Diagnostic::Location::NONE,
+						"No function with the [#entry] attribute found"
+					);
+					return evo::resultError;
+				}
 
-	auto Context::lowerToLLVMIR() -> std::string {
-		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
+				sema_to_pir.createConsoleExecutableEntry(*this->entry);
+			} break;
 
-		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
-			.useReadableNames     = true,
-			.checkedMath          = true,
-			.isJIT                = false,
-			.addSourceLocations   = true,
-			.useDebugUnreachables = false,
-		});
+			case EntryKind::WINDOWED_EXECUTABLE: {
+				if(this->entry.has_value() == false){
+					this->emitError(
+						Diagnostic::Code::MISC_NO_ENTRY,
+						Diagnostic::Location::NONE,
+						"No function with the [#entry] attribute found"
+					);
+					return evo::resultError;
+				}
 
-		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
-			sema_to_pir_data.createJITBuildFuncDecls(module);
+				sema_to_pir.createWindowedExecutableEntry(*this->entry);
+			} break;
 		}
 
-		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
-		sema_to_pir.lower();
-
-		return pcit::pir::lowerToLLVMIR(module, pcit::pir::OptMode::NONE);
-	}
-
-
-	auto Context::lowerToASM() -> evo::Result<std::string> {
-		auto module = pir::Module(evo::copy(this->_config.title), this->_config.platform);
-
-		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
-			.useReadableNames     = true,
-			.checkedMath          = true,
-			.isJIT                = false,
-			.addSourceLocations   = true,
-			.useDebugUnreachables = false,
-		});
-
-		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
-			sema_to_pir_data.createJITBuildFuncDecls(module);
-		}
-
-		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
-		sema_to_pir.lower();
-
-		return pcit::pir::lowerToAssembly(module, pcit::pir::OptMode::NONE);
+		return evo::Result<>();
 	}
 
 
@@ -433,7 +418,7 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
-		auto module = pir::Module("<entry>", core::Platform::getCurrent());
+		auto module = pir::Module(evo::copy(this->_config.title), core::Platform::getCurrent());
 
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
 			#if defined(PCIT_CONFIG_DEBUG)

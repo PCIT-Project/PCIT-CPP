@@ -13,7 +13,7 @@
 #include <Evo.h>
 
 #include <stack>
-#include <shared_mutex>
+#include <mutex>
 
 #include "./LinearStepAlloc.h"
 
@@ -41,12 +41,13 @@ namespace pcit::core{
 			StepAlloc() = default;
 			~StepAlloc() = default;
 
-			StepAlloc(const StepAlloc&) = delete;
-			StepAlloc(StepAlloc&&) = delete;
+			StepAlloc(const StepAlloc& rhs) = delete;
+			StepAlloc(StepAlloc&& rhs) = default;
+
 			
 
 			EVO_NODISCARD auto emplace_back(auto&&... args) -> ID {
-				const auto lock = std::unique_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->mutex);
 
 				if(this->erased_elems.empty() == false){
 					const ID new_elem_id = this->erased_elems.top();
@@ -61,7 +62,7 @@ namespace pcit::core{
 
 
 			auto erase(ID id) -> void {
-				const auto lock = std::unique_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->mutex);
 
 				this->linear_step_alloc[id].reset();
 				this->erased_elems.push(id);
@@ -74,7 +75,7 @@ namespace pcit::core{
 
 
 			auto operator[](const ID& id) const -> const T& {
-				const auto lock = std::shared_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->mutex);
 				if constexpr(std::is_integral_v<ID>){
 					evo::debugAssert(this->linear_step_alloc[id].has_value(), "This element ({}) was erased", id);
 				}else{
@@ -85,7 +86,7 @@ namespace pcit::core{
 			}
 
 			auto operator[](const ID& id) -> T& {
-				const auto lock = std::shared_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->mutex);
 				if constexpr(std::is_integral_v<ID>){
 					evo::debugAssert(this->linear_step_alloc[id].has_value(), "This element ({}) was erased", id);
 				}else{
@@ -101,7 +102,7 @@ namespace pcit::core{
 
 
 			EVO_NODISCARD auto clear() -> void {
-				const auto lock = std::unique_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->mutex);
 
 				this->clear_without_lock();
 			}

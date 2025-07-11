@@ -29,9 +29,12 @@ namespace pcit::pir{
 			) : name(std::move(_name)), platform(_platform) {}
 			~Module() = default;
 
+			Module(const Module&) = delete;
+			Module(Module&&) noexcept = default;
+
+
 			EVO_NODISCARD auto getName() const -> std::string_view { return this->name; }
 			EVO_NODISCARD auto getPlatform() const -> const core::Platform& { return this->platform; }
-
 
 
 			///////////////////////////////////
