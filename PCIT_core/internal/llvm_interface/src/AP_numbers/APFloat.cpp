@@ -33,6 +33,7 @@
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(push, 0)
+	#pragma warning(disable : 4702)
 #endif
 
 #include <llvm/ADT/APFloat.h>

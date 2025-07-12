@@ -51,7 +51,7 @@ namespace pcit::llvmint{
 
 
 		llvm::MDNode* fp_math_tag = nullptr;
-		llvm::ArrayRef<llvm::OperandBundleDef> op_bundles = std::nullopt;
+		llvm::ArrayRef<llvm::OperandBundleDef> op_bundles{};
 
 		this->builder = new llvm::IRBuilderBase(
 			*context.native(), *this->folder, *this->inserter, fp_math_tag, op_bundles
