@@ -132,15 +132,27 @@ namespace pcit::panther{
 			struct ScopeLevel{
 				std::string_view label; // empty if no label
 				evo::SmallVector<pir::Expr> label_output_locations;
+				std::optional<pir::BasicBlock::ID> begin_block;
 				std::optional<pir::BasicBlock::ID> end_block; // only has value if has label
+				bool is_loop;
 				evo::SmallVector<DeferItem> defers{};
 
-				ScopeLevel() : label(), label_output_locations(), end_block() {}
+				ScopeLevel() : label(), label_output_locations(), end_block(), is_loop(false) {}
 				ScopeLevel(
 					std::string_view _label,
 					evo::SmallVector<pir::Expr>&& _label_output_locations,
-					pir::BasicBlock::ID _end_block
-				) : label(_label), label_output_locations(std::move(_label_output_locations)), end_block(_end_block) {}
+					std::optional<pir::BasicBlock::ID> _begin_block,
+					pir::BasicBlock::ID _end_block,
+					bool _is_loop
+				) : 
+					label(_label),
+					label_output_locations(std::move(_label_output_locations)),
+					begin_block(_begin_block),					
+					end_block(_end_block),
+					is_loop(_is_loop)
+				{
+					evo::debugAssert(!this->is_loop || this->begin_block.has_value(), "loop must have begin block");
+				}
 			};
 
 			auto push_scope_level(auto&&... scope_level_args) -> void;

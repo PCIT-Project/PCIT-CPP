@@ -180,6 +180,26 @@ namespace pcit::panther{
 				return this->errors[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createBreak(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->breaks.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::BREAK, node_index);
+			}
+			EVO_NODISCARD auto getBreak(const AST::Node& node) const -> const AST::Break& {
+				evo::debugAssert(node.kind() == AST::Kind::BREAK, "Node is not a Break");
+				return this->breaks[node._value.node_index];
+			}
+
+			EVO_NODISCARD auto createContinue(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->continues.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::CONTINUE, node_index);
+			}
+			EVO_NODISCARD auto getContinue(const AST::Node& node) const -> const AST::Continue& {
+				evo::debugAssert(node.kind() == AST::Kind::CONTINUE, "Node is not a Continue");
+				return this->continues[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createConditional(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->conditionals.emplace_back(std::forward<decltype(args)>(args)...);
@@ -392,6 +412,8 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<AST::Return, uint32_t> returns{};
 			core::LinearStepAlloc<AST::Error, uint32_t> errors{};
+			core::LinearStepAlloc<AST::Break, uint32_t> breaks{};
+			core::LinearStepAlloc<AST::Continue, uint32_t> continues{};
 			core::LinearStepAlloc<AST::Conditional, uint32_t> conditionals{};
 			core::LinearStepAlloc<AST::WhenConditional, uint32_t> when_conditionals{};
 			core::LinearStepAlloc<AST::While, uint32_t> whiles{};

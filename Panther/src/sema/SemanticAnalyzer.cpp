@@ -242,6 +242,15 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Error>()){
 				return this->instr_error(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::Unreachable>()){
+				return this->instr_unreachable(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Break>()){
+				return this->instr_break(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Continue>()){
+				return this->instr_continue(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::BeginCond>()){
 				return this->instr_begin_cond(instr);
 
@@ -266,14 +275,17 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::EndLocalWhenCond>()){
 				return this->instr_end_local_when_cond(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::BeginWhile>()){
+				return this->instr_begin_while(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::EndWhile>()){
+				return this->instr_end_while();
+
 			}else if constexpr(std::is_same<InstrType, Instruction::BeginDefer>()){
 				return this->instr_begin_defer(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::EndDefer>()){
 				return this->instr_end_defer();
-
-			}else if constexpr(std::is_same<InstrType, Instruction::Unreachable>()){
-				return this->instr_unreachable(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::BeginStmtBlock>()){
 				return this->instr_begin_stmt_block(instr);
@@ -3180,7 +3192,6 @@ namespace pcit::panther{
 		if(this->check_scope_isnt_terminated(instr.return_stmt).isError()){ return Result::ERROR; }
 
 		const Token::ID target_label_id = ASTBuffer::getIdent(*instr.return_stmt.label);
-		sema::ScopeLevel::ID scope_level_id = sema::ScopeLevel::ID::dummy();
 		const sema::ScopeLevel* scope_level = nullptr;
 
 		const std::string_view return_label = this->source.getTokenBuffer()[target_label_id].getString();
@@ -3211,6 +3222,15 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// analyze return value(s)
+
+		if(scope_level->getLabelNode().is<sema::BlockExpr::ID>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_CANNOT_RETURN_TO_THIS_LABEL,
+				*instr.return_stmt.label,
+				std::format("Label \"{}\" cannot be returned to", return_label)
+			);
+			return Result::ERROR;
+		}
 
 		const sema::BlockExpr& target_block_expr = this->context.getSemaBuffer().getBlockExpr(
 			scope_level->getLabelNode().as<sema::BlockExpr::ID>()
@@ -3394,6 +3414,156 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_unreachable(const Instruction::Unreachable& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.keyword).isError()){ return Result::ERROR; }
+		
+		this->get_current_scope_level().stmtBlock().emplace_back(sema::Stmt::createUnreachable(instr.keyword));
+		this->get_current_scope_level().setTerminated();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_break(const Instruction::Break& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.break_stmt).isError()){ return Result::ERROR; }
+
+		if(instr.break_stmt.label.has_value()){
+			const sema::ScopeLevel* scope_level = nullptr;
+
+			const std::string_view return_label = this->source.getTokenBuffer()[*instr.break_stmt.label].getString();
+
+			for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+				EVO_DEFER([&](){ i -= 1; });
+
+				if(i == this->scope.getCurrentObjectScopeIndex()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_BREAK_LABEL_NOT_FOUND,
+						*instr.break_stmt.label,
+						std::format("Label \"{}\" not found", return_label)
+					);
+					return Result::ERROR;
+				}
+
+				scope_level = &this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+				if(scope_level->hasLabel() == false){ continue; }
+			
+				const std::string_view scope_label = this->source.getTokenBuffer()[scope_level->getLabel()].getString();
+
+				if(return_label == scope_label){ break; }
+			}
+
+			if(scope_level->isLoopMainScope() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_CANNOT_BREAK_TO_THIS_LABEL,
+					*instr.break_stmt.label,
+					std::format("Cannot break to label \"{}\"", return_label)
+				);
+				return Result::ERROR;
+			}
+
+		}else{
+			bool found_loop = false;
+
+			for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+				EVO_DEFER([&](){ i -= 1; });
+
+				const sema::ScopeLevel& scope_level =
+					this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+
+				if(scope_level.isLoopMainScope()){
+					found_loop = true;
+					break;
+				}
+			}
+
+			if(found_loop == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_NO_LOOP_TO_BREAK_TO,
+					instr.break_stmt,
+					"No loop to break to"
+				);
+				return Result::ERROR;
+			}
+		}
+
+		const sema::Break::ID new_break_id = this->context.sema_buffer.createBreak(instr.break_stmt.label);
+		this->get_current_scope_level().stmtBlock().emplace_back(new_break_id);
+		this->get_current_scope_level().setTerminated();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_continue(const Instruction::Continue& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.continue_stmt).isError()){ return Result::ERROR; }
+
+		if(instr.continue_stmt.label.has_value()){
+			const sema::ScopeLevel* scope_level = nullptr;
+
+			const std::string_view return_label = this->source.getTokenBuffer()[*instr.continue_stmt.label].getString();
+
+			for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+				EVO_DEFER([&](){ i -= 1; });
+
+				if(i == this->scope.getCurrentObjectScopeIndex()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_CONTINUE_LABEL_NOT_FOUND,
+						*instr.continue_stmt.label,
+						std::format("Label \"{}\" not found", return_label)
+					);
+					return Result::ERROR;
+				}
+
+				scope_level = &this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+				if(scope_level->hasLabel() == false){ continue; }
+			
+				const std::string_view scope_label = this->source.getTokenBuffer()[scope_level->getLabel()].getString();
+
+				if(return_label == scope_label){ break; }
+			}
+
+			if(scope_level->isLoopMainScope() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_CANNOT_CONTINUE_TO_THIS_LABEL,
+					*instr.continue_stmt.label,
+					std::format("Cannot continue to label \"{}\"", return_label)
+				);
+				return Result::ERROR;
+			}
+
+		}else{
+			bool found_loop = false;
+
+			for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+				EVO_DEFER([&](){ i -= 1; });
+
+				const sema::ScopeLevel& scope_level =
+					this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+
+				if(scope_level.isLoopMainScope()){
+					found_loop = true;
+					break;
+				}
+			}
+
+			if(found_loop == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_NO_LOOP_TO_CONTINUE_TO,
+					instr.continue_stmt,
+					"No loop to continue to"
+				);
+				return Result::ERROR;
+			}
+		}
+
+		const sema::Continue::ID new_continue_id = this->context.sema_buffer.createContinue(instr.continue_stmt.label);
+		this->get_current_scope_level().stmtBlock().emplace_back(new_continue_id);
+		this->get_current_scope_level().setTerminated();
+
+		return Result::SUCCESS;
+	}
+
+
 	auto SemanticAnalyzer::instr_begin_cond(const Instruction::BeginCond& instr) -> Result {
 		TermInfo& cond = this->get_term_info(instr.cond_expr);
 
@@ -3486,6 +3656,45 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::instr_begin_while(const Instruction::BeginWhile& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.while_stmt).isError()){ return Result::ERROR; }
+
+		TermInfo& cond_term_info = this->get_term_info(instr.cond_expr);
+
+		if(this->type_check<true, true>(
+			TypeManager::getTypeBool(), cond_term_info, "Condition in [while] conditional", instr.while_stmt.cond
+		).ok == false){
+			return Result::ERROR;
+		}
+
+		const AST::Block& while_block = this->source.getASTBuffer().getBlock(instr.while_stmt.block);
+
+		const sema::While::ID sema_while_id = this->context.sema_buffer.createWhile(
+			cond_term_info.getExpr(), while_block.label
+		);
+		this->get_current_scope_level().stmtBlock().emplace_back(sema_while_id);
+
+		sema::While& sema_while = this->context.sema_buffer.whiles[sema_while_id];
+		if(while_block.label.has_value()){
+			this->push_scope_level(sema_while.block, *while_block.label, sema_while_id);
+		}else{
+			this->push_scope_level(&sema_while.block);
+		}
+
+		this->get_current_scope_level().setIsLoopMainScope();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_end_while() -> Result {
+		this->pop_scope_level();
+		this->get_current_scope_level().resetSubScopes();
+		return Result::SUCCESS;
+	}
+
+
+
 
 	auto SemanticAnalyzer::instr_begin_defer(const Instruction::BeginDefer& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.defer_stmt).isError()){ return Result::ERROR; }
@@ -3523,17 +3732,6 @@ namespace pcit::panther{
 		this->get_current_scope_level().resetSubScopes();
 		return Result::SUCCESS;
 	}
-
-
-	auto SemanticAnalyzer::instr_unreachable(const Instruction::Unreachable& instr) -> Result {
-		if(this->check_scope_isnt_terminated(instr.keyword).isError()){ return Result::ERROR; }
-		
-		this->get_current_scope_level().stmtBlock().emplace_back(sema::Stmt::createUnreachable(instr.keyword));
-		this->get_current_scope_level().setTerminated();
-
-		return Result::SUCCESS;
-	}
-
 
 
 	auto SemanticAnalyzer::instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result {

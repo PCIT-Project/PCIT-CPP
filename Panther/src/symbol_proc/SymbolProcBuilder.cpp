@@ -64,7 +64,7 @@ namespace pcit::panther{
 			break; case AST::Kind::FUNC_CALL:
 				if(this->build_func_call(stmt).isError()){ return evo::resultError; }
 
-			break; default: evo::unreachable();
+			break; default: evo::debugFatalBreak("Unknown global statement");
 		}
 
 		symbol_proc.term_infos.resize(this->get_current_symbol().num_term_infos);
@@ -366,16 +366,17 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:          case AST::Kind::ERROR:            case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:           case AST::Kind::DEFER:            case AST::Kind::UNREACHABLE:
-			case AST::Kind::BLOCK:           case AST::Kind::FUNC_CALL:        case AST::Kind::TEMPLATE_PACK:
-			case AST::Kind::TEMPLATED_EXPR:  case AST::Kind::PREFIX:           case AST::Kind::INFIX:
-			case AST::Kind::POSTFIX:         case AST::Kind::MULTI_ASSIGN:     case AST::Kind::NEW:
-			case AST::Kind::STRUCT_INIT_NEW: case AST::Kind::TRY_ELSE:         case AST::Kind::TYPE_DEDUCER:
-			case AST::Kind::TYPE:            case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
-			case AST::Kind::ATTRIBUTE:       case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
-			case AST::Kind::INTRINSIC:       case AST::Kind::LITERAL:          case AST::Kind::UNINIT:
-			case AST::Kind::ZEROINIT:        case AST::Kind::THIS:             case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:           case AST::Kind::ERROR:           case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:         case AST::Kind::CONDITIONAL:     case AST::Kind::WHILE:
+			case AST::Kind::DEFER:            case AST::Kind::UNREACHABLE:     case AST::Kind::BLOCK:
+			case AST::Kind::FUNC_CALL:        case AST::Kind::TEMPLATE_PACK:   case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:           case AST::Kind::INFIX:           case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN:     case AST::Kind::NEW:             case AST::Kind::STRUCT_INIT_NEW:
+			case AST::Kind::TRY_ELSE:         case AST::Kind::TYPE_DEDUCER:    case AST::Kind::TYPE:
+			case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
+			case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:          case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:
+			case AST::Kind::THIS:             case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -641,6 +642,13 @@ namespace pcit::panther{
 
 
 			auto template_names = std::unordered_set<std::string_view>();
+
+			for(
+				const AST::TemplatePack::Param& template_param
+				: ast_buffer.getTemplatePack(*func_decl.templatePack).params
+			){
+				template_names.emplace(this->source.getTokenBuffer()[template_param.ident].getString());
+			}
 
 
 			this->add_instruction(Instruction::TemplateFuncBegin(func_decl, std::move(template_param_infos)));
@@ -1152,11 +1160,13 @@ namespace pcit::panther{
 			case AST::Kind::INTERFACE_IMPL:   evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::RETURN:           return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:            return this->analyze_error(ast_buffer.getError(stmt));
+			case AST::Kind::UNREACHABLE:      return this->analyze_unreachable(ast_buffer.getUnreachable(stmt));
+			case AST::Kind::BREAK:            return this->analyze_break(ast_buffer.getBreak(stmt));
+			case AST::Kind::CONTINUE:         return this->analyze_continue(ast_buffer.getContinue(stmt));
 			case AST::Kind::CONDITIONAL:      return this->analyze_conditional(ast_buffer.getConditional(stmt));
 			case AST::Kind::WHEN_CONDITIONAL: return this->analyze_when_cond(ast_buffer.getWhenConditional(stmt));
-			case AST::Kind::WHILE:            evo::unimplemented("AST::Kind::WHILE");
+			case AST::Kind::WHILE:            return this->analyze_while(ast_buffer.getWhile(stmt));
 			case AST::Kind::DEFER:            return this->analyze_defer(ast_buffer.getDefer(stmt));
-			case AST::Kind::UNREACHABLE:      return this->analyze_unreachable(ast_buffer.getUnreachable(stmt));
 			case AST::Kind::BLOCK:            return this->analyze_stmt_block(ast_buffer.getBlock(stmt));
 			case AST::Kind::FUNC_CALL:        return this->analyze_func_call(ast_buffer.getFuncCall(stmt));
 			case AST::Kind::TEMPLATE_PACK:    evo::debugFatalBreak("Invalid statment");
@@ -1338,6 +1348,17 @@ namespace pcit::panther{
 	}
 
 
+	auto SymbolProcBuilder::analyze_break(const AST::Break& break_stmt) -> evo::Result<> {
+		this->add_instruction(Instruction::Break(break_stmt));
+		return evo::Result<>();
+	}
+
+	auto SymbolProcBuilder::analyze_continue(const AST::Continue& continue_stmt) -> evo::Result<> {
+		this->add_instruction(Instruction::Continue(continue_stmt));
+		return evo::Result<>();
+	}
+
+
 	auto SymbolProcBuilder::analyze_conditional(const AST::Conditional& conditional_stmt) -> evo::Result<> {
 		const AST::Conditional* target_conditional = &conditional_stmt;
 
@@ -1429,6 +1450,23 @@ namespace pcit::panther{
 				uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1)
 			);
 		}
+
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_while(const AST::While& while_stmt) -> evo::Result<> {
+		const evo::Result<SymbolProc::TermInfoID> cond_expr = this->analyze_expr<false>(while_stmt.cond);
+		if(cond_expr.isError()){ return evo::resultError; }
+
+		this->add_instruction(Instruction::BeginWhile(while_stmt, cond_expr.value()));
+
+		const AST::Block& block = this->source.getASTBuffer().getBlock(while_stmt.block);
+		for(const AST::Node& stmt : block.stmts){
+			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		}
+
+		this->add_instruction(Instruction::EndWhile());
 
 		return evo::Result<>();
 	}
@@ -1647,13 +1685,14 @@ namespace pcit::panther{
 					// }
 				} break;
 
-				case AST::Kind::VAR_DECL:       case AST::Kind::FUNC_DECL:        case AST::Kind::ALIAS_DECL:
-				case AST::Kind::TYPEDEF_DECL:   case AST::Kind::STRUCT_DECL:      case AST::Kind::INTERFACE_DECL:
-				case AST::Kind::INTERFACE_IMPL: case AST::Kind::RETURN:           case AST::Kind::ERROR:
-				case AST::Kind::CONDITIONAL:    case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
-				case AST::Kind::DEFER:          case AST::Kind::UNREACHABLE:      case AST::Kind::TEMPLATE_PACK:
-				case AST::Kind::MULTI_ASSIGN:   case AST::Kind::ATTRIBUTE_BLOCK:  case AST::Kind::ATTRIBUTE:
-				case AST::Kind::PRIMITIVE_TYPE: case AST::Kind::DISCARD: {
+				case AST::Kind::VAR_DECL:        case AST::Kind::FUNC_DECL:        case AST::Kind::ALIAS_DECL:
+				case AST::Kind::TYPEDEF_DECL:    case AST::Kind::STRUCT_DECL:      case AST::Kind::INTERFACE_DECL:
+				case AST::Kind::INTERFACE_IMPL:  case AST::Kind::RETURN:           case AST::Kind::ERROR:
+				case AST::Kind::UNREACHABLE:     case AST::Kind::BREAK:            case AST::Kind::CONTINUE:
+				case AST::Kind::CONDITIONAL:     case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
+				case AST::Kind::DEFER:           case AST::Kind::TEMPLATE_PACK:    case AST::Kind::MULTI_ASSIGN:
+				case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:        case AST::Kind::PRIMITIVE_TYPE:
+				case AST::Kind::DISCARD: {
 					// TODO(FUTURE): better messaging (specify what kind)
 					this->emit_fatal(
 						Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,

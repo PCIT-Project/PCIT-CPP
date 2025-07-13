@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.137.0"></a>
+## v0.0.137.0
+
+### Panther
+- Added `while` loops
+- Added `break` statements
+- Added `continue` statements
+- Removed old compiler implementation
+- Fixed missing printing of AST for error statements
+- Fixed template function args being used as function parameter types incorrectly erroring as not existent
+
+### Misc
+- Fixed build warnings for unreachable code in LLVM
+
+
+<!---------------------------------->
 <a name="v0.0.136.0"></a>
 ## v0.0.136.0
 - Updated build system to satisfy [llvm-project-build v0.2.0](https://github.com/PCIT-Project/llvm-project-build/tree/main/v0.2.0)
@@ -34,7 +50,7 @@
 - Added function templates
 	- function template args
 	- function parameters with a type of an interface
-	- function parameters with a type of a type deducer 
+	- function parameters with a type of a type deducer
 - Fixed shadowing redefinition check sometimes emitting an error diagnostic pointing to the wrong source location
 - Fixed race condition in semantic analysis when calling when analyzing an accessor operator (`.`) on an interface pointer
 
@@ -64,8 +80,8 @@
 
 ### Panther
 - Added interfaces
-- Fixed crashing when printing AST of struct initalizer new
 - Improved names of PIR registers
+- Fixed crashing when printing AST of struct initializer new
 - Fixed functions that have the same type and have return parameters usually incorrectly registering as different types
 
 ### PIR
@@ -85,10 +101,10 @@
 ## v0.0.131.2
 
 ### Panther
+- Added checking for fluid argument to operator `~`
 - Improved diagnostic error message for fluid conversion requiring truncation
 - Fixed crashing when lowering to PIR of where the LHS xor RHS of an operator `<<|` is fluid
 - Fixed operator `as` not properly erroring when a fluid conversion would require truncation (which caused further issues)
-- Added chedking for fluid argument to operator `~`
 
 
 <!---------------------------------->
@@ -137,9 +153,9 @@
 
 ### Panther
 - Fixed 2 race conditions in semantic analysis
-- Removed `lib` directory for being extraneous
 - Made project C++23 compliant
 	- Project still only requires C++20 compliant compiler
+- Removed `lib` directory for being extraneous
 
 
 <!---------------------------------->
@@ -208,7 +224,7 @@
 - Added aliases declared in function scope
 - Added functions declared in function scope
 - Added structs declared in function scope
-- Fixed debug check for multithreading failing incorrectly
+- Fixed debug check for multi-threading failing incorrectly
 
 
 <!---------------------------------->
@@ -276,7 +292,7 @@
 ## v0.0.120.0
 
 ### Panther
-- Added wanring option when making a method call to a function that is not a method
+- Added warning option when making a method call to a function that is not a method
 - Fixed method call to functions that are not methods
 
 
@@ -544,7 +560,7 @@
 ### Panther
 - Added assignment
 - Added multi-assignment
-- Added discarding assignemtn
+- Added discarding assignment
 - Optimized ABI to not include function parameters of types that are size 0
 - Fixed lowering of calls to functions that have named return values
 - Fixed multi-assigns silently failing if an assignment target was something else besides an identifier or a discard (`_`)
@@ -729,7 +745,7 @@
 - Added checking for float literal ending in a `.`
 - Added checking for implicitly-typed `var` and `const` variables having a value of a fulid literal
 - Added checking for newlines and tabs in character literals
-- Swapped defintitions of language terms `comptime` and `constexpr`
+- Swapped definitions of language terms `comptime` and `constexpr`
 - Improved PIR code generation for function parameters (removing unnecessary `@alloca`s)
 - Slight tweaks to CONTRIBUTING.md
 - Fixed race condition in semantic analysis where sometimes not all overloads of a function were considered
@@ -758,7 +774,7 @@
 
 ### PIR
 - Fixed type checking debug asserts in `Module::createGlobalArray`, `Module::createGlobalStruct`, and `Module::createGlobalVar`
-- Fixed stmt name deduplicator / static automatic name-er not taking `@alloca`s into account
+- Fixed stmt name de-duplicator / static automatic name-er not taking `@alloca`s into account
 
 
 <!---------------------------------->
@@ -883,13 +899,13 @@
 ## v0.0.83.0
 
 ### Panther
-- Added semantic analysis of when conditonals
+- Added semantic analysis of when conditionals
 
 
 <!---------------------------------->
 <a name="v0.0.82.0"></a>
 ## v0.0.82.0
-Removed depenedency analysis and added the symbol proc stage in its place. Doing this required re-doing semantic analysis.
+Removed dependency analysis and added the symbol proc stage in its place. Doing this required re-doing semantic analysis.
 
 ### Panther
 - Added semantic analysis of global variables
@@ -1331,7 +1347,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 - Modified API of `PassManager` passes to `const Agent&` instead of `Agent&`
 - Removed `;`s from printing
 - Fixed printing of `@add` instruction
-- Fixed potential issues when multithreading `PassManager`
+- Fixed potential issues when multi-threading `PassManager`
 
 
 <!---------------------------------->
@@ -1999,7 +2015,7 @@ Added LLVM to the build
 - Added the BF16 type ("brain" floating point - 7-bit significand)
 - Fixed fatal errors caused by diagnostics with infos
 - Fixed end of file checking for tokenization of operators and identifiers
-- Fixed unstable behaviour with function parameters in the AST
+- Fixed unstable behavior with function parameters in the AST
 - Changed indentation level of diagnostic infos in the default diagnostic callback
 
 

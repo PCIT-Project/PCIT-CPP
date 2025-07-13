@@ -134,6 +134,14 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, ErrorID>::UniqueID;
 	};
 
+	struct BreakID : public core::UniqueID<uint32_t, struct BreakID> {
+		using core::UniqueID<uint32_t, BreakID>::UniqueID;
+	};
+
+	struct ContinueID : public core::UniqueID<uint32_t, struct ContinueID> {
+		using core::UniqueID<uint32_t, ContinueID>::UniqueID;
+	};
+
 	struct ConditionalID : public core::UniqueID<uint32_t, struct ConditionalID> {
 		using core::UniqueID<uint32_t, ConditionalID>::UniqueID;
 	};
@@ -478,6 +486,28 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::ErrorID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::BreakID>{
+		static constexpr auto init(panther::sema::BreakID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::BreakID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ContinueID>{
+		static constexpr auto init(panther::sema::ContinueID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ContinueID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1037,6 +1067,36 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::ErrorID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::ErrorID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::BreakID>{
+		auto operator()(pcit::panther::sema::BreakID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::BreakID> : public pcit::core::Optional<pcit::panther::sema::BreakID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::BreakID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::BreakID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::ContinueID>{
+		auto operator()(pcit::panther::sema::ContinueID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::ContinueID> : public pcit::core::Optional<pcit::panther::sema::ContinueID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::ContinueID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ContinueID>::operator=;
 	};
 
 

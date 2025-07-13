@@ -232,6 +232,30 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// breaks
+
+			EVO_NODISCARD auto createBreak(auto&&... args) -> sema::Break::ID {
+				return this->breaks.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getBreak(sema::Break::ID id) const -> const sema::Break& {
+				return this->breaks[id];
+			}
+
+
+			///////////////////////////////////
+			// continues
+
+			EVO_NODISCARD auto createContinue(auto&&... args) -> sema::Continue::ID {
+				return this->continues.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getContinue(sema::Continue::ID id) const -> const sema::Continue& {
+				return this->continues[id];
+			}
+
+
+			///////////////////////////////////
 			// conditionals
 
 			EVO_NODISCARD auto createConditional(auto&&... args) -> sema::Conditional::ID {
@@ -555,6 +579,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::MultiAssign, sema::MultiAssign::ID> multi_assigns{};
 			core::SyncLinearStepAlloc<sema::Return, sema::Return::ID> returns{};
 			core::SyncLinearStepAlloc<sema::Error, sema::Error::ID> errors{};
+			core::SyncLinearStepAlloc<sema::Break, sema::Break::ID> breaks{};
+			core::SyncLinearStepAlloc<sema::Continue, sema::Continue::ID> continues{};
 			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
 			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};

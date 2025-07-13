@@ -209,9 +209,16 @@ namespace pcit::panther{
 			SEMA_SCOPE_IS_ALREADY_TERMINATED,
 			SEMA_NOT_ERRORING_FUNC_CALL,
 			SEMA_RETURN_LABEL_NOT_FOUND,
+			SEMA_CANNOT_RETURN_TO_THIS_LABEL,
 			SEMA_UNLABELED_RETURN_IN_DEFER,
 			SEMA_ERROR_IN_DEFER,
 			SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC,
+			SEMA_BREAK_LABEL_NOT_FOUND,
+			SEMA_CANNOT_BREAK_TO_THIS_LABEL,
+			SEMA_NO_LOOP_TO_BREAK_TO,
+			SEMA_CONTINUE_LABEL_NOT_FOUND,
+			SEMA_CANNOT_CONTINUE_TO_THIS_LABEL,
+			SEMA_NO_LOOP_TO_CONTINUE_TO,
 
 			// as
 			SEMA_AS_TO_VOID,
@@ -320,6 +327,8 @@ namespace pcit::panther{
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::Return& return_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Error& error_stmt, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::Break& break_stmt, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::Continue& continue_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Conditional& conditional, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::WhenConditional& when_cond, const class Source& src)
 					-> Location;
@@ -637,9 +646,16 @@ namespace pcit::panther{
 				case Code::SEMA_SCOPE_IS_ALREADY_TERMINATED:
 				case Code::SEMA_NOT_ERRORING_FUNC_CALL:
 				case Code::SEMA_RETURN_LABEL_NOT_FOUND:
+				case Code::SEMA_CANNOT_RETURN_TO_THIS_LABEL:
 				case Code::SEMA_UNLABELED_RETURN_IN_DEFER:
 				case Code::SEMA_ERROR_IN_DEFER:
 				case Code::SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC:
+				case Code::SEMA_BREAK_LABEL_NOT_FOUND:
+				case Code::SEMA_CANNOT_BREAK_TO_THIS_LABEL:
+				case Code::SEMA_NO_LOOP_TO_BREAK_TO:
+				case Code::SEMA_CONTINUE_LABEL_NOT_FOUND:
+				case Code::SEMA_CANNOT_CONTINUE_TO_THIS_LABEL:
+				case Code::SEMA_NO_LOOP_TO_CONTINUE_TO:
 				case Code::SEMA_AS_TO_VOID:
 				case Code::SEMA_AS_INVALID_FROM:
 				case Code::SEMA_AS_INVALID_TO:

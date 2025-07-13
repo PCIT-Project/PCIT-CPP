@@ -38,20 +38,24 @@ namespace pcit::panther::sema{
 			RETURN,
 			ERROR,
 			UNREACHABLE,
+			BREAK,
+			CONTINUE,
 			CONDITIONAL,
 			WHILE,
 			DEFER,
 		};
 
-		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),          value{.var_id = var_id}               {}
-		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FUNC_CALL),    value{.func_call_id = func_call_id}   {}
+		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),         value{.var_id = var_id}               {}
+		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FUNC_CALL),   value{.func_call_id = func_call_id}   {}
 		explicit Stmt(InterfaceCallID interface_call_id) 
 			: _kind(Kind::INTERFACE_CALL), value{.interface_call_id = interface_call_id} {}
-		explicit Stmt(AssignID assign_id)        : _kind(Kind::ASSIGN),       value{.assign_id = assign_id}         {}
+		explicit Stmt(AssignID assign_id)        : _kind(Kind::ASSIGN),      value{.assign_id = assign_id}         {}
 		explicit Stmt(MultiAssignID multi_assign_id)
 			: _kind(Kind::MULTI_ASSIGN), value{.multi_assign_id = multi_assign_id} {}
 		explicit Stmt(ReturnID return_id)        : _kind(Kind::RETURN),      value{.return_id = return_id}         {}
 		explicit Stmt(ErrorID error_id)          : _kind(Kind::ERROR),       value{.error_id = error_id}           {}
+		explicit Stmt(BreakID break_id)          : _kind(Kind::BREAK),       value{.break_id = break_id}           {}
+		explicit Stmt(ContinueID continue_id)    : _kind(Kind::CONTINUE),    value{.continue_id = continue_id}     {}
 		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::CONDITIONAL), value{.cond_id = cond_id}             {}
 		explicit Stmt(WhileID while_id)          : _kind(Kind::WHILE),       value{.while_id = while_id}           {}
 		explicit Stmt(DeferID defer_id)          : _kind(Kind::DEFER),       value{.defer_id = defer_id}           {}
@@ -101,6 +105,16 @@ namespace pcit::panther::sema{
 			return this->value.token_id;
 		}
 
+		EVO_NODISCARD auto breakID() const -> BreakID {
+			evo::debugAssert(this->kind() == Kind::BREAK, "not an break");
+			return this->value.break_id;
+		}
+
+		EVO_NODISCARD auto continueID() const -> ContinueID {
+			evo::debugAssert(this->kind() == Kind::CONTINUE, "not an continue");
+			return this->value.continue_id;
+		}
+
 		EVO_NODISCARD auto conditionalID() const -> ConditionalID {
 			evo::debugAssert(this->kind() == Kind::CONDITIONAL, "not an conditional");
 			return this->value.cond_id;
@@ -132,6 +146,8 @@ namespace pcit::panther::sema{
 				MultiAssignID multi_assign_id;
 				ReturnID return_id;
 				ErrorID error_id;
+				BreakID break_id;
+				ContinueID continue_id;
 				ConditionalID cond_id;
 				WhileID while_id;
 				DeferID defer_id;

@@ -45,6 +45,8 @@ namespace pcit::panther{
 			case AST::Kind::INTERFACE_IMPL:   return Location::get(ast_buffer.getInterfaceImpl(node), src);
 			case AST::Kind::RETURN:           return Location::get(ast_buffer.getReturn(node), src);
 			case AST::Kind::ERROR:            return Location::get(ast_buffer.getError(node), src);
+			case AST::Kind::BREAK:            return Location::get(ast_buffer.getBreak(node), src);
+			case AST::Kind::CONTINUE:         return Location::get(ast_buffer.getContinue(node), src);
 			case AST::Kind::CONDITIONAL:      return Location::get(ast_buffer.getConditional(node), src);
 			case AST::Kind::WHEN_CONDITIONAL: return Location::get(ast_buffer.getWhenConditional(node), src);
 			case AST::Kind::WHILE:            return Location::get(ast_buffer.getWhile(node), src);
@@ -126,6 +128,14 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::Error& error_stmt, const Source& src) -> Location {
 		return Location::get(error_stmt.keyword, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::Break& break_stmt, const Source& src) -> Location {
+		return Location::get(break_stmt.keyword, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::Continue& continue_stmt, const Source& src) -> Location {
+		return Location::get(continue_stmt.keyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::Conditional& conditional, const Source& src) -> Location {

@@ -204,6 +204,8 @@ namespace pcit::panther{
 		{"return",      Token::Kind::KEYWORD_RETURN},
 		{"error",       Token::Kind::KEYWORD_ERROR},
 		{"unreachable", Token::Kind::KEYWORD_UNREACHABLE},
+		{"break",       Token::Kind::KEYWORD_BREAK},
+		{"continue",    Token::Kind::KEYWORD_CONTINUE},
 
 		{"null",        Token::Kind::KEYWORD_NULL},
 		{"uninit",      Token::Kind::KEYWORD_UNINIT},

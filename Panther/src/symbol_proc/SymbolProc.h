@@ -435,6 +435,18 @@ namespace pcit::panther{
 			std::optional<SymbolProcTermInfoID>	value;
 		};
 
+		struct Unreachable{
+			Token::ID keyword;
+		};
+
+		struct Break{
+			const AST::Break& break_stmt;
+		};
+
+		struct Continue{
+			const AST::Continue& continue_stmt;
+		};
+
 
 		struct BeginCond{
 			const AST::Conditional& conditional;
@@ -459,15 +471,19 @@ namespace pcit::panther{
 
 
 
+		struct BeginWhile{
+			const AST::While& while_stmt;
+			SymbolProcTermInfoID cond_expr;
+		};
+
+		struct EndWhile{};
+
+
 		struct BeginDefer{
 			const AST::Defer& defer_stmt;
 		};
 
 		struct EndDefer{};
-
-		struct Unreachable{
-			Token::ID keyword;
-		};
 
 		struct BeginStmtBlock{
 			const AST::Block& stmt_block;
@@ -811,6 +827,9 @@ namespace pcit::panther{
 			Return,
 			LabeledReturn,
 			Error,
+			Unreachable,
+			Break,
+			Continue,
 			BeginCond,
 			CondNoElse,
 			CondElse,
@@ -819,9 +838,10 @@ namespace pcit::panther{
 			EndCondSet,
 			BeginLocalWhenCond,
 			EndLocalWhenCond,
+			BeginWhile,
+			EndWhile,
 			BeginDefer,
 			EndDefer,
-			Unreachable,
 			BeginStmtBlock,
 			EndStmtBlock,
 			FuncCall,

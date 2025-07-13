@@ -233,11 +233,22 @@ namespace pcit::panther::sema{
 		std::optional<Token::ID> targetLabel;
 	};
 
-
 	struct Error{
 		using ID = ErrorID;
 
 		std::optional<Expr> value; // nullopt means return void
+	};
+
+	struct Break{
+		using ID = BreakID;
+
+		std::optional<Token::ID> label;
+	};
+
+	struct Continue{
+		using ID = ContinueID;
+
+		std::optional<Token::ID> label;
 	};
 
 	struct Conditional{
@@ -251,8 +262,9 @@ namespace pcit::panther::sema{
 	struct While{
 		using ID = WhileID;
 
-	// 	Expr cond;
-	// 	StmtBlock block;
+		Expr cond;
+		std::optional<Token::ID> label;
+		StmtBlock block{};
 	};
 
 	struct Defer{

@@ -58,6 +58,8 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_RETURN:      return this->parse_return();
 			case Token::Kind::KEYWORD_ERROR:       return this->parse_error();
 			case Token::Kind::KEYWORD_UNREACHABLE: return this->parse_unreachable();
+			case Token::Kind::KEYWORD_BREAK:       return this->parse_break();
+			case Token::Kind::KEYWORD_CONTINUE:    return this->parse_continue();
 			case Token::Kind::KEYWORD_IF:          return this->parse_conditional<false>();
 			case Token::Kind::KEYWORD_WHEN:        return this->parse_conditional<true>();
 			case Token::Kind::KEYWORD_WHILE:       return this->parse_while();
@@ -553,6 +555,56 @@ namespace pcit::panther{
 
 		return AST::Node(AST::Kind::UNREACHABLE, start_location);
 	}
+
+
+
+	auto Parser::parse_break() -> Result {
+		const Token::ID keyword_token_id = this->reader.peek();
+		if(this->assert_token_fail(Token::Kind::KEYWORD_BREAK)){ return Result::Code::ERROR; }
+
+		auto label = std::optional<Token::ID>();
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
+			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::ERROR; }
+
+			const Result label_result = this->parse_ident();
+			if(this->check_result_fail(label_result, "label after [->] in break statement")){
+				return Result::Code::ERROR;
+			}
+
+			label = ASTBuffer::getIdent(label_result.value());
+		}
+
+		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [break] statement")){
+			return Result::Code::ERROR;
+		}
+
+		return this->source.ast_buffer.createBreak(keyword_token_id, label);
+	}
+
+
+	auto Parser::parse_continue() -> Result {
+		const Token::ID keyword_token_id = this->reader.peek();
+		if(this->assert_token_fail(Token::Kind::KEYWORD_CONTINUE)){ return Result::Code::ERROR; }
+
+		auto label = std::optional<Token::ID>();
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
+			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::ERROR; }
+
+			const Result label_result = this->parse_ident();
+			if(this->check_result_fail(label_result, "label after [->] in break statement")){
+				return Result::Code::ERROR;
+			}
+
+			label = ASTBuffer::getIdent(label_result.value());
+		}
+
+		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [break] statement")){
+			return Result::Code::ERROR;
+		}
+
+		return this->source.ast_buffer.createContinue(keyword_token_id, label);
+	}
+
 
 
 	// TODO(FUTURE): check EOF

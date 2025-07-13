@@ -278,6 +278,18 @@ namespace pthr{
 						this->print_return(this->ast_buffer.getReturn(stmt));
 					} break;
 
+					case panther::AST::Kind::ERROR: {
+						this->print_error(this->ast_buffer.getError(stmt));
+					} break;
+
+					case panther::AST::Kind::BREAK: {
+						this->print_break(this->ast_buffer.getBreak(stmt));
+					} break;
+
+					case panther::AST::Kind::CONTINUE: {
+						this->print_continue(this->ast_buffer.getContinue(stmt));
+					} break;
+
 					case panther::AST::Kind::CONDITIONAL: {
 						this->print_conditional(this->ast_buffer.getConditional(stmt));
 					} break;
@@ -773,6 +785,84 @@ namespace pthr{
 			}
 
 
+			auto print_error(const panther::AST::Error& err) -> void {
+				this->indenter.print();
+				this->print_major_header("Error");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_end();
+					this->print_minor_header("Value");
+
+					err.value.visit([&](auto value) -> void {
+						using ValueT = std::decay_t<decltype(value)>;
+
+						if constexpr(std::is_same<ValueT, std::monostate>()){
+							this->printer.printlnGray(" {NONE}");
+
+						}else if constexpr(std::is_same<ValueT, panther::AST::Node>()){
+							this->indenter.push();
+							this->printer.println();
+							this->print_expr(value);
+							this->indenter.pop();
+
+						}else if constexpr(std::is_same<ValueT, panther::Token::ID>()){
+							this->printer.printlnGray(" {...}");
+
+						}else{
+							static_assert(sizeof(ValueT) < 0, "Unknown or unsupported error value kind");
+						}
+					});
+
+
+					this->indenter.pop();
+				}
+			}
+
+
+			auto print_break(const panther::AST::Break& break_stmt) -> void {
+				this->indenter.print();
+				this->print_major_header("Break");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_end();
+					this->print_minor_header("Label");
+					if(break_stmt.label.has_value()){
+						this->printer.print(" ");
+						this->print_ident(*break_stmt.label);
+					}else{
+						this->printer.printlnGray(" {NONE}");
+					}
+
+					this->indenter.pop();
+				}
+			}
+
+
+			auto print_continue(const panther::AST::Continue& continue_stmt) -> void {
+				this->indenter.print();
+				this->print_major_header("Continue");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_end();
+					this->print_minor_header("Label");
+					if(continue_stmt.label.has_value()){
+						this->printer.print(" ");
+						this->print_ident(*continue_stmt.label);
+					}else{
+						this->printer.printlnGray(" {NONE}");
+					}
+
+					this->indenter.pop();
+				}
+			}
+
+
 			auto print_conditional(const panther::AST::Conditional& conditional) -> void {
 				this->print_conditional_impl<false>(conditional.cond, conditional.thenBlock, conditional.elseBlock);
 			}
@@ -1186,17 +1276,18 @@ namespace pthr{
 					} break;
 
 
-					case panther::AST::Kind::NONE:            case panther::AST::Kind::VAR_DECL:
-					case panther::AST::Kind::FUNC_DECL:       case panther::AST::Kind::ALIAS_DECL:
-					case panther::AST::Kind::TYPEDEF_DECL:    case panther::AST::Kind::STRUCT_DECL:
-					case panther::AST::Kind::INTERFACE_DECL:  case panther::AST::Kind::INTERFACE_IMPL:
-					case panther::AST::Kind::RETURN:          case panther::AST::Kind::ERROR:
-					case panther::AST::Kind::CONDITIONAL:     case panther::AST::Kind::WHEN_CONDITIONAL:
-					case panther::AST::Kind::WHILE:           case panther::AST::Kind::DEFER:
-					case panther::AST::Kind::UNREACHABLE:     case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:    case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK: case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::TYPE_DEDUCER:    case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::NONE:             case panther::AST::Kind::VAR_DECL:
+					case panther::AST::Kind::FUNC_DECL:        case panther::AST::Kind::ALIAS_DECL:
+					case panther::AST::Kind::TYPEDEF_DECL:     case panther::AST::Kind::STRUCT_DECL:
+					case panther::AST::Kind::INTERFACE_DECL:   case panther::AST::Kind::INTERFACE_IMPL:
+					case panther::AST::Kind::RETURN:           case panther::AST::Kind::ERROR:
+					case panther::AST::Kind::UNREACHABLE:      case panther::AST::Kind::BREAK:
+					case panther::AST::Kind::CONTINUE:         case panther::AST::Kind::CONDITIONAL:
+					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
+					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
+					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::TYPEID_CONVERTER:
+					case panther::AST::Kind::ATTRIBUTE_BLOCK:  case panther::AST::Kind::ATTRIBUTE:
+					case panther::AST::Kind::TYPE_DEDUCER:     case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

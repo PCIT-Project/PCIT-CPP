@@ -1326,7 +1326,62 @@ namespace pcit::panther{
 				}else{
 					this->agent.createUnreachable();
 				}
+			} break;
 
+			case sema::Stmt::Kind::BREAK: {
+				const sema::Break& break_stmt = this->context.getSemaBuffer().getBreak(stmt.breakID());
+
+				if(break_stmt.label.has_value()){
+					const std::string_view label =
+						this->current_source->getTokenBuffer()[*break_stmt.label].getString();
+
+					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+						this->output_defers_for_scope_level<true>(scope_level);
+
+						if(scope_level.label == label){
+							this->agent.createJump(*scope_level.end_block);
+							break;
+						}
+					}
+					
+				}else{
+					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+						this->output_defers_for_scope_level<true>(scope_level);
+
+						if(scope_level.is_loop){
+							this->agent.createJump(*scope_level.end_block);
+							break;
+						}
+					}
+				}
+			} break;
+
+			case sema::Stmt::Kind::CONTINUE: {
+				const sema::Continue& continue_stmt = this->context.getSemaBuffer().getContinue(stmt.continueID());
+
+				if(continue_stmt.label.has_value()){
+					const std::string_view label =
+						this->current_source->getTokenBuffer()[*continue_stmt.label].getString();
+
+					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+						this->output_defers_for_scope_level<true>(scope_level);
+
+						if(scope_level.label == label){
+							this->agent.createJump(*scope_level.begin_block);
+							break;
+						}
+					}
+					
+				}else{
+					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+						this->output_defers_for_scope_level<true>(scope_level);
+
+						if(scope_level.is_loop){
+							this->agent.createJump(*scope_level.begin_block);
+							break;
+						}
+					}
+				}
 			} break;
 
 			case sema::Stmt::Kind::CONDITIONAL: {
@@ -1410,7 +1465,40 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Stmt::Kind::WHILE: {
-				evo::unimplemented("To PIR of sema::Stmt::Kind::WHILE");
+				const sema::While& while_stmt = this->context.getSemaBuffer().getWhile(stmt.whileID());
+
+				const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("WHILE.COND"));
+				const pir::BasicBlock::ID body_block = this->agent.createBasicBlock(this->name("WHILE.BODY"));
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("WHILE.END"));
+
+
+				this->agent.createJump(cond_block);
+
+				this->agent.setTargetBasicBlock(cond_block);
+				const pir::Expr cond_value = this->get_expr_register(while_stmt.cond);
+				this->agent.createBranch(cond_value, body_block, end_block);
+
+				this->agent.setTargetBasicBlock(body_block);
+
+				if(while_stmt.label.has_value()){
+					const std::string_view label = 
+						this->current_source->getTokenBuffer()[*while_stmt.label].getString();
+					this->push_scope_level(label, evo::SmallVector<pir::Expr>(), cond_block, end_block, true);
+				}else{
+					this->push_scope_level("", evo::SmallVector<pir::Expr>(), cond_block, end_block, true);
+				}
+
+				for(const sema::Stmt& block_stmt : while_stmt.block){
+					this->lower_stmt(block_stmt);
+				}
+
+				if(while_stmt.block.isTerminated() == false){
+					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					this->agent.createJump(cond_block);
+				}
+
+				this->pop_scope_level();
+				this->agent.setTargetBasicBlock(end_block);
 			} break;
 
 			case sema::Stmt::Kind::DEFER: {
@@ -2016,11 +2104,15 @@ namespace pcit::panther{
 						this->agent.createAlloca(output_type, this->name(".BLOCK_EXPR.OUTPUT.ALLOCA"))
 					);
 
-					this->push_scope_level(label, std::move(label_output_locations), end_block);
+					this->push_scope_level(label, std::move(label_output_locations), std::nullopt, end_block, false);
 
 				}else{
 					this->push_scope_level(
-						label, evo::SmallVector<pir::Expr>(store_locations.begin(), store_locations.end()), end_block
+						label,
+						evo::SmallVector<pir::Expr>(store_locations.begin(), store_locations.end()),
+						std::nullopt,
+						end_block,
+						false
 					);
 				}
 				

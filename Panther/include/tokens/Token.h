@@ -100,6 +100,8 @@ namespace pcit::panther{
 				KEYWORD_RETURN,
 				KEYWORD_ERROR,
 				KEYWORD_UNREACHABLE,
+				KEYWORD_BREAK,
+				KEYWORD_CONTINUE,
 
 				KEYWORD_NULL,
 				KEYWORD_UNINIT,
@@ -471,6 +473,8 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_RETURN:           return "return";
 					break; case Kind::KEYWORD_ERROR:            return "error";
 					break; case Kind::KEYWORD_UNREACHABLE:      return "unreachable";
+					break; case Kind::KEYWORD_BREAK:            return "break";
+					break; case Kind::KEYWORD_CONTINUE:         return "continue";
 
 					break; case Kind::KEYWORD_NULL:             return "null";
 					break; case Kind::KEYWORD_UNINIT:           return "uninit";

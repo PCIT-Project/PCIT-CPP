@@ -35,11 +35,13 @@ namespace pcit::panther::AST{
 
 		RETURN,
 		ERROR,
+		UNREACHABLE,
 		CONDITIONAL,
 		WHEN_CONDITIONAL,
 		WHILE,
 		DEFER,
-		UNREACHABLE,
+		BREAK,
+		CONTINUE,
 
 		BLOCK,
 		FUNC_CALL,
@@ -236,6 +238,16 @@ namespace pcit::panther::AST{
 	struct Error{
 		Token::ID keyword;
 		evo::Variant<std::monostate, Node, Token::ID> value; // std::monostate == error; Token::ID == error...;
+	};
+
+	struct Break{
+		Token::ID keyword;
+		std::optional<Token::ID> label;
+	};
+
+	struct Continue{
+		Token::ID keyword;
+		std::optional<Token::ID> label;
 	};
 
 	struct Conditional{

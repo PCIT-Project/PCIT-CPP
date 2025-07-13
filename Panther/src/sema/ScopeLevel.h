@@ -82,7 +82,7 @@ namespace pcit::panther::sema{
 			>;
 
 			using NoLabelNode = std::monostate;
-			using LabelNode = evo::Variant<NoLabelNode, sema::BlockExprID>;
+			using LabelNode = evo::Variant<NoLabelNode, sema::BlockExprID, sema::WhileID>;
 
 		public:
 			ScopeLevel(sema::StmtBlock* stmt_block = nullptr)
@@ -114,8 +114,12 @@ namespace pcit::panther::sema{
 			auto setIsDeferMainScope() -> void { this->is_defer_main_scope = true; }
 			EVO_NODISCARD auto isDeferMainScope() const -> bool { return this->is_defer_main_scope; }
 
+			auto setIsLoopMainScope() -> void { this->is_loop_main_scope = true; }
+			EVO_NODISCARD auto isLoopMainScope() const -> bool { return this->is_loop_main_scope; }
+
 			auto setDontDoShadowingChecks() -> void { this->do_shadowing_checks = false; }
 			EVO_NODISCARD auto doesShadowingChecks() const -> bool { return this->do_shadowing_checks; }
+
 
 			auto addSubScope() -> void;
 			auto setSubScopeTerminated() -> void;
@@ -181,6 +185,7 @@ namespace pcit::panther::sema{
 			std::optional<Token::ID> _label;
 			LabelNode _label_node;
 			bool is_defer_main_scope = false;
+			bool is_loop_main_scope = false;
 			bool do_shadowing_checks = true; // only for this level, doesn't affect sub-scopes or super-scopes
 
 			unsigned num_sub_scopes_not_terminated = 0;

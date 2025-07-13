@@ -112,6 +112,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
 			EVO_NODISCARD auto instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result;
 			EVO_NODISCARD auto instr_error(const Instruction::Error& instr) -> Result;
+			EVO_NODISCARD auto instr_unreachable(const Instruction::Unreachable& instr) -> Result;
+			EVO_NODISCARD auto instr_break(const Instruction::Break& instr) -> Result;
+			EVO_NODISCARD auto instr_continue(const Instruction::Continue& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_cond(const Instruction::BeginCond& instr) -> Result;
 			EVO_NODISCARD auto instr_cond_no_else() -> Result;
 			EVO_NODISCARD auto instr_cond_else() -> Result;
@@ -120,9 +123,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_end_cond_set() -> Result;
 			EVO_NODISCARD auto instr_begin_local_when_cond(const Instruction::BeginLocalWhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_end_local_when_cond(const Instruction::EndLocalWhenCond& instr) -> Result;
+			EVO_NODISCARD auto instr_begin_while(const Instruction::BeginWhile& instr) -> Result;
+			EVO_NODISCARD auto instr_end_while() -> Result;
 			EVO_NODISCARD auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
 			EVO_NODISCARD auto instr_end_defer() -> Result;
-			EVO_NODISCARD auto instr_unreachable(const Instruction::Unreachable& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result;
 			EVO_NODISCARD auto instr_end_stmt_block() -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;

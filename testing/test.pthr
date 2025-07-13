@@ -1,6 +1,17 @@
 
 
-
 func entry = () #entry -> UI8 {
-	return 12;
+	var count: UI8 = 0;
+
+	var i: USize = 0;
+	while(true){->loop
+		defer{ i = i + 1; }
+
+		count = count + i as UI8;
+
+		if(i < 4){ continue->loop; }
+		break;
+	}
+
+	return copy count;
 }

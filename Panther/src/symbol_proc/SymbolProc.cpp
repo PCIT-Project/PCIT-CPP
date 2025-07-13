@@ -386,6 +386,15 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, Error>()){
 					return "Error";
 
+				}else if constexpr(std::is_same<InstrType, Unreachable>()){
+					return "Unreachable";
+
+				}else if constexpr(std::is_same<InstrType, Break>()){
+					return "Break";
+
+				}else if constexpr(std::is_same<InstrType, Continue>()){
+					return "Continue";
+
 				}else if constexpr(std::is_same<InstrType, BeginCond>()){
 					return "BeginCond";
 
@@ -410,14 +419,17 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, EndLocalWhenCond>()){
 					return "EndLocalWhenCond";
 
+				}else if constexpr(std::is_same<InstrType, BeginWhile>()){
+					return "BeginWhile";
+
+				}else if constexpr(std::is_same<InstrType, EndWhile>()){
+					return "EndWhile";
+
 				}else if constexpr(std::is_same<InstrType, BeginDefer>()){
 					return "BeginDefer";
 
 				}else if constexpr(std::is_same<InstrType, EndDefer>()){
 					return "EndDefer";
-
-				}else if constexpr(std::is_same<InstrType, Unreachable>()){
-					return "Unreachable";
 
 				}else if constexpr(std::is_same<InstrType, BeginStmtBlock>()){
 					return "BeginStmtBlock";

@@ -29,6 +29,7 @@
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(push, 0)
+	#pragma warning(disable : 4702)
 #endif
 
 #include <llvm/ADT/APInt.h>
@@ -65,7 +66,7 @@ namespace pcit::llvmint{
 
 		/// A utility function for allocating memory and checking for allocation
 		/// failure.  The content is not zeroed.
-		inline static uint64_t* getMemory(unsigned numWords) {
+	inline static uint64_t* getMemory(unsigned numWords) {
 		return new uint64_t[numWords];
 	}
 
