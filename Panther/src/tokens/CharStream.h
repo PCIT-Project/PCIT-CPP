@@ -24,6 +24,7 @@ namespace pcit::panther{
 			~CharStream() = default;
 
 			EVO_NODISCARD auto peek(size_t ammount_forward = 0) const -> char;
+			EVO_NODISCARD auto peek_back(size_t ammount_backward = 1) const -> char;
 			EVO_NODISCARD auto peek_raw_ptr() const -> const char*;
 			EVO_NODISCARD auto next() -> char;
 			auto skip(size_t ammount) -> void;

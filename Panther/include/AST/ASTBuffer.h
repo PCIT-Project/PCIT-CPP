@@ -357,6 +357,16 @@ namespace pcit::panther{
 			}
 
 
+			EVO_NODISCARD auto createArrayType(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->array_types.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::ARRAY_TYPE, node_index);
+			}
+			EVO_NODISCARD auto getArrayType(const AST::Node& node) const -> const AST::ArrayType& {
+				evo::debugAssert(node.kind() == AST::Kind::ARRAY_TYPE, "Node is not an ArrayType");
+				return this->array_types[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createType(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->types.emplace_back(std::forward<decltype(args)>(args)...);
@@ -386,7 +396,7 @@ namespace pcit::panther{
 				return AST::Node(AST::Kind::ATTRIBUTE_BLOCK, node_index);
 			}
 			EVO_NODISCARD auto getAttributeBlock(const AST::Node& node) const -> const AST::AttributeBlock& {
-				evo::debugAssert(node.kind() == AST::Kind::ATTRIBUTE_BLOCK, "Node is not a AttributeBlock");
+				evo::debugAssert(node.kind() == AST::Kind::ATTRIBUTE_BLOCK, "Node is not an AttributeBlock");
 				return this->attribute_blocks[node._value.node_index];
 			}
 
@@ -434,6 +444,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::StructInitNew, uint32_t> struct_init_news{};
 			core::LinearStepAlloc<AST::TryElse, uint32_t> try_elses{};
 
+			core::LinearStepAlloc<AST::ArrayType, uint32_t> array_types{};
 			core::LinearStepAlloc<AST::Type, uint32_t> types{};
 			core::LinearStepAlloc<AST::TypeIDConverter, uint32_t> type_id_converters{};
 

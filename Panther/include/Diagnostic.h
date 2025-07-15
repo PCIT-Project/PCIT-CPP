@@ -89,6 +89,8 @@ namespace pcit::panther{
 			SYMBOL_PROC_LABELED_VOID_RETURN,
 			SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR,
 			SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
+			SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR,
+			SYMBOL_PROC_MULTI_DIM_ARR_WITH_TERMINATOR,
 
 
 			//////////////////
@@ -100,6 +102,7 @@ namespace pcit::panther{
 			SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
 			SEMA_NOT_TEMPLATED_TYPE_WITH_TEMPLATE_ARGS,
 			SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
+			SEMA_ARRAY_ELEM_TYPE_VOID,
 
 			// idents
 			SEMA_IDENT_NOT_IN_SCOPE,
@@ -346,6 +349,7 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::New& new_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::StructInitNew& new_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TryElse& try_expr, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::ArrayType& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Type& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TypeIDConverter& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::AttributeBlock::Attribute& attr, const class Source& src)
@@ -556,6 +560,8 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_LABELED_VOID_RETURN:
 				case Code::SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR:
 				case Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD:
+				case Code::SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR:
+				case Code::SYMBOL_PROC_MULTI_DIM_ARR_WITH_TERMINATOR:
 					return "SPx";
 
 				// TODO(FUTURE): give individual codes and put in correct order
@@ -564,6 +570,7 @@ namespace pcit::panther{
 				case Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL:
 				case Code::SEMA_NOT_TEMPLATED_TYPE_WITH_TEMPLATE_ARGS:
 				case Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED:
+				case Code::SEMA_ARRAY_ELEM_TYPE_VOID:
 				case Code::SEMA_IDENT_NOT_IN_SCOPE:
 				case Code::SEMA_IDENT_ALREADY_IN_SCOPE:
 				case Code::SEMA_INTRINSIC_DOESNT_EXIST:

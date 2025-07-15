@@ -465,6 +465,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::PrimitiveType>()){
 				return this->instr_primitive_type(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::ArrayType>()){
+				return this->instr_array_type(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::TypeIDConverter>()){
 				return this->instr_type_id_converter(instr);
 
@@ -4473,7 +4476,9 @@ namespace pcit::panther{
 				} break;
 
 				case sema::Expr::Kind::STRING_VALUE: {
-					evo::unimplemented();
+					jit_args.emplace_back(
+						evo::copy(this->context.getSemaBuffer().getStringValue(arg.getExpr().stringValueID()).value)
+					);
 				} break;
 
 				case sema::Expr::Kind::AGGREGATE_VALUE: {
@@ -4482,7 +4487,9 @@ namespace pcit::panther{
 
 				case sema::Expr::Kind::CHAR_VALUE: {
 					jit_args.emplace_back(
-						evo::copy(this->context.getSemaBuffer().getCharValue(arg.getExpr().charValueID()).value)
+						core::GenericInt::create<char>(
+							this->context.getSemaBuffer().getCharValue(arg.getExpr().charValueID()).value
+						)
 					);
 				} break;
 
@@ -4753,12 +4760,11 @@ namespace pcit::panther{
 						);
 					} break;
 					case sema::Expr::Kind::STRING_VALUE: {
-						evo::unimplemented("String values");
-						// template_args.emplace_back(
-						// 	core::GenericValue(
-						// 		this->context.sema_buffer.getStringValue(value_expr.stringValueID()).value
-						// 	)
-						// );
+						template_args.emplace_back(
+							core::GenericValue(
+								evo::copy(this->context.sema_buffer.getStringValue(value_expr.stringValueID()).value)
+							)
+						);
 					} break;
 					case sema::Expr::Kind::AGGREGATE_VALUE: {
 						evo::unimplemented("Aggregate values");
@@ -4771,7 +4777,9 @@ namespace pcit::panther{
 					case sema::Expr::Kind::CHAR_VALUE: {
 						template_args.emplace_back(
 							core::GenericValue(
-								this->context.sema_buffer.getCharValue(value_expr.charValueID()).value
+								core::GenericInt::create<char>(
+									this->context.sema_buffer.getCharValue(value_expr.charValueID()).value
+								)
 							)
 						);
 					} break;
@@ -6672,8 +6680,8 @@ namespace pcit::panther{
 					} break;
 
 					case sema::Expr::Kind::STRING_VALUE: {
-						evo::debugFatalBreak(
-							"String value template args are not supported yet (getting here should be impossible)"
+						instantiation_lookup_args.emplace_back(
+							core::GenericValue(evo::copy(sema_buffer.getStringValue(arg_expr.stringValueID()).value))
 						);
 					} break;
 
@@ -6756,8 +6764,10 @@ namespace pcit::panther{
 						} break;
 
 						case sema::Expr::Kind::STRING_VALUE: {
-							evo::debugFatalBreak(
-								"String value template args are not supported yet (getting here should be impossible)"
+							instantiation_lookup_args.emplace_back(
+								core::GenericValue(
+									evo::copy(sema_buffer.getStringValue(default_value.stringValueID()).value)
+								)
 							);
 						} break;
 
@@ -8648,6 +8658,115 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_array_type(const Instruction::ArrayType& instr) -> Result {
+		const TypeInfo::VoidableID elem_type = this->get_type(instr.elem_type);
+
+		if(elem_type.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ARRAY_ELEM_TYPE_VOID,
+				instr.array_type.elemType,
+				"Element type of an array type cannot be type [Void]"
+			);
+			return Result::ERROR;
+		}
+
+		auto lengths = evo::SmallVector<uint64_t>();
+		lengths.reserve(instr.lengths.size());
+		for(size_t i = 0; const SymbolProc::TermInfoID& length_term_info_id : instr.lengths){
+			TermInfo& length_term_info = this->get_term_info(length_term_info_id);
+
+			if(this->type_check<true, true>(
+				TypeManager::getTypeUSize(), length_term_info, "Array length", instr.array_type.lengths[i]
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			lengths.emplace_back(
+				static_cast<uint64_t>(
+					this->context.getSemaBuffer().getIntValue(length_term_info.getExpr().intValueID()).value
+				)
+			);
+
+			i += 1;
+		}
+
+
+		auto terminator = std::optional<core::GenericValue>();
+		if(instr.terminator.has_value()){
+			const TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
+
+			switch(terminator_term_info.getExpr().kind()){
+				case sema::Expr::Kind::INT_VALUE: {
+					terminator.emplace(
+						evo::copy(
+							this->context.getSemaBuffer().getIntValue(terminator_term_info.getExpr().intValueID()).value
+						)
+					);
+				} break;
+
+				case sema::Expr::Kind::FLOAT_VALUE: {
+					terminator.emplace(
+						evo::copy(
+							this->context.getSemaBuffer().getFloatValue(
+								terminator_term_info.getExpr().floatValueID()
+							).value
+						)
+					);
+				} break;
+
+				case sema::Expr::Kind::BOOL_VALUE: {
+					terminator.emplace(
+						this->context.getSemaBuffer().getBoolValue(terminator_term_info.getExpr().boolValueID()).value
+					);
+				} break;
+
+				case sema::Expr::Kind::STRING_VALUE: {
+					terminator.emplace(
+						this->context.getSemaBuffer().getStringValue(
+							terminator_term_info.getExpr().stringValueID()
+						).value
+					);
+				} break;
+
+				case sema::Expr::Kind::AGGREGATE_VALUE: {
+					this->emit_error(
+						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+						*instr.array_type.terminator,
+						"Array terminators of aggregate types are unimplemented"
+					);
+					return Result::ERROR;
+				} break;
+
+				case sema::Expr::Kind::CHAR_VALUE: {
+					terminator.emplace(
+						core::GenericInt::create<char>(
+							this->context.getSemaBuffer().getCharValue(
+								terminator_term_info.getExpr().charValueID()
+							).value
+						)
+					);
+				} break;
+
+				default: evo::debugAssert("Invalid terminator kind");
+			}
+		}
+
+
+		const BaseType::ID array_type = this->context.type_manager.getOrCreateArray(
+			BaseType::Array(elem_type.asTypeID(), std::move(lengths), terminator)
+		);
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::TYPE,
+			TermInfo::ValueStage::CONSTEXPR,
+			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_type))),
+			std::nullopt
+		);
+		return Result::SUCCESS;
+	}
+
+
 	auto SemanticAnalyzer::instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result {
 		TermInfo& type_id_expr = this->get_term_info(instr.expr);
 
@@ -8837,9 +8956,10 @@ namespace pcit::panther{
 								BaseType::Array(
 									this->context.getTypeManager().getTypeChar(),
 									evo::SmallVector<uint64_t>{literal_token.getString().size()},
-									core::GenericValue('\0')
+									core::GenericValue(core::GenericInt::create<char>('\0'))
 								)
-							)
+							),
+							evo::SmallVector<AST::Type::Qualifier>{AST::Type::Qualifier(true, true, false)}
 						)
 					),
 					sema::Expr(this->context.sema_buffer.createStringValue(std::string(literal_token.getString())))
@@ -10985,8 +11105,10 @@ namespace pcit::panther{
 					} break;
 
 					case sema::Expr::Kind::STRING_VALUE: {
-						evo::debugFatalBreak(
-							"String value template args are not supported yet (getting here should be impossible)"
+						instantiation_lookup_args.emplace_back(
+							core::GenericValue(
+								evo::copy(this->context.getSemaBuffer().getStringValue(arg_expr.stringValueID()).value)
+							)
 						);
 					} break;
 
@@ -11053,8 +11175,14 @@ namespace pcit::panther{
 						} break;
 
 						case sema::Expr::Kind::STRING_VALUE: {
-							evo::debugFatalBreak(
-								"String value template args are not supported yet (getting here should be impossible)"
+							instantiation_lookup_args.emplace_back(
+								core::GenericValue(
+									evo::copy(
+										this->context.getSemaBuffer().getStringValue(
+											default_value.stringValueID()
+										).value
+									)
+								)
 							);
 						} break;
 
@@ -11438,7 +11566,20 @@ namespace pcit::panther{
 		const TypeInfo& deducer  = type_manager.getTypeInfo(deducer_id);
 		const TypeInfo& got_type = type_manager.getTypeInfo(got_type_id);
 
-		if(deducer.qualifiers() != got_type.qualifiers()){ return evo::resultError; }
+		if(deducer.qualifiers().size() < got_type.qualifiers().size()){
+			for(size_t i = 0; i < deducer.qualifiers().size(); i+=1){
+				if(deducer.qualifiers()[i] != got_type.qualifiers()[i - got_type.qualifiers().size()]){
+					return evo::resultError;
+				}
+			}
+
+		}else if(deducer.qualifiers().size() == got_type.qualifiers().size()){
+			if(deducer.qualifiers() != got_type.qualifiers()){ return evo::resultError; }
+			
+		}else{ // deducer.qualifiers().size() > got_type.qualifiers().size()
+			return evo::resultError;
+		}
+
 
 		if(deducer.baseTypeID().kind() != BaseType::Kind::TYPE_DEDUCER){ return output; }
 
@@ -11453,8 +11594,14 @@ namespace pcit::panther{
 		if(deducer.qualifiers().empty()){
 			output.emplace_back(got_type_id, type_deducer.identTokenID);
 		}else{
+			auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+
+			for(size_t i = 0; i < got_type.qualifiers().size() - deducer.qualifiers().size(); i+=1){
+				qualifiers.emplace_back(got_type.qualifiers()[i]);
+			}
+
 			output.emplace_back(
-				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(got_type.baseTypeID())),
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(got_type.baseTypeID(), std::move(qualifiers))),
 				type_deducer.identTokenID
 			);
 		}
@@ -12487,7 +12634,15 @@ namespace pcit::panther{
 								this->emit_error(
 									Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
 									location,
-									"Type deducer not able to deduce type"
+									"Type deducer not able to deduce type",
+									Diagnostic::Info(
+										std::format(
+											"Type of expression: {}",
+											this->context.getTypeManager().printType(
+												actual_got_type_id, this->context.getSourceManager()
+											)
+										)
+									)
 								);
 							}
 							return TypeCheckInfo::fail();

@@ -590,6 +590,9 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, PrimitiveType>()){
 					return "PrimitiveType";
 
+				}else if constexpr(std::is_same<InstrType, ArrayType>()){
+					return "ArrayType";
+
 				}else if constexpr(std::is_same<InstrType, TypeIDConverter>()){
 					return "TypeIDConverter";
 

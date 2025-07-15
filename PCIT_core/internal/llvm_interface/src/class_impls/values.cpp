@@ -14,7 +14,7 @@
 
 namespace pcit::llvmint{
 
-	Alloca::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
+	Alloca::operator Value() const { return Value(static_cast<llvm::Value*>(this->native())); }
 	auto Alloca::getAllocatedType() const -> Type {
 		return Type(this->native()->getAllocatedType());
 	}
@@ -28,7 +28,7 @@ namespace pcit::llvmint{
 
 
 	ConstantInt::operator Constant() const { return Constant(static_cast<llvm::Constant*>(this->native()));	}
-	ConstantInt::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
+	ConstantInt::operator Value() const { return Value(static_cast<llvm::Value*>(this->native())); }
 
 
 
@@ -46,10 +46,15 @@ namespace pcit::llvmint{
 		this->native()->setAlignment(llvm::Align(alignment));
 	}
 
+	auto GlobalVariable::setInitializer(Constant value) -> void {
+		this->native()->setInitializer(value.native());
+	}
+
 	auto GlobalVariable::getType() const -> Type {
 		return Type(this->native()->getValueType());
 	}
 
-	GlobalVariable::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
+	GlobalVariable::operator Constant() const { return Constant(static_cast<llvm::Constant*>(this->native())); }
+	GlobalVariable::operator Value() const { return Value(static_cast<llvm::Value*>(this->native())); }
 		
 }

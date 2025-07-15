@@ -58,6 +58,7 @@ namespace pcit::panther::AST{
 		STRUCT_INIT_NEW,
 		TRY_ELSE,
 
+		ARRAY_TYPE,
 		TYPE,
 		TYPEID_CONVERTER,
 
@@ -358,6 +359,13 @@ namespace pcit::panther::AST{
 		Token::ID elseTokenID;
 	};
 
+
+	struct ArrayType{
+		Token::ID openBracket;
+		Node elemType;
+		evo::SmallVector<Node> lengths;
+		std::optional<Node> terminator;	
+	};
 
 	struct Type{
 		struct Qualifier{

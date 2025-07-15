@@ -1125,6 +1125,27 @@ namespace pthr{
 					} break;
 
 					// TODO(FUTURE): print this properly
+					case panther::AST::Kind::ARRAY_TYPE: {
+						const panther::AST::ArrayType& array_type = this->ast_buffer.getArrayType(base_type);
+
+						this->printer.printMagenta("[");
+						this->print_type(this->ast_buffer.getType(array_type.elemType));
+						this->printer.printMagenta(":");
+
+						for(size_t i = 0; i < array_type.lengths.size(); i+=1){
+							this->printer.printGray("...expr...");
+							if(i + 1 < array_type.lengths.size()){ this->printer.printMagenta(","); }
+						}
+
+						if(array_type.terminator.has_value()){
+							this->printer.printMagenta(";");
+							this->printer.printGray("...expr...");
+						}
+
+						this->printer.printMagenta("]");
+					} break;
+
+					// TODO(FUTURE): print this properly
 					case panther::AST::Kind::TYPEID_CONVERTER: {
 						this->printer.printMagenta("Type(");
 						this->printer.printGray("...expr...");
@@ -1285,9 +1306,10 @@ namespace pthr{
 					case panther::AST::Kind::CONTINUE:         case panther::AST::Kind::CONDITIONAL:
 					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
 					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK:  case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::TYPE_DEDUCER:     case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::ARRAY_TYPE:
+					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
+					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::TYPE_DEDUCER:
+					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

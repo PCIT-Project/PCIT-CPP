@@ -32,6 +32,8 @@ namespace pcit::pir{
 		PRIVATE,
 		INTERNAL, // Like private, but shows up as a local symbol in the object file
 		EXTERNAL,
+		WEAK,
+		WEAK_EXTERNAL,
 	};
 
 

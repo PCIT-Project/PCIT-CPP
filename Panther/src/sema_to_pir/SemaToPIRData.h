@@ -214,6 +214,9 @@ namespace pcit::panther{
 			}
 
 
+			EVO_NODISCARD auto get_string_literal_id() -> uint64_t {
+				return this->num_string_literals.fetch_add(1);
+			}
 
 	
 		private:
@@ -237,6 +240,8 @@ namespace pcit::panther{
 
 			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};
 			mutable core::SpinLock vtables_lock{};
+
+			std::atomic<uint64_t> num_string_literals = 0;
 
 			friend class SemaToPIR;
 	};

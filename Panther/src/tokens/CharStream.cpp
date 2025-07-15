@@ -19,6 +19,12 @@ namespace pcit::panther{
 		return this->data[this->cursor + ammount_forward];
 	}
 
+	auto CharStream::peek_back(size_t ammount_backward) const -> char {
+		evo::debugAssert(this->cursor >= ammount_backward, "Skipping past the beginning of the data");
+		
+		return this->data[this->cursor - ammount_backward];
+	}
+
 	auto CharStream::peek_raw_ptr() const -> const char* {
 		evo::debugAssert(this->cursor <= this->data.size(), "Cannot peek past end");
 

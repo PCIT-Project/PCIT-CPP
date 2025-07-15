@@ -1,6 +1,30 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.138.0"></a>
+## v0.0.138.0
+
+### Panther
+- Added array types
+- Added string template args
+- Fixed lowering to PIR of string values
+- Fixed string literals being given a type of array (corrected to a read-only pointer to an array)
+- Fixed type deducers incorrectly failing to deduce types when they have fewer qualifiers than the got type
+- Fixed diagnosic location for unknown string escape sequence being incorrect
+- Fixed type id converter expressions
+
+### PIR
+- Added linkages
+	- `weak`
+	- `weak_external`
+- Removed `LegacyJITEngine`
+- Fixed lowering to LLVMIR of globals that have a value of another global
+
+### PCIT_core
+- Fixed `SingleThreadedWorkQueue` from attempting to remove a task after there was an error in a task and the queue was force-cleared
+
+
+<!---------------------------------->
 <a name="v0.0.137.0"></a>
 ## v0.0.137.0
 

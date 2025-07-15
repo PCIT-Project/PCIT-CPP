@@ -23,7 +23,7 @@ namespace pcit::pir{
 	static constexpr auto tabs(unsigned indent) -> std::string_view {
 		switch(indent){
 			case 0: return "";
-			case 1: return "    ";
+			case 1: return "   ";
 			case 2: return "        ";
 		}
 
@@ -181,8 +181,15 @@ namespace pcit::pir{
 			this->printer.println();
 		}
 
-		for(const BasicBlock::ID& basic_block_id : function){
+		if(function.getAllocasRange().empty() == false){ this->printer.println(); }
+
+		for(size_t i = 0; const BasicBlock::ID& basic_block_id : function){
 			this->print_basic_block(this->reader.getBasicBlock(basic_block_id));
+
+			if(i + 1 < size_t(std::distance(function.begin(), function.end()))){
+				this->printer.println();
+			}
+			i += 1;
 		}
 
 		this->printer.println("}");
@@ -1911,6 +1918,16 @@ namespace pcit::pir{
 			case Linkage::EXTERNAL: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(external)");
+			} break;
+
+			case Linkage::WEAK: {
+				this->printer.printRed("#linkage");
+				this->printer.print("(weak)");
+			} break;
+
+			case Linkage::WEAK_EXTERNAL: {
+				this->printer.printRed("#linkage");
+				this->printer.print("(weak_external)");
 			} break;
 		}
 	}

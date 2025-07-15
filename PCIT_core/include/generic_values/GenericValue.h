@@ -27,13 +27,16 @@ namespace pcit::core{
 
 	class GenericValue{
 		public:
-			GenericValue()                            : value(std::monostate()) {}
-			explicit GenericValue(GenericInt&& val)   : value(std::move(val))   {}
-			explicit GenericValue(GenericFloat&& val) : value(std::move(val))   {}
-			explicit GenericValue(bool val)           : value(std::move(val))   {}
-			explicit GenericValue(std::string val)    : value(std::move(val))   {}
-			explicit GenericValue(class GenericAggregateBuilder&& builder);
+			GenericValue()                                              : value(std::monostate()) {}
+			explicit GenericValue(GenericInt&& val)                     : value(std::move(val))   {}
+			explicit GenericValue(GenericFloat&& val)                   : value(std::move(val))   {}
+			explicit GenericValue(bool val)                             : value(std::move(val))   {}
+			explicit GenericValue(std::string val)                      : value(std::move(val))   {}
+			explicit GenericValue(evo::SmallVector<GenericValue>&& val) : value(std::move(val))   {}
 			~GenericValue() = default;
+
+
+			GenericValue(char character) = delete; // use GenericInt::create<char> instead
 
 
 			template<class T>
@@ -221,29 +224,6 @@ namespace pcit::core{
 			evo::Variant<
 				std::monostate, GenericInt, GenericFloat, bool, std::string, evo::SmallVector<GenericValue>
 			> value;
-	};
-
-	
-
-	class GenericAggregateBuilder{
-		public:
-			GenericAggregateBuilder() = default;
-			GenericAggregateBuilder(size_t num_elems) : values() {
-				this->values.reserve(num_elems);
-				for(size_t i = 0; i < num_elems; i+=1){
-					this->values.emplace_back();
-				}
-			}
-			~GenericAggregateBuilder() = default;
-
-			auto addMember(const GenericValue& value) -> void { this->values.emplace_back(value); }
-			auto addMember(GenericValue&& value) -> void { this->values.emplace_back(std::move(value)); }
-
-	
-		private:
-			evo::SmallVector<GenericValue> values{};
-
-			friend GenericValue;
 	};
 
 

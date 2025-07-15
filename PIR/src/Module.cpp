@@ -61,10 +61,10 @@ namespace pcit::pir{
 
 			case Type::Kind::FLOAT: {
 				switch(type.getWidth()){
-					case 16: return 2;
-					case 32: return 4;
-					case 64: return 8;
-					case 80: return 16;
+					case 16:  return 2;
+					case 32:  return 4;
+					case 64:  return 8;
+					case 80:  return 16;
 					case 128: return 16;
 				}
 			} break;

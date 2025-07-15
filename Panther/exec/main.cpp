@@ -123,7 +123,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
 		.mode     = ContextConfig::Mode::BUILD_SYSTEM,
-		.title    = "Panther Testing",
+		.title    = "<Panther-Build-System>",
 		.platform = core::Platform::getCurrent(),
 
 		.numThreads = cmd_args_config.numBuildThreads,

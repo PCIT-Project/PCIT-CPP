@@ -988,33 +988,15 @@ namespace pcit::panther{
 		bool is_primitive = true;
 		bool is_type_deducer = false;
 		switch(this->reader[start_location].kind()){
-			case Token::Kind::TYPE_VOID:
-			case Token::Kind::TYPE_THIS:
-			case Token::Kind::TYPE_INT:
-			case Token::Kind::TYPE_ISIZE:
-			case Token::Kind::TYPE_I_N:
-			case Token::Kind::TYPE_UINT:
-			case Token::Kind::TYPE_USIZE:
-			case Token::Kind::TYPE_UI_N:
-			case Token::Kind::TYPE_F16:
-			case Token::Kind::TYPE_BF16:
-			case Token::Kind::TYPE_F32:
-			case Token::Kind::TYPE_F64:
-			case Token::Kind::TYPE_F80:
-			case Token::Kind::TYPE_F128:
-			case Token::Kind::TYPE_BYTE:
-			case Token::Kind::TYPE_BOOL:
-			case Token::Kind::TYPE_CHAR:
-			case Token::Kind::TYPE_RAWPTR:
-			case Token::Kind::TYPE_TYPEID:
-			case Token::Kind::TYPE_C_SHORT:
-			case Token::Kind::TYPE_C_USHORT:
-			case Token::Kind::TYPE_C_INT:
-			case Token::Kind::TYPE_C_UINT:
-			case Token::Kind::TYPE_C_LONG:
-			case Token::Kind::TYPE_C_ULONG:
-			case Token::Kind::TYPE_C_LONG_LONG:
-			case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_VOID:    case Token::Kind::TYPE_THIS:        case Token::Kind::TYPE_INT:
+			case Token::Kind::TYPE_ISIZE:   case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:   case Token::Kind::TYPE_UI_N:        case Token::Kind::TYPE_F16:
+			case Token::Kind::TYPE_BF16:    case Token::Kind::TYPE_F32:         case Token::Kind::TYPE_F64:
+			case Token::Kind::TYPE_F80:     case Token::Kind::TYPE_F128:        case Token::Kind::TYPE_BYTE:
+			case Token::Kind::TYPE_BOOL:    case Token::Kind::TYPE_CHAR:        case Token::Kind::TYPE_RAWPTR:
+			case Token::Kind::TYPE_TYPEID:  case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+			case Token::Kind::TYPE_C_INT:   case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:
+			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 			case Token::Kind::TYPE_C_LONG_DOUBLE:
 				break;
 
@@ -1031,6 +1013,10 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_DEDUCER: case Token::Kind::ANONYMOUS_TYPE_DEDUCER: {
 				is_primitive = false;
 				is_type_deducer = true;
+			} break;
+
+			case Token::lookupKind("["): {
+				is_primitive = false;
 			} break;
 
 			default: return Result::Code::WRONG_TYPE;
@@ -1108,6 +1094,64 @@ namespace pcit::panther{
 				}
 
 				return Result(this->source.ast_buffer.createTypeIDConverter(start_location, type_id_expr.value()));
+
+			}else if(this->reader[start_location].kind() == Token::lookupKind("[")){
+				const Token::ID open_bracket = this->reader.next();
+
+				const Result elem_type = [&](){
+					if constexpr(KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
+						return this->parse_type<KIND>();
+					}else{
+						return this->parse_type<TypeKind::EXPLICIT>();
+					}
+				}();
+				if(this->check_result_fail(elem_type, "element type in array type")){
+					return Result(Result::Code::ERROR);
+				}
+
+				if(this->expect_token_fail(Token::lookupKind(":"), "after element type in array type")){
+					return Result(Result::Code::ERROR);
+				}
+
+
+				auto lengths = evo::SmallVector<AST::Node>();
+				while(true){
+					const Result length = this->parse_expr();
+					if(this->check_result_fail(length, "length(s) in array type")){
+						return Result(Result::Code::ERROR);
+					}
+
+					lengths.emplace_back(length.value());
+					
+					if(this->reader[this->reader.peek()].kind() != Token::lookupKind(",")){
+						break;
+					}else{
+						this->reader.skip();
+					}
+				}
+
+				auto terminator = std::optional<AST::Node>();
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
+					if(this->assert_token_fail(Token::lookupKind(";"))){ return Result(Result::Code::ERROR); }
+					
+					const Result terminator_result = this->parse_expr();
+					if(this->check_result_fail(terminator_result, "array terminator expression after [;]")){
+						return Result(Result::Code::ERROR);
+					}
+
+					terminator = terminator_result.value();
+				}
+
+
+				if(this->expect_token_fail(Token::lookupKind("]"), "at end of array type")){
+					return Result(Result::Code::ERROR);
+				}
+
+				return Result(
+					this->source.ast_buffer.createArrayType(
+						open_bracket, elem_type.value(), std::move(lengths), terminator
+					)
+				);
 
 			}else{
 				if constexpr(KIND == TypeKind::EXPLICIT || KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){

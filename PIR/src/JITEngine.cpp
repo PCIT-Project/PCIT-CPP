@@ -247,7 +247,7 @@ namespace pcit::pir{
 						}						
 					}
 
-					*target = core::GenericValue(core::GenericAggregateBuilder(num_elems));
+					*target = core::GenericValue(evo::SmallVector<core::GenericValue>(num_elems));
 				}
 			),
 			FuncRegisterInfo(
@@ -413,7 +413,7 @@ namespace pcit::pir{
 			FuncRegisterInfo(
 				"PIR.JIT.return_generic_char",
 				[](core::GenericValue* return_value, uint8_t value) -> void {
-					*return_value = core::GenericValue(char(value));
+					*return_value = core::GenericValue(core::GenericInt::create<char>(value));
 				}
 			),
 			FuncRegisterInfo(

@@ -180,8 +180,51 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::ARRAY: {
-					// TODO(FEATURE): fix this
-					return "{ARRAY}";
+					const BaseType::Array& array = this->getArray(type_info.baseTypeID().arrayID());
+
+					auto builder = std::string();
+					builder += '[';
+
+					builder += this->printType(array.elementTypeID, source_manager);
+
+					builder += ':';
+
+					for(size_t i = 0; uint64_t length : array.lengths){
+						builder += std::to_string(length);
+
+						if(i + 1 < array.lengths.size()){ builder += ","; }
+					}
+
+					if(array.terminator.has_value()){
+						if(this->isUnsignedIntegral(array.elementTypeID)){
+							builder += ';';
+							builder += array.terminator->as<core::GenericInt>().toString(false);
+
+						}else if(this->isSignedIntegral(array.elementTypeID)){
+							builder += ';';
+							builder += array.terminator->as<core::GenericInt>().toString(true);
+
+						}else if(this->isFloatingPoint(array.elementTypeID)){
+							builder += ';';
+							builder += array.terminator->as<core::GenericFloat>().toString();
+
+						}else if(array.elementTypeID == TypeManager::getTypeBool()){
+							builder += ';';
+							builder += evo::boolStr(array.terminator->as<bool>());
+
+						}else if(array.elementTypeID == TypeManager::getTypeChar()){
+							builder += std::format(
+								";'{}'", evo::printCharName(static_cast<char>(array.terminator->as<core::GenericInt>()))
+							);
+							
+						}else{
+							builder += ";<TERMINATOR>";
+						}
+					}
+
+					builder += ']';
+
+					return builder;
 				} break;
 
 				case BaseType::Kind::ALIAS: {

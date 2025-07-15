@@ -1658,7 +1658,38 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::STRING_VALUE: {
-				evo::unimplemented("lower sema::Expr::Kind::STRING_VALUE");
+				const sema::StringValue& string_value =
+					this->context.getSemaBuffer().getStringValue(expr.stringValueID());
+
+				const pir::GlobalVar::String::ID string_value_id = 
+					this->module.createGlobalString(evo::copy(string_value.value));
+
+				const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
+					std::format("PTHR.str{}", this->data.get_string_literal_id()),
+					this->module.getGlobalString(string_value_id).type,
+					pir::Linkage::PRIVATE,
+					string_value_id,
+					true
+				);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createGlobalValue(string_id);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr alloca = this->agent.createAlloca(
+						this->module.getGlobalString(string_value_id).type, this->name(".STR.ALLOCA")
+					);
+					this->agent.createStore(alloca, this->agent.createGlobalValue(string_id));
+					return alloca;
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+					this->agent.createStore(store_locations[0], this->agent.createGlobalValue(string_id));
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::AGGREGATE_VALUE: {
@@ -4270,7 +4301,18 @@ namespace pcit::panther{
 				const sema::StringValue& string_value =
 					this->context.getSemaBuffer().getStringValue(expr.stringValueID());
 
-				return this->module.createGlobalString(evo::copy(string_value.value));
+				const pir::GlobalVar::String::ID string_value_id = 
+					this->module.createGlobalString(evo::copy(string_value.value));
+
+				const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
+					std::format("PTHR.str{}", this->data.get_string_literal_id()),
+					this->module.getGlobalString(string_value_id).type,
+					pir::Linkage::PRIVATE,
+					string_value_id,
+					true
+				);
+
+				return this->agent.createGlobalValue(string_id);
 			} break;
 
 			case sema::Expr::Kind::AGGREGATE_VALUE: {

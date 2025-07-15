@@ -716,6 +716,14 @@ namespace pcit::panther{
 			SymbolProcTypeID output;
 		};
 
+		struct ArrayType{
+			const AST::ArrayType& array_type;
+			SymbolProcTypeID elem_type;
+			evo::SmallVector<SymbolProcTermInfoID> lengths;
+			std::optional<SymbolProcTermInfoID> terminator;
+			SymbolProcTermInfoID output;
+		};
+
 		struct TypeIDConverter{
 			const AST::TypeIDConverter& type_id_converter;
 			SymbolProcTermInfoID expr;
@@ -902,6 +910,7 @@ namespace pcit::panther{
 
 			// types
 			PrimitiveType,
+			ArrayType,
 			TypeIDConverter,
 			UserType,
 			BaseTypeIdent,

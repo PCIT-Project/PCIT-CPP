@@ -98,7 +98,7 @@ namespace pcit::panther{
 				: _diagnostic_callback(diagnostic_callback),
 				_config(config),
 				type_manager(config.platform),
-				constexpr_pir_module(evo::copy(config.title), config.platform),
+				constexpr_pir_module("<Panther-constexpr>", config.platform),
 				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
 					#if defined(PCIT_CONFIG_DEBUG)
 						.useReadableNames = true,
@@ -121,7 +121,7 @@ namespace pcit::panther{
 				: _diagnostic_callback(std::move(diagnostic_callback)),
 				_config(config),
 				type_manager(config.platform),
-				constexpr_pir_module(evo::copy(config.title), config.platform),
+				constexpr_pir_module("<Panther-constexpr>", config.platform),
 				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
 					#if defined(PCIT_CONFIG_DEBUG)
 						.useReadableNames = true,
@@ -223,7 +223,7 @@ namespace pcit::panther{
 
 			auto emitFatal(auto&&... args) -> void {
 				this->num_errors += 1;
-				if(this->encountered_fatal.exchange(true) == true){ return; }
+				if(this->encountered_fatal.exchange(true)){ return; }
 				this->emit_diagnostic_impl(Diagnostic(Diagnostic::Level::FATAL, std::forward<decltype(args)>(args)...));
 				this->clear_work_queue_if_needed();
 			}

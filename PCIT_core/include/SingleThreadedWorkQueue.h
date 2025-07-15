@@ -47,8 +47,8 @@ namespace pcit::core{
 			auto run() -> evo::Result<> {
 				while(this->tasks.empty() == false){
 					const evo::Result<> work_res = this->_work_func(this->tasks.back());
-					this->tasks.pop_back();
 					if(work_res.isError()){ return evo::resultError; }
+					this->tasks.pop_back();
 				}
 
 				return evo::Result<>();

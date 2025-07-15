@@ -128,11 +128,15 @@ namespace pcit::llvmint{
 			~GlobalVariable() = default;
 
 			auto setAlignment(unsigned alignment) -> void;
+			auto setInitializer(Constant value) -> void;
 
 			EVO_NODISCARD auto getType() const -> Type;
 
 			EVO_NODISCARD explicit operator Value() const;
 			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }
+
+			EVO_NODISCARD explicit operator Constant() const;
+			EVO_NODISCARD auto asConstant() const -> Constant { return static_cast<Constant>(*this); }
 			
 
 			EVO_NODISCARD auto native() const -> llvm::GlobalVariable* { return this->_native; }

@@ -1349,7 +1349,9 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getSize(this->getExprType(fromValue)) == this->module.getSize(toType),
-			"Cannot convert to a type of a different size"
+			"Cannot convert to a type of a different size ({} != {})",
+			this->module.getSize(this->getExprType(fromValue)),
+			this->module.getSize(toType)
 		);
 
 		const auto new_expr = Expr(

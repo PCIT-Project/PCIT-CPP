@@ -35,7 +35,11 @@ namespace pcit::pir{
 		}
 
 		for(const GlobalVar& global_var : this->module.getGlobalVarIter()){
-			this->lower_global_var<false>(global_var);
+			this->lower_global_var_decl<false>(global_var);
+		}
+
+		for(const GlobalVar& global_var : this->module.getGlobalVarIter()){
+			this->lower_global_var_def<false>(global_var);
 		}
 
 		for(const FuncLoweredSetup& func_setup : func_setups){
@@ -62,11 +66,15 @@ namespace pcit::pir{
 		}
 
 		for(const GlobalVar::ID global_var_id : subset.globalVars){
-			this->lower_global_var<ADD_WEAK_DEPS>(this->module.getGlobalVar(global_var_id));
+			this->lower_global_var_decl<ADD_WEAK_DEPS>(this->module.getGlobalVar(global_var_id));
 		}
 
 		for(const GlobalVar::ID global_var_decl_id : subset.globalVarDecls){
 			this->lower_global_var_decl<ADD_WEAK_DEPS>(this->module.getGlobalVar(global_var_decl_id));
+		}
+
+		for(const GlobalVar::ID global_var_id : subset.globalVars){
+			this->lower_global_var_def<ADD_WEAK_DEPS>(this->module.getGlobalVar(global_var_id));
 		}
 
 		for(const ExternalFunction::ID external_function_id : subset.externFuncs){
@@ -106,23 +114,6 @@ namespace pcit::pir{
 		this->struct_types.emplace(&struct_type, llvm_struct_type);
 	}
 
-	template<bool ADD_WEAK_DEPS>
-	auto PIRToLLVMIR::lower_global_var(const GlobalVar& global) -> void {
-		if constexpr(ADD_WEAK_DEPS){
-			if(this->global_vars.contains(&global)){ return; }
-		}
-
-		const llvmint::Type constant_type = this->get_type<ADD_WEAK_DEPS>(global.type); // this *MUST* come before value
-		const llvmint::Constant constant_value = this->get_global_var_value<ADD_WEAK_DEPS>(global.value, global.type);
-
-		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
-			constant_value, constant_type, this->get_linkage(global.linkage), global.isConstant, global.name
-		);
-
-		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
-
-		this->global_vars.emplace(&global, llvm_global_var);
-	}
 
 	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_global_var_decl(const GlobalVar& global) -> void {
@@ -139,6 +130,13 @@ namespace pcit::pir{
 		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
 
 		this->global_vars.emplace(&global, llvm_global_var);
+	}
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::lower_global_var_def(const GlobalVar& global) -> void {
+		llvmint::GlobalVariable& llvm_global = this->global_vars.at(&global);
+		llvm_global.setInitializer(this->get_global_var_value<ADD_WEAK_DEPS>(global.value, global.type));
 	}
 
 
@@ -1375,42 +1373,50 @@ namespace pcit::pir{
 
 	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::get_constant_value(const Expr& expr) -> llvmint::Constant {
-		evo::debugAssert(
-			expr.kind() == Expr::Kind::NUMBER
-			|| expr.kind() == Expr::Kind::BOOLEAN
-			|| expr.kind() == Expr::Kind::NULLPTR
-			|| expr.kind() == Expr::Kind::FUNCTION_POINTER,
-			"Not a valid constant"
-		);
+		switch(expr.kind()){
+			case Expr::Kind::NUMBER: {
+				const Number& number = this->reader.getNumber(expr);
 
-		if(expr.kind() == Expr::Kind::BOOLEAN){
-			return this->builder.getValueBool(this->reader.getBoolean(expr)).asConstant();
+				switch(number.type.kind()){
+					case Type::Kind::INTEGER: {
+						return this->builder.getValueI_N(number.type.getWidth(), false, number.getInt()).asConstant();
+					} break;
 
-		}else if(expr.kind() == Expr::Kind::NULLPTR){
-			return this->builder.getValueNull();
+					case Type::Kind::FLOAT: {
+						return this->builder.getValueFloat(this->get_type<false>(number.type), number.getFloat());
+					} break;
 
-		}else if(expr.kind() == Expr::Kind::FUNCTION_POINTER){
-			return this->get_func<ADD_WEAK_DEPS>(this->reader.getFunctionPointer(expr)).asConstant();
+					case Type::Kind::BFLOAT: {
+						return this->builder.getValueFloat(this->builder.getTypeBF16(), number.getFloat());
+					} break;
+
+
+					default: evo::debugFatalBreak("Unknown or unsupported number kind");
+				}
+			} break;
+
+			case Expr::Kind::BOOLEAN: {
+				return this->builder.getValueBool(this->reader.getBoolean(expr)).asConstant();
+			} break;
+
+			case Expr::Kind::NULLPTR: {
+				return this->builder.getValueNull();
+			} break;
+
+			case Expr::Kind::FUNCTION_POINTER: {
+				return this->get_func<ADD_WEAK_DEPS>(this->reader.getFunctionPointer(expr)).asConstant();
+			} break;
+
+			case Expr::Kind::GLOBAL_VALUE: {
+				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
+				return this->get_global_var<ADD_WEAK_DEPS>(global_var).asConstant();
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Not a valid constant");
+			} break;
 		}
 
-		const Number& number = this->reader.getNumber(expr);
-
-		switch(number.type.kind()){
-			case Type::Kind::INTEGER: {
-				return this->builder.getValueI_N(number.type.getWidth(), false, number.getInt()).asConstant();
-			} break;
-
-			case Type::Kind::FLOAT: {
-				return this->builder.getValueFloat(this->get_type<false>(number.type), number.getFloat());
-			} break;
-
-			case Type::Kind::BFLOAT: {
-				return this->builder.getValueFloat(this->builder.getTypeBF16(), number.getFloat());
-			} break;
-
-
-			default: evo::debugFatalBreak("Unknown or unsupported number kind");
-		}
 	}
 
 	template<bool ADD_WEAK_DEPS>
@@ -1822,10 +1828,12 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_linkage(const Linkage& linkage) -> llvmint::LinkageType {
 		switch(linkage){
-			case Linkage::DEFAULT:  return llvmint::LinkageType::Internal;
-			case Linkage::PRIVATE:  return llvmint::LinkageType::Private;
-			case Linkage::INTERNAL: return llvmint::LinkageType::Internal;
-			case Linkage::EXTERNAL: return llvmint::LinkageType::External;
+			case Linkage::DEFAULT:       return llvmint::LinkageType::Internal;
+			case Linkage::PRIVATE:       return llvmint::LinkageType::Private;
+			case Linkage::INTERNAL:      return llvmint::LinkageType::Internal;
+			case Linkage::EXTERNAL:      return llvmint::LinkageType::External;
+			case Linkage::WEAK:          return llvmint::LinkageType::WeakODR;
+			case Linkage::WEAK_EXTERNAL: return llvmint::LinkageType::ExternalWeak;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported linkage kind");

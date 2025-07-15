@@ -51,12 +51,12 @@ namespace pcit::pir{
 			template<bool ADD_WEAK_DEPS>
 			auto lower_struct_type(const pir::StructType& struct_type) -> void;
 
-			
-			template<bool ADD_WEAK_DEPS>
-			auto lower_global_var(const GlobalVar& global) -> void;
-			
+						
 			template<bool ADD_WEAK_DEPS>
 			auto lower_global_var_decl(const GlobalVar& global) -> void;
+
+			template<bool ADD_WEAK_DEPS>
+			auto lower_global_var_def(const GlobalVar& global) -> void;
 			
 			template<bool ADD_WEAK_DEPS>
 			auto lower_external_func(const ExternalFunction& external_func) -> void;

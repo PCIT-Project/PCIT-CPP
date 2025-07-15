@@ -1,17 +1,14 @@
 
+const str: [Char:2;'\0']*| = "Hi";
+
+
+func get_first_char = <{STRING: [Char:2;'\0']*|}> () -> Char {
+	return copy (STRING as RawPtr as Char*).*; // get around lack of indexing
+}
+
 
 func entry = () #entry -> UI8 {
-	var count: UI8 = 0;
+	var string: [Char:4;'\0'] = copy "ASDF".*;
 
-	var i: USize = 0;
-	while(true){->loop
-		defer{ i = i + 1; }
-
-		count = count + i as UI8;
-
-		if(i < 4){ continue->loop; }
-		break;
-	}
-
-	return copy count;
+	return get_first_char<{"AI"}>() as UI8;
 }

@@ -1240,13 +1240,22 @@ namespace pcit::panther{
 					break; case '\\': literal_value += '\\';
 
 					break; default: {
-						const evo::Result<Source::Location> current_location = this->get_current_location_token();
-						if(current_location.isError()){ return true; }
+						this->char_stream.skip(2);
+						
+						const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+						if(line_result.isError()){ this->error_line_too_big(); return true; }
+
+						const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+						if(collumn_result.isError()){ this->error_collumn_too_big(); return true; }
 
 						this->emit_error(
 							Diagnostic::Code::TOK_UNTERMINATED_TEXT_ESCAPE_SEQUENCE,
-							current_location.value(),
-							std::format("Unknown string escape code '\\{}'", this->char_stream.peek(1))
+							Source::Location(
+								this->source.getID(),
+								this->current_token_line_start, line_result.value(),
+								this->current_token_collumn_start + 1, collumn_result.value() - 1
+							),
+							std::format("Unknown string escape code '\\{}'", this->char_stream.peek_back())
 						);
 						return true;
 					}

@@ -366,17 +366,17 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:           case AST::Kind::ERROR:           case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:         case AST::Kind::CONDITIONAL:     case AST::Kind::WHILE:
-			case AST::Kind::DEFER:            case AST::Kind::UNREACHABLE:     case AST::Kind::BLOCK:
-			case AST::Kind::FUNC_CALL:        case AST::Kind::TEMPLATE_PACK:   case AST::Kind::TEMPLATED_EXPR:
-			case AST::Kind::PREFIX:           case AST::Kind::INFIX:           case AST::Kind::POSTFIX:
-			case AST::Kind::MULTI_ASSIGN:     case AST::Kind::NEW:             case AST::Kind::STRUCT_INIT_NEW:
-			case AST::Kind::TRY_ELSE:         case AST::Kind::TYPE_DEDUCER:    case AST::Kind::TYPE:
-			case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
-			case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:
-			case AST::Kind::LITERAL:          case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:
-			case AST::Kind::THIS:             case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:       case AST::Kind::ERROR:            case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:     case AST::Kind::CONDITIONAL:      case AST::Kind::WHILE:
+			case AST::Kind::DEFER:        case AST::Kind::UNREACHABLE:      case AST::Kind::BLOCK:
+			case AST::Kind::FUNC_CALL:    case AST::Kind::TEMPLATE_PACK:    case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:       case AST::Kind::INFIX:            case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN: case AST::Kind::NEW:              case AST::Kind::STRUCT_INIT_NEW:
+			case AST::Kind::TRY_ELSE:     case AST::Kind::TYPE_DEDUCER:     case AST::Kind::ARRAY_TYPE:
+			case AST::Kind::TYPE:         case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
+			case AST::Kind::ATTRIBUTE:    case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
+			case AST::Kind::INTRINSIC:    case AST::Kind::LITERAL:          case AST::Kind::UNINIT:
+			case AST::Kind::ZEROINIT:     case AST::Kind::THIS:             case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -1051,6 +1051,49 @@ namespace pcit::panther{
 				return this->analyze_expr_ident<NEEDS_DEF>(ast_type_base);
 			} break;
 
+			case AST::Kind::ARRAY_TYPE: {
+				const AST::ArrayType& array_type = ast_buffer.getArrayType(ast_type_base);
+
+				const evo::Result<SymbolProc::TypeID> elem_type = this->analyze_type<true>(
+					this->source.getASTBuffer().getType(array_type.elemType)
+				);
+				if(elem_type.isError()){ return evo::resultError; }
+
+				auto lengths = evo::SmallVector<SymbolProc::TermInfoID>();
+				lengths.reserve(array_type.lengths.size());
+				for(const AST::Node& length : array_type.lengths){
+					const evo::Result<SymbolProc::TermInfoID> length_term_info = this->analyze_expr<true>(length);
+					if(length_term_info.isError()){ return evo::resultError; }
+					lengths.emplace_back(length_term_info.value());
+				}
+
+				auto terminator = std::optional<SymbolProc::TermInfoID>();
+				if(array_type.terminator.has_value()){
+					if(lengths.size() > 1){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_MULTI_DIM_ARR_WITH_TERMINATOR,
+							*array_type.terminator,
+							"Multi-dimentional array type cannot have a terminator"
+						);
+						return evo::resultError;
+					}
+
+					const evo::Result<SymbolProc::TermInfoID> terminator_info = 
+						this->analyze_expr<true>(*array_type.terminator);
+					if(terminator_info.isError()){ return evo::resultError; }
+
+					terminator = terminator_info.value();
+				}
+
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				this->add_instruction(
+					Instruction::ArrayType(
+						array_type, elem_type.value(), std::move(lengths), terminator, new_term_info_id
+					)
+				);
+				return new_term_info_id;
+			} break;
+
 			case AST::Kind::TYPE_DEDUCER: {
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 				this->add_instruction(
@@ -1179,6 +1222,7 @@ namespace pcit::panther{
 			case AST::Kind::STRUCT_INIT_NEW:  evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TRY_ELSE:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE_DEDUCER:     evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::ARRAY_TYPE:       evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE:             evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPEID_CONVERTER: evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ATTRIBUTE_BLOCK:  evo::debugFatalBreak("Invalid statment");
@@ -1535,7 +1579,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				func_call.target,
-				"Templated function calls are currently unimplemented"
+				"Templated function call statements are currently unimplemented"
 			);
 			return evo::resultError;
 		}
@@ -1609,7 +1653,6 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
-
 		if constexpr(ERRORS){
 			if(expr.kind() != AST::Kind::FUNC_CALL){
 				this->emit_error(
@@ -1648,6 +1691,49 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Type deducer should not be allowed in this context");
 				} break;
 
+				case AST::Kind::ARRAY_TYPE: {
+					const AST::ArrayType& array_type = ast_buffer.getArrayType(expr);
+
+					const evo::Result<SymbolProc::TypeID> elem_type = this->analyze_type<true>(
+						this->source.getASTBuffer().getType(array_type.elemType)
+					);
+					if(elem_type.isError()){ return evo::resultError; }
+
+					auto lengths = evo::SmallVector<SymbolProc::TermInfoID>();
+					lengths.reserve(array_type.lengths.size());
+					for(const AST::Node& length : array_type.lengths){
+						const evo::Result<SymbolProc::TermInfoID> length_term_info = this->analyze_expr<true>(length);
+						if(length_term_info.isError()){ return evo::resultError; }
+						lengths.emplace_back(length_term_info.value());
+					}
+
+					auto terminator = std::optional<SymbolProc::TermInfoID>();
+					if(array_type.terminator.has_value()){
+						if(lengths.size() > 1){
+							this->emit_error(
+								Diagnostic::Code::SYMBOL_PROC_MULTI_DIM_ARR_WITH_TERMINATOR,
+								*array_type.terminator,
+								"Multi-dimentional array type cannot have a terminator"
+							);
+							return evo::resultError;
+						}
+
+						const evo::Result<SymbolProc::TermInfoID> terminator_info = 
+							this->analyze_expr<true>(*array_type.terminator);
+						if(terminator_info.isError()){ return evo::resultError; }
+
+						terminator = terminator_info.value();
+					}
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						Instruction::ArrayType(
+							array_type, elem_type.value(), std::move(lengths), terminator, new_term_info_id
+						)
+					);
+					return new_term_info_id;
+				} break;
+
 				case AST::Kind::TYPE: {
 					if constexpr(MUST_BE_EXPR){
 						this->emit_error(
@@ -1667,22 +1753,28 @@ namespace pcit::panther{
 				} break;
 
 				case AST::Kind::TYPEID_CONVERTER: {
-					// if constexpr(MUST_BE_EXPR){
+					if constexpr(MUST_BE_EXPR){
 						this->emit_error(
-							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							Diagnostic::Code::SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR,
 							expr,
-							"Type ID converter is currently unimplemented"
+							"Type ID converter cannot be an expression"
 						);
 						return evo::resultError;
-					// }else{
-					// 	const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					}else{
+						const AST::TypeIDConverter& type_id_converter = ast_buffer.getTypeIDConverter(expr);
 
-					// 	const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type(ast_buffer.getType(expr));
-					// 	if(type_id.isError()){ return evo::resultError; }
+						const evo::Result<SymbolProc::TermInfoID> target_type_id =
+							this->analyze_expr<true>(type_id_converter.expr);
+						if(target_type_id.isError()){ return evo::resultError; }
 
-					// 	this->add_instruction(Instruction::TypeToTerm(type_id.value(), new_term_info_id));
-					// 	return new_term_info_id;
-					// }
+						const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
+						this->add_instruction(
+							Instruction::TypeIDConverter(
+								type_id_converter, target_type_id.value(), created_base_type_type
+							)
+						);
+						return created_base_type_type;
+					}
 				} break;
 
 				case AST::Kind::VAR_DECL:        case AST::Kind::FUNC_DECL:        case AST::Kind::ALIAS_DECL:
