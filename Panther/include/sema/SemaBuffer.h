@@ -437,6 +437,30 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// indexer
+
+			EVO_NODISCARD auto createIndexer(auto&&... args) -> sema::Indexer::ID {
+				return this->indexers.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getIndexer(sema::Indexer::ID id) const -> const sema::Indexer& {
+				return this->indexers[id];
+			}
+
+
+			///////////////////////////////////
+			// pointer indexer
+
+			EVO_NODISCARD auto createPtrIndexer(auto&&... args) -> sema::PtrIndexer::ID {
+				return this->ptr_indexers.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getPtrIndexer(sema::PtrIndexer::ID id) const -> const sema::PtrIndexer& {
+				return this->ptr_indexers[id];
+			}
+
+
+			///////////////////////////////////
 			// template intrinsic instantiations
 
 			EVO_NODISCARD auto createTemplateIntrinsicFuncInstantiation(auto&&... args)
@@ -594,6 +618,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};
 			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};
 			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
+			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
+			core::SyncLinearStepAlloc<sema::PtrIndexer, sema::PtrIndexer::ID> ptr_indexers{};
 
 			core::SyncLinearStepAlloc<
 				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID

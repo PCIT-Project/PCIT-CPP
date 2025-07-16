@@ -55,11 +55,11 @@ namespace pcit::panther::sema{
 	};
 
 
+
 	struct TemplateIntrinsicFuncInstantiationID
 		: public core::UniqueID<uint32_t, struct TemplateIntrinsicFuncInstantiationID> {
 		using core::UniqueID<uint32_t, TemplateIntrinsicFuncInstantiationID>::UniqueID;
 	};
-
 
 	struct CopyID : public core::UniqueID<uint32_t, struct CopyID> {
 		using core::UniqueID<uint32_t, CopyID>::UniqueID;
@@ -107,6 +107,14 @@ namespace pcit::panther::sema{
 
 	struct InterfaceCallID : public core::UniqueID<uint32_t, struct InterfaceCallID> {
 		using core::UniqueID<uint32_t, InterfaceCallID>::UniqueID;
+	};
+
+	struct IndexerID : public core::UniqueID<uint32_t, struct IndexerID> {
+		using core::UniqueID<uint32_t, IndexerID>::UniqueID;
+	};
+
+	struct PtrIndexerID : public core::UniqueID<uint32_t, struct PtrIndexerID> {
+		using core::UniqueID<uint32_t, PtrIndexerID>::UniqueID;
 	};
 
 
@@ -655,6 +663,27 @@ namespace pcit::core{
 		}
 	};
 
+	template<>
+	struct core::OptionalInterface<panther::sema::IndexerID>{
+		static constexpr auto init(panther::sema::IndexerID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::IndexerID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::PtrIndexerID>{
+		static constexpr auto init(panther::sema::PtrIndexerID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::PtrIndexerID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
 
 
 }
@@ -1311,6 +1340,34 @@ namespace std{
 	};
 
 
+
+	template<>
+	struct hash<pcit::panther::sema::IndexerID>{
+		auto operator()(pcit::panther::sema::IndexerID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::IndexerID> : public pcit::core::Optional<pcit::panther::sema::IndexerID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::IndexerID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::IndexerID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::PtrIndexerID>{
+		auto operator()(pcit::panther::sema::PtrIndexerID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::PtrIndexerID> : public pcit::core::Optional<pcit::panther::sema::PtrIndexerID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::PtrIndexerID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::PtrIndexerID>::operator=;
+	};
 
 }
 

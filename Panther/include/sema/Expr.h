@@ -57,6 +57,8 @@ namespace pcit::panther::sema{
 			FAKE_TERM_INFO,
 			MAKE_INTERFACE_PTR,
 			INTERFACE_CALL,
+			INDEXER,
+			PTR_INDEXER,
 				
 			PARAM,
 			RETURN_PARAM,
@@ -103,6 +105,8 @@ namespace pcit::panther::sema{
 		explicit Expr(FakeTermInfoID id)     : _kind(Kind::FAKE_TERM_INFO),     value{.fake_term_info = id}     {};
 		explicit Expr(MakeInterfacePtrID id) : _kind(Kind::MAKE_INTERFACE_PTR), value{.make_interface_ptr = id} {};
 		explicit Expr(InterfaceCallID id)    : _kind(Kind::INTERFACE_CALL),     value{.interface_call = id}     {};
+		explicit Expr(IndexerID id)          : _kind(Kind::INDEXER),            value{.indexer = id}            {};
+		explicit Expr(PtrIndexerID id)       : _kind(Kind::PTR_INDEXER),        value{.ptr_indexer = id}        {};
 
 		explicit Expr(ParamID id)            : _kind(Kind::PARAM),              value{.param = id}              {};
 		explicit Expr(ReturnParamID id)      : _kind(Kind::RETURN_PARAM),       value{.return_param = id}       {};
@@ -222,6 +226,15 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::INTERFACE_CALL, "not an interface call");
 			return this->value.interface_call;
 		}
+		EVO_NODISCARD auto indexerID() const -> IndexerID {
+			evo::debugAssert(this->kind() == Kind::INDEXER, "not an indexer");
+			return this->value.indexer;
+		}
+		EVO_NODISCARD auto ptrIndexerID() const -> PtrIndexerID {
+			evo::debugAssert(this->kind() == Kind::PTR_INDEXER, "not a pointer indexer");
+			return this->value.ptr_indexer;
+		}
+
 
 		EVO_NODISCARD auto paramID() const -> ParamID {
 			evo::debugAssert(this->kind() == Kind::PARAM, "not a param");
@@ -300,8 +313,10 @@ namespace pcit::panther::sema{
 				FakeTermInfoID fake_term_info;
 				MakeInterfacePtrID make_interface_ptr;
 				InterfaceCallID interface_call;
-				ExceptParamID except_param;
+				IndexerID indexer;
+				PtrIndexerID ptr_indexer;
 
+				ExceptParamID except_param;
 				ParamID param;
 				ReturnParamID return_param;
 				ErrorReturnParamID error_return_param;

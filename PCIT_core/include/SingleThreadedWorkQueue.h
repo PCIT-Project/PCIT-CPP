@@ -46,9 +46,10 @@ namespace pcit::core{
 
 			auto run() -> evo::Result<> {
 				while(this->tasks.empty() == false){
-					const evo::Result<> work_res = this->_work_func(this->tasks.back());
-					if(work_res.isError()){ return evo::resultError; }
+					TASK next_task = std::move(this->tasks.back());
 					this->tasks.pop_back();
+					const evo::Result<> work_res = this->_work_func(next_task);
+					if(work_res.isError()){ return evo::resultError; }
 				}
 
 				return evo::Result<>();

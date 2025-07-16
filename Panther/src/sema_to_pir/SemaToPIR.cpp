@@ -1899,9 +1899,7 @@ namespace pcit::panther{
 						args.emplace_back(return_alloc);
 						this->agent.createCallVoid(target_func_info.pir_ids[0], std::move(args));
 
-						return this->agent.createLoad(
-							return_alloc, return_type
-						);
+						return this->agent.createLoad(return_alloc, return_type);
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Type return_type =
@@ -2391,6 +2389,51 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Expr::Kind::INDEXER: {
+				const sema::Indexer& indexer = this->context.getSemaBuffer().getIndexer(expr.indexerID());
+
+				const pir::Expr target = this->get_expr_pointer(indexer.target);
+
+				const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+
+				auto indices = evo::SmallVector<pir::CalcPtr::Index>();
+				indices.reserve(indexer.indices.size() + 1);
+				indices.emplace_back(
+					pir::CalcPtr::Index(this->agent.createNumber(type_usize, core::GenericInt::create<uint64_t>(0)))
+				);
+				for(const sema::Expr& index : indexer.indices){
+					indices.emplace_back(this->get_expr_register(index));
+				}
+
+				return this->agent.createCalcPtr(
+					target, this->get_type<false>(indexer.targetTypeID), std::move(indices), this->name("INDEXER")
+				);
+			} break;
+
+			case sema::Expr::Kind::PTR_INDEXER: {
+				const sema::PtrIndexer& ptr_indexer = this->context.getSemaBuffer().getPtrIndexer(expr.ptrIndexerID());
+
+				const pir::Expr target = this->get_expr_register(ptr_indexer.target);
+
+				const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+
+				auto indices = evo::SmallVector<pir::CalcPtr::Index>();
+				indices.reserve(ptr_indexer.indices.size() + 1);
+				indices.emplace_back(
+					pir::CalcPtr::Index(this->agent.createNumber(type_usize, core::GenericInt::create<uint64_t>(0)))
+				);
+				for(const sema::Expr& index : ptr_indexer.indices){
+					indices.emplace_back(this->get_expr_register(index));
+				}
+
+				return this->agent.createCalcPtr(
+					target,
+					this->get_type<false>(ptr_indexer.targetTypeID),
+					std::move(indices),
+					this->name("PTR_INDEXER")
+				);
+			} break;
+
 			case sema::Expr::Kind::TRY_ELSE: {
 				const sema::TryElse& try_else = this->context.getSemaBuffer().getTryElse(expr.tryElseID());
 				
@@ -2685,9 +2728,24 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::VAR: {
 				if constexpr(MODE == GetExprMode::REGISTER){
-				const pir::Expr var_alloca = this->local_func_exprs.at(expr);
+					const pir::Expr var_alloca = this->local_func_exprs.at(expr);
 
-					return this->agent.createLoad(var_alloca, this->agent.getAlloca(var_alloca).type);
+					if(this->data.getConfig().useReadableNames){
+						const pir::Alloca& var_actual_alloca = this->agent.getAlloca(var_alloca);
+						std::string_view alloca_name = static_cast<std::string_view>(var_actual_alloca.name);
+						alloca_name.remove_suffix(sizeof(".ALLOCA") - 1);
+
+						return this->agent.createLoad(
+							var_alloca,
+							this->agent.getAlloca(var_alloca).type,
+							false,
+							pir::AtomicOrdering::NONE,
+							std::string(alloca_name)
+						);
+
+					}else{
+						return this->agent.createLoad(var_alloca, this->agent.getAlloca(var_alloca).type);	
+					}
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					return this->local_func_exprs.at(expr);
@@ -4361,7 +4419,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::ACCESSOR:          case sema::Expr::Kind::PTR_ACCESSOR:
 			case sema::Expr::Kind::TRY_ELSE:          case sema::Expr::Kind::BLOCK_EXPR:
 			case sema::Expr::Kind::FAKE_TERM_INFO:    case sema::Expr::Kind::MAKE_INTERFACE_PTR:
-			case sema::Expr::Kind::INTERFACE_CALL:    case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::INTERFACE_CALL:    case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::PTR_INDEXER:       case sema::Expr::Kind::PARAM:
 			case sema::Expr::Kind::RETURN_PARAM:      case sema::Expr::Kind::ERROR_RETURN_PARAM:
 			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: case sema::Expr::Kind::EXCEPT_PARAM:
 			case sema::Expr::Kind::VAR:               case sema::Expr::Kind::GLOBAL_VAR:
@@ -4457,14 +4516,14 @@ namespace pcit::panther{
 				const BaseType::Array& array = this->context.getTypeManager().getArray(base_type_id.arrayID());
 				const pir::Type elem_type = this->get_type<false>(array.elementTypeID);
 
-				uint64_t length = array.lengths.front();
+
+				pir::Type array_type = this->module.createArrayType(elem_type, array.lengths[0]);
+
 				for(size_t i = 1; i < array.lengths.size(); i+=1){
-					length *= array.lengths[i];
+					array_type = this->module.createArrayType(array_type, array.lengths[i]);
 				}
 
-				if(array.terminator.has_value()){ length += 1; }
-
-				return this->module.createArrayType(elem_type, length);
+				return array_type;
 			} break;
 			
 			case BaseType::Kind::ALIAS: {

@@ -1204,6 +1204,10 @@ namespace pthr{
 						this->print_func_call(this->ast_buffer.getFuncCall(node));
 					} break;
 
+					case panther::AST::Kind::INDEXER: {
+						this->print_indexer(this->ast_buffer.getIndexer(node));
+					} break;
+
 					case panther::AST::Kind::TEMPLATED_EXPR: {
 						this->print_templated_expr(this->ast_buffer.getTemplatedExpr(node));
 					} break;
@@ -1505,6 +1509,64 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("Arguments");
 					this->print_func_call_args(func_call.args);
+
+					this->indenter.pop();
+				}
+			}
+
+			auto print_indexer(const panther::AST::Indexer& indexer) -> void {
+				this->print_major_header("Indexer");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Target");
+					{
+						this->printer.println();
+						this->indenter.push();
+						this->print_expr(indexer.target);
+						this->indenter.pop();
+					}
+
+					if(indexer.indices.size() == 1){
+						this->indenter.print_end();
+						this->print_minor_header("Index");
+						{
+							this->printer.println();
+							this->indenter.push();
+							this->print_expr(indexer.indices[0]);
+							this->indenter.pop();
+						}
+
+					}else{
+						this->indenter.print_end();
+						this->print_minor_header("Indices");
+						{
+							this->printer.println();
+							this->indenter.push();
+							
+							for(size_t i = 0; const panther::AST::Node index : indexer.indices){
+								if(i + 1 < indexer.indices.size()){
+									this->indenter.print_arrow();
+								}else{
+									this->indenter.print_end();
+								}
+
+								this->print_major_header(std::format("Index: {}", i));
+
+								{
+									this->indenter.push();
+									this->print_expr(index);
+									this->indenter.pop();
+								}
+							
+								i += 1;
+							}
+
+							this->indenter.pop();
+						}
+					}
 
 					this->indenter.pop();
 				}

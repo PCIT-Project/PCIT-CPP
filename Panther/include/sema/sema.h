@@ -196,6 +196,23 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct Indexer{
+		using ID = IndexerID;
+
+		Expr target;
+		TypeInfo::ID targetTypeID;
+		evo::SmallVector<Expr> indices;
+	};
+
+
+	struct PtrIndexer{
+		using ID = PtrIndexerID;
+
+		Expr target;
+		TypeInfo::ID targetTypeID;
+		evo::SmallVector<Expr> indices;
+	};
+
 
 
 	//////////////////////////////////////////////////////////////////////

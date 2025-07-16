@@ -261,6 +261,16 @@ namespace pcit::panther{
 				return this->func_calls[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createIndexer(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->indexers.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::INDEXER, node_index);
+			}
+			EVO_NODISCARD auto getIndexer(const AST::Node& node) const -> const AST::Indexer& {
+				evo::debugAssert(node.kind() == AST::Kind::INDEXER, "Node is not an Indexer");
+				return this->indexers[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createTemplatePack(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->template_packs.emplace_back(std::forward<decltype(args)>(args)...);
@@ -431,6 +441,7 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<AST::Block, uint32_t> blocks{};
 			core::LinearStepAlloc<AST::FuncCall, uint32_t> func_calls{};
+			core::LinearStepAlloc<AST::Indexer, uint32_t> indexers{};
 			core::LinearStepAlloc<AST::TemplatePack, uint32_t> template_packs{};
 			core::LinearStepAlloc<AST::TemplatedExpr, uint32_t> templated_expr{};
 

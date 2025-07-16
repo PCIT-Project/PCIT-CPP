@@ -243,6 +243,11 @@ namespace pcit::panther{
 			SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
 			SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
 
+			// indexer
+			SEMA_INDEXER_INVALID_TARGET,
+			SEMA_INDEXER_INCORRECT_NUM_INDICES,
+
+
 			// misc
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
 			SEMA_BLOCK_EXPR_NOT_TERMINATED,
@@ -339,6 +344,7 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::Defer& defer, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Block& block, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::FuncCall& func_call, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::Indexer& indexer, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TemplatedExpr& templated_expr, const class Source& src)
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::Prefix& prefix, const class Source& src) -> Location;
@@ -677,6 +683,8 @@ namespace pcit::panther{
 				case Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET:
 				case Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST:
 				case Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES:
+				case Code::SEMA_INDEXER_INVALID_TARGET:
+				case Code::SEMA_INDEXER_INCORRECT_NUM_INDICES:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
 				case Code::SEMA_FUNC_HAS_NO_THIS_PARAM:

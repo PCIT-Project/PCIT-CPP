@@ -338,6 +338,12 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplateIntrinsicFuncCall<false>>()){
 				return this->instr_template_intrinsic_func_call<false>(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::Indexer<true>>()){
+				return this->instr_indexer<true>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Indexer<false>>()){
+				return this->instr_indexer<false>(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTerm>()){
 				return this->instr_templated_term(instr);
 
@@ -6454,6 +6460,123 @@ namespace pcit::panther{
 
 		this->pop_scope_level<PopScopeLevelKind::LABEL_TERMINATE>();
 		this->get_current_scope_level().resetSubScopes();
+		return Result::SUCCESS;
+	}
+
+
+
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::instr_indexer(const Instruction::Indexer<IS_CONSTEXPR>& instr) -> Result {
+		const TermInfo& target = this->get_term_info(instr.target);
+
+		if(target.type_id.is<TypeInfo::ID>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+				instr.indexer,
+				"Invalid target for indexer"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
+
+		if(target_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+				instr.indexer,
+				"Invalid target for indexer"
+			);
+			return Result::ERROR;
+		}
+
+		bool is_ptr = false;
+		if(target_type.qualifiers().empty() == false){
+			if(target_type.qualifiers().size() == 1 && target_type.isNormalPointer()){
+				is_ptr = true;
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+					instr.indexer,
+					"Invalid target for indexer"
+				);
+				return Result::ERROR;
+			}
+		}
+
+		const BaseType::Array& target_array_type =
+			this->context.getTypeManager().getArray(target_type.baseTypeID().arrayID());
+
+		if(target_array_type.lengths.size() != instr.indices.size()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
+				instr.indexer.indices[std::min(instr.indices.size(), target_array_type.lengths.size())],
+				"Incorrect number of indices in indexer for the target array type",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(std::format("Expected: {}", target_array_type.lengths.size())),
+					Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
+				}
+			);
+			return Result::ERROR;
+		}
+
+
+		auto indices = evo::SmallVector<sema::Expr>();
+		indices.reserve(instr.indices.size());
+		for(size_t i = 0; const SymbolProc::TermInfoID index_id : instr.indices){
+			TermInfo& index = this->get_term_info(index_id);
+
+			if(this->type_check<true, true>(
+				TypeManager::getTypeUSize(), index, "Index in indexer", instr.indexer.indices[i]
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			indices.emplace_back(index.getExpr());
+
+			i += 1;
+		}
+
+
+		const TypeInfo& element_type = this->context.type_manager.getTypeInfo(target_array_type.elementTypeID);
+
+		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		resultant_qualifiers.reserve(element_type.qualifiers().size() + 1);
+		for(const AST::Type::Qualifier& qualifier : element_type.qualifiers()){
+			resultant_qualifiers.emplace_back(qualifier);
+		}
+		resultant_qualifiers.emplace_back(true, target.is_const(), false);
+
+		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(element_type.baseTypeID(), std::move(resultant_qualifiers))
+		);
+
+		const sema::Expr sema_indexer_expr = [&](){
+			if(is_ptr){
+				auto derefed_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+				derefed_qualifiers.reserve(target_type.qualifiers().size() - 1);
+				for(size_t i = 0; i < target_type.qualifiers().size() - 1; i+=1){
+					derefed_qualifiers.emplace_back(target_type.qualifiers()[i]);
+				}
+
+				const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(target_type.baseTypeID(), std::move(derefed_qualifiers))
+				);
+
+				return sema::Expr(this->context.sema_buffer.createPtrIndexer(
+					target.getExpr(), derefed_type_id, std::move(indices)
+				));
+
+			}else{
+				return sema::Expr(this->context.sema_buffer.createIndexer(
+					target.getExpr(), target.type_id.as<TypeInfo::ID>(), std::move(indices)
+				));
+			}
+		}();
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL, target.value_stage, resultant_type_id, sema_indexer_expr
+		);
 		return Result::SUCCESS;
 	}
 

@@ -54,6 +54,7 @@ namespace pcit::panther{
 			case AST::Kind::UNREACHABLE:      return Location::get(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::BLOCK:            return Location::get(ast_buffer.getBlock(node), src);
 			case AST::Kind::FUNC_CALL:        return Location::get(ast_buffer.getFuncCall(node), src);
+			case AST::Kind::INDEXER:          return Location::get(ast_buffer.getIndexer(node), src);
 			case AST::Kind::TEMPLATE_PACK:    evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
 			case AST::Kind::TEMPLATED_EXPR:   return Location::get(ast_buffer.getTemplatedExpr(node), src);
 			case AST::Kind::PREFIX:           return Location::get(ast_buffer.getPrefix(node), src);
@@ -161,6 +162,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::FuncCall& func_call, const Source& src) -> Location {
 		return Location::get(func_call.target, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::Indexer& indexer, const Source& src) -> Location {
+		return Location::get(indexer.target, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::TemplatedExpr& templated_expr, const Source& src) -> Location {

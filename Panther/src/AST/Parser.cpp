@@ -1684,6 +1684,49 @@ namespace pcit::panther{
 					}
 				} break;
 
+				case Token::lookupKind("["): {
+					if constexpr(TERM_KIND == TermKind::EXPLICIT_TYPE || TERM_KIND == TermKind::AS_TYPE){
+						should_continue = false;
+						break;
+
+					}else{
+						if(this->assert_token_fail(Token::lookupKind("["))){ return Result::Code::ERROR; }
+
+
+						auto indices = evo::SmallVector<AST::Node>();
+						while(true){
+							if(this->reader[this->reader.peek()].kind() == Token::lookupKind("]")){
+								if(this->assert_token_fail(Token::lookupKind("]"))){ return Result::Code::ERROR; }
+								break;
+							}
+
+
+							const Result index = this->parse_expr();
+							if(this->check_result_fail(index, "index inside indexer")){
+								return Result::Code::ERROR;
+							}
+
+							indices.emplace_back(index.value());
+
+							// check if ending or should continue
+							const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+							if(after_arg_next_token_kind != Token::lookupKind(",")){
+								if(after_arg_next_token_kind != Token::lookupKind("]")){
+									this->expected_but_got(
+										"[,] at end of index or []] at end of indexer block",
+										this->reader.peek(-1)
+									);
+									return Result::Code::ERROR;
+								}
+
+								break;
+							}
+						}
+
+						output = this->source.ast_buffer.createIndexer(output.value(), std::move(indices));
+					}
+				} break;
+
 				default: {
 					should_continue = false;
 				} break;

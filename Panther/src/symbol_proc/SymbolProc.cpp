@@ -479,6 +479,12 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, TemplateIntrinsicFuncCall<false>>()){
 					return "TemplateIntrinsicFuncCall<false>";
 
+				}else if constexpr(std::is_same<InstrType, Indexer<true>>()){
+					return "Indexer<true>";
+
+				}else if constexpr(std::is_same<InstrType, Indexer<false>>()){
+					return "Indexer<false>";
+
 				}else if constexpr(std::is_same<InstrType, TemplatedTerm>()){
 					return "TemplatedTerm";
 

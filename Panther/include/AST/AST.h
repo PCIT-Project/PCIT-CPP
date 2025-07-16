@@ -45,6 +45,7 @@ namespace pcit::panther::AST{
 
 		BLOCK,
 		FUNC_CALL,
+		INDEXER,
 		TEMPLATE_PACK,
 		TEMPLATED_EXPR,
 		
@@ -296,6 +297,11 @@ namespace pcit::panther::AST{
 
 		Node target;
 		evo::SmallVector<Arg> args;
+	};
+
+	struct Indexer{
+		Node target;
+		evo::SmallVector<Node> indices;
 	};
 
 	struct TemplatePack{

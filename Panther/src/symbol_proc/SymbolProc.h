@@ -563,6 +563,15 @@ namespace pcit::panther{
 		};
 
 
+		template<bool IS_CONSTEXPR>
+		struct Indexer{
+			const AST::Indexer& indexer;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+			evo::SmallVector<SymbolProcTermInfoID> indices;
+		};
+
+
 		struct TemplatedTerm{
 			const AST::TemplatedExpr& templated_expr;
 			SymbolProcTermInfoID base;
@@ -869,6 +878,8 @@ namespace pcit::panther{
 			Import,
 			TemplateIntrinsicFuncCall<true>,
 			TemplateIntrinsicFuncCall<false>,
+			Indexer<true>,
+			Indexer<false>,
 			TemplatedTerm,
 			TemplatedTermWait<true>,
 			TemplatedTermWait<false>,

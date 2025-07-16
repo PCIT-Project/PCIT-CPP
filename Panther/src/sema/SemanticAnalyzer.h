@@ -161,6 +161,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_template_intrinsic_func_call(
 				const Instruction::TemplateIntrinsicFuncCall<IS_CONSTEXPR>& instr
 			) -> Result;
+
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto instr_indexer(const Instruction::Indexer<IS_CONSTEXPR>& instr) -> Result;
+
 			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
 
 			template<bool WAIT_FOR_DEF>
