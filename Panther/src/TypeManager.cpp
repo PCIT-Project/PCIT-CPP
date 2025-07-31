@@ -56,6 +56,23 @@ namespace pcit::panther{
 
 
 
+	auto BaseType::Alias::getName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->sourceID.is<SourceID>()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
+		}else{
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
+		}
+	}
+
+
+
+
+
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// type manager
 
@@ -71,7 +88,7 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TYPE_F32);
 		this->primitives.emplace_back(Token::Kind::TYPE_F64);
 		this->primitives.emplace_back(Token::Kind::TYPE_F80);
-		const BaseType::Primitive::ID type_f128  =  this->primitives.emplace_back(Token::Kind::TYPE_F128);
+		const BaseType::Primitive::ID type_f128 = this->primitives.emplace_back(Token::Kind::TYPE_F128);
 		this->primitives.emplace_back(Token::Kind::TYPE_BYTE);
 		const BaseType::Primitive::ID type_bool    = this->primitives.emplace_back(Token::Kind::TYPE_BOOL);
 		const BaseType::Primitive::ID type_char    = this->primitives.emplace_back(Token::Kind::TYPE_CHAR);
@@ -231,15 +248,17 @@ namespace pcit::panther{
 					const BaseType::Alias::ID alias_id = type_info.baseTypeID().aliasID();
 					const BaseType::Alias& alias = this->getAlias(alias_id);
 
-					return std::string(source_manager[alias.sourceID].getTokenBuffer()[alias.identTokenID].getString());
+					return std::string(alias.getName(source_manager));
 				} break;
 
-				case BaseType::Kind::TYPEDEF: {
-					const BaseType::Typedef::ID typedef_id = type_info.baseTypeID().typedefID();
-					const BaseType::Typedef& typedef_info = this->getTypedef(typedef_id);
+				case BaseType::Kind::DISTINCT_ALIAS: {
+					const BaseType::DistinctAlias::ID distinct_alias_id = type_info.baseTypeID().distinctAliasID();
+					const BaseType::DistinctAlias& distinct_alias_info = this->getDistinctAlias(distinct_alias_id);
 
 					return std::string(
-						source_manager[typedef_info.sourceID].getTokenBuffer()[typedef_info.identTokenID].getString()
+						source_manager[distinct_alias_info.sourceID]
+							.getTokenBuffer()[distinct_alias_info.identTokenID]
+							.getString()
 					);
 				} break;
 
@@ -465,39 +484,39 @@ namespace pcit::panther{
 		}
 
 		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(
-			lookup_type.sourceID, lookup_type.identTokenID, lookup_type.aliasedType.load(), lookup_type.isPub
+			lookup_type.sourceID, lookup_type.location, lookup_type.aliasedType.load(), lookup_type.isPub
 		);
 		return BaseType::ID(BaseType::Kind::ALIAS, new_alias.get());
 	}
 
 
 	//////////////////////////////////////////////////////////////////////
-	// typedefs
+	// distinct aliases
 
-	auto TypeManager::getTypedef(BaseType::Typedef::ID id) const -> const BaseType::Typedef& {
-		const auto lock = std::scoped_lock(this->typedefs_lock);
-		return this->typedefs[id];
+	auto TypeManager::getDistinctAlias(BaseType::DistinctAlias::ID id) const -> const BaseType::DistinctAlias& {
+		const auto lock = std::scoped_lock(this->distinct_aliases_lock);
+		return this->distinct_aliases[id];
 	}
 
-	auto TypeManager::getTypedef(BaseType::Typedef::ID id) -> BaseType::Typedef& {
-		const auto lock = std::scoped_lock(this->typedefs_lock);
-		return this->typedefs[id];
+	auto TypeManager::getDistinctAlias(BaseType::DistinctAlias::ID id) -> BaseType::DistinctAlias& {
+		const auto lock = std::scoped_lock(this->distinct_aliases_lock);
+		return this->distinct_aliases[id];
 	}
 
 
-	auto TypeManager::getOrCreateTypedef(BaseType::Typedef&& lookup_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->typedefs_lock);
+	auto TypeManager::getOrCreateDistinctAlias(BaseType::DistinctAlias&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->distinct_aliases_lock);
 
-		for(uint32_t i = 0; i < this->typedefs.size(); i+=1){
-			if(this->typedefs[BaseType::Typedef::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::TYPEDEF, i);
+		for(uint32_t i = 0; i < this->distinct_aliases.size(); i+=1){
+			if(this->distinct_aliases[BaseType::DistinctAlias::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::DISTINCT_ALIAS, i);
 			}
 		}
 
-		const BaseType::Typedef::ID new_typedef = this->typedefs.emplace_back(
+		const BaseType::DistinctAlias::ID new_distinct_alias = this->distinct_aliases.emplace_back(
 			lookup_type.sourceID, lookup_type.identTokenID, lookup_type.underlyingType.load(), lookup_type.isPub
 		);
-		return BaseType::ID(BaseType::Kind::TYPEDEF, new_typedef.get());
+		return BaseType::ID(BaseType::Kind::DISTINCT_ALIAS, new_distinct_alias.get());
 	}
 
 
@@ -725,13 +744,13 @@ namespace pcit::panther{
 						return 4;
 
 					case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_ULONG:
-						return this->platform.os == core::Platform::OS::WINDOWS ? 4 : 8;
+						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 4 : 8;
 
 					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 						return 8;
 
 					case Token::Kind::TYPE_C_LONG_DOUBLE:
-						return this->platform.os == core::Platform::OS::WINDOWS ? 8 : 16;
+						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 8 : 16;
 
 					default: evo::debugFatalBreak("Unknown or unsupported built-in type");
 				}
@@ -760,9 +779,11 @@ namespace pcit::panther{
 				return this->numBytes(*alias.aliasedType.load());
 			} break;
 
-			case BaseType::Kind::TYPEDEF: {
-				const BaseType::Typedef& type_def = this->getTypedef(id.typedefID());
-				evo::debugAssert(type_def.underlyingType.load().has_value(), "Definition of typedef was not completed");
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& type_def = this->getDistinctAlias(id.distinctAliasID());
+				evo::debugAssert(
+					type_def.underlyingType.load().has_value(), "Definition of distinct_alias was not completed"
+				);
 				return this->numBytes(*type_def.underlyingType.load());
 			} break;
 
@@ -855,17 +876,17 @@ namespace pcit::panther{
 						return 32;
 
 					case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_ULONG:
-						return this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64;
+						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64;
 
 					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 						return 64;
 
 					case Token::Kind::TYPE_C_LONG_DOUBLE: {
-						if(this->platform.os == core::Platform::OS::WINDOWS){
+						if(this->getTarget().platform == core::Target::Platform::WINDOWS){
 							return 64;
 						}
 						
-						return this->platform.arch == core::Platform::Architecture::X86_64 ? 80 : 128;
+						return this->getTarget().architecture == core::Target::Architecture::X86_64 ? 80 : 128;
 					} break;
 
 					default: evo::debugFatalBreak("Unknown or unsupported built-in type");
@@ -886,9 +907,11 @@ namespace pcit::panther{
 				return this->numBits(*alias.aliasedType.load());
 			} break;
 
-			case BaseType::Kind::TYPEDEF: {
-				const BaseType::Typedef& type_def = this->getTypedef(id.typedefID());
-				evo::debugAssert(type_def.underlyingType.load().has_value(), "Definition of typedef was not completed");
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& type_def = this->getDistinctAlias(id.distinctAliasID());
+				evo::debugAssert(
+					type_def.underlyingType.load().has_value(), "Definition of distinct_alias was not completed"
+				);
 				return this->numBits(*type_def.underlyingType.load());
 			} break;
 
@@ -1231,12 +1254,13 @@ namespace pcit::panther{
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
 				return this->getUnderlyingType(*alias.aliasedType.load());
 			} break;
-			case BaseType::Kind::TYPEDEF: {
-				const BaseType::Typedef& typedef_info = this->getTypedef(id.typedefID());
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias_info = this->getDistinctAlias(id.distinctAliasID());
 				evo::debugAssert(
-					typedef_info.underlyingType.load().has_value(), "Definition of typedef was not completed"
+					distinct_alias_info.underlyingType.load().has_value(),
+					"Definition of distinct_alias was not completed"
 				);
-				return this->getUnderlyingType(*typedef_info.underlyingType.load());
+				return this->getUnderlyingType(*distinct_alias_info.underlyingType.load());
 			} break;
 			case BaseType::Kind::STRUCT:          return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::STRUCT_TEMPLATE: evo::debugFatalBreak("Cannot get underlying type of this kind");
@@ -1347,7 +1371,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_LONG_LONG: {
-				const uint32_t size = this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64;
+				const uint32_t size = this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64;
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, size))
 				);
@@ -1360,14 +1384,14 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_ULONG_LONG: {
-				const uint32_t size = this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64;
+				const uint32_t size = this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64;
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, size))
 				);
 			} break;
 
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				if(this->platform.os == core::Platform::OS::WINDOWS){
+				if(this->getTarget().platform == core::Target::Platform::WINDOWS){
 					return this->getOrCreateTypeInfo(
 						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F64))
 					);
@@ -1468,7 +1492,9 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_min_signed(32));
 				
 			case Token::Kind::TYPE_C_LONG:
-				return core::GenericValue(calc_min_signed(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64));
+				return core::GenericValue(
+					calc_min_signed(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
+				);
 
 			case Token::Kind::TYPE_C_LONG_LONG: return core::GenericValue(calc_min_signed(32));
 			case Token::Kind::TYPE_C_USHORT:   return core::GenericValue(core::GenericInt(16, 0));
@@ -1476,13 +1502,13 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_C_ULONG:     
 				return core::GenericValue(
-					core::GenericInt(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64, 0)
+					core::GenericInt(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64, 0)
 				);
 
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(core::GenericInt(64, 0));
 
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				if(this->platform.os == core::Platform::OS::WINDOWS){
+				if(this->getTarget().platform == core::Target::Platform::WINDOWS){
 					return core::GenericValue(
 						core::GenericFloat::createF64(float_data_from_exponent(64, 1023, 53)).neg()
 					);
@@ -1552,7 +1578,9 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_min_signed(32));
 				
 			case Token::Kind::TYPE_C_LONG:
-				return core::GenericValue(calc_min_signed(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64));
+				return core::GenericValue(
+					calc_min_signed(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
+				);
 
 			case Token::Kind::TYPE_C_LONG_LONG: return core::GenericValue(calc_min_signed(32));
 			case Token::Kind::TYPE_C_USHORT:   return core::GenericValue(core::GenericInt(16, 0));
@@ -1560,13 +1588,13 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_C_ULONG:     
 				return core::GenericValue(
-					core::GenericInt(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64, 0)
+					core::GenericInt(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64, 0)
 				);
 
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(core::GenericInt(64, 0));
 
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				if(this->platform.os == core::Platform::OS::WINDOWS){
+				if(this->getTarget().platform == core::Target::Platform::WINDOWS){
 					return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1, 53)));
 				}else{
 					return core::GenericValue(core::GenericFloat::createF128(float_data_from_exponent(128, 1, 113)));
@@ -1630,7 +1658,9 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_max_signed(32));
 
 			case Token::Kind::TYPE_C_LONG:      
-				return core::GenericValue(calc_max_signed(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64));
+				return core::GenericValue(
+					calc_max_signed(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
+				);
 
 			case Token::Kind::TYPE_C_LONG_LONG:  return core::GenericValue(calc_max_signed(32));
 			case Token::Kind::TYPE_C_USHORT:    return core::GenericValue(calc_max_unsigned(16));
@@ -1638,13 +1668,13 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_C_ULONG:     
 				return core::GenericValue(
-					calc_max_unsigned(this->platform.os == core::Platform::OS::WINDOWS ? 32 : 64)
+					calc_max_unsigned(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
 				);
 				
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(calc_max_unsigned(64));
 
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
-				if(this->platform.os == core::Platform::OS::WINDOWS){
+				if(this->getTarget().platform == core::Target::Platform::WINDOWS){
 					return core::GenericValue(core::GenericFloat::createF64(float_data_from_exponent(64, 1023, 53)));
 				}else{
 					return core::GenericValue(

@@ -177,12 +177,22 @@ namespace pcit::panther::sema{
 		return &this->ids.emplace(ident, ModuleInfo(id, location, is_pub)).first->second;
 	}
 
+	auto ScopeLevel::addIdent(std::string_view ident, ClangSourceID id, Token::ID location, bool is_pub)
+	-> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+		
+		return &this->ids.emplace(ident, ClangModuleInfo(id, location, is_pub)).first->second;
+	}
+
 
 	auto ScopeLevel::addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, BaseType::TypedefID id) -> AddIdentResult {
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::DistinctAliasID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
 

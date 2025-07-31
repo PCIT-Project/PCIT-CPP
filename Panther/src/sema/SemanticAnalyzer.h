@@ -154,8 +154,8 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result;
 
-
-			EVO_NODISCARD auto instr_import(const Instruction::Import& instr) -> Result;
+			template<Instruction::Language LANGUAGE>
+			EVO_NODISCARD auto instr_import(const Instruction::Import<LANGUAGE>& instr) -> Result;
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_template_intrinsic_func_call(
@@ -250,6 +250,13 @@ namespace pcit::panther{
 			) -> Result;
 
 			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto clang_module_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs
+			) -> Result;
+
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto struct_accessor(
 				const Instruction::Accessor<NEEDS_DEF>& instr,
 				std::string_view rhs_ident_str,
@@ -330,7 +337,7 @@ namespace pcit::panther{
 
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
 
-			template<bool LOOK_THROUGH_TYPEDEF>
+			template<bool LOOK_THROUGH_DISTINCT_ALIAS>
 			EVO_NODISCARD auto get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID;
 
 
@@ -649,6 +656,11 @@ namespace pcit::panther{
 				return this->get_location(module_info.tokenID);
 			}
 
+			EVO_NODISCARD auto get_location(const sema::ScopeLevel::ClangModuleInfo& module_info) const
+			-> Diagnostic::Location {
+				return this->get_location(module_info.tokenID);
+			}
+
 			EVO_NODISCARD auto get_location(const sema::ScopeLevel::TemplateTypeParam& template_type_param) const
 			-> Diagnostic::Location {
 				return this->get_location(template_type_param.location);
@@ -718,12 +730,13 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto get_location(const BaseType::Alias::ID& alias_id) const -> Diagnostic::Location {
-				return Diagnostic::Location::get(alias_id, this->source, this->context);
+				return Diagnostic::Location::get(alias_id, this->context);
 			}
 
-			EVO_NODISCARD auto get_location(const BaseType::Typedef::ID& typedef_id) const -> Diagnostic::Location {
+			EVO_NODISCARD auto get_location(const BaseType::DistinctAlias::ID& distinct_alias_id) const
+			-> Diagnostic::Location {
 				// TODO(FUTURE): 
-				std::ignore = typedef_id;
+				std::ignore = distinct_alias_id;
 				evo::unimplemented();
 			}
 

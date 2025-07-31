@@ -158,8 +158,8 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, AliasID>::UniqueID; 
 	};
 
-	struct TypedefID : public core::UniqueID<uint32_t, struct TypedefID> {
-		using core::UniqueID<uint32_t, TypedefID>::UniqueID; 
+	struct DistinctAliasID : public core::UniqueID<uint32_t, struct DistinctAliasID> {
+		using core::UniqueID<uint32_t, DistinctAliasID>::UniqueID; 
 	};
 
 	struct StructID : public core::UniqueID<uint32_t, struct StructID> {
@@ -218,8 +218,8 @@ namespace std{
 	};
 
 	template<>
-	struct hash<pcit::panther::BaseType::TypedefID>{
-		auto operator()(const pcit::panther::BaseType::TypedefID& id) const noexcept -> size_t {
+	struct hash<pcit::panther::BaseType::DistinctAliasID>{
+		auto operator()(const pcit::panther::BaseType::DistinctAliasID& id) const noexcept -> size_t {
 			return hash<uint32_t>{}(id.get());
 		};
 	};

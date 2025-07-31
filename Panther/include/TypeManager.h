@@ -29,7 +29,9 @@
 
 
 namespace pcit::panther{
-	
+
+	class SourceManager;
+
 
 	//////////////////////////////////////////////////////////////////////
 	// base type
@@ -42,7 +44,7 @@ namespace pcit::panther{
 			FUNCTION,
 			ARRAY,
 			ALIAS,
-			TYPEDEF,
+			DISTINCT_ALIAS,
 			STRUCT,
 			STRUCT_TEMPLATE,
 			TYPE_DEDUCER,
@@ -73,9 +75,9 @@ namespace pcit::panther{
 				return AliasID(this->_id);
 			}
 
-			EVO_NODISCARD auto typedefID() const -> TypedefID {
-				evo::debugAssert(this->kind() == Kind::TYPEDEF, "not a Typedef");
-				return TypedefID(this->_id);
+			EVO_NODISCARD auto distinctAliasID() const -> DistinctAliasID {
+				evo::debugAssert(this->kind() == Kind::DISTINCT_ALIAS, "not a DistinctAlias");
+				return DistinctAliasID(this->_id);
 			}
 
 			EVO_NODISCARD auto structID() const -> StructID {
@@ -111,7 +113,7 @@ namespace pcit::panther{
 			explicit ID(FunctionID id)       : _kind(Kind::FUNCTION),        _id(id.get()) {}
 			explicit ID(ArrayID id)          : _kind(Kind::ARRAY),           _id(id.get()) {}
 			explicit ID(AliasID id)          : _kind(Kind::ALIAS),           _id(id.get()) {}
-			explicit ID(TypedefID id)        : _kind(Kind::TYPEDEF),         _id(id.get()) {}
+			explicit ID(DistinctAliasID id)  : _kind(Kind::DISTINCT_ALIAS),  _id(id.get()) {}
 			explicit ID(StructID id)         : _kind(Kind::STRUCT),          _id(id.get()) {}
 			explicit ID(StructTemplateID id) : _kind(Kind::STRUCT_TEMPLATE), _id(id.get()) {}
 			explicit ID(TypeDeducerID id)    : _kind(Kind::TYPE_DEDUCER),    _id(id.get()) {}
@@ -295,21 +297,23 @@ namespace pcit::panther{
 		struct Alias{
 			using ID = AliasID;
 
-			SourceID sourceID;
-			Token::ID identTokenID;
+			evo::Variant<SourceID, ClangSourceID> sourceID;
+			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
 			std::atomic<std::optional<TypeInfoID>> aliasedType; // nullopt if only has decl completed
 			bool isPub;
 
 			EVO_NODISCARD auto defCompleted() const -> bool { return this->aliasedType.load().has_value(); }
 			
 			EVO_NODISCARD auto operator==(const Alias& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
+				return this->sourceID == rhs.sourceID && this->location == rhs.location;
 			}
+
+			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 		};
 
 
-		struct Typedef{
-			using ID = TypedefID;
+		struct DistinctAlias{
+			using ID = DistinctAliasID;
 
 			SourceID sourceID;
 			Token::ID identTokenID;
@@ -318,7 +322,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto defCompleted() const -> bool { return this->underlyingType.load().has_value(); }
 			
-			EVO_NODISCARD auto operator==(const Typedef& rhs) const -> bool {
+			EVO_NODISCARD auto operator==(const DistinctAlias& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
 			}
 		};
@@ -528,7 +532,7 @@ namespace pcit::panther{
 
 	class TypeManager{
 		public:
-			TypeManager(core::Platform target_platform) : platform(target_platform) {};
+			TypeManager(core::Target target) : _target(target) {};
 			~TypeManager() = default;
 
 
@@ -536,7 +540,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto primitivesInitialized() const -> bool; // single-threaded
 
 
-			EVO_NODISCARD auto getPlatform() const -> const core::Platform& { return this->platform; }
+			EVO_NODISCARD auto getTarget() const -> const core::Target& { return this->_target; }
 
 
 			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
@@ -563,9 +567,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getAlias(BaseType::Alias::ID id)       ->       BaseType::Alias&;
 			EVO_NODISCARD auto getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID;
 
-			EVO_NODISCARD auto getTypedef(BaseType::Typedef::ID id) const -> const BaseType::Typedef&;
-			EVO_NODISCARD auto getTypedef(BaseType::Typedef::ID id)       ->       BaseType::Typedef&;
-			EVO_NODISCARD auto getOrCreateTypedef(BaseType::Typedef&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto getDistinctAlias(BaseType::DistinctAlias::ID id) const -> const BaseType::DistinctAlias&;
+			EVO_NODISCARD auto getDistinctAlias(BaseType::DistinctAlias::ID id)       ->       BaseType::DistinctAlias&;
+			EVO_NODISCARD auto getOrCreateDistinctAlias(BaseType::DistinctAlias&& lookup_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getStruct(BaseType::Struct::ID id) const -> const BaseType::Struct&;
 			EVO_NODISCARD auto getStruct(BaseType::Struct::ID id)       ->       BaseType::Struct&;
@@ -664,7 +668,7 @@ namespace pcit::panther{
 
 
 		private:
-			core::Platform platform;
+			core::Target _target;
 
 			// TODO(PERF): improve lookup times
 			core::LinearStepAlloc<BaseType::Primitive, BaseType::Primitive::ID> primitives{};
@@ -679,8 +683,8 @@ namespace pcit::panther{
 			core::LinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
 			mutable core::SpinLock aliases_lock{};
 
-			core::LinearStepAlloc<BaseType::Typedef, BaseType::Typedef::ID> typedefs{};
-			mutable core::SpinLock typedefs_lock{};
+			core::LinearStepAlloc<BaseType::DistinctAlias, BaseType::DistinctAlias::ID> distinct_aliases{};
+			mutable core::SpinLock distinct_aliases_lock{};
 
 			core::LinearStepAlloc<BaseType::Struct, BaseType::Struct::ID> structs{};
 			mutable core::SpinLock structs_lock{};

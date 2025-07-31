@@ -54,7 +54,6 @@ namespace pthr{
 					}
 
 					std::cin.get();
-					evo::println();
 				};
 				std::atexit([]() -> void {
 					at_exit_call();
@@ -122,9 +121,9 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 -> evo::Result<panther::Context::BuildSystemConfig> {
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode     = ContextConfig::Mode::BUILD_SYSTEM,
-		.title    = "<Panther-Build-System>",
-		.platform = core::Platform::getCurrent(),
+		.mode   = ContextConfig::Mode::BUILD_SYSTEM,
+		.title  = "<Panther-Build-System>",
+		.target = core::Target::getCurrent(),
 
 		.numThreads = cmd_args_config.numBuildThreads,
 	};
@@ -213,7 +212,7 @@ EVO_NODISCARD static auto run_compile(
 	const auto context_config = ContextConfig{
 		.mode       = ContextConfig::Mode::COMPILE,
 		.title      = "Panther Testing",
-		.platform   = core::Platform::getCurrent(),
+		.target     = core::Target::getCurrent(),
 		.numThreads = config.numThreads,
 	};
 
@@ -257,6 +256,7 @@ EVO_NODISCARD static auto run_compile(
 	);
 
 	std::ignore = context.addSourceFile("test.pthr", comp_config);
+	std::ignore = context.addCPPHeaderFile("test.h", true);
 
 
 	switch(config.output){
@@ -266,7 +266,7 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			for(const panther::Source::ID source_id : context.getSourceManager()){
+			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
 				pthr::print_tokens(printer, context.getSourceManager()[source_id], current_path.value());
 			}
 
@@ -279,7 +279,7 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			for(const panther::Source::ID source_id : context.getSourceManager()){
+			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
 				pthr::print_AST(printer, context.getSourceManager()[source_id], current_path.value());
 			}
 
@@ -310,7 +310,7 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
 			pir::printModule(module, printer);
 
@@ -323,7 +323,7 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
 			printer.print(pir::lowerToLLVMIR(module, pir::OptMode::O0));
 
@@ -336,7 +336,7 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
 
 			const evo::Result<std::string> asm_result = pir::lowerToAssembly(module, pir::OptMode::O0);
@@ -361,7 +361,7 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
 
 			const evo::Result<std::vector<evo::byte>> object_data = pir::lowerToObject(module, pir::OptMode::O0);
@@ -407,7 +407,7 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().platform);
+			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
 
 			const panther::Context::EntryKind entry_kind = [&](){
 				if(config.output == BuildSystemConfig::Output::CONSOLE_EXECUTABLE){
@@ -550,13 +550,13 @@ auto main(int argc, const char* argv[]) -> int {
 		}
 	}
 
-
 	const evo::Result<panther::Context::BuildSystemConfig> build_system_run = 
 		run_build_system(cmd_args_config, printer);
 	if(build_system_run.isError()){ return EXIT_FAILURE; }
 
 
 	if(run_compile(cmd_args_config, build_system_run.value(), printer).isError()){ return EXIT_FAILURE; }
+
 
 	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
 		printer.printlnSuccess("Successfully completed");

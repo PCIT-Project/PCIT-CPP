@@ -25,8 +25,8 @@ namespace pcit::pir{
 	class Module{
 		public:
 			Module(
-				std::string&& _name, core::Platform _platform
-			) : name(std::move(_name)), platform(_platform) {}
+				std::string&& _name, core::Target _target
+			) : name(std::move(_name)), target(_target) {}
 			~Module() = default;
 
 			Module(const Module&) = delete;
@@ -34,7 +34,7 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto getName() const -> std::string_view { return this->name; }
-			EVO_NODISCARD auto getPlatform() const -> const core::Platform& { return this->platform; }
+			EVO_NODISCARD auto getTarget() const -> const core::Target& { return this->target; }
 
 
 			///////////////////////////////////
@@ -523,7 +523,7 @@ namespace pcit::pir{
 	
 		private:
 			std::string name;
-			core::Platform platform;
+			core::Target target;
 
 			core::StepAlloc<Function, Function::ID> functions{};
 			core::StepAlloc<ExternalFunction, ExternalFunction::ID> external_funcs{};

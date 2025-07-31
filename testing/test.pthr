@@ -1,16 +1,9 @@
+def cpp_test = @importCPP("test.h");
 
 
 func entry = () #entry -> UI8 {
-	const string_ptr: [Char:4;'\0']*| = "ABCD";
-	const string: [Char:4;'\0'] = copy string_ptr.*;
-
-	var arr: [Int:4,5] = uninit;
-	arr[2, 3].* = 12;
-
-
-	const index: USize = 2;
-	const letter: Char = copy string[index].*;
-
-	return letter as UI8;
-	// return (&string as RawPtr as Char*).* as UI8;
+	const foo: UI32 = 12;
+	const bar: cpp_test.Foo = copy foo;
+	
+	return 0;
 }

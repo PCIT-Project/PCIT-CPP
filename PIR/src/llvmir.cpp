@@ -52,7 +52,7 @@ namespace pcit::pir{
 			
 
 			const std::string data_layout_error = this->module.setTargetAndDataLayout(
-				module.getPlatform(),
+				module.getTarget(),
 				llvmint::Module::Relocation::DEFAULT,
 				llvmint::Module::CodeSize::DEFAULT,
 				opt_level,

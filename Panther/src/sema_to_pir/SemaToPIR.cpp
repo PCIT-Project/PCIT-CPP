@@ -436,8 +436,8 @@ namespace pcit::panther{
 				case BaseType::Kind::ARRAY:
 					return std::format("PTHR.vtable.i{}.a{}", interface_id.get(), type.arrayID().get());
 
-				case BaseType::Kind::TYPEDEF:
-					return std::format("PTHR.vtable.i{}.t{}", interface_id.get(), type.typedefID().get());
+				case BaseType::Kind::DISTINCT_ALIAS:
+					return std::format("PTHR.vtable.i{}.t{}", interface_id.get(), type.distinctAliasID().get());
 
 				case BaseType::Kind::STRUCT:
 					return std::format("PTHR.vtable.i{}.s{}", interface_id.get(), type.structID().get());
@@ -526,8 +526,8 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::createWindowedExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
-		switch(this->context.getConfig().platform.os){
-			case core::Platform::OS::WINDOWS: {
+		switch(this->context.getConfig().target.platform){
+			case core::Target::Platform::WINDOWS: {
 				const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
 
 				const pir::Function::ID entry_func_id = this->module.createFunction(
@@ -559,7 +559,7 @@ namespace pcit::panther{
 				return entry_func_id;
 			} break;
 
-			case core::Platform::OS::LINUX: case core::Platform::OS::UNKNOWN: {
+			case core::Target::Platform::LINUX: case core::Target::Platform::UNKNOWN: {
 				return this->createConsoleExecutableEntry(target_entry_func);
 			} break;
 		}
@@ -4531,10 +4531,10 @@ namespace pcit::panther{
 				return this->get_type<false>(*alias.aliasedType.load());
 			} break;
 			
-			case BaseType::Kind::TYPEDEF: {
-				const BaseType::Typedef& typedef_type = 
-					this->context.getTypeManager().getTypedef(base_type_id.typedefID());
-				return this->get_type<false>(*typedef_type.underlyingType.load());
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias_type = 
+					this->context.getTypeManager().getDistinctAlias(base_type_id.distinctAliasID());
+				return this->get_type<false>(*distinct_alias_type.underlyingType.load());
 			} break;
 			
 			case BaseType::Kind::STRUCT: {

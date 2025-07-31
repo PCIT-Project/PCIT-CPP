@@ -35,6 +35,12 @@ namespace pcit::panther::sema{
 				bool isPub;
 			};
 
+			struct ClangModuleInfo{
+				ClangSourceID clangSourceID;
+				Token::ID tokenID;
+				bool isPub;
+			};
+
 			struct TemplateTypeParam{
 				TypeInfoVoidableID typeID;
 				Token::ID location;
@@ -70,8 +76,9 @@ namespace pcit::panther::sema{
 				sema::BlockExprOutputID,
 				sema::ExceptParamID,
 				ModuleInfo,
+				ClangModuleInfo,
 				BaseType::AliasID,
-				BaseType::TypedefID,
+				BaseType::DistinctAliasID,
 				BaseType::StructID,
 				BaseType::InterfaceID,
 				sema::TemplatedStructID,
@@ -147,8 +154,10 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ExceptParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub)
 				-> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, ClangSourceID id, Token::ID location, bool is_pub)
+				-> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult;
-			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::TypedefID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::DistinctAliasID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::StructID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult;

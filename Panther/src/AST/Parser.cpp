@@ -329,11 +329,13 @@ namespace pcit::panther{
 		}
 
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result_fail(type, "type in alias declaration")){ return Result::Code::ERROR; }
+		if(this->check_result_fail(type, "type in distinct alias declaration")){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at end of alias declaration")){ return Result::Code::ERROR;}
+		if(this->expect_token_fail(Token::lookupKind(";"), "at end of distinct alias declaration")){
+			return Result::Code::ERROR;
+		}
 
-		return this->source.ast_buffer.createTypedefDecl(
+		return this->source.ast_buffer.createDistinctAliasDecl(
 			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
 		);
 	}

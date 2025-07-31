@@ -18,7 +18,7 @@
 #include "./Function.h"
 #include "./ExecutionEngine.h"
 
-#include "../../../include/platform.h"
+#include "../../../include/Target.h"
 
 namespace pcit::llvmint{
 
@@ -121,11 +121,11 @@ namespace pcit::llvmint{
 
 
 			EVO_NODISCARD auto setTargetAndDataLayout(
-				core::Platform platorm = core::Platform::getCurrent(),
-				Relocation relocation  = Relocation::DEFAULT,
-				CodeSize code_size     = CodeSize::DEFAULT,
-				OptLevel opt_level     = OptLevel::DEFAULT,
-				bool is_jit            = false,
+				core::Target target   = core::Target::getCurrent(),
+				Relocation relocation = Relocation::DEFAULT,
+				CodeSize code_size    = CodeSize::DEFAULT,
+				OptLevel opt_level    = OptLevel::DEFAULT,
+				bool is_jit           = false,
 				ArchSpecificSettings arch_specific_settings = ArchSpecificSettingsDefault()
 			) -> std::string; // returns error message (empty if no error)
 

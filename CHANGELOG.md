@@ -1,11 +1,29 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.140.0"></a>
+## v0.0.140.0
+
+### Panther
+- Added compiling of C and C++ headers
+	- `typedef` and `using` alias
+	- types `void`, primitives, pointers, lvalue/rvalue references
+	- libc
+- Added `@importC` and `@importCPP`
+- Renamed "Platform" to "Target", (and "OS" to "Platform")
+- Renamed "Typedef" to "Distinct Alias"
+
+### Misc
+- Added LibC 
+	- [Huge thanks to Zig!](https://github.com/ziglang/zig/tree/master/lib/libc)
+
+
+<!---------------------------------->
 <a name="v0.0.139.0"></a>
 ## v0.0.139.0
 
 ### Panther
-- Added indexer
+- Added indexers (`[]`)
 
 
 <!---------------------------------->

@@ -32,12 +32,43 @@ namespace pcit::panther{
 	}
 
 
+
+	struct FileLocation{
+		uint32_t lineStart;
+		uint32_t lineEnd;
+		uint32_t collumnStart;
+		uint32_t collumnEnd;
+
+
+		FileLocation(uint32_t line, uint32_t collumn)
+			: lineStart(line), lineEnd(line), collumnStart(collumn), collumnEnd(collumn) {}
+
+		FileLocation(uint32_t line_start, uint32_t line_end, uint32_t collumn_start, uint32_t collumn_end) 
+			:  lineStart(line_start), lineEnd(line_end), collumnStart(collumn_start), collumnEnd(collumn_end) {}
+
+		explicit FileLocation(const Source::Location& source_location) : 
+			lineStart(source_location.lineStart),
+			lineEnd(source_location.lineEnd),
+			collumnStart(source_location.collumnStart),
+			collumnEnd(source_location.collumnEnd)
+		{}
+
+		explicit FileLocation(const ClangSource::Location& clang_location) : 
+			lineStart(clang_location.lineStart),
+			lineEnd(clang_location.lineEnd),
+			collumnStart(clang_location.collumnStart),
+			collumnEnd(clang_location.collumnEnd)
+		{}
+	};
+
+
 	static auto print_location(
 		core::Printer& printer,
 		const std::filesystem::path& rel_dir,
-		const Source& source,
+		const std::filesystem::path& source_path,
+		const std::string& source_data,
 		DiagnosticLevel level,
-		const Source::Location& location,
+		const FileLocation& location,
 		unsigned depth
 	) -> void {
 
@@ -54,8 +85,8 @@ namespace pcit::panther{
 		printer.printGray(
 			std::format(
 				"\x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\({}:{})\n", 
-				source.getPath().string(),
-				std::filesystem::relative(source.getPath(), rel_dir, ec).string(),
+				source_path.string(),
+				std::filesystem::relative(source_path, rel_dir, ec).string(),
 				location.lineStart,
 				location.collumnStart
 			)
@@ -73,16 +104,16 @@ namespace pcit::panther{
 		size_t current_line = 1;
 		while(current_line < location.lineStart){
 			evo::debugAssert(
-				cursor < source.getData().size(), "out of bounds looking for line in source code for error"
+				cursor < source_data.size(), "out of bounds looking for line in source code for error"
 			);
 
-			if(source.getData()[cursor] == '\n'){
+			if(source_data[cursor] == '\n'){
 				current_line += 1;
 
-			}else if(source.getData()[cursor] == '\r'){
+			}else if(source_data[cursor] == '\r'){
 				current_line += 1;
 
-				if(source.getData()[cursor + 1] == '\n'){
+				if(source_data[cursor + 1] == '\n'){
 					cursor += 1;
 				}
 			}
@@ -100,17 +131,17 @@ namespace pcit::panther{
 
 		auto line_char_is_tab = evo::SmallVector<bool>();
 
-		while(source.getData()[cursor] != '\n' && source.getData()[cursor] != '\r' && cursor < source.getData().size()){
-			if(remove_whitespace && (source.getData()[cursor] == '\t' || source.getData()[cursor] == ' ')){
+		while(source_data[cursor] != '\n' && source_data[cursor] != '\r' && cursor < source_data.size()){
+			if(remove_whitespace && (source_data[cursor] == '\t' || source_data[cursor] == ' ')){
 				// remove leading whitespace
 				point_collumn -= 1;
 
 			}else{
-				if(source.getData()[cursor] == '\t'){
+				if(source_data[cursor] == '\t'){
 					line_str += "    ";
 					line_char_is_tab.emplace_back(true);
 				}else{
-					line_str += source.getData()[cursor];
+					line_str += source_data[cursor];
 					line_char_is_tab.emplace_back(false);
 				}
 				remove_whitespace = false;
@@ -188,7 +219,7 @@ namespace pcit::panther{
 	static auto print_info(
 		core::Printer& printer,
 		const std::filesystem::path* rel_dir,
-		const Context* context,
+		const Context* context, // nullptr if not printing location
 		const Diagnostic::Info& info,
 		unsigned depth
 	) -> void {
@@ -198,14 +229,33 @@ namespace pcit::panther{
 
 		printer.printCyan(std::format("<Info> {}\n", info.message));
 
-		if(info.location.is<Source::Location>()){
-			// message is this way to make sense when called from `printDiagnosticWithoutLocation`
-			evo::debugAssert(context != nullptr, "Cannot print diagnostic info with location with this function");
+		if(context != nullptr){
+			if(info.location.is<Source::Location>()){
+				const Source& source = context->getSourceManager()[info.location.as<Source::Location>().sourceID];
+				print_location(
+					printer,
+					*rel_dir,
+					source.getPath(),
+					source.getData(),
+					DiagnosticLevel::INFO,
+					FileLocation(info.location.as<Source::Location>()),
+					depth + 1
+				);
 
-			const Source& source = context->getSourceManager()[info.location.as<Source::Location>().sourceID];
-			print_location(
-				printer, *rel_dir, source, DiagnosticLevel::INFO, info.location.as<Source::Location>(), depth + 1
-			);
+			}else if(info.location.is<ClangSource::Location>()){
+				const ClangSource::Location& location = info.location.as<ClangSource::Location>();
+				const ClangSource& clang_source = context->getSourceManager()[location.sourceID];
+
+				print_location(
+					printer,
+					*rel_dir,
+					clang_source.getPath(),
+					clang_source.getData(),
+					DiagnosticLevel::INFO,
+					FileLocation(location),
+					depth + 1
+				);
+			}
 		}
 
 		for(const Diagnostic::Info& sub_info : info.sub_infos){
@@ -233,7 +283,29 @@ namespace pcit::panther{
 				const Source::Location& location = diagnostic.location.as<Source::Location>();
 				const Source& source = context.getSourceManager()[location.sourceID];
 
-				print_location(printer, rel_dir, source, get_diagnostic_level(diagnostic.level), location, 1);
+				print_location(
+					printer,
+					rel_dir,
+					source.getPath(),
+					source.getData(),
+					get_diagnostic_level(diagnostic.level),
+					FileLocation(location),
+					1
+				);
+
+			}else if(diagnostic.location.is<ClangSource::Location>()){
+				const ClangSource::Location& location = diagnostic.location.as<ClangSource::Location>();
+				const ClangSource& clang_source = context.getSourceManager()[location.sourceID];
+
+				print_location(
+					printer,
+					rel_dir,
+					clang_source.getPath(),
+					clang_source.getData(),
+					get_diagnostic_level(diagnostic.level),
+					FileLocation(location),
+					1
+				);
 			}
 
 			for(const Diagnostic::Info& info : diagnostic.infos){

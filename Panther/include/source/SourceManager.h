@@ -9,11 +9,13 @@
 
 #pragma once
 
+#include <filesystem>
 
 #include <Evo.h>
 #include <PCIT_core.h>
 
 #include "./Source.h"
+#include "./ClangSource.h"
 
 
 namespace pcit::panther{
@@ -46,15 +48,23 @@ namespace pcit::panther{
 			EVO_NODISCARD auto operator[](Source::ID id) const -> const Source& { return this->priv.sources[id]; }
 			EVO_NODISCARD auto operator[](Source::ID id)       ->       Source& { return this->priv.sources[id]; }
 
-
-			EVO_NODISCARD auto begin() const -> Source::ID::Iterator {
-				return Source::ID::Iterator(Source::ID(0));
+			EVO_NODISCARD auto operator[](ClangSource::ID id) const -> const ClangSource& {
+				return this->priv.clang_sources[id];
+			}
+			EVO_NODISCARD auto operator[](ClangSource::ID id) -> ClangSource& {
+				return this->priv.clang_sources[id];
 			}
 
-			EVO_NODISCARD auto end() const -> Source::ID::Iterator {
+
+
+			EVO_NODISCARD auto getSourceIDRange() const -> core::IterRange<Source::ID::Iterator> {
 				const auto lock = std::lock_guard(this->priv.sources_lock);
-				return Source::ID::Iterator(Source::ID(uint32_t(this->priv.sources.size())));
+				return core::IterRange<Source::ID::Iterator>(
+					Source::ID::Iterator(Source::ID(0)),
+					Source::ID::Iterator(Source::ID(uint32_t(this->priv.sources.size())))
+				);
 			}
+
 
 			EVO_NODISCARD auto size() const -> size_t {
 				const auto lock = std::lock_guard(this->priv.sources_lock);
@@ -64,6 +74,18 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto lookupSpecialNameSourceID(std::string_view path) const -> std::optional<Source::ID>;
 			EVO_NODISCARD auto lookupSourceID(std::string_view path) const -> std::optional<Source::ID>;
+			EVO_NODISCARD auto lookupClangSourceID(std::string_view path) const -> std::optional<ClangSource::ID>;
+
+			struct GottenClangSourceID{
+				ClangSource::ID id;
+				bool created;
+			};
+			EVO_NODISCARD auto getOrCreateClangSourceID(std::filesystem::path&& path, bool is_cpp)
+				-> GottenClangSourceID;
+			EVO_NODISCARD auto getOrCreateClangSourceID(std::string_view path, bool is_cpp) -> GottenClangSourceID {
+				return this->getOrCreateClangSourceID(std::filesystem::path(path), is_cpp);
+			}
+
 			
 
 		private:
@@ -74,6 +96,19 @@ namespace pcit::panther{
 
 				const Source::ID new_source_id = this->priv.sources.emplace_back(
 					std::move(path), std::move(data_str), comp_config_id
+				);
+
+				this->operator[](new_source_id).id = new_source_id;
+
+				return new_source_id;
+			}
+
+			auto create_clang_source(std::filesystem::path&& path, std::string&& data_str, bool is_cpp)
+			-> ClangSource::ID {
+				const auto lock = std::lock_guard(this->priv.clang_sources_lock);
+
+				const ClangSource::ID new_source_id = this->priv.clang_sources.emplace_back(
+					std::move(path), std::move(data_str), is_cpp
 				);
 
 				this->operator[](new_source_id).id = new_source_id;
@@ -96,6 +131,9 @@ namespace pcit::panther{
 				private:
 					core::LinearStepAlloc<Source, Source::ID, 0> sources{};
 					mutable core::SpinLock sources_lock{};
+
+					core::LinearStepAlloc<ClangSource, ClangSource::ID, 0> clang_sources{};
+					mutable core::SpinLock clang_sources_lock{};
 
 					using CompConfig = Source::CompilationConfig;
 					core::LinearStepAlloc<CompConfig, CompConfig::ID> source_compilation_configs{};

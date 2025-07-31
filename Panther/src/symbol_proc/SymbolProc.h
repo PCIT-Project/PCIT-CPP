@@ -547,6 +547,13 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
+		enum class Language{
+			PANTHER,
+			C,
+			CPP,
+		};
+
+		template<Language LANGUAGE>
 		struct Import{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID location;
@@ -875,7 +882,9 @@ namespace pcit::panther{
 			FuncCallExpr<false, true>,
 			FuncCallExpr<false, false>,
 			ConstexprFuncCallRun,
-			Import,
+			Import<Language::PANTHER>,
+			Import<Language::C>,
+			Import<Language::CPP>,
 			TemplateIntrinsicFuncCall<true>,
 			TemplateIntrinsicFuncCall<false>,
 			Indexer<true>,

@@ -28,7 +28,7 @@ namespace pcit::panther::AST{
 		VAR_DECL,
 		FUNC_DECL,
 		ALIAS_DECL,
-		TYPEDEF_DECL,
+		DISTINCT_ALIAS_DECL,
 		STRUCT_DECL,
 		INTERFACE_DECL,
 		INTERFACE_IMPL,
@@ -198,7 +198,7 @@ namespace pcit::panther::AST{
 		Node type;
 	};
 
-	struct TypedefDecl{
+	struct DistinctAliasDecl{
 		Token::ID ident;
 		Node attributeBlock;
 		Node type;

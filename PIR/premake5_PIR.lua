@@ -35,33 +35,33 @@ project "*"
 
 
 
-project "pirc"
-	kind "ConsoleApp"
-	-- staticruntime "On"
+-- project "pirc"
+-- 	kind "ConsoleApp"
+-- 	-- staticruntime "On"
 	
 
-	targetdir(target.bin)
-	objdir(target.obj)
+-- 	targetdir(target.bin)
+-- 	objdir(target.obj)
 
-	files{
-		"./exec/**.cpp",
-	}
+-- 	files{
+-- 		"./exec/**.cpp",
+-- 	}
 
 	
 
-	includedirs{
-		(config.location .. "/dependencies"),
-		(config.location .. "/PCIT_core/include"),		
+-- 	includedirs{
+-- 		(config.location .. "/dependencies"),
+-- 		(config.location .. "/PCIT_core/include"),		
 
-		"./include/",
-	}
+-- 		"./include/",
+-- 	}
 
-	links{
-		"Evo",
-		"PCIT_core",
-		"PIR",
-	}
+-- 	links{
+-- 		"Evo",
+-- 		"PCIT_core",
+-- 		"PIR",
+-- 	}
 
 
-project "*"
+-- project "*"
 

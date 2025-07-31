@@ -16,12 +16,14 @@ project "Panther"
 		(config.location .. "/PIR/include"),
 		(config.location .. "/PCIT_core/include"),
 		(config.location .. "/PCIT_core/internal/llvm_interface/include"),
+		(config.location .. "/PCIT_core/internal/clang_interface/include"),
 		(config.location .. "/dependencies"),
 	}
 
 	links{
 		"Evo",
 		"PCIT_core",
+		"PCIT_clang_interface",
 		"PIR",
 	}
 
@@ -65,6 +67,13 @@ project "pthr"
 		"PIR",
 		"Panther",
 	}
+
+
+	filter "system:Windows"
+		linkoptions{
+			"/IGNORE:4217"
+		}
+	filter {}
 
 
 

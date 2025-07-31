@@ -20,6 +20,8 @@ namespace fs = std::filesystem;
 
 #include <PIR.h>
 
+#include <clang_interface.h>
+
 
 namespace pcit::panther{
 
@@ -174,6 +176,140 @@ namespace pcit::panther{
 	}
 
 
+	EVO_NODISCARD static auto clang_type_to_panther_type(clangint::Type clang_type, TypeManager& type_manager)
+	-> std::optional<TypeInfo::VoidableID> {
+
+		auto base_type_id = std::optional<BaseType::ID>();
+
+		if(clang_type.baseType.is<clangint::BaseType::Primitive>()){
+			switch(clang_type.baseType.as<clangint::BaseType::Primitive>()){
+				break; case clangint::BaseType::Primitive::VOID: return TypeInfo::VoidableID::Void();
+
+				break; case clangint::BaseType::Primitive::ISIZE: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_ISIZE);
+
+				break; case clangint::BaseType::Primitive::I8: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 8);
+
+				break; case clangint::BaseType::Primitive::I16: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 16);
+
+				break; case clangint::BaseType::Primitive::I32: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 32);
+
+				break; case clangint::BaseType::Primitive::I64: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 64);
+
+				break; case clangint::BaseType::Primitive::I128: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 128);
+
+				break; case clangint::BaseType::Primitive::USIZE: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_USIZE);
+
+				break; case clangint::BaseType::Primitive::UI8: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 8);
+
+				break; case clangint::BaseType::Primitive::UI16: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 16);
+
+				break; case clangint::BaseType::Primitive::UI32: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32);
+
+				break; case clangint::BaseType::Primitive::UI64: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 64);
+
+				break; case clangint::BaseType::Primitive::UI128: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 128);
+
+				break; case clangint::BaseType::Primitive::F16: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F16);
+
+				break; case clangint::BaseType::Primitive::BF16: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_BF16);
+
+				break; case clangint::BaseType::Primitive::F32: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F32);
+
+				break; case clangint::BaseType::Primitive::F64: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F64);
+
+				break; case clangint::BaseType::Primitive::F80: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F80);
+
+				break; case clangint::BaseType::Primitive::F128: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F128);
+
+				break; case clangint::BaseType::Primitive::BYTE: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_BYTE);
+
+				break; case clangint::BaseType::Primitive::BOOL: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_BOOL);
+
+				break; case clangint::BaseType::Primitive::CHAR: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_CHAR);
+
+				break; case clangint::BaseType::Primitive::RAWPTR: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_RAWPTR);
+
+				break; case clangint::BaseType::Primitive::C_SHORT: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_SHORT);
+
+				break; case clangint::BaseType::Primitive::C_USHORT: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_USHORT);
+
+				break; case clangint::BaseType::Primitive::C_INT: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_INT);
+
+				break; case clangint::BaseType::Primitive::C_UINT: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_UINT);
+
+				break; case clangint::BaseType::Primitive::C_LONG: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_LONG);
+
+				break; case clangint::BaseType::Primitive::C_ULONG: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_ULONG);
+
+				break; case clangint::BaseType::Primitive::C_LONG_LONG: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_LONG_LONG);
+
+				break; case clangint::BaseType::Primitive::C_ULONG_LONG: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_ULONG_LONG);
+
+				break; case clangint::BaseType::Primitive::C_LONG_DOUBLE: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_LONG_DOUBLE);
+
+				break; case clangint::BaseType::Primitive::UNKNOWN: return std::nullopt;
+			}
+		}else{
+			evo::debugFatalBreak("Unsupported clangint base type");
+		}
+
+
+		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+
+		for(const clangint::Type::Qualifier& qualifier : clang_type.qualifiers){
+			switch(qualifier){
+				break; case clangint::Type::Qualifier::POINTER:
+					qualifiers.emplace_back(true, false, true);
+
+				break; case clangint::Type::Qualifier::CONST_POINTER:
+					qualifiers.emplace_back(true, true, true);
+
+				break; case clangint::Type::Qualifier::L_VALUE_REFERENCE:
+					qualifiers.emplace_back(true, clang_type.isConst, false);
+
+				break; case clangint::Type::Qualifier::R_VALUE_REFERENCE:
+					qualifiers.emplace_back(true, clang_type.isConst, false);
+			}
+		}
+
+
+		return TypeInfo::VoidableID(type_manager.getOrCreateTypeInfo(TypeInfo(*base_type_id, std::move(qualifiers))));
+	}
+
+
+
+
 	auto Context::analyzeSemantics() -> evo::Result<> {
 		this->started_any_target = true;
 
@@ -222,7 +358,11 @@ namespace pcit::panther{
 			this->constexpr_sema_to_pir_data.createJITInterfaceFuncDecls(this->constexpr_pir_module);
 		}
 
-		for(const Source::ID& source_id : this->source_manager){
+			
+		if(this->compileOtherLangs().isError()){ return evo::resultError; }
+
+
+		for(const Source::ID& source_id : this->source_manager.getSourceIDRange()){
 			Source& source = this->source_manager[source_id];
 
 			source.sema_scope_id = this->sema_buffer.scope_manager.createScope();
@@ -237,6 +377,12 @@ namespace pcit::panther{
 				using TaskType = std::decay_t<decltype(task)>;
 
 				if constexpr(std::is_same<TaskType, FileToLoad>()){
+					evo::debugFatalBreak("Should never hit this task");
+
+				}else if constexpr(std::is_same<TaskType, CHeaderToLoad>()){
+					evo::debugFatalBreak("Should never hit this task");
+
+				}else if constexpr(std::is_same<TaskType, CPPHeaderToLoad>()){
 					evo::debugFatalBreak("Should never hit this task");
 
 				}else if constexpr(std::is_same<TaskType, SymbolProc::ID>()){
@@ -353,6 +499,69 @@ namespace pcit::panther{
 
 
 
+	auto Context::compileOtherLangs() -> evo::Result<> {
+		const auto worker = [&](Task& task_variant) -> evo::Result<> {
+			task_variant.visit([&](auto& task) -> void {
+				using TaskType = std::decay_t<decltype(task)>;
+
+				if constexpr(std::is_same<TaskType, FileToLoad>()){
+					evo::debugFatalBreak("Should never hit this task");
+
+				}else if constexpr(std::is_same<TaskType, CHeaderToLoad>()){
+					this->analyze_clang_header_impl(std::move(task.path), task.add_includes_to_pub_api, false);
+
+				}else if constexpr(std::is_same<TaskType, CPPHeaderToLoad>()){
+					this->analyze_clang_header_impl(std::move(task.path), task.add_includes_to_pub_api, true);
+
+				}else if constexpr(std::is_same<TaskType, SymbolProc::ID>()){
+					evo::debugFatalBreak("Should never hit this task");
+
+				}else{
+					static_assert(false, "Unsupported task type");
+				}
+			});
+
+			return evo::Result<>::fromBool(!this->hasHitFailCondition());
+		};
+
+		if(this->_config.numThreads.isMulti()){
+			auto local_work_manager = core::ThreadPool<Task>();
+
+			auto tasks = evo::SmallVector<Task>();
+			for(CHeaderToLoad& c_header_to_load : this->c_headers_to_load){
+				tasks.emplace_back(std::move(c_header_to_load));
+			}
+			for(CPPHeaderToLoad& cpp_header_to_load : this->cpp_headers_to_load){
+				tasks.emplace_back(std::move(cpp_header_to_load));
+			}
+
+			local_work_manager.startup(this->_config.numThreads.getNum());
+			local_work_manager.work(std::move(tasks), worker);
+			local_work_manager.waitUntilDoneWorking();
+			local_work_manager.shutdown();
+
+		}else{
+			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
+
+			for(CHeaderToLoad& c_header_to_load : this->c_headers_to_load){
+				local_work_manager.emplaceTask(std::move(c_header_to_load));
+			}
+			for(CPPHeaderToLoad& cpp_header_to_load : this->cpp_headers_to_load){
+				local_work_manager.emplaceTask(std::move(cpp_header_to_load));
+			}
+
+			this->files_to_load.clear();
+
+			local_work_manager.run();
+		}
+
+		this->c_headers_to_load.clear();
+		this->cpp_headers_to_load.clear();
+
+		return evo::Result<>::fromBool(this->num_errors == 0);
+	}
+
+
 
 	auto Context::lowerToPIR(EntryKind entry_kind, pir::Module& module) -> evo::Result<> {
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
@@ -418,7 +627,7 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
-		auto module = pir::Module(evo::copy(this->_config.title), core::Platform::getCurrent());
+		auto module = pir::Module(evo::copy(this->_config.title), core::Target::getCurrent());
 
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
 			#if defined(PCIT_CONFIG_DEBUG)
@@ -559,6 +768,28 @@ namespace pcit::panther{
 
 
 
+	auto Context::addCHeaderFile(const fs::path& path, bool add_includes_to_pub_api) -> AddSourceResult {
+		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
+		if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
+
+		this->c_headers_to_load.emplace_back(
+			normalize_path(path, std::filesystem::current_path()), add_includes_to_pub_api
+		);
+		return AddSourceResult::SUCCESS;
+	}
+
+	auto Context::addCPPHeaderFile(const fs::path& path, bool add_includes_to_pub_api) -> AddSourceResult {
+		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
+		if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
+
+		this->cpp_headers_to_load.emplace_back(
+			normalize_path(path, std::filesystem::current_path()), add_includes_to_pub_api
+		);
+		return AddSourceResult::SUCCESS;
+	}
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// task 
 
@@ -637,6 +868,181 @@ namespace pcit::panther{
 	}
 
 
+	auto Context::analyze_clang_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
+	-> void {
+		const std::string filepath_str = path.string();
+
+		const evo::Result<std::string> file = evo::fs::readFile(filepath_str);
+		if(file.isError()){
+			this->emitError(
+				Diagnostic::Code::MISC_LOAD_FILE_FAILED,
+				Diagnostic::Location::NONE,
+				std::format("Failed to load file: \"{}\"", filepath_str)
+			);
+			return;
+		}
+
+
+		ClangSource::ID created_clang_source_id = this->source_manager.create_clang_source(
+			std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp
+		);
+
+
+		auto clang_api = pcit::clangint::API();
+		auto diagnostic_list = pcit::clangint::DiagnosticList();
+
+		const auto opts = [&]() -> evo::Variant<clangint::COpts, clangint::CPPOpts> {
+			if(is_cpp){
+				return clangint::CPPOpts();
+			}else{
+				return clangint::COpts();
+			}
+		}();
+
+		const evo::Result<> result = pcit::clangint::getHeaderAPI(
+			filepath_str, std::string_view(file.value()), opts, this->getConfig().target, clang_api, diagnostic_list
+		);
+
+
+		bool errored = false;
+		for(size_t i = 0; i < diagnostic_list.diagnostics.size(); i+=1){
+			const auto get_location = [&]() -> Diagnostic::Location {
+				if(diagnostic_list.diagnostics[i].location.has_value()){
+					return Diagnostic::Location(
+						ClangSource::Location(
+							this->source_manager.getOrCreateClangSourceID(
+								evo::copy(diagnostic_list.diagnostics[i].location->filePath), is_cpp
+							).id,
+							diagnostic_list.diagnostics[i].location->line,
+							diagnostic_list.diagnostics[i].location->collumn	
+						)	
+					);
+				}else{
+					return Diagnostic::Location::NONE;
+				}
+			};
+
+			const Diagnostic::Location location = get_location();
+
+
+			using ClangDiagnosticLevel = clangint::DiagnosticList::Diagnostic::Level;
+
+			switch(diagnostic_list.diagnostics[i].level){
+				case ClangDiagnosticLevel::FATAL: {
+					std::string message = "Clang: " + diagnostic_list.diagnostics[i].message;
+
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					while(
+						i + 1 < diagnostic_list.diagnostics.size()
+						&& diagnostic_list.diagnostics[i + 1].level == ClangDiagnosticLevel::NOTE
+					){
+						i += 1;
+						infos.emplace_back("Note: " + diagnostic_list.diagnostics[i].message, get_location());
+					}
+
+					this->emitFatal(Diagnostic::Code::CLANG, location, std::move(message), std::move(infos));
+
+					errored = true;
+				} break;
+
+				case ClangDiagnosticLevel::ERROR: {
+					std::string message = "Clang: " + diagnostic_list.diagnostics[i].message;
+
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					while(
+						i + 1 < diagnostic_list.diagnostics.size()
+						&& diagnostic_list.diagnostics[i + 1].level == ClangDiagnosticLevel::NOTE
+					){
+						i += 1;
+						infos.emplace_back("Note: " + diagnostic_list.diagnostics[i].message, get_location());
+					}
+
+					this->emitError(Diagnostic::Code::CLANG, location, std::move(message), std::move(infos));
+					errored = true;
+				} break;
+
+				case ClangDiagnosticLevel::WARNING: {
+					std::string message = "Clang: " + diagnostic_list.diagnostics[i].message;
+
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					while(
+						i + 1 < diagnostic_list.diagnostics.size()
+						&& diagnostic_list.diagnostics[i + 1].level == ClangDiagnosticLevel::NOTE
+					){
+						i += 1;
+						infos.emplace_back("Note: " + diagnostic_list.diagnostics[i].message, get_location());
+					}
+
+					this->emitWarning(Diagnostic::Code::CLANG, location, std::move(message), std::move(infos));
+				} break;
+
+				case ClangDiagnosticLevel::REMARK: {
+					// TODO(FUTURE): 
+					evo::unimplemented("ClangDiagnosticLevel::REMARK");
+				} break;
+
+				case ClangDiagnosticLevel::NOTE: {
+					evo::debugFatalBreak("Should have been consumed by a FATAL, ERROR, or WARNING");
+				} break;
+
+				case ClangDiagnosticLevel::IGNORED: {
+					// TODO(FUTURE): 
+					evo::unimplemented("ClangDiagnosticLevel::IGNORED");
+				} break;
+			}
+		}
+
+
+		if(result.isError() || errored){ return; }
+
+
+		ClangSource& created_clang_source = this->source_manager[created_clang_source_id];
+
+		for(const clangint::API::Decl& decl : clang_api.getDecls()){
+			decl.visit([&](const auto& decl_ptr) -> void {
+				using DeclPtr = std::decay_t<decltype(decl_ptr)>;
+				
+
+				if constexpr(std::is_same<DeclPtr, clangint::API::Alias*>()){
+					const clangint::API::Alias& alias_decl = *decl_ptr;
+
+					const ClangSource::ID clang_source_id =
+						this->source_manager.getOrCreateClangSourceID(evo::copy(alias_decl.declFilePath), is_cpp).id;
+
+					ClangSource& clang_source = this->source_manager[clang_source_id];
+
+					const std::optional<TypeInfo::VoidableID> panther_type = 
+						clang_type_to_panther_type(alias_decl.type, this->type_manager);
+
+					if(panther_type.has_value() == false){ return; }
+
+					if(panther_type->isVoid()){ return; }
+
+					if(add_includes_to_pub_api || clang_source_id == created_clang_source_id){
+						const BaseType::ID created_basetype_id = this->type_manager.getOrCreateAlias(
+							BaseType::Alias(
+								clang_source_id,
+								clang_source.createDeclInfo(
+									alias_decl.name, alias_decl.declLine, alias_decl.declCollumn
+								),
+								std::optional<TypeInfo::ID>(panther_type->asTypeID()),
+								true
+							)
+						);
+
+						created_clang_source.addSymbol(alias_decl.name, created_basetype_id, clang_source_id);
+					}
+
+				}else{
+					static_assert(false, "Unsupported decl type");
+				}
+			});
+		}
+
+		created_clang_source.setSymbolMapComplete();
+	}
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// misc
@@ -687,7 +1093,7 @@ namespace pcit::panther{
 		std::optional<Source::ID> lookup_source_id = this->source_manager.lookupSourceID(file_path.string());
 		if(lookup_source_id.has_value()){ return lookup_source_id.value(); }
 
-		const bool current_dynamic_file_load_contains =  [&](){
+		const bool current_dynamic_file_load_contains = [&](){
 			const auto lock = std::scoped_lock(this->current_dynamic_file_load_lock);
 			return this->current_dynamic_file_load.contains(file_path);
 		}();
@@ -756,6 +1162,91 @@ namespace pcit::panther{
 			}else{
 				return evo::Unexpected(LookupSourceIDError::FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED);
 			}
+		}
+
+		return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);
+	}
+
+
+
+	auto Context::lookupClangSourceID(std::string_view lookup_path, const Source& calling_source, bool is_cpp)
+	-> evo::Expected<ClangSource::ID, LookupSourceIDError> {
+		if(lookup_path.empty()){
+			return evo::Unexpected(LookupSourceIDError::EMPTY_PATH);
+		}
+
+
+		// generate path
+		fs::path file_path = [&]() -> fs::path {
+			fs::path relative_dir = calling_source.getPath();
+			relative_dir.remove_filename();
+
+			if(lookup_path.starts_with("./")){
+				return relative_dir / fs::path(lookup_path.substr(2));
+
+			}else if(lookup_path.starts_with(".\\")){
+				return relative_dir / fs::path(lookup_path.substr(3));
+
+			// }else if(lookup_path.starts_with("/") || lookup_path.starts_with("\\")){
+			// 	return relative_dir / fs::path(lookup_path.substr(1));
+
+			}else if(lookup_path.starts_with("../") || lookup_path.starts_with("..\\")){
+				return relative_dir / fs::path(lookup_path);
+
+			}else{
+				const Source::CompilationConfig& compilation_config = this->source_manager.getSourceCompilationConfig(
+					calling_source.getCompilationConfigID()
+				);
+				return compilation_config.basePath / fs::path(lookup_path);
+			}
+		}().lexically_normal();
+
+
+		if(calling_source.getPath() == file_path){
+			return evo::Unexpected(LookupSourceIDError::SAME_AS_CALLER);
+		}
+
+		std::optional<ClangSource::ID> lookup_source_id = this->source_manager.lookupClangSourceID(file_path.string());
+		if(lookup_source_id.has_value()){
+			if(is_cpp != this->source_manager[*lookup_source_id].isCPP()){
+				return evo::Unexpected(LookupSourceIDError::WRONG_LANGUAGE);
+			}
+			return lookup_source_id.value();
+		}
+
+		const bool current_dynamic_file_load_contains = [&](){
+			const auto lock = std::scoped_lock(this->current_dynamic_file_load_lock);
+			return this->current_dynamic_file_load.contains(file_path);
+		}();
+			
+		if(current_dynamic_file_load_contains){
+			// TODO(PERF): better waiting
+			while(lookup_source_id.has_value() == false){
+				std::this_thread::yield();
+				std::this_thread::yield();
+				std::this_thread::yield();
+				lookup_source_id = this->source_manager.lookupClangSourceID(file_path.string());
+			}
+
+			const ClangSource& lookup_source = this->source_manager[lookup_source_id.value()];
+
+			while(lookup_source.isSymboLMapComplete() == false){
+				std::this_thread::yield();
+				std::this_thread::yield();
+				std::this_thread::yield();
+			}
+
+			return lookup_source_id.value();
+		}
+
+		this->current_dynamic_file_load.emplace(file_path);
+
+		if(evo::fs::exists(file_path.string())){
+			if(this->_config.mode == Config::Mode::COMPILE){
+				return evo::Unexpected(LookupSourceIDError::NOT_ONE_OF_SOURCES);
+			}
+
+			this->analyze_clang_header_impl(std::move(file_path), true, is_cpp);
 		}
 
 		return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);

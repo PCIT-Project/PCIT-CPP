@@ -329,8 +329,14 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::ConstexprFuncCallRun>()){
 				return this->instr_constexpr_func_call_run(instr);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Import>()){
-				return this->instr_import(instr);
+			}else if constexpr(std::is_same<InstrType, Instruction::Import<Instruction::Language::PANTHER>>()){
+				return this->instr_import<Instruction::Language::PANTHER>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Import<Instruction::Language::C>>()){
+				return this->instr_import<Instruction::Language::C>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::Import<Instruction::Language::CPP>>()){
+				return this->instr_import<Instruction::Language::CPP>(instr);
 
 			}else if constexpr(std::is_same<InstrType, Instruction::TemplateIntrinsicFuncCall<true>>()){
 				return this->instr_template_intrinsic_func_call<true>(instr);
@@ -663,7 +669,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
+					if(value_term_info.is_module()){
 						this->error_type_mismatch(
 							var_type_id, value_term_info, "Variable definition", *instr.var_decl.value
 						);
@@ -775,6 +781,28 @@ namespace pcit::panther{
 				var_ident,
 				instr.var_decl,
 				value_term_info.type_id.as<Source::ID>(),
+				instr.var_decl.ident,
+				var_attrs.value().is_pub
+			);
+
+			// TODO(FUTURE): propgate if `add_ident_result` errored?
+			this->propagate_finished_decl_def();
+			return add_ident_result.isError() ? Result::ERROR : Result::SUCCESS;
+
+		}else if(value_term_info.value_category == TermInfo::ValueCategory::CLANG_MODULE){
+			if(instr.var_decl.kind != AST::VarDecl::Kind::DEF){
+				this->emit_error(
+					Diagnostic::Code::SEMA_MODULE_VAR_MUST_BE_DEF,
+					*instr.var_decl.value,
+					"Variable that has a module value must be declared as [def]"
+				);
+				return Result::ERROR;
+			}
+
+			const evo::Result<> add_ident_result = this->add_ident_to_scope(
+				var_ident,
+				instr.var_decl,
+				value_term_info.type_id.as<ClangSource::ID>(),
 				instr.var_decl.ident,
 				var_attrs.value().is_pub
 			);
@@ -4570,8 +4598,8 @@ namespace pcit::panther{
 	}
 
 
-
-	auto SemanticAnalyzer::instr_import(const Instruction::Import& instr) -> Result {
+	template<Instruction::Language LANGUAGE>
+	auto SemanticAnalyzer::instr_import(const Instruction::Import<LANGUAGE>& instr) -> Result {
 		const TermInfo& location = this->get_term_info(instr.location);
 
 		// TODO(FUTURE): type checking of location
@@ -4580,22 +4608,51 @@ namespace pcit::panther{
 			location.getExpr().stringValueID()
 		).value;
 
-		const evo::Expected<Source::ID, Context::LookupSourceIDError> import_lookup = 
-			this->context.lookupSourceID(lookup_path, this->source);
 
-		if(import_lookup.has_value()){
-			this->return_term_info(instr.output, 
-				TermInfo(
-					TermInfo::ValueCategory::MODULE,
-					TermInfo::ValueStage::CONSTEXPR,
-					import_lookup.value(),
-					std::nullopt
-				)
-			);
-			return Result::SUCCESS;
+		auto lookup_error = std::optional<Context::LookupSourceIDError>();
+
+		if constexpr(LANGUAGE == Instruction::Language::PANTHER){
+			const evo::Expected<Source::ID, Context::LookupSourceIDError> import_lookup = 
+				this->context.lookupSourceID(lookup_path, this->source);
+
+			if(import_lookup.has_value()){
+				this->return_term_info(instr.output, 
+					TermInfo(
+						TermInfo::ValueCategory::MODULE,
+						TermInfo::ValueStage::CONSTEXPR,
+						import_lookup.value(),
+						std::nullopt
+					)
+				);
+				return Result::SUCCESS;
+			}
+			
+			lookup_error = import_lookup.error();
+
+		}else if constexpr(LANGUAGE == Instruction::Language::C || LANGUAGE == Instruction::Language::CPP){
+			const evo::Expected<ClangSource::ID, Context::LookupSourceIDError> import_lookup = 
+				this->context.lookupClangSourceID(lookup_path, this->source, LANGUAGE == Instruction::Language::CPP);
+
+			if(import_lookup.has_value()){
+				this->return_term_info(instr.output, 
+					TermInfo(
+						TermInfo::ValueCategory::CLANG_MODULE,
+						TermInfo::ValueStage::CONSTEXPR,
+						import_lookup.value(),
+						std::nullopt
+					)
+				);
+				return Result::SUCCESS;
+			}
+			
+			lookup_error = import_lookup.error();
+
+		}else{
+			static_assert(false, "Unkonwn language");
 		}
 
-		switch(import_lookup.error()){
+
+		switch(*lookup_error){
 			case Context::LookupSourceIDError::EMPTY_PATH: {
 				this->emit_error(
 					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
@@ -4636,10 +4693,23 @@ namespace pcit::panther{
 			case Context::LookupSourceIDError::FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED: {
 				return Result::ERROR;
 			} break;
+
+			case Context::LookupSourceIDError::WRONG_LANGUAGE: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
+					instr.func_call.args[0].value,
+					std::format(
+						"Couldn't import file \"{}\" as this language as it was included as a different one",
+						lookup_path
+					)
+				);
+				return Result::ERROR;
+			} break;
 		}
 
 		evo::unreachable();
 	}
+
 
 
 	template<bool IS_CONSTEXPR>
@@ -8458,6 +8528,9 @@ namespace pcit::panther{
 		if(lhs.type_id.is<Source::ID>()){
 			return this->module_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
 
+		}else if(lhs.type_id.is<ClangSource::ID>()){
+			return this->clang_module_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
+
 		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
 			return this->struct_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
 		}
@@ -9256,6 +9329,43 @@ namespace pcit::panther{
 
 
 	template<bool NEEDS_DEF>
+	auto SemanticAnalyzer::clang_module_accessor(
+		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
+	) -> Result {
+		const ClangSource& clang_source = this->context.getSourceManager()[lhs.type_id.as<ClangSource::ID>()];
+
+		std::optional<ClangSource::SymbolInfo> clang_symbol = clang_source.getSymbol(rhs_ident_str);
+
+		if(clang_symbol.has_value() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
+				instr.infix.rhs,
+				std::format("Module has no symbol named \"{}\"", rhs_ident_str)
+			);
+			return Result::ERROR;
+		}
+
+		clang_symbol->symbol.visit([&](const auto& symbol) -> void {
+			using SymbolType = std::decay_t<decltype(symbol)>;
+
+			if constexpr(std::is_same<SymbolType, BaseType::ID>()){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::TYPE,
+					TermInfo::ValueStage::CONSTEXPR,
+					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(symbol))),
+					std::nullopt
+				);
+				
+			}else{
+				static_assert(false, "Unknown symbol kind");
+			}
+		});
+
+		return Result::SUCCESS;
+	}
+
+
+	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::struct_accessor(
 		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
@@ -9979,6 +10089,31 @@ namespace pcit::panther{
 					)
 				);
 
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ClangModuleInfo>()){
+				if constexpr(PUB_REQUIRED){
+					if(ident_id.isPub == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							ident_id,
+							std::format("Identifier \"{}\" does not have the #pub attribute", ident_str),
+							Diagnostic::Info(
+								"Defined here:",
+								Diagnostic::Location::get(ident_id.tokenID, *source_module)
+							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::CLANG_MODULE,
+						TermInfo::ValueStage::CONSTEXPR,
+						ident_id.clangSourceID,
+						sema::Expr::createModuleIdent(ident_id.tokenID)
+					)
+				);
+
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Alias::ID>()){
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(ident_id);
 
@@ -9998,7 +10133,7 @@ namespace pcit::panther{
 							std::format("Alias \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
 								"Alias declared here:",
-								Diagnostic::Location::get(ident_id, *source_module, this->context)
+								Diagnostic::Location::get(ident_id, this->context)
 							)
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -10016,11 +10151,11 @@ namespace pcit::panther{
 					)
 				);
 
-			}else if constexpr(std::is_same<IdentIDType, BaseType::Typedef::ID>()){
+			}else if constexpr(std::is_same<IdentIDType, BaseType::DistinctAlias::ID>()){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					ident,
-					"Using typedefs is currently unimplemented"
+					"Using distinct aliases is currently unimplemented"
 				);
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
@@ -10284,7 +10419,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool LOOK_THROUGH_TYPEDEF>
+	template<bool LOOK_THROUGH_DISTINCT_ALIAS>
 	auto SemanticAnalyzer::get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID {
 		const TypeManager& type_manager = this->context.getTypeManager();
 
@@ -10299,14 +10434,15 @@ namespace pcit::panther{
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
 				type_id = *alias.aliasedType.load();
 
-			}else if(type_info.baseTypeID().kind() == BaseType::Kind::TYPEDEF){
-				if constexpr(LOOK_THROUGH_TYPEDEF){
-					const BaseType::Typedef& typedef_info = type_manager.getTypedef(type_info.baseTypeID().typedefID());
+			}else if(type_info.baseTypeID().kind() == BaseType::Kind::DISTINCT_ALIAS){
+				if constexpr(LOOK_THROUGH_DISTINCT_ALIAS){
+					const BaseType::DistinctAlias& distinct_alias = 
+						type_manager.getDistinctAlias(type_info.baseTypeID().distinctAliasID());
 
 					evo::debugAssert(
-						typedef_info.underlyingType.load().has_value(), "Definition of typedef was not completed"
+						distinct_alias.underlyingType.load().has_value(), "Definition of distinct alias was not completed"
 					);
-					type_id = *typedef_info.underlyingType.load();
+					type_id = *distinct_alias.underlyingType.load();
 
 				}else{
 					return type_id;	
@@ -11621,8 +11757,8 @@ namespace pcit::panther{
 				evo::unimplemented("BaseType::Kind::ALIAS");
 			} break;
 
-			case BaseType::Kind::TYPEDEF: {
-				evo::unimplemented("BaseType::Kind::TYPEDEF");
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				evo::unimplemented("BaseType::Kind::DISTINCT_ALIAS");
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -13447,6 +13583,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<TypeID, Source::ID>()){
 				return "{MODULE}";
+
+			}else if constexpr(std::is_same<TypeID, ClangSource::ID>()){
+				return "{CLANG_MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, sema::TemplatedStruct::ID>()){
 				// TODO(FEATURE): actual name

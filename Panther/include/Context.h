@@ -59,7 +59,7 @@ namespace pcit::panther{
 
 				Mode mode;
 				std::string title;
-				core::Platform platform;
+				core::Target target;
 
 				uint32_t maxNumErrors = std::numeric_limits<uint32_t>::max();
 				NumThreads numThreads = NumThreads::single();
@@ -90,15 +90,14 @@ namespace pcit::panther{
 				SUCCESS,
 				DOESNT_EXIST,
 				NOT_DIRECTORY,
-				// STD_NOT_ABSOLUTE,
 			};
 
 		public:
 			Context(const DiagnosticCallback& diagnostic_callback, const Config& config)
 				: _diagnostic_callback(diagnostic_callback),
 				_config(config),
-				type_manager(config.platform),
-				constexpr_pir_module("<Panther-constexpr>", config.platform),
+				type_manager(config.target),
+				constexpr_pir_module("<Panther-constexpr>", config.target),
 				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
 					#if defined(PCIT_CONFIG_DEBUG)
 						.useReadableNames = true,
@@ -111,17 +110,17 @@ namespace pcit::panther{
 					.useDebugUnreachables = true,
 				})
 			{
-				evo::debugAssert(config.platform.os != core::Platform::OS::UNKNOWN, "OS must be known");
+				evo::debugAssert(config.target.platform != core::Target::Platform::UNKNOWN, "Platform must be known");
 				evo::debugAssert(
-					config.platform.arch != core::Platform::Architecture::UNKNOWN, "Architecture must be known"
+					config.target.architecture != core::Target::Architecture::UNKNOWN, "Architecture must be known"
 				);
 			}
 
 			Context(DiagnosticCallback&& diagnostic_callback, const Config& config)
 				: _diagnostic_callback(std::move(diagnostic_callback)),
 				_config(config),
-				type_manager(config.platform),
-				constexpr_pir_module("<Panther-constexpr>", config.platform),
+				type_manager(config.target),
+				constexpr_pir_module("<Panther-constexpr>", config.target),
 				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
 					#if defined(PCIT_CONFIG_DEBUG)
 						.useReadableNames = true,
@@ -134,9 +133,9 @@ namespace pcit::panther{
 					.useDebugUnreachables = true,
 				})
 			{
-				evo::debugAssert(config.platform.os != core::Platform::OS::UNKNOWN, "OS must be known");
+				evo::debugAssert(config.target.platform != core::Target::Platform::UNKNOWN, "Platform must be known");
 				evo::debugAssert(
-					config.platform.arch != core::Platform::Architecture::UNKNOWN, "Architecture must be known"
+					config.target.architecture != core::Target::Architecture::UNKNOWN, "Architecture must be known"
 				);
 			}
 
@@ -185,6 +184,8 @@ namespace pcit::panther{
 			auto buildSymbolProcs() -> evo::Result<>;
 			auto analyzeSemantics() -> evo::Result<>;
 
+			auto compileOtherLangs() -> evo::Result<>;
+
 
 
 			enum class EntryKind{
@@ -215,6 +216,11 @@ namespace pcit::panther{
 			) -> AddSourceResult;
 
 			EVO_NODISCARD auto addStdLib(const std::filesystem::path& directory) -> AddSourceResult;
+
+			EVO_NODISCARD auto addCHeaderFile(const std::filesystem::path& path, bool add_includes_to_pub_api)
+				-> AddSourceResult;
+			EVO_NODISCARD auto addCPPHeaderFile(const std::filesystem::path& path, bool add_includes_to_pub_api)
+				-> AddSourceResult;
 
 
 
@@ -283,6 +289,9 @@ namespace pcit::panther{
 				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
 			) -> evo::Result<Source::ID>;
 
+			auto analyze_clang_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
+				-> void;
+
 
 			enum class LookupSourceIDError{
 				EMPTY_PATH,
@@ -290,9 +299,15 @@ namespace pcit::panther{
 				NOT_ONE_OF_SOURCES,
 				DOESNT_EXIST,
 				FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED,
+				WRONG_LANGUAGE,
 			};
 			EVO_NODISCARD auto lookupSourceID(std::string_view lookup_path, const Source& calling_source)
 				-> evo::Expected<Source::ID, LookupSourceIDError>;
+			EVO_NODISCARD auto lookupClangSourceID(
+				std::string_view lookup_path,
+				const Source& calling_source,
+				bool is_cpp
+			) -> evo::Expected<ClangSource::ID, LookupSourceIDError>;
 
 			auto emit_diagnostic_impl(const Diagnostic& diagnostic) -> void;
 
@@ -302,7 +317,17 @@ namespace pcit::panther{
 				Source::CompilationConfig::ID compilation_config_id;
 			};
 
-			using Task = evo::Variant<FileToLoad, SymbolProc::ID>;
+			struct CHeaderToLoad{
+				std::filesystem::path path;
+				bool add_includes_to_pub_api;
+			};
+
+			struct CPPHeaderToLoad{
+				std::filesystem::path path;
+				bool add_includes_to_pub_api;
+			};
+
+			using Task = evo::Variant<FileToLoad, CHeaderToLoad, CPPHeaderToLoad, SymbolProc::ID>;
 
 			auto add_task_to_work_manager(auto&&... args) -> void {
 				if(this->hasHitFailCondition()){ return; }
@@ -440,6 +465,8 @@ namespace pcit::panther{
 			bool started_any_target = false;
 
 			std::vector<FileToLoad> files_to_load{};
+			std::vector<CHeaderToLoad> c_headers_to_load{};
+			std::vector<CPPHeaderToLoad> cpp_headers_to_load{};
 
 			std::unordered_set<std::filesystem::path> current_dynamic_file_load{};
 			mutable core::SpinLock current_dynamic_file_load_lock{};

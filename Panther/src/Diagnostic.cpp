@@ -39,7 +39,7 @@ namespace pcit::panther{
 			case AST::Kind::VAR_DECL:         return Location::get(ast_buffer.getVarDecl(node), src);
 			case AST::Kind::FUNC_DECL:        return Location::get(ast_buffer.getFuncDecl(node), src);
 			case AST::Kind::ALIAS_DECL:       return Location::get(ast_buffer.getAliasDecl(node), src);
-			case AST::Kind::TYPEDEF_DECL:     return Location::get(ast_buffer.getTypedefDecl(node), src);
+			case AST::Kind::DISTINCT_ALIAS_DECL: return Location::get(ast_buffer.getDistinctAliasDecl(node), src);
 			case AST::Kind::STRUCT_DECL:      return Location::get(ast_buffer.getStructDecl(node), src);
 			case AST::Kind::INTERFACE_DECL:   return Location::get(ast_buffer.getInterfaceDecl(node), src);
 			case AST::Kind::INTERFACE_IMPL:   return Location::get(ast_buffer.getInterfaceImpl(node), src);
@@ -108,8 +108,8 @@ namespace pcit::panther{
 		return Location::get(alias_decl.ident, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::TypedefDecl& typedef_decl, const Source& src) -> Location {
-		return Location::get(typedef_decl.ident, src);
+	auto Diagnostic::Location::get(const AST::DistinctAliasDecl& distinct_alias_decl, const Source& src) -> Location {
+		return Location::get(distinct_alias_decl.ident, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::StructDecl& struct_decl, const Source& src) -> Location {
@@ -250,10 +250,20 @@ namespace pcit::panther{
 	}
 
 
-	auto Diagnostic::Location::get(const BaseType::Alias::ID& alias_id, const Source& src, const Context& context)
-	-> Location {
-		return Location::get(context.getTypeManager().getAlias(alias_id).identTokenID, src);
+	auto Diagnostic::Location::get(const BaseType::Alias::ID& alias_id, const Context& context) -> Location {
+		const BaseType::Alias& alias_decl = context.getTypeManager().getAlias(alias_id);
+
+		if(alias_decl.location.is<Token::ID>()){
+			return Location::get(
+				alias_decl.location.as<Token::ID>(), context.getSourceManager()[alias_decl.sourceID.as<Source::ID>()]
+			);
+			
+		}else{
+			const ClangSource& clang_source = context.getSourceManager()[alias_decl.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(alias_decl.location.as<ClangSource::DeclInfoID>()).location;
+		}
 	}
+
 
 	auto Diagnostic::Location::get(const BaseType::Struct::ID& struct_id, const Source& src, const Context& context)
 	-> Location {

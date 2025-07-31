@@ -118,14 +118,14 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto createTypedefDecl(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createDistinctAliasDecl(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->typedefs.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::TYPEDEF_DECL, node_index);
+				const uint32_t node_index = this->distinct_aliases.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::DISTINCT_ALIAS_DECL, node_index);
 			}
-			EVO_NODISCARD auto getTypedefDecl(const AST::Node& node) const -> const AST::TypedefDecl& {
-				evo::debugAssert(node.kind() == AST::Kind::TYPEDEF_DECL, "Node is not a TypedefDecl");
-				return this->typedefs[node._value.node_index];
+			EVO_NODISCARD auto getDistinctAliasDecl(const AST::Node& node) const -> const AST::DistinctAliasDecl& {
+				evo::debugAssert(node.kind() == AST::Kind::DISTINCT_ALIAS_DECL, "Node is not a DistinctAliasDecl");
+				return this->distinct_aliases[node._value.node_index];
 			}
 
 
@@ -425,7 +425,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::VarDecl, uint32_t> var_decls{};
 			core::LinearStepAlloc<AST::FuncDecl, uint32_t> func_decls{};
 			core::LinearStepAlloc<AST::AliasDecl, uint32_t> alias_decls{};
-			core::LinearStepAlloc<AST::TypedefDecl, uint32_t> typedefs{};
+			core::LinearStepAlloc<AST::DistinctAliasDecl, uint32_t> distinct_aliases{};
 			core::LinearStepAlloc<AST::StructDecl, uint32_t> struct_decls{};
 			core::LinearStepAlloc<AST::InterfaceDecl, uint32_t> interface_decls{};
 			core::LinearStepAlloc<AST::InterfaceImpl, uint32_t> interface_impls{};

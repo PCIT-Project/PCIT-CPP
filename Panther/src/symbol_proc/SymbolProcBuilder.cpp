@@ -46,8 +46,8 @@ namespace pcit::panther{
 			break; case AST::Kind::ALIAS_DECL:
 				if(this->build_alias_decl(stmt).isError()){ return evo::resultError; }
 
-			break; case AST::Kind::TYPEDEF_DECL:
-				if(this->build_typedef_decl(stmt).isError()){ return evo::resultError; }
+			break; case AST::Kind::DISTINCT_ALIAS_DECL:
+				if(this->build_distinct_alias_decl(stmt).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::STRUCT_DECL:
 				if(this->build_struct_decl(stmt).isError()){ return evo::resultError; }
@@ -346,8 +346,8 @@ namespace pcit::panther{
 				return token_buffer[ast_buffer.getAliasDecl(stmt).ident].getString();
 			} break;
 
-			case AST::Kind::TYPEDEF_DECL: {
-				return token_buffer[ast_buffer.getTypedefDecl(stmt).ident].getString();
+			case AST::Kind::DISTINCT_ALIAS_DECL: {
+				return token_buffer[ast_buffer.getDistinctAliasDecl(stmt).ident].getString();
 			} break;
 
 			case AST::Kind::STRUCT_DECL: {
@@ -793,12 +793,12 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_typedef_decl(const AST::Node& stmt) -> evo::Result<> {
-		// const AST::TypedefDecl& typedef_decl = this->source.getASTBuffer().getTypedefDecl(stmt);
+	auto SymbolProcBuilder::build_distinct_alias_decl(const AST::Node& stmt) -> evo::Result<> {
+		// const AST::DistinctAliasDecl& distinct_alias_decl = this->source.getASTBuffer().getDistinctAliasDecl(stmt);
 		this->emit_error(
 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			stmt,
-			"Building symbol process of Typedef Decl is unimplemented"
+			"Building symbol process of distinct alias decl is unimplemented"
 		);
 		return evo::resultError;
 	}
@@ -1198,7 +1198,7 @@ namespace pcit::panther{
 			case AST::Kind::VAR_DECL:         return this->analyze_local_var(ast_buffer.getVarDecl(stmt));
 			case AST::Kind::FUNC_DECL:        return this->analyze_local_func(stmt);
 			case AST::Kind::ALIAS_DECL:       return this->analyze_local_alias(ast_buffer.getAliasDecl(stmt));
-			case AST::Kind::TYPEDEF_DECL:     evo::unimplemented("AST::Kind::TYPEDEF_DECL");
+			case AST::Kind::DISTINCT_ALIAS_DECL:     evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DECL");
 			case AST::Kind::STRUCT_DECL:      return this->analyze_local_struct(stmt);
 			case AST::Kind::INTERFACE_DECL:   return this->analyze_local_interface(stmt);
 			case AST::Kind::INTERFACE_IMPL:   evo::debugFatalBreak("Invalid statment");
@@ -1780,13 +1780,13 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case AST::Kind::VAR_DECL:        case AST::Kind::FUNC_DECL:        case AST::Kind::ALIAS_DECL:
-				case AST::Kind::TYPEDEF_DECL:    case AST::Kind::STRUCT_DECL:      case AST::Kind::INTERFACE_DECL:
-				case AST::Kind::INTERFACE_IMPL:  case AST::Kind::RETURN:           case AST::Kind::ERROR:
-				case AST::Kind::UNREACHABLE:     case AST::Kind::BREAK:            case AST::Kind::CONTINUE:
-				case AST::Kind::CONDITIONAL:     case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
-				case AST::Kind::DEFER:           case AST::Kind::TEMPLATE_PACK:    case AST::Kind::MULTI_ASSIGN:
-				case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:        case AST::Kind::PRIMITIVE_TYPE:
+				case AST::Kind::VAR_DECL:            case AST::Kind::FUNC_DECL:        case AST::Kind::ALIAS_DECL:
+				case AST::Kind::DISTINCT_ALIAS_DECL: case AST::Kind::STRUCT_DECL:      case AST::Kind::INTERFACE_DECL:
+				case AST::Kind::INTERFACE_IMPL:      case AST::Kind::RETURN:           case AST::Kind::ERROR:
+				case AST::Kind::UNREACHABLE:         case AST::Kind::BREAK:            case AST::Kind::CONTINUE:
+				case AST::Kind::CONDITIONAL:         case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
+				case AST::Kind::DEFER:               case AST::Kind::TEMPLATE_PACK:    case AST::Kind::MULTI_ASSIGN:
+				case AST::Kind::ATTRIBUTE_BLOCK:     case AST::Kind::ATTRIBUTE:        case AST::Kind::PRIMITIVE_TYPE:
 				case AST::Kind::DISCARD: {
 					// TODO(FUTURE): better messaging (specify what kind)
 					this->emit_fatal(
@@ -1880,7 +1880,93 @@ namespace pcit::panther{
 					if(path_value.isError()){ return evo::resultError; }
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-					this->add_instruction(Instruction::Import(func_call, path_value.value(), new_term_info_id));
+					this->add_instruction(
+						Instruction::Import<Instruction::Language::PANTHER>(
+							func_call, path_value.value(), new_term_info_id
+						)
+					);
+					return new_term_info_id;
+				}
+
+			}else if(this->source.getTokenBuffer()[intrin_tok_id].getString() == "importC"){
+				if constexpr(ERRORS){
+					this->emit_error(
+						Diagnostic::Code::SEMA_IMPORT_DOESNT_ERROR,
+						intrin_tok_id,
+						"Intrinsic @importC does not error"
+					);
+					return evo::resultError;
+				}else{
+					if(func_call.args.empty()){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							intrin_tok_id,
+							"Calls to @importC requires a path"
+						);
+						return evo::resultError;
+					}
+
+					if(func_call.args.size() > 1){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							func_call.args[1].value,
+							"Calls to @importC requires a path, and no other arguments"
+						);
+						return evo::resultError;
+					}
+
+					const evo::Result<SymbolProc::TermInfoID> path_value = this->analyze_expr<true>(
+						func_call.args[0].value
+					);
+					if(path_value.isError()){ return evo::resultError; }
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						Instruction::Import<Instruction::Language::C>(
+							func_call, path_value.value(), new_term_info_id
+						)
+					);
+					return new_term_info_id;
+				}
+
+			}else if(this->source.getTokenBuffer()[intrin_tok_id].getString() == "importCPP"){
+				if constexpr(ERRORS){
+					this->emit_error(
+						Diagnostic::Code::SEMA_IMPORT_DOESNT_ERROR,
+						intrin_tok_id,
+						"Intrinsic @importCPP does not error"
+					);
+					return evo::resultError;
+				}else{
+					if(func_call.args.empty()){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							intrin_tok_id,
+							"Calls to @importCPP requires a path"
+						);
+						return evo::resultError;
+					}
+
+					if(func_call.args.size() > 1){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							func_call.args[1].value,
+							"Calls to @importCPP requires a path, and no other arguments"
+						);
+						return evo::resultError;
+					}
+
+					const evo::Result<SymbolProc::TermInfoID> path_value = this->analyze_expr<true>(
+						func_call.args[0].value
+					);
+					if(path_value.isError()){ return evo::resultError; }
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						Instruction::Import<Instruction::Language::CPP>(
+							func_call, path_value.value(), new_term_info_id
+						)
+					);
 					return new_term_info_id;
 				}
 			}

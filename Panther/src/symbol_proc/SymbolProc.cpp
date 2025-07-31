@@ -470,8 +470,14 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, ConstexprFuncCallRun>()){
 					return "ConstexprFuncCallRun";
 
-				}else if constexpr(std::is_same<InstrType, Import>()){
-					return "Import";
+				}else if constexpr(std::is_same<InstrType, Import<Language::PANTHER>>()){
+					return "Import<Language::PANTHER>";
+
+				}else if constexpr(std::is_same<InstrType, Import<Language::C>>()){
+					return "Import<Language::C>";
+
+				}else if constexpr(std::is_same<InstrType, Import<Language::CPP>>()){
+					return "Import<Language::CPP>";
 
 				}else if constexpr(std::is_same<InstrType, TemplateIntrinsicFuncCall<true>>()){
 					return "TemplateIntrinsicFuncCall<true>";

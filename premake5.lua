@@ -210,6 +210,7 @@ filter {}
 include "./dependencies/premake5_LLVM.lua"
 
 include "./PCIT_core/internal/llvm_interface/premake5_PCIT_llvm_interface.lua"
+include "./PCIT_core/internal/clang_interface/premake5_PCIT_clang_interface.lua"
 include "./PCIT_core/premake5_PCIT_core.lua"
 include "./PIR/premake5_PIR.lua"
 include "./PLNK/premake5_PLNK.lua"
@@ -227,6 +228,7 @@ project("Panther").group = "Libs"
 project("PIR").group = "Libs"
 project("PLNK_lib").group = "Libs"
 project("PCIT_llvm_interface").group = "Libs"
+project("PCIT_clang_interface").group = "Libs"
 
 project("pthr").group = "Executables"
-project("pirc").group = "Executables"
+-- project("pirc").group = "Executables"

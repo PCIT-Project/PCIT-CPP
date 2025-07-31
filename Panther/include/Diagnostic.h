@@ -12,6 +12,7 @@
 
 
 #include <source_location>
+#include <filesystem>
 
 #include <Evo.h>
 #include <PCIT_core.h>
@@ -283,7 +284,14 @@ namespace pcit::panther{
 			FRONTEND_FAILED_TO_ADD_STD_LIB,       // F3
 			FRONTEND_FAILED_TO_OUTPUT_ASM,        // F4
 			FRONTEND_FAILED_TO_OUTPUT_OBJ,        // F5
+
+
+			//////////////////
+			// clang
+
+			CLANG, // C 
 		};
+
 
 
 		class Location{
@@ -295,6 +303,7 @@ namespace pcit::panther{
 				Location() : variant() {}
 				Location(None) : variant() {}
 				Location(SourceLocation src_location) : variant(src_location) {}
+				Location(ClangSourceLocation clang_location) : variant(clang_location) {}
 
 				~Location() = default;
 
@@ -326,8 +335,9 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::FuncDecl::Param& param, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::FuncDecl::Return& ret, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::AliasDecl& alias_decl, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::TypedefDecl& typedef_decl, const class Source& src)
-					-> Location;
+				EVO_NODISCARD static auto get(
+					const AST::DistinctAliasDecl& distinct_alias_decl, const class Source& src
+				) -> Location;
 				EVO_NODISCARD static auto get(const AST::StructDecl& struct_decl, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::InterfaceDecl& interface_decl, const class Source& src)
 					-> Location;
@@ -379,9 +389,8 @@ namespace pcit::panther{
 					const class Context& context
 				) -> Location;
 
-				EVO_NODISCARD static auto get(
-					const BaseType::Alias::ID& alias_id, const class Source& src, const class Context& context
-				) -> Location;
+				EVO_NODISCARD static auto get(const BaseType::Alias::ID& alias_id, const class Context& context)
+					-> Location;
 
 				EVO_NODISCARD static auto get(
 					const BaseType::Struct::ID& struct_id, const class Source& src, const class Context& context
@@ -392,7 +401,7 @@ namespace pcit::panther{
 				) -> Location;
 		
 			private:
-				evo::Variant<None, SourceLocation> variant;
+				evo::Variant<None, SourceLocation, ClangSourceLocation> variant;
 		};
 
 		
@@ -440,7 +449,7 @@ namespace pcit::panther{
 			Code _code,
 			const Location& _location,
 			const std::string& _message,
-			const evo::SmallVector<Info>& _infos = {}
+			const evo::SmallVector<Info>& _infos
 		) : level(_level), code(_code), location(_location), message(_message), infos(_infos) {
 			_debug_analyze_message(this->message);
 		}
@@ -709,6 +718,8 @@ namespace pcit::panther{
 				case Code::FRONTEND_FAILED_TO_ADD_STD_LIB:       return "F3";
 				case Code::FRONTEND_FAILED_TO_OUTPUT_ASM:        return "F4";
 				case Code::FRONTEND_FAILED_TO_OUTPUT_OBJ:        return "F5";
+
+				case Code::CLANG:        return "C";
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::panther::Diagnostic::Code");
