@@ -1296,6 +1296,10 @@ namespace pthr{
 						this->printer.printMagenta("[_]\n");
 					} break;
 
+					case panther::AST::Kind::ARRAY_INIT_NEW: {
+						this->print_array_init_new(this->ast_buffer.getArrayInitNew(node));
+					} break;
+
 					case panther::AST::Kind::STRUCT_INIT_NEW: {
 						this->print_struct_init_new(this->ast_buffer.getStructInitNew(node));
 					} break;
@@ -1740,6 +1744,47 @@ namespace pthr{
 				this->indenter.print_end();
 				this->print_minor_header("Arguments");
 				this->print_func_call_args(new_expr.args);
+
+				this->indenter.pop();
+			}
+
+
+
+			auto print_array_init_new(const panther::AST::ArrayInitNew& array_init_new) -> void {
+				this->print_major_header("Array Initializer New");
+
+				this->indenter.push();
+
+				this->indenter.print_arrow();
+				this->print_minor_header("Type");
+				this->printer.print(" ");
+				this->print_type(this->ast_buffer.getType(array_init_new.type));
+				this->printer.println();
+
+				this->indenter.print_end();
+				this->print_minor_header("Values");
+
+				{
+					this->printer.println();
+					this->indenter.push();
+
+					for(size_t i = 0; const panther::AST::Node& value : array_init_new.values){
+						if(i + 1 < array_init_new.values.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
+						}
+
+						this->print_major_header(std::format("Value {}", i));
+						this->indenter.push();
+						this->print_expr(value);
+						this->indenter.pop();
+
+						i += 1;
+					}
+
+					this->indenter.pop();
+				}
 
 				this->indenter.pop();
 			}

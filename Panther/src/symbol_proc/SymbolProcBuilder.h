@@ -125,6 +125,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto analyze_expr_array_init_new(const AST::Node& node)
+				-> evo::Result<SymbolProc::TermInfoID>;
+
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_struct_init_new(const AST::Node& node)
 				-> evo::Result<SymbolProc::TermInfoID>;
 

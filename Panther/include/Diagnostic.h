@@ -201,6 +201,9 @@ namespace pcit::panther{
 
 			// new
 			SEMA_NEW_TYPE_VOID,
+			SEMA_NEW_ARRAY_INIT_NOT_ARRAY,
+			SEMA_NEW_ARRAY_INIT_INCORRECT_SIZE,
+			SEMA_NEW_ARRAY_INIT_VAL_NOT_EPHERMERAL,
 			SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
 			SEMA_NEW_STRUCT_MEMBER_NOT_SET,
 			SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
@@ -363,6 +366,7 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::MultiAssign& multi_assign, const class Source& src)
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::New& new_expr, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::ArrayInitNew& new_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::StructInitNew& new_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TryElse& try_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::ArrayType& type, const class Source& src) -> Location;
@@ -658,6 +662,9 @@ namespace pcit::panther{
 				case Code::SEMA_TRY_ELSE_ATTEMPT_NOT_SINGLE:
 				case Code::SEMA_TRY_ELSE_EXCEPT_NOT_EPHEMERAL:
 				case Code::SEMA_NEW_TYPE_VOID:
+				case Code::SEMA_NEW_ARRAY_INIT_NOT_ARRAY:
+				case Code::SEMA_NEW_ARRAY_INIT_INCORRECT_SIZE:
+				case Code::SEMA_NEW_ARRAY_INIT_VAL_NOT_EPHERMERAL:
 				case Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT:
 				case Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET:
 				case Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST:

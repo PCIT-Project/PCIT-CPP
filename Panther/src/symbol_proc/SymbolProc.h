@@ -494,6 +494,7 @@ namespace pcit::panther{
 		struct FuncCall{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID target;
+			evo::SmallVector<SymbolProcTermInfoID> template_args;
 			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
@@ -653,6 +654,13 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		template<bool IS_CONSTEXPR>
+		struct ArrayInitNew{
+			const AST::ArrayInitNew& array_init_new;
+			SymbolProcTypeID type_id;
+			SymbolProcTermInfoID output;
+			evo::SmallVector<SymbolProcTermInfoID> values;
+		};
 
 		template<bool IS_CONSTEXPR>
 		struct StructInitNew{
@@ -907,6 +915,8 @@ namespace pcit::panther{
 			PrefixBitwiseNot<true>,
 			PrefixBitwiseNot<false>,
 			Deref,
+			ArrayInitNew<true>,
+			ArrayInitNew<false>,
 			StructInitNew<true>,
 			StructInitNew<false>,
 			PrepareTryHandler,

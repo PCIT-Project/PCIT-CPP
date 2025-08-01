@@ -208,6 +208,7 @@ namespace pcit::panther{
 				continue;
 			}
 				
+
 			const evo::Result<SymbolProc::TypeID> param_type =
 				this->analyze_type<false>(ast_buffer.getType(*param.type));
 			if(param_type.isError()){ return evo::resultError; }
@@ -366,18 +367,18 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:          case AST::Kind::ERROR:        case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:        case AST::Kind::CONDITIONAL:  case AST::Kind::WHILE:
-			case AST::Kind::DEFER:           case AST::Kind::UNREACHABLE:  case AST::Kind::BLOCK:
-			case AST::Kind::FUNC_CALL:       case AST::Kind::INDEXER:      case AST::Kind::TEMPLATE_PACK:
-			case AST::Kind::TEMPLATED_EXPR:  case AST::Kind::PREFIX:       case AST::Kind::INFIX:
-			case AST::Kind::POSTFIX:         case AST::Kind::MULTI_ASSIGN: case AST::Kind::NEW:
-			case AST::Kind::STRUCT_INIT_NEW: case AST::Kind::TRY_ELSE:     case AST::Kind::TYPE_DEDUCER:
-			case AST::Kind::ARRAY_TYPE:      case AST::Kind::TYPE:         case AST::Kind::TYPEID_CONVERTER:
-			case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:    case AST::Kind::PRIMITIVE_TYPE:
-			case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:    case AST::Kind::LITERAL:
-			case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:     case AST::Kind::THIS:
-			case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:           case AST::Kind::ERROR:           case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:         case AST::Kind::CONDITIONAL:     case AST::Kind::WHILE:
+			case AST::Kind::DEFER:            case AST::Kind::UNREACHABLE:     case AST::Kind::BLOCK:
+			case AST::Kind::FUNC_CALL:        case AST::Kind::INDEXER:         case AST::Kind::TEMPLATE_PACK:
+			case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:          case AST::Kind::INFIX:
+			case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:    case AST::Kind::NEW:
+			case AST::Kind::ARRAY_INIT_NEW:   case AST::Kind::STRUCT_INIT_NEW: case AST::Kind::TRY_ELSE:
+			case AST::Kind::TYPE_DEDUCER:     case AST::Kind::ARRAY_TYPE:      case AST::Kind::TYPE:
+			case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
+			case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:          case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:
+			case AST::Kind::THIS:             case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -644,11 +645,13 @@ namespace pcit::panther{
 
 			auto template_names = std::unordered_set<std::string_view>();
 
-			for(
-				const AST::TemplatePack::Param& template_param
-				: ast_buffer.getTemplatePack(*func_decl.templatePack).params
-			){
-				template_names.emplace(this->source.getTokenBuffer()[template_param.ident].getString());
+			if(func_decl.templatePack.has_value()){
+				for(
+					const AST::TemplatePack::Param& template_param
+					: ast_buffer.getTemplatePack(*func_decl.templatePack).params
+				){
+					template_names.emplace(this->source.getTokenBuffer()[template_param.ident].getString());
+				}
 			}
 
 
@@ -1221,6 +1224,7 @@ namespace pcit::panther{
 			case AST::Kind::POSTFIX:          evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::MULTI_ASSIGN:     return this->analyze_multi_assign(ast_buffer.getMultiAssign(stmt));
 			case AST::Kind::NEW:              evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::ARRAY_INIT_NEW:   evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::STRUCT_INIT_NEW:  evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TRY_ELSE:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE_DEDUCER:     evo::debugFatalBreak("Invalid statment");
@@ -1554,11 +1558,21 @@ namespace pcit::panther{
 	// TODO(FUTURE): deduplicate with `analyze_expr_func_call`?
 	auto SymbolProcBuilder::analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<> {
 		bool is_target_template = false;
-		const evo::Result<SymbolProc::TermInfoID> target = [&](){
+		auto template_args = evo::SmallVector<SymbolProc::TermInfoID>();
+		const auto target = [&]() -> evo::Result<SymbolProc::TermInfoID> {
 			if(func_call.target.kind() == AST::Kind::TEMPLATED_EXPR){
 				is_target_template = true;
+
 				const AST::TemplatedExpr& target_templated_expr = 
 					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+
+				template_args.reserve(target_templated_expr.args.size());
+				for(const AST::Node& arg : target_templated_expr.args){
+					const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_term<true>(arg);
+					if(arg_value.isError()){ return evo::resultError; }
+					template_args.emplace_back(arg_value.value());
+				}
+
 				return this->analyze_expr<false>(target_templated_expr.base);
 
 			}else{
@@ -1577,16 +1591,13 @@ namespace pcit::panther{
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 
-		if(is_target_template){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				func_call.target,
-				"Templated function call statements are currently unimplemented"
-			);
-			return evo::resultError;
-		}
+		// if(is_target_template){
+		// 	// TEMPLATE INTRINSIC GOES HERE
+		// }
 
-		this->add_instruction(Instruction::FuncCall(func_call, target.value(), std::move(args)));
+		this->add_instruction(
+			Instruction::FuncCall(func_call, target.value(), std::move(template_args), std::move(args))
+		);
 		return evo::Result<>();
 	}
 
@@ -1681,6 +1692,7 @@ namespace pcit::panther{
 				case AST::Kind::INFIX:           return this->analyze_expr_infix<IS_CONSTEXPR>(expr);
 				case AST::Kind::POSTFIX:         return this->analyze_expr_postfix<IS_CONSTEXPR>(expr);
 				case AST::Kind::NEW:             return this->analyze_expr_new<IS_CONSTEXPR>(expr);
+				case AST::Kind::ARRAY_INIT_NEW:  return this->analyze_expr_array_init_new<IS_CONSTEXPR>(expr);
 				case AST::Kind::STRUCT_INIT_NEW: return this->analyze_expr_struct_init_new<IS_CONSTEXPR>(expr);
 				case AST::Kind::TRY_ELSE:        return this->analyze_expr_try_else<IS_CONSTEXPR>(expr);
 				case AST::Kind::IDENT:           return this->analyze_expr_ident<IS_CONSTEXPR>(expr);
@@ -2016,7 +2028,6 @@ namespace pcit::panther{
 				);
 
 				return new_term_info_id;
-
 			}
 		}
 
@@ -2383,6 +2394,37 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
+
+	template<bool IS_CONSTEXPR>
+	auto SymbolProcBuilder::analyze_expr_array_init_new(const AST::Node& node)
+	-> evo::Result<SymbolProc::TermInfoID> {
+		const AST::ArrayInitNew& struct_init_new =  this->source.getASTBuffer().getArrayInitNew(node);
+
+		const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
+			this->source.getASTBuffer().getType(struct_init_new.type)
+		);
+		if(type_id.isError()){ return evo::resultError; }
+
+		auto values = evo::SmallVector<SymbolProc::TermInfoID>();
+		values.reserve(struct_init_new.values.size());
+		for(const AST::Node& value : struct_init_new.values){
+			const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<IS_CONSTEXPR>(value);
+			if(value_expr.isError()){ return evo::resultError; }
+
+			values.emplace_back(value_expr.value());
+		}
+
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		this->add_instruction(
+			Instruction::ArrayInitNew<IS_CONSTEXPR>(
+				struct_init_new, type_id.value(), new_term_info_id, std::move(values)
+			)
+		);
+		return new_term_info_id;
+	}
+
+
+
 	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_struct_init_new(const AST::Node& node)
 	-> evo::Result<SymbolProc::TermInfoID> {
@@ -2545,20 +2587,50 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::is_type_deducer(const AST::Type& type) const -> bool {
-		return type.base.kind() == AST::Kind::TYPE_DEDUCER;
+		switch(type.base.kind()){
+			case AST::Kind::TYPE_DEDUCER: {
+				return true;
+			} break;
+
+			case AST::Kind::ARRAY_TYPE: {
+				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(type.base);
+				return this->is_type_deducer(this->source.getASTBuffer().getType(array_type.elemType));
+			} break;
+
+			default: {
+				return false;
+			} break;
+		}
 	}
+
 
 	auto SymbolProcBuilder::extract_type_deducer_names(const AST::Type& type) const 
 	-> evo::SmallVector<std::string_view> {
 		auto output = evo::SmallVector<std::string_view>();
 
-		if(type.base.kind() != AST::Kind::TYPE_DEDUCER){ return output; }
+		switch(type.base.kind()){
+			case AST::Kind::TYPE_DEDUCER: {
+				const Token::ID deducer_token_id = this->source.getASTBuffer().getTypeDeducer(type.base);
+				const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
 
-		const Token::ID deducer_token_id = this->source.getASTBuffer().getTypeDeducer(type.base);
-		const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
+				if(deducer_token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER){
+					output.emplace_back(deducer_token.getString());
+				}
+			} break;
 
-		if(deducer_token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER){
-			output.emplace_back(deducer_token.getString());
+			case AST::Kind::ARRAY_TYPE: {
+				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(type.base);
+				const evo::SmallVector<std::string_view> extracted = this->extract_type_deducer_names(
+					this->source.getASTBuffer().getType(array_type.elemType)
+				);
+
+				output.reserve(output.size() + extracted.size());
+				for(const std::string_view& extracted_str : extracted){
+					output.emplace_back(extracted_str);
+				}
+			} break;
+
+			default: break;
 		}
 
 		return output;

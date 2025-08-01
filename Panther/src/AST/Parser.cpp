@@ -1249,7 +1249,7 @@ namespace pcit::panther{
 
 			// just an ident
 			if constexpr(KIND == TypeKind::TEMPLATE_ARG){
-				if(is_primitive == false && qualifiers.empty()){
+				if(base_type.value().kind() == AST::Kind::IDENT && qualifiers.empty()){
 					this->reader.go_back(start_location);
 					return Result::Code::WRONG_TYPE;
 				}
@@ -1443,6 +1443,15 @@ namespace pcit::panther{
 				if(args.isError()){ return Result::Code::ERROR; }
 
 				return this->source.ast_buffer.createNew(keyword_new, type.value(), std::move(args.value()));
+			} break;
+
+			case Token::lookupKind("["): {
+				evo::Result<evo::SmallVector<AST::Node>> index_inits = this->parse_array_init();
+				if(index_inits.isError()){ return Result::Code::ERROR; }
+
+				return this->source.ast_buffer.createArrayInitNew(
+					keyword_new, type.value(), std::move(index_inits.value())
+				);
 			} break;
 
 			case Token::lookupKind("{"): {
@@ -2350,8 +2359,7 @@ namespace pcit::panther{
 			if(after_arg_next_token_kind != Token::lookupKind(",")){
 				if(after_arg_next_token_kind != Token::lookupKind(")")){
 					this->expected_but_got(
-						"[,] at end of function call argument"
-						" or [)] at end of function call argument block",
+						"[,] at end of function call argument or [)] at end of function call argument block",
 						this->reader.peek(-1)
 					);
 					return evo::resultError;
@@ -2365,12 +2373,47 @@ namespace pcit::panther{
 	}
 
 
+	auto Parser::parse_array_init() -> evo::Result<evo::SmallVector<AST::Node>> {
+		if(this->assert_token_fail(Token::lookupKind("["))){ return evo::resultError; }
+		
+		auto init_values = evo::SmallVector<AST::Node>();
+
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("]")){
+				if(this->assert_token_fail(Token::lookupKind("]"))){ return evo::resultError; }
+				break;
+			}
+
+			const Result expr = this->parse_expr();
+			if(this->check_result_fail(expr, "expression in array initializer value")){
+				return evo::resultError;
+			}
+
+			init_values.emplace_back(expr.value());
+
+			// check if ending or should continue
+			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+			if(after_arg_next_token_kind != Token::lookupKind(",")){
+				if(after_arg_next_token_kind != Token::lookupKind("]")){
+					this->expected_but_got(
+						"[,] at end of array initializer value or []] at end of array initializer",
+						this->reader.peek(-1)
+					);
+					return evo::resultError;
+				}
+
+				break;
+			}
+		}
+
+		return init_values;
+	}
 
 
 	auto Parser::parse_struct_init() -> evo::Result<evo::SmallVector<AST::StructInitNew::MemberInit>> {
 		if(this->assert_token_fail(Token::lookupKind("{"))){ return evo::resultError; }
 		
-		auto initValues = evo::SmallVector<AST::StructInitNew::MemberInit>();
+		auto init_values = evo::SmallVector<AST::StructInitNew::MemberInit>();
 
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
@@ -2391,7 +2434,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			initValues.emplace_back(ASTBuffer::getIdent(ident.value()), expr.value());
+			init_values.emplace_back(ASTBuffer::getIdent(ident.value()), expr.value());
 
 			// check if ending or should continue
 			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
@@ -2409,7 +2452,7 @@ namespace pcit::panther{
 			}
 		}
 
-		return initValues;
+		return init_values;
 	}
 
 

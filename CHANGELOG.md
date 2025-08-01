@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.141.0"></a>
+## v0.0.141.0
+
+### Panther
+- Added array initializer operator `new`
+- Added function call statements with template parameter pack
+- Fixed parsing of array types as template parameters
+- Fixed type deducers in array types
+- Fixed calls to a function with a type deducer parameter incorrectly failing to match overload in some cases
+
+
+<!---------------------------------->
 <a name="v0.0.140.0"></a>
 ## v0.0.140.0
 

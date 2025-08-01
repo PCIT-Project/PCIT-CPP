@@ -256,7 +256,7 @@ EVO_NODISCARD static auto run_compile(
 	);
 
 	std::ignore = context.addSourceFile("test.pthr", comp_config);
-	std::ignore = context.addCPPHeaderFile("test.h", true);
+	// std::ignore = context.addCPPHeaderFile("test.h", true);
 
 
 	switch(config.output){

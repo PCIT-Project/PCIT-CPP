@@ -545,6 +545,12 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, Deref>()){
 					return "Deref";
 
+				}else if constexpr(std::is_same<InstrType, ArrayInitNew<true>>()){
+					return "ArrayInitNew<true>";
+
+				}else if constexpr(std::is_same<InstrType, ArrayInitNew<false>>()){
+					return "ArrayInitNew<false>";
+
 				}else if constexpr(std::is_same<InstrType, StructInitNew<true>>()){
 					return "StructInitNew<true>";
 

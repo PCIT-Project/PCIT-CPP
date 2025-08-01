@@ -195,6 +195,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_deref(const Instruction::Deref& instr) -> Result;
 
 			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto instr_array_init_new(const Instruction::ArrayInitNew<IS_CONSTEXPR>& instr) -> Result;
+
+			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_struct_init_new(const Instruction::StructInitNew<IS_CONSTEXPR>& instr) -> Result;
 
 			EVO_NODISCARD auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
@@ -376,14 +379,14 @@ namespace pcit::panther{
 				const AST::FuncCall& func_call,
 				const TermInfo& target_term_info,
 				evo::ArrayProxy<SymbolProcTermInfoID> args,
-				std::optional<evo::ArrayProxy<SymbolProcTermInfoID>> template_args
+				evo::ArrayProxy<SymbolProcTermInfoID> template_args
 			) -> evo::Expected<FuncCallImplData, bool>; // unexpected true == error, unexpected false == need to wait
 
 			// non-nullopt error if ran ok, just waiting
 			EVO_NODISCARD auto get_select_func_overload_func_info_for_template(
 				sema::TemplatedFunc::ID func_id,
 				evo::ArrayProxy<SymbolProcTermInfoID> args,
-				std::optional<evo::ArrayProxy<SymbolProcTermInfoID>> template_args
+				evo::ArrayProxy<SymbolProcTermInfoID> template_args
 			) -> evo::Result<sema::TemplatedFunc::InstantiationInfo>;
 
 

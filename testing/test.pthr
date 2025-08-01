@@ -1,9 +1,28 @@
-def cpp_test = @importCPP("test.h");
+
+
+
+func make_arr = () #rt -> (output: [UI8:3]) {
+	output = new [UI8:3][12, 14, 17];
+	return...;
+}
+
+
+func double_array = <{LENGTH: USize}> (arr: [$Elem:LENGTH] mut) #rt -> Void {
+	var i: USize = 0;
+
+	def ARR_LENGTH: USize = @numBytes<{[Elem:LENGTH]}>() / @numBytes<{Elem}>();
+	while(i < ARR_LENGTH){
+		arr[i].* = arr[i].* * 2;
+
+		i = i + 1;
+	}
+}
+
 
 
 func entry = () #entry -> UI8 {
-	const foo: UI32 = 12;
-	const bar: cpp_test.Foo = copy foo;
+	var arr: [UI8:3] = make_arr();
+	double_array<{3}>(arr);
 	
-	return 0;
+	return copy arr[0].*;
 }

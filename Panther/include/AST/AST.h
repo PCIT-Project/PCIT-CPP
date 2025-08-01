@@ -56,6 +56,7 @@ namespace pcit::panther::AST{
 		MULTI_ASSIGN,
 
 		NEW,
+		ARRAY_INIT_NEW,
 		STRUCT_INIT_NEW,
 		TRY_ELSE,
 
@@ -345,6 +346,12 @@ namespace pcit::panther::AST{
 		Token::ID keyword;
 		Node type;
 		evo::SmallVector<FuncCall::Arg> args;
+	};
+
+	struct ArrayInitNew{
+		Token::ID keyword;
+		Node type;
+		evo::SmallVector<Node> values;
 	};
 
 	struct StructInitNew{

@@ -676,7 +676,20 @@ namespace pcit::panther{
 	auto TypeManager::isTypeDeducer(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		return type_info.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER;
+		switch(type_info.baseTypeID().kind()){
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type = this->getArray(type_info.baseTypeID().arrayID());
+				return this->isTypeDeducer(array_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				return true;
+			} break;
+
+			default: {
+				return false;
+			} break;
+		}
 	}
 
 
@@ -801,17 +814,17 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
 				// TODO(FUTURE): handle this better?
-				evo::debugAssert("Cannot get size of Struct Template");
+				evo::debugFatalBreak("Cannot get size of Struct Template");
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
 				// TODO(FUTURE): handle this better?
-				evo::debugAssert("Cannot get size of type deducer");
+				evo::debugFatalBreak("Cannot get size of type deducer");
 			} break;
 
 			case BaseType::Kind::INTERFACE: {
 				// TODO(FUTURE): handle this better?
-				evo::debugAssert("Cannot get size of type deducer");
+				evo::debugFatalBreak("Cannot get size of type deducer");
 			} break;
 
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
