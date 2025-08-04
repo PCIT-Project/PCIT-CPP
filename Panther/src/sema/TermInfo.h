@@ -28,9 +28,10 @@ namespace pcit::panther{
 			EPHEMERAL_FLUID,
 			CONCRETE_CONST,
 			CONCRETE_MUT,
-			CONCRETE_FORWARDABLE,
+			FORWARDABLE,
 
 			INITIALIZER, // uninit / zeroinit
+			NULL_VALUE,
 			MODULE,
 			CLANG_MODULE,
 			FUNCTION, // function, not func pointer
@@ -51,6 +52,7 @@ namespace pcit::panther{
 		};
 
 		struct InitializerType{};
+		struct NullType{};
 		struct FluidType{};
 		struct TemplateDeclInstantiationType{};
 		struct ExceptParamPack{};
@@ -61,10 +63,11 @@ namespace pcit::panther{
 
 		using TypeID = evo::Variant<
 			InitializerType,                // INITIALIZER
+			NullType,                       // NULL_VALUE
 			FluidType,                      // EPHEMERAL_FLUID
 			TemplateDeclInstantiationType,  // TEMPLATE_DECL_INSTANTIATION_TYPE
 			ExceptParamPack,                // EXCEPT_PARAM_PACK
-			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|CONCRETE_FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
+			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
 			FuncOverloadList,               // FUNCTION|METHOD_CALL|INTERFACE_CALL
 			TypeInfo::VoidableID,           // TYPE
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
@@ -164,11 +167,14 @@ namespace pcit::panther{
 					break; case ValueCategory::CONCRETE_MUT:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
-					break; case ValueCategory::CONCRETE_FORWARDABLE:
+					break; case ValueCategory::FORWARDABLE:
 						evo::debugAssert(this->type_id.is<TypeInfo::ID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::INITIALIZER:
 						evo::debugAssert(this->type_id.is<InitializerType>(), "Incorrect TermInfo creation");
+
+					break; case ValueCategory::NULL_VALUE:
+						evo::debugAssert(this->type_id.is<NullType>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::MODULE:
 						evo::debugAssert(this->type_id.is<SourceID>(), "Incorrect TermInfo creation");
@@ -245,8 +251,8 @@ namespace pcit::panther{
 					case sema::FakeTermInfo::ValueCategory::CONCRETE_MUT:
 						return ValueCategory::CONCRETE_MUT;
 
-					case sema::FakeTermInfo::ValueCategory::CONCRETE_FORWARDABLE:
-						return ValueCategory::CONCRETE_FORWARDABLE;
+					case sema::FakeTermInfo::ValueCategory::FORWARDABLE:
+						return ValueCategory::FORWARDABLE;
 				}
 				evo::unreachable();
 			}();
@@ -275,11 +281,12 @@ namespace pcit::panther{
 		EVO_NODISCARD constexpr auto is_concrete() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST
 				|| this->value_category == ValueCategory::CONCRETE_MUT
-				|| this->value_category == ValueCategory::CONCRETE_FORWARDABLE;
+				|| this->value_category == ValueCategory::FORWARDABLE;
 		}
 
 		EVO_NODISCARD constexpr auto is_const() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST 
+				|| this->value_category == ValueCategory::FORWARDABLE
 				|| this->value_category == ValueCategory::FUNCTION
 				|| this->value_category == ValueCategory::METHOD_CALL
 				|| this->value_category == ValueCategory::INTERFACE_CALL;
@@ -298,6 +305,7 @@ namespace pcit::panther{
 			return this->type_id.is<TypeInfo::ID>()
 				|| this->type_id.is<FluidType>()
 				|| this->type_id.is<InitializerType>()
+				|| this->type_id.is<NullType>()
 				|| this->value_category == ValueCategory::METHOD_CALL
 				|| this->value_category == ValueCategory::INTERFACE_CALL;
 		}

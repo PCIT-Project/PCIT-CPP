@@ -295,11 +295,11 @@ namespace pcit::panther{
 			// copies
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> sema::Copy::ID {
-				return sema::Copy::ID(this->misc_exprs.emplace_back(std::forward<decltype(args)>(args)...));
+				return this->copies.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
-			EVO_NODISCARD auto getCopy(sema::Copy::ID id) const -> const sema::Expr& {
-				return this->misc_exprs[id.get()];
+			EVO_NODISCARD auto getCopy(sema::Copy::ID id) const -> const sema::Copy& {
+				return this->copies[id];
 			}
 
 
@@ -307,11 +307,11 @@ namespace pcit::panther{
 			// moves
 
 			EVO_NODISCARD auto createMove(auto&&... args) -> sema::Move::ID {
-				return sema::Move::ID(this->misc_exprs.emplace_back(std::forward<decltype(args)>(args)...));
+				return this->moves.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
-			EVO_NODISCARD auto getMove(sema::Move::ID id) const -> const sema::Expr& {
-				return this->misc_exprs[id.get()];
+			EVO_NODISCARD auto getMove(sema::Move::ID id) const -> const sema::Move& {
+				return this->moves[id];
 			}
 
 
@@ -319,11 +319,11 @@ namespace pcit::panther{
 			// forwards
 
 			EVO_NODISCARD auto createForward(auto&&... args) -> sema::Forward::ID {
-				return sema::Forward::ID(this->misc_exprs.emplace_back(std::forward<decltype(args)>(args)...));
+				return this->forwards.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
-			EVO_NODISCARD auto getForward(sema::Forward::ID id) const -> const sema::Expr& {
-				return this->misc_exprs[id.get()];
+			EVO_NODISCARD auto getForward(sema::Forward::ID id) const -> const sema::Forward& {
+				return this->forwards[id];
 			}
 
 
@@ -340,6 +340,33 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// optional null check
+
+			EVO_NODISCARD auto createImplicitConversionToOptional(auto&&... args)
+			-> sema::ImplicitConversionToOptional::ID {
+				return this->implicit_conversion_to_optionals.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getImplicitConversionToOptional(sema::ImplicitConversionToOptional::ID id) const
+			-> const sema::ImplicitConversionToOptional& {
+				return this->implicit_conversion_to_optionals[id];
+			}
+
+
+			///////////////////////////////////
+			// optional null check
+
+			EVO_NODISCARD auto createOptionalNullCheck(auto&&... args) -> sema::OptionalNullCheck::ID {
+				return this->optional_null_checks.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getOptionalNullCheck(sema::OptionalNullCheck::ID id) const
+			-> const sema::OptionalNullCheck& {
+				return this->optional_null_checks[id];
+			}
+
+
+			///////////////////////////////////
 			// dereferences
 
 			EVO_NODISCARD auto createDeref(auto&&... args) -> sema::Deref::ID {
@@ -348,6 +375,18 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getDeref(sema::Deref::ID id) const -> const sema::Deref& {
 				return this->derefs[id];
+			}
+
+
+			///////////////////////////////////
+			// unwraps
+
+			EVO_NODISCARD auto createUnwrap(auto&&... args) -> sema::Unwrap::ID {
+				return this->unwraps.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getUnwrap(sema::Unwrap::ID id) const -> const sema::Unwrap& {
+				return this->unwraps[id];
 			}
 
 
@@ -563,6 +602,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// null
+
+			EVO_NODISCARD auto createNull(auto&&... args) -> sema::Null::ID {
+				return this->nulls.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getNull(sema::Null::ID id) const -> const sema::Null& {
+				return this->nulls[id];
+			}
+
+
+			///////////////////////////////////
 			// uninit
 
 			EVO_NODISCARD auto createUninit(Token::ID uninit_token_id) -> sema::Uninit::ID {
@@ -608,9 +659,16 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
 			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
+			core::SyncLinearStepAlloc<sema::Copy, sema::Copy::ID> copies{};
+			core::SyncLinearStepAlloc<sema::Move, sema::Move::ID> moves{};
+			core::SyncLinearStepAlloc<sema::Forward, sema::Forward::ID> forwards{};
 
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
+			core::SyncLinearStepAlloc<sema::Unwrap, sema::Unwrap::ID> unwraps{};
+			core::SyncLinearStepAlloc<sema::ImplicitConversionToOptional, sema::ImplicitConversionToOptional::ID> 
+				implicit_conversion_to_optionals{};
+			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
 			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
 			core::SyncLinearStepAlloc<sema::PtrAccessor, sema::PtrAccessor::ID> ptr_accessors{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
@@ -631,6 +689,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::StringValue, sema::StringValue::ID> string_values{};
 			core::SyncLinearStepAlloc<sema::AggregateValue, sema::AggregateValue::ID> aggregate_values{};
 			core::SyncLinearStepAlloc<sema::CharValue, sema::CharValue::ID> char_values{};
+			core::SyncLinearStepAlloc<sema::Null, sema::Null::ID> nulls{};
 
 			core::SyncLinearStepAlloc<Token::ID, uint32_t> misc_tokens{};
 

@@ -2269,8 +2269,10 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER || this->getExprType(lhs).kind() == Type::Kind::BOOL,
-			"The @ieq instruction only supports integers and Bools"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER 
+				|| this->getExprType(lhs).kind() == Type::Kind::BOOL
+				|| this->getExprType(lhs).kind() == Type::Kind::PTR,
+			"The @ieq instruction only supports integers, Bools, and pointers"
 		);
 
 		const auto new_expr = Expr(
@@ -2313,7 +2315,10 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ineq instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::INTEGER 
+				|| this->getExprType(lhs).kind() == Type::Kind::BOOL
+				|| this->getExprType(lhs).kind() == Type::Kind::PTR,
+			"The @ineq instruction only supports integers, Bools, and pointers"
 		);
 
 		const auto new_expr = Expr(

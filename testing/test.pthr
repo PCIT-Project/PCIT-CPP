@@ -1,28 +1,23 @@
 
-
-
-func make_arr = () #rt -> (output: [UI8:3]) {
-	output = new [UI8:3][12, 14, 17];
-	return...;
+type Vec2 = struct {
+	var x: Int;
+	var y: Int;
 }
-
-
-func double_array = <{LENGTH: USize}> (arr: [$Elem:LENGTH] mut) #rt -> Void {
-	var i: USize = 0;
-
-	def ARR_LENGTH: USize = @numBytes<{[Elem:LENGTH]}>() / @numBytes<{Elem}>();
-	while(i < ARR_LENGTH){
-		arr[i].* = arr[i].* * 2;
-
-		i = i + 1;
-	}
-}
-
 
 
 func entry = () #entry -> UI8 {
-	var arr: [UI8:3] = make_arr();
-	double_array<{3}>(arr);
-	
-	return copy arr[0].*;
+	// const int: Int = 12;
+	var vec: Vec2? = new Vec2{
+		x = 12,
+		y = 14,
+	};
+
+	var vec_2: Vec2? = move vec;
+
+
+	if(vec_2 != null){
+		return vec_2.?.x as UI8;
+	}else{
+		return 0;
+	}
 }

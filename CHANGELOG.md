@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.142.0"></a>
+## v0.0.142.0
+
+### Panther
+- Added optional types
+- Added null checking of optional types
+- Added optional unwrapping
+- Added specific error diagnostic when moving an in-parameter
+- Fixed constexpr functions with in-parameters
+- Fixed calls to functions with in-parameters sometimes not calling the correct version of the target function
+- Fixed PIR lowering of indexers in certain cases (such as assignment)
+
+### PIR
+- Fixed `Agent` incorrectly asserting that `@ieq` cannot compare pointers
+- Fixed `Agent` incorrectly asserting that `@ineq` cannot compare Bools pointers
+
+
+<!---------------------------------->
 <a name="v0.0.141.0"></a>
 ## v0.0.141.0
 

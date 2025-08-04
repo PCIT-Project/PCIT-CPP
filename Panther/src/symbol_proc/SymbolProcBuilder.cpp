@@ -2277,8 +2277,38 @@ namespace pcit::panther{
 				return evo::resultError;
 			} break;
 
-			case Token::lookupKind("=="): case Token::lookupKind("!="): case Token::lookupKind("<"):
-			case Token::lookupKind("<="): case Token::lookupKind(">"):  case Token::lookupKind(">="): {
+
+			case Token::lookupKind("=="): case Token::lookupKind("!="): {
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				if(lhs.isError()){ return evo::resultError; }
+
+				const bool rhs_is_null = [&](){
+					if(infix.rhs.kind() != AST::Kind::LITERAL){ return false; }
+					const Token::ID literal_token = this->source.getASTBuffer().getLiteral(infix.rhs);
+					return this->source.getTokenBuffer()[literal_token].kind() == Token::Kind::KEYWORD_NULL;
+				}();
+
+				if(rhs_is_null){
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(Instruction::OptionalNullCheck(infix, lhs.value(), new_term_info_id));
+					return new_term_info_id;
+
+				}else{
+					const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+					if(rhs.isError()){ return evo::resultError; }
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						Instruction::MathInfix<IS_CONSTEXPR, Instruction::MathInfixKind::COMPARATIVE>(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+					return new_term_info_id;
+				}
+			} break;
+
+			case Token::lookupKind("<"): case Token::lookupKind("<="): case Token::lookupKind(">"):
+			case Token::lookupKind(">="): {
 				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
@@ -2374,12 +2404,14 @@ namespace pcit::panther{
 			} break;
 
 			case Token::lookupKind(".?"): {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					node,
-					"Building symbol proc of postfix [.?] is unimplemented"
-				);
-				return evo::resultError;
+				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(postfix.lhs);
+				if(target.isError()){ return evo::resultError; }
+
+				this->add_instruction(Instruction::Unwrap(postfix, target.value(), created_term_info_id));
+
+				return created_term_info_id;
 			} break;
 		}
 

@@ -888,7 +888,6 @@ namespace pcit::panther{
 		);
 
 
-		auto clang_api = pcit::clangint::API();
 		auto diagnostic_list = pcit::clangint::DiagnosticList();
 
 		const auto opts = [&]() -> evo::Variant<clangint::COpts, clangint::CPPOpts> {
@@ -899,8 +898,8 @@ namespace pcit::panther{
 			}
 		}();
 
-		const evo::Result<> result = pcit::clangint::getHeaderAPI(
-			filepath_str, std::string_view(file.value()), opts, this->getConfig().target, clang_api, diagnostic_list
+		const evo::Result<pcit::clangint::API> clang_api = pcit::clangint::getHeaderAPI(
+			filepath_str, std::string_view(file.value()), opts, this->getConfig().target, diagnostic_list
 		);
 
 
@@ -993,12 +992,12 @@ namespace pcit::panther{
 		}
 
 
-		if(result.isError() || errored){ return; }
+		if(clang_api.isError() || errored){ return; }
 
 
 		ClangSource& created_clang_source = this->source_manager[created_clang_source_id];
 
-		for(const clangint::API::Decl& decl : clang_api.getDecls()){
+		for(const clangint::API::Decl& decl : clang_api.value().getDecls()){
 			decl.visit([&](const auto& decl_ptr) -> void {
 				using DeclPtr = std::decay_t<decltype(decl_ptr)>;
 				

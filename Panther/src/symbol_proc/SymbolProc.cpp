@@ -545,6 +545,9 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<InstrType, Deref>()){
 					return "Deref";
 
+				}else if constexpr(std::is_same<InstrType, Unwrap>()){
+					return "Unwrap";
+
 				}else if constexpr(std::is_same<InstrType, ArrayInitNew<true>>()){
 					return "ArrayInitNew<true>";
 
@@ -574,6 +577,9 @@ namespace pcit::panther{
 
 				}else if constexpr(std::is_same<InstrType, As<false>>()){
 					return "As<false>";
+
+				}else if constexpr(std::is_same<InstrType, OptionalNullCheck>()){
+					return "OptionalNullCheck";
 
 				}else if constexpr(std::is_same<InstrType, MathInfix<true, MathInfixKind::COMPARATIVE>>()){
 					return "MathInfix<true, MathInfixKind::COMPARATIVE>";

@@ -21,6 +21,10 @@ namespace pcit::panther::sema{
 	//////////////////////////////////////////////////////////////////////
 	// expressions
 
+	struct NullID : public core::UniqueID<uint32_t, struct NullID> {
+		using core::UniqueID<uint32_t, NullID>::UniqueID;
+	};
+
 	struct UninitID : public core::UniqueID<uint32_t, struct UninitID> {
 		using core::UniqueID<uint32_t, UninitID>::UniqueID;
 	};
@@ -77,8 +81,20 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, AddrOfID>::UniqueID;
 	};
 
+	struct ImplicitConversionToOptionalID : public core::UniqueID<uint32_t, struct ImplicitConversionToOptionalID> {
+		using core::UniqueID<uint32_t, ImplicitConversionToOptionalID>::UniqueID;
+	};
+
+	struct OptionalNullCheckID : public core::UniqueID<uint32_t, struct OptionalNullCheckID> {
+		using core::UniqueID<uint32_t, OptionalNullCheckID>::UniqueID;
+	};
+
 	struct DerefID : public core::UniqueID<uint32_t, struct DerefID> {
 		using core::UniqueID<uint32_t, DerefID>::UniqueID;
+	};
+
+	struct UnwrapID : public core::UniqueID<uint32_t, struct UnwrapID> {
+		using core::UniqueID<uint32_t, UnwrapID>::UniqueID;
 	};
 
 	struct AccessorID : public core::UniqueID<uint32_t, struct AccessorID> {

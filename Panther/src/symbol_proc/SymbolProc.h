@@ -654,6 +654,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct Unwrap{
+			const AST::Postfix& postfix;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
 		template<bool IS_CONSTEXPR>
 		struct ArrayInitNew{
 			const AST::ArrayInitNew& array_init_new;
@@ -703,6 +709,12 @@ namespace pcit::panther{
 			const AST::Infix& infix;
 			SymbolProcTermInfoID expr;
 			SymbolProcTypeID target_type;
+			SymbolProcTermInfoID output;
+		};
+
+		struct OptionalNullCheck{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
 			SymbolProcTermInfoID output;
 		};
 
@@ -915,6 +927,7 @@ namespace pcit::panther{
 			PrefixBitwiseNot<true>,
 			PrefixBitwiseNot<false>,
 			Deref,
+			Unwrap,
 			ArrayInitNew<true>,
 			ArrayInitNew<false>,
 			StructInitNew<true>,
@@ -925,6 +938,7 @@ namespace pcit::panther{
 			EndExprBlock,
 			As<true>,
 			As<false>,
+			OptionalNullCheck,
 			MathInfix<true, MathInfixKind::COMPARATIVE>,
 			MathInfix<true, MathInfixKind::MATH>,
 			MathInfix<true, MathInfixKind::INTEGRAL_MATH>,

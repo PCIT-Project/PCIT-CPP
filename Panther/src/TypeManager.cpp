@@ -972,33 +972,425 @@ namespace pcit::panther{
 	}
 
 
+
+
+
+	///////////////////////////////////
+	// isDefaultInitable
+
+	auto TypeManager::isDefaultInitable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.qualifiers().empty()){ return this->isDefaultInitable(type_info.baseTypeID()); }
+		if(type_info.qualifiers().back().isOptional && type_info.qualifiers().back().isPtr){ return true; }
+		return false;
+	}
+
+	auto TypeManager::isDefaultInitable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isDefaultInitable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isDefaultInitable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isDefaultInitable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					if(this->isDefaultInitable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+	///////////////////////////////////
+	// isTriviallyDefaultInitable
+
+	auto TypeManager::isTriviallyDefaultInitable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.qualifiers().empty() == false){ return false; }
+		return this->isTriviallyDefaultInitable(type_info.baseTypeID());
+	}
+
+	auto TypeManager::isTriviallyDefaultInitable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isTriviallyDefaultInitable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isTriviallyDefaultInitable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isTriviallyDefaultInitable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					if(this->isTriviallyDefaultInitable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+	///////////////////////////////////
+	// isTriviallyDeinitable
+
+	auto TypeManager::isTriviallyDeinitable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
+		return this->isTriviallyDeinitable(type_info.baseTypeID());
+	}
+
+	auto TypeManager::isTriviallyDeinitable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isTriviallyDeinitable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isTriviallyDeinitable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isTriviallyDeinitable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					if(this->isTriviallyDeinitable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+	///////////////////////////////////
+	// isCopyable
+
+	auto TypeManager::isCopyable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
+		return this->isCopyable(type_info.baseTypeID());
+	}
+
+	auto TypeManager::isCopyable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isCopyable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isCopyable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isCopyable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					if(this->isCopyable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
 	///////////////////////////////////
 	// isTriviallyCopyable
 
 	auto TypeManager::isTriviallyCopyable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
-		if(type_info.isPointer()){ return true; }
-		if(type_info.qualifiers().back().isOptional){ evo::unimplemented("Trivially Copyable of optionals"); }
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
 		return this->isTriviallyCopyable(type_info.baseTypeID());
 	}
 
-	auto TypeManager::isTriviallyCopyable(BaseType::ID) const -> bool {
-		return true;
+	auto TypeManager::isTriviallyCopyable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isTriviallyCopyable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isTriviallyCopyable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isTriviallyCopyable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					if(this->isTriviallyCopyable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
 	}
 
 
 	///////////////////////////////////
-	// isTriviallyDestructable
+	// isMoveable
 
-	auto TypeManager::isTriviallyDestructable(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isMoveable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
-		if(type_info.qualifiers().empty()){ return this->isPrimitive(type_info.baseTypeID()); }
-		return true;
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
+		return this->isMoveable(type_info.baseTypeID());
 	}
 
-	auto TypeManager::isTriviallyDestructable(BaseType::ID) const -> bool {
-		return true;
+	auto TypeManager::isMoveable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isMoveable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isMoveable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isMoveable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					if(this->isMoveable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
 	}
+
+
+	///////////////////////////////////
+	// isTriviallyMoveable
+
+	auto TypeManager::isTriviallyMoveable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
+		return this->isTriviallyMoveable(type_info.baseTypeID());
+	}
+
+	auto TypeManager::isTriviallyMoveable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isTriviallyMoveable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isTriviallyMoveable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isTriviallyMoveable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					if(this->isTriviallyMoveable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+
 
 
 	///////////////////////////////////

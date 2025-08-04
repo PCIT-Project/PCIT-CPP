@@ -52,9 +52,8 @@ namespace pcit::clangint{
 		std::string_view file_data,
 		evo::Variant<COpts, CPPOpts> opts,
 		core::Target target,
-		API& api,
 		DiagnosticList& diagnostic_list
-	) -> evo::Result<>;
+	) -> evo::Result<API>;
 
 
 

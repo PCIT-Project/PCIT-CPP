@@ -148,24 +148,24 @@ namespace pcit::panther{
 
 
 		private:	
-			auto create_struct(const BaseType::Struct::ID struct_id, pir::Type pir_id) -> void {
+			auto create_struct(BaseType::Struct::ID struct_id, pir::Type pir_id) -> void {
 				const auto lock = std::scoped_lock(this->structs_lock);
-				const auto emplace_result = this->structs.emplace(struct_id.get(), pir_id);
+				const auto emplace_result = this->structs.emplace(struct_id, pir_id);
 				evo::debugAssert(emplace_result.second, "This struct id was already added to PIR lower");
 			}
 
 
-			auto create_global_var(const sema::GlobalVar::ID global_var_id, pir::GlobalVar::ID pir_id) -> void {
+			auto create_global_var(sema::GlobalVar::ID global_var_id, pir::GlobalVar::ID pir_id) -> void {
 				const auto lock = std::scoped_lock(this->global_vars_lock);
-				const auto emplace_result = this->global_vars.emplace(global_var_id.get(), pir_id);
+				const auto emplace_result = this->global_vars.emplace(global_var_id, pir_id);
 				evo::debugAssert(emplace_result.second, "This global var id was already added to PIR lower");
 			}
 
 
-			auto create_func(const sema::Func::ID func_id, auto&&... func_info_args) -> void {
+			auto create_func(sema::Func::ID func_id, auto&&... func_info_args) -> void {
 				const auto lock = std::scoped_lock(this->funcs_lock);
 				const auto emplace_result = this->funcs.emplace(
-					func_id.get(),
+					func_id,
 					&this->funcs_info_alloc.emplace_back(
 						std::forward<decltype(func_info_args)>(func_info_args)...
 					)
@@ -182,25 +182,25 @@ namespace pcit::panther{
 
 
 
-			EVO_NODISCARD auto get_struct(const BaseType::Struct::ID struct_id) -> pir::Type {
+			EVO_NODISCARD auto get_struct(BaseType::Struct::ID struct_id) -> pir::Type {
 				const auto lock = std::scoped_lock(this->structs_lock);
-				evo::debugAssert(this->structs.contains(struct_id.get()), "Doesn't have this struct");
-				return this->structs.at(struct_id.get());
+				evo::debugAssert(this->structs.contains(struct_id), "Doesn't have this struct");
+				return this->structs.at(struct_id);
 			}
 
-			EVO_NODISCARD auto get_global_var(const sema::GlobalVar::ID global_var_id) -> pir::GlobalVar::ID {
+			EVO_NODISCARD auto get_global_var(sema::GlobalVar::ID global_var_id) -> pir::GlobalVar::ID {
 				const auto lock = std::scoped_lock(this->global_vars_lock);
-				evo::debugAssert(this->global_vars.contains(global_var_id.get()), "Doesn't have this global var");
-				return this->global_vars.at(global_var_id.get());
+				evo::debugAssert(this->global_vars.contains(global_var_id), "Doesn't have this global var");
+				return this->global_vars.at(global_var_id);
 			}
 
-			EVO_NODISCARD auto get_func(const sema::Func::ID func_id) -> FuncInfo& {
+			EVO_NODISCARD auto get_func(sema::Func::ID func_id) -> FuncInfo& {
 				const auto lock = std::scoped_lock(this->funcs_lock);
-				evo::debugAssert(this->funcs.contains(func_id.get()), "Doesn't have this func");
-				return *this->funcs.at(func_id.get());
+				evo::debugAssert(this->funcs.contains(func_id), "Doesn't have this func");
+				return *this->funcs.at(func_id);
 			}
 
-			EVO_NODISCARD auto get_vtable(const VTableID vtable_id) -> pir::GlobalVar::ID {
+			EVO_NODISCARD auto get_vtable(VTableID vtable_id) -> pir::GlobalVar::ID {
 				const auto lock = std::scoped_lock(this->vtables_lock);
 				evo::debugAssert(this->vtables.contains(vtable_id), "Doesn't have this vtable");
 				return this->vtables.at(vtable_id);
@@ -208,9 +208,9 @@ namespace pcit::panther{
 
 
 
-			EVO_NODISCARD auto has_struct(const BaseType::Struct::ID struct_id) -> bool {
+			EVO_NODISCARD auto has_struct(BaseType::Struct::ID struct_id) -> bool {
 				const auto lock = std::scoped_lock(this->structs_lock);
-				return this->structs.contains(struct_id.get());
+				return this->structs.contains(struct_id);
 			}
 
 
@@ -225,14 +225,14 @@ namespace pcit::panther{
 			std::optional<pir::Type> interface_ptr_type = std::nullopt;
 			mutable core::SpinLock interface_ptr_type_lock{};			
 
-			std::unordered_map<uint32_t, pir::Type> structs{};
+			std::unordered_map<BaseType::Struct::ID, pir::Type> structs{};
 			mutable core::SpinLock structs_lock{};
 
-			std::unordered_map<uint32_t, pir::GlobalVar::ID> global_vars{};
+			std::unordered_map<sema::GlobalVar::ID, pir::GlobalVar::ID> global_vars{};
 			mutable core::SpinLock global_vars_lock{};
 
 			core::StepVector<FuncInfo> funcs_info_alloc{};
-			std::unordered_map<uint32_t, FuncInfo*> funcs{};
+			std::unordered_map<sema::Func::ID, FuncInfo*> funcs{};
 			mutable core::SpinLock funcs_lock{};
 
 			JITInterfaceFuncs jit_interface_funcs{};
@@ -240,6 +240,9 @@ namespace pcit::panther{
 
 			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};
 			mutable core::SpinLock vtables_lock{};
+
+			std::unordered_map<const TypeInfo*, pir::Type> optional_types{};
+			mutable core::SpinLock optional_types_lock{};
 
 			std::atomic<uint64_t> num_string_literals = 0;
 

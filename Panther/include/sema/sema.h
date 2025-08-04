@@ -79,17 +79,26 @@ namespace pcit::panther::sema{
 	};
 
 
-	namespace Copy{
+	struct Copy{
 		using ID = CopyID;
-	}
 
-	namespace Move{
+		Expr expr;
+		TypeInfo::ID exprTypeID;
+	};
+
+	struct Move{
 		using ID = MoveID;
-	}
 
-	namespace Forward{
+		Expr expr;
+		TypeInfo::ID exprTypeID;
+	};
+
+	struct Forward{
 		using ID = ForwardID;
-	}
+
+		Expr expr;
+		TypeInfo::ID exprTypeID;
+	};
 
 	namespace AddrOf{
 		using ID = AddrOfID;
@@ -104,9 +113,39 @@ namespace pcit::panther::sema{
 	}
 
 
+	struct Null{
+		using ID = NullID;
+
+		std::optional<TypeInfo::ID> targetTypeID; // nullopt if unknown
+	};
+
+
+	struct ImplicitConversionToOptional{
+		using ID = ImplicitConversionToOptionalID;
+
+		Expr expr;
+		TypeInfo::ID targetTypeID;
+	};
+
+
+	struct OptionalNullCheck{
+		using ID = OptionalNullCheckID;
+		
+		Expr expr;
+		TypeInfo::ID targetTypeID;
+		bool equal;
+	};
+
 
 	struct Deref{
 		using ID = DerefID;
+
+		Expr expr;
+		TypeInfo::ID targetTypeID;
+	};
+
+	struct Unwrap{
+		using ID = UnwrapID;
 
 		Expr expr;
 		TypeInfo::ID targetTypeID;
@@ -161,7 +200,7 @@ namespace pcit::panther::sema{
 			EPHEMERAL,
 			CONCRETE_CONST,
 			CONCRETE_MUT,
-			CONCRETE_FORWARDABLE,
+			FORWARDABLE,
 		};
 
 		enum class ValueStage{
@@ -224,7 +263,6 @@ namespace pcit::panther::sema{
 
 		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID> target;
 		evo::SmallVector<Expr> args;
-		uint32_t in_param_bitmap = 0;
 		// SourceLocation location;
 	};
 

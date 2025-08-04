@@ -31,6 +31,7 @@ namespace pcit::panther::sema{
 
 			MODULE_IDENT,
 
+			NULL_VALUE,
 			UNINIT,
 			ZEROINIT,
 
@@ -49,7 +50,10 @@ namespace pcit::panther::sema{
 			FORWARD,
 			FUNC_CALL,
 			ADDR_OF,
+			IMPLICIT_CONVERSION_TO_OPTIONAL,
+			OPTIONAL_NULL_CHECK,
 			DEREF,
+			UNWRAP,
 			ACCESSOR,
 			PTR_ACCESSOR,
 			TRY_ELSE,
@@ -75,6 +79,7 @@ namespace pcit::panther::sema{
 			return Expr(Kind::MODULE_IDENT, id);
 		}
 
+		explicit Expr(NullID id)           : _kind(Kind::NULL_VALUE),      value{.null = id}            {};
 		explicit Expr(UninitID id)         : _kind(Kind::UNINIT),          value{.uninit = id}          {};
 		explicit Expr(ZeroinitID id)       : _kind(Kind::ZEROINIT),        value{.zeroinit = id}        {};
 
@@ -92,31 +97,37 @@ namespace pcit::panther::sema{
 			  value{.templated_intrinsic_func_instantiation = id} 
 			  {};
 
-		explicit Expr(CopyID id)             : _kind(Kind::COPY),               value{.copy = id}               {};
-		explicit Expr(MoveID id)             : _kind(Kind::MOVE),               value{.move = id}               {};
-		explicit Expr(ForwardID id)          : _kind(Kind::FORWARD),            value{.forward = id}            {};
-		explicit Expr(FuncCallID id)         : _kind(Kind::FUNC_CALL),          value{.func_call = id}          {};
-		explicit Expr(AddrOfID id)           : _kind(Kind::ADDR_OF),            value{.addr_of = id}            {};
-		explicit Expr(DerefID id)            : _kind(Kind::DEREF),              value{.deref = id}              {};
-		explicit Expr(AccessorID id)         : _kind(Kind::ACCESSOR),           value{.accessor = id}           {};
-		explicit Expr(PtrAccessorID id)      : _kind(Kind::PTR_ACCESSOR),       value{.ptr_accessor = id}       {};
-		explicit Expr(TryElseID id)          : _kind(Kind::TRY_ELSE),           value{.try_else = id}           {};
-		explicit Expr(BlockExprID id)        : _kind(Kind::BLOCK_EXPR),         value{.block_expr = id}         {};
-		explicit Expr(FakeTermInfoID id)     : _kind(Kind::FAKE_TERM_INFO),     value{.fake_term_info = id}     {};
-		explicit Expr(MakeInterfacePtrID id) : _kind(Kind::MAKE_INTERFACE_PTR), value{.make_interface_ptr = id} {};
-		explicit Expr(InterfaceCallID id)    : _kind(Kind::INTERFACE_CALL),     value{.interface_call = id}     {};
-		explicit Expr(IndexerID id)          : _kind(Kind::INDEXER),            value{.indexer = id}            {};
-		explicit Expr(PtrIndexerID id)       : _kind(Kind::PTR_INDEXER),        value{.ptr_indexer = id}        {};
+		explicit Expr(CopyID id)              : _kind(Kind::COPY),                value{.copy = id}                {};
+		explicit Expr(MoveID id)              : _kind(Kind::MOVE),                value{.move = id}                {};
+		explicit Expr(ForwardID id)           : _kind(Kind::FORWARD),             value{.forward = id}             {};
+		explicit Expr(FuncCallID id)          : _kind(Kind::FUNC_CALL),           value{.func_call = id}           {};
+		explicit Expr(AddrOfID id)            : _kind(Kind::ADDR_OF),             value{.addr_of = id}             {};
 
-		explicit Expr(ParamID id)            : _kind(Kind::PARAM),              value{.param = id}              {};
-		explicit Expr(ReturnParamID id)      : _kind(Kind::RETURN_PARAM),       value{.return_param = id}       {};
-		explicit Expr(ErrorReturnParamID id) : _kind(Kind::ERROR_RETURN_PARAM), value{.error_return_param = id} {};
-		explicit Expr(BlockExprOutputID id)  : _kind(Kind::BLOCK_EXPR_OUTPUT),  value{.block_expr_output = id}  {};
-		explicit Expr(ExceptParamID id)      : _kind(Kind::EXCEPT_PARAM),       value{.except_param = id}       {};
+		explicit Expr(sema::ImplicitConversionToOptionalID id) :
+			 _kind(Kind::IMPLICIT_CONVERSION_TO_OPTIONAL), value{.inmplicit_conversion_to_optional = id} {};
 
-		explicit Expr(VarID id)              : _kind(Kind::VAR),                value{.var = id}                {};
-		explicit Expr(GlobalVarID id)        : _kind(Kind::GLOBAL_VAR),         value{.global_var = id}         {};
-		explicit Expr(FuncID id)             : _kind(Kind::FUNC),               value{.func = id}               {};
+		explicit Expr(OptionalNullCheckID id) : _kind(Kind::OPTIONAL_NULL_CHECK), value{.optional_null_check = id} {};
+		explicit Expr(DerefID id)             : _kind(Kind::DEREF),               value{.deref = id}               {};
+		explicit Expr(UnwrapID id)            : _kind(Kind::UNWRAP),              value{.unwrap = id}              {};
+		explicit Expr(AccessorID id)          : _kind(Kind::ACCESSOR),            value{.accessor = id}            {};
+		explicit Expr(PtrAccessorID id)       : _kind(Kind::PTR_ACCESSOR),        value{.ptr_accessor = id}        {};
+		explicit Expr(TryElseID id)           : _kind(Kind::TRY_ELSE),            value{.try_else = id}            {};
+		explicit Expr(BlockExprID id)         : _kind(Kind::BLOCK_EXPR),          value{.block_expr = id}          {};
+		explicit Expr(FakeTermInfoID id)      : _kind(Kind::FAKE_TERM_INFO),      value{.fake_term_info = id}      {};
+		explicit Expr(MakeInterfacePtrID id)  : _kind(Kind::MAKE_INTERFACE_PTR),  value{.make_interface_ptr = id}  {};
+		explicit Expr(InterfaceCallID id)     : _kind(Kind::INTERFACE_CALL),      value{.interface_call = id}      {};
+		explicit Expr(IndexerID id)           : _kind(Kind::INDEXER),             value{.indexer = id}             {};
+		explicit Expr(PtrIndexerID id)        : _kind(Kind::PTR_INDEXER),         value{.ptr_indexer = id}         {};
+
+		explicit Expr(ParamID id)             : _kind(Kind::PARAM),               value{.param = id}               {};
+		explicit Expr(ReturnParamID id)       : _kind(Kind::RETURN_PARAM),        value{.return_param = id}        {};
+		explicit Expr(ErrorReturnParamID id)  : _kind(Kind::ERROR_RETURN_PARAM),  value{.error_return_param = id}  {};
+		explicit Expr(BlockExprOutputID id)   : _kind(Kind::BLOCK_EXPR_OUTPUT),   value{.block_expr_output = id}   {};
+		explicit Expr(ExceptParamID id)       : _kind(Kind::EXCEPT_PARAM),        value{.except_param = id}        {};
+
+		explicit Expr(VarID id)               : _kind(Kind::VAR),                 value{.var = id}                 {};
+		explicit Expr(GlobalVarID id)         : _kind(Kind::GLOBAL_VAR),          value{.global_var = id}          {};
+		explicit Expr(FuncID id)              : _kind(Kind::FUNC),                value{.func = id}                {};
 
 
 		EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
@@ -125,6 +136,11 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto moduleIdent() const -> Token::ID {
 			evo::debugAssert(this->kind() == Kind::MODULE_IDENT, "not a MODULE_IDENT");
 			return this->value.token;
+		}
+
+		EVO_NODISCARD auto nullID() const -> NullID {
+			evo::debugAssert(this->kind() == Kind::NULL_VALUE, "not a Null");
+			return this->value.null;
 		}
 
 		EVO_NODISCARD auto uninitID() const -> UninitID {
@@ -168,8 +184,8 @@ namespace pcit::panther::sema{
 		}
 		EVO_NODISCARD auto templatedIntrinsicInstantiationID() const -> TemplateIntrinsicFuncInstantiationID {
 			evo::debugAssert(
-				this->kind() == Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION,
-				"not a TEMPLATED_INTRINSIC_FUNC_INSTANTIATION"
+				this->kind() == Kind::IMPLICIT_CONVERSION_TO_OPTIONAL,
+				"not an IMPLICIT_CONVERSION_TO_OPTIONAL"
 			);
 			return this->value.templated_intrinsic_func_instantiation;
 		}
@@ -194,9 +210,23 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::ADDR_OF, "not an addr of");
 			return this->value.addr_of;
 		}
+		EVO_NODISCARD auto implicitConversionToOptionalID() const -> ImplicitConversionToOptionalID {
+			evo::debugAssert(
+				this->kind() == Kind::IMPLICIT_CONVERSION_TO_OPTIONAL, "not an implicit conversion to optional"
+			);
+			return this->value.inmplicit_conversion_to_optional;
+		}
+		EVO_NODISCARD auto optionalNullCheckID() const -> OptionalNullCheckID {
+			evo::debugAssert(this->kind() == Kind::OPTIONAL_NULL_CHECK, "not an optional null check");
+			return this->value.optional_null_check;
+		}
 		EVO_NODISCARD auto derefID() const -> DerefID {
 			evo::debugAssert(this->kind() == Kind::DEREF, "not a deref");
 			return this->value.deref;
+		}
+		EVO_NODISCARD auto unwrapID() const -> UnwrapID {
+			evo::debugAssert(this->kind() == Kind::UNWRAP, "not an unwrap");
+			return this->value.unwrap;
 		}
 		EVO_NODISCARD auto accessorID() const -> AccessorID {
 			evo::debugAssert(this->kind() == Kind::ACCESSOR, "not an accessor");
@@ -287,6 +317,7 @@ namespace pcit::panther::sema{
 			union {
 				Token::ID token;
 
+				NullID null;
 				UninitID uninit;
 				ZeroinitID zeroinit;
 
@@ -305,7 +336,10 @@ namespace pcit::panther::sema{
 				ForwardID forward;
 				FuncCallID func_call;
 				AddrOfID addr_of;
+				ImplicitConversionToOptionalID inmplicit_conversion_to_optional;
+				OptionalNullCheckID optional_null_check;
 				DerefID deref;
+				UnwrapID unwrap;
 				AccessorID accessor;
 				PtrAccessorID ptr_accessor;
 				TryElseID try_else;

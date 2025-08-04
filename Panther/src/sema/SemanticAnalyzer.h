@@ -193,6 +193,7 @@ namespace pcit::panther{
 				-> Result;
 
 			EVO_NODISCARD auto instr_deref(const Instruction::Deref& instr) -> Result;
+			EVO_NODISCARD auto instr_unwrap(const Instruction::Unwrap& instr) -> Result;
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_array_init_new(const Instruction::ArrayInitNew<IS_CONSTEXPR>& instr) -> Result;
@@ -207,6 +208,8 @@ namespace pcit::panther{
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_expr_as(const Instruction::As<IS_CONSTEXPR>& instr) -> Result;
+
+			EVO_NODISCARD auto instr_optional_null_check(const Instruction::OptionalNullCheck& instr) -> Result;			
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto operator_as_interface_ptr(

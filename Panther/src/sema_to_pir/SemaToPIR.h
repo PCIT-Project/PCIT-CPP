@@ -61,7 +61,8 @@ namespace pcit::panther{
 			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe if true
 			EVO_NODISCARD auto lower_struct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>;
 
-			auto lower_func_decl(sema::Func::ID func_id, bool is_constexpr) -> pir::Function::ID;
+			// see definition for explanation
+			auto lower_func_decl(sema::Func::ID func_id) -> pir::Function::ID;
 
 			auto lower_stmt(const sema::Stmt& stmt) -> void;
 
@@ -81,6 +82,28 @@ namespace pcit::panther{
 			template<GetExprMode MODE>
 			auto get_expr_impl(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 				-> std::optional<pir::Expr>;
+
+
+			template<GetExprMode MODE>
+			auto expr_copy(
+				const sema::Expr& expr, TypeInfo::ID expr_type_id, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			auto expr_move(
+				const sema::Expr& expr, TypeInfo::ID expr_type_id, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			// auto move_pir_optional(pir::Expr expr, TypeInfo::ID expr_type_id, pir::Expr store_location) -> void;
+
+
+			// expr must be a pointer
+			auto deinit_expr(pir::Expr expr, TypeInfo::ID expr_type_id) -> void;
+
+
+			EVO_NODISCARD auto calc_in_param_bitmap(
+				const BaseType::Function& target_func, evo::ArrayProxy<sema::Expr> args
+			) const -> uint32_t;
 
 
 			// for indices, just create an 
@@ -108,8 +131,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID voidable_type_id) -> pir::Type;
 			template<bool MAY_LOWER_DEPENDENCY>
 			EVO_NODISCARD auto get_type(const TypeInfo::ID type_id) -> pir::Type;
-			template<bool MAY_LOWER_DEPENDENCY>
-			EVO_NODISCARD auto get_type(const TypeInfo& type_info) -> pir::Type;
 			template<bool MAY_LOWER_DEPENDENCY>
 			EVO_NODISCARD auto get_type(const BaseType::ID base_type_id) -> pir::Type;
 

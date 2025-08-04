@@ -342,7 +342,7 @@ namespace pcit::panther{
 			Token::ID identTokenID;
 			std::optional<StructTemplateID> templateID; // nullopt if not instantiated
 			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uin32_t max if not instantiation
-			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock)
+			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock) when not defComplete
 			evo::SmallVector<MemberVar*> memberVarsABI; // this is the order that members are for ABI
 			SymbolProcNamespace& namespacedMembers;
 			sema::ScopeLevel* scopeLevel; // is pointer because it needs to be set after construction (so never nullptr)
@@ -519,6 +519,11 @@ namespace pcit::panther{
 				return this->_qualifiers.empty() && this->base_type.kind() == BaseType::Kind::INTERFACE;
 			}
 
+
+			EVO_NODISCARD auto isOptional() const -> bool {
+				return this->qualifiers().empty() == false && this->qualifiers().back().isOptional;
+			}
+
 			EVO_NODISCARD auto isOptionalNotPointer() const -> bool {
 				return this->qualifiers().empty() == false
 					&& this->qualifiers().back().isPtr == false
@@ -610,6 +615,9 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// type traits
 
+			//////////////////
+			// size
+
 			EVO_NODISCARD auto numBytes(TypeInfo::ID id) const -> uint64_t;
 			EVO_NODISCARD auto numBytes(BaseType::ID id) const -> uint64_t;
 			EVO_NODISCARD auto numBytesOfPtr() const -> uint64_t;
@@ -623,11 +631,34 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallySized(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallySized(BaseType::ID id) const -> bool;
 
+
+			//////////////////
+			// operations
+
+			EVO_NODISCARD auto isDefaultInitable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isDefaultInitable(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isTriviallyDefaultInitable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyDefaultInitable(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isTriviallyDeinitable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyDeinitable(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isCopyable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isCopyable(BaseType::ID id) const -> bool;
+
 			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyCopyable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isTriviallyDestructable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isTriviallyDestructable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isMoveable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isMoveable(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isTriviallyMoveable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyMoveable(BaseType::ID id) const -> bool;
+
+
+			//////////////////
+			// primitive type categories
 
 			EVO_NODISCARD auto isPrimitive(TypeInfo::VoidableID id) const -> bool;
 			EVO_NODISCARD auto isPrimitive(TypeInfo::ID id) const -> bool;
@@ -651,6 +682,10 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getUnderlyingType(TypeInfo::ID id) -> TypeInfo::ID; // yes, this operation is not const
 			EVO_NODISCARD auto getUnderlyingType(BaseType::ID id) -> TypeInfo::ID; // yes, this operation is not const
+
+
+			//////////////////
+			// numeric limits
 
 			EVO_NODISCARD auto getMin(TypeInfo::ID id) const -> core::GenericValue;
 			EVO_NODISCARD auto getMin(BaseType::ID id) const -> core::GenericValue;

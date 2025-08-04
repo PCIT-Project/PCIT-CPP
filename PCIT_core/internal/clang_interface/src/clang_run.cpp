@@ -473,9 +473,10 @@ namespace pcit::clangint{
 		std::string_view file_data,
 		evo::Variant<COpts, CPPOpts> opts,
 		core::Target target,
-		API& api,
 		DiagnosticList& diagnostic_list
-	) -> evo::Result<> {
+	) -> evo::Result<API> {
+		auto api = API();
+
 		auto diagnostic_ids = llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(new clang::DiagnosticIDs());
 
 		auto diagnostic_options = clang::DiagnosticOptions();
@@ -514,7 +515,7 @@ namespace pcit::clangint{
 
 		evo::debugAssert(output.empty(), "Clang output not empty");
 
-		return evo::Result<>();
+		return evo::Result<API>(std::move(api));
 	}
 
 

@@ -404,6 +404,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<InstrType, Instruction::Deref>()){
 				return this->instr_deref(instr);
 
+			}else if constexpr(std::is_same<InstrType, Instruction::Unwrap>()){
+				return this->instr_unwrap(instr);
+
 			}else if constexpr(std::is_same<InstrType, Instruction::ArrayInitNew<true>>()){
 				return this->instr_array_init_new<true>(instr);
 
@@ -433,6 +436,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<InstrType, Instruction::As<false>>()){
 				return this->instr_expr_as<false>(instr);
+
+			}else if constexpr(std::is_same<InstrType, Instruction::OptionalNullCheck>()){
+				return this->instr_optional_null_check(instr);
 
 			}else if constexpr(
 				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>>()
@@ -669,6 +675,9 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+			}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
+				// do nothing...
+
 			}else{
 				if(value_term_info.is_ephemeral() == false){
 					if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){
@@ -835,6 +844,14 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}
+
+		}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
+			this->emit_error(
+				Diagnostic::Code::SEMA_VAR_NULL_WITHOUT_EXPLICIT_TYPE,
+				*instr.var_decl.value,
+				"Cannot define a variable with a [null] value without an explicit type"
+			);
+			return Result::ERROR;
 		}
 
 
@@ -2974,13 +2991,24 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}
+
+		}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
+			if(instr.type_id.has_value() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_NULL_WITHOUT_EXPLICIT_TYPE,
+					*instr.var_decl.value,
+					"Cannot define a variable with a value [null] value without an explicit type"
+				);
+				return Result::ERROR;
+			}
+
 		}else if(value_term_info.is_ephemeral() == false){
 			if(this->check_term_isnt_type(value_term_info, *instr.var_decl.value).isError()){ return Result::ERROR; }
 
 			this->emit_error(
 				Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
 				*instr.var_decl.value,
-				"Cannot define a variable with a value that is not ephemeral or an initializer value"
+				"Cannot define a variable with a value that is not ephemeral, an initializer value, or [null]"
 			);
 			return Result::ERROR;
 		}
@@ -3046,7 +3074,10 @@ namespace pcit::panther{
 				return std::optional<TypeInfo::ID>(value_term_info.type_id.as<TypeInfo::ID>());
 			}
 
-			if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
+			if(
+				value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER
+				|| value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE
+			){
 				return this->get_type(*instr.type_id).asTypeID();
 			}
 
@@ -3938,7 +3969,7 @@ namespace pcit::panther{
 
 
 			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-				intrinsic_kind, std::move(sema_args), 0
+				intrinsic_kind, std::move(sema_args)
 			);
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -3977,27 +4008,8 @@ namespace pcit::panther{
 				}
 
 			}else{
-				uint32_t in_param_bitmap = 0;
-				unsigned num_in_params = 0;
-
-				for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
-					EVO_DEFER([&](){ i += 1; });
-
-					if(func_call_impl_res.value().selected_func_type.params[i].kind != AST::FuncDecl::Param::Kind::IN){
-						continue;
-					}
-
-					const sema::Expr& arg = this->get_term_info(arg_id).getExpr();
-
-					if(arg.kind() == sema::Expr::Kind::COPY){
-						in_param_bitmap |= 1 << num_in_params;
-					}
-
-					num_in_params += 1;
-				}
-
 				const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-					*func_call_impl_res.value().selected_func_id, std::move(sema_args), in_param_bitmap
+					*func_call_impl_res.value().selected_func_id, std::move(sema_args)
 				);
 
 				this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -4033,11 +4045,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(rhs.is_ephemeral() == false){
+		if(rhs.is_ephemeral() == false && rhs.value_category != TermInfo::ValueCategory::NULL_VALUE){
 			this->emit_error(
 				Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
 				instr.infix.rhs,
-				"RHS of assignment must be ephemeral"
+				"RHS of assignment must be ephemeral or value [null]"
 			);
 			return Result::ERROR;
 		}
@@ -4301,28 +4313,10 @@ namespace pcit::panther{
 			);
 		}
 
-		uint32_t in_param_bitmap = 0;
-		unsigned num_in_params = 0;
-		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
-			EVO_DEFER([&](){ i += 1; });
-
-			if(func_call_impl_res.value().selected_func_type.params[i].kind != AST::FuncDecl::Param::Kind::IN){
-				continue;
-			}
-
-			const sema::Expr& arg = this->get_term_info(arg_id).getExpr();
-
-			if(arg.kind() == sema::Expr::Kind::COPY){
-				in_param_bitmap |= 1 << num_in_params;
-			}
-
-			num_in_params += 1;
-		}
 
 		const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-			*func_call_impl_res.value().selected_func_id, std::move(sema_args), in_param_bitmap
+			*func_call_impl_res.value().selected_func_id, std::move(sema_args)
 		);
-
 
 		const TermInfo::ValueStage value_stage = [&](){
 			if constexpr(IS_CONSTEXPR){
@@ -5556,7 +5550,7 @@ namespace pcit::panther{
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.value_stage,
 			target.type_id,
-			sema::Expr(this->context.sema_buffer.createCopy(target.getExpr()))
+			sema::Expr(this->context.sema_buffer.createCopy(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
 		);
 
 		return Result::SUCCESS;
@@ -5566,7 +5560,14 @@ namespace pcit::panther{
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.value_category != TermInfo::ValueCategory::CONCRETE_MUT){
-			if(target.is_concrete() == false){
+			if(target.value_category == TermInfo::ValueCategory::FORWARDABLE){
+				this->emit_error(
+					Diagnostic::Code::SEMA_MOVE_ARG_IS_IN_PARAM,
+					instr.prefix,
+					"Argument of operator [move] cannot be an in-parameter",
+					Diagnostic::Info("Use operator [forward] instead")
+				);
+			}else if(target.is_concrete() == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_MOVE_ARG_NOT_CONCRETE,
 					instr.prefix,
@@ -5588,7 +5589,7 @@ namespace pcit::panther{
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.value_stage,
 			target.type_id,
-			sema::Expr(this->context.sema_buffer.createMove(target.getExpr()))
+			sema::Expr(this->context.sema_buffer.createMove(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
 		);
 
 		return Result::SUCCESS;
@@ -5598,7 +5599,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_forward(const Instruction::Forward& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
-		if(target.value_category != TermInfo::ValueCategory::CONCRETE_FORWARDABLE){
+		if(target.value_category != TermInfo::ValueCategory::FORWARDABLE){
 			this->emit_error(
 				Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
 				instr.prefix,
@@ -5613,7 +5614,7 @@ namespace pcit::panther{
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.value_stage,
 			target.type_id,
-			sema::Expr(this->context.sema_buffer.createForward(target.getExpr()))
+			sema::Expr(this->context.sema_buffer.createForward(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
 		);
 
 		return Result::SUCCESS;
@@ -5932,6 +5933,16 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(target_type.isOptional()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
+				instr.postfix,
+				"Argument of operator postfix [.*] must be a non-optional pointer",
+				Diagnostic::Info("Did you mean \".?.*\" instead?")
+			);
+			return Result::ERROR;
+		}
+
 		if(target_type.isInterfacePointer()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
@@ -5984,6 +5995,54 @@ namespace pcit::panther{
 
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_unwrap(const Instruction::Unwrap& instr) -> Result {
+		const TermInfo& target = this->get_term_info(instr.target);
+
+		if(target.type_id.is<TypeInfo::ID>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNWRAP_ARG_NOT_OPTIONAL,
+				instr.postfix,
+				"Argument of operator postfix [.*] must be a pointer"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
+
+		if(target_type.isOptional() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNWRAP_ARG_NOT_OPTIONAL,
+				instr.postfix,
+				"Argument of operator postfix [.?] must be an opional"
+			);
+			return Result::ERROR;
+		}
+
+
+		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
+			target_type.qualifiers().begin(), target_type.qualifiers().end()
+		);
+		resultant_qualifiers.back().isOptional = false;
+		if(target_type.isPointer() == false){
+			resultant_qualifiers.back().isPtr = true;
+			resultant_qualifiers.back().isReadOnly = target.is_const();
+		}
+		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
+		);
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			target.value_stage,
+			resultant_type_id,
+			sema::Expr(this->context.sema_buffer.createUnwrap(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
+		);
+		return Result::SUCCESS;
+	}
+
+
 
 
 	template<bool IS_CONSTEXPR>
@@ -6678,11 +6737,20 @@ namespace pcit::panther{
 			if(target_type.qualifiers().size() == 1 && target_type.isNormalPointer()){
 				is_ptr = true;
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-					instr.indexer,
-					"Invalid target for indexer"
-				);
+				if(target_type.isOptional()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+						instr.indexer,
+						"Invalid target for indexer",
+						Diagnostic::Info("Optional values need to be unwrapped")
+					);
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+						instr.indexer,
+						"Invalid target for indexer"
+					);
+				}
 				return Result::ERROR;
 			}
 		}
@@ -8044,6 +8112,43 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::instr_optional_null_check(const Instruction::OptionalNullCheck& instr) -> Result {
+		const TermInfo& lhs = this->get_term_info(instr.lhs);
+
+		if(lhs.type_id.is<TypeInfo::ID>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_OPTIONAL_NULL_CHECK_INVALID_LHS,
+				instr.infix.lhs,
+				"LHS cannot be compared to [null]",
+				Diagnostic::Info("Only optional values can be compared to [null]")
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>());
+		const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+
+		if(lhs_actual_type.isOptional() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_OPTIONAL_NULL_CHECK_INVALID_LHS,
+				instr.infix.lhs,
+				"LHS cannot be compared to [null]",
+				Diagnostic::Info("Only optional values can be compared to [null]")
+			);
+			return Result::ERROR;
+		}
+
+		const bool is_equal = this->source.getTokenBuffer()[instr.infix.opTokenID].kind() == Token::lookupKind("==");
+			
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			lhs.value_stage,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->context.sema_buffer.createOptionalNullCheck(lhs.getExpr(), lhs_actual_type_id, is_equal))
+		);
+		return Result::SUCCESS;
+	}
+
 
 
 	template<bool IS_CONSTEXPR, Instruction::MathInfixKind MATH_INFIX_KIND>
@@ -8682,6 +8787,25 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+				if(actual_lhs_type.qualifiers().back().isPtr == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+						instr.infix.lhs,
+						"Accessor operator of this LHS is invalid"
+					);
+					return Result::ERROR;
+				}
+
+				if(actual_lhs_type.qualifiers().back().isOptional){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+						instr.infix.lhs,
+						"Accessor operator of this LHS is invalid",
+						Diagnostic::Info("Optional values need to be unwrapped")
+					);
+					return Result::ERROR;
+				}
+
 				is_pointer = true;
 			}
 		}
@@ -8845,8 +8969,8 @@ namespace pcit::panther{
 				case TermInfo::ValueCategory::CONCRETE_MUT:
 					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
 
-				case TermInfo::ValueCategory::CONCRETE_FORWARDABLE:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_FORWARDABLE;
+				case TermInfo::ValueCategory::FORWARDABLE:
+					return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
 			}
 			evo::unreachable();
 		}();
@@ -9287,6 +9411,16 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 			} break;
 
+			case Token::Kind::KEYWORD_NULL: {
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::NULL_VALUE,
+					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::NullType(),
+					sema::Expr(this->context.sema_buffer.createNull(std::nullopt))
+				);
+				return Result::SUCCESS;
+			} break;
+
 			default: evo::debugFatalBreak("Not a valid literal");
 		}
 	}
@@ -9641,8 +9775,8 @@ namespace pcit::panther{
 				case TermInfo::ValueCategory::CONCRETE_MUT:
 					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
 
-				case TermInfo::ValueCategory::CONCRETE_FORWARDABLE:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_FORWARDABLE;
+				case TermInfo::ValueCategory::FORWARDABLE:
+					return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
 			}
 			evo::unreachable();
 		}();
@@ -10079,7 +10213,7 @@ namespace pcit::panther{
 					switch(param.kind){
 						case AST::FuncDecl::Param::Kind::READ: return TermInfo::ValueCategory::CONCRETE_CONST;
 						case AST::FuncDecl::Param::Kind::MUT:  return TermInfo::ValueCategory::CONCRETE_MUT;
-						case AST::FuncDecl::Param::Kind::IN:   return TermInfo::ValueCategory::CONCRETE_FORWARDABLE;
+						case AST::FuncDecl::Param::Kind::IN:   return TermInfo::ValueCategory::FORWARDABLE;
 					}
 
 					evo::unreachable();
@@ -10554,7 +10688,8 @@ namespace pcit::panther{
 						type_manager.getDistinctAlias(type_info.baseTypeID().distinctAliasID());
 
 					evo::debugAssert(
-						distinct_alias.underlyingType.load().has_value(), "Definition of distinct alias was not completed"
+						distinct_alias.underlyingType.load().has_value(),
+						"Definition of distinct alias was not completed"
 					);
 					type_id = *distinct_alias.underlyingType.load();
 
@@ -13001,7 +13136,7 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::EPHEMERAL:
 			case TermInfo::ValueCategory::CONCRETE_CONST:
 			case TermInfo::ValueCategory::CONCRETE_MUT:
-			case TermInfo::ValueCategory::CONCRETE_FORWARDABLE: {
+			case TermInfo::ValueCategory::FORWARDABLE: {
 				TypeInfo::ID actual_got_type_id = TypeInfo::ID::dummy();
 				if(got_expr.isMultiValue()){
 					if(multi_type_index.has_value() == false){
@@ -13023,6 +13158,7 @@ namespace pcit::panther{
 
 
 				// if types are not exact, check if implicit conversion is valid
+				bool is_implicit_conversion_to_optional = false;
 				if(actual_expected_type_id != actual_got_type_id){
 					const TypeInfo& expected_type = type_manager.getTypeInfo(actual_expected_type_id);
 					const TypeInfo& got_type      = type_manager.getTypeInfo(actual_got_type_id);
@@ -13055,12 +13191,7 @@ namespace pcit::panther{
 						return TypeCheckInfo::success(false, std::move(extracted_type_deducers.value()));
 					}
 
-
-					if(
-						expected_type.baseTypeID()        != got_type.baseTypeID() || 
-						expected_type.qualifiers().size() != got_type.qualifiers().size()
-					){	
-
+					if(expected_type.baseTypeID() != got_type.baseTypeID()){	
 						if constexpr(MAY_EMIT_ERROR){
 							this->error_type_mismatch(
 								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
@@ -13069,8 +13200,26 @@ namespace pcit::panther{
 						return TypeCheckInfo::fail();
 					}
 
-					// TODO(PERF): optimze this?
-					for(size_t i = 0; i < expected_type.qualifiers().size(); i+=1){
+					if(expected_type.qualifiers().size() != got_type.qualifiers().size()){
+						const bool is_optional_conversion = 
+							expected_type.qualifiers().size() == got_type.qualifiers().size() + 1
+							&& expected_type.isOptionalNotPointer();
+						
+						if(is_optional_conversion){
+							is_implicit_conversion_to_optional = true;
+
+						}else{
+							if constexpr(MAY_EMIT_ERROR){
+								this->error_type_mismatch(
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+								);
+							}
+							return TypeCheckInfo::fail();
+						}
+					}
+
+					// check qualifiers
+					for(size_t i = 0; i < got_type.qualifiers().size(); i+=1){
 						const AST::Type::Qualifier& expected_qualifier = expected_type.qualifiers()[i];
 						const AST::Type::Qualifier& got_qualifier      = got_type.qualifiers()[i];
 
@@ -13090,6 +13239,14 @@ namespace pcit::panther{
 							}
 							return TypeCheckInfo::fail();
 						}
+						if(expected_qualifier.isOptional == false && got_qualifier.isOptional){
+							if constexpr(MAY_EMIT_ERROR){
+								this->error_type_mismatch(
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+								);
+							}
+							return TypeCheckInfo::fail();
+						}
 					}
 				}
 
@@ -13101,6 +13258,14 @@ namespace pcit::panther{
 							got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index] = expected_type_id;
 						}
 					});
+
+					if(is_implicit_conversion_to_optional){
+						got_expr.getExpr() = sema::Expr(
+							this->context.sema_buffer.createImplicitConversionToOptional(
+								got_expr.getExpr(), expected_type_id
+							)
+						);
+					}
 				}
 
 				if(multi_type_index.has_value() == false){
@@ -13331,6 +13496,36 @@ namespace pcit::panther{
 				return TypeCheckInfo::success(true);
 			} break;
 
+
+			case TermInfo::ValueCategory::NULL_VALUE: {
+				const TypeInfo& expected_type = type_manager.getTypeInfo(actual_expected_type_id);
+				
+				if(expected_type.isOptional() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_ASSIGNED_NULL_TO_NON_OPTIONAL,
+						location,
+						"Value [null] can only be assigned to optional types"
+					);
+					return TypeCheckInfo::fail();
+				}
+
+				if(type_manager.isTypeDeducer(actual_expected_type_id)){
+					this->emit_error(
+						Diagnostic::Code::SEMA_CANNOT_EXTRACT_DEDUCERS_FROM_NULL,
+						location,
+						"Cannot extract deducers from [null]"
+					);
+					return TypeCheckInfo::fail();
+				}
+
+				if constexpr(MAY_IMPLICITLY_CONVERT){
+					this->context.sema_buffer.nulls[got_expr.getExpr().nullID()].targetTypeID = expected_type_id;
+				}
+
+				return TypeCheckInfo::success(true);
+			} break;
+
+
 			case TermInfo::ValueCategory::INITIALIZER:
 				evo::debugFatalBreak("INITIALIZER should not be compared with this function");
 
@@ -13350,7 +13545,7 @@ namespace pcit::panther{
 				evo::debugFatalBreak("TEMPLATE_TYPE should not be compared with this function");
 		}
 
-		evo::unreachable();
+		evo::debugFatalBreak("Unknown or unsupported value category");
 	}
 
 
@@ -13701,6 +13896,9 @@ namespace pcit::panther{
 			if constexpr(std::is_same<TypeID, TermInfo::InitializerType>()){
 				return "{INITIALIZER}";
 
+			}else if constexpr(std::is_same<TypeID, TermInfo::NullType>()){	
+				return "{NULL}";
+				
 			}else if constexpr(std::is_same<TypeID, TermInfo::FluidType>()){
 				if(term_info.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 					return "{FLUID INTEGRAL}";
