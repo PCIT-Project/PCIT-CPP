@@ -4,13 +4,6 @@
  * No warranty is given; refer to the file DISCLAIMER.PD within this package.
  */
 
-#undef CRTDLL
-#ifndef _DLL
-#define _DLL
-#endif
-
-#define SPECIAL_CRTEXE
-
 #include <oscalls.h>
 #include <internal.h>
 #include <process.h>
@@ -20,36 +13,21 @@
 #include <tchar.h>
 #include <sect_attribs.h>
 #include <locale.h>
+#include <corecrt_startup.h>
 
 #if defined(__SEH__) && (!defined(__clang__) || __clang_major__ >= 7)
 #define SEH_INLINE_ASM
 #endif
 
-#ifndef __winitenv
-extern wchar_t *** __MINGW_IMP_SYMBOL(__winitenv);
-#define __winitenv (* __MINGW_IMP_SYMBOL(__winitenv))
-#endif
-
-#if !defined(__initenv)
-extern char *** __MINGW_IMP_SYMBOL(__initenv);
-#define __initenv (* __MINGW_IMP_SYMBOL(__initenv))
-#endif
-
-/* Hack, for bug in ld.  Will be removed soon.  */
-#if defined(__GNUC__)
-#define __ImageBase __MINGW_LSYMBOL(_image_base__)
-#endif
-/* This symbol is defined by ld.  */
 extern IMAGE_DOS_HEADER __ImageBase;
 
 extern void _fpreset (void);
-#define SPACECHAR _T(' ')
-#define DQUOTECHAR _T('\"')
 
 int *__cdecl __p__commode(void);
 
 #undef _fmode
 extern int _fmode;
+#undef _commode
 extern int _commode;
 extern int _dowildcard;
 
@@ -57,10 +35,10 @@ extern _CRTIMP void __cdecl _initterm(_PVFV *, _PVFV *);
 
 static int __cdecl check_managed_app (void);
 
-extern _CRTALLOC(".CRT$XIA") _PIFV __xi_a[];
-extern _CRTALLOC(".CRT$XIZ") _PIFV __xi_z[];
-extern _CRTALLOC(".CRT$XCA") _PVFV __xc_a[];
-extern _CRTALLOC(".CRT$XCZ") _PVFV __xc_z[];
+extern _PIFV __xi_a[];
+extern _PIFV __xi_z[];
+extern _PVFV __xc_a[];
+extern _PVFV __xc_z[];
 
 
 /* TLS initialization hook.  */
@@ -68,34 +46,19 @@ extern const PIMAGE_TLS_CALLBACK __dyn_tls_init_callback;
 
 extern int __mingw_app_type;
 
-HINSTANCE __mingw_winmain_hInstance;
-_TCHAR *__mingw_winmain_lpCmdLine;
-DWORD __mingw_winmain_nShowCmd = SW_SHOWDEFAULT;
-
 static int argc;
 extern void __main(void);
-#ifdef WPRFLAG
-static wchar_t **argv;
-static wchar_t **envp;
-#else
-static char **argv;
-static char **envp;
-#endif
+static _TCHAR **argv;
+static _TCHAR **envp;
 
-static int argret;
 static int mainret=0;
 static int managedapp;
 static int has_cctor = 0;
-static _startupinfo startinfo;
 extern LPTOP_LEVEL_EXCEPTION_FILTER __mingw_oldexcpt_handler;
 
 extern void _pei386_runtime_relocator (void);
 long CALLBACK _gnu_exception_handler (EXCEPTION_POINTERS * exception_data);
-#ifdef WPRFLAG
-static void duplicate_ppstrings (int ac, wchar_t ***av);
-#else
-static void duplicate_ppstrings (int ac, char ***av);
-#endif
+static void duplicate_ppstrings (int ac, _TCHAR ***av);
 
 static int __cdecl pre_c_init (void);
 static void __cdecl pre_cpp_init (void);
@@ -125,6 +88,7 @@ __mingw_invalidParameterHandler (const wchar_t * __UNUSED_PARAM_1(expression),
 static int __cdecl
 pre_c_init (void)
 {
+  int ret;
   managedapp = check_managed_app ();
   if (__mingw_app_type)
     __set_app_type(_GUI_APP);
@@ -134,11 +98,13 @@ pre_c_init (void)
   * __p__fmode() = _fmode;
   * __p__commode() = _commode;
 
-#ifdef WPRFLAG
-  _wsetargv();
+#ifdef _UNICODE
+  ret = _wsetargv();
 #else
-  _setargv();
+  ret = _setargv();
 #endif
+  if (ret < 0)
+    _amsg_exit(8); /* _RT_SPACEARG */
   if (_MINGW_INSTALL_DEBUG_MATHERR == 1)
     {
       __setusermatherr (_matherr);
@@ -153,19 +119,25 @@ pre_c_init (void)
 static void __cdecl
 pre_cpp_init (void)
 {
+  _startupinfo startinfo;
+  int argret;
+
   startinfo.newmode = _newmode;
 
-#ifdef WPRFLAG
+#ifdef _UNICODE
   argret = __wgetmainargs(&argc,&argv,&envp,_dowildcard,&startinfo);
 #else
   argret = __getmainargs(&argc,&argv,&envp,_dowildcard,&startinfo);
 #endif
+  if (argret < 0)
+    _amsg_exit(8); /* _RT_SPACEARG */
 }
 
 static int __tmainCRTStartup (void);
 
 int WinMainCRTStartup (void);
 
+__attribute__((used)) /* required due to GNU LD bug: https://sourceware.org/bugzilla/show_bug.cgi?id=30300 */
 int WinMainCRTStartup (void)
 {
   int ret = 255;
@@ -177,7 +149,11 @@ int WinMainCRTStartup (void)
 #ifdef SEH_INLINE_ASM
   asm ("\tnop\n"
     "\t.l_endw: nop\n"
+#ifdef __arm__
+    "\t.seh_handler __C_specific_handler, %except\n"
+#else
     "\t.seh_handler __C_specific_handler, @except\n"
+#endif
     "\t.seh_handlerdata\n"
     "\t.long 1\n"
     "\t.rva .l_startw, .l_endw, _gnu_exception_handler ,.l_endw\n"
@@ -192,6 +168,7 @@ int mainCRTStartup (void);
 int __mingw_init_ehandler (void);
 #endif
 
+__attribute__((used)) /* required due to GNU LD bug: https://sourceware.org/bugzilla/show_bug.cgi?id=30300 */
 int mainCRTStartup (void)
 {
   int ret = 255;
@@ -203,7 +180,11 @@ int mainCRTStartup (void)
 #ifdef SEH_INLINE_ASM
   asm ("\tnop\n"
     "\t.l_end: nop\n"
+#ifdef __arm__
+    "\t.seh_handler __C_specific_handler, %except\n"
+#else
     "\t.seh_handler __C_specific_handler, @except\n"
+#endif
     "\t.seh_handlerdata\n"
     "\t.long 1\n"
     "\t.rva .l_start, .l_end, _gnu_exception_handler ,.l_end\n"
@@ -215,25 +196,17 @@ int mainCRTStartup (void)
 static
 #if defined(__i386__) || defined(_X86_)
 /* We need to make sure that we align the stack to 16 bytes for the sake of SSE
-   opts in main or in functions called main.  */
+   opts in main or in functions called from main.  */
 __attribute__((force_align_arg_pointer))
 #endif
 __declspec(noinline) int
 __tmainCRTStartup (void)
 {
-  _TCHAR *lpszCommandLine = NULL;
-  STARTUPINFO StartupInfo;
-  WINBOOL inDoubleQuote = FALSE;
-  memset (&StartupInfo, 0, sizeof (STARTUPINFO));
-
-  if (__mingw_app_type)
-    GetStartupInfo (&StartupInfo);
-  {
     void *lock_free = NULL;
     void *fiberid = ((PNT_TIB)NtCurrentTeb())->StackBase;
-    int nested = FALSE;
-    while((lock_free = InterlockedCompareExchangePointer ((volatile PVOID *) &__native_startup_lock,
-							  fiberid, 0)) != 0)
+    BOOL nested = FALSE;
+    while((lock_free = InterlockedCompareExchangePointer (&__native_startup_lock,
+							  fiberid, NULL)) != 0)
       {
 	if (lock_free == fiberid)
 	  {
@@ -249,7 +222,8 @@ __tmainCRTStartup (void)
     else if (__native_startup_state == __uninitialized)
       {
 	__native_startup_state = __initializing;
-	_initterm ((_PVFV *)(void *)__xi_a, (_PVFV *)(void *) __xi_z);
+	if (_initterm_e (__xi_a, __xi_z) != 0)
+	  return 255;
       }
     else
       has_cctor = 1;
@@ -261,7 +235,7 @@ __tmainCRTStartup (void)
       }
     _ASSERTE(__native_startup_state == __initialized);
     if (! nested)
-      (VOID)InterlockedExchangePointer ((volatile PVOID *) &__native_startup_lock, 0);
+      (VOID)InterlockedExchangePointer (&__native_startup_lock, NULL);
     
     if (__dyn_tls_init_callback != NULL)
       __dyn_tls_init_callback (NULL, DLL_THREAD_ATTACH, NULL);
@@ -275,57 +249,20 @@ __tmainCRTStartup (void)
     
     _fpreset ();
 
-    __mingw_winmain_hInstance = (HINSTANCE) &__ImageBase;
-
-#ifdef WPRFLAG
-    lpszCommandLine = (_TCHAR *) _wcmdln;
-#else
-    lpszCommandLine = (char *) _acmdln;
-#endif
-
-    if (lpszCommandLine)
-      {
-	while (*lpszCommandLine > SPACECHAR || (*lpszCommandLine && inDoubleQuote))
-	  {
-	    if (*lpszCommandLine == DQUOTECHAR)
-	      inDoubleQuote = !inDoubleQuote;
-#ifdef _MBCS
-	    if (_ismbblead (*lpszCommandLine))
-	      {
-		if (lpszCommandLine[1])
-		  ++lpszCommandLine;
-	      }
-#endif
-	    ++lpszCommandLine;
-	  }
-	while (*lpszCommandLine && (*lpszCommandLine <= SPACECHAR))
-	  lpszCommandLine++;
-
-	__mingw_winmain_lpCmdLine = lpszCommandLine;
-      }
-
-    if (__mingw_app_type)
-      {
-	__mingw_winmain_nShowCmd = StartupInfo.dwFlags & STARTF_USESHOWWINDOW ?
-				    StartupInfo.wShowWindow : SW_SHOWDEFAULT;
-      }
     duplicate_ppstrings (argc, &argv);
-    __main ();
-#ifdef WPRFLAG
+    __main (); /* C++ initialization. */
+#ifdef _UNICODE
     __winitenv = envp;
-    /* C++ initialization.
-       gcc inserts this call automatically for a function called main, but not for wmain.  */
-    mainret = wmain (argc, argv, envp);
 #else
     __initenv = envp;
-    mainret = main (argc, argv, envp);
 #endif
+    mainret = _tmain (argc, argv, envp);
     if (!managedapp)
       exit (mainret);
 
     if (has_cctor == 0)
       _cexit ();
-  }
+
   return mainret;
 }
 
@@ -370,53 +307,31 @@ check_managed_app (void)
   return 0;
 }
 
-#ifdef WPRFLAG
-static size_t wbytelen(const wchar_t *p)
+static void duplicate_ppstrings (int ac, _TCHAR ***av)
 {
-	size_t ret = 1;
-	while (*p!=0) {
-		ret++,++p;
-	}
-	return ret*2;
-}
-static void duplicate_ppstrings (int ac, wchar_t ***av)
-{
-	wchar_t **avl;
+	_TCHAR **avl;
 	int i;
-	wchar_t **n = (wchar_t **) malloc (sizeof (wchar_t *) * (ac + 1));
-
-	avl=*av;
-	for (i=0; i < ac; i++)
-	  {
-		size_t l = wbytelen (avl[i]);
-		n[i] = (wchar_t *) malloc (l);
-		memcpy (n[i], avl[i], l);
-	  }
-	n[i] = NULL;
-	*av = n;
-}
-#else
-static void duplicate_ppstrings (int ac, char ***av)
-{
-	char **avl;
-	int i;
-	char **n = (char **) malloc (sizeof (char *) * (ac + 1));
+	_TCHAR **n = (_TCHAR **) malloc (sizeof (_TCHAR *) * (ac + 1));
 	
 	avl=*av;
 	for (i=0; i < ac; i++)
 	  {
-		size_t l = strlen (avl[i]) + 1;
-		n[i] = (char *) malloc (l);
+		size_t l = sizeof (_TCHAR) * (_tcslen (avl[i]) + 1);
+		n[i] = (_TCHAR *) malloc (l);
 		memcpy (n[i], avl[i], l);
 	  }
 	n[i] = NULL;
 	*av = n;
 }
-#endif
 
 int __cdecl atexit (_PVFV func)
 {
-    return _onexit((_onexit_t)func) ? 0 : -1;
+    /*
+     * msvcrt def file renames the real atexit() function to _crt_atexit().
+     * UCRT provides atexit() function only under name _crt_atexit().
+     * So redirect call to _crt_atexit() function.
+     */
+    return _crt_atexit(func);
 }
 
 char __mingw_module_is_dll = 0;

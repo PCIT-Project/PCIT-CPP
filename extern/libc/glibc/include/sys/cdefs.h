@@ -1,5 +1,12 @@
 #ifndef _SYS_CDEFS_H
 
+/* This is outside of _ISOMAC to enforce that _Static_assert always
+   uses the two-argument form.  This can be removed once the minimum
+   GCC version used to compile glibc is GCC 9.1.  */
+#ifndef __cplusplus
+# define _Static_assert(expr, diagnostic) _Static_assert (expr, diagnostic)
+#endif
+
 #include <misc/sys/cdefs.h>
 
 #ifndef _ISOMAC
@@ -33,6 +40,27 @@ rtld_hidden_proto (__chk_fail)
 
 #endif
 
+#if defined SHARED
+#if IS_IN (libc) && __USE_FORTIFY_LEVEL > 0 && defined __fortify_function
+
+#undef __REDIRECT_FORTIFY
+#define __REDIRECT_FORTIFY(name, proto, alias) \
+  __REDIRECT(name, proto, __GI_##alias)
+
+#undef __REDIRECT_FORTIFY_NTH
+#define __REDIRECT_FORTIFY_NTH(name, proto, alias) \
+  __REDIRECT_NTH(name, proto, __GI_##alias)
+
+#endif
+#endif /* defined SHARED */
+
 #endif /* !defined _ISOMAC */
+
+/*  Prevents a function from being considered for inlining and cloning.  */
+#ifdef __clang__
+# define __attribute_optimization_barrier__ __attribute__ ((optnone))
+#else
+# define __attribute_optimization_barrier__ __attribute__ ((noinline, noclone))
+#endif
 
 #endif

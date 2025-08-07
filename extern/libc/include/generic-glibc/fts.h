@@ -1,5 +1,5 @@
 /* File tree traversal functions declarations.
-   Copyright (C) 1994-2021 Free Software Foundation, Inc.
+   Copyright (C) 1994-2025 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -147,6 +147,8 @@ typedef struct _ftsent {
 } FTSENT;
 
 #ifdef __USE_LARGEFILE64
+// zig patch: 64bits variants appeared starting from glibc 2.23
+# if (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 23) || __GLIBC__ > 2
 typedef struct _ftsent64 {
 	struct _ftsent64 *fts_cycle;	/* cycle node */
 	struct _ftsent64 *fts_parent;	/* parent directory */
@@ -175,9 +177,15 @@ typedef struct _ftsent64 {
 	struct stat64 *fts_statp;	/* stat(2) information */
 	char fts_name[1];		/* file name */
 } FTSENT64;
+# endif
 #endif
 
 __BEGIN_DECLS
+
+// zig patch: 64bits variants appeared starting from glibc 2.23
+// before that version, we can't declare nor redirect to them
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 23) || __GLIBC__ > 2
+
 #ifndef __USE_FILE_OFFSET64
 FTSENT	*fts_children (FTS *, int);
 int	 fts_close (FTS *);
@@ -187,7 +195,7 @@ FTSENT	*fts_read (FTS *);
 int	 fts_set (FTS *, FTSENT *, int) __THROW;
 #else
 # ifdef __REDIRECT
-#  ifndef __USE_TIME_BITS64
+#  ifndef __USE_TIME64_REDIRECTS
 FTSENT	*__REDIRECT (fts_children, (FTS *, int), fts64_children);
 int	 __REDIRECT (fts_close, (FTS *), fts64_close);
 FTS	*__REDIRECT (fts_open, (char * const *, int,
@@ -206,7 +214,7 @@ int	 __REDIRECT_NTH (fts_set, (FTS *, FTSENT *, int),
 			 __fts64_set_time64);
 #  endif
 # else
-#  ifndef __USE_TIME_BITS64
+#  ifndef __USE_TIME64_REDIRECTS
 #   define fts_children fts64_children
 #   define fts_close fts64_close
 #   define fts_open fts64_open
@@ -216,8 +224,21 @@ int	 __REDIRECT_NTH (fts_set, (FTS *, FTSENT *, int),
 #  endif
 # endif
 #endif
+#else /* (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 23) || __GLIBC__ > 2 */
+FTSENT	*fts_children (FTS *, int);
+int	 fts_close (FTS *);
+FTS	*fts_open (char * const *, int,
+		   int (*)(const FTSENT **, const FTSENT **));
+FTSENT	*fts_read (FTS *);
+int	 fts_set (FTS *, FTSENT *, int) __THROW;
+#endif
+
+// zig patch: 64bits time variants appeared starting from glibc 2.34
+// before that version, there is nothing to declare
+#if (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 34) || __GLIBC__ > 2
+
 #ifdef __USE_LARGEFILE64
-# ifndef __USE_TIME_BITS64
+# ifndef __USE_TIME64_REDIRECTS
 FTSENT64 *fts64_children (FTS64 *, int);
 int	  fts64_close (FTS64 *);
 FTS64	 *fts64_open (char * const *, int,
@@ -243,6 +264,8 @@ int	 __REDIRECT_NTH (fts64_set, (FTS64 *, FTSENT64 *, int),
 #  endif
 # endif
 #endif
+
+#endif /* (__GLIBC__ == 2 && __GLIBC_MINOR__ >= 34) || __GLIBC__ > 2 */
 __END_DECLS
 
 #endif /* fts.h */

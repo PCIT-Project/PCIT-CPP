@@ -24,12 +24,19 @@
 #define SIO_GET_INTERFACE_LIST_EX _IOR('t',126,u_long)
 #define SIO_SET_MULTICAST_FILTER _IOW('t',125,u_long)
 #define SIO_GET_MULTICAST_FILTER _IOW('t',124 | IOC_IN,u_long)
+#define SIOCSIPMSFILTER SIO_SET_MULTICAST_FILTER
+#define SIOCGIPMSFILTER SIO_GET_MULTICAST_FILTER
+#define SIOCSMSFILTER _IOW('t',126,u_long)
+#define SIOCGMSFILTER _IOW('t',127 | IOC_IN,u_long)
+
+#if NTDDI_VERSION >= NTDDI_VISTASP1
+#define IDEAL_SEND_BACKLOG_IOCTLS
+#define SIO_IDEAL_SEND_BACKLOG_QUERY _IOR('t',123,u_long)
+#define SIO_IDEAL_SEND_BACKLOG_CHANGE _IO('t',122)
+#endif
 
 #define UDP_NOCHECKSUM 1
 #define UDP_CHECKSUM_COVERAGE 20
-
-#define TCP_EXPEDITED_1122 0x0002
-
 
 #include <ws2ipdef.h>
 
@@ -98,6 +105,18 @@ WS2TCPIP_INLINE void IN6ADDR_SETLOOPBACK(struct sockaddr_in6 *a) {
   IN6_SET_ADDR_LOOPBACK(&a->sin6_addr);
   a->sin6_scope_id = 0;
 }
+
+#ifdef IDEAL_SEND_BACKLOG_IOCTLS
+WS2TCPIP_INLINE int idealsendbacklogquery(SOCKET s, ULONG *isb) {
+  DWORD bytes;
+  return WSAIoctl(s, SIO_IDEAL_SEND_BACKLOG_QUERY, NULL, 0, isb, sizeof(*isb), &bytes, NULL, NULL);
+}
+
+WS2TCPIP_INLINE int idealsendbacklognotify(SOCKET s, LPWSAOVERLAPPED overlapped, LPWSAOVERLAPPED_COMPLETION_ROUTINE routine) {
+  DWORD bytes;
+  return WSAIoctl(s, SIO_IDEAL_SEND_BACKLOG_CHANGE, NULL, 0, NULL, 0, &bytes, overlapped, routine);
+}
+#endif
 
 /* Those declarations are mandatory for Open Group Base spec */
 #define IN6_IS_ADDR_UNSPECIFIED IN6_IS_ADDR_UNSPECIFIED
@@ -265,12 +284,12 @@ WCHAR *gai_strerrorW(int);
 #include <mstcpip.h>
 
 #if (_WIN32_WINNT >= 0x0600)
-#define addrinfoEx __MINGW_NAME_AW(addrinfoEx)
+#define ADDRINFOEX __MINGW_NAME_AW(ADDRINFOEX)
 #define PADDRINFOEX __MINGW_NAME_AW(PADDRINFOEX)
 #define GetAddrInfoEx __MINGW_NAME_AW(GetAddrInfoEx)
 #define SetAddrInfoEx __MINGW_NAME_AW(SetAddrInfoEx)
 
-  typedef struct addrinfoExA {
+  typedef struct addrinfoexA {
     int                ai_flags;
     int                ai_family;
     int                ai_socktype;
@@ -284,7 +303,7 @@ WCHAR *gai_strerrorW(int);
     struct addrinfoexA *ai_next;
   } ADDRINFOEXA, *PADDRINFOEXA;
 
-  typedef struct addrinfoExW {
+  typedef struct addrinfoexW {
     int                ai_flags;
     int                ai_family;
     int                ai_socktype;
@@ -298,7 +317,11 @@ WCHAR *gai_strerrorW(int);
     struct addrinfoexW *ai_next;
   } ADDRINFOEXW, *PADDRINFOEXW;
 
-typedef PVOID LPLOOKUPSERVICE_COMPLETION_ROUTINE; /*reserved*/
+  typedef void (CALLBACK * LPLOOKUPSERVICE_COMPLETION_ROUTINE)(
+    DWORD dwError,
+    DWORD dwBytes,
+    LPWSAOVERLAPPED lpOverlapped
+  );
 
 WINSOCK_API_LINKAGE int WSAAPI GetAddrInfoExA(PCSTR pName, PCSTR pServiceName, DWORD dwNameSpace,
 					      LPGUID lpNspId,const ADDRINFOEXA *pHints,PADDRINFOEXA *ppResult,

@@ -31,6 +31,8 @@ THIS SOFTWARE.
 
 #include "gdtoaimp.h"
 
+ extern UShort NanDflt_ldus_D2A[5];
+
 #undef _0
 #undef _1
 
@@ -51,8 +53,19 @@ THIS SOFTWARE.
 #define _4 0
 #endif
 
+#if __SIZEOF_LONG_DOUBLE__ == __SIZEOF_DOUBLE__
+/* For ARM, where long double == double, provide the long double function as
+ * an alias for __strtod. Do this in a separate object file from other
+ * functions, to avoid linker conflicts if object files import both 'strtold'
+ * from libucrt*.a and the object file providing '__strtod'. */
+long double __cdecl
+strtold (const char * __restrict__ src, char ** __restrict__ endptr)
+{
+  return __mingw_strtod(src, endptr);
+}
+
 /* This is specific to the x86 80 bit long doubles. */
-#if defined(_AMD64_) || defined(__x86_64__) || \
+#elif defined(_AMD64_) || defined(__x86_64__) || \
   defined(_X86_) || defined(__i386__)
 
 typedef union lD {
@@ -63,7 +76,7 @@ typedef union lD {
 static int __strtopx (const char *s, char **sp, lD *V)
 {
 	static FPI fpi0 = { 64, 1-16383-64+1, 32766 - 16383 - 64 + 1, 1, SI,
-			   Int_max };
+			   Int_max /*unused*/ };
 	ULong bits[2];
 	Long expo;
 	int k;
@@ -103,11 +116,11 @@ static int __strtopx (const char *s, char **sp, lD *V)
 		break;
 
 	  case STRTOG_NaN:
-		L[0] = ldus_QNAN0;
-		L[1] = ldus_QNAN1;
-		L[2] = ldus_QNAN2;
-		L[3] = ldus_QNAN3;
-		L[4] = ldus_QNAN4;
+		L[_4] = NanDflt_ldus_D2A[0];
+		L[_3] = NanDflt_ldus_D2A[1];
+		L[_2] = NanDflt_ldus_D2A[2];
+		L[_1] = NanDflt_ldus_D2A[3];
+		L[_0] = NanDflt_ldus_D2A[4];
 	}
 	if (k & STRTOG_Neg)
 		L[_0] |= 0x8000;
@@ -131,14 +144,4 @@ long double __cdecl
 strtold (const char * __restrict__ src, char ** __restrict__ endptr)
   __attribute__((alias("__strtold")));
 
-#elif defined(__arm__) || defined(__aarch64__) || defined(_ARM_) || defined(_ARM64_)
-/* For ARM, where long double == double, provide the long double function as
- * an alias for __strtod. Do this in a separate object file from other
- * functions, to avoid linker conflicts if object files import both 'strtold'
- * from libucrt*.a and the object file providing '__strtod'. */
-long double __cdecl
-strtold (const char * __restrict__ src, char ** __restrict__ endptr)
-{
-  return __mingw_strtod(src, endptr);
-}
 #endif

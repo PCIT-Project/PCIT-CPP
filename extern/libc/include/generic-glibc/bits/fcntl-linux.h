@@ -1,5 +1,5 @@
 /* O_*, F_*, FD_* bit values for Linux.
-   Copyright (C) 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 2001-2025 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -101,7 +101,7 @@
 #endif
 
 #ifndef F_GETLK
-# ifndef __USE_FILE_OFFSET64
+# if !defined __USE_FILE_OFFSET64 && __TIMESIZE != 64
 #  define F_GETLK	5	/* Get record locking info.  */
 #  define F_SETLK	6	/* Set record locking info (non-blocking).  */
 #  define F_SETLKW	7	/* Set record locking info (blocking).  */
@@ -200,6 +200,8 @@
 # define F_SETLEASE	1024	/* Set a lease.  */
 # define F_GETLEASE	1025	/* Enquire what lease is active.  */
 # define F_NOTIFY	1026	/* Request notifications on a directory.  */
+# define F_DUPFD_QUERY  1027    /* Compare two file descriptors for sameness.  */
+# define F_CREATED_QUERY 1028   /* Was the file just created?  */
 # define F_SETPIPE_SZ	1031	/* Set pipe page size array.  */
 # define F_GETPIPE_SZ	1032	/* Set pipe page size array.  */
 # define F_ADD_SEALS	1033	/* Add seals to file.  */
@@ -286,6 +288,7 @@ struct f_owner_ex
 # define F_SEAL_WRITE	0x0008	/* Prevent writes.  */
 # define F_SEAL_FUTURE_WRITE	0x0010	/* Prevent future writes while
 					   mapped.  */
+# define F_SEAL_EXEC	0x0020	/* Prevent chmod modifying exec bits. */
 #endif
 
 #ifdef __USE_GNU
@@ -365,6 +368,19 @@ struct file_handle
 
 /* Maximum handle size (for now).  */
 # define MAX_HANDLE_SZ	128
+#endif
+
+#ifdef __USE_GNU
+/* Flags for name_to_handle_at.  See comment in fcntl.h about the use
+   of the same AT_* flag bits for different purposes in different
+   functions.  */
+# define AT_HANDLE_FID		AT_REMOVEDIR /* File handle is needed
+						to compare object
+						identity and may not
+						be usable to
+						open_by_handle_at.  */
+# define AT_HANDLE_MNT_ID_UNIQUE 1 /* Return the 64-bit unique mount
+				      ID.  */
 #endif
 
 __BEGIN_DECLS

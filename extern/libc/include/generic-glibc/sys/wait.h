@@ -1,4 +1,4 @@
-/* Copyright (C) 1991-2021 Free Software Foundation, Inc.
+/* Copyright (C) 1991-2025 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -71,12 +71,7 @@ typedef __pid_t pid_t;
 
 /* The following values are used by the `waitid' function.  */
 #if defined __USE_XOPEN_EXTENDED || defined __USE_XOPEN2K8
-typedef enum
-{
-  P_ALL,		/* Wait for any child.  */
-  P_PID,		/* Wait for specified process.  */
-  P_PGID		/* Wait for members of process group.  */
-} idtype_t;
+# include <bits/types/idtype_t.h>
 #endif
 
 
@@ -144,7 +139,7 @@ struct rusage;
    nil, store information about the child's resource usage there.  If the
    WUNTRACED bit is set in OPTIONS, return status for stopped children;
    otherwise don't.  */
-# ifndef __USE_TIME_BITS64
+# ifndef __USE_TIME64_REDIRECTS
 extern __pid_t wait3 (int *__stat_loc, int __options,
 		      struct rusage * __usage) __THROWNL;
 # else
@@ -159,7 +154,7 @@ extern __pid_t __REDIRECT_NTHNL (wait3, (int *__stat_loc, int __options,
 #endif
 
 #ifdef __USE_MISC
-# ifndef __USE_TIME_BITS64
+# ifndef __USE_TIME64_REDIRECTS
 /* PID is like waitpid.  Other args are like wait3.  */
 extern __pid_t wait4 (__pid_t __pid, int *__stat_loc, int __options,
 		      struct rusage *__usage) __THROWNL;

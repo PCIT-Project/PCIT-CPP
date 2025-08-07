@@ -1,11 +1,28 @@
-/* Copyright (C) 1995-2021 Free Software Foundation, Inc.
+/* Copyright (C) 1995-2025 Free Software Foundation, Inc.
 
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Lesser General Public License as
-   published by the Free Software Foundation; either version 2.1 of the
-   License, or (at your option) any later version.
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2.1 of the License, or (at your option) any later version.
+
+   In addition to the permissions in the GNU Lesser General Public
+   License, the Free Software Foundation gives you unlimited
+   permission to link the compiled version of this file with other
+   programs, and to distribute those programs without any restriction
+   coming from the use of this file. (The GNU Lesser General Public
+   License restrictions do apply in other respects; for example, they
+   cover modification of the file, and distribution when not linked
+   into another program.)
+
+   Note that people who make modified versions of this file are not
+   obligated to grant this special exception for their modified
+   versions; it is their choice whether to do so. The GNU Lesser
+   General Public License gives permission to release a modified
+   version without this exception; this exception also makes it
+   possible to release a modified version which carries forward this
+   exception.
 
    The GNU C Library is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -13,7 +30,7 @@
    Lesser General Public License for more details.
 
    You should have received a copy of the GNU Lesser General Public
-   License along with the GNU C Library.  If not, see
+   License along with the GNU C Library; if not, see
    <https://www.gnu.org/licenses/>.  */
 
 #include <sysdep.h>
@@ -53,8 +70,8 @@ ENTRY(_start)
 	mov	x5, x0
 
 	/* Load argc and a pointer to argv */
-	ldr	PTR_REG (1), [sp, #0]
-	add	x2, sp, #PTR_SIZE
+	ldr	x1, [sp, #0]
+	add	x2, sp, 8
 
 	/* Setup stack limit in argument register */
 	mov	x6, sp
@@ -62,14 +79,16 @@ ENTRY(_start)
 #ifdef PIC
 # ifdef SHARED
         adrp    x0, :got:main
-	ldr     PTR_REG (0), [x0, #:got_lo12:main]
+	ldr     x0, [x0, #:got_lo12:main]
 # else
 	adrp	x0, __wrap_main
 	add	x0, x0, :lo12:__wrap_main
 # endif
 #else
-	/* Set up the other arguments in registers */
-	MOVL (0, main)
+	movz    x0, :abs_g3:main
+	movk    x0, :abs_g2_nc:main
+	movk    x0, :abs_g1_nc:main
+	movk    x0, :abs_g0_nc:main
 #endif
 	mov	x3, #0		/* Used to be init.  */
 	mov	x4, #0		/* Used to be fini.  */
@@ -89,7 +108,7 @@ ENTRY(_start)
 	   because crt1.o and rcrt1.o share code and the later must avoid the
 	   use of GOT relocations before __libc_start_main is called.  */
 __wrap_main:
-	BTI_C
+	bti	c
 	b	main
 #endif
 END(_start)

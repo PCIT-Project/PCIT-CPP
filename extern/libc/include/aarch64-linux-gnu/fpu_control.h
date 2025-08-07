@@ -1,4 +1,4 @@
-/* Copyright (C) 1996-2021 Free Software Foundation, Inc.
+/* Copyright (C) 1996-2025 Free Software Foundation, Inc.
 
    This file is part of the GNU C Library.
 
@@ -29,24 +29,38 @@
 # define _FPU_GETFPSR(fpsr) (fpsr = __builtin_aarch64_get_fpsr ())
 # define _FPU_SETFPSR(fpsr) __builtin_aarch64_set_fpsr (fpsr)
 #else
-# define _FPU_GETCW(fpcr) \
-  __asm__ __volatile__ ("mrs	%0, fpcr" : "=r" (fpcr))
+# define _FPU_GETCW(fpcr)					\
+  ({ 								\
+   __uint64_t __fpcr;						\
+   __asm__ __volatile__ ("mrs	%0, fpcr" : "=r" (__fpcr));	\
+   fpcr = __fpcr;						\
+  })
 
-# define _FPU_SETCW(fpcr) \
-  __asm__ __volatile__ ("msr	fpcr, %0" : : "r" (fpcr))
+# define _FPU_SETCW(fpcr)					\
+  ({								\
+   __uint64_t __fpcr = fpcr;					\
+   __asm__ __volatile__ ("msr	fpcr, %0" : : "r" (__fpcr));    \
+  })
 
-# define _FPU_GETFPSR(fpsr) \
-  __asm__ __volatile__ ("mrs	%0, fpsr" : "=r" (fpsr))
+# define _FPU_GETFPSR(fpsr)					\
+  ({								\
+   __uint64_t __fpsr;						\
+   __asm__ __volatile__ ("mrs	%0, fpsr" : "=r" (__fpsr));	\
+   fpsr = __fpsr;						\
+  })
 
-# define _FPU_SETFPSR(fpsr) \
-  __asm__ __volatile__ ("msr	fpsr, %0" : : "r" (fpsr))
+# define _FPU_SETFPSR(fpsr)					\
+  ({								\
+   __uint64_t __fpsr = fpsr;					\
+   __asm__ __volatile__ ("msr	fpsr, %0" : : "r" (__fpsr));    \
+  })
 #endif
 
 /* Reserved bits should be preserved when modifying register
    contents. These two masks indicate which bits in each of FPCR and
    FPSR should not be changed.  */
 
-#define _FPU_RESERVED		0xfe0fe0ff
+#define _FPU_RESERVED		0xfe0fe0f8
 #define _FPU_FPSR_RESERVED	0x0fffffe0
 
 #define _FPU_DEFAULT		0x00000000

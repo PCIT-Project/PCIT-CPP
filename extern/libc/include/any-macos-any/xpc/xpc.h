@@ -210,7 +210,7 @@ XPC_TYPE(_xpc_type_double);
 
 /*!
  * @define XPC_TYPE_DATE
-* A type representing a date interval. The interval is with respect to the
+ * A type representing a date interval. The interval is with respect to the
  * Unix epoch. XPC dates are in Unix time and are thus unaware of local time
  * or leap seconds.
  */
@@ -325,18 +325,37 @@ __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
 XPC_EXPORT
 const char * const _xpc_event_key_name;
 
+/*!
+ * @define XPC_TYPE_RICH_ERROR
+ *
+ * @discussion
+ * Rich errors provide a simple dynamic error type that can indicate whether an
+ * error is retry-able or not.
+ */
+#define XPC_TYPE_RICH_ERROR (&_xpc_type_rich_error)
+XPC_EXPORT
+XPC_TYPE(_xpc_type_rich_error);
+XPC_DECL(xpc_rich_error);
+
+__END_DECLS
 XPC_ASSUME_NONNULL_END
 #if !defined(__XPC_BUILDING_XPC__) || !__XPC_BUILDING_XPC__
 #include <xpc/endpoint.h>
 #include <xpc/debug.h>
 #if __BLOCKS__
-#include <xpc/connection.h>
 #include <xpc/activity.h>
+#include <xpc/connection.h>
+#include <xpc/rich_error.h>
+#include <xpc/session.h>
+#include <xpc/listener.h>
 #endif // __BLOCKS__
 #undef __XPC_INDIRECT__
+#if __has_include(<launch.h>)
 #include <launch.h>
+#endif // __has_include(<launch.h>)
 #endif // !defined(__XPC_BUILDING_XPC__) || !__XPC_BUILDING_XPC__
 XPC_ASSUME_NONNULL_BEGIN
+__BEGIN_DECLS
 
 #pragma mark XPC Object Protocol
 /*!
@@ -757,7 +776,7 @@ xpc_date_get_value(xpc_object_t xdate);
 __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
 XPC_EXPORT XPC_MALLOC XPC_RETURNS_RETAINED XPC_WARN_RESULT
 xpc_object_t
-xpc_data_create(const void * _Nullable bytes, size_t length);
+xpc_data_create(const void * _Nullable XPC_SIZEDBY(length) bytes, size_t length);
 
 /*!
  * @function xpc_data_create_with_dispatch_data
@@ -1166,7 +1185,9 @@ typedef bool (^xpc_array_applier_t)(size_t index, xpc_object_t _Nonnull value);
 __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
 XPC_EXPORT XPC_MALLOC XPC_RETURNS_RETAINED XPC_WARN_RESULT
 xpc_object_t
-xpc_array_create(const xpc_object_t _Nonnull * _Nullable objects, size_t count);
+xpc_array_create(
+	const xpc_object_t _Nonnull *XPC_COUNTEDBY(count) _Nullable objects,
+	size_t count);
 
 /*!
  * @function xpc_array_create_empty
@@ -1457,8 +1478,8 @@ xpc_array_set_date(xpc_object_t xarray, size_t index, int64_t value);
 __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
 XPC_EXPORT XPC_NONNULL1 XPC_NONNULL3
 void
-xpc_array_set_data(xpc_object_t xarray, size_t index, const void *bytes,
-	size_t length);
+xpc_array_set_data(xpc_object_t xarray, size_t index,
+	const void *XPC_SIZEDBY(length) bytes, size_t length);
 
 /*!
  * @function xpc_array_set_string
@@ -1911,8 +1932,9 @@ typedef bool (^xpc_dictionary_applier_t)(const char * _Nonnull key,
 __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
 XPC_EXPORT XPC_MALLOC XPC_RETURNS_RETAINED XPC_WARN_RESULT
 xpc_object_t
-xpc_dictionary_create(const char * _Nonnull const * _Nullable keys,
-	const xpc_object_t _Nullable * _Nullable values, size_t count);
+xpc_dictionary_create(
+	const char *XPC_CSTRING _Nonnull const *XPC_COUNTEDBY(count) _Nullable keys,
+	const xpc_object_t _Nullable *XPC_COUNTEDBY(count) _Nullable values, size_t count);
 
 /*!
  * @function xpc_dictionary_create_empty
@@ -2210,8 +2232,8 @@ xpc_dictionary_set_date(xpc_object_t xdict, const char *key, int64_t value);
 __OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
 XPC_EXPORT XPC_NONNULL1 XPC_NONNULL2 XPC_NONNULL3
 void
-xpc_dictionary_set_data(xpc_object_t xdict, const char *key, const void *bytes,
-	size_t length);
+xpc_dictionary_set_data(xpc_object_t xdict, const char *key,
+	const void *XPC_SIZEDBY(length) bytes, size_t length);
 
 /*!
  * @function xpc_dictionary_set_string
@@ -2304,6 +2326,32 @@ XPC_EXPORT XPC_NONNULL1 XPC_NONNULL2 XPC_NONNULL3
 void
 xpc_dictionary_set_connection(xpc_object_t xdict, const char *key,
 	xpc_connection_t connection);
+
+/*!
+ * @function xpc_dictionary_set_mach_send
+ *
+ * @abstract
+ * Inserts a send right into a dictionary.
+ *
+ * @param xdict
+ * The dictionary which is to be manipulated.
+ *
+ * @param key
+ * The key for which the primitive value shall be set.
+ *
+ * @param p
+ * The port to insert. After calling this method, the XPC object
+ * corresponding to the primitive value inserted may be safely retrieved
+ * with {@link xpc_dictionary_copy_mach_send()}.
+ *
+ * @discussion
+ * The XPC runtime sends the port with disposition `MACH_MSG_TYPE_COPY_SEND`
+ */
+__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
+XPC_EXPORT XPC_NONNULL1 XPC_NONNULL2
+void
+xpc_dictionary_set_mach_send(xpc_object_t xdict, const char *key,
+	mach_port_t p);
 
 #pragma mark Dictionary Primitive Getters
 /*!
@@ -2478,7 +2526,7 @@ xpc_dictionary_get_string(xpc_object_t xdict, const char *key);
  * The key whose value is to be obtained.
  *
  * @result
- * The underlying <code>uuid_t</code> value for the specified key. NULL is the
+ * The underlying <code>uuid_t</code> value for the specified key. NULL if the
  * value at the specified index is not a UUID value. The returned pointer may be
  * safely passed to the uuid(3) APIs.
  */
@@ -2588,6 +2636,33 @@ XPC_EXPORT XPC_WARN_RESULT XPC_NONNULL_ALL
 xpc_object_t _Nullable
 xpc_dictionary_get_array(xpc_object_t xdict, const char *key);
 
+/*!
+ * @function xpc_dictionary_copy_mach_send
+ *
+ * @abstract
+ * Returns a send right to the mach port.
+ *
+ * @param xdict
+ * The dictionary object which is to be examined.
+ *
+ * @param key
+ * The key whose value is to be obtained.
+ *
+ * @result
+ * The object for the specified key within the dictionary. `MACH_PORT_NULL`
+ * if there is no value associated with the specified key, if the given object
+ * was not an XPC dictionary, or if the object for the specified key is not a send
+ * right.
+ *
+ * @discussion
+ * The XPC runtime will copy the send right using `mach_port_mod_refs`
+ * before returning the port
+ */
+__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
+XPC_EXPORT XPC_WARN_RESULT XPC_NONNULL1 XPC_NONNULL2
+mach_port_t
+xpc_dictionary_copy_mach_send(xpc_object_t xdict, const char *key);
+
 #pragma mark Runtime
 /*!
  * @function xpc_main
@@ -2600,7 +2675,8 @@ xpc_dictionary_get_array(xpc_object_t xdict, const char *key);
  * @param handler
  * The handler with which to accept new connections.
  */
-__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
+API_AVAILABLE(macos(10.7), macCatalyst(5.0))
+API_UNAVAILABLE(ios)
 XPC_EXPORT XPC_NORETURN XPC_NONNULL1
 void
 xpc_main(xpc_connection_handler_t handler);
@@ -2623,7 +2699,7 @@ xpc_main(xpc_connection_handler_t handler);
  *
  * The XPC runtime will automatically begin a transaction on behalf of a service
  * when a new message is received. If no reply message is expected, the
- * transaction is automatically ended when the connection event handler returns.
+ * transaction is automatically ended when the last reference to the message is released.
  * If a reply message is created, the transaction will end when the reply
  * message is sent or released. An XPC service may use xpc_transaction_begin()
  * and xpc_transaction_end() to inform the XPC runtime about activity that
@@ -2636,7 +2712,8 @@ xpc_main(xpc_connection_handler_t handler);
  * connection's event handler, no more messages will be delivered to the
  * connection.
  */
-__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
+API_AVAILABLE(macos(10.7))
+API_UNAVAILABLE(ios)
 XPC_TRANSACTION_DEPRECATED
 XPC_EXPORT
 void
@@ -2653,7 +2730,8 @@ xpc_transaction_begin(void);
  * See the discussion for {@link xpc_transaction_begin()} for details regarding
  * the XPC runtime's idle-exit policy.
  */
-__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
+API_AVAILABLE(macos(10.7))
+API_UNAVAILABLE(ios)
 XPC_TRANSACTION_DEPRECATED
 XPC_EXPORT
 void
@@ -2688,7 +2766,8 @@ xpc_transaction_end(void);
  * between the event handler running and the process exiting.
  */
 #if __BLOCKS__
-__OSX_AVAILABLE_STARTING(__MAC_10_7, __IPHONE_5_0)
+API_AVAILABLE(macos(10.7))
+API_UNAVAILABLE(ios)
 XPC_EXPORT XPC_NONNULL1 XPC_NONNULL3
 void
 xpc_set_event_stream_handler(const char *stream,
@@ -2698,4 +2777,4 @@ xpc_set_event_stream_handler(const char *stream,
 __END_DECLS
 XPC_ASSUME_NONNULL_END
 
-#endif // __XPC_H__
+#endif // __XPC_H__ 

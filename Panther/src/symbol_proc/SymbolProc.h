@@ -1212,7 +1212,7 @@ namespace pcit::panther{
 									// 	(is when cond, func call, or operator function)
 			SymbolProc* parent; // nullptr means no parent
 
-			core::StepVector<Instruction> instructions{};
+			evo::StepVector<Instruction> instructions{};
 
 			// TODO(PERF): optimize the memory usage here?
 			evo::SmallVector<std::optional<TermInfo>> term_infos{};

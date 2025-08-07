@@ -1,18 +1,32 @@
 
-// #include <stdio.h>
+#include <stdio.h>
 #include <stdint.h>
 
 
 
 
-// class Test{
-// 	int x;
-// 	public:
-// 		double y;
-// };
+class Test{
+	int x;
+	public:
+		double y;
+};
 
 
 using Foo = uint32_t;
+
+enum Enum{
+	
+};
+
+enum class EnumC{
+	
+};
+
+
+union Union{
+
+};
+
 
 // using Bar = uint32_t;
 

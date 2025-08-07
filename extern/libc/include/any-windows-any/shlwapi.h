@@ -438,8 +438,8 @@ extern "C" {
   LWSTDAPI_(WINBOOL) PathMatchSpecW(LPCWSTR pszFile,LPCWSTR pszSpec);
   LWSTDAPI_(int) PathParseIconLocationA(LPSTR pszIconFile);
   LWSTDAPI_(int) PathParseIconLocationW(LPWSTR pszIconFile);
-  LWSTDAPI_(void) PathQuoteSpacesA(LPSTR lpsz);
-  LWSTDAPI_(void) PathQuoteSpacesW(LPWSTR lpsz);
+  LWSTDAPI_(WINBOOL) PathQuoteSpacesA(LPSTR lpsz);
+  LWSTDAPI_(WINBOOL) PathQuoteSpacesW(LPWSTR lpsz);
   LWSTDAPI_(WINBOOL) PathRelativePathToA(LPSTR pszPath,LPCSTR pszFrom,DWORD dwAttrFrom,LPCSTR pszTo,DWORD dwAttrTo);
   LWSTDAPI_(WINBOOL) PathRelativePathToW(LPWSTR pszPath,LPCWSTR pszFrom,DWORD dwAttrFrom,LPCWSTR pszTo,DWORD dwAttrTo);
   LWSTDAPI_(void) PathRemoveArgsA(LPSTR pszPath);
@@ -1177,7 +1177,11 @@ LWSTDAPI PathMatchSpecExW(LPCWSTR pszFile, LPCWSTR pszSpec, DWORD dwFlags);
 
 typedef struct {
   const IID *piid;
+#if (NTDDI_VERSION >= NTDDI_WIN10_RS2)
+  DWORD dwOffset;
+#else
   int dwOffset;
+#endif
 } QITAB, *LPQITAB;
 typedef const QITAB *LPCQITAB;
 

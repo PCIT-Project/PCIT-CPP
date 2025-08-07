@@ -13,7 +13,6 @@
 
 #include <Evo.h>
 
-#include "../../../include/StepVector.h"
 #include "./Type.h"
 
 
@@ -81,7 +80,7 @@ namespace pcit::clangint{
 		private:
 			evo::SmallVector<Decl> decls{};
 
-			core::StepVector<Alias> aliases{};
+			evo::StepVector<Alias> aliases{};
 
 			const std::unordered_map<std::string_view, BaseType::Primitive> special_primitive_lookup{
 				{"ptrdiff_t", BaseType::Primitive::ISIZE},

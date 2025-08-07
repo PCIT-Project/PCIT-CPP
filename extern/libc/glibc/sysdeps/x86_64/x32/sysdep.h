@@ -1,5 +1,5 @@
 /* Assembler macros for x32.
-   Copyright (C) 2012-2021 Free Software Foundation, Inc.
+   Copyright (C) 2012-2025 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -16,9 +16,16 @@
    License along with the GNU C Library; if not, see
    <https://www.gnu.org/licenses/>.  */
 
-#include <sysdeps/x86_64/sysdep.h>
+/* zig patch: inline x86-lp_size.h */
 
+#include <sysdeps/x86_64/sysdep.h>
 #undef LP_SIZE
+#ifdef __ASSEMBLER__
+# define LP_SIZE 4
+#else
+# define LP_SIZE "4"
+#endif
+
 #undef LP_OP
 #undef ASM_ADDR
 
@@ -40,8 +47,6 @@
 #undef R15_LP
 
 #ifdef	__ASSEMBLER__
-
-# define LP_SIZE 4
 
 # define LP_OP(insn) insn##l
 
@@ -65,8 +70,6 @@
 # define R15_LP	r15d
 
 #else	/* __ASSEMBLER__ */
-
-# define LP_SIZE "4"
 
 # define LP_OP(insn) #insn "l"
 

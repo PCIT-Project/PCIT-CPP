@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.142.1"></a>
+## v0.0.142.1
+
+### Panther
+- Fixed crashing when compiling C/C++ code
+- Fixed crasing in default diagnostic callback for Clang errors that point to after the code line
+
+### Misc
+- Updated LibC
+	- Also fixes warnings from Clang such as when compiling `stdio.h`
+
+
+<!---------------------------------->
 <a name="v0.0.142.0"></a>
 ## v0.0.142.0
 

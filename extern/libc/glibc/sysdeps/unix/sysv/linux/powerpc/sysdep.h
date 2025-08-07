@@ -1,5 +1,5 @@
 /* Syscall definitions, Linux PowerPC generic version.
-   Copyright (C) 2019-2021 Free Software Foundation, Inc.
+   Copyright (C) 2019-2025 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -32,6 +32,18 @@
 #undef SYS_ify
 #define SYS_ify(syscall_name)  __NR_##syscall_name
 
+#define tostring(s) #s
+#define stringify(s) tostring(s)
+
+#ifdef _ARCH_PWR4
+/* Power4 and later cpus introduced a faster instruction to copy one
+   CR field, rather than the slower microcoded mfcr which copies all
+   CR fields.  */
+# define MFCR0(REG) "mfocrf " stringify(REG) ",0x80"
+#else
+# define MFCR0(REG) "mfcr " stringify(REG)
+#endif
+
 /* Define a macro which expands inline into the wrapper code for a system
    call. This use is for internal calls that do not need to handle errors
    normally. It will never touch errno. This returns just what the kernel
@@ -52,7 +64,7 @@
     __asm__ __volatile__						\
       ("mtctr %0\n\t"							\
        "bctrl\n\t"							\
-       "mfcr  %0\n\t"							\
+       MFCR0(%0) "\n\t"							\
        "0:"								\
        : "+r" (r0), "+r" (r3), "+r" (r4), "+r" (r5),  "+r" (r6),        \
          "+r" (r7), "+r" (r8)						\
@@ -83,11 +95,10 @@
        "scv 0\n\t"				\
        ".machine \"pop\"\n\t"			\
        "0:"					\
-       : "=&r" (r0),				\
-	 "=&r" (r3), "=&r" (r4), "=&r" (r5),	\
-	 "=&r" (r6), "=&r" (r7), "=&r" (r8)	\
-       : ASM_INPUT_##nr			\
-       : "r9", "r10", "r11", "r12",		\
+       : "+r" (r0),				\
+	 "+r" (r3), "+r" (r4), "+r" (r5),	\
+	 "+r" (r6), "+r" (r7), "+r" (r8)	\
+       : : "r9", "r10", "r11", "r12",		\
 	 "cr0", "cr1", "cr5", "cr6", "cr7",	\
 	 "xer", "lr", "ctr", "memory"); 	\
     r3;					\
@@ -97,13 +108,12 @@
   ({						\
     __asm__ __volatile__			\
       ("sc\n\t"				\
-       "mfcr %0\n\t"				\
+       MFCR0(%0) "\n\t"				\
        "0:"					\
-       : "=&r" (r0),				\
-	 "=&r" (r3), "=&r" (r4), "=&r" (r5),	\
-	 "=&r" (r6), "=&r" (r7), "=&r" (r8)	\
-       : ASM_INPUT_##nr			\
-       : "r9", "r10", "r11", "r12",		\
+       : "+r" (r0),				\
+	 "+r" (r3), "+r" (r4), "+r" (r5),	\
+	 "+r" (r6), "+r" (r7), "+r" (r8)	\
+       : : "r9", "r10", "r11", "r12",		\
 	 "xer", "cr0", "ctr", "memory");	\
     r0 & (1 << 28) ? -r3 : r3;			\
   })
@@ -199,46 +209,6 @@
 	  __illegally_sized_syscall_arg6 (); \
 	r8 = _arg6
 
-#define ASM_INPUT_0 "0" (r0)
-#define ASM_INPUT_1 ASM_INPUT_0, "1" (r3)
-#define ASM_INPUT_2 ASM_INPUT_1, "2" (r4)
-#define ASM_INPUT_3 ASM_INPUT_2, "3" (r5)
-#define ASM_INPUT_4 ASM_INPUT_3, "4" (r6)
-#define ASM_INPUT_5 ASM_INPUT_4, "5" (r7)
-#define ASM_INPUT_6 ASM_INPUT_5, "6" (r8)
-
-
-/* Pointer mangling support.  */
-#if IS_IN (rtld)
-/* We cannot use the thread descriptor because in ld.so we use setjmp
-   earlier than the descriptor is initialized.  */
-#else
-# ifdef __ASSEMBLER__
-#  if defined(__PPC64__) || defined(__powerpc64__)
-#   define LOAD  ld
-#   define TPREG r13
-#  else
-#   define LOAD  lwz
-#   define TPREG r2
-#  endif
-#  define PTR_MANGLE(reg, tmpreg) \
-	LOAD	tmpreg,POINTER_GUARD(TPREG); \
-	xor	reg,tmpreg,reg
-#  define PTR_MANGLE2(reg, tmpreg) \
-	xor	reg,tmpreg,reg
-#  define PTR_MANGLE3(destreg, reg, tmpreg) \
-	LOAD	tmpreg,POINTER_GUARD(TPREG); \
-	xor	destreg,tmpreg,reg
-#  define PTR_DEMANGLE(reg, tmpreg) PTR_MANGLE (reg, tmpreg)
-#  define PTR_DEMANGLE2(reg, tmpreg) PTR_MANGLE2 (reg, tmpreg)
-#  define PTR_DEMANGLE3(destreg, reg, tmpreg) PTR_MANGLE3 (destreg, reg, tmpreg)
-# else
-#  define PTR_MANGLE(var) \
-  (var) = (__typeof (var)) ((uintptr_t) (var) ^ THREAD_GET_POINTER_GUARD ())
-#  define PTR_DEMANGLE(var)	PTR_MANGLE (var)
-# endif
-#endif
-
 /* List of system calls which are supported as vsyscalls.  */
 #define VDSO_NAME  "LINUX_2.6.15"
 #define VDSO_HASH  123718565
@@ -246,6 +216,7 @@
 #if defined(__PPC64__) || defined(__powerpc64__)
 #define HAVE_CLOCK_GETRES64_VSYSCALL	"__kernel_clock_getres"
 #define HAVE_CLOCK_GETTIME64_VSYSCALL	"__kernel_clock_gettime"
+#define HAVE_CLONE3_WRAPPER		1
 #else
 #define HAVE_CLOCK_GETRES_VSYSCALL	"__kernel_clock_getres"
 #define HAVE_CLOCK_GETTIME_VSYSCALL	"__kernel_clock_gettime"
@@ -254,12 +225,6 @@
 #define HAVE_TIME_VSYSCALL		"__kernel_time"
 #define HAVE_GETTIMEOFDAY_VSYSCALL      "__kernel_gettimeofday"
 #define HAVE_GET_TBFREQ                 "__kernel_get_tbfreq"
-
-#if defined(__PPC64__) || defined(__powerpc64__)
-# define HAVE_SIGTRAMP_RT64		"__kernel_sigtramp_rt64"
-#else
-# define HAVE_SIGTRAMP_32		"__kernel_sigtramp32"
-# define HAVE_SIGTRAMP_RT32		"__kernel_sigtramp_rt32"
-#endif
+#define HAVE_GETRANDOM_VSYSCALL         "__kernel_getrandom"
 
 #endif /* _LINUX_POWERPC_SYSDEP_H  */

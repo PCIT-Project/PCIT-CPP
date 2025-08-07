@@ -12,8 +12,6 @@
 
 #include <Evo.h>
 
-#include "../../../include/StepVector.h"
-
 
 namespace pcit::clangint{
 

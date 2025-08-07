@@ -21,7 +21,6 @@
 #include "./Printer.h"
 #include "./SingleThreadedWorkQueue.h"
 #include "./StepAlloc.h"
-#include "./StepVector.h"
 #include "./Target.h"
 #include "./ThreadPool.h"
 #include "./ThreadQueue.h"

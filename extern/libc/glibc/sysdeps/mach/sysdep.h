@@ -1,4 +1,4 @@
-/* Copyright (C) 1994-2021 Free Software Foundation, Inc.
+/* Copyright (C) 1994-2025 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -20,6 +20,11 @@
 /* Get the Mach definitions of ENTRY and kernel_trap.  */
 #include <mach/machine/syscall_sw.h>
 
+/* This macro is defined in Mach system headers, but string functions use it
+   with different definitions depending on whether being compiled for
+   wide-characters or not.  */
+#undef P2ALIGN
+
 /* The Mach definitions assume underscores should be prepended to
    symbol names.  Redefine them to do so only when appropriate.  */
 #undef EXT
@@ -30,6 +35,7 @@
 /* For ELF we need to add the `.type' directive to make shared libraries
    work right.  */
 #undef ENTRY
+#undef ENTRY2
 #define ENTRY(name) \
   .globl name; \
   .align ALIGN; \
@@ -44,7 +50,7 @@
 
 #ifndef __ASSEMBLER__
 #define FATAL_PREPARE_INCLUDE <mach/mig_support.h>
-#define FATAL_PREPARE __mig_dealloc_reply_port (MACH_PORT_NULL)
+#define FATAL_PREPARE __mig_dealloc_reply_port (__mig_get_reply_port ())
 #endif
 
 /* sysdeps/mach/MACHINE/sysdep.h should define the following macros.  */
@@ -53,13 +59,6 @@
 #ifndef ENTRY
 #define ENTRY(name) .error ENTRY not defined by sysdeps/mach/MACHINE/sysdep.h
 /* This is not used on all machines.  */
-#endif
-
-/* Set variables ARGC, ARGV, and ENVP for the arguments
-   left on the stack by the microkernel.  */
-#ifndef SNARF_ARGS
-#define SNARF_ARGS(argc, argv, envp)
-#error SNARF_ARGS not defined by sysdeps/mach/MACHINE/sysdep.h
 #endif
 
 /* LOSE can be defined as the `halt' instruction or something

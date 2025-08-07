@@ -4,19 +4,14 @@
  * No warranty is given; refer to the file DISCLAIMER.PD within this package.
  */
 
-#ifdef CRTDLL
-#undef CRTDLL
-#endif
-
 #include <internal.h>
 
 extern int _dowildcard;
 
-#ifdef WPRFLAG
 int __CRTDECL
+#ifdef _UNICODE
 __wsetargv (void)
 #else
-int __CRTDECL
 __setargv (void)
 #endif
 {

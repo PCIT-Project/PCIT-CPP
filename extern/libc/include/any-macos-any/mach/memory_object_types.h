@@ -159,6 +159,12 @@ typedef int             memory_object_copy_strategy_t;
  *	internal.
  */
 
+#define         MEMORY_OBJECT_COPY_DELAY_FORK   6
+/*
+ * ...  Like MEMORY_OBJECT_COPY_DELAY for vm_map_fork() but like
+ *      MEMORY_OBJECT_COPY_NONE otherwise.
+ */
+
 typedef int             memory_object_return_t;
 /* Which pages to return to manager
  *  this time (lock_request) */
@@ -273,6 +279,7 @@ typedef struct memory_object_attr_info  memory_object_attr_info_data_t;
 	                & 0xFF000000) | ((flags) & 0xFFFFFF));
 
 /* leave room for vm_prot bits (0xFF ?) */
+#define MAP_MEM_PROT_MASK            0xFF
 #define MAP_MEM_LEDGER_TAGGED        0x002000 /* object owned by a specific task and ledger */
 #define MAP_MEM_PURGABLE_KERNEL_ONLY 0x004000 /* volatility controlled by kernel */
 #define MAP_MEM_GRAB_SECLUDED   0x008000 /* can grab secluded pages */

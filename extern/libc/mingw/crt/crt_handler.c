@@ -13,16 +13,6 @@
 #include <signal.h>
 #include <stdio.h>
 
-#if defined (_WIN64) && defined (__ia64__)
-#error FIXME: Unsupported __ImageBase implementation.
-#else
-#ifndef _MSC_VER
-#define __ImageBase __MINGW_LSYMBOL(_image_base__)
-#endif
-/* This symbol is defined by the linker.  */
-extern IMAGE_DOS_HEADER __ImageBase;
-#endif
-
 #pragma pack(push,1)
 typedef struct _UNWIND_INFO {
   BYTE VersionAndFlags;
@@ -61,10 +51,6 @@ __mingw_init_ehandler (void)
   if (_FindPESectionByName (".pdata") != NULL)
     return 1;
 
-  /* Allocate # of e tables and entries.  */
-  memset (emu_pdata, 0, sizeof (RUNTIME_FUNCTION) * MAX_PDATA_ENTRIES);
-  memset (emu_xdata, 0, sizeof (UNWIND_INFO) * MAX_PDATA_ENTRIES);
-    
   e = 0;
   /* Fill tables and entries.  */
   while (e < MAX_PDATA_ENTRIES && (pSec = _FindPESectionExec (e)) != NULL)

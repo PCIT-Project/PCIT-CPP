@@ -134,7 +134,7 @@ namespace pcit::panther{
 
 			core::SyncLinearStepAlloc<SavedDeclInfo, DeclInfoID> decl_infos{};
 
-			core::StepVector<std::string> symbol_names{};
+			evo::StepVector<std::string> symbol_names{};
 			std::unordered_map<std::string_view, SymbolInfo> symbol_map{};
 			mutable core::SpinLock symbol_map_lock{};
 

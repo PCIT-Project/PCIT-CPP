@@ -231,7 +231,7 @@ namespace pcit::panther{
 			std::unordered_map<sema::GlobalVar::ID, pir::GlobalVar::ID> global_vars{};
 			mutable core::SpinLock global_vars_lock{};
 
-			core::StepVector<FuncInfo> funcs_info_alloc{};
+			evo::StepVector<FuncInfo> funcs_info_alloc{};
 			std::unordered_map<sema::Func::ID, FuncInfo*> funcs{};
 			mutable core::SpinLock funcs_lock{};
 

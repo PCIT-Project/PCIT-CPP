@@ -12,8 +12,16 @@
 extern "C" {
 #endif
 
-  _CRTIMP void * __cdecl bsearch_s(const void *_Key,const void *_Base,rsize_t _NumOfElements,rsize_t _SizeOfElements,int (__cdecl * _PtFuncCompare)(void *, const void *, const void *), void *_Context);
+#if defined(_DEBUG) && defined(_CRTDBG_MAP_ALLOC)
+#pragma push_macro("_dupenv_s")
+#undef _dupenv_s
+#endif
   _CRTIMP errno_t __cdecl _dupenv_s(char **_PBuffer,size_t *_PBufferSizeInBytes,const char *_VarName);
+#if defined(_DEBUG) && defined(_CRTDBG_MAP_ALLOC)
+#pragma pop_macro("_dupenv_s")
+#endif
+
+  _CRTIMP void * __cdecl bsearch_s(const void *_Key,const void *_Base,rsize_t _NumOfElements,rsize_t _SizeOfElements,int (__cdecl * _PtFuncCompare)(void *, const void *, const void *), void *_Context);
   _CRTIMP errno_t __cdecl getenv_s(size_t *_ReturnSize,char *_DstBuf,rsize_t _DstSize,const char *_VarName);
   __DEFINE_CPP_OVERLOAD_SECURE_FUNC_1_1(errno_t, getenv_s, size_t *, _ReturnSize, char, _Dest, const char *, _VarName)
   _CRTIMP errno_t __cdecl _itoa_s(int _Value,char *_DstBuf,size_t _Size,int _Radix);
@@ -40,6 +48,7 @@ extern "C" {
   _CRTIMP errno_t __cdecl _fcvt_s(char *_DstBuf,size_t _Size,double _Val,int _NumOfDec,int *_PtDec,int *_PtSign);
   _CRTIMP errno_t __cdecl _gcvt_s(char *_DstBuf,size_t _Size,double _Val,int _NumOfDigits);
   _CRTIMP errno_t __cdecl _makepath_s(char *_PathResult,size_t _Size,const char *_Drive,const char *_Dir,const char *_Filename,const char *_Ext);
+  __DEFINE_CPP_OVERLOAD_SECURE_FUNC_0_4(errno_t,_makepath_s,char,_PathResult,const char*,_Drive,const char*,_Dir,const char*,_Filename,const char*,_Ext)
   _CRTIMP errno_t __cdecl _putenv_s(const char *_Name,const char *_Value);
   _CRTIMP errno_t __cdecl _searchenv_s(const char *_Filename,const char *_EnvVar,char *_ResultPath,size_t _SizeInBytes);
 

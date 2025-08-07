@@ -39,7 +39,7 @@ THIS SOFTWARE.
 
 double __strtod (const char *s, char **sp)
 {
-	static FPI fpi = { 53, 1-1023-53+1, 2046-1023-53+1, 1, SI, Int_max };
+	static FPI fpi = { 53, 1-1023-53+1, 2046-1023-53+1, 1, SI, Int_max /*unused*/ };
 	ULong bits[2];
 	Long expo;
 	int k;
@@ -85,8 +85,7 @@ double __cdecl
 __mingw_strtod (const char * __restrict__ src, char ** __restrict__ endptr)
   __attribute__((alias("__strtod")));
 
-#if !(defined(_AMD64_) || defined(__x86_64__) || \
-  defined(_X86_) || defined(__i386__))
+#if __SIZEOF_LONG_DOUBLE__ == __SIZEOF_DOUBLE__
 /* For systems other than x86, where long double == double, provide the
  * long double functions as aliases to __strtod. */
 

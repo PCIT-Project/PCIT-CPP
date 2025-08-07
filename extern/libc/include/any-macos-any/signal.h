@@ -59,11 +59,14 @@
 #define _USER_SIGNAL_H
 
 #include <sys/cdefs.h>
+#include <_bounds.h>
 #include <_types.h>
 #include <sys/signal.h>
 
 #include <sys/_pthread/_pthread_types.h>
 #include <sys/_pthread/_pthread_t.h>
+
+_LIBC_SINGLE_BY_DEFAULT()
 
 #if !defined(_ANSI_SOURCE) && (!defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE))
 extern __const char *__const sys_signame[NSIG];
@@ -99,8 +102,10 @@ int	sigrelse(int);
 void    (* _Nullable sigset(int, void (* _Nullable)(int)))(int);
 int	sigsuspend(const sigset_t *) __DARWIN_ALIAS_C(sigsuspend);
 int	sigwait(const sigset_t * __restrict, int * __restrict) __DARWIN_ALIAS_C(sigwait);
+#if !defined(_POSIX_C_SOURCE) || _POSIX_C_SOURCE >= 200809L || defined(_DARWIN_C_SOURCE)
+void	psignal(int, const char *);
+#endif /*  (!_POSIX_C_SOURCE || _POSIX_C_SOURCE >= 200809L || _DARWIN_C_SOURCE) */
 #if !defined(_POSIX_C_SOURCE) || defined(_DARWIN_C_SOURCE)
-void	psignal(unsigned int, const char *);
 int	sigblock(int);
 int	sigsetmask(int);
 int	sigvec(int, struct sigvec *, struct sigvec *);

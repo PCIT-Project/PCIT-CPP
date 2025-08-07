@@ -243,40 +243,90 @@ namespace pcit::clangint{
 
 
 			auto VisitFunctionDecl(clang::FunctionDecl* func_decl) -> bool {
+				if(func_decl->getDeclContext()->isRecord()){ return true; } // skip members
+
 				// TODO(FUTURE): handle functions properly
-				std::ignore = func_decl;
+
 				return true;
 			}
 
-			auto VisitTypeDecl(clang::TypeDecl* type_decl) -> bool {
-				const clang::Type* type = type_decl->getTypeForDecl();
 
-				if(type == nullptr){ return true; } // skip, handle elsewhere
+			auto VisitTypedefDecl(clang::TypedefDecl* typedef_decl) -> bool {
+				if(typedef_decl->getDeclContext()->isRecord()){ return true; } // skip members
 
-				if(type->isIncompleteType()){ return true; }
-
-				// TODO(FEATURE): handle structs properly
 				
-				// const clang::RecordDecl* record_decl = type->getAsRecordDecl();
-				// if(record_decl == nullptr){ return true; } // skip, handle elsewhere
+				const clang::PresumedLoc presumed_loc =
+					this->ast_context->getSourceManager().getPresumedLoc(typedef_decl->getLocation());
 
-				// bool is_class = false;
-				// if(record_decl->isStruct() == false){
-				// 	if(record_decl->isClass() == false){
-				// 		return true;
-				// 	}else{
-				// 		is_class = true;
-				// 	}
-				// }
+				this->api.addAlias(
+					typedef_decl->getNameAsString(),
+					make_type(typedef_decl->getUnderlyingType(), this->api),
+					std::filesystem::path(std::string(presumed_loc.getFilename())),
+					uint32_t(presumed_loc.getLine()),
+					uint32_t(presumed_loc.getColumn())
+				);
 
-				// const std::string name = type_decl->getNameAsString();
+				return true;
+			}
+
+			auto VisitTypeAliasDecl(clang::TypeAliasDecl* type_alias_decl) -> bool {
+				if(type_alias_decl->getDeclContext()->isRecord()){ return true; } // skip members
+
+
+				const clang::PresumedLoc presumed_loc =
+					this->ast_context->getSourceManager().getPresumedLoc(type_alias_decl->getLocation());
+
+				this->api.addAlias(
+					type_alias_decl->getNameAsString(),
+					make_type(type_alias_decl->getUnderlyingType(), this->api),
+					std::filesystem::path(std::string(presumed_loc.getFilename())),
+					uint32_t(presumed_loc.getLine()),
+					uint32_t(presumed_loc.getColumn())
+				);
+
+				return true;
+			}
+
+
+
+			auto VisitEnumDecl(clang::EnumDecl* enum_decl) -> bool {
+				if(enum_decl->getDeclContext()->isRecord()){ return true; } // skip members
+
+				// const bool is_class = enum_decl->isScopedUsingClassTag();
+
+				// TODO(FUTURE): handle enums properly
+
+				return true;
+			}
+
+
+			auto VisitRecordDecl(clang::RecordDecl* record_decl) -> bool {
+				if(record_decl->getDeclContext()->isRecord()){ return true; } // skip members
+
+				const std::string name = record_decl->getNameAsString();
+				if(name.empty()){ return true; } // skip unnaned types
+
+				if(record_decl->isUnion()){ return this->visit_union(record_decl); }
+
+				bool is_class = false;
+				if(record_decl->isStruct() == false){
+					if(record_decl->isClass() == false){
+						return true;
+					}else{
+						is_class = true;
+					}
+				}
+
+				// TODO(FUTURE): handle structs/classes properly
+
+				// const std::string name = record_decl->getNameAsString();
 
 				// if(name.empty()){
 				// 	evo::log::warning("unnamed type");
 				// 	return true;
 				// }
 
-				// if(type_decl->getParentFunctionOrMethod() != nullptr){
+				// if(record_decl->getParentFunctionOrMethod() != nullptr){
 				// 	evo::log::warning("Scoped type: {}", name);
 				// 	return true;
 				// }
@@ -308,40 +358,11 @@ namespace pcit::clangint{
 			}
 
 
-			auto VisitTypedefDecl(clang::TypedefDecl* typedef_decl) -> bool {
-				if(typedef_decl->getDeclContext()->isRecord()){ // skip members
-					return true;
-				}
-				
-				const clang::PresumedLoc presumed_loc =
-					this->ast_context->getSourceManager().getPresumedLoc(typedef_decl->getLocation());
 
-				this->api.addAlias(
-					typedef_decl->getNameAsString(),
-					make_type(typedef_decl->getUnderlyingType(), this->api),
-					std::filesystem::path(std::string(presumed_loc.getFilename())),
-					uint32_t(presumed_loc.getLine()),
-					uint32_t(presumed_loc.getColumn())
-				);
+			auto visit_union(clang::RecordDecl* union_decl) -> bool {								
+				// TODO(FUTURE): handle unions properly
 
-				return true;
-			}
-
-			auto VisitTypeAliasDecl(clang::TypeAliasDecl* type_alias_decl) -> bool {
-				if(type_alias_decl->getDeclContext()->isRecord()){ // skip members
-					return true;
-				}
-
-				const clang::PresumedLoc presumed_loc =
-					this->ast_context->getSourceManager().getPresumedLoc(type_alias_decl->getLocation());
-
-				this->api.addAlias(
-					type_alias_decl->getNameAsString(),
-					make_type(type_alias_decl->getUnderlyingType(), this->api),
-					std::filesystem::path(std::string(presumed_loc.getFilename())),
-					uint32_t(presumed_loc.getLine()),
-					uint32_t(presumed_loc.getColumn())
-				);
+				std::ignore = union_decl;
 
 				return true;
 			}
@@ -473,10 +494,9 @@ namespace pcit::clangint{
 		std::string_view file_data,
 		evo::Variant<COpts, CPPOpts> opts,
 		core::Target target,
-		DiagnosticList& diagnostic_list
-	) -> evo::Result<API> {
-		auto api = API();
-
+		DiagnosticList& diagnostic_list,
+		API& api
+	) -> evo::Result<> {
 		auto diagnostic_ids = llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(new clang::DiagnosticIDs());
 
 		auto diagnostic_options = clang::DiagnosticOptions();
@@ -515,7 +535,7 @@ namespace pcit::clangint{
 
 		evo::debugAssert(output.empty(), "Clang output not empty");
 
-		return evo::Result<API>(std::move(api));
+		return evo::Result<>();
 	}
 
 

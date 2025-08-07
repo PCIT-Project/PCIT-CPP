@@ -1,5 +1,5 @@
 /* Assembly macros for 64-bit PowerPC.
-   Copyright (C) 2002-2021 Free Software Foundation, Inc.
+   Copyright (C) 2002-2025 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -31,8 +31,9 @@
 #define FRAME_TOC_SAVE		40
 #define FRAME_PARM_SAVE		48
 #else
-#define FRAME_MIN_SIZE		32
-#define FRAME_MIN_SIZE_PARM	96
+#define FRAME_ROP_SAVE		-8
+#define FRAME_MIN_SIZE		48  /* Includes space for the ROP save slot */
+#define FRAME_MIN_SIZE_PARM	112 /* Includes space for the ROP save slot */
 #define FRAME_TOC_SAVE		24
 #define FRAME_PARM_SAVE		32
 #endif
@@ -275,12 +276,14 @@ LT_LABELSUFFIX(name,_name_end): ; \
 /* Allocate frame and save register */
 #define NVOLREG_SAVE \
     stdu r1,-SCV_FRAME_SIZE(r1); \
+    cfi_adjust_cfa_offset(SCV_FRAME_SIZE); \
     std r31,SCV_FRAME_NVOLREG_SAVE(r1); \
-    cfi_adjust_cfa_offset(SCV_FRAME_SIZE);
+    cfi_rel_offset(r31,SCV_FRAME_NVOLREG_SAVE);
 
 /* Restore register and destroy frame */
 #define NVOLREG_RESTORE	\
     ld r31,SCV_FRAME_NVOLREG_SAVE(r1); \
+    cfi_restore(r31); \
     addi r1,r1,SCV_FRAME_SIZE; \
     cfi_adjust_cfa_offset(-SCV_FRAME_SIZE);
 
@@ -331,13 +334,13 @@ LT_LABELSUFFIX(name,_name_end): ; \
 
 #define DO_CALL_SCV \
     mflr r9; \
-    std r9,FRAME_LR_SAVE(r1); \
-    cfi_offset(lr,FRAME_LR_SAVE); \
+    std r9,SCV_FRAME_SIZE+FRAME_LR_SAVE(r1);   \
+    cfi_rel_offset(lr,SCV_FRAME_SIZE+FRAME_LR_SAVE); \
     .machine "push"; \
     .machine "power9"; \
     scv 0; \
     .machine "pop"; \
-    ld r9,FRAME_LR_SAVE(r1); \
+    ld r9,SCV_FRAME_SIZE+FRAME_LR_SAVE(r1);      \
     mtlr r9; \
     cfi_restore(lr);
 
@@ -349,6 +352,25 @@ LT_LABELSUFFIX(name,_name_end): ; \
   .section ".text";				\
   ENTRY (name);					\
   DO_CALL (SYS_ify (syscall_name))
+
+#ifdef SHARED
+# define TAIL_CALL_NO_RETURN(__func) \
+    b JUMPTARGET (NOTOC (__func))
+#else
+# define TAIL_CALL_NO_RETURN(__func) \
+    .ifdef .Local ## __func; \
+    b .Local ## __func; \
+    .else; \
+.Local ## __func: \
+    mflr 0; \
+    std 0,FRAME_LR_SAVE(1); \
+    stdu 1,-FRAME_MIN_SIZE(1); \
+    cfi_adjust_cfa_offset(FRAME_MIN_SIZE); \
+    cfi_offset(lr,FRAME_LR_SAVE); \
+    bl JUMPTARGET(__func); \
+    nop; \
+    .endif
+#endif
 
 #ifdef SHARED
 #define TAIL_CALL_SYSCALL_ERROR \
@@ -467,14 +489,16 @@ LT_LABELSUFFIX(name,_name_end): ; \
 	.tc _rtld_global_ro[TC],_rtld_global_ro
 # endif
 # define __GLRO(rOUT, var, offset)		\
-	ld	rOUT,.LC__ ## var@toc(r2);	\
+	addis	rOUT,r2,.LC__ ## var@toc@ha;	\
+	ld	rOUT,.LC__ ## var@toc@l(rOUT);	\
 	lwz	rOUT,offset(rOUT)
 #else
 # define __GLRO_DEF(var)			\
 .LC__ ## var:					\
 	.tc _ ## var[TC],_ ## var
 # define __GLRO(rOUT, var, offset)		\
-	ld	rOUT,.LC__ ## var@toc(r2);	\
+	addis	rOUT,r2,.LC__ ## var@toc@ha;	\
+	ld	rOUT,.LC__ ## var@toc@l(rOUT);	\
 	lwz	rOUT,0(rOUT)
 #endif
 

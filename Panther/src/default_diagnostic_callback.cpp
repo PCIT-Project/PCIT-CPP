@@ -188,7 +188,15 @@ namespace pcit::panther{
 
 		if(location.lineStart == location.lineEnd){
 			for(uint32_t i = location.collumnStart; i < location.collumnEnd + 1; i+=1){
-				if(line_char_is_tab[i - (location.collumnStart - point_collumn)]){
+				const size_t line_char_is_tab_index = i - (location.collumnStart - point_collumn);
+
+				evo::debugAssert(
+					line_char_is_tab_index <= line_char_is_tab.size(), "attempting to point too far past the end"
+				);
+
+				if(line_char_is_tab_index == line_char_is_tab.size()){
+					pointer_str += '^';
+				}else if(line_char_is_tab[line_char_is_tab_index]){
 					pointer_str += "^^^^";
 				}else{
 					pointer_str += '^';

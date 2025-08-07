@@ -4,17 +4,12 @@
  * No warranty is given; refer to the file DISCLAIMER.PD within this package.
  */
 
-#ifdef CRTDLL
-#undef CRTDLL
-#endif
-
 #include <internal.h>
 
-#ifdef WPRFLAG
 int __CRTDECL
+#ifdef _UNICODE
 _wsetargv (void)
 #else
-int __CRTDECL
 _setargv (void)
 #endif
 {

@@ -1,6 +1,6 @@
 /* Set flags signalling availability of kernel features based on given
    kernel version number.
-   Copyright (C) 1999-2021 Free Software Foundation, Inc.
+   Copyright (C) 1999-2025 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -46,13 +46,17 @@
 #define __ASSUME_STATFS64	1
 
 /* pselect/ppoll were introduced just after 2.6.16-rc1.  On x86_64 and
-   SH this appeared first in 2.6.19-rc1, on ia64 in 2.6.22-rc1.  */
+   SH this appeared first in 2.6.19-rc1.  */
 #define __ASSUME_PSELECT	1
 
 /* Support for inter-process robust mutexes was added in 2.6.17 (but
    some architectures lack futex_atomic_cmpxchg_inatomic in some
    configurations).  */
 #define __ASSUME_SET_ROBUST_LIST	1
+
+/* The termios2 interface was introduced across all architectures except
+   Alpha in kernel 2.6.22. */
+#define __ASSUME_TERMIOS2	1
 
 /* Support for various CLOEXEC and NONBLOCK flags was added in
    2.6.27.  */
@@ -79,6 +83,13 @@
 #define __ASSUME_SENDMMSG_SYSCALL	1
 #define __ASSUME_GETSOCKOPT_SYSCALL	1
 #define __ASSUME_SETSOCKOPT_SYSCALL	1
+#define __ASSUME_BIND_SYSCALL		1
+#define __ASSUME_SOCKET_SYSCALL		1
+#define __ASSUME_SOCKETPAIR_SYSCALL	1
+#define __ASSUME_LISTEN_SYSCALL		1
+#define __ASSUME_SHUTDOWN_SYSCALL	1
+#define __ASSUME_GETSOCKNAME_SYSCALL	1
+#define __ASSUME_GETPEERNAME_SYSCALL	1
 
 /* Support for SysV IPC through wired syscalls.  All supported architectures
    either support ipc syscall and/or all the ipc correspondent syscalls.  */
@@ -139,8 +150,6 @@
 		      unsigned long tls)
 
    The fourth variant is intended to be used as the default for newer ports,
-   Also IA64 uses the third variant but with __NR_clone2 instead of
-   __NR_clone.
 
    The macros names to define the variant used for the architecture is
    similar to kernel:
@@ -149,7 +158,6 @@
    - __ASSUME_CLONE_BACKWARDS2: for variant 2 (s390).
    - __ASSUME_CLONE_BACKWARDS3: for variant 3 (microblaze).
    - __ASSUME_CLONE_DEFAULT: for variant 4.
-   - __ASSUME_CLONE2: for clone2 with variant 3 (ia64).
    */
 
 #define __ASSUME_CLONE_DEFAULT 1
@@ -218,6 +226,39 @@
 # define __ASSUME_FACCESSAT2 1
 #else
 # define __ASSUME_FACCESSAT2 0
+#endif
+
+/* The close_range system call was introduced across all architectures
+   in Linux 5.9.  */
+#if __LINUX_KERNEL_VERSION >= 0x050900
+# define __ASSUME_CLOSE_RANGE 1
+#else
+# define __ASSUME_CLOSE_RANGE 0
+#endif
+
+/* The FUTEX_LOCK_PI2 operation was introduced across all architectures in Linux
+   5.14.  */
+#if __LINUX_KERNEL_VERSION >= 0x050e00
+# define __ASSUME_FUTEX_LOCK_PI2 1
+#else
+# define __ASSUME_FUTEX_LOCK_PI2 0
+#endif
+
+/* The clone3 system call was introduced across on most architectures in
+   Linux 5.3.  Not all ports implements it, so it should be used along
+   HAVE_CLONE3_WRAPPER define.  */
+#if __LINUX_KERNEL_VERSION >= 0x050300
+# define __ASSUME_CLONE3 1
+#else
+# define __ASSUME_CLONE3 0
+#endif
+
+/* The fchmodat2 system call was introduced across all architectures
+   in Linux 6.6.  */
+#if __LINUX_KERNEL_VERSION >= 0x060600
+# define __ASSUME_FCHMODAT2 1
+#else
+# define __ASSUME_FCHMODAT2 0
 #endif
 
 #endif /* kernel-features.h */
