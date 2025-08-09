@@ -5,7 +5,6 @@ workspace "PCIT-CPP"
 
 	configurations{
 		"Debug",
-		"Dev",
 		"Optimize",
 		"Release",
 		"ReleaseDist",
@@ -54,18 +53,6 @@ workspace "PCIT-CPP"
 			"_DEBUG",
 		}
 	filter {}
-
-
-	filter "configurations:Dev"
-		runtime "Debug"
-		symbols "On"
-		optimize "Off"
-
-		defines{
-			"_DEBUG",
-		}
-	filter {}
-
 
 	filter "configurations:Optimize"
 		runtime "Debug" -- TODO: figure out how to have LLVM build with release runtime
@@ -154,19 +141,6 @@ filter "configurations:Debug"
 
 	defines{
 		"PCIT_BUILD_DEBUG",
-		"PCIT_CONFIG_DEBUG",
-		"PCIT_CONFIG_TRACE",
-	}
-
-filter {}
-
-
-filter "configurations:Dev"
-	warnings "High"
-	debugdir (config.location .. "/testing")
-
-	defines{
-		"PCIT_BUILD_DEV",
 		"PCIT_CONFIG_DEBUG",
 	}
 

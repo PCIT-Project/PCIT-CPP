@@ -329,12 +329,6 @@ namespace pcit::panther{
 						"https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md#issues\n"
 				);
 			}
-
-			#if defined(PCIT_BUILD_DEBUG)
-				if(diagnostic.level == Diagnostic::Level::ERROR || diagnostic.level == Diagnostic::Level::FATAL){
-					evo::breakpoint();
-				}
-			#endif
 		};
 	}
 
@@ -369,12 +363,6 @@ namespace pcit::panther{
 					"https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md#issues\n"
 			);
 		}
-
-		#if defined(PCIT_BUILD_DEBUG)
-			if(diagnostic.level == Diagnostic::Level::ERROR || diagnostic.level == Diagnostic::Level::FATAL){
-				evo::breakpoint();
-			}
-		#endif
 	}
 
 

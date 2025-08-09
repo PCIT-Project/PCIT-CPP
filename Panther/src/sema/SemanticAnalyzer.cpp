@@ -130,7 +130,6 @@ namespace pcit::panther{
 			}
 		}
 
-		this->context.trace("Finished semantic analysis of symbol: \"{}\"", this->symbol_proc.ident);
 		this->symbol_proc.setStatusDone();
 	}
 
@@ -542,8 +541,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_non_local_var_decl(const Instruction::NonLocalVarDecl& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
 
-		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_decl: {}", this->symbol_proc.ident); });
-
 		const evo::Result<GlobalVarAttrs> var_attrs =
 			this->analyze_global_var_attrs(instr.var_decl, instr.attribute_params_info);
 		if(var_attrs.isError()){ return Result::ERROR; }
@@ -773,8 +770,6 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_non_local_var_decl_def(const Instruction::NonLocalVarDeclDef& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_decl.ident].getString();
-
-		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_decl_def: {}", this->symbol_proc.ident); });
 
 		const evo::Result<GlobalVarAttrs> var_attrs =
 			this->analyze_global_var_attrs(instr.var_decl, instr.attribute_params_info);
@@ -1133,8 +1128,6 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_alias_decl(const Instruction::AliasDecl& instr) -> Result {
-		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_alias_decl: {}", this->symbol_proc.ident); });
-
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -1214,8 +1207,6 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_alias_def(const Instruction::AliasDef& instr) -> Result {
-		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_var_def: {}", this->symbol_proc.ident); });
-
 		BaseType::Alias& alias_info = this->context.type_manager.getAlias(
 			this->symbol_proc.extra_info.as<SymbolProc::AliasInfo>().alias_id
 		);
@@ -1240,8 +1231,6 @@ namespace pcit::panther{
 
 	template<bool IS_INSTANTIATION>
 	auto SemanticAnalyzer::instr_struct_decl(const Instruction::StructDecl<IS_INSTANTIATION>& instr) -> Result {
-		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_struct_decl: {}", this->symbol_proc.ident); });
-
 		const evo::Result<StructAttrs> struct_attrs =
 			this->analyze_struct_attrs(instr.struct_decl, instr.attribute_params_info);
 		if(struct_attrs.isError()){ return Result::ERROR; }
@@ -1327,8 +1316,6 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_struct_def() -> Result {
-		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_struct_def: {}", this->symbol_proc.ident); });
-
 		this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>();
 
 
@@ -1370,11 +1357,6 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_template_struct(const Instruction::TemplateStruct& instr) -> Result {
-		EVO_DEFER([&](){
-			this->context.trace("SemanticAnalyzer::instr_template_struct: {}", this->symbol_proc.ident);
-		});
-
-
 		size_t minimum_num_template_args = 0;
 		auto params = evo::SmallVector<BaseType::StructTemplate::Param>();
 
@@ -1528,8 +1510,6 @@ namespace pcit::panther{
 
 	template<bool IS_INSTANTIATION>
 	auto SemanticAnalyzer::instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result {
-		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_func_decl: {}", this->symbol_proc.ident); });
-
 		const evo::Result<FuncAttrs> func_attrs =
 			this->analyze_func_attrs(instr.func_decl, instr.attribute_params_info);
 		if(func_attrs.isError()){ return Result::ERROR; }
@@ -2150,8 +2130,6 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_func_def(const Instruction::FuncDef& instr) -> Result {
-		EVO_DEFER([&](){ this->context.trace("SemanticAnalyzer::instr_func_def: {}", this->symbol_proc.ident); });
-
 		sema::Func& current_func = this->get_current_func();
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
@@ -2377,11 +2355,6 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_template_func_begin(const Instruction::TemplateFuncBegin& instr) -> Result {
-		EVO_DEFER([&](){
-			this->context.trace("SemanticAnalyzer::instr_template_func_begin: {}", this->symbol_proc.ident);
-		});
-
-
 		if(this->source.getTokenBuffer()[instr.func_decl.name].kind() != Token::Kind::IDENT){
 			this->emit_error(
 				Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
@@ -2391,7 +2364,6 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 		
-
 
 		size_t minimum_num_template_args = 0;
 		auto template_params = evo::SmallVector<sema::TemplatedFunc::TemplateParam>();
@@ -9035,12 +9007,24 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_THIS: {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.ast_type,
-					"Type [This] is unimplemented"
+				const std::optional<sema::ScopeManager::Scope::ObjectScope> current_type_scope = 
+					this->scope.getCurrentTypeScopeIfExists();
+
+				if(current_type_scope.has_value() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_TYPE_SCOPE,
+						instr.ast_type.base,
+						"Type \"This\" not in type scope"
+					);
+					return Result::ERROR;
+				}
+
+				const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(BaseType::ID(current_type_scope->as<BaseType::Struct::ID>()))
 				);
-				return Result::ERROR;
+
+				this->return_type(instr.output, TypeInfo::VoidableID(current_type_id));
+				return Result::SUCCESS;
 			} break;
 
 			case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
@@ -9062,11 +9046,11 @@ namespace pcit::panther{
 			} break;
 
 
-			case Token::Kind::TYPE_TYPE: {
+			case Token::Kind::KEYWORD_TYPE: {
 				this->emit_error(
 					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
 					instr.ast_type,
-					"Type \"Type\" may only be used in a template pack declaration"
+					"Type \"type\" may only be used in a template pack declaration"
 				);
 				return Result::ERROR;
 			} break;

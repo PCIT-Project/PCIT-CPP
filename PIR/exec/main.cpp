@@ -70,8 +70,6 @@ auto main(int argc, const char* argv[]) -> int {
 
 	#if defined(PCIT_BUILD_DEBUG)
 		printer.printlnMagenta("v{} (debug)", pcit::core::version);
-	#elif defined(PCIT_BUILD_DEV)
-		printer.printlnMagenta("v{} (dev)", pcit::core::version);
 	#elif defined(PCIT_BUILD_OPTIMIZE)
 		printer.printlnMagenta("v{} (optimize)", pcit::core::version);
 	#elif defined(PCIT_BUILD_RELEASE)

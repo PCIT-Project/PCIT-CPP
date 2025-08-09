@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.143.0"></a>
+## v0.0.143.0
+
+### Panther
+- Added type `This`
+- Changed TypeID converter from `Type(...{EXPR}...)` to `type(...{EXPR}...)`
+
+### Misc
+- Removed build mode "Debug"
+- Renamed build mode "Dev" to "Debug"
+
+
+<!---------------------------------->
 <a name="v0.0.142.1"></a>
 ## v0.0.142.1
 

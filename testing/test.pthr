@@ -2,10 +2,18 @@
 type Vec2 = struct {
 	var x: Int;
 	var y: Int;
+
+	func add = (this, rhs: This) #rt -> This {
+		return new This{
+			x = this.x + rhs.x,
+			y = this.y + rhs.y,
+		};
+	}
 }
 
 
-func entry = () #entry -> UI8 {
+
+func entry = () #entry -> type(@getTypeID<{UI8}>()) {
 	// const int: Int = 12;
 	var vec: Vec2? = new Vec2{
 		x = 12,

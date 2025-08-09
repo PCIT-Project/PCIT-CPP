@@ -252,26 +252,6 @@ namespace pcit::panther{
 			}
 
 
-			///////////////////////////////////
-			// internal debug
-
-			auto trace([[maybe_unused]] std::string_view message) -> void {
-				#if defined(PCIT_BUILD_DEBUG)
-					const auto lock_guard = std::lock_guard(this->diagnostic_callback_mutex);
-					evo::log::trace(message);
-				#endif
-			}
-
-			template<class... Args>
-			auto trace([[maybe_unused]] std::format_string<Args...> fmt, [[maybe_unused]] Args&&... args)
-			-> void {
-				#if defined(PCIT_BUILD_DEBUG)
-					const auto lock_guard = std::lock_guard(this->diagnostic_callback_mutex);
-					evo::log::trace(fmt, std::forward<decltype(args)>(args)...);
-				#endif
-			}
-
-
 		private:
 			EVO_NODISCARD auto load_source(
 				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id

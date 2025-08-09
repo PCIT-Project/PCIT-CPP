@@ -48,7 +48,6 @@ namespace pcit::panther{
 				// types
 
 				TYPE_VOID,
-				TYPE_TYPE,
 				TYPE_THIS,
 
 				TYPE_INT,
@@ -421,7 +420,6 @@ namespace pcit::panther{
 					// types
 
 					break; case Kind::TYPE_VOID:                return "Void";
-					break; case Kind::TYPE_TYPE:                return "Type";
 					break; case Kind::TYPE_THIS:                return "This";
 
 					break; case Kind::TYPE_INT:                 return "Int";

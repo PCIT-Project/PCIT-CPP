@@ -1002,7 +1002,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_LONG_DOUBLE:
 				break;
 
-			case Token::Kind::TYPE_TYPE: {
+			case Token::Kind::KEYWORD_TYPE: {
 				if(this->reader[this->reader.peek(1)].kind() == Token::lookupKind("(")){
 					is_primitive = false;
 				}
@@ -1082,8 +1082,8 @@ namespace pcit::panther{
 					return Result(AST::Node(AST::Kind::TYPE_DEDUCER, this->reader.next()));
 				}
 
-			}else if(this->reader[start_location].kind() == Token::Kind::TYPE_TYPE){
-				if(this->assert_token_fail(Token::Kind::TYPE_TYPE)){ return Result(Result::Code::ERROR); }
+			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_TYPE){
+				if(this->assert_token_fail(Token::Kind::KEYWORD_TYPE)){ return Result(Result::Code::ERROR); }
 				if(this->assert_token_fail(Token::lookupKind("("))){ return Result(Result::Code::ERROR); }
 
 				const Result type_id_expr = this->parse_expr();

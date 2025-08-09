@@ -84,8 +84,6 @@ namespace pcit::panther{
 
 		this->symbol_proc_infos.pop_back();
 
-		this->context.trace("Finished building symbol proc of \"{}\"", symbol_ident.value());
-
 		return symbol_proc_id;
 	}
 
@@ -148,10 +146,6 @@ namespace pcit::panther{
 		symbol_proc.struct_instantiations.resize(this->get_current_symbol().num_struct_instantiations);
 
 		this->symbol_proc_infos.pop_back();
-
-		this->context.trace(
-			"Finished building template instantiation symbol proc of \"{}\"", template_symbol_proc.ident
-		);
 
 		return symbol_proc_id;
 	}
@@ -307,10 +301,6 @@ namespace pcit::panther{
 		symbol_proc.struct_instantiations.resize(this->get_current_symbol().num_struct_instantiations);
 
 		this->symbol_proc_infos.pop_back();
-
-		this->context.trace(
-			"Finished building template instantiation symbol proc of \"{}\"", template_symbol_proc.ident
-		);
 
 
 		return symbol_proc_id;
@@ -2591,7 +2581,7 @@ namespace pcit::panther{
 			auto param_type = std::optional<SymbolProc::TypeID>();
 			if(
 				param_ast_type.base.kind() != AST::Kind::PRIMITIVE_TYPE 
-				|| token_buffer[ast_buffer.getPrimitiveType(param_ast_type.base)].kind() != Token::Kind::TYPE_TYPE
+				|| token_buffer[ast_buffer.getPrimitiveType(param_ast_type.base)].kind() != Token::Kind::KEYWORD_TYPE
 			){
 				const evo::Result<SymbolProc::TypeID> param_type_res = this->analyze_type<false>(param_ast_type);
 				if(param_type_res.isError()){ return evo::resultError; }

@@ -71,7 +71,7 @@ namespace pcit::panther{
 			}
 
 			auto symbol_proc_done() -> void {
-				#if defined(PCIT_BUILD_DEBUG)
+				#if defined(PCIT_CONFIG_DEBUG)
 					evo::debugAssert(this->num_procs_not_done.fetch_sub(1) > 0, "Already completed all symbols");
 				#else
 					this->num_procs_not_done -= 1;
@@ -83,7 +83,7 @@ namespace pcit::panther{
 			}
 
 			auto symbol_proc_unsuspended() -> void {
-				#if defined(PCIT_BUILD_DEBUG)
+				#if defined(PCIT_CONFIG_DEBUG)
 					evo::debugAssert(this->num_procs_suspended.fetch_sub(1) > 0, "No symbols currently suspended");
 				#else
 					this->num_procs_suspended -= 1;

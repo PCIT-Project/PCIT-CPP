@@ -824,10 +824,7 @@ namespace pcit::panther{
 		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
 		if(new_source.isError()){ return; }
 
-		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
 		if(panther::tokenize(*this, new_source.value()).isError()){ return; }
-		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 	}
 
 
@@ -836,13 +833,8 @@ namespace pcit::panther{
 		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
 		if(new_source.isError()){ return; }
 
-		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
 		if(panther::tokenize(*this, new_source.value()).isError()){ return; }
-		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
 		if(panther::parse(*this, new_source.value()).isError()){ return; }
-		this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
 	}
 
 	auto Context::build_symbol_procs_impl(
@@ -851,18 +843,9 @@ namespace pcit::panther{
 		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), compilation_config_id);
 		if(new_source.isError()){ return evo::resultError; }
 
-		this->trace("Loaded file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
 		if(panther::tokenize(*this, new_source.value()).isError()){ return evo::resultError; }
-		this->trace("Tokenized file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
 		if(panther::parse(*this, new_source.value()).isError()){ return evo::resultError; }
-		this->trace("Parsed file: \"{}\"", this->source_manager[new_source.value()].getPath().string());
-
 		if(panther::build_symbol_procs(*this, new_source.value()).isError()){ return evo::resultError; }
-		this->trace(
-			"Built Symbol Processes of file: \"{}\"", this->source_manager[new_source.value()].getPath().string()
-		);
 
 		return new_source.value();
 	}
