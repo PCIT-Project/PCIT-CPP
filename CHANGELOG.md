@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.143.1"></a>
+## v0.0.143.1
+
+### Panther
+- Fixed semantic analysis of automatic dereferencing accessor being considered ephemeral when it should have been concrete
+- Fixed implicit conversion of fluid values to optionals
+
+
+<!---------------------------------->
 <a name="v0.0.143.0"></a>
 ## v0.0.143.0
 
@@ -19,7 +28,7 @@
 
 ### Panther
 - Fixed crashing when compiling C/C++ code
-- Fixed crasing in default diagnostic callback for Clang errors that point to after the code line
+- Fixed crashing in default diagnostic callback for Clang errors that point to after the code line
 
 ### Misc
 - Updated LibC

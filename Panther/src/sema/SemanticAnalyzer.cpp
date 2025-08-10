@@ -8811,7 +8811,7 @@ namespace pcit::panther{
 
 				if(member_ident_str == rhs_ident_str){
 					const TermInfo::ValueCategory value_category = [&](){
-						if(lhs.is_ephemeral()){ return lhs.value_category; }
+						if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
 
 						if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
 							return TermInfo::ValueCategory::CONCRETE_CONST;
@@ -13265,10 +13265,8 @@ namespace pcit::panther{
 				const TypeInfo& expected_type_info = 
 					type_manager.getTypeInfo(actual_expected_type_id);
 
-				if(
-					expected_type_info.qualifiers().empty() == false || 
-					expected_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
-				){
+
+				if(expected_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
 					if constexpr(MAY_EMIT_ERROR){
 						if(expected_type_info.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER){
 							// TODO(FUTURE): better messaging
@@ -13285,6 +13283,24 @@ namespace pcit::panther{
 						}
 					}
 					return TypeCheckInfo::fail();
+				}
+
+
+				bool is_implicit_conversion_to_optional = false;
+				if(expected_type_info.qualifiers().empty() == false){
+					if(
+						expected_type_info.qualifiers().back().isOptional
+						&& expected_type_info.qualifiers().back().isPtr == false
+					){ // is optional not pointer
+						is_implicit_conversion_to_optional = true;;
+					}else{
+						if constexpr(MAY_EMIT_ERROR){
+							this->error_type_mismatch(
+								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+							);
+						}
+						return TypeCheckInfo::fail();
+					}
 				}
 
 				const BaseType::Primitive::ID expected_type_primitive_id =
@@ -13475,6 +13491,14 @@ namespace pcit::panther{
 				if constexpr(MAY_IMPLICITLY_CONVERT){
 					got_expr.value_category = TermInfo::ValueCategory::EPHEMERAL;
 					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+
+					if(is_implicit_conversion_to_optional){
+						got_expr.getExpr() = sema::Expr(
+							this->context.sema_buffer.createImplicitConversionToOptional(
+								got_expr.getExpr(), expected_type_id
+							)
+						);
+					}
 				}
 
 				return TypeCheckInfo::success(true);
