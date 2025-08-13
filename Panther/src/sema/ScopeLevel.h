@@ -64,6 +64,12 @@ namespace pcit::panther::sema{
 			};
 			struct MemberVarFlag{};
 
+			struct UnionField{
+				Token::ID location;
+				uint32_t field_index;
+			};
+			struct UnionFieldFlag{};
+
 			using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
 
 			using IdentID = evo::Variant<
@@ -80,12 +86,14 @@ namespace pcit::panther::sema{
 				BaseType::AliasID,
 				BaseType::DistinctAliasID,
 				BaseType::StructID,
+				BaseType::UnionID,
 				BaseType::InterfaceID,
 				sema::TemplatedStructID,
 				TemplateTypeParam,
 				TemplateExprParam,
 				DeducedType,
-				MemberVar
+				MemberVar,
+				UnionField
 			>;
 
 			using NoLabelNode = std::monostate;
@@ -159,6 +167,7 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::DistinctAliasID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::StructID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::UnionID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(
@@ -170,6 +179,9 @@ namespace pcit::panther::sema{
 				std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, DeducedTypeFlag
 			) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, Token::ID location, MemberVarFlag) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident, Token::ID location, uint32_t field_index, UnionFieldFlag
+			) -> AddIdentResult;
 
 
 

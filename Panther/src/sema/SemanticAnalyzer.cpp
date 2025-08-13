@@ -134,400 +134,462 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::analyze_instr(const Instruction& instruction) -> Result {
-		return instruction.visit([&](const auto& instr) -> Result {
-			using InstrType = std::decay_t<decltype(instr)>;
-
-
-			if constexpr(std::is_same<InstrType, Instruction::SuspendSymbolProc>()){
+	auto SemanticAnalyzer::analyze_instr(const Instruction& instr) -> Result {
+		switch(instr.kind()){
+			case Instruction::Kind::SUSPEND_SYMBOL_PROC:
 				return this->instr_suspend_symbol_proc();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::NonLocalVarDecl>()){
-				return this->instr_non_local_var_decl(instr);
+			case Instruction::Kind::NON_LOCAL_VAR_DECL:
+				return this->instr_non_local_var_decl(this->context.symbol_proc_manager.getNonLocalVarDecl(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::NonLocalVarDef>()){
-				return this->instr_non_local_var_def(instr);
+			case Instruction::Kind::NON_LOCAL_VAR_DEF:
+				return this->instr_non_local_var_def(this->context.symbol_proc_manager.getNonLocalVarDef(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::NonLocalVarDeclDef>()){
-				return this->instr_non_local_var_decl_def(instr);
+			case Instruction::Kind::NON_LOCAL_VAR_DECL_DEF:
+				return this->instr_non_local_var_decl_def(
+					this->context.symbol_proc_manager.getNonLocalVarDeclDef(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::WhenCond>()){
-				return this->instr_when_cond(instr);
+			case Instruction::Kind::WHEN_COND:
+				return this->instr_when_cond(this->context.symbol_proc_manager.getWhenCond(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::AliasDecl>()){
-				return this->instr_alias_decl(instr);
+			case Instruction::Kind::ALIAS_DECL:
+				return this->instr_alias_decl(this->context.symbol_proc_manager.getAliasDecl(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::AliasDef>()){
-				return this->instr_alias_def(instr);
+			case Instruction::Kind::ALIAS_DEF:
+				return this->instr_alias_def(this->context.symbol_proc_manager.getAliasDef(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::StructDecl<false>>()){
-				return this->instr_struct_decl<false>(instr);
+			case Instruction::Kind::STRUCT_DECL_INSTANTIATION:
+				return this->instr_struct_decl<true>(
+					this->context.symbol_proc_manager.getStructDeclInstatiation(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::StructDecl<true>>()){
-				return this->instr_struct_decl<true>(instr);
+			case Instruction::Kind::STRUCT_DECL:
+				return this->instr_struct_decl<false>(this->context.symbol_proc_manager.getStructDecl(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::StructDef>()){
+			case Instruction::Kind::STRUCT_DEF:
 				return this->instr_struct_def();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplateStruct>()){
-				return this->instr_template_struct(instr);
+			case Instruction::Kind::TEMPLATE_STRUCT:
+				return this->instr_template_struct(this->context.symbol_proc_manager.getTemplateStruct(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncDeclExtractDeducersIfNeeded>()){
-				return this->instr_func_decl_extract_deducers_if_needed(instr);
+			case Instruction::Kind::UNION_DECL:
+				return this->instr_union_decl(this->context.symbol_proc_manager.getUnionDecl(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncDecl<true>>()){
-				return this->instr_func_decl<true>(instr);
+			case Instruction::Kind::UNION_ADD_FIELDS:
+				return this->instr_union_add_fields(this->context.symbol_proc_manager.getUnionAddFields(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncDecl<false>>()){
-				return this->instr_func_decl<false>(instr);
+			case Instruction::Kind::UNION_DEF:
+				return this->instr_union_def();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncPreBody>()){
-				return this->instr_func_pre_body(instr);
+			case Instruction::Kind::FUNC_DECL_EXTRACT_DEDUCERS_IF_NEEDED:
+				return this->instr_func_decl_extract_deducers_if_needed(
+					this->context.symbol_proc_manager.getFuncDeclExtractDeducersIfNeeded(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncDef>()){
-				return this->instr_func_def(instr);
+			case Instruction::Kind::FUNC_DECL_INSTANTIATION:
+				return this->instr_func_decl<true>(this->context.symbol_proc_manager.getFuncDeclInstantiation(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncPrepareConstexprPIRIfNeeded>()){
-				return this->instr_func_prepare_constexpr_pir_if_needed(instr);
+			case Instruction::Kind::FUNC_DECL:
+				return this->instr_func_decl<false>(this->context.symbol_proc_manager.getFuncDecl(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncConstexprPIRReadyIfNeeded>()){
+			case Instruction::Kind::FUNC_PRE_BODY:
+				return this->instr_func_pre_body(this->context.symbol_proc_manager.getFuncPreBody(instr));
+
+			case Instruction::Kind::FUNC_DEF:
+				return this->instr_func_def(this->context.symbol_proc_manager.getFuncDef(instr));
+
+			case Instruction::Kind::FUNC_PREPARE_CONSTEXPR_PIR_IF_NEEDED:
+				return this->instr_func_prepare_constexpr_pir_if_needed(
+					this->context.symbol_proc_manager.getFuncPrepareConstexprPIRIfNeeded(instr)
+				);
+
+			case Instruction::Kind::FUNC_CONSTEXPR_PIR_READY_IF_NEEDED:
 				return this->instr_func_constexpr_pir_ready_if_needed();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplateFuncBegin>()){
-				return this->instr_template_func_begin(instr);
+			case Instruction::Kind::TEMPLATE_FUNC_BEGIN:
+				return this->instr_template_func_begin(this->context.symbol_proc_manager.getTemplateFuncBegin(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplateFuncCheckParamIsInterface>()){
-				return this->instr_template_func_check_param_is_interface(instr);
+			case Instruction::Kind::TEMPLATE_FUNC_CHECK_PARAM_IS_INTERFACE:
+				return this->instr_template_func_check_param_is_interface(
+					this->context.symbol_proc_manager.getTemplateFuncCheckParamIsInterface(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplateFuncSetParamIsDeducer>()){
-				return this->instr_template_set_param_is_deducer(instr);
+			case Instruction::Kind::TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER:
+				return this->instr_template_set_param_is_deducer(
+					this->context.symbol_proc_manager.getTemplateFuncSetParamIsDeducer(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplateFuncEnd>()){
-				return this->instr_template_func_end(instr);
+			case Instruction::Kind::TEMPLATE_FUNC_END:
+				return this->instr_template_func_end(this->context.symbol_proc_manager.getTemplateFuncEnd(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::InterfaceDecl>()){
-				return this->instr_interface_decl(instr);
+			case Instruction::Kind::INTERFACE_DECL:
+				return this->instr_interface_decl(this->context.symbol_proc_manager.getInterfaceDecl(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::InterfaceDef>()){
+			case Instruction::Kind::INTERFACE_DEF:
 				return this->instr_interface_def();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::InterfaceFuncDef>()){
-				return this->instr_interface_func_def(instr);
+			case Instruction::Kind::INTERFACE_FUNC_DEF:
+				return this->instr_interface_func_def(this->context.symbol_proc_manager.getInterfaceFuncDef(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::InterfaceImplDecl>()){
-				return this->instr_interface_impl_decl(instr);
+			case Instruction::Kind::INTERFACE_IMPL_DECL:
+				return this->instr_interface_impl_decl(this->context.symbol_proc_manager.getInterfaceImplDecl(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::InterfaceImplMethodLookup>()){
-				return this->instr_interface_impl_method_lookup(instr);
+			case Instruction::Kind::INTERFACE_IMPL_METHOD_LOOKUP:
+				return this->instr_interface_impl_method_lookup(
+					this->context.symbol_proc_manager.getInterfaceImplMethodLookup(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::InterfaceImplDef>()){
-				return this->instr_interface_impl_def(instr);
+			case Instruction::Kind::INTERFACE_IMPL_DEF:
+				return this->instr_interface_impl_def(this->context.symbol_proc_manager.getInterfaceImplDef(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::InterfaceImplConstexprPIR>()){
+			case Instruction::Kind::INTERFACE_IMPL_CONSTEXPR_PIR:
 				return this->instr_interface_impl_constexpr_pir();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::LocalVar>()){
-				return this->instr_local_var(instr);
+			case Instruction::Kind::LOCAL_VAR:
+				return this->instr_local_var(this->context.symbol_proc_manager.getLocalVar(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::LocalAlias>()){
-				return this->instr_local_alias(instr);
+			case Instruction::Kind::LOCAL_ALIAS:
+				return this->instr_local_alias(this->context.symbol_proc_manager.getLocalAlias(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Return>()){
-				return this->instr_return(instr);
+			case Instruction::Kind::RETURN:
+				return this->instr_return(this->context.symbol_proc_manager.getReturn(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::LabeledReturn>()){
-				return this->instr_labeled_return(instr);
+			case Instruction::Kind::LABELED_RETURN:
+				return this->instr_labeled_return(this->context.symbol_proc_manager.getLabeledReturn(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Error>()){
-				return this->instr_error(instr);
+			case Instruction::Kind::ERROR:
+				return this->instr_error(this->context.symbol_proc_manager.getError(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Unreachable>()){
-				return this->instr_unreachable(instr);
+			case Instruction::Kind::UNREACHABLE:
+				return this->instr_unreachable(this->context.symbol_proc_manager.getUnreachable(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Break>()){
-				return this->instr_break(instr);
+			case Instruction::Kind::BREAK:
+				return this->instr_break(this->context.symbol_proc_manager.getBreak(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Continue>()){
-				return this->instr_continue(instr);
+			case Instruction::Kind::CONTINUE:
+				return this->instr_continue(this->context.symbol_proc_manager.getContinue(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::BeginCond>()){
-				return this->instr_begin_cond(instr);
+			case Instruction::Kind::BEGIN_COND:
+				return this->instr_begin_cond(this->context.symbol_proc_manager.getBeginCond(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::CondNoElse>()){
+			case Instruction::Kind::COND_NO_ELSE:
 				return this->instr_cond_no_else();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::CondElse>()){
+			case Instruction::Kind::COND_ELSE:
 				return this->instr_cond_else();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::CondElseIf>()){
+			case Instruction::Kind::COND_ELSE_IF:
 				return this->instr_cond_else_if();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::EndCond>()){
+			case Instruction::Kind::END_COND:
 				return this->instr_end_cond();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::EndCondSet>()){
+			case Instruction::Kind::END_COND_SET:
 				return this->instr_end_cond_set();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::BeginLocalWhenCond>()){
-				return this->instr_begin_local_when_cond(instr);
+			case Instruction::Kind::BEGIN_LOCAL_WHEN_COND:
+				return this->instr_begin_local_when_cond(
+					this->context.symbol_proc_manager.getBeginLocalWhenCond(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::EndLocalWhenCond>()){
-				return this->instr_end_local_when_cond(instr);
+			case Instruction::Kind::END_LOCAL_WHEN_COND:
+				return this->instr_end_local_when_cond(this->context.symbol_proc_manager.getEndLocalWhenCond(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::BeginWhile>()){
-				return this->instr_begin_while(instr);
+			case Instruction::Kind::BEGIN_WHILE:
+				return this->instr_begin_while(this->context.symbol_proc_manager.getBeginWhile(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::EndWhile>()){
+			case Instruction::Kind::END_WHILE:
 				return this->instr_end_while();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::BeginDefer>()){
-				return this->instr_begin_defer(instr);
+			case Instruction::Kind::BEGIN_DEFER:
+				return this->instr_begin_defer(this->context.symbol_proc_manager.getBeginDefer(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::EndDefer>()){
+			case Instruction::Kind::END_DEFER:
 				return this->instr_end_defer();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::BeginStmtBlock>()){
-				return this->instr_begin_stmt_block(instr);
+			case Instruction::Kind::BEGIN_STMT_BLOCK:
+				return this->instr_begin_stmt_block(this->context.symbol_proc_manager.getBeginStmtBlock(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::EndStmtBlock>()){
+			case Instruction::Kind::END_STMT_BLOCK:
 				return this->instr_end_stmt_block();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCall>()){
-				return this->instr_func_call(instr);
+			case Instruction::Kind::FUNC_CALL:
+				return this->instr_func_call(this->context.symbol_proc_manager.getFuncCall(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Assignment>()){
-				return this->instr_assignment(instr);
+			case Instruction::Kind::ASSIGNMENT:
+				return this->instr_assignment(this->context.symbol_proc_manager.getAssignment(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::MultiAssign>()){
-				return this->instr_multi_assign(instr);
+			case Instruction::Kind::MULTI_ASSIGN:
+				return this->instr_multi_assign(this->context.symbol_proc_manager.getMultiAssign(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::DiscardingAssignment>()){
-				return this->instr_discarding_assignment(instr);
+			case Instruction::Kind::DISCARDING_ASSIGNMENT:
+				return this->instr_discarding_assignment(
+					this->context.symbol_proc_manager.getDiscardingAssignment(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TypeToTerm>()){
-				return this->instr_type_to_term(instr);
+			case Instruction::Kind::TYPE_TO_TERM:
+				return this->instr_type_to_term(this->context.symbol_proc_manager.getTypeToTerm(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::RequireThisDef>()){
+			case Instruction::Kind::REQUIRE_THIS_DEF:
 				return this->instr_require_this_def();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::WaitOnSubSymbolProcDef>()){
-				return this->instr_wait_on_sub_symbol_proc_def(instr);
+			case Instruction::Kind::WAIT_ON_SUB_SYMBOL_PROC_DEF:
+				return this->instr_wait_on_sub_symbol_proc_def(
+					this->context.symbol_proc_manager.getWaitOnSubSymbolProcDef(instr)
+				);
 
-			// }else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<true, true>>()){
-			// 	return this->instr_func_call_expr<true, true>(instr);
+			case Instruction::Kind::FUNC_CALL_EXPR_CONSTEXPR_ERRORS:
+				return this->instr_func_call_expr<true, true>(
+					this->context.symbol_proc_manager.getFuncCallExprConstexprErrors(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<true, false>>()){
-				return this->instr_func_call_expr<true, false>(instr);
+			case Instruction::Kind::FUNC_CALL_EXPR_CONSTEXPR:
+				return this->instr_func_call_expr<true, false>(
+					this->context.symbol_proc_manager.getFuncCallExprConstexpr(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<false, true>>()){
-				return this->instr_func_call_expr<false, true>(instr);
+			case Instruction::Kind::FUNC_CALL_EXPR_ERRORS:
+				return this->instr_func_call_expr<false, true>(
+					this->context.symbol_proc_manager.getFuncCallExprErrors(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::FuncCallExpr<false, false>>()){
-				return this->instr_func_call_expr<false, false>(instr);
+			case Instruction::Kind::FUNC_CALL_EXPR:
+				return this->instr_func_call_expr<false, false>(
+					this->context.symbol_proc_manager.getFuncCallExpr(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::ConstexprFuncCallRun>()){
-				return this->instr_constexpr_func_call_run(instr);
+			case Instruction::Kind::CONSTEXPR_FUNC_CALL_RUN:
+				return this->instr_constexpr_func_call_run(
+					this->context.symbol_proc_manager.getConstexprFuncCallRun(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Import<Instruction::Language::PANTHER>>()){
-				return this->instr_import<Instruction::Language::PANTHER>(instr);
+			case Instruction::Kind::IMPORT_PANTHER:
+				return this->instr_import<Instruction::Language::PANTHER>(
+					this->context.symbol_proc_manager.getImportPanther(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Import<Instruction::Language::C>>()){
-				return this->instr_import<Instruction::Language::C>(instr);
+			case Instruction::Kind::IMPORT_C:
+				return this->instr_import<Instruction::Language::C>(
+					this->context.symbol_proc_manager.getImportC(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Import<Instruction::Language::CPP>>()){
-				return this->instr_import<Instruction::Language::CPP>(instr);
+			case Instruction::Kind::IMPORT_CPP:
+				return this->instr_import<Instruction::Language::CPP>(
+					this->context.symbol_proc_manager.getImportCPP(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplateIntrinsicFuncCall<true>>()){
-				return this->instr_template_intrinsic_func_call<true>(instr);
+			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR:
+				return this->instr_template_intrinsic_func_call<true>(
+					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCallConstexpr(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplateIntrinsicFuncCall<false>>()){
-				return this->instr_template_intrinsic_func_call<false>(instr);
+			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL:
+				return this->instr_template_intrinsic_func_call<false>(
+					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCall(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Indexer<true>>()){
-				return this->instr_indexer<true>(instr);
+			case Instruction::Kind::INDEXER_CONSTEXPR:
+				return this->instr_indexer<true>(this->context.symbol_proc_manager.getIndexerConstexpr(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Indexer<false>>()){
-				return this->instr_indexer<false>(instr);
+			case Instruction::Kind::INDEXER:
+				return this->instr_indexer<false>(this->context.symbol_proc_manager.getIndexer(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTerm>()){
-				return this->instr_templated_term(instr);
+			case Instruction::Kind::TEMPLATED_TERM:
+				return this->instr_templated_term(this->context.symbol_proc_manager.getTemplatedTerm(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTermWait<true>>()){
-				return this->instr_templated_term_wait<true>(instr);
+			case Instruction::Kind::TEMPLATED_TERM_WAIT_FOR_DEF:
+				return this->instr_templated_term_wait<true>(
+					this->context.symbol_proc_manager.getTemplatedTermWaitForDef(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TemplatedTermWait<false>>()){
-				return this->instr_templated_term_wait<false>(instr);
+			case Instruction::Kind::TEMPLATED_TERM_WAIT_FOR_DECL:
+				return this->instr_templated_term_wait<false>(
+					this->context.symbol_proc_manager.getTemplatedTermWaitForDecl(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PushTemplateDeclInstantiationTypesScope>()){
+			case Instruction::Kind::PUSH_TEMPLATE_DECL_INSTANTIATION_TYPES_SCOPE:
 				return this->instr_push_template_decl_instantiation_types_scope();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PopTemplateDeclInstantiationTypesScope>()){
+			case Instruction::Kind::POP_TEMPLATE_DECL_INSTANTIATION_TYPES_SCOPE:
 				return this->instr_pop_template_decl_instantiation_types_scope();
 
-			}else if constexpr(std::is_same<InstrType, Instruction::AddTemplateDeclInstantiationType>()){
-				return this->instr_add_template_decl_instantiation_type(instr);
+			case Instruction::Kind::ADD_TEMPLATE_DECL_INSTANTIATION_TYPE:
+				return this->instr_add_template_decl_instantiation_type(
+					this->context.symbol_proc_manager.getAddTemplateDeclInstantiationType(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Copy>()){
-				return this->instr_copy(instr);
+			case Instruction::Kind::COPY:
+				return this->instr_copy(this->context.symbol_proc_manager.getCopy(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Move>()){
-				return this->instr_move(instr);
+			case Instruction::Kind::MOVE:
+				return this->instr_move(this->context.symbol_proc_manager.getMove(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Forward>()){
-				return this->instr_forward(instr);
+			case Instruction::Kind::FORWARD:
+				return this->instr_forward(this->context.symbol_proc_manager.getForward(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::AddrOf<true>>()){
-				return this->instr_addr_of(instr);
+			case Instruction::Kind::ADDR_OF_CONSTEXPR:
+				return this->instr_addr_of(this->context.symbol_proc_manager.getAddrOfReadOnly(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::AddrOf<false>>()){
-				return this->instr_addr_of(instr);
+			case Instruction::Kind::ADDR_OF:
+				return this->instr_addr_of(this->context.symbol_proc_manager.getAddrOf(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PrefixNegate<true>>()){
-				return this->instr_prefix_negate<true>(instr);
+			case Instruction::Kind::PREFIX_NEGATE_CONSTEXPR:
+				return this->instr_prefix_negate<true>(
+					this->context.symbol_proc_manager.getPrefixNegateConstexpr(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PrefixNegate<false>>()){
-				return this->instr_prefix_negate<false>(instr);
+			case Instruction::Kind::PREFIX_NEGATE:
+				return this->instr_prefix_negate<false>(this->context.symbol_proc_manager.getPrefixNegate(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PrefixNot<true>>()){
-				return this->instr_prefix_not<true>(instr);
+			case Instruction::Kind::PREFIX_NOT_CONSTEXPR:
+				return this->instr_prefix_not<true>(this->context.symbol_proc_manager.getPrefixNotConstexpr(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PrefixNot<false>>()){
-				return this->instr_prefix_not<false>(instr);
+			case Instruction::Kind::PREFIX_NOT:
+				return this->instr_prefix_not<false>(this->context.symbol_proc_manager.getPrefixNot(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PrefixBitwiseNot<true>>()){
-				return this->instr_prefix_bitwise_not<true>(instr);
+			case Instruction::Kind::PREFIX_BITWISE_NOT_CONSTEXPR:
+				return this->instr_prefix_bitwise_not<true>(
+					this->context.symbol_proc_manager.getPrefixBitwiseNotConstexpr(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PrefixBitwiseNot<false>>()){
-				return this->instr_prefix_bitwise_not<false>(instr);
+			case Instruction::Kind::PREFIX_BITWISE_NOT:
+				return this->instr_prefix_bitwise_not<false>(
+					this->context.symbol_proc_manager.getPrefixBitwiseNot(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Deref>()){
-				return this->instr_deref(instr);
+			case Instruction::Kind::DEREF:
+				return this->instr_deref(this->context.symbol_proc_manager.getDeref(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Unwrap>()){
-				return this->instr_unwrap(instr);
+			case Instruction::Kind::UNWRAP:
+				return this->instr_unwrap(this->context.symbol_proc_manager.getUnwrap(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::ArrayInitNew<true>>()){
-				return this->instr_array_init_new<true>(instr);
+			case Instruction::Kind::ARRAY_INIT_NEW_CONSTEXPR:
+				return this->instr_array_init_new<true>(
+					this->context.symbol_proc_manager.getArrayInitNewConstexpr(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::ArrayInitNew<false>>()){
-				return this->instr_array_init_new<false>(instr);
+			case Instruction::Kind::ARRAY_INIT_NEW:
+				return this->instr_array_init_new<false>(
+					this->context.symbol_proc_manager.getArrayInitNew(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::StructInitNew<true>>()){
-				return this->instr_struct_init_new<true>(instr);
+			case Instruction::Kind::STRUCT_INIT_NEW_CONSTEXPR:
+				return this->instr_struct_init_new<true>(
+					this->context.symbol_proc_manager.getStructInitNewConstexpr(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::StructInitNew<false>>()){
-				return this->instr_struct_init_new<false>(instr);
+			case Instruction::Kind::STRUCT_INIT_NEW:
+				return this->instr_struct_init_new<false>(this->context.symbol_proc_manager.getStructInitNew(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PrepareTryHandler>()){
-				return this->instr_prepare_try_handler(instr);
+			case Instruction::Kind::PREPARE_TRY_HANDLER:
+				return this->instr_prepare_try_handler(this->context.symbol_proc_manager.getPrepareTryHandler(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TryElse>()){
-				return this->instr_try_else(instr);
+			case Instruction::Kind::TRY_ELSE:
+				return this->instr_try_else(this->context.symbol_proc_manager.getTryElse(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::BeginExprBlock>()){
-				return this->instr_begin_expr_block(instr);
+			case Instruction::Kind::BEGIN_EXPR_BLOCK:
+				return this->instr_begin_expr_block(this->context.symbol_proc_manager.getBeginExprBlock(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::EndExprBlock>()){
-				return this->instr_end_expr_block(instr);
+			case Instruction::Kind::END_EXPR_BLOCK:
+				return this->instr_end_expr_block(this->context.symbol_proc_manager.getEndExprBlock(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::As<true>>()){
-				return this->instr_expr_as<true>(instr);
+			case Instruction::Kind::AS_CONTEXPR:
+				return this->instr_expr_as<true>(this->context.symbol_proc_manager.getAsConstexpr(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::As<false>>()){
-				return this->instr_expr_as<false>(instr);
+			case Instruction::Kind::AS:
+				return this->instr_expr_as<false>(this->context.symbol_proc_manager.getAs(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::OptionalNullCheck>()){
-				return this->instr_optional_null_check(instr);
+			case Instruction::Kind::OPTIONAL_NULL_CHECK:
+				return this->instr_optional_null_check(this->context.symbol_proc_manager.getOptionalNullCheck(instr));
 
-			}else if constexpr(
-				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>>()
-			){
-				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::COMPARATIVE>(instr);
+			case Instruction::Kind::MATH_INFIX_CONSTEXPR_COMPARATIVE:
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::COMPARATIVE>(
+					this->context.symbol_proc_manager.getMathInfixConstexprComparative(instr)
+				);
 
-			}else if constexpr(
-				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::MATH>>()
-			){
-				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::MATH>(instr);
+			case Instruction::Kind::MATH_INFIX_CONSTEXPR_MATH:
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::MATH>(
+					this->context.symbol_proc_manager.getMathInfixConstexprMath(instr)
+				);
 
-			}else if constexpr(
-				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>>()
-			){
-				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::INTEGRAL_MATH>(instr);
+			case Instruction::Kind::MATH_INFIX_CONSTEXPR_INTEGRAL_MATH:
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::INTEGRAL_MATH>(
+					this->context.symbol_proc_manager.getMathInfixConstexprIntegralMath(instr)
+				);
 
-			}else if constexpr(
-				std::is_same<InstrType, Instruction::MathInfix<true, Instruction::MathInfixKind::SHIFT>>()
-			){
-				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::SHIFT>(instr);
+			case Instruction::Kind::MATH_INFIX_CONSTEXPR_SHIFT:
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::SHIFT>(
+					this->context.symbol_proc_manager.getMathInfixConstexprShift(instr)
+				);
 
-			}else if constexpr(
-				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::COMPARATIVE>>()
-			){
-				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::COMPARATIVE>(instr);
+			case Instruction::Kind::MATH_INFIX_COMPARATIVE:
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::COMPARATIVE>(
+					this->context.symbol_proc_manager.getMathInfixComparative(instr)
+				);
 
-			}else if constexpr(
-				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::MATH>>()
-			){
-				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::MATH>(instr);
+			case Instruction::Kind::MATH_INFIX_MATH:
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::MATH>(
+					this->context.symbol_proc_manager.getMathInfixMath(instr)
+				);
 
-			}else if constexpr(
-				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::INTEGRAL_MATH>>()
-			){
-				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::INTEGRAL_MATH>(instr);
+			case Instruction::Kind::MATH_INFIX_INTEGRAL_MATH:
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::INTEGRAL_MATH>(
+					this->context.symbol_proc_manager.getMathInfixIntegralMath(instr)
+				);
 
-			}else if constexpr(
-				std::is_same<InstrType, Instruction::MathInfix<false, Instruction::MathInfixKind::SHIFT>>()
-			){
-				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::SHIFT>(instr);
+			case Instruction::Kind::MATH_INFIX_SHIFT:
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::SHIFT>(
+					this->context.symbol_proc_manager.getMathInfixShift(instr)
+				);
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Accessor<true>>()){
-				return this->instr_expr_accessor<true>(instr);
+			case Instruction::Kind::ACCESSOR_NEEDS_DEF:
+				return this->instr_expr_accessor<true>(this->context.symbol_proc_manager.getAccessorNeedsDef(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Accessor<false>>()){
-				return this->instr_expr_accessor<false>(instr);
+			case Instruction::Kind::ACCESSOR:
+				return this->instr_expr_accessor<false>(this->context.symbol_proc_manager.getAccessor(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::PrimitiveType>()){
-				return this->instr_primitive_type(instr);
+			case Instruction::Kind::PRIMITIVE_TYPE:
+				return this->instr_primitive_type(this->context.symbol_proc_manager.getPrimitiveType(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::ArrayType>()){
-				return this->instr_array_type(instr);
+			case Instruction::Kind::ARRAY_TYPE:
+				return this->instr_array_type(this->context.symbol_proc_manager.getArrayType(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TypeIDConverter>()){
-				return this->instr_type_id_converter(instr);
+			case Instruction::Kind::TYPE_ID_CONVERTER:
+				return this->instr_type_id_converter(this->context.symbol_proc_manager.getTypeIDConverter(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::UserType>()){
-				return this->instr_user_type(instr);
+			case Instruction::Kind::USER_TYPE:
+				return this->instr_user_type(this->context.symbol_proc_manager.getUserType(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::BaseTypeIdent>()){
-				return this->instr_base_type_ident(instr);
+			case Instruction::Kind::BASE_TYPE_IDENT:
+				return this->instr_base_type_ident(this->context.symbol_proc_manager.getBaseTypeIdent(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Ident<true>>()){
-				return this->instr_ident<true>(instr);
+			case Instruction::Kind::IDENT_NEEDS_DEF:
+				return this->instr_ident<true>(this->context.symbol_proc_manager.getIdentNeedsDef(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Ident<false>>()){
-				return this->instr_ident<false>(instr);
+			case Instruction::Kind::IDENT:
+				return this->instr_ident<false>(this->context.symbol_proc_manager.getIdent(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Intrinsic>()){
-				return this->instr_intrinsic(instr);
+			case Instruction::Kind::INTRINSIC:
+				return this->instr_intrinsic(this->context.symbol_proc_manager.getIntrinsic(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Literal>()){
-				return this->instr_literal(instr);
+			case Instruction::Kind::LITERAL:
+				return this->instr_literal(this->context.symbol_proc_manager.getLiteral(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Uninit>()){
-				return this->instr_uninit(instr);
+			case Instruction::Kind::UNINIT:
+				return this->instr_uninit(this->context.symbol_proc_manager.getUninit(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::Zeroinit>()){
-				return this->instr_zeroinit(instr);
+			case Instruction::Kind::ZEROINIT:
+				return this->instr_zeroinit(this->context.symbol_proc_manager.getZeroinit(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::This>()){
-				return this->instr_this(instr);
+			case Instruction::Kind::THIS:
+				return this->instr_this(this->context.symbol_proc_manager.getThis(instr));
 
-			}else if constexpr(std::is_same<InstrType, Instruction::TypeDeducer>()){
-				return this->instr_type_deducer(instr);
+			case Instruction::Kind::TYPE_DEDUCER:
+				return this->instr_type_deducer(this->context.symbol_proc_manager.getTypeDeducer(instr));
+		}
 
-			}else{
-				static_assert(false, "Unsupported instruction type");
-			}
-		});
+		evo::debugFatalBreak("Unknown SymbolProc::Instruction");
 	}
 
 
@@ -552,7 +614,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_VAR_TYPE_VOID,
 				*instr.var_decl.type,
-				"Variables cannot be type [Void]"
+				"Variables cannot be type `Void`"
 			);
 			return Result::ERROR;
 		}
@@ -890,7 +952,7 @@ namespace pcit::panther{
 
 			if(got_type_info_id.isVoid()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_decl.type, "Variables cannot be type [Void]"
+					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_decl.type, "Variables cannot be type `Void`"
 				);
 				return Result::ERROR;
 			}
@@ -1216,7 +1278,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_ALIAS_CANNOT_BE_VOID,
 				instr.alias_decl.type,
-				"Alias cannot be type [Void]"
+				"Alias cannot be type `Void`"
 			);
 			return Result::ERROR;
 		}
@@ -1343,7 +1405,7 @@ namespace pcit::panther{
 			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
 		);
 
-		created_struct.constexprJITType = sema_to_pir.lowerStruct(created_struct_id);
+		sema_to_pir.lowerStruct(created_struct_id);
 
 		this->propagate_finished_def();
 
@@ -1374,7 +1436,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 						template_param_info.param.type,
-						"Template parameter cannot be type [Void]"
+						"Template parameter cannot be type `Void`"
 					);
 					return Result::ERROR;
 				}
@@ -1470,6 +1532,189 @@ namespace pcit::panther{
 	};
 
 
+	auto SemanticAnalyzer::instr_union_decl(const Instruction::UnionDecl& instr) -> Result {
+		const evo::Result<UnionAttrs> union_attrs = 
+			this->analyze_union_attrs(instr.union_decl, instr.attribute_params_info);
+		if(union_attrs.isError()){ return Result::ERROR; }
+
+
+		if(union_attrs.value().is_untagged == false){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.union_decl,
+				"Tagged unions (unions without attribute #untagged) are unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+
+		///////////////////////////////////
+		// create
+
+		SymbolProc::UnionInfo& union_info = this->symbol_proc.extra_info.as<SymbolProc::UnionInfo>();
+
+
+		const BaseType::ID created_union = this->context.type_manager.getOrCreateUnion(
+			BaseType::Union(
+				this->source.getID(),
+				instr.union_decl.ident,
+				evo::SmallVector<BaseType::Union::Field>(),
+				union_info.member_symbols,
+				nullptr,
+				union_attrs.value().is_pub,
+				union_attrs.value().is_untagged
+			)
+		);
+
+		union_info.union_id = created_union.unionID();
+
+
+		const std::string_view ident_str = this->source.getTokenBuffer()[instr.union_decl.ident].getString();
+		if(this->add_ident_to_scope(ident_str, instr.union_decl, created_union.unionID()).isError()){
+			return Result::ERROR;
+		}
+
+		this->context.symbol_proc_manager.addTypeSymbolProc(
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_union)), this->symbol_proc_id
+		);
+
+
+
+		///////////////////////////////////
+		// setup scope
+
+		this->push_scope_level(nullptr, created_union.unionID());
+
+		BaseType::Union& created_union_ref = this->context.type_manager.getUnion(created_union.unionID());
+		created_union_ref.scopeLevel = &this->get_current_scope_level();
+
+
+		for(const SymbolProc::ID& member_stmt_id : union_info.stmts){
+			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
+
+			member_stmt.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+				*this->symbol_proc.sema_scope_id
+			);
+		}
+
+
+		///////////////////////////////////
+		// done
+
+		this->propagate_finished_decl();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_union_add_fields(const Instruction::UnionAddFields& instr) -> Result {
+		SymbolProc::UnionInfo& union_info = this->symbol_proc.extra_info.as<SymbolProc::UnionInfo>();
+
+		BaseType::Union& union_type = this->context.type_manager.getUnion(union_info.union_id);
+
+		union_type.fields.reserve(instr.field_types.size());
+		for(size_t i = 0; SymbolProc::TypeID field_symbol_proc_type_id : instr.field_types){
+			const TypeInfo::VoidableID field_type_id = this->get_type(field_symbol_proc_type_id);
+
+			const AST::UnionDecl::Field& ast_field = instr.union_decl.fields[union_type.fields.size()];
+
+			if(union_type.isUntagged){
+				if(field_type_id.isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNION_UNTAGGED_WITH_VOID_FIELD,
+						ast_field.type,
+						"Fields in untagged unions cannot be type \"Void\""
+					);
+					return Result::ERROR;
+				}
+
+				if(this->context.getTypeManager().isTriviallyDeletable(field_type_id.asTypeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_DELETABLE_FIELD,
+						ast_field.type,
+						"Fields in untagged unions must be trivially deletable"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->context.getTypeManager().isTriviallyCopyable(field_type_id.asTypeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_COPYABLE_FIELD,
+						ast_field.type,
+						"Fields in untagged unions must be trivially copyable"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->context.getTypeManager().isTriviallyMovable(field_type_id.asTypeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_MOVABLE_FIELD,
+						ast_field.type,
+						"Fields in untagged unions must be trivially movable"
+					);
+					return Result::ERROR;
+				}
+			}
+
+			
+
+			union_type.fields.emplace_back(ast_field.ident, field_type_id.asTypeID());
+
+			const std::string_view ident_str = this->source.getTokenBuffer()[ast_field.ident].getString();
+			if(this->add_ident_to_scope(
+				ident_str, ast_field.ident, ast_field.ident, uint32_t(i), sema::ScopeLevel::UnionFieldFlag{}
+			).isError()){
+				return Result::ERROR;
+			}
+
+			i += 1;
+		}
+
+
+		///////////////////////////////////
+		// wait on stmts
+
+		bool waiting_on_any = false;
+		for(const SymbolProc::ID& member_stmt_id : union_info.stmts){
+			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
+
+			switch(member_stmt.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, member_stmt_id)){
+				break; case SymbolProc::WaitOnResult::NOT_NEEDED:                 // do nothing
+				break; case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true;
+				break; case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+				break; case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
+				break; case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+			}
+		}
+
+		if(waiting_on_any){
+			return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+		}else{
+			return Result::SUCCESS;
+		}
+	}
+
+	auto SemanticAnalyzer::instr_union_def() -> Result {
+		SymbolProc::UnionInfo& union_info = this->symbol_proc.extra_info.as<SymbolProc::UnionInfo>();
+
+		BaseType::Union& union_type = this->context.type_manager.getUnion(union_info.union_id);
+
+		union_type.defCompleted = true;
+
+
+		auto sema_to_pir = SemaToPIR(
+			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+		);
+
+		sema_to_pir.lowerUnion(union_info.union_id);
+
+		this->propagate_finished_def();
+
+		return Result::SUCCESS;
+	}
+
+
+
 
 	auto SemanticAnalyzer::instr_func_decl_extract_deducers_if_needed(
 		const Instruction::FuncDeclExtractDeducersIfNeeded& instr
@@ -1550,7 +1795,7 @@ namespace pcit::panther{
 
 				if(param_type_id.isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_PARAM_TYPE_VOID, *param.type, "Function parameter cannot be type [Void]"
+						Diagnostic::Code::SEMA_PARAM_TYPE_VOID, *param.type, "Function parameter cannot be type `Void`"
 					);
 					return Result::ERROR;
 				}
@@ -1684,7 +1929,10 @@ namespace pcit::panther{
 				current_type_scope->visit([&](const auto& type_scope) -> void {
 					using TypeScope = std::decay_t<decltype(type_scope)>;
 
-					if constexpr(std::is_same<TypeScope, BaseType::Struct::ID>()){
+					if constexpr(
+						std::is_same<TypeScope, BaseType::Struct::ID>() 
+						|| std::is_same<TypeScope, BaseType::Union::ID>()
+					){
 						const TypeInfo::ID this_type = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(BaseType::ID(type_scope))
 						);
@@ -1747,7 +1995,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
 						*ast_return_param.ident,
-						"A function return parameter that is type [Void] cannot be named"
+						"A function return parameter that is type `Void` cannot be named"
 					);
 					return Result::ERROR;
 				}
@@ -1756,7 +2004,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
 						ast_return_param.type,
-						"Only the first function return parameter can be type [Void]"
+						"Only the first function return parameter can be type `Void`"
 					);
 					return Result::ERROR;
 				}
@@ -1779,7 +2027,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
 						*ast_error_return_param.ident,
-						"A function error return parameter that is type [Void] cannot be named"
+						"A function error return parameter that is type `Void` cannot be named"
 					);
 					return Result::ERROR;
 				}
@@ -1788,7 +2036,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
 						ast_error_return_param.type,
-						"Only the first function error return parameter can be type [Void]"
+						"Only the first function error return parameter can be type `Void`"
 					);
 					return Result::ERROR;
 				}
@@ -2376,7 +2624,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 						template_param_info.param.type,
-						"Template parameter cannot be type [Void]"
+						"Template parameter cannot be type `Void`"
 					);
 					return Result::ERROR;
 				}
@@ -3001,7 +3249,7 @@ namespace pcit::panther{
 
 			if(got_type_info_id.isVoid()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_decl.type, "Variables cannot be type [Void]"
+					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_decl.type, "Variables cannot be type `Void`"
 				);
 				return Result::ERROR;
 			}
@@ -3082,7 +3330,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_ALIAS_CANNOT_BE_VOID,
 				instr.alias_decl.type,
-				"Alias cannot be type [Void]"
+				"Alias cannot be type `Void`"
 			);
 			return Result::ERROR;
 		}
@@ -3140,7 +3388,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
-					"Functions that have a return type other than [Void] must return a value"
+					"Functions that have a return type other than `Void` must return a value"
 				);
 				return Result::ERROR;
 			}
@@ -3162,7 +3410,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
-					"Functions that have a return type of [Void] cannot return a value"
+					"Functions that have a return type of `Void` cannot return a value"
 				);
 				return Result::ERROR;
 			}
@@ -3207,7 +3455,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
-					"Functions that have a return type of [Void] cannot return a value"
+					"Functions that have a return type of `Void` cannot return a value"
 				);
 				return Result::ERROR;
 			}
@@ -4173,27 +4421,52 @@ namespace pcit::panther{
 		const std::optional<sema::ScopeManager::Scope::ObjectScope> current_type_scope = 
 			this->scope.getCurrentTypeScopeIfExists();
 
-		const BaseType::Struct::ID current_struct_type_id = current_type_scope->as<BaseType::Struct::ID>();
-		const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(BaseType::ID(current_struct_type_id))
-		);
+		if(current_type_scope->is<BaseType::Struct::ID>()){
+			const BaseType::Struct::ID current_struct_type_id = current_type_scope->as<BaseType::Struct::ID>();
+			const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(BaseType::ID(current_struct_type_id))
+			);
 
-		const std::optional<SymbolProc::ID> current_struct_symbol_proc =
-			this->context.symbol_proc_manager.getTypeSymbolProc(current_type_id);
+			const std::optional<SymbolProc::ID> current_struct_symbol_proc =
+				this->context.symbol_proc_manager.getTypeSymbolProc(current_type_id);
 
-		const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
-			.getSymbolProc(*current_struct_symbol_proc)
-			.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *current_struct_symbol_proc);
+			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+				.getSymbolProc(*current_struct_symbol_proc)
+				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *current_struct_symbol_proc);
 
-		switch(wait_on_result){
-			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
-			case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-			case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
-			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     return Result::ERROR;
+			}
+
+			evo::unreachable();
+
+		}else{
+			const BaseType::Union::ID current_union_type_id = current_type_scope->as<BaseType::Union::ID>();
+			const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(BaseType::ID(current_union_type_id))
+			);
+
+			const std::optional<SymbolProc::ID> current_union_symbol_proc =
+				this->context.symbol_proc_manager.getTypeSymbolProc(current_type_id);
+
+			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+				.getSymbolProc(*current_union_symbol_proc)
+				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *current_union_symbol_proc);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     return Result::ERROR;
+			}
+
+			evo::unreachable();
 		}
-
-		evo::unreachable();
 	}
 
 
@@ -5517,6 +5790,15 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>()) == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
+				instr.prefix,
+				"Type of argument of operator [copy] is not copyable"
+			);
+			return Result::ERROR;
+		}
+
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
@@ -5553,6 +5835,16 @@ namespace pcit::panther{
 				);
 			}
 
+			return Result::ERROR;
+		}
+
+
+		if(this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>()) == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
+				instr.prefix,
+				"Type of argument of operator [move] is not movable"
+			);
 			return Result::ERROR;
 		}
 
@@ -6024,7 +6316,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
 				instr.array_init_new.type,
-				"Operator [new] cannot accept type [Void]"
+				"Operator [new] cannot accept type `Void`"
 			);
 			return Result::ERROR;
 		}
@@ -6131,7 +6423,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
 				instr.struct_init_new.type,
-				"Operator [new] cannot accept type [Void]"
+				"Operator [new] cannot accept type `Void`"
 			);
 			return Result::ERROR;
 		}
@@ -6613,7 +6905,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
 					instr.block.outputs[i].typeID,
-					"Block expression output cannot be type [Void]"
+					"Block expression output cannot be type `Void`"
 				);
 				return Result::ERROR;
 			}
@@ -6986,7 +7278,7 @@ namespace pcit::panther{
 							this->emit_error(
 								Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 								ast_template_pack.params[i].type,
-								"Template expression parameter cannot be type [Void]"
+								"Template expression parameter cannot be type `Void`"
 							);
 							return evo::resultError;
 						}
@@ -7393,7 +7685,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_AS_TO_VOID,
 				instr.infix.rhs,
-				"Operator [as] cannot convert to type [Void]"
+				"Operator [as] cannot convert to type `Void`"
 			);
 			return Result::ERROR;
 		}
@@ -8723,12 +9015,12 @@ namespace pcit::panther{
 			return this->clang_module_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
 
 		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
-			return this->struct_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
+			return this->type_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
 		}
 
 		if(lhs.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+				Diagnostic::Code::SEMA_INVALID_ACCESSOR_LHS,
 				instr.infix.lhs,
 				"Accessor operator of this LHS is invalid"
 			);
@@ -8787,202 +9079,29 @@ namespace pcit::panther{
 			return this->interface_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
 		}
 
-		if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.infix.lhs,
-				"Accessor operator of this LHS is unimplemented"
-			);
-			return Result::ERROR;
-		}
+		switch(actual_lhs_type.baseTypeID().kind()){
+			case BaseType::Kind::STRUCT: {
+				return this->struct_accessor<NEEDS_DEF>(
+					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+				);
+			} break;
 
+			case BaseType::Kind::UNION: {
+				return this->union_accessor<NEEDS_DEF>(
+					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+				);
+			} break;
 
-		const BaseType::Struct& lhs_type_struct = this->context.getTypeManager().getStruct(
-			actual_lhs_type.baseTypeID().structID()
-		);
-
-		const Source& struct_source = this->context.getSourceManager()[lhs_type_struct.sourceID];
-
-		{
-			const auto lock = std::scoped_lock(lhs_type_struct.memberVarsLock);
-			for(size_t i = 0; const BaseType::Struct::MemberVar* member_var : lhs_type_struct.memberVarsABI){
-				const std::string_view member_ident_str = 
-					struct_source.getTokenBuffer()[member_var->identTokenID].getString();
-
-				if(member_ident_str == rhs_ident_str){
-					const TermInfo::ValueCategory value_category = [&](){
-						if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
-
-						if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
-							return TermInfo::ValueCategory::CONCRETE_CONST;
-						}
-
-						if(member_var->kind == AST::VarDecl::Kind::CONST){
-							return TermInfo::ValueCategory::CONCRETE_CONST;
-						}else{
-							return TermInfo::ValueCategory::CONCRETE_MUT;
-						}
-					}();
-
-					using ValueStage = TermInfo::ValueStage;
-
-
-					if(lhs.value_stage == ValueStage::CONSTEXPR){
-						const sema::AggregateValue& lhs_aggregate_value =
-							this->context.getSemaBuffer().getAggregateValue(lhs.getExpr().aggregateValueID());
-
-						this->return_term_info(instr.output,
-							TermInfo::ValueCategory::EPHEMERAL,
-							ValueStage::CONSTEXPR,
-							member_var->typeID,
-							lhs_aggregate_value.values[i]
-						);
-						
-					}else{
-						const sema::Expr sema_expr = [&](){
-							if(is_pointer){
-								const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-									TypeInfo(actual_lhs_type.baseTypeID())
-								);
-
-								return sema::Expr(
-									this->context.sema_buffer.createPtrAccessor(
-										lhs.getExpr(), resultant_type_id, uint32_t(i)
-									)
-								);
-							}else{
-								return sema::Expr(
-									this->context.sema_buffer.createAccessor(
-										lhs.getExpr(), actual_lhs_type_id, uint32_t(i)
-									)
-								);
-							}
-						}();
-
-						this->return_term_info(instr.output,
-							value_category,
-							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
-							member_var->typeID,
-							sema_expr
-						);
-					}
-
-					return Result::SUCCESS;
-				}
-
-				i += 1;
-			}
-		}
-
-
-		///////////////////////////////////
-		// method
-
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-			&lhs_type_struct.namespacedMembers, rhs_ident_str
-		);
-
-
-		switch(wait_on_symbol_proc_result){
-			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
-				this->wait_on_symbol_proc_emit_error(
-					wait_on_symbol_proc_result,
-					instr.infix.rhs,
-					std::format("Struct has no member named \"{}\"", rhs_ident_str)
+			default: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_LHS,
+					instr.infix.lhs,
+					"Accessor operator of this LHS is invalid"
 				);
 				return Result::ERROR;
 			} break;
-
-			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
-				return Result::ERROR;
-			} break;
-
-			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
-				return Result::NEED_TO_WAIT;
-			} break;
-
-			case WaitOnSymbolProcResult::SEMAS_READY: {
-				// do nothing...
-			} break;
 		}
 
-
-		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-				instr.rhs_ident, rhs_ident_str, *lhs_type_struct.scopeLevel, true, true, &struct_source
-			);
-
-
-		if(expr_ident.has_value() == false){
-			switch(expr_ident.error()){
-				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
-					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
-				} break;
-
-				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak(
-						"Sema doesn't have completed info for def despite SymbolProc saying it should"
-					);
-				} break;
-
-				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
-			}
-		}
-
-
-		const sema::FakeTermInfo::ValueCategory value_category = [&](){
-			switch(lhs.value_category){
-				case TermInfo::ValueCategory::EPHEMERAL:
-					return sema::FakeTermInfo::ValueCategory::EPHEMERAL;
-
-				case TermInfo::ValueCategory::CONCRETE_CONST:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
-
-				case TermInfo::ValueCategory::CONCRETE_MUT:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
-
-				case TermInfo::ValueCategory::FORWARDABLE:
-					return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
-			}
-			evo::unreachable();
-		}();
-
-		const sema::FakeTermInfo::ValueStage value_stage = [&](){
-			switch(lhs.value_stage){
-				case TermInfo::ValueStage::CONSTEXPR: return sema::FakeTermInfo::ValueStage::CONSTEXPR;
-				case TermInfo::ValueStage::COMPTIME:  return sema::FakeTermInfo::ValueStage::COMPTIME;
-				case TermInfo::ValueStage::RUNTIME:   return sema::FakeTermInfo::ValueStage::RUNTIME;
-			}
-			evo::unreachable();
-		}();
-
-		const sema::FakeTermInfo::ID method_this = [&](){
-			if(is_pointer){
-				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(actual_lhs_type.baseTypeID())
-				);
-
-				return this->context.sema_buffer.createFakeTermInfo(
-					value_category,
-					value_stage,
-					resultant_type_id,
-					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
-				);
-				
-			}else{
-				return this->context.sema_buffer.createFakeTermInfo(
-					value_category, value_stage, actual_lhs_type_id, lhs.getExpr()
-				);
-			}
-		}();
-
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::METHOD_CALL,
-			expr_ident.value().value_stage,
-			std::move(expr_ident.value().type_id),
-			sema::Expr(method_this)
-		);
-		return Result::SUCCESS;
 	}
 
 
@@ -9046,11 +9165,11 @@ namespace pcit::panther{
 			} break;
 
 
-			case Token::Kind::KEYWORD_TYPE: {
+			case Token::Kind::TYPE_TYPE: {
 				this->emit_error(
 					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
 					instr.ast_type,
-					"Type \"type\" may only be used in a template pack declaration"
+					"Type \"Type\" may only be used in a template pack declaration"
 				);
 				return Result::ERROR;
 			} break;
@@ -9083,7 +9202,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_ARRAY_ELEM_TYPE_VOID,
 				instr.array_type.elemType,
-				"Element type of an array type cannot be type [Void]"
+				"Element type of an array type cannot be type `Void`"
 			);
 			return Result::ERROR;
 		}
@@ -9216,7 +9335,7 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::TYPE: {
 				evo::debugAssert(
 					this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
-					"[Void] is not a user-type"
+					"`Void` is not a user-type"
 				);
 				base_type_id = term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
 			} break;
@@ -9598,14 +9717,14 @@ namespace pcit::panther{
 
 
 	template<bool NEEDS_DEF>
-	auto SemanticAnalyzer::struct_accessor(
+	auto SemanticAnalyzer::type_accessor(
 		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
 		if(lhs.type_id.as<TypeInfo::VoidableID>().isVoid()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 				instr.infix.lhs,
-				"Accessor operator of type [Void] is invalid"
+				"Accessor operator of type `Void` is invalid"
 			);
 			return Result::ERROR;
 		}
@@ -9625,25 +9744,48 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(actual_lhs_type.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			// TODO(FUTURE): better message
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-				instr.infix.lhs,
-				"Accessor operator of this LHS is unsupported"
-			);
-			return Result::ERROR;
+
+
+
+
+		SymbolProcNamespace const * namespaced_members = nullptr;
+		sema::ScopeLevel const * scope_level = nullptr;
+		Source const * type_source = nullptr;
+
+		switch(actual_lhs_type.baseTypeID().kind()){
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& lhs_struct = this->context.getTypeManager().getStruct(
+					actual_lhs_type.baseTypeID().structID()
+				);
+
+				namespaced_members = &lhs_struct.namespacedMembers;
+				scope_level = lhs_struct.scopeLevel;
+				type_source = &this->context.getSourceManager()[lhs_struct.sourceID];
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& lhs_union = this->context.getTypeManager().getUnion(
+					actual_lhs_type.baseTypeID().unionID()
+				);
+
+				namespaced_members = &lhs_union.namespacedMembers;
+				scope_level = lhs_union.scopeLevel;
+				type_source = &this->context.getSourceManager()[lhs_union.sourceID];
+			} break;
+
+			default: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
+					instr.infix.lhs,
+					"Accessor operator of the type of this LHS is unsupported"
+				);
+				return Result::ERROR;
+			} break;
 		}
 
 
-		const BaseType::Struct& lhs_struct = this->context.getTypeManager().getStruct(
-			actual_lhs_type.baseTypeID().structID()
-		);
-
-		const Source& struct_source = this->context.getSourceManager()[lhs_struct.sourceID];
-
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-			&lhs_struct.namespacedMembers, rhs_ident_str
+			namespaced_members, rhs_ident_str
 		);
 
 
@@ -9673,7 +9815,7 @@ namespace pcit::panther{
 
 		const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
 			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-				instr.rhs_ident, rhs_ident_str, *lhs_struct.scopeLevel, true, true, &struct_source
+				instr.rhs_ident, rhs_ident_str, *scope_level, true, true, type_source
 			);
 
 		if(expr_ident.has_value() == false){
@@ -9696,6 +9838,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output, std::move(expr_ident.value()));
 		return Result::SUCCESS;
 	}
+
 
 
 
@@ -9787,6 +9930,424 @@ namespace pcit::panther{
 		);
 		return Result::SUCCESS;
 	}
+
+
+
+
+	template<bool NEEDS_DEF>
+	auto SemanticAnalyzer::struct_accessor(
+		const Instruction::Accessor<NEEDS_DEF>& instr,
+		std::string_view rhs_ident_str,
+		const TermInfo& lhs,
+		TypeInfo::ID actual_lhs_type_id,
+		const TypeInfo& actual_lhs_type,
+		bool is_pointer
+	) -> Result {
+		const BaseType::Struct& lhs_type_struct = this->context.getTypeManager().getStruct(
+			actual_lhs_type.baseTypeID().structID()
+		);
+
+		const Source& struct_source = this->context.getSourceManager()[lhs_type_struct.sourceID];
+
+		{
+			const auto lock = std::scoped_lock(lhs_type_struct.memberVarsLock);
+			for(size_t i = 0; const BaseType::Struct::MemberVar* member_var : lhs_type_struct.memberVarsABI){
+				const std::string_view member_ident_str = 
+					struct_source.getTokenBuffer()[member_var->identTokenID].getString();
+
+				if(member_ident_str == rhs_ident_str){
+					const TermInfo::ValueCategory value_category = [&](){
+						if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
+
+						if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
+							return TermInfo::ValueCategory::CONCRETE_CONST;
+						}
+
+						if(member_var->kind == AST::VarDecl::Kind::CONST){
+							return TermInfo::ValueCategory::CONCRETE_CONST;
+						}else{
+							return TermInfo::ValueCategory::CONCRETE_MUT;
+						}
+					}();
+
+					using ValueStage = TermInfo::ValueStage;
+
+
+					if(lhs.value_stage == ValueStage::CONSTEXPR){
+						const sema::AggregateValue& lhs_aggregate_value =
+							this->context.getSemaBuffer().getAggregateValue(lhs.getExpr().aggregateValueID());
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							ValueStage::CONSTEXPR,
+							member_var->typeID,
+							lhs_aggregate_value.values[i]
+						);
+						
+					}else{
+						const sema::Expr sema_expr = [&](){
+							if(is_pointer){
+								const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+									TypeInfo(actual_lhs_type.baseTypeID())
+								);
+
+								return sema::Expr(
+									this->context.sema_buffer.createPtrAccessor(
+										lhs.getExpr(), resultant_type_id, uint32_t(i)
+									)
+								);
+							}else{
+								return sema::Expr(
+									this->context.sema_buffer.createAccessor(
+										lhs.getExpr(), actual_lhs_type_id, uint32_t(i)
+									)
+								);
+							}
+						}();
+
+						this->return_term_info(instr.output,
+							value_category,
+							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							member_var->typeID,
+							sema_expr
+						);
+					}
+
+					return Result::SUCCESS;
+				}
+
+				i += 1;
+			}
+		}
+
+
+		///////////////////////////////////
+		// method
+
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+			&lhs_type_struct.namespacedMembers, rhs_ident_str
+		);
+
+
+		switch(wait_on_symbol_proc_result){
+			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				this->wait_on_symbol_proc_emit_error(
+					wait_on_symbol_proc_result,
+					instr.infix.rhs,
+					std::format("Struct has no member named \"{}\"", rhs_ident_str)
+				);
+				return Result::ERROR;
+			} break;
+
+			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return Result::ERROR;
+			} break;
+
+			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+				return Result::NEED_TO_WAIT;
+			} break;
+
+			case WaitOnSymbolProcResult::SEMAS_READY: {
+				// do nothing...
+			} break;
+		}
+
+
+		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
+			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
+				instr.rhs_ident, rhs_ident_str, *lhs_type_struct.scopeLevel, true, true, &struct_source
+			);
+
+
+		if(expr_ident.has_value() == false){
+			switch(expr_ident.error()){
+				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
+					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
+				} break;
+
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
+					evo::debugFatalBreak(
+						"Sema doesn't have completed info for def despite SymbolProc saying it should"
+					);
+				} break;
+
+				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
+			}
+		}
+
+
+		const sema::FakeTermInfo::ValueCategory value_category = [&](){
+			switch(lhs.value_category){
+				case TermInfo::ValueCategory::EPHEMERAL:
+					return sema::FakeTermInfo::ValueCategory::EPHEMERAL;
+
+				case TermInfo::ValueCategory::CONCRETE_CONST:
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
+
+				case TermInfo::ValueCategory::CONCRETE_MUT:
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
+
+				case TermInfo::ValueCategory::FORWARDABLE:
+					return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
+			}
+			evo::unreachable();
+		}();
+
+		const sema::FakeTermInfo::ValueStage value_stage = [&](){
+			switch(lhs.value_stage){
+				case TermInfo::ValueStage::CONSTEXPR: return sema::FakeTermInfo::ValueStage::CONSTEXPR;
+				case TermInfo::ValueStage::COMPTIME:  return sema::FakeTermInfo::ValueStage::COMPTIME;
+				case TermInfo::ValueStage::RUNTIME:   return sema::FakeTermInfo::ValueStage::RUNTIME;
+			}
+			evo::unreachable();
+		}();
+
+		const sema::FakeTermInfo::ID method_this = [&](){
+			if(is_pointer){
+				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(actual_lhs_type.baseTypeID())
+				);
+
+				return this->context.sema_buffer.createFakeTermInfo(
+					value_category,
+					value_stage,
+					resultant_type_id,
+					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
+				);
+				
+			}else{
+				return this->context.sema_buffer.createFakeTermInfo(
+					value_category, value_stage, actual_lhs_type_id, lhs.getExpr()
+				);
+			}
+		}();
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::METHOD_CALL,
+			expr_ident.value().value_stage,
+			std::move(expr_ident.value().type_id),
+			sema::Expr(method_this)
+		);
+		return Result::SUCCESS;
+	}
+
+
+
+
+	template<bool NEEDS_DEF>
+	auto SemanticAnalyzer::union_accessor(
+		const Instruction::Accessor<NEEDS_DEF>& instr,
+		std::string_view rhs_ident_str,
+		const TermInfo& lhs,
+		TypeInfo::ID actual_lhs_type_id,
+		const TypeInfo& actual_lhs_type,
+		bool is_pointer
+	) -> Result {
+		const BaseType::Union& lhs_type_union = this->context.getTypeManager().getUnion(
+			actual_lhs_type.baseTypeID().unionID()
+		);
+
+		const Source& union_source = this->context.getSourceManager()[lhs_type_union.sourceID];
+
+		const sema::ScopeLevel::IdentID* lookup_ident = lhs_type_union.scopeLevel->lookupIdent(rhs_ident_str);
+
+		if(lookup_ident == nullptr){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
+				instr.infix.rhs,
+				std::format("Identifier \"{}\" was not defined in this scope", rhs_ident_str)
+			);
+			return Result::ERROR;
+		}
+
+
+		if(lookup_ident->is<sema::ScopeLevel::UnionField>()){
+			const BaseType::Union::Field& union_field = 
+				lhs_type_union.fields[lookup_ident->as<sema::ScopeLevel::UnionField>().field_index];
+
+			if(union_field.typeID.isVoid()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNION_ACCESSOR_IS_VOID,
+					instr.infix.rhs,
+					std::format("Cannot access union fields that are type `Void`")
+				);
+				return Result::ERROR;
+			}
+
+
+
+			const TermInfo::ValueCategory value_category = [&](){
+				if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
+
+				if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
+					return TermInfo::ValueCategory::CONCRETE_CONST;
+				}
+
+				return TermInfo::ValueCategory::CONCRETE_MUT;
+			}();
+
+
+			using ValueStage = TermInfo::ValueStage;
+
+			if(lhs.value_stage == ValueStage::CONSTEXPR){
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.infix,
+					"Constexpr union accessor is currenlty unsupported"
+				);
+				return Result::ERROR;
+				
+			}else{
+				const sema::Expr sema_expr = [&](){
+					if(is_pointer){
+						const TypeInfo::ID target_type_id = this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(actual_lhs_type.baseTypeID())
+						);
+
+						return sema::Expr(
+							this->context.sema_buffer.createPtrUnionAccessor(
+								lhs.getExpr(),
+								target_type_id,
+								lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
+							)
+						);
+					}else{
+						return sema::Expr(
+							this->context.sema_buffer.createUnionAccessor(
+								lhs.getExpr(),
+								actual_lhs_type_id,
+								lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
+							)
+						);
+					}
+				}();
+
+				this->return_term_info(instr.output,
+					value_category,
+					this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+					lhs_type_union.fields[
+						lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
+					].typeID.asTypeID(),
+					sema_expr
+				);
+			}
+
+			return Result::SUCCESS;
+		}
+
+		
+		///////////////////////////////////
+		// method
+
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+			&lhs_type_union.namespacedMembers, rhs_ident_str
+		);
+
+
+		switch(wait_on_symbol_proc_result){
+			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				this->wait_on_symbol_proc_emit_error(
+					wait_on_symbol_proc_result,
+					instr.infix.rhs,
+					std::format("Struct has no member named \"{}\"", rhs_ident_str)
+				);
+				return Result::ERROR;
+			} break;
+
+			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return Result::ERROR;
+			} break;
+
+			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+				return Result::NEED_TO_WAIT;
+			} break;
+
+			case WaitOnSymbolProcResult::SEMAS_READY: {
+				// do nothing...
+			} break;
+		}
+
+
+		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
+			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
+				instr.rhs_ident, rhs_ident_str, *lhs_type_union.scopeLevel, true, true, &union_source
+			);
+
+
+		if(expr_ident.has_value() == false){
+			switch(expr_ident.error()){
+				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
+					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
+				} break;
+
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
+					evo::debugFatalBreak(
+						"Sema doesn't have completed info for def despite SymbolProc saying it should"
+					);
+				} break;
+
+				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
+			}
+		}
+
+
+		const sema::FakeTermInfo::ValueCategory value_category = [&](){
+			switch(lhs.value_category){
+				case TermInfo::ValueCategory::EPHEMERAL:
+					return sema::FakeTermInfo::ValueCategory::EPHEMERAL;
+
+				case TermInfo::ValueCategory::CONCRETE_CONST:
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
+
+				case TermInfo::ValueCategory::CONCRETE_MUT:
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
+
+				case TermInfo::ValueCategory::FORWARDABLE:
+					return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
+			}
+			evo::unreachable();
+		}();
+
+		const sema::FakeTermInfo::ValueStage value_stage = [&](){
+			switch(lhs.value_stage){
+				case TermInfo::ValueStage::CONSTEXPR: return sema::FakeTermInfo::ValueStage::CONSTEXPR;
+				case TermInfo::ValueStage::COMPTIME:  return sema::FakeTermInfo::ValueStage::COMPTIME;
+				case TermInfo::ValueStage::RUNTIME:   return sema::FakeTermInfo::ValueStage::RUNTIME;
+			}
+			evo::unreachable();
+		}();
+
+		const sema::FakeTermInfo::ID method_this = [&](){
+			if(is_pointer){
+				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(actual_lhs_type.baseTypeID())
+				);
+
+				return this->context.sema_buffer.createFakeTermInfo(
+					value_category,
+					value_stage,
+					resultant_type_id,
+					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
+				);
+				
+			}else{
+				return this->context.sema_buffer.createFakeTermInfo(
+					value_category, value_stage, actual_lhs_type_id, lhs.getExpr()
+				);
+			}
+		}();
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::METHOD_CALL,
+			expr_ident.value().value_stage,
+			std::move(expr_ident.value().type_id),
+			sema::Expr(method_this)
+		);
+		return Result::SUCCESS;
+	}
+
+
+
 
 
 
@@ -10410,7 +10971,44 @@ namespace pcit::panther{
 							std::format("Struct \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
 								"Struct declared here:",
-								Diagnostic::Location::get(ident_id, *source_module, this->context)
+								Diagnostic::Location::get(ident_id, this->context)
+							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::TYPE,
+						TermInfo::ValueStage::CONSTEXPR,
+						TypeInfo::VoidableID(
+							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
+						),
+						std::nullopt
+					)
+				);
+
+			}else if constexpr(std::is_same<IdentIDType, BaseType::Union::ID>()){
+				const BaseType::Union& union_info = this->context.getTypeManager().getUnion(ident_id);
+
+				if constexpr(NEEDS_DEF){
+					if(union_info.defCompleted == false){
+						return ReturnType(
+							evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+						);
+					}
+				}
+
+				if constexpr(PUB_REQUIRED){
+					if(union_info.isPub == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							ident,
+							std::format("Union \"{}\" does not have the #pub attribute", ident_str),
+							Diagnostic::Info(
+								"Union declared here:",
+								Diagnostic::Location::get(ident_id, this->context)
 							)
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -10447,7 +11045,7 @@ namespace pcit::panther{
 							std::format("Interface \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
 								"Interface declared here:",
-								Diagnostic::Location::get(ident_id, *source_module, this->context)
+								Diagnostic::Location::get(ident_id, this->context)
 							)
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -10500,7 +11098,16 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
 					ident,
-					std::format("Variable \"{}\" is not accessable in this scope", ident_str),
+					std::format("Member variables are not accessable except through an accessor", ident_str),
+					Diagnostic::Info(std::format("Did you mean `this.{}`?", ident_str))
+				);
+				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::UnionField>()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
+					ident,
+					std::format("Union fields are not accessable except through an accessor", ident_str),
 					Diagnostic::Info(std::format("Did you mean `this.{}`?", ident_str))
 				);
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -11549,7 +12156,7 @@ namespace pcit::panther{
 							this->emit_error(
 								Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
 								ast_template_pack.params[i].type,
-								"Template expression parameter cannot be type [Void]"
+								"Template expression parameter cannot be type `Void`"
 							);
 							return evo::resultError;
 						}
@@ -12026,6 +12633,10 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
 				evo::debugFatalBreak("Function cannot return a struct template");
+			} break;
+
+			case BaseType::Kind::UNION: {
+				evo::unimplemented("BaseType::Kind::UNION");
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -12750,6 +13361,83 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::analyze_union_attrs(
+		const AST::UnionDecl& union_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+	) -> evo::Result<UnionAttrs> {
+		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_untagged = Attribute(*this, "untagged");
+
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(union_decl.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "pub"){
+				if(attribute_params_info[i].empty()){
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #pub",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool pub_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #pub does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
+			}else if(attribute_str == "untagged"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #untagged does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_untagged.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+					attribute.attribute,
+					std::format("Unknown union attribute #{}", attribute_str)
+				);
+				return evo::resultError;
+			}
+		}
+
+
+		return UnionAttrs(attr_pub.is_set(), attr_untagged.is_set());
+	}
+
+
+
+
 	auto SemanticAnalyzer::analyze_func_attrs(
 		const AST::FuncDecl& func_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<FuncAttrs> {
@@ -13292,7 +13980,7 @@ namespace pcit::panther{
 						expected_type_info.qualifiers().back().isOptional
 						&& expected_type_info.qualifiers().back().isPtr == false
 					){ // is optional not pointer
-						is_implicit_conversion_to_optional = true;;
+						is_implicit_conversion_to_optional = true;
 					}else{
 						if constexpr(MAY_EMIT_ERROR){
 							this->error_type_mismatch(

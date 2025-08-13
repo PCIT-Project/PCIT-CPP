@@ -89,6 +89,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_alias_decl() -> Result;
 			EVO_NODISCARD auto parse_type_decl() -> Result;
 			EVO_NODISCARD auto parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
+			EVO_NODISCARD auto parse_union_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
 			EVO_NODISCARD auto parse_interface_decl() -> Result;
 			EVO_NODISCARD auto parse_interface_impl() -> Result;
 			EVO_NODISCARD auto parse_return() -> Result;

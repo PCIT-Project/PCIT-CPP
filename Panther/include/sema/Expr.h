@@ -56,6 +56,8 @@ namespace pcit::panther::sema{
 			UNWRAP,
 			ACCESSOR,
 			PTR_ACCESSOR,
+			UNION_ACCESSOR,
+			PTR_UNION_ACCESSOR,
 			TRY_ELSE,
 			BLOCK_EXPR,
 			FAKE_TERM_INFO,
@@ -111,6 +113,8 @@ namespace pcit::panther::sema{
 		explicit Expr(UnwrapID id)            : _kind(Kind::UNWRAP),              value{.unwrap = id}              {};
 		explicit Expr(AccessorID id)          : _kind(Kind::ACCESSOR),            value{.accessor = id}            {};
 		explicit Expr(PtrAccessorID id)       : _kind(Kind::PTR_ACCESSOR),        value{.ptr_accessor = id}        {};
+		explicit Expr(UnionAccessorID id)     : _kind(Kind::UNION_ACCESSOR),      value{.union_accessor = id}      {};
+		explicit Expr(PtrUnionAccessorID id)  : _kind(Kind::PTR_UNION_ACCESSOR),  value{.ptr_union_accessor = id}  {};
 		explicit Expr(TryElseID id)           : _kind(Kind::TRY_ELSE),            value{.try_else = id}            {};
 		explicit Expr(BlockExprID id)         : _kind(Kind::BLOCK_EXPR),          value{.block_expr = id}          {};
 		explicit Expr(FakeTermInfoID id)      : _kind(Kind::FAKE_TERM_INFO),      value{.fake_term_info = id}      {};
@@ -236,6 +240,14 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::PTR_ACCESSOR, "not a ptr accessor");
 			return this->value.ptr_accessor;
 		}
+		EVO_NODISCARD auto unionAccessorID() const -> UnionAccessorID {
+			evo::debugAssert(this->kind() == Kind::UNION_ACCESSOR, "not a union accessor");
+			return this->value.union_accessor;
+		}
+		EVO_NODISCARD auto ptrUnionAccessorID() const -> PtrUnionAccessorID {
+			evo::debugAssert(this->kind() == Kind::PTR_UNION_ACCESSOR, "not a ptr union accessor");
+			return this->value.ptr_union_accessor;
+		}
 		EVO_NODISCARD auto tryElseID() const -> TryElseID {
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not a try/else");
 			return this->value.try_else;
@@ -342,6 +354,8 @@ namespace pcit::panther::sema{
 				UnwrapID unwrap;
 				AccessorID accessor;
 				PtrAccessorID ptr_accessor;
+				UnionAccessorID union_accessor;
+				PtrUnionAccessorID ptr_union_accessor;
 				TryElseID try_else;
 				BlockExprID block_expr;
 				FakeTermInfoID fake_term_info;

@@ -321,7 +321,6 @@ namespace pcit::panther{
 					builder += "}>";
 
 					return builder;
-
 				} break;
 
 				case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -330,6 +329,14 @@ namespace pcit::panther{
 
 					const TokenBuffer& token_buffer = source_manager[struct_template_info.sourceID].getTokenBuffer();
 					return std::string(token_buffer[struct_template_info.identTokenID].getString());
+				} break;
+
+				case BaseType::Kind::UNION: {
+					const BaseType::Union::ID union_id = type_info.baseTypeID().unionID();
+					const BaseType::Union& union_info = this->getUnion(union_id);
+
+					const TokenBuffer& token_buffer = source_manager[union_info.sourceID].getTokenBuffer();
+					return std::string(token_buffer[union_info.identTokenID].getString());
 				} break;
 
 				case BaseType::Kind::TYPE_DEDUCER: {
@@ -534,11 +541,6 @@ namespace pcit::panther{
 		return this->structs[id];
 	}
 
-	auto TypeManager::getNumStructs() const -> size_t {
-		const auto lock = std::scoped_lock(this->structs_lock);
-		return this->structs.size();
-	}
-
 
 	auto TypeManager::getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID {
 		const auto lock = std::scoped_lock(this->structs_lock);
@@ -564,6 +566,13 @@ namespace pcit::panther{
 		);
 		return BaseType::ID(BaseType::Kind::STRUCT, new_struct.get());
 	}
+
+
+	auto TypeManager::getNumStructs() const -> size_t {
+		const auto lock = std::scoped_lock(this->structs_lock);
+		return this->structs.size();
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -598,6 +607,48 @@ namespace pcit::panther{
 		);
 		return BaseType::ID(BaseType::Kind::STRUCT_TEMPLATE, new_struct.get());
 	}
+
+	//////////////////////////////////////////////////////////////////////
+	// union
+
+	auto TypeManager::getUnion(BaseType::Union::ID id) const -> const BaseType::Union& {
+		const auto lock = std::scoped_lock(this->unions_lock);
+		return this->unions[id];
+	}
+
+	auto TypeManager::getUnion(BaseType::Union::ID id) -> BaseType::Union& {
+		const auto lock = std::scoped_lock(this->unions_lock);
+		return this->unions[id];
+	}
+
+
+	auto TypeManager::getOrCreateUnion(BaseType::Union&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->unions_lock);
+
+		for(uint32_t i = 0; i < this->unions.size(); i+=1){
+			if(this->unions[BaseType::Union::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::UNION, i);
+			}
+		}
+
+		const BaseType::Union::ID new_union = this->unions.emplace_back(
+			lookup_type.sourceID,
+			lookup_type.identTokenID,
+			std::move(lookup_type.fields),
+			lookup_type.namespacedMembers,
+			lookup_type.scopeLevel,
+			lookup_type.isPub,
+			lookup_type.isUntagged
+		);
+		return BaseType::ID(BaseType::Kind::UNION, new_union.get());
+	}
+
+
+	auto TypeManager::getNumUnions() const -> size_t {
+		const auto lock = std::scoped_lock(this->unions_lock);
+		return this->unions.size();
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -817,6 +868,26 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Cannot get size of Struct Template");
 			} break;
 
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+
+				size_t largest_size = [&]() -> size_t {
+					if(union_info.fields[0].typeID.isVoid()){
+						return 0;
+					}else{
+						return this->numBytes(union_info.fields[0].typeID.asTypeID());
+					}
+				}();
+
+				for(size_t i = 1; i < union_info.fields.size(); i+=1){
+					if(union_info.fields[i].typeID.isVoid()){ continue; }
+					largest_size = std::max(largest_size, this->numBytes(union_info.fields[i].typeID.asTypeID()));
+				}
+
+				return largest_size;
+			} break;
+
 			case BaseType::Kind::TYPE_DEDUCER: {
 				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of type deducer");
@@ -937,6 +1008,26 @@ namespace pcit::panther{
 				evo::debugAssert("Cannot get size of Struct Template");
 			} break;
 
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+
+				size_t largest_size = [&]() -> size_t {
+					if(union_info.fields[0].typeID.isVoid()){
+						return 0;
+					}else{
+						return this->numBits(union_info.fields[0].typeID.asTypeID());
+					}
+				}();
+
+				for(size_t i = 1; i < union_info.fields.size(); i+=1){
+					if(union_info.fields[i].typeID.isVoid()){ continue; }
+					largest_size = std::max(largest_size, this->numBits(union_info.fields[i].typeID.asTypeID()));
+				}
+
+				return largest_size;
+			} break;
+
 			case BaseType::Kind::TYPE_DEDUCER: {
 				// TODO(FUTURE): handle this better?
 				evo::debugAssert("Cannot get size of type deducer");
@@ -976,17 +1067,17 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isDefaultInitable
+	// isDefaultNewable
 
-	auto TypeManager::isDefaultInitable(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isDefaultNewable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		if(type_info.qualifiers().empty()){ return this->isDefaultInitable(type_info.baseTypeID()); }
+		if(type_info.qualifiers().empty()){ return this->isDefaultNewable(type_info.baseTypeID()); }
 		if(type_info.qualifiers().back().isOptional && type_info.qualifiers().back().isPtr){ return true; }
 		return false;
 	}
 
-	auto TypeManager::isDefaultInitable(BaseType::ID id) const -> bool {
+	auto TypeManager::isDefaultNewable(BaseType::ID id) const -> bool {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY: {
 				evo::debugFatalBreak("Invalid type");
@@ -1002,24 +1093,36 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
-				return this->isDefaultInitable(array.elementTypeID);
+				return this->isDefaultNewable(array.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isDefaultInitable(*alias.aliasedType.load());
+				return this->isDefaultNewable(*alias.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isDefaultInitable(*alias.underlyingType.load());
+				return this->isDefaultNewable(*alias.underlyingType.load());
 			} break;
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isDefaultInitable(member_var.typeID) == false){ return false; }
+					if(this->isDefaultNewable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					// Yes, this is the correct method
+					if(this->isTriviallyDefaultNewable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
 				return true;
@@ -1034,16 +1137,16 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isTriviallyDefaultInitable
+	// isTriviallyDefaultNewable
 
-	auto TypeManager::isTriviallyDefaultInitable(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isTriviallyDefaultNewable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
 		if(type_info.qualifiers().empty() == false){ return false; }
-		return this->isTriviallyDefaultInitable(type_info.baseTypeID());
+		return this->isTriviallyDefaultNewable(type_info.baseTypeID());
 	}
 
-	auto TypeManager::isTriviallyDefaultInitable(BaseType::ID id) const -> bool {
+	auto TypeManager::isTriviallyDefaultNewable(BaseType::ID id) const -> bool {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY: {
 				evo::debugFatalBreak("Invalid type");
@@ -1059,24 +1162,35 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
-				return this->isTriviallyDefaultInitable(array.elementTypeID);
+				return this->isTriviallyDefaultNewable(array.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isTriviallyDefaultInitable(*alias.aliasedType.load());
+				return this->isTriviallyDefaultNewable(*alias.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyDefaultInitable(*alias.underlyingType.load());
+				return this->isTriviallyDefaultNewable(*alias.underlyingType.load());
 			} break;
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isTriviallyDefaultInitable(member_var.typeID) == false){ return false; }
+					if(this->isTriviallyDefaultNewable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isTriviallyDefaultNewable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
 				return true;
@@ -1091,19 +1205,19 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isTriviallyDeinitable
+	// isTriviallyDeletable
 
-	auto TypeManager::isTriviallyDeinitable(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isTriviallyDeletable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
 		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
-		return this->isTriviallyDeinitable(type_info.baseTypeID());
+		return this->isTriviallyDeletable(type_info.baseTypeID());
 	}
 
-	auto TypeManager::isTriviallyDeinitable(BaseType::ID id) const -> bool {
+	auto TypeManager::isTriviallyDeletable(BaseType::ID id) const -> bool {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY: {
 				evo::debugFatalBreak("Invalid type");
@@ -1119,24 +1233,37 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
-				return this->isTriviallyDeinitable(array.elementTypeID);
+				return this->isTriviallyDeletable(array.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isTriviallyDeinitable(*alias.aliasedType.load());
+				return this->isTriviallyDeletable(*alias.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyDeinitable(*alias.underlyingType.load());
+				return this->isTriviallyDeletable(*alias.underlyingType.load());
 			} break;
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isTriviallyDeinitable(member_var.typeID) == false){ return false; }
+					if(this->isTriviallyDeletable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				if(union_info.isUntagged){ return true; }
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isTriviallyDeletable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
 				return true;
@@ -1202,6 +1329,19 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				if(union_info.isUntagged){ return true; }
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isCopyable(field.typeID.asTypeID()) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
@@ -1262,61 +1402,14 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
-				evo::debugFatalBreak("Invalid to check with this type");
-			} break;
-		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
-	}
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
 
+				if(union_info.isUntagged){ return true; }
 
-	///////////////////////////////////
-	// isMoveable
-
-	auto TypeManager::isMoveable(TypeInfo::ID id) const -> bool {
-		const TypeInfo& type_info = this->getTypeInfo(id);
-
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
-			if(qualifier.isPtr){ return true; }
-		}
-
-		return this->isMoveable(type_info.baseTypeID());
-	}
-
-	auto TypeManager::isMoveable(BaseType::ID id) const -> bool {
-		switch(id.kind()){
-			case BaseType::Kind::DUMMY: {
-				evo::debugFatalBreak("Invalid type");
-			} break;
-
-			case BaseType::Kind::PRIMITIVE: {
-				return true;
-			} break;
-
-			case BaseType::Kind::FUNCTION: {
-				return true;
-			} break;
-
-			case BaseType::Kind::ARRAY: {
-				const BaseType::Array& array = this->getArray(id.arrayID());
-				return this->isMoveable(array.elementTypeID);
-			} break;
-
-			case BaseType::Kind::ALIAS: {
-				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isMoveable(*alias.aliasedType.load());
-			} break;
-
-			case BaseType::Kind::DISTINCT_ALIAS: {
-				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isMoveable(*alias.underlyingType.load());
-			} break;
-
-			case BaseType::Kind::STRUCT: {
-				const BaseType::Struct& struct_info = this->getStruct(id.structID());
-
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isMoveable(member_var.typeID) == false){ return false; }
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isTriviallyCopyable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
 				return true;
@@ -1331,19 +1424,19 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isTriviallyMoveable
+	// isMovable
 
-	auto TypeManager::isTriviallyMoveable(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isMovable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
 		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
-		return this->isTriviallyMoveable(type_info.baseTypeID());
+		return this->isMovable(type_info.baseTypeID());
 	}
 
-	auto TypeManager::isTriviallyMoveable(BaseType::ID id) const -> bool {
+	auto TypeManager::isMovable(BaseType::ID id) const -> bool {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY: {
 				evo::debugFatalBreak("Invalid type");
@@ -1359,24 +1452,110 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
-				return this->isTriviallyMoveable(array.elementTypeID);
+				return this->isMovable(array.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isTriviallyMoveable(*alias.aliasedType.load());
+				return this->isMovable(*alias.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyMoveable(*alias.underlyingType.load());
+				return this->isMovable(*alias.underlyingType.load());
 			} break;
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isTriviallyMoveable(member_var.typeID) == false){ return false; }
+					if(this->isMovable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				if(union_info.isUntagged){ return true; }
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isMovable(field.typeID.asTypeID()) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+	///////////////////////////////////
+	// isTriviallyMovable
+
+	auto TypeManager::isTriviallyMovable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
+		return this->isTriviallyMovable(type_info.baseTypeID());
+	}
+
+	auto TypeManager::isTriviallyMovable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isTriviallyMovable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isTriviallyMovable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isTriviallyMovable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					if(this->isTriviallyMovable(member_var.typeID) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				if(union_info.isUntagged){ return true; }
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isTriviallyMovable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
 				return true;
@@ -1669,6 +1848,7 @@ namespace pcit::panther{
 			} break;
 			case BaseType::Kind::STRUCT:          return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::STRUCT_TEMPLATE: evo::debugFatalBreak("Cannot get underlying type of this kind");
+			case BaseType::Kind::UNION:           return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::TYPE_DEDUCER:    evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::INTERFACE:       evo::debugFatalBreak("Cannot get underlying type of this kind");
 		}

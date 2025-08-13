@@ -266,6 +266,10 @@ namespace pthr{
 						this->print_struct_decl(this->ast_buffer.getStructDecl(stmt));
 					} break;
 
+					case panther::AST::Kind::UNION_DECL: {
+						this->print_union_decl(this->ast_buffer.getUnionDecl(stmt));
+					} break;
+
 					case panther::AST::Kind::INTERFACE_DECL: {
 						this->print_interface_decl(this->ast_buffer.getInterfaceDecl(stmt));
 					} break;
@@ -629,6 +633,7 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_template_pack(struct_decl.templatePack);
 
+					this->indenter.set_arrow();
 					this->print_attribute_block(this->ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
 
 					this->indenter.print_end();
@@ -638,6 +643,84 @@ namespace pthr{
 					this->indenter.pop();
 				}
 			}
+
+
+			auto print_union_decl(const panther::AST::UnionDecl& union_decl) -> void {
+				this->indenter.print();
+				this->print_major_header("Union Declaration");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.print(" ");
+					this->print_ident(union_decl.ident);
+
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(union_decl.attributeBlock));
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Fields");
+					this->printer.println();
+					this->indenter.push();
+					for(size_t i = 0; const panther::AST::UnionDecl::Field& field : union_decl.fields){
+						if(i + 1 < union_decl.fields.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
+						}
+
+						this->print_major_header(std::format("Field {}", i));
+						{
+							this->indenter.push();
+
+							this->indenter.print_arrow();
+							this->print_minor_header("Identifier");
+							this->printer.print(" ");
+							this->print_ident(field.ident);
+
+							this->indenter.print_end();
+							this->print_minor_header("Type");
+							this->printer.print(" ");
+							this->print_type(this->ast_buffer.getType(field.type));
+							this->printer.println();
+
+							this->indenter.pop();
+						}
+					
+						i += 1;
+					}
+					this->indenter.pop();
+
+					this->indenter.print_end();
+					this->print_minor_header("Statements");
+					if(union_decl.statements.empty()){
+						this->printer.printlnGray(" {NONE}");
+					}else{
+						this->printer.println();
+
+						this->indenter.push();
+
+						for(size_t i = 0; const panther::AST::Node& stmt : union_decl.statements){
+							if(i + 1 < union_decl.fields.size()){
+								this->indenter.set_arrow();
+							}else{
+								this->indenter.set_end();
+							}
+
+							this->print_stmt(stmt);
+						
+							i += 1;
+						}
+
+						this->indenter.pop();
+					}
+
+					this->indenter.pop();
+				}
+			}
+
 
 			auto print_interface_decl(const panther::AST::InterfaceDecl& interface_decl) -> void {
 				this->indenter.print();
@@ -1023,15 +1106,15 @@ namespace pthr{
 				this->indenter.print_end();
 				this->print_minor_header("Statements");
 
-				if(block.stmts.empty()){
+				if(block.statements.empty()){
 					this->printer.printGray(" {EMPTY}\n");
 					
 				}else{
 					this->printer.println();
 					this->indenter.push();
 
-					for(size_t i = 0; const panther::AST::Node& stmt : block.stmts){
-						if(i + 1 < block.stmts.size()){
+					for(size_t i = 0; const panther::AST::Node& stmt : block.statements){
+						if(i + 1 < block.statements.size()){
 							this->indenter.set_arrow();
 						}else{
 							this->indenter.set_end();
@@ -1308,16 +1391,16 @@ namespace pthr{
 					case panther::AST::Kind::NONE:                case panther::AST::Kind::VAR_DECL:
 					case panther::AST::Kind::FUNC_DECL:           case panther::AST::Kind::ALIAS_DECL:
 					case panther::AST::Kind::DISTINCT_ALIAS_DECL: case panther::AST::Kind::STRUCT_DECL:
-					case panther::AST::Kind::INTERFACE_DECL:      case panther::AST::Kind::INTERFACE_IMPL:
-					case panther::AST::Kind::RETURN:              case panther::AST::Kind::ERROR:
-					case panther::AST::Kind::UNREACHABLE:         case panther::AST::Kind::BREAK:
-					case panther::AST::Kind::CONTINUE:            case panther::AST::Kind::CONDITIONAL:
-					case panther::AST::Kind::WHEN_CONDITIONAL:    case panther::AST::Kind::WHILE:
-					case panther::AST::Kind::DEFER:               case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:        case panther::AST::Kind::ARRAY_TYPE:
-					case panther::AST::Kind::TYPEID_CONVERTER:    case panther::AST::Kind::ATTRIBUTE_BLOCK:
-					case panther::AST::Kind::ATTRIBUTE:           case panther::AST::Kind::TYPE_DEDUCER:
-					case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::UNION_DECL:          case panther::AST::Kind::INTERFACE_DECL:
+					case panther::AST::Kind::INTERFACE_IMPL:      case panther::AST::Kind::RETURN:
+					case panther::AST::Kind::ERROR:               case panther::AST::Kind::UNREACHABLE:
+					case panther::AST::Kind::BREAK:               case panther::AST::Kind::CONTINUE:
+					case panther::AST::Kind::CONDITIONAL:         case panther::AST::Kind::WHEN_CONDITIONAL:
+					case panther::AST::Kind::WHILE:               case panther::AST::Kind::DEFER:
+					case panther::AST::Kind::TEMPLATE_PACK:       case panther::AST::Kind::MULTI_ASSIGN:
+					case panther::AST::Kind::ARRAY_TYPE:          case panther::AST::Kind::TYPEID_CONVERTER:
+					case panther::AST::Kind::ATTRIBUTE_BLOCK:     case panther::AST::Kind::ATTRIBUTE:
+					case panther::AST::Kind::TYPE_DEDUCER:        case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}
@@ -1899,7 +1982,7 @@ namespace pthr{
 
 							this->indenter.print_end();
 							if(attribute.args.empty()){
-								this->print_minor_header("Argument");
+								this->print_minor_header("Argument(s)");
 								this->printer.printGray(" {NONE}\n");
 
 							}else if(attribute.args.size() == 1){

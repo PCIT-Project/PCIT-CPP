@@ -54,6 +54,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto build_alias_decl(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_distinct_alias_decl(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_struct_decl(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_union_decl(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_interface_decl(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_interface_impl(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_when_conditional(const AST::Node& stmt) -> evo::Result<>;
@@ -71,6 +72,7 @@ namespace pcit::panther{
 			auto analyze_local_func(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_local_alias(const AST::AliasDecl& alias_decl) -> evo::Result<>;
 			auto analyze_local_struct(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
+			auto analyze_local_union(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_local_interface(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
@@ -161,7 +163,7 @@ namespace pcit::panther{
 
 
 
-			auto add_instruction(auto&& instruction) -> SymbolProc::Instruction& {
+			auto add_instruction(auto&& instruction) -> SymbolProc::Instruction {
 				return this->get_current_symbol().symbol_proc.instructions.emplace_back(std::move(instruction));
 			}
 

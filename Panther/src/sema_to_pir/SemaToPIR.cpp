@@ -27,6 +27,10 @@ namespace pcit::panther{
 			this->lowerStructAndDependencies(BaseType::Struct::ID(i));
 		}
 
+		for(uint32_t i = 0; i < this->context.getTypeManager().getNumUnions(); i+=1){
+			this->lowerUnionAndDependencies(BaseType::Union::ID(i));
+		}
+
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
 			this->lowerGlobalDecl(global_var_id);
 			this->lowerGlobalDef(global_var_id);
@@ -62,14 +66,22 @@ namespace pcit::panther{
 
 
 	
-	auto SemaToPIR::lowerStruct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type> {
+	auto SemaToPIR::lowerStruct(BaseType::Struct::ID struct_id) -> pir::Type {
 		return this->lower_struct<false>(struct_id);
 	}
 
-	auto SemaToPIR::lowerStructAndDependencies(BaseType::Struct::ID struct_id) -> std::optional<pir::Type> {
+	auto SemaToPIR::lowerStructAndDependencies(BaseType::Struct::ID struct_id) -> pir::Type {
 		return this->lower_struct<true>(struct_id);
 	}
 
+
+	auto SemaToPIR::lowerUnion(BaseType::Union::ID union_id) -> pir::Type {
+		return this->lower_union<false>(union_id);
+	}
+
+	auto SemaToPIR::lowerUnionAndDependencies(BaseType::Union::ID union_id) -> pir::Type {
+		return this->lower_union<true>(union_id);
+	}
 
 
 	auto SemaToPIR::lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID> {
@@ -441,6 +453,9 @@ namespace pcit::panther{
 
 				case BaseType::Kind::STRUCT:
 					return std::format("PTHR.vtable.i{}.s{}", interface_id.get(), type.structID().get());
+
+				case BaseType::Kind::UNION:
+					return std::format("PTHR.vtable.i{}.u{}", interface_id.get(), type.unionID().get());
 
 				case BaseType::Kind::DUMMY:        case BaseType::Kind::FUNCTION:
 				case BaseType::Kind::ALIAS:        case BaseType::Kind::STRUCT_TEMPLATE:
@@ -1026,7 +1041,7 @@ namespace pcit::panther{
 
 
 	template<bool MAY_LOWER_DEPENDENCY>
-	auto SemaToPIR::lower_struct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type> {
+	auto SemaToPIR::lower_struct(BaseType::Struct::ID struct_id) -> pir::Type {
 		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
 		if constexpr(MAY_LOWER_DEPENDENCY){
@@ -1052,6 +1067,50 @@ namespace pcit::panther{
 		);
 
 		this->data.create_struct(struct_id, new_type);
+
+		return new_type;
+	}
+
+
+	template<bool MAY_LOWER_DEPENDENCY>
+	auto SemaToPIR::lower_union(BaseType::Union::ID union_id) -> pir::Type {
+		const BaseType::Union& union_info = this->context.getTypeManager().getUnion(union_id);
+
+		TypeInfo::VoidableID biggest_type_id = union_info.fields[0].typeID;
+		size_t biggest_size = [&]() -> size_t {
+			if(biggest_type_id.isVoid()){
+				return 0;
+			}else{
+				return this->context.getTypeManager().numBits(biggest_type_id.asTypeID());
+			}
+		}();
+
+		for(size_t i = 1; i < union_info.fields.size(); i+=1){
+			if(union_info.fields[i].typeID.isVoid()){ continue; }
+
+			const size_t field_type_size =
+				this->context.getTypeManager().numBits(union_info.fields[i].typeID.asTypeID());
+
+			if(field_type_size > biggest_size){
+				biggest_type_id = union_info.fields[i].typeID;
+				biggest_size = field_type_size;
+			}
+		}
+
+
+		const pir::Type new_type = [&](){
+			if(union_info.isUntagged){
+				return this->module.createStructType(
+					this->mangle_name(union_id),
+					evo::SmallVector<pir::Type>{this->get_type<MAY_LOWER_DEPENDENCY>(biggest_type_id)},
+					false
+				);
+			}else{
+				evo::unimplemented();
+			}
+		}();
+
+		this->data.create_union(union_id, new_type);
 
 		return new_type;
 	}
@@ -2411,6 +2470,91 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Expr::Kind::UNION_ACCESSOR: {
+				const sema::UnionAccessor& union_accessor = 
+					this->context.getSemaBuffer().getUnionAccessor(expr.unionAccessorID());
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					const TypeInfo& target_type = 
+						this->context.getTypeManager().getTypeInfo(union_accessor.targetTypeID);
+					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
+						target_type.baseTypeID().unionID()
+					);
+
+					return this->agent.createLoad(
+						this->get_expr_pointer(union_accessor.target),
+						this->get_type<false>(target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()),
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name("UNION_ACCESSOR")
+					);
+					
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->get_expr_pointer(union_accessor.target);
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					const TypeInfo& target_type = 
+						this->context.getTypeManager().getTypeInfo(union_accessor.targetTypeID);
+					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
+						target_type.baseTypeID().unionID()
+					);
+
+					return this->agent.createMemcpy(
+						store_locations[0],
+						this->get_expr_pointer(union_accessor.target),
+						this->get_type<false>(target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID())
+					);
+					
+				}else{
+					this->get_expr_discard(union_accessor.target);
+					return std::nullopt;
+				}
+				
+			} break;
+
+			case sema::Expr::Kind::PTR_UNION_ACCESSOR: {
+				const sema::PtrUnionAccessor& ptr_union_accessor = 
+					this->context.getSemaBuffer().getPtrUnionAccessor(expr.ptrUnionAccessorID());
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					const TypeInfo& target_type = 
+						this->context.getTypeManager().getTypeInfo(ptr_union_accessor.targetTypeID);
+					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
+						target_type.baseTypeID().unionID()
+					);
+
+					return this->agent.createLoad(
+						this->get_expr_register(ptr_union_accessor.target),
+						this->get_type<false>(
+							target_union_type.fields[ptr_union_accessor.fieldIndex].typeID.asTypeID()
+						),
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name("UNION_ACCESSOR")
+					);
+					
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->get_expr_register(ptr_union_accessor.target);
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					const TypeInfo& target_type = 
+						this->context.getTypeManager().getTypeInfo(ptr_union_accessor.targetTypeID);
+					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
+						target_type.baseTypeID().unionID()
+					);
+
+					return this->agent.createMemcpy(
+						store_locations[0],
+						this->get_expr_register(ptr_union_accessor.target),
+						this->get_type<false>(target_union_type.fields[ptr_union_accessor.fieldIndex].typeID.asTypeID())
+					);
+					
+				}else{
+					this->get_expr_discard(ptr_union_accessor.target);
+					return std::nullopt;
+				}
+			} break;
+
 			case sema::Expr::Kind::BLOCK_EXPR: {
 				const sema::BlockExpr& block_expr = this->context.getSemaBuffer().getBlockExpr(expr.blockExprID());
 
@@ -3210,12 +3354,12 @@ namespace pcit::panther{
 	auto SemaToPIR::deinit_expr(pir::Expr expr, TypeInfo::ID expr_type_id) -> void {
 		evo::debugAssert(this->agent.getExprType(expr).kind() == pir::Type::Kind::PTR, "expr must be a pointer");
 
-		if(this->context.getTypeManager().isTriviallyDeinitable(expr_type_id)){ return; }
+		if(this->context.getTypeManager().isTriviallyDeletable(expr_type_id)){ return; }
 
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
 		if(expr_type.isOptionalNotPointer()){
-			if(this->context.getTypeManager().isTriviallyDeinitable(expr_type_id) == false){
+			if(this->context.getTypeManager().isTriviallyDeletable(expr_type_id) == false){
 				auto held_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
 					expr_type.qualifiers().begin(), std::prev(expr_type.qualifiers().end())
 				);
@@ -3229,10 +3373,10 @@ namespace pcit::panther{
 
 				this->deinit_expr(held_data, held_type);
 
-				const pir::Expr opt_flag = this->agent.createCalcPtr(
-					expr, this->get_type<false>(expr_type_id), evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-				);
-				this->agent.createStore(opt_flag, this->agent.createBoolean(false));
+				// const pir::Expr opt_flag = this->agent.createCalcPtr(
+				// 	expr, this->get_type<false>(expr_type_id), evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+				// );
+				// this->agent.createStore(opt_flag, this->agent.createBoolean(false));
 			}
 
 			return;
@@ -4898,7 +5042,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::ADDR_OF:             case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
 			case sema::Expr::Kind::OPTIONAL_NULL_CHECK: case sema::Expr::Kind::DEREF:
 			case sema::Expr::Kind::UNWRAP:              case sema::Expr::Kind::ACCESSOR:
-			case sema::Expr::Kind::PTR_ACCESSOR:        case sema::Expr::Kind::TRY_ELSE:
+			case sema::Expr::Kind::PTR_ACCESSOR:        case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::PTR_UNION_ACCESSOR:  case sema::Expr::Kind::TRY_ELSE:
 			case sema::Expr::Kind::BLOCK_EXPR:          case sema::Expr::Kind::FAKE_TERM_INFO:
 			case sema::Expr::Kind::MAKE_INTERFACE_PTR:  case sema::Expr::Kind::INTERFACE_CALL:
 			case sema::Expr::Kind::INDEXER:             case sema::Expr::Kind::PTR_INDEXER:
@@ -5050,6 +5195,17 @@ namespace pcit::panther{
 
 				return this->data.get_struct(base_type_id.structID());
 			} break;
+
+
+			case BaseType::Kind::UNION: {
+				if constexpr(MAY_LOWER_DEPENDENCY){
+					if(this->data.has_union(base_type_id.unionID()) == false){
+						this->lowerUnionAndDependencies(base_type_id.unionID());
+					}
+				}
+
+				return this->data.get_union(base_type_id.unionID());
+			} break;
 			
 			case BaseType::Kind::STRUCT_TEMPLATE: {
 				evo::debugFatalBreak("Cannot get type of struct template");
@@ -5122,7 +5278,20 @@ namespace pcit::panther{
 				return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(name_token.kind()));
 			}
 		}
+	}
 
+
+	auto SemaToPIR::mangle_name(const BaseType::Union::ID union_id) const -> std::string {
+		if(this->data.getConfig().useReadableNames){
+			const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
+			const Source& source = this->context.getSourceManager()[union_type.sourceID];
+			return std::format(
+				"PTHR.u{}.{}", union_id.get(), source.getTokenBuffer()[union_type.identTokenID].getString()
+			);
+			
+		}else{
+			return std::format("PTHR.u{}", union_id.get());
+		}
 	}
 
 

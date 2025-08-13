@@ -74,6 +74,7 @@ namespace pcit::panther{
 			PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY,
 			PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
 			PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK,
+			PARSER_ENUM_WITH_NO_FIELDS,
 
 
 			//////////////////
@@ -81,6 +82,7 @@ namespace pcit::panther{
 
 			SYMBOL_PROC_INVALID_STMT,
 			SYMBOL_PROC_INVALID_GLOBAL_STMT,
+			SYMBOL_PROC_INVALID_UNION_STMT,
 			SYMBOL_PROC_INVALID_BASE_TYPE,
 			SYMBOL_PROC_INVALID_EXPR_KIND,
 			SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
@@ -123,13 +125,17 @@ namespace pcit::panther{
 
 			// exprs
 			SEMA_TYPE_USED_AS_EXPR,
+			SEMA_INVALID_ACCESSOR_LHS,
 			SEMA_INVALID_ACCESSOR_RHS,
 			SEMA_EXPR_NOT_CONSTEXPR,
 			SEMA_EXPR_NOT_COMPTIME,
 			SEMA_COPY_ARG_NOT_CONCRETE,
+			SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
 			SEMA_MOVE_ARG_IS_IN_PARAM,
 			SEMA_MOVE_ARG_NOT_CONCRETE,
 			SEMA_MOVE_ARG_NOT_MUTABLE,
+			SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
+			SEMA_COPY_TARGET_NOT_MOVABLE,
 			SEMA_ADDR_OF_ARG_NOT_CONCRETE,
 			SEMA_DEREF_ARG_NOT_PTR,
 			SEMA_UNWRAP_ARG_NOT_OPTIONAL,
@@ -258,6 +264,14 @@ namespace pcit::panther{
 			SEMA_INDEXER_INCORRECT_NUM_INDICES,
 
 
+			// union
+			SEMA_UNION_UNTAGGED_WITH_VOID_FIELD,
+			SEMA_UNION_UNTAGGED_NON_TRIVIALLY_DELETABLE_FIELD,
+			SEMA_UNION_UNTAGGED_NON_TRIVIALLY_COPYABLE_FIELD,
+			SEMA_UNION_UNTAGGED_NON_TRIVIALLY_MOVABLE_FIELD,
+			SEMA_UNION_ACCESSOR_IS_VOID,
+
+
 			// misc
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
 			SEMA_BLOCK_EXPR_NOT_TERMINATED,
@@ -349,6 +363,7 @@ namespace pcit::panther{
 					const AST::DistinctAliasDecl& distinct_alias_decl, const class Source& src
 				) -> Location;
 				EVO_NODISCARD static auto get(const AST::StructDecl& struct_decl, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::UnionDecl& union_decl, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::InterfaceDecl& interface_decl, const class Source& src)
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::InterfaceImpl& interface_impl, const class Source& src)
@@ -400,16 +415,17 @@ namespace pcit::panther{
 					const class Context& context
 				) -> Location;
 
-				EVO_NODISCARD static auto get(const BaseType::Alias::ID& alias_id, const class Context& context)
+				EVO_NODISCARD static auto get(BaseType::Alias::ID alias_id, const class Context& context)
 					-> Location;
 
-				EVO_NODISCARD static auto get(
-					const BaseType::Struct::ID& struct_id, const class Source& src, const class Context& context
-				) -> Location;
+				EVO_NODISCARD static auto get(BaseType::Struct::ID struct_id, const class Context& context)
+					-> Location;
 
-				EVO_NODISCARD static auto get(
-					const BaseType::Interface::ID& interface_id, const class Source& src, const class Context& context
-				) -> Location;
+				EVO_NODISCARD static auto get(BaseType::Union::ID union_id, const class Context& context)
+					-> Location;
+
+				EVO_NODISCARD static auto get(BaseType::Interface::ID interface_id, const class Context& context)
+					-> Location;
 		
 			private:
 				evo::Variant<None, SourceLocation, ClangSourceLocation> variant;
@@ -573,10 +589,12 @@ namespace pcit::panther{
 				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY:       return "P14";
 				case Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT: return "P15";
 				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P16";
+				case Code::PARSER_ENUM_WITH_NO_FIELDS:                  return "P17";
 
 				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_STMT:
 				case Code::SYMBOL_PROC_INVALID_GLOBAL_STMT:
+				case Code::SYMBOL_PROC_INVALID_UNION_STMT:
 				case Code::SYMBOL_PROC_INVALID_BASE_TYPE:
 				case Code::SYMBOL_PROC_INVALID_EXPR_KIND:
 				case Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG:
@@ -609,13 +627,16 @@ namespace pcit::panther{
 				case Code::SEMA_VAR_GLOBAL_VAR_WITH_ATTR_GLOBAL:
 				case Code::SEMA_VAR_DEF_WITH_ATTR_GLOBAL:
 				case Code::SEMA_TYPE_USED_AS_EXPR:
+				case Code::SEMA_INVALID_ACCESSOR_LHS:
 				case Code::SEMA_INVALID_ACCESSOR_RHS:
 				case Code::SEMA_EXPR_NOT_CONSTEXPR:
 				case Code::SEMA_EXPR_NOT_COMPTIME:
 				case Code::SEMA_COPY_ARG_NOT_CONCRETE:
+				case Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE:
 				case Code::SEMA_MOVE_ARG_IS_IN_PARAM:
 				case Code::SEMA_MOVE_ARG_NOT_CONCRETE:
 				case Code::SEMA_MOVE_ARG_NOT_MUTABLE:
+				case Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE:
 				case Code::SEMA_ADDR_OF_ARG_NOT_CONCRETE:
 				case Code::SEMA_DEREF_ARG_NOT_PTR:
 				case Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE:
@@ -713,6 +734,11 @@ namespace pcit::panther{
 				case Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES:
 				case Code::SEMA_INDEXER_INVALID_TARGET:
 				case Code::SEMA_INDEXER_INCORRECT_NUM_INDICES:
+				case Code::SEMA_UNION_UNTAGGED_WITH_VOID_FIELD:
+				case Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_DELETABLE_FIELD:
+				case Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_COPYABLE_FIELD:
+				case Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_MOVABLE_FIELD:
+				case Code::SEMA_UNION_ACCESSOR_IS_VOID:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
 				case Code::SEMA_FUNC_HAS_NO_THIS_PARAM:

@@ -74,6 +74,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_struct_decl(const Instruction::StructDecl<IS_INSTANTIATION>& instr) -> Result;
 			EVO_NODISCARD auto instr_struct_def() -> Result;
 			EVO_NODISCARD auto instr_template_struct(const Instruction::TemplateStruct& instr) -> Result;
+			EVO_NODISCARD auto instr_union_decl(const Instruction::UnionDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_union_add_fields(const Instruction::UnionAddFields& instr) -> Result;
+			EVO_NODISCARD auto instr_union_def() -> Result;
 
 			EVO_NODISCARD auto instr_func_decl_extract_deducers_if_needed(
 				const Instruction::FuncDeclExtractDeducersIfNeeded& instr
@@ -224,8 +227,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_expr_math_infix(const Instruction::MathInfix<IS_CONSTEXPR, MATH_INFIX_KIND>& instr)
 				-> Result;
 
-			template<bool NEEDS_DEF>
-			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result;
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<IS_CONSTEXPR>& instr) -> Result;
 
 			EVO_NODISCARD auto instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result;
 			EVO_NODISCARD auto instr_array_type(const Instruction::ArrayType& instr) -> Result;
@@ -263,11 +266,12 @@ namespace pcit::panther{
 			) -> Result;
 
 			template<bool NEEDS_DEF>
-			EVO_NODISCARD auto struct_accessor(
+			EVO_NODISCARD auto type_accessor(
 				const Instruction::Accessor<NEEDS_DEF>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs
 			) -> Result;
+
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto interface_accessor(
@@ -276,6 +280,26 @@ namespace pcit::panther{
 				const TermInfo& lhs
 			) -> Result;
 
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto struct_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs,
+				TypeInfo::ID actual_lhs_type_id,
+				const TypeInfo& actual_lhs_type,
+				bool is_pointer
+			) -> Result;
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto union_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs,
+				TypeInfo::ID actual_lhs_type_id,
+				const TypeInfo& actual_lhs_type,
+				bool is_pointer
+			) -> Result;
 
 
 			///////////////////////////////////
@@ -454,6 +478,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_struct_attrs(
 				const AST::StructDecl& struct_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<StructAttrs>;
+
+
+			struct UnionAttrs{
+				bool is_pub;
+				bool is_untagged;
+			};
+			EVO_NODISCARD auto analyze_union_attrs(
+				const AST::UnionDecl& union_decl,
+				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<UnionAttrs>;
 
 
 			struct FuncAttrs{
@@ -687,6 +721,11 @@ namespace pcit::panther{
 				return this->get_location(member_var.location);
 			}
 
+			EVO_NODISCARD auto get_location(const sema::ScopeLevel::UnionField& union_field) const
+			-> Diagnostic::Location {
+				return this->get_location(union_field.location);
+			}
+
 			EVO_NODISCARD auto get_location(const sema::Func::ID& func) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(func, this->source, this->context);
 			}
@@ -735,26 +774,30 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto get_location(const BaseType::Alias::ID& alias_id) const -> Diagnostic::Location {
+			EVO_NODISCARD auto get_location(BaseType::Alias::ID alias_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(alias_id, this->context);
 			}
 
-			EVO_NODISCARD auto get_location(const BaseType::DistinctAlias::ID& distinct_alias_id) const
+			EVO_NODISCARD auto get_location(BaseType::DistinctAlias::ID distinct_alias_id) const
 			-> Diagnostic::Location {
 				// TODO(FUTURE): 
 				std::ignore = distinct_alias_id;
 				evo::unimplemented();
 			}
 
-			EVO_NODISCARD auto get_location(const BaseType::Struct::ID& struct_id) const -> Diagnostic::Location {
-				return Diagnostic::Location::get(struct_id, this->source, this->context);
+			EVO_NODISCARD auto get_location(BaseType::Struct::ID struct_id) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(struct_id, this->context);
 			}
 
-			EVO_NODISCARD auto get_location(const BaseType::Interface::ID& interface_id) const -> Diagnostic::Location {
-				return Diagnostic::Location::get(interface_id, this->source, this->context);
+			EVO_NODISCARD auto get_location(BaseType::Union::ID union_id) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(union_id, this->context);
 			}
 
-			EVO_NODISCARD auto get_location(const sema::TemplatedStruct::ID& templated_struct_id) const
+			EVO_NODISCARD auto get_location(BaseType::Interface::ID interface_id) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(interface_id, this->context);
+			}
+
+			EVO_NODISCARD auto get_location(sema::TemplatedStruct::ID templated_struct_id) const
 			-> Diagnostic::Location {
 				const sema::TemplatedStruct& templated_struct =
 					this->context.sema_buffer.getTemplatedStruct(templated_struct_id);

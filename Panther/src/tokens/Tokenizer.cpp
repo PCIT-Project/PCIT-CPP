@@ -157,6 +157,7 @@ namespace pcit::panther{
 	const static auto keyword_map = std::unordered_map<std::string_view, Token::Kind>{
 		// types
 		{"Void",        Token::Kind::TYPE_VOID},
+		{"Type",        Token::Kind::TYPE_TYPE},
 		{"This",        Token::Kind::TYPE_THIS},
 
 		{"Int",         Token::Kind::TYPE_INT},
@@ -199,6 +200,7 @@ namespace pcit::panther{
 		{"struct",      Token::Kind::KEYWORD_STRUCT},
 		{"interface",   Token::Kind::KEYWORD_INTERFACE},
 		{"impl",        Token::Kind::KEYWORD_IMPL},
+		{"union",       Token::Kind::KEYWORD_UNION},
 
 		{"return",      Token::Kind::KEYWORD_RETURN},
 		{"error",       Token::Kind::KEYWORD_ERROR},

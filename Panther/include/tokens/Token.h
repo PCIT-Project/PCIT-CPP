@@ -48,6 +48,7 @@ namespace pcit::panther{
 				// types
 
 				TYPE_VOID,
+				TYPE_TYPE,
 				TYPE_THIS,
 
 				TYPE_INT,
@@ -95,6 +96,7 @@ namespace pcit::panther{
 				KEYWORD_STRUCT,
 				KEYWORD_INTERFACE,
 				KEYWORD_IMPL,
+				KEYWORD_UNION,
 
 				KEYWORD_RETURN,
 				KEYWORD_ERROR,
@@ -420,6 +422,7 @@ namespace pcit::panther{
 					// types
 
 					break; case Kind::TYPE_VOID:                return "Void";
+					break; case Kind::TYPE_TYPE:                return "Type";
 					break; case Kind::TYPE_THIS:                return "This";
 
 					break; case Kind::TYPE_INT:                 return "Int";
@@ -467,6 +470,7 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_STRUCT:           return "struct";
 					break; case Kind::KEYWORD_INTERFACE:        return "interface";
 					break; case Kind::KEYWORD_IMPL:             return "impl";
+					break; case Kind::KEYWORD_UNION:            return "union";
 
 					break; case Kind::KEYWORD_RETURN:           return "return";
 					break; case Kind::KEYWORD_ERROR:            return "error";

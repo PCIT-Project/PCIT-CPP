@@ -47,6 +47,7 @@ namespace pcit::panther{
 			DISTINCT_ALIAS,
 			STRUCT,
 			STRUCT_TEMPLATE,
+			UNION,
 			TYPE_DEDUCER,
 			INTERFACE,
 		};
@@ -90,6 +91,11 @@ namespace pcit::panther{
 				return StructTemplateID(this->_id);
 			}
 
+			EVO_NODISCARD auto unionID() const -> UnionID {
+				evo::debugAssert(this->kind() == Kind::UNION, "not a Union");
+				return UnionID(this->_id);
+			}
+
 			EVO_NODISCARD auto typeDeducerID() const -> TypeDeducerID {
 				evo::debugAssert(this->kind() == Kind::TYPE_DEDUCER, "not a type deducer");
 				return TypeDeducerID(this->_id);
@@ -116,6 +122,7 @@ namespace pcit::panther{
 			explicit ID(DistinctAliasID id)  : _kind(Kind::DISTINCT_ALIAS),  _id(id.get()) {}
 			explicit ID(StructID id)         : _kind(Kind::STRUCT),          _id(id.get()) {}
 			explicit ID(StructTemplateID id) : _kind(Kind::STRUCT_TEMPLATE), _id(id.get()) {}
+			explicit ID(UnionID id)          : _kind(Kind::UNION),           _id(id.get()) {}
 			explicit ID(TypeDeducerID id)    : _kind(Kind::TYPE_DEDUCER),    _id(id.get()) {}
 			explicit ID(InterfaceID id)      : _kind(Kind::INTERFACE),       _id(id.get()) {}
 
@@ -350,8 +357,6 @@ namespace pcit::panther{
 			bool isOrdered;
 			bool isPacked;
 
-			std::optional<pir::Type> constexprJITType{}; // if nullopt and `defCompleted == true`, means no member vars
-
 			std::atomic<bool> defCompleted = false;
 
 			mutable core::SpinLock memberVarsLock{}; // only needed before definition is completed
@@ -438,6 +443,32 @@ namespace pcit::panther{
 				std::unordered_map<evo::SmallVector<Arg>, Instantiation&> instantiation_map{};
 				mutable core::SpinLock instantiation_lock{};
 		};
+
+
+
+		struct Union{
+			using ID = UnionID;
+
+			struct Field{
+				Token::ID identTokenID;
+				TypeInfoVoidableID typeID;
+			};
+			
+			SourceID sourceID;
+			Token::ID identTokenID;
+			evo::SmallVector<Field> fields;
+			SymbolProcNamespace& namespacedMembers;
+			sema::ScopeLevel* scopeLevel; // is pointer because it needs to be set after construction (so never nullptr)
+			bool isPub;
+			bool isUntagged;
+
+			std::atomic<bool> defCompleted = false;
+
+			auto operator==(const Union& rhs) const -> bool {
+				return this->identTokenID == rhs.identTokenID && this->sourceID == rhs.sourceID;
+			}
+		};
+
 
 
 		// TODO(FUTURE): is `.sourceID` ever actually used (outside of operator==),
@@ -586,6 +617,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) -> BaseType::StructTemplate&;
 			EVO_NODISCARD auto getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID;
 
+			EVO_NODISCARD auto getUnion(BaseType::Union::ID id) const -> const BaseType::Union&;
+			EVO_NODISCARD auto getUnion(BaseType::Union::ID id)       ->       BaseType::Union&;
+			EVO_NODISCARD auto getOrCreateUnion(BaseType::Union&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto getNumUnions() const -> size_t; // I don't love this design
+
 			EVO_NODISCARD auto getTypeDeducer(BaseType::TypeDeducer::ID id) const -> const BaseType::TypeDeducer&;
 			EVO_NODISCARD auto getOrCreateTypeDeducer(BaseType::TypeDeducer&& lookup_type) -> BaseType::ID;
 
@@ -635,14 +671,14 @@ namespace pcit::panther{
 			//////////////////
 			// operations
 
-			EVO_NODISCARD auto isDefaultInitable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isDefaultInitable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isDefaultNewable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isDefaultNewable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isTriviallyDefaultInitable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isTriviallyDefaultInitable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyDefaultNewable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyDefaultNewable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isTriviallyDeinitable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isTriviallyDeinitable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyDeletable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyDeletable(BaseType::ID id) const -> bool;
 
 			EVO_NODISCARD auto isCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isCopyable(BaseType::ID id) const -> bool;
@@ -650,11 +686,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyCopyable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isMoveable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isMoveable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isMovable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isMovable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isTriviallyMoveable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isTriviallyMoveable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyMovable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyMovable(BaseType::ID id) const -> bool;
 
 
 			//////////////////
@@ -729,6 +765,9 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::TypeDeducer, BaseType::TypeDeducer::ID> type_deducers{};
 			mutable core::SpinLock type_deducers_lock{};
+
+			core::LinearStepAlloc<BaseType::Union, BaseType::Union::ID> unions{};
+			mutable core::SpinLock unions_lock{};
 
 			core::LinearStepAlloc<BaseType::Interface, BaseType::Interface::ID> interfaces{};
 			mutable core::SpinLock interfaces_lock{};

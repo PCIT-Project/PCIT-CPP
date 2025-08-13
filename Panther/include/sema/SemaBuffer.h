@@ -415,6 +415,30 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// union accessors
+
+			EVO_NODISCARD auto createUnionAccessor(auto&&... args) -> sema::UnionAccessor::ID {
+				return this->union_accessors.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getUnionAccessor(sema::UnionAccessor::ID id) const -> const sema::UnionAccessor& {
+				return this->union_accessors[id];
+			}
+
+
+			///////////////////////////////////
+			// ptr union accessors
+
+			EVO_NODISCARD auto createPtrUnionAccessor(auto&&... args) -> sema::PtrUnionAccessor::ID {
+				return this->ptr_union_accessors.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getPtrUnionAccessor(sema::PtrUnionAccessor::ID id) const -> const sema::PtrUnionAccessor& {
+				return this->ptr_union_accessors[id];
+			}
+
+
+			///////////////////////////////////
 			// try/else
 
 			EVO_NODISCARD auto createTryElse(auto&&... args) -> sema::TryElse::ID {
@@ -671,6 +695,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
 			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
 			core::SyncLinearStepAlloc<sema::PtrAccessor, sema::PtrAccessor::ID> ptr_accessors{};
+			core::SyncLinearStepAlloc<sema::UnionAccessor, sema::UnionAccessor::ID> union_accessors{};
+			core::SyncLinearStepAlloc<sema::PtrUnionAccessor, sema::PtrUnionAccessor::ID> ptr_union_accessors{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};

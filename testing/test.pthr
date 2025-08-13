@@ -1,22 +1,24 @@
 
-type Point = struct {
-	var x: UI8;
-	var y: UI8;
-}
+type Union = union #untagged {
+	int: Int,
+	float: F32,
 
+	func get_as_ui8 = (this) #rt -> UI8 {
+		return this.int as UI8;
+	}
 
-
-func entry = () #entry -> UI8 {
-	var foo: Point? = new Point{ x = 12, y = 14 };
-
-	var num: Int? = 12;
-
-	if(foo == null){
-		return 0;
-	}else{
-		return foo.?.y + (num.?.* as UI8);
+	func get_num = () -> UI8 {
+		return 4;
 	}
 }
 
 
 
+
+func entry = () #entry -> UI8 {
+	var value: Union = uninit;
+
+	(&value).int = 12;
+	
+	return value.get_as_ui8();
+}

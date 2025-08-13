@@ -324,8 +324,9 @@ namespace pcit::panther{
 
 		if(this->expect_token_fail(Token::lookupKind("="), "in type declaration")){ return Result::Code::ERROR; }
 
-		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_STRUCT){
-			return this->parse_struct_decl(ident.value(), attributes.value());
+		switch(this->reader[this->reader.peek()].kind()){
+			case Token::Kind::KEYWORD_STRUCT: return this->parse_struct_decl(ident.value(), attributes.value());
+			case Token::Kind::KEYWORD_UNION:  return this->parse_union_decl(ident.value(), attributes.value());
 		}
 
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
@@ -381,6 +382,91 @@ namespace pcit::panther{
 			ASTBuffer::getIdent(ident), template_pack_node, std::move(attributes.value()), block.value()
 		);
 	}
+
+
+	// TODO(FUTURE): check EOF
+	auto Parser::parse_union_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+		if(this->assert_token_fail(Token::Kind::KEYWORD_UNION)){ return Result::Code::ERROR; }
+
+		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
+				this->source.getTokenBuffer().getSourceLocation(
+					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
+					this->source.getID()
+				),
+				"Attributes for union declaration in the wrong place",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("Attributes should be after the [union] keyword")
+				}
+			);
+			return Result::Code::ERROR;
+		}
+
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+		if(this->expect_token_fail(Token::lookupKind("{"), "to begin union block")){ return Result::Code::ERROR; }
+
+		auto fields = evo::SmallVector<AST::UnionDecl::Field>();
+		auto statements = evo::SmallVector<AST::Node>();
+
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
+				this->reader.skip();
+				break;
+			}
+
+
+			const Result field_ident = this->parse_ident();
+			// TODO(PERF): remove? parse_ident can't error
+			if(field_ident.code() == Result::Code::ERROR){ return Result::Code::ERROR; } 
+
+
+			if(field_ident.code() == Result::Code::SUCCESS){ // is field
+				if(this->expect_token_fail(Token::lookupKind(":"), "after identifier in union field")){
+					return Result::Code::ERROR;
+				}
+
+				const Result type = this->parse_type<TypeKind::EXPLICIT>();
+				if(this->check_result_fail(type, "type after [:] in union definition")){
+					return Result::Code::ERROR;
+				}
+
+				if(this->expect_token_fail(Token::lookupKind(","), "after type in union field")){
+					return Result::Code::ERROR;
+				}
+
+				fields.emplace_back(ASTBuffer::getIdent(field_ident.value()), type.value());
+				
+			}else{ // is statement
+				const Result stmt = this->parse_stmt();
+				if(this->check_result_fail(
+					stmt, "field or statement in union definition, or [}] at end of union definition block"
+				)){
+					return Result::Code::ERROR;
+				}
+
+				statements.emplace_back(stmt.value());
+			}
+		}
+
+
+		if(fields.empty()){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_ENUM_WITH_NO_FIELDS,
+				Diagnostic::Location::get(ASTBuffer::getIdent(ident), this->source),
+				"Enum must be defined with at least one field"
+			);
+			return Result::Code::ERROR;
+		}
+
+
+		return this->source.ast_buffer.createUnionDecl(
+			ASTBuffer::getIdent(ident), attributes.value(), std::move(fields), std::move(statements)
+		);
+	}
+
 
 
 	// TODO(FUTURE): check EOF
@@ -483,6 +569,7 @@ namespace pcit::panther{
 
 		return this->source.ast_buffer.createInterfaceImpl(target.value(), std::move(methods));
 	}
+
 
 
 
@@ -1003,8 +1090,22 @@ namespace pcit::panther{
 				break;
 
 			case Token::Kind::KEYWORD_TYPE: {
+				is_primitive = false;
+
+				if(this->reader[this->reader.peek(1)].kind() != Token::lookupKind("(")){
+					this->expected_but_got(
+						"[(] after type ID converter keyword [type]",
+						this->reader.peek(1),
+						evo::SmallVector<Diagnostic::Info>{Diagnostic::Info("Did you mean `Type`?")}
+					);
+					return Result::Code::ERROR;
+				}
+			} break;
+
+			case Token::Kind::TYPE_TYPE: {
 				if(this->reader[this->reader.peek(1)].kind() == Token::lookupKind("(")){
-					is_primitive = false;
+					// TODO(NOW): proper error
+					evo::debugFatalBreak("Did you mean `type`?");
 				}
 			} break;
 

@@ -169,6 +169,23 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct UnionAccessor{
+		using ID = UnionAccessorID;
+
+		Expr target;
+		TypeInfo::ID targetTypeID;
+		uint32_t fieldIndex;
+	};
+
+	struct PtrUnionAccessor{
+		using ID = PtrUnionAccessorID;
+
+		Expr target;
+		TypeInfo::ID targetTypeID;
+		uint32_t fieldIndex;
+	};
+
+
 	struct TryElse{
 		using ID = TryElseID;
 

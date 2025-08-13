@@ -200,6 +200,10 @@ namespace pcit::panther::sema{
 		return this->add_ident_default_impl(ident, id);
 	}
 
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::UnionID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
 	auto ScopeLevel::addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
@@ -256,6 +260,18 @@ namespace pcit::panther::sema{
 		}
 
 		return &this->ids.emplace(ident, MemberVar(location)).first->second;
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, Token::ID location, uint32_t field_index, UnionFieldFlag)
+	-> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
+
+		return &this->ids.emplace(ident, UnionField(location, field_index)).first->second;
 	}
 
 

@@ -166,13 +166,6 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// misc symbol proc
-
-		struct SuspendSymbolProc{};
-
-
-
-		//////////////////
 		// stmts valid in global scope
 
 		struct NonLocalVarDecl{
@@ -235,12 +228,23 @@ namespace pcit::panther{
 			{}
 		};
 
-		struct StructDef{};
 
 		struct TemplateStruct{
 			const AST::StructDecl& struct_decl;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
+
+
+		struct UnionDecl{
+			const AST::UnionDecl& union_decl;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+		};
+
+		struct UnionAddFields{
+			const AST::UnionDecl& union_decl;
+			evo::SmallVector<SymbolProcTypeID> field_types;
+		};
+
 
 
 		struct FuncDeclExtractDeducersIfNeeded{
@@ -352,7 +356,6 @@ namespace pcit::panther{
 			const AST::FuncDecl& func_decl;
 		};
 
-		struct FuncConstexprPIRReadyIfNeeded{};
 
 
 		struct TemplateFuncBegin{
@@ -380,7 +383,6 @@ namespace pcit::panther{
 			evo::SmallVector<AttributeParams> attribute_params_info;
 		};
 
-		struct InterfaceDef{};
 
 		struct InterfaceFuncDef{
 			const AST::FuncDecl& func_decl;
@@ -401,7 +403,6 @@ namespace pcit::panther{
 			const AST::InterfaceImpl& interface_impl;
 		};
 
-		struct InterfaceImplConstexprPIR{};
 
 
 		//////////////////
@@ -452,12 +453,6 @@ namespace pcit::panther{
 			const AST::Conditional& conditional;
 			SymbolProcTermInfoID cond_expr;
 		};
-		struct CondNoElse{}; // needed to maintain proper termination tracking
-		struct CondElse{};
-		struct CondElseIf{};
-		struct EndCond{};
-		struct EndCondSet{};
-
 
 		struct BeginLocalWhenCond{
 			const AST::WhenConditional& when_cond;
@@ -476,20 +471,16 @@ namespace pcit::panther{
 			SymbolProcTermInfoID cond_expr;
 		};
 
-		struct EndWhile{};
-
 
 		struct BeginDefer{
 			const AST::Defer& defer_stmt;
 		};
 
-		struct EndDefer{};
 
 		struct BeginStmtBlock{
 			const AST::Block& stmt_block;
 		};
 
-		struct EndStmtBlock{};
 
 		struct FuncCall{
 			const AST::FuncCall& func_call;
@@ -526,7 +517,6 @@ namespace pcit::panther{
 			SymbolProcTermInfoID to;
 		};
 
-		struct RequireThisDef{};
 
 		struct WaitOnSubSymbolProcDef{
 			SymbolProcID symbol_proc_id;
@@ -593,8 +583,6 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		struct PushTemplateDeclInstantiationTypesScope{};
-		struct PopTemplateDeclInstantiationTypesScope{};
 		struct AddTemplateDeclInstantiationType{
 			std::string_view ident;
 		};
@@ -734,7 +722,7 @@ namespace pcit::panther{
 		};
 
 
-		template<bool NEEDS_DEF>
+		template<bool IS_CONSTEXPR>
 		struct Accessor{
 			const AST::Infix& infix;
 			SymbolProcTermInfoID lhs;
@@ -820,159 +808,165 @@ namespace pcit::panther{
 		};
 
 
-		//////////////////
-		// instruction impl
 
-		auto visit(auto callable) const { return this->inst.visit(std::forward<decltype(callable)>(callable)); }
 
-		template<class T>
-		EVO_NODISCARD auto is() const -> bool { return this->inst.is<T>(); }
-
-		template<class T>
-		EVO_NODISCARD auto as() const -> const T& { return this->inst.as<T>(); }
-
-		evo::Variant<
+		enum class Kind{
 			// misc symbol proc
-			SuspendSymbolProc,
+			SUSPEND_SYMBOL_PROC,
 
 			// stmts valid in global scope
-			NonLocalVarDecl,
-			NonLocalVarDef,
-			NonLocalVarDeclDef,
-			WhenCond,
-			AliasDecl,
-			AliasDef,
-			StructDecl<true>,
-			StructDecl<false>,
-			StructDef,
-			TemplateStruct,
-			FuncDeclExtractDeducersIfNeeded,
-			FuncDecl<true>,
-			FuncDecl<false>,
-			FuncPreBody,
-			FuncDef,
-			FuncPrepareConstexprPIRIfNeeded,
-			FuncConstexprPIRReadyIfNeeded,
-			TemplateFuncBegin,
-			TemplateFuncCheckParamIsInterface,
-			TemplateFuncSetParamIsDeducer,
-			TemplateFuncEnd,
-			InterfaceDecl,
-			InterfaceDef,
-			InterfaceFuncDef,
-			InterfaceImplDecl,
-			InterfaceImplMethodLookup,
-			InterfaceImplDef,
-			InterfaceImplConstexprPIR,
+			NON_LOCAL_VAR_DECL,
+			NON_LOCAL_VAR_DEF,
+			NON_LOCAL_VAR_DECL_DEF,
+			WHEN_COND,
+			ALIAS_DECL,
+			ALIAS_DEF,
+			STRUCT_DECL_INSTANTIATION,
+			STRUCT_DECL,
+			STRUCT_DEF,
+			TEMPLATE_STRUCT,
+			UNION_DECL,
+			UNION_ADD_FIELDS,
+			UNION_DEF,
+			FUNC_DECL_EXTRACT_DEDUCERS_IF_NEEDED,
+			FUNC_DECL_INSTANTIATION,
+			FUNC_DECL,
+			FUNC_PRE_BODY,
+			FUNC_DEF,
+			FUNC_PREPARE_CONSTEXPR_PIR_IF_NEEDED,
+			FUNC_CONSTEXPR_PIR_READY_IF_NEEDED,
+			TEMPLATE_FUNC_BEGIN,
+			TEMPLATE_FUNC_CHECK_PARAM_IS_INTERFACE,
+			TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER,
+			TEMPLATE_FUNC_END,
+			INTERFACE_DECL,
+			INTERFACE_DEF,
+			INTERFACE_FUNC_DEF,
+			INTERFACE_IMPL_DECL,
+			INTERFACE_IMPL_METHOD_LOOKUP,
+			INTERFACE_IMPL_DEF,
+			INTERFACE_IMPL_CONSTEXPR_PIR,
 
 			// stmt
-			LocalVar,
-			LocalAlias,
-			Return,
-			LabeledReturn,
-			Error,
-			Unreachable,
-			Break,
-			Continue,
-			BeginCond,
-			CondNoElse,
-			CondElse,
-			CondElseIf,
-			EndCond,
-			EndCondSet,
-			BeginLocalWhenCond,
-			EndLocalWhenCond,
-			BeginWhile,
-			EndWhile,
-			BeginDefer,
-			EndDefer,
-			BeginStmtBlock,
-			EndStmtBlock,
-			FuncCall,
-			Assignment,
-			MultiAssign,
-			DiscardingAssignment,
+			LOCAL_VAR,
+			LOCAL_ALIAS,
+			RETURN,
+			LABELED_RETURN,
+			ERROR,
+			UNREACHABLE,
+			BREAK,
+			CONTINUE,
+			BEGIN_COND,
+			COND_NO_ELSE,
+			COND_ELSE,
+			COND_ELSE_IF,
+			END_COND,
+			END_COND_SET,
+			BEGIN_LOCAL_WHEN_COND,
+			END_LOCAL_WHEN_COND,
+			BEGIN_WHILE,
+			END_WHILE,
+			BEGIN_DEFER,
+			END_DEFER,
+			BEGIN_STMT_BLOCK,
+			END_STMT_BLOCK,
+			FUNC_CALL,
+			ASSIGNMENT,
+			MULTI_ASSIGN,
+			DISCARDING_ASSIGNMENT,
 
 			// misc expr
-			TypeToTerm,
-			RequireThisDef,
-			WaitOnSubSymbolProcDef,
-			// FuncCallExpr<true, true>,
-			FuncCallExpr<true, false>,
-			FuncCallExpr<false, true>,
-			FuncCallExpr<false, false>,
-			ConstexprFuncCallRun,
-			Import<Language::PANTHER>,
-			Import<Language::C>,
-			Import<Language::CPP>,
-			TemplateIntrinsicFuncCall<true>,
-			TemplateIntrinsicFuncCall<false>,
-			Indexer<true>,
-			Indexer<false>,
-			TemplatedTerm,
-			TemplatedTermWait<true>,
-			TemplatedTermWait<false>,
-			PushTemplateDeclInstantiationTypesScope,
-			PopTemplateDeclInstantiationTypesScope,
-			AddTemplateDeclInstantiationType,
-			Copy,
-			Move,
-			Forward,
-			AddrOf<true>,
-			AddrOf<false>,
-			PrefixNegate<true>,
-			PrefixNegate<false>,
-			PrefixNot<true>,
-			PrefixNot<false>,
-			PrefixBitwiseNot<true>,
-			PrefixBitwiseNot<false>,
-			Deref,
-			Unwrap,
-			ArrayInitNew<true>,
-			ArrayInitNew<false>,
-			StructInitNew<true>,
-			StructInitNew<false>,
-			PrepareTryHandler,
-			TryElse,
-			BeginExprBlock,
-			EndExprBlock,
-			As<true>,
-			As<false>,
-			OptionalNullCheck,
-			MathInfix<true, MathInfixKind::COMPARATIVE>,
-			MathInfix<true, MathInfixKind::MATH>,
-			MathInfix<true, MathInfixKind::INTEGRAL_MATH>,
-			MathInfix<true, MathInfixKind::SHIFT>,
-			MathInfix<false, MathInfixKind::COMPARATIVE>,
-			MathInfix<false, MathInfixKind::MATH>,
-			MathInfix<false, MathInfixKind::INTEGRAL_MATH>,
-			MathInfix<false, MathInfixKind::SHIFT>,
+			TYPE_TO_TERM,
+			REQUIRE_THIS_DEF,
+			WAIT_ON_SUB_SYMBOL_PROC_DEF,
+			FUNC_CALL_EXPR_CONSTEXPR_ERRORS,
+			FUNC_CALL_EXPR_CONSTEXPR,
+			FUNC_CALL_EXPR_ERRORS,
+			FUNC_CALL_EXPR,
+			CONSTEXPR_FUNC_CALL_RUN,
+			IMPORT_PANTHER,
+			IMPORT_C,
+			IMPORT_CPP,
+			TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR,
+			TEMPLATE_INTRINSIC_FUNC_CALL,
+			INDEXER_CONSTEXPR,
+			INDEXER,
+			TEMPLATED_TERM,
+			TEMPLATED_TERM_WAIT_FOR_DEF,
+			TEMPLATED_TERM_WAIT_FOR_DECL,
+			PUSH_TEMPLATE_DECL_INSTANTIATION_TYPES_SCOPE,
+			POP_TEMPLATE_DECL_INSTANTIATION_TYPES_SCOPE,
+			ADD_TEMPLATE_DECL_INSTANTIATION_TYPE,
+			COPY,
+			MOVE,
+			FORWARD,
+			ADDR_OF_CONSTEXPR,
+			ADDR_OF,
+			PREFIX_NEGATE_CONSTEXPR,
+			PREFIX_NEGATE,
+			PREFIX_NOT_CONSTEXPR,
+			PREFIX_NOT,
+			PREFIX_BITWISE_NOT_CONSTEXPR,
+			PREFIX_BITWISE_NOT,
+			DEREF,
+			UNWRAP,
+			ARRAY_INIT_NEW_CONSTEXPR,
+			ARRAY_INIT_NEW,
+			STRUCT_INIT_NEW_CONSTEXPR,
+			STRUCT_INIT_NEW,
+			PREPARE_TRY_HANDLER,
+			TRY_ELSE,
+			BEGIN_EXPR_BLOCK,
+			END_EXPR_BLOCK,
+			AS_CONTEXPR,
+			AS,
+			OPTIONAL_NULL_CHECK,
+			MATH_INFIX_CONSTEXPR_COMPARATIVE,
+			MATH_INFIX_CONSTEXPR_MATH,
+			MATH_INFIX_CONSTEXPR_INTEGRAL_MATH,
+			MATH_INFIX_CONSTEXPR_SHIFT,
+			MATH_INFIX_COMPARATIVE,
+			MATH_INFIX_MATH,
+			MATH_INFIX_INTEGRAL_MATH,
+			MATH_INFIX_SHIFT,
 
 			// accessors
-			Accessor<true>,
-			Accessor<false>,
+			ACCESSOR_NEEDS_DEF,
+			ACCESSOR,
 
 			// types
-			PrimitiveType,
-			ArrayType,
-			TypeIDConverter,
-			UserType,
-			BaseTypeIdent,
+			PRIMITIVE_TYPE,
+			ARRAY_TYPE,
+			TYPE_ID_CONVERTER,
+			USER_TYPE,
+			BASE_TYPE_IDENT,
 
 			// single token value
-			Ident<false>,
-			Ident<true>,
-			Intrinsic,
-			Literal,
-			Uninit,
-			Zeroinit,
-			This,
-			TypeDeducer
-		> inst;
+			IDENT_NEEDS_DEF,
+			IDENT,
+			INTRINSIC,
+			LITERAL,
+			UNINIT,
+			ZEROINIT,
+			THIS,
+			TYPE_DEDUCER,
+		};
 
-		#if defined(PCIT_CONFIG_DEBUG)
-			EVO_NODISCARD auto print() const -> std::string_view;
-		#endif
+
+		SymbolProcInstruction(Kind instr_kind, uint64_t index) : _kind(instr_kind), _index(index) {}
+
+
+
+		EVO_NODISCARD auto kind() const -> Kind { return this->_kind; }
+
+
+
+		private:
+			Kind _kind;
+			uint64_t _index;
+
+			friend class SymbolProcManager;
+			friend class SymbolProcBuilder;
 	};
 
 
@@ -1260,6 +1254,12 @@ namespace pcit::panther{
 				BaseType::Struct::ID struct_id = BaseType::Struct::ID::dummy();
 			};
 
+			struct UnionInfo{
+				evo::SmallVector<SymbolProcID> stmts{};
+				Namespace member_symbols{};
+				BaseType::Union::ID union_id = BaseType::Union::ID::dummy();
+			};
+
 			struct FuncInfo{
 				std::stack<sema::Stmt> subscopes{};
 
@@ -1289,6 +1289,7 @@ namespace pcit::panther{
 				WhenCondInfo,
 				AliasInfo,
 				StructInfo,
+				UnionInfo,
 				FuncInfo,
 				TemplateFuncInfo,
 				InterfaceImplInfo

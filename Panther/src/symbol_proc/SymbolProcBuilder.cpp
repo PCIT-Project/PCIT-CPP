@@ -52,6 +52,9 @@ namespace pcit::panther{
 			break; case AST::Kind::STRUCT_DECL:
 				if(this->build_struct_decl(stmt).isError()){ return evo::resultError; }
 
+			break; case AST::Kind::UNION_DECL:
+				if(this->build_union_decl(stmt).isError()){ return evo::resultError; }
+
 			break; case AST::Kind::INTERFACE_DECL:
 				if(this->build_interface_decl(stmt).isError()){ return evo::resultError; }
 
@@ -120,18 +123,18 @@ namespace pcit::panther{
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
-			Instruction::StructDecl<true>(
+			this->context.symbol_proc_manager.createStructDeclInstatiation(
 				struct_decl, std::move(attribute_params_info.value()), struct_template_id, instantiation_id
 			)
 		);
-		this->add_instruction(Instruction::StructDef());
+		this->add_instruction(this->context.symbol_proc_manager.createStructDef());
 
 		SymbolProc::StructInfo& struct_info = this->get_current_symbol().symbol_proc.extra_info
 			.emplace<SymbolProc::StructInfo>(&instantiation);
 
 		this->symbol_scopes.emplace_back(&struct_info.stmts);
 		this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
-		for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).stmts){
+		for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).statements){
 			if(this->build(struct_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
@@ -209,7 +212,9 @@ namespace pcit::panther{
 			types.emplace_back(param_type.value());
 
 			if(symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[i].has_value()){
-				this->add_instruction(Instruction::FuncDeclExtractDeducersIfNeeded(param_type.value(), i));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createFuncDeclExtractDeducersIfNeeded(param_type.value(), i)
+				);
 			}
 
 			if(param.defaultValue.has_value()){
@@ -240,7 +245,7 @@ namespace pcit::panther{
 		}
 
 		this->add_instruction(
-			Instruction::FuncDecl<true>(
+			this->context.symbol_proc_manager.createFuncDeclInstantiation(
 				func_decl,
 				std::move(attribute_params_info.value()),
 				std::move(default_param_values),
@@ -249,7 +254,7 @@ namespace pcit::panther{
 			)
 		);
 
-		this->add_instruction(Instruction::SuspendSymbolProc{});
+		this->add_instruction(this->context.symbol_proc_manager.createSuspendSymbolProc());
 
 
 		// make sure definitions are ready for body of function
@@ -261,7 +266,7 @@ namespace pcit::panther{
 				);
 				evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 			}else{
-				this->add_instruction(Instruction::RequireThisDef{});
+				this->add_instruction(this->context.symbol_proc_manager.createRequireThisDef());
 			}
 		}
 		for(const AST::FuncDecl::Return& return_param : func_decl.returns){
@@ -278,19 +283,19 @@ namespace pcit::panther{
 		}
 
 
-		this->add_instruction(Instruction::FuncPreBody(func_decl));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_decl));
 
 		this->symbol_scopes.emplace_back(nullptr);
 		this->symbol_namespaces.emplace_back(nullptr);
-		for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_decl.block).stmts){
+		for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_decl.block).statements){
 			if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
 		this->symbol_scopes.pop_back();
 
-		this->add_instruction(Instruction::FuncDef(func_decl));
-		this->add_instruction(Instruction::FuncPrepareConstexprPIRIfNeeded(func_decl));
-		this->add_instruction(Instruction::FuncConstexprPIRReadyIfNeeded());
+		this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_decl));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncPrepareConstexprPIRIfNeeded(func_decl));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncConstexprPIRReadyIfNeeded());
 
 
 		///////////////////////////////////
@@ -343,6 +348,10 @@ namespace pcit::panther{
 
 			case AST::Kind::STRUCT_DECL: {
 				return token_buffer[ast_buffer.getStructDecl(stmt).ident].getString();
+			} break;
+
+			case AST::Kind::UNION_DECL: {
+				return token_buffer[ast_buffer.getUnionDecl(stmt).ident].getString();
 			} break;
 
 			case AST::Kind::INTERFACE_DECL: {
@@ -404,7 +413,7 @@ namespace pcit::panther{
 
 			}else if(var_decl.kind != AST::VarDecl::Kind::DEF){
 				this->add_instruction(
-					Instruction::NonLocalVarDecl(
+					this->context.symbol_proc_manager.createNonLocalVarDecl(
 						var_decl, std::move(attribute_params_info.value()), type_id_res.value()
 					)
 				);
@@ -449,11 +458,11 @@ namespace pcit::panther{
 			&& var_decl.kind != AST::VarDecl::Kind::DEF
 			&& decl_def_type_id.has_value() == false
 		){
-			this->add_instruction(Instruction::NonLocalVarDef(var_decl, value_id));
+			this->add_instruction(this->context.symbol_proc_manager.createNonLocalVarDef(var_decl, value_id));
 
 		}else{
 			this->add_instruction(
-				Instruction::NonLocalVarDeclDef(
+				this->context.symbol_proc_manager.createNonLocalVarDeclDef(
 					var_decl, std::move(attribute_params_info.value()), decl_def_type_id, *value_id
 				)
 			);
@@ -564,7 +573,7 @@ namespace pcit::panther{
 			}
 
 			this->add_instruction(
-				Instruction::FuncDecl<false>(
+				this->context.symbol_proc_manager.createFuncDecl(
 					func_decl,
 					std::move(attribute_params_info.value()),
 					std::move(default_param_values),
@@ -582,7 +591,7 @@ namespace pcit::panther{
 					);
 					evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 				}else{
-					this->add_instruction(Instruction::RequireThisDef{});
+					this->add_instruction(this->context.symbol_proc_manager.createRequireThisDef());
 				}
 			}
 			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
@@ -600,22 +609,24 @@ namespace pcit::panther{
 
 
 			if(func_decl.block.has_value()){
-				this->add_instruction(Instruction::FuncPreBody(func_decl));
+				this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_decl));
 
 				this->symbol_scopes.emplace_back(nullptr);
 				this->symbol_namespaces.emplace_back(nullptr);
-				for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_decl.block).stmts){
+				for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_decl.block).statements){
 					if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 				}
 				this->symbol_namespaces.pop_back();
 				this->symbol_scopes.pop_back();
 
-				this->add_instruction(Instruction::FuncDef(func_decl));
-				this->add_instruction(Instruction::FuncPrepareConstexprPIRIfNeeded(func_decl));
-				this->add_instruction(Instruction::FuncConstexprPIRReadyIfNeeded());
+				this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_decl));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createFuncPrepareConstexprPIRIfNeeded(func_decl)
+				);
+				this->add_instruction(this->context.symbol_proc_manager.createFuncConstexprPIRReadyIfNeeded());
 
 			}else{
-				this->add_instruction(Instruction::InterfaceFuncDef(func_decl));
+				this->add_instruction(this->context.symbol_proc_manager.createInterfaceFuncDef(func_decl));
 			}
 
 
@@ -645,7 +656,9 @@ namespace pcit::panther{
 			}
 
 
-			this->add_instruction(Instruction::TemplateFuncBegin(func_decl, std::move(template_param_infos)));
+			this->add_instruction(
+				this->context.symbol_proc_manager.createTemplateFuncBegin(func_decl, std::move(template_param_infos))
+			);
 
 			for(size_t i = 0; const AST::FuncDecl::Param& param : func_decl.params){
 				EVO_DEFER([&](){ i += 1; });
@@ -677,7 +690,9 @@ namespace pcit::panther{
 							if(symbol_proc_type_id.isError()){ return evo::resultError; }
 
 							this->add_instruction(
-								Instruction::TemplateFuncCheckParamIsInterface(symbol_proc_type_id.value(), i)
+								this->context.symbol_proc_manager.createTemplateFuncCheckParamIsInterface(
+									symbol_proc_type_id.value(), i
+								)
 							);
 						}
 
@@ -691,12 +706,14 @@ namespace pcit::panther{
 						if(symbol_proc_type_id.isError()){ return evo::resultError; }
 
 						this->add_instruction(
-							Instruction::TemplateFuncCheckParamIsInterface(symbol_proc_type_id.value(), i)
+							this->context.symbol_proc_manager.createTemplateFuncCheckParamIsInterface(
+								symbol_proc_type_id.value(), i
+							)
 						);
 					} break;
 
 					case AST::Kind::TYPE_DEDUCER: {
-						this->add_instruction(Instruction::TemplateFuncSetParamIsDeducer(i));
+						this->add_instruction(this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i));
 
 						const Token::ID deducer_token_id = this->source.getASTBuffer().getTypeDeducer(param_type.base);
 						const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
@@ -711,7 +728,9 @@ namespace pcit::panther{
 							this->extract_type_deducer_names(param_type);
 
 						if(type_deducer_names.size() > 0){
-							this->add_instruction(Instruction::TemplateFuncSetParamIsDeducer(i));
+							this->add_instruction(
+								this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i)
+							);
 							
 							for(const std::string_view& type_deducer_name : type_deducer_names){
 								template_names.emplace(type_deducer_name);
@@ -723,7 +742,7 @@ namespace pcit::panther{
 				}
 			}
 
-			this->add_instruction(Instruction::TemplateFuncEnd(func_decl));
+			this->add_instruction(this->context.symbol_proc_manager.createTemplateFuncEnd(func_decl));
 		}
 
 
@@ -756,13 +775,15 @@ namespace pcit::panther{
 		);
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
-		this->add_instruction(Instruction::AliasDecl(alias_decl, std::move(attribute_params_info.value())));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createAliasDecl(alias_decl, std::move(attribute_params_info.value()))
+		);
 		
 		const evo::Result<SymbolProc::TypeID> aliased_type =
 			this->analyze_type<false>(ast_buffer.getType(alias_decl.type));
 		if(aliased_type.isError()){ return evo::resultError; }
 
-		this->add_instruction(Instruction::AliasDef(alias_decl, aliased_type.value()));
+		this->add_instruction(this->context.symbol_proc_manager.createAliasDef(alias_decl, aliased_type.value()));
 
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
@@ -818,9 +839,11 @@ namespace pcit::panther{
 			if(attribute_params_info.isError()){ return evo::resultError; }
 
 			this->add_instruction(
-				Instruction::StructDecl<false>(struct_decl, std::move(attribute_params_info.value()))
+				this->context.symbol_proc_manager.createStructDecl(
+					struct_decl, std::move(attribute_params_info.value())
+				)
 			);
-			this->add_instruction(Instruction::StructDef());
+			this->add_instruction(this->context.symbol_proc_manager.createStructDef());
 
 			SymbolProc::StructInfo& struct_info =
 				current_symbol->symbol_proc.extra_info.emplace<SymbolProc::StructInfo>();
@@ -828,7 +851,7 @@ namespace pcit::panther{
 
 			this->symbol_scopes.emplace_back(&struct_info.stmts);
 			this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
-			for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).stmts){
+			for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).statements){
 				if(this->build(struct_stmt).isError()){ return evo::resultError; }
 			}
 			this->symbol_namespaces.pop_back();
@@ -838,8 +861,70 @@ namespace pcit::panther{
 			current_symbol = &this->get_current_symbol();
 
 		}else{
-			this->add_instruction(Instruction::TemplateStruct(struct_decl, std::move(template_param_infos)));
+			this->add_instruction(
+				this->context.symbol_proc_manager.createTemplateStruct(struct_decl, std::move(template_param_infos))
+			);
 		}
+
+
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
+			current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
+			);
+		}
+
+		return evo::Result<>();
+	}
+	
+
+	auto SymbolProcBuilder::build_union_decl(const AST::Node& stmt) -> evo::Result<> {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::UnionDecl& union_decl = ast_buffer.getUnionDecl(stmt);
+
+		SymbolProcInfo* current_symbol = &this->get_current_symbol();
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(ast_buffer.getAttributeBlock(union_decl.attributeBlock));
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createUnionDecl(union_decl, std::move(attribute_params_info.value()))
+		);
+
+		auto field_types = evo::SmallVector<SymbolProc::TypeID>();
+		for(const AST::UnionDecl::Field& field : union_decl.fields){
+			const evo::Result<SymbolProc::TypeID> field_type = this->analyze_type<true>(ast_buffer.getType(field.type));
+			if(field_type.isError()){ return evo::resultError; }
+
+			field_types.emplace_back(field_type.value());
+		}
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createUnionAddFields(union_decl, std::move(field_types))
+		);
+
+		this->add_instruction(this->context.symbol_proc_manager.createUnionDef());
+
+		SymbolProc::UnionInfo& union_info =
+			current_symbol->symbol_proc.extra_info.emplace<SymbolProc::UnionInfo>();
+
+		this->symbol_scopes.emplace_back(&union_info.stmts);
+		this->symbol_namespaces.emplace_back(&union_info.member_symbols);
+		for(const AST::Node& union_stmt : union_decl.statements){
+			if(this->build(union_stmt).isError()){ return evo::resultError; }
+		}
+		this->symbol_namespaces.pop_back();
+		this->symbol_scopes.pop_back();
 
 
 		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
@@ -869,7 +954,11 @@ namespace pcit::panther{
 			this->analyze_attributes(ast_buffer.getAttributeBlock(interface_decl.attributeBlock));
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
-		this->add_instruction(Instruction::InterfaceDecl(interface_decl, std::move(attribute_params_info.value())));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createInterfaceDecl(
+				interface_decl, std::move(attribute_params_info.value())
+			)
+		);
 
 		this->symbol_scopes.emplace_back(nullptr);
 		this->symbol_namespaces.emplace_back(nullptr);
@@ -879,7 +968,7 @@ namespace pcit::panther{
 		this->symbol_namespaces.pop_back();
 		this->symbol_scopes.pop_back();
 
-		this->add_instruction(Instruction::InterfaceDef{});
+		this->add_instruction(this->context.symbol_proc_manager.createInterfaceDef());
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 		
@@ -912,14 +1001,16 @@ namespace pcit::panther{
 		if(target.isError()){ return evo::resultError; }
 
 
-		this->add_instruction(Instruction::InterfaceImplDecl(interface_impl, target.value()));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createInterfaceImplDecl(interface_impl, target.value())
+		);
 
 		for(const AST::InterfaceImpl::Method& method : interface_impl.methods){
-			this->add_instruction(Instruction::InterfaceImplMethodLookup(method.value));
+			this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplMethodLookup(method.value));
 		}
 
-		this->add_instruction(Instruction::InterfaceImplDef(interface_impl));
-		this->add_instruction(Instruction::InterfaceImplConstexprPIR());
+		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplDef(interface_impl));
+		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplConstexprPIR());
 
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
@@ -951,7 +1042,7 @@ namespace pcit::panther{
 
 		auto then_symbol_scope = SymbolScope();
 		this->symbol_scopes.emplace_back(&then_symbol_scope);
-		for(const AST::Node& then_stmt : ast_buffer.getBlock(when_conditional.thenBlock).stmts){
+		for(const AST::Node& then_stmt : ast_buffer.getBlock(when_conditional.thenBlock).statements){
 			if(this->build(then_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_scopes.pop_back();
@@ -960,7 +1051,7 @@ namespace pcit::panther{
 		if(when_conditional.elseBlock.has_value()){
 			this->symbol_scopes.emplace_back(&else_symbol_scope);
 			if(when_conditional.elseBlock->kind() == AST::Kind::BLOCK){
-				for(const AST::Node& else_stmt : ast_buffer.getBlock(*when_conditional.elseBlock).stmts){
+				for(const AST::Node& else_stmt : ast_buffer.getBlock(*when_conditional.elseBlock).statements){
 					if(this->build(else_stmt).isError()){ return evo::resultError; }
 				}
 			}else{
@@ -970,7 +1061,7 @@ namespace pcit::panther{
 		}
 		
 
-		this->add_instruction(Instruction::WhenCond(when_conditional, cond_id.value()));
+		this->add_instruction(this->context.symbol_proc_manager.createWhenCond(when_conditional, cond_id.value()));
 
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
@@ -1013,7 +1104,7 @@ namespace pcit::panther{
 		const SymbolProc::TypeID created_type_id = this->create_type();
 
 		if(ast_type.base.kind() == AST::Kind::PRIMITIVE_TYPE){
-			this->add_instruction(Instruction::PrimitiveType(ast_type, created_type_id));
+			this->add_instruction(this->context.symbol_proc_manager.createPrimitiveType(ast_type, created_type_id));
 			return created_type_id;
 		}else{
 			const evo::Result<SymbolProc::TermInfoID> type_base = [&](){
@@ -1029,7 +1120,9 @@ namespace pcit::panther{
 			}();
 			if(type_base.isError()){ return evo::resultError; }
 
-			this->add_instruction(Instruction::UserType(ast_type, type_base.value(), created_type_id));
+			this->add_instruction(
+				this->context.symbol_proc_manager.createUserType(ast_type, type_base.value(), created_type_id)
+			);
 			return created_type_id;
 		}
 	}
@@ -1081,7 +1174,7 @@ namespace pcit::panther{
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 				this->add_instruction(
-					Instruction::ArrayType(
+					this->context.symbol_proc_manager.createArrayType(
 						array_type, elem_type.value(), std::move(lengths), terminator, new_term_info_id
 					)
 				);
@@ -1091,7 +1184,9 @@ namespace pcit::panther{
 			case AST::Kind::TYPE_DEDUCER: {
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 				this->add_instruction(
-					Instruction::TypeDeducer(ast_buffer.getTypeDeducer(ast_type_base), new_term_info_id)
+					this->context.symbol_proc_manager.createTypeDeducer(
+						ast_buffer.getTypeDeducer(ast_type_base), new_term_info_id
+					)
 				);
 				return new_term_info_id;
 			} break;
@@ -1125,14 +1220,25 @@ namespace pcit::panther{
 				const SymbolProc::TermInfoID created_base_term_info_id = this->create_term_info();
 
 				this->add_instruction(
-					Instruction::TemplatedTerm(
+					this->context.symbol_proc_manager.createTemplatedTerm(
 						templated_expr, base_type.value(), std::move(args), created_struct_inst_id
 					)
 				);
 
-				this->add_instruction(
-					Instruction::TemplatedTermWait<NEEDS_DEF>(created_struct_inst_id, created_base_term_info_id)
-				);
+
+				if constexpr(NEEDS_DEF){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createTemplatedTermWaitForDef(
+							created_struct_inst_id, created_base_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createTemplatedTermWaitForDecl(
+							created_struct_inst_id, created_base_term_info_id
+						)
+					);
+				}
 
 				return created_base_term_info_id;
 			} break;
@@ -1146,7 +1252,7 @@ namespace pcit::panther{
 
 				const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
 				this->add_instruction(
-					Instruction::Accessor<true>(
+					this->context.symbol_proc_manager.createAccessorNeedsDef(
 						base_type_infix,
 						base_lhs.value(),
 						ast_buffer.getIdent(base_type_infix.rhs),
@@ -1165,7 +1271,9 @@ namespace pcit::panther{
 
 				const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
 				this->add_instruction(
-					Instruction::TypeIDConverter(type_id_converter, target_type_id.value(), created_base_type_type)
+					this->context.symbol_proc_manager.createTypeIDConverter(
+						type_id_converter, target_type_id.value(), created_base_type_type
+					)
 				);
 				return created_base_type_type;
 			} break;
@@ -1193,6 +1301,7 @@ namespace pcit::panther{
 			case AST::Kind::ALIAS_DECL:       return this->analyze_local_alias(ast_buffer.getAliasDecl(stmt));
 			case AST::Kind::DISTINCT_ALIAS_DECL:     evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DECL");
 			case AST::Kind::STRUCT_DECL:      return this->analyze_local_struct(stmt);
+			case AST::Kind::UNION_DECL:       return this->analyze_local_union(stmt);
 			case AST::Kind::INTERFACE_DECL:   return this->analyze_local_interface(stmt);
 			case AST::Kind::INTERFACE_IMPL:   evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::RETURN:           return this->analyze_return(ast_buffer.getReturn(stmt));
@@ -1275,7 +1384,9 @@ namespace pcit::panther{
 		if(value.isError()){ return evo::resultError; }
 
 		this->add_instruction(
-			Instruction::LocalVar(var_decl, std::move(attribute_params_info.value()), type_id, value.value())
+			this->context.symbol_proc_manager.createLocalVar(
+				var_decl, std::move(attribute_params_info.value()), type_id, value.value()
+			)
 		);
 		return evo::Result<>();
 	}
@@ -1289,7 +1400,9 @@ namespace pcit::panther{
 
 		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_sub_symbol = true;
 
-		this->add_instruction(Instruction::WaitOnSubSymbolProcDef(func_symbol_proc_id.value()));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+		);
 		return evo::Result<>();
 	}
 
@@ -1307,7 +1420,9 @@ namespace pcit::panther{
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
-			Instruction::LocalAlias(alias_decl, std::move(attribute_params_info.value()), aliased_type.value())
+			this->context.symbol_proc_manager.createLocalAlias(
+				alias_decl, std::move(attribute_params_info.value()), aliased_type.value()
+			)
 		);
 		return evo::Result<>();
 	}
@@ -1321,7 +1436,24 @@ namespace pcit::panther{
 
 		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_sub_symbol = true;
 
-		this->add_instruction(Instruction::WaitOnSubSymbolProcDef(func_symbol_proc_id.value()));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+		);
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_local_union(const AST::Node& stmt) -> evo::Result<> {
+		evo::debugAssert(stmt.kind() == AST::Kind::UNION_DECL, "Not a union decl");
+
+		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		if(func_symbol_proc_id.isError()){ return evo::resultError; }
+
+		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_sub_symbol = true;
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+		);
 		return evo::Result<>();
 	}
 
@@ -1334,7 +1466,9 @@ namespace pcit::panther{
 
 		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_sub_symbol = true;
 
-		this->add_instruction(Instruction::WaitOnSubSymbolProcDef(func_symbol_proc_id.value()));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+		);
 		return evo::Result<>();
 	}
 
@@ -1347,16 +1481,22 @@ namespace pcit::panther{
 			if(return_value.isError()){ return evo::resultError; }
 
 			if(return_stmt.label.has_value()) [[unlikely]] {
-				this->add_instruction(Instruction::LabeledReturn(return_stmt, return_value.value()));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createLabeledReturn(return_stmt, return_value.value())
+				);
 			}else{
-				this->add_instruction(Instruction::Return(return_stmt, return_value.value()));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createReturn(return_stmt, return_value.value())
+				);
 			}
 			return evo::Result<>();
 			
 		}else{
 			if(return_stmt.label.has_value()){
 				if(return_stmt.value.is<Token::ID>()){
-					this->add_instruction(Instruction::LabeledReturn(return_stmt, std::nullopt));
+					this->add_instruction(
+						this->context.symbol_proc_manager.createLabeledReturn(return_stmt, std::nullopt)
+					);
 				}else{
 					this->emit_error(
 						Diagnostic::Code::SYMBOL_PROC_LABELED_VOID_RETURN,
@@ -1366,7 +1506,7 @@ namespace pcit::panther{
 					return evo::Result<>();
 				}
 			}else{
-				this->add_instruction(Instruction::Return(return_stmt, std::nullopt));
+				this->add_instruction(this->context.symbol_proc_manager.createReturn(return_stmt, std::nullopt));
 			}
 			return evo::Result<>();
 		}
@@ -1378,23 +1518,23 @@ namespace pcit::panther{
 				this->analyze_expr<false>(error_stmt.value.as<AST::Node>());
 			if(error_value.isError()){ return evo::resultError; }
 
-			this->add_instruction(Instruction::Error(error_stmt, error_value.value()));
+			this->add_instruction(this->context.symbol_proc_manager.createError(error_stmt, error_value.value()));
 			return evo::Result<>();
 			
 		}else{
-			this->add_instruction(Instruction::Error(error_stmt, std::nullopt));
+			this->add_instruction(this->context.symbol_proc_manager.createError(error_stmt, std::nullopt));
 			return evo::Result<>();
 		}
 	}
 
 
 	auto SymbolProcBuilder::analyze_break(const AST::Break& break_stmt) -> evo::Result<> {
-		this->add_instruction(Instruction::Break(break_stmt));
+		this->add_instruction(this->context.symbol_proc_manager.createBreak(break_stmt));
 		return evo::Result<>();
 	}
 
 	auto SymbolProcBuilder::analyze_continue(const AST::Continue& continue_stmt) -> evo::Result<> {
-		this->add_instruction(Instruction::Continue(continue_stmt));
+		this->add_instruction(this->context.symbol_proc_manager.createContinue(continue_stmt));
 		return evo::Result<>();
 	}
 
@@ -1406,43 +1546,43 @@ namespace pcit::panther{
 			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(target_conditional->cond);
 			if(cond.isError()){ return evo::resultError; }
 
-			this->add_instruction(Instruction::BeginCond(conditional_stmt, cond.value()));
+			this->add_instruction(this->context.symbol_proc_manager.createBeginCond(conditional_stmt, cond.value()));
 
 			const AST::Block& then_block = this->source.getASTBuffer().getBlock(target_conditional->thenBlock);
-			for(const AST::Node& stmt : then_block.stmts){
+			for(const AST::Node& stmt : then_block.statements){
 				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 			}
 
 			if(target_conditional->elseBlock.has_value() == false){
-				this->add_instruction(Instruction::CondNoElse{});
+				this->add_instruction(this->context.symbol_proc_manager.createCondNoElse());
 				break;
 			}
 
 			if(target_conditional->elseBlock->kind() == AST::Kind::BLOCK){
-				this->add_instruction(Instruction::CondElse{});
+				this->add_instruction(this->context.symbol_proc_manager.createCondElse());
 
 				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*target_conditional->elseBlock);
-				for(const AST::Node& stmt : else_block.stmts){
+				for(const AST::Node& stmt : else_block.statements){
 					if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 				}
 
-				this->add_instruction(Instruction::EndCond{});
+				this->add_instruction(this->context.symbol_proc_manager.createEndCond());
 
 				break;
 			}
 
-			this->add_instruction(Instruction::CondElseIf{});
+			this->add_instruction(this->context.symbol_proc_manager.createCondElseIf());
 			target_conditional = &this->source.getASTBuffer().getConditional(*target_conditional->elseBlock);
 		}
 
-		this->add_instruction(Instruction::EndCondSet{});
+		this->add_instruction(this->context.symbol_proc_manager.createEndCondSet());
 
 		return evo::Result<>();
 	}
 
 
 	auto SymbolProcBuilder::analyze_when_cond(const AST::WhenConditional& when_stmt) -> evo::Result<> {
-		auto end_when_instrs = evo::SmallVector<Instruction*>();
+		auto end_when_instrs = evo::SmallVector<Instruction>();
 
 		const AST::WhenConditional* target_when = &when_stmt;
 
@@ -1450,21 +1590,24 @@ namespace pcit::panther{
 			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(target_when->cond);
 			if(cond.isError()){ return evo::resultError; }
 
-			Instruction& new_instr = this->add_instruction(
-				Instruction::BeginLocalWhenCond(when_stmt, cond.value(), SymbolProc::InstructionIndex::dummy())
+			const Instruction new_instr = this->add_instruction(
+				this->context.symbol_proc_manager.createBeginLocalWhenCond(
+					when_stmt, cond.value(), SymbolProc::InstructionIndex::dummy()
+				)
 			);
 
 			const AST::Block& then_block = this->source.getASTBuffer().getBlock(target_when->thenBlock);
-			for(const AST::Node& stmt : then_block.stmts){
+			for(const AST::Node& stmt : then_block.statements){
 				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 			}
 			end_when_instrs.emplace_back(
-				&this->add_instruction(Instruction::EndLocalWhenCond(SymbolProc::InstructionIndex::dummy()))
+				this->add_instruction(
+					this->context.symbol_proc_manager.createEndLocalWhenCond(SymbolProc::InstructionIndex::dummy())
+				)
 			);
 
-			new_instr.inst.as<Instruction::BeginLocalWhenCond>().else_index = SymbolProc::InstructionIndex(
-				uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1)
-			);
+			this->context.symbol_proc_manager.begin_local_when_conds[new_instr._index].else_index = 
+				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1));
 
 			if(target_when->elseBlock.has_value() == false){
 				break;
@@ -1472,12 +1615,14 @@ namespace pcit::panther{
 
 			if(target_when->elseBlock->kind() == AST::Kind::BLOCK){
 				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*target_when->elseBlock);
-				for(const AST::Node& stmt : else_block.stmts){
+				for(const AST::Node& stmt : else_block.statements){
 					if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 				}
 
 				end_when_instrs.emplace_back(
-					&this->add_instruction(Instruction::EndLocalWhenCond(SymbolProc::InstructionIndex::dummy()))
+					this->add_instruction(
+						this->context.symbol_proc_manager.createEndLocalWhenCond(SymbolProc::InstructionIndex::dummy())
+					)
 				);
 				break;
 			}
@@ -1485,10 +1630,9 @@ namespace pcit::panther{
 			target_when = &this->source.getASTBuffer().getWhenConditional(*target_when->elseBlock);
 		}
 
-		for(Instruction* end_when_instr : end_when_instrs){
-			end_when_instr->inst.as<Instruction::EndLocalWhenCond>().end_index = SymbolProc::InstructionIndex(
-				uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1)
-			);
+		for(const Instruction& end_when_instr : end_when_instrs){
+			this->context.symbol_proc_manager.end_local_when_conds[end_when_instr._index].end_index = 
+				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1));
 		}
 
 		return evo::Result<>();
@@ -1499,47 +1643,47 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TermInfoID> cond_expr = this->analyze_expr<false>(while_stmt.cond);
 		if(cond_expr.isError()){ return evo::resultError; }
 
-		this->add_instruction(Instruction::BeginWhile(while_stmt, cond_expr.value()));
+		this->add_instruction(this->context.symbol_proc_manager.createBeginWhile(while_stmt, cond_expr.value()));
 
 		const AST::Block& block = this->source.getASTBuffer().getBlock(while_stmt.block);
-		for(const AST::Node& stmt : block.stmts){
+		for(const AST::Node& stmt : block.statements){
 			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 		}
 
-		this->add_instruction(Instruction::EndWhile());
+		this->add_instruction(this->context.symbol_proc_manager.createEndWhile());
 
 		return evo::Result<>();
 	}
 
 
 	auto SymbolProcBuilder::analyze_defer(const AST::Defer& defer_stmt) -> evo::Result<> {
-		this->add_instruction(Instruction::BeginDefer(defer_stmt));
+		this->add_instruction(this->context.symbol_proc_manager.createBeginDefer(defer_stmt));
 
 		const AST::Block& block = this->source.getASTBuffer().getBlock(defer_stmt.block);
-		for(const AST::Node& stmt : block.stmts){
+		for(const AST::Node& stmt : block.statements){
 			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 		}
 
-		this->add_instruction(Instruction::EndDefer());
+		this->add_instruction(this->context.symbol_proc_manager.createEndDefer());
 
 		return evo::Result<>();
 	}
 
 
 	auto SymbolProcBuilder::analyze_unreachable(Token::ID unreachable_token) -> evo::Result<> {
-		this->add_instruction(Instruction::Unreachable(unreachable_token));
+		this->add_instruction(this->context.symbol_proc_manager.createUnreachable(unreachable_token));
 		return evo::Result<>();
 	}
 
 
 	auto SymbolProcBuilder::analyze_stmt_block(const AST::Block& stmt_block) -> evo::Result<> {
-		this->add_instruction(Instruction::BeginStmtBlock(stmt_block));
+		this->add_instruction(this->context.symbol_proc_manager.createBeginStmtBlock(stmt_block));
 
-		for(const AST::Node& stmt : stmt_block.stmts){
+		for(const AST::Node& stmt : stmt_block.statements){
 			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 		}
 
-		this->add_instruction(Instruction::EndStmtBlock());
+		this->add_instruction(this->context.symbol_proc_manager.createEndStmtBlock());
 
 		return evo::Result<>();
 	}
@@ -1586,7 +1730,9 @@ namespace pcit::panther{
 		// }
 
 		this->add_instruction(
-			Instruction::FuncCall(func_call, target.value(), std::move(template_args), std::move(args))
+			this->context.symbol_proc_manager.createFuncCall(
+				func_call, target.value(), std::move(template_args), std::move(args)
+			)
 		);
 		return evo::Result<>();
 	}
@@ -1598,7 +1744,7 @@ namespace pcit::panther{
 			const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<false>(infix.rhs);
 			if(rhs.isError()){ return evo::resultError; }
 
-			this->add_instruction(Instruction::DiscardingAssignment(infix, rhs.value()));
+			this->add_instruction(this->context.symbol_proc_manager.createDiscardingAssignment(infix, rhs.value()));
 			return evo::Result<>();
 		}
 
@@ -1608,7 +1754,7 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<false>(infix.rhs);
 		if(rhs.isError()){ return evo::resultError; }
 
-		this->add_instruction(Instruction::Assignment(infix, lhs.value(), rhs.value()));
+		this->add_instruction(this->context.symbol_proc_manager.createAssignment(infix, lhs.value(), rhs.value()));
 		return evo::Result<>();
 	}
 
@@ -1630,7 +1776,9 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TermInfoID> value = this->analyze_expr<false>(multi_assign.value);
 		if(value.isError()){ return evo::resultError; }
 
-		this->add_instruction(Instruction::MultiAssign(multi_assign, std::move(targets), value.value()));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createMultiAssign(multi_assign, std::move(targets), value.value())
+		);
 		return evo::Result<>();
 	}
 
@@ -1732,7 +1880,7 @@ namespace pcit::panther{
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 					this->add_instruction(
-						Instruction::ArrayType(
+						this->context.symbol_proc_manager.createArrayType(
 							array_type, elem_type.value(), std::move(lengths), terminator, new_term_info_id
 						)
 					);
@@ -1752,7 +1900,9 @@ namespace pcit::panther{
 							this->analyze_type<true>(ast_buffer.getType(expr));
 						if(type_id.isError()){ return evo::resultError; }
 
-						this->add_instruction(Instruction::TypeToTerm(type_id.value(), new_term_info_id));
+						this->add_instruction(
+							this->context.symbol_proc_manager.createTypeToTerm(type_id.value(), new_term_info_id)
+						);
 						return new_term_info_id;
 					}
 				} break;
@@ -1774,7 +1924,7 @@ namespace pcit::panther{
 
 						const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
 						this->add_instruction(
-							Instruction::TypeIDConverter(
+							this->context.symbol_proc_manager.createTypeIDConverter(
 								type_id_converter, target_type_id.value(), created_base_type_type
 							)
 						);
@@ -1782,14 +1932,14 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case AST::Kind::VAR_DECL:            case AST::Kind::FUNC_DECL:        case AST::Kind::ALIAS_DECL:
-				case AST::Kind::DISTINCT_ALIAS_DECL: case AST::Kind::STRUCT_DECL:      case AST::Kind::INTERFACE_DECL:
-				case AST::Kind::INTERFACE_IMPL:      case AST::Kind::RETURN:           case AST::Kind::ERROR:
-				case AST::Kind::UNREACHABLE:         case AST::Kind::BREAK:            case AST::Kind::CONTINUE:
-				case AST::Kind::CONDITIONAL:         case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:
-				case AST::Kind::DEFER:               case AST::Kind::TEMPLATE_PACK:    case AST::Kind::MULTI_ASSIGN:
-				case AST::Kind::ATTRIBUTE_BLOCK:     case AST::Kind::ATTRIBUTE:        case AST::Kind::PRIMITIVE_TYPE:
-				case AST::Kind::DISCARD: {
+				case AST::Kind::VAR_DECL:            case AST::Kind::FUNC_DECL:       case AST::Kind::ALIAS_DECL:
+				case AST::Kind::DISTINCT_ALIAS_DECL: case AST::Kind::STRUCT_DECL:     case AST::Kind::UNION_DECL:
+				case AST::Kind::INTERFACE_DECL:      case AST::Kind::INTERFACE_IMPL:  case AST::Kind::RETURN:
+				case AST::Kind::ERROR:               case AST::Kind::UNREACHABLE:     case AST::Kind::BREAK:
+				case AST::Kind::CONTINUE:            case AST::Kind::CONDITIONAL:     case AST::Kind::WHEN_CONDITIONAL:
+				case AST::Kind::WHILE:               case AST::Kind::DEFER:           case AST::Kind::TEMPLATE_PACK:
+				case AST::Kind::MULTI_ASSIGN:        case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
+				case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::DISCARD: {
 					// TODO(FUTURE): better messaging (specify what kind)
 					this->emit_fatal(
 						Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,
@@ -1829,14 +1979,16 @@ namespace pcit::panther{
 				output_types.emplace_back(output_type.value());
 			}
 
-			this->add_instruction(Instruction::BeginExprBlock(block, *block.label, std::move(output_types)));
+			this->add_instruction(
+				this->context.symbol_proc_manager.createBeginExprBlock(block, *block.label, std::move(output_types))
+			);
 
-			for(const AST::Node& stmt : block.stmts){
+			for(const AST::Node& stmt : block.statements){
 				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 			}
 
 			const SymbolProc::TermInfoID output_term_info = this->create_term_info();
-			this->add_instruction(Instruction::EndExprBlock(block, output_term_info));
+			this->add_instruction(this->context.symbol_proc_manager.createEndExprBlock(block, output_term_info));
 			return output_term_info;
 		}
 	}
@@ -1883,7 +2035,7 @@ namespace pcit::panther{
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 					this->add_instruction(
-						Instruction::Import<Instruction::Language::PANTHER>(
+						this->context.symbol_proc_manager.createImportPanther(
 							func_call, path_value.value(), new_term_info_id
 						)
 					);
@@ -1924,7 +2076,7 @@ namespace pcit::panther{
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 					this->add_instruction(
-						Instruction::Import<Instruction::Language::C>(
+						this->context.symbol_proc_manager.createImportC(
 							func_call, path_value.value(), new_term_info_id
 						)
 					);
@@ -1965,7 +2117,7 @@ namespace pcit::panther{
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 					this->add_instruction(
-						Instruction::Import<Instruction::Language::CPP>(
+						this->context.symbol_proc_manager.createImportCPP(
 							func_call, path_value.value(), new_term_info_id
 						)
 					);
@@ -2011,11 +2163,19 @@ namespace pcit::panther{
 
 		if(is_target_template){
 			if(this->source.getASTBuffer().getTemplatedExpr(func_call.target).base.kind() == AST::Kind::INTRINSIC){
-				this->add_instruction(
-					Instruction::TemplateIntrinsicFuncCall<IS_CONSTEXPR>(
-						func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
-					)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createTemplateIntrinsicFuncCallConstexpr(
+							func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createTemplateIntrinsicFuncCall(
+							func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
+						)
+					);
+				}
 
 				return new_term_info_id;
 			}
@@ -2032,14 +2192,14 @@ namespace pcit::panther{
 				return evo::resultError;
 			}else{
 				this->add_instruction(
-					Instruction::FuncCallExpr<true, false>(
+					this->context.symbol_proc_manager.createFuncCallExprConstexpr(
 						func_call, std::move(template_args), args, target.value(), new_term_info_id
 					)
 				);
 
 				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 				this->add_instruction(
-					Instruction::ConstexprFuncCallRun(
+					this->context.symbol_proc_manager.createConstexprFuncCallRun(
 						func_call, new_term_info_id, comptime_res_term_info_id, std::move(args)
 					)
 				);
@@ -2047,11 +2207,19 @@ namespace pcit::panther{
 			}
 
 		}else{
-			this->add_instruction(
-				Instruction::FuncCallExpr<false, ERRORS>(
-					func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
-				)
-			);
+			if constexpr(ERRORS){
+				this->add_instruction(
+					this->context.symbol_proc_manager.createFuncCallExprErrors(
+						func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
+					)
+				);
+			}else{
+				this->add_instruction(
+					this->context.symbol_proc_manager.createFuncCallExpr(
+						func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
+					)
+				);
+			}
 
 			return new_term_info_id;
 		}
@@ -2077,7 +2245,9 @@ namespace pcit::panther{
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			Instruction::Indexer<IS_CONSTEXPR>(indexer, target.value(), new_term_info_id, std::move(indices))
+			this->context.symbol_proc_manager.createIndexerConstexpr(
+				indexer, target.value(), new_term_info_id, std::move(indices)
+			)
 		);
 		return new_term_info_id;
 	}
@@ -2112,13 +2282,15 @@ namespace pcit::panther{
 		const SymbolProc::TermInfoID created_base_term_info_id = this->create_term_info();
 
 		this->add_instruction(
-			Instruction::TemplatedTerm(
+			this->context.symbol_proc_manager.createTemplatedTerm(
 				templated_expr, base_type.value(), std::move(args), created_struct_inst_id
 			)
 		);
 
 		this->add_instruction(
-			Instruction::TemplatedTermWait<true>(created_struct_inst_id, created_base_term_info_id)
+			this->context.symbol_proc_manager.createTemplatedTermWaitForDef(
+				created_struct_inst_id, created_base_term_info_id
+			)
 		);
 
 		return created_base_term_info_id;
@@ -2135,7 +2307,9 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(Instruction::AddrOf<false>(prefix, target.value(), created_term_info_id));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createAddrOf(prefix, target.value(), created_term_info_id)
+				);
 
 				return created_term_info_id;
 			} break;
@@ -2146,7 +2320,9 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(Instruction::AddrOf<true>(prefix, target.value(), created_term_info_id));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createAddrOfReadOnly(prefix, target.value(), created_term_info_id)
+				);
 
 				return created_term_info_id;
 			} break;
@@ -2157,7 +2333,9 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(Instruction::Copy(prefix, target.value(), created_term_info_id));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createCopy(prefix, target.value(), created_term_info_id)
+				);
 
 				return created_term_info_id;
 			} break;
@@ -2168,7 +2346,9 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(Instruction::Move(prefix, target.value(), created_term_info_id));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createMove(prefix, target.value(), created_term_info_id)
+				);
 
 				return created_term_info_id;
 			} break;
@@ -2179,7 +2359,9 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(Instruction::Forward(prefix, target.value(), created_term_info_id));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createForward(prefix, target.value(), created_term_info_id)
+				);
 
 				return created_term_info_id;
 			} break;
@@ -2190,9 +2372,19 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
 				if(expr.isError()){ return evo::resultError; }
 
-				this->add_instruction(
-					Instruction::PrefixNegate<IS_CONSTEXPR>(prefix, expr.value(), created_term_info_id)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPrefixNegateConstexpr(
+							prefix, expr.value(), created_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPrefixNegate(
+							prefix, expr.value(), created_term_info_id
+						)
+					);
+				}
 
 				return created_term_info_id;
 			} break;
@@ -2203,9 +2395,17 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
 				if(expr.isError()){ return evo::resultError; }
 
-				this->add_instruction(
-					Instruction::PrefixNot<IS_CONSTEXPR>(prefix, expr.value(), created_term_info_id)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPrefixNotConstexpr(
+							prefix, expr.value(), created_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPrefixNot(prefix, expr.value(), created_term_info_id)
+					);
+				}
 
 				return created_term_info_id;
 			} break;
@@ -2216,9 +2416,19 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
 				if(expr.isError()){ return evo::resultError; }
 
-				this->add_instruction(
-					Instruction::PrefixBitwiseNot<IS_CONSTEXPR>(prefix, expr.value(), created_term_info_id)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPrefixBitwiseNotConstexpr(
+							prefix, expr.value(), created_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPrefixBitwiseNot(
+							prefix, expr.value(), created_term_info_id
+						)
+					);
+				}
 
 				return created_term_info_id;
 			} break;
@@ -2239,7 +2449,17 @@ namespace pcit::panther{
 				const Token::ID rhs = this->source.getASTBuffer().getIdent(infix.rhs);
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				this->add_instruction(Instruction::Accessor<IS_CONSTEXPR>(infix, lhs.value(), rhs, new_term_info_id));
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createAccessorNeedsDef(
+							infix, lhs.value(), rhs, new_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createAccessor(infix, lhs.value(), rhs, new_term_info_id)
+					);
+				}
 				return new_term_info_id;
 			} break;
 
@@ -2252,9 +2472,19 @@ namespace pcit::panther{
 				if(target_type.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				this->add_instruction(
-					Instruction::As<IS_CONSTEXPR>(infix, expr.value(), target_type.value(), new_term_info_id)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createAsConstexpr(
+							infix, expr.value(), target_type.value(), new_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createAs(
+							infix, expr.value(), target_type.value(), new_term_info_id
+						)
+					);
+				}
 				return new_term_info_id;
 			} break;
 
@@ -2280,7 +2510,9 @@ namespace pcit::panther{
 
 				if(rhs_is_null){
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-					this->add_instruction(Instruction::OptionalNullCheck(infix, lhs.value(), new_term_info_id));
+					this->add_instruction(
+						this->context.symbol_proc_manager.createOptionalNullCheck(infix, lhs.value(), new_term_info_id)
+					);
 					return new_term_info_id;
 
 				}else{
@@ -2288,11 +2520,19 @@ namespace pcit::panther{
 					if(rhs.isError()){ return evo::resultError; }
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-					this->add_instruction(
-						Instruction::MathInfix<IS_CONSTEXPR, Instruction::MathInfixKind::COMPARATIVE>(
-							infix, lhs.value(), rhs.value(), new_term_info_id
-						)
-					);
+					if constexpr(IS_CONSTEXPR){
+						this->add_instruction(
+							this->context.symbol_proc_manager.createMathInfixConstexprComparative(
+								infix, lhs.value(), rhs.value(), new_term_info_id
+							)
+						);
+					}else{
+						this->add_instruction(
+							this->context.symbol_proc_manager.createMathInfixComparative(
+								infix, lhs.value(), rhs.value(), new_term_info_id
+							)
+						);
+					}
 					return new_term_info_id;
 				}
 			} break;
@@ -2306,11 +2546,19 @@ namespace pcit::panther{
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				this->add_instruction(
-					Instruction::MathInfix<IS_CONSTEXPR, Instruction::MathInfixKind::COMPARATIVE>(
-						infix, lhs.value(), rhs.value(), new_term_info_id
-					)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMathInfixConstexprComparative(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMathInfixComparative(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}
 				return new_term_info_id;
 			} break;
 
@@ -2324,11 +2572,19 @@ namespace pcit::panther{
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				this->add_instruction(
-					Instruction::MathInfix<IS_CONSTEXPR, Instruction::MathInfixKind::INTEGRAL_MATH>(
-						infix, lhs.value(), rhs.value(), new_term_info_id
-					)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMathInfixConstexprIntegralMath(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMathInfixIntegralMath(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}
 				return new_term_info_id;
 			} break;
 
@@ -2341,11 +2597,19 @@ namespace pcit::panther{
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				this->add_instruction(
-					Instruction::MathInfix<IS_CONSTEXPR, Instruction::MathInfixKind::MATH>(
-						infix, lhs.value(), rhs.value(), new_term_info_id
-					)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMathInfixConstexprMath(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMathInfixMath(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}
 				return new_term_info_id;
 			} break;
 
@@ -2358,11 +2622,19 @@ namespace pcit::panther{
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				this->add_instruction(
-					Instruction::MathInfix<IS_CONSTEXPR, Instruction::MathInfixKind::SHIFT>(
-						infix, lhs.value(), rhs.value(), new_term_info_id
-					)
-				);
+				if constexpr(IS_CONSTEXPR){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMathInfixConstexprShift(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMathInfixShift(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}
 				return new_term_info_id;
 			} break;
 
@@ -2388,7 +2660,9 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(postfix.lhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(Instruction::Deref(postfix, target.value(), created_term_info_id));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createDeref(postfix, target.value(), created_term_info_id)
+				);
 
 				return created_term_info_id;
 			} break;
@@ -2399,7 +2673,9 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(postfix.lhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(Instruction::Unwrap(postfix, target.value(), created_term_info_id));
+				this->add_instruction(
+					this->context.symbol_proc_manager.createUnwrap(postfix, target.value(), created_term_info_id)
+				);
 
 				return created_term_info_id;
 			} break;
@@ -2437,11 +2713,19 @@ namespace pcit::panther{
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(
-			Instruction::ArrayInitNew<IS_CONSTEXPR>(
-				struct_init_new, type_id.value(), new_term_info_id, std::move(values)
-			)
-		);
+		if constexpr(IS_CONSTEXPR){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createArrayInitNewConstexpr(
+					struct_init_new, type_id.value(), new_term_info_id, std::move(values)
+				)
+			);
+		}else{
+			this->add_instruction(
+				this->context.symbol_proc_manager.createArrayInitNew(
+					struct_init_new, type_id.value(), new_term_info_id, std::move(values)
+				)
+			);
+		}
 		return new_term_info_id;
 	}
 
@@ -2468,11 +2752,19 @@ namespace pcit::panther{
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(
-			Instruction::StructInitNew<IS_CONSTEXPR>(
-				struct_init_new, type_id.value(), new_term_info_id, std::move(member_inits)
-			)
-		);
+		if constexpr(IS_CONSTEXPR){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createStructInitNewConstexpr(
+					struct_init_new, type_id.value(), new_term_info_id, std::move(member_inits)
+				)
+			);
+		}else{
+			this->add_instruction(
+				this->context.symbol_proc_manager.createStructInitNew(
+					struct_init_new, type_id.value(), new_term_info_id, std::move(member_inits)
+				)
+			);
+		}
 		return new_term_info_id;
 	}
 
@@ -2486,7 +2778,7 @@ namespace pcit::panther{
 
 		const SymbolProc::TermInfoID except_params_term_info_id = this->create_term_info();
 		this->add_instruction(
-			Instruction::PrepareTryHandler(
+			this->context.symbol_proc_manager.createPrepareTryHandler(
 				try_else.exceptParams, attempt_expr.value(), except_params_term_info_id, try_else.elseTokenID
 			)
 		);
@@ -2497,7 +2789,7 @@ namespace pcit::panther{
 		
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			Instruction::TryElse(
+			this->context.symbol_proc_manager.createTryElse(
 				try_else, attempt_expr.value(), except_params_term_info_id, except_expr.value(), new_term_info_id
 			)
 		);
@@ -2507,42 +2799,54 @@ namespace pcit::panther{
 	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(
-			Instruction::Ident<IS_CONSTEXPR>(this->source.getASTBuffer().getIdent(node), new_term_info_id)
-		);
+		if constexpr(IS_CONSTEXPR){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createIdentNeedsDef(
+					this->source.getASTBuffer().getIdent(node), new_term_info_id
+				)
+			);
+		}else{
+			this->add_instruction(
+				this->context.symbol_proc_manager.createIdent(
+					this->source.getASTBuffer().getIdent(node), new_term_info_id
+				)
+			);
+		}
 		return new_term_info_id;
 	}
 
 	auto SymbolProcBuilder::analyze_expr_intrinsic(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			Instruction::Intrinsic(this->source.getASTBuffer().getIntrinsic(node), new_term_info_id)
+			this->context.symbol_proc_manager.createIntrinsic(
+				this->source.getASTBuffer().getIntrinsic(node), new_term_info_id
+			)
 		);
 		return new_term_info_id;
 	}
 
 	auto SymbolProcBuilder::analyze_expr_literal(const Token::ID& literal) -> evo::Result<SymbolProc::TermInfoID> {
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(Instruction::Literal(literal, new_term_info_id));
+		this->add_instruction(this->context.symbol_proc_manager.createLiteral(literal, new_term_info_id));
 		return new_term_info_id;
 	}
 
 	auto SymbolProcBuilder::analyze_expr_uninit(const Token::ID& uninit_token) -> evo::Result<SymbolProc::TermInfoID> {
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(Instruction::Uninit(uninit_token, new_term_info_id));
+		this->add_instruction(this->context.symbol_proc_manager.createUninit(uninit_token, new_term_info_id));
 		return new_term_info_id;
 	}
 
 	auto SymbolProcBuilder::analyze_expr_zeroinit(const Token::ID& zeroinit_token)
 	-> evo::Result<SymbolProc::TermInfoID> {
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(Instruction::Zeroinit(zeroinit_token, new_term_info_id));
+		this->add_instruction(this->context.symbol_proc_manager.createZeroinit(zeroinit_token, new_term_info_id));
 		return new_term_info_id;
 	}
 
 	auto SymbolProcBuilder::analyze_expr_this(const Token::ID& this_token) -> evo::Result<SymbolProc::TermInfoID> {
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(Instruction::This(this_token, new_term_info_id));
+		this->add_instruction(this->context.symbol_proc_manager.createThis(this_token, new_term_info_id));
 		return new_term_info_id;
 	}
 
@@ -2575,20 +2879,20 @@ namespace pcit::panther{
 
 		auto template_param_infos = evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>();
 
-		this->add_instruction(Instruction::PushTemplateDeclInstantiationTypesScope());
+		this->add_instruction(this->context.symbol_proc_manager.createPushTemplateDeclInstantiationTypesScope());
 		for(const AST::TemplatePack::Param& param : template_pack.params){
 			const AST::Type& param_ast_type = ast_buffer.getType(param.type);
 			auto param_type = std::optional<SymbolProc::TypeID>();
 			if(
 				param_ast_type.base.kind() != AST::Kind::PRIMITIVE_TYPE 
-				|| token_buffer[ast_buffer.getPrimitiveType(param_ast_type.base)].kind() != Token::Kind::KEYWORD_TYPE
+				|| token_buffer[ast_buffer.getPrimitiveType(param_ast_type.base)].kind() != Token::Kind::TYPE_TYPE
 			){
 				const evo::Result<SymbolProc::TypeID> param_type_res = this->analyze_type<false>(param_ast_type);
 				if(param_type_res.isError()){ return evo::resultError; }
 				param_type = param_type_res.value();
 			}else{
 				const std::string_view ident = this->source.getTokenBuffer()[param.ident].getString();
-				this->add_instruction(Instruction::AddTemplateDeclInstantiationType(ident));
+				this->add_instruction(this->context.symbol_proc_manager.createAddTemplateDeclInstantiationType(ident));
 			}
 
 			auto default_value = std::optional<SymbolProc::TermInfoID>();
@@ -2601,7 +2905,7 @@ namespace pcit::panther{
 
 			template_param_infos.emplace_back(param, param_type, default_value);
 		}
-		this->add_instruction(Instruction::PopTemplateDeclInstantiationTypesScope());
+		this->add_instruction(this->context.symbol_proc_manager.createPopTemplateDeclInstantiationTypesScope());
 
 		return template_param_infos;
 	}

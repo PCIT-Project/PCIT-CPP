@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.144.0"></a>
+## v0.0.144.0
+
+### Panther
+- Added untagged unions
+- Added checking that the type of argument of operator `copy` is copyable
+- Added checking that the type of argument of operator `move` is movable
+- Improved memory usage of Semantic Analysis
+- Fixed printing of AST for struct (no arrow to attribute block minor-header)
+- Fixed template type parameter declaration being `type` when it should be `Type`
+
+
+<!---------------------------------->
 <a name="v0.0.143.1"></a>
 ## v0.0.143.1
 

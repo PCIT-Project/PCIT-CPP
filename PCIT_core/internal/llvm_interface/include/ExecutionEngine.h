@@ -43,9 +43,6 @@ namespace pcit::llvmint{
 			auto registerFunction(const class Function& func, void* func_call) -> void;
 			auto registerFunction(std::string_view func, void* func_call_address) -> void;
 
-			// EVO_NODISCARD auto runFunction(std::string_view func_name, evo::ArrayProxy<GenericValue> params)
-			// 	-> GenericValue;
-
 
 			template<typename T>
 			EVO_NODISCARD auto runFunctionDirectly(std::string_view func_name) -> evo::Result<T> {

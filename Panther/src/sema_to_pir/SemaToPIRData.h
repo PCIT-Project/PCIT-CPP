@@ -154,6 +154,12 @@ namespace pcit::panther{
 				evo::debugAssert(emplace_result.second, "This struct id was already added to PIR lower");
 			}
 
+			auto create_union(BaseType::Union::ID union_id, pir::Type pir_id) -> void {
+				const auto lock = std::scoped_lock(this->unions_lock);
+				const auto emplace_result = this->unions.emplace(union_id, pir_id);
+				evo::debugAssert(emplace_result.second, "This union id was already added to PIR lower");
+			}
+
 
 			auto create_global_var(sema::GlobalVar::ID global_var_id, pir::GlobalVar::ID pir_id) -> void {
 				const auto lock = std::scoped_lock(this->global_vars_lock);
@@ -188,6 +194,12 @@ namespace pcit::panther{
 				return this->structs.at(struct_id);
 			}
 
+			EVO_NODISCARD auto get_union(BaseType::Union::ID union_id) -> pir::Type {
+				const auto lock = std::scoped_lock(this->unions_lock);
+				evo::debugAssert(this->unions.contains(union_id), "Doesn't have this union");
+				return this->unions.at(union_id);
+			}
+
 			EVO_NODISCARD auto get_global_var(sema::GlobalVar::ID global_var_id) -> pir::GlobalVar::ID {
 				const auto lock = std::scoped_lock(this->global_vars_lock);
 				evo::debugAssert(this->global_vars.contains(global_var_id), "Doesn't have this global var");
@@ -213,6 +225,11 @@ namespace pcit::panther{
 				return this->structs.contains(struct_id);
 			}
 
+			EVO_NODISCARD auto has_union(BaseType::Union::ID union_id) -> bool {
+				const auto lock = std::scoped_lock(this->unions_lock);
+				return this->unions.contains(union_id);
+			}
+
 
 			EVO_NODISCARD auto get_string_literal_id() -> uint64_t {
 				return this->num_string_literals.fetch_add(1);
@@ -227,6 +244,9 @@ namespace pcit::panther{
 
 			std::unordered_map<BaseType::Struct::ID, pir::Type> structs{};
 			mutable core::SpinLock structs_lock{};
+
+			std::unordered_map<BaseType::Union::ID, pir::Type> unions{};
+			mutable core::SpinLock unions_lock{};
 
 			std::unordered_map<sema::GlobalVar::ID, pir::GlobalVar::ID> global_vars{};
 			mutable core::SpinLock global_vars_lock{};

@@ -139,6 +139,16 @@ namespace pcit::panther{
 				return this->struct_decls[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createUnionDecl(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->union_decls.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::UNION_DECL, node_index);
+			}
+			EVO_NODISCARD auto getUnionDecl(const AST::Node& node) const -> const AST::UnionDecl& {
+				evo::debugAssert(node.kind() == AST::Kind::UNION_DECL, "Node is not an Union");
+				return this->union_decls[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createInterfaceDecl(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->interface_decls.emplace_back(std::forward<decltype(args)>(args)...);
@@ -439,6 +449,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::AliasDecl, uint32_t> alias_decls{};
 			core::LinearStepAlloc<AST::DistinctAliasDecl, uint32_t> distinct_aliases{};
 			core::LinearStepAlloc<AST::StructDecl, uint32_t> struct_decls{};
+			core::LinearStepAlloc<AST::UnionDecl, uint32_t> union_decls{};
 			core::LinearStepAlloc<AST::InterfaceDecl, uint32_t> interface_decls{};
 			core::LinearStepAlloc<AST::InterfaceImpl, uint32_t> interface_impls{};
 

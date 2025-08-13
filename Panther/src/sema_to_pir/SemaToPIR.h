@@ -34,9 +34,13 @@ namespace pcit::panther{
 			auto lower() -> void;
 
 
-			auto lowerStruct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>;
+			auto lowerStruct(BaseType::Struct::ID struct_id) -> pir::Type;
 			// not thread-safe
-			auto lowerStructAndDependencies(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>; 
+			auto lowerStructAndDependencies(BaseType::Struct::ID struct_id) -> pir::Type; 
+
+			auto lowerUnion(BaseType::Union::ID union_id) -> pir::Type;
+			// not thread-safe
+			auto lowerUnionAndDependencies(BaseType::Union::ID union_id) -> pir::Type;
 
 			auto lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID>;
 			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
@@ -59,7 +63,10 @@ namespace pcit::panther{
 
 		private:
 			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe if true
-			EVO_NODISCARD auto lower_struct(BaseType::Struct::ID struct_id) -> std::optional<pir::Type>;
+			EVO_NODISCARD auto lower_struct(BaseType::Struct::ID struct_id) -> pir::Type;
+
+			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe if true
+			EVO_NODISCARD auto lower_union(BaseType::Union::ID union_id) -> pir::Type;
 
 			// see definition for explanation
 			auto lower_func_decl(sema::Func::ID func_id) -> pir::Function::ID;
@@ -135,6 +142,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_type(const BaseType::ID base_type_id) -> pir::Type;
 
 			EVO_NODISCARD auto mangle_name(const BaseType::Struct::ID struct_id) const -> std::string;
+			EVO_NODISCARD auto mangle_name(const BaseType::Union::ID union_id) const -> std::string;
 			EVO_NODISCARD auto mangle_name(const sema::GlobalVar::ID global_var_id) const -> std::string;
 			EVO_NODISCARD auto mangle_name(const sema::Func::ID func_id) const -> std::string;
 

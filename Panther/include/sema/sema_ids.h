@@ -105,6 +105,14 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, PtrAccessorID>::UniqueID;
 	};
 
+	struct UnionAccessorID : public core::UniqueID<uint32_t, struct UnionAccessorID> {
+		using core::UniqueID<uint32_t, UnionAccessorID>::UniqueID;
+	};
+
+	struct PtrUnionAccessorID : public core::UniqueID<uint32_t, struct PtrUnionAccessorID> {
+		using core::UniqueID<uint32_t, PtrUnionAccessorID>::UniqueID;
+	};
+
 	struct TryElseID : public core::UniqueID<uint32_t, struct TryElseID> {
 		using core::UniqueID<uint32_t, TryElseID>::UniqueID;
 	};
@@ -400,6 +408,28 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::PtrAccessorID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::UnionAccessorID>{
+		static constexpr auto init(panther::sema::UnionAccessorID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::UnionAccessorID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::PtrUnionAccessorID>{
+		static constexpr auto init(panther::sema::PtrUnionAccessorID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::PtrUnionAccessorID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -959,6 +989,38 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::sema::PtrAccessorID>::operator=;
 	};
 
+
+
+	template<>
+	struct hash<pcit::panther::sema::UnionAccessorID>{
+		auto operator()(pcit::panther::sema::UnionAccessorID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::UnionAccessorID> 
+		: public pcit::core::Optional<pcit::panther::sema::UnionAccessorID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::sema::UnionAccessorID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::UnionAccessorID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::PtrUnionAccessorID>{
+		auto operator()(pcit::panther::sema::PtrUnionAccessorID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::PtrUnionAccessorID> 
+		: public pcit::core::Optional<pcit::panther::sema::PtrUnionAccessorID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::PtrUnionAccessorID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::PtrUnionAccessorID>::operator=;
+	};
 
 
 	template<>

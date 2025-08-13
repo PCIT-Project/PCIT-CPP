@@ -41,6 +41,7 @@ namespace pcit::panther{
 			case AST::Kind::ALIAS_DECL:       return Location::get(ast_buffer.getAliasDecl(node), src);
 			case AST::Kind::DISTINCT_ALIAS_DECL: return Location::get(ast_buffer.getDistinctAliasDecl(node), src);
 			case AST::Kind::STRUCT_DECL:      return Location::get(ast_buffer.getStructDecl(node), src);
+			case AST::Kind::UNION_DECL :      return Location::get(ast_buffer.getUnionDecl(node), src);
 			case AST::Kind::INTERFACE_DECL:   return Location::get(ast_buffer.getInterfaceDecl(node), src);
 			case AST::Kind::INTERFACE_IMPL:   return Location::get(ast_buffer.getInterfaceImpl(node), src);
 			case AST::Kind::RETURN:           return Location::get(ast_buffer.getReturn(node), src);
@@ -115,6 +116,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::StructDecl& struct_decl, const Source& src) -> Location {
 		return Location::get(struct_decl.ident, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::UnionDecl& union_decl, const Source& src) -> Location {
+		return Location::get(union_decl.ident, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::InterfaceDecl& interface_decl, const Source& src) -> Location {
@@ -255,7 +260,7 @@ namespace pcit::panther{
 	}
 
 
-	auto Diagnostic::Location::get(const BaseType::Alias::ID& alias_id, const Context& context) -> Location {
+	auto Diagnostic::Location::get(BaseType::Alias::ID alias_id, const Context& context) -> Location {
 		const BaseType::Alias& alias_decl = context.getTypeManager().getAlias(alias_id);
 
 		if(alias_decl.location.is<Token::ID>()){
@@ -270,14 +275,19 @@ namespace pcit::panther{
 	}
 
 
-	auto Diagnostic::Location::get(const BaseType::Struct::ID& struct_id, const Source& src, const Context& context)
-	-> Location {
-		return Location::get(context.getTypeManager().getStruct(struct_id).identTokenID, src);
+	auto Diagnostic::Location::get(BaseType::Struct::ID struct_id, const Context& context) -> Location {
+		const BaseType::Struct& struct_decl = context.getTypeManager().getStruct(struct_id);
+		return Location::get(struct_decl.identTokenID, context.getSourceManager()[struct_decl.sourceID]);
 	}
 
-	auto Diagnostic::Location::get(const BaseType::Interface::ID& struct_id, const Source& src, const Context& context)
-	-> Location {
-		return Location::get(context.getTypeManager().getInterface(struct_id).identTokenID, src);
+	auto Diagnostic::Location::get(BaseType::Union::ID union_id, const Context& context) -> Location {
+		const BaseType::Union& union_decl = context.getTypeManager().getUnion(union_id);
+		return Location::get(union_decl.identTokenID, context.getSourceManager()[union_decl.sourceID]);
+	}
+
+	auto Diagnostic::Location::get(BaseType::Interface::ID interface_id, const Context& context) -> Location {
+		const BaseType::Interface& interface_decl = context.getTypeManager().getInterface(interface_id);
+		return Location::get(interface_decl.identTokenID, context.getSourceManager()[interface_decl.sourceID]);
 	}
 
 

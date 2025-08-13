@@ -32,6 +32,7 @@ namespace pcit::panther::AST{
 		STRUCT_DECL,
 		INTERFACE_DECL,
 		INTERFACE_IMPL,
+		UNION_DECL,
 
 		RETURN,
 		ERROR,
@@ -81,7 +82,7 @@ namespace pcit::panther::AST{
 
 
 	// access the internal values of this through ASTBuffer
-	//    some funcs are static, but if not get the ASTBuffer from the respective Source
+	//    some funcs are static, but if not get the ASTBuffer from the respective Source (gotten through SourceManager)
 	class Node{
 		public:
 			constexpr Node(Kind node_kind, Token::ID token_id) : _kind(node_kind), _value{.token_id = token_id} {}
@@ -213,6 +214,18 @@ namespace pcit::panther::AST{
 		Node block;
 	};
 
+	struct UnionDecl{
+		struct Field{
+			Token::ID ident;
+			Node type;
+		};
+
+		Token::ID ident;
+		Node attributeBlock;
+		evo::SmallVector<Field> fields;
+		evo::SmallVector<Node> statements;
+	};
+
 
 	struct InterfaceDecl{
 		Token::ID ident;
@@ -287,7 +300,7 @@ namespace pcit::panther::AST{
 		Token::ID openBrace;
 		std::optional<Token::ID> label;
 		evo::SmallVector<Output> outputs; // only used if `.label` has value
-		evo::SmallVector<Node> stmts;
+		evo::SmallVector<Node> statements;
 	};
 
 	struct FuncCall{
