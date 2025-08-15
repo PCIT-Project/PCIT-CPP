@@ -197,13 +197,13 @@ namespace pcit::panther{
 		auto default_param_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
 		default_param_values.reserve(func_decl.params.size());
 		for(size_t i = 0; const AST::FuncDecl::Param& param : func_decl.params){
-			EVO_DEFER([&](){ i += 1; });
-
-			if(param.type.has_value() == false){
+			if(param.type.has_value() == false){ // skip `this` param
 				types.emplace_back();
 				default_param_values.emplace_back();
 				continue;
 			}
+
+			EVO_DEFER([&](){ i += 1; }); // this is purposely after the maybe skipping `this` param
 				
 
 			const evo::Result<SymbolProc::TypeID> param_type =

@@ -42,8 +42,8 @@ namespace pcit::panther::sema{
 		if(this->params.empty()){ return false; }
 
 		const Source& source = context.getSourceManager()[this->sourceID];
-		const Token& first_token = source.getTokenBuffer()[this->params[0].ident];
-		return first_token.kind() == Token::Kind::KEYWORD_THIS;
+		const Token& first_param_token = source.getTokenBuffer()[this->params[0].ident];
+		return first_param_token.kind() == Token::Kind::KEYWORD_THIS;
 	}
 
 
@@ -62,6 +62,15 @@ namespace pcit::panther::sema{
 		}else{
 			return InstantiationInfo(find->second, std::nullopt);
 		}
+	}
+
+
+	auto TemplatedFunc::isMethod(const Context& context) const -> bool {
+		const Source& source = context.getSourceManager()[this->symbolProc.getSourceID()];
+		const AST::FuncDecl& ast_func = source.getASTBuffer().getFuncDecl(this->symbolProc.getASTNode());
+
+		if(ast_func.params.empty()){ return false; }
+		return ast_func.params[0].name.kind() == AST::Kind::THIS;
 	}
 
 

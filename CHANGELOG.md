@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.145.0"></a>
+## v0.0.145.0
+
+### Panther
+- Added diagnostic reasons for failing to match template function overload
+- Added checking for too many function template arguments
+- Fixed template methods expecting the `this` parameter as an argument
+
+
+<!---------------------------------->
 <a name="v0.0.144.0"></a>
 ## v0.0.144.0
 

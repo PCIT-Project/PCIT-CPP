@@ -495,6 +495,8 @@ namespace pcit::panther::sema{
 			return this->minNumTemplateArgs != this->templateParams.size();
 		}
 
+		EVO_NODISCARD auto isMethod(const class panther::Context& context) const -> bool;
+
 
 		TemplatedFunc(
 			SymbolProc& symbol_proc,

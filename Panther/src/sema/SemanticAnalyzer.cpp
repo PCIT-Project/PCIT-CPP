@@ -11782,6 +11782,8 @@ namespace pcit::panther{
 
 		auto method_this_term_info = std::optional<TermInfo>();
 
+		auto template_overload_match_infos = evo::SmallVector<std::optional<TemplateOverloadMatchFail>>();
+
 		switch(target_term_info.value_category){
 			case TermInfo::ValueCategory::FUNCTION: {
 				using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>;
@@ -11795,13 +11797,16 @@ namespace pcit::panther{
 					}else{
 						evo::debugAssert(func_overload.is<sema::TemplatedFunc::ID>(), "Unknown overload id");
 						
-						evo::Result<sema::TemplatedFunc::InstantiationInfo> template_res =
+						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
 							this->get_select_func_overload_func_info_for_template(
-								func_overload.as<sema::TemplatedFunc::ID>(), args, template_args
+								func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, false
 							);
 
-						if(template_res.isError()){ continue; }
-
+						if(template_res.has_value() == false){
+							template_overload_match_infos.emplace_back(template_res.error());
+							continue;
+						}
+						template_overload_match_infos.emplace_back(std::nullopt);
 						instantiation_infos.emplace_back(std::move(template_res.value()));
 					}
 				}
@@ -11819,13 +11824,16 @@ namespace pcit::panther{
 					}else{
 						evo::debugAssert(func_overload.is<sema::TemplatedFunc::ID>(), "Unknown overload id");
 						
-						evo::Result<sema::TemplatedFunc::InstantiationInfo> template_res =
+						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
 							this->get_select_func_overload_func_info_for_template(
-								func_overload.as<sema::TemplatedFunc::ID>(), args, template_args
+								func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, true
 							);
 
-						if(template_res.isError()){ continue; }
-
+						if(template_res.has_value() == false){
+							template_overload_match_infos.emplace_back(template_res.error());
+							continue;
+						}
+						template_overload_match_infos.emplace_back(std::nullopt);
 						instantiation_infos.emplace_back(std::move(template_res.value()));
 					}
 				}
@@ -11891,10 +11899,126 @@ namespace pcit::panther{
 
 		if(instantiation_infos.empty()){
 			if(func_infos.empty()){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+
+
+				const TermInfo::FuncOverloadList& func_overload_list =
+					target_term_info.type_id.as<TermInfo::FuncOverloadList>();
+
+				for(size_t i = 0; const std::optional<TemplateOverloadMatchFail>& info : template_overload_match_infos){
+					EVO_DEFER([&](){ i += 1; });
+
+					const auto get_func_location = [&]() -> Diagnostic::Location {
+						if(func_overload_list[i].is<sema::Func::ID>()){
+							return this->get_location(func_overload_list[i].as<sema::Func::ID>());
+						}else{
+							return this->get_location(func_overload_list[i].as<sema::TemplatedFunc::ID>());
+						}
+					};
+
+					if(info.has_value() == false){ continue; }
+					
+					info->reason.visit([&](const auto& reason) -> void {
+						using ReasonT = std::decay_t<decltype(reason)>;
+
+						if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::Handled>()){
+							return;
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewTemplateArgs>()){
+							if(reason.accepts_different_nums){
+								infos.emplace_back(
+									std::format(
+										"Failed to match: too few template arguments (requires at least {}, got {})",
+										reason.min_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+								
+							}else{
+								infos.emplace_back(
+									std::format(
+										"Failed to match: too few template arguments (requires {}, got {})",
+										reason.min_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyTemplateArgs>()){
+							if(reason.accepts_different_nums){
+								infos.emplace_back(
+									std::format(
+										"Failed to match: too many template arguments (requires at most {}, got {})",
+										reason.max_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+								
+							}else{
+								infos.emplace_back(
+									std::format(
+										"Failed to match: too many template arguments (requires {}, got {})",
+										reason.max_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateArgWrongKind>()){
+							if(reason.supposed_to_be_expr){
+								infos.emplace_back(
+									std::format(
+										"Failed to match: template parameter (index: {}) expects an expression, "
+											"got a type",
+										reason.arg_index
+									),
+									get_func_location()
+								);
+							}else{
+								infos.emplace_back(
+									std::format(
+										"Failed to match: template parameter (index: {}) expects a type, "
+											"got an expression",
+										reason.arg_index
+									),
+									get_func_location()
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::WrongNumArgs>()){
+							infos.emplace_back(
+								std::format(
+									"Failed to match: wrong number of argument (expected {}, got {})",
+									reason.expected_num,
+									reason.got_num
+								),
+								get_func_location()
+							);
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceArgType>()){
+							infos.emplace_back(
+								std::format(
+									"Failed to match: can't deduce type from argument (index: {})",
+									reason.arg_index
+								),
+								get_func_location()
+							);
+							
+						}else{
+							static_assert(false, "Unsupported TemplateOverloadMatchFail");
+						}
+					});
+				}
+
 				this->emit_error(
 					Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
 					func_call.target,
-					"No function overload found"
+					"No matching function overload found",
+					std::move(infos)
 				);
 				return evo::Unexpected(true);
 			}
@@ -11950,12 +12074,7 @@ namespace pcit::panther{
 				);
 			}
 
-			if(func_infos.empty()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
-					func_call.target,
-					"No function overload found"
-				);
+			if(func_infos.empty()){ // if all instantiations errored
 				return evo::Unexpected(true);
 			}
 		}
@@ -12103,8 +12222,9 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::get_select_func_overload_func_info_for_template(
 		sema::TemplatedFunc::ID func_id,
 		evo::ArrayProxy<SymbolProc::TermInfoID> args,
-		evo::ArrayProxy<SymbolProc::TermInfoID> template_args
-	) -> evo::Result<sema::TemplatedFunc::InstantiationInfo> {
+		evo::ArrayProxy<SymbolProc::TermInfoID> template_args,
+		bool is_member_call
+	) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> {
 		sema::TemplatedFunc& templated_func = this->context.sema_buffer.templated_funcs[func_id];
 
 		const Source& template_source = this->context.getSourceManager()[templated_func.symbolProc.source_id];
@@ -12114,8 +12234,25 @@ namespace pcit::panther{
 		auto instantiation_lookup_args = evo::SmallVector<sema::TemplatedFunc::Arg>();
 		auto instantiation_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, sema::Expr>>();
 
-		// if(template_args.has_value() == false){ return evo::resultError; }
-		if(template_args.size() < templated_func.minNumTemplateArgs){ return evo::resultError; }
+		if(template_args.size() < templated_func.minNumTemplateArgs){
+			return evo::Unexpected<TemplateOverloadMatchFail>(
+				TemplateOverloadMatchFail(TemplateOverloadMatchFail::TooFewTemplateArgs(
+					templated_func.minNumTemplateArgs,
+					template_args.size(),
+					templated_func.minNumTemplateArgs != templated_func.templateParams.size()
+				))
+			);
+		}
+
+		if(template_args.size() > templated_func.templateParams.size()){
+			return evo::Unexpected<TemplateOverloadMatchFail>(
+				TemplateOverloadMatchFail(TemplateOverloadMatchFail::TooManyTemplateArgs(
+					templated_func.templateParams.size(),
+					template_args.size(),
+					templated_func.minNumTemplateArgs != templated_func.templateParams.size()
+				))
+			);
+		}
 
 		this->scope.pushTemplateDeclInstantiationTypesScope();
 		EVO_DEFER([&](){ this->scope.popTemplateDeclInstantiationTypesScope(); });
@@ -12130,7 +12267,11 @@ namespace pcit::panther{
 			TermInfo& template_arg = this->get_term_info(template_arg_id);
 
 			if(template_arg.value_category == TermInfo::ValueCategory::TYPE){ // arg is type
-				if(templated_func.templateParams[i].typeID.has_value()){ return evo::resultError; }
+				if(templated_func.templateParams[i].typeID.has_value()){
+					return evo::Unexpected<TemplateOverloadMatchFail>(
+						TemplateOverloadMatchFail(TemplateOverloadMatchFail::TemplateArgWrongKind(i, true))
+					);
+				}
 
 				const TypeInfo::VoidableID arg_type_id = template_arg.type_id.as<TypeInfo::VoidableID>();
 
@@ -12143,14 +12284,20 @@ namespace pcit::panther{
 				);
 
 			}else{ // arg is expr
-				if(templated_func.templateParams[i].typeID.has_value() == false){ return evo::resultError; }
+				if(templated_func.templateParams[i].typeID.has_value() == false){
+					return evo::Unexpected<TemplateOverloadMatchFail>(
+						TemplateOverloadMatchFail(TemplateOverloadMatchFail::TemplateArgWrongKind(i, false))
+					);
+				}
 
 				const evo::Result<TypeInfo::ID> expr_type_id = [&]() -> evo::Result<TypeInfo::ID> {
 					if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
 						const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
 							this->source.getASTBuffer().getType(ast_template_pack.params[i].type)
 						);
-						if(resolved_type.isError()){ return evo::resultError; }
+						if(resolved_type.isError()){
+							return evo::resultError;
+						}
 
 						if(resolved_type.value().isVoid()){
 							this->emit_error(
@@ -12166,13 +12313,19 @@ namespace pcit::panther{
 						return *templated_func.templateParams[i].typeID;
 					}
 				}();
-				if(expr_type_id.isError()){ return evo::resultError; }
+				if(expr_type_id.isError()){
+					return evo::Unexpected<TemplateOverloadMatchFail>(
+						TemplateOverloadMatchFail(TemplateOverloadMatchFail::Handled())
+					);
+				}
 
 
 				if(this->type_check<true, false>(
 					expr_type_id.value(), template_arg, "", Diagnostic::Location::NONE
 				).ok == false){
-					return evo::resultError;
+					return evo::Unexpected<TemplateOverloadMatchFail>(
+						TemplateOverloadMatchFail(TemplateOverloadMatchFail::Handled())
+					);
 				}
 				
 
@@ -12316,8 +12469,15 @@ namespace pcit::panther{
 		}
 
 
+		const bool need_to_skip_this_arg = is_member_call && templated_func.isMethod(this->context);
 
-		if(args.size() != ast_func.params.size()){ return evo::resultError; }
+		if(args.size() != ast_func.params.size() - size_t(need_to_skip_this_arg)){
+			return evo::Unexpected<TemplateOverloadMatchFail>(
+				TemplateOverloadMatchFail(TemplateOverloadMatchFail::WrongNumArgs(
+					ast_func.params.size() - size_t(need_to_skip_this_arg), args.size()
+				))
+			);
+		}
 
 		auto arg_types = evo::SmallVector<std::optional<TypeInfo::ID>>();
 		arg_types.reserve(args.size());
@@ -12331,7 +12491,11 @@ namespace pcit::panther{
 				}
 
 			}else{
-				if(templated_func.paramIsTemplate[i]){ return evo::resultError; }
+				if(templated_func.paramIsTemplate[i]){
+					return evo::Unexpected<TemplateOverloadMatchFail>(
+						TemplateOverloadMatchFail(TemplateOverloadMatchFail::CantDeduceArgType(i))
+					);
+				}
 				arg_types.emplace_back(std::nullopt);
 			}
 
@@ -12363,7 +12527,11 @@ namespace pcit::panther{
 				*instantiation_info.instantiationID,
 				std::move(arg_types)
 			);
-			if(instantiation_symbol_proc_id.isError()){ return evo::resultError; }
+			if(instantiation_symbol_proc_id.isError()){
+				return evo::Unexpected<TemplateOverloadMatchFail>(
+					TemplateOverloadMatchFail(TemplateOverloadMatchFail::Handled())
+				);
+			}
 
 			instantiation_info.instantiation.symbolProcID = instantiation_symbol_proc_id.value();
 
@@ -12434,7 +12602,11 @@ namespace pcit::panther{
 					}
 				}();
 
-				if(add_ident_result.isError()){ return evo::resultError; }
+				if(add_ident_result.isError()){
+					return evo::Unexpected<TemplateOverloadMatchFail>(
+						TemplateOverloadMatchFail(TemplateOverloadMatchFail::Handled())
+					);
+				}
 			}
 
 

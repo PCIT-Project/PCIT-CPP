@@ -3,12 +3,9 @@ type Union = union #untagged {
 	int: Int,
 	float: F32,
 
-	func get_as_ui8 = (this) #rt -> UI8 {
-		return this.int as UI8;
-	}
 
-	func get_num = () -> UI8 {
-		return 4;
+	func get_int_as = <{T: Type}> (this) #rt -> T {
+		return this.int as T;
 	}
 }
 
@@ -20,5 +17,5 @@ func entry = () #entry -> UI8 {
 
 	(&value).int = 12;
 	
-	return value.get_as_ui8();
+	return value.get_int_as<{UI8}>();
 }

@@ -409,12 +409,32 @@ namespace pcit::panther{
 				evo::ArrayProxy<SymbolProcTermInfoID> template_args
 			) -> evo::Expected<FuncCallImplData, bool>; // unexpected true == error, unexpected false == need to wait
 
-			// non-nullopt error if ran ok, just waiting
+			struct TemplateOverloadMatchFail{
+				using Handled = std::monostate;
+				struct TooFewTemplateArgs{ size_t min_num; size_t got_num; bool accepts_different_nums; };
+				struct TooManyTemplateArgs{ size_t max_num; size_t got_num; bool accepts_different_nums; };
+				struct TemplateArgWrongKind{ size_t arg_index; bool supposed_to_be_expr; };
+				struct WrongNumArgs{ size_t expected_num; size_t got_num; };
+				struct CantDeduceArgType{ size_t arg_index; };
+
+				using Reason = evo::Variant<
+					Handled,
+					TooFewTemplateArgs,
+					TooManyTemplateArgs,
+					TemplateArgWrongKind,
+					WrongNumArgs,
+					CantDeduceArgType
+				>;
+
+				Reason reason;
+			};
+
 			EVO_NODISCARD auto get_select_func_overload_func_info_for_template(
 				sema::TemplatedFunc::ID func_id,
 				evo::ArrayProxy<SymbolProcTermInfoID> args,
-				evo::ArrayProxy<SymbolProcTermInfoID> template_args
-			) -> evo::Result<sema::TemplatedFunc::InstantiationInfo>;
+				evo::ArrayProxy<SymbolProcTermInfoID> template_args,
+				bool is_member_call
+			) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail>;
 
 
 			EVO_NODISCARD auto expr_in_func_is_valid_value_stage(
