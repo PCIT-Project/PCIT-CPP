@@ -12,24 +12,23 @@ class Test{
 };
 
 
-using Foo = uint32_t;
+struct Test2{
+	Test test;
+};
 
-enum Enum{
+
+// using Foo = uint32_t;
+
+// enum Enum{
 	
-};
+// };
 
-enum class EnumC{
+// enum class EnumC{
 	
-};
+// };
 
 
-union Union{
+// union Union{
 
-};
+// };
 
-
-// using Bar = uint32_t;
-
-// typedef uint32_t Bar;
-
-// typedef const int Foo;

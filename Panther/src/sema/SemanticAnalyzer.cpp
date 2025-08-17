@@ -1307,12 +1307,12 @@ namespace pcit::panther{
 		const BaseType::ID created_struct = this->context.type_manager.getOrCreateStruct(
 			BaseType::Struct{
 				.sourceID          = this->source.getID(),
-				.identTokenID      = instr.struct_decl.ident,
+				.location          = instr.struct_decl.ident,
 				.templateID        = instr.struct_template_id,
 				.instantiation     = instr.instantiation_id,
 				.memberVars        = evo::SmallVector<BaseType::Struct::MemberVar>(),
 				.memberVarsABI     = evo::SmallVector<BaseType::Struct::MemberVar*>(),
-				.namespacedMembers = struct_info.member_symbols,
+				.namespacedMembers = &struct_info.member_symbols,
 				.scopeLevel        = nullptr,
 				.isPub             = struct_attrs.value().is_pub,
 				.isOrdered         = struct_attrs.value().is_ordered,
@@ -1386,18 +1386,20 @@ namespace pcit::panther{
 		BaseType::Struct& created_struct = this->context.type_manager.getStruct(created_struct_id);
 
 
-		const auto sorting_func = [](
-			const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
-		) -> bool {
-			return lhs.identTokenID.get() < rhs.identTokenID.get();
-		};
+		if(created_struct.isClangType() == false){
+			const auto sorting_func = [](
+				const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
+			) -> bool {
+				return lhs.location.as<Token::ID>().get() < rhs.location.as<Token::ID>().get();
+			};
 
-		std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
+			std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
 
-		// TODO(FEATURE): optimal ordering (when not #ordered)
+			// TODO(FEATURE): optimal ordering (when not #ordered)
 
-		for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
-			created_struct.memberVarsABI.emplace_back(&member_var);
+			for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+				created_struct.memberVarsABI.emplace_back(&member_var);
+			}
 		}
 
 
@@ -1559,7 +1561,7 @@ namespace pcit::panther{
 				this->source.getID(),
 				instr.union_decl.ident,
 				evo::SmallVector<BaseType::Union::Field>(),
-				union_info.member_symbols,
+				&union_info.member_symbols,
 				nullptr,
 				union_attrs.value().is_pub,
 				union_attrs.value().is_untagged
@@ -2905,7 +2907,7 @@ namespace pcit::panther{
 		const std::string_view target_ident_str = this->source.getTokenBuffer()[instr.method_name].getString();
 
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<false>(
-			&info.current_struct.namespacedMembers, target_ident_str
+			info.current_struct.namespacedMembers, target_ident_str
 		);
 
 		switch(wait_on_symbol_proc_result){
@@ -2939,7 +2941,7 @@ namespace pcit::panther{
 				*info.current_struct.scopeLevel,
 				true,
 				true,
-				&this->context.getSourceManager()[info.current_struct.sourceID]
+				&this->context.getSourceManager()[info.current_struct.sourceID.as<Source::ID>()]
 			);
 
 
@@ -6445,15 +6447,12 @@ namespace pcit::panther{
 			target_type_info.baseTypeID().structID()
 		);
 
-		const Source& target_type_source = this->context.getSourceManager()[target_type.sourceID];
-
 
 		if(target_type.memberVars.empty()){
 			if(instr.struct_init_new.memberInits.empty() == false){
 				const AST::StructInitNew::MemberInit& member_init = instr.struct_init_new.memberInits[0];
 
-				const std::string_view member_init_ident =
-					target_type_source.getTokenBuffer()[member_init.ident].getString();
+				const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
 
 				this->emit_error(
 					Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
@@ -6463,7 +6462,7 @@ namespace pcit::panther{
 						Diagnostic::Info("Struct is empty"),
 						Diagnostic::Info(
 							"Struct was declared here:",
-							Diagnostic::Location::get(target_type.identTokenID, target_type_source)
+							this->get_location(target_type_info.baseTypeID().structID())
 						)
 					}
 				);
@@ -6503,10 +6502,11 @@ namespace pcit::panther{
 		}
 
 
+
 		const auto struct_has_member = [&](std::string_view ident) -> bool {
 			for(const BaseType::Struct::MemberVar& member_var : target_type.memberVars){
-				const std::string_view member_var_ident =
-					target_type_source.getTokenBuffer()[member_var.identTokenID].getString();
+				const std::string_view member_var_ident = 
+					target_type.getMemberName(member_var, this->context.getSourceManager());
 			
 				if(member_var_ident == ident){ return true; }
 			}
@@ -6520,7 +6520,7 @@ namespace pcit::panther{
 		size_t member_init_i = 0;
 		for(const BaseType::Struct::MemberVar* member_var : target_type.memberVarsABI){
 			const std::string_view member_var_ident =
-				target_type_source.getTokenBuffer()[member_var->identTokenID].getString();
+				target_type.getMemberName(*member_var, this->context.getSourceManager());
 
 			if(member_init_i >= instr.struct_init_new.memberInits.size()){
 				if(member_var->defaultValue.has_value()){
@@ -6553,8 +6553,7 @@ namespace pcit::panther{
 					instr.struct_init_new.memberInits[member_init_i];
 
 
-				const std::string_view member_init_ident =
-					target_type_source.getTokenBuffer()[member_init.ident].getString();
+				const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
 
 				if(member_var_ident != member_init_ident){
 					if(member_var->defaultValue.has_value()){
@@ -6583,7 +6582,7 @@ namespace pcit::panther{
 							std::format("This struct has no member \"{}\"", member_init_ident),
 							Diagnostic::Info(
 								"Struct was declared here:",
-								Diagnostic::Location::get(target_type.identTokenID, target_type_source)
+								this->get_location(target_type_info.baseTypeID().structID())
 							)
 						);
 						return Result::ERROR;
@@ -6619,15 +6618,14 @@ namespace pcit::panther{
 		if(member_init_i < instr.struct_init_new.memberInits.size()){
 			const AST::StructInitNew::MemberInit& member_init = instr.struct_init_new.memberInits[member_init_i];
 
-			const std::string_view member_init_ident =
-				target_type_source.getTokenBuffer()[member_init.ident].getString();
+			const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
 
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
 				member_init.ident,
 				std::format("This struct has no member \"{}\"", member_init_ident),
 				Diagnostic::Info(
-					"Struct was declared here:", Diagnostic::Location::get(target_type.identTokenID, target_type_source)
+					"Struct was declared here:",  this->get_location(target_type_info.baseTypeID().structID())
 				)
 			);
 			return Result::ERROR;
@@ -8324,7 +8322,7 @@ namespace pcit::panther{
 
 
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<false>(
-			&from_struct.namespacedMembers, "impl"
+			from_struct.namespacedMembers, "impl"
 		);
 
 		switch(wait_on_symbol_proc_result){
@@ -9685,7 +9683,7 @@ namespace pcit::panther{
 	) -> Result {
 		const ClangSource& clang_source = this->context.getSourceManager()[lhs.type_id.as<ClangSource::ID>()];
 
-		std::optional<ClangSource::SymbolInfo> clang_symbol = clang_source.getSymbol(rhs_ident_str);
+		std::optional<ClangSource::SymbolInfo> clang_symbol = clang_source.getImportedSymbol(rhs_ident_str);
 
 		if(clang_symbol.has_value() == false){
 			this->emit_error(
@@ -9758,9 +9756,12 @@ namespace pcit::panther{
 					actual_lhs_type.baseTypeID().structID()
 				);
 
-				namespaced_members = &lhs_struct.namespacedMembers;
+				namespaced_members = lhs_struct.namespacedMembers;
 				scope_level = lhs_struct.scopeLevel;
-				type_source = &this->context.getSourceManager()[lhs_struct.sourceID];
+
+				if(lhs_struct.isClangType() == false){
+					type_source = &this->context.getSourceManager()[lhs_struct.sourceID.as<Source::ID>()];
+				}
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -9768,9 +9769,12 @@ namespace pcit::panther{
 					actual_lhs_type.baseTypeID().unionID()
 				);
 
-				namespaced_members = &lhs_union.namespacedMembers;
+				namespaced_members = lhs_union.namespacedMembers;
 				scope_level = lhs_union.scopeLevel;
-				type_source = &this->context.getSourceManager()[lhs_union.sourceID];
+
+				if(lhs_union.isClangType() == false){
+					type_source = &this->context.getSourceManager()[lhs_union.sourceID.as<Source::ID>()];
+				}
 			} break;
 
 			default: {
@@ -9947,13 +9951,19 @@ namespace pcit::panther{
 			actual_lhs_type.baseTypeID().structID()
 		);
 
-		const Source& struct_source = this->context.getSourceManager()[lhs_type_struct.sourceID];
+		const Source* struct_source = [&]() -> const Source* {
+			if(lhs_type_struct.isClangType()){
+				return nullptr;
+			}else{
+				return &this->context.getSourceManager()[lhs_type_struct.sourceID.as<Source::ID>()];
+			}
+		}();
 
 		{
 			const auto lock = std::scoped_lock(lhs_type_struct.memberVarsLock);
 			for(size_t i = 0; const BaseType::Struct::MemberVar* member_var : lhs_type_struct.memberVarsABI){
 				const std::string_view member_ident_str = 
-					struct_source.getTokenBuffer()[member_var->identTokenID].getString();
+					lhs_type_struct.getMemberName(*member_var, this->context.getSourceManager());
 
 				if(member_ident_str == rhs_ident_str){
 					const TermInfo::ValueCategory value_category = [&](){
@@ -10025,7 +10035,7 @@ namespace pcit::panther{
 		// method
 
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-			&lhs_type_struct.namespacedMembers, rhs_ident_str
+			lhs_type_struct.namespacedMembers, rhs_ident_str
 		);
 
 
@@ -10055,7 +10065,7 @@ namespace pcit::panther{
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
 			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-				instr.rhs_ident, rhs_ident_str, *lhs_type_struct.scopeLevel, true, true, &struct_source
+				instr.rhs_ident, rhs_ident_str, *lhs_type_struct.scopeLevel, true, true, struct_source
 			);
 
 
@@ -10147,7 +10157,13 @@ namespace pcit::panther{
 			actual_lhs_type.baseTypeID().unionID()
 		);
 
-		const Source& union_source = this->context.getSourceManager()[lhs_type_union.sourceID];
+		const Source* union_source = [&]() -> const Source* {
+			if(lhs_type_union.isClangType()){
+				return nullptr;
+			}else{
+				return &this->context.getSourceManager()[lhs_type_union.sourceID.as<Source::ID>()];
+			}
+		}();
 
 		const sema::ScopeLevel::IdentID* lookup_ident = lhs_type_union.scopeLevel->lookupIdent(rhs_ident_str);
 
@@ -10240,7 +10256,7 @@ namespace pcit::panther{
 		// method
 
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
-			&lhs_type_union.namespacedMembers, rhs_ident_str
+			lhs_type_union.namespacedMembers, rhs_ident_str
 		);
 
 
@@ -10270,7 +10286,7 @@ namespace pcit::panther{
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
 			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-				instr.rhs_ident, rhs_ident_str, *lhs_type_union.scopeLevel, true, true, &union_source
+				instr.rhs_ident, rhs_ident_str, *lhs_type_union.scopeLevel, true, true, union_source
 			);
 
 

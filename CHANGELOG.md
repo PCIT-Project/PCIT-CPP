@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.146.0"></a>
+## v0.0.146.0
+
+### Panther
+- Added support for importing C unions
+- Added support for importing C structs
+
+
+<!---------------------------------->
 <a name="v0.0.145.0"></a>
 ## v0.0.145.0
 

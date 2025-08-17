@@ -274,7 +274,11 @@ namespace pcit::llvmint{
 	) -> Value {
 		return Value(
 			this->builder->CreateGEP(
-				type.native(), value.native(), createArrayRef<llvm::Value>(indices), name.c_str(), true
+				type.native(),
+				value.native(),
+				createArrayRef<llvm::Value>(indices),
+				name.c_str(),
+				llvm::GEPNoWrapFlags::all()
 			)
 		);
 	}

@@ -176,8 +176,11 @@ namespace pcit::panther{
 	}
 
 
-	EVO_NODISCARD static auto clang_type_to_panther_type(clangint::Type clang_type, TypeManager& type_manager)
-	-> std::optional<TypeInfo::VoidableID> {
+	EVO_NODISCARD static auto clang_type_to_panther_type(
+		clangint::Type clang_type,
+		TypeManager& type_manager,
+		const std::unordered_map<std::string, BaseType::ID>& type_map
+	) -> std::optional<TypeInfo::VoidableID> {
 
 		auto base_type_id = std::optional<BaseType::ID>();
 
@@ -281,7 +284,7 @@ namespace pcit::panther{
 				break; case clangint::BaseType::Primitive::UNKNOWN: return std::nullopt;
 			}
 		}else{
-			evo::debugFatalBreak("Unsupported clangint base type");
+			base_type_id = type_map.at(clang_type.baseType.as<clangint::BaseType::NamedDecl>().name);
 		}
 
 
@@ -981,41 +984,155 @@ namespace pcit::panther{
 
 		ClangSource& created_clang_source = this->source_manager[created_clang_source_id];
 
+		auto type_map = std::unordered_map<std::string, BaseType::ID>();
+
 		for(size_t i = 0; const clangint::API::Decl& decl : clang_api.getDecls()){
 			EVO_DEFER([&](){ i += 1; });
 
 			decl.visit([&](const auto& decl_ptr) -> void {
 				using DeclPtr = std::decay_t<decltype(decl_ptr)>;
 				
+				const ClangSource::ID source_clang_source_id =
+					this->source_manager.getOrCreateClangSourceID(evo::copy(decl_ptr->declFilePath), is_cpp).id;
+
+				ClangSource& source_clang_source = this->source_manager[source_clang_source_id];
 
 				if constexpr(std::is_same<DeclPtr, clangint::API::Alias*>()){
 					const clangint::API::Alias& alias_decl = *decl_ptr;
 
-					const ClangSource::ID clang_source_id =
-						this->source_manager.getOrCreateClangSourceID(evo::copy(alias_decl.declFilePath), is_cpp).id;
-
-					ClangSource& clang_source = this->source_manager[clang_source_id];
-
 					const std::optional<TypeInfo::VoidableID> panther_type = 
-						clang_type_to_panther_type(alias_decl.type, this->type_manager);
+						clang_type_to_panther_type(alias_decl.type, this->type_manager, type_map);
 
 					if(panther_type.has_value() == false){ return; }
 
 					if(panther_type->isVoid()){ return; }
 
-					if(add_includes_to_pub_api || clang_source_id == created_clang_source_id){
-						const BaseType::ID created_basetype_id = this->type_manager.getOrCreateAlias(
-							BaseType::Alias(
-								clang_source_id,
-								clang_source.createDeclInfo(
-									alias_decl.name, alias_decl.declLine, alias_decl.declCollumn
-								),
-								std::optional<TypeInfo::ID>(panther_type->asTypeID()),
-								true
-							)
-						);
 
-						created_clang_source.addSymbol(alias_decl.name, created_basetype_id, clang_source_id);
+					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+						alias_decl.name,
+						[&]() -> ClangSource::Symbol {
+							return this->type_manager.getOrCreateAlias(
+								BaseType::Alias(
+									source_clang_source_id,
+									source_clang_source.createDeclInfo(
+										alias_decl.name, alias_decl.declLine, alias_decl.declCollumn
+									),
+									std::optional<TypeInfo::ID>(panther_type->asTypeID()),
+									false
+								)
+							);
+						}
+					);
+
+					type_map.emplace(alias_decl.name, created_symbol.as<BaseType::ID>());
+
+					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
+						created_clang_source.addImportedSymbol(alias_decl.name, created_symbol, source_clang_source_id);
+					}
+
+				}else if constexpr(std::is_same<DeclPtr, clangint::API::Struct*>()){
+					const clangint::API::Struct& struct_decl = *decl_ptr;
+
+					auto member_vars = evo::SmallVector<BaseType::Struct::MemberVar>();
+					member_vars.reserve(struct_decl.members.size());
+					for(const clangint::API::Struct::Member& member_var : struct_decl.members){
+						const std::optional<TypeInfo::VoidableID> panther_type = 
+							clang_type_to_panther_type(member_var.type, this->type_manager, type_map);
+
+						if(panther_type.has_value() == false){ return; }
+
+						member_vars.emplace_back(
+							AST::VarDecl::Kind::VAR,
+							source_clang_source.createDeclInfo(
+								member_var.name, member_var.declLine, member_var.declCollumn
+							),
+							panther_type->asTypeID(),
+							std::nullopt
+						);
+					}
+
+					auto member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
+					member_vars_abi.reserve(member_vars.size());
+					for(BaseType::Struct::MemberVar& value : member_vars){
+						member_vars_abi.emplace_back(&value);
+					}
+
+
+					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+						struct_decl.name,
+						[&]() -> ClangSource::Symbol {
+							return this->type_manager.getOrCreateStruct(
+								BaseType::Struct(
+									source_clang_source_id,
+									source_clang_source.createDeclInfo(
+										struct_decl.name, struct_decl.declLine, struct_decl.declCollumn
+									),
+									std::nullopt,
+									std::numeric_limits<uint32_t>::max(),
+									std::move(member_vars),
+									std::move(member_vars_abi),
+									nullptr,
+									nullptr,
+									false,
+									true,
+									false
+								)
+							);
+						}
+					);
+
+					type_map.emplace(struct_decl.name, created_symbol.as<BaseType::ID>());
+
+					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
+						created_clang_source.addImportedSymbol(
+							struct_decl.name, created_symbol, source_clang_source_id
+						);
+					}
+
+				}else if constexpr(std::is_same<DeclPtr, clangint::API::Union*>()){
+					const clangint::API::Union& union_decl = *decl_ptr;
+
+					auto fields = evo::SmallVector<BaseType::Union::Field>();
+					fields.reserve(union_decl.fields.size());
+					for(const clangint::API::Union::Field& field : union_decl.fields){
+						const std::optional<TypeInfo::VoidableID> panther_type = 
+							clang_type_to_panther_type(field.type, this->type_manager, type_map);
+
+						if(panther_type.has_value() == false){ return; }
+
+						fields.emplace_back(
+							source_clang_source.createDeclInfo(
+								field.name, field.declLine, field.declCollumn
+							),
+							panther_type->asTypeID()
+						);
+					}
+
+					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+						union_decl.name,
+						[&]() -> ClangSource::Symbol {
+							return this->type_manager.getOrCreateUnion(
+								BaseType::Union(
+									source_clang_source_id,
+									source_clang_source.createDeclInfo(
+										union_decl.name, union_decl.declLine, union_decl.declCollumn
+									),
+									std::move(fields),
+									nullptr,
+									nullptr,
+									false,
+									true
+								)
+							);
+						}
+					);
+
+					type_map.emplace(union_decl.name, created_symbol.as<BaseType::ID>());
+
+					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
+						created_clang_source.addImportedSymbol(
+							union_decl.name, created_symbol, source_clang_source_id
+						);
 					}
 
 				}else{
@@ -1024,7 +1141,7 @@ namespace pcit::panther{
 			});
 		}
 
-		created_clang_source.setSymbolMapComplete();
+		created_clang_source.setSymbolImportComplete();
 	}
 
 
@@ -1208,16 +1325,12 @@ namespace pcit::panther{
 			// TODO(PERF): better waiting
 			while(lookup_source_id.has_value() == false){
 				std::this_thread::yield();
-				std::this_thread::yield();
-				std::this_thread::yield();
 				lookup_source_id = this->source_manager.lookupClangSourceID(file_path.string());
 			}
 
 			const ClangSource& lookup_source = this->source_manager[lookup_source_id.value()];
 
-			while(lookup_source.isSymboLMapComplete() == false){
-				std::this_thread::yield();
-				std::this_thread::yield();
+			while(lookup_source.isSymbolImportComplete() == false){
 				std::this_thread::yield();
 			}
 

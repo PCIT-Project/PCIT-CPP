@@ -39,11 +39,20 @@ namespace pcit::panther{
 
 
 		public:
+			ClangSource(const ClangSource&) = delete;
+
+
+			///////////////////////////////////
+			// info getters
+
 			EVO_NODISCARD auto getID() const -> ID { return this->id; }
 			EVO_NODISCARD auto getPath() const -> const std::filesystem::path& { return this->path; }
 			EVO_NODISCARD auto getData() const -> const std::string& { return this->data; }
 			EVO_NODISCARD auto isCPP() const -> bool { return this->is_cpp; }
 
+
+			///////////////////////////////////
+			// decl info
 
 			EVO_NODISCARD auto createDeclInfo(std::string name, uint32_t line, uint32_t collumn) -> DeclInfoID {
 				return this->decl_infos.emplace_back(name, line, line, collumn, collumn);
@@ -66,51 +75,59 @@ namespace pcit::panther{
 			}
 
 
+			///////////////////////////////////
+			// imported symbols
 
-			auto addSymbol(std::string_view symbol_name, Symbol&& symbol, ID source_id) -> void {
-				const auto lock = std::scoped_lock(this->symbol_map_lock);
-				const auto symbol_name_view = std::string_view(this->symbol_names.emplace_back(symbol_name));
-				this->symbol_map.emplace(symbol_name_view, SymbolInfo(std::move(symbol), source_id));
-			}
+			auto addImportedSymbol(std::string&& symbol_name, Symbol symbol, ID source_id) -> void {
+				evo::debugAssert(this->isSymbolImportComplete() == false, "symbol import was already completed");
 
-			auto addSymbol(std::string_view symbol_name, const Symbol& symbol, ID source_id) -> void {
-				const auto lock = std::scoped_lock(this->symbol_map_lock);
-				const auto symbol_name_view = std::string_view(this->symbol_names.emplace_back(symbol_name));
-				this->symbol_map.emplace(symbol_name_view, SymbolInfo(symbol, source_id));
-			}
-
-
-			auto addSymbol(std::string&& symbol_name, Symbol&& symbol, ID source_id) -> void {
-				const auto lock = std::scoped_lock(this->symbol_map_lock);
 				const auto symbol_name_view = std::string_view(this->symbol_names.emplace_back(std::move(symbol_name)));
-				this->symbol_map.emplace(symbol_name_view, SymbolInfo(std::move(symbol), source_id));
+				this->imported_symbols.emplace(symbol_name_view, SymbolInfo(symbol, source_id));
 			}
 
-			auto addSymbol(std::string&& symbol_name, const Symbol& symbol, ID source_id) -> void {
-				const auto lock = std::scoped_lock(this->symbol_map_lock);
-				const auto symbol_name_view = std::string_view(this->symbol_names.emplace_back(std::move(symbol_name)));
-				this->symbol_map.emplace(symbol_name_view, SymbolInfo(symbol, source_id));
+			auto addImportedSymbol(std::string_view symbol_name, Symbol symbol, ID source_id) -> void {
+				return this->addImportedSymbol(std::string(symbol_name), symbol, source_id);
 			}
 
 
 
+			EVO_NODISCARD auto getImportedSymbol(std::string_view symbol_name) const -> std::optional<SymbolInfo> {
+				evo::debugAssert(this->isSymbolImportComplete(), "symbol import was not completed");
 
-			EVO_NODISCARD auto getSymbol(std::string_view symbol_name) const -> std::optional<SymbolInfo> {
-				const auto lock = std::scoped_lock(this->symbol_map_lock);
-
-				const auto find = this->symbol_map.find(symbol_name);
-				if(find != this->symbol_map.end()){ return find->second; }
+				const auto find = this->imported_symbols.find(symbol_name);
+				if(find != this->imported_symbols.end()){ return find->second; }
 
 				return std::nullopt;
 			}
 
+			auto setSymbolImportComplete() -> void { this->symbol_import_complete = true; }
+			EVO_NODISCARD auto isSymbolImportComplete() const -> bool { return this->symbol_import_complete; }
 
 
-			auto setSymbolMapComplete() -> void { this->symboL_map_complete = true; }
-			EVO_NODISCARD auto isSymboLMapComplete() const -> bool { return this->symboL_map_complete; }
+			///////////////////////////////////
+			// source symbols
 
+			using SymbolCreator = std::function<Symbol()>;
 
-			ClangSource(const ClangSource&) = delete;
+			EVO_NODISCARD auto getOrCreateSourceSymbol(std::string&& symbol_name, const SymbolCreator& symbol_creator)
+			-> Symbol {
+				const auto lock = std::scoped_lock(this->source_symbols_lock);
+
+				const auto find = this->source_symbols.find(symbol_name);
+				if(find != this->source_symbols.end()){ return find->second; }
+
+				const auto symbol_name_view = std::string_view(this->symbol_names.emplace_back(std::move(symbol_name)));
+				const Symbol created_symbol = symbol_creator();
+				this->source_symbols.emplace(symbol_name_view, created_symbol);
+				return created_symbol;
+			}
+
+			EVO_NODISCARD auto getOrCreateSourceSymbol(
+				std::string_view symbol_name, const SymbolCreator& symbol_creator
+			) -> Symbol {
+				return this->getOrCreateSourceSymbol(std::string(symbol_name), symbol_creator);
+			}
+
 
 		private:
 			ClangSource(std::filesystem::path&& _path, std::string&& data_str, bool _is_cpp)
@@ -135,10 +152,11 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<SavedDeclInfo, DeclInfoID> decl_infos{};
 
 			evo::StepVector<std::string> symbol_names{};
-			std::unordered_map<std::string_view, SymbolInfo> symbol_map{};
-			mutable core::SpinLock symbol_map_lock{};
+			std::unordered_map<std::string_view, SymbolInfo> imported_symbols{};
+			std::unordered_map<std::string_view, Symbol> source_symbols{};
+			mutable core::SpinLock source_symbols_lock{};
 
-			std::atomic<bool> symboL_map_complete = false;
+			std::atomic<bool> symbol_import_complete = false;
 
 			friend class SourceManager;
 			friend core::LinearStepAlloc;

@@ -32,15 +32,23 @@ namespace pcit::pir{
 		public:
 			JITEngine() = default;
 
-			#if defined(PCIT_CONFIG_DEBUG)
-				~JITEngine(){
-					evo::debugAssert(
-						this->isInitialized() == false, "Didn't deinit JITEngine before destructor"
-					);
+			~JITEngine(){
+				if(this->isInitialized()){
+					this->deinit();
 				}
-			#else
-				~JITEngine() = default;
-			#endif
+			}
+
+			JITEngine(const JITEngine&) = delete;
+			auto operator=(const JITEngine&) -> JITEngine& = delete;
+
+			JITEngine(JITEngine&& rhs) : data(std::exchange(rhs.data, nullptr)) {}
+			auto operator=(JITEngine&& rhs) -> JITEngine& {
+				std::destroy_at(this);
+				std::construct_at(this, std::move(rhs));
+				return *this;
+			}
+
+
 
 			// if returns error, not initialized
 			// error is list of messages from LLVM

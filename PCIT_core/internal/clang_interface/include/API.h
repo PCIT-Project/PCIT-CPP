@@ -30,6 +30,48 @@ namespace pcit::clangint{
 				uint32_t declCollumn;
 			};
 
+			struct Struct{
+				struct Member{
+					enum class Access{
+						PUBLIC,
+						PROTECTED,
+						PRIVATE,
+					};
+
+					std::string name;
+					Type type;
+					Access access;
+
+					uint32_t declLine;
+					uint32_t declCollumn;
+				};
+
+				std::string name;
+				evo::SmallVector<Member> members;
+
+				std::filesystem::path declFilePath;
+				uint32_t declLine;
+				uint32_t declCollumn;
+			};
+
+			struct Union{
+				struct Field{
+					std::string name;
+					Type type;
+
+					uint32_t declLine;
+					uint32_t declCollumn;
+				};
+
+				std::string name;
+				evo::SmallVector<Field> fields;
+
+				std::filesystem::path declFilePath;
+				uint32_t declLine;
+				uint32_t declCollumn;
+			};
+
+
 
 			struct Decl{
 				Decl(auto* decl_ptr) : ptr(decl_ptr) {}
@@ -49,7 +91,7 @@ namespace pcit::clangint{
 
 				
 				private:
-					evo::Variant<Alias*> ptr;
+					evo::Variant<Alias*, Struct*, Union*> ptr;
 			};
 
 
@@ -59,9 +101,26 @@ namespace pcit::clangint{
 
 
 			auto addAlias(auto&&... alias_args) -> void {
-				this->decls.emplace_back(
-					&this->aliases.emplace_back(std::forward<decltype(alias_args)>(alias_args)...)
-				);
+				Alias& created_alias = this->aliases.emplace_back(std::forward<decltype(alias_args)>(alias_args)...);
+
+				this->alias_map.emplace(created_alias.name, created_alias);
+				this->decls.emplace_back(&created_alias);
+			}
+
+			auto addStruct(auto&&... struct_args) -> void {
+				Struct& created_struct =
+					this->structs.emplace_back(std::forward<decltype(struct_args)>(struct_args)...);
+
+				this->struct_map.emplace(created_struct.name, created_struct);
+				this->decls.emplace_back(&created_struct);
+			}
+
+			auto addUnion(auto&&... union_args) -> void {
+				Union& created_union =
+					this->unions.emplace_back(std::forward<decltype(union_args)>(union_args)...);
+
+				this->union_map.emplace(created_union.name, created_union);
+				this->decls.emplace_back(&created_union);
 			}
 
 
@@ -81,6 +140,14 @@ namespace pcit::clangint{
 			evo::SmallVector<Decl> decls{};
 
 			evo::StepVector<Alias> aliases{};
+			std::unordered_map<std::string_view, Alias&> alias_map{};
+
+			evo::StepVector<Struct> structs{};
+			std::unordered_map<std::string_view, Struct&> struct_map{};
+
+			evo::StepVector<Union> unions{};
+			std::unordered_map<std::string_view, Union&> union_map{};
+
 
 			const std::unordered_map<std::string_view, BaseType::Primitive> special_primitive_lookup{
 				{"ptrdiff_t", BaseType::Primitive::ISIZE},

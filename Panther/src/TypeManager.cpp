@@ -57,16 +57,61 @@ namespace pcit::panther{
 
 
 	auto BaseType::Alias::getName(const SourceManager& source_manager) const -> std::string_view {
-		if(this->sourceID.is<SourceID>()){
-			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
-		}else{
+		if(this->isClangType()){
 			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
 			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
 		}
 	}
 
 
+	auto BaseType::Struct::getName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
+		}
+	}
+
+
+	auto BaseType::Struct::getMemberName(const MemberVar& member, const SourceManager& source_manager) const
+	-> std::string_view {
+		if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(member.location.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[member.location.as<Token::ID>()].getString();
+		}
+	}
+
+
+
+	auto BaseType::Union::getName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
+		}
+	}
+
+
+	auto BaseType::Union::getFieldName(const Field& field, const SourceManager& source_manager) const
+	-> std::string_view {
+		if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(field.location.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[field.location.as<Token::ID>()].getString();
+		}
+	}
 
 
 
@@ -266,8 +311,7 @@ namespace pcit::panther{
 					const BaseType::Struct::ID struct_id = type_info.baseTypeID().structID();
 					const BaseType::Struct& struct_info = this->getStruct(struct_id);
 
-					const std::string_view struct_name =
-						source_manager[struct_info.sourceID].getTokenBuffer()[struct_info.identTokenID].getString();
+					const std::string_view struct_name = struct_info.getName(source_manager);
 
 					if(struct_info.templateID.has_value() == false){
 						return std::string(struct_name);
@@ -335,8 +379,7 @@ namespace pcit::panther{
 					const BaseType::Union::ID union_id = type_info.baseTypeID().unionID();
 					const BaseType::Union& union_info = this->getUnion(union_id);
 
-					const TokenBuffer& token_buffer = source_manager[union_info.sourceID].getTokenBuffer();
-					return std::string(token_buffer[union_info.identTokenID].getString());
+					return std::string(union_info.getName(source_manager));
 				} break;
 
 				case BaseType::Kind::TYPE_DEDUCER: {
@@ -553,7 +596,7 @@ namespace pcit::panther{
 
 		const BaseType::Struct::ID new_struct = this->structs.emplace_back(
 			lookup_type.sourceID,
-			lookup_type.identTokenID,
+			lookup_type.location,
 			lookup_type.templateID,
 			lookup_type.instantiation,
 			std::move(lookup_type.memberVars),
@@ -633,7 +676,7 @@ namespace pcit::panther{
 
 		const BaseType::Union::ID new_union = this->unions.emplace_back(
 			lookup_type.sourceID,
-			lookup_type.identTokenID,
+			lookup_type.location,
 			std::move(lookup_type.fields),
 			lookup_type.namespacedMembers,
 			lookup_type.scopeLevel,

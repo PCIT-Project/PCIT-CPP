@@ -307,15 +307,16 @@ namespace pcit::panther{
 			evo::Variant<SourceID, ClangSourceID> sourceID;
 			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
 			std::atomic<std::optional<TypeInfoID>> aliasedType; // nullopt if only has decl completed
-			bool isPub;
+			bool isPub; // meaningless if is clang type
 
 			EVO_NODISCARD auto defCompleted() const -> bool { return this->aliasedType.load().has_value(); }
 			
+			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+
 			EVO_NODISCARD auto operator==(const Alias& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->location == rhs.location;
 			}
-
-			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 		};
 
 
@@ -340,21 +341,21 @@ namespace pcit::panther{
 
 			struct MemberVar{
 				AST::VarDecl::Kind kind;
-				Token::ID identTokenID;
+				evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
 				TypeInfoID typeID;
 				std::optional<sema::Expr> defaultValue;
 			};
 
-			SourceID sourceID;
-			Token::ID identTokenID;
-			std::optional<StructTemplateID> templateID; // nullopt if not instantiated
+			evo::Variant<SourceID, ClangSourceID> sourceID;
+			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+			std::optional<StructTemplateID> templateID = std::nullopt; // nullopt if not instantiated
 			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uin32_t max if not instantiation
 			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock) when not defComplete
 			evo::SmallVector<MemberVar*> memberVarsABI; // this is the order that members are for ABI
-			SymbolProcNamespace& namespacedMembers;
-			sema::ScopeLevel* scopeLevel; // is pointer because it needs to be set after construction (so never nullptr)
-			bool isPub;
-			bool isOrdered;
+			SymbolProcNamespace* namespacedMembers; // nullopt if is clang type
+			sema::ScopeLevel* scopeLevel; // nullopt if is clang type (although temporarily nullopt during creation)
+			bool isPub; // meaningless if is clang type
+			bool isOrdered; // TODO(FUTURE): is this needed here?
 			bool isPacked;
 
 			std::atomic<bool> defCompleted = false;
@@ -365,9 +366,16 @@ namespace pcit::panther{
 			std::unordered_map<TypeInfoID, sema::FuncID> operatorAsOverloads{};
 			mutable core::SpinLock operatorAsOverloadsLock{};
 
+			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+
+			EVO_NODISCARD auto getMemberName(
+				const MemberVar& member, const class panther::SourceManager& source_manager
+			) const -> std::string_view;
+
 			EVO_NODISCARD auto operator==(const Struct& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID
-					&& this->identTokenID == rhs.identTokenID
+					&& this->location == rhs.location
 					&& this->instantiation == rhs.instantiation;
 			}
 		};
@@ -450,22 +458,30 @@ namespace pcit::panther{
 			using ID = UnionID;
 
 			struct Field{
-				Token::ID identTokenID;
+				evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
 				TypeInfoVoidableID typeID;
 			};
 			
-			SourceID sourceID;
-			Token::ID identTokenID;
+			evo::Variant<SourceID, ClangSourceID> sourceID;
+			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
 			evo::SmallVector<Field> fields;
-			SymbolProcNamespace& namespacedMembers;
-			sema::ScopeLevel* scopeLevel; // is pointer because it needs to be set after construction (so never nullptr)
-			bool isPub;
+			SymbolProcNamespace* namespacedMembers; // nullptr if is clang type
+			sema::ScopeLevel* scopeLevel; // nullopt if is clang type (although temporarily nullopt during creation)
+			bool isPub; // meaningless if clang type
 			bool isUntagged;
 
 			std::atomic<bool> defCompleted = false;
 
+
+			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+
+			EVO_NODISCARD auto getFieldName(
+				const Field& field, const class panther::SourceManager& source_manager
+			) const -> std::string_view;
+
 			auto operator==(const Union& rhs) const -> bool {
-				return this->identTokenID == rhs.identTokenID && this->sourceID == rhs.sourceID;
+				return this->sourceID == rhs.sourceID && this->location == rhs.location;
 			}
 		};
 

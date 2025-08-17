@@ -194,11 +194,32 @@ namespace pcit::clangint{
 				} break;
 
 				case clang::Type::Record: {
-					return Type(BaseType::Primitive::UNKNOWN, std::move(qualifiers), split.Quals.hasConst());
+					clang::RecordDecl* record_decl = split.Ty->getAsRecordDecl();
+
+					if(record_decl->isUnion()){
+						return Type(
+							BaseType::NamedDecl(record_decl->getNameAsString(), BaseType::NamedDecl::Kind::UNION),
+							std::move(qualifiers),
+							split.Quals.hasConst()
+						);
+					}else{
+						return Type(
+							BaseType::NamedDecl(record_decl->getNameAsString(), BaseType::NamedDecl::Kind::STRUCT),
+							std::move(qualifiers),
+							split.Quals.hasConst()
+						);
+					}
+
 				} break;
 
 				case clang::Type::Enum: {
-					return Type(BaseType::Primitive::UNKNOWN, std::move(qualifiers), split.Quals.hasConst());
+					clang::EnumDecl* enum_decl = clang::cast<clang::EnumDecl>(split.Ty->getAsTagDecl());
+
+					return Type(
+						BaseType::NamedDecl(enum_decl->getNameAsString(), BaseType::NamedDecl::Kind::ENUM),
+						std::move(qualifiers),
+						split.Quals.hasConst()
+					);
 				} break;
 
 				case clang::Type::Typedef: {
@@ -253,7 +274,7 @@ namespace pcit::clangint{
 
 			auto VisitTypedefDecl(clang::TypedefDecl* typedef_decl) -> bool {
 				if(typedef_decl->getDeclContext()->isRecord()){ return true; } // skip members
-
+				if(typedef_decl->getParentFunctionOrMethod() != nullptr){ return true; } // skip scoped to functions
 				
 				const clang::PresumedLoc presumed_loc =
 					this->ast_context->getSourceManager().getPresumedLoc(typedef_decl->getLocation());
@@ -271,6 +292,7 @@ namespace pcit::clangint{
 
 			auto VisitTypeAliasDecl(clang::TypeAliasDecl* type_alias_decl) -> bool {
 				if(type_alias_decl->getDeclContext()->isRecord()){ return true; } // skip members
+				if(type_alias_decl->getParentFunctionOrMethod() != nullptr){ return true; } // skip scoped to functions
 
 
 				const clang::PresumedLoc presumed_loc =
@@ -302,11 +324,12 @@ namespace pcit::clangint{
 
 			auto VisitRecordDecl(clang::RecordDecl* record_decl) -> bool {
 				if(record_decl->getDeclContext()->isRecord()){ return true; } // skip members
+				if(record_decl->getParentFunctionOrMethod() != nullptr){ return true; } // skip scoped to functions
 
-				const std::string name = record_decl->getNameAsString();
+				std::string name = record_decl->getNameAsString();
 				if(name.empty()){ return true; } // skip unnaned types
 
-				if(record_decl->isUnion()){ return this->visit_union(record_decl); }
+				if(record_decl->isUnion()){ return this->visit_union(record_decl, std::move(name)); }
 
 				bool is_class = false;
 				if(record_decl->isStruct() == false){
@@ -317,52 +340,93 @@ namespace pcit::clangint{
 					}
 				}
 
-				// TODO(FUTURE): handle structs/classes properly
 
-				// const std::string name = record_decl->getNameAsString();
+				auto members = evo::SmallVector<API::Struct::Member>();
+				members.reserve(std::distance(record_decl->fields().begin(), record_decl->fields().end()));
+				for(const clang::FieldDecl* field : record_decl->fields()){
+					auto field_name = std::string();
+					{
+						auto field_name_ostream = StringOStream(field_name);
+						field->printName(field_name_ostream, clang::PrintingPolicy(clang::LangOptions()));
+					}
 
-				// if(name.empty()){
-				// 	evo::log::warning("unnamed type");
-				// 	return true;
-				// }
+					const clang::QualType field_type = field->getType();
 
-				// if(record_decl->getParentFunctionOrMethod() != nullptr){
-				// 	evo::log::warning("Scoped type: {}", name);
-				// 	return true;
-				// }
+					const API::Struct::Member::Access access = [&](){
+						switch(field->getAccess()){
+							case clang::AS_public:    return API::Struct::Member::Access::PUBLIC;
+							case clang::AS_protected: return API::Struct::Member::Access::PROTECTED;
+							case clang::AS_private:   return API::Struct::Member::Access::PRIVATE;
+							case clang::AS_none:      evo::debugFatalBreak("Unknown struct member access");
+						}
+						evo::debugFatalBreak("Unknown clang member access kind");
+					}();
 
-				// if(is_class){
-				// 	evo::println("type {} = class {{", name);
-				// }else{
-				// 	evo::println("type {} = struct {{", name);
-				// }
+					const clang::PresumedLoc presumed_loc =
+						this->ast_context->getSourceManager().getPresumedLoc(field->getLocation());
 
-				// for(const clang::FieldDecl* field : record_decl->fields()){
-				// 	auto field_name = std::string();
-				// 	{
-				// 		auto field_name_ostream = StringOStream(field_name);
-				// 		field->printName(field_name_ostream, clang::PrintingPolicy(clang::LangOptions()));
-				// 	}
+					members.emplace_back(
+						field_name,
+						make_type(field_type, this->api),
+						access,
+						uint32_t(presumed_loc.getLine()),
+						uint32_t(presumed_loc.getColumn())
+					);
+				}
 
-				// 	const clang::QualType field_type = field->getType();
-				// 	evo::println(
-				// 		"    var {}: {}; ({})",
-				// 		field_name,
-				// 		field_type.getAsString(),
-				// 		evo::to_underlying(field->getAccess())
-				// 	);
-				// }
-				// evo::println("}");
+				const clang::PresumedLoc presumed_loc =
+					this->ast_context->getSourceManager().getPresumedLoc(record_decl->getLocation());
+
+				this->api.addStruct(
+					std::move(name),
+					std::move(members),
+					std::filesystem::path(std::string(presumed_loc.getFilename())),
+					uint32_t(presumed_loc.getLine()),
+					uint32_t(presumed_loc.getColumn())
+				);
 
 				return true;
 			}
 
 
 
-			auto visit_union(clang::RecordDecl* union_decl) -> bool {								
-				// TODO(FUTURE): handle unions properly
+			auto visit_union(clang::RecordDecl* union_decl, std::string&& name) -> bool {								
+				if(union_decl->getDeclContext()->isRecord()){ return true; } // skip members
+				if(union_decl->getParentFunctionOrMethod() != nullptr){ return true; } // skip scoped to functions
 
-				std::ignore = union_decl;
+				auto fields = evo::SmallVector<API::Union::Field>();
+				fields.reserve(std::distance(union_decl->fields().begin(), union_decl->fields().end()));
+				for(const clang::FieldDecl* field : union_decl->fields()){
+					auto field_name = std::string();
+					{
+						auto field_name_ostream = StringOStream(field_name);
+						field->printName(field_name_ostream, clang::PrintingPolicy(clang::LangOptions()));
+					}
+
+					const clang::QualType field_type = field->getType();
+
+
+					const clang::PresumedLoc presumed_loc =
+						this->ast_context->getSourceManager().getPresumedLoc(field->getLocation());
+
+					fields.emplace_back(
+						field_name,
+						make_type(field_type, this->api),
+						uint32_t(presumed_loc.getLine()),
+						uint32_t(presumed_loc.getColumn())
+					);
+				}
+
+				const clang::PresumedLoc presumed_loc =
+					this->ast_context->getSourceManager().getPresumedLoc(union_decl->getLocation());
+
+				this->api.addUnion(
+					std::move(name),
+					std::move(fields),
+					std::filesystem::path(std::string(presumed_loc.getFilename())),
+					uint32_t(presumed_loc.getLine()),
+					uint32_t(presumed_loc.getColumn())
+				);
 
 				return true;
 			}

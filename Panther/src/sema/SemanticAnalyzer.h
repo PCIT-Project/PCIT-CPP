@@ -342,7 +342,7 @@ namespace pcit::panther{
 				const sema::ScopeLevel& scope_level,
 				bool variables_in_scope,
 				bool is_global_scope,
-				const Source* source_module
+				const Source* source_module // optional
 			) -> evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError>;
 
 

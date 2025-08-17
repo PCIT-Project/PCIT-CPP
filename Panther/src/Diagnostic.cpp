@@ -277,12 +277,30 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(BaseType::Struct::ID struct_id, const Context& context) -> Location {
 		const BaseType::Struct& struct_decl = context.getTypeManager().getStruct(struct_id);
-		return Location::get(struct_decl.identTokenID, context.getSourceManager()[struct_decl.sourceID]);
+
+		if(struct_decl.location.is<Token::ID>()){
+			return Location::get(
+				struct_decl.location.as<Token::ID>(), context.getSourceManager()[struct_decl.sourceID.as<Source::ID>()]
+			);
+			
+		}else{
+			const ClangSource& clang_source = context.getSourceManager()[struct_decl.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(struct_decl.location.as<ClangSource::DeclInfoID>()).location;
+		}
 	}
 
 	auto Diagnostic::Location::get(BaseType::Union::ID union_id, const Context& context) -> Location {
 		const BaseType::Union& union_decl = context.getTypeManager().getUnion(union_id);
-		return Location::get(union_decl.identTokenID, context.getSourceManager()[union_decl.sourceID]);
+
+		if(union_decl.location.is<Token::ID>()){
+			return Location::get(
+				union_decl.location.as<Token::ID>(), context.getSourceManager()[union_decl.sourceID.as<Source::ID>()]
+			);
+			
+		}else{
+			const ClangSource& clang_source = context.getSourceManager()[union_decl.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(union_decl.location.as<ClangSource::DeclInfoID>()).location;
+		}
 	}
 
 	auto Diagnostic::Location::get(BaseType::Interface::ID interface_id, const Context& context) -> Location {

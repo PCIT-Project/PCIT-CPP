@@ -1888,21 +1888,19 @@ namespace pcit::panther{
 						const BaseType::Struct& struct_info =
 							this->context.getTypeManager().getStruct(aggregate.typeID.structID());
 
-						const Source& struct_source = this->context.getSourceManager()[struct_info.sourceID];
-						const TokenBuffer& token_buffer = struct_source.getTokenBuffer();
 
-						const std::string_view struct_name = token_buffer[struct_info.identTokenID].getString();
+						const std::string_view struct_name = struct_info.getName(this->context.getSourceManager());
 
 						for(uint32_t i = 0; const sema::Expr& value : aggregate.values){
+							const std::string_view memebr_name = struct_info.getMemberName(
+								*struct_info.memberVarsABI[i], this->context.getSourceManager()
+							);
+
 							const pir::Expr calc_ptr = this->agent.createCalcPtr(
 								initialization_target,
 								pir_type,
 								evo::SmallVector<pir::CalcPtr::Index>{0, i},
-								this->name(
-									".NEW.{}.{}",
-									struct_name,
-									token_buffer[struct_info.memberVarsABI[i]->identTokenID].getString()
-								)
+								this->name(".NEW.{}.{}", struct_name, memebr_name)
 							);
 
 							this->get_expr_store(value, calc_ptr);
@@ -5231,10 +5229,16 @@ namespace pcit::panther{
 	auto SemaToPIR::mangle_name(const BaseType::Struct::ID struct_id) const -> std::string {
 		if(this->data.getConfig().useReadableNames){
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
-			const Source& source = this->context.getSourceManager()[struct_type.sourceID];
-			return std::format(
-				"PTHR.s{}.{}", struct_id.get(), source.getTokenBuffer()[struct_type.identTokenID].getString()
-			);
+
+			if(struct_type.isClangType()){
+				return std::format("struct.{}", struct_type.getName(this->context.getSourceManager()));
+
+			}else{
+				return std::format(
+					"PTHR.s{}.{}", struct_id.get(), struct_type.getName(this->context.getSourceManager())
+				);
+			}
+
 			
 		}else{
 			return std::format("PTHR.s{}", struct_id.get());
@@ -5284,10 +5288,7 @@ namespace pcit::panther{
 	auto SemaToPIR::mangle_name(const BaseType::Union::ID union_id) const -> std::string {
 		if(this->data.getConfig().useReadableNames){
 			const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
-			const Source& source = this->context.getSourceManager()[union_type.sourceID];
-			return std::format(
-				"PTHR.u{}.{}", union_id.get(), source.getTokenBuffer()[union_type.identTokenID].getString()
-			);
+			return std::format("PTHR.u{}.{}", union_id.get(), union_type.getName(this->context.getSourceManager()));
 			
 		}else{
 			return std::format("PTHR.u{}", union_id.get());

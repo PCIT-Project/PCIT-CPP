@@ -54,8 +54,20 @@ namespace pcit::clangint{
 			UNKNOWN,
 		};
 
-	}
 
+
+		struct NamedDecl{
+			enum class Kind{
+				STRUCT,
+				ENUM,
+				UNION,
+			};
+
+			std::string name;
+			Kind kind;
+		};
+
+	}
 
 
 
@@ -69,7 +81,7 @@ namespace pcit::clangint{
 			R_VALUE_REFERENCE,
 		};
 
-		evo::Variant<BaseType::Primitive> baseType{};
+		evo::Variant<BaseType::Primitive, BaseType::NamedDecl> baseType{};
 		evo::SmallVector<Qualifier> qualifiers{};
 		bool isConst;
 	};
