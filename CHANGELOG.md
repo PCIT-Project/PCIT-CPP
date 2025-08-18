@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.147.1"></a>
+## v0.0.147.1
+
+### Panther
+- Added missing error diagnostics for failing to instantiate functions
+- Fixed crashing when failing to deduce an parameter type for function template instantiation
+- Fixed templated methods
+- Fixed `@getNumBytes()` and `@getNumBits()` giving the wrong value for empty types
+
+
+<!---------------------------------->
 <a name="v0.0.147.0"></a>
 ## v0.0.147.0
 
@@ -13,7 +24,7 @@
 	- of function types
 	- include paths for Linux
 	- unnamed types
-	- types like `const char*` not being converted to `Char*?` instead of `Char*|?`
+	- types like `const char*` being imported as `Char*?` instead of `Char*|?`
 
 ### Misc
 - Added missing files needed for libc

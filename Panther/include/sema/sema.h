@@ -469,9 +469,38 @@ namespace pcit::panther::sema{
 		using Arg = evo::Variant<TypeInfo::VoidableID, core::GenericValue>;
 
 		struct Instantiation{
+			struct ErroredReasonParamDeductionFailed{
+				size_t arg_index;
+			};
+
+			struct ErroredReasonArgTypeMismatch{
+				size_t arg_index;
+				TypeInfo::ID expected_type_id;
+				TypeInfo::ID got_type_id;
+			};
+
+			struct ErroredReasonTypeDoesntImplInterface{
+				size_t arg_index;
+				TypeInfo::ID interface_type_id;
+				TypeInfo::ID got_type_id;
+			};
+
+			struct ErroredReasonErroredAfterDecl{};
+
+			using ErroredReason = evo::Variant<
+				std::monostate, // not errored
+				ErroredReasonParamDeductionFailed,
+				ErroredReasonArgTypeMismatch,
+				ErroredReasonTypeDoesntImplInterface,
+				ErroredReasonErroredAfterDecl
+			>;
+
 			std::atomic<std::optional<SymbolProcID>> symbolProcID{}; // nullopt means its being generated
 			std::optional<Func::ID> funcID{}; // nullopt means it's being worked on
-			bool errored = false;
+
+			ErroredReason errored_reason = std::monostate();
+
+			EVO_NODISCARD auto errored() const -> bool { return this->errored_reason.is<std::monostate>() == false; }
 
 			Instantiation() = default;
 			Instantiation(const Instantiation&) = delete;

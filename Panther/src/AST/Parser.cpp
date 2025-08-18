@@ -1104,8 +1104,13 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_TYPE: {
 				if(this->reader[this->reader.peek(1)].kind() == Token::lookupKind("(")){
-					// TODO(NOW): proper error
-					evo::debugFatalBreak("Did you mean `type`?");
+					this->context.emitError(
+						Diagnostic::Code::PARSER_TYPE_CONVERTER_LOWER_CASE,
+						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(1), this->source.getID()),
+						"Unexpected [(] after `Type`",
+						Diagnostic::Info("Did you mean `type`?")
+					);
+					return Result::Code::ERROR;
 				}
 			} break;
 

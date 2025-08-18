@@ -914,7 +914,7 @@ namespace pcit::panther{
 					total += this->numBytes(member_var.typeID);
 				}
 
-				return total;
+				return std::max(total, size_t(1));
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -939,7 +939,7 @@ namespace pcit::panther{
 					largest_size = std::max(largest_size, this->numBytes(union_info.fields[i].typeID.asTypeID()));
 				}
 
-				return largest_size;
+				return std::max(largest_size, size_t(1));
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -1079,7 +1079,7 @@ namespace pcit::panther{
 					largest_size = std::max(largest_size, this->numBits(union_info.fields[i].typeID.asTypeID()));
 				}
 
-				return largest_size;
+				return std::max(largest_size, size_t(1));
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {

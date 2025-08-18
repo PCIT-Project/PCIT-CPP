@@ -73,8 +73,10 @@ namespace pcit::panther{
 			PARSER_EMPTY_ERROR_RETURN_PARAMS,
 			PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY,
 			PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
+			PARSER_TYPE_CONVERTER_LOWER_CASE,
 			PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK,
 			PARSER_ENUM_WITH_NO_FIELDS,
+
 
 
 			//////////////////
@@ -587,8 +589,9 @@ namespace pcit::panther{
 				case Code::PARSER_EMPTY_ERROR_RETURN_PARAMS:            return "P13";
 				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY:       return "P14";
 				case Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT: return "P15";
-				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P16";
-				case Code::PARSER_ENUM_WITH_NO_FIELDS:                  return "P17";
+				case Code::PARSER_TYPE_CONVERTER_LOWER_CASE:            return "P16";
+				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P17";
+				case Code::PARSER_ENUM_WITH_NO_FIELDS:                  return "P18";
 
 				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_STMT:

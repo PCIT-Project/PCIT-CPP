@@ -72,10 +72,19 @@ namespace pcit::panther{
 
 				case Result::ERROR: {
 					this->context.symbol_proc_manager.symbol_proc_done();
+
 					if(this->symbol_proc.extra_info.is<SymbolProc::StructInfo>()){
 						SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
 						if(struct_info.instantiation != nullptr){ struct_info.instantiation->errored = true; }
+
+					}else if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
+						SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+						if(func_info.instantiation != nullptr){
+							func_info.instantiation->errored_reason = 
+								sema::TemplatedFunc::Instantiation::ErroredReasonErroredAfterDecl();
+						}
 					}
+
 					this->symbol_proc.setStatusErrored();
 					return;
 				} break;
@@ -1734,7 +1743,16 @@ namespace pcit::panther{
 			param_type.asTypeID(),
 			*this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[instr.param_index]
 		);
-		evo::debugAssert(deduced_types.isSuccess(), "Should have been caught earlier");
+		
+		if(deduced_types.isError()){
+			SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+			func_info.instantiation->errored_reason = 
+				sema::TemplatedFunc::Instantiation::ErroredReasonParamDeductionFailed(instr.param_index);
+
+			this->propagate_finished_decl();
+			return Result::FINISHED_EARLY;
+		}
 
 		for(const DeducedType& deduced_type : deduced_types.value()){
 			if(
@@ -1761,6 +1779,8 @@ namespace pcit::panther{
 			this->analyze_func_attrs(instr.func_decl, instr.attribute_params_info);
 		if(func_attrs.isError()){ return Result::ERROR; }
 
+		SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
 
 		///////////////////////////////////
 		// create func type
@@ -1780,6 +1800,8 @@ namespace pcit::panther{
 		// only matters if is instantiation
 		bool has_template_params = false;
 		auto param_is_template = evo::SmallVector<bool>();
+
+		bool has_this_param = false;
 
 		for(size_t i = 0; const std::optional<SymbolProc::TypeID>& symbol_proc_param_type_id : instr.params()){
 			EVO_DEFER([&](){ i += 1; });
@@ -1811,8 +1833,6 @@ namespace pcit::panther{
 					this->context.getTypeManager().isTypeDeducer(param_type_id.asTypeID());
 
 
-				const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-
 				if(func_info.instantiation == nullptr){
 					if(param_type_is_interface || param_type_is_deducer){
 						has_template_params = true;
@@ -1831,18 +1851,30 @@ namespace pcit::panther{
 						);
 
 						const TypeInfo& arg_type_info = this->context.getTypeManager().getTypeInfo(
-							*func_info.instantiation_param_arg_types[i]
+							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
 						);
 
 						if(arg_type_info.qualifiers().empty() == false){
-							func_info.instantiation->errored = true;
+							func_info.instantiation->errored_reason = 
+								sema::TemplatedFunc::Instantiation::ErroredReasonArgTypeMismatch{
+									i,
+									param_type_id.asTypeID(),
+									*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
+								};
+
 							this->propagate_finished_decl();
 							return Result::FINISHED_EARLY;
 						}
 
 						const auto lock = std::scoped_lock(param_interface.implsLock);
 						if(param_interface.impls.contains(arg_type_info.baseTypeID()) == false){
-							func_info.instantiation->errored = true;
+							func_info.instantiation->errored_reason = 
+								sema::TemplatedFunc::Instantiation::ErroredReasonTypeDoesntImplInterface{
+									i,
+									param_type_id.asTypeID(),
+									*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
+								};
+
 							this->propagate_finished_decl();
 							return Result::FINISHED_EARLY;
 						}
@@ -1854,8 +1886,8 @@ namespace pcit::panther{
 					if(param.kind != AST::FuncDecl::Param::Kind::READ){ return false; }
 
 					if(param_type_is_interface || param_type_is_deducer){
-						const TypeInfo::ID arg_type_id = 
-							*this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[i];
+						const TypeInfo::ID arg_type_id =
+							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
 
 						return this->context.getTypeManager().isTriviallyCopyable(arg_type_id)
 							&& this->context.getTypeManager().isTriviallySized(arg_type_id);
@@ -1872,7 +1904,7 @@ namespace pcit::panther{
 
 				if(param_type_is_interface || param_type_is_deducer){
 					params.emplace_back(
-						*this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[i],
+						*func_info.instantiation_param_arg_types[i - size_t(has_this_param)],
 						param.kind,
 						should_copy
 					);
@@ -1880,8 +1912,9 @@ namespace pcit::panther{
 					params.emplace_back(param_type_id.asTypeID(), param.kind, should_copy);
 				}
 
-				if(instr.default_param_values[i].has_value()){
-					TermInfo default_param_value = this->get_term_info(*instr.default_param_values[i]);
+				if(instr.default_param_values[i - size_t(has_this_param)].has_value()){
+					TermInfo default_param_value =
+						this->get_term_info(*instr.default_param_values[i - size_t(has_this_param)]);
 
 					if(
 						this->type_check<true, true>(
@@ -1903,6 +1936,8 @@ namespace pcit::panther{
 				}
 
 			}else{ // [this] param
+				has_this_param = true;
+
 				const std::optional<sema::ScopeManager::Scope::ObjectScope> current_type_scope = 
 					this->scope.getCurrentTypeScopeIfExists();
 
@@ -1950,7 +1985,7 @@ namespace pcit::panther{
 		}
 
 
-		if(this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation == nullptr && has_template_params){
+		if(func_info.instantiation == nullptr && has_template_params){
 			for(const AST::FuncDecl::Param& param : instr.func_decl.params){
 				if(param.defaultValue.has_value()){
 					this->emit_error(
@@ -2078,11 +2113,8 @@ namespace pcit::panther{
 		}
 
 
-		{
-			SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-			if(func_info.instantiation != nullptr){
-				func_info.instantiation->funcID = created_func_id;
-			}
+		if(func_info.instantiation != nullptr){
+			func_info.instantiation->funcID = created_func_id;
 		}
 
 
@@ -4113,7 +4145,7 @@ namespace pcit::panther{
 			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
 				sema_args.emplace_back(fake_term_info.expr);
 
-			}else if( // TODO(FUTURE): make this warn on non-template params
+			}else if(
 				this->getCompilationConfig().warn.methodCallOnNonMethod
 				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
 			){
@@ -11386,9 +11418,25 @@ namespace pcit::panther{
 			bool need_to_skip_this_arg = false; 
 			
 
-			if(func_info.func_id.is<sema::Func::ID>()){ // isn't intrinsic
-				const sema::Func& sema_func =
-					this->context.getSemaBuffer().getFunc(func_info.func_id.as<sema::Func::ID>());
+
+			if(func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+				if(arg_infos.size() != func_info.func_type.params.size()){
+					scores.emplace_back(
+						OverloadScore::IntrinsicWrongNumArgs(func_info.func_type.params.size(), arg_infos.size())
+					);
+					continue;
+				}
+
+			}else{
+				const sema::Func& sema_func = [&]() -> const sema::Func& {
+					if(func_info.func_id.is<sema::Func::ID>()){
+						return this->context.getSemaBuffer().getFunc(func_info.func_id.as<sema::Func::ID>());
+					}else{
+						return this->context.getSemaBuffer().getFunc(
+							*func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>().instantiation.funcID
+						);
+					}
+				}();
 
 				need_to_skip_this_arg = is_member_call && sema_func.isMethod(this->context) == false;
 
@@ -11407,13 +11455,6 @@ namespace pcit::panther{
 						num_args,
 						sema_func.minNumArgs != func_info.func_type.params.size()
 					));
-					continue;
-				}
-			}else{
-				if(arg_infos.size() != func_info.func_type.params.size()){
-					scores.emplace_back(
-						OverloadScore::IntrinsicWrongNumArgs(func_info.func_type.params.size(), arg_infos.size())
-					);
 					continue;
 				}
 			}
@@ -11464,11 +11505,26 @@ namespace pcit::panther{
 						if(arg_info.term_info.is_concrete() == false){
 							const bool param_is_not_this = [&](){
 								if(arg_i > 0){ return true; }
-								if(func_info.func_id.is<sema::Func::ID>() == false){ return true; }
 
-								const sema::Func& sema_func =
-									this->context.getSemaBuffer().getFunc(func_info.func_id.as<sema::Func::ID>());
-								return sema_func.isMethod(this->context) == false;
+								if(func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+									return true;
+
+								}else{
+									const sema::Func& sema_func = [&]() -> const sema::Func& {
+										if(func_info.func_id.is<sema::Func::ID>()){
+											return this->context.getSemaBuffer().getFunc(
+												func_info.func_id.as<sema::Func::ID>()
+											);
+										}else{
+											return this->context.getSemaBuffer().getFunc(
+												*func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>()
+													.instantiation.funcID
+											);
+										}
+									}();
+
+									return sema_func.isMethod(this->context) == false;
+								}
 							}();
 
 							if(param_is_not_this){
@@ -11495,10 +11551,21 @@ namespace pcit::panther{
 				// check label
 
 				if(arg_info.label.has_value()){
-					if(func_info.func_id.is<sema::Func::ID>()){
-						const sema::Func& sema_func =
-							this->context.getSemaBuffer().getFunc(func_info.func_id.as<sema::Func::ID>());
+					if(func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+						scores.emplace_back(OverloadScore::IntrinsicArgWithLabel(arg_i));
+						arg_checking_failed = true;
+						break;
 
+					}else{
+						const sema::Func& sema_func = [&]() -> const sema::Func& {
+							if(func_info.func_id.is<sema::Func::ID>()){
+								return this->context.getSemaBuffer().getFunc(func_info.func_id.as<sema::Func::ID>());
+							}else{
+								return this->context.getSemaBuffer().getFunc(
+									*func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>().instantiation.funcID
+								);
+							}
+						}();
 
 						const std::string_view arg_label = 
 							this->source.getTokenBuffer()[*arg_info.label].getString();
@@ -11511,11 +11578,6 @@ namespace pcit::panther{
 							arg_checking_failed = true;
 							break;
 						}
-
-					}else{
-						scores.emplace_back(OverloadScore::IntrinsicArgWithLabel(arg_i));
-						arg_checking_failed = true;
-						break;
 					}
 				}
 
@@ -11547,6 +11609,12 @@ namespace pcit::panther{
 				const auto get_func_location = [&]() -> Diagnostic::Location {
 					if(func_infos[i].func_id.is<sema::Func::ID>()){
 						return this->get_location(func_infos[i].func_id.as<sema::Func::ID>());
+
+					}else if(func_infos[i].func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
+						return this->get_location(
+							*func_infos[i].func_id.as<sema::TemplatedFunc::InstantiationInfo>().instantiation.funcID
+						);
+
 					}else{
 						return Diagnostic::Location::NONE;
 					}
@@ -11609,7 +11677,8 @@ namespace pcit::panther{
 								"Failed to match: wrong number of arguments (requires {}, got {})",
 								reason.required_num,
 								reason.got_num
-							)
+							),
+							get_func_location()
 						);
 
 					}else if constexpr(std::is_same<ReasonT, OverloadScore::TypeMismatch>()){
@@ -11651,11 +11720,21 @@ namespace pcit::panther{
 						bool is_method_this_param = false;
 						do{
 							if(reason.arg_index != 0){ break; }
-							if(func_infos[i].func_id.is<sema::Func::ID>() == false){ break; }
+							if(func_infos[i].func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>() == false){ break; }
 
-							is_method_this_param = this->context.getSemaBuffer()
-								.getFunc(func_infos[i].func_id.as<sema::Func::ID>())
-								.isMethod(this->context);
+							if(func_infos[i].func_id.is<sema::Func::ID>()){
+								is_method_this_param = this->context.getSemaBuffer()
+									.getFunc(func_infos[i].func_id.as<sema::Func::ID>())
+									.isMethod(this->context);
+							}else{
+								is_method_this_param = this->context.getSemaBuffer()
+									.getFunc(
+										*func_infos[i].func_id.as<sema::TemplatedFunc::InstantiationInfo>()
+											.instantiation.funcID
+									).isMethod(this->context);
+							}
+
+							
 						}while(false);
 
 						if(is_method_this_param){
@@ -11759,6 +11838,15 @@ namespace pcit::panther{
 						infos.emplace_back(
 							"Could be this one:", this->get_location(func_infos[i].func_id.as<sema::Func::ID>())
 						);
+
+					}else if(func_infos[i].func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
+						infos.emplace_back(
+							"Could be this one:",
+							this->get_location(
+								*func_infos[i].func_id.as<sema::TemplatedFunc::InstantiationInfo>().instantiation.funcID
+							)
+						);
+
 					}else{
 						infos.emplace_back("Could be this one:", Diagnostic::Location::NONE);
 					}
@@ -11779,10 +11867,19 @@ namespace pcit::panther{
 
 		bool is_first = true;
 		for(size_t i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
-			if(is_first && is_member_call && selected_func.func_id.is<sema::Func::ID>()){
+			if(is_first && is_member_call){
 				is_first = false;
-				const sema::Func& selected_sema_func =
-					this->context.getSemaBuffer().getFunc(selected_func.func_id.as<sema::Func::ID>());
+
+				const sema::Func& selected_sema_func = [&]() -> const sema::Func& {
+					if(selected_func.func_id.is<sema::Func::ID>()){
+						return this->context.getSemaBuffer().getFunc(selected_func.func_id.as<sema::Func::ID>());
+					}else{
+						return this->context.getSemaBuffer().getFunc(
+							*selected_func.func_id.as<sema::TemplatedFunc::InstantiationInfo>().instantiation.funcID
+						);
+					}
+				}();
+
 				if(selected_sema_func.isMethod(this->context) == false){ continue; }
 			}
 
@@ -11811,8 +11908,8 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::func_call_impl(
 		const AST::FuncCall& func_call,
 		const TermInfo& target_term_info,
-		evo::ArrayProxy<SymbolProcTermInfoID> args,
-		evo::ArrayProxy<SymbolProcTermInfoID> template_args
+		evo::ArrayProxy<SymbolProc::TermInfoID> args,
+		evo::ArrayProxy<SymbolProc::TermInfoID> template_args
 	) -> evo::Expected<FuncCallImplData, bool> {
 		TypeManager& type_manager = this->context.type_manager;
 
@@ -12031,7 +12128,7 @@ namespace pcit::panther{
 						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::WrongNumArgs>()){
 							infos.emplace_back(
 								std::format(
-									"Failed to match: wrong number of argument (expected {}, got {})",
+									"Failed to match: wrong number of arguments (requires {}, got {})",
 									reason.expected_num,
 									reason.got_num
 								),
@@ -12100,9 +12197,30 @@ namespace pcit::panther{
 				return evo::Unexpected(false);
 			}
 
+			using ErroredReason = sema::TemplatedFunc::Instantiation::ErroredReason;
+
+			auto instantiation_errors = evo::SmallVector<ErroredReason>();
 
 			for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
-				if(instantiation_info.instantiation.errored){ continue; }
+				if(instantiation_info.instantiation.errored()){
+					const SymbolProc& instantiation_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+						*instantiation_info.instantiation.symbolProcID.load()
+					);
+
+					const SymbolProc::FuncInfo& func_info =
+						instantiation_symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+					if(
+						func_info.instantiation->errored() 
+						&& func_info.instantiation->errored_reason
+							.is<sema::TemplatedFunc::Instantiation::ErroredReasonErroredAfterDecl>() == false
+					){
+						instantiation_errors.emplace_back(func_info.instantiation->errored_reason);
+					}else{
+						return evo::Unexpected(true);
+					}
+					continue;
+				}
 
 				const sema::Func& instantiated_func = this->context.getSemaBuffer().getFunc(
 					*instantiation_info.instantiation.funcID
@@ -12114,6 +12232,123 @@ namespace pcit::panther{
 			}
 
 			if(func_infos.empty()){ // if all instantiations errored
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+
+				for(size_t i = 0; const ErroredReason& instantiation_error : instantiation_errors){
+					const auto get_func_location = [&]() -> Diagnostic::Location {
+						const SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+							*instantiation_infos[i].instantiation.symbolProcID.load()
+						);
+
+						return Diagnostic::Location::get(
+							symbol_proc.ast_node, this->context.getSourceManager()[symbol_proc.source_id]
+						);
+					};
+
+
+					instantiation_error.visit([&](const auto& reason) -> void {
+						using ReasonT = std::decay_t<decltype(reason)>;
+
+						using Instantiation = sema::TemplatedFunc::Instantiation;
+
+						if constexpr(std::is_same<ReasonT, std::monostate>()){
+							evo::debugAssert("Template instantiation didn't error");
+
+						}else if constexpr(
+							std::is_same<ReasonT, Instantiation::ErroredReasonParamDeductionFailed>()
+						){
+							infos.emplace_back(
+								std::format(
+									"Failed to match: failed to deduce type of parameter (index: {}) ", reason.arg_index
+								),
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+									),
+								}
+							);
+
+
+						}else if constexpr(
+							std::is_same<ReasonT, Instantiation::ErroredReasonArgTypeMismatch>()
+						){
+							infos.emplace_back(
+								std::format("Failed to match: argument (index: {}) type mismatch", reason.arg_index),
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+									),
+									Diagnostic::Info(
+										std::format(
+											"Argument type:  {}",
+											this->context.getTypeManager().printType(
+												reason.got_type_id, this->context.getSourceManager()
+											)
+										)
+									),
+									Diagnostic::Info(
+										std::format(
+											"Parameter type: {}",
+											this->context.getTypeManager().printType(
+												reason.expected_type_id, this->context.getSourceManager()
+											)
+										)
+									),
+								}
+							);
+
+						}else if constexpr(
+							std::is_same<ReasonT, Instantiation::ErroredReasonTypeDoesntImplInterface>()
+						){
+							infos.emplace_back(
+								std::format(
+									"Failed to match: type of argument (index: {}) doesn't implement the interface",
+									reason.arg_index
+								),
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+									),
+									Diagnostic::Info(
+										std::format(
+											"Argument type:  {}",
+											this->context.getTypeManager().printType(
+												reason.got_type_id, this->context.getSourceManager()
+											)
+										)
+									),
+									Diagnostic::Info(
+										std::format(
+											"Interface type: {}",
+											this->context.getTypeManager().printType(
+												reason.interface_type_id, this->context.getSourceManager()
+											)
+										)
+									),
+								}
+							);
+						}else if constexpr(
+							std::is_same<ReasonT, Instantiation::ErroredReasonErroredAfterDecl>()
+						){
+							evo::debugAssert("Errored after decl, shouldn't get here");
+
+						}else{
+							static_assert(false, "Unkonwn errored reason");
+						}
+					});
+
+					i += 1;
+				}
+
+				this->emit_error(
+					Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
+					func_call.target,
+					"No function overload found",
+					std::move(infos)
+				);
 				return evo::Unexpected(true);
 			}
 		}
@@ -12200,6 +12435,7 @@ namespace pcit::panther{
 						&this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>()),
 						func_infos[selected_func_overload_index.value()].func_type
 					);
+
 				}else{
 					evo::debugAssert(
 						selected_func_id.is<sema::TemplatedFunc::InstantiationInfo>(),
@@ -12508,14 +12744,17 @@ namespace pcit::panther{
 		}
 
 
-		const bool need_to_skip_this_arg = is_member_call && templated_func.isMethod(this->context);
+		{
+			const bool is_method = templated_func.isMethod(this->context);
 
-		if(args.size() != ast_func.params.size() - size_t(need_to_skip_this_arg)){
-			return evo::Unexpected<TemplateOverloadMatchFail>(
-				TemplateOverloadMatchFail(TemplateOverloadMatchFail::WrongNumArgs(
-					ast_func.params.size() - size_t(need_to_skip_this_arg), args.size()
-				))
-			);
+			const size_t expected_num_args = ast_func.params.size() - size_t(is_member_call && is_method);
+			const size_t got_num_args = args.size();
+
+			if(expected_num_args != got_num_args){
+				return evo::Unexpected<TemplateOverloadMatchFail>(
+					TemplateOverloadMatchFail(TemplateOverloadMatchFail::WrongNumArgs(expected_num_args, got_num_args))
+				);
+			}
 		}
 
 		auto arg_types = evo::SmallVector<std::optional<TypeInfo::ID>>();
@@ -12656,7 +12895,6 @@ namespace pcit::panther{
 				this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id.value());
 			created_symbol_proc.setStatusInQueue();
 			this->context.add_task_to_work_manager(instantiation_symbol_proc_id.value());
-
 
 			return instantiation_info;
 
@@ -14074,7 +14312,7 @@ namespace pcit::panther{
 						return TypeCheckInfo::success(false, std::move(extracted_type_deducers.value()));
 					}
 
-					if(expected_type.baseTypeID() != got_type.baseTypeID()){	
+					if(expected_type.baseTypeID() != got_type.baseTypeID()){
 						if constexpr(MAY_EMIT_ERROR){
 							this->error_type_mismatch(
 								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
