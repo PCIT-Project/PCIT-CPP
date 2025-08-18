@@ -154,6 +154,10 @@ namespace pcit::clangint{
 					return Type(builtin_kind, std::move(qualifiers), split.Quals.hasConst());
 				} break;
 
+				case clang::Type::DependentSizedArray: {
+					return Type(BaseType::Primitive::UNKNOWN, std::move(qualifiers), split.Quals.hasConst());
+				} break;
+
 				case clang::Type::Elaborated: {
 					const clang::ElaboratedType& elaborated_type = *clang::cast<clang::ElaboratedType>(split.Ty);
 
@@ -163,7 +167,43 @@ namespace pcit::clangint{
 						break;
 					}
 
-					evo::unimplemented("Nested Name specifier of clang Elaborated type");
+					evo::unimplemented("Nested Name specifier of clang Elaborated type"); // namespaces IIRC
+				} break;
+
+				case clang::Type::FunctionProto: {
+					const clang::FunctionProtoType& function_proto_type = 
+						*clang::cast<clang::FunctionProtoType>(split.Ty);
+
+					const clang::FunctionType* function_type = function_proto_type.castAs<clang::FunctionType>();
+
+					auto types = evo::SmallVector<Type>();
+					types.reserve(function_proto_type.getNumParams() + 1);
+					types.emplace_back(make_type(function_type->getReturnType(), api));
+					for(const clang::QualType& param_type : function_proto_type.getParamTypes()){
+						types.emplace_back(make_type(param_type, api));
+					}
+
+					const bool is_no_throw = function_proto_type.isNothrow();
+					const bool is_variadic = function_proto_type.isVariadic();
+					const bool func_is_const = function_type->isConst();
+
+					return Type(
+						BaseType::Function(std::move(types), !is_no_throw, is_variadic, func_is_const),
+						std::move(qualifiers),
+						split.Quals.hasConst()
+					);
+				} break;
+
+				case clang::Type::Attributed: {
+					const clang::AttributedType& attributed_type = *clang::cast<clang::AttributedType>(split.Ty);
+					
+					target_qual_type = attributed_type.getEquivalentType();
+				} break;
+
+				case clang::Type::Paren: {
+					const clang::ParenType& paren_type = *clang::cast<clang::ParenType>(split.Ty);
+					
+					target_qual_type = paren_type.getInnerType();
 				} break;
 
 				case clang::Type::Pointer: {
@@ -195,6 +235,10 @@ namespace pcit::clangint{
 
 				case clang::Type::Record: {
 					clang::RecordDecl* record_decl = split.Ty->getAsRecordDecl();
+
+					if(record_decl->getNameAsString().empty()){
+						return Type(BaseType::Primitive::UNKNOWN, std::move(qualifiers), split.Quals.hasConst());
+					}
 
 					if(record_decl->isUnion()){
 						return Type(
@@ -266,7 +310,29 @@ namespace pcit::clangint{
 			auto VisitFunctionDecl(clang::FunctionDecl* func_decl) -> bool {
 				if(func_decl->getDeclContext()->isRecord()){ return true; } // skip members
 
-				// TODO(FUTURE): handle functions properly
+				auto params = evo::SmallVector<API::Function::Param>();
+				params.reserve(func_decl->parameters().size());
+				for(const clang::ParmVarDecl* param : func_decl->parameters()){
+					const clang::PresumedLoc presumed_loc =
+						this->ast_context->getSourceManager().getPresumedLoc(param->getLocation());
+
+					params.emplace_back(
+						param->getNameAsString(), uint32_t(presumed_loc.getLine()), uint32_t(presumed_loc.getColumn())
+					);
+				}
+
+				const clang::PresumedLoc presumed_loc =
+					this->ast_context->getSourceManager().getPresumedLoc(func_decl->getLocation());
+
+				this->api.addFunction(
+					func_decl->getNameAsString(),
+					make_type(func_decl->getType(), this->api).baseType.as<BaseType::Function>(),
+					std::move(params),
+					func_decl->isNoReturn(),
+					std::filesystem::path(std::string(presumed_loc.getFilename())),
+					uint32_t(presumed_loc.getLine()),
+					uint32_t(presumed_loc.getColumn())
+				);
 
 				return true;
 			}
@@ -518,6 +584,9 @@ namespace pcit::clangint{
 			}
 		});
 
+		args.emplace_back("-I");
+		args.emplace_back("../extern/libc/include/any");
+
 		switch(target.platform){
 			case core::Target::Platform::WINDOWS: {
 				args.emplace_back("-I");
@@ -527,11 +596,15 @@ namespace pcit::clangint{
 			} break;
 
 			case core::Target::Platform::LINUX: {
+				args.emplace_back("-I");
 				args.emplace_back("../extern/libc/include/any-linux-any");
+
+				args.emplace_back("-I");
 				args.emplace_back("../extern/libc/include/generic-glibc");
 
 				switch(target.architecture){
 					case core::Target::Architecture::X86_64: {
+						args.emplace_back("-I");
 						args.emplace_back("../extern/libc/include/x86+64-linux-gnu");
 					} break;
 

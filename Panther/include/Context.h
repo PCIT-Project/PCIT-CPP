@@ -196,7 +196,7 @@ namespace pcit::panther{
 
 			// call analyzeSemantics before any of these
 			EVO_NODISCARD auto lowerToPIR(EntryKind entry_kind, pir::Module& module) -> evo::Result<>;
-			EVO_NODISCARD auto runEntry() -> evo::Result<uint8_t>;
+			EVO_NODISCARD auto runEntry(bool allow_default_symbol_linking = false) -> evo::Result<uint8_t>;
 
 
 

@@ -71,6 +71,24 @@ namespace pcit::clangint{
 				uint32_t declCollumn;
 			};
 
+			struct Function{
+				struct Param{
+					std::string name;
+
+					uint32_t declLine;
+					uint32_t declCollumn;
+				};
+
+				std::string name;
+				BaseType::Function type;
+				evo::SmallVector<Param> params;
+				bool isNoReturn;
+
+				std::filesystem::path declFilePath;
+				uint32_t declLine;
+				uint32_t declCollumn;
+			};
+
 
 
 			struct Decl{
@@ -91,7 +109,7 @@ namespace pcit::clangint{
 
 				
 				private:
-					evo::Variant<Alias*, Struct*, Union*> ptr;
+					evo::Variant<Alias*, Struct*, Union*, Function*> ptr;
 			};
 
 
@@ -123,6 +141,14 @@ namespace pcit::clangint{
 				this->decls.emplace_back(&created_union);
 			}
 
+			auto addFunction(auto&&... function_args) -> void {
+				Function& created_function =
+					this->functions.emplace_back(std::forward<decltype(function_args)>(function_args)...);
+
+				this->function_map.emplace(created_function.name, created_function);
+				this->decls.emplace_back(&created_function);
+			}
+
 
 			EVO_NODISCARD auto getDecls() const -> evo::ArrayProxy<Decl> { return this->decls; }
 
@@ -147,6 +173,9 @@ namespace pcit::clangint{
 
 			evo::StepVector<Union> unions{};
 			std::unordered_map<std::string_view, Union&> union_map{};
+
+			evo::StepVector<Function> functions{};
+			std::unordered_map<std::string_view, Function&> function_map{};
 
 
 			const std::unordered_map<std::string_view, BaseType::Primitive> special_primitive_lookup{

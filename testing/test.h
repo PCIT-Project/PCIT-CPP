@@ -1,6 +1,7 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 
 
@@ -15,6 +16,8 @@ class Test{
 struct Test2{
 	Test test;
 };
+
+
 
 
 // using Foo = uint32_t;

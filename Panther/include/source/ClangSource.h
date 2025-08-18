@@ -30,7 +30,7 @@ namespace pcit::panther{
 			using DeclInfoID = ClangSourceDeclInfoID;
 			using DeclInfo = ClangSourceDeclInfo;
 
-			using Symbol = evo::Variant<BaseType::ID>;
+			using Symbol = evo::Variant<BaseType::ID, sema::Func::ID>;
 
 			struct SymbolInfo{
 				Symbol symbol;

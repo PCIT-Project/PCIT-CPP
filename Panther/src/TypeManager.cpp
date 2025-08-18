@@ -793,8 +793,8 @@ namespace pcit::panther{
 	// type traits
 
 	// https://stackoverflow.com/a/1766566
-	static constexpr auto round_up_to_nearest_multiple_of_8(size_t num) -> size_t {
-		return (num + (8 - 1)) & ~(8 - 1);
+	static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
+		return (num + (multiple - 1)) & ~(multiple - 1);
 	}
 
 	auto TypeManager::numBytes(TypeInfo::ID id) const -> size_t {
@@ -826,10 +826,21 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_ISIZE: case Token::Kind::TYPE_USIZE:
 						return this->numBytesOfPtr();
 
-					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N:
-						return round_up_to_nearest_multiple_of_8(
-							round_up_to_nearest_multiple_of_8(primitive.bitWidth()) / 8
-						);
+					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+						if(primitive.bitWidth() <= 8){
+							return 1;
+
+						}else if(primitive.bitWidth() <= 16){
+							return 2;
+
+						}else if(primitive.bitWidth() <= 32){
+							return 4;
+
+						}else{
+
+							return ceil_to_multiple(primitive.bitWidth(), 64) / 8;
+						}
+					}
 
 					case Token::Kind::TYPE_F16:    return 2;
 					case Token::Kind::TYPE_BF16:   return 2;

@@ -58,6 +58,7 @@ namespace pcit::panther{
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
+			if(func.isClangFunc()){ continue; }
 
 			this->lowerFuncDef(func_id);
 		}
@@ -115,7 +116,7 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::lowerFuncDeclConstexpr(sema::Func::ID func_id) -> pir::Function::ID {
-		return this->lower_func_decl(func_id);
+		return *this->lower_func_decl(func_id);
 	}
 
 	auto SemaToPIR::lowerFuncDecl(sema::Func::ID func_id) -> void {
@@ -125,15 +126,22 @@ namespace pcit::panther{
 
 	// This is a separete function as the return for a non-constexpr func decl may be not useful as functions
 	// 	 with in-params will have multiple funcs created, so the one returned is the one used for constexpr
-	auto SemaToPIR::lower_func_decl(sema::Func::ID func_id) -> pir::Function::ID {
+	// Returns nullopt if is a clang func
+	auto SemaToPIR::lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID> {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
 		evo::debugAssert(
 			func.status != sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT, "Incorrect status for lowering func decl"
 		);
 
-		this->current_source = &this->context.getSourceManager()[func.sourceID];
-		EVO_DEFER([&](){ this->current_source = nullptr; });
+		if(func.isClangFunc() == false){
+			this->current_source = &this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
+		}
+		EVO_DEFER([&](){
+			if(func.isClangFunc() == false){
+				this->current_source = nullptr;
+			}
+		});
 
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
@@ -151,14 +159,26 @@ namespace pcit::panther{
 				if(this->data.getConfig().useReadableNames == false){
 					return std::format(".{}", params.size());
 				}else{
-					const Token& token = this->current_source->getTokenBuffer()[func.params[i].ident];
+					if(func.isClangFunc()){
+						const std::string_view param_name =
+							func.getParamName(func.params[i], this->context.getSourceManager());
 
-					if(token.kind() == Token::Kind::KEYWORD_THIS){
-						return std::string("this");
+						if(param_name.empty()){
+							return std::format(".{}", params.size());
+						}else{
+							return std::string(param_name);
+						}
+
 					}else{
-						return std::string(token.getString());
-					}
+						const Token& token =
+							this->current_source->getTokenBuffer()[func.params[i].ident.as<Token::ID>()];
 
+						if(token.kind() == Token::Kind::KEYWORD_THIS){
+							return std::string("this");
+						}else{
+							return std::string(token.getString());
+						}
+					}
 				}
 			}();
 
@@ -311,7 +331,7 @@ namespace pcit::panther{
 		}();
 
 
-		auto pir_funcs = evo::SmallVector<pir::Function::ID>();
+		auto pir_funcs = evo::SmallVector<evo::Variant<pir::Function::ID, pir::ExternalFunction::ID>>();
 
 
 		const pir::CallingConvention calling_conv = [&](){
@@ -326,15 +346,37 @@ namespace pcit::panther{
 
 
 		if(func.hasInParam == false){
-			const pir::Function::ID new_func_id = this->module.createFunction(
-				this->mangle_name(func_id), std::move(params), calling_conv, linkage, return_type
-			);
+			if(func.isClangFunc()){
+				const pir::ExternalFunction::ID created_external_func_id = this->module.createExternalFunction(
+					this->mangle_name(func_id), std::move(params), pir::CallingConvention::C, linkage, return_type
+				);
 
-			pir_funcs.emplace_back(new_func_id);
+				pir_funcs.emplace_back(created_external_func_id);
 
-			this->agent.setTargetFunction(new_func_id);
-			this->agent.createBasicBlock(this->name("begin"));
-			this->agent.removeTargetFunction();
+				this->data.create_func(
+					func_id,
+					std::move(pir_funcs), // first arg of FuncInfo construction
+					return_type,
+					std::move(param_infos),
+					std::move(return_params),
+					error_return_param,
+					error_return_type
+				);
+
+				return std::nullopt;
+				
+			}else{
+				const pir::Function::ID new_func_id = this->module.createFunction(
+					this->mangle_name(func_id), std::move(params), calling_conv, linkage, return_type
+				);
+
+				pir_funcs.emplace_back(new_func_id);
+
+				this->agent.setTargetFunction(new_func_id);
+				this->agent.createBasicBlock(this->name("begin"));
+				this->agent.removeTargetFunction();
+			}
+
 
 		}else{
 			const size_t num_instantiations = 1ull << size_t(in_param_index);
@@ -366,7 +408,7 @@ namespace pcit::panther{
 		}
 
 
-		const pir::Function::ID new_func_id = pir_funcs.back();
+		const pir::Function::ID new_func_id = pir_funcs.back().as<pir::Function::ID>();
 
 		this->data.create_func(
 			func_id,
@@ -386,8 +428,9 @@ namespace pcit::panther{
 	auto SemaToPIR::lowerFuncDef(sema::Func::ID func_id) -> void {
 		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
 		evo::debugAssert(sema_func.status == sema::Func::Status::DEF_DONE, "Incorrect status for lowering func def");
+		evo::debugAssert(sema_func.isClangFunc() == false, "cannot lower def of clang func");
 
-		this->current_source = &this->context.getSourceManager()[sema_func.sourceID];
+		this->current_source = &this->context.getSourceManager()[sema_func.sourceID.as<Source::ID>()];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
 
 		this->current_func_type = &this->context.getTypeManager().getFunction(sema_func.typeID);
@@ -395,8 +438,8 @@ namespace pcit::panther{
 		const SemaToPIRData::FuncInfo& func_info = this->data.get_func(func_id);
 
 		this->in_param_bitmap = 0;
-		for(const pir::Function::ID pir_id : func_info.pir_ids){
-			pir::Function& func = this->module.getFunction(pir_id);
+		for(const evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> pir_id : func_info.pir_ids){
+			pir::Function& func = this->module.getFunction(pir_id.as<pir::Function::ID>());
 
 			this->current_func_info = &this->data.get_func(func_id);
 			EVO_DEFER([&](){ this->current_func_info = nullptr; });
@@ -471,7 +514,9 @@ namespace pcit::panther{
 		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
 		vtable_values.reserve(funcs.size());
 		for(sema::Func::ID func_id : funcs){
-			vtable_values.emplace_back(this->agent.createFunctionPointer(this->data.get_func(func_id).pir_ids[0]));
+			vtable_values.emplace_back(
+				this->agent.createFunctionPointer(this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>())
+			);
 		}
 
 		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
@@ -503,7 +548,8 @@ namespace pcit::panther{
 		this->agent.createBasicBlock();
 		this->agent.setTargetBasicBlockAtEnd();
 
-		const pir::Expr entry_call = this->agent.createCall(target_entry_func_info.pir_ids[0], {});
+		const pir::Expr entry_call = 
+			this->agent.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
 		this->agent.createRet(entry_call);
 
 		return entry_func_id;
@@ -532,7 +578,8 @@ namespace pcit::panther{
 		this->agent.createBasicBlock();
 		this->agent.setTargetBasicBlockAtEnd();
 
-		const pir::Expr entry_call = this->agent.createCall(target_entry_func_info.pir_ids[0], {});
+		const pir::Expr entry_call =
+			this->agent.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
 		const pir::Expr zext = this->agent.createZExt(entry_call, this->module.createIntegerType(32));
 		this->agent.createRet(zext);
 
@@ -565,7 +612,7 @@ namespace pcit::panther{
 				this->agent.createBasicBlock();
 				this->agent.setTargetBasicBlockAtEnd();
 
-				std::ignore = this->agent.createCall(target_entry_func_info.pir_ids[0], {});
+				std::ignore = this->agent.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
 
 				this->agent.createRet(
 					this->agent.createNumber(this->module.createIntegerType(32), core::GenericInt::create<uint32_t>(0))
@@ -588,7 +635,7 @@ namespace pcit::panther{
 
 	auto SemaToPIR::createFuncJITInterface(sema::Func::ID func_id, pir::Function::ID pir_func_id) -> pir::Function::ID {
 		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
-		this->current_source = &this->context.getSourceManager()[sema_func.sourceID];
+		this->current_source = &this->context.getSourceManager()[sema_func.sourceID.as<Source::ID>()];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
 
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
@@ -1162,11 +1209,9 @@ namespace pcit::panther{
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
 				if(target_func_info.return_type.kind() == pir::Type::Kind::VOID){
-					this->agent.createCallVoid(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+					this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
 				}else{
-					std::ignore = this->agent.createCall(
-						target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
-					);
+					std::ignore = this->create_call(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
 				}
 			} break;
 
@@ -2043,7 +2088,7 @@ namespace pcit::panther{
 
 						const pir::Expr return_alloc = this->agent.createAlloca(return_type);
 						args.emplace_back(return_alloc);
-						this->agent.createCallVoid(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
 
 						return this->agent.createLoad(return_alloc, return_type);
 
@@ -2053,7 +2098,7 @@ namespace pcit::panther{
 						
 						const pir::Expr return_alloc = this->agent.createAlloca(return_type);
 						args.emplace_back(return_alloc);
-						this->agent.createCallVoid(
+						this->create_call_void(
 							target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
 						);
 
@@ -2063,14 +2108,14 @@ namespace pcit::panther{
 						for(pir::Expr store_location : store_locations){
 							args.emplace_back(store_location);
 						}
-						this->agent.createCallVoid(
+						this->create_call_void(
 							target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
 						);
 						return std::nullopt;
 
 					}else{
 						const pir::Function& target_func = this->module.getFunction(
-							target_func_info.pir_ids[target_in_param_bitmap]
+							target_func_info.pir_ids[target_in_param_bitmap].as<pir::Function::ID>()
 						);
 
 						const size_t current_num_args = args.size();
@@ -2078,14 +2123,14 @@ namespace pcit::panther{
 							args.emplace_back(this->agent.createAlloca(target_func.getParameters()[i].getType()));
 						}
 
-						this->agent.createCallVoid(
+						this->create_call_void(
 							target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
 						);
 						return std::nullopt;
 					}
 
 				}else{
-					const pir::Expr call_return  = this->agent.createCall(
+					const pir::Expr call_return  = this->create_call(
 						target_func_info.pir_ids[target_in_param_bitmap],
 						std::move(args),
 						this->name("{}.CALL", this->mangle_name(func_call.target.as<sema::Func::ID>()))
@@ -2996,7 +3041,7 @@ namespace pcit::panther{
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, attempt_func_call.args);
 
-				const pir::Expr attempt = this->agent.createCall(
+				const pir::Expr attempt = this->create_call(
 					target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
 				);
 
@@ -3037,7 +3082,7 @@ namespace pcit::panther{
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Function& current_func =
-							this->module.getFunction(this->current_func_info->pir_ids[0]);
+							this->module.getFunction(this->current_func_info->pir_ids[0].as<pir::Function::ID>());
 						const pir::Expr alloca = this->agent.createAlloca(
 							current_func.getParameters()[sema_param.index].getType()
 						);
@@ -3067,7 +3112,7 @@ namespace pcit::panther{
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
 						const pir::Function& current_func =
-							this->module.getFunction(this->current_func_info->pir_ids[0]);
+							this->module.getFunction(this->current_func_info->pir_ids[0].as<pir::Function::ID>());
 						this->agent.createMemcpy(
 							store_locations[0],
 							this->agent.createParamExpr(sema_param.abiIndex),
@@ -3097,7 +3142,8 @@ namespace pcit::panther{
 				}else if constexpr(MODE == GetExprMode::STORE){
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
-					const pir::Function& current_func = this->module.getFunction(this->current_func_info->pir_ids[0]);
+					const pir::Function& current_func = 
+						this->module.getFunction(this->current_func_info->pir_ids[0].as<pir::Function::ID>());
 
 					this->agent.createMemcpy(
 						store_locations[0],
@@ -3618,6 +3664,29 @@ namespace pcit::panther{
 					evo::unimplemented();
 				} break;
 			}
+		}
+	}
+
+
+	auto SemaToPIR::create_call(
+		evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id,
+		evo::SmallVector<pir::Expr>&& args,
+		std::string&& name
+	) -> pir::Expr {
+		if(func_id.is<pir::Function::ID>()){
+			return this->agent.createCall(func_id.as<pir::Function::ID>(), std::move(args), std::move(name));
+		}else{
+			return this->agent.createCall(func_id.as<pir::ExternalFunction::ID>(), std::move(args), std::move(name));
+		}
+	}
+
+	auto SemaToPIR::create_call_void(
+		evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id, evo::SmallVector<pir::Expr>&& args
+	) -> void {
+		if(func_id.is<pir::Function::ID>()){
+			this->agent.createCallVoid(func_id.as<pir::Function::ID>(), std::move(args));
+		}else{
+			this->agent.createCallVoid(func_id.as<pir::ExternalFunction::ID>(), std::move(args));
 		}
 	}
 
@@ -5239,7 +5308,6 @@ namespace pcit::panther{
 				);
 			}
 
-			
 		}else{
 			return std::format("PTHR.s{}", struct_id.get());
 		}
@@ -5262,14 +5330,14 @@ namespace pcit::panther{
 
 	auto SemaToPIR::mangle_name(const sema::Func::ID func_id) const -> std::string {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
-		const Source& source = this->context.getSourceManager()[func.sourceID];
 
-		const Token& name_token = source.getTokenBuffer()[func.name];
 
-		if(func.isExport) [[unlikely]] {
-			return std::string(name_token.getString());
+		if(func.isExport || func.isClangFunc()){
+			return std::string(func.getName(this->context.getSourceManager()));
 			
 		}else{
+			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
+			const Token& name_token = source.getTokenBuffer()[func.name.as<Token::ID>()];
 			if(name_token.kind() == Token::Kind::IDENT){
 				if(this->data.getConfig().useReadableNames){
 					return std::format("PTHR.f{}.{}", func_id.get(), name_token.getString());

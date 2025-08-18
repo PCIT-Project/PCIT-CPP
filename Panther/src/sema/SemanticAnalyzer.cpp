@@ -2060,11 +2060,10 @@ namespace pcit::panther{
 		const bool is_constexpr = !func_attrs.value().is_runtime;
 
 		const sema::Func::ID created_func_id = this->context.sema_buffer.createFunc(
-			instr.func_decl.name,
 			this->source.getID(),
+			instr.func_decl.name,
 			created_func_base_type.funcID(),
 			std::move(sema_params),
-			this->symbol_proc,
 			this->symbol_proc_id,
 			min_num_args,
 			func_attrs.value().is_pub,
@@ -2125,18 +2124,18 @@ namespace pcit::panther{
 					if(created_func.params.size() != 1){
 						if(created_func.params.size() > 1){
 							if(
-								this->source.getTokenBuffer()[created_func.params[0].ident].kind()
+								this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
 								== Token::Kind::KEYWORD_THIS
 							){
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-									created_func.params[1].ident,
+									created_func.params[1].ident.as<Token::ID>(),
 									"Operator [as] overload can only have a [this] parameter"
 								);
 							}else{
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-									created_func.params[0].ident,
+									created_func.params[0].ident.as<Token::ID>(),
 									"Operator [as] overload can only have a [this] parameter"
 								);
 							}
@@ -2151,10 +2150,13 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->source.getTokenBuffer()[created_func.params[0].ident].kind() != Token::Kind::KEYWORD_THIS){
+					if(
+						this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
+						!= Token::Kind::KEYWORD_THIS
+					){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func.params[1].ident,
+							created_func.params[1].ident.as<Token::ID>(),
 							"Operator [as] overload can only have a [this] parameter"
 						);
 						return Result::ERROR;
@@ -2166,7 +2168,7 @@ namespace pcit::panther{
 					if(created_func_type.returnParams.size() != 1){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func_type.returnParams[1].ident.value_or(created_func.name),
+							created_func_type.returnParams[1].ident.value_or(created_func.name.as<Token::ID>()),
 							"Operator [as] overload can only have single return"
 						);
 						return Result::ERROR;
@@ -2175,7 +2177,7 @@ namespace pcit::panther{
 					if(created_func_type.returnParams[0].typeID.isVoid()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func_type.returnParams[1].ident.value_or(created_func.name),
+							created_func_type.returnParams[1].ident.value_or(created_func.name.as<Token::ID>()),
 							"Operator [as] overload must return a value"
 						);
 						return Result::ERROR;
@@ -2185,7 +2187,7 @@ namespace pcit::panther{
 					if(created_func_type.errorParams.empty() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func_type.errorParams[0].ident.value_or(created_func.name),
+							created_func_type.errorParams[0].ident.value_or(created_func.name.as<Token::ID>()),
 							"Operator [as] overload cannot error"
 						);
 						return Result::ERROR;
@@ -2204,7 +2206,7 @@ namespace pcit::panther{
 					if(find != current_struct.operatorAsOverloads.end()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func_type.returnParams[0].ident.value_or(created_func.name),
+							created_func_type.returnParams[0].ident.value_or(created_func.name.as<Token::ID>()),
 							"Operator [as] overload for this type already defined",
 							Diagnostic::Info("Defined here:", this->get_location(find->second))
 						);
@@ -2253,7 +2255,7 @@ namespace pcit::panther{
 			if(func_type.params.empty() == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					current_func.params[0].ident,
+					current_func.params[0].ident.as<Token::ID>(),
 					"Functions with the [#entry] attribute cannot have parameters"
 				);
 				return Result::ERROR;
@@ -2427,8 +2429,12 @@ namespace pcit::panther{
 				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
 			){
 				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
-				const SymbolProc::WaitOnResult wait_on_result = dependent_func.symbolProc.waitOnPIRDeclIfNeeded(
-					this->symbol_proc_id, this->context, dependent_func.symbolProcID
+
+				SymbolProc& dependent_func_symbol_proc = 
+					this->context.symbol_proc_manager.getSymbolProc(*dependent_func.symbolProcID);
+
+				const SymbolProc::WaitOnResult wait_on_result = dependent_func_symbol_proc.waitOnPIRDeclIfNeeded(
+					this->symbol_proc_id, this->context, *dependent_func.symbolProcID
 				);
 
 				switch(wait_on_result){
@@ -2526,8 +2532,12 @@ namespace pcit::panther{
 				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
 			){
 				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
-				const SymbolProc::WaitOnResult wait_on_result = dependent_func.symbolProc.waitOnPIRDefIfNeeded(
-					this->symbol_proc_id, this->context, dependent_func.symbolProcID
+
+				SymbolProc& dependent_func_symbol_proc = 
+					this->context.symbol_proc_manager.getSymbolProc(*dependent_func.symbolProcID);
+
+				const SymbolProc::WaitOnResult wait_on_result = dependent_func_symbol_proc.waitOnPIRDefIfNeeded(
+					this->symbol_proc_id, this->context, *dependent_func.symbolProcID
 				);
 
 				switch(wait_on_result){
@@ -2978,7 +2988,7 @@ namespace pcit::panther{
 		const auto interface_has_member = [&](std::string_view ident) -> bool {
 			for(const sema::Func::ID method_id : info.target_interface.methods){
 				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-				const std::string_view target_method_name = target_source.getTokenBuffer()[method.name].getString();
+				const std::string_view target_method_name = method.getName(this->context.getSourceManager());
 				if(target_method_name == ident){ return true; }
 			}
 
@@ -2988,7 +2998,7 @@ namespace pcit::panther{
 		size_t method_init_i = 0;
 		for(sema::Func::ID target_method_id : info.target_interface.methods){
 			const sema::Func& target_method = this->context.getSemaBuffer().getFunc(target_method_id);
-			const std::string_view target_method_name = target_source.getTokenBuffer()[target_method.name].getString();
+			const std::string_view target_method_name = target_method.getName(this->context.getSourceManager());
 
 			if(method_init_i >= instr.interface_impl.methods.size()){
 				if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
@@ -3076,10 +3086,7 @@ namespace pcit::panther{
 						Diagnostic::Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
 						method_init.method,
 						"This type has no method that has the correct signature",
-						Diagnostic::Info(
-							"Interface method declared here:",
-							Diagnostic::Location::get(target_method.name, target_source)
-						)
+						Diagnostic::Info("Interface method declared here:", this->get_location(target_method_id))
 					);
 					return Result::ERROR;
 				}
@@ -3104,8 +3111,11 @@ namespace pcit::panther{
 		bool any_waiting = false;
 		for(const sema::Func::ID method_id : info.interface_impl.methods){
 			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-			const SymbolProc::WaitOnResult wait_on_result = method.symbolProc.waitOnPIRDeclIfNeeded(
-				this->symbol_proc_id, this->context, method.symbolProcID
+
+			SymbolProc& method_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*method.symbolProcID);
+
+			const SymbolProc::WaitOnResult wait_on_result = method_symbol_proc.waitOnPIRDeclIfNeeded(
+				this->symbol_proc_id, this->context, *method.symbolProcID
 			);
 
 			switch(wait_on_result){
@@ -4618,10 +4628,13 @@ namespace pcit::panther{
 			}
 
 
-			const SymbolProc::WaitOnResult wait_on_result = func_call_impl_res.value().selected_func
-				->symbolProc.waitOnPIRDefIfNeeded(
-					this->symbol_proc_id, this->context, func_call_impl_res.value().selected_func->symbolProcID
-				);
+			SymbolProc& selected_func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+				*func_call_impl_res.value().selected_func->symbolProcID
+			);
+
+			const SymbolProc::WaitOnResult wait_on_result = selected_func_symbol_proc.waitOnPIRDefIfNeeded(
+				this->symbol_proc_id, this->context, *func_call_impl_res.value().selected_func->symbolProcID
+			);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
@@ -7058,7 +7071,9 @@ namespace pcit::panther{
 		for(const AST::Type::Qualifier& qualifier : element_type.qualifiers()){
 			resultant_qualifiers.emplace_back(qualifier);
 		}
-		resultant_qualifiers.emplace_back(true, target.is_const(), false);
+		resultant_qualifiers.emplace_back(
+			true, target.is_const() || (is_ptr && target_type.qualifiers().back().isReadOnly), false
+		);
 
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
 			TypeInfo(element_type.baseTypeID(), std::move(resultant_qualifiers))
@@ -9557,7 +9572,7 @@ namespace pcit::panther{
 				Diagnostic::Code::SEMA_FUNC_HAS_NO_THIS_PARAM,
 				instr.this_token,
 				"This function doesn't have a [this] parameter",
-				Diagnostic::Info("Function declared here:", this->get_location(current_func.name))
+				Diagnostic::Info("Function declared here:", this->get_location(current_func))
 			);
 			return Result::ERROR;
 		}
@@ -9702,6 +9717,14 @@ namespace pcit::panther{
 					TermInfo::ValueCategory::TYPE,
 					TermInfo::ValueStage::CONSTEXPR,
 					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(symbol))),
+					std::nullopt
+				);
+
+			}else if constexpr(std::is_same<SymbolType, sema::Func::ID>()){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::FUNCTION,
+					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::FuncOverloadList{symbol},
 					std::nullopt
 				);
 				
@@ -9877,8 +9900,7 @@ namespace pcit::panther{
 		auto methods = TermInfo::FuncOverloadList();
 		for(const sema::Func::ID method_id : target_interface.methods){
 			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-			const Source& method_source = this->context.getSourceManager()[method.sourceID];
-			const std::string_view method_name = method_source.getTokenBuffer()[method.name].getString();
+			const std::string_view method_name = method.getName(this->context.getSourceManager());
 
 			if(method_name == rhs_ident_str){
 				methods.emplace_back(method_id);
@@ -11481,8 +11503,8 @@ namespace pcit::panther{
 						const std::string_view arg_label = 
 							this->source.getTokenBuffer()[*arg_info.label].getString();
 
-						const std::string_view param_name = this->context.getSourceManager()[sema_func.sourceID]
-							.getTokenBuffer()[sema_func.params[arg_i].ident].getString();
+						const std::string_view param_name = 
+							sema_func.getParamName(sema_func.params[arg_i], this->context.getSourceManager());
 
 						if(arg_label != param_name){
 							scores.emplace_back(OverloadScore::IncorrectLabel(arg_i));
@@ -11694,8 +11716,9 @@ namespace pcit::panther{
 								Diagnostic::Info(
 									std::format(
 										"Expected label: \"{}\"", 
-										this->context.getSourceManager()[sema_func.sourceID]
-											.getTokenBuffer()[sema_func.params[reason.arg_index].ident].getString()
+										sema_func.getParamName(
+											sema_func.params[reason.arg_index], this->context.getSourceManager()
+										)
 									)
 								),
 							}

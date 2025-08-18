@@ -746,8 +746,12 @@ namespace pcit::panther{
 				return this->get_location(union_field.location);
 			}
 
-			EVO_NODISCARD auto get_location(const sema::Func::ID& func) const -> Diagnostic::Location {
-				return Diagnostic::Location::get(func, this->source, this->context);
+			EVO_NODISCARD auto get_location(sema::Func::ID func_id) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(func_id, this->context);
+			}
+
+			EVO_NODISCARD auto get_location(const sema::Func& func) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(func, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::TemplatedFuncID& templated_func) const -> Diagnostic::Location {

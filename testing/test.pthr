@@ -1,27 +1,12 @@
 def c_import = @importCPP("test.h");
 
 
-type Union = union #untagged {
-	int: Int,
-	float: F32,
-
-
-	func get_int_as = <{T: Type}> (this) #rt -> T {
-		return this.int as T;
-	}
-}
-
-
-
 
 func entry = () #entry -> UI8 {
-	var value: Union = uninit;
+	var num: UI8* = c_import.malloc(@numBytes<{UI8}>()) as UI8*;
+	defer{ c_import.free(num as RawPtr); }
 
-	(&value).int = 12;
+	num.* = 12;
 
-
-	const test = new c_import.Test{x = 0, y = 12.4};
-
-	
-	return value.get_int_as<{UI8}>() + test.y as UI8;
+	return copy num.*;
 }

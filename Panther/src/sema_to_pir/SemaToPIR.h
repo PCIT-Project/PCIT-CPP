@@ -69,7 +69,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto lower_union(BaseType::Union::ID union_id) -> pir::Type;
 
 			// see definition for explanation
-			auto lower_func_decl(sema::Func::ID func_id) -> pir::Function::ID;
+			auto lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID>;
 
 			auto lower_stmt(const sema::Stmt& stmt) -> void;
 
@@ -124,6 +124,17 @@ namespace pcit::panther{
 			) -> void;
 
 			
+
+
+			EVO_NODISCARD auto create_call(
+				evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id,
+				evo::SmallVector<pir::Expr>&& args,
+				std::string&& name = ""
+			) -> pir::Expr;
+
+			auto create_call_void(
+				evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id, evo::SmallVector<pir::Expr>&& args
+			) -> void;
 
 			template<GetExprMode MODE>
 			auto template_intrinsic_func_call(

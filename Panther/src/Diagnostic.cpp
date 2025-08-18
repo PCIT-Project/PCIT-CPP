@@ -246,9 +246,21 @@ namespace pcit::panther{
 		return Location::get(context.getSemaBuffer().getGlobalVar(sema_var_id).ident, src);
 	}
 
-	auto Diagnostic::Location::get(const sema::Func::ID& func_id, const Source& src, const Context& context)
-	-> Location {
-		return Location::get(context.getSemaBuffer().getFunc(func_id).name, src);
+
+	auto Diagnostic::Location::get(sema::Func::ID func_id, const Context& context) -> Location {
+		return Location::get(context.getSemaBuffer().getFunc(func_id), context);
+	}
+
+	auto Diagnostic::Location::get(const sema::Func& func, const Context& context) -> Location {
+		if(func.isClangFunc()){
+			const ClangSource& clang_source = context.getSourceManager()[func.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(func.name.as<ClangSource::DeclInfoID>()).location;
+			
+		}else{
+			return Location::get(
+				func.name.as<Token::ID>(), context.getSourceManager()[func.sourceID.as<Source::ID>()]
+			);
+		}
 	}
 
 	auto Diagnostic::Location::get(const sema::TemplatedFunc::ID& func_id, const Source& src, const Context& context)
@@ -263,14 +275,14 @@ namespace pcit::panther{
 	auto Diagnostic::Location::get(BaseType::Alias::ID alias_id, const Context& context) -> Location {
 		const BaseType::Alias& alias_decl = context.getTypeManager().getAlias(alias_id);
 
-		if(alias_decl.location.is<Token::ID>()){
+		if(alias_decl.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[alias_decl.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(alias_decl.location.as<ClangSource::DeclInfoID>()).location;
+			
+		}else{
 			return Location::get(
 				alias_decl.location.as<Token::ID>(), context.getSourceManager()[alias_decl.sourceID.as<Source::ID>()]
 			);
-			
-		}else{
-			const ClangSource& clang_source = context.getSourceManager()[alias_decl.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(alias_decl.location.as<ClangSource::DeclInfoID>()).location;
 		}
 	}
 
@@ -278,28 +290,28 @@ namespace pcit::panther{
 	auto Diagnostic::Location::get(BaseType::Struct::ID struct_id, const Context& context) -> Location {
 		const BaseType::Struct& struct_decl = context.getTypeManager().getStruct(struct_id);
 
-		if(struct_decl.location.is<Token::ID>()){
+		if(struct_decl.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[struct_decl.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(struct_decl.location.as<ClangSource::DeclInfoID>()).location;
+			
+		}else{
 			return Location::get(
 				struct_decl.location.as<Token::ID>(), context.getSourceManager()[struct_decl.sourceID.as<Source::ID>()]
 			);
-			
-		}else{
-			const ClangSource& clang_source = context.getSourceManager()[struct_decl.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(struct_decl.location.as<ClangSource::DeclInfoID>()).location;
 		}
 	}
 
 	auto Diagnostic::Location::get(BaseType::Union::ID union_id, const Context& context) -> Location {
 		const BaseType::Union& union_decl = context.getTypeManager().getUnion(union_id);
 
-		if(union_decl.location.is<Token::ID>()){
+		if(union_decl.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[union_decl.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(union_decl.location.as<ClangSource::DeclInfoID>()).location;
+			
+		}else{
 			return Location::get(
 				union_decl.location.as<Token::ID>(), context.getSourceManager()[union_decl.sourceID.as<Source::ID>()]
 			);
-			
-		}else{
-			const ClangSource& clang_source = context.getSourceManager()[union_decl.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(union_decl.location.as<ClangSource::DeclInfoID>()).location;
 		}
 	}
 

@@ -405,9 +405,8 @@ namespace pcit::panther{
 					const sema::GlobalVar::ID& sema_var_id, const class Source& src, const class Context& context
 				) -> Location;
 
-				EVO_NODISCARD static auto get(
-					const sema::Func::ID& func_id, const class Source& src, const class Context& context
-				) -> Location;
+				EVO_NODISCARD static auto get(sema::Func::ID func_id, const class Context& context) -> Location;
+				EVO_NODISCARD static auto get(const sema::Func& func, const class Context& context) -> Location;
 
 				EVO_NODISCARD static auto get(
 					const sema::TemplatedFunc::ID& templated_func_id,

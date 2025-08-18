@@ -395,7 +395,7 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			const evo::Result<uint8_t> entry_res = context.runEntry();
+			const evo::Result<uint8_t> entry_res = context.runEntry(true);
 			if(entry_res.isError()){ return evo::resultError; }
 			printer.printlnSuccess("Value returned from entry: {}", entry_res.value());
 			return evo::Result<>();

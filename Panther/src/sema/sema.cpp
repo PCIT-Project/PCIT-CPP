@@ -15,6 +15,28 @@
 namespace pcit::panther::sema{
 
 
+	auto Func::getName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isClangFunc()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+		}
+	}
+
+	auto Func::getParamName(const Param& param, const SourceManager& source_manager) const
+	-> std::string_view {
+		if(this->isClangFunc()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(param.ident.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[param.ident.as<Token::ID>()].getString();
+		}
+	}
+
+
 	auto Func::isEquivalentOverload(const Func& rhs, const Context& context) const -> bool {
 		const BaseType::Function& this_type = context.getTypeManager().getFunction(this->typeID);
 		const BaseType::Function& rhs_type = context.getTypeManager().getFunction(rhs.typeID);
@@ -41,9 +63,13 @@ namespace pcit::panther::sema{
 	auto Func::isMethod(const Context& context) const -> bool {
 		if(this->params.empty()){ return false; }
 
-		const Source& source = context.getSourceManager()[this->sourceID];
-		const Token& first_param_token = source.getTokenBuffer()[this->params[0].ident];
-		return first_param_token.kind() == Token::Kind::KEYWORD_THIS;
+		if(this->isClangFunc()){
+			return false;
+		}else{
+			const Source& source = context.getSourceManager()[this->sourceID.as<Source::ID>()];
+			const Token& first_param_token = source.getTokenBuffer()[this->params[0].ident.as<Token::ID>()];
+			return first_param_token.kind() == Token::Kind::KEYWORD_THIS;
+		}
 	}
 
 

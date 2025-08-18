@@ -283,8 +283,37 @@ namespace pcit::panther{
 
 				break; case clangint::BaseType::Primitive::UNKNOWN: return std::nullopt;
 			}
-		}else{
+
+		}else if(clang_type.baseType.is<clangint::BaseType::NamedDecl>()){
 			base_type_id = type_map.at(clang_type.baseType.as<clangint::BaseType::NamedDecl>().name);
+
+		}else{
+			evo::debugAssert(clang_type.baseType.is<clangint::BaseType::Function>(), "Unsupported clangint::BaseType");
+
+			const clangint::BaseType::Function& func_type = clang_type.baseType.as<clangint::BaseType::Function>();
+
+			auto params = evo::SmallVector<BaseType::Function::Param>();
+			auto return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
+			auto error_params = evo::SmallVector<BaseType::Function::ReturnParam>();
+
+			params.reserve(func_type.getParamTypes().size());
+			for(const clangint::Type& param_type : func_type.getParamTypes()){
+				const std::optional<TypeInfo::VoidableID> panther_type = 
+					clang_type_to_panther_type(param_type, type_manager, type_map);
+				if(panther_type.has_value() == false){ return std::nullopt; }
+
+				params.emplace_back(panther_type->asTypeID(), AST::FuncDecl::Param::Kind::IN, true);
+			}
+
+			const std::optional<TypeInfo::VoidableID> return_panther_type = 
+				clang_type_to_panther_type(func_type.getReturnType(), type_manager, type_map);
+			if(return_panther_type.has_value() == false){ return std::nullopt; }
+
+			return_params.emplace_back(std::nullopt, *return_panther_type);
+
+			base_type_id = type_manager.getOrCreateFunction(
+				BaseType::Function(std::move(params), std::move(return_params), std::move(error_params))
+			);
 		}
 
 
@@ -293,7 +322,7 @@ namespace pcit::panther{
 		for(const clangint::Type::Qualifier& qualifier : clang_type.qualifiers){
 			switch(qualifier){
 				break; case clangint::Type::Qualifier::POINTER:
-					qualifiers.emplace_back(true, false, true);
+					qualifiers.emplace_back(true, clang_type.isConst, true);
 
 				break; case clangint::Type::Qualifier::CONST_POINTER:
 					qualifiers.emplace_back(true, true, true);
@@ -620,7 +649,7 @@ namespace pcit::panther{
 
 
 
-	auto Context::runEntry() -> evo::Result<uint8_t> {
+	auto Context::runEntry(bool allow_default_symbol_linking) -> evo::Result<uint8_t> {
 		if(this->entry.has_value() == false){
 			this->emitError(
 				Diagnostic::Code::MISC_NO_ENTRY,
@@ -653,7 +682,7 @@ namespace pcit::panther{
 
 		auto jit_engine = pir::JITEngine();
 		jit_engine.init(pir::JITEngine::InitConfig{
-			.allowDefaultSymbolLinking = false,
+			.allowDefaultSymbolLinking = allow_default_symbol_linking,
 		});
 		EVO_DEFER([&](){ jit_engine.deinit(); });
 
@@ -914,24 +943,7 @@ namespace pcit::panther{
 			using ClangDiagnosticLevel = clangint::DiagnosticList::Diagnostic::Level;
 
 			switch(diagnostic_list.diagnostics[i].level){
-				case ClangDiagnosticLevel::FATAL: {
-					std::string message = "Clang: " + diagnostic_list.diagnostics[i].message;
-
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					while(
-						i + 1 < diagnostic_list.diagnostics.size()
-						&& diagnostic_list.diagnostics[i + 1].level == ClangDiagnosticLevel::NOTE
-					){
-						i += 1;
-						infos.emplace_back("Note: " + diagnostic_list.diagnostics[i].message, get_location());
-					}
-
-					this->emitFatal(Diagnostic::Code::CLANG, location, std::move(message), std::move(infos));
-
-					errored = true;
-				} break;
-
-				case ClangDiagnosticLevel::ERROR: {
+				case ClangDiagnosticLevel::FATAL: case ClangDiagnosticLevel::ERROR: {
 					std::string message = "Clang: " + diagnostic_list.diagnostics[i].message;
 
 					auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -1097,13 +1109,10 @@ namespace pcit::panther{
 					for(const clangint::API::Union::Field& field : union_decl.fields){
 						const std::optional<TypeInfo::VoidableID> panther_type = 
 							clang_type_to_panther_type(field.type, this->type_manager, type_map);
-
 						if(panther_type.has_value() == false){ return; }
 
 						fields.emplace_back(
-							source_clang_source.createDeclInfo(
-								field.name, field.declLine, field.declCollumn
-							),
+							source_clang_source.createDeclInfo(field.name, field.declLine, field.declCollumn),
 							panther_type->asTypeID()
 						);
 					}
@@ -1134,6 +1143,53 @@ namespace pcit::panther{
 							union_decl.name, created_symbol, source_clang_source_id
 						);
 					}
+
+				}else if constexpr(std::is_same<DeclPtr, clangint::API::Function*>()){
+					const clangint::API::Function& function_decl = *decl_ptr;
+
+					const clangint::Type func_type =
+						clangint::Type(function_decl.type, evo::SmallVector<clangint::Type::Qualifier>(), true);
+
+					const std::optional<TypeInfo::VoidableID> panther_func_type = 
+						clang_type_to_panther_type(func_type, this->type_manager, type_map);
+					if(panther_func_type.has_value() == false){ return; }
+
+
+					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+						function_decl.name,
+						[&]() -> ClangSource::Symbol {
+							auto params = evo::SmallVector<sema::Func::Param>();
+							params.reserve(function_decl.params.size());
+							for(const clangint::API::Function::Param& param : function_decl.params){
+								params.emplace_back(
+									source_clang_source.createDeclInfo(param.name, param.declLine, param.declCollumn),
+									std::nullopt
+								);
+							}
+
+							return this->sema_buffer.createFunc(
+								source_clang_source_id,
+								source_clang_source.createDeclInfo(
+									function_decl.name, function_decl.declLine, function_decl.declCollumn
+								),
+								this->type_manager.getTypeInfo(panther_func_type->asTypeID()).baseTypeID().funcID(),
+								std::move(params),
+								std::nullopt,
+								uint32_t(function_decl.params.size()),
+								false,
+								false,
+								true,
+								false
+							);
+						}
+					);
+
+					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
+						created_clang_source.addImportedSymbol(
+							function_decl.name, created_symbol, source_clang_source_id
+						);
+					}
+
 
 				}else{
 					static_assert(false, "Unsupported decl type");

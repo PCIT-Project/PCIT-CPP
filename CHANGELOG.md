@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.147.0"></a>
+## v0.0.147.0
+
+### Panther
+- Added support for importing C function declarations
+- Fixed `@getNumBytes` giving the wrong value for some widths of arbitrary bit-width integers
+- Fixed C compilation 
+	- of types with attributes
+	- of types within parentheses
+	- of function types
+	- include paths for Linux
+	- unnamed types
+	- types like `const char*` not being converted to `Char*?` instead of `Char*|?`
+
+### Misc
+- Added missing files needed for libc
+
+
+<!---------------------------------->
 <a name="v0.0.146.0"></a>
 ## v0.0.146.0
 

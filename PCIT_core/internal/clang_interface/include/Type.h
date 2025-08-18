@@ -15,6 +15,8 @@
 
 namespace pcit::clangint{
 
+	struct Type;
+
 
 	namespace BaseType{
 		
@@ -55,7 +57,6 @@ namespace pcit::clangint{
 		};
 
 
-
 		struct NamedDecl{
 			enum class Kind{
 				STRUCT,
@@ -65,6 +66,27 @@ namespace pcit::clangint{
 
 			std::string name;
 			Kind kind;
+		};
+
+
+		struct Function{
+			Function(evo::SmallVector<Type>&& types, bool may_throw, bool is_variadic, bool is_const) 
+				: _types(std::move(types)), mayThrow(may_throw), isVariadic(is_variadic), isConst(is_const) {}
+
+			bool mayThrow;
+			bool isVariadic;
+			bool isConst;
+
+			EVO_NODISCARD auto getReturnType() const -> const Type& {
+				return this->_types[0];
+			}
+
+			EVO_NODISCARD auto getParamTypes() const -> evo::ArrayProxy<Type> {
+				return static_cast<evo::ArrayProxy<Type>>(this->_types).last(this->_types.size() - 1);
+			}
+
+			private:
+				evo::SmallVector<Type> _types;
 		};
 
 	}
@@ -81,7 +103,7 @@ namespace pcit::clangint{
 			R_VALUE_REFERENCE,
 		};
 
-		evo::Variant<BaseType::Primitive, BaseType::NamedDecl> baseType{};
+		evo::Variant<BaseType::Primitive, BaseType::NamedDecl, BaseType::Function> baseType{};
 		evo::SmallVector<Qualifier> qualifiers{};
 		bool isConst;
 	};
