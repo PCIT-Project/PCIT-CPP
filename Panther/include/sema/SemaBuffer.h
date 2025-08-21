@@ -34,8 +34,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getFunc(sema::Func::ID id) const -> const sema::Func& { return this->funcs[id]; }
 
 
-			EVO_NODISCARD auto getFuncs() const -> core::IterRange<sema::Func::ID::Iterator> {
-				return core::IterRange<sema::Func::ID::Iterator>(
+			EVO_NODISCARD auto getFuncs() const -> evo::IterRange<sema::Func::ID::Iterator> {
+				return evo::IterRange<sema::Func::ID::Iterator>(
 					sema::Func::ID::Iterator(sema::Func::ID(0)),
 					sema::Func::ID::Iterator(sema::Func::ID(uint32_t(this->funcs.size())))
 				);
@@ -79,8 +79,8 @@ namespace pcit::panther{
 				return this->vars[id];
 			}
 
-			EVO_NODISCARD auto getVars() const -> core::IterRange<sema::Var::ID::Iterator> {
-				return core::IterRange<sema::Var::ID::Iterator>(
+			EVO_NODISCARD auto getVars() const -> evo::IterRange<sema::Var::ID::Iterator> {
+				return evo::IterRange<sema::Var::ID::Iterator>(
 					sema::Var::ID::Iterator(sema::Var::ID(0)),
 					sema::Var::ID::Iterator(sema::Var::ID(uint32_t(this->vars.size())))
 				);
@@ -100,8 +100,8 @@ namespace pcit::panther{
 				return this->global_vars[id];
 			}
 
-			EVO_NODISCARD auto getGlobalVars() const -> core::IterRange<sema::GlobalVar::ID::Iterator> {
-				return core::IterRange<sema::GlobalVar::ID::Iterator>(
+			EVO_NODISCARD auto getGlobalVars() const -> evo::IterRange<sema::GlobalVar::ID::Iterator> {
+				return evo::IterRange<sema::GlobalVar::ID::Iterator>(
 					sema::GlobalVar::ID::Iterator(sema::GlobalVar::ID(0)),
 					sema::GlobalVar::ID::Iterator(sema::GlobalVar::ID(uint32_t(this->global_vars.size())))
 				);

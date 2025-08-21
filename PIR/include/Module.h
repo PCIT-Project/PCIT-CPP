@@ -73,16 +73,16 @@ namespace pcit::pir{
 			using FunctionIter = core::StepAlloc<Function, Function::ID>::Iter;
 			using FunctionsConstIter = core::StepAlloc<Function, Function::ID>::ConstIter;
 
-			EVO_NODISCARD auto getFunctionIter() -> core::IterRange<FunctionIter> {
-				return core::IterRange<FunctionIter>(this->functions.begin(), this->functions.end());
+			EVO_NODISCARD auto getFunctionIter() -> evo::IterRange<FunctionIter> {
+				return evo::IterRange<FunctionIter>(this->functions.begin(), this->functions.end());
 			}
 
-			EVO_NODISCARD auto getFunctionIter() const -> core::IterRange<FunctionsConstIter> {
-				return core::IterRange<FunctionsConstIter>(this->functions.cbegin(), this->functions.cend());
+			EVO_NODISCARD auto getFunctionIter() const -> evo::IterRange<FunctionsConstIter> {
+				return evo::IterRange<FunctionsConstIter>(this->functions.cbegin(), this->functions.cend());
 			}
 
-			EVO_NODISCARD auto getFunctionsConstIter() const -> core::IterRange<FunctionsConstIter> {
-				return core::IterRange<FunctionsConstIter>(this->functions.cbegin(), this->functions.cend());
+			EVO_NODISCARD auto getFunctionsConstIter() const -> evo::IterRange<FunctionsConstIter> {
+				return evo::IterRange<FunctionsConstIter>(this->functions.cbegin(), this->functions.cend());
 			}
 
 
@@ -118,20 +118,20 @@ namespace pcit::pir{
 			using ExternalFunctionIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::Iter;
 			using ExternalFunctionsConstIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::ConstIter;
 
-			EVO_NODISCARD auto getExternalFunctionIter() -> core::IterRange<ExternalFunctionIter> {
-				return core::IterRange<ExternalFunctionIter>(
+			EVO_NODISCARD auto getExternalFunctionIter() -> evo::IterRange<ExternalFunctionIter> {
+				return evo::IterRange<ExternalFunctionIter>(
 					this->external_funcs.begin(), this->external_funcs.end()
 				);
 			}
 
-			EVO_NODISCARD auto getExternalFunctionIter() const -> core::IterRange<ExternalFunctionsConstIter> {
-				return core::IterRange<ExternalFunctionsConstIter>(
+			EVO_NODISCARD auto getExternalFunctionIter() const -> evo::IterRange<ExternalFunctionsConstIter> {
+				return evo::IterRange<ExternalFunctionsConstIter>(
 					this->external_funcs.cbegin(), this->external_funcs.cend()
 				);
 			}
 
-			EVO_NODISCARD auto getExternalFunctionsConstIter() const -> core::IterRange<ExternalFunctionsConstIter> {
-				return core::IterRange<ExternalFunctionsConstIter>(
+			EVO_NODISCARD auto getExternalFunctionsConstIter() const -> evo::IterRange<ExternalFunctionsConstIter> {
+				return evo::IterRange<ExternalFunctionsConstIter>(
 					this->external_funcs.cbegin(), this->external_funcs.cend()
 				);
 			}
@@ -340,16 +340,16 @@ namespace pcit::pir{
 			using GlobalVarIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::Iter;
 			using GlobalVarsConstIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::ConstIter;
 
-			EVO_NODISCARD auto getGlobalVarIter() -> core::IterRange<GlobalVarIter> {
-				return core::IterRange<GlobalVarIter>(this->global_vars.begin(), this->global_vars.end());
+			EVO_NODISCARD auto getGlobalVarIter() -> evo::IterRange<GlobalVarIter> {
+				return evo::IterRange<GlobalVarIter>(this->global_vars.begin(), this->global_vars.end());
 			}
 
-			EVO_NODISCARD auto getGlobalVarIter() const -> core::IterRange<GlobalVarsConstIter> {
-				return core::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
+			EVO_NODISCARD auto getGlobalVarIter() const -> evo::IterRange<GlobalVarsConstIter> {
+				return evo::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
 			}
 
-			EVO_NODISCARD auto getGlobalVarsConstIter() const -> core::IterRange<GlobalVarsConstIter> {
-				return core::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
+			EVO_NODISCARD auto getGlobalVarsConstIter() const -> evo::IterRange<GlobalVarsConstIter> {
+				return evo::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
 			}
 
 
@@ -416,20 +416,20 @@ namespace pcit::pir{
 			using StructTypeIter = core::SyncLinearStepAlloc<StructType, uint32_t>::Iter;
 			using StructTypeConstIter = core::SyncLinearStepAlloc<StructType, uint32_t>::ConstIter;
 
-			EVO_NODISCARD auto getStructTypeIter() -> core::IterRange<StructTypeIter> {
-				return core::IterRange<StructTypeIter>(
+			EVO_NODISCARD auto getStructTypeIter() -> evo::IterRange<StructTypeIter> {
+				return evo::IterRange<StructTypeIter>(
 					this->struct_types.begin(), this->struct_types.end()
 				);
 			}
 
-			EVO_NODISCARD auto getStructTypeIter() const -> core::IterRange<StructTypeConstIter> {
-				return core::IterRange<StructTypeConstIter>(
+			EVO_NODISCARD auto getStructTypeIter() const -> evo::IterRange<StructTypeConstIter> {
+				return evo::IterRange<StructTypeConstIter>(
 					this->struct_types.cbegin(), this->struct_types.cend()
 				);
 			}
 
-			EVO_NODISCARD auto getStructTypeConstIter() const -> core::IterRange<StructTypeConstIter> {
-				return core::IterRange<StructTypeConstIter>(
+			EVO_NODISCARD auto getStructTypeConstIter() const -> evo::IterRange<StructTypeConstIter> {
+				return evo::IterRange<StructTypeConstIter>(
 					this->struct_types.cbegin(), this->struct_types.cend()
 				);
 			}

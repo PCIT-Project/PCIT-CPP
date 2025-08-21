@@ -10,6 +10,7 @@
 #pragma once
 
 #include <stack>
+#include <unordered_set>
 
 #include <Evo.h>
 #include <PCIT_core.h>
@@ -179,6 +180,18 @@ namespace pcit::panther{
 				evo::debugAssert(emplace_result.second, "This func id was already added to PIR lower");
 			}
 
+			// returns true if added
+			auto add_extern_func_if_needed(const std::string& func_name) -> bool {
+				const auto lock = std::scoped_lock(this->extern_funcs_lock);
+				const auto emplace_result = this->extern_funcs.emplace(func_name);
+				return emplace_result.second;
+			}
+			auto add_extern_func_if_needed(std::string&& func_name) -> bool {
+				const auto lock = std::scoped_lock(this->extern_funcs_lock);
+				const auto emplace_result = this->extern_funcs.emplace(std::move(func_name));
+				return emplace_result.second;
+			}
+
 
 			auto create_vtable(VTableID vtable_id, pir::GlobalVar::ID pir_id) -> void {
 				const auto lock = std::scoped_lock(this->vtables_lock);
@@ -254,6 +267,9 @@ namespace pcit::panther{
 			evo::StepVector<FuncInfo> funcs_info_alloc{};
 			std::unordered_map<sema::Func::ID, FuncInfo*> funcs{};
 			mutable core::SpinLock funcs_lock{};
+
+			std::unordered_set<std::string> extern_funcs{};
+			mutable core::SpinLock extern_funcs_lock{};
 
 			JITInterfaceFuncs jit_interface_funcs{};
 			JITBuildFuncs jit_build_funcs{};

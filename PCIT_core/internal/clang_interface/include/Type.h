@@ -44,6 +44,7 @@ namespace pcit::clangint{
 			BOOL,
 			CHAR,
 			RAWPTR,
+			C_WCHAR,
 			C_SHORT,
 			C_USHORT,
 			C_INT,

@@ -81,7 +81,7 @@ namespace pcit::panther{
 			auto addImportedSymbol(std::string&& symbol_name, Symbol symbol, ID source_id) -> void {
 				evo::debugAssert(this->isSymbolImportComplete() == false, "symbol import was already completed");
 
-				const auto symbol_name_view = std::string_view(this->symbol_names.emplace_back(std::move(symbol_name)));
+				const auto symbol_name_view = std::string_view(this->names.emplace_back(std::move(symbol_name)));
 				this->imported_symbols.emplace(symbol_name_view, SymbolInfo(symbol, source_id));
 			}
 
@@ -116,7 +116,7 @@ namespace pcit::panther{
 				const auto find = this->source_symbols.find(symbol_name);
 				if(find != this->source_symbols.end()){ return find->second; }
 
-				const auto symbol_name_view = std::string_view(this->symbol_names.emplace_back(std::move(symbol_name)));
+				const auto symbol_name_view = std::string_view(this->names.emplace_back(std::move(symbol_name)));
 				const Symbol created_symbol = symbol_creator();
 				this->source_symbols.emplace(symbol_name_view, created_symbol);
 				return created_symbol;
@@ -126,6 +126,26 @@ namespace pcit::panther{
 				std::string_view symbol_name, const SymbolCreator& symbol_creator
 			) -> Symbol {
 				return this->getOrCreateSourceSymbol(std::string(symbol_name), symbol_creator);
+			}
+
+
+			///////////////////////////////////
+			// defines
+
+			auto addDefine(std::string&& define_name, std::optional<DeclInfoID> decl_info_id) -> void {
+				const auto define_name_view = std::string_view(this->names.emplace_back(std::move(define_name)));
+				this->defines.emplace(define_name_view, decl_info_id);
+			}
+
+			auto addDefine(std::string_view define_name, std::optional<DeclInfoID> decl_info_id) -> void {
+				this->addDefine(std::string(define_name), decl_info_id);
+			}
+
+			EVO_NODISCARD auto getDefine(std::string_view define_name) const
+			-> std::optional<std::optional<DeclInfoID>> {
+				const auto find = this->defines.find(define_name);
+				if(find != this->defines.end()){ return find->second; }
+				return std::nullopt;
 			}
 
 
@@ -151,10 +171,12 @@ namespace pcit::panther{
 
 			core::SyncLinearStepAlloc<SavedDeclInfo, DeclInfoID> decl_infos{};
 
-			evo::StepVector<std::string> symbol_names{};
+			evo::StepVector<std::string> names{};
 			std::unordered_map<std::string_view, SymbolInfo> imported_symbols{};
 			std::unordered_map<std::string_view, Symbol> source_symbols{};
 			mutable core::SpinLock source_symbols_lock{};
+
+			std::unordered_map<std::string_view, std::optional<DeclInfoID>> defines{};
 
 			std::atomic<bool> symbol_import_complete = false;
 

@@ -36,9 +36,9 @@ namespace pcit::panther{
 				return this->symbol_procs[id];
 			};
 
-			using SymbolProcIter = core::IterRange<core::SyncLinearStepAlloc<SymbolProc, SymbolProc::ID>::ConstIter>;
+			using SymbolProcIter = evo::IterRange<core::SyncLinearStepAlloc<SymbolProc, SymbolProc::ID>::ConstIter>;
 			EVO_NODISCARD auto iterSymbolProcs() -> SymbolProcIter {
-				return core::IterRange(this->symbol_procs.cbegin(), this->symbol_procs.cend());
+				return evo::IterRange(this->symbol_procs.cbegin(), this->symbol_procs.cend());
 			}
 
 
@@ -1171,6 +1171,23 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// IsMacroDefined
+
+			EVO_NODISCARD auto createIsMacroDefined(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::IS_MACRO_DEFINED,
+					this->is_macro_defineds.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getIsMacroDefined(Instruction instr) const -> const Instruction::IsMacroDefined& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::IS_MACRO_DEFINED, "Not an IsMacroDefined");
+				return this->is_macro_defineds[instr._index];
+			}
+
+
+
+			//////////////////
 			// TemplateIntrinsicFuncCall<true>
 
 			EVO_NODISCARD auto createTemplateIntrinsicFuncCallConstexpr(auto&&... args) -> Instruction {
@@ -2284,6 +2301,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::PANTHER>, uint64_t> import_panthers{};
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::C>, uint64_t> import_cs{};
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::CPP>, uint64_t> import_cpps{};
+			core::SyncLinearStepAlloc<Instruction::IsMacroDefined, uint64_t> is_macro_defineds{};
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<true>, uint64_t>
 				template_intrinsic_func_call_constexprs{};
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<false>, uint64_t>

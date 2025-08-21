@@ -255,6 +255,9 @@ namespace pcit::panther{
 					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_RAWPTR);
 
 				break; case clangint::BaseType::Primitive::C_SHORT: 
+					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_WCHAR);
+
+				break; case clangint::BaseType::Primitive::C_WCHAR: 
 					base_type_id = type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_C_SHORT);
 
 				break; case clangint::BaseType::Primitive::C_USHORT: 
@@ -285,7 +288,12 @@ namespace pcit::panther{
 			}
 
 		}else if(clang_type.baseType.is<clangint::BaseType::NamedDecl>()){
-			base_type_id = type_map.at(clang_type.baseType.as<clangint::BaseType::NamedDecl>().name);
+			const std::string& decl_name = clang_type.baseType.as<clangint::BaseType::NamedDecl>().name;
+
+			const auto find = type_map.find(decl_name);
+			if(find == type_map.end()){ return std::nullopt; }
+
+			base_type_id = find->second;
 
 		}else{
 			evo::debugAssert(clang_type.baseType.is<clangint::BaseType::Function>(), "Unsupported clangint::BaseType");
@@ -301,6 +309,9 @@ namespace pcit::panther{
 				const std::optional<TypeInfo::VoidableID> panther_type = 
 					clang_type_to_panther_type(param_type, type_manager, type_map);
 				if(panther_type.has_value() == false){ return std::nullopt; }
+
+				// TODO(FUTURE): why when including windows.h is this needed
+				if(panther_type->isVoid()){ return std::nullopt; }
 
 				params.emplace_back(panther_type->asTypeID(), AST::FuncDecl::Param::Kind::IN, true);
 			}
@@ -995,6 +1006,19 @@ namespace pcit::panther{
 
 
 		ClangSource& created_clang_source = this->source_manager[created_clang_source_id];
+
+		for(const clangint::API::Macro& macro : clang_api.getMacros()){
+			const auto decl_info_id = [&]() -> std::optional<ClangSource::DeclInfoID> {
+				if(macro.declFilePath.empty()){
+					return std::nullopt;
+				}else{
+					return created_clang_source.createDeclInfo(macro.name, macro.declLine, macro.declCollumn);
+				}
+			}();
+
+			created_clang_source.addDefine(macro.name, decl_info_id);
+		}
+
 
 		auto type_map = std::unordered_map<std::string, BaseType::ID>();
 

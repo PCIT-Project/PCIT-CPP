@@ -347,21 +347,25 @@ namespace pcit::panther{
 
 		if(func.hasInParam == false){
 			if(func.isClangFunc()){
-				const pir::ExternalFunction::ID created_external_func_id = this->module.createExternalFunction(
-					this->mangle_name(func_id), std::move(params), pir::CallingConvention::C, linkage, return_type
-				);
+				std::string mangled_name = this->mangle_name(func_id);
 
-				pir_funcs.emplace_back(created_external_func_id);
+				if(this->data.add_extern_func_if_needed(mangled_name)){ // prevent ODR violation
+					const pir::ExternalFunction::ID created_external_func_id = this->module.createExternalFunction(
+						std::move(mangled_name), std::move(params), pir::CallingConvention::C, linkage, return_type
+					);
 
-				this->data.create_func(
-					func_id,
-					std::move(pir_funcs), // first arg of FuncInfo construction
-					return_type,
-					std::move(param_infos),
-					std::move(return_params),
-					error_return_param,
-					error_return_type
-				);
+					pir_funcs.emplace_back(created_external_func_id);
+
+					this->data.create_func(
+						func_id,
+						std::move(pir_funcs), // first arg of FuncInfo construction
+						return_type,
+						std::move(param_infos),
+						std::move(return_params),
+						error_return_param,
+						error_return_type
+					);
+				}
 
 				return std::nullopt;
 				
@@ -5189,11 +5193,11 @@ namespace pcit::panther{
 					this->context.getTypeManager().getPrimitive(base_type_id.primitiveID());
 
 				switch(primitive.kind()){
-					case Token::Kind::TYPE_INT:      case Token::Kind::TYPE_ISIZE:   case Token::Kind::TYPE_UINT:
-					case Token::Kind::TYPE_USIZE:    case Token::Kind::TYPE_TYPEID:  case Token::Kind::TYPE_C_SHORT:
-					case Token::Kind::TYPE_C_USHORT: case Token::Kind::TYPE_C_INT:   case Token::Kind::TYPE_C_UINT:
-					case Token::Kind::TYPE_C_LONG:   case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG:
-					case Token::Kind::TYPE_C_ULONG_LONG:
+					case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:    case Token::Kind::TYPE_UINT:
+					case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_TYPEID:   case Token::Kind::TYPE_C_WCHAR:
+					case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT: case Token::Kind::TYPE_C_INT:
+					case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:   case Token::Kind::TYPE_C_ULONG:
+					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 						return this->module.createIntegerType(
 							uint32_t(this->context.getTypeManager().numBits(base_type_id))
 						);
@@ -5354,8 +5358,13 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::mangle_name(const BaseType::Union::ID union_id) const -> std::string {
-		if(this->data.getConfig().useReadableNames){
-			const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
+		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
+
+
+		if(union_type.isClangType()){
+			return std::format("union.{}", union_type.getName(this->context.getSourceManager()));
+			
+		}else if(this->data.getConfig().useReadableNames){
 			return std::format("PTHR.u{}.{}", union_id.get(), union_type.getName(this->context.getSourceManager()));
 			
 		}else{

@@ -2012,7 +2012,7 @@ namespace pcit::panther{
 				}else{
 					if(func_call.args.empty()){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 							intrin_tok_id,
 							"Calls to @import requires a path"
 						);
@@ -2021,7 +2021,7 @@ namespace pcit::panther{
 
 					if(func_call.args.size() > 1){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 							func_call.args[1].value,
 							"Calls to @import requires a path, and no other arguments"
 						);
@@ -2053,7 +2053,7 @@ namespace pcit::panther{
 				}else{
 					if(func_call.args.empty()){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 							intrin_tok_id,
 							"Calls to @importC requires a path"
 						);
@@ -2062,7 +2062,7 @@ namespace pcit::panther{
 
 					if(func_call.args.size() > 1){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 							func_call.args[1].value,
 							"Calls to @importC requires a path, and no other arguments"
 						);
@@ -2094,7 +2094,7 @@ namespace pcit::panther{
 				}else{
 					if(func_call.args.empty()){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 							intrin_tok_id,
 							"Calls to @importCPP requires a path"
 						);
@@ -2103,7 +2103,7 @@ namespace pcit::panther{
 
 					if(func_call.args.size() > 1){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_IMPORT_REQUIRES_ONE_ARG,
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 							func_call.args[1].value,
 							"Calls to @importCPP requires a path, and no other arguments"
 						);
@@ -2119,6 +2119,59 @@ namespace pcit::panther{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createImportCPP(
 							func_call, path_value.value(), new_term_info_id
+						)
+					);
+					return new_term_info_id;
+				}
+
+			}else if(this->source.getTokenBuffer()[intrin_tok_id].getString() == "isMacroDefined"){
+				if constexpr(ERRORS){
+					this->emit_error(
+						Diagnostic::Code::SEMA_IMPORT_DOESNT_ERROR,
+						intrin_tok_id,
+						"Intrinsic @isMacroDefined does not error"
+					);
+					return evo::resultError;
+				}else{
+					if(func_call.args.size() != 2){
+						if(func_call.args.empty()){
+							this->emit_error(
+								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+								intrin_tok_id,
+								"Calls to @isMacroDefined a Clang Module and a macro name string"
+							);
+
+						}else if(func_call.args.size() == 1){
+							this->emit_error(
+								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+								func_call,
+								"Calls to @isMacroDefined requires a macro name string"
+							);
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+								func_call,
+								"Calls to @isMacroDefined requires a macro name string"
+							);
+						}
+						return evo::resultError;
+					}
+
+					const evo::Result<SymbolProc::TermInfoID> module_value = this->analyze_expr<true>(
+						func_call.args[0].value
+					);
+					if(module_value.isError()){ return evo::resultError; }
+
+					const evo::Result<SymbolProc::TermInfoID> macro_name_value = this->analyze_expr<true>(
+						func_call.args[1].value
+					);
+					if(macro_name_value.isError()){ return evo::resultError; }
+
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createIsMacroDefined(
+							func_call, module_value.value(), macro_name_value.value(), new_term_info_id
 						)
 					);
 					return new_term_info_id;

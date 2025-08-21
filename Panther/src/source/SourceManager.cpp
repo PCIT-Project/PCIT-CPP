@@ -58,7 +58,7 @@ namespace pcit::panther{
 
 		const auto clang_source_id_range = [&](){
 			const auto lock = std::scoped_lock(this->priv.clang_sources_lock);
-			return core::IterRange<ClangSource::ID::Iterator>(
+			return evo::IterRange<ClangSource::ID::Iterator>(
 				ClangSource::ID::Iterator(ClangSource::ID(0)),
 				ClangSource::ID::Iterator(ClangSource::ID(uint32_t(this->priv.clang_sources.size())))
 			);
@@ -79,7 +79,7 @@ namespace pcit::panther{
 	auto SourceManager::getOrCreateClangSourceID(std::filesystem::path&& path, bool is_cpp) -> GottenClangSourceID {
 		const auto lock = std::scoped_lock(this->priv.clang_sources_lock);
 
-		const auto clang_source_id_range = core::IterRange<ClangSource::ID::Iterator>(
+		const auto clang_source_id_range = evo::IterRange<ClangSource::ID::Iterator>(
 			ClangSource::ID::Iterator(ClangSource::ID(0)),
 			ClangSource::ID::Iterator(ClangSource::ID(uint32_t(this->priv.clang_sources.size())))
 		);

@@ -482,15 +482,58 @@ EVO_NODISCARD static auto run_compile(
 			}
 
 			if(link_result.errMessages.empty() == false){
-				if(link_result.errMessages.size() == 1){
-					printer.printlnRed("<Error:L> Linking failed with 1 error:");
-				}else{
-					printer.printlnRed("<Error:L> Linking failed with {} errors:", link_result.errMessages.size());
-				}
+				// OLD PRINTING VERSION:
+				// if(link_result.errMessages.size() == 1){
+				// 	printer.printlnRed("<Error:L> Linking failed with 1 error:");
+				// }else{
+				// 	printer.printlnRed("<Error:L> Linking failed with {} errors:", link_result.errMessages.size());
+				// }
+				// for(const std::string& err_message : link_result.errMessages){
+				// 	printer.printCyan(err_message);
+				// }
 
 				for(const std::string& err_message : link_result.errMessages){
-					printer.printCyan(err_message);
+					printer.printRed("<Error:L> ");
+					auto output_buffer = std::string();
+
+					bool printed_error = false;
+
+					for(size_t i = 0; char character : err_message){
+						if(character != '\n'){
+							output_buffer += character;
+
+						}else if(i == 0){
+							// skip if the first character is a newline
+
+						}else{
+							if(printed_error == false){
+								printed_error = true;
+								printer.printlnRed(output_buffer);
+
+							}else{
+								printer.printlnCyan(output_buffer);
+							}
+
+							output_buffer.clear();
+
+							if(i + 1 < err_message.size()){
+								printer.print("\t");
+							}
+						}
+
+						i += 1;
+					}
+
+					if(output_buffer.empty() == false){
+						if(printed_error == false){
+							printer.printlnRed(output_buffer);
+
+						}else{
+							printer.printlnCyan(output_buffer);
+						}
+					}
 				}
+
 				return evo::resultError;
 			}
 

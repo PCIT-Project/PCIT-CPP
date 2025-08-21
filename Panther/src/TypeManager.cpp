@@ -140,6 +140,7 @@ namespace pcit::panther{
 		const BaseType::Primitive::ID type_raw_ptr = this->primitives.emplace_back(Token::Kind::TYPE_RAWPTR);
 		const BaseType::Primitive::ID type_type_id = this->primitives.emplace_back(Token::Kind::TYPE_TYPEID);
 
+		this->primitives.emplace_back(Token::Kind::TYPE_C_WCHAR);
 		this->primitives.emplace_back(Token::Kind::TYPE_C_SHORT);
 		this->primitives.emplace_back(Token::Kind::TYPE_C_USHORT);
 		this->primitives.emplace_back(Token::Kind::TYPE_C_INT);
@@ -855,6 +856,9 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_TYPEID: return 4;
 
 					// https://en.cppreference.com/w/cpp/language/types
+					case Token::Kind::TYPE_C_WCHAR:
+						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 2 : 4;
+
 					case Token::Kind::TYPE_C_SHORT: case Token::Kind::TYPE_C_USHORT:
 					    return 2;
 
@@ -1007,6 +1011,9 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_TYPEID: return 32;
 
 					// https://en.cppreference.com/w/cpp/language/types
+					case Token::Kind::TYPE_C_WCHAR:
+						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 16 : 32;
+
 					case Token::Kind::TYPE_C_SHORT: case Token::Kind::TYPE_C_USHORT:
 					    return 16;
 
@@ -1685,6 +1692,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
 			case Token::Kind::TYPE_TYPEID:        return false;
+			case Token::Kind::TYPE_C_WCHAR:       return false;
 			case Token::Kind::TYPE_C_SHORT:       return true;
 			case Token::Kind::TYPE_C_USHORT:      return true;
 			case Token::Kind::TYPE_C_INT:         return true;
@@ -1739,6 +1747,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
 			case Token::Kind::TYPE_TYPEID:        return false;
+			case Token::Kind::TYPE_C_WCHAR:       return false;
 			case Token::Kind::TYPE_C_SHORT:       return false;
 			case Token::Kind::TYPE_C_USHORT:      return true;
 			case Token::Kind::TYPE_C_INT:         return false;
@@ -1793,6 +1802,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
 			case Token::Kind::TYPE_TYPEID:        return false;
+			case Token::Kind::TYPE_C_WCHAR:       return false;
 			case Token::Kind::TYPE_C_SHORT:       return true;
 			case Token::Kind::TYPE_C_USHORT:      return false;
 			case Token::Kind::TYPE_C_INT:         return true;
@@ -1847,6 +1857,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
 			case Token::Kind::TYPE_TYPEID:        return false;
+			case Token::Kind::TYPE_C_WCHAR:       return false;
 			case Token::Kind::TYPE_C_SHORT:       return false;
 			case Token::Kind::TYPE_C_USHORT:      return false;
 			case Token::Kind::TYPE_C_INT:         return false;
@@ -2003,6 +2014,18 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case Token::Kind::TYPE_C_WCHAR: {
+				if(this->getTarget().platform == core::Target::Platform::WINDOWS){
+					return this->getOrCreateTypeInfo(
+						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 16))
+					);
+				}else{
+					return this->getOrCreateTypeInfo(
+						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32))
+					);
+				}
+			} break;
+
 			case Token::Kind::TYPE_C_SHORT: case Token::Kind::TYPE_C_INT: {
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 32))
@@ -2127,6 +2150,12 @@ namespace pcit::panther{
 				return core::GenericValue(core::GenericInt(unsigned(this->numBytesOfPtr() * 8), 0));
 
 			case Token::Kind::TYPE_TYPEID: return core::GenericValue(core::GenericInt(32, 0));
+
+			case Token::Kind::TYPE_C_WCHAR:
+				return core::GenericValue(
+					core::GenericInt(this->getTarget().platform == core::Target::Platform::WINDOWS ? 16 : 32, 0)
+				);
+
 			case Token::Kind::TYPE_C_SHORT: return core::GenericValue(calc_min_signed(16));
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_min_signed(32));
 				
@@ -2213,6 +2242,12 @@ namespace pcit::panther{
 				return core::GenericValue(core::GenericInt(unsigned(this->numBytesOfPtr() * 8), 0));
 
 			case Token::Kind::TYPE_TYPEID: return core::GenericValue(core::GenericInt(32, 0));
+
+			case Token::Kind::TYPE_C_WCHAR:
+				return core::GenericValue(
+					core::GenericInt(this->getTarget().platform == core::Target::Platform::WINDOWS ? 16 : 32, 0)
+				);
+
 			case Token::Kind::TYPE_C_SHORT: return core::GenericValue(calc_min_signed(16));
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_min_signed(32));
 				
@@ -2293,6 +2328,12 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_CHAR:   return core::GenericValue(calc_max_signed(8));
 			case Token::Kind::TYPE_RAWPTR: return core::GenericValue(calc_max_unsigned(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_TYPEID: return core::GenericValue(calc_max_unsigned(32));
+
+			case Token::Kind::TYPE_C_WCHAR:
+				return core::GenericValue(
+					calc_max_unsigned(this->getTarget().platform == core::Target::Platform::WINDOWS ? 16 : 32)
+				);
+
 			case Token::Kind::TYPE_C_SHORT: return core::GenericValue(calc_max_signed(16));
 			case Token::Kind::TYPE_C_INT:   return core::GenericValue(calc_max_signed(32));
 
@@ -2305,7 +2346,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_USHORT:    return core::GenericValue(calc_max_unsigned(16));
 			case Token::Kind::TYPE_C_UINT:      return core::GenericValue(calc_max_unsigned(32));
 
-			case Token::Kind::TYPE_C_ULONG:     
+			case Token::Kind::TYPE_C_ULONG:
 				return core::GenericValue(
 					calc_max_unsigned(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
 				);

@@ -1,26 +1,6 @@
 def c_import = @importCPP("test.h");
 
 
-type Mallocator = struct {
-
-	func alloc = <{T: Type}> (this) #rt -> T* {
-		return c_import.malloc(@numBytes<{T}>()) as T*;
-	}
-
-	func free = (ptr: $$*) #rt -> Void {
-		c_import.free(ptr as RawPtr);
-	}
-
-}
-
-
 func entry = () #entry -> UI8 {
-	var mallocator = new Mallocator{};
-
-	var num: UI8* = mallocator.alloc<{UI8}>();
-	defer{ mallocator.free(num.*); }
-
-	num.* = 12;
-
-	return copy num.*;
+	return @isMacroDefined(c_import, "FOO") as UI8;
 }

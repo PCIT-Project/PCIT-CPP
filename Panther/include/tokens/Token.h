@@ -73,6 +73,7 @@ namespace pcit::panther{
 				TYPE_TYPEID,
 
 				// C compatibility
+				TYPE_C_WCHAR,
 				TYPE_C_SHORT,
 				TYPE_C_USHORT,
 				TYPE_C_INT,
@@ -283,7 +284,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getString() const -> std::string_view {
 				evo::debugAssert(
 					this->_kind == Kind::LITERAL_STRING 
-					|| this->_kind == Kind::LITERAL_CHAR
 					|| this->_kind == Kind::IDENT 
 					|| this->_kind == Kind::INTRINSIC
 					|| this->_kind == Kind::ATTRIBUTE
@@ -447,6 +447,7 @@ namespace pcit::panther{
 					break; case Kind::TYPE_TYPEID:              return "TypeID";
 
 					// C compatibility
+					break; case Kind::TYPE_C_WCHAR:             return "CWChar";
 					break; case Kind::TYPE_C_SHORT:             return "CShort";
 					break; case Kind::TYPE_C_USHORT:            return "CUShort";
 					break; case Kind::TYPE_C_INT:               return "CInt";

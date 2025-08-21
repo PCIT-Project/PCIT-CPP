@@ -1077,16 +1077,16 @@ namespace pcit::panther{
 		bool is_primitive = true;
 		bool is_type_deducer = false;
 		switch(this->reader[start_location].kind()){
-			case Token::Kind::TYPE_VOID:    case Token::Kind::TYPE_THIS:        case Token::Kind::TYPE_INT:
-			case Token::Kind::TYPE_ISIZE:   case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
-			case Token::Kind::TYPE_USIZE:   case Token::Kind::TYPE_UI_N:        case Token::Kind::TYPE_F16:
-			case Token::Kind::TYPE_BF16:    case Token::Kind::TYPE_F32:         case Token::Kind::TYPE_F64:
-			case Token::Kind::TYPE_F80:     case Token::Kind::TYPE_F128:        case Token::Kind::TYPE_BYTE:
-			case Token::Kind::TYPE_BOOL:    case Token::Kind::TYPE_CHAR:        case Token::Kind::TYPE_RAWPTR:
-			case Token::Kind::TYPE_TYPEID:  case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
-			case Token::Kind::TYPE_C_INT:   case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:
-			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
-			case Token::Kind::TYPE_C_LONG_DOUBLE:
+			case Token::Kind::TYPE_VOID:         case Token::Kind::TYPE_THIS:        case Token::Kind::TYPE_INT:
+			case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:        case Token::Kind::TYPE_UI_N:        case Token::Kind::TYPE_F16:
+			case Token::Kind::TYPE_BF16:         case Token::Kind::TYPE_F32:         case Token::Kind::TYPE_F64:
+			case Token::Kind::TYPE_F80:          case Token::Kind::TYPE_F128:        case Token::Kind::TYPE_BYTE:
+			case Token::Kind::TYPE_BOOL:         case Token::Kind::TYPE_CHAR:        case Token::Kind::TYPE_RAWPTR:
+			case Token::Kind::TYPE_TYPEID:       case Token::Kind::TYPE_C_WCHAR:     case Token::Kind::TYPE_C_SHORT:
+			case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
+			case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:     case Token::Kind::TYPE_C_LONG_LONG:
+			case Token::Kind::TYPE_C_ULONG_LONG: case Token::Kind::TYPE_C_LONG_DOUBLE:
 				break;
 
 			case Token::Kind::KEYWORD_TYPE: {

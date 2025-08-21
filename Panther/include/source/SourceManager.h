@@ -57,9 +57,9 @@ namespace pcit::panther{
 
 
 
-			EVO_NODISCARD auto getSourceIDRange() const -> core::IterRange<Source::ID::Iterator> {
+			EVO_NODISCARD auto getSourceIDRange() const -> evo::IterRange<Source::ID::Iterator> {
 				const auto lock = std::lock_guard(this->priv.sources_lock);
-				return core::IterRange<Source::ID::Iterator>(
+				return evo::IterRange<Source::ID::Iterator>(
 					Source::ID::Iterator(Source::ID(0)),
 					Source::ID::Iterator(Source::ID(uint32_t(this->priv.sources.size())))
 				);

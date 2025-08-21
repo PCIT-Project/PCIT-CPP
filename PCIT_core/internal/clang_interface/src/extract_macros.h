@@ -6,32 +6,29 @@
 //                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////
 
+
 #pragma once
+
+#include <filesystem>
 
 #include <Evo.h>
 
-#include <iterator>
+
+#include "../include/API.h"
 
 
-namespace pcit::core{
+namespace clang{
+	class Preprocessor;
+	class SourceManager;
+}
 
+namespace pcit::clangint{
 
-	template<class T>
-	class IterRange{
-		public:
-			IterRange(const T& begin_iter, const T& end_iter) : _begin(begin_iter), _end(end_iter) {};
-			~IterRange() = default;
-		
-			EVO_NODISCARD auto begin() const -> const T& { return this->_begin; }
-			EVO_NODISCARD auto end() const -> const T& { return this->_end; }
-
-			EVO_NODISCARD auto size() const -> size_t { return std::distance(this->_begin, this->_end); }
-			EVO_NODISCARD auto empty() const -> bool { return this->size() == 0; }
-
-
-		private:
-			T _begin;
-			T _end;
-	};
 	
+
+	EVO_NODISCARD auto extract_macros(
+		const clang::Preprocessor& preprocessor, const clang::SourceManager& source_manager, API& api
+	) -> void;
+
+
 }

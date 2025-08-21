@@ -388,6 +388,9 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getImportCPP(instr)
 				);
 
+			case Instruction::Kind::IS_MACRO_DEFINED:
+				return this->instr_is_macro_defined(this->context.symbol_proc_manager.getIsMacroDefined(instr));
+
 			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR:
 				return this->instr_template_intrinsic_func_call<true>(
 					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCallConstexpr(instr)
@@ -5004,6 +5007,34 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::instr_is_macro_defined(const Instruction::IsMacroDefined& instr) -> Result {
+		const TermInfo& clang_module_term_info = this->get_term_info(instr.clang_module);
+		const TermInfo& macro_name_term_info = this->get_term_info(instr.macro_name);
+
+
+		if(clang_module_term_info.value_category != TermInfo::ValueCategory::CLANG_MODULE){
+			evo::debugAssert("MUST BE CLANG MODULE");
+		}
+
+		const ClangSource& clang_module = 
+			this->context.source_manager[clang_module_term_info.type_id.as<ClangSourceID>()];
+
+		const sema::StringValue macro_name = 
+			this->context.getSemaBuffer().getStringValue(macro_name_term_info.getExpr().stringValueID());
+
+		const bool is_macro_defined = clang_module.getDefine(macro_name.value).has_value();
+			
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->context.sema_buffer.createBoolValue(is_macro_defined))
+		);
+		return Result::SUCCESS;
+	}
+
+
+
 	template<bool IS_CONSTEXPR>
 	auto SemanticAnalyzer::instr_template_intrinsic_func_call(
 		const Instruction::TemplateIntrinsicFuncCall<IS_CONSTEXPR>& instr
@@ -9191,14 +9222,14 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
-			case Token::Kind::TYPE_USIZE:         case Token::Kind::TYPE_F16:          case Token::Kind::TYPE_BF16:
-			case Token::Kind::TYPE_F32:           case Token::Kind::TYPE_F64:          case Token::Kind::TYPE_F80:
-			case Token::Kind::TYPE_F128:          case Token::Kind::TYPE_BYTE:         case Token::Kind::TYPE_BOOL:
-			case Token::Kind::TYPE_CHAR:          case Token::Kind::TYPE_RAWPTR:       case Token::Kind::TYPE_TYPEID:
-			case Token::Kind::TYPE_C_SHORT:       case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
-			case Token::Kind::TYPE_C_UINT:        case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
-			case Token::Kind::TYPE_C_LONG_LONG:   case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_INT:     case Token::Kind::TYPE_ISIZE:       case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:   case Token::Kind::TYPE_F16:         case Token::Kind::TYPE_BF16:
+			case Token::Kind::TYPE_F32:     case Token::Kind::TYPE_F64:         case Token::Kind::TYPE_F80:
+			case Token::Kind::TYPE_F128:    case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_BOOL:
+			case Token::Kind::TYPE_CHAR:    case Token::Kind::TYPE_RAWPTR:      case Token::Kind::TYPE_TYPEID:
+			case Token::Kind::TYPE_C_WCHAR: case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+			case Token::Kind::TYPE_C_INT:   case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:
+			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
@@ -11193,7 +11224,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::wait_on_symbol_proc(
 		evo::ArrayProxy<const SymbolProc::Namespace*> symbol_proc_namespaces, std::string_view ident_str
 	) -> WaitOnSymbolProcResult {
-		auto found_range = std::optional<core::IterRange<SymbolProc::Namespace::const_iterator>>();
+		auto found_range = std::optional<evo::IterRange<SymbolProc::Namespace::const_iterator>>();
 		for(const SymbolProc::Namespace* symbol_proc_namespace : symbol_proc_namespaces){
 			const auto find = symbol_proc_namespace->equal_range(ident_str);
 
@@ -12993,14 +13024,15 @@ namespace pcit::panther{
 				);
 
 				switch(primitive_type.kind()){
-					case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
-					case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
-					case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
-					case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_TYPEID:
-					case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
-					case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
-					case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
-					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
+					case Token::Kind::TYPE_INT:      case Token::Kind::TYPE_ISIZE:
+					case Token::Kind::TYPE_I_N:      case Token::Kind::TYPE_UINT:
+					case Token::Kind::TYPE_USIZE:    case Token::Kind::TYPE_UI_N:
+					case Token::Kind::TYPE_BYTE:     case Token::Kind::TYPE_TYPEID:
+					case Token::Kind::TYPE_C_WCHAR:  case Token::Kind::TYPE_C_SHORT:
+					case Token::Kind::TYPE_C_USHORT: case Token::Kind::TYPE_C_INT:
+					case Token::Kind::TYPE_C_UINT:   case Token::Kind::TYPE_C_LONG:
+					case Token::Kind::TYPE_C_ULONG:  case Token::Kind::TYPE_C_LONG_LONG:
+					case Token::Kind::TYPE_C_ULONG_LONG: {
 						return sema::Expr(
 							this->context.sema_buffer.createIntValue(
 								std::move(value.as<core::GenericInt>()), target_type.baseTypeID()
@@ -14464,6 +14496,7 @@ namespace pcit::panther{
 						case Token::Kind::TYPE_USIZE:
 						case Token::Kind::TYPE_UI_N:
 						case Token::Kind::TYPE_BYTE:
+						case Token::Kind::TYPE_C_WCHAR:
 						case Token::Kind::TYPE_C_USHORT:
 						case Token::Kind::TYPE_C_UINT:
 						case Token::Kind::TYPE_C_ULONG:

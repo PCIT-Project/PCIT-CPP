@@ -24,7 +24,7 @@ namespace pcit::llvmint{
 		
 		// LLVMLinkInInterpreter();
 		// auto force = ForceMCJITLinking();
-		LLVMLinkInMCJIT();
+		// LLVMLinkInMCJIT();
 		llvm::InitializeNativeTarget();
 		llvm::InitializeNativeTargetAsmPrinter();
 		llvm::InitializeNativeTargetAsmParser();

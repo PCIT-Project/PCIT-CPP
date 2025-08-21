@@ -182,7 +182,7 @@ namespace pcit::pir{
 			EVO_NODISCARD auto crend() const -> ConstReverseIterator { return this->basic_blocks.crend(); };
 
 
-			using AllocasRange = core::IterRange<core::StepAlloc<Alloca, uint32_t>::ConstIter>;
+			using AllocasRange = evo::IterRange<core::StepAlloc<Alloca, uint32_t>::ConstIter>;
 			EVO_NODISCARD auto getAllocasRange() const -> AllocasRange {
 				return AllocasRange(this->allocas.begin(), this->allocas.end());
 			}

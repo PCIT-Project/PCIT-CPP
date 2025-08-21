@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.148.0"></a>
+## v0.0.148.0
+
+### Panther
+- Added importing of C/C++ macros definitions
+- Added `@isMacroDefined()`
+- Added type `CWChar`
+- Updated LibC
+	- Fixes errors when including `immintrin.h`
+- Improved binary size by not linking against unused LLVM libs
+	- Fixed build warning
+- Removed `core::IterRange`
+	- (now part of Evo, so using that version)
+- Fixed optimized builds failing due to being too large
+- Fixed name mangling of C/C++ union types
+- Fixed various crashes when importing C/C++ code
+
+
+<!---------------------------------->
 <a name="v0.0.147.1"></a>
 ## v0.0.147.1
 
@@ -16,7 +35,7 @@
 ## v0.0.147.0
 
 ### Panther
-- Added support for importing C function declarations
+- Added importing C function declarations
 - Fixed `@getNumBytes` giving the wrong value for some widths of arbitrary bit-width integers
 - Fixed C compilation 
 	- of types with attributes

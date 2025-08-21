@@ -90,6 +90,14 @@ namespace pcit::clangint{
 			};
 
 
+			struct Macro{
+				std::string name;
+
+				std::filesystem::path declFilePath; // empty if not from a file
+				uint32_t declLine; // 0 if not from a file
+				uint32_t declCollumn;  // 0 if not from a file
+			};
+
 
 			struct Decl{
 				Decl(auto* decl_ptr) : ptr(decl_ptr) {}
@@ -121,7 +129,6 @@ namespace pcit::clangint{
 			auto addAlias(auto&&... alias_args) -> void {
 				Alias& created_alias = this->aliases.emplace_back(std::forward<decltype(alias_args)>(alias_args)...);
 
-				this->alias_map.emplace(created_alias.name, created_alias);
 				this->decls.emplace_back(&created_alias);
 			}
 
@@ -129,15 +136,12 @@ namespace pcit::clangint{
 				Struct& created_struct =
 					this->structs.emplace_back(std::forward<decltype(struct_args)>(struct_args)...);
 
-				this->struct_map.emplace(created_struct.name, created_struct);
 				this->decls.emplace_back(&created_struct);
 			}
 
 			auto addUnion(auto&&... union_args) -> void {
-				Union& created_union =
-					this->unions.emplace_back(std::forward<decltype(union_args)>(union_args)...);
+				Union& created_union = this->unions.emplace_back(std::forward<decltype(union_args)>(union_args)...);
 
-				this->union_map.emplace(created_union.name, created_union);
 				this->decls.emplace_back(&created_union);
 			}
 
@@ -145,12 +149,19 @@ namespace pcit::clangint{
 				Function& created_function =
 					this->functions.emplace_back(std::forward<decltype(function_args)>(function_args)...);
 
-				this->function_map.emplace(created_function.name, created_function);
 				this->decls.emplace_back(&created_function);
+			}
+
+			auto addMacro(auto&&... macro_args) -> void {
+				this->macros.emplace_back(std::forward<decltype(macro_args)>(macro_args)...);
 			}
 
 
 			EVO_NODISCARD auto getDecls() const -> evo::ArrayProxy<Decl> { return this->decls; }
+
+			EVO_NODISCARD auto getMacros() const -> evo::IterRange<evo::StepVector<Macro>::const_iterator> {
+				return evo::IterRange<evo::StepVector<Macro>::const_iterator>(this->macros.begin(), this->macros.end());
+			}
 
 
 
@@ -166,16 +177,12 @@ namespace pcit::clangint{
 			evo::SmallVector<Decl> decls{};
 
 			evo::StepVector<Alias> aliases{};
-			std::unordered_map<std::string_view, Alias&> alias_map{};
-
 			evo::StepVector<Struct> structs{};
-			std::unordered_map<std::string_view, Struct&> struct_map{};
-
 			evo::StepVector<Union> unions{};
-			std::unordered_map<std::string_view, Union&> union_map{};
-
 			evo::StepVector<Function> functions{};
-			std::unordered_map<std::string_view, Function&> function_map{};
+
+			evo::StepVector<Macro> macros{};
+
 
 
 			const std::unordered_map<std::string_view, BaseType::Primitive> special_primitive_lookup{

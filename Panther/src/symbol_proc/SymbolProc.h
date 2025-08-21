@@ -551,6 +551,13 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct IsMacroDefined{
+			const AST::FuncCall& func_call;
+			SymbolProcTermInfoID clang_module;
+			SymbolProcTermInfoID macro_name;
+			SymbolProcTermInfoID output;
+		};
+
 		template<bool IS_CONSTEXPR>
 		struct TemplateIntrinsicFuncCall{
 			const AST::FuncCall& func_call;
@@ -887,6 +894,7 @@ namespace pcit::panther{
 			IMPORT_PANTHER,
 			IMPORT_C,
 			IMPORT_CPP,
+			IS_MACRO_DEFINED,
 			TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR,
 			TEMPLATE_INTRINSIC_FUNC_CALL,
 			INDEXER_CONSTEXPR,

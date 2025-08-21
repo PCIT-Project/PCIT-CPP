@@ -179,6 +179,7 @@ namespace pcit::panther{
 		{"RawPtr",      Token::Kind::TYPE_RAWPTR},
 		{"TypeID",      Token::Kind::TYPE_TYPEID},
 
+		{"CWChar",      Token::Kind::TYPE_C_WCHAR},
 		{"CShort",      Token::Kind::TYPE_C_SHORT},
 		{"CUShort",     Token::Kind::TYPE_C_USHORT},
 		{"CInt",        Token::Kind::TYPE_C_INT},

@@ -14,6 +14,8 @@
 
 #include "../include/Type.h"
 
+#include "./extract_macros.h"
+
 namespace pcit::clangint{
 
 
@@ -44,21 +46,28 @@ namespace pcit::clangint{
 				}();
 
 
-				if(this->ast_context != nullptr){
-					const clang::PresumedLoc presumed_loc =
-						this->ast_context->getSourceManager().getPresumedLoc(info.getLocation());
+				if(this->source_manager != nullptr){
+					const clang::PresumedLoc presumed_loc = this->source_manager->getPresumedLoc(info.getLocation());
 
-					// this->ast_context->getFullLoc(info.getLocation()).getSpellingLineNumber(),
+					// this->source_manager->getFullLoc(info.getLocation()).getSpellingLineNumber(),
 
-					this->diag_list.diagnostics.emplace_back(
-						std::string(str.data(), str.size()),
-						list_level,
-						DiagnosticList::Diagnostic::Location(
-							std::filesystem::path(std::string(presumed_loc.getFilename())),
-							presumed_loc.getLine(),
-							presumed_loc.getColumn()
-						)
-					);
+					if(presumed_loc.isValid()){
+						this->diag_list.diagnostics.emplace_back(
+							std::string(str.data(), str.size()),
+							list_level,
+							DiagnosticList::Diagnostic::Location(
+								std::filesystem::path(std::string(presumed_loc.getFilename())),
+								presumed_loc.getLine(),
+								presumed_loc.getColumn()
+							)
+						);
+						
+					}else{
+						this->diag_list.diagnostics.emplace_back(
+							std::string(str.data(), str.size()), list_level, std::nullopt
+						);
+					}
+
 				}else{
 					this->diag_list.diagnostics.emplace_back(
 						std::string(str.data(), str.size()), list_level, std::nullopt
@@ -67,14 +76,14 @@ namespace pcit::clangint{
 			}
 
 
-			auto setASTContext(clang::ASTContext* _ast_context) -> void {
-				evo::debugAssert(this->ast_context == nullptr, "ASTContext already set");
-				this->ast_context = _ast_context;
+			auto set_source_manager(clang::SourceManager* _source_manager) -> void {
+				evo::debugAssert(this->source_manager == nullptr, "SourceManager already set");
+				this->source_manager = _source_manager;
 			}
 	
 		private:
 			DiagnosticList& diag_list;
-			clang::ASTContext* ast_context = nullptr;
+			clang::SourceManager* source_manager = nullptr;
 	};
 
 
@@ -121,12 +130,23 @@ namespace pcit::clangint{
 			auto split = target_qual_type.split();
 			
 			switch(split.Ty->getTypeClass()){
+				case clang::Type::Decayed: {
+					target_qual_type = split.Ty->getPointeeType();
+
+					if(qual_type.isConstQualified()){
+						qualifiers.emplace(qualifiers.begin(), Type::Qualifier::CONST_POINTER);
+					}else{
+						qualifiers.emplace(qualifiers.begin(), Type::Qualifier::POINTER);
+					}
+				} break;
+
 				case clang::Type::Builtin: {
 					const BaseType::Primitive builtin_kind = [&]() -> BaseType::Primitive {
 						switch(clang::cast<clang::BuiltinType>(split.Ty)->getKind()){
 							case clang::BuiltinType::Kind::Void:       return BaseType::Primitive::VOID;
 							case clang::BuiltinType::Kind::Bool:       return BaseType::Primitive::BOOL;
 							case clang::BuiltinType::Kind::Char_U:     return BaseType::Primitive::CHAR;
+							case clang::BuiltinType::Kind::WChar_U:    return BaseType::Primitive::C_WCHAR;
 							case clang::BuiltinType::Kind::UChar:      return BaseType::Primitive::UI8;
 							case clang::BuiltinType::Kind::UShort:     return BaseType::Primitive::C_USHORT;
 							case clang::BuiltinType::Kind::UInt:       return BaseType::Primitive::C_UINT;
@@ -135,6 +155,7 @@ namespace pcit::clangint{
 							case clang::BuiltinType::Kind::UInt128:    return BaseType::Primitive::UI128;
 							case clang::BuiltinType::Kind::Char_S:     return BaseType::Primitive::CHAR;
 							case clang::BuiltinType::Kind::SChar:      return BaseType::Primitive::I8;
+							case clang::BuiltinType::Kind::WChar_S:    return BaseType::Primitive::C_WCHAR;
 							case clang::BuiltinType::Kind::Short:      return BaseType::Primitive::C_SHORT;
 							case clang::BuiltinType::Kind::Int:        return BaseType::Primitive::C_INT;
 							case clang::BuiltinType::Kind::Long:       return BaseType::Primitive::C_LONG;
@@ -154,8 +175,9 @@ namespace pcit::clangint{
 					return Type(builtin_kind, std::move(qualifiers), split.Quals.hasConst());
 				} break;
 
-				case clang::Type::DependentSizedArray: {
-					return Type(BaseType::Primitive::UNKNOWN, std::move(qualifiers), split.Quals.hasConst());
+				case clang::Type::Decltype: {
+					const clang::DecltypeType& decltype_type = *clang::cast<clang::DecltypeType>(split.Ty);
+					target_qual_type = decltype_type.getUnderlyingType();
 				} break;
 
 				case clang::Type::Elaborated: {
@@ -233,6 +255,16 @@ namespace pcit::clangint{
 					target_qual_type = split.Ty->getPointeeType();
 				} break;
 
+				case clang::Type::Enum: {
+					clang::EnumDecl* enum_decl = clang::cast<clang::EnumDecl>(split.Ty->getAsTagDecl());
+
+					return Type(
+						BaseType::NamedDecl(enum_decl->getNameAsString(), BaseType::NamedDecl::Kind::ENUM),
+						std::move(qualifiers),
+						split.Quals.hasConst()
+					);
+				} break;
+
 				case clang::Type::Record: {
 					clang::RecordDecl* record_decl = split.Ty->getAsRecordDecl();
 
@@ -253,17 +285,6 @@ namespace pcit::clangint{
 							split.Quals.hasConst()
 						);
 					}
-
-				} break;
-
-				case clang::Type::Enum: {
-					clang::EnumDecl* enum_decl = clang::cast<clang::EnumDecl>(split.Ty->getAsTagDecl());
-
-					return Type(
-						BaseType::NamedDecl(enum_decl->getNameAsString(), BaseType::NamedDecl::Kind::ENUM),
-						std::move(qualifiers),
-						split.Quals.hasConst()
-					);
 				} break;
 
 				case clang::Type::Typedef: {
@@ -286,9 +307,7 @@ namespace pcit::clangint{
 				} break;
 
 				default: {
-					evo::debugFatalBreak(
-						"Unknown or unsupported clang type class (for type: {})", target_qual_type.getAsString()
-					);
+					return Type(BaseType::Primitive::UNKNOWN, std::move(qualifiers), split.Quals.hasConst());
 				} break;
 			}
 		}
@@ -301,10 +320,10 @@ namespace pcit::clangint{
 
 
 
-
 	class ExtractAPIVisitor : public clang::RecursiveASTVisitor<ExtractAPIVisitor> {
 		public:
-			explicit ExtractAPIVisitor(clang::ASTContext* context, API& _api) : ast_context(context), api(_api) {}
+			explicit ExtractAPIVisitor(const clang::SourceManager& src_manager, API& _api)
+				: source_manager(src_manager), api(_api) {}
 
 
 			auto VisitFunctionDecl(clang::FunctionDecl* func_decl) -> bool {
@@ -313,16 +332,14 @@ namespace pcit::clangint{
 				auto params = evo::SmallVector<API::Function::Param>();
 				params.reserve(func_decl->parameters().size());
 				for(const clang::ParmVarDecl* param : func_decl->parameters()){
-					const clang::PresumedLoc presumed_loc =
-						this->ast_context->getSourceManager().getPresumedLoc(param->getLocation());
+					const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(param->getLocation());
 
 					params.emplace_back(
 						param->getNameAsString(), uint32_t(presumed_loc.getLine()), uint32_t(presumed_loc.getColumn())
 					);
 				}
 
-				const clang::PresumedLoc presumed_loc =
-					this->ast_context->getSourceManager().getPresumedLoc(func_decl->getLocation());
+				const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(func_decl->getLocation());
 
 				this->api.addFunction(
 					func_decl->getNameAsString(),
@@ -343,7 +360,7 @@ namespace pcit::clangint{
 				if(typedef_decl->getParentFunctionOrMethod() != nullptr){ return true; } // skip scoped to functions
 				
 				const clang::PresumedLoc presumed_loc =
-					this->ast_context->getSourceManager().getPresumedLoc(typedef_decl->getLocation());
+					this->source_manager.getPresumedLoc(typedef_decl->getLocation());
 
 				this->api.addAlias(
 					typedef_decl->getNameAsString(),
@@ -362,7 +379,7 @@ namespace pcit::clangint{
 
 
 				const clang::PresumedLoc presumed_loc =
-					this->ast_context->getSourceManager().getPresumedLoc(type_alias_decl->getLocation());
+					this->source_manager.getPresumedLoc(type_alias_decl->getLocation());
 
 				this->api.addAlias(
 					type_alias_decl->getNameAsString(),
@@ -428,8 +445,7 @@ namespace pcit::clangint{
 						evo::debugFatalBreak("Unknown clang member access kind");
 					}();
 
-					const clang::PresumedLoc presumed_loc =
-						this->ast_context->getSourceManager().getPresumedLoc(field->getLocation());
+					const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(field->getLocation());
 
 					members.emplace_back(
 						field_name,
@@ -440,8 +456,7 @@ namespace pcit::clangint{
 					);
 				}
 
-				const clang::PresumedLoc presumed_loc =
-					this->ast_context->getSourceManager().getPresumedLoc(record_decl->getLocation());
+				const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(record_decl->getLocation());
 
 				this->api.addStruct(
 					std::move(name),
@@ -472,8 +487,7 @@ namespace pcit::clangint{
 					const clang::QualType field_type = field->getType();
 
 
-					const clang::PresumedLoc presumed_loc =
-						this->ast_context->getSourceManager().getPresumedLoc(field->getLocation());
+					const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(field->getLocation());
 
 					fields.emplace_back(
 						field_name,
@@ -483,8 +497,7 @@ namespace pcit::clangint{
 					);
 				}
 
-				const clang::PresumedLoc presumed_loc =
-					this->ast_context->getSourceManager().getPresumedLoc(union_decl->getLocation());
+				const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(union_decl->getLocation());
 
 				this->api.addUnion(
 					std::move(name),
@@ -499,14 +512,15 @@ namespace pcit::clangint{
 
 
 		private:
-			clang::ASTContext* ast_context;
+			const clang::SourceManager& source_manager;
 			API& api;
 	};
 
 
 	class ExtractAPIConsumer : public clang::ASTConsumer {
 		public:
-			explicit ExtractAPIConsumer(clang::ASTContext* context, API& api) : visitor(context, api) {}
+			explicit ExtractAPIConsumer(const clang::SourceManager& source_manager, API& api)
+				: visitor(source_manager, api) {}
 
 			virtual void HandleTranslationUnit(clang::ASTContext& context) {
 				this->visitor.TraverseDecl(context.getTranslationUnitDecl());
@@ -526,9 +540,10 @@ namespace pcit::clangint{
 				clang::CompilerInstance& clang_instance, llvm::StringRef in_file
 			){
 				std::ignore = in_file;
-				_diagnostic_consumer.setASTContext(&clang_instance.getASTContext());
+				this->_diagnostic_consumer.set_source_manager(&clang_instance.getASTContext().getSourceManager());
+
 				return std::unique_ptr<clang::ASTConsumer>(
-					new ExtractAPIConsumer(&clang_instance.getASTContext(), this->_api)
+					new ExtractAPIConsumer(clang_instance.getASTContext().getSourceManager(), this->_api)
 				);
 			}
 
@@ -670,6 +685,8 @@ namespace pcit::clangint{
 		auto compiler_action = ExtractAPIAction(api, diagnostic_consumer);
 		if(clang_instance.ExecuteAction(compiler_action) == false){ return evo::resultError; }
 
+		extract_macros(clang_instance.getPreprocessor(), clang_instance.getSourceManager(), api);
+
 		evo::debugAssert(output.empty(), "Clang output not empty");
 
 		return evo::Result<>();
@@ -709,6 +726,7 @@ namespace pcit::clangint{
 		auto clang_instance = clang::CompilerInstance(compiler_invocation);
 		clang_instance.setDiagnostics(diagnostics_engine);
 		clang_instance.createFileManager();
+
 
 		clang::TargetInfo* target_info =
 			clang::TargetInfo::CreateTargetInfo(*diagnostics_engine, compiler_invocation->getTargetOpts());
