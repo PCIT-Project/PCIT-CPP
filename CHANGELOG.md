@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.149.1"></a>
+## v0.0.149.1
+
+### Panther
+- Fixed array initializer new with aliases
+- Fixed array indexers when the type is an alias
+
+### PIR
+- Fixed first indentation level being 3 spaces instead of 4
+
+
+<!---------------------------------->
 <a name="v0.0.149.0"></a>
 ## v0.0.149.0
 

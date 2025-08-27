@@ -23,7 +23,7 @@ namespace pcit::pir{
 	static constexpr auto tabs(unsigned indent) -> std::string_view {
 		switch(indent){
 			case 0: return "";
-			case 1: return "   ";
+			case 1: return "    ";
 			case 2: return "        ";
 		}
 

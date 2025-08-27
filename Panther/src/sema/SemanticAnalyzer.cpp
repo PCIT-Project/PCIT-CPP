@@ -6389,10 +6389,13 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id.asTypeID());
+		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
+			this->get_actual_type<true>(target_type_id.asTypeID())
+		);
+
 		if(
-			target_type_info.qualifiers().empty() == false
-			|| target_type_info.baseTypeID().kind() != BaseType::Kind::ARRAY
+			actual_target_type_info.qualifiers().empty() == false
+			|| actual_target_type_info.baseTypeID().kind() != BaseType::Kind::ARRAY
 		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_ARRAY_INIT_NOT_ARRAY,
@@ -6403,7 +6406,7 @@ namespace pcit::panther{
 		}
 
 		const BaseType::Array& target_type = this->context.getTypeManager().getArray(
-			target_type_info.baseTypeID().arrayID()
+			actual_target_type_info.baseTypeID().arrayID()
 		);
 
 		if(target_type.lengths.size() > 1){
@@ -6453,7 +6456,7 @@ namespace pcit::panther{
 		}
 
 		const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
-			std::move(values), target_type_info.baseTypeID()
+			std::move(values), actual_target_type_info.baseTypeID()
 		);
 
 		const TermInfo::ValueStage value_stage = [&](){
@@ -7049,9 +7052,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
+		const TypeInfo& actual_target_type = this->context.getTypeManager().getTypeInfo(
+			this->get_actual_type<true>(target.type_id.as<TypeInfo::ID>())
+		);
 
-		if(target_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
+		if(actual_target_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
 			this->emit_error(
 				Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
 				instr.indexer,
@@ -7061,11 +7066,11 @@ namespace pcit::panther{
 		}
 
 		bool is_ptr = false;
-		if(target_type.qualifiers().empty() == false){
-			if(target_type.qualifiers().size() == 1 && target_type.isNormalPointer()){
+		if(actual_target_type.qualifiers().empty() == false){
+			if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isNormalPointer()){
 				is_ptr = true;
 			}else{
-				if(target_type.isOptional()){
+				if(actual_target_type.isOptional()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
 						instr.indexer,
@@ -7084,7 +7089,7 @@ namespace pcit::panther{
 		}
 
 		const BaseType::Array& target_array_type =
-			this->context.getTypeManager().getArray(target_type.baseTypeID().arrayID());
+			this->context.getTypeManager().getArray(actual_target_type.baseTypeID().arrayID());
 
 		if(target_array_type.lengths.size() != instr.indices.size()){
 			this->emit_error(
@@ -7125,7 +7130,7 @@ namespace pcit::panther{
 			resultant_qualifiers.emplace_back(qualifier);
 		}
 		resultant_qualifiers.emplace_back(
-			true, target.is_const() || (is_ptr && target_type.qualifiers().back().isReadOnly), false
+			true, target.is_const() || (is_ptr && actual_target_type.qualifiers().back().isReadOnly), false
 		);
 
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
@@ -7135,13 +7140,13 @@ namespace pcit::panther{
 		const sema::Expr sema_indexer_expr = [&](){
 			if(is_ptr){
 				auto derefed_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
-				derefed_qualifiers.reserve(target_type.qualifiers().size() - 1);
-				for(size_t i = 0; i < target_type.qualifiers().size() - 1; i+=1){
-					derefed_qualifiers.emplace_back(target_type.qualifiers()[i]);
+				derefed_qualifiers.reserve(actual_target_type.qualifiers().size() - 1);
+				for(size_t i = 0; i < actual_target_type.qualifiers().size() - 1; i+=1){
+					derefed_qualifiers.emplace_back(actual_target_type.qualifiers()[i]);
 				}
 
 				const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(target_type.baseTypeID(), std::move(derefed_qualifiers))
+					TypeInfo(actual_target_type.baseTypeID(), std::move(derefed_qualifiers))
 				);
 
 				return sema::Expr(this->context.sema_buffer.createPtrIndexer(

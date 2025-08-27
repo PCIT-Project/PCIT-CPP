@@ -6,21 +6,24 @@ type Vec2 = struct {
 	var y: Int;
 }
 
+type alias Vec2Arr = [Int:2];
+
+
 type Union = union #untagged {
-	array: [Int:2],
+	array: Vec2Arr,
 	vec: Vec2,
 }
 
 
 
-func create_union = (arr: [Int:2] in) -> (output: Union) {
+func create_union = (arr: Vec2Arr in) -> (output: Union) {
 	output.array = forward arr;
 	return...;
 }
 
 
 
-const foo: Vec2 = get_vec2(create_union(new [Int:2][12, 14]));
+const foo: Vec2 = get_vec2(create_union(new Vec2Arr[12, 14]));
 
 
 func get_vec2 = (input: Union) -> (output: Vec2) {
@@ -28,7 +31,7 @@ func get_vec2 = (input: Union) -> (output: Vec2) {
 		x = copy input.array[0].*,
 		y = copy input.vec.y, // UB, but testing / for fun
 	};
-	
+
 	return...;
 }
 
