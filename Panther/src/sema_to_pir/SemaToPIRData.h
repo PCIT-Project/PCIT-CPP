@@ -81,32 +81,6 @@ namespace pcit::panther{
 			};
 
 
-			struct JITInterfaceFuncs{
-				pir::ExternalFunction::ID return_generic_int  = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_bool = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_f16  = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_bf16 = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_f32  = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_f64  = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_f80  = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_f128 = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_char = pir::ExternalFunction::ID::dummy();
-
-				pir::ExternalFunction::ID prepare_return_generic_aggregate = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_aggregate_int     = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_aggregate_bool    = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_aggregate_f16     = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_aggregate_bf16    = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_aggregate_f32     = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_aggregate_f64     = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_aggregate_f80     = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID return_generic_aggregate_f128    = pir::ExternalFunction::ID::dummy();
-
-				pir::ExternalFunction::ID get_generic_int   = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID get_generic_bool  = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID get_generic_float = pir::ExternalFunction::ID::dummy();
-			};
-
 			struct JITBuildFuncs{
 				pir::ExternalFunction::ID build_set_num_threads = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID build_set_output      = pir::ExternalFunction::ID::dummy();
@@ -122,17 +96,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
 
 			auto getInterfacePtrType(pir::Module& module) -> pir::Type;
-
-
-			//////////////////
-			// JIT interface funcs
-
-			EVO_NODISCARD auto getJITInterfaceFuncs() const -> const JITInterfaceFuncs& {
-				return this->jit_interface_funcs;
-			}
-
-
-			auto createJITInterfaceFuncDecls(pir::Module& module) -> void;
 
 
 
@@ -271,7 +234,6 @@ namespace pcit::panther{
 			std::unordered_set<std::string> extern_funcs{};
 			mutable core::SpinLock extern_funcs_lock{};
 
-			JITInterfaceFuncs jit_interface_funcs{};
 			JITBuildFuncs jit_build_funcs{};
 
 			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};

@@ -25,7 +25,6 @@ namespace pcit::pir{
 	// Lookup extra info about types in Module as well
 	// 
 
-
 	class Type{
 		public:
 			enum class Kind : uint32_t {

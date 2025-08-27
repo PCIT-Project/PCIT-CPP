@@ -447,11 +447,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;
 
 
-			EVO_NODISCARD auto genericValueToSemaExpr(core::GenericValue& value, const TypeInfo& target_type)
+			EVO_NODISCARD auto generic_value_to_sema_expr(const core::GenericValue& value, const TypeInfo& target_type)
 				-> sema::Expr;
 
+			EVO_NODISCARD auto sema_expr_to_generic_value(const sema::Expr& expr) -> core::GenericValue;
 
-			EVO_NODISCARD auto getCompilationConfig() const -> const Source::CompilationConfig&;
+
+			EVO_NODISCARD auto get_compilation_config() const -> const Source::CompilationConfig&;
 
 
 			struct DeducedType{

@@ -81,8 +81,15 @@ namespace pcit::pir{
 
 
 
+			// requires the function to be called to return Void and take the following parameters:
+			// 		1) Ptr to an array of Ptr where each element is an argument to the function 
+			// 		2) Ptr to the return value 
+			// 	Note: calling convension should be C, and linkage should be external
+			// 	Note: both arguments are required, even if unused by the target function
+			// 	Note: no conversion from core::GenericValue is needed to be done on the JIT side,
+			// 		as that is done automatically by JITEngine.
 			EVO_NODISCARD auto runFunc(
-				const class Module& module, Function::ID func_id, std::span<core::GenericValue> args
+				const class Module& module, Function::ID func_id, std::span<core::GenericValue> args, Type return_type
 			) -> core::GenericValue;
 
 
@@ -101,10 +108,6 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto registerFunc(std::string_view name, void* func_call_address)
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
-
-
-			// Needed if you want to use `runFunc`
-			EVO_NODISCARD auto registerJITInterfaceFuncs() -> evo::Expected<void, evo::SmallVector<std::string>>;
 
 
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->data != nullptr; }

@@ -648,8 +648,8 @@ namespace pcit::panther{
 
 
 		auto params = evo::SmallVector<pir::Parameter>{
-			pir::Parameter("RET", this->module.createPtrType()),
 			pir::Parameter("ARGS", this->module.createPtrType()),
+			pir::Parameter("RET", this->module.createPtrType()),
 		};
 
 		const pir::Function::ID jit_interface_func_id = this->module.createFunction(
@@ -668,417 +668,67 @@ namespace pcit::panther{
 		this->agent.createBasicBlock();
 		this->agent.setTargetBasicBlockAtEnd();
 
+
 		auto args = evo::SmallVector<pir::Expr>();
 		args.reserve(target_pir_func.getParameters().size());
 
+		size_t param_i = 0;
 
-		///////////////////////////////////
-		// getters for parameters
+		for(const BaseType::Function::Param& param : func_type.params){
+			const pir::Expr param_calc_ptr = this->agent.createCalcPtr(
+				this->agent.createParamExpr(0),
+				this->module.createPtrType(),
+				evo::SmallVector<pir::CalcPtr::Index>{int64_t(param_i)}
+			);
 
-		for(size_t i = 0; const pir::Parameter& param : target_pir_func.getParameters()){
-			EVO_DEFER([&](){ i += 1; });
-
-			bool param_is_ptr_rvo = false;
-			for(const pir::Parameter::Attribute& attribute : param.attributes){
-				if(attribute.is<pir::Parameter::Attribute::PtrRVO>()){
-					param_is_ptr_rvo = true;
-					break;
+			if(target_pir_func.getParameters()[param_i].getType().kind() == pir::Type::Kind::PTR){
+				if(this->context.getTypeManager().getTypeInfo(param.typeID).isPointer()){
+					args.emplace_back(
+						this->agent.createLoad(
+							this->agent.createLoad(param_calc_ptr, this->module.createPtrType()),
+							target_pir_func.getParameters()[param_i].getType()
+						)
+					);
+				}else{
+					args.emplace_back(this->agent.createLoad(param_calc_ptr, this->module.createPtrType()));
 				}
-			}
-
-			
-			if(param_is_ptr_rvo){
-				evo::debugAssert(
-					param.getType().kind() == pir::Type::Kind::PTR,
-					"attribute `#ptrRVO` should only go pointer PIR parameters"
-				);
-
-				const TypeInfo::ID param_type_id = [&](){
-					if(i < func_type.params.size()){ return func_type.params[i].typeID; }
-					return func_type.returnParams[i - func_type.params.size()].typeID.asTypeID();
-				}();
-
-				const pir::Expr alloca = this->agent.createAlloca(this->get_type<false>(param_type_id));
-				args.emplace_back(alloca);
 
 			}else{
-				const pir::Expr arg_ptr = this->agent.createCalcPtr(
-					this->agent.createParamExpr(1),
-					this->module.createIntegerType(8),
-					evo::SmallVector<pir::CalcPtr::Index>{int64_t(i * sizeof(core::GenericValue))}
+				args.emplace_back(
+					this->agent.createLoad(
+						this->agent.createLoad(param_calc_ptr, this->module.createPtrType()),
+						target_pir_func.getParameters()[param_i].getType()
+					)
+				);
+			}
+
+			param_i += 1;
+		}
+
+		if(func_type.hasNamedReturns()){
+			for(const BaseType::Function::ReturnParam& ret_param : func_type.returnParams){
+				std::ignore = ret_param;
+
+				const pir::Expr param_calc_ptr = this->agent.createCalcPtr(
+					this->agent.createParamExpr(0),
+					this->module.createPtrType(),
+					evo::SmallVector<pir::CalcPtr::Index>{int64_t(param_i)}
 				);
 
-				switch(param.getType().kind()){
-					case pir::Type::Kind::VOID: {
-						evo::debugFatalBreak("Function parameter cannot be type void");
-					} break;
+				args.emplace_back(this->agent.createLoad(param_calc_ptr, this->module.createPtrType()));
 
-					case pir::Type::Kind::INTEGER: {
-						const pir::Expr alloca = this->agent.createAlloca(param.getType());
-						this->agent.createCallVoid(
-							this->data.getJITInterfaceFuncs().get_generic_int,
-							{
-								arg_ptr,
-								alloca,
-								this->agent.createNumber(
-									this->module.createIntegerType(32),
-									core::GenericInt::create<uint32_t>(param.getType().getWidth() / 8)
-								)
-							}
-						);
-						args.emplace_back(this->agent.createLoad(alloca, param.getType()));
-					} break;
-
-					case pir::Type::Kind::BOOL: {
-						args.emplace_back(
-							this->agent.createCall(this->data.getJITInterfaceFuncs().get_generic_bool, {arg_ptr})
-						);
-					} break;
-
-					case pir::Type::Kind::FLOAT: {
-						const pir::Expr alloca = this->agent.createAlloca(param.getType());
-						this->agent.createCallVoid(
-							this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca}
-						);
-						args.emplace_back(this->agent.createLoad(alloca, param.getType()));
-					} break;
-
-					case pir::Type::Kind::BFLOAT: {
-						const pir::Expr alloca = this->agent.createAlloca(param.getType());
-						this->agent.createCallVoid(
-							this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca}
-						);
-						args.emplace_back(this->agent.createLoad(alloca, param.getType()));
-					} break;
-
-					case pir::Type::Kind::PTR: {
-						bool is_normal_param = true;
-
-						const TypeInfo::ID param_type_id = [&](){
-							if(i < func_type.params.size()){ return func_type.params[i].typeID; }
-
-							is_normal_param = false;
-							return func_type.returnParams[i - func_type.params.size()].typeID.asTypeID();
-						}();
-
-						const pir::Type param_pir_type = this->get_type<false>(param_type_id);
-
-						if(this->context.getTypeManager().isIntegral(param_type_id)){
-							const pir::Expr alloca = this->agent.createAlloca(param_pir_type);
-
-							if(is_normal_param){
-								this->agent.createCallVoid(
-									this->data.getJITInterfaceFuncs().get_generic_int,
-									{
-										arg_ptr,
-										alloca,
-										this->agent.createNumber(
-											this->module.createIntegerType(32),
-											core::GenericInt::create<uint32_t>(param_pir_type.getWidth() / 8)
-										)
-									}
-								);
-							}
-
-							args.emplace_back(alloca);
-
-						}else if(this->context.getTypeManager().isFloatingPoint(param_type_id)){
-							const pir::Expr alloca = this->agent.createAlloca(param_pir_type);
-
-							if(is_normal_param){
-								this->agent.createCallVoid(
-									this->data.getJITInterfaceFuncs().get_generic_float, {arg_ptr, alloca}
-								);
-							}
-
-							args.emplace_back(alloca);
-
-						}else{
-							const TypeInfo& param_type = this->context.getTypeManager().getTypeInfo(param_type_id);
-
-							evo::debugAssert(param_type.qualifiers().empty(), "Unsupported constexpr param type");
-							evo::debugAssert(
-								param_type.baseTypeID().kind() == BaseType::Kind::STRUCT,
-								"Unsupported constexpr param type"
-							);
-
-
-							const pir::Expr alloca = this->agent.createAlloca(param_pir_type);
-
-							if(is_normal_param){
-								evo::unimplemented("Constexpr interface with struct ptr normal param");
-							}
-
-							args.emplace_back(alloca);
-						}
-					} break;
-
-					case pir::Type::Kind::ARRAY: {
-						evo::unimplemented("Constexpr interface with array param");
-					} break;
-
-					case pir::Type::Kind::STRUCT: {
-						evo::unimplemented("Constexpr interface with struct param");
-					} break;
-
-					case pir::Type::Kind::FUNCTION: {
-						evo::unimplemented("Constexpr interface with function param");
-					} break;
-				}
+				param_i += 1;
 			}
 		}
 
-
-		///////////////////////////////////
-		// return the return value
-
-		switch(target_pir_func.getReturnType().kind()){
-			case pir::Type::Kind::VOID: {
-				this->agent.createCallVoid(pir_func_id, evo::copy(args));
-			} break;
-			
-			case pir::Type::Kind::INTEGER: {
-				const bool returns_char = func_type.returnParams.size() == 1 
-					&& func_type.hasErrorReturn() == false
-					&& func_type.returnParams[0].typeID.asTypeID() == this->context.getTypeManager().getTypeChar();
-
-				if(returns_char){
-					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_char, {
-						this->agent.createParamExpr(0),
-						this->agent.createCall(pir_func_id, evo::copy(args))
-					});
-
-				}else{
-					const uint32_t bit_width = target_pir_func.getReturnType().getWidth();
-
-					const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-					const pir::Expr target_call = this->agent.createCall(pir_func_id, evo::copy(args));
-					this->agent.createStore(return_alloca, target_call);
-
-					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_int, {
-						this->agent.createParamExpr(0),
-						return_alloca,
-						this->agent.createNumber(
-							this->module.createIntegerType(32), core::GenericInt::create<uint32_t>(bit_width)
-						)
-					});
-				}
-			} break;
-			
-			case pir::Type::Kind::BOOL: {
-				this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_bool, {
-					this->agent.createParamExpr(0),
-					this->agent.createCall(pir_func_id, evo::copy(args))
-				});
-			} break;
-			
-			case pir::Type::Kind::FLOAT: {				
-				switch(target_pir_func.getReturnType().getWidth()){
-					case 16: {
-						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-						const pir::Expr target_call = this->agent.createCall(pir_func_id, evo::copy(args));
-						this->agent.createStore(return_alloca, target_call);
-
-						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f16, {
-							this->agent.createParamExpr(0), return_alloca,
-						});
-					} break;
-
-					case 32: {
-						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f32, {
-							this->agent.createParamExpr(0),
-							this->agent.createCall(pir_func_id, evo::copy(args))
-						});
-
-					} break;
-
-					case 64: {
-						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f64, {
-							this->agent.createParamExpr(0),
-							this->agent.createCall(pir_func_id, evo::copy(args))
-						});
-
-					} break;
-
-					case 80: {
-						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-						const pir::Expr target_call = this->agent.createCall(pir_func_id, evo::copy(args));
-						this->agent.createStore(return_alloca, target_call);
-
-						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f80, {
-							this->agent.createParamExpr(0), return_alloca,
-						});
-					} break;
-
-					case 128: {
-						const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-						const pir::Expr target_call = this->agent.createCall(pir_func_id, evo::copy(args));
-						this->agent.createStore(return_alloca, target_call);
-
-						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f128, {
-							this->agent.createParamExpr(0), return_alloca,
-						});
-					} break;
-				}
-			} break;
-			
-			case pir::Type::Kind::BFLOAT: {
-				const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-				const pir::Expr target_call = this->agent.createCall(pir_func_id, evo::copy(args));
-				this->agent.createStore(return_alloca, target_call);
-
-				this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_bf16, {
-					this->agent.createParamExpr(0), return_alloca,
-				});
-			} break;
-			
-			case pir::Type::Kind::PTR: {
-				evo::unimplemented("Constexpr interface with ptr return value");
-			} break;
-			
-			case pir::Type::Kind::ARRAY: {
-				evo::unimplemented("Constexpr interface with array return value");
-			} break;
-			
-			case pir::Type::Kind::STRUCT: {
-				const pir::Expr return_alloca = this->agent.createAlloca(target_pir_func.getReturnType());
-				const pir::Expr target_call = this->agent.createCall(pir_func_id, evo::copy(args));
-				this->agent.createStore(return_alloca, target_call);
-
-				this->jit_interface_return_aggregate(target_pir_func.getReturnType(), return_alloca);
-			} break;
-			
-			case pir::Type::Kind::FUNCTION: {
-				evo::unimplemented("Constexpr interface with function return value");
-			} break;
+		if(target_pir_func.getReturnType().kind() == pir::Type::Kind::VOID){
+			this->agent.createCallVoid(pir_func_id, std::move(args));
+		}else{
+			const pir::Expr func_return = this->agent.createCall(pir_func_id, std::move(args));
+			this->agent.createStore(this->agent.createParamExpr(1), func_return);
 		}
 
-
-		///////////////////////////////////
-		// return RVO parameters
-
-		for(size_t i = 0; const pir::Parameter& param : target_pir_func.getParameters()){
-			EVO_DEFER([&](){ i += 1; });
-
-			{
-				bool param_is_rvo = false;
-				for(const pir::Parameter::Attribute& attribute : param.attributes){
-					if(attribute.is<pir::Parameter::Attribute::PtrRVO>()){
-						param_is_rvo = true;
-						break;
-					}
-				}
-
-				if(param_is_rvo == false){ continue; }
-			}
-
-			const pir::Expr arg_ptr = this->agent.createCalcPtr(
-				this->agent.createParamExpr(1),
-				this->module.createIntegerType(8),
-				evo::SmallVector<pir::CalcPtr::Index>{int64_t(i * sizeof(core::GenericValue))}
-			);
-
-
-
-			evo::debugAssert(
-				param.getType().kind() == pir::Type::Kind::PTR,
-				"mut parameters on a constexpr function call are not supported"
-			);
-
-			const TypeInfo::ID param_type_id = func_type.returnParams[0].typeID.asTypeID();
-			const pir::Type pir_type_id = this->get_type<false>(param_type_id);
-
-			switch(pir_type_id.kind()){
-				case pir::Type::Kind::VOID: {
-					evo::debugFatalBreak("Function parameter cannot be type void");
-				} break;
-
-				case pir::Type::Kind::INTEGER: {
-					if(param_type_id == TypeManager::getTypeChar()) [[unlikely]] {
-						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_char, {
-							this->agent.createParamExpr(0), this->agent.createLoad(args[i], pir_type_id)
-						});
-
-					}else{
-						const uint32_t bit_width = pir_type_id.getWidth();
-
-						this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_int, {
-							this->agent.createParamExpr(0),
-							args[i],
-							this->agent.createNumber(
-								this->module.createIntegerType(32), core::GenericInt::create<uint32_t>(bit_width)
-							)
-						});
-					}
-				} break;
-
-				case pir::Type::Kind::BOOL: {
-					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_bool, {
-						this->agent.createParamExpr(0), this->agent.createLoad(args[i], pir_type_id)
-					});
-				} break;
-
-				case pir::Type::Kind::FLOAT: {
-					switch(pir_type_id.getWidth()){
-						case 16: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f16, {
-								this->agent.createParamExpr(0), args[i]
-							});
-						} break;
-
-						case 32: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f32, {
-								this->agent.createParamExpr(0), this->agent.createLoad(args[i], pir_type_id)
-							});
-
-						} break;
-
-						case 64: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f64, {
-								this->agent.createParamExpr(0), this->agent.createLoad(args[i], pir_type_id)
-							});
-
-						} break;
-
-						case 80: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f80, {
-								this->agent.createParamExpr(0), args[i]
-							});
-						} break;
-
-						case 128: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_f128, {
-								this->agent.createParamExpr(0), args[i]
-							});
-						} break;
-					}
-				} break;
-
-				case pir::Type::Kind::BFLOAT: {
-					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_bf16, {
-						this->agent.createParamExpr(0), args[i]
-					});
-				} break;
-
-				case pir::Type::Kind::PTR: {
-					evo::unimplemented("Constexpr interface returning RVO param of ptr");
-				} break;
-
-				case pir::Type::Kind::ARRAY: {
-					evo::unimplemented("Constexpr interface returning RVO param of array");
-				} break;
-
-				case pir::Type::Kind::STRUCT: {
-					this->jit_interface_return_aggregate(pir_type_id, args[i]);
-				} break;
-
-				case pir::Type::Kind::FUNCTION: {
-					evo::unimplemented("Constexpr interface returning RVO param of function");
-				} break;
-			}
-		}
-
-
+		
 
 		///////////////////////////////////
 		// done
@@ -1127,34 +777,10 @@ namespace pcit::panther{
 	auto SemaToPIR::lower_union(BaseType::Union::ID union_id) -> pir::Type {
 		const BaseType::Union& union_info = this->context.getTypeManager().getUnion(union_id);
 
-		TypeInfo::VoidableID biggest_type_id = union_info.fields[0].typeID;
-		size_t biggest_size = [&]() -> size_t {
-			if(biggest_type_id.isVoid()){
-				return 0;
-			}else{
-				return this->context.getTypeManager().numBits(biggest_type_id.asTypeID());
-			}
-		}();
-
-		for(size_t i = 1; i < union_info.fields.size(); i+=1){
-			if(union_info.fields[i].typeID.isVoid()){ continue; }
-
-			const size_t field_type_size =
-				this->context.getTypeManager().numBits(union_info.fields[i].typeID.asTypeID());
-
-			if(field_type_size > biggest_size){
-				biggest_type_id = union_info.fields[i].typeID;
-				biggest_size = field_type_size;
-			}
-		}
-
-
 		const pir::Type new_type = [&](){
 			if(union_info.isUntagged){
-				return this->module.createStructType(
-					this->mangle_name(union_id),
-					evo::SmallVector<pir::Type>{this->get_type<MAY_LOWER_DEPENDENCY>(biggest_type_id)},
-					false
+				return this->module.createArrayType(
+					this->module.createIntegerType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
 				);
 			}else{
 				evo::unimplemented();
@@ -1917,7 +1543,6 @@ namespace pcit::panther{
 			case sema::Expr::Kind::AGGREGATE_VALUE: {
 				const sema::AggregateValue& aggregate =
 					this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
-
 
 
 				if constexpr(MODE != GetExprMode::DISCARD){
@@ -3115,12 +2740,12 @@ namespace pcit::panther{
 					}else if constexpr(MODE == GetExprMode::STORE){
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
-						const pir::Function& current_func =
-							this->module.getFunction(this->current_func_info->pir_ids[0].as<pir::Function::ID>());
+						const size_t num_bytes = this->context.getTypeManager().numBytes(
+							this->current_func_type->params[sema_param.index].typeID
+						);
+
 						this->agent.createMemcpy(
-							store_locations[0],
-							this->agent.createParamExpr(sema_param.abiIndex),
-							current_func.getParameters()[sema_param.index].getType()
+							store_locations[0], this->agent.createParamExpr(sema_param.abiIndex), num_bytes	
 						);
 						return std::nullopt;
 
@@ -3470,206 +3095,6 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::jit_interface_return_aggregate(pir::Type return_type, pir::Expr return_alloca) -> void {
-		auto indices = evo::SmallVector<pir::CalcPtr::Index>();
-
-		const pir::StructType& pir_struct = this->module.getStructType(return_type);
-
-		this->agent.createCallVoid(this->data.getJITInterfaceFuncs().prepare_return_generic_aggregate, {
-			this->agent.createParamExpr(0),
-			this->agent.createNumber(
-				this->module.createIntegerType(32),
-				core::GenericInt::create<uint32_t>(uint32_t(pir_struct.members.size()))
-			),
-			this->agent.createNullptr(),
-			this->agent.createNumber(this->module.createIntegerType(32), core::GenericInt::create<uint32_t>(0)),
-		});
-
-		this->jit_interface_return_aggregate_impl(return_type, return_alloca, return_type, indices);
-	}
-
-
-	auto SemaToPIR::jit_interface_return_aggregate_impl(
-		pir::Type return_type,
-		pir::Expr return_alloca,
-		pir::Type target_type,
-		evo::SmallVector<pir::CalcPtr::Index>& indices
-	) -> void {
-		const pir::StructType& pir_struct = this->module.getStructType(target_type);
-
-		const pir::Type type_i32 = this->module.createIntegerType(32);
-
-
-		for(size_t i = 0; const pir::Type member_type : pir_struct.members){
-			EVO_DEFER([&](){ i += 1; });
-
-			auto member_ptr_indices = evo::SmallVector<pir::CalcPtr::Index>{0};
-			for(const pir::CalcPtr::Index& index : indices){
-				member_ptr_indices.emplace_back(index);
-			}
-			member_ptr_indices.emplace_back(int64_t(i));
-
-			const pir::Expr member_ptr = this->agent.createCalcPtr(
-				return_alloca, return_type, std::move(member_ptr_indices)
-			);
-
-			const pir::Type indices_type = this->module.createArrayType(type_i32, indices.size() + 1);
-			const pir::Expr indices_alloca = this->agent.createAlloca(indices_type);
-			for(size_t index_i = 0; const pir::CalcPtr::Index& index : indices){
-				this->agent.createStore(
-					this->agent.createCalcPtr(
-						indices_alloca, indices_type, evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(index_i)}
-					),
-					this->agent.createNumber(
-						type_i32, core::GenericInt::create<uint32_t>(uint32_t(index.as<int64_t>()))
-					)
-				);
-
-				index_i += 1;
-			}
-			this->agent.createStore(
-				this->agent.createCalcPtr(
-					indices_alloca, indices_type, evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(indices.size())}
-				),
-				this->agent.createNumber(type_i32, core::GenericInt::create<uint32_t>(uint32_t(i)))
-			);
-
-			switch(member_type.kind()){
-				case pir::Type::Kind::VOID: {
-					evo::debugFatalBreak("Cannot have members of type [Void]");
-				} break;
-
-				case pir::Type::Kind::INTEGER: {
-					const uint32_t bit_width = member_type.getWidth();
-
-					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_aggregate_int, {
-						this->agent.createParamExpr(0),
-						member_ptr,
-						this->agent.createNumber(
-							this->module.createIntegerType(32), core::GenericInt::create<uint32_t>(bit_width)
-						),
-						indices_alloca,
-						this->agent.createNumber(
-							type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-						)
-					});
-				} break;
-
-				case pir::Type::Kind::BOOL: {
-					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_aggregate_bool, {
-						this->agent.createParamExpr(0),
-						this->agent.createLoad(member_ptr, this->module.createBoolType()),
-						indices_alloca,
-						this->agent.createNumber(
-							type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-						)
-					});
-				} break;
-
-				case pir::Type::Kind::FLOAT: {
-					switch(member_type.getWidth()){
-						case 16: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_aggregate_f16, {
-								this->agent.createParamExpr(0),
-								member_ptr,
-								indices_alloca,
-								this->agent.createNumber(
-									type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-								)
-							});
-						} break;
-
-						case 32: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_aggregate_f32, {
-								this->agent.createParamExpr(0),
-								this->agent.createLoad(member_ptr, this->module.createFloatType(32)),
-								indices_alloca,
-								this->agent.createNumber(
-									type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-								)
-							});
-						} break;
-
-						case 64: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_aggregate_f64, {
-								this->agent.createParamExpr(0),
-								this->agent.createLoad(member_ptr, this->module.createFloatType(64)),
-								indices_alloca,
-								this->agent.createNumber(
-									type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-								)
-							});
-						} break;
-
-						case 80: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_aggregate_f80, {
-								this->agent.createParamExpr(0),
-								member_ptr,
-								indices_alloca,
-								this->agent.createNumber(
-									type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-								)
-							});
-						} break;
-
-						case 128: {
-							this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_aggregate_f128,{
-								this->agent.createParamExpr(0),
-								member_ptr,
-								indices_alloca,
-								this->agent.createNumber(
-									type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-								)
-							});
-						} break;
-					}
-				} break;
-
-				case pir::Type::Kind::BFLOAT: {
-					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().return_generic_aggregate_bf16, {
-						this->agent.createParamExpr(0),
-						member_ptr,
-						indices_alloca,
-						this->agent.createNumber(
-							type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-						)
-					});
-				} break;
-
-				case pir::Type::Kind::PTR: {
-					evo::unimplemented();
-				} break;
-
-				case pir::Type::Kind::ARRAY: {
-					evo::unimplemented();
-				} break;
-
-				case pir::Type::Kind::STRUCT: {
-					this->agent.createCallVoid(this->data.getJITInterfaceFuncs().prepare_return_generic_aggregate, {
-						this->agent.createParamExpr(0),
-						this->agent.createNumber(
-							type_i32,
-							core::GenericInt::create<uint32_t>(
-								uint32_t(this->module.getStructType(member_type).members.size())
-							)
-						),
-						indices_alloca,
-						this->agent.createNumber(
-							type_i32, core::GenericInt::create<uint32_t>(uint32_t(indices.size() + 1))
-						),
-					});
-
-					indices.emplace_back(int64_t(i));
-					this->jit_interface_return_aggregate_impl(return_type, return_alloca, member_type, indices);
-					indices.pop_back();
-				} break;
-
-				case pir::Type::Kind::FUNCTION: {
-					evo::unimplemented();
-				} break;
-			}
-		}
-	}
 
 
 	auto SemaToPIR::create_call(
@@ -3938,7 +3363,7 @@ namespace pcit::panther{
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
-				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().as<bool>();
+				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().getBool();
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
@@ -4064,7 +3489,7 @@ namespace pcit::panther{
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
-				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().as<bool>();
+				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().getBool();
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
@@ -4190,7 +3615,7 @@ namespace pcit::panther{
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
-				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().as<bool>();
+				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().getBool();
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
@@ -4316,7 +3741,7 @@ namespace pcit::panther{
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
-				const bool is_exact = instantiation.templateArgs[1].as<core::GenericValue>().as<bool>();
+				const bool is_exact = instantiation.templateArgs[1].as<core::GenericValue>().getBool();
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
@@ -4717,7 +4142,7 @@ namespace pcit::panther{
 				const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
-				const bool is_exact = instantiation.templateArgs[2].as<core::GenericValue>().as<bool>();
+				const bool is_exact = instantiation.templateArgs[2].as<core::GenericValue>().getBool();
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->agent.createZExt(
@@ -4790,7 +4215,7 @@ namespace pcit::panther{
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
 				const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
-				const bool is_exact = instantiation.templateArgs[2].as<core::GenericValue>().as<bool>();
+				const bool is_exact = instantiation.templateArgs[2].as<core::GenericValue>().getBool();
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 

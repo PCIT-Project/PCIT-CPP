@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.149.0"></a>
+## v0.0.149.0
+
+### Panther
+- Added support for constexpr functions returning:
+	- arrays
+	- alias
+	- union
+- Added support for constexpr functions with parameters of type:
+	- struct
+	- array
+	- union
+- Improved performance of running a constexpr function at compile-time
+- Fixed race condition in semantic analysis when using a struct
+- Fixed code generation of copying a reference parameter always copying the size of a pointer
+- Fixed decision if a read parameter should be a copy not waiting for the definition of the parameter type
+
+
+<!---------------------------------->
 <a name="v0.0.148.0"></a>
 ## v0.0.148.0
 

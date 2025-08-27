@@ -1,6 +1,39 @@
 def c_import = @importCPP("test.h");
 
 
+type Vec2 = struct {
+	var x: Int;
+	var y: Int;
+}
+
+type Union = union #untagged {
+	array: [Int:2],
+	vec: Vec2,
+}
+
+
+
+func create_union = (arr: [Int:2] in) -> (output: Union) {
+	output.array = forward arr;
+	return...;
+}
+
+
+
+const foo: Vec2 = get_vec2(create_union(new [Int:2][12, 14]));
+
+
+func get_vec2 = (input: Union) -> (output: Vec2) {
+	output = new Vec2{
+		x = copy input.array[0].*,
+		y = copy input.vec.y, // UB, but testing / for fun
+	};
+	
+	return...;
+}
+
+
+
 func entry = () #entry -> UI8 {
 	return @isMacroDefined(c_import, "FOO") as UI8;
 }

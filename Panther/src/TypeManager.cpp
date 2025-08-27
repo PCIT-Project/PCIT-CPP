@@ -133,8 +133,8 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TYPE_F32);
 		this->primitives.emplace_back(Token::Kind::TYPE_F64);
 		this->primitives.emplace_back(Token::Kind::TYPE_F80);
-		const BaseType::Primitive::ID type_f128 = this->primitives.emplace_back(Token::Kind::TYPE_F128);
-		this->primitives.emplace_back(Token::Kind::TYPE_BYTE);
+		const BaseType::Primitive::ID type_f128    = this->primitives.emplace_back(Token::Kind::TYPE_F128);
+		const BaseType::Primitive::ID type_byte    = this->primitives.emplace_back(Token::Kind::TYPE_BYTE);
 		const BaseType::Primitive::ID type_bool    = this->primitives.emplace_back(Token::Kind::TYPE_BOOL);
 		const BaseType::Primitive::ID type_char    = this->primitives.emplace_back(Token::Kind::TYPE_CHAR);
 		const BaseType::Primitive::ID type_raw_ptr = this->primitives.emplace_back(Token::Kind::TYPE_RAWPTR);
@@ -175,6 +175,7 @@ namespace pcit::panther{
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_raw_ptr.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_i256.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f128.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_byte.get())));
 	}
 
 	auto TypeManager::primitivesInitialized() const -> bool {
@@ -261,24 +262,37 @@ namespace pcit::panther{
 					if(array.terminator.has_value()){
 						if(this->isUnsignedIntegral(array.elementTypeID)){
 							builder += ';';
-							builder += array.terminator->as<core::GenericInt>().toString(false);
+							builder += 
+								array.terminator->getInt(unsigned(this->numBits(array.elementTypeID))).toString(false);
 
 						}else if(this->isSignedIntegral(array.elementTypeID)){
 							builder += ';';
-							builder += array.terminator->as<core::GenericInt>().toString(true);
+							builder += 
+								array.terminator->getInt(unsigned(this->numBits(array.elementTypeID))).toString(true);
 
 						}else if(this->isFloatingPoint(array.elementTypeID)){
+							const BaseType::Primitive& primitive = this->getPrimitive(
+								this->getTypeInfo(array.elementTypeID).baseTypeID().primitiveID()
+							);
+
 							builder += ';';
-							builder += array.terminator->as<core::GenericFloat>().toString();
+
+							switch(primitive.kind()){
+								break; case Token::Kind::TYPE_F16:  builder += array.terminator->getF16().toString();
+								break; case Token::Kind::TYPE_BF16: builder += array.terminator->getBF16().toString();
+								break; case Token::Kind::TYPE_F32:  builder += array.terminator->getF32().toString();
+								break; case Token::Kind::TYPE_F64:  builder += array.terminator->getF64().toString();
+								break; case Token::Kind::TYPE_F80:  builder += array.terminator->getF80().toString();
+								break; case Token::Kind::TYPE_F128: builder += array.terminator->getF128().toString();
+								break; default: evo::debugFatalBreak("Unknown float type");
+							}
 
 						}else if(array.elementTypeID == TypeManager::getTypeBool()){
 							builder += ';';
-							builder += evo::boolStr(array.terminator->as<bool>());
+							builder += evo::boolStr(array.terminator->getBool());
 
 						}else if(array.elementTypeID == TypeManager::getTypeChar()){
-							builder += std::format(
-								";'{}'", evo::printCharName(static_cast<char>(array.terminator->as<core::GenericInt>()))
-							);
+							builder += std::format(";'{}'", evo::printCharName(array.terminator->getChar()));
 							
 						}else{
 							builder += ";<TERMINATOR>";
@@ -335,21 +349,39 @@ namespace pcit::panther{
 							builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), source_manager);
 
 						}else if(*struct_template.params[i].typeID == TypeManager::getTypeBool()){
-							builder += evo::boolStr(template_arg.as<core::GenericValue>().as<bool>());
+							builder += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
 
 						}else if(*struct_template.params[i].typeID == TypeManager::getTypeChar()){
 							builder += "'";
-							builder += char(template_arg.as<core::GenericValue>().as<core::GenericInt>());
+							builder += template_arg.as<core::GenericValue>().getChar();
 							builder += "'";
 
 						}else if(this->isUnsignedIntegral(*struct_template.params[i].typeID)){
-							builder += template_arg.as<core::GenericValue>().as<core::GenericInt>().toString(false);
+							builder += template_arg.as<core::GenericValue>().getInt(
+								unsigned(this->numBits(*struct_template.params[i].typeID))
+							).toString(false);
 
 						}else if(this->isIntegral(*struct_template.params[i].typeID)){
-							builder += template_arg.as<core::GenericValue>().as<core::GenericInt>().toString(true);
+							builder += template_arg.as<core::GenericValue>().getInt(
+								unsigned(this->numBits(*struct_template.params[i].typeID))
+							).toString(true);
 
 						}else if(this->isFloatingPoint(*struct_template.params[i].typeID)){
-							builder += template_arg.as<core::GenericValue>().as<core::GenericFloat>().toString();
+							const BaseType::Primitive& primitive = this->getPrimitive(
+								this->getTypeInfo(*struct_template.params[i].typeID).baseTypeID().primitiveID()
+							);
+
+							const core::GenericValue& generic_value = template_arg.as<core::GenericValue>();
+
+							switch(primitive.kind()){
+								break; case Token::Kind::TYPE_F16:  builder += generic_value.getF16().toString();
+								break; case Token::Kind::TYPE_BF16: builder += generic_value.getBF16().toString();
+								break; case Token::Kind::TYPE_F32:  builder += generic_value.getF32().toString();
+								break; case Token::Kind::TYPE_F64:  builder += generic_value.getF64().toString();
+								break; case Token::Kind::TYPE_F80:  builder += generic_value.getF80().toString();
+								break; case Token::Kind::TYPE_F128: builder += generic_value.getF128().toString();
+								break; default: evo::debugFatalBreak("Unknown float type");
+							}
 							
 						}else{
 							builder += "<EXPR>";
@@ -441,6 +473,11 @@ namespace pcit::panther{
 	// function
 
 	auto TypeManager::getFunction(BaseType::Function::ID id) const -> const BaseType::Function& {
+		const auto lock = std::scoped_lock(this->functions_lock);
+		return this->functions[id];
+	}
+
+	auto TypeManager::getFunction(BaseType::Function::ID id) -> BaseType::Function& {
 		const auto lock = std::scoped_lock(this->functions_lock);
 		return this->functions[id];
 	}
@@ -794,7 +831,7 @@ namespace pcit::panther{
 	// type traits
 
 	// https://stackoverflow.com/a/1766566
-	static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
+	EVO_NODISCARD static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
 		return (num + (multiple - 1)) & ~(multiple - 1);
 	}
 

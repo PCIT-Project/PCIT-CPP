@@ -1271,6 +1271,8 @@ namespace pcit::panther{
 			struct FuncInfo{
 				std::stack<sema::Stmt> subscopes{};
 
+				evo::SmallVector<std::optional<TypeInfo::ID>> param_type_to_check_if_is_copy{};
+
 				sema::TemplatedFunc::Instantiation* instantiation = nullptr;
 				evo::SmallVector<std::optional<TypeInfo::ID>> instantiation_param_arg_types{};
 

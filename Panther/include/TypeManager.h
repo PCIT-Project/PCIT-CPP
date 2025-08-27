@@ -606,6 +606,7 @@ namespace pcit::panther{
 			) const -> std::string;
 
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id) const -> const BaseType::Function&;
+			EVO_NODISCARD auto getFunction(BaseType::Function::ID id)       ->       BaseType::Function&;
 			EVO_NODISCARD auto getOrCreateFunction(BaseType::Function&& lookup_func) -> BaseType::ID;
 
 			EVO_NODISCARD auto getArray(BaseType::Array::ID id) const -> const BaseType::Array&;
@@ -659,6 +660,7 @@ namespace pcit::panther{
 			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(8);  }
 			EVO_NODISCARD static auto getTypeI256()   -> TypeInfo::ID { return TypeInfo::ID(9);  }
 			EVO_NODISCARD static auto getTypeF128()   -> TypeInfo::ID { return TypeInfo::ID(10); } 
+			EVO_NODISCARD static auto getTypeByte()   -> TypeInfo::ID { return TypeInfo::ID(11); } 
 
 
 			EVO_NODISCARD auto isTypeDeducer(TypeInfo::ID id) const -> bool;

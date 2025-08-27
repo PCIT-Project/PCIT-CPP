@@ -1421,11 +1421,11 @@ namespace pcit::panther{
 
 		sema_to_pir.lowerStruct(created_struct_id);
 
-		this->propagate_finished_def();
-
 		this->context.type_manager.getStruct(
 			this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id
 		).defCompleted = true;
+
+		this->propagate_finished_def();
 
 		return Result::SUCCESS;
 	}
@@ -1885,21 +1885,23 @@ namespace pcit::panther{
 				}
 
 
-				const bool should_copy = [&](){
-					if(param.kind != AST::FuncDecl::Param::Kind::READ){ return false; }
 
+				// saving types to check if param should be copy
+				// 	(need to do later after definitions of types are gotten)
+				if(param.kind == AST::FuncDecl::Param::Kind::READ){
 					if(param_type_is_interface || param_type_is_deducer){
-						const TypeInfo::ID arg_type_id =
-							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
-
-						return this->context.getTypeManager().isTriviallyCopyable(arg_type_id)
-							&& this->context.getTypeManager().isTriviallySized(arg_type_id);
-						
+						func_info.param_type_to_check_if_is_copy.emplace_back(
+							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
+						);
 					}else{
-						return this->context.getTypeManager().isTriviallyCopyable(param_type_id.asTypeID())
-							&& this->context.getTypeManager().isTriviallySized(param_type_id.asTypeID());
+						func_info.param_type_to_check_if_is_copy.emplace_back(param_type_id.asTypeID());
 					}
-				}();
+					
+				}else{
+					func_info.param_type_to_check_if_is_copy.emplace_back();
+				}
+
+
 
 				if(param.kind == AST::FuncDecl::Param::Kind::IN){
 					has_in_param = true;
@@ -1907,12 +1909,10 @@ namespace pcit::panther{
 
 				if(param_type_is_interface || param_type_is_deducer){
 					params.emplace_back(
-						*func_info.instantiation_param_arg_types[i - size_t(has_this_param)],
-						param.kind,
-						should_copy
+						*func_info.instantiation_param_arg_types[i - size_t(has_this_param)], param.kind, false
 					);
 				}else{
-					params.emplace_back(param_type_id.asTypeID(), param.kind, should_copy);
+					params.emplace_back(param_type_id.asTypeID(), param.kind, false);
 				}
 
 				if(instr.default_param_values[i - size_t(has_this_param)].has_value()){
@@ -2280,7 +2280,26 @@ namespace pcit::panther{
 		const sema::Func::ID current_func_id = this->scope.getCurrentObjectScope().as<sema::Func::ID>();
 		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
 
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
+		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
+
+		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+		//////////////////
+		// check param is copy
+
+		for(size_t i = 0; const std::optional<TypeInfo::ID>& type_id : func_info.param_type_to_check_if_is_copy){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(type_id.has_value() == false){ continue; }
+
+			if(
+				this->context.getTypeManager().isTriviallyCopyable(*type_id)
+				&& this->context.getTypeManager().isTriviallySized(*type_id)
+			){
+				func_type.params[i].shouldCopy = true;
+			}
+		}
+
 
 
 		//////////////////
@@ -2529,7 +2548,7 @@ namespace pcit::panther{
 				module_subset_funcs.emplace_back(*sema_func.constexprJITFunc);
 
 				// create jit interface if needed
-				if(func_type.returnsVoid() == false){
+				if(func_type.returnsVoid() == false && func_type.returnParams.size() == 1){
 					sema_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
 						sema_func_id, *sema_func.constexprJITFunc
 					);
@@ -4149,7 +4168,7 @@ namespace pcit::panther{
 				sema_args.emplace_back(fake_term_info.expr);
 
 			}else if(
-				this->getCompilationConfig().warn.methodCallOnNonMethod
+				this->get_compilation_config().warn.methodCallOnNonMethod
 				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
 			){
 				this->emit_warning(
@@ -4573,7 +4592,7 @@ namespace pcit::panther{
 				sema_args.emplace_back(fake_term_info.expr);
 
 			}else if( // TODO(FUTURE): make this warn on non-template params
-				this->getCompilationConfig().warn.methodCallOnNonMethod
+				this->get_compilation_config().warn.methodCallOnNonMethod
 				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
 			){
 				this->emit_warning(
@@ -4785,60 +4804,30 @@ namespace pcit::panther{
 		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
 			const TermInfo& arg = this->get_term_info(arg_id);
 
-			switch(arg.getExpr().kind()){
-				case sema::Expr::Kind::INT_VALUE: {
-					jit_args.emplace_back(
-						evo::copy(this->context.getSemaBuffer().getIntValue(arg.getExpr().intValueID()).value)
-					);
-				} break;
-
-				case sema::Expr::Kind::FLOAT_VALUE: {
-					jit_args.emplace_back(
-						evo::copy(this->context.getSemaBuffer().getFloatValue(arg.getExpr().floatValueID()).value)
-					);
-				} break;
-
-				case sema::Expr::Kind::BOOL_VALUE: {
-					jit_args.emplace_back(
-						evo::copy(this->context.getSemaBuffer().getBoolValue(arg.getExpr().boolValueID()).value)
-					);
-				} break;
-
-				case sema::Expr::Kind::STRING_VALUE: {
-					jit_args.emplace_back(
-						evo::copy(this->context.getSemaBuffer().getStringValue(arg.getExpr().stringValueID()).value)
-					);
-				} break;
-
-				case sema::Expr::Kind::AGGREGATE_VALUE: {
-					evo::unimplemented();
-				} break;
-
-				case sema::Expr::Kind::CHAR_VALUE: {
-					jit_args.emplace_back(
-						core::GenericInt::create<char>(
-							this->context.getSemaBuffer().getCharValue(arg.getExpr().charValueID()).value
-						)
-					);
-				} break;
-
-				default: evo::debugFatalBreak("Invalid constexpr value");
-			}
+			jit_args.emplace_back(this->sema_expr_to_generic_value(arg.getExpr()));
 
 			i += 1;
 		}
 
 		if(target_func_type.hasNamedReturns()){
-			jit_args.emplace_back();
+			jit_args.emplace_back(
+				core::GenericValue::createUninit(
+					this->context.getTypeManager().numBytes(target_func_type.returnParams[0].typeID.asTypeID())
+				)
+			);
 		}
 
+		// Uncomment this to print out the state of the constexpr pir module (for debugging purposes)
 		// {
 		// 	auto printer = core::Printer::createConsole();
 		// 	pir::printModule(this->context.constexpr_pir_module, printer);
 		// }
 
 		core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
-			this->context.constexpr_pir_module, *target_func.constexprJITInterfaceFunc, jit_args
+			this->context.constexpr_pir_module,
+			*target_func.constexprJITInterfaceFunc,
+			jit_args,
+			this->context.constexpr_pir_module.getFunction(*target_func.constexprJITFunc).getReturnType()
 		);
 
 		if(target_func_type.hasErrorReturn()){
@@ -4862,7 +4851,8 @@ namespace pcit::panther{
 				target_func_type.returnParams[0].typeID.asTypeID()
 			);
 
-			if(target_func_type.hasNamedErrorReturns()){
+
+			if(target_func_type.hasNamedReturns()){
 				run_result = std::move(jit_args.back());
 			}
 
@@ -4877,7 +4867,7 @@ namespace pcit::panther{
 			}
 
 
-			const sema::Expr return_sema_expr = this->genericValueToSemaExpr(run_result, target_func_return_type);
+			const sema::Expr return_sema_expr = this->generic_value_to_sema_expr(run_result, target_func_return_type);
 
 			this->return_term_info(instr.output,
 				TermInfo(
@@ -5332,7 +5322,7 @@ namespace pcit::panther{
 				if constexpr(IS_CONSTEXPR){
 					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.add(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
-						template_args[1].as<core::GenericValue>().as<bool>(),
+						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					);
@@ -5385,7 +5375,7 @@ namespace pcit::panther{
 				if constexpr(IS_CONSTEXPR){
 					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.sub(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
-						template_args[1].as<core::GenericValue>().as<bool>(),
+						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					);
@@ -5438,7 +5428,7 @@ namespace pcit::panther{
 				if constexpr(IS_CONSTEXPR){
 					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.mul(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
-						template_args[1].as<core::GenericValue>().as<bool>(),
+						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					);
@@ -5491,7 +5481,7 @@ namespace pcit::panther{
 				if constexpr(IS_CONSTEXPR){
 					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.div(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
-						template_args[1].as<core::GenericValue>().as<bool>(),
+						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					);
@@ -5731,7 +5721,7 @@ namespace pcit::panther{
 				if constexpr(IS_CONSTEXPR){
 					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.shl(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
-						template_args[2].as<core::GenericValue>().as<bool>(),
+						template_args[2].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					);
@@ -5768,7 +5758,7 @@ namespace pcit::panther{
 				if constexpr(IS_CONSTEXPR){
 					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.shr(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
-						template_args[2].as<core::GenericValue>().as<bool>(),
+						template_args[2].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					);
@@ -10613,10 +10603,20 @@ namespace pcit::panther{
 				);
 
 			if(scope_level_lookup.has_value()){ return scope_level_lookup.value(); }
-			if(scope_level_lookup.error() == AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED){
-				return evo::Unexpected(Result::ERROR);
+
+			switch(scope_level_lookup.error()){
+				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
+					// continue...
+				} break;
+
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
+					evo::debugFatalBreak("SymbolProc said done, sema disagreed");
+				} break;
+
+				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: {
+					return evo::Unexpected(Result::ERROR);
+				} break;
 			}
-			if(scope_level_lookup.error() == AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF){ break; }
 
 			i -= 1;
 		}
@@ -10644,6 +10644,47 @@ namespace pcit::panther{
 				);
 			}
 		}
+
+
+		// TODO(NOW): remove
+		//////////////////////////////////////////////////////////////////////
+		// debug testing
+
+		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::SEMAS_READY){
+			evo::breakpoint();
+
+			for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
+				const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> scope_level_lookup = 
+					this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
+						ident,
+						ident_str,
+						this->context.sema_buffer.scope_manager.getLevel(scope_level_id),
+						i >= this->scope.getCurrentObjectScopeIndex() || i == 0,
+						i == 0,
+						nullptr
+					);
+
+				if(scope_level_lookup.has_value()){ return scope_level_lookup.value(); }
+
+				switch(scope_level_lookup.error()){
+					case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
+						// continue...
+					} break;
+
+					case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
+						evo::debugFatalBreak("SymbolProc said done, sema disagreed");
+					} break;
+
+					case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: {
+						return evo::Unexpected(Result::ERROR);
+					} break;
+				}
+
+				i -= 1;
+			}
+		}
+
+
 
 
 		///////////////////////////////////
@@ -13013,7 +13054,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::genericValueToSemaExpr(core::GenericValue& value, const TypeInfo& target_type)
+	auto SemanticAnalyzer::generic_value_to_sema_expr(const core::GenericValue& value, const TypeInfo& target_type)
 	-> sema::Expr {
 		switch(target_type.baseTypeID().kind()){
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
@@ -13035,29 +13076,68 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_C_ULONG_LONG: {
 						return sema::Expr(
 							this->context.sema_buffer.createIntValue(
-								std::move(value.as<core::GenericInt>()), target_type.baseTypeID()
+								value.getInt(
+									unsigned(this->context.getTypeManager().numBits(target_type.baseTypeID()))
+								),
+								target_type.baseTypeID()
 							)
 						);
 					} break;
 
-					case Token::Kind::TYPE_F16:        case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
-					case Token::Kind::TYPE_F64:        case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128:
-					case Token::Kind::TYPE_C_LONG_DOUBLE: {
+					case Token::Kind::TYPE_F16: {
 						return sema::Expr(
-							this->context.sema_buffer.createFloatValue(
-								std::move(value.as<core::GenericFloat>()), target_type.baseTypeID()
-							)
+							this->context.sema_buffer.createFloatValue(value.getF16(), target_type.baseTypeID())
 						);
+					} break;
+
+					case Token::Kind::TYPE_BF16: {
+						return sema::Expr(
+							this->context.sema_buffer.createFloatValue(value.getBF16(), target_type.baseTypeID())
+						);
+					} break;
+
+					case Token::Kind::TYPE_F32: {
+						return sema::Expr(
+							this->context.sema_buffer.createFloatValue(value.getF32(), target_type.baseTypeID())
+						);
+					} break;
+
+					case Token::Kind::TYPE_F64: {
+						return sema::Expr(
+							this->context.sema_buffer.createFloatValue(value.getF64(), target_type.baseTypeID())
+						);
+					} break;
+
+					case Token::Kind::TYPE_F80: {
+						return sema::Expr(
+							this->context.sema_buffer.createFloatValue(value.getF80(), target_type.baseTypeID())
+						);
+					} break;
+
+					case Token::Kind::TYPE_F128: {
+					 	return sema::Expr(
+					 		this->context.sema_buffer.createFloatValue(value.getF128(), target_type.baseTypeID())
+					 	);
+				 	} break;
+
+					case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						if(this->context.getTypeManager().numBits(target_type.baseTypeID()) == 64){
+							return sema::Expr(
+								this->context.sema_buffer.createFloatValue(value.getF64(), target_type.baseTypeID())
+							);
+						}else{
+							return sema::Expr(
+								this->context.sema_buffer.createFloatValue(value.getF80(), target_type.baseTypeID())
+							);
+						}
 					} break;
 
 					case Token::Kind::TYPE_BOOL: {
-						return sema::Expr(this->context.sema_buffer.createBoolValue(value.as<bool>()));
+						return sema::Expr(this->context.sema_buffer.createBoolValue(value.getBool()));
 					} break;
 
 					case Token::Kind::TYPE_CHAR: {
-						return sema::Expr(
-							this->context.sema_buffer.createCharValue(static_cast<char>(value.as<core::GenericInt>()))
-						);
+						return sema::Expr(this->context.sema_buffer.createCharValue(value.getChar()));
 					} break;
 
 					case Token::Kind::TYPE_RAWPTR: evo::unimplemented("Token::Kind::TYPE_RAWPTR");
@@ -13067,48 +13147,89 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::FUNCTION: {
-				evo::unimplemented("BaseType::Kind::FUNCTION");
+				evo::unimplemented("generic_value_to_sema_expr - BaseType::Kind::FUNCTION");
 			} break;
 
 			case BaseType::Kind::ARRAY: {
-				evo::unimplemented("BaseType::Kind::ARRAY");
-			} break;
+				const BaseType::Array& array_type = this->context.getTypeManager().getArray(
+					target_type.baseTypeID().arrayID()
+				);
 
-			case BaseType::Kind::ALIAS: {
-				evo::unimplemented("BaseType::Kind::ALIAS");
-			} break;
-
-			case BaseType::Kind::DISTINCT_ALIAS: {
-				evo::unimplemented("BaseType::Kind::DISTINCT_ALIAS");
-			} break;
-
-			case BaseType::Kind::STRUCT: {
-				const BaseType::Struct& struct_type =
-					this->context.getTypeManager().getStruct(target_type.baseTypeID().structID());
-
-				auto values = evo::SmallVector<sema::Expr>();
-				values.reserve(value.as<evo::SmallVector<core::GenericValue>>().size());
-
-
-				if(struct_type.memberVars.empty() == false){
-					evo::SmallVector<core::GenericValue>& member_values =
-						value.as<evo::SmallVector<core::GenericValue>>();
-
-					for(size_t i = 0; core::GenericValue& member_value : member_values){
-						values.emplace_back(
-							this->genericValueToSemaExpr(
-								member_value,
-								this->context.getTypeManager().getTypeInfo(struct_type.memberVars[i].typeID)
-							)
-						);
-					
-						i += 1;
+				const uint64_t num_elems = [&](){
+					uint64_t total_num_elems = 1;
+					for(uint64_t length : array_type.lengths){
+						total_num_elems *= length;
 					}
+					return total_num_elems;
+				}();
+
+				const uint64_t elem_size = this->context.getTypeManager().numBytes(array_type.elementTypeID);
+				const TypeInfo& elem_type_info = this->context.getTypeManager().getTypeInfo(array_type.elementTypeID);
+
+				auto member_vals = evo::SmallVector<sema::Expr>();
+				member_vals.reserve(size_t(num_elems));
+
+
+				for(size_t i = 0; i < num_elems; i+=1){
+					const auto elem_range = evo::ArrayProxy<std::byte>(&value.dataRange()[i * elem_size], elem_size);
+
+					member_vals.emplace_back(
+						this->generic_value_to_sema_expr(core::GenericValue::fromData(elem_range), elem_type_info)
+					);
 				}
 
 
 				return sema::Expr(
-					this->context.sema_buffer.createAggregateValue(std::move(values), target_type.baseTypeID())
+					this->context.sema_buffer.createAggregateValue(std::move(member_vals), target_type.baseTypeID())
+				);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias_type = this->context.getTypeManager().getAlias(
+					target_type.baseTypeID().aliasID()
+				);
+
+				return this->generic_value_to_sema_expr(
+					value, this->context.getTypeManager().getTypeInfo(*alias_type.aliasedType.load())
+				);
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias_type = this->context.getTypeManager().getDistinctAlias(
+					target_type.baseTypeID().distinctAliasID()
+				);
+
+				return this->generic_value_to_sema_expr(
+					value, this->context.getTypeManager().getTypeInfo(*distinct_alias_type.underlyingType.load())
+				);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(
+					target_type.baseTypeID().structID()
+				);
+
+				size_t offset = 0;
+
+				auto member_vals = evo::SmallVector<sema::Expr>();
+				member_vals.reserve(struct_type.memberVarsABI.size());
+
+				for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
+					const size_t member_size = this->context.getTypeManager().numBytes(member_var->typeID);
+
+					const auto member_range = evo::ArrayProxy<std::byte>(&value.dataRange()[offset], member_size);
+					member_vals.emplace_back(
+						this->generic_value_to_sema_expr(
+							core::GenericValue::fromData(member_range),
+							this->context.getTypeManager().getTypeInfo(member_var->typeID)
+						)
+					);
+
+					offset += member_size;
+				}
+
+				return sema::Expr(
+					this->context.sema_buffer.createAggregateValue(std::move(member_vals), target_type.baseTypeID())
 				);
 			} break;
 
@@ -13117,7 +13238,30 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::UNION: {
-				evo::unimplemented("BaseType::Kind::UNION");
+				// const BaseType::Union& union_type = this->context.getTypeManager().getUnion(
+				// 	target_type.baseTypeID().unionID()
+				// );
+
+				const uint64_t num_elems = this->context.getTypeManager().numBytes(target_type.baseTypeID());
+
+				auto member_vals = evo::SmallVector<sema::Expr>();
+				member_vals.reserve(size_t(num_elems));
+
+
+				for(size_t i = 0; i < num_elems; i+=1){
+					const auto elem_range = evo::ArrayProxy<std::byte>(&value.dataRange()[i], 1);
+
+					member_vals.emplace_back(
+						this->generic_value_to_sema_expr(
+							core::GenericValue::fromData(elem_range),
+							this->context.getTypeManager().getTypeInfo(TypeManager::getTypeByte())
+						)
+					);
+				}
+
+				return sema::Expr(
+					this->context.sema_buffer.createAggregateValue(std::move(member_vals), target_type.baseTypeID())
+				);
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -13135,7 +13279,94 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::getCompilationConfig() const -> const Source::CompilationConfig& {
+	auto SemanticAnalyzer::sema_expr_to_generic_value(const sema::Expr& expr) -> core::GenericValue {
+		switch(expr.kind()){
+			case sema::Expr::Kind::INT_VALUE: {
+				return core::GenericValue(this->context.getSemaBuffer().getIntValue(expr.intValueID()).value);
+			} break;
+
+			case sema::Expr::Kind::FLOAT_VALUE: {
+				return core::GenericValue(this->context.getSemaBuffer().getFloatValue(expr.floatValueID()).value);
+			} break;
+
+			case sema::Expr::Kind::BOOL_VALUE: {
+				return core::GenericValue(this->context.getSemaBuffer().getBoolValue(expr.boolValueID()).value);
+			} break;
+
+			case sema::Expr::Kind::STRING_VALUE: {
+				return core::GenericValue(
+					std::string_view(this->context.getSemaBuffer().getStringValue(expr.stringValueID()).value)
+				);
+			} break;
+
+			case sema::Expr::Kind::AGGREGATE_VALUE: {
+				const sema::AggregateValue& aggregate_value =
+					this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
+
+				const size_t output_size = this->context.getTypeManager().numBytes(aggregate_value.typeID);
+				core::GenericValue output = core::GenericValue::createUninit(output_size);
+
+				if(aggregate_value.typeID.kind() == BaseType::Kind::STRUCT){
+					const BaseType::Struct& struct_type = 
+						this->context.getTypeManager().getStruct(aggregate_value.typeID.structID());
+
+					size_t offset = 0;
+
+					for(size_t i = 0; const BaseType::Struct::MemberVar* member : struct_type.memberVarsABI){
+						const core::GenericValue member_val =
+							this->sema_expr_to_generic_value(aggregate_value.values[i]);
+
+						const size_t member_size = this->context.getTypeManager().numBytes(member->typeID);
+
+						std::memcpy(&output.writableDataRange()[offset], member_val.dataRange().data(), member_size);
+
+						offset += member_size;
+
+						i += 1;
+					}
+
+				}else if(aggregate_value.typeID.kind() == BaseType::Kind::ARRAY){
+					const BaseType::Array& array_type = 
+						this->context.getTypeManager().getArray(aggregate_value.typeID.arrayID());
+
+					const size_t elem_size = this->context.getTypeManager().numBytes(array_type.elementTypeID);
+
+					const size_t num_elems = output_size / elem_size;
+					for(size_t i = 0; i < num_elems; i+=1){
+						const core::GenericValue elem_val = this->sema_expr_to_generic_value(aggregate_value.values[i]);
+
+						std::memcpy(&output.writableDataRange()[i * elem_size], elem_val.dataRange().data(), elem_size);
+					}
+
+				}else{
+					evo::debugAssert(aggregate_value.typeID.kind() == BaseType::Kind::UNION, "Unknown aggregate type");
+
+					const size_t num_elems = this->context.getTypeManager().numBytes(aggregate_value.typeID);
+					for(size_t i = 0; i < num_elems; i+=1){
+						const core::GenericValue elem_val = this->sema_expr_to_generic_value(aggregate_value.values[i]);
+
+						output.writableDataRange()[i] = *elem_val.dataRange().data();
+					}
+				}
+
+				return output;
+			} break;
+
+			case sema::Expr::Kind::CHAR_VALUE: {
+				return core::GenericValue(core::GenericInt::create<char>(
+					this->context.getSemaBuffer().getCharValue(expr.charValueID()).value
+				));
+			} break;
+
+			default: evo::debugFatalBreak("Invalid constexpr value");
+		}
+	}
+
+
+
+
+
+	auto SemanticAnalyzer::get_compilation_config() const -> const Source::CompilationConfig& {
 		return this->context.getSourceManager().getSourceCompilationConfig(this->source.getCompilationConfigID());
 	}
 
@@ -14532,11 +14763,13 @@ namespace pcit::panther{
 						// 	}
 						// }
 
-						core::GenericInt target_min = type_manager.getMin(expected_type_info.baseTypeID())
-							.as<core::GenericInt>();
+						const unsigned bit_width = unsigned(this->context.getTypeManager().numBits(expected_type_id));
 
-						core::GenericInt target_max = type_manager.getMax(expected_type_info.baseTypeID())
-							.as<core::GenericInt>();
+						core::GenericInt target_min =
+							type_manager.getMin(expected_type_info.baseTypeID()).getInt(bit_width);
+
+						core::GenericInt target_max =
+							type_manager.getMax(expected_type_info.baseTypeID()).getInt(bit_width);
 
 						if(int_value.value.getBitWidth() >= target_min.getBitWidth()){
 							target_min = target_min.ext(int_value.value.getBitWidth(), is_unsigned);
@@ -14613,11 +14846,44 @@ namespace pcit::panther{
 						sema::FloatValue& float_value = this->context.sema_buffer.float_values[float_value_id];
 
 
-						const core::GenericFloat target_min = type_manager.getMin(expected_type_info.baseTypeID())
-							.as<core::GenericFloat>().asF128();
+						const core::GenericFloat target_min = [&](){
+							switch(expected_type_primitive.kind()){
+								break; case Token::Kind::TYPE_F16:  return type_manager.getMin(expected_type_info.baseTypeID()).getF16();
+								break; case Token::Kind::TYPE_BF16: return type_manager.getMin(expected_type_info.baseTypeID()).getBF16();
+								break; case Token::Kind::TYPE_F32:  return type_manager.getMin(expected_type_info.baseTypeID()).getF32();
+								break; case Token::Kind::TYPE_F64:  return type_manager.getMin(expected_type_info.baseTypeID()).getF64();
+								break; case Token::Kind::TYPE_F80:  return type_manager.getMin(expected_type_info.baseTypeID()).getF80();
+								break; case Token::Kind::TYPE_F128: return type_manager.getMin(expected_type_info.baseTypeID()).getF128();
+								break; case Token::Kind::TYPE_C_LONG_DOUBLE: {
+									if(type_manager.numBytes(expected_type_info.baseTypeID()) == 8){
+										return type_manager.getMin(expected_type_info.baseTypeID()).getF64();
+									}else{
+										return type_manager.getMin(expected_type_info.baseTypeID()).getF128();
+									}
+								}
+								break; default: evo::debugFatalBreak("Unkonwn float type");
+							}
+						}().asF128();
 
-						const core::GenericFloat target_max = type_manager.getMax(expected_type_info.baseTypeID())
-							.as<core::GenericFloat>().asF128();
+
+						const core::GenericFloat target_max = [&](){
+							switch(expected_type_primitive.kind()){
+								break; case Token::Kind::TYPE_F16:  return type_manager.getMax(expected_type_info.baseTypeID()).getF16();
+								break; case Token::Kind::TYPE_BF16: return type_manager.getMax(expected_type_info.baseTypeID()).getBF16();
+								break; case Token::Kind::TYPE_F32:  return type_manager.getMax(expected_type_info.baseTypeID()).getF32();
+								break; case Token::Kind::TYPE_F64:  return type_manager.getMax(expected_type_info.baseTypeID()).getF64();
+								break; case Token::Kind::TYPE_F80:  return type_manager.getMax(expected_type_info.baseTypeID()).getF80();
+								break; case Token::Kind::TYPE_F128: return type_manager.getMax(expected_type_info.baseTypeID()).getF128();
+								break; case Token::Kind::TYPE_C_LONG_DOUBLE: {
+									if(type_manager.numBytes(expected_type_info.baseTypeID()) == 8){
+										return type_manager.getMax(expected_type_info.baseTypeID()).getF64();
+									}else{
+										return type_manager.getMax(expected_type_info.baseTypeID()).getF128();
+									}
+								}
+								break; default: evo::debugFatalBreak("Unkonwn float type");
+							}
+						}().asF128();
 
 
 						const core::GenericFloat converted_literal = float_value.value.asF128();

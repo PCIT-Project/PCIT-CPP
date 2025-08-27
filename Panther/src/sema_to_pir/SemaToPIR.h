@@ -113,15 +113,6 @@ namespace pcit::panther{
 			) const -> uint32_t;
 
 
-			// for indices, just create an 
-			auto jit_interface_return_aggregate(pir::Type return_type, pir::Expr return_alloca) -> void;
-
-			auto jit_interface_return_aggregate_impl(
-				pir::Type return_type,
-				pir::Expr return_alloca,
-				pir::Type target_type,
-				evo::SmallVector<pir::CalcPtr::Index>& indices
-			) -> void;
 
 			
 

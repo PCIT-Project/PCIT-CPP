@@ -386,19 +386,6 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			
-			{
-				const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
-					this->constexpr_jit_engine.registerJITInterfaceFuncs();
-
-				if(register_result.has_value() == false){
-					this->jit_engine_result_emit_diagnositc(register_result.error());
-					return evo::resultError;
-				}
-			}
-
-
-			this->constexpr_sema_to_pir_data.createJITInterfaceFuncDecls(this->constexpr_pir_module);
 		}
 
 			
