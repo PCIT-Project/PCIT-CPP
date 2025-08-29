@@ -22,6 +22,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeTypeID(),
 			sema::Expr(this->sema_buffer.createIntValue(
 				core::GenericInt::create<uint32_t>(type_id.get()),
@@ -35,6 +36,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
 				core::GenericInt(unsigned(this->type_manager.numBitsOfPtr()), this->type_manager.numBytes(type_id)),
@@ -47,6 +49,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
 				core::GenericInt(unsigned(this->type_manager.numBitsOfPtr()), this->type_manager.numBits(type_id)),
@@ -63,6 +66,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
@@ -72,6 +76,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
@@ -81,6 +86,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
@@ -90,6 +96,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
@@ -99,6 +106,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
@@ -128,6 +136,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(std::move(result), to_type.baseTypeID()))
 		);
@@ -145,6 +154,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(
 				arg.toGenericInt(unsigned(bit_width), is_signed),
@@ -167,6 +177,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
@@ -183,6 +194,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
@@ -207,6 +219,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -224,6 +237,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -242,6 +256,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
@@ -258,6 +273,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
@@ -282,6 +298,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -299,6 +316,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -317,6 +335,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
@@ -333,6 +352,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
@@ -357,6 +377,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -374,6 +395,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -428,6 +450,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(*result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -445,6 +468,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -467,6 +491,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -484,6 +509,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -528,6 +554,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -551,6 +578,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -568,6 +596,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -586,6 +615,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -603,6 +633,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -625,6 +656,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -642,6 +674,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -664,6 +697,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -681,6 +715,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -703,6 +738,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -720,6 +756,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -742,6 +779,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -759,6 +797,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
@@ -783,6 +822,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -801,6 +841,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -819,6 +860,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -850,6 +892,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(result.value(), this->type_manager.getTypeInfo(type_id).baseTypeID())
@@ -874,6 +917,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -905,6 +949,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(result.value(), this->type_manager.getTypeInfo(type_id).baseTypeID())
@@ -929,6 +974,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -951,6 +997,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -973,6 +1020,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -995,6 +1043,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
@@ -1017,6 +1066,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);

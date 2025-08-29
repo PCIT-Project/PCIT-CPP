@@ -1383,8 +1383,8 @@ namespace pthr{
 						this->print_array_init_new(this->ast_buffer.getArrayInitNew(node));
 					} break;
 
-					case panther::AST::Kind::STRUCT_INIT_NEW: {
-						this->print_struct_init_new(this->ast_buffer.getStructInitNew(node));
+					case panther::AST::Kind::DESIGNATED_INIT_NEW: {
+						this->print_designated_init_new(this->ast_buffer.getDesignatedInitNew(node));
 					} break;
 
 
@@ -1873,15 +1873,15 @@ namespace pthr{
 			}
 
 
-			auto print_struct_init_new(const panther::AST::StructInitNew& struct_init_new) -> void {
-				this->print_major_header("Struct Initializer New");
+			auto print_designated_init_new(const panther::AST::DesignatedInitNew& designated_init_new) -> void {
+				this->print_major_header("Designated Initializer New");
 
 				this->indenter.push();
 
 				this->indenter.print_arrow();
 				this->print_minor_header("Type");
 				this->printer.print(" ");
-				this->print_type(this->ast_buffer.getType(struct_init_new.type));
+				this->print_type(this->ast_buffer.getType(designated_init_new.type));
 				this->printer.println();
 
 				this->indenter.print_end();
@@ -1893,9 +1893,9 @@ namespace pthr{
 
 					for(
 						size_t i = 0; 
-						const panther::AST::StructInitNew::MemberInit& member_init : struct_init_new.memberInits
+						const panther::AST::DesignatedInitNew::MemberInit& member_init : designated_init_new.memberInits
 					){
-						if(i + 1 < struct_init_new.memberInits.size()){
+						if(i + 1 < designated_init_new.memberInits.size()){
 							this->indenter.print_arrow();
 						}else{
 							this->indenter.print_end();

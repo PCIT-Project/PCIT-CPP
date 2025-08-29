@@ -99,6 +99,35 @@ namespace pcit::panther::sema{
 			using NoLabelNode = std::monostate;
 			using LabelNode = evo::Variant<NoLabelNode, sema::BlockExprID, sema::WhileID>;
 
+			using ValueStateID = evo::Variant<
+				sema::VarID,
+				sema::ParamID,
+				sema::ReturnParamID,
+				sema::ErrorReturnParamID,
+				sema::BlockExprOutputID,
+				sema::ExceptParamID
+			>;
+			enum class ValueState{
+				UNINIT,
+				INIT,
+				MOVED_FROM,
+			};
+
+			struct ValueStateInfo{
+				struct DeclInfo{
+					std::optional<ValueState> potential_state_change = std::nullopt;
+					unsigned num_sub_scopes = 0;
+				};
+
+				struct ModifyInfo{
+					unsigned num_sub_scopes = 1;
+				};
+
+
+				ValueState state;
+				evo::Variant<DeclInfo, ModifyInfo> info;
+			};
+
 		public:
 			ScopeLevel(sema::StmtBlock* stmt_block = nullptr)
 				: _stmt_block(stmt_block), _label(std::nullopt), _label_node(NoLabelNode()) {}
@@ -142,6 +171,8 @@ namespace pcit::panther::sema{
 			auto setLabelTerminated() -> void;
 			EVO_NODISCARD auto isTerminated() const -> bool;
 			EVO_NODISCARD auto isLabelTerminated() const -> bool;
+
+			EVO_NODISCARD auto numUnterminatedSubScopes() const -> unsigned;
 
 			auto resetSubScopes() -> void;
 
@@ -193,6 +224,19 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto lookupDisallowedIdentForShadowing(std::string_view ident) const -> const IdentID*;
 
 
+			auto addIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
+			auto setIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
+			auto setIdentValueStateFromSubScope(ValueStateID value_state_id, ValueState state)
+				-> evo::Expected<void, ValueStateID>;
+			EVO_NODISCARD auto getIdentValueState(ValueStateID value_state_id) const -> std::optional<ValueState>;
+
+			EVO_NODISCARD auto getValueStateInfos() const
+				-> evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::const_iterator>;
+
+			EVO_NODISCARD auto getValueStateInfos()
+				-> evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::iterator>;
+
+
 
 		private:
 			EVO_NODISCARD auto add_ident_default_impl(std::string_view ident, auto id) -> AddIdentResult;
@@ -209,9 +253,13 @@ namespace pcit::panther::sema{
 			bool is_loop_main_scope = false;
 			bool do_shadowing_checks = true; // only for this level, doesn't affect sub-scopes or super-scopes
 
-			unsigned num_sub_scopes_not_terminated = 0;
-			bool has_sub_scopes = false;
+			unsigned num_sub_scopes = false;
+			unsigned num_sub_scopes_terminated = 0;
 			mutable core::SpinLock sub_scopes_and_stmt_block_lock{};
+
+
+			std::unordered_map<ValueStateID, ValueStateInfo> value_states{};
+			mutable core::SpinLock value_states_lock{};
 
 	};
 

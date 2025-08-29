@@ -524,6 +524,19 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// union designated init new
+
+			EVO_NODISCARD auto createUnionDesignatedInitNew(auto&&... args) -> sema::UnionDesignatedInitNew::ID {
+				return this->union_designated_init_new.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getUnionDesignatedInitNew(sema::UnionDesignatedInitNew::ID id) const
+			-> const sema::UnionDesignatedInitNew& {
+				return this->union_designated_init_new[id];
+			}
+
+
+			///////////////////////////////////
 			// template intrinsic instantiations
 
 			EVO_NODISCARD auto createTemplateIntrinsicFuncInstantiation(auto&&... args)
@@ -704,6 +717,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
 			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
 			core::SyncLinearStepAlloc<sema::PtrIndexer, sema::PtrIndexer::ID> ptr_indexers{};
+			core::SyncLinearStepAlloc<sema::UnionDesignatedInitNew, sema::UnionDesignatedInitNew::ID>
+				union_designated_init_new{};
 
 			core::SyncLinearStepAlloc<
 				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID

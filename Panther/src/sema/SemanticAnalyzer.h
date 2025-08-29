@@ -123,15 +123,16 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_cond_else() -> Result;
 			EVO_NODISCARD auto instr_cond_else_if() -> Result;
 			EVO_NODISCARD auto instr_end_cond() -> Result;
-			EVO_NODISCARD auto instr_end_cond_set() -> Result;
+			EVO_NODISCARD auto instr_end_cond_set(const Instruction::EndCondSet& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_local_when_cond(const Instruction::BeginLocalWhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_end_local_when_cond(const Instruction::EndLocalWhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_while(const Instruction::BeginWhile& instr) -> Result;
+			EVO_NODISCARD auto instr_end_while(const Instruction::EndWhile& instr) -> Result;
 			EVO_NODISCARD auto instr_end_while() -> Result;
 			EVO_NODISCARD auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
-			EVO_NODISCARD auto instr_end_defer() -> Result;
+			EVO_NODISCARD auto instr_end_defer(const Instruction::EndDefer& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result;
-			EVO_NODISCARD auto instr_end_stmt_block() -> Result;
+			EVO_NODISCARD auto instr_end_stmt_block(const Instruction::EndStmtBlock& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_assignment(const Instruction::Assignment& instr) -> Result;
 			EVO_NODISCARD auto instr_multi_assign(const Instruction::MultiAssign& instr) -> Result;
@@ -204,7 +205,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_array_init_new(const Instruction::ArrayInitNew<IS_CONSTEXPR>& instr) -> Result;
 
 			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_struct_init_new(const Instruction::StructInitNew<IS_CONSTEXPR>& instr) -> Result;
+			EVO_NODISCARD auto instr_designated_init_new(const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr)
+				-> Result;
 
 			EVO_NODISCARD auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
 			EVO_NODISCARD auto instr_try_else(const Instruction::TryElse& instr) -> Result;
@@ -320,9 +322,31 @@ namespace pcit::panther{
 				SYMBOL_END,
 			};
 			template<PopScopeLevelKind POP_SCOPE_LEVEL_KIND = PopScopeLevelKind::NORMAL>
-			EVO_NODISCARD auto pop_scope_level() -> void;
+			EVO_NODISCARD auto pop_scope_level() -> evo::Result<>;
 
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;
+
+
+			auto end_sub_scopes(Diagnostic::Location&& location) -> evo::Result<>;
+
+			auto end_sub_scopes(const Diagnostic::Location& location) -> evo::Result<> {
+				return this->end_sub_scopes(evo::copy(location));
+			}
+
+
+
+			//////////////////
+			// value states
+
+			EVO_NODISCARD auto get_ident_value_state(sema::ScopeLevel::ValueStateID value_state_id)
+				-> TermInfo::ValueState;
+
+			auto set_ident_value_state(
+				sema::ScopeLevel::ValueStateID value_state_id, sema::ScopeLevel::ValueState value_state
+			) -> void;
+
+			auto set_ident_value_state_if_needed(sema::Expr target, sema::ScopeLevel::ValueState value_state) -> void;
+
 
 
 			///////////////////////////////////
@@ -346,6 +370,8 @@ namespace pcit::panther{
 				bool is_global_scope,
 				const Source* source_module // optional
 			) -> evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError>;
+
+
 
 
 			enum class WaitOnSymbolProcResult{
@@ -472,6 +498,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto constexpr_infix_math_prep(const TermInfo& term_info) -> TermInfo;
 			EVO_NODISCARD auto constexpr_infix_math_prep(const evo::Result<TermInfo>& term_info) -> TermInfo;
 			EVO_NODISCARD auto constexpr_infix_math_cmp_prep(const TermInfo& term_info) -> TermInfo;
+
+
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto union_designated_init_new(
+				const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr, TypeInfo::ID target_type_info_id
+			) -> Result;
 
 
 			///////////////////////////////////
@@ -834,6 +866,36 @@ namespace pcit::panther{
 					templated_struct.symbolProc.ast_node,
 					this->context.getSourceManager()[templated_struct.symbolProc.source_id]
 				);
+			}
+
+
+			EVO_NODISCARD auto get_location(sema::ScopeLevel::ValueStateID value_state_id) const
+			-> Diagnostic::Location {
+				return value_state_id.visit([&](const auto& id) -> Diagnostic::Location {
+					using IDType = std::decay_t<decltype(id)>;
+
+					if constexpr(std::is_same<IDType, sema::Var::ID>()){
+						return this->get_location(id);
+
+					}else if constexpr(std::is_same<IDType, sema::Param::ID>()){
+						return this->get_location(id);
+
+					}else if constexpr(std::is_same<IDType, sema::ReturnParam::ID>()){
+						return this->get_location(id);
+
+					}else if constexpr(std::is_same<IDType, sema::ErrorReturnParam::ID>()){
+						return this->get_location(id);
+
+					}else if constexpr(std::is_same<IDType, sema::BlockExprOutput::ID>()){
+						return this->get_location(id);
+
+					}else if constexpr(std::is_same<IDType, sema::ExceptParam::ID>()){
+						return this->get_location(id);
+
+					}else{
+						static_assert(false, "Unknown value state ID");
+					}
+				});
 			}
 
 

@@ -454,6 +454,10 @@ namespace pcit::panther{
 			SymbolProcTermInfoID cond_expr;
 		};
 
+		struct EndCondSet{
+			Token::ID close_brace;
+		};
+
 		struct BeginLocalWhenCond{
 			const AST::WhenConditional& when_cond;
 			SymbolProcTermInfoID cond_expr;
@@ -466,9 +470,15 @@ namespace pcit::panther{
 
 
 
+
+
 		struct BeginWhile{
 			const AST::While& while_stmt;
 			SymbolProcTermInfoID cond_expr;
+		};
+
+		struct EndWhile{
+			Token::ID close_brace;
 		};
 
 
@@ -476,10 +486,19 @@ namespace pcit::panther{
 			const AST::Defer& defer_stmt;
 		};
 
+		struct EndDefer{
+			Token::ID close_brace;
+		};
+
 
 		struct BeginStmtBlock{
 			const AST::Block& stmt_block;
 		};
+
+		struct EndStmtBlock{
+			Token::ID close_brace;
+		};
+
 
 
 		struct FuncCall{
@@ -664,8 +683,8 @@ namespace pcit::panther{
 		};
 
 		template<bool IS_CONSTEXPR>
-		struct StructInitNew{
-			const AST::StructInitNew& struct_init_new;
+		struct DesignatedInitNew{
+			const AST::DesignatedInitNew& designated_init_new;
 			SymbolProcTypeID type_id;
 			SymbolProcTermInfoID output;
 			evo::SmallVector<SymbolProcTermInfoID> member_init_exprs;
@@ -920,8 +939,8 @@ namespace pcit::panther{
 			UNWRAP,
 			ARRAY_INIT_NEW_CONSTEXPR,
 			ARRAY_INIT_NEW,
-			STRUCT_INIT_NEW_CONSTEXPR,
-			STRUCT_INIT_NEW,
+			DESIGNATED_INIT_NEW_CONSTEXPR,
+			DESIGNATED_INIT_NEW,
 			PREPARE_TRY_HANDLER,
 			TRY_ELSE,
 			BEGIN_EXPR_BLOCK,

@@ -672,6 +672,12 @@ namespace std{
 	    }
 	};
 
+	template<>
+	struct hash<pcit::panther::Token::ID> {
+	    EVO_NODISCARD auto operator()(pcit::panther::Token::ID id) const -> size_t {
+	    	return std::hash<uint32_t>{}(id.get());
+	    }
+	};
 
 	template<>
 	class optional<pcit::panther::Token::ID> 
@@ -682,7 +688,6 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::Token::ID>::operator=;
 	};
 
-	
 }
 
 

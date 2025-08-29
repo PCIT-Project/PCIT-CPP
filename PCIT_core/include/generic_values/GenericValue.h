@@ -26,7 +26,7 @@ namespace pcit::core{
 	//////////////////////////////////////////////////////////////////////
 
 	struct GenericValue{
-		explicit GenericValue() : data{.small = 0}, num_bytes(0) {} // TODO(NOW): remove?
+		explicit GenericValue() : data{.small = 0}, num_bytes(0) {} // TODO(FUTURE): remove?
 
 		explicit GenericValue(bool val) : data{.small = uint64_t(val)}, num_bytes(1) {}
 		explicit GenericValue(char val) : data{.small = uint64_t(val)}, num_bytes(1) {}

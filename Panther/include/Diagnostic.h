@@ -114,6 +114,7 @@ namespace pcit::panther{
 			SEMA_IDENT_NOT_IN_SCOPE,
 			SEMA_IDENT_ALREADY_IN_SCOPE,
 			SEMA_INTRINSIC_DOESNT_EXIST,
+			SEMA_CANT_DETERMINE_VALUE_STATE,
 
 			// vars
 			SEMA_VAR_TYPE_VOID,
@@ -131,6 +132,7 @@ namespace pcit::panther{
 			SEMA_INVALID_ACCESSOR_RHS,
 			SEMA_EXPR_NOT_CONSTEXPR,
 			SEMA_EXPR_NOT_COMPTIME,
+			SEMA_EXPR_WRONG_STATE,
 			SEMA_COPY_ARG_NOT_CONCRETE,
 			SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
 			SEMA_MOVE_ARG_IS_IN_PARAM,
@@ -222,6 +224,10 @@ namespace pcit::panther{
 			SEMA_NEW_STRUCT_MEMBER_NOT_SET,
 			SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
 			SEMA_NEW_STRUCT_MEMBER_VAL_NOT_EPHEMERAL,
+			SEMA_NEW_UNION_WRONG_NUM_FIELDS,
+			SEMA_NEW_UNION_VALUE_TO_VOID_FIELD,
+			SEMA_NEW_UNION_FIELD_DOESNT_EXIST,
+
 
 			// terminators
 			SEMA_INCORRECT_RETURN_STMT_KIND,
@@ -391,7 +397,8 @@ namespace pcit::panther{
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::New& new_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::ArrayInitNew& new_expr, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::StructInitNew& new_expr, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::DesignatedInitNew& new_expr, const class Source& src)
+					-> Location;
 				EVO_NODISCARD static auto get(const AST::TryElse& try_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::ArrayType& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Type& type, const class Source& src) -> Location;
@@ -621,6 +628,7 @@ namespace pcit::panther{
 				case Code::SEMA_IDENT_NOT_IN_SCOPE:
 				case Code::SEMA_IDENT_ALREADY_IN_SCOPE:
 				case Code::SEMA_INTRINSIC_DOESNT_EXIST:
+				case Code::SEMA_CANT_DETERMINE_VALUE_STATE:
 				case Code::SEMA_VAR_TYPE_VOID:
 				case Code::SEMA_VAR_DEF_NOT_EPHEMERAL:
 				case Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE:
@@ -633,6 +641,7 @@ namespace pcit::panther{
 				case Code::SEMA_INVALID_ACCESSOR_RHS:
 				case Code::SEMA_EXPR_NOT_CONSTEXPR:
 				case Code::SEMA_EXPR_NOT_COMPTIME:
+				case Code::SEMA_EXPR_WRONG_STATE:
 				case Code::SEMA_COPY_ARG_NOT_CONCRETE:
 				case Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE:
 				case Code::SEMA_MOVE_ARG_IS_IN_PARAM:
@@ -704,6 +713,9 @@ namespace pcit::panther{
 				case Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET:
 				case Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST:
 				case Code::SEMA_NEW_STRUCT_MEMBER_VAL_NOT_EPHEMERAL:
+				case Code::SEMA_NEW_UNION_WRONG_NUM_FIELDS:
+				case Code::SEMA_NEW_UNION_VALUE_TO_VOID_FIELD:
+				case Code::SEMA_NEW_UNION_FIELD_DOESNT_EXIST:
 				case Code::SEMA_INCORRECT_RETURN_STMT_KIND:
 				case Code::SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS:
 				case Code::SEMA_RETURN_NOT_EPHEMERAL:

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.150.0"></a>
+## v0.0.150.0
+
+### Panther
+- Added checking for usage of uninitialized and moved-from values
+- Added union designated initializer operator new
+
+
+<!---------------------------------->
 <a name="v0.0.149.1"></a>
 ## v0.0.149.1
 

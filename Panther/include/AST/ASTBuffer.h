@@ -366,16 +366,17 @@ namespace pcit::panther{
 				return this->array_init_news[node._value.node_index];
 			}
 
-			EVO_NODISCARD auto createStructInitNew(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createDesignatedInitNew(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->struct_init_news.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::STRUCT_INIT_NEW, node_index);
+				const uint32_t node_index =
+					this->designated_init_news.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::DESIGNATED_INIT_NEW, node_index);
 			}
-			EVO_NODISCARD auto getStructInitNew(const AST::Node& node) const -> const AST::StructInitNew& {
+			EVO_NODISCARD auto getDesignatedInitNew(const AST::Node& node) const -> const AST::DesignatedInitNew& {
 				evo::debugAssert(
-					node.kind() == AST::Kind::STRUCT_INIT_NEW, "Node is not a StructInitNew"
+					node.kind() == AST::Kind::DESIGNATED_INIT_NEW, "Node is not a DesignatedInitNew"
 				);
-				return this->struct_init_news[node._value.node_index];
+				return this->designated_init_news[node._value.node_index];
 			}
 
 			EVO_NODISCARD auto createTryElse(auto&&... args) -> AST::Node {
@@ -476,7 +477,7 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<AST::New, uint32_t> news{};
 			core::LinearStepAlloc<AST::ArrayInitNew, uint32_t> array_init_news{};
-			core::LinearStepAlloc<AST::StructInitNew, uint32_t> struct_init_news{};
+			core::LinearStepAlloc<AST::DesignatedInitNew, uint32_t> designated_init_news{};
 			core::LinearStepAlloc<AST::TryElse, uint32_t> try_elses{};
 
 			core::LinearStepAlloc<AST::ArrayType, uint32_t> array_types{};

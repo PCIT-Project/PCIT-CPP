@@ -736,8 +736,8 @@ namespace pcit::panther{
 						this->expected_but_got(
 							"[when] after [else]",
 							this->reader.peek(),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Cannot mix [if] and [when] in a chain"), // TODO(FUTURE): better messaging
+							evo::SmallVector<Diagnostic::Info>{ // TODO(FUTURE): better messaging
+								Diagnostic::Info("Cannot mix [if] and [when] in a chain"),
 							}
 						);
 					}else{
@@ -748,8 +748,8 @@ namespace pcit::panther{
 						this->expected_but_got(
 							"[if] after [else]",
 							this->reader.peek(),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Cannot mix [if] and [when] in a chain"), // TODO(FUTURE): better messaging
+							evo::SmallVector<Diagnostic::Info>{ // TODO(FUTURE): better messaging
+								Diagnostic::Info("Cannot mix [if] and [when] in a chain"),
 							}
 						);
 					}else{
@@ -1052,9 +1052,11 @@ namespace pcit::panther{
 
 		auto statements = evo::SmallVector<AST::Node>();
 
+		auto end_location = std::optional<Token::ID>();
+
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
-				if(this->assert_token_fail(Token::lookupKind("}"))){ return Result::Code::ERROR; }
+				end_location = this->reader.next();
 				break;
 			}
 
@@ -1065,7 +1067,7 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createBlock(
-			start_location, std::move(label), std::move(outputs), std::move(statements)
+			start_location, *end_location, std::move(label), std::move(outputs), std::move(statements)
 		);
 	}
 
@@ -1561,10 +1563,11 @@ namespace pcit::panther{
 			} break;
 
 			case Token::lookupKind("{"): {
-				evo::Result<evo::SmallVector<AST::StructInitNew::MemberInit>> member_inits = this->parse_struct_init();
+				evo::Result<evo::SmallVector<AST::DesignatedInitNew::MemberInit>> member_inits = 
+					this->parse_designated_init();
 				if(member_inits.isError()){ return Result::Code::ERROR; }
 
-				return this->source.ast_buffer.createStructInitNew(
+				return this->source.ast_buffer.createDesignatedInitNew(
 					keyword_new, type.value(), std::move(member_inits.value())
 				);
 			} break;
@@ -2516,10 +2519,10 @@ namespace pcit::panther{
 	}
 
 
-	auto Parser::parse_struct_init() -> evo::Result<evo::SmallVector<AST::StructInitNew::MemberInit>> {
+	auto Parser::parse_designated_init() -> evo::Result<evo::SmallVector<AST::DesignatedInitNew::MemberInit>> {
 		if(this->assert_token_fail(Token::lookupKind("{"))){ return evo::resultError; }
 		
-		auto init_values = evo::SmallVector<AST::StructInitNew::MemberInit>();
+		auto init_values = evo::SmallVector<AST::DesignatedInitNew::MemberInit>();
 
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){

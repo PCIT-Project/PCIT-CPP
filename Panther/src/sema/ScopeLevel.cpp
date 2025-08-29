@@ -36,16 +36,17 @@ namespace pcit::panther::sema{
 	auto ScopeLevel::addSubScope() -> void {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 
-		this->has_sub_scopes = true;
-		this->num_sub_scopes_not_terminated += 1;
+		this->num_sub_scopes += 1;
 	}
 
 	auto ScopeLevel::setSubScopeTerminated() -> void {
-		evo::debugAssert(this->num_sub_scopes_not_terminated != 0, "setSubScopeTerminated called too many times");
-
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 
-		this->num_sub_scopes_not_terminated -= 1;
+		evo::debugAssert(
+			this->num_sub_scopes != this->num_sub_scopes_terminated, "setSubScopeTerminated called too many times"
+		);
+
+		this->num_sub_scopes_terminated += 1;
 	}
 
 	auto ScopeLevel::setTerminated() -> void {
@@ -62,7 +63,7 @@ namespace pcit::panther::sema{
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 		
 		return (this->hasStmtBlock() && this->stmtBlock().isTerminated())
-			|| (this->has_sub_scopes && this->num_sub_scopes_not_terminated == 0);
+			|| (this->num_sub_scopes > 0 && this->num_sub_scopes == this->num_sub_scopes_terminated);
 	}
 
 
@@ -71,10 +72,15 @@ namespace pcit::panther::sema{
 		return this->_stmt_block->isLabelTerminated();
 	}
 
+	auto ScopeLevel::numUnterminatedSubScopes() const -> unsigned {
+		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
+		return this->num_sub_scopes - this->num_sub_scopes_terminated;
+	}
+
 
 	auto ScopeLevel::resetSubScopes() -> void {
-		this->num_sub_scopes_not_terminated = 0;
-		this->has_sub_scopes = false;
+		this->num_sub_scopes = 0;
+		this->num_sub_scopes_terminated = 0;
 	}
 
 
@@ -327,6 +333,89 @@ namespace pcit::panther::sema{
 		return &this->ids.emplace(ident, id).first->second;
 	}
 
+
+
+	auto ScopeLevel::addIdentValueState(ValueStateID value_state_id, ValueState state) -> void {
+		const auto lock = std::scoped_lock(this->value_states_lock);
+		this->value_states.emplace(value_state_id, ValueStateInfo(state, ValueStateInfo::DeclInfo()));
+	}
+
+	auto ScopeLevel::setIdentValueState(ValueStateID value_state_id, ValueState state) -> void {
+		const auto lock = std::scoped_lock(this->value_states_lock);
+
+		auto find = this->value_states.find(value_state_id);
+
+		if(find == this->value_states.end()){
+			this->value_states.emplace(value_state_id, ValueStateInfo(state, ValueStateInfo::ModifyInfo()));
+
+		}else{
+			find->second.state = state;
+		}
+	}
+
+	auto ScopeLevel::setIdentValueStateFromSubScope(ValueStateID value_state_id, ValueState state)
+	-> evo::Expected<void, ValueStateID> {
+		const auto lock = std::scoped_lock(this->value_states_lock);
+
+		auto find = this->value_states.find(value_state_id);
+
+		if(find == this->value_states.end()){
+			this->value_states.emplace(value_state_id, ValueStateInfo(state, ValueStateInfo::ModifyInfo()));
+			return evo::Expected<void, ValueStateID>();
+
+		}else{
+			if(find->second.info.is<ValueStateInfo::DeclInfo>()){
+				ValueStateInfo::DeclInfo& decl_info = find->second.info.as<ValueStateInfo::DeclInfo>();
+
+				if(decl_info.potential_state_change.has_value()){
+					if(state != *decl_info.potential_state_change){
+						return evo::Unexpected<ValueStateID>(value_state_id);
+					}
+
+					decl_info.num_sub_scopes += 1;
+					return evo::Expected<void, ValueStateID>();
+
+				}else{
+					decl_info.potential_state_change = state;
+					decl_info.num_sub_scopes += 1;
+					return evo::Expected<void, ValueStateID>();
+				}
+
+			}else{
+				evo::debugAssert(find->second.info.is<ValueStateInfo::ModifyInfo>(), "Unknown info kind");
+
+				if(state != find->second.state){
+					return evo::Unexpected<ValueStateID>(value_state_id);
+				}else{
+					find->second.info.as<ValueStateInfo::ModifyInfo>().num_sub_scopes += 1;
+					return evo::Expected<void, ValueStateID>();
+				}
+			}
+		}
+	}
+
+	auto ScopeLevel::getIdentValueState(ValueStateID value_state_id) const -> std::optional<ValueState> {
+		const auto lock = std::scoped_lock(this->value_states_lock);
+
+		const auto find = this->value_states.find(value_state_id);
+		if(find != this->value_states.end()){ return find->second.state; }
+		return std::nullopt;
+	}
+
+
+	auto ScopeLevel::getValueStateInfos() const
+	-> evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::const_iterator> {
+		return evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::const_iterator>(
+			this->value_states.cbegin(), this->value_states.cend()
+		);
+	}
+
+	auto ScopeLevel::getValueStateInfos()
+	-> evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::iterator> {
+		return evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::iterator>(
+			this->value_states.begin(), this->value_states.end()
+		);
+	}
 
 
 }

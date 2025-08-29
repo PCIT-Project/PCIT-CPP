@@ -295,7 +295,7 @@ namespace pcit::panther{
 				return this->instr_end_cond();
 
 			case Instruction::Kind::END_COND_SET:
-				return this->instr_end_cond_set();
+				return this->instr_end_cond_set(this->context.symbol_proc_manager.getEndCondSet(instr));
 
 			case Instruction::Kind::BEGIN_LOCAL_WHEN_COND:
 				return this->instr_begin_local_when_cond(
@@ -309,19 +309,19 @@ namespace pcit::panther{
 				return this->instr_begin_while(this->context.symbol_proc_manager.getBeginWhile(instr));
 
 			case Instruction::Kind::END_WHILE:
-				return this->instr_end_while();
+				return this->instr_end_while(this->context.symbol_proc_manager.getEndWhile(instr));
 
 			case Instruction::Kind::BEGIN_DEFER:
 				return this->instr_begin_defer(this->context.symbol_proc_manager.getBeginDefer(instr));
 
 			case Instruction::Kind::END_DEFER:
-				return this->instr_end_defer();
+				return this->instr_end_defer(this->context.symbol_proc_manager.getEndDefer(instr));
 
 			case Instruction::Kind::BEGIN_STMT_BLOCK:
 				return this->instr_begin_stmt_block(this->context.symbol_proc_manager.getBeginStmtBlock(instr));
 
 			case Instruction::Kind::END_STMT_BLOCK:
-				return this->instr_end_stmt_block();
+				return this->instr_end_stmt_block(this->context.symbol_proc_manager.getEndStmtBlock(instr));
 
 			case Instruction::Kind::FUNC_CALL:
 				return this->instr_func_call(this->context.symbol_proc_manager.getFuncCall(instr));
@@ -486,13 +486,15 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getArrayInitNew(instr)
 				);
 
-			case Instruction::Kind::STRUCT_INIT_NEW_CONSTEXPR:
-				return this->instr_struct_init_new<true>(
-					this->context.symbol_proc_manager.getStructInitNewConstexpr(instr)
+			case Instruction::Kind::DESIGNATED_INIT_NEW_CONSTEXPR:
+				return this->instr_designated_init_new<true>(
+					this->context.symbol_proc_manager.getDesignatedInitNewConstexpr(instr)
 				);
 
-			case Instruction::Kind::STRUCT_INIT_NEW:
-				return this->instr_struct_init_new<false>(this->context.symbol_proc_manager.getStructInitNew(instr));
+			case Instruction::Kind::DESIGNATED_INIT_NEW:
+				return this->instr_designated_init_new<false>(
+					this->context.symbol_proc_manager.getDesignatedInitNew(instr)
+				);
 
 			case Instruction::Kind::PREPARE_TRY_HANDLER:
 				return this->instr_prepare_try_handler(this->context.symbol_proc_manager.getPrepareTryHandler(instr));
@@ -1390,7 +1392,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_struct_def() -> Result {
-		this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>();
+		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
 
 		const BaseType::Struct::ID created_struct_id =
@@ -2661,7 +2663,7 @@ namespace pcit::panther{
 			this->propagate_finished_pir_def();
 		}
 
-		this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>();
+		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
 		return Result::SUCCESS;
 	}
@@ -2863,7 +2865,7 @@ namespace pcit::panther{
 
 		current_interface.defCompleted = true;
 
-		this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>();
+		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 		this->propagate_finished_def();
 
 		return Result::SUCCESS;
@@ -2901,7 +2903,7 @@ namespace pcit::panther{
 			current_method.status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
 		}
 
-		this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>();
+		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 		this->propagate_finished_def();
 
 		BaseType::Interface& current_interface = this->context.type_manager.getInterface(
@@ -3377,6 +3379,13 @@ namespace pcit::panther{
 
 		if(this->add_ident_to_scope(var_ident, instr.var_decl, new_sema_var).isError()){ return Result::ERROR; }
 
+
+		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
+			this->get_current_scope_level().addIdentValueState(new_sema_var, sema::ScopeLevel::ValueState::UNINIT);
+		}else{
+			this->get_current_scope_level().addIdentValueState(new_sema_var, sema::ScopeLevel::ValueState::INIT);
+		}
+
 		return Result::SUCCESS;
 	}
 
@@ -3625,7 +3634,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
 					instr.return_stmt.value.as<AST::Node>(),
-					"Value of return statement is not ephemeral"
+					"Return values must be ephemeral"
 				);
 				return Result::ERROR;
 			}
@@ -3735,7 +3744,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
 					instr.error_stmt.value.as<AST::Node>(),
-					"Value of error return statement is not ephemeral"
+					"Error return values must be ephemeral"
 				);
 				return Result::ERROR;
 			}
@@ -3927,6 +3936,15 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_cond(const Instruction::BeginCond& instr) -> Result {
 		TermInfo& cond = this->get_term_info(instr.cond_expr);
 
+		if(cond.value_state != TermInfo::ValueState::INIT && cond.value_state != TermInfo::ValueState::NOT_APPLICABLE){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.conditional.cond,
+				"Condition in [if] conditional must be initialized"
+			);
+			return Result::ERROR;
+		}
+
 		if(this->type_check<true, true>(
 			TypeManager::getTypeBool(), cond, "Condition in [if] condtional", instr.conditional.cond
 		).ok == false){
@@ -3949,14 +3967,14 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_cond_no_else() -> Result {
-		this->pop_scope_level();
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		this->get_current_scope_level().addSubScope();
 		return Result::SUCCESS;
 	}
 
 
 	auto SemanticAnalyzer::instr_cond_else() -> Result {
-		this->pop_scope_level();
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 
 		const sema::Stmt current_cond_stmt = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.top();
 		sema::Conditional& current_conditional = this->context.sema_buffer.conds[current_cond_stmt.conditionalID()];
@@ -3967,25 +3985,25 @@ namespace pcit::panther{
 	}
 
 	auto SemanticAnalyzer::instr_cond_else_if() -> Result {
-		this->pop_scope_level();
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
 
 	auto SemanticAnalyzer::instr_end_cond() -> Result {
 		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.pop();
-		this->pop_scope_level();
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
-	auto SemanticAnalyzer::instr_end_cond_set() -> Result {
+	auto SemanticAnalyzer::instr_end_cond_set(const Instruction::EndCondSet& instr) -> Result {
 		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
 
 		if(current_scope_level.isTerminated() && current_scope_level.stmtBlock().isTerminated() == false){
 			current_scope_level.stmtBlock().setTerminated();
 		}
 
-		this->get_current_scope_level().resetSubScopes();
+		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -4021,8 +4039,20 @@ namespace pcit::panther{
 
 		TermInfo& cond_term_info = this->get_term_info(instr.cond_expr);
 
+		if(
+			cond_term_info.value_state != TermInfo::ValueState::INIT
+			&& cond_term_info.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.while_stmt.cond,
+				"Condition in [while] loop must be initialized"
+			);
+			return Result::ERROR;
+		}
+
 		if(this->type_check<true, true>(
-			TypeManager::getTypeBool(), cond_term_info, "Condition in [while] conditional", instr.while_stmt.cond
+			TypeManager::getTypeBool(), cond_term_info, "Condition in [while] loop", instr.while_stmt.cond
 		).ok == false){
 			return Result::ERROR;
 		}
@@ -4047,9 +4077,9 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_end_while() -> Result {
-		this->pop_scope_level();
-		this->get_current_scope_level().resetSubScopes();
+	auto SemanticAnalyzer::instr_end_while(const Instruction::EndWhile& instr) -> Result {
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -4087,9 +4117,9 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_end_defer() -> Result {
-		this->pop_scope_level();
-		this->get_current_scope_level().resetSubScopes();
+	auto SemanticAnalyzer::instr_end_defer(const Instruction::EndDefer& instr) -> Result {
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -4102,9 +4132,9 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_end_stmt_block() -> Result {
-		this->pop_scope_level();
-		this->get_current_scope_level().resetSubScopes();
+	auto SemanticAnalyzer::instr_end_stmt_block(const Instruction::EndStmtBlock& instr) -> Result {
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -4331,6 +4361,15 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(lhs.value_state == TermInfo::ValueState::MOVED_FROM){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.infix.lhs,
+				"LHS of assignment cannot have a value state of moved from"
+			);
+			return Result::ERROR;
+		}
+
 		if(rhs.is_ephemeral() == false && rhs.value_category != TermInfo::ValueCategory::NULL_VALUE){
 			this->emit_error(
 				Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
@@ -4350,6 +4389,10 @@ namespace pcit::panther{
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createAssign(lhs.getExpr(), rhs.getExpr())
 		);
+
+		if(lhs.value_state == TermInfo::ValueState::UNINIT){
+			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+		}
 
 		return Result::SUCCESS;
 	}
@@ -4648,6 +4691,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				selected_func_type_return_params[0].typeID.asTypeID(),
 				sema::Expr(sema_func_call_id)
 			);
@@ -4662,6 +4706,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(return_types),
 				sema::Expr(sema_func_call_id)
 			);
@@ -4754,6 +4799,7 @@ namespace pcit::panther{
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						target_term_info.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						selected_func_type.returnParams[0].typeID.asTypeID(),
 						sema::Expr(interface_call_id)
 					);
@@ -4768,6 +4814,7 @@ namespace pcit::panther{
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						target_term_info.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						std::move(return_types),
 						sema::Expr(interface_call_id)
 					);
@@ -4873,6 +4920,7 @@ namespace pcit::panther{
 				TermInfo(
 					TermInfo::ValueCategory::EPHEMERAL,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					func_call_term.type_id,
 					return_sema_expr
 				)
@@ -5017,6 +5065,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->context.sema_buffer.createBoolValue(is_macro_defined))
 		);
@@ -5196,6 +5245,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					return_types[0],
 					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
 				);
@@ -5204,6 +5254,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(return_types),
 					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
 				);
@@ -5867,10 +5918,23 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(
+			target.value_state != TermInfo::ValueState::INIT
+			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.prefix,
+				"Argument of operator [copy] must be initialized"
+			);
+			return Result::ERROR;
+		}
+
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(this->context.sema_buffer.createCopy(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
 		);
@@ -5885,20 +5949,20 @@ namespace pcit::panther{
 			if(target.value_category == TermInfo::ValueCategory::FORWARDABLE){
 				this->emit_error(
 					Diagnostic::Code::SEMA_MOVE_ARG_IS_IN_PARAM,
-					instr.prefix,
+					instr.prefix.rhs,
 					"Argument of operator [move] cannot be an in-parameter",
 					Diagnostic::Info("Use operator [forward] instead")
 				);
 			}else if(target.is_concrete() == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_MOVE_ARG_NOT_CONCRETE,
-					instr.prefix,
+					instr.prefix.rhs,
 					"Argument of operator [move] must be concrete"
 				);
 			}else{
 				this->emit_error(
 					Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
-					instr.prefix,
+					instr.prefix.rhs,
 					"Argument of operator [move] must be mutable"
 				);
 			}
@@ -5910,16 +5974,46 @@ namespace pcit::panther{
 		if(this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>()) == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
-				instr.prefix,
+				instr.prefix.rhs,
 				"Type of argument of operator [move] is not movable"
 			);
 			return Result::ERROR;
 		}
 
 
+		switch(target.value_state){
+			case TermInfo::ValueState::NOT_APPLICABLE: {
+				// do nothing...
+			} break;
+
+			case TermInfo::ValueState::INIT: {
+				this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM);
+			} break;
+
+			case TermInfo::ValueState::UNINIT: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+					instr.prefix.rhs,
+					"Argument of operator [move] must be initialized"
+				);
+				return Result::ERROR;
+			} break;
+
+			case TermInfo::ValueState::MOVED_FROM: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+					instr.prefix.rhs,
+					"Argument of operator [move] must be initialized",
+					Diagnostic::Info("This argument was already moved from")
+				);
+				return Result::ERROR;
+			} break;
+		}
+
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(this->context.sema_buffer.createMove(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
 		);
@@ -5942,9 +6036,40 @@ namespace pcit::panther{
 		}
 
 
+		switch(target.value_state){
+			case TermInfo::ValueState::NOT_APPLICABLE: {
+				// do nothing...
+			} break;
+
+			case TermInfo::ValueState::INIT: {
+				this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM);
+			} break;
+
+			case TermInfo::ValueState::UNINIT: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+					instr.prefix.rhs,
+					"Argument of operator [forward] must be initialized"
+				);
+				return Result::ERROR;
+			} break;
+
+			case TermInfo::ValueState::MOVED_FROM: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+					instr.prefix.rhs,
+					"Argument of operator [forward] must be initialized",
+					Diagnostic::Info("This argument was already forwarded")
+				);
+				return Result::ERROR;
+			} break;
+		}
+
+
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(this->context.sema_buffer.createForward(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
 		);
@@ -5962,6 +6087,18 @@ namespace pcit::panther{
 				Diagnostic::Code::SEMA_ADDR_OF_ARG_NOT_CONCRETE,
 				instr.prefix,
 				"Argument of operator prefix [&] must be concrete"
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			target.value_state != TermInfo::ValueState::INIT
+			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.prefix,
+				"Argument of operator prefix [&] must be initialized"
 			);
 			return Result::ERROR;
 		}
@@ -5992,6 +6129,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			sema::Expr(this->context.sema_buffer.createAddrOf(target.getExpr()))
 		);
@@ -6031,6 +6169,18 @@ namespace pcit::panther{
 			}
 
 		}else{
+			if(
+				expr.value_state != TermInfo::ValueState::INIT
+				&& expr.value_state != TermInfo::ValueState::NOT_APPLICABLE
+			){
+				this->emit_error(
+					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+					instr.prefix.rhs,
+					"Argument of operator prefix [-] must be initialized"
+				);
+				return Result::ERROR;
+			}
+
 			if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
 				if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 					sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
@@ -6071,6 +6221,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						expr.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						expr.type_id.as<TypeInfo::ID>(),
 						sema::Expr(created_func_call_id)
 					);
@@ -6094,6 +6245,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						expr.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						expr.type_id.as<TypeInfo::ID>(),
 						sema::Expr(created_func_call_id)
 					);
@@ -6119,6 +6271,18 @@ namespace pcit::panther{
 		if(this->type_check<true, true>(
 			TypeManager::getTypeBool(), expr, "RHS of operator [!]", instr.prefix.rhs
 		).ok == false){
+			return Result::ERROR;
+		}
+
+		if(
+			expr.value_state != TermInfo::ValueState::INIT
+			&& expr.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.prefix.rhs,
+				"Argument of operator [!] must be initialized"
+			);
 			return Result::ERROR;
 		}
 
@@ -6149,6 +6313,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				TypeManager::getTypeBool(),
 				sema::Expr(created_func_call_id)
 			);
@@ -6177,6 +6342,19 @@ namespace pcit::panther{
 				Diagnostic::Code::SEMA_BITWISE_NOT_ARG_FLUID,
 				instr.prefix.rhs,
 				"Operator [~] cannot accept fluid values"
+			);
+			return Result::ERROR;
+		}
+
+
+		if(
+			expr.value_state != TermInfo::ValueState::INIT
+			&& expr.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.prefix.rhs,
+				"Argument of operator [~] must be initialized"
 			);
 			return Result::ERROR;
 		}
@@ -6231,6 +6409,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					expr.value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					expr.type_id.as<TypeInfo::ID>(),
 					sema::Expr(created_func_call_id)
 				);
@@ -6245,11 +6424,24 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_deref(const Instruction::Deref& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
+		if(
+			target.value_state != TermInfo::ValueState::INIT
+			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.postfix.lhs,
+				"Argument of operator [.*] must be initialized"
+			);
+			return Result::ERROR;
+		}
+
+
 		if(target.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix,
-				"Argument of operator postfix [.*] must be a pointer"
+				instr.postfix.lhs,
+				"Argument of operator [.*] must be a pointer"
 			);
 			return Result::ERROR;
 		}
@@ -6259,8 +6451,8 @@ namespace pcit::panther{
 		if(target_type.isPointer() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix,
-				"Argument of operator postfix [.*] must be a pointer"
+				instr.postfix.lhs,
+				"Argument of operator [.*] must be a pointer"
 			);
 			return Result::ERROR;
 		}
@@ -6268,8 +6460,8 @@ namespace pcit::panther{
 		if(target_type.isOptional()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix,
-				"Argument of operator postfix [.*] must be a non-optional pointer",
+				instr.postfix.lhs,
+				"Argument of operator [.*] must be a non-optional pointer",
 				Diagnostic::Info("Did you mean \".?.*\" instead?")
 			);
 			return Result::ERROR;
@@ -6278,8 +6470,8 @@ namespace pcit::panther{
 		if(target_type.isInterfacePointer()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix,
-				"Argument of operator postfix [.*] must be a pointer",
+				instr.postfix.lhs,
+				"Argument of operator [.*] must be a pointer",
 				Diagnostic::Info("Cannot be an interface pointer")
 			);
 			return Result::ERROR;
@@ -6321,6 +6513,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			target_type.qualifiers().back().isReadOnly ? ValueCategory::CONCRETE_CONST : ValueCategory::CONCRETE_MUT,
 			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), resultant_type_id))
 		);
@@ -6332,11 +6525,23 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_unwrap(const Instruction::Unwrap& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
+		if(
+			target.value_state != TermInfo::ValueState::INIT
+			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.postfix.lhs,
+				"Argument of operator [.?] must be initialized"
+			);
+			return Result::ERROR;
+		}
+
 		if(target.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_UNWRAP_ARG_NOT_OPTIONAL,
-				instr.postfix,
-				"Argument of operator postfix [.*] must be a pointer"
+				instr.postfix.lhs,
+				"Argument of operator [.?] must be an optional"
 			);
 			return Result::ERROR;
 		}
@@ -6346,8 +6551,8 @@ namespace pcit::panther{
 		if(target_type.isOptional() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_UNWRAP_ARG_NOT_OPTIONAL,
-				instr.postfix,
-				"Argument of operator postfix [.?] must be an opional"
+				instr.postfix.lhs,
+				"Argument of operator [.?] must be an opional"
 			);
 			return Result::ERROR;
 		}
@@ -6368,6 +6573,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			sema::Expr(this->context.sema_buffer.createUnwrap(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
 		);
@@ -6480,6 +6686,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			target_type_id.asTypeID(),
 			sema::Expr(created_aggregate_value)
 		);
@@ -6488,29 +6695,44 @@ namespace pcit::panther{
 
 
 	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_struct_init_new(const Instruction::StructInitNew<IS_CONSTEXPR>& instr) -> Result {
+	auto SemanticAnalyzer::instr_designated_init_new(const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr)
+	-> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
-				instr.struct_init_new.type,
+				instr.designated_init_new.type,
 				"Operator [new] cannot accept type `Void`"
 			);
 			return Result::ERROR;
 		}
 
-		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id.asTypeID());
-		if(
-			target_type_info.qualifiers().empty() == false
-			|| target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT
-		){
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(
+			this->get_actual_type<true>(target_type_id.asTypeID())
+		);
+		if(target_type_info.qualifiers().empty() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
-				instr.struct_init_new.type,
-				"Struct initializer operator [new] cannot accept a type that's not a struct"
+				instr.designated_init_new.type,
+				"Designated initializer operator [new] cannot accept a type that's not a struct or a union"
 			);
 			return Result::ERROR;
 		}
+
+
+		if(target_type_info.baseTypeID().kind() == BaseType::Kind::UNION){
+			return this->union_designated_init_new(instr, target_type_id.asTypeID());
+
+		}else if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
+				instr.designated_init_new.type,
+				"Designated initializer operator [new] cannot accept a type that's not a struct or a union"
+			);
+			return Result::ERROR;
+		}
+
+
 
 		const BaseType::Struct& target_type = this->context.getTypeManager().getStruct(
 			target_type_info.baseTypeID().structID()
@@ -6518,8 +6740,8 @@ namespace pcit::panther{
 
 
 		if(target_type.memberVars.empty()){
-			if(instr.struct_init_new.memberInits.empty() == false){
-				const AST::StructInitNew::MemberInit& member_init = instr.struct_init_new.memberInits[0];
+			if(instr.designated_init_new.memberInits.empty() == false){
+				const AST::DesignatedInitNew::MemberInit& member_init = instr.designated_init_new.memberInits[0];
 
 				const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
 
@@ -6564,6 +6786,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type_id.asTypeID(),
 				sema::Expr(created_aggregate_value)
 			);
@@ -6591,26 +6814,26 @@ namespace pcit::panther{
 			const std::string_view member_var_ident =
 				target_type.getMemberName(*member_var, this->context.getSourceManager());
 
-			if(member_init_i >= instr.struct_init_new.memberInits.size()){
+			if(member_init_i >= instr.designated_init_new.memberInits.size()){
 				if(member_var->defaultValue.has_value()){
 					values.emplace_back(*member_var->defaultValue);
 					continue;
 				}
 
-				if(instr.struct_init_new.memberInits.empty()){
+				if(instr.designated_init_new.memberInits.empty()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
-						instr.struct_init_new,
+						instr.designated_init_new,
 						std::format("Member \"{}\" was not set in struct initializer operator [new]", member_var_ident)
 					);
 				}else{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
-						instr.struct_init_new,
+						instr.designated_init_new,
 						std::format("Member \"{}\" was not set in struct initializer operator [new]", member_var_ident),
 						Diagnostic::Info(
 							std::format("Member initializer for \"{}\" should go after this one", member_var_ident),
-							this->get_location(instr.struct_init_new.memberInits[member_init_i - 1].ident)
+							this->get_location(instr.designated_init_new.memberInits[member_init_i - 1].ident)
 						)
 					);
 				}
@@ -6618,8 +6841,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 
 			}else{
-				const AST::StructInitNew::MemberInit& member_init =
-					instr.struct_init_new.memberInits[member_init_i];
+				const AST::DesignatedInitNew::MemberInit& member_init =
+					instr.designated_init_new.memberInits[member_init_i];
 
 
 				const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
@@ -6633,7 +6856,7 @@ namespace pcit::panther{
 					if(struct_has_member(member_init_ident)){
 						this->emit_error(
 							Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
-							instr.struct_init_new,
+							instr.designated_init_new,
 							std::format(
 								"Member \"{}\" was not set in struct initializer operator [new]", member_var_ident
 							),
@@ -6684,8 +6907,8 @@ namespace pcit::panther{
 		}
 
 
-		if(member_init_i < instr.struct_init_new.memberInits.size()){
-			const AST::StructInitNew::MemberInit& member_init = instr.struct_init_new.memberInits[member_init_i];
+		if(member_init_i < instr.designated_init_new.memberInits.size()){
+			const AST::DesignatedInitNew::MemberInit& member_init = instr.designated_init_new.memberInits[member_init_i];
 
 			const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
 
@@ -6726,6 +6949,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			target_type_id.asTypeID(),
 			sema::Expr(created_aggregate_value)
 		);
@@ -6843,8 +7067,6 @@ namespace pcit::panther{
 		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
 		TermInfo& except_expr = this->get_term_info(instr.except_expr);
 
-		EVO_DEFER([&](){ this->pop_scope_level(); });
-
 		if(attempt_expr.value_category != TermInfo::ValueCategory::EPHEMERAL){
 			this->emit_error(
 				Diagnostic::Code::SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL,
@@ -6913,9 +7135,13 @@ namespace pcit::panther{
 			return TermInfo::ValueStage::RUNTIME;
 		}();
 
+
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			attempt_expr.type_id,
 			sema::Expr(
 				this->context.sema_buffer.createTryElse(
@@ -7013,6 +7239,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				sema_block_expr.outputs[0].typeID,
 				sema::Expr(sema_block_expr_id)
 			);
@@ -7026,14 +7253,15 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(types),
 				sema::Expr(sema_block_expr_id)
 			);
 		}
 
 
-		this->pop_scope_level<PopScopeLevelKind::LABEL_TERMINATE>();
-		this->get_current_scope_level().resetSubScopes();
+		if(this->pop_scope_level<PopScopeLevelKind::LABEL_TERMINATE>().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.block.closeBrace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -7046,8 +7274,20 @@ namespace pcit::panther{
 		if(target.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-				instr.indexer,
+				instr.indexer.target,
 				"Invalid target for indexer"
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			target.value_state != TermInfo::ValueState::INIT
+			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.indexer.target,
+				"Indexer target must be initialized"
 			);
 			return Result::ERROR;
 		}
@@ -7162,7 +7402,11 @@ namespace pcit::panther{
 
 
 		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::EPHEMERAL, target.value_stage, resultant_type_id, sema_indexer_expr
+			TermInfo::ValueCategory::EPHEMERAL,
+			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			resultant_type_id,
+			sema_indexer_expr
 		);
 		return Result::SUCCESS;
 	}
@@ -7773,6 +8017,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						expr.getExpr()
 					);
@@ -7790,6 +8035,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(new_float_value)
 					);
@@ -7813,6 +8059,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(new_int_value)
 					);
@@ -7829,12 +8076,23 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						expr.getExpr()
 					);
 					return Result::SUCCESS;
 				}
 			}
+		}
+
+
+		if(expr.value_state != TermInfo::ValueState::INIT && expr.value_state != TermInfo::ValueState::NOT_APPLICABLE){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.infix.lhs,
+				"Argument for operator [as] must be initialized"
+			);
+			return Result::ERROR;
 		}
 
 
@@ -7884,6 +8142,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				sema::Expr(conversion_call)
 			);
@@ -7965,7 +8224,11 @@ namespace pcit::panther{
 
 
 			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL, expr.value_stage, target_type.asTypeID(), expr.getExpr()
+				TermInfo::ValueCategory::EPHEMERAL,
+				expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				target_type.asTypeID(),
+				expr.getExpr()
 			);
 			return Result::SUCCESS;
 			
@@ -7988,6 +8251,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				expr.getExpr()
 			);
@@ -8014,6 +8278,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						expr.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(created_func_call_id)
 					);
@@ -8057,6 +8322,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						expr.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(conversion_call)
 					);
@@ -8132,6 +8398,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				sema::Expr(created_func_call_id)
 			);
@@ -8341,6 +8608,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				sema::Expr(created_func_call_id)
 			);
@@ -8373,6 +8641,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				from_expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				this->get_type(instr.target_type).asTypeID(),
 				sema::Expr(make_interface_ptr_id)
 			);
@@ -8430,6 +8699,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				from_expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				this->get_type(instr.target_type).asTypeID(),
 				sema::Expr(make_interface_ptr_id)
 			);
@@ -8460,6 +8730,18 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(
+			lhs.value_state != TermInfo::ValueState::INIT
+			&& lhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.infix.lhs,
+				"LHS of [null] comparison must be initialized"
+			);
+			return Result::ERROR;
+		}
+
 		const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>());
 		const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
 
@@ -8478,6 +8760,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			lhs.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->context.sema_buffer.createOptionalNullCheck(lhs.getExpr(), lhs_actual_type_id, is_equal))
 		);
@@ -8502,6 +8785,31 @@ namespace pcit::panther{
 		if(rhs.isSingleNormalValue() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS, instr.infix.rhs, "Invalid RHS of math infix operator"
+			);
+			return Result::ERROR;
+		}
+
+
+		if(
+			lhs.value_state != TermInfo::ValueState::INIT
+			&& lhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.infix.lhs,
+				"LHS of math infix must be initialized"
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			rhs.value_state != TermInfo::ValueState::INIT
+			&& rhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.infix.rhs,
+				"RHS of math infix must be initialized"
 			);
 			return Result::ERROR;
 		}
@@ -9067,7 +9375,11 @@ namespace pcit::panther{
 			);
 
 			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL, lhs.value_stage, *resultant_type, sema::Expr(created_func_call_id)
+				TermInfo::ValueCategory::EPHEMERAL,
+				lhs.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				*resultant_type,
+				sema::Expr(created_func_call_id)
 			);
 			return Result::SUCCESS;
 		}
@@ -9094,6 +9406,18 @@ namespace pcit::panther{
 				Diagnostic::Code::SEMA_INVALID_ACCESSOR_LHS,
 				instr.infix.lhs,
 				"Accessor operator of this LHS is invalid"
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			lhs.value_state != TermInfo::ValueState::INIT
+			&& lhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.infix.lhs,
+				"LHS of accessor operator must be initialized"
 			);
 			return Result::ERROR;
 		}
@@ -9489,6 +9813,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::INTRINSIC_FUNC,
 				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueState::NOT_APPLICABLE,
 				intrinsic_type,
 				sema::Expr(*intrinsic_kind)
 			);
@@ -9524,6 +9849,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createIntValue(
 						core::GenericInt(256, literal_token.getInt()), std::nullopt
@@ -9536,6 +9862,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createFloatValue(
 						core::GenericFloat::createF128(literal_token.getFloat()), std::nullopt
@@ -9548,6 +9875,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.getTypeManager().getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool()))
 				);
@@ -9558,6 +9886,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.type_manager.getOrCreateTypeInfo(
 						TypeInfo(
 							this->context.type_manager.getOrCreateArray(
@@ -9579,6 +9908,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.getTypeManager().getTypeChar(),
 					sema::Expr(this->context.sema_buffer.createCharValue(literal_token.getChar()))
 				);
@@ -9589,6 +9919,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::NULL_VALUE,
 					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::NullType(),
 					sema::Expr(this->context.sema_buffer.createNull(std::nullopt))
 				);
@@ -9604,6 +9935,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INITIALIZER,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createUninit(instr.uninit_token))
 		);
@@ -9614,6 +9946,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INITIALIZER,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createZeroinit(instr.zeroinit_token))
 		);
@@ -9654,6 +9987,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			value_category,
 			current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+			TermInfo::ValueState::INIT,
 			param.typeID,
 			sema::Expr(*this_param_id)
 		);
@@ -10001,14 +10335,26 @@ namespace pcit::panther{
 			evo::unreachable();
 		}();
 
+		const sema::FakeTermInfo::ValueState value_state = [&](){
+			switch(lhs.value_state){
+				case TermInfo::ValueState::NOT_APPLICABLE: return sema::FakeTermInfo::ValueState::NOT_APPLICABLE;
+				case TermInfo::ValueState::INIT:           return sema::FakeTermInfo::ValueState::INIT;
+				case TermInfo::ValueState::UNINIT:         return sema::FakeTermInfo::ValueState::UNINIT;
+				case TermInfo::ValueState::MOVED_FROM:     return sema::FakeTermInfo::ValueState::MOVED_FROM;
+			}
+			evo::unreachable();
+		}();
+
+
 		const sema::FakeTermInfo::ID created_fake_term_info = this->context.sema_buffer.createFakeTermInfo(
-			value_category, value_stage, lhs.type_id.as<TypeInfo::ID>(), lhs.getExpr()
+			value_category, value_stage, value_state, lhs.type_id.as<TypeInfo::ID>(), lhs.getExpr()
 		);
 
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INTERFACE_CALL,
 			lhs.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			std::move(methods),
 			sema::Expr(created_fake_term_info)
 		);
@@ -10070,6 +10416,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
 							member_var->typeID,
 							lhs_aggregate_value.values[i]
 						);
@@ -10098,6 +10445,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							value_category,
 							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							TermInfo::ValueState::NOT_APPLICABLE,
 							member_var->typeID,
 							sema_expr
 						);
@@ -10192,6 +10540,16 @@ namespace pcit::panther{
 			evo::unreachable();
 		}();
 
+		const sema::FakeTermInfo::ValueState value_state = [&](){
+			switch(lhs.value_state){
+				case TermInfo::ValueState::NOT_APPLICABLE: return sema::FakeTermInfo::ValueState::NOT_APPLICABLE;
+				case TermInfo::ValueState::INIT:           return sema::FakeTermInfo::ValueState::INIT;
+				case TermInfo::ValueState::UNINIT:         return sema::FakeTermInfo::ValueState::UNINIT;
+				case TermInfo::ValueState::MOVED_FROM:     return sema::FakeTermInfo::ValueState::MOVED_FROM;
+			}
+			evo::unreachable();
+		}();
+
 		const sema::FakeTermInfo::ID method_this = [&](){
 			if(is_pointer){
 				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
@@ -10201,13 +10559,14 @@ namespace pcit::panther{
 				return this->context.sema_buffer.createFakeTermInfo(
 					value_category,
 					value_stage,
+					value_state,
 					resultant_type_id,
 					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
 				);
 				
 			}else{
 				return this->context.sema_buffer.createFakeTermInfo(
-					value_category, value_stage, actual_lhs_type_id, lhs.getExpr()
+					value_category, value_stage, value_state, actual_lhs_type_id, lhs.getExpr()
 				);
 			}
 		}();
@@ -10215,6 +10574,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::METHOD_CALL,
 			expr_ident.value().value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			std::move(expr_ident.value().type_id),
 			sema::Expr(method_this)
 		);
@@ -10321,6 +10681,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					value_category,
 					this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+					TermInfo::ValueState::NOT_APPLICABLE,
 					lhs_type_union.fields[
 						lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
 					].typeID.asTypeID(),
@@ -10413,6 +10774,16 @@ namespace pcit::panther{
 			evo::unreachable();
 		}();
 
+		const sema::FakeTermInfo::ValueState value_state = [&](){
+			switch(lhs.value_state){
+				case TermInfo::ValueState::NOT_APPLICABLE: return sema::FakeTermInfo::ValueState::NOT_APPLICABLE;
+				case TermInfo::ValueState::INIT:           return sema::FakeTermInfo::ValueState::INIT;
+				case TermInfo::ValueState::UNINIT:         return sema::FakeTermInfo::ValueState::UNINIT;
+				case TermInfo::ValueState::MOVED_FROM:     return sema::FakeTermInfo::ValueState::MOVED_FROM;
+			}
+			evo::unreachable();
+		}();
+
 		const sema::FakeTermInfo::ID method_this = [&](){
 			if(is_pointer){
 				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
@@ -10422,13 +10793,14 @@ namespace pcit::panther{
 				return this->context.sema_buffer.createFakeTermInfo(
 					value_category,
 					value_stage,
+					value_state,
 					resultant_type_id,
 					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
 				);
 				
 			}else{
 				return this->context.sema_buffer.createFakeTermInfo(
-					value_category, value_stage, actual_lhs_type_id, lhs.getExpr()
+					value_category, value_stage, value_state, actual_lhs_type_id, lhs.getExpr()
 				);
 			}
 		}();
@@ -10436,6 +10808,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::METHOD_CALL,
 			expr_ident.value().value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			std::move(expr_ident.value().type_id),
 			sema::Expr(method_this)
 		);
@@ -10480,7 +10853,7 @@ namespace pcit::panther{
 
 
 	template<SemanticAnalyzer::PopScopeLevelKind POP_SCOPE_LEVEL_KIND>
-	auto SemanticAnalyzer::pop_scope_level() -> void {
+	EVO_NODISCARD auto SemanticAnalyzer::pop_scope_level() -> evo::Result<> {
 		if constexpr(POP_SCOPE_LEVEL_KIND == PopScopeLevelKind::SYMBOL_END){
 			this->scope.popLevel();
 
@@ -10494,7 +10867,27 @@ namespace pcit::panther{
 				&& current_scope_is_terminated
 			){
 				current_scope_level.stmtBlock().setTerminated();
+
+			}else if(current_scope_is_terminated == false && this->scope.inObjectScope()){
+				sema::ScopeLevel& parent_scope_level = 
+					this->context.sema_buffer.scope_manager.getLevel(*std::next(this->scope.begin()));
+
+				for(const auto& [value_state_id, value_state_info] : current_scope_level.getValueStateInfos()){
+					const evo::Expected<void, sema::ScopeLevel::ValueStateID> set_value_state_res =
+						parent_scope_level.setIdentValueStateFromSubScope(value_state_id, value_state_info.state);
+
+
+					if(set_value_state_res.has_value() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_CANT_DETERMINE_VALUE_STATE,
+							set_value_state_res.error(),
+							"Can't determine value state in sub-scope"
+						); // TODO(FUTURE): emit where the error comes from
+						return evo::resultError;
+					}
+				}	
 			}
+
 
 			if constexpr(POP_SCOPE_LEVEL_KIND == PopScopeLevelKind::LABEL_TERMINATE){
 				const bool current_scope_is_label_terminated = current_scope_level.isLabelTerminated();
@@ -10524,6 +10917,7 @@ namespace pcit::panther{
 			}
 		}
 
+		return evo::Result<>();
 	}
 
 
@@ -10651,47 +11045,6 @@ namespace pcit::panther{
 		}
 
 
-		// TODO(NOW): remove
-		//////////////////////////////////////////////////////////////////////
-		// debug testing
-
-		if(wait_on_symbol_proc_result == WaitOnSymbolProcResult::SEMAS_READY){
-			evo::breakpoint();
-
-			for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
-				const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> scope_level_lookup = 
-					this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-						ident,
-						ident_str,
-						this->context.sema_buffer.scope_manager.getLevel(scope_level_id),
-						i >= this->scope.getCurrentObjectScopeIndex() || i == 0,
-						i == 0,
-						nullptr
-					);
-
-				if(scope_level_lookup.has_value()){ return scope_level_lookup.value(); }
-
-				switch(scope_level_lookup.error()){
-					case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
-						// continue...
-					} break;
-
-					case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-						evo::debugFatalBreak("SymbolProc said done, sema disagreed");
-					} break;
-
-					case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: {
-						return evo::Unexpected(Result::ERROR);
-					} break;
-				}
-
-				i -= 1;
-			}
-		}
-
-
-
-
 		///////////////////////////////////
 		// didn't find identifier
 
@@ -10729,6 +11082,7 @@ namespace pcit::panther{
 		return ident_id_lookup->visit([&](const auto& ident_id) -> ReturnType {
 			using IdentIDType = std::decay_t<decltype(ident_id)>;
 
+
 			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
 				return ReturnType(
 					TermInfo(TermInfo::ValueCategory::FUNCTION, TermInfo::ValueStage::CONSTEXPR, ident_id, std::nullopt)
@@ -10755,12 +11109,14 @@ namespace pcit::panther{
 
 				using ValueCategory = TermInfo::ValueCategory;
 				using ValueStage = TermInfo::ValueStage;
+				using ValueState = TermInfo::ValueState;
 
 				switch(sema_var.kind){
 					case AST::VarDecl::Kind::VAR: {
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_MUT,
 							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
 						));
@@ -10770,6 +11126,7 @@ namespace pcit::panther{
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_CONST,
 							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
 						));
@@ -10778,12 +11135,17 @@ namespace pcit::panther{
 					case AST::VarDecl::Kind::DEF: {
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
-								ValueCategory::EPHEMERAL, ValueStage::CONSTEXPR, *sema_var.typeID, sema_var.expr
+								ValueCategory::EPHEMERAL,
+								ValueStage::CONSTEXPR,
+								ValueState::NOT_APPLICABLE,
+								*sema_var.typeID,
+								sema_var.expr
 							));
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL_FLUID,
 								ValueStage::CONSTEXPR,
+								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
 								sema_var.expr
 							));
@@ -10814,6 +11176,7 @@ namespace pcit::panther{
 
 				using ValueCategory = TermInfo::ValueCategory;
 				using ValueStage = TermInfo::ValueStage;
+				using ValueState = TermInfo::ValueState;
 
 				switch(sema_var.kind){
 					case AST::VarDecl::Kind::VAR: {
@@ -10840,7 +11203,11 @@ namespace pcit::panther{
 						}();
 						
 						return ReturnType(TermInfo(
-							ValueCategory::CONCRETE_MUT, value_stage, *sema_var.typeID, sema::Expr(ident_id)
+							ValueCategory::CONCRETE_MUT,
+							value_stage,
+							ValueState::NOT_APPLICABLE, 
+							*sema_var.typeID,
+							sema::Expr(ident_id)
 						));
 					} break;
 
@@ -10872,19 +11239,28 @@ namespace pcit::panther{
 						}
 
 						return ReturnType(TermInfo(
-							ValueCategory::CONCRETE_CONST, value_stage, *sema_var.typeID, sema::Expr(ident_id)
+							ValueCategory::CONCRETE_CONST,
+							value_stage,
+							ValueState::NOT_APPLICABLE,
+							*sema_var.typeID,
+							sema::Expr(ident_id)
 						));
 					} break;
 
 					case AST::VarDecl::Kind::DEF: {
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
-								ValueCategory::EPHEMERAL, ValueStage::CONSTEXPR, *sema_var.typeID, *sema_var.expr.load()
+								ValueCategory::EPHEMERAL,
+								ValueStage::CONSTEXPR,
+								ValueState::NOT_APPLICABLE,
+								*sema_var.typeID,
+								*sema_var.expr.load()
 							));
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL_FLUID,
 								ValueStage::CONSTEXPR,
+								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
 								*sema_var.expr.load()
 							));
@@ -10930,10 +11306,12 @@ namespace pcit::panther{
 					}
 				}();
 
+
 				return ReturnType(
 					TermInfo(
 						value_category,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						this->get_ident_value_state(ident_id),
 						param.typeID,
 						sema::Expr(ident_id)
 					)
@@ -10947,10 +11325,12 @@ namespace pcit::panther{
 					this->context.getSemaBuffer().getReturnParam(ident_id).index
 				];
 
+
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						this->get_ident_value_state(ident_id),
 						return_param.typeID.asTypeID(),
 						sema::Expr(ident_id)
 					)
@@ -10968,6 +11348,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						this->get_ident_value_state(ident_id),
 						error_param.typeID.asTypeID(),
 						sema::Expr(ident_id)
 					)
@@ -10986,6 +11367,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						this->get_ident_value_state(ident_id),
 						block_expr.outputs[sema_block_expr_output.index].typeID,
 						sema::Expr(ident_id)
 					)
@@ -10999,6 +11381,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						this->get_ident_value_state(ident_id),
 						except_param.typeID,
 						sema::Expr(ident_id)
 					)
@@ -11024,6 +11407,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::MODULE,
 						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.sourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
 					)
@@ -11049,6 +11433,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::CLANG_MODULE,
 						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.clangSourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
 					)
@@ -11229,6 +11614,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
 						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
 						ident_id.value
 					)
@@ -11264,6 +11650,151 @@ namespace pcit::panther{
 			}
 		});
 	}
+
+
+
+	auto SemanticAnalyzer::end_sub_scopes(Diagnostic::Location&& location) -> evo::Result<> {
+		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
+
+		for(auto& [value_state_id, value_state_info] : current_scope_level.getValueStateInfos()){
+			if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::DeclInfo>()){
+				sema::ScopeLevel::ValueStateInfo::DeclInfo& decl_info = 
+					value_state_info.info.as<sema::ScopeLevel::ValueStateInfo::DeclInfo>();
+
+				if(decl_info.potential_state_change.has_value() == false){ continue; }
+
+				if(decl_info.num_sub_scopes != current_scope_level.numUnterminatedSubScopes()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_CANT_DETERMINE_VALUE_STATE,
+						value_state_id,
+						"Cannot determine value state from sub-scopes",
+						Diagnostic::Info("Sub-scopes end here:", std::move(location))
+					);
+					return evo::resultError;
+				}
+
+				value_state_info.state = *decl_info.potential_state_change;
+				decl_info.potential_state_change.reset();
+				decl_info.num_sub_scopes = 0;
+
+			}else{
+				evo::debugAssert(
+					value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::ModifyInfo>(),
+					"Unknown value state info kind"
+				);
+
+				sema::ScopeLevel::ValueStateInfo::ModifyInfo& modify_info = 
+					value_state_info.info.as<sema::ScopeLevel::ValueStateInfo::ModifyInfo>();
+
+				if(modify_info.num_sub_scopes != current_scope_level.numUnterminatedSubScopes()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_CANT_DETERMINE_VALUE_STATE,
+						value_state_id,
+						"Cannot determine value state from sub-scopes",
+						Diagnostic::Info("Sub-scopes end here:", std::move(location))
+					);
+					return evo::resultError;
+				}
+
+				modify_info.num_sub_scopes = 0;
+			}
+		}
+
+
+		current_scope_level.resetSubScopes();
+		return evo::Result<>();
+	}
+
+
+
+	auto SemanticAnalyzer::get_ident_value_state(sema::ScopeLevel::ValueStateID value_state_id) -> TermInfo::ValueState{
+		for(const sema::ScopeLevel::ID scope_id : this->scope){
+			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(scope_id);
+
+			const std::optional<sema::ScopeLevel::ValueState> value_state =
+				scope_level.getIdentValueState(value_state_id);
+
+			if(value_state.has_value()){
+				switch(*value_state){
+					case sema::ScopeLevel::ValueState::INIT:       return TermInfo::ValueState::INIT;
+					case sema::ScopeLevel::ValueState::UNINIT:     return TermInfo::ValueState::UNINIT;
+					case sema::ScopeLevel::ValueState::MOVED_FROM: return TermInfo::ValueState::MOVED_FROM;
+				}
+				evo::debugFatalBreak("unknown value state");
+			}
+		}
+
+		return TermInfo::ValueState::NOT_APPLICABLE;
+	}
+
+
+
+	// TODO(FUTURE): remove (and inline) this function?
+	auto SemanticAnalyzer::set_ident_value_state(
+		sema::ScopeLevel::ValueStateID value_state_id, sema::ScopeLevel::ValueState value_state
+	) -> void {
+		this->get_current_scope_level().setIdentValueState(value_state_id, value_state);
+	}
+
+
+	auto SemanticAnalyzer::set_ident_value_state_if_needed(sema::Expr target, sema::ScopeLevel::ValueState value_state)
+	-> void {
+		switch(target.kind()){
+			case sema::Expr::Kind::PARAM:
+				return this->set_ident_value_state(target.paramID(), value_state);
+
+			case sema::Expr::Kind::RETURN_PARAM:
+				return this->set_ident_value_state(target.returnParamID(), value_state);
+
+			case sema::Expr::Kind::ERROR_RETURN_PARAM:
+				return this->set_ident_value_state(target.errorReturnParamID(), value_state);
+
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+				return this->set_ident_value_state(target.blockExprOutputID(), value_state);
+
+			case sema::Expr::Kind::EXCEPT_PARAM:
+				return this->set_ident_value_state(target.exceptParamID(), value_state);
+
+			case sema::Expr::Kind::VAR:
+				return this->set_ident_value_state(target.varID(), value_state);
+
+
+			case sema::Expr::Kind::ADDR_OF: {
+				const sema::Expr& addr_of_target = this->context.getSemaBuffer().getAddrOf(target.addrOfID());
+				return this->set_ident_value_state_if_needed(addr_of_target, value_state);
+			} break;
+
+			case sema::Expr::Kind::DEREF: {
+				const sema::Deref& deref = this->context.getSemaBuffer().getDeref(target.derefID());
+				return this->set_ident_value_state_if_needed(deref.expr, value_state);
+			} break;
+
+
+			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
+
+			case sema::Expr::Kind::MODULE_IDENT:                    case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                          case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:                       case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:                      case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:                 case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::COPY:                            case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                         case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::UNWRAP:                          case sema::Expr::Kind::ACCESSOR:
+			case sema::Expr::Kind::PTR_ACCESSOR:                    case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::PTR_UNION_ACCESSOR:              case sema::Expr::Kind::TRY_ELSE:
+			case sema::Expr::Kind::BLOCK_EXPR:                      case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:              case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                         case sema::Expr::Kind::PTR_INDEXER:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:       case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
+				return;
+			} break;
+		}
+	}
+
+
 
 
 	template<bool NEEDS_DEF>
@@ -11925,7 +12456,7 @@ namespace pcit::panther{
 						);
 
 					}else{
-						infos.emplace_back("Could be this one:", Diagnostic::Location::NONE);
+						// infos.emplace_back("Could be this one:", Diagnostic::Location::NONE);
 					}
 				}
 			}
@@ -12465,6 +12996,18 @@ namespace pcit::panther{
 				}
 			}else{
 				if(this->expr_in_func_is_valid_value_stage(arg_term_info, func_call.args[i].value) == false){
+					return evo::Unexpected(true);
+				}
+
+				if(
+					arg_term_info.value_state != TermInfo::ValueState::INIT
+					&& arg_term_info.value_state != TermInfo::ValueState::NOT_APPLICABLE
+				){
+					this->emit_error(
+						Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+						func_call.args[i].value,
+						"Arguments to functions must be initialized"
+					);
 					return evo::Unexpected(true);
 				}
 			}
@@ -13839,6 +14382,7 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL_FLUID,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::FluidType{},
 			term_info.getExpr()
 		);
@@ -13852,9 +14396,129 @@ namespace pcit::panther{
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			term_info.getExpr()
 		);
+	}
+
+
+
+
+
+	template<bool IS_CONSTEXPR>
+	EVO_NODISCARD auto SemanticAnalyzer::union_designated_init_new(
+		const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr, TypeInfo::ID target_type_info_id
+	) -> Result {
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_info_id);
+
+		if(instr.designated_init_new.memberInits.size() != 1){
+			if(instr.designated_init_new.memberInits.size() == 0){
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_UNION_WRONG_NUM_FIELDS,
+					instr.designated_init_new,
+					"Union designated operator [new] must have a field"
+				);
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_UNION_WRONG_NUM_FIELDS,
+					instr.designated_init_new.memberInits[1].ident,
+					"Too many fields in union designated operator [new]",
+					Diagnostic::Info("Union can only hold one field at a time")
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+		const std::string_view used_field_name =
+			this->source.getTokenBuffer()[instr.designated_init_new.memberInits[0].ident].getString();
+
+
+		const BaseType::Union& union_info =
+			this->context.getTypeManager().getUnion(target_type_info.baseTypeID().unionID());
+
+		for(size_t i = 0; const BaseType::Union::Field& field : union_info.fields){
+			EVO_DEFER([&](){ i += 1; });
+
+			const std::string_view field_name = union_info.getFieldName(field, this->context.getSourceManager());
+
+			if(used_field_name != field_name){ continue; }
+
+			if(field.typeID.isVoid()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_UNION_VALUE_TO_VOID_FIELD,
+					instr.designated_init_new.memberInits[0].expr,
+					"Can't assign a value to a `Void` union field"
+				);
+				return Result::ERROR;
+			}
+
+
+			TermInfo& init_value = this->get_term_info(instr.member_init_exprs[0]);
+
+			if(this->type_check<true, true>(
+				field.typeID.asTypeID(),
+				init_value,
+				"Union field initializer",
+				instr.designated_init_new.memberInits[0].ident
+			).ok == false){
+				return Result::ERROR;
+			}
+
+
+			const TermInfo::ValueStage value_stage = [&](){
+				if constexpr(IS_CONSTEXPR){
+					return TermInfo::ValueStage::CONSTEXPR;
+				}else{
+					if(
+						this->scope.inObjectScope() == false
+						|| this->scope.getCurrentObjectScope().is<sema::Func::ID>() == false
+					){
+						return TermInfo::ValueStage::CONSTEXPR;
+					}else if(this->get_current_func().isConstexpr){
+						return TermInfo::ValueStage::COMPTIME;
+					}else{
+						return TermInfo::ValueStage::RUNTIME;
+					}
+				}
+			}();
+
+
+
+			if constexpr(IS_CONSTEXPR){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type_info_id,
+					init_value.getExpr()
+				);
+
+			}else{
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type_info_id,
+					sema::Expr(
+						this->context.sema_buffer.createUnionDesignatedInitNew(
+							init_value.getExpr(), target_type_info.baseTypeID().unionID(), uint32_t(i)
+						)
+					)
+				);
+			}
+
+			return Result::SUCCESS;
+		}
+
+
+		this->emit_error(
+			Diagnostic::Code::SEMA_NEW_UNION_FIELD_DOESNT_EXIST,
+			instr.designated_init_new.memberInits[0].ident,
+			std::format("This union has no member \"{}\"", used_field_name)
+		);
+		return Result::ERROR;
 	}
 
 

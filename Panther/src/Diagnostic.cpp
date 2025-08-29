@@ -35,51 +35,51 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = src.getASTBuffer();
 
 		switch(node.kind()){
-			case AST::Kind::NONE:             evo::debugFatalBreak("Cannot get location of AST::Kind::None");
-			case AST::Kind::VAR_DECL:         return Location::get(ast_buffer.getVarDecl(node), src);
-			case AST::Kind::FUNC_DECL:        return Location::get(ast_buffer.getFuncDecl(node), src);
-			case AST::Kind::ALIAS_DECL:       return Location::get(ast_buffer.getAliasDecl(node), src);
+			case AST::Kind::NONE:              evo::debugFatalBreak("Cannot get location of AST::Kind::None");
+			case AST::Kind::VAR_DECL:          return Location::get(ast_buffer.getVarDecl(node), src);
+			case AST::Kind::FUNC_DECL:         return Location::get(ast_buffer.getFuncDecl(node), src);
+			case AST::Kind::ALIAS_DECL:        return Location::get(ast_buffer.getAliasDecl(node), src);
 			case AST::Kind::DISTINCT_ALIAS_DECL: return Location::get(ast_buffer.getDistinctAliasDecl(node), src);
-			case AST::Kind::STRUCT_DECL:      return Location::get(ast_buffer.getStructDecl(node), src);
-			case AST::Kind::UNION_DECL :      return Location::get(ast_buffer.getUnionDecl(node), src);
-			case AST::Kind::INTERFACE_DECL:   return Location::get(ast_buffer.getInterfaceDecl(node), src);
-			case AST::Kind::INTERFACE_IMPL:   return Location::get(ast_buffer.getInterfaceImpl(node), src);
-			case AST::Kind::RETURN:           return Location::get(ast_buffer.getReturn(node), src);
-			case AST::Kind::ERROR:            return Location::get(ast_buffer.getError(node), src);
-			case AST::Kind::BREAK:            return Location::get(ast_buffer.getBreak(node), src);
-			case AST::Kind::CONTINUE:         return Location::get(ast_buffer.getContinue(node), src);
-			case AST::Kind::CONDITIONAL:      return Location::get(ast_buffer.getConditional(node), src);
-			case AST::Kind::WHEN_CONDITIONAL: return Location::get(ast_buffer.getWhenConditional(node), src);
-			case AST::Kind::WHILE:            return Location::get(ast_buffer.getWhile(node), src);
-			case AST::Kind::DEFER:            return Location::get(ast_buffer.getDefer(node), src);
-			case AST::Kind::UNREACHABLE:      return Location::get(ast_buffer.getUnreachable(node), src);
-			case AST::Kind::BLOCK:            return Location::get(ast_buffer.getBlock(node), src);
-			case AST::Kind::FUNC_CALL:        return Location::get(ast_buffer.getFuncCall(node), src);
-			case AST::Kind::INDEXER:          return Location::get(ast_buffer.getIndexer(node), src);
-			case AST::Kind::TEMPLATE_PACK:    evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
-			case AST::Kind::TEMPLATED_EXPR:   return Location::get(ast_buffer.getTemplatedExpr(node), src);
-			case AST::Kind::PREFIX:           return Location::get(ast_buffer.getPrefix(node), src);
-			case AST::Kind::INFIX:            return Location::get(ast_buffer.getInfix(node), src);
-			case AST::Kind::POSTFIX:          return Location::get(ast_buffer.getPostfix(node), src);
-			case AST::Kind::MULTI_ASSIGN:     return Location::get(ast_buffer.getMultiAssign(node), src);
-			case AST::Kind::NEW:              return Location::get(ast_buffer.getNew(node), src);
-			case AST::Kind::ARRAY_INIT_NEW:   return Location::get(ast_buffer.getArrayInitNew(node), src);
-			case AST::Kind::STRUCT_INIT_NEW:  return Location::get(ast_buffer.getStructInitNew(node), src);
-			case AST::Kind::TRY_ELSE:         return Location::get(ast_buffer.getTryElse(node), src);
-			case AST::Kind::TYPE_DEDUCER:     return Location::get(ast_buffer.getTypeDeducer(node), src);
-			case AST::Kind::ARRAY_TYPE:       return Location::get(ast_buffer.getArrayType(node), src);
-			case AST::Kind::TYPE:             return Location::get(ast_buffer.getType(node), src);
-			case AST::Kind::TYPEID_CONVERTER: return Location::get(ast_buffer.getTypeIDConverter(node), src);
-			case AST::Kind::ATTRIBUTE_BLOCK:  evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
-			case AST::Kind::ATTRIBUTE:        return Location::get(ast_buffer.getAttribute(node), src);
-			case AST::Kind::PRIMITIVE_TYPE:   return Location::get(ast_buffer.getPrimitiveType(node), src);
-			case AST::Kind::IDENT:            return Location::get(ast_buffer.getIdent(node), src);
-			case AST::Kind::INTRINSIC:        return Location::get(ast_buffer.getIntrinsic(node), src);
-			case AST::Kind::LITERAL:          return Location::get(ast_buffer.getLiteral(node), src);
-			case AST::Kind::UNINIT:           return Location::get(ast_buffer.getUninit(node), src);
-			case AST::Kind::ZEROINIT:         return Location::get(ast_buffer.getZeroinit(node), src);
-			case AST::Kind::THIS:             return Location::get(ast_buffer.getThis(node), src);
-			case AST::Kind::DISCARD:          return Location::get(ast_buffer.getDiscard(node), src);
+			case AST::Kind::STRUCT_DECL:       return Location::get(ast_buffer.getStructDecl(node), src);
+			case AST::Kind::UNION_DECL :       return Location::get(ast_buffer.getUnionDecl(node), src);
+			case AST::Kind::INTERFACE_DECL:    return Location::get(ast_buffer.getInterfaceDecl(node), src);
+			case AST::Kind::INTERFACE_IMPL:    return Location::get(ast_buffer.getInterfaceImpl(node), src);
+			case AST::Kind::RETURN:            return Location::get(ast_buffer.getReturn(node), src); 
+			case AST::Kind::ERROR:             return Location::get(ast_buffer.getError(node), src);
+			case AST::Kind::BREAK:             return Location::get(ast_buffer.getBreak(node), src);
+			case AST::Kind::CONTINUE:          return Location::get(ast_buffer.getContinue(node), src);
+			case AST::Kind::CONDITIONAL:       return Location::get(ast_buffer.getConditional(node), src);
+			case AST::Kind::WHEN_CONDITIONAL:  return Location::get(ast_buffer.getWhenConditional(node), src);
+			case AST::Kind::WHILE:             return Location::get(ast_buffer.getWhile(node), src);
+			case AST::Kind::DEFER:             return Location::get(ast_buffer.getDefer(node), src);
+			case AST::Kind::UNREACHABLE:       return Location::get(ast_buffer.getUnreachable(node), src);
+			case AST::Kind::BLOCK:             return Location::get(ast_buffer.getBlock(node), src);
+			case AST::Kind::FUNC_CALL:         return Location::get(ast_buffer.getFuncCall(node), src);
+			case AST::Kind::INDEXER:           return Location::get(ast_buffer.getIndexer(node), src);
+			case AST::Kind::TEMPLATE_PACK:     evo::debugFatalBreak("Cannot get location of AST::Kind::TemplatePack");
+			case AST::Kind::TEMPLATED_EXPR:    return Location::get(ast_buffer.getTemplatedExpr(node), src);
+			case AST::Kind::PREFIX:            return Location::get(ast_buffer.getPrefix(node), src);
+			case AST::Kind::INFIX:             return Location::get(ast_buffer.getInfix(node), src);
+			case AST::Kind::POSTFIX:           return Location::get(ast_buffer.getPostfix(node), src);
+			case AST::Kind::MULTI_ASSIGN:      return Location::get(ast_buffer.getMultiAssign(node), src);
+			case AST::Kind::NEW:               return Location::get(ast_buffer.getNew(node), src);
+			case AST::Kind::ARRAY_INIT_NEW:    return Location::get(ast_buffer.getArrayInitNew(node), src);
+			case AST::Kind::DESIGNATED_INIT_NEW: return Location::get(ast_buffer.getDesignatedInitNew(node), src);
+			case AST::Kind::TRY_ELSE:          return Location::get(ast_buffer.getTryElse(node), src);
+			case AST::Kind::TYPE_DEDUCER:      return Location::get(ast_buffer.getTypeDeducer(node), src);
+			case AST::Kind::ARRAY_TYPE:        return Location::get(ast_buffer.getArrayType(node), src);
+			case AST::Kind::TYPE:              return Location::get(ast_buffer.getType(node), src);
+			case AST::Kind::TYPEID_CONVERTER:  return Location::get(ast_buffer.getTypeIDConverter(node), src);
+			case AST::Kind::ATTRIBUTE_BLOCK:   evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
+			case AST::Kind::ATTRIBUTE:         return Location::get(ast_buffer.getAttribute(node), src);
+			case AST::Kind::PRIMITIVE_TYPE:    return Location::get(ast_buffer.getPrimitiveType(node), src);
+			case AST::Kind::IDENT:             return Location::get(ast_buffer.getIdent(node), src);
+			case AST::Kind::INTRINSIC:         return Location::get(ast_buffer.getIntrinsic(node), src);
+			case AST::Kind::LITERAL:           return Location::get(ast_buffer.getLiteral(node), src);
+			case AST::Kind::UNINIT:            return Location::get(ast_buffer.getUninit(node), src);
+			case AST::Kind::ZEROINIT:          return Location::get(ast_buffer.getZeroinit(node), src);
+			case AST::Kind::THIS:              return Location::get(ast_buffer.getThis(node), src);
+			case AST::Kind::DISCARD:           return Location::get(ast_buffer.getDiscard(node), src);
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported AST::Kind");
@@ -207,7 +207,7 @@ namespace pcit::panther{
 		return Location::get(new_expr.keyword, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::StructInitNew& new_expr, const Source& src) -> Location {
+	auto Diagnostic::Location::get(const AST::DesignatedInitNew& new_expr, const Source& src) -> Location {
 		return Location::get(new_expr.keyword, src);
 	}
 

@@ -58,7 +58,7 @@ namespace pcit::panther::AST{
 
 		NEW,
 		ARRAY_INIT_NEW,
-		STRUCT_INIT_NEW,
+		DESIGNATED_INIT_NEW,
 		TRY_ELSE,
 
 		ARRAY_TYPE,
@@ -298,6 +298,7 @@ namespace pcit::panther::AST{
 		};
 
 		Token::ID openBrace;
+		Token::ID closeBrace;
 		std::optional<Token::ID> label;
 		evo::SmallVector<Output> outputs; // only used if `.label` has value
 		evo::SmallVector<Node> statements;
@@ -367,7 +368,7 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Node> values;
 	};
 
-	struct StructInitNew{
+	struct DesignatedInitNew{
 		struct MemberInit{
 			Token::ID ident;
 			Node expr;

@@ -141,6 +141,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, PtrIndexerID>::UniqueID;
 	};
 
+	struct UnionDesignatedInitNewID : public core::UniqueID<uint32_t, struct UnionDesignatedInitNewID> {
+		using core::UniqueID<uint32_t, UnionDesignatedInitNewID>::UniqueID;
+	};
+
 
 	//////////////////////////////////////////////////////////////////////
 	// statements
@@ -727,6 +731,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::PtrIndexerID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::UnionDesignatedInitNewID>{
+		static constexpr auto init(panther::sema::UnionDesignatedInitNewID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::UnionDesignatedInitNewID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1445,6 +1460,23 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::PtrIndexerID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::PtrIndexerID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::UnionDesignatedInitNewID>{
+		auto operator()(pcit::panther::sema::UnionDesignatedInitNewID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::UnionDesignatedInitNewID>
+		: public pcit::core::Optional<pcit::panther::sema::UnionDesignatedInitNewID>{
+			
+		public:
+			using pcit::core::Optional<pcit::panther::sema::UnionDesignatedInitNewID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::UnionDesignatedInitNewID>::operator=;
 	};
 
 }

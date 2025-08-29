@@ -65,6 +65,7 @@ namespace pcit::panther::sema{
 			INTERFACE_CALL,
 			INDEXER,
 			PTR_INDEXER,
+			UNION_DESIGNATED_INIT_NEW,
 				
 			PARAM,
 			RETURN_PARAM,
@@ -122,6 +123,8 @@ namespace pcit::panther::sema{
 		explicit Expr(InterfaceCallID id)     : _kind(Kind::INTERFACE_CALL),      value{.interface_call = id}      {};
 		explicit Expr(IndexerID id)           : _kind(Kind::INDEXER),             value{.indexer = id}             {};
 		explicit Expr(PtrIndexerID id)        : _kind(Kind::PTR_INDEXER),         value{.ptr_indexer = id}         {};
+		explicit Expr(UnionDesignatedInitNewID id)
+			: _kind(Kind::UNION_DESIGNATED_INIT_NEW), value{.union_designated_init_new = id} {};
 
 		explicit Expr(ParamID id)             : _kind(Kind::PARAM),               value{.param = id}               {};
 		explicit Expr(ReturnParamID id)       : _kind(Kind::RETURN_PARAM),        value{.return_param = id}        {};
@@ -276,6 +279,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::PTR_INDEXER, "not a pointer indexer");
 			return this->value.ptr_indexer;
 		}
+		EVO_NODISCARD auto unionDesignatedInitNewID() const -> UnionDesignatedInitNewID {
+			evo::debugAssert(this->kind() == Kind::UNION_DESIGNATED_INIT_NEW, "not a union designated init new");
+			return this->value.union_designated_init_new;
+		}
 
 
 		EVO_NODISCARD auto paramID() const -> ParamID {
@@ -363,6 +370,7 @@ namespace pcit::panther::sema{
 				InterfaceCallID interface_call;
 				IndexerID indexer;
 				PtrIndexerID ptr_indexer;
+				UnionDesignatedInitNewID union_designated_init_new;
 
 				ExceptParamID except_param;
 				ParamID param;

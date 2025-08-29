@@ -779,8 +779,16 @@ namespace pcit::panther{
 			//////////////////
 			// EndCondSet
 
-			EVO_NODISCARD auto createEndCondSet() -> Instruction {
-				return Instruction(Instruction::Kind::END_COND_SET, 0);
+			EVO_NODISCARD auto createEndCondSet(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::END_COND_SET,
+					this->end_cond_sets.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getEndCondSet(Instruction instr) const -> const Instruction::EndCondSet& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_COND_SET, "Not a EndCondSet");
+				return this->end_cond_sets[instr._index];
 			}
 
 
@@ -839,8 +847,16 @@ namespace pcit::panther{
 			//////////////////
 			// EndWhile
 
-			EVO_NODISCARD auto createEndWhile() -> Instruction {
-				return Instruction(Instruction::Kind::END_WHILE, 0);
+			EVO_NODISCARD auto createEndWhile(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::END_WHILE,
+					this->end_whiles.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getEndWhile(Instruction instr) const -> const Instruction::EndWhile& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_WHILE, "Not a EndWhile");
+				return this->end_whiles[instr._index];
 			}
 
 
@@ -860,12 +876,19 @@ namespace pcit::panther{
 			}
 
 
-
 			//////////////////
 			// EndDefer
 
 			EVO_NODISCARD auto createEndDefer(auto&&... args) -> Instruction {
-				return Instruction(Instruction::Kind::END_DEFER, 0);
+				return Instruction(
+					Instruction::Kind::END_DEFER,
+					this->end_defers.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getEndDefer(Instruction instr) const -> const Instruction::EndDefer& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_DEFER, "Not an EndDefer");
+				return this->end_defers[instr._index];
 			}
 
 
@@ -885,12 +908,19 @@ namespace pcit::panther{
 			}
 
 
-
 			//////////////////
 			// EndStmtBlock
 
 			EVO_NODISCARD auto createEndStmtBlock(auto&&... args) -> Instruction {
-				return Instruction(Instruction::Kind::END_STMT_BLOCK, 0);
+				return Instruction(
+					Instruction::Kind::END_STMT_BLOCK,
+					this->end_stmt_blocks.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getEndStmtBlock(Instruction instr) const -> const Instruction::EndStmtBlock& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_STMT_BLOCK, "Not a EndStmtBlock");
+				return this->end_stmt_blocks[instr._index];
 			}
 
 
@@ -1625,38 +1655,41 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// StructInitNew<true>
+			// DesignatedInitNew<true>
 
-			EVO_NODISCARD auto createStructInitNewConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createDesignatedInitNewConstexpr(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::STRUCT_INIT_NEW_CONSTEXPR,
-					this->struct_init_new_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::DESIGNATED_INIT_NEW_CONSTEXPR,
+					this->designated_init_new_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getStructInitNewConstexpr(Instruction instr) const
-			-> const Instruction::StructInitNew<true>& {
+			EVO_NODISCARD auto getDesignatedInitNewConstexpr(Instruction instr) const
+			-> const Instruction::DesignatedInitNew<true>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::STRUCT_INIT_NEW_CONSTEXPR, "Not a StructInitNew<true>"
+					instr.kind() == Instruction::Kind::DESIGNATED_INIT_NEW_CONSTEXPR, "Not a DesignatedInitNew<true>"
 				);
-				return this->struct_init_new_constexprs[instr._index];
+				return this->designated_init_new_constexprs[instr._index];
 			}
 
 
 
 			//////////////////
-			// StructInitNew<false>
+			// DesignatedInitNew<false>
 
-			EVO_NODISCARD auto createStructInitNew(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createDesignatedInitNew(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::STRUCT_INIT_NEW,
-					this->struct_init_news.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::DESIGNATED_INIT_NEW,
+					this->designated_init_news.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getStructInitNew(Instruction instr) const -> const Instruction::StructInitNew<false>& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::STRUCT_INIT_NEW, "Not a StructInitNew<false>");
-				return this->struct_init_news[instr._index];
+			EVO_NODISCARD auto getDesignatedInitNew(Instruction instr) const
+			-> const Instruction::DesignatedInitNew<false>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::DESIGNATED_INIT_NEW, "Not a DesignatedInitNew<false>"
+				);
+				return this->designated_init_news[instr._index];
 			}
 
 
@@ -2281,11 +2314,15 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Break, uint64_t> breaks{};
 			core::SyncLinearStepAlloc<Instruction::Continue, uint64_t> continues{};
 			core::SyncLinearStepAlloc<Instruction::BeginCond, uint64_t> begin_conds{};
+			core::SyncLinearStepAlloc<Instruction::EndCondSet, uint64_t> end_cond_sets{};
 			core::SyncLinearStepAlloc<Instruction::BeginLocalWhenCond, uint64_t> begin_local_when_conds{};
 			core::SyncLinearStepAlloc<Instruction::EndLocalWhenCond, uint64_t> end_local_when_conds{};
 			core::SyncLinearStepAlloc<Instruction::BeginWhile, uint64_t> begin_whiles{};
+			core::SyncLinearStepAlloc<Instruction::EndWhile, uint64_t> end_whiles{};
 			core::SyncLinearStepAlloc<Instruction::BeginDefer, uint64_t> begin_defers{};
+			core::SyncLinearStepAlloc<Instruction::EndDefer, uint64_t> end_defers{};
 			core::SyncLinearStepAlloc<Instruction::BeginStmtBlock, uint64_t> begin_stmt_blocks{};
+			core::SyncLinearStepAlloc<Instruction::EndStmtBlock, uint64_t> end_stmt_blocks{};
 			core::SyncLinearStepAlloc<Instruction::FuncCall, uint64_t> func_calls{};
 			core::SyncLinearStepAlloc<Instruction::Assignment, uint64_t> assignments{};
 			core::SyncLinearStepAlloc<Instruction::MultiAssign, uint64_t> multi_assigns{};
@@ -2328,8 +2365,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Unwrap, uint64_t> unwraps{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint64_t> array_init_new_constexprs{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint64_t> array_init_news{};
-			core::SyncLinearStepAlloc<Instruction::StructInitNew<true>, uint64_t> struct_init_new_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::StructInitNew<false>, uint64_t> struct_init_news{};
+			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint64_t> designated_init_new_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<false>, uint64_t> designated_init_news{};
 			core::SyncLinearStepAlloc<Instruction::PrepareTryHandler, uint64_t> prepare_try_handlers{};
 			core::SyncLinearStepAlloc<Instruction::TryElse, uint64_t> try_elses{};
 			core::SyncLinearStepAlloc<Instruction::BeginExprBlock, uint64_t> begin_expr_blocks{};

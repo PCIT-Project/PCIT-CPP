@@ -225,9 +225,17 @@ namespace pcit::panther::sema{
 			COMPTIME,
 			RUNTIME,
 		};
+
+		enum class ValueState{
+			NOT_APPLICABLE,
+			INIT,
+			UNINIT,
+			MOVED_FROM,
+		};
 		
 		ValueCategory valueCategory;
 		ValueStage valueStage;
+		ValueState valueState;
 		TypeInfo::ID typeID;
 		Expr expr;
 	};
@@ -267,6 +275,15 @@ namespace pcit::panther::sema{
 		Expr target;
 		TypeInfo::ID targetTypeID;
 		evo::SmallVector<Expr> indices;
+	};
+
+
+	struct UnionDesignatedInitNew{
+		using ID = UnionDesignatedInitNewID;
+
+		Expr value;
+		BaseType::Union::ID unionTypeID;
+		uint32_t fieldIndex;
 	};
 
 

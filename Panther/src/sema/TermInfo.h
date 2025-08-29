@@ -51,6 +51,13 @@ namespace pcit::panther{
 			RUNTIME,
 		};
 
+		enum class ValueState{
+			NOT_APPLICABLE,
+			INIT,
+			UNINIT,
+			MOVED_FROM,
+		};
+
 		struct InitializerType{};
 		struct NullType{};
 		struct FluidType{};
@@ -79,14 +86,22 @@ namespace pcit::panther{
 
 		ValueCategory value_category;
 		ValueStage value_stage;
+		ValueState value_state;
 		TypeID type_id;
 
 
 		///////////////////////////////////
 		// constructors
 
-		TermInfo(ValueCategory vc, ValueStage vs, evo::SmallVector<TypeInfo::ID>&& _type_id, const sema::Expr& _expr)
-			: value_category(vc), value_stage(vs), type_id(InitializerType()), exprs{_expr} {
+		TermInfo(
+			ValueCategory cat, ValueStage stage, evo::SmallVector<TypeInfo::ID>&& _type_id, const sema::Expr& _expr
+		) :
+			value_category(cat),
+			value_stage(stage),
+			value_state(ValueState::NOT_APPLICABLE),
+			type_id(InitializerType()),
+			exprs{_expr}
+		{
 			evo::debugAssert(this->value_category == ValueCategory::EPHEMERAL);
 
 			// This is to get around the MSVC bug
@@ -97,31 +112,54 @@ namespace pcit::panther{
 			#endif
 		}
 
-		TermInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, const sema::Expr& _expr)
-			: value_category(vc), value_stage(vs), type_id(std::forward<decltype(_type_id)>(_type_id)), exprs{_expr} {
+		TermInfo(ValueCategory cat, ValueStage stage, ValueState state, auto&& _type_id, const sema::Expr& _expr) :
+			value_category(cat),
+			value_stage(stage),
+			value_state(state),
+			type_id(std::forward<decltype(_type_id)>(_type_id)),
+			exprs{_expr}
+		{
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_single_expr_construction();
 			#endif
+			evo::debugAssert(
+				state == ValueState::NOT_APPLICABLE || this->is_concrete(),
+				"Only concrete values can have a value state of something besides NOT_APPLICABLE"
+			);
 		}
 
-		TermInfo(ValueCategory vc, ValueStage vs, const auto& _type_id, const sema::Expr& _expr)
-			: value_category(vc), value_stage(vs), type_id(_type_id), exprs{_expr} {
+		TermInfo(ValueCategory cat, ValueStage stage, ValueState state, const auto& _type_id, const sema::Expr& _expr)
+			: value_category(cat), value_stage(stage), value_state(state), type_id(_type_id), exprs{_expr} {
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_single_expr_construction();
 			#endif
+			evo::debugAssert(
+				state == ValueState::NOT_APPLICABLE || this->is_concrete(),
+				"Only concrete values can have a value state of something besides NOT_APPLICABLE"
+			);
 		}
 
 
-		TermInfo(ValueCategory vc, ValueStage vs, auto&& _type_id, std::nullopt_t)
-			: value_category(vc), value_stage(vs), type_id(std::forward<decltype(_type_id)>(_type_id)), exprs() {
+		TermInfo(ValueCategory cat, ValueStage stage, auto&& _type_id, std::nullopt_t) :
+			value_category(cat),
+			value_stage(stage),
+			value_state(ValueState::NOT_APPLICABLE),
+			type_id(std::forward<decltype(_type_id)>(_type_id)),
+			exprs()
+		{
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_no_expr_construction();
 			#endif
 		}
 
 
-		TermInfo(ValueCategory vc, ValueStage vs, const auto& _type_id, std::nullopt_t)
-			: value_category(vc), value_stage(vs), type_id(InitializerType()), exprs() {
+		TermInfo(ValueCategory cat, ValueStage stage, const auto& _type_id, std::nullopt_t) :
+			value_category(cat),
+			value_stage(stage),
+			value_state(ValueState::NOT_APPLICABLE),
+			type_id(InitializerType()),
+			exprs()
+		{
 			// This is to get around the MSVC bug
 			this->type_id.emplace<std::remove_cvref_t<decltype(_type_id)>>(_type_id);
 
@@ -132,12 +170,17 @@ namespace pcit::panther{
 
 
 		TermInfo(
-			ValueCategory vc,
-			ValueStage vs,
+			ValueCategory cat,
+			ValueStage stage,
 			evo::SmallVector<TypeInfo::ID>&& type_ids,
 			evo::SmallVector<sema::Expr>&& expr_list
-		)
-			: value_category(vc), value_stage(vs), type_id(InitializerType{}), exprs(std::move(expr_list)) {
+		) : 
+			value_category(cat),
+			value_stage(stage),
+			value_state(ValueState::NOT_APPLICABLE),
+			type_id(InitializerType{}),
+			exprs(std::move(expr_list))
+		{
 			// TODO(FUTURE): remove this and move directly into `type_id` when the MSVC bug is fixed
 			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(type_ids));
 
@@ -145,8 +188,13 @@ namespace pcit::panther{
 		}
 
 
-		TermInfo(ValueCategory vc, ValueStage vs, ExceptParamPack, evo::SmallVector<sema::Expr>&& expr_list)
-			: value_category(vc), value_stage(vs), type_id(ExceptParamPack{}), exprs(std::move(expr_list)) {}
+		TermInfo(ValueCategory cat, ValueStage stage, ExceptParamPack, evo::SmallVector<sema::Expr>&& expr_list) :
+			value_category(cat),
+			value_stage(stage),
+			value_state(ValueState::NOT_APPLICABLE),
+			type_id(ExceptParamPack{}),
+			exprs(std::move(expr_list))
+		{}
 
 		
 		#if defined(PCIT_CONFIG_DEBUG)
@@ -266,7 +314,17 @@ namespace pcit::panther{
 				evo::unreachable();
 			}();
 
-			return TermInfo(value_category, value_stage, fake_term_info.typeID, fake_term_info.expr);
+			const ValueState value_state = [&](){
+				switch(fake_term_info.valueState){
+					case sema::FakeTermInfo::ValueState::NOT_APPLICABLE: return ValueState::NOT_APPLICABLE;
+					case sema::FakeTermInfo::ValueState::INIT:           return ValueState::INIT;
+					case sema::FakeTermInfo::ValueState::UNINIT:         return ValueState::UNINIT;
+					case sema::FakeTermInfo::ValueState::MOVED_FROM:     return ValueState::MOVED_FROM;
+				}
+				evo::unreachable();
+			}();
+
+			return TermInfo(value_category, value_stage, value_state, fake_term_info.typeID, fake_term_info.expr);
 		}
 
 
