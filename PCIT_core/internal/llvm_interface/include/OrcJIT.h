@@ -21,6 +21,13 @@
 
 #include <mutex>
 
+
+namespace llvm{
+	class LLVMContext;
+	class Module;
+}
+
+
 namespace pcit::llvmint{
 
 
@@ -52,6 +59,11 @@ namespace pcit::llvmint{
 
 			EVO_NODISCARD auto addModule(class LLVMContext&& context, class Module&& module)
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
+
+			// deletes the context and the module
+			EVO_NODISCARD auto addModule(llvm::LLVMContext* llvm_context, llvm::Module* module)
+				-> evo::Expected<void, evo::SmallVector<std::string>>;
+
 
 			EVO_NODISCARD auto lookupFunc(std::string_view name) -> void*;
 

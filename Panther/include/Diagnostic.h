@@ -410,9 +410,12 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(
 					const sema::Var::ID& sema_var_id, const class Source& src, const class Context& context
 				) -> Location;
-				EVO_NODISCARD static auto get(
-					const sema::GlobalVar::ID& sema_var_id, const class Source& src, const class Context& context
-				) -> Location;
+
+
+				EVO_NODISCARD static auto get(sema::GlobalVar::ID global_var_id, const class Context& context)
+					-> Location;
+				EVO_NODISCARD static auto get(const sema::GlobalVar& global_var, const class Context& context)
+					-> Location;
 
 				EVO_NODISCARD static auto get(sema::Func::ID func_id, const class Context& context) -> Location;
 				EVO_NODISCARD static auto get(const sema::Func& func, const class Context& context) -> Location;

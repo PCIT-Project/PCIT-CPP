@@ -175,6 +175,16 @@ namespace pcit::llvmint{
 
 				return result;
 			};
+
+
+
+			// `module_to_absorb` will be deleted
+			auto merge(llvm::Module* module_to_absorb) -> void;
+
+			auto merge(Module&& module_to_absorb) -> void {
+				this->merge(module_to_absorb.steal());
+			}
+
 			
 
 			EVO_NODISCARD auto native() const -> const llvm::Module* { return this->_native; }

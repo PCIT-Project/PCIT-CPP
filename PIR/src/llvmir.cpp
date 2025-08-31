@@ -28,10 +28,16 @@ namespace pcit::pir{
 		llvmint::LLVMContext context{};
 		llvmint::Module module{};
 
-		LoweringData(const Module& module, OptMode opt_mode){
-			this->context.init();
+		LoweringData(
+			const Module& pir_module,
+			OptMode opt_mode,
+			llvm::LLVMContext* llvm_context,
+			evo::SmallVector<llvm::Module*>&& modules
+		){
+			this->context.init(llvm_context);
+			EVO_DEFER([&](){ if(llvm_context != nullptr){ this->context.steal(); } });
 
-			this->module.init(module.getName(), this->context);
+			this->module.init(pir_module.getName(), this->context);
 
 			const llvmint::Module::OptLevel opt_level = [&](){
 				switch(opt_mode){
@@ -49,10 +55,9 @@ namespace pcit::pir{
 
 			//////////////////////////////////////////////////////////////////////
 			// 
-			
 
 			const std::string data_layout_error = this->module.setTargetAndDataLayout(
-				module.getTarget(),
+				pir_module.getTarget(),
 				llvmint::Module::Relocation::DEFAULT,
 				llvmint::Module::CodeSize::DEFAULT,
 				opt_level,
@@ -66,7 +71,7 @@ namespace pcit::pir{
 
 
 
-			auto lowerer = PIRToLLVMIR(module, this->context, this->module);
+			auto lowerer = PIRToLLVMIR(pir_module, this->context, this->module);
 			lowerer.lower();
 
 			switch(opt_mode){
@@ -77,7 +82,17 @@ namespace pcit::pir{
 				break; case OptMode::Os: this->module.optimize(llvmint::Module::OptMode::Os);
 				break; case OptMode::Oz: this->module.optimize(llvmint::Module::OptMode::Oz);
 			}
+
+
+
+			///////////////////////////////////
+			// link
+
+			for(llvm::Module* clang_module : modules){
+				this->module.merge(clang_module);
+			}
 		}
+
 
 		~LoweringData(){
 			if(this->module.isInitialized()){ this->module.deinit(); }
@@ -85,21 +100,37 @@ namespace pcit::pir{
 		}
 	};
 
+
 	
 
-	auto lowerToLLVMIR(const Module& module, OptMode opt_mode) -> std::string {
-		auto lowering_data = LoweringData(module, opt_mode);
+	auto lowerToLLVMIR(
+		const Module& module,
+		OptMode opt_mode,
+		llvm::LLVMContext* llvm_context,
+		evo::SmallVector<llvm::Module*>&& modules
+	) -> std::string {
+		auto lowering_data = LoweringData(module, opt_mode, llvm_context, std::move(modules));
 		return lowering_data.module.print();
 	}
 
 
-	auto lowerToAssembly(const Module& module, OptMode opt_mode) -> evo::Result<std::string> {
-		auto lowering_data = LoweringData(module, opt_mode);
+	auto lowerToAssembly(
+		const Module& module,
+		OptMode opt_mode,
+		llvm::LLVMContext* llvm_context,
+		evo::SmallVector<llvm::Module*>&& modules
+	) -> evo::Result<std::string> {
+		auto lowering_data = LoweringData(module, opt_mode, llvm_context, std::move(modules));
 		return lowering_data.module.lowerToAssembly();
 	}
 
-	auto lowerToObject(const Module& module, OptMode opt_mode) -> evo::Result<std::vector<evo::byte>> {
-		auto lowering_data = LoweringData(module, opt_mode);
+	auto lowerToObject(
+		const Module& module,
+		OptMode opt_mode,
+		llvm::LLVMContext* llvm_context,
+		evo::SmallVector<llvm::Module*>&& modules
+	) -> evo::Result<std::vector<evo::byte>> {
+		auto lowering_data = LoweringData(module, opt_mode, llvm_context, std::move(modules));
 		return lowering_data.module.lowerToObject();
 	}
 	

@@ -238,6 +238,9 @@ namespace pcit::pir{
 				AtomicOrdering atomic_ordering = AtomicOrdering::NONE,
 				std::string&& name = ""
 			) const -> Expr;
+
+			EVO_NODISCARD auto createLoad(const Expr&, const Type&, const char*) const -> Expr = delete;
+
 			EVO_NODISCARD auto getLoad(const Expr& expr) const -> const Load&;
 
 
@@ -250,6 +253,9 @@ namespace pcit::pir{
 				bool is_volatile = false,
 				AtomicOrdering atomic_ordering = AtomicOrdering::NONE
 			) const -> void;
+
+			EVO_NODISCARD auto createStore(const Expr&, const Type&, const char*) const -> Expr = delete;
+
 			EVO_NODISCARD auto getStore(const Expr& expr) const -> const Store&;
 
 

@@ -419,15 +419,18 @@ namespace pcit::panther::sema{
 		using ID = GlobalVarID;
 
 		AST::VarDecl::Kind kind;
-		Token::ID ident;
-		SourceID sourceID;
-		std::atomic<std::optional<Expr>> expr; // is nullopt if decl is done, but not def
+		evo::Variant<SourceID, ClangSourceID> sourceID;
+		evo::Variant<Token::ID, ClangSourceDeclInfoID> ident;
+		std::string clangMangledName; // empty if not clang type
+		std::atomic<std::optional<Expr>> expr; // is nullopt if decl is done but not def, or if clang type
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPub;
-		SymbolProc& symbolProc;
-		SymbolProcID symbolProcID; // TODO(FUTURE): need both id and ref?
+		std::optional<SymbolProcID> symbolProcID; // TODO(FUTURE): need both id and ref?
 
 		std::optional<pir::GlobalVar::ID> constexprJITGlobal{};
+
+		EVO_NODISCARD auto isClangVar() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+		EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 	};
 
 
@@ -448,6 +451,7 @@ namespace pcit::panther::sema{
 
 		evo::Variant<SourceID, ClangSourceID> sourceID;
 		evo::Variant<Token::ID, ClangSourceDeclInfoID> name;
+		std::string clangMangledName; // empty if not clang type
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
 		std::optional<SymbolProcID> symbolProcID; // nullopt if clang func

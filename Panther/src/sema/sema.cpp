@@ -74,6 +74,18 @@ namespace pcit::panther::sema{
 
 
 
+	auto GlobalVar::getName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isClangVar()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(this->ident.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->ident.as<Token::ID>()].getString();
+		}
+	}
+
+
+
 
 	auto TemplatedFunc::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
 		const auto lock = std::scoped_lock(this->instantiation_lock);

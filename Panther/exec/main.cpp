@@ -325,7 +325,11 @@ EVO_NODISCARD static auto run_compile(
 
 			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
-			printer.print(pir::lowerToLLVMIR(module, pir::OptMode::O0));
+
+			const evo::Result<std::string> llvmir_string = context.lowerToLLVMIR(module);
+			if(llvmir_string.isError()){ return evo::resultError; }
+
+			printer.print(llvmir_string.value());
 
 			return evo::Result<>();
 		} break;
@@ -339,7 +343,7 @@ EVO_NODISCARD static auto run_compile(
 			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
 
-			const evo::Result<std::string> asm_result = pir::lowerToAssembly(module, pir::OptMode::O0);
+			const evo::Result<std::string> asm_result = context.lowerToAssembly(module);
 			if(asm_result.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -364,23 +368,23 @@ EVO_NODISCARD static auto run_compile(
 			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
 
-			const evo::Result<std::vector<evo::byte>> object_data = pir::lowerToObject(module, pir::OptMode::O0);
+			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject(module);
 			if(object_data.isError()){
-				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
-					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_ASM,
-					panther::Diagnostic::Location::NONE,
-					"Failed to output assembly code"
-				));
-				return evo::resultError;
-			}
-
-			if(evo::fs::writeBinaryFile("output.o", object_data.value()) == false){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
 					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
 					panther::Diagnostic::Location::NONE,
-					"Failed to output obj",
+					"Failed to output object file"
+				));
+				return evo::resultError;
+			}
+
+			if(evo::fs::writeBinaryFile("build/output.o", object_data.value()) == false){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
+					panther::Diagnostic::Location::NONE,
+					"Failed to output object file",
 					panther::Diagnostic::Info("Failed to write file")
 				));
 				return evo::resultError;
@@ -421,13 +425,13 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			const evo::Result<std::vector<evo::byte>> object_data = pir::lowerToObject(module, pir::OptMode::O0);
+			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject(module);
 			if(object_data.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_ASM,
+					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
 					panther::Diagnostic::Location::NONE,
-					"Failed to output assembly code"
+					"Failed to output object file"
 				));
 				return evo::resultError;
 			}

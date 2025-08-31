@@ -19,6 +19,13 @@
 #include "./Type.h"
 
 
+namespace llvm{
+	class LLVMContext;
+	class Module;
+}
+
+
+
 namespace pcit::pir{
 
 
@@ -58,6 +65,10 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto addModule(const class Module& module)
+				-> evo::Expected<void, evo::SmallVector<std::string>>;
+
+			// deletes the context and the module
+			EVO_NODISCARD auto addModule(llvm::LLVMContext* llvm_context, llvm::Module* module)
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
 
 

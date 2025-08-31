@@ -16,6 +16,7 @@
 
 
 #include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/AST/Mangle.h>
 
 #include <clang/Basic/Diagnostic.h>
 #include <clang/Basic/DiagnosticOptions.h>

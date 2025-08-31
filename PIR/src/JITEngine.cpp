@@ -74,6 +74,17 @@ namespace pcit::pir{
 	}
 
 
+
+	auto JITEngine::addModule(llvm::LLVMContext* llvm_context, llvm::Module* module)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
+		return this->data->orc_jit.addModule(llvm_context, module);
+	}
+
+
+
+
 	auto JITEngine::addModuleSubset(const class Module& module, const ModuleSubsets& module_subsets)
 	-> evo::Expected<void, evo::SmallVector<std::string>> {
 		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");

@@ -76,7 +76,8 @@ namespace pcit::panther{
 
 
 	// TODO(PERF): improve lookup times with a map maybe?
-	auto SourceManager::getOrCreateClangSourceID(std::filesystem::path&& path, bool is_cpp) -> GottenClangSourceID {
+	auto SourceManager::getOrCreateClangSourceID(std::filesystem::path&& path, bool is_cpp, bool is_header)
+	-> GottenClangSourceID {
 		const auto lock = std::scoped_lock(this->priv.clang_sources_lock);
 
 		const auto clang_source_id_range = evo::IterRange<ClangSource::ID::Iterator>(
@@ -95,7 +96,7 @@ namespace pcit::panther{
 
 
 		const ClangSource::ID new_source_id = this->priv.clang_sources.emplace_back(
-			std::move(path), std::move(file_data.value()), is_cpp
+			std::move(path), std::move(file_data.value()), is_cpp, is_header
 		);
 
 		this->operator[](new_source_id).id = new_source_id;

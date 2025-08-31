@@ -32,8 +32,13 @@ namespace pcit::panther{
 		}
 
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
+			const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
+
 			this->lowerGlobalDecl(global_var_id);
-			this->lowerGlobalDef(global_var_id);
+
+			if(global_var.expr.load().has_value()){				
+				this->lowerGlobalDef(global_var_id);
+			}
 		}
 
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
@@ -755,7 +760,12 @@ namespace pcit::panther{
 		auto member_var_types = evo::SmallVector<pir::Type>();
 
 		if(struct_type.memberVarsABI.empty()){
-			member_var_types.emplace_back(this->module.createIntegerType(1));
+			if(struct_type.isClangType()){
+				member_var_types.emplace_back(this->module.createIntegerType(8));
+			}else{
+				member_var_types.emplace_back(this->module.createIntegerType(1));
+			}
+
 		}else{
 			member_var_types.reserve(struct_type.memberVarsABI.size());
 			for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
@@ -1762,7 +1772,7 @@ namespace pcit::panther{
 					const pir::Expr call_return  = this->create_call(
 						target_func_info.pir_ids[target_in_param_bitmap],
 						std::move(args),
-						this->name("{}.CALL", this->mangle_name(func_call.target.as<sema::Func::ID>()))
+						this->name("{}.CALL", this->mangle_name<true>(func_call.target.as<sema::Func::ID>()))
 					);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -2994,7 +3004,7 @@ namespace pcit::panther{
 						pir_var.type,
 						false,
 						pir::AtomicOrdering::NONE,
-						this->name("{}.LOAD", this->mangle_name(expr.globalVarID()))
+						this->name("{}.LOAD", this->mangle_name<true>(expr.globalVarID()))
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -4793,27 +4803,43 @@ namespace pcit::panther{
 		}
 	}
 
+	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::mangle_name(const sema::GlobalVar::ID global_var_id) const -> std::string {
 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
-		const Source& source = this->context.getSourceManager()[global_var.sourceID];
 
-		if(this->data.getConfig().useReadableNames){
-			return std::format(
-				"PTHR.g{}.{}", global_var_id.get(), source.getTokenBuffer()[global_var.ident].getString()
-			);
-			
+		if(global_var.isClangVar()){
+			if constexpr(PIR_STMT_NAME_SAFE){
+				return std::string(global_var.getName(this->context.getSourceManager()));
+			}else{
+				return global_var.clangMangledName;
+			}
+
 		}else{
-			return std::format("PTHR.g{}", global_var_id.get());
+			const Source& source = this->context.getSourceManager()[global_var.sourceID.as<Source::ID>()];
+			if(this->data.getConfig().useReadableNames){
+				return std::format(
+					"PTHR.g{}.{}",
+					global_var_id.get(),
+					source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString()
+				);
+				
+			}else{
+				return std::format("PTHR.g{}", global_var_id.get());
+			}
 		}
 	}
 
 
+	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::mangle_name(const sema::Func::ID func_id) const -> std::string {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
-
 		if(func.isExport || func.isClangFunc()){
-			return std::string(func.getName(this->context.getSourceManager()));
+			if constexpr(PIR_STMT_NAME_SAFE){
+				return std::string(func.getName(this->context.getSourceManager()));
+			}else{
+				return func.clangMangledName;
+			}
 			
 		}else{
 			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];

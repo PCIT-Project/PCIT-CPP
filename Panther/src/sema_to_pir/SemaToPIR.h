@@ -145,7 +145,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto mangle_name(const BaseType::Struct::ID struct_id) const -> std::string;
 			EVO_NODISCARD auto mangle_name(const BaseType::Union::ID union_id) const -> std::string;
+
+			template<bool PIR_STMT_NAME_SAFE = false>
 			EVO_NODISCARD auto mangle_name(const sema::GlobalVar::ID global_var_id) const -> std::string;
+
+			template<bool PIR_STMT_NAME_SAFE = false>
 			EVO_NODISCARD auto mangle_name(const sema::Func::ID func_id) const -> std::string;
 
 

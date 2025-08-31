@@ -30,7 +30,7 @@ namespace pcit::panther{
 			using DeclInfoID = ClangSourceDeclInfoID;
 			using DeclInfo = ClangSourceDeclInfo;
 
-			using Symbol = evo::Variant<BaseType::ID, sema::Func::ID>;
+			using Symbol = evo::Variant<BaseType::ID, sema::Func::ID, sema::GlobalVar::ID>;
 
 			struct SymbolInfo{
 				Symbol symbol;
@@ -49,6 +49,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getPath() const -> const std::filesystem::path& { return this->path; }
 			EVO_NODISCARD auto getData() const -> const std::string& { return this->data; }
 			EVO_NODISCARD auto isCPP() const -> bool { return this->is_cpp; }
+			EVO_NODISCARD auto isHeader() const -> bool { return this->is_header; }
 
 
 			///////////////////////////////////
@@ -100,8 +101,24 @@ namespace pcit::panther{
 				return std::nullopt;
 			}
 
+
 			auto setSymbolImportComplete() -> void { this->symbol_import_complete = true; }
 			EVO_NODISCARD auto isSymbolImportComplete() const -> bool { return this->symbol_import_complete; }
+
+
+			auto addInlinedFuncName(std::string_view name) -> void {
+				this->inlined_func_names.emplace_back(std::string(name));
+			}
+			auto addInlinedFuncName(std::string&& name) -> void {
+				this->inlined_func_names.emplace_back(std::move(name));
+			}
+
+			EVO_NODISCARD auto getInlinedFuncNames() const 
+			-> evo::IterRange<evo::StepVector<std::string>::const_iterator> {
+				return evo::IterRange<evo::StepVector<std::string>::const_iterator>(
+					this->inlined_func_names.begin(), this->inlined_func_names.end()
+				);
+			}
 
 
 			///////////////////////////////////
@@ -150,8 +167,8 @@ namespace pcit::panther{
 
 
 		private:
-			ClangSource(std::filesystem::path&& _path, std::string&& data_str, bool _is_cpp)
-				: id(ID(0)), path(std::move(_path)), data(std::move(data_str)), is_cpp(_is_cpp) {}
+			ClangSource(std::filesystem::path&& _path, std::string&& data_str, bool _is_cpp, bool _is_header)
+				: id(ID(0)), path(std::move(_path)), data(std::move(data_str)), is_cpp(_is_cpp), is_header(_is_header){}
 
 
 			struct SavedDeclInfo{
@@ -168,6 +185,7 @@ namespace pcit::panther{
 			std::filesystem::path path;
 			std::string data;
 			bool is_cpp;
+			bool is_header;
 
 			core::SyncLinearStepAlloc<SavedDeclInfo, DeclInfoID> decl_infos{};
 
@@ -177,6 +195,8 @@ namespace pcit::panther{
 			mutable core::SpinLock source_symbols_lock{};
 
 			std::unordered_map<std::string_view, std::optional<DeclInfoID>> defines{};
+
+			evo::StepVector<std::string> inlined_func_names{};
 
 			std::atomic<bool> symbol_import_complete = false;
 

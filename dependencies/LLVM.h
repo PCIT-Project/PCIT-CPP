@@ -55,6 +55,8 @@
 
 #include <llvm/TargetParser/Host.h>
 
+#include <llvm/Linker/Linker.h>
+
 
 
 #undef _SILENCE_CXX20_CISO646_REMOVED_WARNING

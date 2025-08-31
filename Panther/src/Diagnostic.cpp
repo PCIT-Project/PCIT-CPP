@@ -241,10 +241,23 @@ namespace pcit::panther{
 		return Location::get(context.getSemaBuffer().getVar(sema_var_id).ident, src);
 	}
 
-	auto Diagnostic::Location::get(const sema::GlobalVar::ID& sema_var_id, const Source& src, const Context& context)
-	-> Location {
-		return Location::get(context.getSemaBuffer().getGlobalVar(sema_var_id).ident, src);
+
+	auto Diagnostic::Location::get(sema::GlobalVar::ID global_var_id, const Context& context) -> Location {
+		return Location::get(context.getSemaBuffer().getGlobalVar(global_var_id), context);
 	}
+
+	auto Diagnostic::Location::get(const sema::GlobalVar& global_var, const Context& context) -> Location {
+		if(global_var.isClangVar()){
+			const ClangSource& clang_source = context.getSourceManager()[global_var.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(global_var.ident.as<ClangSource::DeclInfoID>()).location;
+			
+		}else{
+			return Location::get(
+				global_var.ident.as<Token::ID>(), context.getSourceManager()[global_var.sourceID.as<Source::ID>()]
+			);
+		}
+	}
+
 
 
 	auto Diagnostic::Location::get(sema::Func::ID func_id, const Context& context) -> Location {

@@ -21,6 +21,8 @@ namespace fs = std::filesystem;
 #include <PIR.h>
 
 #include <clang_interface.h>
+#include <llvm_interface.h>
+
 
 
 namespace pcit::panther{
@@ -389,7 +391,7 @@ namespace pcit::panther{
 		}
 
 			
-		if(this->compileOtherLangs().isError()){ return evo::resultError; }
+		if(this->compileOtherLangHeaders().isError()){ return evo::resultError; }
 
 
 		for(const Source::ID& source_id : this->source_manager.getSourceIDRange()){
@@ -529,7 +531,7 @@ namespace pcit::panther{
 
 
 
-	auto Context::compileOtherLangs() -> evo::Result<> {
+	auto Context::compileOtherLangHeaders() -> evo::Result<> {
 		const auto worker = [&](Task& task_variant) -> evo::Result<> {
 			task_variant.visit([&](auto& task) -> void {
 				using TaskType = std::decay_t<decltype(task)>;
@@ -593,6 +595,8 @@ namespace pcit::panther{
 
 
 
+
+
 	auto Context::lowerToPIR(EntryKind entry_kind, pir::Module& module) -> evo::Result<> {
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
 			.useReadableNames     = true,
@@ -647,6 +651,60 @@ namespace pcit::panther{
 
 
 
+
+
+	static auto get_clang_module(
+		const ClangSource& clang_source,
+		llvmint::LLVMContext& llvm_context,
+		clangint::DiagnosticList& diagnostic_list,
+		core::Target target
+	) -> llvm::Module* {
+		const auto opts = [&]() -> evo::Variant<clangint::COpts, clangint::CPPOpts> {
+			if(clang_source.isCPP()){
+				return clangint::CPPOpts();
+			}else{
+				return clangint::COpts();
+			}
+		}();
+
+		if(clang_source.isHeader()){
+			auto header_interface_str = std::format("#include \"{}\"\n", clang_source.getPath().string());
+
+			if(clang_source.isCPP()){
+				for(const std::string& func_name : clang_source.getInlinedFuncNames()){
+					header_interface_str +=
+						std::format("auto __PTHR_inline_saver_{} = {};\n", func_name, func_name);
+				}
+
+			}else{
+				for(const std::string& func_name : clang_source.getInlinedFuncNames()){
+					header_interface_str +=
+						std::format("__auto_type __PTHR_inline_saver_{} = {};\n", func_name, func_name);
+				}
+			}
+
+
+			evo::Result<llvm::Module*> clang_module = clangint::getSourceLLVM(
+				"PTHR_CLANG_INLINE_INTERFACE",
+				header_interface_str,
+				opts,
+				target,
+				llvm_context.native(),
+				diagnostic_list
+			);
+
+			evo::debugAssert(clang_module.isSuccess(), "compilation failed of header inline interface");
+
+			diagnostic_list.diagnostics.clear();
+
+			return clang_module.value();
+
+		}else{
+			evo::unimplemented("Clang Source file");
+		}
+	}
+
+
 	auto Context::runEntry(bool allow_default_symbol_linking) -> evo::Result<uint8_t> {
 		if(this->entry.has_value() == false){
 			this->emitError(
@@ -690,14 +748,116 @@ namespace pcit::panther{
 			}
 		}
 
-		
-		const evo::Expected<void, evo::SmallVector<std::string>> add_module_result = jit_engine.addModule(module);
-		if(add_module_result.has_value() == false){
-			this->jit_engine_result_emit_diagnositc(add_module_result.error());
-			return evo::resultError;
+
+		{
+			const evo::Expected<void, evo::SmallVector<std::string>> add_module_result = jit_engine.addModule(module);
+			if(add_module_result.has_value() == false){
+				this->jit_engine_result_emit_diagnositc(add_module_result.error());
+				return evo::resultError;
+			}
 		}
 
+
+		///////////////////////////////////
+		// clang 
+
+
+		auto clang_modules = evo::SmallVector<std::pair<llvmint::LLVMContext, llvm::Module*>>();
+		clang_modules.reserve(source_manager.getClangSourceIDRange().size());
+
+		auto diagnostic_list = clangint::DiagnosticList();
+
+		for(ClangSource::ID clang_source_id : source_manager.getClangSourceIDRange()){
+			const ClangSource& clang_source = source_manager[clang_source_id];
+
+			auto llvm_context = llvmint::LLVMContext();
+			llvm_context.init();
+
+			clang_modules.emplace_back(
+				std::move(llvm_context),
+				get_clang_module(clang_source, llvm_context, diagnostic_list, this->_config.target)
+			);
+		}
+
+
+		for(auto& pair : clang_modules){
+			const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
+				jit_engine.addModule(pair.first.steal(), pair.second);
+
+			if(add_module_result.has_value() == false){
+				this->jit_engine_result_emit_diagnositc(add_module_result.error());
+				return evo::resultError;
+			}
+		}
+
+
+
+		///////////////////////////////////
+		// run
+
 		return jit_engine.getFuncPtr<uint8_t(*)(void)>("PTHR.entry")();
+	}
+
+
+
+
+
+
+	static auto get_clang_modules(
+		llvmint::LLVMContext& llvm_context, const SourceManager& source_manager, core::Target target
+	) -> evo::SmallVector<llvm::Module*> {
+		auto clang_modules = evo::SmallVector<llvm::Module*>();
+		clang_modules.reserve(source_manager.getClangSourceIDRange().size());
+
+		auto diagnostic_list = clangint::DiagnosticList();
+
+		for(ClangSource::ID clang_source_id : source_manager.getClangSourceIDRange()){
+			const ClangSource& clang_source = source_manager[clang_source_id];
+
+			clang_modules.emplace_back(get_clang_module(clang_source, llvm_context, diagnostic_list, target));
+		}
+
+		return clang_modules;
+	}
+
+
+	auto Context::lowerToLLVMIR(pir::Module& module) -> evo::Result<std::string> {
+		auto llvm_context = llvmint::LLVMContext();
+		llvm_context.init();
+		EVO_DEFER([&](){ llvm_context.deinit(); });
+
+		return pir::lowerToLLVMIR(
+			module,
+			pir::OptMode::O0,
+			llvm_context.native(),
+			get_clang_modules(llvm_context, this->source_manager, this->_config.target)
+		);
+	}
+
+	auto Context::lowerToAssembly(pir::Module& module) -> evo::Result<std::string> {
+		auto llvm_context = llvmint::LLVMContext();
+		llvm_context.init();
+		EVO_DEFER([&](){ llvm_context.deinit(); });
+
+		return pir::lowerToAssembly(
+			module,
+			pir::OptMode::O0,
+			llvm_context.native(),
+			get_clang_modules(llvm_context, this->source_manager, this->_config.target)
+		);
+	}
+
+	auto Context::lowerToObject(pir::Module& module) -> evo::Result<std::vector<evo::byte>> {
+		auto llvm_context = llvmint::LLVMContext();
+		llvm_context.init();
+		EVO_DEFER([&](){ llvm_context.deinit(); });
+
+		return pir::lowerToObject(
+			module,
+			pir::OptMode::O0,
+			llvm_context.native(),
+			get_clang_modules(llvm_context, this->source_manager, this->_config.target)
+		);
 	}
 
 
@@ -897,7 +1057,7 @@ namespace pcit::panther{
 
 
 		ClangSource::ID created_clang_source_id = this->source_manager.create_clang_source(
-			std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp
+			std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp, true
 		);
 
 
@@ -924,7 +1084,7 @@ namespace pcit::panther{
 					return Diagnostic::Location(
 						ClangSource::Location(
 							this->source_manager.getOrCreateClangSourceID(
-								evo::copy(diagnostic_list.diagnostics[i].location->filePath), is_cpp
+								evo::copy(diagnostic_list.diagnostics[i].location->filePath), is_cpp, true
 							).id,
 							diagnostic_list.diagnostics[i].location->line,
 							diagnostic_list.diagnostics[i].location->collumn	
@@ -1016,7 +1176,7 @@ namespace pcit::panther{
 				using DeclPtr = std::decay_t<decltype(decl_ptr)>;
 				
 				const ClangSource::ID source_clang_source_id =
-					this->source_manager.getOrCreateClangSourceID(evo::copy(decl_ptr->declFilePath), is_cpp).id;
+					this->source_manager.getOrCreateClangSourceID(evo::copy(decl_ptr->declFilePath), is_cpp, true).id;
 
 				ClangSource& source_clang_source = this->source_manager[source_clang_source_id];
 
@@ -1183,6 +1343,7 @@ namespace pcit::panther{
 								source_clang_source.createDeclInfo(
 									function_decl.name, function_decl.declLine, function_decl.declCollumn
 								),
+								function_decl.mangled_name,
 								this->type_manager.getTypeInfo(panther_func_type->asTypeID()).baseTypeID().funcID(),
 								std::move(params),
 								std::nullopt,
@@ -1199,8 +1360,46 @@ namespace pcit::panther{
 						created_clang_source.addImportedSymbol(
 							function_decl.name, created_symbol, source_clang_source_id
 						);
+
+						if(function_decl.isInlined){
+							created_clang_source.addInlinedFuncName(function_decl.name);
+						}
 					}
 
+
+				}else if constexpr(std::is_same<DeclPtr, clangint::API::GlobalVar*>()){
+					const clangint::API::GlobalVar& global_var_decl = *decl_ptr;
+
+					const std::optional<TypeInfo::VoidableID> panther_var_type = 
+						clang_type_to_panther_type(global_var_decl.type, this->type_manager, type_map);
+					if(panther_var_type.has_value() == false){ return; }
+
+					if(panther_var_type->isVoid()){ return; }
+
+
+					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+						global_var_decl.name,
+						[&]() -> ClangSource::Symbol {
+							return this->sema_buffer.createGlobalVar(
+								global_var_decl.isConst ? AST::VarDecl::Kind::CONST : AST::VarDecl::Kind::VAR,
+								source_clang_source_id,
+								source_clang_source.createDeclInfo(
+									global_var_decl.name, global_var_decl.declLine, global_var_decl.declCollumn
+								),
+								global_var_decl.mangled_name,
+								std::optional<sema::Expr>(),
+								panther_var_type->asTypeID(),
+								false,
+								std::nullopt
+							);
+						}
+					);
+
+					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
+						created_clang_source.addImportedSymbol(
+							global_var_decl.name, created_symbol, source_clang_source_id
+						);
+					}
 
 				}else{
 					static_assert(false, "Unsupported decl type");

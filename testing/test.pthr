@@ -1,19 +1,6 @@
-
+def c_import = @importCPP("test.h");
 
 
 func entry = () #entry -> UI8 {
-	var foo: UI8 = uninit;
-
-	// foo = 12;
-
-	if(true){
-		foo = 12;
-		var bar: UI8 = move foo;
-	}else{
-		foo = 12;
-		// var bar: UI8 = move foo;
-		// return 0;
-	}
-
-	return copy foo;
+	return c_import.get_num() + (c_import.asdf as UI8);
 }

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.151.0"></a>
+## v0.0.151.0
+
+### Panther
+- Added importing C/C++ function definitions
+- Added support for mangled functions
+
+
+<!---------------------------------->
 <a name="v0.0.150.0"></a>
 ## v0.0.150.0
 

@@ -795,7 +795,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto get_location(const sema::GlobalVarID& var) const -> Diagnostic::Location {
-				return Diagnostic::Location::get(var, this->source, this->context);
+				return Diagnostic::Location::get(var, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::VarID& var) const -> Diagnostic::Location {

@@ -662,12 +662,12 @@ namespace pcit::panther{
 		if(is_global){
 			const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
 				instr.var_decl.kind,
-				instr.var_decl.ident,
 				this->source.getID(),
+				instr.var_decl.ident,
+				std::string(),
 				std::optional<sema::Expr>(),
 				got_type_info_id.asTypeID(),
 				var_attrs.value().is_pub,
-				this->symbol_proc,
 				this->symbol_proc_id
 			);
 
@@ -1043,12 +1043,12 @@ namespace pcit::panther{
 		if(is_global){
 			const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
 				instr.var_decl.kind,
-				instr.var_decl.ident,
 				this->source.getID(),
+				instr.var_decl.ident,
+				std::string(),
 				std::optional<sema::Expr>(value_term_info.getExpr()),
 				type_id,
 				var_attrs.value().is_pub,
-				this->symbol_proc,
 				this->symbol_proc_id
 			);
 
@@ -2102,6 +2102,7 @@ namespace pcit::panther{
 		const sema::Func::ID created_func_id = this->context.sema_buffer.createFunc(
 			this->source.getID(),
 			instr.func_decl.name,
+			std::string(),
 			created_func_base_type.funcID(),
 			std::move(sema_params),
 			this->symbol_proc_id,
@@ -2618,8 +2619,11 @@ namespace pcit::panther{
 				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_vars
 			){
 				const sema::GlobalVar& dependent_var = this->context.sema_buffer.getGlobalVar(dependent_var_id);
-				const SymbolProc::WaitOnResult wait_on_result = dependent_var.symbolProc.waitOnDefIfNeeded(
-					this->symbol_proc_id, this->context, dependent_var.symbolProcID
+				SymbolProc& dependent_var_symbol_proc =
+					this->context.symbol_proc_manager.getSymbolProc(*dependent_var.symbolProcID);
+
+				const SymbolProc::WaitOnResult wait_on_result = dependent_var_symbol_proc.waitOnDefIfNeeded(
+					this->symbol_proc_id, this->context, *dependent_var.symbolProcID
 				);
 
 				switch(wait_on_result){
@@ -10119,6 +10123,19 @@ namespace pcit::panther{
 					TermInfo::FuncOverloadList{symbol},
 					std::nullopt
 				);
+
+			}else if constexpr(std::is_same<SymbolType, sema::GlobalVar::ID>()){
+				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(symbol);
+
+				this->return_term_info(instr.output,
+					global_var.kind == AST::VarDecl::Kind::CONST 
+						? TermInfo::ValueCategory::CONCRETE_CONST
+						: TermInfo::ValueCategory::CONCRETE_MUT,
+					TermInfo::ValueStage::RUNTIME,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					*global_var.typeID,
+					sema::Expr(symbol)
+				);
 				
 			}else{
 				static_assert(false, "Unknown symbol kind");
@@ -11164,10 +11181,7 @@ namespace pcit::panther{
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident,
 							std::format("Variable \"{}\" does not have the #pub attribute", ident_str),
-							Diagnostic::Info(
-								"Variable defined here:", 
-								Diagnostic::Location::get(ident_id, *source_module, this->context)
-							)
+							Diagnostic::Info("Variable defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}

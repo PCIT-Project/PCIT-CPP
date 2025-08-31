@@ -322,8 +322,9 @@ namespace pcit::clangint{
 
 	class ExtractAPIVisitor : public clang::RecursiveASTVisitor<ExtractAPIVisitor> {
 		public:
-			explicit ExtractAPIVisitor(const clang::SourceManager& src_manager, API& _api)
-				: source_manager(src_manager), api(_api) {}
+			explicit ExtractAPIVisitor(
+				const clang::SourceManager& src_manager, clang::MangleContext& mangle_ctx, API& _api
+			) : source_manager(src_manager), mangle_context(mangle_ctx), api(_api) {}
 
 
 			auto VisitFunctionDecl(clang::FunctionDecl* func_decl) -> bool {
@@ -339,13 +340,34 @@ namespace pcit::clangint{
 					);
 				}
 
+
+				std::string name = func_decl->getNameAsString();
+
+				std::string mangled_name = [&](){
+					if(this->mangle_context.shouldMangleDeclName(func_decl) == false){
+						return name;
+					}
+
+					auto mangled_name = std::string();
+					{
+						auto mangled_name_ostream = StringOStream(mangled_name);
+						this->mangle_context.mangleName(func_decl, mangled_name_ostream);
+					}
+
+					return mangled_name;
+				}();
+
+
 				const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(func_decl->getLocation());
 
 				this->api.addFunction(
-					func_decl->getNameAsString(),
+					std::move(name),
+					std::move(mangled_name),
 					make_type(func_decl->getType(), this->api).baseType.as<BaseType::Function>(),
 					std::move(params),
 					func_decl->isNoReturn(),
+					func_decl->isInlined(),
+					func_decl->isVariadic(),
 					std::filesystem::path(std::string(presumed_loc.getFilename())),
 					uint32_t(presumed_loc.getLine()),
 					uint32_t(presumed_loc.getColumn())
@@ -511,16 +533,58 @@ namespace pcit::clangint{
 			}
 
 
+			auto VisitVarDecl(clang::VarDecl* var_decl) -> bool {
+				if(var_decl->hasGlobalStorage() == false || var_decl->isLocalVarDecl()){ return true; } // only globals
+
+				std::string name = var_decl->getNameAsString();
+
+				std::string mangled_name = [&](){
+					if(this->mangle_context.shouldMangleDeclName(var_decl) == false){
+						return name;
+					}
+
+					auto mangled_name = std::string();
+					{
+						auto mangled_name_ostream = StringOStream(mangled_name);
+						this->mangle_context.mangleName(var_decl, mangled_name_ostream);
+					}
+
+					return mangled_name;
+				}();
+
+				Type var_type = make_type(var_decl->getType(), this->api);
+				const bool is_const = var_type.isConst;
+
+				const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(var_decl->getLocation());
+
+
+				this->api.addGlobalVar(
+					std::move(name),
+					std::move(mangled_name),
+					std::move(var_type),
+					is_const,
+					std::filesystem::path(std::string(presumed_loc.getFilename())),
+					uint32_t(presumed_loc.getLine()),
+					uint32_t(presumed_loc.getColumn())
+				);
+
+				return true;
+			}
+
+
 		private:
 			const clang::SourceManager& source_manager;
+			clang::MangleContext& mangle_context;
+
 			API& api;
 	};
 
 
 	class ExtractAPIConsumer : public clang::ASTConsumer {
 		public:
-			explicit ExtractAPIConsumer(const clang::SourceManager& source_manager, API& api)
-				: visitor(source_manager, api) {}
+			explicit ExtractAPIConsumer(
+				const clang::SourceManager& source_manager, clang::MangleContext& mangle_context, API& api
+			) : visitor(source_manager, mangle_context, api) {}
 
 			virtual void HandleTranslationUnit(clang::ASTContext& context) {
 				this->visitor.TraverseDecl(context.getTranslationUnitDecl());
@@ -540,10 +604,16 @@ namespace pcit::clangint{
 				clang::CompilerInstance& clang_instance, llvm::StringRef in_file
 			){
 				std::ignore = in_file;
+
+				this->mangle_context =
+					std::unique_ptr<clang::MangleContext>(clang_instance.getASTContext().createMangleContext());
+
 				this->_diagnostic_consumer.set_source_manager(&clang_instance.getASTContext().getSourceManager());
 
 				return std::unique_ptr<clang::ASTConsumer>(
-					new ExtractAPIConsumer(clang_instance.getASTContext().getSourceManager(), this->_api)
+					new ExtractAPIConsumer(
+						clang_instance.getASTContext().getSourceManager(), *this->mangle_context, this->_api
+					)
 				);
 			}
 
@@ -551,6 +621,7 @@ namespace pcit::clangint{
 		private:
 			API& _api;
 			DiagnosticConsumer& _diagnostic_consumer;
+			std::unique_ptr<clang::MangleContext> mangle_context = nullptr;
 	};
 
 
@@ -736,11 +807,13 @@ namespace pcit::clangint{
 		clang_instance.setOutputStream(std::make_unique<StringOStream>(output));
 
 
-		auto ela = clang::EmitLLVMAction(llvm_context); // TODO(FUTURE): make EmitLLVMOnlyAction?
+		auto ela = clang::EmitLLVMOnlyAction(llvm_context); // TODO(FUTURE): make EmitLLVMOnlyAction?
 		const bool execute_result = clang_instance.ExecuteAction(ela);
 
 		if(execute_result == false){ return evo::resultError; }
 		std::unique_ptr<llvm::Module> module = ela.takeModule();
+
+		if(bool(module) == false){ return evo::resultError; }
 
 		return module.release();
 	}

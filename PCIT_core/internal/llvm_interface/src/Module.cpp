@@ -383,6 +383,11 @@ namespace pcit::llvmint{
 		module_pass_manager.run(*this->native(), module_analysis_manager);
 	}
 
+
+	auto Module::merge(llvm::Module* module_to_absorb) -> void {
+		llvm::Linker::linkModules(*this->_native, std::unique_ptr<llvm::Module>(module_to_absorb));
+	}
+
 		
 	auto Module::get_clone() const -> std::unique_ptr<llvm::Module> {
 		evo::debugAssert(this->isInitialized(), "not initialized");

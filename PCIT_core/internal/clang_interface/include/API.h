@@ -80,9 +80,24 @@ namespace pcit::clangint{
 				};
 
 				std::string name;
+				std::string mangled_name;
 				BaseType::Function type;
 				evo::SmallVector<Param> params;
 				bool isNoReturn;
+				bool isInlined;
+				bool isVariadic;
+
+				std::filesystem::path declFilePath;
+				uint32_t declLine;
+				uint32_t declCollumn;
+			};
+
+
+			struct GlobalVar{
+				std::string name;
+				std::string mangled_name;
+				Type type;
+				bool isConst;
 
 				std::filesystem::path declFilePath;
 				uint32_t declLine;
@@ -117,7 +132,7 @@ namespace pcit::clangint{
 
 				
 				private:
-					evo::Variant<Alias*, Struct*, Union*, Function*> ptr;
+					evo::Variant<Alias*, Struct*, Union*, Function*, GlobalVar*> ptr;
 			};
 
 
@@ -152,6 +167,14 @@ namespace pcit::clangint{
 				this->decls.emplace_back(&created_function);
 			}
 
+			auto addGlobalVar(auto&&... global_var_args) -> void {
+				GlobalVar& created_global_var =
+					this->global_vars.emplace_back(std::forward<decltype(global_var_args)>(global_var_args)...);
+
+				this->decls.emplace_back(&created_global_var);
+			}
+
+
 			auto addMacro(auto&&... macro_args) -> void {
 				this->macros.emplace_back(std::forward<decltype(macro_args)>(macro_args)...);
 			}
@@ -180,6 +203,7 @@ namespace pcit::clangint{
 			evo::StepVector<Struct> structs{};
 			evo::StepVector<Union> unions{};
 			evo::StepVector<Function> functions{};
+			evo::StepVector<GlobalVar> global_vars{};
 
 			evo::StepVector<Macro> macros{};
 

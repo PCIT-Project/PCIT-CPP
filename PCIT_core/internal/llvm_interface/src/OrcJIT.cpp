@@ -102,6 +102,27 @@ namespace pcit::llvmint{
 	}
 
 
+	auto OrcJIT::addModule(llvm::LLVMContext* context, llvm::Module* module)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
+
+		llvm::Error add_module_result = this->data->lljit->addIRModule(
+			llvm::orc::ThreadSafeModule(
+				std::unique_ptr<llvm::Module>(module),
+				std::unique_ptr<llvm::LLVMContext>(context)
+			)
+		);
+
+
+		if(is_error(add_module_result)){
+			return evo::Unexpected(extract_llvm_error_messages(std::move(add_module_result)));
+		}
+
+		return {};
+	}
+
+
+
 	auto OrcJIT::lookupFunc(std::string_view name) -> void* {
 		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
 

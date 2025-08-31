@@ -18,7 +18,7 @@
 // #include <stdbool.h>
 // #include <stdckdint.h>
 // #include <stddef.h>
-// #include <stdint.h>
+#include <stdint.h>
 // #include <stdio.h>
 // #include <stdlib.h>
 // // #include <stdmchar.h>
@@ -35,36 +35,14 @@
 // #include <windows.h>
 
 
-// class Test{
-// 	int x;
-// 	public:
-// 		double y;
-// };
+
+int asdf = 12;
+
+auto get_num() -> uint8_t {
+	return 12;
+}
 
 
-// struct Test2{
-// 	Test test;
-// };
-
-
-#define FOO
-
-// #undef FOO
-
-
-
-// using Foo = uint32_t;
-
-// enum Enum{
-	
-// };
-
-// enum class EnumC{
-	
-// };
-
-
-// union Union{
-
-// };
-
+// auto fabsf(float in) -> float {
+// 	return fabsf(in);
+// }

@@ -80,10 +80,21 @@ namespace pcit::panther{
 				ClangSource::ID id;
 				bool created;
 			};
-			EVO_NODISCARD auto getOrCreateClangSourceID(std::filesystem::path&& path, bool is_cpp)
+			EVO_NODISCARD auto getOrCreateClangSourceID(std::filesystem::path&& path, bool is_cpp, bool is_header)
 				-> GottenClangSourceID;
-			EVO_NODISCARD auto getOrCreateClangSourceID(std::string_view path, bool is_cpp) -> GottenClangSourceID {
-				return this->getOrCreateClangSourceID(std::filesystem::path(path), is_cpp);
+			EVO_NODISCARD auto getOrCreateClangSourceID(std::string_view path, bool is_cpp, bool is_header)
+			-> GottenClangSourceID {
+				return this->getOrCreateClangSourceID(std::filesystem::path(path), is_cpp, is_header);
+			}
+
+
+
+			EVO_NODISCARD auto getClangSourceIDRange() const -> evo::IterRange<ClangSource::ID::Iterator> {
+				const auto lock = std::lock_guard(this->priv.clang_sources_lock);
+				return evo::IterRange<ClangSource::ID::Iterator>(
+					ClangSource::ID::Iterator(ClangSource::ID(0)),
+					ClangSource::ID::Iterator(ClangSource::ID(uint32_t(this->priv.clang_sources.size())))
+				);
 			}
 
 			
@@ -103,12 +114,12 @@ namespace pcit::panther{
 				return new_source_id;
 			}
 
-			auto create_clang_source(std::filesystem::path&& path, std::string&& data_str, bool is_cpp)
+			auto create_clang_source(std::filesystem::path&& path, std::string&& data_str, bool is_cpp, bool is_header)
 			-> ClangSource::ID {
 				const auto lock = std::lock_guard(this->priv.clang_sources_lock);
 
 				const ClangSource::ID new_source_id = this->priv.clang_sources.emplace_back(
-					std::move(path), std::move(data_str), is_cpp
+					std::move(path), std::move(data_str), is_cpp, is_header
 				);
 
 				this->operator[](new_source_id).id = new_source_id;

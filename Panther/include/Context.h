@@ -182,10 +182,9 @@ namespace pcit::panther{
 			auto tokenize() -> evo::Result<>;
 			auto parse() -> evo::Result<>;
 			auto buildSymbolProcs() -> evo::Result<>;
-			auto analyzeSemantics() -> evo::Result<>;
+			auto analyzeSemantics() -> evo::Result<>; // autmatically calls `compileOtherLangHeaders`
 
-			auto compileOtherLangs() -> evo::Result<>;
-
+			auto compileOtherLangHeaders() -> evo::Result<>; // done automatically by `analyzeSemantics`
 
 
 			enum class EntryKind{
@@ -197,6 +196,11 @@ namespace pcit::panther{
 			// call analyzeSemantics before any of these
 			EVO_NODISCARD auto lowerToPIR(EntryKind entry_kind, pir::Module& module) -> evo::Result<>;
 			EVO_NODISCARD auto runEntry(bool allow_default_symbol_linking = false) -> evo::Result<uint8_t>;
+
+			EVO_NODISCARD auto lowerToLLVMIR(pir::Module& module) -> evo::Result<std::string>;
+			EVO_NODISCARD auto lowerToAssembly(pir::Module& module) -> evo::Result<std::string>;
+			EVO_NODISCARD auto lowerToObject(pir::Module& module) -> evo::Result<std::vector<evo::byte>>;
+
 
 
 
@@ -430,6 +434,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto getTemplateIntrinsicFuncInfo(TemplateIntrinsicFunc::Kind kind)
 				-> TemplateIntrinsicFuncInfo&;
+
 
 	
 		private:

@@ -21,12 +21,13 @@ namespace pcit::llvmint{
 			~LLVMContext() { evo::debugAssert(!this->isInitialized(), "must be uninitialized before destructor"); };
 
 			LLVMContext(LLVMContext&& rhs){
-				llvm::LLVMContext* holder = this->_native;
 				this->_native = rhs._native;
-				rhs._native = holder;
+				rhs._native = nullptr;
 			}
 
 			auto init() -> void;
+			auto init(llvm::LLVMContext* context) -> void; // passing nullptr is equivalent to passing nothing
+
 			auto deinit() -> void;
 
 			// uninitiailizes
