@@ -1,6 +1,18 @@
-def c_import = @importCPP("test.h");
+// def c_import = @importCPP("test.h");
+
 
 
 func entry = () #entry -> UI8 {
-	return c_import.get_num() + (c_import.asdf as UI8);
+	var arr = new [Int:12][
+		1, 2,     3, 4,      5,  6,
+		7, 8,     9, 10,     11, 12,
+	];
+
+	var md_arr: [Int:2,3,2] = copy (&arr as RawPtr as [Int:2,3,2]*).*;
+	var arr_ref: [Int:*,*,*] = md_arr as [Int:*,*,*];
+
+	
+	arr_ref[1, 2, 1].* = 52;
+
+	return md_arr[1, 2, 1].* as UI8;
 }

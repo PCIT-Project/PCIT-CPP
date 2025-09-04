@@ -50,6 +50,7 @@ namespace pcit::panther::sema{
 			FORWARD,
 			FUNC_CALL,
 			ADDR_OF,
+			ARRAY_TO_ARRAY_REF,
 			IMPLICIT_CONVERSION_TO_OPTIONAL,
 			OPTIONAL_NULL_CHECK,
 			DEREF,
@@ -65,6 +66,7 @@ namespace pcit::panther::sema{
 			INTERFACE_CALL,
 			INDEXER,
 			PTR_INDEXER,
+			ARRAY_REF_INDEXER,
 			UNION_DESIGNATED_INIT_NEW,
 				
 			PARAM,
@@ -105,6 +107,7 @@ namespace pcit::panther::sema{
 		explicit Expr(ForwardID id)           : _kind(Kind::FORWARD),             value{.forward = id}             {};
 		explicit Expr(FuncCallID id)          : _kind(Kind::FUNC_CALL),           value{.func_call = id}           {};
 		explicit Expr(AddrOfID id)            : _kind(Kind::ADDR_OF),             value{.addr_of = id}             {};
+		explicit Expr(ArrayToArrayRefID id)   : _kind(Kind::ARRAY_TO_ARRAY_REF),  value{.array_to_array_ref = id}  {};
 
 		explicit Expr(sema::ImplicitConversionToOptionalID id) :
 			 _kind(Kind::IMPLICIT_CONVERSION_TO_OPTIONAL), value{.inmplicit_conversion_to_optional = id} {};
@@ -123,6 +126,7 @@ namespace pcit::panther::sema{
 		explicit Expr(InterfaceCallID id)     : _kind(Kind::INTERFACE_CALL),      value{.interface_call = id}      {};
 		explicit Expr(IndexerID id)           : _kind(Kind::INDEXER),             value{.indexer = id}             {};
 		explicit Expr(PtrIndexerID id)        : _kind(Kind::PTR_INDEXER),         value{.ptr_indexer = id}         {};
+		explicit Expr(ArrayRefIndexerID id)   : _kind(Kind::ARRAY_REF_INDEXER),   value{.array_ref_indexer = id}   {};
 		explicit Expr(UnionDesignatedInitNewID id)
 			: _kind(Kind::UNION_DESIGNATED_INIT_NEW), value{.union_designated_init_new = id} {};
 
@@ -217,6 +221,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::ADDR_OF, "not an addr of");
 			return this->value.addr_of;
 		}
+		EVO_NODISCARD auto arrayToArrayRefID() const -> ArrayToArrayRefID {
+			evo::debugAssert(this->kind() == Kind::ARRAY_TO_ARRAY_REF, "not an array to array ref");
+			return this->value.array_to_array_ref;
+		}
 		EVO_NODISCARD auto implicitConversionToOptionalID() const -> ImplicitConversionToOptionalID {
 			evo::debugAssert(
 				this->kind() == Kind::IMPLICIT_CONVERSION_TO_OPTIONAL, "not an implicit conversion to optional"
@@ -278,6 +286,10 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto ptrIndexerID() const -> PtrIndexerID {
 			evo::debugAssert(this->kind() == Kind::PTR_INDEXER, "not a pointer indexer");
 			return this->value.ptr_indexer;
+		}
+		EVO_NODISCARD auto arrayRefIndexerID() const -> ArrayRefIndexerID {
+			evo::debugAssert(this->kind() == Kind::ARRAY_REF_INDEXER, "not an array ref indexer");
+			return this->value.array_ref_indexer;
 		}
 		EVO_NODISCARD auto unionDesignatedInitNewID() const -> UnionDesignatedInitNewID {
 			evo::debugAssert(this->kind() == Kind::UNION_DESIGNATED_INIT_NEW, "not a union designated init new");
@@ -355,6 +367,7 @@ namespace pcit::panther::sema{
 				ForwardID forward;
 				FuncCallID func_call;
 				AddrOfID addr_of;
+				ArrayToArrayRefID array_to_array_ref;
 				ImplicitConversionToOptionalID inmplicit_conversion_to_optional;
 				OptionalNullCheckID optional_null_check;
 				DerefID deref;
@@ -370,6 +383,7 @@ namespace pcit::panther::sema{
 				InterfaceCallID interface_call;
 				IndexerID indexer;
 				PtrIndexerID ptr_indexer;
+				ArrayRefIndexerID array_ref_indexer;
 				UnionDesignatedInitNewID union_designated_init_new;
 
 				ExceptParamID except_param;

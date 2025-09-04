@@ -104,6 +104,13 @@ namespace pcit::panther::sema{
 		using ID = AddrOfID;
 	}
 
+	struct ArrayToArrayRef{
+		using ID = ArrayToArrayRefID;	
+
+		Expr expr;
+		evo::SmallVector<uint64_t> lengths;
+	};
+
 	namespace Uninit{
 		using ID = UninitID;
 	}
@@ -274,6 +281,15 @@ namespace pcit::panther::sema{
 
 		Expr target;
 		TypeInfo::ID targetTypeID;
+		evo::SmallVector<Expr> indices;
+	};
+
+
+	struct ArrayRefIndexer{
+		using ID = ArrayRefIndexerID;
+
+		Expr target;
+		BaseType::ArrayRef::ID targetTypeID;
 		evo::SmallVector<Expr> indices;
 	};
 

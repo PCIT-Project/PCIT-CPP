@@ -43,6 +43,7 @@ namespace pcit::panther{
 			PRIMITIVE,
 			FUNCTION,
 			ARRAY,
+			ARRAY_REF,
 			ALIAS,
 			DISTINCT_ALIAS,
 			STRUCT,
@@ -69,6 +70,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto arrayID() const -> ArrayID {
 				evo::debugAssert(this->kind() == Kind::ARRAY, "not a Array");
 				return ArrayID(this->_id);
+			}
+
+			EVO_NODISCARD auto arrayRefID() const -> ArrayRefID {
+				evo::debugAssert(this->kind() == Kind::ARRAY_REF, "not a ArrayRef");
+				return ArrayRefID(this->_id);
 			}
 
 			EVO_NODISCARD auto aliasID() const -> AliasID {
@@ -118,6 +124,7 @@ namespace pcit::panther{
 			explicit ID(PrimitiveID id)      : _kind(Kind::PRIMITIVE),       _id(id.get()) {}
 			explicit ID(FunctionID id)       : _kind(Kind::FUNCTION),        _id(id.get()) {}
 			explicit ID(ArrayID id)          : _kind(Kind::ARRAY),           _id(id.get()) {}
+			explicit ID(ArrayRefID id)       : _kind(Kind::ARRAY_REF),       _id(id.get()) {}
 			explicit ID(AliasID id)          : _kind(Kind::ALIAS),           _id(id.get()) {}
 			explicit ID(DistinctAliasID id)  : _kind(Kind::DISTINCT_ALIAS),  _id(id.get()) {}
 			explicit ID(StructID id)         : _kind(Kind::STRUCT),          _id(id.get()) {}
@@ -279,23 +286,86 @@ namespace pcit::panther{
 			using ID = ArrayID;
 			
 			TypeInfoID elementTypeID;
-			evo::SmallVector<uint64_t> lengths;
+			evo::SmallVector<uint64_t> dimensions;
 			std::optional<core::GenericValue> terminator;
-
-			EVO_NODISCARD auto isArrayPtr() const -> bool { return this->lengths.empty(); }
 
 			Array(
 				TypeInfoID elem_type_id,
-				evo::SmallVector<uint64_t>&& _lengths,
-				std::optional<core::GenericValue> _terminator
-			) : elementTypeID(elem_type_id), lengths(_lengths), terminator(_terminator) {
+				evo::SmallVector<uint64_t>&& _dimensions,
+				std::optional<core::GenericValue>&& _terminator
+			) : elementTypeID(elem_type_id), dimensions(std::move(_dimensions)), terminator(std::move(_terminator)) {
 				evo::debugAssert(
-					!(this->lengths.size() > 1 && this->terminator.has_value()),
+					!(this->dimensions.size() > 1 && this->terminator.has_value()),
 					"multi-dimensional arrays cannot be terminated"
 				);
 			}
 
 			EVO_NODISCARD auto operator==(const Array&) const -> bool = default;
+		};
+
+
+		struct ArrayRef{
+			using ID = ArrayRefID;
+
+			struct Dimension{
+				explicit Dimension(uint64_t dimension_length) : _length(dimension_length) {}
+				EVO_NODISCARD static auto ptr() -> Dimension { return Dimension(); }
+
+
+				EVO_NODISCARD auto isPtr() const -> bool {
+					return this->_length == std::numeric_limits<uint64_t>::max();
+				}
+
+				EVO_NODISCARD auto length() const -> uint64_t {
+					evo::debugAssert(this->isPtr() == false, "Dimension is a ptr, so has no length");
+					return this->_length;
+				}
+
+
+				EVO_NODISCARD auto operator==(const Dimension&) const -> bool = default;
+				
+				
+				private:
+					Dimension() : _length(std::numeric_limits<uint64_t>::max()) {}
+
+					uint64_t _length;
+			};
+
+
+			
+			TypeInfoID elementTypeID;
+			evo::SmallVector<Dimension> dimensions;
+			std::optional<core::GenericValue> terminator;
+			bool isReadOnly;
+
+
+			EVO_NODISCARD auto getNumRefPtrs() const -> size_t {
+				size_t output = 0;
+				for(const Dimension& dimension : this->dimensions){
+					if(dimension.isPtr()){ output += 1; }
+				}
+				return output;
+			}
+
+
+			ArrayRef(
+				TypeInfoID elem_type_id,
+				evo::SmallVector<Dimension>&& _dimensions,
+				std::optional<core::GenericValue>&& _terminator,
+				bool is_read_only
+			) : 
+				elementTypeID(elem_type_id),
+				dimensions(std::move(_dimensions)),
+				terminator(std::move(_terminator)),
+				isReadOnly(is_read_only) 
+			{
+				evo::debugAssert(
+					!(this->dimensions.size() > 1 && this->terminator.has_value()),
+					"multi-dimensional arrays cannot be terminated"
+				);
+			}
+
+			EVO_NODISCARD auto operator==(const ArrayRef&) const -> bool = default;
 		};
 
 
@@ -612,6 +682,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getArray(BaseType::Array::ID id) const -> const BaseType::Array&;
 			EVO_NODISCARD auto getOrCreateArray(BaseType::Array&& lookup_type) -> BaseType::ID;
 
+			EVO_NODISCARD auto getArrayRef(BaseType::ArrayRef::ID id) const -> const BaseType::ArrayRef&;
+			EVO_NODISCARD auto getOrCreateArrayRef(BaseType::ArrayRef&& lookup_type) -> BaseType::ID;
+
 			EVO_NODISCARD auto getPrimitive(BaseType::Primitive::ID id) const -> const BaseType::Primitive&;
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind) -> BaseType::ID;
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
@@ -768,6 +841,9 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::Array, BaseType::Array::ID> arrays{};
 			mutable core::SpinLock arrays_lock{};
+
+			core::LinearStepAlloc<BaseType::ArrayRef, BaseType::ArrayRef::ID> array_refs{};
+			mutable core::SpinLock array_refs_lock{};
 
 			core::LinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
 			mutable core::SpinLock aliases_lock{};

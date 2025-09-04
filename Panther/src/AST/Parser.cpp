@@ -1224,14 +1224,56 @@ namespace pcit::panther{
 				}
 
 
-				auto lengths = evo::SmallVector<AST::Node>();
-				while(true){
-					const Result length = this->parse_expr();
-					if(this->check_result_fail(length, "length(s) in array type")){
-						return Result(Result::Code::ERROR);
-					}
+				bool is_ref = false;
+				bool is_read_only_arr_ref = false;
+				auto last_ptr_dimension = std::optional<Token::ID>();
 
-					lengths.emplace_back(length.value());
+				auto dimensions = evo::SmallVector<std::optional<AST::Node>>();
+
+				while(true){
+					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
+						is_ref = true;
+						dimensions.emplace_back(std::nullopt);
+
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("|")){
+							is_read_only_arr_ref = true;
+							last_ptr_dimension = this->reader.next();
+						}else{
+							if(last_ptr_dimension.has_value() && is_read_only_arr_ref){
+								this->context.emitError(
+									Diagnostic::Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH,
+									this->source.getTokenBuffer().getSourceLocation(
+										this->reader.peek(), this->source.getID()
+									),
+									"All pointer dimensions in an array reference must match mutability",
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"Last pointer dimension was here:",
+											this->source.getTokenBuffer().getSourceLocation(
+												*last_ptr_dimension, this->source.getID()
+											)
+										)
+									}
+								);
+								return Result(Result::Code::ERROR);
+							}
+							last_ptr_dimension = this->reader.next();
+						}
+
+					}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*|")){
+						is_ref = true;
+						last_ptr_dimension = this->reader.next();
+						dimensions.emplace_back(std::nullopt);
+						is_read_only_arr_ref = true;
+
+					}else{
+						const Result length = this->parse_expr();
+						if(this->check_result_fail(length, "length(s) in array type")){
+							return Result(Result::Code::ERROR);
+						}
+
+						dimensions.emplace_back(length.value());
+					}
 					
 					if(this->reader[this->reader.peek()].kind() != Token::lookupKind(",")){
 						break;
@@ -1240,12 +1282,22 @@ namespace pcit::panther{
 					}
 				}
 
+
 				auto terminator = std::optional<AST::Node>();
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
 					if(this->assert_token_fail(Token::lookupKind(";"))){ return Result(Result::Code::ERROR); }
 					
 					const Result terminator_result = this->parse_expr();
 					if(this->check_result_fail(terminator_result, "array terminator expression after [;]")){
+						return Result(Result::Code::ERROR);
+					}
+
+					if(dimensions.size() > 1){
+						this->context.emitError(
+							Diagnostic::Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR,
+							Diagnostic::Location::get(terminator_result.value(), this->source),
+							"Multi-dimentional array type cannot have a terminator"
+						);
 						return Result(Result::Code::ERROR);
 					}
 
@@ -1257,11 +1309,20 @@ namespace pcit::panther{
 					return Result(Result::Code::ERROR);
 				}
 
-				return Result(
-					this->source.ast_buffer.createArrayType(
-						open_bracket, elem_type.value(), std::move(lengths), terminator
-					)
-				);
+				if(is_ref){
+					return Result(
+						this->source.ast_buffer.createArrayType(
+							open_bracket, elem_type.value(), std::move(dimensions), terminator, is_read_only_arr_ref
+						)
+					);
+
+				}else{
+					return Result(
+						this->source.ast_buffer.createArrayType(
+							open_bracket, elem_type.value(), std::move(dimensions), terminator, std::nullopt
+						)
+					);
+				}
 
 			}else{
 				if constexpr(KIND == TypeKind::EXPLICIT || KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
@@ -1297,6 +1358,7 @@ namespace pcit::panther{
 			bool is_ptr = false;
 			bool is_read_only = false;
 			bool is_optional = false;
+			bool is_uninit = false;
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
 				continue_looking_for_qualifiers = true;
@@ -1308,6 +1370,11 @@ namespace pcit::panther{
 					is_read_only = true;
 					potential_backup_location = this->reader.peek();
 					if(this->assert_token_fail(Token::lookupKind("|"))){ return Result::Code::ERROR; }
+
+				}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("!")){
+					is_uninit = true;
+					potential_backup_location = this->reader.peek();
+					if(this->assert_token_fail(Token::lookupKind("!"))){ return Result::Code::ERROR; }
 				}
 
 			}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*|")){
@@ -1325,7 +1392,7 @@ namespace pcit::panther{
 			}
 
 			if(continue_looking_for_qualifiers){
-				qualifiers.emplace_back(is_ptr, is_read_only, is_optional);
+				qualifiers.emplace_back(is_ptr, is_read_only, is_uninit, is_optional);
 			}
 		}
 

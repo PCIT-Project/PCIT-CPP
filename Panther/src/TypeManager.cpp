@@ -253,10 +253,12 @@ namespace pcit::panther{
 
 					builder += ':';
 
-					for(size_t i = 0; uint64_t length : array.lengths){
-						builder += std::to_string(length);
+					for(size_t i = 0; uint64_t dimension : array.dimensions){
+						builder += std::to_string(dimension);
 
-						if(i + 1 < array.lengths.size()){ builder += ","; }
+						if(i + 1 < array.dimensions.size()){ builder += ","; }
+
+						i += 1;
 					}
 
 					if(array.terminator.has_value()){
@@ -293,6 +295,95 @@ namespace pcit::panther{
 
 						}else if(array.elementTypeID == TypeManager::getTypeChar()){
 							builder += std::format(";'{}'", evo::printCharName(array.terminator->getChar()));
+							
+						}else{
+							builder += ";<TERMINATOR>";
+						}
+					}
+
+					builder += ']';
+
+					return builder;
+				} break;
+
+				case BaseType::Kind::ARRAY_REF: {
+					const BaseType::ArrayRef& array_ref = this->getArrayRef(type_info.baseTypeID().arrayRefID());
+
+					auto builder = std::string();
+					builder += '[';
+
+					builder += this->printType(array_ref.elementTypeID, source_manager);
+
+					builder += ':';
+
+
+					for(size_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
+						if(dimension.isPtr()){
+							if(array_ref.isReadOnly){
+								builder += "*|";
+							}else{
+								builder += "*";
+							}
+						}else{
+							builder += std::to_string(dimension.length());
+						}
+
+
+						if(i + 1 < array_ref.dimensions.size()){
+							builder += ",";
+						}
+
+						i += 1;
+					}
+
+					if(array_ref.terminator.has_value()){
+						if(this->isUnsignedIntegral(array_ref.elementTypeID)){
+							builder += ';';
+							builder += array_ref.terminator->getInt(
+								unsigned(this->numBits(array_ref.elementTypeID))
+							).toString(false);
+
+						}else if(this->isSignedIntegral(array_ref.elementTypeID)){
+							builder += ';';
+							builder += array_ref.terminator->getInt(
+								unsigned(this->numBits(array_ref.elementTypeID))
+							).toString(true);
+
+						}else if(this->isFloatingPoint(array_ref.elementTypeID)){
+							const BaseType::Primitive& primitive = this->getPrimitive(
+								this->getTypeInfo(array_ref.elementTypeID).baseTypeID().primitiveID()
+							);
+
+							builder += ';';
+
+							switch(primitive.kind()){
+								break; case Token::Kind::TYPE_F16:
+									builder += array_ref.terminator->getF16().toString();
+
+								break; case Token::Kind::TYPE_BF16:
+									builder += array_ref.terminator->getBF16().toString();
+
+								break; case Token::Kind::TYPE_F32:
+									builder += array_ref.terminator->getF32().toString();
+
+								break; case Token::Kind::TYPE_F64:
+									builder += array_ref.terminator->getF64().toString();
+
+								break; case Token::Kind::TYPE_F80:
+									builder += array_ref.terminator->getF80().toString();
+
+								break; case Token::Kind::TYPE_F128:
+									builder += array_ref.terminator->getF128().toString();
+
+								break; default: evo::debugFatalBreak("Unknown float type");
+							}
+
+						}else if(array_ref.elementTypeID == TypeManager::getTypeBool()){
+							builder += ';';
+							builder += evo::boolStr(array_ref.terminator->getBool());
+
+						}else if(array_ref.elementTypeID == TypeManager::getTypeChar()){
+							builder += std::format(";'{}'", evo::printCharName(array_ref.terminator->getChar()));
 							
 						}else{
 							builder += ";<TERMINATOR>";
@@ -449,7 +540,11 @@ namespace pcit::panther{
 
 		std::string type_str = get_base_str();
 
-		bool is_first_qualifer = type_str.back() != '*' && type_str.back() != '|' && type_str.back() != '?';
+		bool is_first_qualifer = type_str.back() != '*'
+			&& type_str.back() != '|'
+			&& type_str.back() != '!'
+			&& type_str.back() != '?';
+
 		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
 			if(type_info.qualifiers().size() > 1){
 				if(is_first_qualifer){
@@ -461,6 +556,7 @@ namespace pcit::panther{
 
 			if(qualifier.isPtr){ type_str += '*'; }
 			if(qualifier.isReadOnly){ type_str += '|'; }
+			if(qualifier.isUninit){ type_str += '!'; }
 			if(qualifier.isOptional){ type_str += '?'; }
 		}
 
@@ -515,6 +611,28 @@ namespace pcit::panther{
 
 		const BaseType::Array::ID new_array = this->arrays.emplace_back(lookup_func);
 		return BaseType::ID(BaseType::Kind::ARRAY, new_array.get());
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// array ref
+
+	auto TypeManager::getArrayRef(BaseType::ArrayRef::ID id) const -> const BaseType::ArrayRef& {
+		const auto lock = std::scoped_lock(this->array_refs_lock);
+		return this->array_refs[id];
+	}
+
+	auto TypeManager::getOrCreateArrayRef(BaseType::ArrayRef&& lookup_func) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->array_refs_lock);
+
+		for(uint32_t i = 0; i < this->array_refs.size(); i+=1){
+			if(this->array_refs[BaseType::ArrayRef::ID(i)] == lookup_func){
+				return BaseType::ID(BaseType::Kind::ARRAY_REF, i);
+			}
+		}
+
+		const BaseType::ArrayRef::ID new_array_ref = this->array_refs.emplace_back(lookup_func);
+		return BaseType::ID(BaseType::Kind::ARRAY_REF, new_array_ref.get());
 	}
 
 
@@ -814,6 +932,11 @@ namespace pcit::panther{
 				return this->isTypeDeducer(array_type.elementTypeID);
 			} break;
 
+			case BaseType::Kind::ARRAY_REF: {
+				const BaseType::ArrayRef& array_ref_type = this->getArrayRef(type_info.baseTypeID().arrayRefID());
+				return this->isTypeDeducer(array_ref_type.elementTypeID);
+			} break;
+
 			case BaseType::Kind::TYPE_DEDUCER: {
 				return true;
 			} break;
@@ -923,13 +1046,24 @@ namespace pcit::panther{
 				const BaseType::Array& array = this->getArray(id.arrayID());
 				const uint64_t elem_size = this->numBytes(array.elementTypeID);
 
-				if(array.terminator.has_value()){ return elem_size * array.lengths.back() + 1; }
+				if(array.terminator.has_value()){ return elem_size * array.dimensions.back() + 1; }
 
 				uint64_t output = elem_size;
-				for(uint64_t length : array.lengths){
-					output *= length;
+				for(uint64_t dimension : array.dimensions){
+					output *= dimension;
 				}
 				return output;
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				const BaseType::ArrayRef& arr_ref = this->getArrayRef(id.arrayRefID());
+
+				unsigned num_words = 1;
+				for(const BaseType::ArrayRef::Dimension& dimension : arr_ref.dimensions){
+					if(dimension.isPtr()){ num_words += 1; }
+				}
+
+				return this->numBytesOfPtr() * num_words;
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1083,6 +1217,17 @@ namespace pcit::panther{
 				return this->numBytes(id) * 8;
 			} break;
 
+			case BaseType::Kind::ARRAY_REF: {
+				const BaseType::ArrayRef& arr_ref = this->getArrayRef(id.arrayRefID());
+
+				unsigned num_words = 1;
+				for(const BaseType::ArrayRef::Dimension& dimension : arr_ref.dimensions){
+					if(dimension.isPtr()){ num_words += 1; }
+				}
+
+				return this->numBitsOfPtr() * num_words;
+			} break;
+
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
@@ -1194,6 +1339,10 @@ namespace pcit::panther{
 				return this->isDefaultNewable(array.elementTypeID);
 			} break;
 
+			case BaseType::Kind::ARRAY_REF: {
+				return false;
+			} break;
+
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				return this->isDefaultNewable(*alias.aliasedType.load());
@@ -1261,6 +1410,10 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
 				return this->isTriviallyDefaultNewable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return false;
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1332,6 +1485,10 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
 				return this->isTriviallyDeletable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return true;
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1407,6 +1564,10 @@ namespace pcit::panther{
 				return this->isCopyable(array.elementTypeID);
 			} break;
 
+			case BaseType::Kind::ARRAY_REF: {
+				return true;
+			} break;
+
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				return this->isCopyable(*alias.aliasedType.load());
@@ -1478,6 +1639,10 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
 				return this->isTriviallyCopyable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return true;
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1553,6 +1718,10 @@ namespace pcit::panther{
 				return this->isMovable(array.elementTypeID);
 			} break;
 
+			case BaseType::Kind::ARRAY_REF: {
+				return true;
+			} break;
+
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				return this->isMovable(*alias.aliasedType.load());
@@ -1624,6 +1793,10 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
 				return this->isTriviallyMovable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return true;
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1935,6 +2108,7 @@ namespace pcit::panther{
 			case BaseType::Kind::PRIMITIVE: break;
 			case BaseType::Kind::FUNCTION:  return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ARRAY:     return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ARRAY_REF: return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");

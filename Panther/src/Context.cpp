@@ -335,16 +335,16 @@ namespace pcit::panther{
 		for(const clangint::Type::Qualifier& qualifier : clang_type.qualifiers){
 			switch(qualifier){
 				break; case clangint::Type::Qualifier::POINTER:
-					qualifiers.emplace_back(true, clang_type.isConst, true);
+					qualifiers.emplace_back(true, clang_type.isConst, false, true);
 
 				break; case clangint::Type::Qualifier::CONST_POINTER:
-					qualifiers.emplace_back(true, true, true);
+					qualifiers.emplace_back(true, true, false, true);
 
 				break; case clangint::Type::Qualifier::L_VALUE_REFERENCE:
-					qualifiers.emplace_back(true, clang_type.isConst, false);
+					qualifiers.emplace_back(true, clang_type.isConst, false, false);
 
 				break; case clangint::Type::Qualifier::R_VALUE_REFERENCE:
-					qualifiers.emplace_back(true, clang_type.isConst, false);
+					qualifiers.emplace_back(true, clang_type.isConst, false, false);
 			}
 		}
 

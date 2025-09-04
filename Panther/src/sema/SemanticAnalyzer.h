@@ -236,6 +236,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result;
 			EVO_NODISCARD auto instr_array_type(const Instruction::ArrayType& instr) -> Result;
+			EVO_NODISCARD auto instr_array_ref(const Instruction::ArrayRef& instr) -> Result;
 			EVO_NODISCARD auto instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result;
 			EVO_NODISCARD auto instr_user_type(const Instruction::UserType& instr) -> Result;
 			EVO_NODISCARD auto instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result;

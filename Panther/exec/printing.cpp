@@ -1215,9 +1215,20 @@ namespace pthr{
 						this->print_type(this->ast_buffer.getType(array_type.elemType));
 						this->printer.printMagenta(":");
 
-						for(size_t i = 0; i < array_type.lengths.size(); i+=1){
-							this->printer.printGray("...expr...");
-							if(i + 1 < array_type.lengths.size()){ this->printer.printMagenta(","); }
+						for(size_t i = 0; const std::optional<panther::AST::Node>& dimension : array_type.dimensions){
+							if(dimension.has_value()){
+								this->printer.printGray("...expr...");
+							}else{
+								if(*array_type.refIsReadOnly){
+									this->printer.printMagenta("*|");
+								}else{
+									this->printer.printMagenta("*");
+								}
+							}
+
+							if(i + 1 < array_type.dimensions.size()){ this->printer.printMagenta(","); }
+						
+							i += 1;
 						}
 
 						if(array_type.terminator.has_value()){
@@ -1255,6 +1266,7 @@ namespace pthr{
 
 						if(qualifier.isPtr){ qualifier_str += '*'; }
 						if(qualifier.isReadOnly){ qualifier_str += '|'; }
+						if(qualifier.isUninit){ qualifier_str += '!'; }
 						if(qualifier.isOptional){ qualifier_str += '?'; }
 					}
 

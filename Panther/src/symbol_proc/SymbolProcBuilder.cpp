@@ -1146,39 +1146,68 @@ namespace pcit::panther{
 				);
 				if(elem_type.isError()){ return evo::resultError; }
 
-				auto lengths = evo::SmallVector<SymbolProc::TermInfoID>();
-				lengths.reserve(array_type.lengths.size());
-				for(const AST::Node& length : array_type.lengths){
-					const evo::Result<SymbolProc::TermInfoID> length_term_info = this->analyze_expr<true>(length);
-					if(length_term_info.isError()){ return evo::resultError; }
-					lengths.emplace_back(length_term_info.value());
-				}
 
-				auto terminator = std::optional<SymbolProc::TermInfoID>();
-				if(array_type.terminator.has_value()){
-					if(lengths.size() > 1){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_MULTI_DIM_ARR_WITH_TERMINATOR,
-							*array_type.terminator,
-							"Multi-dimentional array type cannot have a terminator"
-						);
-						return evo::resultError;
+				if(array_type.refIsReadOnly.has_value()){ // array ref
+					auto dimensions = evo::SmallVector<std::optional<SymbolProcTermInfoID>>();
+					dimensions.reserve(array_type.dimensions.size());
+					for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+						if(dimension.has_value()){
+							const evo::Result<SymbolProc::TermInfoID> dimension_term_info =
+								this->analyze_expr<true>(*dimension);
+
+							if(dimension_term_info.isError()){ return evo::resultError; }
+							dimensions.emplace_back(dimension_term_info.value());
+
+						}else{
+							dimensions.emplace_back();
+						}
 					}
 
-					const evo::Result<SymbolProc::TermInfoID> terminator_info = 
-						this->analyze_expr<true>(*array_type.terminator);
-					if(terminator_info.isError()){ return evo::resultError; }
+					auto terminator = std::optional<SymbolProc::TermInfoID>();
+					if(array_type.terminator.has_value()){
+						const evo::Result<SymbolProc::TermInfoID> terminator_info = 
+							this->analyze_expr<true>(*array_type.terminator);
+						if(terminator_info.isError()){ return evo::resultError; }
 
-					terminator = terminator_info.value();
+						terminator = terminator_info.value();
+					}
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createArrayRef(
+							array_type, elem_type.value(), std::move(dimensions), terminator, new_term_info_id
+						)
+					);
+					return new_term_info_id;
+
+				}else{ // array
+					auto dimensions = evo::SmallVector<SymbolProc::TermInfoID>();
+					dimensions.reserve(array_type.dimensions.size());
+					for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+						const evo::Result<SymbolProc::TermInfoID> dimension_term_info =
+							this->analyze_expr<true>(*dimension);
+
+						if(dimension_term_info.isError()){ return evo::resultError; }
+						dimensions.emplace_back(dimension_term_info.value());
+					}
+
+					auto terminator = std::optional<SymbolProc::TermInfoID>();
+					if(array_type.terminator.has_value()){
+						const evo::Result<SymbolProc::TermInfoID> terminator_info = 
+							this->analyze_expr<true>(*array_type.terminator);
+						if(terminator_info.isError()){ return evo::resultError; }
+
+						terminator = terminator_info.value();
+					}
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createArrayType(
+							array_type, elem_type.value(), std::move(dimensions), terminator, new_term_info_id
+						)
+					);
+					return new_term_info_id;
 				}
-
-				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				this->add_instruction(
-					this->context.symbol_proc_manager.createArrayType(
-						array_type, elem_type.value(), std::move(lengths), terminator, new_term_info_id
-					)
-				);
-				return new_term_info_id;
 			} break;
 
 			case AST::Kind::TYPE_DEDUCER: {
@@ -1855,39 +1884,68 @@ namespace pcit::panther{
 					);
 					if(elem_type.isError()){ return evo::resultError; }
 
-					auto lengths = evo::SmallVector<SymbolProc::TermInfoID>();
-					lengths.reserve(array_type.lengths.size());
-					for(const AST::Node& length : array_type.lengths){
-						const evo::Result<SymbolProc::TermInfoID> length_term_info = this->analyze_expr<true>(length);
-						if(length_term_info.isError()){ return evo::resultError; }
-						lengths.emplace_back(length_term_info.value());
-					}
 
-					auto terminator = std::optional<SymbolProc::TermInfoID>();
-					if(array_type.terminator.has_value()){
-						if(lengths.size() > 1){
-							this->emit_error(
-								Diagnostic::Code::SYMBOL_PROC_MULTI_DIM_ARR_WITH_TERMINATOR,
-								*array_type.terminator,
-								"Multi-dimentional array type cannot have a terminator"
-							);
-							return evo::resultError;
+					if(array_type.refIsReadOnly.has_value()){ // array ref
+						auto dimensions = evo::SmallVector<std::optional<SymbolProcTermInfoID>>();
+						dimensions.reserve(array_type.dimensions.size());
+						for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+							if(dimension.has_value()){
+								const evo::Result<SymbolProc::TermInfoID> dimension_term_info =
+									this->analyze_expr<true>(*dimension);
+
+								if(dimension_term_info.isError()){ return evo::resultError; }
+								dimensions.emplace_back(dimension_term_info.value());
+
+							}else{
+								dimensions.emplace_back();
+							}
 						}
 
-						const evo::Result<SymbolProc::TermInfoID> terminator_info = 
-							this->analyze_expr<true>(*array_type.terminator);
-						if(terminator_info.isError()){ return evo::resultError; }
+						auto terminator = std::optional<SymbolProc::TermInfoID>();
+						if(array_type.terminator.has_value()){
+							const evo::Result<SymbolProc::TermInfoID> terminator_info = 
+								this->analyze_expr<true>(*array_type.terminator);
+							if(terminator_info.isError()){ return evo::resultError; }
 
-						terminator = terminator_info.value();
+							terminator = terminator_info.value();
+						}
+
+						const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createArrayRef(
+								array_type, elem_type.value(), std::move(dimensions), terminator, new_term_info_id
+							)
+						);
+						return new_term_info_id;
+
+					}else{ // array
+						auto dimensions = evo::SmallVector<SymbolProc::TermInfoID>();
+						dimensions.reserve(array_type.dimensions.size());
+						for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+							const evo::Result<SymbolProc::TermInfoID> dimension_term_info =
+								this->analyze_expr<true>(*dimension);
+
+							if(dimension_term_info.isError()){ return evo::resultError; }
+							dimensions.emplace_back(dimension_term_info.value());
+						}
+
+						auto terminator = std::optional<SymbolProc::TermInfoID>();
+						if(array_type.terminator.has_value()){
+							const evo::Result<SymbolProc::TermInfoID> terminator_info = 
+								this->analyze_expr<true>(*array_type.terminator);
+							if(terminator_info.isError()){ return evo::resultError; }
+
+							terminator = terminator_info.value();
+						}
+
+						const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createArrayType(
+								array_type, elem_type.value(), std::move(dimensions), terminator, new_term_info_id
+							)
+						);
+						return new_term_info_id;
 					}
-
-					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-					this->add_instruction(
-						this->context.symbol_proc_manager.createArrayType(
-							array_type, elem_type.value(), std::move(lengths), terminator, new_term_info_id
-						)
-					);
-					return new_term_info_id;
 				} break;
 
 				case AST::Kind::TYPE: {

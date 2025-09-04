@@ -390,18 +390,23 @@ namespace pcit::panther::AST{
 	struct ArrayType{
 		Token::ID openBracket;
 		Node elemType;
-		evo::SmallVector<Node> lengths;
-		std::optional<Node> terminator;	
+		evo::SmallVector<std::optional<Node>> dimensions; // element is nullopt if dimension is ptr
+		std::optional<Node> terminator;
+		std::optional<bool> refIsReadOnly; // only has value if is array ref
 	};
 
 	struct Type{
 		struct Qualifier{
 			bool isPtr: 1;
 			bool isReadOnly: 1;
+			bool isUninit: 1;
 			bool isOptional: 1;
 
+			Qualifier(bool is_ptr, bool is_read_only, bool is_uninit, bool is_optional)
+				: isPtr(is_ptr), isReadOnly(is_read_only), isUninit(is_uninit), isOptional(is_optional) {}
+
 			EVO_NODISCARD auto operator==(const Qualifier& rhs) const -> bool {
-				return (std::bit_cast<uint8_t>(*this) & 0b111) == (std::bit_cast<uint8_t>(rhs) & 0b111);
+				return (std::bit_cast<uint8_t>(*this) & 0b1111) == (std::bit_cast<uint8_t>(rhs) & 0b1111);
 			}
 		};
 		static_assert(sizeof(Qualifier) == 1, "sizeof(AST::Type::Qualifier) != 1");
@@ -410,7 +415,7 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Qualifier> qualifiers;
 	};
 
-	struct TypeIDConverter{ // example: Type(@getTypeID<{Int}>())
+	struct TypeIDConverter{ // example: type(@getTypeID<{Int}>())
 		Token::ID keyword;
 		Node expr;
 	};

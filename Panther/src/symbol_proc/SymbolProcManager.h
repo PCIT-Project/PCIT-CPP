@@ -2050,6 +2050,23 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// ArrayRef
+
+			EVO_NODISCARD auto createArrayRef(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ARRAY_REF,
+					this->array_refs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getArrayRef(Instruction instr) const -> const Instruction::ArrayRef& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ARRAY_REF, "Not a ArrayRef");
+				return this->array_refs[instr._index];
+			}
+
+
+
+			//////////////////
 			// TypeIDConverter
 
 			EVO_NODISCARD auto createTypeIDConverter(auto&&... args) -> Instruction {
@@ -2394,6 +2411,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Accessor<false>, uint64_t> accessors{};
 			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint64_t> primitive_types{};
 			core::SyncLinearStepAlloc<Instruction::ArrayType, uint64_t> array_types{};
+			core::SyncLinearStepAlloc<Instruction::ArrayRef, uint64_t> array_refs{};
 			core::SyncLinearStepAlloc<Instruction::TypeIDConverter, uint64_t> type_id_converters{};
 			core::SyncLinearStepAlloc<Instruction::UserType, uint64_t> user_types{};
 			core::SyncLinearStepAlloc<Instruction::BaseTypeIdent, uint64_t> base_type_idents{};

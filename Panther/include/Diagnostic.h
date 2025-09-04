@@ -76,7 +76,8 @@ namespace pcit::panther{
 			PARSER_TYPE_CONVERTER_LOWER_CASE,
 			PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK,
 			PARSER_ENUM_WITH_NO_FIELDS,
-
+			PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH,
+			PARSER_MULTI_DIM_ARR_WITH_TERMINATOR,
 
 
 			//////////////////
@@ -95,7 +96,6 @@ namespace pcit::panther{
 			SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR,
 			SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
 			SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR,
-			SYMBOL_PROC_MULTI_DIM_ARR_WITH_TERMINATOR,
 
 
 			//////////////////
@@ -602,6 +602,8 @@ namespace pcit::panther{
 				case Code::PARSER_TYPE_CONVERTER_LOWER_CASE:            return "P16";
 				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P17";
 				case Code::PARSER_ENUM_WITH_NO_FIELDS:                  return "P18";
+				case Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH:    return "P19";
+				case Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR:        return "P20";
 
 				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_STMT:
@@ -617,7 +619,6 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR:
 				case Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD:
 				case Code::SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR:
-				case Code::SYMBOL_PROC_MULTI_DIM_ARR_WITH_TERMINATOR:
 					return "SPx";
 
 				// TODO(FUTURE): give individual codes and put in correct order

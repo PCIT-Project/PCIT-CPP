@@ -769,7 +769,15 @@ namespace pcit::panther{
 		struct ArrayType{
 			const AST::ArrayType& array_type;
 			SymbolProcTypeID elem_type;
-			evo::SmallVector<SymbolProcTermInfoID> lengths;
+			evo::SmallVector<SymbolProcTermInfoID> dimensions;
+			std::optional<SymbolProcTermInfoID> terminator;
+			SymbolProcTermInfoID output;
+		};
+
+		struct ArrayRef{
+			const AST::ArrayType& array_type;
+			SymbolProcTypeID elem_type;
+			evo::SmallVector<std::optional<SymbolProcTermInfoID>> dimensions;
 			std::optional<SymbolProcTermInfoID> terminator;
 			SymbolProcTermInfoID output;
 		};
@@ -964,6 +972,7 @@ namespace pcit::panther{
 			// types
 			PRIMITIVE_TYPE,
 			ARRAY_TYPE,
+			ARRAY_REF,
 			TYPE_ID_CONVERTER,
 			USER_TYPE,
 			BASE_TYPE_IDENT,

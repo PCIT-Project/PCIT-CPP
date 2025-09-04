@@ -1,11 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.152.0"></a>
+## v0.0.152.0
+
+### Panther
+- Added uninitialized pointers
+- Added array references
+- Fixed printing of array types having an extra comma
+- Fixed crashing when there are too few indices in an indexer
+- Fixed PIR lowering of multi-dimensional arrays having the dimensions in the wrong order
+
+
+<!---------------------------------->
 <a name="v0.0.151.0"></a>
 ## v0.0.151.0
 
 ### Panther
 - Added importing C/C++ function definitions
+- Added importing C/C++ global variables
 - Added support for mangled functions
 
 

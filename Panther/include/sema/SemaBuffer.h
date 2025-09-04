@@ -340,6 +340,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// array_to_array_ref
+
+			EVO_NODISCARD auto createArrayToArrayRef(auto&&... args) -> sema::ArrayToArrayRef::ID {
+				return this->array_to_array_ref.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getArrayToArrayRef(sema::ArrayToArrayRef::ID id) const -> const sema::ArrayToArrayRef& {
+				return this->array_to_array_ref[id];
+			}
+
+
+			///////////////////////////////////
 			// optional null check
 
 			EVO_NODISCARD auto createImplicitConversionToOptional(auto&&... args)
@@ -524,6 +536,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// array ref indexer
+
+			EVO_NODISCARD auto createArrayRefIndexer(auto&&... args) -> sema::ArrayRefIndexer::ID {
+				return this->array_ref_indexers.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getArrayRefIndexer(sema::ArrayRefIndexer::ID id) const -> const sema::ArrayRefIndexer& {
+				return this->array_ref_indexers[id];
+			}
+
+
+			///////////////////////////////////
 			// union designated init new
 
 			EVO_NODISCARD auto createUnionDesignatedInitNew(auto&&... args) -> sema::UnionDesignatedInitNew::ID {
@@ -703,6 +727,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
 			core::SyncLinearStepAlloc<sema::Unwrap, sema::Unwrap::ID> unwraps{};
+			core::SyncLinearStepAlloc<sema::ArrayToArrayRef, sema::ArrayToArrayRef::ID> array_to_array_ref{};
 			core::SyncLinearStepAlloc<sema::ImplicitConversionToOptional, sema::ImplicitConversionToOptional::ID> 
 				implicit_conversion_to_optionals{};
 			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
@@ -717,6 +742,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
 			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
 			core::SyncLinearStepAlloc<sema::PtrIndexer, sema::PtrIndexer::ID> ptr_indexers{};
+			core::SyncLinearStepAlloc<sema::ArrayRefIndexer, sema::ArrayRefIndexer::ID> array_ref_indexers{};
 			core::SyncLinearStepAlloc<sema::UnionDesignatedInitNew, sema::UnionDesignatedInitNew::ID>
 				union_designated_init_new{};
 

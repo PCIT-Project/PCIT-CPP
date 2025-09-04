@@ -1823,16 +1823,16 @@ namespace pcit::pir{
 
 		for(char c : name){
 			switch(c){
-				case '\0': converted_name += "\0";
-				// case '\a': converted_name += "\a";
-				// case '\b': converted_name += "\b";
-				// case '\t': converted_name += "\t";
-				// case '\n': converted_name += "\n";
-				// case '\v': converted_name += "\v";
-				// case '\f': converted_name += "\f";
-				// case '\r': converted_name += "\r";
-				case '\"': converted_name += "\"";
-				default: converted_name += c;
+				break; case '\0': converted_name += "\0";
+				// break; case '\a': converted_name += "\a";
+				// break; case '\b': converted_name += "\b";
+				// break; case '\t': converted_name += "\t";
+				// break; case '\n': converted_name += "\n";
+				// break; case '\v': converted_name += "\v";
+				// break; case '\f': converted_name += "\f";
+				// break; case '\r': converted_name += "\r";
+				break; case '\"': converted_name += "\"";
+				break; default: converted_name += c;
 			}
 		}
 

@@ -569,6 +569,9 @@ namespace pcit::panther{
 			case Instruction::Kind::ARRAY_TYPE:
 				return this->instr_array_type(this->context.symbol_proc_manager.getArrayType(instr));
 
+			case Instruction::Kind::ARRAY_REF:
+				return this->instr_array_ref(this->context.symbol_proc_manager.getArrayRef(instr));
+
 			case Instruction::Kind::TYPE_ID_CONVERTER:
 				return this->instr_type_id_converter(this->context.symbol_proc_manager.getTypeIDConverter(instr));
 
@@ -6095,14 +6098,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(
-			target.value_state != TermInfo::ValueState::INIT
-			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
-		){
+		if(target.value_state == TermInfo::ValueState::MOVED_FROM){
 			this->emit_error(
 				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
 				instr.prefix,
-				"Argument of operator prefix [&] must be initialized"
+				"Argument of operator prefix [&] cannot be moved-from"
 			);
 			return Result::ERROR;
 		}
@@ -6123,7 +6123,9 @@ namespace pcit::panther{
 		for(const AST::Type::Qualifier& qualifier : target_type.qualifiers()){
 			resultant_qualifiers.emplace_back(qualifier);
 		}
-		resultant_qualifiers.emplace_back(true, is_read_only, false);
+		resultant_qualifiers.emplace_back(
+			true, is_read_only, target.value_state == TermInfo::ValueState::UNINIT, false
+		);
 
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
 			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
@@ -6517,7 +6519,9 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			target_type.qualifiers().back().isReadOnly ? ValueCategory::CONCRETE_CONST : ValueCategory::CONCRETE_MUT,
 			target.value_stage,
-			TermInfo::ValueState::NOT_APPLICABLE,
+			target_type.qualifiers().back().isUninit
+				? TermInfo::ValueState::UNINIT
+				: TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), resultant_type_id))
 		);
@@ -6619,7 +6623,7 @@ namespace pcit::panther{
 			actual_target_type_info.baseTypeID().arrayID()
 		);
 
-		if(target_type.lengths.size() > 1){
+		if(target_type.dimensions.size() > 1){
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				instr.array_init_new.type,
@@ -6628,12 +6632,12 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(instr.values.size() != target_type.lengths[0]){
+		if(instr.values.size() != target_type.dimensions[0]){
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_ARRAY_INIT_INCORRECT_SIZE,
 				instr.array_init_new.keyword,
 				"Array initializer operator [new] got incorrect number of values",
-				Diagnostic::Info(std::format("Expected {}, got {}", target_type.lengths[0], instr.values.size()))
+				Diagnostic::Info(std::format("Expected {}, got {}", target_type.dimensions[0], instr.values.size()))
 			);
 			return Result::ERROR;
 		}
@@ -7300,20 +7304,20 @@ namespace pcit::panther{
 			this->get_actual_type<true>(target.type_id.as<TypeInfo::ID>())
 		);
 
-		if(actual_target_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-				instr.indexer,
-				"Invalid target for indexer"
-			);
-			return Result::ERROR;
-		}
 
+
+		bool is_arr_ref = false;
+		bool is_read_only_arr_ref = false;
 		bool is_ptr = false;
-		if(actual_target_type.qualifiers().empty() == false){
-			if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isNormalPointer()){
-				is_ptr = true;
-			}else{
+
+		auto elem_type = std::optional<TypeInfo::ID>();
+
+		const TypeInfo* element_type = nullptr;
+
+		if(actual_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY_REF){
+			is_arr_ref = true;
+
+			if(actual_target_type.qualifiers().empty() == false){
 				if(actual_target_type.isOptional()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
@@ -7330,20 +7334,74 @@ namespace pcit::panther{
 				}
 				return Result::ERROR;
 			}
-		}
 
-		const BaseType::Array& target_array_type =
-			this->context.getTypeManager().getArray(actual_target_type.baseTypeID().arrayID());
+			const BaseType::ArrayRef& target_array_ref_type =
+				this->context.getTypeManager().getArrayRef(actual_target_type.baseTypeID().arrayRefID());
 
-		if(target_array_type.lengths.size() != instr.indices.size()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
-				instr.indexer.indices[std::min(instr.indices.size(), target_array_type.lengths.size())],
-				"Incorrect number of indices in indexer for the target array type",
-				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info(std::format("Expected: {}", target_array_type.lengths.size())),
-					Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
+			is_read_only_arr_ref = target_array_ref_type.isReadOnly;
+
+			if(target_array_ref_type.dimensions.size() != instr.indices.size()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
+					instr.indexer.indices[std::min(instr.indices.size() - 1, target_array_ref_type.dimensions.size())],
+					"Incorrect number of indices in indexer for the target array reference type",
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info(std::format("Expected: {}", target_array_ref_type.dimensions.size())),
+						Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
+					}
+				);
+				return Result::ERROR;
+			}
+
+			element_type = &this->context.type_manager.getTypeInfo(target_array_ref_type.elementTypeID);
+
+
+		}else if(actual_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY){
+			if(actual_target_type.qualifiers().empty() == false){
+				if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isNormalPointer()){
+					is_ptr = true;
+				}else{
+					if(actual_target_type.isOptional()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+							instr.indexer,
+							"Invalid target for indexer",
+							Diagnostic::Info("Optional values need to be unwrapped")
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+							instr.indexer,
+							"Invalid target for indexer"
+						);
+					}
+					return Result::ERROR;
 				}
+			}
+
+			const BaseType::Array& target_array_type =
+				this->context.getTypeManager().getArray(actual_target_type.baseTypeID().arrayID());
+
+			if(target_array_type.dimensions.size() != instr.indices.size()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
+					instr.indexer.indices[std::min(instr.indices.size() - 1, target_array_type.dimensions.size())],
+					"Incorrect number of indices in indexer for the target array type",
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info(std::format("Expected: {}", target_array_type.dimensions.size())),
+						Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
+					}
+				);
+				return Result::ERROR;
+			}
+
+			element_type = &this->context.type_manager.getTypeInfo(target_array_type.elementTypeID);
+
+		}else{
+			this->emit_error(
+				Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+				instr.indexer,
+				"Invalid target for indexer"
 			);
 			return Result::ERROR;
 		}
@@ -7366,23 +7424,31 @@ namespace pcit::panther{
 		}
 
 
-		const TypeInfo& element_type = this->context.type_manager.getTypeInfo(target_array_type.elementTypeID);
-
 		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
-		resultant_qualifiers.reserve(element_type.qualifiers().size() + 1);
-		for(const AST::Type::Qualifier& qualifier : element_type.qualifiers()){
+		resultant_qualifiers.reserve(element_type->qualifiers().size() + 1);
+		for(const AST::Type::Qualifier& qualifier : element_type->qualifiers()){
 			resultant_qualifiers.emplace_back(qualifier);
 		}
 		resultant_qualifiers.emplace_back(
-			true, target.is_const() || (is_ptr && actual_target_type.qualifiers().back().isReadOnly), false
+			true,
+			target.is_const() || (is_ptr && actual_target_type.qualifiers().back().isReadOnly) || is_read_only_arr_ref,
+			false,
+			false
 		);
 
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(element_type.baseTypeID(), std::move(resultant_qualifiers))
+			TypeInfo(element_type->baseTypeID(), std::move(resultant_qualifiers))
 		);
 
 		const sema::Expr sema_indexer_expr = [&](){
-			if(is_ptr){
+			if(is_arr_ref){
+				return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
+					target.getExpr(),
+					actual_target_type.baseTypeID().arrayRefID(),
+					std::move(indices)
+				));
+
+			}else if(is_ptr){
 				auto derefed_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
 				derefed_qualifiers.reserve(actual_target_type.qualifiers().size() - 1);
 				for(size_t i = 0; i < actual_target_type.qualifiers().size() - 1; i+=1){
@@ -8151,15 +8217,6 @@ namespace pcit::panther{
 				sema::Expr(conversion_call)
 			);
 			return Result::SUCCESS;
-
-
-		}else if(from_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.infix.lhs,
-				"Operator [as] from this kind of type is unimplemented"
-			);
-			return Result::ERROR;
 		}
 
 		const TypeInfo::ID to_underlying_type_id = type_manager.getUnderlyingType(target_type.asTypeID());
@@ -8186,11 +8243,91 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(to_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
+		if(to_underlying_type.baseTypeID().kind() == BaseType::Kind::ARRAY_REF){
+			if(from_underlying_type.qualifiers().empty() == false || to_underlying_type.qualifiers().empty() == false){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix.rhs,
+					"No valid operator [as] to this type",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+
+			if(from_underlying_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix.rhs,
+					"No valid operator [as] to this type",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+
+			const BaseType::Array& from_array = 
+				this->context.getTypeManager().getArray(from_underlying_type.baseTypeID().arrayID());
+
+			const BaseType::ArrayRef& to_array_ref = 
+				this->context.getTypeManager().getArrayRef(to_underlying_type.baseTypeID().arrayRefID());
+
+			if(from_array.elementTypeID != to_array_ref.elementTypeID){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix.rhs,
+					"No valid operator [as] to this type",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+
+
+			if(from_array.dimensions.size() != to_array_ref.dimensions.size()){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix.rhs,
+					"No valid operator [as] to this type",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+
+
+			const sema::Expr created_array_to_array_ref = sema::Expr(
+				this->context.sema_buffer.createArrayToArrayRef(
+					sema::Expr(this->context.sema_buffer.createAddrOf(expr.getExpr())), from_array.dimensions
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				expr.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				target_type.asTypeID(),
+				created_array_to_array_ref
+			);
+			return Result::SUCCESS;
+
+		}else if(to_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
 			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.infix.lhs,
-				"Operator [as] to this kind of type is unimplemented"
+				Diagnostic::Code::SEMA_AS_INVALID_TO,
+				instr.infix.rhs,
+				"No valid operator [as] to this type",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -9606,18 +9743,18 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		auto lengths = evo::SmallVector<uint64_t>();
-		lengths.reserve(instr.lengths.size());
-		for(size_t i = 0; const SymbolProc::TermInfoID& length_term_info_id : instr.lengths){
+		auto dimensions = evo::SmallVector<uint64_t>();
+		dimensions.reserve(instr.dimensions.size());
+		for(size_t i = 0; const SymbolProc::TermInfoID& length_term_info_id : instr.dimensions){
 			TermInfo& length_term_info = this->get_term_info(length_term_info_id);
 
 			if(this->type_check<true, true>(
-				TypeManager::getTypeUSize(), length_term_info, "Array length", instr.array_type.lengths[i]
+				TypeManager::getTypeUSize(), length_term_info, "Array dimension", *instr.array_type.dimensions[i]
 			).ok == false){
 				return Result::ERROR;
 			}
 
-			lengths.emplace_back(
+			dimensions.emplace_back(
 				static_cast<uint64_t>(
 					this->context.getSemaBuffer().getIntValue(length_term_info.getExpr().intValueID()).value
 				)
@@ -9689,7 +9826,7 @@ namespace pcit::panther{
 
 
 		const BaseType::ID array_type = this->context.type_manager.getOrCreateArray(
-			BaseType::Array(elem_type.asTypeID(), std::move(lengths), terminator)
+			BaseType::Array(elem_type.asTypeID(), std::move(dimensions), std::move(terminator))
 		);
 
 
@@ -9697,6 +9834,122 @@ namespace pcit::panther{
 			TermInfo::ValueCategory::TYPE,
 			TermInfo::ValueStage::CONSTEXPR,
 			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_type))),
+			std::nullopt
+		);
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_array_ref(const Instruction::ArrayRef& instr) -> Result {
+		const TypeInfo::VoidableID elem_type = this->get_type(instr.elem_type);
+
+		if(elem_type.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ARRAY_ELEM_TYPE_VOID,
+				instr.array_type.elemType,
+				"Element type of an array type cannot be type `Void`"
+			);
+			return Result::ERROR;
+		}
+
+		auto dimensions = evo::SmallVector<BaseType::ArrayRef::Dimension>();
+		dimensions.reserve(instr.dimensions.size());
+		for(size_t i = 0; const std::optional<SymbolProc::TermInfoID>& length_term_info_id : instr.dimensions){
+			if(length_term_info_id.has_value()){
+				TermInfo& length_term_info = this->get_term_info(*length_term_info_id);
+
+				if(this->type_check<true, true>(
+					TypeManager::getTypeUSize(), length_term_info, "Array dimension", *instr.array_type.dimensions[i]
+				).ok == false){
+					return Result::ERROR;
+				}
+
+				dimensions.emplace_back(
+					static_cast<uint64_t>(
+						this->context.getSemaBuffer().getIntValue(length_term_info.getExpr().intValueID()).value
+					)
+				);
+
+			}else{
+				dimensions.emplace_back(BaseType::ArrayRef::Dimension::ptr());
+			}
+
+			i += 1;
+		}
+
+
+		auto terminator = std::optional<core::GenericValue>();
+		if(instr.terminator.has_value()){
+			const TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
+
+			switch(terminator_term_info.getExpr().kind()){
+				case sema::Expr::Kind::INT_VALUE: {
+					terminator.emplace(
+						evo::copy(
+							this->context.getSemaBuffer().getIntValue(terminator_term_info.getExpr().intValueID()).value
+						)
+					);
+				} break;
+
+				case sema::Expr::Kind::FLOAT_VALUE: {
+					terminator.emplace(
+						evo::copy(
+							this->context.getSemaBuffer().getFloatValue(
+								terminator_term_info.getExpr().floatValueID()
+							).value
+						)
+					);
+				} break;
+
+				case sema::Expr::Kind::BOOL_VALUE: {
+					terminator.emplace(
+						this->context.getSemaBuffer().getBoolValue(terminator_term_info.getExpr().boolValueID()).value
+					);
+				} break;
+
+				case sema::Expr::Kind::STRING_VALUE: {
+					terminator.emplace(
+						this->context.getSemaBuffer().getStringValue(
+							terminator_term_info.getExpr().stringValueID()
+						).value
+					);
+				} break;
+
+				case sema::Expr::Kind::AGGREGATE_VALUE: {
+					this->emit_error(
+						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+						*instr.array_type.terminator,
+						"Array terminators of aggregate types are unimplemented"
+					);
+					return Result::ERROR;
+				} break;
+
+				case sema::Expr::Kind::CHAR_VALUE: {
+					terminator.emplace(
+						core::GenericInt::create<char>(
+							this->context.getSemaBuffer().getCharValue(
+								terminator_term_info.getExpr().charValueID()
+							).value
+						)
+					);
+				} break;
+
+				default: evo::debugAssert("Invalid terminator kind");
+			}
+		}
+
+
+		const BaseType::ID array_ref_type = this->context.type_manager.getOrCreateArrayRef(
+			BaseType::ArrayRef(
+				elem_type.asTypeID(), std::move(dimensions), std::move(terminator), *instr.array_type.refIsReadOnly
+			)
+		);
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::TYPE,
+			TermInfo::ValueStage::CONSTEXPR,
+			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_ref_type))),
 			std::nullopt
 		);
 		return Result::SUCCESS;
@@ -9900,7 +10153,7 @@ namespace pcit::panther{
 									core::GenericValue(core::GenericInt::create<char>('\0'))
 								)
 							),
-							evo::SmallVector<AST::Type::Qualifier>{AST::Type::Qualifier(true, true, false)}
+							evo::SmallVector<AST::Type::Qualifier>{AST::Type::Qualifier(true, true, false, false)}
 						)
 					),
 					sema::Expr(this->context.sema_buffer.createStringValue(std::string(literal_token.getString())))
@@ -11786,23 +12039,24 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:                    case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:                          case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:                       case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:                      case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:                 case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                            case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                         case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
-			case sema::Expr::Kind::UNWRAP:                          case sema::Expr::Kind::ACCESSOR:
-			case sema::Expr::Kind::PTR_ACCESSOR:                    case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::PTR_UNION_ACCESSOR:              case sema::Expr::Kind::TRY_ELSE:
-			case sema::Expr::Kind::BLOCK_EXPR:                      case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:              case sema::Expr::Kind::INTERFACE_CALL:
-			case sema::Expr::Kind::INDEXER:                         case sema::Expr::Kind::PTR_INDEXER:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:       case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::MODULE_IDENT:        case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:              case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:           case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:          case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:     case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::INTRINSIC_FUNC:      case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::COPY:                case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:             case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:  case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK: case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::ACCESSOR:            case sema::Expr::Kind::PTR_ACCESSOR:
+			case sema::Expr::Kind::UNION_ACCESSOR:      case sema::Expr::Kind::PTR_UNION_ACCESSOR:
+			case sema::Expr::Kind::TRY_ELSE:            case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:      case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+			case sema::Expr::Kind::INTERFACE_CALL:      case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::PTR_INDEXER:         case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::GLOBAL_VAR:          case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}
@@ -13719,8 +13973,8 @@ namespace pcit::panther{
 
 				const uint64_t num_elems = [&](){
 					uint64_t total_num_elems = 1;
-					for(uint64_t length : array_type.lengths){
-						total_num_elems *= length;
+					for(uint64_t dimension : array_type.dimensions){
+						total_num_elems *= dimension;
 					}
 					return total_num_elems;
 				}();
@@ -13744,6 +13998,10 @@ namespace pcit::panther{
 				return sema::Expr(
 					this->context.sema_buffer.createAggregateValue(std::move(member_vals), target_type.baseTypeID())
 				);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				evo::unimplemented("BaseType::Kind::ARRAY_REF");
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -13996,11 +14254,34 @@ namespace pcit::panther{
 				const BaseType::Array& got_array_type = 
 					this->context.getTypeManager().getArray(got_type.baseTypeID().arrayID());
 
-				if(deducer_array_type.lengths != got_array_type.lengths){ return evo::resultError; }
+				if(deducer_array_type.dimensions != got_array_type.dimensions){ return evo::resultError; }
 				if(deducer_array_type.terminator != got_array_type.terminator){ return evo::resultError; }
 
 				const evo::Result<evo::SmallVector<DeducedType>> arr_deduced_types = this->extract_type_deducers(
 					deducer_array_type.elementTypeID, got_array_type.elementTypeID
+				);
+				if(arr_deduced_types.isError()){ return evo::resultError; }
+
+				output.reserve(output.size() + arr_deduced_types.value().size());
+				for(const DeducedType& arr_deduced_type : arr_deduced_types.value()){
+					output.emplace_back(arr_deduced_type);
+				}
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				if(got_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){ return evo::resultError; }
+
+				const BaseType::ArrayRef& deducer_array_ref_type = 
+					this->context.getTypeManager().getArrayRef(deducer.baseTypeID().arrayRefID());
+
+				const BaseType::ArrayRef& got_array_ref_type = 
+					this->context.getTypeManager().getArrayRef(got_type.baseTypeID().arrayRefID());
+
+				if(deducer_array_ref_type.isReadOnly != got_array_ref_type.isReadOnly){ return evo::resultError; }
+				if(deducer_array_ref_type.terminator != got_array_ref_type.terminator){ return evo::resultError; }
+
+				const evo::Result<evo::SmallVector<DeducedType>> arr_deduced_types = this->extract_type_deducers(
+					deducer_array_ref_type.elementTypeID, got_array_ref_type.elementTypeID
 				);
 				if(arr_deduced_types.isError()){ return evo::resultError; }
 
@@ -15258,14 +15539,37 @@ namespace pcit::panther{
 						return TypeCheckInfo::success(false, std::move(extracted_type_deducers.value()));
 					}
 
+
 					if(expected_type.baseTypeID() != got_type.baseTypeID()){
-						if constexpr(MAY_EMIT_ERROR){
-							this->error_type_mismatch(
-								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-							);
+						if(
+							expected_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF 
+							|| got_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF
+						){
+							if constexpr(MAY_EMIT_ERROR){
+								this->error_type_mismatch(
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+								);
+							}
+							return TypeCheckInfo::fail();
 						}
-						return TypeCheckInfo::fail();
+
+						const BaseType::ArrayRef& expected_array_ref =
+							type_manager.getArrayRef(expected_type.baseTypeID().arrayRefID());
+
+						const BaseType::ArrayRef& got_array_ref =
+							type_manager.getArrayRef(got_type.baseTypeID().arrayRefID());
+
+
+						if(expected_array_ref.isReadOnly == false && got_array_ref.isReadOnly){
+							if constexpr(MAY_EMIT_ERROR){
+								this->error_type_mismatch(
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+								);
+							}
+							return TypeCheckInfo::fail();
+						}
 					}
+
 
 					if(expected_type.qualifiers().size() != got_type.qualifiers().size()){
 						const bool is_optional_conversion = 
@@ -15305,6 +15609,14 @@ namespace pcit::panther{
 								);
 							}
 							return TypeCheckInfo::fail();
+						}
+						if(expected_qualifier.isUninit != got_qualifier.isUninit){
+							if constexpr(MAY_EMIT_ERROR){
+								this->error_type_mismatch(
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+								);
+							}
+							return TypeCheckInfo::fail();	
 						}
 						if(expected_qualifier.isOptional == false && got_qualifier.isOptional){
 							if constexpr(MAY_EMIT_ERROR){

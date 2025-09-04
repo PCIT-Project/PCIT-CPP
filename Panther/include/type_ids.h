@@ -154,6 +154,10 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, ArrayID>::UniqueID; 
 	};
 
+	struct ArrayRefID : public core::UniqueID<uint32_t, struct ArrayRefID> {
+		using core::UniqueID<uint32_t, ArrayRefID>::UniqueID; 
+	};
+
 	struct AliasID : public core::UniqueID<uint32_t, struct AliasID> {
 		using core::UniqueID<uint32_t, AliasID>::UniqueID; 
 	};
@@ -181,7 +185,6 @@ namespace pcit::panther::BaseType{
 	struct InterfaceID : public core::UniqueID<uint32_t, struct InterfaceID> {
 		using core::UniqueID<uint32_t, InterfaceID>::UniqueID; 
 	};
-
 
 
 }

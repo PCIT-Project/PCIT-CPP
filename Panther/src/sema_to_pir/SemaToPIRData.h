@@ -96,6 +96,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
 
 			auto getInterfacePtrType(pir::Module& module) -> pir::Type;
+			auto getArrayRefType(pir::Module& module, unsigned num_dimensions) -> pir::Type;
 
 
 
@@ -215,8 +216,13 @@ namespace pcit::panther{
 		private:
 			Config config;
 
+
 			std::optional<pir::Type> interface_ptr_type = std::nullopt;
-			mutable core::SpinLock interface_ptr_type_lock{};			
+			mutable core::SpinLock interface_ptr_type_lock{};	
+
+			evo::SmallVector<std::optional<pir::Type>> array_ref_type{};
+			mutable core::SpinLock array_ref_type_lock{};	
+
 
 			std::unordered_map<BaseType::Struct::ID, pir::Type> structs{};
 			mutable core::SpinLock structs_lock{};

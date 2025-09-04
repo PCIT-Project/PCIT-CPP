@@ -1622,8 +1622,8 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only add wrap integers");
 
-		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
-		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
 			std::move(wrapped_name), {result_stmt_name}
 		);
 
@@ -1660,8 +1660,8 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only add wrap integers");
 
-		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
-		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
 			std::move(wrapped_name), {result_stmt_name}
 		);
 
@@ -1792,8 +1792,8 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only sub wrap integers");
 
-		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
-		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
 			std::move(wrapped_name), {result_stmt_name}
 		);
 
@@ -1830,8 +1830,8 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only sub wrap integers");
 
-		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
-		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
 			std::move(wrapped_name), {result_stmt_name}
 		);
 
@@ -2000,8 +2000,8 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only mul wrap integers");
 
-		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
-		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
+		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
+		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
 			std::move(wrapped_name), {result_stmt_name}
 		);
 
