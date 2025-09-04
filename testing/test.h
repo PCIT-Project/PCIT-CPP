@@ -18,7 +18,7 @@
 // #include <stdbool.h>
 // #include <stdckdint.h>
 // #include <stddef.h>
-#include <stdint.h>
+// #include <stdint.h>
 // #include <stdio.h>
 // #include <stdlib.h>
 // // #include <stdmchar.h>
@@ -36,11 +36,19 @@
 
 
 
-int asdf = 12;
+// int asdf = 12;
 
-auto get_num() -> uint8_t {
-	return 12;
+// auto get_num() -> uint8_t {
+// 	return 12;
+// }
+
+
+
+
+auto get_char(const char* string) -> char {
+	return string[1];
 }
+
 
 
 // auto fabsf(float in) -> float {

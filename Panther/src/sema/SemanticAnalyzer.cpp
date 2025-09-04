@@ -5221,11 +5221,7 @@ namespace pcit::panther{
 					} break;
 					case sema::Expr::Kind::CHAR_VALUE: {
 						template_args.emplace_back(
-							core::GenericValue(
-								core::GenericInt::create<char>(
-									this->context.sema_buffer.getCharValue(value_expr.charValueID()).value
-								)
-							)
+							core::GenericValue(this->context.sema_buffer.getCharValue(value_expr.charValueID()).value)
 						);
 					} break;
 				}
@@ -7717,9 +7713,7 @@ namespace pcit::panther{
 
 					case sema::Expr::Kind::CHAR_VALUE: {
 						instantiation_lookup_args.emplace_back(
-							core::GenericValue(
-								core::GenericInt::create<char>((sema_buffer.getCharValue(arg_expr.charValueID()).value))
-							)
+							core::GenericValue(sema_buffer.getCharValue(arg_expr.charValueID()).value)
 						);
 					} break;
 
@@ -7803,11 +7797,7 @@ namespace pcit::panther{
 
 						case sema::Expr::Kind::CHAR_VALUE: {
 							instantiation_lookup_args.emplace_back(
-								core::GenericValue(
-									core::GenericInt::create<char>(
-										sema_buffer.getCharValue(default_value.charValueID()).value
-									)
-								)
+								core::GenericValue(sema_buffer.getCharValue(default_value.charValueID()).value)
 							);
 						} break;
 
@@ -9812,11 +9802,7 @@ namespace pcit::panther{
 
 				case sema::Expr::Kind::CHAR_VALUE: {
 					terminator.emplace(
-						core::GenericInt::create<char>(
-							this->context.getSemaBuffer().getCharValue(
-								terminator_term_info.getExpr().charValueID()
-							).value
-						)
+						this->context.getSemaBuffer().getCharValue(terminator_term_info.getExpr().charValueID()).value
 					);
 				} break;
 
@@ -9926,11 +9912,7 @@ namespace pcit::panther{
 
 				case sema::Expr::Kind::CHAR_VALUE: {
 					terminator.emplace(
-						core::GenericInt::create<char>(
-							this->context.getSemaBuffer().getCharValue(
-								terminator_term_info.getExpr().charValueID()
-							).value
-						)
+						this->context.getSemaBuffer().getCharValue(terminator_term_info.getExpr().charValueID()).value
 					);
 				} break;
 
@@ -10150,7 +10132,7 @@ namespace pcit::panther{
 								BaseType::Array(
 									this->context.getTypeManager().getTypeChar(),
 									evo::SmallVector<uint64_t>{literal_token.getString().size()},
-									core::GenericValue(core::GenericInt::create<char>('\0'))
+									core::GenericValue('\0')
 								)
 							),
 							evo::SmallVector<AST::Type::Qualifier>{AST::Type::Qualifier(true, true, false, false)}
@@ -13535,11 +13517,7 @@ namespace pcit::panther{
 
 					case sema::Expr::Kind::CHAR_VALUE: {
 						instantiation_lookup_args.emplace_back(
-							core::GenericValue(
-								core::GenericInt::create<char>(
-									this->context.getSemaBuffer().getCharValue(arg_expr.charValueID()).value
-								)
-							)
+							core::GenericValue(this->context.getSemaBuffer().getCharValue(arg_expr.charValueID()).value)
 						);
 					} break;
 
@@ -13610,9 +13588,7 @@ namespace pcit::panther{
 						case sema::Expr::Kind::CHAR_VALUE: {
 							instantiation_lookup_args.emplace_back(
 								core::GenericValue(
-									core::GenericInt::create<char>(
-										this->context.getSemaBuffer().getCharValue(default_value.charValueID()).value
-									)
+									this->context.getSemaBuffer().getCharValue(default_value.charValueID()).value
 								)
 							);
 						} break;
@@ -14173,9 +14149,7 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::CHAR_VALUE: {
-				return core::GenericValue(core::GenericInt::create<char>(
-					this->context.getSemaBuffer().getCharValue(expr.charValueID()).value
-				));
+				return core::GenericValue(this->context.getSemaBuffer().getCharValue(expr.charValueID()).value);
 			} break;
 
 			default: evo::debugFatalBreak("Invalid constexpr value");

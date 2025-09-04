@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.152.1"></a>
+## v0.0.152.1
+
+### Panther
+- Fixed crashing when printing Char expressions
+
+
+<!---------------------------------->
 <a name="v0.0.152.0"></a>
 ## v0.0.152.0
 

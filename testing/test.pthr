@@ -1,18 +1,30 @@
-// def c_import = @importCPP("test.h");
+def cpp_import = @importCPP("test.h");
 
+
+
+// func entry = () #entry -> UI8 {
+// 	var arr = new [Int:12][
+// 		1, 2,     3, 4,      5,  6,
+// 		7, 8,     9, 10,     11, 12,
+// 	];
+
+// 	var md_arr: [Int:2,3,2] = copy (&arr as RawPtr as [Int:2,3,2]*).*;
+// 	var arr_ref: [Int:*,*,*] = md_arr as [Int:*,*,*];
+
+	
+// 	arr_ref[1, 2, 1].* = 52;
+
+// 	return md_arr[1, 2, 1].* as UI8;
+// }
+
+
+func get_char = (string: [Char:*;'\0']) #rt -> Char {
+	return cpp_import.get_char(string[0]);
+}
 
 
 func entry = () #entry -> UI8 {
-	var arr = new [Int:12][
-		1, 2,     3, 4,      5,  6,
-		7, 8,     9, 10,     11, 12,
-	];
-
-	var md_arr: [Int:2,3,2] = copy (&arr as RawPtr as [Int:2,3,2]*).*;
-	var arr_ref: [Int:*,*,*] = md_arr as [Int:*,*,*];
-
 	
-	arr_ref[1, 2, 1].* = 52;
-
-	return md_arr[1, 2, 1].* as UI8;
+	
+	return get_char("dCdf") as UI8;
 }
