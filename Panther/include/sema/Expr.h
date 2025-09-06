@@ -56,17 +56,16 @@ namespace pcit::panther::sema{
 			DEREF,
 			UNWRAP,
 			ACCESSOR,
-			PTR_ACCESSOR,
 			UNION_ACCESSOR,
-			PTR_UNION_ACCESSOR,
 			TRY_ELSE,
 			BLOCK_EXPR,
 			FAKE_TERM_INFO,
 			MAKE_INTERFACE_PTR,
 			INTERFACE_CALL,
 			INDEXER,
-			PTR_INDEXER,
 			ARRAY_REF_INDEXER,
+			ARRAY_REF_SIZE,
+			ARRAY_REF_DIMENSIONS,
 			UNION_DESIGNATED_INIT_NEW,
 				
 			PARAM,
@@ -84,16 +83,16 @@ namespace pcit::panther::sema{
 			return Expr(Kind::MODULE_IDENT, id);
 		}
 
-		explicit Expr(NullID id)           : _kind(Kind::NULL_VALUE),      value{.null = id}            {};
-		explicit Expr(UninitID id)         : _kind(Kind::UNINIT),          value{.uninit = id}          {};
-		explicit Expr(ZeroinitID id)       : _kind(Kind::ZEROINIT),        value{.zeroinit = id}        {};
+		explicit Expr(NullID id)               : _kind(Kind::NULL_VALUE),           value{.null = id}                {};
+		explicit Expr(UninitID id)             : _kind(Kind::UNINIT),               value{.uninit = id}              {};
+		explicit Expr(ZeroinitID id)           : _kind(Kind::ZEROINIT),             value{.zeroinit = id}            {};
 
-		explicit Expr(IntValueID id)       : _kind(Kind::INT_VALUE),       value{.int_value = id}       {};
-		explicit Expr(FloatValueID id)     : _kind(Kind::FLOAT_VALUE),     value{.float_value = id}     {};
-		explicit Expr(BoolValueID id)      : _kind(Kind::BOOL_VALUE),      value{.bool_value = id}      {};
-		explicit Expr(StringValueID id)    : _kind(Kind::STRING_VALUE),    value{.string_value = id}    {};
-		explicit Expr(AggregateValueID id) : _kind(Kind::AGGREGATE_VALUE), value{.aggregate_value = id} {};
-		explicit Expr(CharValueID id)      : _kind(Kind::CHAR_VALUE),      value{.char_value = id}      {};
+		explicit Expr(IntValueID id)           : _kind(Kind::INT_VALUE),            value{.int_value = id}           {};
+		explicit Expr(FloatValueID id)         : _kind(Kind::FLOAT_VALUE),          value{.float_value = id}         {};
+		explicit Expr(BoolValueID id)          : _kind(Kind::BOOL_VALUE),           value{.bool_value = id}          {};
+		explicit Expr(StringValueID id)        : _kind(Kind::STRING_VALUE),         value{.string_value = id}        {};
+		explicit Expr(AggregateValueID id)     : _kind(Kind::AGGREGATE_VALUE),      value{.aggregate_value = id}     {};
+		explicit Expr(CharValueID id)          : _kind(Kind::CHAR_VALUE),           value{.char_value = id}          {};
 
 		explicit Expr(IntrinsicFunc::Kind intrinsic_func_kind) :
 			_kind(Kind::INTRINSIC_FUNC), value{.intrinsic_func = intrinsic_func_kind} {};
@@ -102,43 +101,42 @@ namespace pcit::panther::sema{
 			  value{.templated_intrinsic_func_instantiation = id} 
 			  {};
 
-		explicit Expr(CopyID id)              : _kind(Kind::COPY),                value{.copy = id}                {};
-		explicit Expr(MoveID id)              : _kind(Kind::MOVE),                value{.move = id}                {};
-		explicit Expr(ForwardID id)           : _kind(Kind::FORWARD),             value{.forward = id}             {};
-		explicit Expr(FuncCallID id)          : _kind(Kind::FUNC_CALL),           value{.func_call = id}           {};
-		explicit Expr(AddrOfID id)            : _kind(Kind::ADDR_OF),             value{.addr_of = id}             {};
-		explicit Expr(ArrayToArrayRefID id)   : _kind(Kind::ARRAY_TO_ARRAY_REF),  value{.array_to_array_ref = id}  {};
+		explicit Expr(CopyID id)               : _kind(Kind::COPY),                 value{.copy = id}                {};
+		explicit Expr(MoveID id)               : _kind(Kind::MOVE),                 value{.move = id}                {};
+		explicit Expr(ForwardID id)            : _kind(Kind::FORWARD),              value{.forward = id}             {};
+		explicit Expr(FuncCallID id)           : _kind(Kind::FUNC_CALL),            value{.func_call = id}           {};
+		explicit Expr(AddrOfID id)             : _kind(Kind::ADDR_OF),              value{.addr_of = id}             {};
+		explicit Expr(ArrayToArrayRefID id)    : _kind(Kind::ARRAY_TO_ARRAY_REF),   value{.array_to_array_ref = id}  {};
 
 		explicit Expr(sema::ImplicitConversionToOptionalID id) :
 			 _kind(Kind::IMPLICIT_CONVERSION_TO_OPTIONAL), value{.inmplicit_conversion_to_optional = id} {};
 
-		explicit Expr(OptionalNullCheckID id) : _kind(Kind::OPTIONAL_NULL_CHECK), value{.optional_null_check = id} {};
-		explicit Expr(DerefID id)             : _kind(Kind::DEREF),               value{.deref = id}               {};
-		explicit Expr(UnwrapID id)            : _kind(Kind::UNWRAP),              value{.unwrap = id}              {};
-		explicit Expr(AccessorID id)          : _kind(Kind::ACCESSOR),            value{.accessor = id}            {};
-		explicit Expr(PtrAccessorID id)       : _kind(Kind::PTR_ACCESSOR),        value{.ptr_accessor = id}        {};
-		explicit Expr(UnionAccessorID id)     : _kind(Kind::UNION_ACCESSOR),      value{.union_accessor = id}      {};
-		explicit Expr(PtrUnionAccessorID id)  : _kind(Kind::PTR_UNION_ACCESSOR),  value{.ptr_union_accessor = id}  {};
-		explicit Expr(TryElseID id)           : _kind(Kind::TRY_ELSE),            value{.try_else = id}            {};
-		explicit Expr(BlockExprID id)         : _kind(Kind::BLOCK_EXPR),          value{.block_expr = id}          {};
-		explicit Expr(FakeTermInfoID id)      : _kind(Kind::FAKE_TERM_INFO),      value{.fake_term_info = id}      {};
-		explicit Expr(MakeInterfacePtrID id)  : _kind(Kind::MAKE_INTERFACE_PTR),  value{.make_interface_ptr = id}  {};
-		explicit Expr(InterfaceCallID id)     : _kind(Kind::INTERFACE_CALL),      value{.interface_call = id}      {};
-		explicit Expr(IndexerID id)           : _kind(Kind::INDEXER),             value{.indexer = id}             {};
-		explicit Expr(PtrIndexerID id)        : _kind(Kind::PTR_INDEXER),         value{.ptr_indexer = id}         {};
-		explicit Expr(ArrayRefIndexerID id)   : _kind(Kind::ARRAY_REF_INDEXER),   value{.array_ref_indexer = id}   {};
+		explicit Expr(OptionalNullCheckID id)  : _kind(Kind::OPTIONAL_NULL_CHECK),  value{.optional_null_check = id} {};
+		explicit Expr(DerefID id)              : _kind(Kind::DEREF),                value{.deref = id}               {};
+		explicit Expr(UnwrapID id)             : _kind(Kind::UNWRAP),               value{.unwrap = id}              {};
+		explicit Expr(AccessorID id)           : _kind(Kind::ACCESSOR),             value{.accessor = id}            {};
+		explicit Expr(UnionAccessorID id)      : _kind(Kind::UNION_ACCESSOR),       value{.union_accessor = id}      {};
+		explicit Expr(TryElseID id)            : _kind(Kind::TRY_ELSE),             value{.try_else = id}            {};
+		explicit Expr(BlockExprID id)          : _kind(Kind::BLOCK_EXPR),           value{.block_expr = id}          {};
+		explicit Expr(FakeTermInfoID id)       : _kind(Kind::FAKE_TERM_INFO),       value{.fake_term_info = id}      {};
+		explicit Expr(MakeInterfacePtrID id)   : _kind(Kind::MAKE_INTERFACE_PTR),   value{.make_interface_ptr = id}  {};
+		explicit Expr(InterfaceCallID id)      : _kind(Kind::INTERFACE_CALL),       value{.interface_call = id}      {};
+		explicit Expr(IndexerID id)            : _kind(Kind::INDEXER),              value{.indexer = id}             {};
+		explicit Expr(ArrayRefIndexerID id)    : _kind(Kind::ARRAY_REF_INDEXER),    value{.array_ref_indexer = id}   {};
+		explicit Expr(ArrayRefSizeID id)       : _kind(Kind::ARRAY_REF_SIZE),       value{.array_ref_size = id}      {};
+		explicit Expr(ArrayRefDimensionsID id) : _kind(Kind::ARRAY_REF_DIMENSIONS), value{.array_ref_dimensions = id}{};
 		explicit Expr(UnionDesignatedInitNewID id)
 			: _kind(Kind::UNION_DESIGNATED_INIT_NEW), value{.union_designated_init_new = id} {};
 
-		explicit Expr(ParamID id)             : _kind(Kind::PARAM),               value{.param = id}               {};
-		explicit Expr(ReturnParamID id)       : _kind(Kind::RETURN_PARAM),        value{.return_param = id}        {};
-		explicit Expr(ErrorReturnParamID id)  : _kind(Kind::ERROR_RETURN_PARAM),  value{.error_return_param = id}  {};
-		explicit Expr(BlockExprOutputID id)   : _kind(Kind::BLOCK_EXPR_OUTPUT),   value{.block_expr_output = id}   {};
-		explicit Expr(ExceptParamID id)       : _kind(Kind::EXCEPT_PARAM),        value{.except_param = id}        {};
+		explicit Expr(ParamID id)              : _kind(Kind::PARAM),                value{.param = id}               {};
+		explicit Expr(ReturnParamID id)        : _kind(Kind::RETURN_PARAM),         value{.return_param = id}        {};
+		explicit Expr(ErrorReturnParamID id)   : _kind(Kind::ERROR_RETURN_PARAM),   value{.error_return_param = id}  {};
+		explicit Expr(BlockExprOutputID id)    : _kind(Kind::BLOCK_EXPR_OUTPUT),    value{.block_expr_output = id}   {};
+		explicit Expr(ExceptParamID id)        : _kind(Kind::EXCEPT_PARAM),         value{.except_param = id}        {};
 
-		explicit Expr(VarID id)               : _kind(Kind::VAR),                 value{.var = id}                 {};
-		explicit Expr(GlobalVarID id)         : _kind(Kind::GLOBAL_VAR),          value{.global_var = id}          {};
-		explicit Expr(FuncID id)              : _kind(Kind::FUNC),                value{.func = id}                {};
+		explicit Expr(VarID id)                : _kind(Kind::VAR),                  value{.var = id}                 {};
+		explicit Expr(GlobalVarID id)          : _kind(Kind::GLOBAL_VAR),           value{.global_var = id}          {};
+		explicit Expr(FuncID id)               : _kind(Kind::FUNC),                 value{.func = id}                {};
 
 
 		EVO_NODISCARD constexpr auto kind() const -> Kind { return this->_kind; }
@@ -247,17 +245,9 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::ACCESSOR, "not an accessor");
 			return this->value.accessor;
 		}
-		EVO_NODISCARD auto ptrAccessorID() const -> PtrAccessorID {
-			evo::debugAssert(this->kind() == Kind::PTR_ACCESSOR, "not a ptr accessor");
-			return this->value.ptr_accessor;
-		}
 		EVO_NODISCARD auto unionAccessorID() const -> UnionAccessorID {
 			evo::debugAssert(this->kind() == Kind::UNION_ACCESSOR, "not a union accessor");
 			return this->value.union_accessor;
-		}
-		EVO_NODISCARD auto ptrUnionAccessorID() const -> PtrUnionAccessorID {
-			evo::debugAssert(this->kind() == Kind::PTR_UNION_ACCESSOR, "not a ptr union accessor");
-			return this->value.ptr_union_accessor;
 		}
 		EVO_NODISCARD auto tryElseID() const -> TryElseID {
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not a try/else");
@@ -283,13 +273,17 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::INDEXER, "not an indexer");
 			return this->value.indexer;
 		}
-		EVO_NODISCARD auto ptrIndexerID() const -> PtrIndexerID {
-			evo::debugAssert(this->kind() == Kind::PTR_INDEXER, "not a pointer indexer");
-			return this->value.ptr_indexer;
-		}
 		EVO_NODISCARD auto arrayRefIndexerID() const -> ArrayRefIndexerID {
 			evo::debugAssert(this->kind() == Kind::ARRAY_REF_INDEXER, "not an array ref indexer");
 			return this->value.array_ref_indexer;
+		}
+		EVO_NODISCARD auto arrayRefSizeID() const -> ArrayRefSizeID {
+			evo::debugAssert(this->kind() == Kind::ARRAY_REF_SIZE, "not an array ref size");
+			return this->value.array_ref_size;
+		}
+		EVO_NODISCARD auto arrayRefDimensionsID() const -> ArrayRefDimensionsID {
+			evo::debugAssert(this->kind() == Kind::ARRAY_REF_DIMENSIONS, "not an array ref dimensions");
+			return this->value.array_ref_dimensions;
 		}
 		EVO_NODISCARD auto unionDesignatedInitNewID() const -> UnionDesignatedInitNewID {
 			evo::debugAssert(this->kind() == Kind::UNION_DESIGNATED_INIT_NEW, "not a union designated init new");
@@ -373,17 +367,16 @@ namespace pcit::panther::sema{
 				DerefID deref;
 				UnwrapID unwrap;
 				AccessorID accessor;
-				PtrAccessorID ptr_accessor;
 				UnionAccessorID union_accessor;
-				PtrUnionAccessorID ptr_union_accessor;
 				TryElseID try_else;
 				BlockExprID block_expr;
 				FakeTermInfoID fake_term_info;
 				MakeInterfacePtrID make_interface_ptr;
 				InterfaceCallID interface_call;
 				IndexerID indexer;
-				PtrIndexerID ptr_indexer;
 				ArrayRefIndexerID array_ref_indexer;
+				ArrayRefSizeID array_ref_size;
+				ArrayRefDimensionsID array_ref_dimensions;
 				UnionDesignatedInitNewID union_designated_init_new;
 
 				ExceptParamID except_param;

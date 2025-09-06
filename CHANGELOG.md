@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.153.0"></a>
+## v0.0.153.0
+
+### Panther
+- Added builtin-type methods
+	- Array `.size()`
+	- Array `.dimensions()`
+	- Array reference `.size()`
+	- Array reference `.dimensions()`
+- Fixed crashing when doing some invalid `as` conversions
+
+
+<!---------------------------------->
 <a name="v0.0.152.1"></a>
 ## v0.0.152.1
 
@@ -201,7 +214,7 @@
 
 ### PIR
 - Fixed `Agent` incorrectly asserting that `@ieq` cannot compare pointers
-- Fixed `Agent` incorrectly asserting that `@ineq` cannot compare Bools pointers
+- Fixed `Agent` incorrectly asserting that `@ineq` cannot compare `Bool`s
 
 
 <!---------------------------------->
@@ -252,7 +265,7 @@
 - Fixed lowering to PIR of string values
 - Fixed string literals being given a type of array (corrected to a read-only pointer to an array)
 - Fixed type deducers incorrectly failing to deduce types when they have fewer qualifiers than the got type
-- Fixed diagnosic location for unknown string escape sequence being incorrect
+- Fixed diagnostic location for unknown string escape sequence being incorrect
 - Fixed type id converter expressions
 
 ### PIR
@@ -399,7 +412,7 @@
 - Fixed fatal error when doing semantic analysis of compile-time functions
 
 ### PIR
-- Fixed assert incorrectly stating that `@ieq` can only supports integers (it can also supports Bools)
+- Fixed assert incorrectly stating that `@ieq` can only supports integers (it can also supports `Bool`s)
 
 
 <!---------------------------------->

@@ -39,7 +39,8 @@ namespace pcit::panther{
 			INTERFACE_CALL, // the expr is the interface ptr
 			INTRINSIC_FUNC,
 			TEMPLATE_INTRINSIC_FUNC, // uninstantiated
-			TEMPLATE_TYPE,           // uninstantiated
+			BUILTIN_TYPE_METHOD,
+			TEMPLATE_TYPE,  // uninstantiated
 			TYPE,
 			TEMPLATE_DECL_INSTANTIATION_TYPE,
 			EXCEPT_PARAM_PACK,
@@ -67,6 +68,20 @@ namespace pcit::panther{
 
 		using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
 
+		struct BuiltinTypeMethod{
+			enum class Kind{
+				ARRAY_SIZE,
+				ARRAY_DIMENSIONS,
+				ARRAY_REF_SIZE,
+				ARRAY_REF_SIZE_PTR,
+				ARRAY_REF_DIMENSIONS,
+				ARRAY_REF_DIMENSIONS_PTR,
+			};
+
+			TypeInfo::ID typeID;
+			Kind kind;
+		};
+
 
 		using TypeID = evo::Variant<
 			InitializerType,                // INITIALIZER
@@ -75,11 +90,12 @@ namespace pcit::panther{
 			TemplateDeclInstantiationType,  // TEMPLATE_DECL_INSTANTIATION_TYPE
 			ExceptParamPack,                // EXCEPT_PARAM_PACK
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
+			BuiltinTypeMethod,              // BUILTIN_TYPE_METHOD
 			FuncOverloadList,               // FUNCTION|METHOD_CALL|INTERFACE_CALL
-			TypeInfo::VoidableID,           // TYPE
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
 			ClangSourceID,                  // CLANG_MODULE
+			TypeInfo::VoidableID,           // TYPE
 			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE
 			TemplateIntrinsicFunc::Kind     // TEMPLATE_INTRINSIC_FUNC
 		>;
@@ -246,6 +262,9 @@ namespace pcit::panther{
 					break; case ValueCategory::TEMPLATE_INTRINSIC_FUNC:
 						evo::debugFatalBreak("Incorrect TermInfo creation");
 
+					break; case ValueCategory::BUILTIN_TYPE_METHOD:
+						evo::debugAssert(this->type_id.is<BuiltinTypeMethod>(), "Incorrect TermInfo creation");
+
 					break; case ValueCategory::TEMPLATE_TYPE:
 						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TermInfo creation");
 
@@ -328,6 +347,66 @@ namespace pcit::panther{
 		}
 
 
+		EVO_NODISCARD static auto convertValueCategory(ValueCategory value_category)
+		-> sema::FakeTermInfo::ValueCategory {
+			switch(value_category){
+				case TermInfo::ValueCategory::EPHEMERAL:      return sema::FakeTermInfo::ValueCategory::EPHEMERAL;
+				case TermInfo::ValueCategory::CONCRETE_CONST: return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
+				case TermInfo::ValueCategory::CONCRETE_MUT:   return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
+				case TermInfo::ValueCategory::FORWARDABLE:    return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
+				default: evo::debugFatalBreak("Invalid value category");
+			}
+		}
+		EVO_NODISCARD static auto convertValueCategory(sema::FakeTermInfo::ValueCategory value_category)
+		-> ValueCategory {
+			switch(value_category){
+				case sema::FakeTermInfo::ValueCategory::EPHEMERAL:      return TermInfo::ValueCategory::EPHEMERAL;
+				case sema::FakeTermInfo::ValueCategory::CONCRETE_CONST: return TermInfo::ValueCategory::CONCRETE_CONST;
+				case sema::FakeTermInfo::ValueCategory::CONCRETE_MUT:   return TermInfo::ValueCategory::CONCRETE_MUT;
+				case sema::FakeTermInfo::ValueCategory::FORWARDABLE:    return TermInfo::ValueCategory::FORWARDABLE;
+				default: evo::debugFatalBreak("Invalid value category");
+			}
+		}
+
+
+		EVO_NODISCARD static auto convertValueStage(ValueStage value_stage) -> sema::FakeTermInfo::ValueStage {
+			switch(value_stage){
+				case TermInfo::ValueStage::CONSTEXPR: return sema::FakeTermInfo::ValueStage::CONSTEXPR;
+				case TermInfo::ValueStage::COMPTIME:  return sema::FakeTermInfo::ValueStage::COMPTIME;
+				case TermInfo::ValueStage::RUNTIME:   return sema::FakeTermInfo::ValueStage::RUNTIME;
+			}
+			evo::unreachable();
+		}
+		EVO_NODISCARD static auto convertValueStage(sema::FakeTermInfo::ValueStage value_stage) -> ValueStage {
+			switch(value_stage){
+				case sema::FakeTermInfo::ValueStage::CONSTEXPR: return TermInfo::ValueStage::CONSTEXPR;
+				case sema::FakeTermInfo::ValueStage::COMPTIME:  return TermInfo::ValueStage::COMPTIME;
+				case sema::FakeTermInfo::ValueStage::RUNTIME:   return TermInfo::ValueStage::RUNTIME;
+			}
+			evo::unreachable();
+		}
+
+
+		EVO_NODISCARD static auto convertValueState(ValueState value_state) -> sema::FakeTermInfo::ValueState {
+			switch(value_state){
+				case TermInfo::ValueState::NOT_APPLICABLE: return sema::FakeTermInfo::ValueState::NOT_APPLICABLE;
+				case TermInfo::ValueState::INIT:           return sema::FakeTermInfo::ValueState::INIT;
+				case TermInfo::ValueState::UNINIT:         return sema::FakeTermInfo::ValueState::UNINIT;
+				case TermInfo::ValueState::MOVED_FROM:     return sema::FakeTermInfo::ValueState::MOVED_FROM;
+			}
+			evo::unreachable();
+		}
+		EVO_NODISCARD static auto convertValueState(sema::FakeTermInfo::ValueState value_state) -> ValueState {
+			switch(value_state){
+				case sema::FakeTermInfo::ValueState::NOT_APPLICABLE: return TermInfo::ValueState::NOT_APPLICABLE;
+				case sema::FakeTermInfo::ValueState::INIT:           return TermInfo::ValueState::INIT;
+				case sema::FakeTermInfo::ValueState::UNINIT:         return TermInfo::ValueState::UNINIT;
+				case sema::FakeTermInfo::ValueState::MOVED_FROM:     return TermInfo::ValueState::MOVED_FROM;
+			}
+			evo::unreachable();
+		}
+
+
 		///////////////////////////////////
 		// value type checking
 
@@ -347,6 +426,7 @@ namespace pcit::panther{
 				|| this->value_category == ValueCategory::FORWARDABLE
 				|| this->value_category == ValueCategory::FUNCTION
 				|| this->value_category == ValueCategory::METHOD_CALL
+				|| this->value_category == ValueCategory::BUILTIN_TYPE_METHOD
 				|| this->value_category == ValueCategory::INTERFACE_CALL;
 		}
 
@@ -365,6 +445,7 @@ namespace pcit::panther{
 				|| this->type_id.is<InitializerType>()
 				|| this->type_id.is<NullType>()
 				|| this->value_category == ValueCategory::METHOD_CALL
+				|| this->value_category == ValueCategory::BUILTIN_TYPE_METHOD
 				|| this->value_category == ValueCategory::INTERFACE_CALL;
 		}
 

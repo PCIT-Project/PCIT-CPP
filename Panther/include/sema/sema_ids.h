@@ -105,10 +105,6 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, AccessorID>::UniqueID;
 	};
 
-	struct PtrAccessorID : public core::UniqueID<uint32_t, struct PtrAccessorID> {
-		using core::UniqueID<uint32_t, PtrAccessorID>::UniqueID;
-	};
-
 	struct UnionAccessorID : public core::UniqueID<uint32_t, struct UnionAccessorID> {
 		using core::UniqueID<uint32_t, UnionAccessorID>::UniqueID;
 	};
@@ -147,6 +143,14 @@ namespace pcit::panther::sema{
 
 	struct ArrayRefIndexerID : public core::UniqueID<uint32_t, struct ArrayRefIndexerID> {
 		using core::UniqueID<uint32_t, ArrayRefIndexerID>::UniqueID;
+	};
+
+	struct ArrayRefSizeID : public core::UniqueID<uint32_t, struct ArrayRefSizeID> {
+		using core::UniqueID<uint32_t, ArrayRefSizeID>::UniqueID;
+	};
+
+	struct ArrayRefDimensionsID : public core::UniqueID<uint32_t, struct ArrayRefDimensionsID> {
+		using core::UniqueID<uint32_t, ArrayRefDimensionsID>::UniqueID;
 	};
 
 	struct UnionDesignatedInitNewID : public core::UniqueID<uint32_t, struct UnionDesignatedInitNewID> {
@@ -420,17 +424,6 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::AccessorID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
-
-	template<>
-	struct core::OptionalInterface<panther::sema::PtrAccessorID>{
-		static constexpr auto init(panther::sema::PtrAccessorID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const panther::sema::PtrAccessorID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -766,6 +759,28 @@ namespace pcit::core{
 	};
 
 	template<>
+	struct core::OptionalInterface<panther::sema::ArrayRefSizeID>{
+		static constexpr auto init(panther::sema::ArrayRefSizeID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ArrayRefSizeID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ArrayRefDimensionsID>{
+		static constexpr auto init(panther::sema::ArrayRefDimensionsID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ArrayRefDimensionsID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
 	struct core::OptionalInterface<panther::sema::UnionDesignatedInitNewID>{
 		static constexpr auto init(panther::sema::UnionDesignatedInitNewID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
@@ -1035,21 +1050,6 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::sema::AccessorID>::operator=;
 	};
 
-
-
-	template<>
-	struct hash<pcit::panther::sema::PtrAccessorID>{
-		auto operator()(pcit::panther::sema::PtrAccessorID id) const noexcept -> size_t {
-			return std::hash<uint32_t>{}(id.get());
-		};
-	};
-	template<>
-	class optional<pcit::panther::sema::PtrAccessorID> 
-		: public pcit::core::Optional<pcit::panther::sema::PtrAccessorID>{
-		public:
-			using pcit::core::Optional<pcit::panther::sema::PtrAccessorID>::Optional;
-			using pcit::core::Optional<pcit::panther::sema::PtrAccessorID>::operator=;
-	};
 
 
 
@@ -1524,6 +1524,40 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::ArrayRefIndexerID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::ArrayRefIndexerID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::ArrayRefSizeID>{
+		auto operator()(pcit::panther::sema::ArrayRefSizeID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::ArrayRefSizeID>
+		: public pcit::core::Optional<pcit::panther::sema::ArrayRefSizeID>{
+			
+		public:
+			using pcit::core::Optional<pcit::panther::sema::ArrayRefSizeID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ArrayRefSizeID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::ArrayRefDimensionsID>{
+		auto operator()(pcit::panther::sema::ArrayRefDimensionsID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::ArrayRefDimensionsID>
+		: public pcit::core::Optional<pcit::panther::sema::ArrayRefDimensionsID>{
+			
+		public:
+			using pcit::core::Optional<pcit::panther::sema::ArrayRefDimensionsID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ArrayRefDimensionsID>::operator=;
 	};
 
 

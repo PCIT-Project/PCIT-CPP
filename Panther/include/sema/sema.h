@@ -167,25 +167,8 @@ namespace pcit::panther::sema{
 		uint32_t memberABIIndex;
 	};
 
-	struct PtrAccessor{
-		using ID = PtrAccessorID;
-
-		Expr target;
-		TypeInfo::ID targetTypeID;
-		uint32_t memberABIIndex;
-	};
-
-
 	struct UnionAccessor{
 		using ID = UnionAccessorID;
-
-		Expr target;
-		TypeInfo::ID targetTypeID;
-		uint32_t fieldIndex;
-	};
-
-	struct PtrUnionAccessor{
-		using ID = PtrUnionAccessorID;
 
 		Expr target;
 		TypeInfo::ID targetTypeID;
@@ -276,21 +259,28 @@ namespace pcit::panther::sema{
 	};
 
 
-	struct PtrIndexer{
-		using ID = PtrIndexerID;
-
-		Expr target;
-		TypeInfo::ID targetTypeID;
-		evo::SmallVector<Expr> indices;
-	};
-
-
 	struct ArrayRefIndexer{
 		using ID = ArrayRefIndexerID;
 
 		Expr target;
 		BaseType::ArrayRef::ID targetTypeID;
 		evo::SmallVector<Expr> indices;
+	};
+
+
+	struct ArrayRefSize{
+		using ID = ArrayRefSizeID;
+
+		Expr target;
+		BaseType::ArrayRef::ID targetTypeID;
+	};
+
+
+	struct ArrayRefDimensions{
+		using ID = ArrayRefDimensionsID;
+
+		Expr target;
+		BaseType::ArrayRef::ID targetTypeID;
 	};
 
 

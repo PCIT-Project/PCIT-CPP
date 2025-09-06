@@ -1838,7 +1838,10 @@ namespace pcit::panther{
 							this->agent.createAlloca(array_ref_type, this->name(".ARRAY_REF.ALLOCA"));
 
 						const pir::Expr data_ptr = this->agent.createCalcPtr(
-							array_ref_alloca, array_ref_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+							array_ref_alloca,
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".ARRAY_REF.ARRAY_PTR")
 						);
 						this->get_expr_store(array_to_array_ref.expr, data_ptr);
 
@@ -1850,7 +1853,10 @@ namespace pcit::panther{
 							);
 
 							const pir::Expr length_ptr = this->agent.createCalcPtr(
-								array_ref_alloca, array_ref_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
+								array_ref_alloca,
+								array_ref_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, i},
+								this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
 							);
 							this->agent.createStore(length_ptr, length_expr);
 
@@ -1866,7 +1872,10 @@ namespace pcit::panther{
 							this->agent.createAlloca(array_ref_type, this->name("ARRAY_REF"));
 
 						const pir::Expr data_ptr = this->agent.createCalcPtr(
-							array_ref_alloca, array_ref_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+							array_ref_alloca,
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".ARRAY_REF.ARRAY_PTR")
 						);
 						this->get_expr_store(array_to_array_ref.expr, data_ptr);
 
@@ -1878,7 +1887,10 @@ namespace pcit::panther{
 							);
 
 							const pir::Expr length_ptr = this->agent.createCalcPtr(
-								array_ref_alloca, array_ref_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
+								array_ref_alloca,
+								array_ref_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, i},
+								this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
 							);
 							this->agent.createStore(length_ptr, length_expr);
 
@@ -1891,7 +1903,10 @@ namespace pcit::panther{
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
 						const pir::Expr data_ptr = this->agent.createCalcPtr(
-							store_locations[0], array_ref_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+							store_locations[0],
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".ARRAY_REF.ARRAY_PTR")
 						);
 						this->get_expr_store(array_to_array_ref.expr, data_ptr);
 
@@ -1903,7 +1918,10 @@ namespace pcit::panther{
 							);
 
 							const pir::Expr length_ptr = this->agent.createCalcPtr(
-								store_locations[0], array_ref_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
+								store_locations[0],
+								array_ref_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, i},
+								this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
 							);
 							this->agent.createStore(length_ptr, length_expr);
 
@@ -2198,58 +2216,6 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case sema::Expr::Kind::PTR_ACCESSOR: {
-				const sema::PtrAccessor& accessor = this->context.getSemaBuffer().getPtrAccessor(expr.ptrAccessorID());
-
-				const pir::Type target_pir_type = this->get_type<false>(accessor.targetTypeID);
-
-				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(accessor.targetTypeID);
-				const BaseType::Struct& target_struct_type = this->context.getTypeManager().getStruct(
-					target_type.baseTypeID().structID()
-				);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Expr calc_ptr = this->agent.createCalcPtr(
-						this->get_expr_register(accessor.target),
-						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
-						this->name("ACCESSOR")
-					);
-
-					return this->agent.createLoad(
-						calc_ptr,
-						this->get_type<false>(target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID)
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->agent.createCalcPtr(
-						this->get_expr_register(accessor.target),
-						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
-						this->name("ACCESSOR")
-					);
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					const pir::Expr calc_ptr = this->agent.createCalcPtr(
-						this->get_expr_register(accessor.target),
-						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
-						this->name(".ACCESSOR")
-					);
-
-					this->agent.createMemcpy(
-						store_locations[0],
-						calc_ptr,
-						this->get_type<false>(target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID)
-					);
-					return std::nullopt;
-
-				}else{
-					this->get_expr_discard(accessor.target);
-					return std::nullopt;
-				}
-			} break;
-
 			case sema::Expr::Kind::UNION_ACCESSOR: {
 				const sema::UnionAccessor& union_accessor = 
 					this->context.getSemaBuffer().getUnionAccessor(expr.unionAccessorID());
@@ -2290,49 +2256,6 @@ namespace pcit::panther{
 					return std::nullopt;
 				}
 				
-			} break;
-
-			case sema::Expr::Kind::PTR_UNION_ACCESSOR: {
-				const sema::PtrUnionAccessor& ptr_union_accessor = 
-					this->context.getSemaBuffer().getPtrUnionAccessor(expr.ptrUnionAccessorID());
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const TypeInfo& target_type = 
-						this->context.getTypeManager().getTypeInfo(ptr_union_accessor.targetTypeID);
-					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
-						target_type.baseTypeID().unionID()
-					);
-
-					return this->agent.createLoad(
-						this->get_expr_register(ptr_union_accessor.target),
-						this->get_type<false>(
-							target_union_type.fields[ptr_union_accessor.fieldIndex].typeID.asTypeID()
-						),
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name("UNION_ACCESSOR")
-					);
-					
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->get_expr_register(ptr_union_accessor.target);
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					const TypeInfo& target_type = 
-						this->context.getTypeManager().getTypeInfo(ptr_union_accessor.targetTypeID);
-					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
-						target_type.baseTypeID().unionID()
-					);
-
-					return this->agent.createMemcpy(
-						store_locations[0],
-						this->get_expr_register(ptr_union_accessor.target),
-						this->get_type<false>(target_union_type.fields[ptr_union_accessor.fieldIndex].typeID.asTypeID())
-					);
-					
-				}else{
-					this->get_expr_discard(ptr_union_accessor.target);
-					return std::nullopt;
-				}
 			} break;
 
 			case sema::Expr::Kind::BLOCK_EXPR: {
@@ -2654,63 +2577,6 @@ namespace pcit::panther{
 
 			} break;
 
-			case sema::Expr::Kind::PTR_INDEXER: {
-				const sema::PtrIndexer& ptr_indexer = this->context.getSemaBuffer().getPtrIndexer(expr.ptrIndexerID());
-
-				const pir::Expr target = this->get_expr_register(ptr_indexer.target);
-
-				const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
-
-				auto indices = evo::SmallVector<pir::CalcPtr::Index>();
-				indices.reserve(ptr_indexer.indices.size() + 1);
-				indices.emplace_back(
-					pir::CalcPtr::Index(this->agent.createNumber(type_usize, core::GenericInt::create<uint64_t>(0)))
-				);
-				for(const sema::Expr& index : ptr_indexer.indices){
-					indices.emplace_back(this->get_expr_register(index));
-				}
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->agent.createCalcPtr(
-						target,
-						this->get_type<false>(ptr_indexer.targetTypeID),
-						std::move(indices),
-						this->name("PTR_INDEXER")
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr ptr_indexer_alloca = this->agent.createAlloca(
-						this->module.createPtrType(), this->name(".PTR_INDEXER.alloca")
-					);
-
-					const pir::Expr calc_ptr = this->agent.createCalcPtr(
-						target,
-						this->get_type<false>(ptr_indexer.targetTypeID),
-						std::move(indices),
-						this->name(".PTR_INDEXER")
-					);
-					this->agent.createStore(ptr_indexer_alloca, calc_ptr);
-
-					return ptr_indexer_alloca;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					const pir::Expr calc_ptr = this->agent.createCalcPtr(
-						target,
-						this->get_type<false>(ptr_indexer.targetTypeID),
-						std::move(indices),
-						this->name(".PTR_INDEXER")
-					);
-
-					this->agent.createStore(store_locations[0], calc_ptr);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
 			case sema::Expr::Kind::ARRAY_REF_INDEXER: {
 				const sema::ArrayRefIndexer& array_ref_indexer =
 					this->context.getSemaBuffer().getArrayRefIndexer(expr.arrayRefIndexerID());
@@ -2723,8 +2589,10 @@ namespace pcit::panther{
 
 				const pir::Type pir_array_ref_type = this->data.getArrayRefType(this->module, unsigned(num_ref_ptrs));
 
+				const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_indexer.target);
+
 				const pir::Expr get_arr_calc_ptr = this->agent.createCalcPtr(
-					this->get_expr_pointer(array_ref_indexer.target),
+					target_array_ref,
 					pir_array_ref_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
 					this->name(".ARRAY_REF.PTR_CALC")
@@ -2745,12 +2613,13 @@ namespace pcit::panther{
 
 				pir::Expr index = this->get_expr_register(array_ref_indexer.indices.back());
 				auto sub_array_width = std::optional<pir::Expr>();
-				for(size_t i = 1; i < array_ref_indexer.indices.size(); i+=1){
+
+				for(size_t i = array_ref_indexer.indices.size() - 1; i >= 1; i-=1){
 					const pir::Expr length_num = [&](){
-						if(array_ref_type.dimensions[array_ref_indexer.indices.size() - i].isPtr()){
+						if(array_ref_type.dimensions[i].isPtr()){
 							const pir::Expr length_load = this->agent.createLoad(
 								this->agent.createCalcPtr(
-									this->get_expr_pointer(array_ref_indexer.target),
+									target_array_ref,
 									pir_array_ref_type,
 									evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index}
 								),
@@ -2766,7 +2635,7 @@ namespace pcit::panther{
 								type_usize,
 								core::GenericInt(
 									unsigned(this->context.getTypeManager().numBitsOfPtr()),
-									array_ref_type.dimensions[array_ref_indexer.indices.size() - i].length()
+									array_ref_type.dimensions[i].length()
 								)
 							);
 						}
@@ -2782,7 +2651,10 @@ namespace pcit::panther{
 					index = this->agent.createAdd(
 						index,
 						this->agent.createMul(
-							*sub_array_width, this->get_expr_register(array_ref_indexer.indices[array_ref_indexer.indices.size() - i - 1]), false, true
+							*sub_array_width,
+							this->get_expr_register(array_ref_indexer.indices[i - 1]),
+							false,
+							true
 						),
 						false,
 						true
@@ -2828,6 +2700,169 @@ namespace pcit::panther{
 
 				}else{
 					return std::nullopt;
+				}
+			} break;
+
+			case sema::Expr::Kind::ARRAY_REF_SIZE: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+
+				}else{
+					const sema::ArrayRefSize& array_ref_size =
+						this->context.getSemaBuffer().getArrayRefSize(expr.arrayRefSizeID());
+
+					const BaseType::ArrayRef& array_ref_type =
+						this->context.getTypeManager().getArrayRef(array_ref_size.targetTypeID);
+
+
+					const pir::Type pir_array_ref_type =
+						this->data.getArrayRefType(this->module, unsigned(array_ref_type.getNumRefPtrs()));
+
+
+					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_size.target);
+
+					const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+
+
+					uint32_t ref_length_index = 0;
+					auto size_expr = std::optional<pir::Expr>();
+
+					for(const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
+						const pir::Expr length_num = [&](){
+							if(dimension.isPtr()){
+								const pir::Expr length_load = this->agent.createLoad(
+									this->agent.createCalcPtr(
+										target_array_ref,
+										pir_array_ref_type,
+										evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index + 1}
+									),
+									type_usize
+								);
+
+								ref_length_index += 1;
+
+								return length_load;
+
+							}else{
+								return this->agent.createNumber(
+									type_usize,
+									core::GenericInt(
+										unsigned(this->context.getTypeManager().numBitsOfPtr()), dimension.length()
+									)
+								);
+							}
+						}();
+
+						if(size_expr.has_value()){
+							*size_expr = this->agent.createMul(*size_expr, length_num, true, false);
+						}else{
+							size_expr = length_num;
+						}
+					}
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return *size_expr;
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr size_alloca = 
+							this->agent.createAlloca(type_usize, this->name("ARRAY_REF_SIZE"));
+						this->agent.createStore(size_alloca, *size_expr);
+						return size_alloca;
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+						this->agent.createStore(store_locations[0], *size_expr);
+						return std::nullopt;
+					}
+				}
+			} break;
+
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+				}else{
+					const sema::ArrayRefDimensions& array_ref_dimensions =
+						this->context.getSemaBuffer().getArrayRefDimensions(expr.arrayRefDimensionsID());
+
+					const BaseType::ArrayRef& array_ref_type =
+						this->context.getTypeManager().getArrayRef(array_ref_dimensions.targetTypeID);
+
+					const pir::Type pir_array_ref_type =
+						this->data.getArrayRefType(this->module, unsigned(array_ref_type.getNumRefPtrs()));
+
+
+					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_dimensions.target);
+
+					const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+
+					const pir::Type return_type =
+						this->module.createArrayType(type_usize, array_ref_type.dimensions.size());
+
+
+					const pir::Expr output_memory = [&](){
+						if constexpr(MODE == GetExprMode::REGISTER){
+							return this->agent.createAlloca(return_type, this->name(".ARRAY_REF_DIMENSIONS.alloca"));
+
+						}else if constexpr(MODE == GetExprMode::POINTER){
+							return this->agent.createAlloca(return_type, this->name("ARRAY_REF_DIMENSIONS"));
+
+						}else{
+							return store_locations[0];
+						}
+					}();
+
+					uint32_t ref_length_index = 0;
+					for(uint32_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
+						const pir::Expr length_num = [&](){
+							if(dimension.isPtr()){
+								const pir::Expr length_load = this->agent.createLoad(
+									this->agent.createCalcPtr(
+										target_array_ref,
+										pir_array_ref_type,
+										evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index + 1}
+									),
+									type_usize
+								);
+
+								ref_length_index += 1;
+
+								return length_load;
+
+							}else{
+								return this->agent.createNumber(
+									type_usize,
+									core::GenericInt(
+										unsigned(this->context.getTypeManager().numBitsOfPtr()), dimension.length()
+									)
+								);
+							}
+						}();
+
+						const pir::Expr calc_ptr = this->agent.createCalcPtr(
+							output_memory, return_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
+						);
+
+						this->agent.createStore(calc_ptr, length_num);
+
+						i += 1;
+					}
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(
+							output_memory,
+							return_type,
+							false,
+							pir::AtomicOrdering::NONE,
+							this->name("ARRAY_REF_DIMENSIONS")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return output_memory;
+
+					}else{
+						return std::nullopt;
+					}
 				}
 			} break;
 
@@ -4816,17 +4851,16 @@ namespace pcit::panther{
 			case sema::Expr::Kind::ADDR_OF:                         case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:
 			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
 			case sema::Expr::Kind::DEREF:                           case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:                        case sema::Expr::Kind::PTR_ACCESSOR:
-			case sema::Expr::Kind::UNION_ACCESSOR:                  case sema::Expr::Kind::PTR_UNION_ACCESSOR:
+			case sema::Expr::Kind::ACCESSOR:                        case sema::Expr::Kind::UNION_ACCESSOR:
 			case sema::Expr::Kind::TRY_ELSE:                        case sema::Expr::Kind::BLOCK_EXPR:
 			case sema::Expr::Kind::FAKE_TERM_INFO:                  case sema::Expr::Kind::MAKE_INTERFACE_PTR:
 			case sema::Expr::Kind::INTERFACE_CALL:                  case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::PTR_INDEXER:                     case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:       case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:                    case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:               case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::VAR:                             case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:               case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:            case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::PARAM:                           case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM:              case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:                    case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:                      case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

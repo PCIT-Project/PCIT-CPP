@@ -4662,6 +4662,12 @@ namespace pcit::panther{
 			sema_args.emplace_back(this->get_term_info(arg).getExpr());
 		}
 
+
+		if(target_term_info.value_category == TermInfo::ValueCategory::BUILTIN_TYPE_METHOD){
+			return this->builtin_type_method_call(target_term_info, std::move(sema_args), instr.output);
+		}
+
+
 		// default values
 		for(size_t i = sema_args.size(); i < func_call_impl_res.value().selected_func->params.size(); i+=1){
 			sema_args.emplace_back(*func_call_impl_res.value().selected_func->params[i].defaultValue);
@@ -4774,7 +4780,171 @@ namespace pcit::panther{
 
 			return Result::SUCCESS;
 		}
+	}
 
+
+	auto SemanticAnalyzer::builtin_type_method_call(
+		const TermInfo& target_term_info, evo::SmallVector<sema::Expr>&& args, SymbolProc::TermInfoID output
+	) -> Result {
+		evo::debugAssert(args.empty(), "None of these methods take any args");
+		std::ignore = args;
+
+
+		const TermInfo::BuiltinTypeMethod& builtin_type_method =
+			target_term_info.type_id.as<TermInfo::BuiltinTypeMethod>();
+
+		const sema::FakeTermInfo& fake_term_info = 
+			this->context.getSemaBuffer().getFakeTermInfo(target_term_info.getExpr().fakeTermInfoID());
+
+		switch(builtin_type_method.kind){
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_SIZE: {
+				const BaseType::Array& array_type = this->context.getTypeManager().getArray(
+					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayID()
+				);
+
+				uint64_t size = 1;
+				for(uint64_t dimension : array_type.dimensions){
+					size *= dimension;
+				}
+
+				const sema::IntValue::ID created_int_value = this->context.sema_buffer.createIntValue(
+					core::GenericInt::create<uint64_t>(size),
+					this->context.getTypeManager().getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+				);
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::convertValueStage(fake_term_info.valueStage),
+					TermInfo::ValueState::NOT_APPLICABLE,
+					TypeManager::getTypeUSize(),
+					sema::Expr(created_int_value)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_DIMENSIONS: {
+				const BaseType::Array& array_type = this->context.getTypeManager().getArray(
+					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayID()
+				);
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+
+				auto values = evo::SmallVector<sema::Expr>();
+				values.reserve(array_type.dimensions.size());
+				for(uint64_t dimension : array_type.dimensions){
+					values.emplace_back(
+						this->context.sema_buffer.createIntValue(
+							core::GenericInt::create<uint64_t>(dimension),
+							this->context.getTypeManager().getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+						)
+					);
+				}
+
+				const TypeInfo::ID return_type = call_type.returnParams[0].typeID.asTypeID();
+
+
+				const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
+					std::move(values), this->context.getTypeManager().getTypeInfo(return_type).baseTypeID()
+				);
+				
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::convertValueStage(fake_term_info.valueStage),
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type,
+					sema::Expr(created_aggregate_value)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE: {
+				const BaseType::ArrayRef::ID array_ref_type_id = 
+					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+
+				const sema::ArrayRefSize::ID created_array_ref_size =
+					this->context.sema_buffer.createArrayRefSize(fake_term_info.expr, array_ref_type_id);
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::convertValueStage(fake_term_info.valueStage),
+					TermInfo::ValueState::NOT_APPLICABLE,
+					TypeManager::getTypeUSize(),
+					sema::Expr(created_array_ref_size)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE_PTR: {
+				const BaseType::ArrayRef::ID array_ref_type_id = 
+					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+
+				const sema::ArrayRefSize::ID created_array_ref_size = this->context.sema_buffer.createArrayRefSize(
+					sema::Expr(this->context.sema_buffer.createDeref(fake_term_info.expr, fake_term_info.typeID)),
+					array_ref_type_id
+				);
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::convertValueStage(fake_term_info.valueStage),
+					TermInfo::ValueState::NOT_APPLICABLE,
+					TypeManager::getTypeUSize(),
+					sema::Expr(created_array_ref_size)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS: {
+				const BaseType::ArrayRef::ID array_ref_type_id = 
+					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+
+				const sema::ArrayRefDimensions::ID created_array_ref_dimensions =
+					this->context.sema_buffer.createArrayRefDimensions(fake_term_info.expr, array_ref_type_id);
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+
+				const TypeInfo::ID return_type = call_type.returnParams[0].typeID.asTypeID();
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::convertValueStage(fake_term_info.valueStage),
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type,
+					sema::Expr(created_array_ref_dimensions)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS_PTR: {
+				const BaseType::ArrayRef::ID array_ref_type_id = 
+					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+
+				const sema::ArrayRefDimensions::ID created_array_ref_dimensions =
+					this->context.sema_buffer.createArrayRefDimensions(
+						sema::Expr(this->context.sema_buffer.createDeref(fake_term_info.expr, fake_term_info.typeID)),
+						array_ref_type_id
+					);
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+
+				const TypeInfo::ID return_type = call_type.returnParams[0].typeID.asTypeID();
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::convertValueStage(fake_term_info.valueStage),
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type,
+					sema::Expr(created_array_ref_dimensions)
+				);
+				return Result::SUCCESS;
+			} break;
+		}
+		evo::debugFatalBreak("Unknown builtin-type method");
 	}
 
 
@@ -7455,8 +7625,10 @@ namespace pcit::panther{
 					TypeInfo(actual_target_type.baseTypeID(), std::move(derefed_qualifiers))
 				);
 
-				return sema::Expr(this->context.sema_buffer.createPtrIndexer(
-					target.getExpr(), derefed_type_id, std::move(indices)
+				const sema::Deref::ID deref = this->context.sema_buffer.createDeref(target.getExpr(), derefed_type_id);
+
+				return sema::Expr(this->context.sema_buffer.createIndexer(
+					sema::Expr(deref), derefed_type_id, std::move(indices)
 				));
 
 			}else{
@@ -8309,7 +8481,10 @@ namespace pcit::panther{
 			);
 			return Result::SUCCESS;
 
-		}else if(to_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
+		}else if(
+			from_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
+			|| to_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
+		){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
@@ -8320,6 +8495,7 @@ namespace pcit::panther{
 				std::move(infos)
 			);
 			return Result::ERROR;
+
 		}
 
 
@@ -9577,15 +9753,6 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(actual_lhs_type.qualifiers().back().isPtr == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-						instr.infix.lhs,
-						"Accessor operator of this LHS is invalid"
-					);
-					return Result::ERROR;
-				}
-
 				if(actual_lhs_type.qualifiers().back().isOptional){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
@@ -9614,6 +9781,18 @@ namespace pcit::panther{
 
 			case BaseType::Kind::UNION: {
 				return this->union_accessor<NEEDS_DEF>(
+					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+				);
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				return this->array_accessor<NEEDS_DEF>(
+					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+				);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return this->array_ref_accessor<NEEDS_DEF>(
 					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
 				);
 			} break;
@@ -10561,45 +10740,12 @@ namespace pcit::panther{
 		}
 
 
-		const sema::FakeTermInfo::ValueCategory value_category = [&](){
-			switch(lhs.value_category){
-				case TermInfo::ValueCategory::EPHEMERAL:
-					return sema::FakeTermInfo::ValueCategory::EPHEMERAL;
-
-				case TermInfo::ValueCategory::CONCRETE_CONST:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
-
-				case TermInfo::ValueCategory::CONCRETE_MUT:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
-
-				case TermInfo::ValueCategory::FORWARDABLE:
-					return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
-			}
-			evo::unreachable();
-		}();
-
-		const sema::FakeTermInfo::ValueStage value_stage = [&](){
-			switch(lhs.value_stage){
-				case TermInfo::ValueStage::CONSTEXPR: return sema::FakeTermInfo::ValueStage::CONSTEXPR;
-				case TermInfo::ValueStage::COMPTIME:  return sema::FakeTermInfo::ValueStage::COMPTIME;
-				case TermInfo::ValueStage::RUNTIME:   return sema::FakeTermInfo::ValueStage::RUNTIME;
-			}
-			evo::unreachable();
-		}();
-
-		const sema::FakeTermInfo::ValueState value_state = [&](){
-			switch(lhs.value_state){
-				case TermInfo::ValueState::NOT_APPLICABLE: return sema::FakeTermInfo::ValueState::NOT_APPLICABLE;
-				case TermInfo::ValueState::INIT:           return sema::FakeTermInfo::ValueState::INIT;
-				case TermInfo::ValueState::UNINIT:         return sema::FakeTermInfo::ValueState::UNINIT;
-				case TermInfo::ValueState::MOVED_FROM:     return sema::FakeTermInfo::ValueState::MOVED_FROM;
-			}
-			evo::unreachable();
-		}();
-
-
 		const sema::FakeTermInfo::ID created_fake_term_info = this->context.sema_buffer.createFakeTermInfo(
-			value_category, value_stage, value_state, lhs.type_id.as<TypeInfo::ID>(), lhs.getExpr()
+			TermInfo::convertValueCategory(lhs.value_category),
+			TermInfo::convertValueStage(lhs.value_stage),
+			TermInfo::convertValueState(lhs.value_state),
+			lhs.type_id.as<TypeInfo::ID>(),
+			lhs.getExpr()
 		);
 
 
@@ -10680,9 +10826,12 @@ namespace pcit::panther{
 									TypeInfo(actual_lhs_type.baseTypeID())
 								);
 
+								const sema::Deref::ID deref =
+									this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id);
+
 								return sema::Expr(
-									this->context.sema_buffer.createPtrAccessor(
-										lhs.getExpr(), resultant_type_id, uint32_t(i)
+									this->context.sema_buffer.createAccessor(
+										sema::Expr(deref), resultant_type_id, uint32_t(i)
 									)
 								);
 							}else{
@@ -10766,41 +10915,6 @@ namespace pcit::panther{
 		}
 
 
-		const sema::FakeTermInfo::ValueCategory value_category = [&](){
-			switch(lhs.value_category){
-				case TermInfo::ValueCategory::EPHEMERAL:
-					return sema::FakeTermInfo::ValueCategory::EPHEMERAL;
-
-				case TermInfo::ValueCategory::CONCRETE_CONST:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
-
-				case TermInfo::ValueCategory::CONCRETE_MUT:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
-
-				case TermInfo::ValueCategory::FORWARDABLE:
-					return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
-			}
-			evo::unreachable();
-		}();
-
-		const sema::FakeTermInfo::ValueStage value_stage = [&](){
-			switch(lhs.value_stage){
-				case TermInfo::ValueStage::CONSTEXPR: return sema::FakeTermInfo::ValueStage::CONSTEXPR;
-				case TermInfo::ValueStage::COMPTIME:  return sema::FakeTermInfo::ValueStage::COMPTIME;
-				case TermInfo::ValueStage::RUNTIME:   return sema::FakeTermInfo::ValueStage::RUNTIME;
-			}
-			evo::unreachable();
-		}();
-
-		const sema::FakeTermInfo::ValueState value_state = [&](){
-			switch(lhs.value_state){
-				case TermInfo::ValueState::NOT_APPLICABLE: return sema::FakeTermInfo::ValueState::NOT_APPLICABLE;
-				case TermInfo::ValueState::INIT:           return sema::FakeTermInfo::ValueState::INIT;
-				case TermInfo::ValueState::UNINIT:         return sema::FakeTermInfo::ValueState::UNINIT;
-				case TermInfo::ValueState::MOVED_FROM:     return sema::FakeTermInfo::ValueState::MOVED_FROM;
-			}
-			evo::unreachable();
-		}();
 
 		const sema::FakeTermInfo::ID method_this = [&](){
 			if(is_pointer){
@@ -10809,16 +10923,20 @@ namespace pcit::panther{
 				);
 
 				return this->context.sema_buffer.createFakeTermInfo(
-					value_category,
-					value_stage,
-					value_state,
+					TermInfo::convertValueCategory(lhs.value_category),
+					TermInfo::convertValueStage(lhs.value_stage),
+					TermInfo::convertValueState(lhs.value_state),
 					resultant_type_id,
 					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
 				);
 				
 			}else{
 				return this->context.sema_buffer.createFakeTermInfo(
-					value_category, value_stage, value_state, actual_lhs_type_id, lhs.getExpr()
+					TermInfo::convertValueCategory(lhs.value_category),
+					TermInfo::convertValueStage(lhs.value_stage),
+					TermInfo::convertValueState(lhs.value_state),
+					actual_lhs_type_id,
+					lhs.getExpr()
 				);
 			}
 		}();
@@ -10912,9 +11030,12 @@ namespace pcit::panther{
 							TypeInfo(actual_lhs_type.baseTypeID())
 						);
 
+						const sema::Deref::ID deref =
+							this->context.sema_buffer.createDeref(lhs.getExpr(), target_type_id);
+
 						return sema::Expr(
-							this->context.sema_buffer.createPtrUnionAccessor(
-								lhs.getExpr(),
+							this->context.sema_buffer.createUnionAccessor(
+								sema::Expr(deref),
 								target_type_id,
 								lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
 							)
@@ -11000,42 +11121,6 @@ namespace pcit::panther{
 		}
 
 
-		const sema::FakeTermInfo::ValueCategory value_category = [&](){
-			switch(lhs.value_category){
-				case TermInfo::ValueCategory::EPHEMERAL:
-					return sema::FakeTermInfo::ValueCategory::EPHEMERAL;
-
-				case TermInfo::ValueCategory::CONCRETE_CONST:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
-
-				case TermInfo::ValueCategory::CONCRETE_MUT:
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
-
-				case TermInfo::ValueCategory::FORWARDABLE:
-					return sema::FakeTermInfo::ValueCategory::FORWARDABLE;
-			}
-			evo::unreachable();
-		}();
-
-		const sema::FakeTermInfo::ValueStage value_stage = [&](){
-			switch(lhs.value_stage){
-				case TermInfo::ValueStage::CONSTEXPR: return sema::FakeTermInfo::ValueStage::CONSTEXPR;
-				case TermInfo::ValueStage::COMPTIME:  return sema::FakeTermInfo::ValueStage::COMPTIME;
-				case TermInfo::ValueStage::RUNTIME:   return sema::FakeTermInfo::ValueStage::RUNTIME;
-			}
-			evo::unreachable();
-		}();
-
-		const sema::FakeTermInfo::ValueState value_state = [&](){
-			switch(lhs.value_state){
-				case TermInfo::ValueState::NOT_APPLICABLE: return sema::FakeTermInfo::ValueState::NOT_APPLICABLE;
-				case TermInfo::ValueState::INIT:           return sema::FakeTermInfo::ValueState::INIT;
-				case TermInfo::ValueState::UNINIT:         return sema::FakeTermInfo::ValueState::UNINIT;
-				case TermInfo::ValueState::MOVED_FROM:     return sema::FakeTermInfo::ValueState::MOVED_FROM;
-			}
-			evo::unreachable();
-		}();
-
 		const sema::FakeTermInfo::ID method_this = [&](){
 			if(is_pointer){
 				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
@@ -11043,16 +11128,20 @@ namespace pcit::panther{
 				);
 
 				return this->context.sema_buffer.createFakeTermInfo(
-					value_category,
-					value_stage,
-					value_state,
+					TermInfo::convertValueCategory(lhs.value_category),
+					TermInfo::convertValueStage(lhs.value_stage),
+					TermInfo::convertValueState(lhs.value_state),
 					resultant_type_id,
 					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
 				);
 				
 			}else{
 				return this->context.sema_buffer.createFakeTermInfo(
-					value_category, value_stage, value_state, actual_lhs_type_id, lhs.getExpr()
+					TermInfo::convertValueCategory(lhs.value_category),
+					TermInfo::convertValueStage(lhs.value_stage),
+					TermInfo::convertValueState(lhs.value_state),
+					actual_lhs_type_id,
+					lhs.getExpr()
 				);
 			}
 		}();
@@ -11069,6 +11158,201 @@ namespace pcit::panther{
 
 
 
+
+
+	template<bool NEEDS_DEF>
+	auto SemanticAnalyzer::array_accessor(
+		const Instruction::Accessor<NEEDS_DEF>& instr,
+		std::string_view rhs_ident_str,
+		const TermInfo& lhs,
+		TypeInfo::ID actual_lhs_type_id,
+		const TypeInfo& actual_lhs_type,
+		bool is_pointer
+	) -> Result {
+		std::ignore = is_pointer;
+
+		const sema::FakeTermInfo::ID method_this = this->context.sema_buffer.createFakeTermInfo(
+			TermInfo::convertValueCategory(lhs.value_category),
+			TermInfo::convertValueStage(lhs.value_stage),
+			TermInfo::convertValueState(lhs.value_state),
+			actual_lhs_type_id,
+			lhs.getExpr()
+		);
+
+		if(rhs_ident_str == "size"){
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<BaseType::Function::ReturnParam>{
+								BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeUSize())
+							},
+							evo::SmallVector<BaseType::Function::ReturnParam>()
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_SIZE),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "dimensions"){
+			const BaseType::Array& array_type =
+				this->context.getTypeManager().getArray(actual_lhs_type.baseTypeID().arrayID());
+
+			const BaseType::ID returned_array_base_type = this->context.type_manager.getOrCreateArray(
+				BaseType::Array(
+					TypeManager::getTypeUSize(),
+					evo::SmallVector<uint64_t>{uint64_t(array_type.dimensions.size())},
+					std::nullopt
+				)
+			);
+
+			const TypeInfo::ID returned_array_type =
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(returned_array_base_type));
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<BaseType::Function::ReturnParam>{
+								BaseType::Function::ReturnParam(std::nullopt, returned_array_type)
+							},
+							evo::SmallVector<BaseType::Function::ReturnParam>()
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_DIMENSIONS),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+		}
+
+
+
+		this->emit_error(
+			Diagnostic::Code::SEMA_ARRAY_DOESNT_HAVE_MEMBER,
+			instr.infix.rhs,
+			std::format("Array has no member named \"{}\"", rhs_ident_str)
+		);
+		return Result::ERROR;
+	}
+
+
+
+	template<bool NEEDS_DEF>
+	auto SemanticAnalyzer::array_ref_accessor(
+		const Instruction::Accessor<NEEDS_DEF>& instr,
+		std::string_view rhs_ident_str,
+		const TermInfo& lhs,
+		TypeInfo::ID actual_lhs_type_id,
+		const TypeInfo& actual_lhs_type,
+		bool is_pointer
+	) -> Result {
+		const sema::FakeTermInfo::ID method_this = this->context.sema_buffer.createFakeTermInfo(
+			TermInfo::convertValueCategory(lhs.value_category),
+			TermInfo::convertValueStage(lhs.value_stage),
+			TermInfo::convertValueState(lhs.value_state),
+			actual_lhs_type_id,
+			lhs.getExpr()
+		);
+
+		if(rhs_ident_str == "size"){
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<BaseType::Function::ReturnParam>{
+								BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeUSize())
+							},
+							evo::SmallVector<BaseType::Function::ReturnParam>()
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(
+					method_type,
+					is_pointer 
+						? TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE_PTR
+						: TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE
+				),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "dimensions"){
+			const BaseType::ArrayRef& array_ref_type =
+				this->context.getTypeManager().getArrayRef(actual_lhs_type.baseTypeID().arrayRefID());
+
+			const BaseType::ID returned_array_base_type = this->context.type_manager.getOrCreateArray(
+				BaseType::Array(
+					TypeManager::getTypeUSize(),
+					evo::SmallVector<uint64_t>{uint64_t(array_ref_type.dimensions.size())},
+					std::nullopt
+				)
+			);
+
+			const TypeInfo::ID returned_array_type =
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(returned_array_base_type));
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<BaseType::Function::ReturnParam>{
+								BaseType::Function::ReturnParam(std::nullopt, returned_array_type)
+							},
+							evo::SmallVector<BaseType::Function::ReturnParam>()
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(
+					method_type,
+					is_pointer 
+						? TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS_PTR
+						: TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS
+				),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+		}
+
+
+
+		this->emit_error(
+			Diagnostic::Code::SEMA_ARRAY_DOESNT_HAVE_MEMBER,
+			instr.infix.rhs,
+			std::format("Array reference has no member named \"{}\"", rhs_ident_str)
+		);
+		return Result::ERROR;
+	}
 
 
 
@@ -12021,24 +12305,23 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:        case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:              case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:           case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:          case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:     case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::INTRINSIC_FUNC:      case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:             case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:  case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK: case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:            case sema::Expr::Kind::PTR_ACCESSOR:
-			case sema::Expr::Kind::UNION_ACCESSOR:      case sema::Expr::Kind::PTR_UNION_ACCESSOR:
-			case sema::Expr::Kind::TRY_ELSE:            case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::FAKE_TERM_INFO:      case sema::Expr::Kind::MAKE_INTERFACE_PTR:
-			case sema::Expr::Kind::INTERFACE_CALL:      case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::PTR_INDEXER:         case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::GLOBAL_VAR:          case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::MODULE_IDENT:         case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:               case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:            case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:           case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:      case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::INTRINSIC_FUNC:       case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::COPY:                 case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:              case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:   case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:  case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::ACCESSOR:             case sema::Expr::Kind::UNION_ACCESSOR:      
+			case sema::Expr::Kind::TRY_ELSE:             case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:       case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+			case sema::Expr::Kind::INTERFACE_CALL:       case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:    case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS: case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::GLOBAL_VAR:           case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}
@@ -12277,7 +12560,10 @@ namespace pcit::panther{
 			
 
 
-			if(func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+			if(
+				func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()
+				|| func_info.func_id.is<SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
+			){
 				if(arg_infos.size() != func_info.func_type.params.size()){
 					scores.emplace_back(
 						OverloadScore::IntrinsicWrongNumArgs(func_info.func_type.params.size(), arg_infos.size())
@@ -12364,7 +12650,10 @@ namespace pcit::panther{
 							const bool param_is_not_this = [&](){
 								if(arg_i > 0){ return true; }
 
-								if(func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+								if(
+									func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()
+									|| func_info.func_id.is<SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
+								){
 									return true;
 
 								}else{
@@ -12409,7 +12698,10 @@ namespace pcit::panther{
 				// check label
 
 				if(arg_info.label.has_value()){
-					if(func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+					if(
+						func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()
+						|| func_info.func_id.is<SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
+					){
 						scores.emplace_back(OverloadScore::IntrinsicArgWithLabel(arg_i));
 						arg_checking_failed = true;
 						break;
@@ -12565,7 +12857,10 @@ namespace pcit::panther{
 					}else if constexpr(std::is_same<ReasonT, OverloadScore::ValueKindMismatch>()){
 						// const bool is_method_this_param = [&](){
 						// 	if(reason.arg_index != 0){ return false; }
-						// 	if(func_infos[i].func_id.has_value() == false){ return false; }
+						// 	if(
+						// 		func_infos[i].func_id.is<sema::Func::ID>() == false
+						// 		&& func_infos[i].func_id.is<sema::TemplatedFunc::InstantiationInfo>() == false
+						// 	){ break; }
 							
 						// 	const sema::Func& target_func =
 						// 		this->context.getSemaBuffer().getFunc(*func_infos[i].func_id);
@@ -12578,7 +12873,10 @@ namespace pcit::panther{
 						bool is_method_this_param = false;
 						do{
 							if(reason.arg_index != 0){ break; }
-							if(func_infos[i].func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>() == false){ break; }
+							if(
+								func_infos[i].func_id.is<sema::Func::ID>() == false
+								&& func_infos[i].func_id.is<sema::TemplatedFunc::InstantiationInfo>() == false
+							){ break; }
 
 							if(func_infos[i].func_id.is<sema::Func::ID>()){
 								is_method_this_param = this->context.getSemaBuffer()
@@ -12591,8 +12889,6 @@ namespace pcit::panther{
 											.instantiation.funcID
 									).isMethod(this->context);
 							}
-
-							
 						}while(false);
 
 						if(is_method_this_param){
@@ -12878,6 +13174,13 @@ namespace pcit::panther{
 					SelectFuncOverloadFuncInfo::IntrinsicFlag{},
 					this->context.getTypeManager().getFunction(instantiated_type.funcID())
 				);
+			} break;
+
+			case TermInfo::ValueCategory::BUILTIN_TYPE_METHOD: {
+				const TypeInfo::ID type_info_id = target_term_info.type_id.as<TermInfo::BuiltinTypeMethod>().typeID;
+				const TypeInfo& type_info = type_manager.getTypeInfo(type_info_id);
+				const BaseType::Function& func_type = type_manager.getFunction(type_info.baseTypeID().funcID());
+				func_infos.emplace_back(SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag{}, func_type);
 			} break;
 
 			default: {
@@ -13352,6 +13655,13 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::INTRINSIC_FUNC: case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: {
+				const BaseType::Function& selected_func_type = 
+					func_infos[selected_func_overload_index.value()].func_type;
+
+				return FuncCallImplData(std::nullopt, nullptr, selected_func_type);
+			} break;
+
+			case TermInfo::ValueCategory::BUILTIN_TYPE_METHOD: {
 				const BaseType::Function& selected_func_type = 
 					func_infos[selected_func_overload_index.value()].func_type;
 
@@ -16324,6 +16634,9 @@ namespace pcit::panther{
 				
 			}else if constexpr(std::is_same<TypeID, TypeInfo::ID>()){
 				return this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
+
+			}else if constexpr(std::is_same<TypeID, TermInfo::BuiltinTypeMethod>()){
+				return "{BUILTIN_TYPE_METHOD}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::FuncOverloadList>()){
 				// TODO(FEATURE): actual name

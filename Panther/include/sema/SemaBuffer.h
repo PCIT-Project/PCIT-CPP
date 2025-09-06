@@ -415,18 +415,6 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// ptr accessors
-
-			EVO_NODISCARD auto createPtrAccessor(auto&&... args) -> sema::PtrAccessor::ID {
-				return this->ptr_accessors.emplace_back(std::forward<decltype(args)>(args)...);
-			}
-
-			EVO_NODISCARD auto getPtrAccessor(sema::PtrAccessor::ID id) const -> const sema::PtrAccessor& {
-				return this->ptr_accessors[id];
-			}
-
-
-			///////////////////////////////////
 			// union accessors
 
 			EVO_NODISCARD auto createUnionAccessor(auto&&... args) -> sema::UnionAccessor::ID {
@@ -435,18 +423,6 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getUnionAccessor(sema::UnionAccessor::ID id) const -> const sema::UnionAccessor& {
 				return this->union_accessors[id];
-			}
-
-
-			///////////////////////////////////
-			// ptr union accessors
-
-			EVO_NODISCARD auto createPtrUnionAccessor(auto&&... args) -> sema::PtrUnionAccessor::ID {
-				return this->ptr_union_accessors.emplace_back(std::forward<decltype(args)>(args)...);
-			}
-
-			EVO_NODISCARD auto getPtrUnionAccessor(sema::PtrUnionAccessor::ID id) const -> const sema::PtrUnionAccessor& {
-				return this->ptr_union_accessors[id];
 			}
 
 
@@ -524,18 +500,6 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// pointer indexer
-
-			EVO_NODISCARD auto createPtrIndexer(auto&&... args) -> sema::PtrIndexer::ID {
-				return this->ptr_indexers.emplace_back(std::forward<decltype(args)>(args)...);
-			}
-
-			EVO_NODISCARD auto getPtrIndexer(sema::PtrIndexer::ID id) const -> const sema::PtrIndexer& {
-				return this->ptr_indexers[id];
-			}
-
-
-			///////////////////////////////////
 			// array ref indexer
 
 			EVO_NODISCARD auto createArrayRefIndexer(auto&&... args) -> sema::ArrayRefIndexer::ID {
@@ -544,6 +508,31 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getArrayRefIndexer(sema::ArrayRefIndexer::ID id) const -> const sema::ArrayRefIndexer& {
 				return this->array_ref_indexers[id];
+			}
+
+
+			///////////////////////////////////
+			// array ref size
+
+			EVO_NODISCARD auto createArrayRefSize(auto&&... args) -> sema::ArrayRefSize::ID {
+				return this->array_ref_size.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getArrayRefSize(sema::ArrayRefSize::ID id) const -> const sema::ArrayRefSize& {
+				return this->array_ref_size[id];
+			}
+
+
+			///////////////////////////////////
+			// array ref dimensions
+
+			EVO_NODISCARD auto createArrayRefDimensions(auto&&... args) -> sema::ArrayRefDimensions::ID {
+				return this->array_ref_dimensions.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getArrayRefDimensions(sema::ArrayRefDimensions::ID id) const
+			-> const sema::ArrayRefDimensions& {
+				return this->array_ref_dimensions[id];
 			}
 
 
@@ -732,17 +721,16 @@ namespace pcit::panther{
 				implicit_conversion_to_optionals{};
 			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
 			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
-			core::SyncLinearStepAlloc<sema::PtrAccessor, sema::PtrAccessor::ID> ptr_accessors{};
 			core::SyncLinearStepAlloc<sema::UnionAccessor, sema::UnionAccessor::ID> union_accessors{};
-			core::SyncLinearStepAlloc<sema::PtrUnionAccessor, sema::PtrUnionAccessor::ID> ptr_union_accessors{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};
 			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};
 			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
 			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
-			core::SyncLinearStepAlloc<sema::PtrIndexer, sema::PtrIndexer::ID> ptr_indexers{};
 			core::SyncLinearStepAlloc<sema::ArrayRefIndexer, sema::ArrayRefIndexer::ID> array_ref_indexers{};
+			core::SyncLinearStepAlloc<sema::ArrayRefSize, sema::ArrayRefSize::ID> array_ref_size{};
+			core::SyncLinearStepAlloc<sema::ArrayRefDimensions, sema::ArrayRefDimensions::ID> array_ref_dimensions{};
 			core::SyncLinearStepAlloc<sema::UnionDesignatedInitNew, sema::UnionDesignatedInitNew::ID>
 				union_designated_init_new{};
 

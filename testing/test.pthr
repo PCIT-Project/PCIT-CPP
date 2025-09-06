@@ -1,30 +1,15 @@
-def cpp_import = @importCPP("test.h");
 
-
-
-// func entry = () #entry -> UI8 {
-// 	var arr = new [Int:12][
-// 		1, 2,     3, 4,      5,  6,
-// 		7, 8,     9, 10,     11, 12,
-// 	];
-
-// 	var md_arr: [Int:2,3,2] = copy (&arr as RawPtr as [Int:2,3,2]*).*;
-// 	var arr_ref: [Int:*,*,*] = md_arr as [Int:*,*,*];
-
-	
-// 	arr_ref[1, 2, 1].* = 52;
-
-// 	return md_arr[1, 2, 1].* as UI8;
-// }
-
-
-func get_char = (string: [Char:*;'\0']) #rt -> Char {
-	return cpp_import.get_char(string[0]);
+type Vec2 = struct {
+	var x: Int;
+	var y: Int;
 }
 
 
+
 func entry = () #entry -> UI8 {
+	const arr = new [Int:4][1, 2, 3, 0];
+
+	const arr_ref: [Int:*] = arr as [Int:*];
 	
-	
-	return get_char("dCdf") as UI8;
+	return arr_ref.dimensions()[0].* as UI8;
 }

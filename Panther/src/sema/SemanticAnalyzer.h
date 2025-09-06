@@ -148,6 +148,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR, ERRORS>& instr)
 				-> Result;
 
+			EVO_NODISCARD auto builtin_type_method_call(
+				const TermInfo& target_term_info, evo::SmallVector<sema::Expr>&& args, SymbolProc::TermInfoID output
+			) -> Result;
+
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto interface_func_call(
 				const TermInfo& target_term_info,
@@ -306,6 +310,26 @@ namespace pcit::panther{
 				bool is_pointer
 			) -> Result;
 
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto array_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs,
+				TypeInfo::ID actual_lhs_type_id,
+				const TypeInfo& actual_lhs_type,
+				bool is_pointer
+			) -> Result;
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto array_ref_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs,
+				TypeInfo::ID actual_lhs_type_id,
+				const TypeInfo& actual_lhs_type,
+				bool is_pointer
+			) -> Result;
+
 
 			///////////////////////////////////
 			// scope
@@ -403,7 +427,10 @@ namespace pcit::panther{
 
 			struct SelectFuncOverloadFuncInfo{
 				struct IntrinsicFlag{};
-				using FuncID = evo::Variant<IntrinsicFlag, sema::Func::ID, sema::TemplatedFunc::InstantiationInfo>;
+				struct BuiltinTypeMethodFlag{};
+				using FuncID = evo::Variant<
+					IntrinsicFlag, BuiltinTypeMethodFlag, sema::Func::ID, sema::TemplatedFunc::InstantiationInfo
+				>;
 
 				FuncID func_id;
 				const BaseType::Function& func_type;
@@ -424,8 +451,8 @@ namespace pcit::panther{
 
 
 			struct FuncCallImplData{
-				std::optional<sema::Func::ID> selected_func_id; // nullopt if is intrinsic
-				const sema::Func* selected_func; // nullptr if is intrinsic
+				std::optional<sema::Func::ID> selected_func_id; // nullopt if is intrinsic/builtin-type method
+				const sema::Func* selected_func; // nullptr if is intrinsic/builtin-type method
 				const BaseType::Function& selected_func_type;
 
 				EVO_NODISCARD auto is_intrinsic() const -> bool { return !this->selected_func_id.has_value(); }
