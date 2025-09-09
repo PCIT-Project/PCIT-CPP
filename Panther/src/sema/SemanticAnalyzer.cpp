@@ -564,7 +564,12 @@ namespace pcit::panther{
 				return this->instr_expr_accessor<false>(this->context.symbol_proc_manager.getAccessor(instr));
 
 			case Instruction::Kind::PRIMITIVE_TYPE:
-				return this->instr_primitive_type(this->context.symbol_proc_manager.getPrimitiveType(instr));
+				return this->instr_primitive_type<false>(this->context.symbol_proc_manager.getPrimitiveType(instr));
+
+			case Instruction::Kind::PRIMITIVE_TYPE_NEEDS_DEF:
+				return this->instr_primitive_type<true>(
+					this->context.symbol_proc_manager.getPrimitiveTypeNeedsDef(instr)
+				);
 
 			case Instruction::Kind::ARRAY_TYPE:
 				return this->instr_array_type(this->context.symbol_proc_manager.getArrayType(instr));
@@ -9943,6 +9948,8 @@ namespace pcit::panther{
 	}
 
 
+
+	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result {
 		auto base_type = std::optional<BaseType::ID>();
 
@@ -9979,6 +9986,35 @@ namespace pcit::panther{
 				const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
 					TypeInfo(BaseType::ID(current_type_scope->as<BaseType::Struct::ID>()))
 				);
+
+
+				if constexpr(NEEDS_DEF){
+					const BaseType::Struct& struct_type = 
+						this->context.getTypeManager().getStruct(current_type_scope->as<BaseType::Struct::ID>());
+
+					if(struct_type.defCompleted.load() == false){
+						SymbolProc::ID struct_type_symbol_proc_id =
+							*this->context.symbol_proc_manager.getTypeSymbolProc(current_type_id);
+
+						SymbolProc& struct_type_symbol_proc =
+							this->context.symbol_proc_manager.getSymbolProc(struct_type_symbol_proc_id);
+
+						const SymbolProc::WaitOnResult wait_on_result = struct_type_symbol_proc.waitOnDefIfNeeded(
+							this->symbol_proc_id, this->context, struct_type_symbol_proc_id
+						);
+							
+						switch(wait_on_result){
+							case SymbolProc::WaitOnResult::NOT_NEEDED:  break;
+							case SymbolProc::WaitOnResult::WAITING:     return Result::NEED_TO_WAIT;
+							case SymbolProc::WaitOnResult::WAS_ERRORED: return Result::ERROR;
+
+							case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+								evo::debugFatalBreak("Should be impossible");
+
+							case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+						}
+					}
+				}
 
 				this->return_type(instr.output, TypeInfo::VoidableID(current_type_id));
 				return Result::SUCCESS;

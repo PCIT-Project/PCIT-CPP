@@ -971,6 +971,7 @@ namespace pcit::panther{
 
 			// types
 			PRIMITIVE_TYPE,
+			PRIMITIVE_TYPE_NEEDS_DEF,
 			ARRAY_TYPE,
 			ARRAY_REF,
 			TYPE_ID_CONVERTER,

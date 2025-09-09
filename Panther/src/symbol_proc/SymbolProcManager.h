@@ -2033,6 +2033,25 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// PrimitiveType needs def
+
+			EVO_NODISCARD auto createPrimitiveTypeNeedsDef(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::PRIMITIVE_TYPE_NEEDS_DEF,
+					this->primitive_types.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getPrimitiveTypeNeedsDef(Instruction instr) const -> const Instruction::PrimitiveType& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::PRIMITIVE_TYPE_NEEDS_DEF, "Not a PrimitiveType needs def"
+				);
+				return this->primitive_types[instr._index];
+			}
+
+
+
+			//////////////////
 			// ArrayType
 
 			EVO_NODISCARD auto createArrayType(auto&&... args) -> Instruction {

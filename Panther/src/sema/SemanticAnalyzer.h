@@ -238,7 +238,9 @@ namespace pcit::panther{
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<IS_CONSTEXPR>& instr) -> Result;
 
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result;
+
 			EVO_NODISCARD auto instr_array_type(const Instruction::ArrayType& instr) -> Result;
 			EVO_NODISCARD auto instr_array_ref(const Instruction::ArrayRef& instr) -> Result;
 			EVO_NODISCARD auto instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result;

@@ -1104,7 +1104,13 @@ namespace pcit::panther{
 		const SymbolProc::TypeID created_type_id = this->create_type();
 
 		if(ast_type.base.kind() == AST::Kind::PRIMITIVE_TYPE){
-			this->add_instruction(this->context.symbol_proc_manager.createPrimitiveType(ast_type, created_type_id));
+			if constexpr(NEEDS_DEF){
+				this->add_instruction(
+					this->context.symbol_proc_manager.createPrimitiveTypeNeedsDef(ast_type, created_type_id)
+				);
+			}else{
+				this->add_instruction(this->context.symbol_proc_manager.createPrimitiveType(ast_type, created_type_id));
+			}
 			return created_type_id;
 		}else{
 			const evo::Result<SymbolProc::TermInfoID> type_base = [&](){

@@ -2,19 +2,11 @@ def build = @import("build");
 
 
 type Project = struct {
-
-	func create = (warning_settings: @pthr.ProjectWarningSettings in) #rt -> This {
-		return new Project{
-			_project_id = @buildCreateProject("".* as [Char:*], forward warning_settings),
-		};
-	}
-
-	func create = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*]) #rt -> This {
+	func create = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*] = ("".* as [Char:*])) -> This {
 		return new Project{
 			_project_id = @buildCreateProject(path, forward warning_settings),
 		};
 	}
-
 
 
 
@@ -39,11 +31,8 @@ func entry = () #entry -> UI8 {
 		methodCallOnNonMethod = true,
 	});
 
-
 	project.addSourceFile("test.pthr".* as [Char:*]);
 
-
-	// @buildAddSourceFile("test.pthr".* as [Char:*], project_id);
 	@buildAddCPPHeaderFile("test.h".* as [Char:*], true);
 	
 	return 0;
