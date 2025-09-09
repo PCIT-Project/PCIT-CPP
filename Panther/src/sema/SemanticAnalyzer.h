@@ -281,6 +281,13 @@ namespace pcit::panther{
 				const TermInfo& lhs
 			) -> Result;
 
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto builtin_module_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs
+			) -> Result;
+
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto interface_accessor(
@@ -507,7 +514,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto sema_expr_to_generic_value(const sema::Expr& expr) -> core::GenericValue;
 
 
-			EVO_NODISCARD auto get_compilation_config() const -> const Source::CompilationConfig&;
+			EVO_NODISCARD auto get_project_config() const -> const Source::ProjectConfig&;
 
 
 			struct DeducedType{

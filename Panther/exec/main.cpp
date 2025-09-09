@@ -30,6 +30,7 @@ namespace pthr{
 		};
 
 		Verbosity verbosity  = Verbosity::FULL;
+		std::filesystem::path workingDirectory{};
 		panther::Context::NumThreads numBuildThreads = panther::Context::NumThreads::single();
 		bool print_color     = core::Printer::platformSupportsColor() == core::Printer::DetectResult::YES;
 		bool use_std_lib     = true;
@@ -66,27 +67,6 @@ namespace pthr{
 
 
 
-static auto get_current_path(core::Printer& printer) -> evo::Result<std::filesystem::path> {
-	std::error_code ec;
-	const std::filesystem::path current_path = std::filesystem::current_path(ec);
-	if(ec){
-		panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
-			panther::Diagnostic::Level::ERROR,
-			panther::Diagnostic::Code::FRONTEND_FAILED_TO_GET_REL_DIR,
-			panther::Diagnostic::Location::NONE,
-			"Failed to get relative directory",
-			evo::SmallVector<panther::Diagnostic::Info>{
-				panther::Diagnostic::Info(std::format("\tcode: \"{}\"", ec.value())),
-				panther::Diagnostic::Info(std::format("\tmessage: \"{}\"", ec.message())),
-			}
-		));
-
-		return evo::resultError;
-	}
-
-	return current_path;
-}
-
 
 static auto error_failed_to_add_std_lib(panther::Context::AddSourceResult add_std_lib_res, core::Printer& printer)
 -> void {
@@ -121,28 +101,26 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 -> evo::Result<panther::Context::BuildSystemConfig> {
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode   = ContextConfig::Mode::BUILD_SYSTEM,
-		.title  = "<Panther-Build-System>",
-		.target = core::Target::getCurrent(),
+		.mode             = ContextConfig::Mode::BUILD_SYSTEM,
+		.title            = "<Panther-Build-System>",
+		.target           = core::Target::getCurrent(),
+		.workingDirectory = cmd_args_config.workingDirectory,
 
 		.numThreads = cmd_args_config.numBuildThreads,
 	};
 
-	const evo::Result<std::filesystem::path> current_path = get_current_path(printer);
-	if(current_path.isError()){ return evo::resultError; }
-
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
-		printer.printlnMagenta("Build system relative directory: \"{}\"", current_path.value().string());
+		printer.printlnMagenta("Build system relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
 	auto context = panther::Context(
-		panther::createDefaultDiagnosticCallback(printer, current_path.value()), context_config
+		panther::createDefaultDiagnosticCallback(printer, cmd_args_config.workingDirectory), context_config
 	);
 
 
 	if(cmd_args_config.use_std_lib){
 		const panther::Context::AddSourceResult add_std_lib_res = 
-			context.addStdLib(current_path.value() / "../extern/Panther-std/std");
+			context.addStdLib(cmd_args_config.workingDirectory / "../extern/Panther-std/std");
 
 		if(add_std_lib_res != panther::Context::AddSourceResult::SUCCESS){
 			error_failed_to_add_std_lib(add_std_lib_res, printer);
@@ -151,16 +129,16 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	}
 
 
-	const panther::Source::CompilationConfig::ID comp_config = context.getSourceManager().createSourceCompilationConfig(
-		panther::Source::CompilationConfig{
-			.basePath = current_path.value(),
-			.warn = panther::Source::CompilationConfig::Warns{
+	const panther::Source::ProjectConfig::ID proj_config = context.getSourceManager().createSourceProjectConfig(
+		panther::Source::ProjectConfig{
+			.basePath = cmd_args_config.workingDirectory,
+			.warn = panther::Source::ProjectConfig::Warns{
 				.methodCallOnNonMethod = true,
 			},
 		}
 	);
 
-	std::ignore = context.addSourceFile("build.pthr", comp_config);
+	std::ignore = context.addSourceFile("build.pthr", proj_config);
 
 
 	if(context.analyzeSemantics().isError()){
@@ -191,7 +169,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 
 EVO_NODISCARD static auto run_compile(
 	const pthr::CmdArgsConfig& cmd_args_config,
-	const panther::Context::BuildSystemConfig& config,
+	panther::Context::BuildSystemConfig& config,
 	core::Printer& printer
 ) -> evo::Result<> {
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
@@ -210,21 +188,20 @@ EVO_NODISCARD static auto run_compile(
 
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode       = ContextConfig::Mode::COMPILE,
-		.title      = "Panther Testing",
-		.target     = core::Target::getCurrent(),
+		.mode             = ContextConfig::Mode::COMPILE,
+		.title            = "Panther Testing",
+		.target           = core::Target::getCurrent(),
+		.workingDirectory = cmd_args_config.workingDirectory,
+
 		.numThreads = config.numThreads,
 	};
 
-	const evo::Result<std::filesystem::path> current_path = get_current_path(printer);
-	if(current_path.isError()){ return evo::resultError; }
-
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
-		printer.printlnMagenta("Compile relative directory: \"{}\"", current_path.value().string());
+		printer.printlnMagenta("Compile relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
 	auto context = panther::Context(
-		panther::createDefaultDiagnosticCallback(printer, current_path.value()), context_config
+		panther::createDefaultDiagnosticCallback(printer, cmd_args_config.workingDirectory), context_config
 	);
 
 
@@ -237,7 +214,7 @@ EVO_NODISCARD static auto run_compile(
 		&& config.output != BuildSystemConfig::Output::AST
 	){
 		const panther::Context::AddSourceResult add_std_lib_res = 
-			context.addStdLib(current_path.value() / "../extern/Panther-std/std");
+			context.addStdLib(cmd_args_config.workingDirectory / "../extern/Panther-std/std");
 
 		if(add_std_lib_res != panther::Context::AddSourceResult::SUCCESS){
 			error_failed_to_add_std_lib(add_std_lib_res, printer);
@@ -246,17 +223,65 @@ EVO_NODISCARD static auto run_compile(
 	}
 
 
-	const panther::Source::CompilationConfig::ID comp_config = context.getSourceManager().createSourceCompilationConfig(
-		panther::Source::CompilationConfig{
-			.basePath = current_path.value(),
-			.warn = panther::Source::CompilationConfig::Warns{
-				.methodCallOnNonMethod = true,
-			},
-		}
-	);
 
-	std::ignore = context.addSourceFile("test.pthr", comp_config);
-	// std::ignore = context.addCPPHeaderFile("test.h", true);
+	for(const panther::Source::ProjectConfig& project_config : config.projectConfigs){
+		std::ignore = context.getSourceManager().createSourceProjectConfig(std::move(project_config));
+	}
+
+	for(const panther::Context::BuildSystemConfig::PantherFile& source_file : config.sourceFiles){
+		const panther::Context::AddSourceResult result = context.addSourceFile(source_file.path, source_file.projectID);
+
+		switch(result){
+			case panther::Context::AddSourceResult::SUCCESS: break;
+
+			case panther::Context::AddSourceResult::DOESNT_EXIST: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FILE_DOESNT_EXIST,
+					panther::Diagnostic::Location::NONE,
+					"File doesn't exist",
+					evo::SmallVector<panther::Diagnostic::Info>{
+						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_file.path))
+					}
+				));
+			} break;
+
+			case panther::Context::AddSourceResult::NOT_DIRECTORY: {
+				evo::debugFatalBreak("Shouldn't be possible to get this code");
+			} break;
+		}
+	}
+
+
+	for(const panther::Context::BuildSystemConfig::CLangFile& c_lang_header_file : config.cLangFiles){
+		const panther::Context::AddSourceResult result = [&](){
+			if(c_lang_header_file.isCPP){
+				return context.addCPPHeaderFile(c_lang_header_file.path, c_lang_header_file.addIncludesToPubApi);
+			}else{
+				return context.addCHeaderFile(c_lang_header_file.path, c_lang_header_file.addIncludesToPubApi);
+			}
+		}();
+
+		switch(result){
+			case panther::Context::AddSourceResult::SUCCESS: break;
+
+			case panther::Context::AddSourceResult::DOESNT_EXIST: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FILE_DOESNT_EXIST,
+					panther::Diagnostic::Location::NONE,
+					"File doesn't exist",
+					evo::SmallVector<panther::Diagnostic::Info>{
+						panther::Diagnostic::Info(std::format("Path: \"{}\"", c_lang_header_file.path))
+					}
+				));
+			} break;
+
+			case panther::Context::AddSourceResult::NOT_DIRECTORY: {
+				evo::debugFatalBreak("Shouldn't be possible to get this code");
+			} break;
+		}
+	}
 
 
 	switch(config.output){
@@ -267,7 +292,7 @@ EVO_NODISCARD static auto run_compile(
 			}
 
 			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
-				pthr::print_tokens(printer, context.getSourceManager()[source_id], current_path.value());
+				pthr::print_tokens(printer, context.getSourceManager()[source_id], cmd_args_config.workingDirectory);
 			}
 
 			return evo::Result<>();
@@ -280,7 +305,7 @@ EVO_NODISCARD static auto run_compile(
 			}
 
 			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
-				pthr::print_AST(printer, context.getSourceManager()[source_id], current_path.value());
+				pthr::print_AST(printer, context.getSourceManager()[source_id], cmd_args_config.workingDirectory);
 			}
 
 			return evo::Result<>();
@@ -555,16 +580,34 @@ EVO_NODISCARD static auto run_compile(
 
 
 
-
-
-
-
 auto main(int argc, const char* argv[]) -> int {
 	auto args = std::vector<std::string_view>(argv, argv + argc);
 
 	auto cmd_args_config = pthr::CmdArgsConfig();
+
 	pthr::setup_env(cmd_args_config.print_color);
+
 	auto printer = core::Printer::createConsole(cmd_args_config.print_color);
+
+
+	{
+		std::error_code ec;
+		cmd_args_config.workingDirectory = std::filesystem::current_path(ec);
+		if(ec){
+			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+				panther::Diagnostic::Level::ERROR,
+				panther::Diagnostic::Code::FRONTEND_FAILED_TO_GET_REL_DIR,
+				panther::Diagnostic::Location::NONE,
+				"Failed to get relative directory",
+				evo::SmallVector<panther::Diagnostic::Info>{
+					panther::Diagnostic::Info(std::format("\tcode: \"{}\"", ec.value())),
+					panther::Diagnostic::Info(std::format("\tmessage: \"{}\"", ec.message())),
+				}
+			));
+
+			return EXIT_FAILURE;
+		}
+	}
 
 
 	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
@@ -595,7 +638,7 @@ auto main(int argc, const char* argv[]) -> int {
 		}
 	}
 
-	const evo::Result<panther::Context::BuildSystemConfig> build_system_run = 
+	evo::Result<panther::Context::BuildSystemConfig> build_system_run = 
 		run_build_system(cmd_args_config, printer);
 	if(build_system_run.isError()){ return EXIT_FAILURE; }
 

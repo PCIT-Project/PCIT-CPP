@@ -18,7 +18,6 @@
 #include "./source/source_data.h"
 #include "./tokens/Token.h"
 #include "./AST/AST.h"
-#include "./strings.h"
 #include "../src/symbol_proc/symbol_proc_ids.h"
 #include "./sema/Expr.h"
 #include "../src/sema/ScopeLevel.h"
@@ -374,18 +373,20 @@ namespace pcit::panther{
 		struct Alias{
 			using ID = AliasID;
 
-			evo::Variant<SourceID, ClangSourceID> sourceID;
-			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 			std::atomic<std::optional<TypeInfoID>> aliasedType; // nullopt if only has decl completed
-			bool isPub; // meaningless if is clang type
+			bool isPub; // meaningless if not pthr source type
 
 			EVO_NODISCARD auto defCompleted() const -> bool { return this->aliasedType.load().has_value(); }
 			
-			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+			EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
+			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 
 			EVO_NODISCARD auto operator==(const Alias& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->location == rhs.location;
+				return this->sourceID == rhs.sourceID && this->name == rhs.name;
 			}
 		};
 
@@ -411,20 +412,20 @@ namespace pcit::panther{
 
 			struct MemberVar{
 				AST::VarDecl::Kind kind;
-				evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+				evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 				TypeInfoID typeID;
 				std::optional<sema::Expr> defaultValue;
 			};
 
-			evo::Variant<SourceID, ClangSourceID> sourceID;
-			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<StructTemplateID> templateID = std::nullopt; // nullopt if not instantiated
 			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uin32_t max if not instantiation
 			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock) when not defComplete
 			evo::SmallVector<MemberVar*> memberVarsABI; // this is the order that members are for ABI
-			SymbolProcNamespace* namespacedMembers; // nullopt if is clang type
-			sema::ScopeLevel* scopeLevel; // nullopt if is clang type (although temporarily nullopt during creation)
-			bool isPub; // meaningless if is clang type
+			SymbolProcNamespace* namespacedMembers; // nullptr if not pthr src type
+			sema::ScopeLevel* scopeLevel; // nullptr if not pthr src type (although temporarily nullptr during creation)
+			bool isPub; // meaningless if not pthr src type
 			bool isOrdered; // TODO(FUTURE): is this needed here?
 			bool isPacked;
 
@@ -436,7 +437,9 @@ namespace pcit::panther{
 			std::unordered_map<TypeInfoID, sema::FuncID> operatorAsOverloads{};
 			mutable core::SpinLock operatorAsOverloadsLock{};
 
+			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+			EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 
 			EVO_NODISCARD auto getMemberName(
@@ -445,7 +448,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto operator==(const Struct& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID
-					&& this->location == rhs.location
+					&& this->name == rhs.name
 					&& this->instantiation == rhs.instantiation;
 			}
 		};

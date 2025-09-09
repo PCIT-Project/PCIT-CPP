@@ -7,7 +7,7 @@
 
 # PCIT-CPP
 
-PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the PCIT Project website ([www.pcitproject.org](https://www.pcitproject.org)) for more information.
+PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the PCIT Project website ([https://www.pcitproject.org](https://www.pcitproject.org)) for more information.
 
 > [!NOTE]
 > This is in the very early stages and as such is not usable yet. If you really want to try it now (with little documentation), you can run the `pthr` executable (once compiled) and modify the files found in `testing`.
@@ -32,12 +32,17 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 
 
 ### Expected Timeline:
-- 0.1: (the first release) 
-	- `Panther`/`pthr` working enough to give to testers. Some major features will be missing. Some documentation will exist
-	- Bare-bones version of the Linker library will also be working
-	- Bare-bones version of PIR library
+- 0.1: (the first release, ready for testers)
+	- `Panther`/`pthr`
+		- Missing a lot of C++ support
+		- Full tutorial with some documentation
+	- Small Panther standard library
+	- PLNK C++ library
+	- PIR C++ library
 - 0.2:
-	- Some missing features of Panther added
+	- More C++ support
+	- Richer Panther standard library
+	- More complete documentation
 - *in-between*:
 	- TBD
 - 1.0:

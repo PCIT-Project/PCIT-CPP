@@ -1724,7 +1724,9 @@ namespace pcit::panther{
 	auto Parser::parse_term() -> Result {
 		Result output = [&](){
 			if constexpr(TERM_KIND == TermKind::EXPLICIT_TYPE || TERM_KIND == TermKind::AS_TYPE){
-				return this->parse_ident();
+				const Result ident_res = this->parse_ident();
+				if(ident_res.code() != Result::Code::WRONG_TYPE){ return ident_res; }
+				return this->parse_intrinsic();
 			}else{
 				return this->parse_encapsulated_expr();
 			}

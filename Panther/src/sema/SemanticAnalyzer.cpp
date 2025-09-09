@@ -1324,7 +1324,7 @@ namespace pcit::panther{
 		const BaseType::ID created_struct = this->context.type_manager.getOrCreateStruct(
 			BaseType::Struct{
 				.sourceID          = this->source.getID(),
-				.location          = instr.struct_decl.ident,
+				.name              = instr.struct_decl.ident,
 				.templateID        = instr.struct_template_id,
 				.instantiation     = instr.instantiation_id,
 				.memberVars        = evo::SmallVector<BaseType::Struct::MemberVar>(),
@@ -1407,7 +1407,7 @@ namespace pcit::panther{
 			const auto sorting_func = [](
 				const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
 			) -> bool {
-				return lhs.location.as<Token::ID>().get() < rhs.location.as<Token::ID>().get();
+				return lhs.name.as<Token::ID>().get() < rhs.name.as<Token::ID>().get();
 			};
 
 			std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
@@ -4205,7 +4205,7 @@ namespace pcit::panther{
 				sema_args.emplace_back(fake_term_info.expr);
 
 			}else if(
-				this->get_compilation_config().warn.methodCallOnNonMethod
+				this->get_project_config().warn.methodCallOnNonMethod
 				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
 			){
 				this->emit_warning(
@@ -4642,7 +4642,7 @@ namespace pcit::panther{
 				sema_args.emplace_back(fake_term_info.expr);
 
 			}else if( // TODO(FUTURE): make this warn on non-template params
-				this->get_compilation_config().warn.methodCallOnNonMethod
+				this->get_project_config().warn.methodCallOnNonMethod
 				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
 			){
 				this->emit_warning(
@@ -4660,6 +4660,136 @@ namespace pcit::panther{
 		}
 		for(const SymbolProc::TermInfoID& arg : instr.args){
 			sema_args.emplace_back(this->get_term_info(arg).getExpr());
+		}
+
+		if(func_call_impl_res.value().is_intrinsic()) [[unlikely]] {
+			const IntrinsicFunc::Kind intrinsic_kind = target_term_info.getExpr().intrinsicFuncID();
+
+			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
+
+			if(this->get_current_func().isConstexpr){
+				if(intrinsic_func_info.allowedInComptime == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+						instr.func_call.target,
+						"Cannot call a non-constexpr function within a constexpr function"
+					);
+					return Result::ERROR;
+				}
+
+			}else{
+				if(intrinsic_func_info.allowedInRuntime == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_RUNTIME,
+						instr.func_call.target,
+						"Cannot call a non-runtime function within a runtime function"
+					);
+					return Result::ERROR;
+				}
+			}
+
+			switch(this->context.getConfig().mode){
+				case Context::Config::Mode::COMPILE: {
+					if(intrinsic_func_info.allowedInCompile == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+							instr.func_call.target,
+							"Calling this intrinsic is not allowed in compile mode"
+						);
+						return Result::ERROR;
+					}
+				} break;
+
+				case Context::Config::Mode::SCRIPTING: {
+					if(intrinsic_func_info.allowedInScript == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+							instr.func_call.target,
+							"Calling this intrinsic is not allowed in scripting mode"
+						);
+						return Result::ERROR;
+					}
+				} break;
+
+				case Context::Config::Mode::BUILD_SYSTEM: {
+					if(intrinsic_func_info.allowedInBuildSystem == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
+							instr.func_call.target,
+							"Calling this intrinsic is not allowed in build system mode"
+						);
+						return Result::ERROR;
+					}
+				} break;
+			}
+
+			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
+				intrinsic_kind, std::move(sema_args)
+			);
+
+
+			const TermInfo::ValueStage value_stage = [&](){
+				if constexpr(IS_CONSTEXPR){
+					return TermInfo::ValueStage::CONSTEXPR;
+				}else{
+					if(this->get_current_func().isConstexpr){
+						return TermInfo::ValueStage::COMPTIME;
+					}else{
+						return TermInfo::ValueStage::RUNTIME;
+					}
+				}
+			}();
+
+			const evo::SmallVector<BaseType::Function::ReturnParam>& selected_func_type_return_params = 
+				func_call_impl_res.value().selected_func_type.returnParams;
+
+			if(selected_func_type_return_params.size() == 1){ // single return
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					selected_func_type_return_params[0].typeID.asTypeID(),
+					sema::Expr(sema_func_call_id)
+				);
+				
+			}else{ // multi-return
+				auto return_types = evo::SmallVector<TypeInfo::ID>();
+				return_types.reserve(selected_func_type_return_params.size());
+				for(const BaseType::Function::ReturnParam& return_param : selected_func_type_return_params){
+					return_types.emplace_back(return_param.typeID.asTypeID());
+				}
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					std::move(return_types),
+					sema::Expr(sema_func_call_id)
+				);
+			}
+
+
+			if constexpr(IS_CONSTEXPR){
+				evo::debugFatalBreak("No constexpr non-templated intrinsics exist");
+
+			}else{
+				if(this->get_current_func().isConstexpr){
+					if(func_call_impl_res.value().selected_func->isConstexpr == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+							instr.func_call.target,
+							"Cannot call a non-constexpr function within a constexpr function",
+							Diagnostic::Info(
+								"Called function was defined here:",
+								this->get_location(*func_call_impl_res.value().selected_func_id)
+							)
+						);
+						return Result::ERROR;
+					}
+				}
+
+				return Result::SUCCESS;
+			}
 		}
 
 
@@ -9706,6 +9836,9 @@ namespace pcit::panther{
 
 		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
 			return this->type_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
+
+		}else if(lhs.type_id.is<BuiltinModule::ID>()){
+			return this->builtin_module_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
 		}
 
 		if(lhs.type_id.is<TypeInfo::ID>() == false){
@@ -10251,6 +10384,24 @@ namespace pcit::panther{
 		}
 
 
+		if(intrinsic_name == "pthr"){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_MODULE,
+				TermInfo::ValueStage::CONSTEXPR,
+				BuiltinModule::ID::PTHR,
+				std::nullopt
+			);
+			return Result::SUCCESS;
+			
+		}else if(intrinsic_name == "build"){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.intrinsic,
+				"Intrinsic `@build` is currently unimplemented"
+			);
+		}
+
+
 		this->emit_error(
 			Diagnostic::Code::SEMA_INTRINSIC_DOESNT_EXIST,
 			instr.intrinsic,
@@ -10690,6 +10841,63 @@ namespace pcit::panther{
 	}
 
 
+	template<bool NEEDS_DEF>
+	auto SemanticAnalyzer::builtin_module_accessor(
+		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
+	) -> Result {
+		const BuiltinModule& builtin_module = this->context.getSourceManager()[lhs.type_id.as<BuiltinModule::ID>()];
+
+		const std::optional<BuiltinModule::Symbol> symbol_find = builtin_module.getSymbol(rhs_ident_str);
+
+		if(symbol_find.has_value() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
+				instr.infix.rhs,
+				std::format("Builtin-module has no symbol named \"{}\"", rhs_ident_str)
+			);
+			return Result::ERROR;
+		}
+
+		symbol_find->visit([&](const auto& symbol) -> void {
+			using SymbolType = std::decay_t<decltype(symbol)>;
+
+			if constexpr(std::is_same<SymbolType, BaseType::ID>()){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::TYPE,
+					TermInfo::ValueStage::CONSTEXPR,
+					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(symbol))),
+					std::nullopt
+				);
+
+			}else if constexpr(std::is_same<SymbolType, sema::Func::ID>()){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::FUNCTION,
+					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::FuncOverloadList{symbol},
+					std::nullopt
+				);
+
+			}else if constexpr(std::is_same<SymbolType, sema::GlobalVar::ID>()){
+				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(symbol);
+
+				this->return_term_info(instr.output,
+					global_var.kind == AST::VarDecl::Kind::CONST 
+						? TermInfo::ValueCategory::CONCRETE_CONST
+						: TermInfo::ValueCategory::CONCRETE_MUT,
+					TermInfo::ValueStage::RUNTIME,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					*global_var.typeID,
+					sema::Expr(symbol)
+				);
+				
+			}else{
+				static_assert(false, "Unknown symbol kind");
+			}
+		});
+
+		return Result::SUCCESS;
+	}
+
 
 
 
@@ -10776,10 +10984,10 @@ namespace pcit::panther{
 		);
 
 		const Source* struct_source = [&]() -> const Source* {
-			if(lhs_type_struct.isClangType()){
-				return nullptr;
-			}else{
+			if(lhs_type_struct.isPTHRSourceType()){
 				return &this->context.getSourceManager()[lhs_type_struct.sourceID.as<Source::ID>()];
+			}else{
+				return nullptr;
 			}
 		}();
 
@@ -14470,8 +14678,8 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::get_compilation_config() const -> const Source::CompilationConfig& {
-		return this->context.getSourceManager().getSourceCompilationConfig(this->source.getCompilationConfigID());
+	auto SemanticAnalyzer::get_project_config() const -> const Source::ProjectConfig& {
+		return this->context.getSourceManager().getSourceProjectConfig(this->source.getProjectConfigID());
 	}
 
 
@@ -16651,10 +16859,16 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<TypeID, Source::ID>()){
+				// TODO(FEATURE): actual module name?
 				return "{MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, ClangSource::ID>()){
+				// TODO(FEATURE): actual name?
 				return "{CLANG_MODULE}";
+
+			}else if constexpr(std::is_same<TypeID, BuiltinModule::ID>()){
+				// TODO(FEATURE): actual name?
+				return "{BUILTIN_MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, sema::TemplatedStruct::ID>()){
 				// TODO(FEATURE): actual name

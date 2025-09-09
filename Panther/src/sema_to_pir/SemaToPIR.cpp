@@ -825,7 +825,7 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::FUNC_CALL: {
 				const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(stmt.funcCallID());
 
-				if(func_call.target.is<IntrinsicFunc::Kind>()){ 
+				if(func_call.target.is<IntrinsicFunc::Kind>()){
 					this->intrinsic_func_call(func_call);
 					return;
 				}
@@ -1697,8 +1697,11 @@ namespace pcit::panther{
 			case sema::Expr::Kind::FUNC_CALL: {
 				const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(expr.funcCallID());
 
-				if(func_call.target.is<sema::TemplateIntrinsicFuncInstantiation::ID>()){
-					return this->template_intrinsic_func_call<MODE>(func_call, store_locations);
+				if(func_call.target.is<IntrinsicFunc::Kind>()){
+					return this->intrinsic_func_call_expr<MODE>(func_call, store_locations);
+
+				}else if(func_call.target.is<sema::TemplateIntrinsicFuncInstantiation::ID>()){
+					return this->template_intrinsic_func_call_expr<MODE>(func_call, store_locations);
 				}
 
 				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
@@ -3436,7 +3439,75 @@ namespace pcit::panther{
 
 
 	template<SemaToPIR::GetExprMode MODE>
-	auto SemaToPIR::template_intrinsic_func_call(
+	auto SemaToPIR::intrinsic_func_call_expr(
+		const sema::FuncCall& func_call, evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		const IntrinsicFunc::Kind intrinsic_func_kind = func_call.target.as<IntrinsicFunc::Kind>();
+
+		const auto get_args = [&](evo::SmallVector<pir::Expr>& args) -> void {
+			const TypeManager& type_manager = this->context.getTypeManager();
+
+			const TypeInfo::ID intrinsic_type_id = this->context.getIntrinsicFuncInfo(intrinsic_func_kind).typeID;
+			const TypeInfo& intrinsic_type = type_manager.getTypeInfo(intrinsic_type_id);
+			const BaseType::Function& func_type = type_manager.getFunction(intrinsic_type.baseTypeID().funcID());
+
+			for(size_t i = 0; const sema::Expr& arg : func_call.args){
+				if(func_type.params[i].shouldCopy){
+					args.emplace_back(this->get_expr_register(arg));
+				}else{
+					args.emplace_back(this->get_expr_pointer(arg));
+				}
+
+				i += 1;
+			}
+		};
+
+		const auto get_context_ptr = [&]() -> pir::Expr {
+			return this->agent.createNumber(
+				this->module.createIntegerType(sizeof(size_t) * 8),
+				core::GenericInt::create<size_t>(size_t(&this->context))
+			);
+		};
+
+		const pir::Expr value = [&](){
+			switch(intrinsic_func_kind){
+				case IntrinsicFunc::Kind::BUILD_CREATE_PROJECT: {
+					auto args = evo::SmallVector<pir::Expr>();
+					args.emplace_back(get_context_ptr());
+					get_args(args);
+
+					return this->agent.createCall(this->data.getJITBuildFuncs().build_create_project, std::move(args));
+				} break;
+
+				case IntrinsicFunc::Kind::_MAX_: {
+					evo::debugFatalBreak("Invalid intrinsic func");
+				} break;
+
+				default: evo::debugFatalBreak("Unknown intrinsic expr");
+			}
+		}();
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return value;
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr call_alloca = this->agent.createAlloca(this->agent.getExprType(value));
+			this->agent.createStore(call_alloca, value);
+			return std::nullopt;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			this->agent.createStore(store_locations[0], value);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::template_intrinsic_func_call_expr(
 		const sema::FuncCall& func_call, evo::ArrayProxy<pir::Expr> store_locations
 	) -> std::optional<pir::Expr> {
 		const sema::TemplateIntrinsicFuncInstantiation& instantiation = 
@@ -4749,9 +4820,44 @@ namespace pcit::panther{
 				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_use_std_lib, std::move(args));
 			} break;
 
+			case IntrinsicFunc::Kind::BUILD_CREATE_PROJECT: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_create_project, std::move(args));
+			} break;
+
+			case IntrinsicFunc::Kind::BUILD_ADD_SOURCE_FILE: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_add_source_file, std::move(args));
+			} break;
+
+			case IntrinsicFunc::Kind::BUILD_ADD_C_HEADER_FILE: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_add_c_header_file, std::move(args));
+			} break;
+
+			case IntrinsicFunc::Kind::BUILD_ADD_CPP_HEADER_FILE: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_add_cpp_header_file, std::move(args));
+			} break;
+
+
 			case IntrinsicFunc::Kind::_MAX_: {
 				evo::debugFatalBreak("Invalid intrinsic func");
 			} break;
+
+			default: evo::debugFatalBreak("Unknown intrinsic");
 		}
 	}
 

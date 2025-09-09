@@ -127,8 +127,14 @@ namespace pcit::panther{
 				evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id, evo::SmallVector<pir::Expr>&& args
 			) -> void;
 
+
 			template<GetExprMode MODE>
-			auto template_intrinsic_func_call(
+			auto intrinsic_func_call_expr(
+				const sema::FuncCall& func_call, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			auto template_intrinsic_func_call_expr(
 				const sema::FuncCall& func_call, evo::ArrayProxy<pir::Expr> store_locations
 			) -> std::optional<pir::Expr>;
 

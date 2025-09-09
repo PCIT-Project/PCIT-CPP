@@ -60,6 +60,7 @@ namespace pcit::panther{
 				Mode mode;
 				std::string title;
 				core::Target target;
+				std::filesystem::path workingDirectory;
 
 				uint32_t maxNumErrors = std::numeric_limits<uint32_t>::max();
 				NumThreads numThreads = NumThreads::single();
@@ -80,10 +81,26 @@ namespace pcit::panther{
 					WINDOWED_EXECUTABLE = 10,
 				};
 
+				struct PantherFile{
+					std::string path;
+					Source::ProjectConfig::ID projectID; // is index into projectConfigs
+				};
+
+				struct CLangFile{
+					std::string path;
+					bool addIncludesToPubApi;
+					bool isCPP;
+					bool isHeader;
+				};
+
 
 				Output output         = Output::RUN;
 				NumThreads numThreads = NumThreads::single();
 				bool useStdLib        = true;
+
+				evo::StepVector<Source::ProjectConfig> projectConfigs{};
+				evo::StepVector<PantherFile> sourceFiles{};
+				evo::StepVector<CLangFile> cLangFiles{};
 			};
 
 			enum class AddSourceResult{
@@ -208,15 +225,15 @@ namespace pcit::panther{
 			// adding sources
 
 			EVO_NODISCARD auto addSourceFile(
-				const std::filesystem::path& path, Source::CompilationConfig::ID compilation_config
+				const std::filesystem::path& path, Source::ProjectConfig::ID project_config
 			) -> AddSourceResult;
 
 			EVO_NODISCARD auto addSourceDirectory(
-				const std::filesystem::path& path, Source::CompilationConfig::ID compilation_config
+				const std::filesystem::path& path, Source::ProjectConfig::ID project_config
 			) -> AddSourceResult;
 
 			EVO_NODISCARD auto addSourceDirectoryRecursive(
-				const std::filesystem::path& path, Source::CompilationConfig::ID compilation_config
+				const std::filesystem::path& path, Source::ProjectConfig::ID project_config
 			) -> AddSourceResult;
 
 			EVO_NODISCARD auto addStdLib(const std::filesystem::path& directory) -> AddSourceResult;
@@ -258,19 +275,19 @@ namespace pcit::panther{
 
 		private:
 			EVO_NODISCARD auto load_source(
-				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+				std::filesystem::path&& path, Source::ProjectConfig::ID project_config_id
 			) -> evo::Result<Source::ID>;
 
 			auto tokenize_impl(
-				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+				std::filesystem::path&& path, Source::ProjectConfig::ID project_config_id
 			) -> void;
 
 			auto parse_impl(
-				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+				std::filesystem::path&& path, Source::ProjectConfig::ID project_config_id
 			) -> void;
 			
 			auto build_symbol_procs_impl(
-				std::filesystem::path&& path, Source::CompilationConfig::ID compilation_config_id
+				std::filesystem::path&& path, Source::ProjectConfig::ID project_config_id
 			) -> evo::Result<Source::ID>;
 
 			auto analyze_clang_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
@@ -298,7 +315,7 @@ namespace pcit::panther{
 
 			struct FileToLoad{
 				std::filesystem::path path;
-				Source::CompilationConfig::ID compilation_config_id;
+				Source::ProjectConfig::ID project_config_id;
 			};
 
 			struct CHeaderToLoad{
@@ -360,7 +377,9 @@ namespace pcit::panther{
 
 
 
-			auto initIntrinsicInfos() -> void;
+			auto init_builtin_modules() -> void;
+			
+			auto init_intrinsic_infos() -> void;
 
 			struct IntrinsicFuncInfo{
 				TypeInfoID typeID;

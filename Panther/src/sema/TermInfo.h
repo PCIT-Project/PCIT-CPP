@@ -34,6 +34,7 @@ namespace pcit::panther{
 			NULL_VALUE,
 			MODULE,
 			CLANG_MODULE,
+			BUILTIN_MODULE,
 			FUNCTION, // function, not func pointer
 			METHOD_CALL, // the expr is the 'this'
 			INTERFACE_CALL, // the expr is the interface ptr
@@ -95,6 +96,7 @@ namespace pcit::panther{
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
 			ClangSourceID,                  // CLANG_MODULE
+			BuiltinModuleID,                  // BUILTIN_MODULE
 			TypeInfo::VoidableID,           // TYPE
 			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE
 			TemplateIntrinsicFunc::Kind     // TEMPLATE_INTRINSIC_FUNC
@@ -246,6 +248,9 @@ namespace pcit::panther{
 					break; case ValueCategory::CLANG_MODULE:
 						evo::debugAssert(this->type_id.is<ClangSourceID>(), "Incorrect TermInfo creation");
 
+					break; case ValueCategory::BUILTIN_MODULE:
+						evo::debugAssert(this->type_id.is<BuiltinModuleID>(), "Incorrect TermInfo creation");
+
 					break; case ValueCategory::FUNCTION:
 						// evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TermInfo creation");
 						evo::debugFatalBreak("Incorrect TermInfo creation");
@@ -287,6 +292,7 @@ namespace pcit::panther{
 				evo::debugAssert(
 					this->value_category == ValueCategory::MODULE
 					|| this->value_category == ValueCategory::CLANG_MODULE
+					|| this->value_category == ValueCategory::BUILTIN_MODULE
 					|| this->value_category == ValueCategory::TEMPLATE_TYPE
 					|| this->value_category == ValueCategory::TYPE
 					|| this->value_category == ValueCategory::FUNCTION
@@ -432,7 +438,9 @@ namespace pcit::panther{
 
 
 		EVO_NODISCARD constexpr auto is_module() const -> bool {
-			return this->value_category == ValueCategory::MODULE || this->value_category == ValueCategory::CLANG_MODULE;
+			return this->value_category == ValueCategory::MODULE
+				|| this->value_category == ValueCategory::CLANG_MODULE
+				|| this->value_category == ValueCategory::BUILTIN_MODULE;
 		}
 
 

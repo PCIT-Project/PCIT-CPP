@@ -31,7 +31,7 @@ namespace pcit::panther{
 			using ID = SourceID;
 			using Location = SourceLocation;
 
-			struct CompilationConfig{
+			struct ProjectConfig{
 				struct ID : public core::UniqueID<uint32_t, struct ID> {
 					using core::UniqueID<uint32_t, ID>::UniqueID;
 				};
@@ -55,8 +55,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getID() const -> ID { return this->id; }
 			EVO_NODISCARD auto getPath() const -> const std::filesystem::path& { return this->path; }
 			EVO_NODISCARD auto getData() const -> const std::string& { return this->data; }
-			EVO_NODISCARD auto getCompilationConfigID() const -> CompilationConfig::ID {
-				return this->compilation_config_id;
+			EVO_NODISCARD auto getProjectConfigID() const -> ProjectConfig::ID {
+				return this->project_config_id;
 			}
 
 
@@ -68,15 +68,15 @@ namespace pcit::panther{
 
 		private:
 			Source(
-				std::filesystem::path&& _path, std::string&& data_str, CompilationConfig::ID comp_config_id
-			) : id(ID(0)), path(std::move(_path)), data(std::move(data_str)), compilation_config_id(comp_config_id) {}
+				std::filesystem::path&& _path, std::string&& data_str, ProjectConfig::ID proj_config_id
+			) : id(ID(0)), path(std::move(_path)), data(std::move(data_str)), project_config_id(proj_config_id) {}
 
 	
 		private:
 			ID id;
 			std::filesystem::path path;
 			std::string data;
-			CompilationConfig::ID compilation_config_id;
+			ProjectConfig::ID project_config_id;
 
 			TokenBuffer token_buffer{};
 			ASTBuffer ast_buffer{};

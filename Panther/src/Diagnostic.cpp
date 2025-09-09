@@ -288,14 +288,16 @@ namespace pcit::panther{
 	auto Diagnostic::Location::get(BaseType::Alias::ID alias_id, const Context& context) -> Location {
 		const BaseType::Alias& alias_decl = context.getTypeManager().getAlias(alias_id);
 
-		if(alias_decl.isClangType()){
+		if(alias_decl.isPTHRSourceType()){
+			return Location::get(
+				alias_decl.name.as<Token::ID>(), context.getSourceManager()[alias_decl.sourceID.as<Source::ID>()]
+			);
+		}else if(alias_decl.isClangType()){
 			const ClangSource& clang_source = context.getSourceManager()[alias_decl.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(alias_decl.location.as<ClangSource::DeclInfoID>()).location;
+			return clang_source.getDeclInfo(alias_decl.name.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
-			return Location::get(
-				alias_decl.location.as<Token::ID>(), context.getSourceManager()[alias_decl.sourceID.as<Source::ID>()]
-			);
+			return Location::NONE;
 		}
 	}
 
@@ -303,14 +305,16 @@ namespace pcit::panther{
 	auto Diagnostic::Location::get(BaseType::Struct::ID struct_id, const Context& context) -> Location {
 		const BaseType::Struct& struct_decl = context.getTypeManager().getStruct(struct_id);
 
-		if(struct_decl.isClangType()){
+		if(struct_decl.isPTHRSourceType()){
+			return Location::get(
+				struct_decl.name.as<Token::ID>(), context.getSourceManager()[struct_decl.sourceID.as<Source::ID>()]
+			);
+		}else if(struct_decl.isClangType()){
 			const ClangSource& clang_source = context.getSourceManager()[struct_decl.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(struct_decl.location.as<ClangSource::DeclInfoID>()).location;
+			return clang_source.getDeclInfo(struct_decl.name.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
-			return Location::get(
-				struct_decl.location.as<Token::ID>(), context.getSourceManager()[struct_decl.sourceID.as<Source::ID>()]
-			);
+			return Location::NONE;
 		}
 	}
 

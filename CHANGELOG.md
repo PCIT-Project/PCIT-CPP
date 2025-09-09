@@ -1,6 +1,27 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.154.0"></a>
+## v0.0.154.0
+
+### Panther
+- Added build system intrinsic functions
+	- `@buildCreateProject`
+	- `@buildAddSourceFile`
+	- `@buildAddCHeaderFile`
+	- `@buildAddCPPHeaderFile`
+- Added `@pthr`
+	- Added `@pthr.ProjectWarningSettings`
+- Added parsing of accessors on intrinsics
+- Fixed intrinsics incorrectly being allowed in comptime
+	- `@abort`
+	- `@breakpoint`
+	- `@builtSetNumThreads`
+	- `@buildSetOutput`
+	- `@buildSetUseStdLib`
+
+
+<!---------------------------------->
 <a name="v0.0.153.0"></a>
 ## v0.0.153.0
 

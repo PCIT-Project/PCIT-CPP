@@ -26,6 +26,9 @@
 namespace pcit::panther{
 
 
+	//////////////////////////////////////////////////////////////////////
+	// source
+
 	struct SourceID : public core::UniqueID<uint32_t, struct SourceID> { 
 		using core::UniqueID<uint32_t, SourceID>::UniqueID;
 		using core::UniqueID<uint32_t, SourceID>::operator==;
@@ -55,6 +58,8 @@ namespace pcit::panther{
 	};
 
 
+	//////////////////////////////////////////////////////////////////////
+	// clang source
 
 	struct ClangSourceID : public core::UniqueID<uint32_t, struct ClangSourceID> { 
 		using core::UniqueID<uint32_t, ClangSourceID>::UniqueID;
@@ -98,6 +103,21 @@ namespace pcit::panther{
 	struct ClangSourceDeclInfo{
 		ClangSourceLocation location;
 		std::string_view name;
+	};
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// builtin module
+
+	enum class BuiltinModuleID : uint32_t {
+		PTHR,
+		BUILD,
+	};
+
+	struct BuiltinModuleStringID : public core::UniqueID<uint32_t, struct BuiltinModuleStringID> { 
+		using core::UniqueID<uint32_t, BuiltinModuleStringID>::UniqueID;
+		using core::UniqueID<uint32_t, BuiltinModuleStringID>::operator==;
 	};
 
 }

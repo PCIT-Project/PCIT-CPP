@@ -16,6 +16,7 @@
 
 #include "./Source.h"
 #include "./ClangSource.h"
+#include "./BuiltinModule.h"
 
 
 namespace pcit::panther{
@@ -27,21 +28,21 @@ namespace pcit::panther{
 			~SourceManager() = default;
 
 
-			EVO_NODISCARD auto createSourceCompilationConfig(Source::CompilationConfig&& src_comp_config)
-			-> Source::CompilationConfig::ID {
+			EVO_NODISCARD auto createSourceProjectConfig(Source::ProjectConfig&& src_comp_config)
+			-> Source::ProjectConfig::ID {
 				evo::debugAssert(src_comp_config.basePath.is_absolute(), "Base path must be absolute");
-				return this->priv.source_compilation_configs.emplace_back(std::move(src_comp_config));
+				return this->priv.source_project_configs.emplace_back(std::move(src_comp_config));
 			}
 
-			EVO_NODISCARD auto createSourceCompilationConfig(const Source::CompilationConfig& src_comp_config)
-			-> Source::CompilationConfig::ID {
+			EVO_NODISCARD auto createSourceProjectConfig(const Source::ProjectConfig& src_comp_config)
+			-> Source::ProjectConfig::ID {
 				evo::debugAssert(src_comp_config.basePath.is_absolute(), "Base path must be absolute");
-				return this->priv.source_compilation_configs.emplace_back(src_comp_config);
+				return this->priv.source_project_configs.emplace_back(src_comp_config);
 			}
 
-			EVO_NODISCARD auto getSourceCompilationConfig(Source::CompilationConfig::ID id) const 
-			-> const Source::CompilationConfig& {
-				return this->priv.source_compilation_configs[id];
+			EVO_NODISCARD auto getSourceProjectConfig(Source::ProjectConfig::ID id) const 
+			-> const Source::ProjectConfig& {
+				return this->priv.source_project_configs[id];
 			}
 
 
@@ -53,6 +54,13 @@ namespace pcit::panther{
 			}
 			EVO_NODISCARD auto operator[](ClangSource::ID id) -> ClangSource& {
 				return this->priv.clang_sources[id];
+			}
+
+			EVO_NODISCARD auto operator[](BuiltinModule::ID id) const -> const BuiltinModule& {
+				return this->priv.builtin_modules[size_t(evo::to_underlying(id))];
+			}
+			EVO_NODISCARD auto operator[](BuiltinModule::ID id) -> BuiltinModule& {
+				return this->priv.builtin_modules[size_t(evo::to_underlying(id))];
 			}
 
 
@@ -101,7 +109,7 @@ namespace pcit::panther{
 
 		private:
 			auto create_source(
-				std::filesystem::path&& path, std::string&& data_str, Source::CompilationConfig::ID comp_config_id
+				std::filesystem::path&& path, std::string&& data_str, Source::ProjectConfig::ID comp_config_id
 			) -> Source::ID {
 				const auto lock = std::lock_guard(this->priv.sources_lock);
 
@@ -132,8 +140,8 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto emplace_source_compilation_config(auto&&... args) -> Source::CompilationConfig::ID {
-				return this->priv.source_compilation_configs.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto emplace_source_project_config(auto&&... args) -> Source::ProjectConfig::ID {
+				return this->priv.source_project_configs.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 	
 		private:
@@ -146,8 +154,10 @@ namespace pcit::panther{
 					core::LinearStepAlloc<ClangSource, ClangSource::ID, 0> clang_sources{};
 					mutable core::SpinLock clang_sources_lock{};
 
-					using CompConfig = Source::CompilationConfig;
-					core::LinearStepAlloc<CompConfig, CompConfig::ID> source_compilation_configs{};
+					std::array<BuiltinModule, 2> builtin_modules{};
+
+					using CompConfig = Source::ProjectConfig;
+					core::LinearStepAlloc<CompConfig, CompConfig::ID> source_project_configs{};
 
 					std::unordered_map<std::string_view, std::filesystem::path> special_name_paths{};
 

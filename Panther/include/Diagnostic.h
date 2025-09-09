@@ -96,6 +96,7 @@ namespace pcit::panther{
 			SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR,
 			SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
 			SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR,
+			SYMBOL_PROC_INVALID_RHS_OF_ACCESSOR,
 
 
 			//////////////////
@@ -314,9 +315,11 @@ namespace pcit::panther{
 
 			FRONTEND_FAILED_TO_GET_REL_DIR,       // F1
 			FRONTEND_BUILD_SYSTEM_RETURNED_ERROR, // F2
-			FRONTEND_FAILED_TO_ADD_STD_LIB,       // F3
-			FRONTEND_FAILED_TO_OUTPUT_ASM,        // F4
-			FRONTEND_FAILED_TO_OUTPUT_OBJ,        // F5
+			FRONTEND_FILE_DOESNT_EXIST,           // F3
+			FRONTEND_DIRECTORY_DOESNT_EXIST,      // F4
+			FRONTEND_FAILED_TO_ADD_STD_LIB,       // F5
+			FRONTEND_FAILED_TO_OUTPUT_ASM,        // F6
+			FRONTEND_FAILED_TO_OUTPUT_OBJ,        // F7
 
 
 			//////////////////
@@ -620,6 +623,7 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR:
 				case Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD:
 				case Code::SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR:
+				case Code::SYMBOL_PROC_INVALID_RHS_OF_ACCESSOR:
 					return "SPx";
 
 				// TODO(FUTURE): give individual codes and put in correct order
@@ -781,11 +785,13 @@ namespace pcit::panther{
 
 				case Code::FRONTEND_FAILED_TO_GET_REL_DIR:       return "F1";
 				case Code::FRONTEND_BUILD_SYSTEM_RETURNED_ERROR: return "F2";
-				case Code::FRONTEND_FAILED_TO_ADD_STD_LIB:       return "F3";
-				case Code::FRONTEND_FAILED_TO_OUTPUT_ASM:        return "F4";
-				case Code::FRONTEND_FAILED_TO_OUTPUT_OBJ:        return "F5";
+				case Code::FRONTEND_FILE_DOESNT_EXIST:           return "F3";
+				case Code::FRONTEND_DIRECTORY_DOESNT_EXIST:      return "F4";
+				case Code::FRONTEND_FAILED_TO_ADD_STD_LIB:       return "F5";
+				case Code::FRONTEND_FAILED_TO_OUTPUT_ASM:        return "F6";
+				case Code::FRONTEND_FAILED_TO_OUTPUT_OBJ:        return "F7";
 
-				case Code::CLANG:        return "C";
+				case Code::CLANG: return "C";
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported pcit::panther::Diagnostic::Code");

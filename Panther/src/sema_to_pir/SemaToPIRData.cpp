@@ -71,15 +71,22 @@ namespace pcit::panther{
 
 
 	auto SemaToPIRData::createJITBuildFuncDecls(pir::Module& module) -> void {
-		const auto create_func_decl = [&](std::string_view name, evo::SmallVector<pir::Parameter>&& params){
+		const auto create_func_decl = [&](
+			std::string_view name,
+			evo::SmallVector<pir::Parameter>&& params,
+			pir::Type ret_type
+		){
 			return module.createExternalFunction(
 				std::string(name),
 				std::move(params),
 				pir::CallingConvention::C,
 				pir::Linkage::EXTERNAL,
-				module.createVoidType()
+				ret_type
 			);
 		};
+
+
+
 
 
 		this->jit_build_funcs.build_set_num_threads = create_func_decl(
@@ -87,7 +94,8 @@ namespace pcit::panther{
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("num_threads", module.createIntegerType(32))
-			}
+			},
+			module.createVoidType()
 		);
 
 		this->jit_build_funcs.build_set_output = create_func_decl(
@@ -95,7 +103,8 @@ namespace pcit::panther{
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("output", module.createIntegerType(32))
-			}
+			},
+			module.createVoidType()
 		);
 
 		this->jit_build_funcs.build_set_use_std_lib = create_func_decl(
@@ -103,7 +112,48 @@ namespace pcit::panther{
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("use_std_lib", module.createBoolType())
-			}
+			},
+			module.createVoidType()
+		);
+
+		this->jit_build_funcs.build_create_project = create_func_decl(
+			"PTHR.BUILD.build_create_project",
+			{
+				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
+				pir::Parameter("base_path", module.createPtrType()),
+				pir::Parameter("warns_settings", module.createPtrType())
+			},
+			module.createIntegerType(32)
+		);
+
+		this->jit_build_funcs.build_add_source_file = create_func_decl(
+			"PTHR.BUILD.build_add_source_file",
+			{
+				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
+				pir::Parameter("file_path", module.createPtrType()),
+				pir::Parameter("project_id", module.createIntegerType(32))
+			},
+			module.createVoidType()
+		);
+
+		this->jit_build_funcs.build_add_c_header_file = create_func_decl(
+			"PTHR.BUILD.build_add_c_header_file",
+			{
+				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
+				pir::Parameter("file_path", module.createPtrType()),
+				pir::Parameter("add_includes_to_pub_api", module.createBoolType())
+			},
+			module.createVoidType()
+		);
+
+		this->jit_build_funcs.build_add_cpp_header_file = create_func_decl(
+			"PTHR.BUILD.build_add_cpp_header_file",
+			{
+				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
+				pir::Parameter("file_path", module.createPtrType()),
+				pir::Parameter("add_includes_to_pub_api", module.createBoolType())
+			},
+			module.createVoidType()
 		);
 	}
 

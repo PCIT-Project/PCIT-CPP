@@ -57,35 +57,50 @@ namespace pcit::panther{
 
 
 	auto BaseType::Alias::getName(const SourceManager& source_manager) const -> std::string_view {
-		if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
-		}else{
+		if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+
+		}else if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 		}
 	}
 
 
 	auto BaseType::Struct::getName(const SourceManager& source_manager) const -> std::string_view {
-		if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
-		}else{
+		if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+
+		}else if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 		}
 	}
 
 
 	auto BaseType::Struct::getMemberName(const MemberVar& member, const SourceManager& source_manager) const
 	-> std::string_view {
-		if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(member.location.as<ClangSource::DeclInfoID>()).name;
-		}else{
+		if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[member.location.as<Token::ID>()].getString();
+			return source.getTokenBuffer()[member.name.as<Token::ID>()].getString();
+
+		}else if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(member.name.as<ClangSource::DeclInfoID>()).name;
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(member.name.as<BuiltinModule::StringID>());
 		}
 	}
 
@@ -690,7 +705,7 @@ namespace pcit::panther{
 		}
 
 		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(
-			lookup_type.sourceID, lookup_type.location, lookup_type.aliasedType.load(), lookup_type.isPub
+			lookup_type.sourceID, lookup_type.name, lookup_type.aliasedType.load(), lookup_type.isPub
 		);
 		return BaseType::ID(BaseType::Kind::ALIAS, new_alias.get());
 	}
@@ -752,7 +767,7 @@ namespace pcit::panther{
 
 		const BaseType::Struct::ID new_struct = this->structs.emplace_back(
 			lookup_type.sourceID,
-			lookup_type.location,
+			lookup_type.name,
 			lookup_type.templateID,
 			lookup_type.instantiation,
 			std::move(lookup_type.memberVars),

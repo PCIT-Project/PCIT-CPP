@@ -1138,6 +1138,10 @@ namespace pcit::panther{
 				return this->analyze_expr_ident<NEEDS_DEF>(ast_type_base);
 			} break;
 
+			case AST::Kind::INTRINSIC: { 
+				return this->analyze_expr_intrinsic(ast_type_base);
+			} break;
+
 			case AST::Kind::ARRAY_TYPE: {
 				const AST::ArrayType& array_type = ast_buffer.getArrayType(ast_type_base);
 
@@ -2559,6 +2563,15 @@ namespace pcit::panther{
 			case Token::lookupKind("."): {
 				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
+
+				if(infix.rhs.kind() != AST::Kind::IDENT){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_INVALID_RHS_OF_ACCESSOR,
+						infix.rhs,
+						"Invalid RHS of accessor operator"
+					);
+					return evo::resultError;
+				}
 
 				const Token::ID rhs = this->source.getASTBuffer().getIdent(infix.rhs);
 
