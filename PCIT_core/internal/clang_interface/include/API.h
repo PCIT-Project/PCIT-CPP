@@ -14,6 +14,7 @@
 #include <Evo.h>
 
 #include "./Type.h"
+#include "./MacroExpr.h"
 
 
 namespace pcit::clangint{
@@ -107,6 +108,7 @@ namespace pcit::clangint{
 
 			struct Macro{
 				std::string name;
+				MacroExpr value;
 
 				std::filesystem::path declFilePath; // empty if not from a file
 				uint32_t declLine; // 0 if not from a file
@@ -195,6 +197,9 @@ namespace pcit::clangint{
 				return std::nullopt;
 			}
 
+
+		public:
+			MacroExprBuffer macroExprBuffer{};
 	
 		private:
 			evo::SmallVector<Decl> decls{};

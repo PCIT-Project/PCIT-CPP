@@ -1153,18 +1153,6 @@ namespace pcit::panther{
 
 		ClangSource& created_clang_source = this->source_manager[created_clang_source_id];
 
-		for(const clangint::API::Macro& macro : clang_api.getMacros()){
-			const auto decl_info_id = [&]() -> std::optional<ClangSource::DeclInfoID> {
-				if(macro.declFilePath.empty()){
-					return std::nullopt;
-				}else{
-					return created_clang_source.createDeclInfo(macro.name, macro.declLine, macro.declCollumn);
-				}
-			}();
-
-			created_clang_source.addDefine(macro.name, decl_info_id);
-		}
-
 
 		auto type_map = std::unordered_map<std::string, BaseType::ID>();
 
@@ -1405,6 +1393,154 @@ namespace pcit::panther{
 				}
 			});
 		}
+
+
+		for(const clangint::API::Macro& macro : clang_api.getMacros()){
+			const auto decl_info_id = [&]() -> std::optional<ClangSource::DeclInfoID> {
+				if(macro.declFilePath.empty()){
+					return std::nullopt;
+				}else{
+					return created_clang_source.createDeclInfo(macro.name, macro.declLine, macro.declCollumn);
+				}
+			}();
+
+			created_clang_source.addDefine(macro.name, decl_info_id);
+
+			switch(macro.value.kind()){
+				case clangint::MacroExpr::Kind::NONE: {
+					// do nothing, have no value or is not supported
+				} break;
+
+				case clangint::MacroExpr::Kind::BOOL: {
+					created_clang_source.addImportedSymbol(
+						macro.name,
+						this->sema_buffer.createGlobalVar(
+							AST::VarDecl::Kind::DEF,
+							created_clang_source_id,
+							created_clang_source.createDeclInfo(
+								macro.name, macro.declLine, macro.declCollumn
+							),
+							macro.name,
+							std::optional<sema::Expr>(sema::Expr(
+								this->sema_buffer.createBoolValue(clang_api.macroExprBuffer.getBool(macro.value))
+							)),
+							TypeManager::getTypeBool(),
+							false,
+							std::nullopt
+						),
+						created_clang_source_id
+					);
+				} break;
+
+				case clangint::MacroExpr::Kind::INTEGER: {
+					const clangint::MacroExpr::Integer& int_value = clang_api.macroExprBuffer.getInteger(macro.value);
+
+					const std::optional<TypeInfo::ID> int_type = [&]() -> std::optional<TypeInfo::ID> {
+						if(int_value.type.has_value()){
+							return clang_type_to_panther_type(*int_value.type, this->type_manager, type_map)
+								.value().asTypeID();
+						}else{
+							return std::nullopt;
+						}
+					}();
+
+					const sema::Expr expr_value = [&](){
+						if(int_type.has_value()){
+							return sema::Expr(
+								this->sema_buffer.createIntValue(
+									core::GenericInt::create<uint64_t>(int_value.value),
+									this->type_manager.getTypeInfo(*int_type).baseTypeID()
+								)
+							);
+						}else{
+							return sema::Expr(
+								this->sema_buffer.createIntValue(
+									core::GenericInt::create<uint64_t>(int_value.value), std::nullopt
+								)
+							);
+						}
+					}();
+
+					created_clang_source.addImportedSymbol(
+						macro.name,
+						this->sema_buffer.createGlobalVar(
+							AST::VarDecl::Kind::DEF,
+							created_clang_source_id,
+							created_clang_source.createDeclInfo(
+								macro.name, macro.declLine, macro.declCollumn
+							),
+							macro.name,
+							std::optional<sema::Expr>(expr_value),
+							int_type,
+							false,
+							std::nullopt
+						),
+						created_clang_source_id
+					);
+				} break;
+
+				case clangint::MacroExpr::Kind::FLOAT: {
+					const clangint::MacroExpr::Float& float_value = clang_api.macroExprBuffer.getFloat(macro.value);
+
+					const std::optional<TypeInfo::ID> float_type = [&]() -> std::optional<TypeInfo::ID> {
+						if(float_value.type.has_value()){
+							return clang_type_to_panther_type(*float_value.type, this->type_manager, type_map)
+								.value().asTypeID();
+						}else{
+							return std::nullopt;
+						}
+					}();
+
+					const sema::Expr expr_value = [&](){
+						if(float_type.has_value()){
+							return sema::Expr(
+								this->sema_buffer.createFloatValue(
+									core::GenericFloat::createF64(float_value.value),
+									this->type_manager.getTypeInfo(*float_type).baseTypeID()
+								)
+							);
+						}else{
+							return sema::Expr(
+								this->sema_buffer.createFloatValue(
+									core::GenericFloat::createF64(float_value.value), std::nullopt
+								)
+							);
+						}
+					}();
+
+					created_clang_source.addImportedSymbol(
+						macro.name,
+						this->sema_buffer.createGlobalVar(
+							AST::VarDecl::Kind::DEF,
+							created_clang_source_id,
+							created_clang_source.createDeclInfo(
+								macro.name, macro.declLine, macro.declCollumn
+							),
+							macro.name,
+							std::optional<sema::Expr>(expr_value),
+							float_type,
+							false,
+							std::nullopt
+						),
+						created_clang_source_id
+					);
+				} break;
+
+				case clangint::MacroExpr::Kind::IDENT: {
+					const std::string& ident_value = clang_api.macroExprBuffer.getIdent(macro.value);
+
+					const std::optional<ClangSource::SymbolInfo> imported_symbol =
+						created_clang_source.getImportedSymbol(ident_value);
+
+					if(imported_symbol.has_value()){
+						created_clang_source.addImportedSymbol(
+							macro.name, imported_symbol.value().symbol, created_clang_source_id
+						);
+					}
+				} break;
+			}
+		}
+
 
 		created_clang_source.setSymbolImportComplete();
 	}

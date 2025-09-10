@@ -143,6 +143,8 @@ namespace pcit::panther{
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
 
+			EVO_NODISCARD auto eq(bool lhs, bool rhs) -> TermInfo;
+
 			EVO_NODISCARD auto eq(
 				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 			) -> TermInfo;
@@ -152,6 +154,8 @@ namespace pcit::panther{
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
 
+			EVO_NODISCARD auto neq(bool lhs, bool rhs) -> TermInfo;
+
 			EVO_NODISCARD auto neq(
 				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 			) -> TermInfo;
@@ -161,6 +165,8 @@ namespace pcit::panther{
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
 
+			EVO_NODISCARD auto lt(bool lhs, bool rhs) -> TermInfo;
+
 			EVO_NODISCARD auto lt(
 				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 			) -> TermInfo;
@@ -170,6 +176,8 @@ namespace pcit::panther{
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
 
+			EVO_NODISCARD auto lte(bool lhs, bool rhs) -> TermInfo;
+
 			EVO_NODISCARD auto lte(
 				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 			) -> TermInfo;
@@ -179,6 +187,8 @@ namespace pcit::panther{
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
 
+			EVO_NODISCARD auto gt(bool lhs, bool rhs) -> TermInfo;
+
 			EVO_NODISCARD auto gt(
 				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 			) -> TermInfo;
@@ -187,6 +197,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto gte(
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
+
+			EVO_NODISCARD auto gte(bool lhs, bool rhs) -> TermInfo;
 
 			EVO_NODISCARD auto gte(
 				const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs

@@ -530,11 +530,9 @@ namespace pcit::panther{
 
 
 
-			EVO_NODISCARD auto constexpr_infix_math(Token::Kind op, sema::Expr lhs, sema::Expr rhs) -> TermInfo;
-
-			EVO_NODISCARD auto constexpr_infix_math_prep(const TermInfo& term_info) -> TermInfo;
-			EVO_NODISCARD auto constexpr_infix_math_prep(const evo::Result<TermInfo>& term_info) -> TermInfo;
-			EVO_NODISCARD auto constexpr_infix_math_cmp_prep(const TermInfo& term_info) -> TermInfo;
+			EVO_NODISCARD auto constexpr_infix_math(
+				Token::Kind op, sema::Expr lhs, sema::Expr rhs, std::optional<TypeInfo::ID> lhs_type
+			) -> TermInfo;
 
 
 			template<bool IS_CONSTEXPR>

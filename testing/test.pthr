@@ -1,9 +1,15 @@
-
-
-
-
+def test = @importCPP("test.h");
 
 func entry = () #entry -> UI8 {
+	def FAIL_NUM = 5 & 2;
 
-	return @importCPP("test.h").get_num();
+	when(@isMacroDefined(test, "FOO")){
+		when(test.FOO){
+			return test.get_num();
+		}else{
+			return FAIL_NUM;
+		}
+	}else{
+		return FAIL_NUM;
+	}
 }

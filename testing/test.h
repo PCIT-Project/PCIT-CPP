@@ -43,7 +43,7 @@ auto get_num() -> uint8_t {
 }
 
 
-
+#define FOO true
 
 
 

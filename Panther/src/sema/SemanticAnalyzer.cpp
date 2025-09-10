@@ -8702,148 +8702,365 @@ namespace pcit::panther{
 
 
 		if(from_underlying_type_id == TypeManager::getTypeBool()){
-			switch(to_primitive.kind()){
-				case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
-					using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
-					const InstantiationID instantiation_id =
-						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-							TemplateIntrinsicFunc::Kind::ZEXT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								from_underlying_type_id, to_underlying_type_id
-							}
-						);
-
-					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-						instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
-					);
-
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						expr.value_stage,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						sema::Expr(created_func_call_id)
-					);
-					return Result::SUCCESS;
-				} break;
-
-				case Token::Kind::TYPE_F16: case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
-				case Token::Kind::TYPE_F64: case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128: {
-					using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
-
-					const TypeInfo::ID type_id_UI1 = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 1))
-					);
-
-
-					const InstantiationID bitcast_instantiation_id =
-						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-							TemplateIntrinsicFunc::Kind::BIT_CAST,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								from_underlying_type_id, TypeInfo::VoidableID(type_id_UI1)
-							}
-						);
-
-					const sema::FuncCall::ID bitcast_call = this->context.sema_buffer.createFuncCall(
-						bitcast_instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
-					);
-
-
-					const InstantiationID conv_instantiation_id =
-						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-							TemplateIntrinsicFunc::Kind::I_TO_F,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								TypeInfo::VoidableID(type_id_UI1), to_underlying_type_id
-							}
-						);
-
-					const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
-						conv_instantiation_id, evo::SmallVector<sema::Expr>{sema::Expr(bitcast_call)}
-					);
-
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						expr.value_stage,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						sema::Expr(conversion_call)
-					);
-					return Result::SUCCESS;
-				} break;
-
-				default: evo::debugFatalBreak("Invalid primitive type");
-			}
-
-		}else if(to_underlying_type_id == TypeManager::getTypeBool()){
-			const sema::Expr zero = [&](){
-				switch(from_primitive.kind()){
+			if constexpr(IS_CONSTEXPR){
+				switch(to_primitive.kind()){
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
-						return sema::Expr(this->context.sema_buffer.createIntValue(
-							core::GenericInt(from_primitive.bitWidth(), 0), from_underlying_type.baseTypeID()
-						));
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createIntValue(
+								core::GenericInt(
+									unsigned(to_primitive.bitWidth()),
+									uint64_t(
+										this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value
+									)
+								),
+								to_type.baseTypeID()
+							))
+						);
 					} break;
 
 					case Token::Kind::TYPE_F16: {
-						return sema::Expr(this->context.sema_buffer.createFloatValue(
-							core::GenericFloat::createF16(0), from_underlying_type.baseTypeID()
-						));
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF32(
+									float(
+										this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value
+									)
+								).asF16(),
+								to_type.baseTypeID()
+							))
+						);
 					} break;
 
 					case Token::Kind::TYPE_BF16: {
-						return sema::Expr(this->context.sema_buffer.createFloatValue(
-							core::GenericFloat::createBF16(0), from_underlying_type.baseTypeID()
-						));
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF32(
+									float(
+										this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value
+									)
+								).asBF16(),
+								to_type.baseTypeID()
+							))
+						);
 					} break;
 
 					case Token::Kind::TYPE_F32: {
-						return sema::Expr(this->context.sema_buffer.createFloatValue(
-							core::GenericFloat::createF32(0), from_underlying_type.baseTypeID()
-						));
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF32(
+									float(
+										this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value
+									)
+								),
+								to_type.baseTypeID()
+							))
+						);
 					} break;
 
 					case Token::Kind::TYPE_F64: {
-						return sema::Expr(this->context.sema_buffer.createFloatValue(
-							core::GenericFloat::createF64(0), from_underlying_type.baseTypeID()
-						));
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF64(
+									double(
+										this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value
+									)
+								),
+								to_type.baseTypeID()
+							))
+						);
 					} break;
 
 					case Token::Kind::TYPE_F80: {
-						return sema::Expr(this->context.sema_buffer.createFloatValue(
-							core::GenericFloat::createF80(0), from_underlying_type.baseTypeID()
-						));
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF64(
+									double(
+										this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value
+									)
+								).asF80(),
+								to_type.baseTypeID()
+							))
+						);
 					} break;
 
 					case Token::Kind::TYPE_F128: {
-						return sema::Expr(this->context.sema_buffer.createFloatValue(
-							core::GenericFloat::createF128(0), from_underlying_type.baseTypeID()
-						));
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF64(
+									double(
+										this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value
+									)
+								).asF128(),
+								to_type.baseTypeID()
+							))
+						);
+					} break;
+
+					default: evo::debugFatalBreak("Invalid primitive type");
+				}
+
+				return Result::SUCCESS;
+
+			}else{
+				switch(to_primitive.kind()){
+					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+						using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+						const InstantiationID instantiation_id =
+							this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::ZEXT,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									from_underlying_type_id, to_underlying_type_id
+								}
+							);
+
+						const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+							instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+						);
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							expr.value_stage,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(created_func_call_id)
+						);
+						return Result::SUCCESS;
+					} break;
+
+					case Token::Kind::TYPE_F16: case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
+					case Token::Kind::TYPE_F64: case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128: {
+						using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+
+						const TypeInfo::ID type_id_UI1 = this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 1))
+						);
+
+
+						const InstantiationID bitcast_instantiation_id =
+							this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::BIT_CAST,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									from_underlying_type_id, TypeInfo::VoidableID(type_id_UI1)
+								}
+							);
+
+						const sema::FuncCall::ID bitcast_call = this->context.sema_buffer.createFuncCall(
+							bitcast_instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+						);
+
+
+						const InstantiationID conv_instantiation_id =
+							this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::I_TO_F,
+								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+									TypeInfo::VoidableID(type_id_UI1), to_underlying_type_id
+								}
+							);
+
+						const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
+							conv_instantiation_id, evo::SmallVector<sema::Expr>{sema::Expr(bitcast_call)}
+						);
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							expr.value_stage,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(conversion_call)
+						);
+						return Result::SUCCESS;
+					} break;
+
+					default: evo::debugFatalBreak("Invalid primitive type");
+				}
+			}
+
+		}else if(to_underlying_type_id == TypeManager::getTypeBool()){
+			if constexpr(IS_CONSTEXPR){
+				auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
+					this->context.type_manager, this->context.sema_buffer
+				);
+
+				switch(from_primitive.kind()){
+					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+						this->return_term_info(
+							instr.output,
+							constexpr_intrinsic_evaluator.neq(
+								from_underlying_type_id,
+								this->context.getSemaBuffer().getIntValue(expr.getExpr().intValueID()).value,
+								core::GenericInt(from_primitive.bitWidth(), 0)
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_F16: {
+						this->return_term_info(
+							instr.output,
+							constexpr_intrinsic_evaluator.neq(
+								from_underlying_type_id,
+								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
+								core::GenericFloat::createF16(0)
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_BF16: {
+						this->return_term_info(
+							instr.output,
+							constexpr_intrinsic_evaluator.neq(
+								from_underlying_type_id,
+								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
+								core::GenericFloat::createBF16(0)
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_F32: {
+						this->return_term_info(
+							instr.output,
+							constexpr_intrinsic_evaluator.neq(
+								from_underlying_type_id,
+								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
+								core::GenericFloat::createF32(0)
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_F64: {
+						this->return_term_info(
+							instr.output,
+							constexpr_intrinsic_evaluator.neq(
+								from_underlying_type_id,
+								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
+								core::GenericFloat::createF64(0)
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_F80: {
+						this->return_term_info(
+							instr.output,
+							constexpr_intrinsic_evaluator.neq(
+								from_underlying_type_id,
+								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
+								core::GenericFloat::createF80(0)
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_F128: {
+						this->return_term_info(
+							instr.output,
+							constexpr_intrinsic_evaluator.neq(
+								from_underlying_type_id,
+								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
+								core::GenericFloat::createF128(0)
+							)
+						);
 					} break;
 
 					default: evo::debugFatalBreak("Unknown or unsupported underlying type");
 				}
-			}();
+
+			}else{
+				const sema::Expr zero = [&](){
+					switch(from_primitive.kind()){
+						case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+							return sema::Expr(this->context.sema_buffer.createIntValue(
+								core::GenericInt(from_primitive.bitWidth(), 0), from_underlying_type.baseTypeID()
+							));
+						} break;
+
+						case Token::Kind::TYPE_F16: {
+							return sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF16(0), from_underlying_type.baseTypeID()
+							));
+						} break;
+
+						case Token::Kind::TYPE_BF16: {
+							return sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createBF16(0), from_underlying_type.baseTypeID()
+							));
+						} break;
+
+						case Token::Kind::TYPE_F32: {
+							return sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF32(0), from_underlying_type.baseTypeID()
+							));
+						} break;
+
+						case Token::Kind::TYPE_F64: {
+							return sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF64(0), from_underlying_type.baseTypeID()
+							));
+						} break;
+
+						case Token::Kind::TYPE_F80: {
+							return sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF80(0), from_underlying_type.baseTypeID()
+							));
+						} break;
+
+						case Token::Kind::TYPE_F128: {
+							return sema::Expr(this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF128(0), from_underlying_type.baseTypeID()
+							));
+						} break;
+
+						default: evo::debugFatalBreak("Unknown or unsupported underlying type");
+					}
+				}();
 
 
+				const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = 
+					this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+						TemplateIntrinsicFunc::Kind::NEQ,
+						evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							from_underlying_type_id, to_underlying_type_id
+						}
+					);
 
-			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
-			const InstantiationID instantiation_id = this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-				TemplateIntrinsicFunc::Kind::NEQ,
-				evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-					from_underlying_type_id, to_underlying_type_id
-				}
-			);
+				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+					instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), zero}
+				);
 
-			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), zero}
-			);
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					expr.value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type.asTypeID(),
+					sema::Expr(created_func_call_id)
+				);
+			}
 
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				expr.value_stage,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				target_type.asTypeID(),
-				sema::Expr(created_func_call_id)
-			);
 			return Result::SUCCESS;
 		}
 
@@ -9512,7 +9729,10 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				this->constexpr_infix_math(
-					this->source.getTokenBuffer()[instr.infix.opTokenID].kind(), lhs.getExpr(), rhs.getExpr()
+					this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
+					lhs.getExpr(),
+					rhs.getExpr(),
+					std::nullopt
 				)
 			);
 			return Result::SUCCESS;
@@ -9522,7 +9742,10 @@ namespace pcit::panther{
 		if constexpr(IS_CONSTEXPR){
 			this->return_term_info(instr.output,
 				this->constexpr_infix_math(
-					this->source.getTokenBuffer()[instr.infix.opTokenID].kind(), lhs.getExpr(), rhs.getExpr()
+					this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
+					lhs.getExpr(),
+					rhs.getExpr(),
+					this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>())
 				)
 			);
 			return Result::SUCCESS;
@@ -10728,15 +10951,26 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<SymbolType, sema::GlobalVar::ID>()){
 				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(symbol);
 
-				this->return_term_info(instr.output,
-					global_var.kind == AST::VarDecl::Kind::CONST 
-						? TermInfo::ValueCategory::CONCRETE_CONST
-						: TermInfo::ValueCategory::CONCRETE_MUT,
-					TermInfo::ValueStage::RUNTIME,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					*global_var.typeID,
-					sema::Expr(symbol)
-				);
+				if(global_var.kind == AST::VarDecl::Kind::DEF){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::COMPTIME,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						*global_var.typeID,
+						*global_var.expr.load()
+					);
+
+				}else{
+					this->return_term_info(instr.output,
+						global_var.kind == AST::VarDecl::Kind::CONST 
+							? TermInfo::ValueCategory::CONCRETE_CONST
+							: TermInfo::ValueCategory::CONCRETE_MUT,
+						TermInfo::ValueStage::RUNTIME,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						*global_var.typeID,
+						sema::Expr(symbol)
+					);
+				}
 				
 			}else{
 				static_assert(false, "Unknown symbol kind");
@@ -14827,404 +15061,356 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::constexpr_infix_math(Token::Kind op, sema::Expr lhs, sema::Expr rhs) -> TermInfo {
+	auto SemanticAnalyzer::constexpr_infix_math(
+		Token::Kind op, sema::Expr lhs, sema::Expr rhs, std::optional<TypeInfo::ID> lhs_type
+	) -> TermInfo {
 		auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
 			this->context.type_manager, this->context.sema_buffer
 		);
 
-		switch(op){
-			case Token::lookupKind("=="): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.eq(
-							TypeManager::getTypeI256(),
+		TermInfo output = [&](){
+			switch(op){
+				case Token::lookupKind("=="): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.eq(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						);
 
-				}else{
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.eq(
-							TypeManager::getTypeF128(),
+					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.eq(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.eq(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind("!="): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.neq(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind("!="): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.neq(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						);
 
-				}else{
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.neq(
-							TypeManager::getTypeF128(),
+					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.neq(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.neq(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind("<"): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.lt(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind("<"): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.lt(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						);
 
-				}else{
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.lt(
-							TypeManager::getTypeF128(),
+					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.lt(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.lt(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind("<="): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.lte(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind("<="): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.lte(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						);
 
-				}else{
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.lte(
-							TypeManager::getTypeF128(),
+					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.lte(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.lte(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind(">"): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.gt(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind(">"): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.gt(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						);
 
-				}else{
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.gt(
-							TypeManager::getTypeF128(),
+					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.gt(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.gt(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind(">="): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.gte(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind(">="): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.gte(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						);
 
-				}else{
-					return this->constexpr_infix_math_cmp_prep(
-						constexpr_intrinsic_evaluator.gte(
-							TypeManager::getTypeF128(),
+					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.gte(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.gte(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind("&"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.bitwiseAnd(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("&"): {
+					return constexpr_intrinsic_evaluator.bitwiseAnd(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					);
+				} break;
 
-			case Token::lookupKind("|"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.bitwiseOr(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("|"): {
+					return constexpr_intrinsic_evaluator.bitwiseOr(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					);
+				} break;
 
-			case Token::lookupKind("^"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.bitwiseXor(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("^"): {
+					return constexpr_intrinsic_evaluator.bitwiseXor(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					);
+				} break;
 
-			case Token::lookupKind("<<"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.shl(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("<<"): {
+					return constexpr_intrinsic_evaluator.shl(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					).value();
+				} break;
 
-			case Token::lookupKind("<<|"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.shlSat(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("<<|"): {
+					return constexpr_intrinsic_evaluator.shlSat(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					);
+				} break;
 
-			case Token::lookupKind(">>"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.shr(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind(">>"): {
+					return constexpr_intrinsic_evaluator.shr(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					).value();
+				} break;
 
-			case Token::lookupKind("+"): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.add(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind("+"): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.add(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						).value();
 
-				}else{
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.fadd(
-							TypeManager::getTypeF128(),
+					}else{
+						return constexpr_intrinsic_evaluator.fadd(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind("+%"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.add(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("+%"): {
+					return constexpr_intrinsic_evaluator.add(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					).value();
+				} break;
 
-			case Token::lookupKind("+|"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.addSat(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("+|"): {
+					return constexpr_intrinsic_evaluator.addSat(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					);
+				} break;
 
-			case Token::lookupKind("-"): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.sub(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind("-"): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.sub(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						).value();
 
-				}else{
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.fsub(
-							TypeManager::getTypeF128(),
+					}else{
+						return constexpr_intrinsic_evaluator.fsub(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind("-%"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.sub(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("-%"): {
+					return constexpr_intrinsic_evaluator.sub(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					).value();
+				} break;
 
-			case Token::lookupKind("-|"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.subSat(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("-|"): {
+					return constexpr_intrinsic_evaluator.subSat(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					);
+				} break;
 
-			case Token::lookupKind("*"): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.mul(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind("*"): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.mul(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						).value();
 
-				}else{
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.fmul(
-							TypeManager::getTypeF128(),
+					}else{
+						return constexpr_intrinsic_evaluator.fmul(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind("*%"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.mul(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("*%"): {
+					return constexpr_intrinsic_evaluator.mul(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					).value();
+				} break;
 
-			case Token::lookupKind("*|"): {
-				return this->constexpr_infix_math_prep(
-					constexpr_intrinsic_evaluator.mulSat(
-						TypeManager::getTypeI256(),
+				case Token::lookupKind("*|"): {
+					return constexpr_intrinsic_evaluator.mulSat(
+						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					)
-				);
-			} break;
+					);
+				} break;
 
-			case Token::lookupKind("/"): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.div(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind("/"): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.div(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							false,
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						).value();
 
-				}else{
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.fdiv(
-							TypeManager::getTypeF128(),
+					}else{
+						return constexpr_intrinsic_evaluator.fdiv(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			case Token::lookupKind("%"): {
-				if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.rem(
-							TypeManager::getTypeI256(),
+				case Token::lookupKind("%"): {
+					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+						return constexpr_intrinsic_evaluator.rem(
+							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-						)
-					);
+						);
 
-				}else{
-					return this->constexpr_infix_math_prep(
-						constexpr_intrinsic_evaluator.rem(
-							TypeManager::getTypeF128(),
+					}else{
+						return constexpr_intrinsic_evaluator.rem(
+							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
-						)
-					);
-				}
-			} break;
+						);
+					}
+				} break;
 
-			default: {
-				evo::debugFatalBreak("Invalid infix op");
-			} break;
+				default: {
+					evo::debugFatalBreak("Invalid infix op");
+				} break;
+			}
+		}();
+
+		if(lhs_type.has_value() == false){
+			output.value_category = TermInfo::ValueCategory::EPHEMERAL_FLUID;
+			output.type_id = TermInfo::FluidType();
 		}
+
+		return output;
 	}
-
-
-
-	auto SemanticAnalyzer::constexpr_infix_math_prep(const TermInfo& term_info) -> TermInfo {
-		return TermInfo(
-			TermInfo::ValueCategory::EPHEMERAL_FLUID,
-			TermInfo::ValueStage::CONSTEXPR,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			TermInfo::FluidType{},
-			term_info.getExpr()
-		);
-	}
-
-	auto SemanticAnalyzer::constexpr_infix_math_prep(const evo::Result<TermInfo>& term_info) -> TermInfo {
-		return this->constexpr_infix_math_prep(term_info.value());
-	}
-
-	auto SemanticAnalyzer::constexpr_infix_math_cmp_prep(const TermInfo& term_info) -> TermInfo {
-		return TermInfo(
-			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			TypeManager::getTypeBool(),
-			term_info.getExpr()
-		);
-	}
-
 
 
 

@@ -93,8 +93,6 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto getImportedSymbol(std::string_view symbol_name) const -> std::optional<SymbolInfo> {
-				evo::debugAssert(this->isSymbolImportComplete(), "symbol import was not completed");
-
 				const auto find = this->imported_symbols.find(symbol_name);
 				if(find != this->imported_symbols.end()){ return find->second; }
 

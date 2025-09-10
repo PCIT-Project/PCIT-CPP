@@ -1629,7 +1629,7 @@ namespace pcit::panther{
 		const AST::WhenConditional* target_when = &when_stmt;
 
 		while(true){
-			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(target_when->cond);
+			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<true>(target_when->cond);
 			if(cond.isError()){ return evo::resultError; }
 
 			const Instruction new_instr = this->add_instruction(

@@ -584,6 +584,16 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ConstexprIntrinsicEvaluator::eq(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs == rhs))
+		);
+	}
+
 	auto ConstexprIntrinsicEvaluator::eq(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
@@ -618,6 +628,16 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
+		);
+	}
+
+	auto ConstexprIntrinsicEvaluator::neq(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs != rhs))
 		);
 	}
 
@@ -662,6 +682,16 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ConstexprIntrinsicEvaluator::lt(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs < rhs))
+		);
+	}
+
 	auto ConstexprIntrinsicEvaluator::lt(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
@@ -700,6 +730,16 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
+		);
+	}
+
+	auto ConstexprIntrinsicEvaluator::lte(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs <= rhs))
 		);
 	}
 
@@ -744,6 +784,16 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ConstexprIntrinsicEvaluator::gt(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs > rhs))
+		);
+	}
+
 	auto ConstexprIntrinsicEvaluator::gt(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
@@ -782,6 +832,16 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
+		);
+	}
+
+	auto ConstexprIntrinsicEvaluator::gte(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs >= rhs))
 		);
 	}
 

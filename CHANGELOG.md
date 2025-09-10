@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.155.0"></a>
+## v0.0.155.0
+
+### Panther
+- Added support for macros with values
+	- integer values
+	- float values
+	- bool values
+	- identifier values
+	- parenthesis enclosed values
+	- brace enclosed values
+- Fixed condition in when conditional not being properly classified as constexpr (which could in some cases cause crashes)
+- Fixed constexpr infix math operators for `Bool`
+- Fixed constexpr operator `as` for `Bool`
+- Fixed constexpr infix math operators not maintaining correct types
+
+
+<!---------------------------------->
 <a name="v0.0.154.1"></a>
 ## v0.0.154.1
 
