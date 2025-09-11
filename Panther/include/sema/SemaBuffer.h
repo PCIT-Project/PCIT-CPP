@@ -427,6 +427,30 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// logical and
+
+			EVO_NODISCARD auto createLogicalAnd(auto&&... args) -> sema::LogicalAnd::ID {
+				return this->logical_ands.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getLogicalAnd(sema::LogicalAnd::ID id) const -> const sema::LogicalAnd& {
+				return this->logical_ands[id];
+			}
+
+
+			///////////////////////////////////
+			// logical or
+
+			EVO_NODISCARD auto createLogicalOr(auto&&... args) -> sema::LogicalOr::ID {
+				return this->logical_ors.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getLogicalOr(sema::LogicalOr::ID id) const -> const sema::LogicalOr& {
+				return this->logical_ors[id];
+			}
+
+
+			///////////////////////////////////
 			// try/else
 
 			EVO_NODISCARD auto createTryElse(auto&&... args) -> sema::TryElse::ID {
@@ -722,6 +746,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
 			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
 			core::SyncLinearStepAlloc<sema::UnionAccessor, sema::UnionAccessor::ID> union_accessors{};
+			core::SyncLinearStepAlloc<sema::LogicalAnd, sema::LogicalAnd::ID> logical_ands{};
+			core::SyncLinearStepAlloc<sema::LogicalOr, sema::LogicalOr::ID> logical_ors{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};

@@ -78,7 +78,11 @@ namespace pcit::llvmint{
 			auto createCondBranch(const Value& cond, const BasicBlock& then_block, const BasicBlock& else_block)
 				-> void;
 
-			// createPhi
+			struct Incoming{
+				Value value;
+				BasicBlock block;
+			};
+			auto createPhi(const Type& type, evo::ArrayProxy<Incoming> incoming, evo::CStrProxy name = '\0') -> Value;
 
 
 			auto createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0') 

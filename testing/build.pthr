@@ -2,7 +2,7 @@ def build = @import("build");
 
 
 func entry = () #entry -> UI8 {
-	@buildSetOutput(build.Output.RUN);
+	@buildSetOutput(build.Output.PIR);
 	@buildSetNumThreads(12);
 	@buildSetUseStdLib(false);
 
@@ -11,8 +11,7 @@ func entry = () #entry -> UI8 {
 	});
 
 	project.addSourceFile("test.pthr".* as [Char:*]);
-
-	@buildAddCPPHeaderFile("test.h".* as [Char:*], true);
+	// @buildAddCPPHeaderFile("test.h".* as [Char:*], true);
 	
 	return 0;
 }

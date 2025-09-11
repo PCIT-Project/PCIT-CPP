@@ -57,6 +57,7 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::JUMP:              evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::BRANCH:            evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::UNREACHABLE:       evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::PHI:               evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::ALLOCA:            func_metadata.emplace(expr);
 					break; case Expr::Kind::LOAD:              func_metadata.emplace(expr);
 					break; case Expr::Kind::STORE:             evo::debugFatalBreak("Should never see this expr kind");
@@ -207,6 +208,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::JUMP:        return false;
 				case Expr::Kind::BRANCH:      return false;
 				case Expr::Kind::UNREACHABLE: return false;
+				case Expr::Kind::PHI: return false;
 
 				case Expr::Kind::ALLOCA: {
 					if(remove_unused_stmt()){ return true; }

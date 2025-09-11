@@ -25,15 +25,24 @@ namespace llvm{
 namespace pcit::pir{
 
 	auto lowerToLLVMIR(
-		const class Module& module, OptMode opt_mode = OptMode::NONE, llvm::LLVMContext* llvm_context = nullptr, evo::SmallVector<llvm::Module*>&& modules = {}
+		const class Module& module,
+		OptMode opt_mode = OptMode::NONE,
+		llvm::LLVMContext* llvm_context = nullptr,
+		evo::SmallVector<llvm::Module*>&& modules = {}
 	) -> std::string;
 
 	auto lowerToAssembly(
-		const class Module& module, OptMode opt_mode = OptMode::NONE, llvm::LLVMContext* llvm_context = nullptr, evo::SmallVector<llvm::Module*>&& modules = {}
+		const class Module& module,
+		OptMode opt_mode = OptMode::NONE,
+		llvm::LLVMContext* llvm_context = nullptr,
+		evo::SmallVector<llvm::Module*>&& modules = {}
 	) -> evo::Result<std::string>;
 
 	auto lowerToObject(
-		const class Module& module, OptMode opt_mode = OptMode::NONE, llvm::LLVMContext* llvm_context = nullptr, evo::SmallVector<llvm::Module*>&& modules = {}
+		const class Module& module,
+		OptMode opt_mode = OptMode::NONE,
+		llvm::LLVMContext* llvm_context = nullptr,
+		evo::SmallVector<llvm::Module*>&& modules = {}
 	) -> evo::Result<std::vector<evo::byte>>;
 
 }

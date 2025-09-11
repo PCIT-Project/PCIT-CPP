@@ -109,8 +109,12 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, UnionAccessorID>::UniqueID;
 	};
 
-	struct PtrUnionAccessorID : public core::UniqueID<uint32_t, struct PtrUnionAccessorID> {
-		using core::UniqueID<uint32_t, PtrUnionAccessorID>::UniqueID;
+	struct LogicalAndID : public core::UniqueID<uint32_t, struct LogicalAndID> {
+		using core::UniqueID<uint32_t, LogicalAndID>::UniqueID;
+	};
+
+	struct LogicalOrID : public core::UniqueID<uint32_t, struct LogicalOrID> {
+		using core::UniqueID<uint32_t, LogicalOrID>::UniqueID;
 	};
 
 	struct TryElseID : public core::UniqueID<uint32_t, struct TryElseID> {
@@ -135,10 +139,6 @@ namespace pcit::panther::sema{
 
 	struct IndexerID : public core::UniqueID<uint32_t, struct IndexerID> {
 		using core::UniqueID<uint32_t, IndexerID>::UniqueID;
-	};
-
-	struct PtrIndexerID : public core::UniqueID<uint32_t, struct PtrIndexerID> {
-		using core::UniqueID<uint32_t, PtrIndexerID>::UniqueID;
 	};
 
 	struct ArrayRefIndexerID : public core::UniqueID<uint32_t, struct ArrayRefIndexerID> {
@@ -440,12 +440,23 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::PtrUnionAccessorID>{
-		static constexpr auto init(panther::sema::PtrUnionAccessorID* id) -> void {
+	struct core::OptionalInterface<panther::sema::LogicalAndID>{
+		static constexpr auto init(panther::sema::LogicalAndID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const panther::sema::PtrUnionAccessorID& id) -> bool {
+		static constexpr auto has_value(const panther::sema::LogicalAndID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::LogicalOrID>{
+		static constexpr auto init(panther::sema::LogicalOrID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::LogicalOrID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -732,17 +743,6 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::IndexerID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
-
-	template<>
-	struct core::OptionalInterface<panther::sema::PtrIndexerID>{
-		static constexpr auto init(panther::sema::PtrIndexerID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const panther::sema::PtrIndexerID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1071,18 +1071,37 @@ namespace std{
 
 
 	template<>
-	struct hash<pcit::panther::sema::PtrUnionAccessorID>{
-		auto operator()(pcit::panther::sema::PtrUnionAccessorID id) const noexcept -> size_t {
+	struct hash<pcit::panther::sema::LogicalAndID>{
+		auto operator()(pcit::panther::sema::LogicalAndID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.get());
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::PtrUnionAccessorID> 
-		: public pcit::core::Optional<pcit::panther::sema::PtrUnionAccessorID>{
+	class optional<pcit::panther::sema::LogicalAndID> 
+		: public pcit::core::Optional<pcit::panther::sema::LogicalAndID>{
+
 		public:
-			using pcit::core::Optional<pcit::panther::sema::PtrUnionAccessorID>::Optional;
-			using pcit::core::Optional<pcit::panther::sema::PtrUnionAccessorID>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::LogicalAndID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::LogicalAndID>::operator=;
 	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::LogicalOrID>{
+		auto operator()(pcit::panther::sema::LogicalOrID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::LogicalOrID> 
+		: public pcit::core::Optional<pcit::panther::sema::LogicalOrID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::sema::LogicalOrID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::LogicalOrID>::operator=;
+	};
+
 
 
 	template<>
@@ -1492,21 +1511,6 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::IndexerID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::IndexerID>::operator=;
-	};
-
-
-
-	template<>
-	struct hash<pcit::panther::sema::PtrIndexerID>{
-		auto operator()(pcit::panther::sema::PtrIndexerID id) const noexcept -> size_t {
-			return std::hash<uint32_t>{}(id.get());
-		};
-	};
-	template<>
-	class optional<pcit::panther::sema::PtrIndexerID> : public pcit::core::Optional<pcit::panther::sema::PtrIndexerID>{
-		public:
-			using pcit::core::Optional<pcit::panther::sema::PtrIndexerID>::Optional;
-			using pcit::core::Optional<pcit::panther::sema::PtrIndexerID>::operator=;
 	};
 
 

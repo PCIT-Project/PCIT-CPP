@@ -439,6 +439,25 @@ namespace pcit::pir{
 						this->builder.createUnreachable();
 					} break;
 
+					case Expr::Kind::PHI: {
+						const Phi& phi = this->reader.getPhi(stmt);
+
+						const llvmint::Type value_type = this->get_type<ADD_WEAK_DEPS>(
+							this->reader.getExprType(phi.predecessors[0].value)
+						);
+
+						auto incoming = evo::SmallVector<llvmint::IRBuilder::Incoming, 4>();
+						for(const Phi::Predecessor& predecessor : phi.predecessors){
+							incoming.emplace_back(
+								this->get_value<ADD_WEAK_DEPS>(predecessor.value),
+								basic_block_map.at(predecessor.block)
+							);
+						}
+
+						const llvmint::Value created_phi = this->builder.createPhi(value_type, incoming, phi.name);
+						this->stmt_values.emplace(stmt, created_phi);
+					} break;
+
 					case Expr::Kind::ALLOCA: evo::debugFatalBreak("Not a valid stmt");
 
 					case Expr::Kind::LOAD: {
@@ -1574,8 +1593,9 @@ namespace pcit::pir{
 			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Not a value");
 			case Expr::Kind::RET:         evo::debugFatalBreak("Not a value");
 			case Expr::Kind::JUMP:        evo::debugFatalBreak("Not a value");
-			case Expr::Kind::BRANCH:   evo::debugFatalBreak("Not a value");
+			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Not a value");
 			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::PHI:         return this->stmt_values.at(expr);
 
 			case Expr::Kind::ALLOCA: {
 				const Alloca& alloca_info = this->reader.getAlloca(expr);

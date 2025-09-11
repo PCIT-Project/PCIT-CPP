@@ -98,12 +98,25 @@ namespace pcit::llvmint{
 	}
 
 
+	auto IRBuilder::createPhi(const Type& type, evo::ArrayProxy<Incoming> incoming, evo::CStrProxy name) -> Value {
+		llvm::PHINode* created_phi_node =
+			this->builder->CreatePHI(type.native(), unsigned(incoming.size()), name.c_str());
+
+		for(const Incoming& in : incoming){
+			created_phi_node->addIncoming(in.value.native(), in.block.native());
+		}
+
+		return Value(created_phi_node);
+	}
+
 
 	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
 		return this->builder->CreateCall(func.native(), createArrayRef<llvm::Value>(params), name.c_str());
 	}
 
-	auto IRBuilder::createCall(const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
+	auto IRBuilder::createCall(
+		const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, evo::CStrProxy name
+	) -> CallInst {
 		return this->builder->CreateCall(
 			type.native(), value.native(), createArrayRef<llvm::Value>(params), name.c_str()
 		);

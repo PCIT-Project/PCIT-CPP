@@ -428,6 +428,7 @@ namespace pcit::panther{
 			bool isPub; // meaningless if not pthr src type
 			bool isOrdered; // TODO(FUTURE): is this needed here?
 			bool isPacked;
+			bool shouldLower = true; // may only be false if is builtin type
 
 			std::atomic<bool> defCompleted = false; // includes PIR lowering
 

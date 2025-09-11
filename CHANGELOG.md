@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.156.0"></a>
+## v0.0.156.0
+
+### Panther
+- Added logical infix operators (`&&`, `||`)
+- Added support for lowering builtin types only if they are used
+
+### PIR
+- Added `Phi` statement
+
+
+<!---------------------------------->
 <a name="v0.0.155.1"></a>
 ## v0.0.155.1
 

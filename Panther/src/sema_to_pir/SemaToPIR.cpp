@@ -24,7 +24,11 @@ namespace pcit::panther{
 
 	auto SemaToPIR::lower() -> void {
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumStructs(); i+=1){
-			this->lowerStructAndDependencies(BaseType::Struct::ID(i));
+			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
+
+			if(struct_type.shouldLower){
+				this->lowerStructAndDependencies(BaseType::Struct::ID(i));
+			}
 		}
 
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumUnions(); i+=1){
@@ -2216,6 +2220,108 @@ namespace pcit::panther{
 				}else{
 					this->get_expr_discard(accessor.target);
 					return std::nullopt;
+				}
+			} break;
+
+			case sema::Expr::Kind::LOGICAL_AND: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+
+				}else{
+					const sema::LogicalAnd& logical_and =
+						this->context.getSemaBuffer().getLogicalAnd(expr.logicalAndID());
+
+					const pir::BasicBlock::ID current_block = this->agent.getTargetBasicBlock().getID();
+
+					const pir::BasicBlock::ID rhs_block = this->agent.createBasicBlock("LOGICAL_AND.RHS");
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock("LOGICAL_AND.END");
+
+					this->agent.createBranch(this->get_expr_register(logical_and.lhs), rhs_block, end_block);
+
+					this->agent.setTargetBasicBlock(rhs_block);
+					const pir::Expr rhs_expr = this->get_expr_register(logical_and.rhs);
+					this->agent.createJump(end_block);
+
+					this->agent.setTargetBasicBlock(end_block);
+					std::string output_expr_name = [&](){
+						if constexpr(MODE == GetExprMode::STORE){
+							return this->name(".LOGICAL_AND");
+						}else{
+							return this->name("LOGICAL_AND");
+						}
+					}();
+					const pir::Expr output_expr = this->agent.createPhi(
+						evo::SmallVector<pir::Phi::Predecessor>{
+							pir::Phi::Predecessor(current_block, this->agent.createBoolean(false)),
+							pir::Phi::Predecessor(rhs_block, rhs_expr)
+						},
+						std::move(output_expr_name)
+					);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return output_expr;
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr output_alloca =
+							this->agent.createAlloca(this->module.createBoolType(), this->name("LOGICAL_AND"));
+						this->agent.createStore(output_alloca, output_expr);
+						return output_alloca;
+						
+					}else{
+						this->agent.createStore(store_locations[0], output_expr);
+						return std::nullopt;
+					}
+				}
+			} break;
+
+			case sema::Expr::Kind::LOGICAL_OR: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+
+				}else{
+					const sema::LogicalOr& logical_or =
+						this->context.getSemaBuffer().getLogicalOr(expr.logicalOrID());
+
+					const pir::BasicBlock::ID current_block = this->agent.getTargetBasicBlock().getID();
+
+					const pir::BasicBlock::ID rhs_block = this->agent.createBasicBlock("LOGICAL_OR.RHS");
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock("LOGICAL_OR.END");
+
+					this->agent.createBranch(this->get_expr_register(logical_or.lhs), end_block, rhs_block);
+
+					this->agent.setTargetBasicBlock(rhs_block);
+					const pir::Expr rhs_expr = this->get_expr_register(logical_or.rhs);
+					this->agent.createJump(end_block);
+
+					this->agent.setTargetBasicBlock(end_block);
+					std::string output_expr_name = [&](){
+						if constexpr(MODE == GetExprMode::STORE){
+							return this->name(".LOGICAL_OR");
+						}else{
+							return this->name("LOGICAL_OR");
+						}
+					}();
+					const pir::Expr output_expr = this->agent.createPhi(
+						evo::SmallVector<pir::Phi::Predecessor>{
+							pir::Phi::Predecessor(current_block, this->agent.createBoolean(true)),
+							pir::Phi::Predecessor(rhs_block, rhs_expr)
+						},
+						std::move(output_expr_name)
+					);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return output_expr;
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr output_alloca = 
+							this->agent.createAlloca(this->module.createBoolType(), this->name("LOGICAL_OR"));
+						this->agent.createStore(output_alloca, output_expr);
+						return output_alloca;
+						
+					}else{
+						this->agent.createStore(store_locations[0], output_expr);
+						return std::nullopt;
+					}
 				}
 			} break;
 
@@ -4958,6 +5064,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
 			case sema::Expr::Kind::DEREF:                           case sema::Expr::Kind::UNWRAP:
 			case sema::Expr::Kind::ACCESSOR:                        case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:                     case sema::Expr::Kind::LOGICAL_OR:
 			case sema::Expr::Kind::TRY_ELSE:                        case sema::Expr::Kind::BLOCK_EXPR:
 			case sema::Expr::Kind::FAKE_TERM_INFO:                  case sema::Expr::Kind::MAKE_INTERFACE_PTR:
 			case sema::Expr::Kind::INTERFACE_CALL:                  case sema::Expr::Kind::INDEXER:

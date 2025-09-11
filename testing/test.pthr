@@ -1,15 +1,8 @@
-def test = @importCPP("test.h");
+// def test = @importCPP("test.h");
 
 func entry = () #entry -> UI8 {
-	def FAIL_NUM = 5 & 2;
+	const lhs: Bool = true;
+	const rhs: Bool = false;
 
-	when(@isMacroDefined(test, "FOO") & false){
-		when(test.FOO){
-			return test.get_num();
-		}else{
-			return FAIL_NUM;
-		}
-	}else{
-		return (true ^ false) as UI8;
-	}
+	return (lhs || rhs) as UI8;
 }

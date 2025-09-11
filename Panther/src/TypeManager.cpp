@@ -776,7 +776,8 @@ namespace pcit::panther{
 			lookup_type.scopeLevel,
 			lookup_type.isPub,
 			lookup_type.isOrdered,
-			lookup_type.isPacked
+			lookup_type.isPacked,
+			lookup_type.shouldLower
 		);
 		return BaseType::ID(BaseType::Kind::STRUCT, new_struct.get());
 	}

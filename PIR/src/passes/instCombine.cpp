@@ -40,6 +40,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::JUMP:             return false;
 			case Expr::Kind::BRANCH:           return false;
 			case Expr::Kind::UNREACHABLE:      return false;
+			case Expr::Kind::PHI:              return false;
 			case Expr::Kind::ALLOCA:           return false;
 			case Expr::Kind::LOAD:             return false;
 			case Expr::Kind::STORE:            return false;
@@ -901,6 +902,7 @@ namespace pcit::pir::passes{
 			} break;
 
 			case Expr::Kind::UNREACHABLE: return false;
+			case Expr::Kind::PHI: return false;
 			case Expr::Kind::ALLOCA:      return false;
 			case Expr::Kind::LOAD:        return false;
 			case Expr::Kind::STORE:       return false;

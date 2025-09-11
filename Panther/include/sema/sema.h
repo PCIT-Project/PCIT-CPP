@@ -176,6 +176,22 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct LogicalAnd{
+		using ID = LogicalAndID;
+
+		Expr lhs;
+		Expr rhs;
+	};
+
+
+	struct LogicalOr{
+		using ID = LogicalOrID;
+
+		Expr lhs;
+		Expr rhs;
+	};
+
+
 	struct TryElse{
 		using ID = TryElseID;
 

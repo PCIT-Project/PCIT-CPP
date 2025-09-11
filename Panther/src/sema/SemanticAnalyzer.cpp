@@ -532,6 +532,11 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getMathInfixConstexprIntegralMath(instr)
 				);
 
+			case Instruction::Kind::MATH_INFIX_CONSTEXPR_LOGICAL:
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::LOGICAL>(
+					this->context.symbol_proc_manager.getMathInfixConstexprLogical(instr)
+				);
+
 			case Instruction::Kind::MATH_INFIX_CONSTEXPR_BITWISE_LOGICAL:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>(
 					this->context.symbol_proc_manager.getMathInfixConstexprBitwiseLogical(instr)
@@ -555,6 +560,11 @@ namespace pcit::panther{
 			case Instruction::Kind::MATH_INFIX_INTEGRAL_MATH:
 				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::INTEGRAL_MATH>(
 					this->context.symbol_proc_manager.getMathInfixIntegralMath(instr)
+				);
+
+			case Instruction::Kind::MATH_INFIX_LOGICAL:
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::LOGICAL>(
+					this->context.symbol_proc_manager.getMathInfixLogical(instr)
 				);
 
 			case Instruction::Kind::MATH_INFIX_BITWISE_LOGICAL:
@@ -1349,6 +1359,7 @@ namespace pcit::panther{
 				.isPub             = struct_attrs.value().is_pub,
 				.isOrdered         = struct_attrs.value().is_ordered,
 				.isPacked          = struct_attrs.value().is_packed,
+				.shouldLower       = true,
 			}
 		);
 
@@ -9572,7 +9583,10 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::BITWISE_LOGICAL){
+					}else if constexpr(
+						MATH_INFIX_KIND == Instruction::MathInfixKind::LOGICAL
+						|| MATH_INFIX_KIND == Instruction::MathInfixKind::BITWISE_LOGICAL
+					){
 						const TypeInfo& lhs_actual_type =
 							this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
 
@@ -9788,20 +9802,72 @@ namespace pcit::panther{
 
 
 		if constexpr(IS_CONSTEXPR){
-			this->return_term_info(instr.output,
-				this->constexpr_infix_math(
-					this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
-					lhs.getExpr(),
-					rhs.getExpr(),
-					this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>())
-				)
-			);
+			if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::LOGICAL){
+				const bool lhs_bool_value = this->context.sema_buffer.getBoolValue(lhs.getExpr().boolValueID()).value;
+				const bool rhs_bool_value = this->context.sema_buffer.getBoolValue(rhs.getExpr().boolValueID()).value;
+
+				const bool bool_value = [&](){
+					if(this->source.getTokenBuffer()[instr.infix.opTokenID].kind() == Token::lookupKind("&&")){
+						return lhs_bool_value & rhs_bool_value;
+
+					}else{
+						evo::debugAssert(
+							this->source.getTokenBuffer()[instr.infix.opTokenID].kind() == Token::lookupKind("||"),
+							"Unknown logical infix operator"
+						);
+
+						return lhs_bool_value | rhs_bool_value;
+					}
+				}();
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					TypeManager::getTypeBool(),
+					sema::Expr(this->context.sema_buffer.createBoolValue(bool_value))
+				);
+
+			}else{
+				this->return_term_info(instr.output,
+					this->constexpr_infix_math(
+						this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
+						lhs.getExpr(),
+						rhs.getExpr(),
+						this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>())
+					)
+				);
+			}
 			return Result::SUCCESS;
 
 		}else{
 			auto resultant_type = std::optional<TypeInfo::ID>();
 
 			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false>(lhs.type_id.as<TypeInfo::ID>());
+
+			const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
+
+			if(op_kind == Token::lookupKind("&&")){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					lhs.value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					TypeManager::getTypeBool(),
+					sema::Expr(this->context.sema_buffer.createLogicalAnd(lhs.getExpr(), rhs.getExpr()))
+				);
+				return Result::SUCCESS;
+
+			}else if(op_kind == Token::lookupKind("||")){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					lhs.value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					TypeManager::getTypeBool(),
+					sema::Expr(this->context.sema_buffer.createLogicalOr(lhs.getExpr(), rhs.getExpr()))
+				);
+				return Result::SUCCESS;
+			}
+
 
 			const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = [&](){
 				switch(this->source.getTokenBuffer()[instr.infix.opTokenID].kind()){
@@ -11180,6 +11246,11 @@ namespace pcit::panther{
 			using SymbolType = std::decay_t<decltype(symbol)>;
 
 			if constexpr(std::is_same<SymbolType, BaseType::ID>()){
+				if(symbol.kind() == BaseType::Kind::STRUCT){
+					BaseType::Struct& struct_type = this->context.type_manager.getStruct(symbol.structID());
+					struct_type.shouldLower = true;
+				}
+
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::TYPE,
 					TermInfo::ValueStage::CONSTEXPR,
@@ -12841,7 +12912,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::FORWARD:              case sema::Expr::Kind::FUNC_CALL:
 			case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:   case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
 			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:  case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:             case sema::Expr::Kind::UNION_ACCESSOR:      
+			case sema::Expr::Kind::ACCESSOR:             case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:          case sema::Expr::Kind::LOGICAL_OR:
 			case sema::Expr::Kind::TRY_ELSE:             case sema::Expr::Kind::BLOCK_EXPR:
 			case sema::Expr::Kind::FAKE_TERM_INFO:       case sema::Expr::Kind::MAKE_INTERFACE_PTR:
 			case sema::Expr::Kind::INTERFACE_CALL:       case sema::Expr::Kind::INDEXER:

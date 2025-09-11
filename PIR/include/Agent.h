@@ -56,7 +56,7 @@ namespace pcit::pir{
 
 
 			auto setTargetBasicBlock(BasicBlock::ID id) -> void;
-			auto setTargetBasicBlock(BasicBlock& func) -> void;
+			auto setTargetBasicBlock(BasicBlock& basic_block) -> void;
 			auto setTargetBasicBlockAtEnd() -> void;
 			auto removeTargetBasicBlock() -> void;
 
@@ -219,6 +219,13 @@ namespace pcit::pir{
 			// unreachable
 
 			auto createUnreachable() const -> Expr;
+
+
+			///////////////////////////////////
+			// phi instructions
+
+			auto createPhi(evo::SmallVector<Phi::Predecessor>&& predecessors, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto getPhi(const Expr& expr) const -> Phi;
 
 
 			///////////////////////////////////

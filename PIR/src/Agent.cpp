@@ -191,6 +191,15 @@ namespace pcit::pir{
 					} break;
 
 					case Expr::Kind::UNREACHABLE: continue;
+
+					case Expr::Kind::PHI: {
+						Phi& phi = this->module.phis[stmt.index];
+
+						for(Phi::Predecessor& predecessor : phi.predecessors){
+							if(predecessor.value == original){ predecessor.value = replacement; }
+						}
+					} break;
+
 					case Expr::Kind::ALLOCA:      continue;
 
 					case Expr::Kind::LOAD: {
@@ -726,6 +735,9 @@ namespace pcit::pir{
 		const pcit::pir::BasicBlock::ID new_block_id =
 			this->module.basic_blocks.emplace_back(this->get_stmt_name(std::move(name)));
 		func.append_basic_block(new_block_id);
+
+		this->getBasicBlock(new_block_id).id = new_block_id;
+
 		return new_block_id;
 	}
 
@@ -740,6 +752,9 @@ namespace pcit::pir{
 		const pcit::pir::BasicBlock::ID new_block_id =
 			this->module.basic_blocks.emplace_back(this->get_stmt_name(std::move(name)));
 		this->target_func->insert_basic_block_after(new_block_id, this->getTargetBasicBlock());
+
+		this->getBasicBlock(new_block_id).id = new_block_id;
+
 		return new_block_id;
 	}
 
@@ -1144,6 +1159,37 @@ namespace pcit::pir{
 		const auto new_expr = Expr(Expr::Kind::UNREACHABLE);
 		this->insert_stmt(new_expr);
 		return new_expr;
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// phi instructions
+
+	auto Agent::createPhi(evo::SmallVector<Phi::Predecessor>&& predecessors, std::string&& name) const-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(predecessors.size() >= 2, "Phi statement must have at least 2 predecessor blocks");
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			const Type first_type = this->getExprType(predecessors[0].value);
+
+			for(size_t i = 1; i < predecessors.size(); i+=1){
+				evo::debugAssert(
+					this->getExprType(predecessors[i].value) == first_type,
+					"All predecessor blocks must return the same type"
+				);
+			}
+		#endif
+
+		const auto new_expr = Expr(
+			Expr::Kind::PHI,
+			this->module.phis.emplace_back(this->get_stmt_name(std::move(name)), std::move(predecessors))
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getPhi(const Expr& expr) const -> Phi {
+		return ReaderAgent(this->module, this->getTargetFunction()).getPhi(expr);
 	}
 
 
@@ -2924,6 +2970,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::RET:               this->module.rets.erase(expr.index);
 			break; case Expr::Kind::JUMP:              return;
 			break; case Expr::Kind::BRANCH:            this->module.branches.erase(expr.index);
+			break; case Expr::Kind::PHI:               this->module.phis.erase(expr.index);
 			break; case Expr::Kind::UNREACHABLE:       return;
 			break; case Expr::Kind::ALLOCA:            this->target_func->allocas.erase(expr.index);
 			break; case Expr::Kind::LOAD:              this->module.loads.erase(expr.index);
@@ -3045,9 +3092,10 @@ namespace pcit::pir{
 					case Expr::Kind::ABORT:            continue;
 					case Expr::Kind::BREAKPOINT:       continue;
 					case Expr::Kind::RET:              continue;
-					case Expr::Kind::JUMP:           continue;
-					case Expr::Kind::BRANCH:      continue;
+					case Expr::Kind::JUMP:             continue;
+					case Expr::Kind::BRANCH:           continue;
 					case Expr::Kind::UNREACHABLE:      continue;
+					case Expr::Kind::PHI:              if(this->getPhi(stmt).name == name){ return true; } continue;
 					case Expr::Kind::ALLOCA:           if(this->getAlloca(stmt).name == name){ return true; } continue;
 					case Expr::Kind::LOAD:             if(this->getLoad(stmt).name == name){ return true; } continue;
 					case Expr::Kind::STORE:            continue;

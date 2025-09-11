@@ -472,6 +472,11 @@ namespace pcit::pir{
 			case Expr::Kind::BRANCH:      evo::debugFatalBreak("Expr::Kind::BRANCH is not a valid expression");
 			case Expr::Kind::UNREACHABLE: evo::debugFatalBreak("Expr::Kind::UNREACHABLE is not a valid expression");
 
+			case Expr::Kind::PHI: {
+				const Phi& phi = this->reader.getPhi(expr);
+				this->printer.print("${}", phi.name);
+			} break;
+
 			case Expr::Kind::ALLOCA: {
 				const Alloca& alloca = this->reader.getAlloca(expr);
 				this->printer.print("${}", alloca.name);
@@ -928,6 +933,29 @@ namespace pcit::pir{
 
 			case Expr::Kind::UNREACHABLE: {
 				this->printer.printlnRed("{}@unreachable", tabs(2));
+			} break;
+
+			case Expr::Kind::PHI: {
+				const Phi& phi = this->reader.getPhi(stmt);
+
+				this->printer.print("{}${} ", tabs(2), phi.name);
+				this->printer.printRed("= @phi ");
+
+				for(size_t i = 0; const Phi::Predecessor& predecessor : phi.predecessors){
+					this->printer.print("[${}", reader.getBasicBlock(predecessor.block).getName());
+					this->printer.printRed(" -> ");
+					this->print_expr(predecessor.value);
+
+					if(i + 1 < phi.predecessors.size()){
+						this->printer.print("], ");
+					}else{
+						this->printer.print("]");
+					}
+				
+					i += 1;
+				}
+
+				this->printer.println();
 			} break;
 
 			case Expr::Kind::ALLOCA: evo::debugFatalBreak("Expr::Kind::Alloca should not be printed through this func");

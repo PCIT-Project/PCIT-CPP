@@ -57,6 +57,8 @@ namespace pcit::panther::sema{
 			UNWRAP,
 			ACCESSOR,
 			UNION_ACCESSOR,
+			LOGICAL_AND,
+			LOGICAL_OR,
 			TRY_ELSE,
 			BLOCK_EXPR,
 			FAKE_TERM_INFO,
@@ -116,6 +118,8 @@ namespace pcit::panther::sema{
 		explicit Expr(UnwrapID id)             : _kind(Kind::UNWRAP),               value{.unwrap = id}              {};
 		explicit Expr(AccessorID id)           : _kind(Kind::ACCESSOR),             value{.accessor = id}            {};
 		explicit Expr(UnionAccessorID id)      : _kind(Kind::UNION_ACCESSOR),       value{.union_accessor = id}      {};
+		explicit Expr(LogicalAndID id)         : _kind(Kind::LOGICAL_AND),          value{.logical_and = id}         {};
+		explicit Expr(LogicalOrID id)          : _kind(Kind::LOGICAL_OR),           value{.logical_or = id}          {};
 		explicit Expr(TryElseID id)            : _kind(Kind::TRY_ELSE),             value{.try_else = id}            {};
 		explicit Expr(BlockExprID id)          : _kind(Kind::BLOCK_EXPR),           value{.block_expr = id}          {};
 		explicit Expr(FakeTermInfoID id)       : _kind(Kind::FAKE_TERM_INFO),       value{.fake_term_info = id}      {};
@@ -249,6 +253,14 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::UNION_ACCESSOR, "not a union accessor");
 			return this->value.union_accessor;
 		}
+		EVO_NODISCARD auto logicalAndID() const -> LogicalAndID {
+			evo::debugAssert(this->kind() == Kind::LOGICAL_AND, "not a logical and");
+			return this->value.logical_and;
+		}
+		EVO_NODISCARD auto logicalOrID() const -> LogicalOrID {
+			evo::debugAssert(this->kind() == Kind::LOGICAL_OR, "not a logical or");
+			return this->value.logical_or;
+		}
 		EVO_NODISCARD auto tryElseID() const -> TryElseID {
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not a try/else");
 			return this->value.try_else;
@@ -368,6 +380,8 @@ namespace pcit::panther::sema{
 				UnwrapID unwrap;
 				AccessorID accessor;
 				UnionAccessorID union_accessor;
+				LogicalAndID logical_and;
+				LogicalOrID logical_or;
 				TryElseID try_else;
 				BlockExprID block_expr;
 				FakeTermInfoID fake_term_info;

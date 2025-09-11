@@ -66,6 +66,7 @@ namespace pcit::pir{
 			case Expr::Kind::JUMP:              evo::unreachable();
 			case Expr::Kind::BRANCH:            evo::unreachable();
 			case Expr::Kind::UNREACHABLE:       evo::unreachable();
+			case Expr::Kind::PHI:               return this->getExprType(this->getPhi(expr).predecessors[0].value);
 			case Expr::Kind::ALLOCA:            return this->module.createPtrType();
 			case Expr::Kind::LOAD:              return this->getLoad(expr).type;
 			case Expr::Kind::STORE:             evo::unreachable();
@@ -225,6 +226,14 @@ namespace pcit::pir{
 		evo::debugAssert(expr.kind() == Expr::Kind::BRANCH, "Not a branch");
 
 		return this->module.branches[expr.index];
+	}
+
+
+	auto ReaderAgent::getPhi(const Expr& expr) const -> const Phi& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::PHI, "Not a phi");
+
+		return this->module.phis[expr.index];
 	}
 
 

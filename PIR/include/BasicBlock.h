@@ -27,12 +27,14 @@ namespace pcit::pir{
 			using ID = BasicBlockID;
 
 		public:
+			// should only be used by Agent as it sets ID as well
 			BasicBlock(std::string&& _name) : name(std::move(_name)){
 				evo::debugAssert(isStandardName(this->name), "Not valid name for basic block ({})", this->name);
 			}
 			~BasicBlock() = default;
 
 			EVO_NODISCARD auto getName() const -> const std::string& { return this->name; }
+			EVO_NODISCARD auto getID() const -> ID { return this->id; }
 
 			EVO_NODISCARD auto isTerminated() const -> bool {
 				if(this->exprs.empty()){ return false; }
@@ -120,9 +122,8 @@ namespace pcit::pir{
 	
 		private:
 			std::string name;
-
 			evo::SmallVector<Expr> exprs{};
-
+			ID id;
 			bool is_terminated;
 
 			friend class Agent;

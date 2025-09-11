@@ -1876,6 +1876,26 @@ namespace pcit::panther{
 
 
 
+			//////////////////
+			// MathInfix<true, Instruction::MathInfixKind::LOGICAL>
+
+			EVO_NODISCARD auto createMathInfixConstexprLogical(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::MATH_INFIX_CONSTEXPR_LOGICAL,
+					this->math_infix_constexpr_logicals.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getMathInfixConstexprLogical(Instruction instr) const
+			-> const Instruction::MathInfix<true, Instruction::MathInfixKind::LOGICAL>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::MATH_INFIX_CONSTEXPR_LOGICAL,
+					"Not a MathInfix<true, Instruction::MathInfixKind::LOGICAL>"
+				);
+				return this->math_infix_constexpr_logicals[instr._index];
+			}
+
+
 
 			//////////////////
 			// MathInfix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>
@@ -1978,6 +1998,27 @@ namespace pcit::panther{
 					"Not a MathInfix<false, Instruction::MathInfixKind::INTEGRAL_MATH>"
 				);
 				return this->math_infix_integral_maths[instr._index];
+			}
+			
+
+
+			//////////////////
+			// MathInfix<false, Instruction::MathInfixKind::LOGICAL>
+
+			EVO_NODISCARD auto createMathInfixLogical(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::MATH_INFIX_LOGICAL,
+					this->math_infix_logicals.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getMathInfixLogical(Instruction instr) const
+			-> const Instruction::MathInfix<false, Instruction::MathInfixKind::LOGICAL>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::MATH_INFIX_LOGICAL,
+					"Not a MathInfix<false, Instruction::MathInfixKind::LOGICAL>"
+				);
+				return this->math_infix_logicals[instr._index];
 			}
 
 
@@ -2470,6 +2511,9 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>, uint64_t>
 				math_infix_constexpr_integral_maths{};
 
+			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::LOGICAL>, uint64_t>
+				math_infix_constexpr_logicals{};
+
 			core::SyncLinearStepAlloc<Instruction::MathInfix<
 				true, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint64_t
 			> math_infix_constexpr_bitwise_logicals{};
@@ -2486,6 +2530,9 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::MathInfix<
 				false, Instruction::MathInfixKind::INTEGRAL_MATH>, uint64_t
 			> math_infix_integral_maths{};
+
+			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::LOGICAL>, uint64_t>
+				math_infix_logicals{};
 
 			core::SyncLinearStepAlloc<
 				Instruction::MathInfix<false, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint64_t

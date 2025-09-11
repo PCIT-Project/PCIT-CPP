@@ -541,6 +541,7 @@ namespace pcit::pir{
 			core::StepAlloc<CallVoid, uint32_t> call_voids{};
 			core::StepAlloc<Ret, uint32_t> rets{};
 			core::StepAlloc<Branch, uint32_t> branches{};
+			core::StepAlloc<Phi, uint32_t> phis{};
 			core::StepAlloc<Load, uint32_t> loads{};
 			core::StepAlloc<Store, uint32_t> stores{};
 			core::StepAlloc<CalcPtr, uint32_t> calc_ptrs{};
