@@ -3,13 +3,13 @@ def test = @importCPP("test.h");
 func entry = () #entry -> UI8 {
 	def FAIL_NUM = 5 & 2;
 
-	when(@isMacroDefined(test, "FOO")){
+	when(@isMacroDefined(test, "FOO") & false){
 		when(test.FOO){
 			return test.get_num();
 		}else{
 			return FAIL_NUM;
 		}
 	}else{
-		return FAIL_NUM;
+		return (true ^ false) as UI8;
 	}
 }

@@ -212,13 +212,23 @@ namespace pcit::panther{
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
 
+			EVO_NODISCARD auto bitwiseAnd(bool lhs, bool rhs) -> TermInfo;
+
+
 			EVO_NODISCARD auto bitwiseOr(
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
 
+			EVO_NODISCARD auto bitwiseOr(bool lhs, bool rhs) -> TermInfo;
+
+
 			EVO_NODISCARD auto bitwiseXor(
 				const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 			) -> TermInfo;
+
+			EVO_NODISCARD auto bitwiseXor(bool lhs, bool rhs) -> TermInfo;
+
+
 
 			EVO_NODISCARD auto shl(
 				const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs

@@ -532,6 +532,11 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getMathInfixConstexprIntegralMath(instr)
 				);
 
+			case Instruction::Kind::MATH_INFIX_CONSTEXPR_BITWISE_LOGICAL:
+				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>(
+					this->context.symbol_proc_manager.getMathInfixConstexprBitwiseLogical(instr)
+				);
+
 			case Instruction::Kind::MATH_INFIX_CONSTEXPR_SHIFT:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::SHIFT>(
 					this->context.symbol_proc_manager.getMathInfixConstexprShift(instr)
@@ -550,6 +555,11 @@ namespace pcit::panther{
 			case Instruction::Kind::MATH_INFIX_INTEGRAL_MATH:
 				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::INTEGRAL_MATH>(
 					this->context.symbol_proc_manager.getMathInfixIntegralMath(instr)
+				);
+
+			case Instruction::Kind::MATH_INFIX_BITWISE_LOGICAL:
+				return this->instr_expr_math_infix<false, Instruction::MathInfixKind::BITWISE_LOGICAL>(
+					this->context.symbol_proc_manager.getMathInfixBitwiseLogical(instr)
 				);
 
 			case Instruction::Kind::MATH_INFIX_SHIFT:
@@ -9561,6 +9571,44 @@ namespace pcit::panther{
 							);
 							return Result::ERROR;
 						}
+
+					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::BITWISE_LOGICAL){
+						const TypeInfo& lhs_actual_type =
+							this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+
+						if(
+							lhs_actual_type.qualifiers().empty() == false
+							|| lhs_actual_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
+						){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+							this->emit_error(
+								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+								instr.infix,
+								"No matching operation for this type",
+								std::move(infos)
+							);
+							return Result::ERROR;
+						}
+
+						const BaseType::Primitive& lhs_actual_primitive =
+							this->context.getTypeManager().getPrimitive(lhs_actual_type.baseTypeID().primitiveID());
+
+						if(
+							this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false
+							&& lhs_actual_primitive.kind() != Token::Kind::TYPE_BOOL
+						){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+							this->emit_error(
+								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+								instr.infix,
+								"No matching operation for this type",
+								std::move(infos)
+							);
+							return Result::ERROR;
+						}
+						
 					}
 				}
 
@@ -15209,27 +15257,51 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("&"): {
-					return constexpr_intrinsic_evaluator.bitwiseAnd(
-						lhs_type.value_or(TypeManager::getTypeI256()),
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					);
+					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.bitwiseAnd(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.bitwiseAnd(
+							lhs_type.value_or(TypeManager::getTypeI256()),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						);
+					}
 				} break;
 
 				case Token::lookupKind("|"): {
-					return constexpr_intrinsic_evaluator.bitwiseOr(
-						lhs_type.value_or(TypeManager::getTypeI256()),
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					);
+					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.bitwiseOr(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.bitwiseOr(
+							lhs_type.value_or(TypeManager::getTypeI256()),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						);
+					}
 				} break;
 
 				case Token::lookupKind("^"): {
-					return constexpr_intrinsic_evaluator.bitwiseXor(
-						lhs_type.value_or(TypeManager::getTypeI256()),
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
-					);
+					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+						return constexpr_intrinsic_evaluator.bitwiseXor(
+							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+						);
+
+					}else{
+						return constexpr_intrinsic_evaluator.bitwiseXor(
+							lhs_type.value_or(TypeManager::getTypeI256()),
+							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						);
+					}
 				} break;
 
 				case Token::lookupKind("<<"): {

@@ -888,6 +888,18 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ConstexprIntrinsicEvaluator::bitwiseAnd(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs & rhs))
+		);
+	}
+
+
+
 	auto ConstexprIntrinsicEvaluator::bitwiseOr(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
@@ -907,6 +919,18 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ConstexprIntrinsicEvaluator::bitwiseOr(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs | rhs))
+		);
+	}
+
+
+
 	auto ConstexprIntrinsicEvaluator::bitwiseXor(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
@@ -925,6 +949,18 @@ namespace pcit::panther{
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
+
+	auto ConstexprIntrinsicEvaluator::bitwiseXor(bool lhs, bool rhs) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(this->sema_buffer.createBoolValue(lhs ^ rhs))
+		);
+	}
+
+
 
 	auto ConstexprIntrinsicEvaluator::shl(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs

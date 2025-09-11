@@ -1876,6 +1876,28 @@ namespace pcit::panther{
 
 
 
+
+			//////////////////
+			// MathInfix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>
+
+			EVO_NODISCARD auto createMathInfixConstexprBitwiseLogical(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::MATH_INFIX_CONSTEXPR_BITWISE_LOGICAL,
+					this->math_infix_constexpr_bitwise_logicals.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getMathInfixConstexprBitwiseLogical(Instruction instr) const
+			-> const Instruction::MathInfix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::MATH_INFIX_CONSTEXPR_BITWISE_LOGICAL,
+					"Not a MathInfix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>"
+				);
+				return this->math_infix_constexpr_bitwise_logicals[instr._index];
+			}
+
+
+
 			//////////////////
 			// MathInfix<true, Instruction::MathInfixKind::SHIFT>
 
@@ -1956,6 +1978,27 @@ namespace pcit::panther{
 					"Not a MathInfix<false, Instruction::MathInfixKind::INTEGRAL_MATH>"
 				);
 				return this->math_infix_integral_maths[instr._index];
+			}
+
+
+
+			//////////////////
+			// MathInfix<false, Instruction::MathInfixKind::BITWISE_LOGICAL>
+
+			EVO_NODISCARD auto createMathInfixBitwiseLogical(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::MATH_INFIX_BITWISE_LOGICAL,
+					this->math_infix_bitwise_logicals.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getMathInfixBitwiseLogical(Instruction instr) const
+			-> const Instruction::MathInfix<false, Instruction::MathInfixKind::BITWISE_LOGICAL>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::MATH_INFIX_BITWISE_LOGICAL,
+					"Not a MathInfix<false, Instruction::MathInfixKind::BITWISE_LOGICAL>"
+				);
+				return this->math_infix_bitwise_logicals[instr._index];
 			}
 
 
@@ -2365,8 +2408,10 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint64_t> discarding_assignments{};
 			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint64_t> type_to_terms{};
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDef, uint64_t> wait_on_sub_symbol_proc_defs{};
+
 			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, true>, uint64_t>
 				func_call_expr_constexpr_errorss{};
+
 			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, false>, uint64_t> func_call_expr_constexprs{};
 			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<false, true>, uint64_t> func_call_expr_errorss{};
 			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<false, false>, uint64_t> func_call_exprs{};
@@ -2375,17 +2420,22 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::C>, uint64_t> import_cs{};
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::CPP>, uint64_t> import_cpps{};
 			core::SyncLinearStepAlloc<Instruction::IsMacroDefined, uint64_t> is_macro_defineds{};
+
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<true>, uint64_t>
 				template_intrinsic_func_call_constexprs{};
+
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<false>, uint64_t>
 				template_intrinsic_func_calls{};
+
 			core::SyncLinearStepAlloc<Instruction::Indexer<true>, uint64_t> indexer_constexprs{};
 			core::SyncLinearStepAlloc<Instruction::Indexer<false>, uint64_t> indexers{};
 			core::SyncLinearStepAlloc<Instruction::TemplatedTerm, uint64_t> templated_terms{};
 			core::SyncLinearStepAlloc<Instruction::TemplatedTermWait<true>, uint64_t> templated_term_wait_for_defs{};
 			core::SyncLinearStepAlloc<Instruction::TemplatedTermWait<false>, uint64_t> templated_term_wait_for_decls{};
+
 			core::SyncLinearStepAlloc<Instruction::AddTemplateDeclInstantiationType, uint64_t>
 				add_template_decl_instantiation_types{};
+
 			core::SyncLinearStepAlloc<Instruction::Copy, uint64_t> copys{};
 			core::SyncLinearStepAlloc<Instruction::Move, uint64_t> moves{};
 			core::SyncLinearStepAlloc<Instruction::Forward, uint64_t> forwards{};
@@ -2410,22 +2460,40 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::As<true>, uint64_t> as_contexprs{};
 			core::SyncLinearStepAlloc<Instruction::As<false>, uint64_t> ass{};
 			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck, uint64_t> optional_null_checks{};
+
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>, uint64_t>
 				math_infix_constexpr_comparatives{};
+
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::MATH>, uint64_t>
 				math_infix_constexpr_maths{};
+
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>, uint64_t>
 				math_infix_constexpr_integral_maths{};
+
+			core::SyncLinearStepAlloc<Instruction::MathInfix<
+				true, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint64_t
+			> math_infix_constexpr_bitwise_logicals{};
+
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::SHIFT>, uint64_t>
 				math_infix_constexpr_shifts{};
+
 			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::COMPARATIVE>, uint64_t>
 				math_infix_comparatives{};
+
 			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::MATH>, uint64_t>
 				math_infix_maths{};
-			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::INTEGRAL_MATH>, uint64_t>
-				math_infix_integral_maths{};
+
+			core::SyncLinearStepAlloc<Instruction::MathInfix<
+				false, Instruction::MathInfixKind::INTEGRAL_MATH>, uint64_t
+			> math_infix_integral_maths{};
+
+			core::SyncLinearStepAlloc<
+				Instruction::MathInfix<false, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint64_t
+			> math_infix_bitwise_logicals{};
+
 			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::SHIFT>, uint64_t>
 				math_infix_shifts{};
+
 			core::SyncLinearStepAlloc<Instruction::Accessor<true>, uint64_t> accessor_needs_defs{};
 			core::SyncLinearStepAlloc<Instruction::Accessor<false>, uint64_t> accessors{};
 			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint64_t> primitive_types{};
