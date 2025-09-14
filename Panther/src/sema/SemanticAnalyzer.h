@@ -135,6 +135,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_end_stmt_block(const Instruction::EndStmtBlock& instr) -> Result;
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_assignment(const Instruction::Assignment& instr) -> Result;
+			EVO_NODISCARD auto instr_assignment_new(const Instruction::AssignmentNew& instr) -> Result;
 			EVO_NODISCARD auto instr_multi_assign(const Instruction::MultiAssign& instr) -> Result;
 			EVO_NODISCARD auto instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result;
 
@@ -204,6 +205,9 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_deref(const Instruction::Deref& instr) -> Result;
 			EVO_NODISCARD auto instr_unwrap(const Instruction::Unwrap& instr) -> Result;
+
+			template<bool IS_CONSTEXPR>
+			EVO_NODISCARD auto instr_new(const Instruction::New<IS_CONSTEXPR>& instr) -> Result;
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_array_init_new(const Instruction::ArrayInitNew<IS_CONSTEXPR>& instr) -> Result;
@@ -926,6 +930,9 @@ namespace pcit::panther{
 
 					}else if constexpr(std::is_same<IDType, sema::ExceptParam::ID>()){
 						return this->get_location(id);
+
+					}else if constexpr(std::is_same<IDType, sema::ReturnParamAccessorValueStateID>()){
+						return this->get_location(id.id);
 
 					}else{
 						static_assert(false, "Unknown value state ID");

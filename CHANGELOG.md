@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.157.0"></a>
+## v0.0.157.0
+
+### Panther
+- Added overloading operator `new`
+- Added checking for function parameters that are uninitialized pointers
+- Fixed member vars incorrectly erroring as shadowed
+- Fixed return parameters and error return parameters not being uninitialized
+- Fixed lowering of methods with parameters
+
+
+<!---------------------------------->
 <a name="v0.0.156.0"></a>
 ## v0.0.156.0
 
@@ -9,7 +21,7 @@
 - Added support for lowering builtin types only if they are used
 
 ### PIR
-- Added `Phi` statement
+- Added `@phi` instruction
 
 
 <!---------------------------------->

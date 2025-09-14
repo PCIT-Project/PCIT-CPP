@@ -329,6 +329,9 @@ namespace pcit::panther{
 			case Instruction::Kind::ASSIGNMENT:
 				return this->instr_assignment(this->context.symbol_proc_manager.getAssignment(instr));
 
+			case Instruction::Kind::ASSIGNMENT_NEW:
+				return this->instr_assignment_new(this->context.symbol_proc_manager.getAssignmentNew(instr));
+
 			case Instruction::Kind::MULTI_ASSIGN:
 				return this->instr_multi_assign(this->context.symbol_proc_manager.getMultiAssign(instr));
 
@@ -475,6 +478,16 @@ namespace pcit::panther{
 
 			case Instruction::Kind::UNWRAP:
 				return this->instr_unwrap(this->context.symbol_proc_manager.getUnwrap(instr));
+
+			case Instruction::Kind::NEW_CONSTEXPR:
+				return this->instr_new<true>(
+					this->context.symbol_proc_manager.getNewConstexpr(instr)
+				);
+
+			case Instruction::Kind::NEW:
+				return this->instr_new<false>(
+					this->context.symbol_proc_manager.getNew(instr)
+				);
 
 			case Instruction::Kind::ARRAY_INIT_NEW_CONSTEXPR:
 				return this->instr_array_init_new<true>(
@@ -771,7 +784,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
 						instr.var_decl,
-						"Only [var] variables can be defined with an initializer value"
+						"Only [var] global variables can be defined with an initializer value"
 					);
 					return Result::ERROR;
 				}
@@ -928,21 +941,12 @@ namespace pcit::panther{
 
 
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
-			if(instr.var_decl.kind != AST::VarDecl::Kind::VAR){
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
-					instr.var_decl,
-					"Only [var] variables can be defined with an initializer value"
-				);
-				return Result::ERROR;
-			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
-					*instr.var_decl.value,
-					"Cannot define a variable with an initializer value without an explicit type"
-				);
-				return Result::ERROR;
-			}
+			this->emit_error(
+				Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
+				*instr.var_decl.value,
+				"Cannot define a variable with an initializer value without an explicit type"
+			);
+			return Result::ERROR;
 
 		}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
 			this->emit_error(
@@ -1423,27 +1427,173 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_struct_def() -> Result {
 		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
-
+ 
 		const BaseType::Struct::ID created_struct_id =
 			this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id;
 		BaseType::Struct& created_struct = this->context.type_manager.getStruct(created_struct_id);
 
 
-		if(created_struct.isClangType() == false){
-			const auto sorting_func = [](
-				const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
-			) -> bool {
-				return lhs.name.as<Token::ID>().get() < rhs.name.as<Token::ID>().get();
-			};
+		if(created_struct.newInitOverloads.empty() && created_struct.newReassignOverloads.empty() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_STRUCT_NEW_REASSIGN_WITHOUT_NEW_INIT,
+				this->symbol_proc.ast_node,
+				"Cannot define a struct with a reassignment operator [new] overload "
+					"without an initializer operator [new] overload"
+			);
+			return Result::ERROR;
+		}
 
-			std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
 
-			// TODO(FEATURE): optimal ordering (when not #ordered)
+		const auto sorting_func = [](
+			const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
+		) -> bool {
+			return lhs.name.as<Token::ID>().get() < rhs.name.as<Token::ID>().get();
+		};
 
-			for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
-				created_struct.memberVarsABI.emplace_back(&member_var);
+		std::sort(created_struct.memberVars.begin(), created_struct.memberVars.end(), sorting_func);
+
+		// TODO(FEATURE): optimal ordering (when not #ordered)
+
+		for(BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+			created_struct.memberVarsABI.emplace_back(&member_var);
+		}
+
+
+		if(created_struct.newInitOverloads.empty()){
+			created_struct.isDefaultInitable = true;
+			created_struct.isConstexprDefaultInitable = true;
+			created_struct.isNoErrorDefaultInitable = true;
+
+			for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+				if(this->context.getTypeManager().isDefaultInitializable(member_var.typeID) == false){
+					created_struct.isDefaultInitable = false;
+					created_struct.isConstexprDefaultInitable = false;
+					created_struct.isNoErrorDefaultInitable = false;
+					break;
+				}
+
+				if(
+					created_struct.isConstexprDefaultInitable
+					&& this->context.getTypeManager().isConstexprDefaultInitializable(member_var.typeID) == false
+				){
+					created_struct.isConstexprDefaultInitable = false;
+				}
+
+				if(this->context.getTypeManager().isNoErrorDefaultInitializable(member_var.typeID) == false){
+					created_struct.isNoErrorDefaultInitable = false;
+
+					const TypeInfo& member_var_type = this->context.getTypeManager().getTypeInfo(member_var.typeID);
+					if(
+						member_var_type.qualifiers().empty()
+						&& member_var_type.baseTypeID().kind() == BaseType::Kind::STRUCT
+					){
+						const BaseType::Struct& member_var_struct_type = 
+							this->context.getTypeManager().getStruct(member_var_type.baseTypeID().structID());
+
+						for(const sema::Func::ID& member_var_init_new_id : member_var_struct_type.newInitOverloads){
+							const sema::Func& member_var_init_new =
+								this->context.getSemaBuffer().getFunc(member_var_init_new_id);
+
+							const BaseType::Function& member_var_init_new_func_type =
+								this->context.getTypeManager().getFunction(member_var_init_new.typeID);
+
+							if(member_var_init_new_func_type.hasErrorReturnParams()){
+								created_struct.isDefaultInitable = false;
+								created_struct.isConstexprDefaultInitable = false;
+								break;
+							}
+						}
+
+						if(created_struct.isDefaultInitable == false){ break; }
+					}
+				}
+			}
+
+		}else{
+			for(const sema::Func::ID& new_init_overload_id : created_struct.newInitOverloads){
+				const sema::Func& new_init_overload = this->context.getSemaBuffer().getFunc(new_init_overload_id);
+				const BaseType::Function& new_init_overload_func_type =
+					this->context.getTypeManager().getFunction(new_init_overload.typeID);
+
+				if(new_init_overload.minNumArgs > 0){ continue; }
+
+				created_struct.isDefaultInitable = true;
+
+				if(new_init_overload.isConstexpr){
+					created_struct.isConstexprDefaultInitable = true;
+				}
+
+
+				if(new_init_overload_func_type.errorParams.empty()){
+					created_struct.isNoErrorDefaultInitable = true;
+				}
+
+				break;
 			}
 		}
+
+		
+		// TODO(FUTURE): creating default [new]
+		// if(created_struct.isDefaultInitable && created_struct.isTriviallyDefaultInitable == false){
+		// 	if(created_struct.isNoErrorDefaultInitable == false){
+		// 		this->emit_error(
+		// 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+		// 			this->symbol_proc.ast_node,
+		// 			"Default creation of a default initializing operator [new] overload is unimplemented"
+		// 		);
+		// 		return Result::ERROR;
+		// 	}
+
+
+		// 	auto error_return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
+		// 	if(created_struct.isNoErrorDefaultInitable == false){
+		// 		error_return_params.emplace_back(std::nullopt, TypeInfo::VoidableID::Void());
+		// 	}
+
+		// 	const BaseType::ID default_init_func_type = this->context.type_manager.getOrCreateFunction(
+		// 		BaseType::Function(
+		// 			evo::SmallVector<BaseType::Function::Param>(),
+		// 			evo::SmallVector<BaseType::Function::ReturnParam>{
+		// 				BaseType::Function::ReturnParam(
+		// 					std::nullopt,
+		// 					this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(created_struct_id)))
+		// 				)
+		// 			},
+		// 			std::move(error_return_params)
+		// 		)
+		// 	);
+
+		// 	const sema::Func::ID created_default_init_new_id = this->context.sema_buffer.createFunc(
+		// 		this->source.getID(),
+		// 		sema::Func::CompilerCreatedOpOverload(created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_NEW),
+		// 		std::string(),
+		// 		default_init_func_type.funcID(),
+		// 		evo::SmallVector<sema::Func::Param>(),
+		// 		std::nullopt,
+		// 		0,
+		// 		false,
+		// 		created_struct.isConstexprDefaultInitable,
+		// 		false,
+		// 		false
+		// 	);
+
+
+		// 	sema::Func& created_default_init_new = this->context.sema_buffer.funcs[created_default_init_new_id];
+
+		// 	for(size_t i = 0; const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+		// 		EVO_DEFER([&](){ i += 1; });
+
+		// 		if(this->context.getTypeManager().isTriviallyDefaultInitable()){ continue; }
+
+		// 		const TypeInfo& member_type = this->context.getTypeManager().getTypeInfo(member_var.typeID);
+
+		// 		switch(member_type.baseTypeID().kind()){
+					
+		// 		}
+		// 	}
+		// }
+
+
 
 
 		auto sema_to_pir = SemaToPIR(
@@ -1861,6 +2011,16 @@ namespace pcit::panther{
 
 				const TypeInfo& param_type_info = this->context.getTypeManager().getTypeInfo(param_type_id.asTypeID());
 
+				if(param_type_info.isUninitPointer()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_PARAM_TYPE_UNINIT_PTR,
+						*param.type,
+						"Function parameter cannot be type uninitialized pointer"
+					);
+					return Result::ERROR;
+				}
+
+
 				// TODO(PERF): only calculate these as needed
 				const bool param_type_is_interface = param_type_info.isInterface();
 				const bool param_type_is_deducer =
@@ -2007,7 +2167,7 @@ namespace pcit::panther{
 						const TypeInfo::ID this_type = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(BaseType::ID(type_scope))
 						);
-						params.emplace_back(this_type, param.kind);
+						params.emplace_back(this_type, param.kind, false);
 					}else{
 						evo::debugFatalBreak("Invalid type object scope");
 					}
@@ -2015,6 +2175,8 @@ namespace pcit::panther{
 
 				sema_params.emplace_back(ast_buffer.getThis(param.name), std::nullopt);
 				min_num_args += 1;
+
+				func_info.param_type_to_check_if_is_copy.emplace_back();
 			}
 		}
 
@@ -2283,6 +2445,124 @@ namespace pcit::panther{
 					current_struct.operatorAsOverloads.emplace(conversion_type, created_func_id);
 				} break;
 
+
+				case Token::Kind::KEYWORD_NEW: {
+					if(this->scope.inObjectScope() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_decl,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_decl,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+					const BaseType::Function& created_func_type =
+						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+
+					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+					);
+
+					if(
+						this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
+						== Token::Kind::KEYWORD_THIS
+					){ // reassignment
+						if(created_func_type.returnsVoid() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
+								instr.func_decl,
+								"Reassignment operator `new` cannot have any return values"
+							);
+							return Result::ERROR;
+						}
+
+						{
+							const auto lock = std::scoped_lock(current_struct.newReassignOverloadsLock);
+
+							for(sema::Func::ID new_reassign_overload_id : current_struct.newReassignOverloads){
+								const sema::Func& new_reassign_overload =
+									this->context.getSemaBuffer().getFunc(new_reassign_overload_id);
+
+								if(new_reassign_overload.isEquivalentOverload(created_func, this->context)){
+									this->emit_error(
+										Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
+										instr.func_decl,
+										"Reassignment operator [new] overload has an overload "
+											"that collides with this declaration",
+										Diagnostic::Info(
+											"First defined here:", this->get_location(new_reassign_overload)
+										)
+									);
+									return Result::ERROR;
+								}
+							}
+
+							current_struct.newReassignOverloads.emplace_back(created_func_id);
+						}
+
+					}else{ // initialization
+						const TypeInfo::ID expected_return_type = this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>())
+							)
+						);
+
+						if(
+							created_func_type.returnParams.size() != 1
+							|| created_func_type.returnParams[0].typeID != expected_return_type
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
+								instr.func_decl,
+								"Initialization operator `new` must return the newly created value"
+							);
+							return Result::ERROR;
+						}
+
+						if(created_func_type.hasNamedReturns() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
+								instr.func_decl,
+								"Initialization operator `new` must have a named return"
+							);
+							return Result::ERROR;
+						}
+
+						{
+							const auto lock = std::scoped_lock(current_struct.newInitOverloadsLock);
+
+							for(sema::Func::ID new_init_overload_id : current_struct.newInitOverloads){
+								const sema::Func& new_init_overload =
+									this->context.getSemaBuffer().getFunc(new_init_overload_id);
+
+								if(new_init_overload.isEquivalentOverload(created_func, this->context)){
+									this->emit_error(
+										Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
+										instr.func_decl,
+										"Initialization operator [new] overload has an overload "
+											"that collides with this declaration",
+										Diagnostic::Info(
+											"First defined here:", this->get_location(new_init_overload)
+										)
+									);
+									return Result::ERROR;
+								}
+							}
+
+							current_struct.newInitOverloads.emplace_back(created_func_id);
+						}
+					}
+				} break;
+
 				default: {
 					this->emit_error(
 						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
@@ -2431,10 +2711,39 @@ namespace pcit::panther{
 				const std::string_view return_param_name =
 					this->source.getTokenBuffer()[*return_param.ident].getString();
 
-				if(this->add_ident_to_scope(
-					return_param_name, return_param, this->context.sema_buffer.createReturnParam(i, abi_index)
-				).isError()){
+				const sema::ReturnParam::ID created_return_param_id =
+					this->context.sema_buffer.createReturnParam(i, abi_index);
+
+				if(this->add_ident_to_scope(return_param_name, return_param, created_return_param_id).isError()){
 					return Result::ERROR;
+				}
+
+				switch(this->source.getTokenBuffer()[current_func.name.as<Token::ID>()].kind()){
+					case Token::Kind::KEYWORD_NEW: {
+						this->set_ident_value_state(
+							created_return_param_id, sema::ScopeLevel::ValueState::INITIALIZING
+						);
+
+
+						const TypeInfo& return_type = 
+							this->context.getTypeManager().getTypeInfo(func_type.returnParams[i].typeID.asTypeID());
+						const BaseType::Struct& return_struct_type =
+							this->context.getTypeManager().getStruct(return_type.baseTypeID().structID());
+
+						for(uint32_t j = 0; j < return_struct_type.memberVars.size(); j+=1){
+							this->set_ident_value_state(
+								sema::ReturnParamAccessorValueStateID(created_return_param_id, j),
+								sema::ScopeLevel::ValueState::UNINIT
+							);
+						}
+
+						SymbolProc::FuncInfo& func_info_mut = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+						func_info_mut.num_members_of_initializing_are_uninit = return_struct_type.memberVars.size();
+					} break;
+
+					default: {
+						this->set_ident_value_state(created_return_param_id, sema::ScopeLevel::ValueState::UNINIT);
+					} break;
 				}
 
 				abi_index += 1;
@@ -2452,13 +2761,18 @@ namespace pcit::panther{
 			for(uint32_t i = 0; const AST::FuncDecl::Return& error_return_param : instr.func_decl.errorReturns){
 				EVO_DEFER([&](){ i += 1; });
 
+				const sema::ErrorReturnParam::ID created_error_return_param_id =
+					this->context.sema_buffer.createErrorReturnParam(i, abi_index);
+
 				if(this->add_ident_to_scope(
 					this->source.getTokenBuffer()[*error_return_param.ident].getString(),
 					error_return_param,
-					this->context.sema_buffer.createErrorReturnParam(i, abi_index)
+					created_error_return_param_id
 				).isError()){
 					return Result::ERROR;
 				}
+
+				this->set_ident_value_state(created_error_return_param_id, sema::ScopeLevel::ValueState::UNINIT);
 			}
 		}
 
@@ -3297,14 +3611,7 @@ namespace pcit::panther{
 
 
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
-			if(instr.var_decl.kind != AST::VarDecl::Kind::VAR){
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
-					instr.var_decl,
-					"Only [var] variables can be defined with an initializer value"
-				);
-				return Result::ERROR;
-			}else if(instr.type_id.has_value() == false){
+			if(instr.type_id.has_value() == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
 					*instr.var_decl.value,
@@ -4385,7 +4692,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(lhs.is_const()){
+		if(lhs.is_const() && lhs.value_state != TermInfo::ValueState::UNINIT){
 			this->emit_error(
 				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
 				instr.infix.lhs,
@@ -4422,6 +4729,189 @@ namespace pcit::panther{
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createAssign(lhs.getExpr(), rhs.getExpr())
 		);
+
+		if(lhs.value_state == TermInfo::ValueState::UNINIT){
+			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+		}
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_assignment_new(const Instruction::AssignmentNew& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
+
+		const TermInfo& lhs = this->get_term_info(instr.lhs);
+
+		if(lhs.is_concrete() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
+				instr.infix.lhs,
+				"LHS of assignment must be concrete"
+			);
+			return Result::ERROR;
+		}
+
+		if(lhs.is_const() && lhs.value_state != TermInfo::ValueState::UNINIT){
+			this->emit_error(
+				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
+				instr.infix.lhs,
+				"LHS of assignment must be mutable"
+			);
+			return Result::ERROR;
+		}
+
+		if(lhs.value_state == TermInfo::ValueState::MOVED_FROM){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+				instr.infix.lhs,
+				"LHS of assignment cannot have a value state of moved from"
+			);
+			return Result::ERROR;
+		}
+
+
+
+		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
+		if(target_type_id.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
+				this->source.getASTBuffer().getNew(instr.infix.rhs).type,
+				"Operator [new] cannot accept type `Void`"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
+			this->get_actual_type<true>(target_type_id.asTypeID())
+		);
+
+
+		if(actual_target_type_info.qualifiers().empty() == false){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				this->source.getASTBuffer().getNew(instr.infix.rhs).type,
+				"Operator [new] of this type is unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+		if(actual_target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				this->source.getASTBuffer().getNew(instr.infix.rhs).type,
+				"Operator [new] of this type is unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+
+		const BaseType::Struct& target_struct =
+			this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
+
+
+		auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
+		auto args = evo::SmallVector<SelectFuncOverloadArgInfo>();
+
+		const bool is_semantically_initialization = lhs.value_state == TermInfo::ValueState::UNINIT;
+		const bool should_run_initialization = 
+			is_semantically_initialization || target_struct.newReassignOverloads.empty();
+
+
+
+		if(should_run_initialization){
+			if(target_struct.newInitOverloads.empty()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
+					this->source.getASTBuffer().getNew(instr.infix.rhs).type,
+					"No matching operator [new] overload for this type"
+				);
+				return Result::ERROR;
+			}
+
+
+			overloads.reserve(target_struct.newInitOverloads.size());
+			for(const sema::Func::ID overload_id : target_struct.newInitOverloads){
+				const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
+
+				overloads.emplace_back(overload_id, this->context.getTypeManager().getFunction(overload.typeID));
+			}
+
+			args.reserve(instr.args.size());
+		}else{
+			overloads.reserve(target_struct.newReassignOverloads.size());
+			for(const sema::Func::ID overload_id : target_struct.newReassignOverloads){
+				const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
+
+				overloads.emplace_back(overload_id, this->context.getTypeManager().getFunction(overload.typeID));
+			}
+
+			args.reserve(instr.args.size() + 1);
+			args.emplace_back(this->get_term_info(instr.lhs), instr.infix.lhs, std::nullopt);
+		}
+
+
+
+		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
+			args.emplace_back(
+				this->get_term_info(arg_id),
+				this->source.getASTBuffer().getNew(instr.infix.rhs).args[i].value,
+				this->source.getASTBuffer().getNew(instr.infix.rhs).args[i].label
+			);
+
+			i += 1;
+		}
+
+
+		const evo::Result<size_t> selected_overload = this->select_func_overload(
+			overloads, args, this->source.getASTBuffer().getNew(instr.infix.rhs), !should_run_initialization
+		);
+		if(selected_overload.isError()){ return Result::ERROR; }
+
+		const sema::Func::ID selected_func_id = overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
+		const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
+
+
+		auto output_args = evo::SmallVector<sema::Expr>();
+		if(should_run_initialization){
+			output_args.reserve(selected_func.params.size());
+		}else{
+			output_args.reserve(selected_func.params.size() + 1);
+			output_args.emplace_back(lhs.getExpr());
+		}
+		for(const SymbolProc::TermInfoID& arg_id : instr.args){
+			output_args.emplace_back(this->get_term_info(arg_id).getExpr());
+		}
+
+		// default values
+		for(size_t i = output_args.size(); i < selected_func.params.size(); i+=1){
+			output_args.emplace_back(*selected_func.params[i].defaultValue);
+		}
+
+
+		const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+			selected_func_id, std::move(output_args)
+		);
+
+		if(should_run_initialization){
+			if(
+				is_semantically_initialization == false
+				&& this->context.getTypeManager().isTriviallyDeletable(actual_target_type_info.baseTypeID()) == false
+			){
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.infix.rhs,
+					"reassignment operator [new] that runs an initializer predicated by a destroy is unimplemented"
+				);
+				return Result::ERROR;
+			}
+
+			this->get_current_scope_level().stmtBlock().emplace_back(
+				this->context.sema_buffer.createAssign(lhs.getExpr(), sema::Expr(created_func_call_id))
+			);
+		}else{
+			this->get_current_scope_level().stmtBlock().emplace_back(sema::Stmt(created_func_call_id));
+		}
 
 		if(lhs.value_state == TermInfo::ValueState::UNINIT){
 			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
@@ -4494,7 +4984,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(target.is_const()){
+			if(target.is_const() && target.value_state != TermInfo::ValueState::UNINIT){
 				this->emit_error(
 					Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
 					instr.multi_assign.assigns[i],
@@ -4510,6 +5000,10 @@ namespace pcit::panther{
 			}
 
 			targets.emplace_back(target.getExpr());
+
+			if(target.value_state == TermInfo::ValueState::UNINIT){
+				this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::INIT);
+			}
 		}
 
 		this->get_current_scope_level().stmtBlock().emplace_back(
@@ -6319,7 +6813,7 @@ namespace pcit::panther{
 				this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM);
 			} break;
 
-			case TermInfo::ValueState::UNINIT: {
+			case TermInfo::ValueState::INITIALIZING: case TermInfo::ValueState::UNINIT: {
 				this->emit_error(
 					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
 					instr.prefix.rhs,
@@ -6374,7 +6868,7 @@ namespace pcit::panther{
 				this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM);
 			} break;
 
-			case TermInfo::ValueState::UNINIT: {
+			case TermInfo::ValueState::INITIALIZING: case TermInfo::ValueState::UNINIT: {
 				this->emit_error(
 					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
 					instr.prefix.rhs,
@@ -6912,6 +7406,120 @@ namespace pcit::panther{
 
 
 
+	template<bool IS_CONSTEXPR>
+	auto SemanticAnalyzer::instr_new(const Instruction::New<IS_CONSTEXPR>& instr) -> Result {
+		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
+		if(target_type_id.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
+				instr.ast_new.type,
+				"Operator [new] cannot accept type `Void`"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
+			this->get_actual_type<true>(target_type_id.asTypeID())
+		);
+
+
+		if(actual_target_type_info.qualifiers().empty() == false){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.ast_new.type,
+				"Operator [new] of this type is unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+		if(actual_target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.ast_new.type,
+				"Operator [new] of this type is unimplemented"
+			);
+			return Result::ERROR;
+		}
+
+
+		const BaseType::Struct& target_struct =
+			this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
+
+
+		if(target_struct.newInitOverloads.empty()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
+				instr.ast_new.type,
+				"No matching operator [new] overload for this type"
+			);
+			return Result::ERROR;
+		}
+
+
+		auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
+		overloads.reserve(target_struct.newInitOverloads.size());
+		for(const sema::Func::ID overload_id : target_struct.newInitOverloads){
+			const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
+
+			overloads.emplace_back(overload_id, this->context.getTypeManager().getFunction(overload.typeID));
+		}
+
+
+		auto args = evo::SmallVector<SelectFuncOverloadArgInfo>();
+		args.reserve(instr.args.size());
+		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
+			args.emplace_back(this->get_term_info(arg_id), instr.ast_new.args[i].value, instr.ast_new.args[i].label);
+
+			i += 1;
+		}
+
+
+		const evo::Result<size_t> selected_overload = this->select_func_overload(overloads, args, instr.ast_new, false);
+		if(selected_overload.isError()){ return Result::ERROR; }
+
+		const sema::Func::ID selected_func_id = overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
+		const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
+
+
+		auto output_args = evo::SmallVector<sema::Expr>();
+		output_args.reserve(selected_func.params.size());
+		for(const SymbolProc::TermInfoID& arg_id : instr.args){
+			output_args.emplace_back(this->get_term_info(arg_id).getExpr());
+		}
+
+		// default values
+		for(size_t i = output_args.size(); i < selected_func.params.size(); i+=1){
+			output_args.emplace_back(*selected_func.params[i].defaultValue);
+		}
+
+
+
+		if constexpr(IS_CONSTEXPR){
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.ast_new,
+				"Constexpr operator [new] is unimplemented"
+			);
+			return Result::ERROR;
+
+		}else{
+			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+				selected_func_id, std::move(output_args)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				target_type_id.asTypeID(),
+				sema::Expr(created_func_call_id)
+			);
+			return Result::SUCCESS;
+		}
+
+	}
+
+
 
 	template<bool IS_CONSTEXPR>
 	auto SemanticAnalyzer::instr_array_init_new(const Instruction::ArrayInitNew<IS_CONSTEXPR>& instr) -> Result {
@@ -7067,6 +7675,16 @@ namespace pcit::panther{
 		const BaseType::Struct& target_type = this->context.getTypeManager().getStruct(
 			target_type_info.baseTypeID().structID()
 		);
+
+
+		if(target_type.newInitOverloads.empty() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_STRUCT_DESIGNATED_ON_TYPE_WITH_OVEROAD_NEW,
+				instr.designated_init_new,
+				"Designatied initializer operator [new] on type that has overloaded operator [new]"
+			);
+			return Result::ERROR;
+		}
 
 
 		if(target_type.memberVars.empty()){
@@ -10194,12 +10812,13 @@ namespace pcit::panther{
 
 		if(
 			lhs.value_state != TermInfo::ValueState::INIT
+			&& lhs.value_state != TermInfo::ValueState::INITIALIZING
 			&& lhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
 				instr.infix.lhs,
-				"LHS of accessor operator must be initialized"
+				"LHS of accessor operator must be initialized or initializing"
 			);
 			return Result::ERROR;
 		}
@@ -11440,10 +12059,22 @@ namespace pcit::panther{
 							}
 						}();
 
+
+						const TermInfo::ValueState value_state = [&](){
+							if(lhs.value_state == TermInfo::ValueState::INITIALIZING){
+								return this->get_ident_value_state(
+									sema::ReturnParamAccessorValueStateID(lhs.getExpr().returnParamID(), uint32_t(i))
+								);
+
+							}else{
+								return TermInfo::ValueState::NOT_APPLICABLE;
+							}
+						}();
+
 						this->return_term_info(instr.output,
 							value_category,
 							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
-							TermInfo::ValueState::NOT_APPLICABLE,
+							value_state,
 							member_var->typeID,
 							sema_expr
 						);
@@ -12846,9 +13477,10 @@ namespace pcit::panther{
 
 			if(value_state.has_value()){
 				switch(*value_state){
-					case sema::ScopeLevel::ValueState::INIT:       return TermInfo::ValueState::INIT;
-					case sema::ScopeLevel::ValueState::UNINIT:     return TermInfo::ValueState::UNINIT;
-					case sema::ScopeLevel::ValueState::MOVED_FROM: return TermInfo::ValueState::MOVED_FROM;
+					case sema::ScopeLevel::ValueState::INIT:         return TermInfo::ValueState::INIT;
+					case sema::ScopeLevel::ValueState::INITIALIZING: return TermInfo::ValueState::INITIALIZING;
+					case sema::ScopeLevel::ValueState::UNINIT:       return TermInfo::ValueState::UNINIT;
+					case sema::ScopeLevel::ValueState::MOVED_FROM:   return TermInfo::ValueState::MOVED_FROM;
 				}
 				evo::debugFatalBreak("unknown value state");
 			}
@@ -12859,7 +13491,6 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): remove (and inline) this function?
 	auto SemanticAnalyzer::set_ident_value_state(
 		sema::ScopeLevel::ValueStateID value_state_id, sema::ScopeLevel::ValueState value_state
 	) -> void {
@@ -12900,26 +13531,45 @@ namespace pcit::panther{
 			} break;
 
 
+			case sema::Expr::Kind::ACCESSOR: {
+				const sema::Accessor& accessor = this->context.getSemaBuffer().getAccessor(target.accessorID());
+
+				if(accessor.target.kind() != sema::Expr::Kind::RETURN_PARAM){ return; }
+
+				this->set_ident_value_state(
+					sema::ReturnParamAccessorValueStateID(accessor.target.returnParamID(), accessor.memberABIIndex),
+					value_state
+				);
+
+				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+				func_info.num_members_of_initializing_are_uninit -= 1;
+
+				if(func_info.num_members_of_initializing_are_uninit == 0){
+					this->set_ident_value_state(accessor.target.returnParamID(), sema::ScopeLevel::ValueState::INIT);
+				}
+
+			} break;
+
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:         case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:               case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:            case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:           case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:      case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::INTRINSIC_FUNC:       case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                 case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:              case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:   case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:  case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:             case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:          case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE:             case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::FAKE_TERM_INFO:       case sema::Expr::Kind::MAKE_INTERFACE_PTR:
-			case sema::Expr::Kind::INTERFACE_CALL:       case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:    case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS: case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::GLOBAL_VAR:           case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                    case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:                 case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:                case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:           case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:        case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:       case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::UNION_ACCESSOR:            case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:                case sema::Expr::Kind::TRY_ELSE:
+			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                   case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:            case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}

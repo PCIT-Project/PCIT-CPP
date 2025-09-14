@@ -235,6 +235,7 @@ namespace pcit::panther::sema{
 		enum class ValueState{
 			NOT_APPLICABLE,
 			INIT,
+			INITIALIZING,
 			UNINIT,
 			MOVED_FROM,
 		};
@@ -459,6 +460,11 @@ namespace pcit::panther::sema{
 	struct Func{
 		using ID = FuncID;
 
+		struct CompilerCreatedOpOverload{
+			Token::ID parentName;
+			Token::Kind overloadKind;
+		};
+
 		struct Param{
 			evo::Variant<Token::ID, ClangSourceDeclInfoID> ident;
 			std::optional<Expr> defaultValue;
@@ -472,11 +478,11 @@ namespace pcit::panther::sema{
 		};
 
 		evo::Variant<SourceID, ClangSourceID> sourceID;
-		evo::Variant<Token::ID, ClangSourceDeclInfoID> name;
+		evo::Variant<Token::ID, ClangSourceDeclInfoID, CompilerCreatedOpOverload> name;
 		std::string clangMangledName; // empty if not clang type
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
-		std::optional<SymbolProcID> symbolProcID; // nullopt if clang func
+		std::optional<SymbolProcID> symbolProcID; // only value if is sema src type
 		uint32_t minNumArgs; // TODO(PERF): make sure this optimization actually improves perf
 		bool isPub; // meaningless if is Clang type
 		bool isConstexpr;

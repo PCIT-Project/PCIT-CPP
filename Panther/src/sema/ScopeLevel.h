@@ -20,6 +20,29 @@ namespace pcit::panther{
 	class Context;
 }
 
+
+
+namespace pcit::panther::sema{
+	struct ReturnParamAccessorValueStateID{
+		ReturnParamID id;
+		uint32_t index;
+
+		EVO_NODISCARD auto operator==(const ReturnParamAccessorValueStateID&) const -> bool = default;
+	};
+}
+
+
+namespace std{
+	template<>
+	struct hash<pcit::panther::sema::ReturnParamAccessorValueStateID>{
+		auto operator()(pcit::panther::sema::ReturnParamAccessorValueStateID id) const noexcept -> size_t {
+			return evo::hashCombine(
+				std::hash<pcit::panther::sema::ReturnParamID>{}(id.id), std::hash<uint32_t>{}(id.index)
+			);
+		};
+	};
+}
+
 namespace pcit::panther::sema{
 
 	
@@ -105,11 +128,13 @@ namespace pcit::panther::sema{
 				sema::ReturnParamID,
 				sema::ErrorReturnParamID,
 				sema::BlockExprOutputID,
-				sema::ExceptParamID
+				sema::ExceptParamID,
+				ReturnParamAccessorValueStateID
 			>;
 			enum class ValueState{
 				UNINIT,
 				INIT,
+				INITIALIZING,
 				MOVED_FROM,
 			};
 

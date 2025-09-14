@@ -56,6 +56,7 @@ namespace pcit::panther{
 		enum class ValueState{
 			NOT_APPLICABLE,
 			INIT,
+			INITIALIZING,
 			UNINIT,
 			MOVED_FROM,
 		};
@@ -343,6 +344,7 @@ namespace pcit::panther{
 				switch(fake_term_info.valueState){
 					case sema::FakeTermInfo::ValueState::NOT_APPLICABLE: return ValueState::NOT_APPLICABLE;
 					case sema::FakeTermInfo::ValueState::INIT:           return ValueState::INIT;
+					case sema::FakeTermInfo::ValueState::INITIALIZING:   return ValueState::INITIALIZING;
 					case sema::FakeTermInfo::ValueState::UNINIT:         return ValueState::UNINIT;
 					case sema::FakeTermInfo::ValueState::MOVED_FROM:     return ValueState::MOVED_FROM;
 				}
@@ -397,6 +399,7 @@ namespace pcit::panther{
 			switch(value_state){
 				case TermInfo::ValueState::NOT_APPLICABLE: return sema::FakeTermInfo::ValueState::NOT_APPLICABLE;
 				case TermInfo::ValueState::INIT:           return sema::FakeTermInfo::ValueState::INIT;
+				case TermInfo::ValueState::INITIALIZING:   return sema::FakeTermInfo::ValueState::INITIALIZING;
 				case TermInfo::ValueState::UNINIT:         return sema::FakeTermInfo::ValueState::UNINIT;
 				case TermInfo::ValueState::MOVED_FROM:     return sema::FakeTermInfo::ValueState::MOVED_FROM;
 			}
@@ -406,6 +409,7 @@ namespace pcit::panther{
 			switch(value_state){
 				case sema::FakeTermInfo::ValueState::NOT_APPLICABLE: return TermInfo::ValueState::NOT_APPLICABLE;
 				case sema::FakeTermInfo::ValueState::INIT:           return TermInfo::ValueState::INIT;
+				case sema::FakeTermInfo::ValueState::INITIALIZING:   return TermInfo::ValueState::INITIALIZING;
 				case sema::FakeTermInfo::ValueState::UNINIT:         return TermInfo::ValueState::UNINIT;
 				case sema::FakeTermInfo::ValueState::MOVED_FROM:     return TermInfo::ValueState::MOVED_FROM;
 			}

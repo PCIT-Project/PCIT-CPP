@@ -1790,6 +1790,33 @@ namespace pcit::panther{
 			return evo::Result<>();
 		}
 
+		if(infix.rhs.kind() == AST::Kind::NEW){
+			const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
+			if(lhs.isError()){ return evo::resultError; }
+
+			const AST::New& ast_new = this->source.getASTBuffer().getNew(infix.rhs);
+
+			const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
+				this->source.getASTBuffer().getType(ast_new.type)
+			);
+			if(type_id.isError()){ return evo::resultError; }
+
+			auto args = evo::SmallVector<SymbolProc::TermInfoID>();
+			args.reserve(ast_new.args.size());
+			for(const AST::FuncCall::Arg& arg : ast_new.args){
+				const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<false>(arg.value);
+				if(value_expr.isError()){ return evo::resultError; }
+
+				args.emplace_back(value_expr.value());
+			}
+
+
+			this->add_instruction(this->context.symbol_proc_manager.createAssignmentNew(
+				infix, lhs.value(), type_id.value(), std::move(args))
+			);
+			return evo::Result<>();
+		}
+
 		const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
 		if(lhs.isError()){ return evo::resultError; }
 
@@ -2857,10 +2884,37 @@ namespace pcit::panther{
 
 	template<bool IS_CONSTEXPR>
 	auto SymbolProcBuilder::analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE, node, "Building symbol proc of [new] is unimplemented"
+		const AST::New& ast_new = this->source.getASTBuffer().getNew(node);
+
+		const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
+			this->source.getASTBuffer().getType(ast_new.type)
 		);
-		return evo::resultError;
+		if(type_id.isError()){ return evo::resultError; }
+
+		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
+		args.reserve(ast_new.args.size());
+		for(const AST::FuncCall::Arg& arg : ast_new.args){
+			const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<IS_CONSTEXPR>(arg.value);
+			if(value_expr.isError()){ return evo::resultError; }
+
+			args.emplace_back(value_expr.value());
+		}
+
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		if constexpr(IS_CONSTEXPR){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createNewConstexpr(
+					ast_new, type_id.value(), new_term_info_id, std::move(args)
+				)
+			);
+		}else{
+			this->add_instruction(
+				this->context.symbol_proc_manager.createNew(
+					ast_new, type_id.value(), new_term_info_id, std::move(args)
+				)
+			);
+		}
+		return new_term_info_id;
 	}
 
 

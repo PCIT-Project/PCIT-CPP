@@ -957,6 +957,22 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// AssignmentNew
+
+			EVO_NODISCARD auto createAssignmentNew(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ASSIGNMENT_NEW,
+					this->assignment_news.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getAssignmentNew(Instruction instr) const -> const Instruction::AssignmentNew& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ASSIGNMENT_NEW, "Not a AssignmentNew");
+				return this->assignment_news[instr._index];
+			}
+
+
 
 			//////////////////
 			// MultiAssign
@@ -1613,6 +1629,42 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getUnwrap(Instruction instr) const -> const Instruction::Unwrap& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::UNWRAP, "Not a Unwrap");
 				return this->unwraps[instr._index];
+			}
+
+
+			//////////////////
+			// New<true>
+
+			EVO_NODISCARD auto createNewConstexpr(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::NEW_CONSTEXPR,
+					this->new_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getNewConstexpr(Instruction instr) const
+			-> const Instruction::New<true>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::NEW_CONSTEXPR, "Not a New<true>"
+				);
+				return this->new_constexprs[instr._index];
+			}
+
+
+
+			//////////////////
+			// New<false>
+
+			EVO_NODISCARD auto createNew(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::NEW,
+					this->news.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getNew(Instruction instr) const -> const Instruction::New<false>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::NEW, "Not a New<false>");
+				return this->news[instr._index];
 			}
 
 
@@ -2445,6 +2497,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::EndStmtBlock, uint64_t> end_stmt_blocks{};
 			core::SyncLinearStepAlloc<Instruction::FuncCall, uint64_t> func_calls{};
 			core::SyncLinearStepAlloc<Instruction::Assignment, uint64_t> assignments{};
+			core::SyncLinearStepAlloc<Instruction::AssignmentNew, uint64_t> assignment_news{};
 			core::SyncLinearStepAlloc<Instruction::MultiAssign, uint64_t> multi_assigns{};
 			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint64_t> discarding_assignments{};
 			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint64_t> type_to_terms{};
@@ -2490,6 +2543,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<false>, uint64_t> prefix_bitwise_nots{};
 			core::SyncLinearStepAlloc<Instruction::Deref, uint64_t> derefs{};
 			core::SyncLinearStepAlloc<Instruction::Unwrap, uint64_t> unwraps{};
+			core::SyncLinearStepAlloc<Instruction::New<true>, uint64_t> new_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::New<false>, uint64_t> news{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint64_t> array_init_new_constexprs{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint64_t> array_init_news{};
 			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint64_t> designated_init_new_constexprs{};

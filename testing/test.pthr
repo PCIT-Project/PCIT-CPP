@@ -1,8 +1,29 @@
 // def test = @importCPP("test.h");
 
-func entry = () #entry -> UI8 {
-	const lhs: Bool = true;
-	const rhs: Bool = false;
+type Vec2 = struct {
+	func new = (x: F32, y: F32) -> (output: Vec2) {
+		output.x = copy x;
+		output.y = copy y;
+		return...;
+	}
 
-	return (lhs || rhs) as UI8;
+	func new = (this mut, x: F32, y: F32) -> Void {
+		this.x = copy x;
+		this.y = copy y;
+	}
+
+
+	var x: F32;
+	var y: F32;
+}
+
+
+
+func entry = () #entry -> UI8 {
+	var vec = new Vec2(12.0, 14.0);
+	// var vec: Vec2 = uninit;
+
+	vec = new Vec2(12.0, 14.0);
+
+	return vec.x as UI8;
 }

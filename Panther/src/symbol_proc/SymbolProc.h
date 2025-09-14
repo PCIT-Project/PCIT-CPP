@@ -514,6 +514,13 @@ namespace pcit::panther{
 			SymbolProcTermInfoID rhs;
 		};
 
+		struct AssignmentNew{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
+			SymbolProcTypeID type_id;
+			evo::SmallVector<SymbolProcTermInfoID> args;
+		};
+
 		struct MultiAssign{
 			const AST::MultiAssign& multi_assign;
 			evo::SmallVector<std::optional<SymbolProcTermInfoID>> targets;
@@ -672,6 +679,14 @@ namespace pcit::panther{
 			const AST::Postfix& postfix;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
+		};
+
+		template<bool IS_CONSTEXPR>
+		struct New{
+			const AST::New& ast_new;
+			SymbolProcTypeID type_id;
+			SymbolProcTermInfoID output;
+			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
 		template<bool IS_CONSTEXPR>
@@ -908,6 +923,7 @@ namespace pcit::panther{
 			END_STMT_BLOCK,
 			FUNC_CALL,
 			ASSIGNMENT,
+			ASSIGNMENT_NEW,
 			MULTI_ASSIGN,
 			DISCARDING_ASSIGNMENT,
 
@@ -947,6 +963,8 @@ namespace pcit::panther{
 			PREFIX_BITWISE_NOT,
 			DEREF,
 			UNWRAP,
+			NEW_CONSTEXPR,
+			NEW,
 			ARRAY_INIT_NEW_CONSTEXPR,
 			ARRAY_INIT_NEW,
 			DESIGNATED_INIT_NEW_CONSTEXPR,
@@ -1305,6 +1323,8 @@ namespace pcit::panther{
 
 			struct FuncInfo{
 				std::stack<sema::Stmt> subscopes{};
+
+				size_t num_members_of_initializing_are_uninit = 0;
 
 				evo::SmallVector<std::optional<TypeInfo::ID>> param_type_to_check_if_is_copy{};
 

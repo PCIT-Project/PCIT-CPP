@@ -290,7 +290,10 @@ namespace pcit::panther::sema{
 
 		const auto lock = std::scoped_lock(this->idents_lock);
 
-		if(this->ids.contains(ident)){ return false; }
+		const auto find = this->ids.find(ident);
+		if(find != this->ids.end()){
+			return find->second.is<MemberVar>(); // done this way as you can't shadow a member var
+		}
 
 		this->disallowed_idents_for_shadowing.emplace(ident, id);
 		return true;

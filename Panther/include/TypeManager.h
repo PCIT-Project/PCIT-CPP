@@ -434,9 +434,18 @@ namespace pcit::panther{
 
 			mutable core::SpinLock memberVarsLock{}; // only needed before definition is completed
 
+			evo::SmallVector<sema::FuncID> newInitOverloads{};
+			mutable core::SpinLock newInitOverloadsLock{}; // only needed before def completed
+
+			evo::SmallVector<sema::FuncID> newReassignOverloads{};
+			mutable core::SpinLock newReassignOverloadsLock{}; // only needed before def completed
 
 			std::unordered_map<TypeInfoID, sema::FuncID> operatorAsOverloads{};
-			mutable core::SpinLock operatorAsOverloadsLock{};
+			mutable core::SpinLock operatorAsOverloadsLock{}; // only needed before def completed
+
+			bool isDefaultInitable = false;
+			bool isConstexprDefaultInitable = false;
+			bool isNoErrorDefaultInitable = false;
 
 			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
@@ -650,6 +659,10 @@ namespace pcit::panther{
 					&& this->qualifiers().back().isPtr == false
 					&& this->qualifiers().back().isOptional;
 			}
+
+			EVO_NODISCARD auto isUninitPointer() const -> bool {
+				return this->qualifiers().empty() == false && this->qualifiers().back().isUninit;
+			}
 	
 		private:
 			BaseType::ID base_type;
@@ -766,11 +779,17 @@ namespace pcit::panther{
 			//////////////////
 			// operations
 
-			EVO_NODISCARD auto isDefaultNewable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isDefaultNewable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isDefaultInitializable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isDefaultInitializable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isTriviallyDefaultNewable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isTriviallyDefaultNewable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isConstexprDefaultInitializable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isConstexprDefaultInitializable(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isNoErrorDefaultInitializable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isNoErrorDefaultInitializable(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isTriviallyDefaultInitializable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyDefaultInitializable(BaseType::ID id) const -> bool;
 
 			EVO_NODISCARD auto isTriviallyDeletable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyDeletable(BaseType::ID id) const -> bool;

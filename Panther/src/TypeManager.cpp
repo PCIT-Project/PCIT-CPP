@@ -15,6 +15,8 @@
 
 #include "../include/source/SourceManager.h"
 
+#include "../include/sema/SemaBuffer.h"
+
 
 namespace pcit::panther{
 
@@ -1326,17 +1328,17 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isDefaultNewable
+	// isDefaultInitializable
 
-	auto TypeManager::isDefaultNewable(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isDefaultInitializable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		if(type_info.qualifiers().empty()){ return this->isDefaultNewable(type_info.baseTypeID()); }
+		if(type_info.qualifiers().empty()){ return this->isDefaultInitializable(type_info.baseTypeID()); }
 		if(type_info.qualifiers().back().isOptional && type_info.qualifiers().back().isPtr){ return true; }
 		return false;
 	}
 
-	auto TypeManager::isDefaultNewable(BaseType::ID id) const -> bool {
+	auto TypeManager::isDefaultInitializable(BaseType::ID id) const -> bool {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY: {
 				evo::debugFatalBreak("Invalid type");
@@ -1352,7 +1354,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
-				return this->isDefaultNewable(array.elementTypeID);
+				return this->isDefaultInitializable(array.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
@@ -1361,22 +1363,17 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isDefaultNewable(*alias.aliasedType.load());
+				return this->isDefaultInitializable(*alias.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isDefaultNewable(*alias.underlyingType.load());
+				return this->isDefaultInitializable(*alias.underlyingType.load());
 			} break;
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
-
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isDefaultNewable(member_var.typeID) == false){ return false; }
-				}
-
-				return true;
+				return struct_info.isDefaultInitable;
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -1385,7 +1382,7 @@ namespace pcit::panther{
 				for(const BaseType::Union::Field& field : union_info.fields){
 					if(field.typeID.isVoid()){ continue; }
 					// Yes, this is the correct method
-					if(this->isTriviallyDefaultNewable(field.typeID.asTypeID()) == false){ return false; }
+					if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
 				return true;
@@ -1400,16 +1397,20 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isTriviallyDefaultNewable
+	// isNoErrorDefaultInitializable
 
-	auto TypeManager::isTriviallyDefaultNewable(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isNoErrorDefaultInitializable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		if(type_info.qualifiers().empty() == false){ return false; }
-		return this->isTriviallyDefaultNewable(type_info.baseTypeID());
+		if(type_info.qualifiers().empty()){
+			return this->isNoErrorDefaultInitializable(type_info.baseTypeID());
+		}
+
+		if(type_info.qualifiers().back().isOptional && type_info.qualifiers().back().isPtr){ return true; }
+		return false;
 	}
 
-	auto TypeManager::isTriviallyDefaultNewable(BaseType::ID id) const -> bool {
+	auto TypeManager::isNoErrorDefaultInitializable(BaseType::ID id) const -> bool {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY: {
 				evo::debugFatalBreak("Invalid type");
@@ -1425,7 +1426,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->getArray(id.arrayID());
-				return this->isTriviallyDefaultNewable(array.elementTypeID);
+				return this->isNoErrorDefaultInitializable(array.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
@@ -1434,19 +1435,165 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isTriviallyDefaultNewable(*alias.aliasedType.load());
+				return this->isNoErrorDefaultInitializable(*alias.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyDefaultNewable(*alias.underlyingType.load());
+				return this->isNoErrorDefaultInitializable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+				return struct_info.isNoErrorDefaultInitable;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					// Yes, this is the correct method
+					if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+
+
+	///////////////////////////////////
+	// isConstexprDefaultInitializable
+
+	auto TypeManager::isConstexprDefaultInitializable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.qualifiers().empty()){
+			return this->isConstexprDefaultInitializable(type_info.baseTypeID());
+		}
+
+		if(type_info.qualifiers().back().isOptional && type_info.qualifiers().back().isPtr){ return true; }
+		return false;
+	}
+
+	auto TypeManager::isConstexprDefaultInitializable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isConstexprDefaultInitializable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isConstexprDefaultInitializable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isConstexprDefaultInitializable(*alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+				return struct_info.isConstexprDefaultInitable;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					// Yes, this is the correct method
+					if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+
+
+	///////////////////////////////////
+	// isTriviallyDefaultInitializable
+
+	auto TypeManager::isTriviallyDefaultInitializable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.qualifiers().empty() == false){ return false; }
+		return this->isTriviallyDefaultInitializable(type_info.baseTypeID());
+	}
+
+	auto TypeManager::isTriviallyDefaultInitializable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isTriviallyDefaultInitializable(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isTriviallyDefaultInitializable(*alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isTriviallyDefaultInitializable(*alias.underlyingType.load());
 			} break;
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
+				if(struct_info.newInitOverloads.empty() == false){ return false; }
+
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isTriviallyDefaultNewable(member_var.typeID) == false){ return false; }
+					if(this->isTriviallyDefaultInitializable(member_var.typeID) == false){ return false; }
 				}
 
 				return true;
@@ -1457,7 +1604,7 @@ namespace pcit::panther{
 
 				for(const BaseType::Union::Field& field : union_info.fields){
 					if(field.typeID.isVoid()){ continue; }
-					if(this->isTriviallyDefaultNewable(field.typeID.asTypeID()) == false){ return false; }
+					if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
 				return true;
