@@ -1,44 +1,19 @@
 def build = @import("build");
+def build_exp = @import("std_exp/build.pthr");
 
 
 func entry = () #entry -> UI8 {
-	@buildSetOutput(build.Output.PIR);
+	@buildSetOutput(build.Output.RUN);
 	@buildSetNumThreads(12);
 	@buildSetUseStdLib(false);
 
-	const project: Project = new Project(new @pthr.ProjectWarningSettings{
+	const project = new build_exp.Project(new @pthr.ProjectWarningSettings{
 		methodCallOnNonMethod = true,
 	});
 
-	project.addSourceFile("test.pthr".* as [Char:*]);
+	project.addSourceFile("test.pthr".* as [Char:*|]);
+	// project.addSourceFile("std_exp/std_exp.pthr".* as [Char:*]);
 	// @buildAddCPPHeaderFile("test.h".* as [Char:*], true);
 	
 	return 0;
-}
-
-
-
-//////////////////////////////////////////////////////////////////////
-// project
-
-type Project = struct {
-	func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*] = ("".* as [Char:*])) #rt
-	-> (output: This) {
-		output._project_id = @buildCreateProject(path, forward warning_settings);
-		return...;
-	}
-
-	// func create = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*] = ("".* as [Char:*])) #rt -> This {
-	// 	return new Project{
-	// 		_project_id = @buildCreateProject(path, forward warning_settings),
-	// 	};
-	// }
-
-
-	func addSourceFile = (this, path: [Char:*]) #rt -> Void {
-		@buildAddSourceFile(path, this._project_id);
-	}
-	
-
-	const _project_id: @pthr.ProjectID;
 }

@@ -663,6 +663,19 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isUninitPointer() const -> bool {
 				return this->qualifiers().empty() == false && this->qualifiers().back().isUninit;
 			}
+
+
+			EVO_NODISCARD auto copyWithPushedQualifier(AST::Type::Qualifier qualifier) const -> TypeInfo {
+				TypeInfo copied_type = *this;
+				copied_type._qualifiers.emplace_back(qualifier);
+				return copied_type;
+			}
+
+			EVO_NODISCARD auto copyWithPoppedQualifier() const -> TypeInfo {
+				TypeInfo copied_type = *this;
+				copied_type._qualifiers.pop_back();
+				return copied_type;
+			}
 	
 		private:
 			BaseType::ID base_type;
@@ -762,13 +775,13 @@ namespace pcit::panther{
 			//////////////////
 			// size
 
-			EVO_NODISCARD auto numBytes(TypeInfo::ID id) const -> uint64_t;
-			EVO_NODISCARD auto numBytes(BaseType::ID id) const -> uint64_t;
+			EVO_NODISCARD auto numBytes(TypeInfo::ID id, bool include_padding = true) const -> uint64_t;
+			EVO_NODISCARD auto numBytes(BaseType::ID id, bool include_padding = true) const -> uint64_t;
 			EVO_NODISCARD auto numBytesOfPtr() const -> uint64_t;
 			EVO_NODISCARD auto numBytesOfGeneralRegister() const -> uint64_t;
 
-			EVO_NODISCARD auto numBits(TypeInfo::ID id) const -> uint64_t;
-			EVO_NODISCARD auto numBits(BaseType::ID id) const -> uint64_t;
+			EVO_NODISCARD auto numBits(TypeInfo::ID id, bool include_padding = true) const -> uint64_t;
+			EVO_NODISCARD auto numBits(BaseType::ID id, bool include_padding = true) const -> uint64_t;
 			EVO_NODISCARD auto numBitsOfPtr() const -> uint64_t;
 			EVO_NODISCARD auto numBitsOfGeneralRegister() const -> uint64_t;
 

@@ -468,7 +468,7 @@ namespace pcit::panther{
 				const sema::Func* selected_func; // nullptr if is intrinsic/builtin-type method
 				const BaseType::Function& selected_func_type;
 
-				EVO_NODISCARD auto is_intrinsic() const -> bool { return !this->selected_func_id.has_value(); }
+				EVO_NODISCARD auto is_src_func() const -> bool { return this->selected_func_id.has_value(); }
 			};
 			template<bool IS_CONSTEXPR, bool ERRORS>
 			EVO_NODISCARD auto func_call_impl(

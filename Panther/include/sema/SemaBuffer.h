@@ -340,18 +340,6 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// array_to_array_ref
-
-			EVO_NODISCARD auto createArrayToArrayRef(auto&&... args) -> sema::ArrayToArrayRef::ID {
-				return this->array_to_array_ref.emplace_back(std::forward<decltype(args)>(args)...);
-			}
-
-			EVO_NODISCARD auto getArrayToArrayRef(sema::ArrayToArrayRef::ID id) const -> const sema::ArrayToArrayRef& {
-				return this->array_to_array_ref[id];
-			}
-
-
-			///////////////////////////////////
 			// optional null check
 
 			EVO_NODISCARD auto createImplicitConversionToOptional(auto&&... args)
@@ -520,6 +508,31 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getIndexer(sema::Indexer::ID id) const -> const sema::Indexer& {
 				return this->indexers[id];
+			}
+
+
+			///////////////////////////////////
+			// default init array ref
+
+			EVO_NODISCARD auto createDefaultInitArrayRef(auto&&... args) -> sema::DefaultInitArrayRef::ID {
+				return this->default_init_array_ref.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getDefaultInitArrayRef(sema::DefaultInitArrayRef::ID id) const
+			-> const sema::DefaultInitArrayRef& {
+				return this->default_init_array_ref[id];
+			}
+
+
+			///////////////////////////////////
+			// init array ref
+
+			EVO_NODISCARD auto createInitArrayRef(auto&&... args) -> sema::InitArrayRef::ID {
+				return this->init_array_ref.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getInitArrayRef(sema::InitArrayRef::ID id) const -> const sema::InitArrayRef& {
+				return this->init_array_ref[id];
 			}
 
 
@@ -740,7 +753,6 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
 			core::SyncLinearStepAlloc<sema::Unwrap, sema::Unwrap::ID> unwraps{};
-			core::SyncLinearStepAlloc<sema::ArrayToArrayRef, sema::ArrayToArrayRef::ID> array_to_array_ref{};
 			core::SyncLinearStepAlloc<sema::ImplicitConversionToOptional, sema::ImplicitConversionToOptional::ID> 
 				implicit_conversion_to_optionals{};
 			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
@@ -754,6 +766,9 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};
 			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
 			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
+			core::SyncLinearStepAlloc<sema::DefaultInitArrayRef, sema::DefaultInitArrayRef::ID>
+				default_init_array_ref{};
+			core::SyncLinearStepAlloc<sema::InitArrayRef, sema::InitArrayRef::ID> init_array_ref{};
 			core::SyncLinearStepAlloc<sema::ArrayRefIndexer, sema::ArrayRefIndexer::ID> array_ref_indexers{};
 			core::SyncLinearStepAlloc<sema::ArrayRefSize, sema::ArrayRefSize::ID> array_ref_size{};
 			core::SyncLinearStepAlloc<sema::ArrayRefDimensions, sema::ArrayRefDimensions::ID> array_ref_dimensions{};

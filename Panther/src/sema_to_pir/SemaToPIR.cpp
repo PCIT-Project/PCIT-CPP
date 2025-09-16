@@ -1825,128 +1825,13 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case sema::Expr::Kind::ARRAY_TO_ARRAY_REF: {
-				const sema::ArrayToArrayRef& array_to_array_ref = 
-					this->context.getSemaBuffer().getArrayToArrayRef(expr.arrayToArrayRefID());
-
-
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const uint64_t num_bits_ptr = this->context.getTypeManager().numBitsOfPtr();
-
-					const pir::Type array_ref_type = this->data.getArrayRefType(
-						this->module, unsigned(array_to_array_ref.lengths.size())
-					);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr array_ref_alloca =
-							this->agent.createAlloca(array_ref_type, this->name(".ARRAY_REF.ALLOCA"));
-
-						const pir::Expr data_ptr = this->agent.createCalcPtr(
-							array_ref_alloca,
-							array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".ARRAY_REF.ARRAY_PTR")
-						);
-						this->get_expr_store(array_to_array_ref.expr, data_ptr);
-
-
-						for(uint32_t i = 1; uint64_t length : array_to_array_ref.lengths){
-							const pir::Expr length_expr = this->agent.createNumber(
-								this->module.createIntegerType(uint32_t(num_bits_ptr)),
-								core::GenericInt(unsigned(num_bits_ptr), length)
-							);
-
-							const pir::Expr length_ptr = this->agent.createCalcPtr(
-								array_ref_alloca,
-								array_ref_type,
-								evo::SmallVector<pir::CalcPtr::Index>{0, i},
-								this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-							);
-							this->agent.createStore(length_ptr, length_expr);
-
-							i += 1;
-						}
-
-						return this->agent.createLoad(
-							array_ref_alloca, array_ref_type, false, pir::AtomicOrdering::NONE, this->name("ARRAY_REF")
-						);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr array_ref_alloca =
-							this->agent.createAlloca(array_ref_type, this->name("ARRAY_REF"));
-
-						const pir::Expr data_ptr = this->agent.createCalcPtr(
-							array_ref_alloca,
-							array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".ARRAY_REF.ARRAY_PTR")
-						);
-						this->get_expr_store(array_to_array_ref.expr, data_ptr);
-
-
-						for(uint32_t i = 1; uint64_t length : array_to_array_ref.lengths){
-							const pir::Expr length_expr = this->agent.createNumber(
-								this->module.createIntegerType(uint32_t(num_bits_ptr)),
-								core::GenericInt(unsigned(num_bits_ptr), length)
-							);
-
-							const pir::Expr length_ptr = this->agent.createCalcPtr(
-								array_ref_alloca,
-								array_ref_type,
-								evo::SmallVector<pir::CalcPtr::Index>{0, i},
-								this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-							);
-							this->agent.createStore(length_ptr, length_expr);
-
-							i += 1;
-						}
-
-						return array_ref_alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						const pir::Expr data_ptr = this->agent.createCalcPtr(
-							store_locations[0],
-							array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".ARRAY_REF.ARRAY_PTR")
-						);
-						this->get_expr_store(array_to_array_ref.expr, data_ptr);
-
-
-						for(uint32_t i = 1; uint64_t length : array_to_array_ref.lengths){
-							const pir::Expr length_expr = this->agent.createNumber(
-								this->module.createIntegerType(uint32_t(num_bits_ptr)),
-								core::GenericInt(unsigned(num_bits_ptr), length)
-							);
-
-							const pir::Expr length_ptr = this->agent.createCalcPtr(
-								store_locations[0],
-								array_ref_type,
-								evo::SmallVector<pir::CalcPtr::Index>{0, i},
-								this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-							);
-							this->agent.createStore(length_ptr, length_expr);
-
-							i += 1;
-						}
-
-						return std::nullopt;
-					}
-				}
-			} break;
-
 			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: {
-				const sema::ImplicitConversionToOptional& implicit_conversion_to_optionals = 
+				const sema::ImplicitConversionToOptional& implicit_conversion_to_optional = 
 					this->context.getSemaBuffer().getImplicitConversionToOptional(
 						expr.implicitConversionToOptionalID()
 					);
 
-				const pir::Type target_type = this->get_type<false>(implicit_conversion_to_optionals.targetTypeID);
+				const pir::Type target_type = this->get_type<false>(implicit_conversion_to_optional.targetTypeID);
 
 				const pir::Expr target = [&](){
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -1965,9 +1850,12 @@ namespace pcit::panther{
 
 
 				const pir::Expr held_calc_ptr = this->agent.createCalcPtr(
-					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-				);\
-				this->get_expr_store(implicit_conversion_to_optionals.expr, held_calc_ptr);
+					target,
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".IMPLICIT_CONVERSION_TO_OPTIONAL.value")
+				);
+				this->get_expr_store(implicit_conversion_to_optional.expr, held_calc_ptr);
 
 
 				const pir::Expr flag_calc_ptr = this->agent.createCalcPtr(
@@ -2684,6 +2572,222 @@ namespace pcit::panther{
 					return std::nullopt;
 				}
 
+			} break;
+
+			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+
+				}else{
+					const sema::DefaultInitArrayRef& default_init_array_ref = 
+						this->context.getSemaBuffer().getDefaultInitArrayRef(expr.defaultInitArrayRefID());
+
+					const BaseType::ArrayRef& array_ref_type =
+						this->context.getTypeManager().getArrayRef(default_init_array_ref.targetTypeID);
+
+					const size_t num_ref_ptrs = array_ref_type.getNumRefPtrs();
+
+					const pir::Type pir_array_ref_type =
+						this->data.getArrayRefType(this->module, unsigned(num_ref_ptrs));
+
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						const pir::Expr output_alloca = this->agent.createAlloca(
+							pir_array_ref_type, this->name(".DEFAULT_INIT_ARRAY_REF")
+						);
+
+						this->agent.createMemset(
+							output_alloca,
+							this->agent.createNumber(
+								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+							),
+							pir_array_ref_type
+						);
+
+						return this->agent.createLoad(
+							output_alloca,
+							pir_array_ref_type,
+							false,
+							pir::AtomicOrdering::NONE,
+							this->name("DEFAULT_INIT_ARRAY_REF")
+						);
+						
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr output_alloca = this->agent.createAlloca(
+							pir_array_ref_type, this->name("DEFAULT_INIT_ARRAY_REF")
+						);
+
+						this->agent.createMemset(
+							output_alloca,
+							this->agent.createNumber(
+								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+							),
+							pir_array_ref_type
+						);
+
+						return output_alloca;
+						
+					}else{
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+						this->agent.createMemset(
+							store_locations[0],
+							this->agent.createNumber(
+								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+							),
+							pir_array_ref_type
+						);
+						return std::nullopt;
+					}
+				}
+			} break;
+
+			case sema::Expr::Kind::INIT_ARRAY_REF: {
+				const sema::InitArrayRef& init_array_ref = 
+					this->context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
+
+
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+
+				}else{
+					const uint64_t num_bits_ptr = this->context.getTypeManager().numBitsOfPtr();
+
+					const pir::Type array_ref_type = this->data.getArrayRefType(
+						this->module, unsigned(init_array_ref.dimensions.size())
+					);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						const pir::Expr array_ref_alloca =
+							this->agent.createAlloca(array_ref_type, this->name(".ARRAY_REF.ALLOCA"));
+
+						const pir::Expr data_ptr = this->agent.createCalcPtr(
+							array_ref_alloca,
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".ARRAY_REF.ARRAY_PTR")
+						);
+						this->get_expr_store(init_array_ref.expr, data_ptr);
+
+
+						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
+							if(dimension.is<uint64_t>()){
+								const pir::Expr dimension_expr = this->agent.createNumber(
+									this->module.createIntegerType(uint32_t(num_bits_ptr)),
+									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
+								);
+
+								const pir::Expr dimension_ptr = this->agent.createCalcPtr(
+									array_ref_alloca,
+									array_ref_type,
+									evo::SmallVector<pir::CalcPtr::Index>{0, i},
+									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+								);
+								this->agent.createStore(dimension_ptr, dimension_expr);
+
+							}else{
+								const pir::Expr dimension_ptr = this->agent.createCalcPtr(
+									array_ref_alloca,
+									array_ref_type,
+									evo::SmallVector<pir::CalcPtr::Index>{0, i},
+									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+								);
+								this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
+							}
+
+							i += 1;
+						}
+
+						return this->agent.createLoad(
+							array_ref_alloca, array_ref_type, false, pir::AtomicOrdering::NONE, this->name("ARRAY_REF")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr array_ref_alloca =
+							this->agent.createAlloca(array_ref_type, this->name("ARRAY_REF"));
+
+						const pir::Expr data_ptr = this->agent.createCalcPtr(
+							array_ref_alloca,
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".ARRAY_REF.ARRAY_PTR")
+						);
+						this->get_expr_store(init_array_ref.expr, data_ptr);
+
+
+						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
+							if(dimension.is<uint64_t>()){
+								const pir::Expr dimension_expr = this->agent.createNumber(
+									this->module.createIntegerType(uint32_t(num_bits_ptr)),
+									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
+								);
+
+								const pir::Expr dimension_ptr = this->agent.createCalcPtr(
+									array_ref_alloca,
+									array_ref_type,
+									evo::SmallVector<pir::CalcPtr::Index>{0, i},
+									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+								);
+								this->agent.createStore(dimension_ptr, dimension_expr);
+
+
+							}else{
+								const pir::Expr dimension_ptr = this->agent.createCalcPtr(
+									array_ref_alloca,
+									array_ref_type,
+									evo::SmallVector<pir::CalcPtr::Index>{0, i},
+									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+								);
+								this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
+							}
+
+							i += 1;
+						}
+
+						return array_ref_alloca;
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+						const pir::Expr data_ptr = this->agent.createCalcPtr(
+							store_locations[0],
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".ARRAY_REF.ARRAY_PTR")
+						);
+						this->get_expr_store(init_array_ref.expr, data_ptr);
+
+						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
+							if(dimension.is<uint64_t>()){
+								const pir::Expr dimension_expr = this->agent.createNumber(
+									this->module.createIntegerType(uint32_t(num_bits_ptr)),
+									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
+								);
+
+								const pir::Expr dimension_ptr = this->agent.createCalcPtr(
+									store_locations[0],
+									array_ref_type,
+									evo::SmallVector<pir::CalcPtr::Index>{0, i},
+									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+								);
+								this->agent.createStore(dimension_ptr, dimension_expr);
+
+							}else{
+								const pir::Expr dimension_ptr = this->agent.createCalcPtr(
+									store_locations[0],
+									array_ref_type,
+									evo::SmallVector<pir::CalcPtr::Index>{0, i},
+									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+								);
+								this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
+							}
+
+							i += 1;
+						}
+
+						return std::nullopt;
+					}
+				}
 			} break;
 
 			case sema::Expr::Kind::ARRAY_REF_INDEXER: {
@@ -5056,24 +5160,25 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:                    case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                            case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                         case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:                         case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:
-			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
-			case sema::Expr::Kind::DEREF:                           case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:                        case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:                     case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE:                        case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::FAKE_TERM_INFO:                  case sema::Expr::Kind::MAKE_INTERFACE_PTR:
-			case sema::Expr::Kind::INTERFACE_CALL:                  case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:               case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:            case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::PARAM:                           case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:              case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:                    case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::GLOBAL_VAR:                      case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:                   case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:       case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::UNWRAP:                    case sema::Expr::Kind::ACCESSOR:
+			case sema::Expr::Kind::UNION_ACCESSOR:            case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:                case sema::Expr::Kind::TRY_ELSE:
+			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                   case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:
+			case sema::Expr::Kind::INIT_ARRAY_REF:            case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:            case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:              case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:         case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::VAR:                       case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

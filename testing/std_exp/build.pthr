@@ -1,0 +1,22 @@
+
+type Project = struct #pub {
+	func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*|] = ("".* as [Char:*|])) #rt
+	-> (output: This) {
+		output._project_id = @buildCreateProject(path, forward warning_settings);
+		return...;
+	}
+
+	// func create = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*] = ("".* as [Char:*])) #rt -> This {
+	// 	return new Project{
+	// 		_project_id = @buildCreateProject(path, forward warning_settings),
+	// 	};
+	// }
+
+
+	func addSourceFile = (this, path: [Char:*|]) #rt -> Void {
+		@buildAddSourceFile(path, this._project_id);
+	}
+	
+
+	const _project_id: @pthr.ProjectID;
+}

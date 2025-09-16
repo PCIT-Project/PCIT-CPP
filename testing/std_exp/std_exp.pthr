@@ -1,0 +1,5 @@
+
+
+func bitCast = <{To: Type}> (from: $From) #pub -> To {
+	return @bitCast<{From, To}>(from);
+}

@@ -4508,7 +4508,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_current_func().isConstexpr && !func_call_impl_res.value().is_intrinsic()){
+		if(this->get_current_func().isConstexpr && func_call_impl_res.value().is_src_func()){
 			if(func_call_impl_res.value().selected_func->isConstexpr == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
@@ -4561,7 +4561,7 @@ namespace pcit::panther{
 
 
 
-		if(func_call_impl_res.value().is_intrinsic()) [[unlikely]] {
+		if(func_call_impl_res.value().is_src_func() == false) [[unlikely]] {
 			const IntrinsicFunc::Kind intrinsic_kind = target_term_info.getExpr().intrinsicFuncID();
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
@@ -4743,6 +4743,8 @@ namespace pcit::panther{
 
 		const TermInfo& lhs = this->get_term_info(instr.lhs);
 
+		const AST::New& ast_new = this->source.getASTBuffer().getNew(instr.infix.rhs);
+
 		if(lhs.is_concrete() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
@@ -4788,22 +4790,232 @@ namespace pcit::panther{
 
 
 		if(actual_target_type_info.qualifiers().empty() == false){
+			if(actual_target_type_info.isOptional()){
+				if(
+					lhs.value_state == TermInfo::ValueState::UNINIT
+					&& this->context.getTypeManager().isTriviallyDeletable(target_type_id.asTypeID()) == false
+				){
+					this->emit_error(
+						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+						instr.infix.rhs,
+						"reassignment operator [new] for optional that is not trivially deletable is unimplemented"
+					);
+					return Result::ERROR;
+				}
+
+
+				if(instr.args.empty()){
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createAssign(
+							lhs.getExpr(), sema::Expr(this->context.sema_buffer.createNull(target_type_id.asTypeID()))
+						)
+					);
+
+					if(lhs.value_state == TermInfo::ValueState::UNINIT){
+						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					}
+
+					return Result::SUCCESS;
+
+				}else if(instr.args.size() == 1){
+					TermInfo& arg = this->get_term_info(instr.args[0]);
+
+					if(ast_new.args[0].label.has_value()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
+							ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info("No operator [new] of optional accepts arguments with labels")
+						);
+						return Result::ERROR;
+					}
+
+					if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
+						this->get_current_scope_level().stmtBlock().emplace_back(
+							this->context.sema_buffer.createAssign(
+								lhs.getExpr(),
+								sema::Expr(this->context.sema_buffer.createNull(target_type_id.asTypeID()))
+							)
+						);
+
+					}else{
+						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								actual_target_type_info.baseTypeID(),
+								evo::SmallVector<AST::Type::Qualifier>(
+									actual_target_type_info.qualifiers().begin(),
+									std::prev(actual_target_type_info.qualifiers().end())
+								)
+							)
+						);
+
+						if(this->type_check<true, true>(
+							optional_held_type_id, arg, "Argument in operator [new] for optional", ast_new.args[0].value
+						).ok == false){
+							return Result::ERROR;
+						}
+
+						this->get_current_scope_level().stmtBlock().emplace_back(
+							this->context.sema_buffer.createAssign(
+								lhs.getExpr(),
+								sema::Expr(
+									this->context.sema_buffer.createImplicitConversionToOptional(
+										arg.getExpr(), target_type_id.asTypeID()
+									)
+								)
+							)
+						);
+					}
+
+
+					if(lhs.value_state == TermInfo::ValueState::UNINIT){
+						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					}
+
+					return Result::SUCCESS;
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
+						ast_new.type,
+						"No matching operator [new] overload for this type",
+						Diagnostic::Info("Too may arguments")
+					);
+					return Result::ERROR;
+				}
+			}
+
+
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				this->source.getASTBuffer().getNew(instr.infix.rhs).type,
+				ast_new.type,
 				"Operator [new] of this type is unimplemented"
 			);
 			return Result::ERROR;
 		}
 
-		if(actual_target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				this->source.getASTBuffer().getNew(instr.infix.rhs).type,
-				"Operator [new] of this type is unimplemented"
-			);
-			return Result::ERROR;
+
+		switch(actual_target_type_info.baseTypeID().kind()){
+			case BaseType::Kind::ARRAY_REF: {
+				if(instr.args.empty()){
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createAssign(
+							lhs.getExpr(),
+							sema::Expr(this->context.sema_buffer.createDefaultInitArrayRef(
+								actual_target_type_info.baseTypeID().arrayRefID()
+							))
+						)
+					);
+
+					if(lhs.value_state == TermInfo::ValueState::UNINIT){
+						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					}
+
+					return Result::SUCCESS;
+				}
+
+				const BaseType::ArrayRef& array_ref =
+					this->context.getTypeManager().getArrayRef(actual_target_type_info.baseTypeID().arrayRefID());
+
+				const size_t num_ref_ptrs = array_ref.getNumRefPtrs();
+
+				if(instr.args.size() != num_ref_ptrs + 1){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+						ast_new.type,
+						"No matching operator [new] overload for this type",
+						Diagnostic::Info(
+							std::format("Expected {} arguments, got {}", num_ref_ptrs + 1, instr.args.size())
+						)
+					);
+					return Result::ERROR;
+				}
+
+				const TypeInfo::ID array_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
+					this->context.getTypeManager().getTypeInfo(array_ref.elementTypeID)
+						.copyWithPushedQualifier(AST::Type::Qualifier(true, array_ref.isReadOnly, false, false))
+				);
+
+				if(this->type_check<true, true>(
+					array_ptr_type,
+					this->get_term_info(instr.args[0]),
+					"Pointer argument of operator [new] for array reference",
+					ast_new.args[0].value
+				).ok == false){
+					return Result::ERROR;
+				}
+
+				if(ast_new.args[0].label.has_value()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+						ast_new.type,
+						"No matching operator [new] overload for this type",
+						Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
+					);
+				}
+
+
+				for(size_t i = 1; i < num_ref_ptrs + 1; i+=1){
+					if(this->type_check<true, true>(
+						TypeManager::getTypeUSize(),
+						this->get_term_info(instr.args[i]),
+						"Dimension argument of operator [new] for array reference",
+						ast_new.args[i].value
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					if(ast_new.args[i].label.has_value()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+							ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
+						);
+					}
+				}
+
+
+				auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
+				dimensions.reserve(array_ref.dimensions.size());
+				for(const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
+					if(dimension.isPtr()){
+						dimensions.emplace_back(this->get_term_info(instr.args[dimensions.size() + 1]).getExpr());
+					}else{
+						dimensions.emplace_back(dimension.length());
+					}
+				}
+
+				this->get_current_scope_level().stmtBlock().emplace_back(
+					this->context.sema_buffer.createAssign(
+						lhs.getExpr(),
+						sema::Expr(this->context.sema_buffer.createInitArrayRef(
+							this->get_term_info(instr.args[0]).getExpr(), std::move(dimensions)
+						))
+					)
+				);
+
+				if(lhs.value_state == TermInfo::ValueState::UNINIT){
+					this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+				}
+
+				return Result::SUCCESS;
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				// just break as will be done after switch
+			} break;
+
+			default: {
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					ast_new.type,
+					"Operator [new] of this type is unimplemented"
+				);
+				return Result::ERROR;
+			} break;
 		}
+
 
 
 		const BaseType::Struct& target_struct =
@@ -4823,7 +5035,7 @@ namespace pcit::panther{
 			if(target_struct.newInitOverloads.empty()){
 				this->emit_error(
 					Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
-					this->source.getASTBuffer().getNew(instr.infix.rhs).type,
+					ast_new.type,
 					"No matching operator [new] overload for this type"
 				);
 				return Result::ERROR;
@@ -4853,18 +5065,14 @@ namespace pcit::panther{
 
 
 		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
-			args.emplace_back(
-				this->get_term_info(arg_id),
-				this->source.getASTBuffer().getNew(instr.infix.rhs).args[i].value,
-				this->source.getASTBuffer().getNew(instr.infix.rhs).args[i].label
-			);
+			args.emplace_back(this->get_term_info(arg_id), ast_new.args[i].value, ast_new.args[i].label);
 
 			i += 1;
 		}
 
 
 		const evo::Result<size_t> selected_overload = this->select_func_overload(
-			overloads, args, this->source.getASTBuffer().getNew(instr.infix.rhs), !should_run_initialization
+			overloads, args, ast_new, !should_run_initialization
 		);
 		if(selected_overload.isError()){ return Result::ERROR; }
 
@@ -5182,7 +5390,12 @@ namespace pcit::panther{
 			sema_args.emplace_back(this->get_term_info(arg).getExpr());
 		}
 
-		if(func_call_impl_res.value().is_intrinsic()) [[unlikely]] {
+
+		if(target_term_info.value_category == TermInfo::ValueCategory::BUILTIN_TYPE_METHOD){
+			return this->builtin_type_method_call(target_term_info, std::move(sema_args), instr.output);
+		}
+
+		if(func_call_impl_res.value().is_src_func() == false) [[unlikely]] {
 			const IntrinsicFunc::Kind intrinsic_kind = target_term_info.getExpr().intrinsicFuncID();
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
@@ -5310,11 +5523,6 @@ namespace pcit::panther{
 
 				return Result::SUCCESS;
 			}
-		}
-
-
-		if(target_term_info.value_category == TermInfo::ValueCategory::BUILTIN_TYPE_METHOD){
-			return this->builtin_type_method_call(target_term_info, std::move(sema_args), instr.output);
 		}
 
 
@@ -7424,6 +7632,87 @@ namespace pcit::panther{
 
 
 		if(actual_target_type_info.qualifiers().empty() == false){
+			if(actual_target_type_info.isOptional()){
+				if(instr.args.empty()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type_id.asTypeID(),
+						sema::Expr(this->context.sema_buffer.createNull(target_type_id.asTypeID()))
+					);
+					return Result::SUCCESS;
+
+				}else if(instr.args.size() == 1){
+					TermInfo& arg = this->get_term_info(instr.args[0]);
+
+					if(instr.ast_new.args[0].label.has_value()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info("No operator [new] of optional accepts arguments with labels")
+						);
+						return Result::ERROR;
+					}
+
+					if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type_id.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createNull(target_type_id.asTypeID()))
+						);
+
+					}else{
+						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								actual_target_type_info.baseTypeID(),
+								evo::SmallVector<AST::Type::Qualifier>(
+									actual_target_type_info.qualifiers().begin(),
+									std::prev(actual_target_type_info.qualifiers().end())
+								)
+							)
+						);
+
+						if(this->type_check<true, true>(
+							optional_held_type_id,
+							arg,
+							"Argument in operator [new] for optional",
+							instr.ast_new.args[0].value
+						).ok == false){
+							return Result::ERROR;
+						}
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type_id.asTypeID(),
+							sema::Expr(
+								this->context.sema_buffer.createImplicitConversionToOptional(
+									arg.getExpr(), target_type_id.asTypeID()
+								)
+							)
+						);
+					}
+
+					return Result::SUCCESS;
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
+						instr.ast_new.type,
+						"No matching operator [new] overload for this type",
+						Diagnostic::Info("Too may arguments")
+					);
+					return Result::ERROR;
+				}
+
+
+			}
+
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				instr.ast_new.type,
@@ -7432,28 +7721,123 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(actual_target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.ast_new.type,
-				"Operator [new] of this type is unimplemented"
-			);
-			return Result::ERROR;
+
+		switch(actual_target_type_info.baseTypeID().kind()){
+			case BaseType::Kind::ARRAY_REF: {
+				if(instr.args.empty()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type_id.asTypeID(),
+						sema::Expr(this->context.sema_buffer.createDefaultInitArrayRef(
+							actual_target_type_info.baseTypeID().arrayRefID()
+						))
+					);
+					return Result::SUCCESS;
+				}
+
+				const BaseType::ArrayRef& array_ref =
+					this->context.getTypeManager().getArrayRef(actual_target_type_info.baseTypeID().arrayRefID());
+
+				const size_t num_ref_ptrs = array_ref.getNumRefPtrs();
+
+				if(instr.args.size() != num_ref_ptrs + 1){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+						instr.ast_new.type,
+						"No matching operator [new] overload for this type",
+						Diagnostic::Info(
+							std::format("Expected {} arguments, got {}", num_ref_ptrs + 1, instr.args.size())
+						)
+					);
+					return Result::ERROR;
+				}
+
+				const TypeInfo::ID array_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
+					this->context.getTypeManager().getTypeInfo(array_ref.elementTypeID)
+						.copyWithPushedQualifier(AST::Type::Qualifier(true, array_ref.isReadOnly, false, false))
+				);
+
+				if(this->type_check<true, true>(
+					array_ptr_type,
+					this->get_term_info(instr.args[0]),
+					"Pointer argument of operator [new] for array reference",
+					instr.ast_new.args[0].value
+				).ok == false){
+					return Result::ERROR;
+				}
+
+				if(instr.ast_new.args[0].label.has_value()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+						instr.ast_new.type,
+						"No matching operator [new] overload for this type",
+						Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
+					);
+				}
+
+
+				for(size_t i = 1; i < num_ref_ptrs + 1; i+=1){
+					if(this->type_check<true, true>(
+						TypeManager::getTypeUSize(),
+						this->get_term_info(instr.args[i]),
+						"Dimension argument of operator [new] for array reference",
+						instr.ast_new.args[i].value
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					if(instr.ast_new.args[i].label.has_value()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
+						);
+					}
+				}
+
+
+				auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
+				dimensions.reserve(array_ref.dimensions.size());
+				for(const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
+					if(dimension.isPtr()){
+						dimensions.emplace_back(this->get_term_info(instr.args[dimensions.size() + 1]).getExpr());
+					}else{
+						dimensions.emplace_back(dimension.length());
+					}
+				}
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type_id.asTypeID(),
+					sema::Expr(this->context.sema_buffer.createInitArrayRef(
+						this->get_term_info(instr.args[0]).getExpr(), std::move(dimensions)
+					))
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				// just break as will be done after switch
+			} break;
+
+			default: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
+					instr.ast_new.type,
+					"No matching operator [new] overload for this type"
+				);
+				return Result::ERROR;
+			} break;
 		}
 
 
 		const BaseType::Struct& target_struct =
 			this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
-
-
-		if(target_struct.newInitOverloads.empty()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
-				instr.ast_new.type,
-				"No matching operator [new] overload for this type"
-			);
-			return Result::ERROR;
-		}
 
 
 		auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
@@ -9239,10 +9623,30 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+			if(to_array_ref.isReadOnly == false && expr.is_const()){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
+				infos.emplace_back("Did you mean to make the target array reference read only?");
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix.rhs,
+					"No valid operator [as] to this type",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+
+
+			auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
+			dimensions.reserve(from_array.dimensions.size());
+			for(uint64_t dimension : from_array.dimensions){
+				dimensions.emplace_back(dimension);
+			}
 
 			const sema::Expr created_array_to_array_ref = sema::Expr(
-				this->context.sema_buffer.createArrayToArrayRef(
-					sema::Expr(this->context.sema_buffer.createAddrOf(expr.getExpr())), from_array.dimensions
+				this->context.sema_buffer.createInitArrayRef(
+					sema::Expr(this->context.sema_buffer.createAddrOf(expr.getExpr())), std::move(dimensions)
 				)
 			);
 
@@ -13552,24 +13956,24 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:                    case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:                 case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:                case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:           case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::MODULE_IDENT:                    case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                          case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:                       case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:                      case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:                 case sema::Expr::Kind::CHAR_VALUE:
 			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ARRAY_TO_ARRAY_REF:        case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:       case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::UNION_ACCESSOR:            case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:                case sema::Expr::Kind::TRY_ELSE:
-			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_CALL:
-			case sema::Expr::Kind::INDEXER:                   case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_SIZE:            case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                            case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                         case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::UNWRAP:                          case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:                     case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE:                        case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:                  case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+			case sema::Expr::Kind::INTERFACE_CALL:                  case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:          case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:               case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:            case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::GLOBAL_VAR:                      case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}
@@ -14983,7 +15387,7 @@ namespace pcit::panther{
 
 
 				this->scope.addTemplateDeclInstantiationType(
-					this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(), arg_type_id
+					template_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(), arg_type_id
 				);
 
 			}else{ // arg is expr
@@ -14996,7 +15400,7 @@ namespace pcit::panther{
 				const evo::Result<TypeInfo::ID> expr_type_id = [&]() -> evo::Result<TypeInfo::ID> {
 					if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
 						const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
-							this->source.getASTBuffer().getType(ast_template_pack.params[i].type)
+							template_source.getASTBuffer().getType(ast_template_pack.params[i].type)
 						);
 						if(resolved_type.isError()){
 							return evo::resultError;

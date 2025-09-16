@@ -104,12 +104,6 @@ namespace pcit::panther::sema{
 		using ID = AddrOfID;
 	}
 
-	struct ArrayToArrayRef{
-		using ID = ArrayToArrayRefID;	
-
-		Expr expr;
-		evo::SmallVector<uint64_t> lengths;
-	};
 
 	namespace Uninit{
 		using ID = UninitID;
@@ -126,7 +120,7 @@ namespace pcit::panther::sema{
 		std::optional<TypeInfo::ID> targetTypeID; // nullopt if unknown
 	};
 
-
+	// TODO(NOW): rename to remove "Implicit"
 	struct ImplicitConversionToOptional{
 		using ID = ImplicitConversionToOptionalID;
 
@@ -275,6 +269,19 @@ namespace pcit::panther::sema{
 		evo::SmallVector<Expr> indices;
 	};
 
+
+	struct DefaultInitArrayRef{
+		using ID = DefaultInitArrayRefID;
+
+		BaseType::ArrayRef::ID targetTypeID;
+	};
+
+	struct InitArrayRef{
+		using ID = InitArrayRefID;	
+
+		Expr expr;
+		evo::SmallVector<evo::Variant<uint64_t, Expr>> dimensions;
+	};
 
 	struct ArrayRefIndexer{
 		using ID = ArrayRefIndexerID;

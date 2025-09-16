@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.158.0"></a>
+## v0.0.158.0
+
+### Panther
+- Added operator [new] of optionals
+- Added operator [new] of array references
+- Added checking of operator `as` to array reference if it not being read-only is valid
+- Fixed crashing and/or incorrect behavior when instantiating template functions that are defined in a different file
+- Fixed assert firing in debug mode when dynamically importing files
+- Fixed crashing when getting size of an optional
+- Fixed crashing when calling methods on builtin type
+
+### pthr
+- Fixed printing of AST of functions that are operator overloads
+
+
+<!---------------------------------->
 <a name="v0.0.157.0"></a>
 ## v0.0.157.0
 

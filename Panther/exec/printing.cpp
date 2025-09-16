@@ -396,7 +396,12 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					this->print_ident(func_decl.name);
+					const panther::Token::Kind name_kind = this->source.getTokenBuffer()[func_decl.name].kind();
+					if(name_kind == panther::Token::Kind::IDENT){
+						this->print_ident(func_decl.name);
+					}else{
+						this->printer.printMagenta("{}\n", name_kind);
+					}
 
 					this->print_template_pack(func_decl.templatePack);
 

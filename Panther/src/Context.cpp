@@ -1651,8 +1651,9 @@ namespace pcit::panther{
 					}else{
 						for(const auto& global_symbol_proc : source.global_symbol_procs){
 							const SymbolProc::ID symbol_proc_id = global_symbol_proc.second;
-							const SymbolProc& symbol_proc = this->symbol_proc_manager.getSymbolProc(symbol_proc_id);
+							SymbolProc& symbol_proc = this->symbol_proc_manager.getSymbolProc(symbol_proc_id);
 							if(symbol_proc.isWaiting() == false){
+								symbol_proc.setStatusInQueue();
 								work_manager_inst.addTask(symbol_proc_id);
 							}
 						}

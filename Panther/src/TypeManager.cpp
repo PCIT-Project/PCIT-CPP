@@ -976,16 +976,33 @@ namespace pcit::panther{
 		return (num + (multiple - 1)) & ~(multiple - 1);
 	}
 
-	auto TypeManager::numBytes(TypeInfo::ID id) const -> size_t {
+
+	EVO_NODISCARD static constexpr auto add_padding_bytes_if_needed(size_t size, bool include_padding) -> size_t {
+		if(include_padding == false){ return size; }
+
+		switch(size){
+			case 1: return 1;
+			case 2: return 2;
+			case 3: case 4: return 4;
+			default: return ceil_to_multiple(size, 8);
+		}
+	}
+
+
+
+	auto TypeManager::numBytes(TypeInfo::ID id, bool include_padding) const -> size_t {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 		if(type_info.qualifiers().empty()){ return this->numBytes(type_info.baseTypeID()); }
 
-		evo::debugAssert(
-			type_info.qualifiers().back().isPtr || !type_info.qualifiers().back().isOptional,
-			"optionals are not supported yet"
-		);
 
-		if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+		if(type_info.qualifiers().back().isOptional){
+			if(type_info.qualifiers().back().isPtr){
+				return this->numBytesOfPtr();
+			}else{
+				return add_padding_bytes_if_needed(this->numBytes(type_info.baseTypeID(), false) + 1, include_padding);
+			}
+			
+		}else if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
 			return this->numBytesOfPtr() * 2;
 		}else{
 			return this->numBytesOfPtr();
@@ -993,7 +1010,7 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::numBytes(BaseType::ID id) const -> uint64_t {
+	auto TypeManager::numBytes(BaseType::ID id, bool include_padding) const -> uint64_t {
 		switch(id.kind()){
 			case BaseType::Kind::PRIMITIVE: {
 				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
@@ -1006,18 +1023,21 @@ namespace pcit::panther{
 						return this->numBytesOfPtr();
 
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
-						if(primitive.bitWidth() <= 8){
-							return 1;
+						if(include_padding){
+							if(primitive.bitWidth() <= 8){
+								return 1;
 
-						}else if(primitive.bitWidth() <= 16){
-							return 2;
+							}else if(primitive.bitWidth() <= 16){
+								return 2;
 
-						}else if(primitive.bitWidth() <= 32){
-							return 4;
+							}else if(primitive.bitWidth() <= 32){
+								return 4;
 
+							}else{
+								return ceil_to_multiple(primitive.bitWidth(), 64) / 8;
+							}
 						}else{
-
-							return ceil_to_multiple(primitive.bitWidth(), 64) / 8;
+							return ceil_to_multiple(primitive.bitWidth(), 8) / 8;
 						}
 					}
 
@@ -1070,7 +1090,7 @@ namespace pcit::panther{
 				for(uint64_t dimension : array.dimensions){
 					output *= dimension;
 				}
-				return output;
+				return add_padding_bytes_if_needed(output, include_padding);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
@@ -1087,7 +1107,7 @@ namespace pcit::panther{
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-				return this->numBytes(*alias.aliasedType.load());
+				return this->numBytes(*alias.aliasedType.load(), include_padding);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
@@ -1095,7 +1115,7 @@ namespace pcit::panther{
 				evo::debugAssert(
 					type_def.underlyingType.load().has_value(), "Definition of distinct_alias was not completed"
 				);
-				return this->numBytes(*type_def.underlyingType.load());
+				return this->numBytes(*type_def.underlyingType.load(), include_padding);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -1104,10 +1124,10 @@ namespace pcit::panther{
 				size_t total = 0;
 
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					total += this->numBytes(member_var.typeID);
+					total += this->numBytes(member_var.typeID, struct_info.isPacked);
 				}
 
-				return std::max(total, size_t(1));
+				return add_padding_bytes_if_needed(std::max(total, size_t(1)), include_padding);
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -1123,16 +1143,17 @@ namespace pcit::panther{
 					if(union_info.fields[0].typeID.isVoid()){
 						return 0;
 					}else{
-						return this->numBytes(union_info.fields[0].typeID.asTypeID());
+						return this->numBytes(union_info.fields[0].typeID.asTypeID(), include_padding);
 					}
 				}();
 
 				for(size_t i = 1; i < union_info.fields.size(); i+=1){
 					if(union_info.fields[i].typeID.isVoid()){ continue; }
-					largest_size = std::max(largest_size, this->numBytes(union_info.fields[i].typeID.asTypeID()));
+					largest_size = 
+						std::max(largest_size, this->numBytes(union_info.fields[i].typeID.asTypeID(), include_padding));
 				}
 
-				return std::max(largest_size, size_t(1));
+				return add_padding_bytes_if_needed(std::max(largest_size, size_t(1)), include_padding);
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -1158,13 +1179,29 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// numBits
 
-	auto TypeManager::numBits(TypeInfo::ID id) const -> size_t {
+	EVO_NODISCARD static constexpr auto add_padding_bits_if_needed(size_t size, bool include_padding) -> size_t {
+		if(include_padding == false){ return size; }
+
+		if(size <= 8){ return 8; }
+		if(size <= 16){ return 16; }
+		if(size <= 32){ return 32; }
+		return ceil_to_multiple(size, 64);
+	}
+
+	auto TypeManager::numBits(TypeInfo::ID id, bool include_padding) const -> size_t {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 		if(type_info.qualifiers().empty()){ return this->numBits(type_info.baseTypeID()); }
 
-		evo::debugAssert(type_info.isOptionalNotPointer(), "optionals are not supported yet");
-
-		if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+		if(type_info.qualifiers().back().isOptional){
+			if(type_info.qualifiers().back().isPtr){
+				return this->numBitsOfPtr();
+			}else{
+				return add_padding_bits_if_needed(
+					this->numBytes(type_info.baseTypeID(), false) * 8 + 1, include_padding
+				);
+			}
+			
+		}else if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
 			return this->numBitsOfPtr() * 2;
 		}else{
 			return this->numBitsOfPtr();
@@ -1172,7 +1209,7 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::numBits(BaseType::ID id) const -> uint64_t {
+	auto TypeManager::numBits(BaseType::ID id, bool include_padding) const -> uint64_t {
 		switch(id.kind()){
 			case BaseType::Kind::PRIMITIVE: {
 				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
@@ -1185,7 +1222,7 @@ namespace pcit::panther{
 						return this->numBitsOfPtr();
 
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N:
-						return primitive.bitWidth();
+						return add_padding_bits_if_needed(primitive.bitWidth(), include_padding);
 
 					case Token::Kind::TYPE_F16:    return 16;
 					case Token::Kind::TYPE_BF16:   return 16;
@@ -1249,7 +1286,7 @@ namespace pcit::panther{
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-				return this->numBits(*alias.aliasedType.load());
+				return this->numBits(*alias.aliasedType.load(), include_padding);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
@@ -1257,11 +1294,11 @@ namespace pcit::panther{
 				evo::debugAssert(
 					type_def.underlyingType.load().has_value(), "Definition of distinct_alias was not completed"
 				);
-				return this->numBits(*type_def.underlyingType.load());
+				return this->numBits(*type_def.underlyingType.load(), include_padding);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
-				return this->numBytes(id) * 8;
+				return this->numBytes(id, include_padding) * 8;
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -1277,13 +1314,14 @@ namespace pcit::panther{
 					if(union_info.fields[0].typeID.isVoid()){
 						return 0;
 					}else{
-						return this->numBits(union_info.fields[0].typeID.asTypeID());
+						return this->numBits(union_info.fields[0].typeID.asTypeID(), include_padding);
 					}
 				}();
 
 				for(size_t i = 1; i < union_info.fields.size(); i+=1){
 					if(union_info.fields[i].typeID.isVoid()){ continue; }
-					largest_size = std::max(largest_size, this->numBits(union_info.fields[i].typeID.asTypeID()));
+					largest_size =
+						std::max(largest_size, this->numBits(union_info.fields[i].typeID.asTypeID(), include_padding));
 				}
 
 				return std::max(largest_size, size_t(1));

@@ -50,7 +50,6 @@ namespace pcit::panther::sema{
 			FORWARD,
 			FUNC_CALL,
 			ADDR_OF,
-			ARRAY_TO_ARRAY_REF,
 			IMPLICIT_CONVERSION_TO_OPTIONAL,
 			OPTIONAL_NULL_CHECK,
 			DEREF,
@@ -65,6 +64,8 @@ namespace pcit::panther::sema{
 			MAKE_INTERFACE_PTR,
 			INTERFACE_CALL,
 			INDEXER,
+			DEFAULT_INIT_ARRAY_REF,
+			INIT_ARRAY_REF,
 			ARRAY_REF_INDEXER,
 			ARRAY_REF_SIZE,
 			ARRAY_REF_DIMENSIONS,
@@ -108,7 +109,6 @@ namespace pcit::panther::sema{
 		explicit Expr(ForwardID id)            : _kind(Kind::FORWARD),              value{.forward = id}             {};
 		explicit Expr(FuncCallID id)           : _kind(Kind::FUNC_CALL),            value{.func_call = id}           {};
 		explicit Expr(AddrOfID id)             : _kind(Kind::ADDR_OF),              value{.addr_of = id}             {};
-		explicit Expr(ArrayToArrayRefID id)    : _kind(Kind::ARRAY_TO_ARRAY_REF),   value{.array_to_array_ref = id}  {};
 
 		explicit Expr(sema::ImplicitConversionToOptionalID id) :
 			 _kind(Kind::IMPLICIT_CONVERSION_TO_OPTIONAL), value{.inmplicit_conversion_to_optional = id} {};
@@ -126,6 +126,9 @@ namespace pcit::panther::sema{
 		explicit Expr(MakeInterfacePtrID id)   : _kind(Kind::MAKE_INTERFACE_PTR),   value{.make_interface_ptr = id}  {};
 		explicit Expr(InterfaceCallID id)      : _kind(Kind::INTERFACE_CALL),       value{.interface_call = id}      {};
 		explicit Expr(IndexerID id)            : _kind(Kind::INDEXER),              value{.indexer = id}             {};
+		explicit Expr(DefaultInitArrayRefID id)
+			: _kind(Kind::DEFAULT_INIT_ARRAY_REF), value{.default_init_array_ref = id} {};
+		explicit Expr(InitArrayRefID id)       : _kind(Kind::INIT_ARRAY_REF),       value{.init_array_ref = id}      {};
 		explicit Expr(ArrayRefIndexerID id)    : _kind(Kind::ARRAY_REF_INDEXER),    value{.array_ref_indexer = id}   {};
 		explicit Expr(ArrayRefSizeID id)       : _kind(Kind::ARRAY_REF_SIZE),       value{.array_ref_size = id}      {};
 		explicit Expr(ArrayRefDimensionsID id) : _kind(Kind::ARRAY_REF_DIMENSIONS), value{.array_ref_dimensions = id}{};
@@ -223,10 +226,6 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::ADDR_OF, "not an addr of");
 			return this->value.addr_of;
 		}
-		EVO_NODISCARD auto arrayToArrayRefID() const -> ArrayToArrayRefID {
-			evo::debugAssert(this->kind() == Kind::ARRAY_TO_ARRAY_REF, "not an array to array ref");
-			return this->value.array_to_array_ref;
-		}
 		EVO_NODISCARD auto implicitConversionToOptionalID() const -> ImplicitConversionToOptionalID {
 			evo::debugAssert(
 				this->kind() == Kind::IMPLICIT_CONVERSION_TO_OPTIONAL, "not an implicit conversion to optional"
@@ -284,6 +283,14 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto indexerID() const -> IndexerID {
 			evo::debugAssert(this->kind() == Kind::INDEXER, "not an indexer");
 			return this->value.indexer;
+		}
+		EVO_NODISCARD auto defaultInitArrayRefID() const -> DefaultInitArrayRefID {
+			evo::debugAssert(this->kind() == Kind::DEFAULT_INIT_ARRAY_REF, "not a default init array ref");
+			return this->value.default_init_array_ref;
+		}
+		EVO_NODISCARD auto initArrayRefID() const -> InitArrayRefID {
+			evo::debugAssert(this->kind() == Kind::INIT_ARRAY_REF, "not an init array ref");
+			return this->value.init_array_ref;
 		}
 		EVO_NODISCARD auto arrayRefIndexerID() const -> ArrayRefIndexerID {
 			evo::debugAssert(this->kind() == Kind::ARRAY_REF_INDEXER, "not an array ref indexer");
@@ -373,7 +380,6 @@ namespace pcit::panther::sema{
 				ForwardID forward;
 				FuncCallID func_call;
 				AddrOfID addr_of;
-				ArrayToArrayRefID array_to_array_ref;
 				ImplicitConversionToOptionalID inmplicit_conversion_to_optional;
 				OptionalNullCheckID optional_null_check;
 				DerefID deref;
@@ -388,6 +394,8 @@ namespace pcit::panther::sema{
 				MakeInterfacePtrID make_interface_ptr;
 				InterfaceCallID interface_call;
 				IndexerID indexer;
+				DefaultInitArrayRefID default_init_array_ref;
+				InitArrayRefID init_array_ref;
 				ArrayRefIndexerID array_ref_indexer;
 				ArrayRefSizeID array_ref_size;
 				ArrayRefDimensionsID array_ref_dimensions;
