@@ -120,9 +120,8 @@ namespace pcit::panther::sema{
 		std::optional<TypeInfo::ID> targetTypeID; // nullopt if unknown
 	};
 
-	// TODO(NOW): rename to remove "Implicit"
-	struct ImplicitConversionToOptional{
-		using ID = ImplicitConversionToOptionalID;
+	struct ConversionToOptional{
+		using ID = ConversionToOptionalID;
 
 		Expr expr;
 		TypeInfo::ID targetTypeID;
@@ -267,6 +266,19 @@ namespace pcit::panther::sema{
 		Expr target;
 		TypeInfo::ID targetTypeID;
 		evo::SmallVector<Expr> indices;
+	};
+
+
+	struct DefaultInitPrimitive{
+		using ID = DefaultInitPrimitiveID;
+
+		BaseType::ID targetTypeID;
+	};
+
+	struct DefaultTriviallyInitStruct{
+		using ID = DefaultTriviallyInitStructID;
+
+		BaseType::ID targetTypeID;
 	};
 
 

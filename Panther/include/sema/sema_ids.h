@@ -81,8 +81,8 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, AddrOfID>::UniqueID;
 	};
 
-	struct ImplicitConversionToOptionalID : public core::UniqueID<uint32_t, struct ImplicitConversionToOptionalID> {
-		using core::UniqueID<uint32_t, ImplicitConversionToOptionalID>::UniqueID;
+	struct ConversionToOptionalID : public core::UniqueID<uint32_t, struct ConversionToOptionalID> {
+		using core::UniqueID<uint32_t, ConversionToOptionalID>::UniqueID;
 	};
 
 	struct OptionalNullCheckID : public core::UniqueID<uint32_t, struct OptionalNullCheckID> {
@@ -135,6 +135,14 @@ namespace pcit::panther::sema{
 
 	struct IndexerID : public core::UniqueID<uint32_t, struct IndexerID> {
 		using core::UniqueID<uint32_t, IndexerID>::UniqueID;
+	};
+
+	struct DefaultInitPrimitiveID : public core::UniqueID<uint32_t, struct DefaultInitPrimitiveID> {
+		using core::UniqueID<uint32_t, DefaultInitPrimitiveID>::UniqueID;
+	};
+
+	struct DefaultTriviallyInitStructID : public core::UniqueID<uint32_t, struct DefaultTriviallyInitStructID> {
+		using core::UniqueID<uint32_t, DefaultTriviallyInitStructID>::UniqueID;
 	};
 
 	struct DefaultInitArrayRefID : public core::UniqueID<uint32_t, struct DefaultInitArrayRefID> {
@@ -395,6 +403,28 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::AddrOfID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::ConversionToOptionalID>{
+		static constexpr auto init(panther::sema::ConversionToOptionalID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ConversionToOptionalID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::OptionalNullCheckID>{
+		static constexpr auto init(panther::sema::OptionalNullCheckID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::OptionalNullCheckID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -740,6 +770,29 @@ namespace pcit::core{
 		}
 	};
 
+
+	template<>
+	struct core::OptionalInterface<panther::sema::DefaultInitPrimitiveID>{
+		static constexpr auto init(panther::sema::DefaultInitPrimitiveID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::DefaultInitPrimitiveID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::DefaultTriviallyInitStructID>{
+		static constexpr auto init(panther::sema::DefaultTriviallyInitStructID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::DefaultTriviallyInitStructID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
 	template<>
 	struct core::OptionalInterface<panther::sema::DefaultInitArrayRefID>{
 		static constexpr auto init(panther::sema::DefaultInitArrayRefID* id) -> void {
@@ -750,7 +803,6 @@ namespace pcit::core{
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
-
 
 	template<>
 	struct core::OptionalInterface<panther::sema::InitArrayRefID>{
@@ -1015,6 +1067,40 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::AddrOfID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::AddrOfID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::ConversionToOptionalID>{
+		auto operator()(pcit::panther::sema::ConversionToOptionalID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::ConversionToOptionalID> 
+		: public pcit::core::Optional<pcit::panther::sema::ConversionToOptionalID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::sema::ConversionToOptionalID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ConversionToOptionalID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::OptionalNullCheckID>{
+		auto operator()(pcit::panther::sema::OptionalNullCheckID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::OptionalNullCheckID>
+		: public pcit::core::Optional<pcit::panther::sema::OptionalNullCheckID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::sema::OptionalNullCheckID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::OptionalNullCheckID>::operator=;
 	};
 
 
@@ -1512,6 +1598,40 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::sema::IndexerID>::operator=;
 	};
 
+
+
+	template<>
+	struct hash<pcit::panther::sema::DefaultInitPrimitiveID>{
+		auto operator()(pcit::panther::sema::DefaultInitPrimitiveID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::DefaultInitPrimitiveID>
+		: public pcit::core::Optional<pcit::panther::sema::DefaultInitPrimitiveID>{
+		
+		public:
+			using pcit::core::Optional<pcit::panther::sema::DefaultInitPrimitiveID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::DefaultInitPrimitiveID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::DefaultTriviallyInitStructID>{
+		auto operator()(pcit::panther::sema::DefaultTriviallyInitStructID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::DefaultTriviallyInitStructID>
+		: public pcit::core::Optional<pcit::panther::sema::DefaultTriviallyInitStructID>{
+		
+		public:
+			using pcit::core::Optional<pcit::panther::sema::DefaultTriviallyInitStructID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::DefaultTriviallyInitStructID>::operator=;
+	};
+	
 
 
 	template<>

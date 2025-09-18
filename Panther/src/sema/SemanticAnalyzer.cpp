@@ -1444,6 +1444,9 @@ namespace pcit::panther{
 		}
 
 
+		///////////////////////////////////
+		// sorting members ABI
+
 		const auto sorting_func = [](
 			const BaseType::Struct::MemberVar& lhs, const BaseType::Struct::MemberVar& rhs
 		) -> bool {
@@ -1458,53 +1461,222 @@ namespace pcit::panther{
 			created_struct.memberVarsABI.emplace_back(&member_var);
 		}
 
+		///////////////////////////////////
+		// PIR lowering for constexpr
+
+		auto sema_to_pir = SemaToPIR(
+			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+		);
+
+		sema_to_pir.lowerStruct(created_struct_id);
+
+
+
+		///////////////////////////////////
+		// default construction
 
 		if(created_struct.newInitOverloads.empty()){
-			created_struct.isDefaultInitable = true;
-			created_struct.isConstexprDefaultInitable = true;
-			created_struct.isNoErrorDefaultInitable = true;
+			created_struct.isDefaultInitializable = true;
+			created_struct.isTriviallyDefaultInitializable = true;
+			created_struct.isConstexprDefaultInitializable = true;
+			created_struct.isNoErrorDefaultInitializable = true;
 
 			for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
 				if(this->context.getTypeManager().isDefaultInitializable(member_var.typeID) == false){
-					created_struct.isDefaultInitable = false;
-					created_struct.isConstexprDefaultInitable = false;
-					created_struct.isNoErrorDefaultInitable = false;
+					created_struct.isDefaultInitializable = false;
+					created_struct.isTriviallyDefaultInitializable = false;
+					created_struct.isConstexprDefaultInitializable = false;
+					created_struct.isNoErrorDefaultInitializable = false;
+					break;
+				}
+
+				if(this->context.getTypeManager().isNoErrorDefaultInitializable(member_var.typeID) == false){
+					created_struct.isDefaultInitializable = false;
+					created_struct.isTriviallyDefaultInitializable = false;
+					created_struct.isConstexprDefaultInitializable = false;
+					created_struct.isNoErrorDefaultInitializable = false;
 					break;
 				}
 
 				if(
-					created_struct.isConstexprDefaultInitable
+					created_struct.isConstexprDefaultInitializable
 					&& this->context.getTypeManager().isConstexprDefaultInitializable(member_var.typeID) == false
 				){
-					created_struct.isConstexprDefaultInitable = false;
+					created_struct.isConstexprDefaultInitializable = false;
 				}
 
-				if(this->context.getTypeManager().isNoErrorDefaultInitializable(member_var.typeID) == false){
-					created_struct.isNoErrorDefaultInitable = false;
+				if(
+					created_struct.isTriviallyDefaultInitializable
+					&& this->context.getTypeManager().isTriviallyDefaultInitializable(member_var.typeID) == false
+				){
+					created_struct.isTriviallyDefaultInitializable = false;
+				}
+			}
 
-					const TypeInfo& member_var_type = this->context.getTypeManager().getTypeInfo(member_var.typeID);
-					if(
-						member_var_type.qualifiers().empty()
-						&& member_var_type.baseTypeID().kind() == BaseType::Kind::STRUCT
-					){
-						const BaseType::Struct& member_var_struct_type = 
-							this->context.getTypeManager().getStruct(member_var_type.baseTypeID().structID());
+			if(created_struct.isDefaultInitializable && created_struct.isTriviallyDefaultInitializable == false){
+				auto error_return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
+				if(created_struct.isNoErrorDefaultInitializable == false){
+					error_return_params.emplace_back(std::nullopt, TypeInfo::VoidableID::Void());
+				}
 
-						for(const sema::Func::ID& member_var_init_new_id : member_var_struct_type.newInitOverloads){
-							const sema::Func& member_var_init_new =
-								this->context.getSemaBuffer().getFunc(member_var_init_new_id);
+				const TypeInfo::ID created_struct_type_id = 
+					this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(created_struct_id)));
 
-							const BaseType::Function& member_var_init_new_func_type =
-								this->context.getTypeManager().getFunction(member_var_init_new.typeID);
+				const BaseType::ID default_init_func_type = this->context.type_manager.getOrCreateFunction(
+					BaseType::Function(
+						evo::SmallVector<BaseType::Function::Param>(),
+						evo::SmallVector<BaseType::Function::ReturnParam>{
+							BaseType::Function::ReturnParam(created_struct.name.as<Token::ID>(), created_struct_type_id)
+						},
+						std::move(error_return_params)
+					)
+				);
 
-							if(member_var_init_new_func_type.hasErrorReturnParams()){
-								created_struct.isDefaultInitable = false;
-								created_struct.isConstexprDefaultInitable = false;
-								break;
+				const sema::Func::ID created_default_init_new_id = this->context.sema_buffer.createFunc(
+					this->source.getID(),
+					sema::Func::CompilerCreatedOpOverload(
+						created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_NEW
+					),
+					std::string(),
+					default_init_func_type.funcID(),
+					evo::SmallVector<sema::Func::Param>(),
+					std::nullopt,
+					0,
+					false,
+					created_struct.isConstexprDefaultInitializable,
+					false,
+					false
+				);
+
+
+				sema::Func& created_default_init_new = this->context.sema_buffer.funcs[created_default_init_new_id];
+
+				const sema::Expr return_param = sema::Expr(this->context.sema_buffer.createReturnParam(0, 0));
+
+				for(size_t i = 0; const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(this->context.getTypeManager().isTriviallyDefaultInitializable(member_var.typeID)){ continue; }
+
+					const TypeInfo& member_type = this->context.getTypeManager().getTypeInfo(member_var.typeID);
+
+					const sema::Expr member_var_expr = [&](){
+						for(
+							uint32_t j = 0;
+							const BaseType::Struct::MemberVar* member_var_abi : created_struct.memberVarsABI
+						){
+							if(member_var_abi == &member_var){
+								return sema::Expr(this->context.sema_buffer.createAccessor(
+									return_param, created_struct_type_id, j
+								));
 							}
+
+							j += 1;
+						}
+						evo::debugFatalBreak("Didn't find ABI member");
+					}();
+
+
+					if(member_type.isOptional()){
+						created_default_init_new.stmtBlock.emplace_back(
+							this->context.sema_buffer.createAssign(
+								member_var_expr,
+								sema::Expr(this->context.sema_buffer.createNull(member_var.typeID))
+							)
+						);
+						continue;
+					}
+
+					switch(member_type.baseTypeID().kind()){
+						case BaseType::Kind::ARRAY_REF: {
+							created_default_init_new.stmtBlock.emplace_back(
+								this->context.sema_buffer.createAssign(
+									member_var_expr,
+									sema::Expr(this->context.sema_buffer.createDefaultInitArrayRef(
+										member_type.baseTypeID().arrayRefID()
+									))
+								)
+							);
+						} break;
+
+						case BaseType::Kind::STRUCT: {
+							const BaseType::Struct& member_struct_type = 
+								this->context.getTypeManager().getStruct(member_type.baseTypeID().structID());
+
+							for(sema::Func::ID new_init_overload_id : member_struct_type.newInitOverloads){
+								const sema::Func& new_init_overload =
+									this->context.getSemaBuffer().getFunc(new_init_overload_id);
+
+								if(new_init_overload.minNumArgs == 0){
+									created_default_init_new.stmtBlock.emplace_back(
+										this->context.sema_buffer.createAssign(
+											member_var_expr,
+											sema::Expr(this->context.sema_buffer.createFuncCall(
+												new_init_overload_id, evo::SmallVector<sema::Expr>()
+											))
+										)
+									);
+									break;
+								}
+							}
+						} break;
+
+						default: {
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								created_struct_id,
+								"Creating the default constructor of this type is unimplemented as default "
+									"constructing one of the member types is unimplemented"
+							);
+							return Result::ERROR;
+						} break;
+					}
+				}
+
+				created_default_init_new.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
+
+				created_default_init_new.isTerminated = true;
+				created_default_init_new.status = sema::Func::Status::DEF_DONE;
+
+				created_struct.newInitOverloads.emplace_back(created_default_init_new_id);
+
+				if(created_struct.isConstexprDefaultInitializable){
+					created_default_init_new.constexprJITFunc = 
+						sema_to_pir.lowerFuncDeclConstexpr(created_default_init_new_id);
+
+					sema_to_pir.lowerFuncDef(created_default_init_new_id);
+
+					created_default_init_new.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+						created_default_init_new_id, *created_default_init_new.constexprJITFunc
+					);
+
+
+					auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>{
+						*created_default_init_new.constexprJITFunc,
+						*created_default_init_new.constexprJITInterfaceFunc
+					};
+
+					const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+						this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
+							this->context.constexpr_pir_module,
+							pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
+						);
+
+					if(add_module_subset_result.has_value() == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						for(const std::string& error : add_module_subset_result.error()){
+							infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
 						}
 
-						if(created_struct.isDefaultInitable == false){ break; }
+						this->emit_fatal(
+							Diagnostic::Code::MISC_LLVM_ERROR,
+							created_struct_id,
+							Diagnostic::createFatalMessage(
+								"Failed to setup PIR JIT interface generated default operator [new]"
+							),
+							std::move(infos)
+						);
+						return Result::ERROR;
 					}
 				}
 			}
@@ -1517,90 +1689,24 @@ namespace pcit::panther{
 
 				if(new_init_overload.minNumArgs > 0){ continue; }
 
-				created_struct.isDefaultInitable = true;
+				created_struct.isDefaultInitializable = true;
 
 				if(new_init_overload.isConstexpr){
-					created_struct.isConstexprDefaultInitable = true;
+					created_struct.isConstexprDefaultInitializable = true;
 				}
 
-
 				if(new_init_overload_func_type.errorParams.empty()){
-					created_struct.isNoErrorDefaultInitable = true;
+					created_struct.isNoErrorDefaultInitializable = true;
 				}
 
 				break;
 			}
 		}
 
-		
-		// TODO(FUTURE): creating default [new]
-		// if(created_struct.isDefaultInitable && created_struct.isTriviallyDefaultInitable == false){
-		// 	if(created_struct.isNoErrorDefaultInitable == false){
-		// 		this->emit_error(
-		// 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-		// 			this->symbol_proc.ast_node,
-		// 			"Default creation of a default initializing operator [new] overload is unimplemented"
-		// 		);
-		// 		return Result::ERROR;
-		// 	}
 
 
-		// 	auto error_return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
-		// 	if(created_struct.isNoErrorDefaultInitable == false){
-		// 		error_return_params.emplace_back(std::nullopt, TypeInfo::VoidableID::Void());
-		// 	}
-
-		// 	const BaseType::ID default_init_func_type = this->context.type_manager.getOrCreateFunction(
-		// 		BaseType::Function(
-		// 			evo::SmallVector<BaseType::Function::Param>(),
-		// 			evo::SmallVector<BaseType::Function::ReturnParam>{
-		// 				BaseType::Function::ReturnParam(
-		// 					std::nullopt,
-		// 					this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(created_struct_id)))
-		// 				)
-		// 			},
-		// 			std::move(error_return_params)
-		// 		)
-		// 	);
-
-		// 	const sema::Func::ID created_default_init_new_id = this->context.sema_buffer.createFunc(
-		// 		this->source.getID(),
-		// 		sema::Func::CompilerCreatedOpOverload(created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_NEW),
-		// 		std::string(),
-		// 		default_init_func_type.funcID(),
-		// 		evo::SmallVector<sema::Func::Param>(),
-		// 		std::nullopt,
-		// 		0,
-		// 		false,
-		// 		created_struct.isConstexprDefaultInitable,
-		// 		false,
-		// 		false
-		// 	);
-
-
-		// 	sema::Func& created_default_init_new = this->context.sema_buffer.funcs[created_default_init_new_id];
-
-		// 	for(size_t i = 0; const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
-		// 		EVO_DEFER([&](){ i += 1; });
-
-		// 		if(this->context.getTypeManager().isTriviallyDefaultInitable()){ continue; }
-
-		// 		const TypeInfo& member_type = this->context.getTypeManager().getTypeInfo(member_var.typeID);
-
-		// 		switch(member_type.baseTypeID().kind()){
-					
-		// 		}
-		// 	}
-		// }
-
-
-
-
-		auto sema_to_pir = SemaToPIR(
-			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-		);
-
-		sema_to_pir.lowerStruct(created_struct_id);
+		///////////////////////////////////
+		// done
 
 		this->context.type_manager.getStruct(
 			this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id
@@ -2830,6 +2936,8 @@ namespace pcit::panther{
 			){
 				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
 
+				if(dependent_func.symbolProcID.has_value() == false){ continue; }
+
 				SymbolProc& dependent_func_symbol_proc = 
 					this->context.symbol_proc_manager.getSymbolProc(*dependent_func.symbolProcID);
 
@@ -2932,6 +3040,8 @@ namespace pcit::panther{
 				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
 			){
 				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
+
+				if(dependent_func.symbolProcID.has_value() == false){ continue; }
 
 				SymbolProc& dependent_func_symbol_proc = 
 					this->context.symbol_proc_manager.getSymbolProc(*dependent_func.symbolProcID);
@@ -4820,6 +4930,7 @@ namespace pcit::panther{
 				}else if(instr.args.size() == 1){
 					TermInfo& arg = this->get_term_info(instr.args[0]);
 
+
 					if(ast_new.args[0].label.has_value()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
@@ -4839,6 +4950,15 @@ namespace pcit::panther{
 						);
 
 					}else{
+						if(arg.is_ephemeral() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_OPTIONAL_ARG_NOT_EPHEMERAL,
+								ast_new.args[0].value,
+								"Argument in operator [new] for optional must be ephemeral or [null]"
+							);
+							return Result::ERROR;
+						}
+
 						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(
 								actual_target_type_info.baseTypeID(),
@@ -4859,7 +4979,7 @@ namespace pcit::panther{
 							this->context.sema_buffer.createAssign(
 								lhs.getExpr(),
 								sema::Expr(
-									this->context.sema_buffer.createImplicitConversionToOptional(
+									this->context.sema_buffer.createConversionToOptional(
 										arg.getExpr(), target_type_id.asTypeID()
 									)
 								)
@@ -4896,6 +5016,77 @@ namespace pcit::panther{
 
 
 		switch(actual_target_type_info.baseTypeID().kind()){
+			case BaseType::Kind::PRIMITIVE: {
+				if(instr.args.empty()){
+					const BaseType::Primitive& primitive =
+						this->context.getTypeManager().getPrimitive(actual_target_type_info.baseTypeID().primitiveID());
+
+					if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
+							ast_new.type,
+							"No matching operator [new] overload for this type"
+						);
+						return Result::ERROR;
+					}
+
+
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createAssign(
+							lhs.getExpr(),
+							sema::Expr(this->context.sema_buffer.createDefaultInitPrimitive(
+								actual_target_type_info.baseTypeID()
+							))
+						)
+					);
+
+					if(lhs.value_state == TermInfo::ValueState::UNINIT){
+						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					}
+					return Result::SUCCESS;
+					
+				}else if(instr.args.size() == 1){
+					TermInfo& arg = this->get_term_info(instr.args[0]);
+
+					if(arg.is_ephemeral() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_PRIMITIVE_ARG_NOT_EPHEMERAL,
+							ast_new.args[0].value,
+							"Argument in operator [new] for primitive must be ephemeral"
+						);
+						return Result::ERROR;
+					}
+
+					if(this->type_check<true, true>(
+						target_type_id.asTypeID(),
+						arg,
+						"Argument of operator [new] for primitive",
+						ast_new.args[0].value
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createAssign(lhs.getExpr(), arg.getExpr())
+					);
+
+					if(lhs.value_state == TermInfo::ValueState::UNINIT){
+						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					}
+
+					return Result::SUCCESS;
+					
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
+						ast_new.type,
+						"No matching operator [new] overload for this type",
+						Diagnostic::Info("Too may arguments")
+					);
+					return Result::ERROR;
+				}
+			} break;
+
 			case BaseType::Kind::ARRAY_REF: {
 				if(instr.args.empty()){
 					this->get_current_scope_level().stmtBlock().emplace_back(
@@ -4931,6 +5122,16 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+
+				if(this->get_term_info(instr.args[0]).is_ephemeral() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
+						ast_new.args[0].value,
+						"Argument in operator [new] for optional must be ephemeral"
+					);
+					return Result::ERROR;
+				}
+
 				const TypeInfo::ID array_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
 					this->context.getTypeManager().getTypeInfo(array_ref.elementTypeID)
 						.copyWithPushedQualifier(AST::Type::Qualifier(true, array_ref.isReadOnly, false, false))
@@ -4956,9 +5157,20 @@ namespace pcit::panther{
 
 
 				for(size_t i = 1; i < num_ref_ptrs + 1; i+=1){
+					TermInfo& arg = this->get_term_info(instr.args[i]);
+
+					if(arg.is_ephemeral() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
+							ast_new.args[i].value,
+							"Argument in operator [new] for array reference must be ephemera"
+						);
+						return Result::ERROR;
+					}
+
 					if(this->type_check<true, true>(
 						TypeManager::getTypeUSize(),
-						this->get_term_info(instr.args[i]),
+						arg,
 						"Dimension argument of operator [new] for array reference",
 						ast_new.args[i].value
 					).ok == false){
@@ -5033,12 +5245,20 @@ namespace pcit::panther{
 
 		if(should_run_initialization){
 			if(target_struct.newInitOverloads.empty()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
-					ast_new.type,
-					"No matching operator [new] overload for this type"
-				);
-				return Result::ERROR;
+				if(target_struct.isTriviallyDefaultInitializable){
+					if(lhs.value_state == TermInfo::ValueState::UNINIT){
+						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					}
+					return Result::SUCCESS;
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
+						ast_new.type,
+						"No matching operator [new] overload for this type"
+					);
+					return Result::ERROR;
+				}
 			}
 
 
@@ -5100,6 +5320,8 @@ namespace pcit::panther{
 		const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 			selected_func_id, std::move(output_args)
 		);
+
+		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 
 		if(should_run_initialization){
 			if(
@@ -7666,6 +7888,15 @@ namespace pcit::panther{
 						);
 
 					}else{
+						if(arg.is_ephemeral() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_OPTIONAL_ARG_NOT_EPHEMERAL,
+								instr.ast_new.args[0].value,
+								"Argument in operator [new] for optional must be ephemeral or [null]"
+							);
+							return Result::ERROR;
+						}
+
 						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(
 								actual_target_type_info.baseTypeID(),
@@ -7691,7 +7922,7 @@ namespace pcit::panther{
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(
-								this->context.sema_buffer.createImplicitConversionToOptional(
+								this->context.sema_buffer.createConversionToOptional(
 									arg.getExpr(), target_type_id.asTypeID()
 								)
 							)
@@ -7709,8 +7940,6 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}
-
-
 			}
 
 			this->emit_error(
@@ -7723,6 +7952,66 @@ namespace pcit::panther{
 
 
 		switch(actual_target_type_info.baseTypeID().kind()){
+			case BaseType::Kind::PRIMITIVE: {
+				if(instr.args.empty()){
+					const BaseType::Primitive& primitive =
+						this->context.getTypeManager().getPrimitive(actual_target_type_info.baseTypeID().primitiveID());
+
+					if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type"
+						);
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type_id.asTypeID(),
+						sema::Expr(this->context.sema_buffer.createDefaultInitPrimitive(
+							actual_target_type_info.baseTypeID()
+						))
+					);
+					return Result::SUCCESS;
+					
+				}else if(instr.args.size() == 1){
+					TermInfo& arg = this->get_term_info(instr.args[0]);
+
+					if(arg.is_ephemeral() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_PRIMITIVE_ARG_NOT_EPHEMERAL,
+							instr.ast_new.args[0].value,
+							"Argument in operator [new] for primitive must be ephemeral"
+						);
+						return Result::ERROR;
+					}
+
+					if(this->type_check<true, true>(
+						target_type_id.asTypeID(),
+						arg,
+						"Argument of operator [new] for primitive",
+						instr.ast_new.args[0].value
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					this->return_term_info(instr.output, arg);
+					return Result::SUCCESS;
+					
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
+						instr.ast_new.type,
+						"No matching operator [new] overload for this type",
+						Diagnostic::Info("Too may arguments")
+					);
+					return Result::ERROR;
+				}
+			} break;
+
 			case BaseType::Kind::ARRAY_REF: {
 				if(instr.args.empty()){
 					this->return_term_info(instr.output,
@@ -7754,6 +8043,15 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+				if(this->get_term_info(instr.args[0]).is_ephemeral() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
+						instr.ast_new.args[0].value,
+						"Argument in operator [new] for array reference must be ephemeral"
+					);
+					return Result::ERROR;
+				}
+
 				const TypeInfo::ID array_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
 					this->context.getTypeManager().getTypeInfo(array_ref.elementTypeID)
 						.copyWithPushedQualifier(AST::Type::Qualifier(true, array_ref.isReadOnly, false, false))
@@ -7779,9 +8077,20 @@ namespace pcit::panther{
 
 
 				for(size_t i = 1; i < num_ref_ptrs + 1; i+=1){
+					TermInfo& arg_term_info = this->get_term_info(instr.args[i]);
+
+					if(arg_term_info.is_ephemeral() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
+							instr.ast_new.args[i].value,
+							"Argument in operator [new] for array reference must be ephemeral"
+						);
+						return Result::ERROR;
+					}
+
 					if(this->type_check<true, true>(
 						TypeManager::getTypeUSize(),
-						this->get_term_info(instr.args[i]),
+						arg_term_info,
 						"Dimension argument of operator [new] for array reference",
 						instr.ast_new.args[i].value
 					).ok == false){
@@ -7839,6 +8148,29 @@ namespace pcit::panther{
 		const BaseType::Struct& target_struct =
 			this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
 
+		if(instr.args.empty() && target_struct.isTriviallyDefaultInitializable){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				target_type_id.asTypeID(),
+				sema::Expr(
+					this->context.sema_buffer.createDefaultTriviallyInitStruct(actual_target_type_info.baseTypeID())
+				)
+			);
+			return Result::SUCCESS;
+		}
+
+		if(target_struct.newInitOverloads.empty()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
+				instr.ast_new.type,
+				"No matching operator [new] overload for this type",
+				Diagnostic::Info("Compiler didn't generate a default operator [new]")
+			);
+			return Result::ERROR;
+		}
+
 
 		auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
 		overloads.reserve(target_struct.newInitOverloads.size());
@@ -7856,7 +8188,6 @@ namespace pcit::panther{
 
 			i += 1;
 		}
-
 
 		const evo::Result<size_t> selected_overload = this->select_func_overload(overloads, args, instr.ast_new, false);
 		if(selected_overload.isError()){ return Result::ERROR; }
@@ -7890,6 +8221,8 @@ namespace pcit::panther{
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 				selected_func_id, std::move(output_args)
 			);
+
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
@@ -13956,24 +14289,25 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:                    case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:                          case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:                       case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:                      case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:                 case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                            case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                         case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
-			case sema::Expr::Kind::UNWRAP:                          case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:                     case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE:                        case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::FAKE_TERM_INFO:                  case sema::Expr::Kind::MAKE_INTERFACE_PTR:
-			case sema::Expr::Kind::INTERFACE_CALL:                  case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:          case sema::Expr::Kind::INIT_ARRAY_REF:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:               case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:            case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::GLOBAL_VAR:                      case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::MODULE_IDENT:          case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:             case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:            case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:       case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::INTRINSIC_FUNC:        case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::COPY:                  case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:               case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::UNWRAP:                case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:           case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE:              case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:        case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+			case sema::Expr::Kind::INTERFACE_CALL:        case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:
+			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:     case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:  case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::GLOBAL_VAR:            case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}
@@ -17552,9 +17886,7 @@ namespace pcit::panther{
 
 					if(is_implicit_conversion_to_optional){
 						got_expr.getExpr() = sema::Expr(
-							this->context.sema_buffer.createImplicitConversionToOptional(
-								got_expr.getExpr(), expected_type_id
-							)
+							this->context.sema_buffer.createConversionToOptional(got_expr.getExpr(), expected_type_id)
 						);
 					}
 				}
@@ -17837,9 +18169,7 @@ namespace pcit::panther{
 
 					if(is_implicit_conversion_to_optional){
 						got_expr.getExpr() = sema::Expr(
-							this->context.sema_buffer.createImplicitConversionToOptional(
-								got_expr.getExpr(), expected_type_id
-							)
+							this->context.sema_buffer.createConversionToOptional(got_expr.getExpr(), expected_type_id)
 						);
 					}
 				}

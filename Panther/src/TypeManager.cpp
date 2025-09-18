@@ -1372,7 +1372,7 @@ namespace pcit::panther{
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
 		if(type_info.qualifiers().empty()){ return this->isDefaultInitializable(type_info.baseTypeID()); }
-		if(type_info.qualifiers().back().isOptional && type_info.qualifiers().back().isPtr){ return true; }
+		if(type_info.qualifiers().back().isOptional){ return true; }
 		return false;
 	}
 
@@ -1383,6 +1383,12 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+
+				if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
+					return false;
+				}
+
 				return true;
 			} break;
 
@@ -1396,7 +1402,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				return false;
+				return true;
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1411,7 +1417,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
-				return struct_info.isDefaultInitable;
+				return struct_info.isDefaultInitializable;
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -1444,7 +1450,7 @@ namespace pcit::panther{
 			return this->isNoErrorDefaultInitializable(type_info.baseTypeID());
 		}
 
-		if(type_info.qualifiers().back().isOptional && type_info.qualifiers().back().isPtr){ return true; }
+		if(type_info.qualifiers().back().isOptional){ return true; }
 		return false;
 	}
 
@@ -1455,6 +1461,12 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+
+				if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
+					return false;
+				}
+
 				return true;
 			} break;
 
@@ -1468,7 +1480,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				return false;
+				return true;
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1483,7 +1495,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
-				return struct_info.isNoErrorDefaultInitable;
+				return struct_info.isNoErrorDefaultInitializable;
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -1518,7 +1530,7 @@ namespace pcit::panther{
 			return this->isConstexprDefaultInitializable(type_info.baseTypeID());
 		}
 
-		if(type_info.qualifiers().back().isOptional && type_info.qualifiers().back().isPtr){ return true; }
+		if(type_info.qualifiers().back().isOptional){ return true; }
 		return false;
 	}
 
@@ -1529,6 +1541,12 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+
+				if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
+					return false;
+				}
+
 				return true;
 			} break;
 
@@ -1542,7 +1560,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				return false;
+				return true;
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1557,7 +1575,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
-				return struct_info.isConstexprDefaultInitable;
+				return struct_info.isConstexprDefaultInitializable;
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -1599,6 +1617,12 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+
+				if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
+					return false;
+				}
+
 				return true;
 			} break;
 
@@ -1627,14 +1651,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
-
-				if(struct_info.newInitOverloads.empty() == false){ return false; }
-
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isTriviallyDefaultInitializable(member_var.typeID) == false){ return false; }
-				}
-
-				return true;
+				return struct_info.isTriviallyDefaultInitializable;
 			} break;
 
 			case BaseType::Kind::UNION: {

@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.159.0"></a>
+## v0.0.159.0
+
+### Panther
+- Added compiler default generated operator [new]
+- Added operator [new] for primitives
+- Fixed missing checks that arguments to operator `new` for optional and array reference are ephemeral
+- Fixed comptime calling of operator [new]
+
+
+<!---------------------------------->
 <a name="v0.0.158.0"></a>
 ## v0.0.158.0
 

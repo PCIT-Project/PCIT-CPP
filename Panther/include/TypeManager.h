@@ -443,9 +443,10 @@ namespace pcit::panther{
 			std::unordered_map<TypeInfoID, sema::FuncID> operatorAsOverloads{};
 			mutable core::SpinLock operatorAsOverloadsLock{}; // only needed before def completed
 
-			bool isDefaultInitable = false;
-			bool isConstexprDefaultInitable = false;
-			bool isNoErrorDefaultInitable = false;
+			bool isDefaultInitializable = false;
+			bool isTriviallyDefaultInitializable = false;
+			bool isConstexprDefaultInitializable = false;
+			bool isNoErrorDefaultInitializable = false;
 
 			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }

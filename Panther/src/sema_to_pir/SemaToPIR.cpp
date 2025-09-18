@@ -1825,26 +1825,24 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL: {
-				const sema::ImplicitConversionToOptional& implicit_conversion_to_optional = 
-					this->context.getSemaBuffer().getImplicitConversionToOptional(
-						expr.implicitConversionToOptionalID()
-					);
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
+				const sema::ConversionToOptional& conversion_to_optional = 
+					this->context.getSemaBuffer().getConversionToOptional(expr.conversionToOptionalID());
 
-				const pir::Type target_type = this->get_type<false>(implicit_conversion_to_optional.targetTypeID);
+				const pir::Type target_type = this->get_type<false>(conversion_to_optional.targetTypeID);
 
 				const pir::Expr target = [&](){
 					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->agent.createAlloca(target_type, ".IMPLICIT_CONVERSION_TO_OPTIONAL.alloca");
+						return this->agent.createAlloca(target_type, ".CONVERSION_TO_OPTIONAL.alloca");
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->agent.createAlloca(target_type, ".IMPLICIT_CONVERSION_TO_OPTIONAL.alloca");
+						return this->agent.createAlloca(target_type, ".CONVERSION_TO_OPTIONAL.alloca");
 						
 					}else if constexpr(MODE == GetExprMode::STORE){
 						return store_locations[0];
 
 					}else{
-						return this->agent.createAlloca(target_type, ".DISCARD.IMPLICIT_CONVERSION_TO_OPTIONAL.alloca");
+						return this->agent.createAlloca(target_type, ".DISCARD.CONVERSION_TO_OPTIONAL.alloca");
 					}
 				}();
 
@@ -1853,16 +1851,16 @@ namespace pcit::panther{
 					target,
 					target_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-					this->name(".IMPLICIT_CONVERSION_TO_OPTIONAL.value")
+					this->name(".CONVERSION_TO_OPTIONAL.value")
 				);
-				this->get_expr_store(implicit_conversion_to_optional.expr, held_calc_ptr);
+				this->get_expr_store(conversion_to_optional.expr, held_calc_ptr);
 
 
 				const pir::Expr flag_calc_ptr = this->agent.createCalcPtr(
 					target,
 					target_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-					this->name(".IMPLICIT_CONVERSION_TO_OPTIONAL.flag")
+					this->name(".CONVERSION_TO_OPTIONAL.flag")
 				);
 				this->agent.createStore(flag_calc_ptr, this->agent.createBoolean(true));
 
@@ -1872,7 +1870,7 @@ namespace pcit::panther{
 						target_type,
 						false,
 						pir::AtomicOrdering::NONE,
-						this->name("IMPLICIT_CONVERSION_TO_OPTIONAL")
+						this->name("CONVERSION_TO_OPTIONAL")
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -2572,6 +2570,91 @@ namespace pcit::panther{
 					return std::nullopt;
 				}
 
+			} break;
+
+			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE: {
+				if constexpr(MODE == GetExprMode::DISCARD || MODE == GetExprMode::STORE){
+					return std::nullopt;
+
+				}else{
+					const sema::DefaultInitPrimitive& default_init_primitive =
+						this->context.getSemaBuffer().getDefaultInitPrimitive(expr.defaultInitPrimitiveID());
+
+					const pir::Type primitive_type = this->get_type<false>(default_init_primitive.targetTypeID);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						if(primitive_type.kind() == pir::Type::Kind::INTEGER){
+							return this->agent.createNumber(
+								primitive_type, core::GenericInt(primitive_type.getWidth(), 0)
+							);
+
+						}else if(primitive_type.kind() == pir::Type::Kind::BFLOAT){
+							return this->agent.createNumber(primitive_type, core::GenericFloat::createBF16(0));
+
+						}else{
+							switch(primitive_type.getWidth()){
+								case 16: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF32(0.0f).asF16()
+									);
+								} break;
+
+								case 32: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF32(0.0f)
+									);
+								} break;
+
+								case 64: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF64(0.0)
+									);
+								} break;
+
+								case 80: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF64(0.0).asF80()
+									);
+								} break;
+
+								case 128: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF64(0.0).asF128()
+									);
+								} break;
+							}
+						}
+						
+					}else{
+						return this->agent.createAlloca(primitive_type);
+					}
+				}
+			} break;
+
+			case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT: {
+				if constexpr(MODE == GetExprMode::DISCARD || MODE == GetExprMode::STORE){
+					return std::nullopt;
+
+				}else{
+					const sema::DefaultTriviallyInitStruct& default_trivially_init_struct = this->context
+						.getSemaBuffer()
+						.getDefaultTriviallyInitStruct(expr.defaultTriviallyInitStructID());
+
+					const pir::Type struct_type = this->get_type<false>(default_trivially_init_struct.targetTypeID);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(
+							this->agent.createAlloca(struct_type, this->name(".DEFAULT_TRIVIALLY_INIT_STRUCT")),
+							struct_type,
+							false,
+							pir::AtomicOrdering::NONE,
+							this->name("DEFAULT_TRIVIALLY_INIT_STRUCT")
+						);
+						
+					}else{
+						return this->agent.createAlloca(struct_type, this->name("DEFAULT_TRIVIALLY_INIT_STRUCT"));
+					}
+				}
 			} break;
 
 			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF: {
@@ -5160,24 +5243,25 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:                 case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:                   case sema::Expr::Kind::IMPLICIT_CONVERSION_TO_OPTIONAL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:       case sema::Expr::Kind::DEREF:
-			case sema::Expr::Kind::UNWRAP:                    case sema::Expr::Kind::ACCESSOR:
-			case sema::Expr::Kind::UNION_ACCESSOR:            case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:                case sema::Expr::Kind::TRY_ELSE:
-			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_CALL:
-			case sema::Expr::Kind::INDEXER:                   case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:
-			case sema::Expr::Kind::INIT_ARRAY_REF:            case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_SIZE:            case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:              case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:         case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::VAR:                       case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::COPY:                         case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                      case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:                      case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:          case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::UNWRAP:                       case sema::Expr::Kind::ACCESSOR:
+			case sema::Expr::Kind::UNION_ACCESSOR:               case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:                   case sema::Expr::Kind::TRY_ELSE:
+			case sema::Expr::Kind::BLOCK_EXPR:                   case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:           case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                      case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:
+			case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:
+			case sema::Expr::Kind::INIT_ARRAY_REF:               case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:               case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:    case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:                 case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:            case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::VAR:                          case sema::Expr::Kind::GLOBAL_VAR:
 			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
@@ -5429,17 +5513,27 @@ namespace pcit::panther{
 			
 		}else{
 			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
-			const Token& name_token = source.getTokenBuffer()[func.name.as<Token::ID>()];
-			if(name_token.kind() == Token::Kind::IDENT){
-				if(this->data.getConfig().useReadableNames){
-					return std::format("PTHR.f{}.{}", func_id.get(), name_token.getString());
-				}else{
-					return std::format("PTHR.f{}", func_id.get());
-				}
 
+			if(func.name.is<Token::ID>()){
+				const Token& name_token = source.getTokenBuffer()[func.name.as<Token::ID>()];
+				if(name_token.kind() == Token::Kind::IDENT){
+					if(this->data.getConfig().useReadableNames){
+						return std::format("PTHR.f{}.{}", func_id.get(), name_token.getString());
+					}else{
+						return std::format("PTHR.f{}", func_id.get());
+					}
+
+				}else{
+					// TODO(FUTURE): better naming of overloads
+					return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(name_token.kind()));
+				}
 			}else{
 				// TODO(FUTURE): better naming of overloads
-				return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(name_token.kind()));
+				return std::format(
+					"PTHR.f{}.OP.{}",
+					func_id.get(),
+					Token::printKind(func.name.as<sema::Func::CompilerCreatedOpOverload>().overloadKind)
+				);
 			}
 		}
 	}

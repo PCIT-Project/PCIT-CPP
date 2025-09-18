@@ -3,32 +3,39 @@
 // def test = @importCPP("test.h");
 
 
-// type Vec2 = struct {
-// 	func new = (x: F32, y: F32) -> (output: Vec2) {
-// 		output.x = copy x;
-// 		output.y = copy y;
-// 		return...;
-// 	}
+type Vec = struct {
+	// func new = (x: F32, y: F32) -> (output: Vec) {
+	// 	output.x = copy x;
+	// 	output.y = copy y;
+	// 	return...;
+	// }
 
-// 	func new = (this mut, x: F32, y: F32) -> Void {
-// 		this.x = copy x;
-// 		this.y = copy y;
-// 	}
-
-
-// 	var x: F32;
-// 	var y: F32;
-// }
+	// func new = (this mut, x: F32, y: F32) -> Void {
+	// 	this.x = copy x;
+	// 	this.y = copy y;
+	// }
 
 
+	var x: F32;
+	var y: F32;
+	var z: F32*?;
+}
+
+
+
+func get_default_vec_x = () -> F32 {
+	const vec = new Vec();
+	return copy vec.x;
+}
 
 
 
 func entry = () #entry -> UI8 {
-	const arr = new [Int:2][12, 14];
+	const num = new UI8();
 
-	var arr_ref = new [Int:*|]();
-	arr_ref = new [Int:*|](arr[0], arr.size());
+	var foo: Vec = new Vec();
 
-	return arr_ref[1].* as UI8;
+	def ASDF: F32 = get_default_vec_x();
+
+	return ASDF as UI8;
 }

@@ -342,14 +342,14 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// optional null check
 
-			EVO_NODISCARD auto createImplicitConversionToOptional(auto&&... args)
-			-> sema::ImplicitConversionToOptional::ID {
-				return this->implicit_conversion_to_optionals.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto createConversionToOptional(auto&&... args)
+			-> sema::ConversionToOptional::ID {
+				return this->conversion_to_optionals.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
-			EVO_NODISCARD auto getImplicitConversionToOptional(sema::ImplicitConversionToOptional::ID id) const
-			-> const sema::ImplicitConversionToOptional& {
-				return this->implicit_conversion_to_optionals[id];
+			EVO_NODISCARD auto getConversionToOptional(sema::ConversionToOptional::ID id) const
+			-> const sema::ConversionToOptional& {
+				return this->conversion_to_optionals[id];
 			}
 
 
@@ -508,6 +508,33 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getIndexer(sema::Indexer::ID id) const -> const sema::Indexer& {
 				return this->indexers[id];
+			}
+
+
+			///////////////////////////////////
+			// default init primitive
+
+			EVO_NODISCARD auto createDefaultInitPrimitive(auto&&... args) -> sema::DefaultInitPrimitive::ID {
+				return this->default_init_primitive.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getDefaultInitPrimitive(sema::DefaultInitPrimitive::ID id) const
+			-> const sema::DefaultInitPrimitive& {
+				return this->default_init_primitive[id];
+			}
+
+
+			///////////////////////////////////
+			// default trivially init struct
+
+			EVO_NODISCARD auto createDefaultTriviallyInitStruct(auto&&... args)
+			-> sema::DefaultTriviallyInitStruct::ID {
+				return this->default_trivially_init_struct.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getDefaultTriviallyInitStruct(sema::DefaultTriviallyInitStruct::ID id) const
+			-> const sema::DefaultTriviallyInitStruct& {
+				return this->default_trivially_init_struct[id];
 			}
 
 
@@ -753,8 +780,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
 			core::SyncLinearStepAlloc<sema::Unwrap, sema::Unwrap::ID> unwraps{};
-			core::SyncLinearStepAlloc<sema::ImplicitConversionToOptional, sema::ImplicitConversionToOptional::ID> 
-				implicit_conversion_to_optionals{};
+			core::SyncLinearStepAlloc<sema::ConversionToOptional, sema::ConversionToOptional::ID> 
+				conversion_to_optionals{};
 			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
 			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
 			core::SyncLinearStepAlloc<sema::UnionAccessor, sema::UnionAccessor::ID> union_accessors{};
@@ -766,6 +793,10 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};
 			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
 			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
+			core::SyncLinearStepAlloc<sema::DefaultInitPrimitive, sema::DefaultInitPrimitive::ID>
+				default_init_primitive{};
+			core::SyncLinearStepAlloc<sema::DefaultTriviallyInitStruct, sema::DefaultTriviallyInitStruct::ID>
+				default_trivially_init_struct{};
 			core::SyncLinearStepAlloc<sema::DefaultInitArrayRef, sema::DefaultInitArrayRef::ID>
 				default_init_array_ref{};
 			core::SyncLinearStepAlloc<sema::InitArrayRef, sema::InitArrayRef::ID> init_array_ref{};

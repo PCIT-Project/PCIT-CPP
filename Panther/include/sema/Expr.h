@@ -50,7 +50,7 @@ namespace pcit::panther::sema{
 			FORWARD,
 			FUNC_CALL,
 			ADDR_OF,
-			IMPLICIT_CONVERSION_TO_OPTIONAL,
+			CONVERSION_TO_OPTIONAL,
 			OPTIONAL_NULL_CHECK,
 			DEREF,
 			UNWRAP,
@@ -64,6 +64,8 @@ namespace pcit::panther::sema{
 			MAKE_INTERFACE_PTR,
 			INTERFACE_CALL,
 			INDEXER,
+			DEFAULT_INIT_PRIMITIVE,
+			DEFAULT_TRIVIALLY_INIT_STRUCT,
 			DEFAULT_INIT_ARRAY_REF,
 			INIT_ARRAY_REF,
 			ARRAY_REF_INDEXER,
@@ -109,10 +111,8 @@ namespace pcit::panther::sema{
 		explicit Expr(ForwardID id)            : _kind(Kind::FORWARD),              value{.forward = id}             {};
 		explicit Expr(FuncCallID id)           : _kind(Kind::FUNC_CALL),            value{.func_call = id}           {};
 		explicit Expr(AddrOfID id)             : _kind(Kind::ADDR_OF),              value{.addr_of = id}             {};
-
-		explicit Expr(sema::ImplicitConversionToOptionalID id) :
-			 _kind(Kind::IMPLICIT_CONVERSION_TO_OPTIONAL), value{.inmplicit_conversion_to_optional = id} {};
-
+		explicit Expr(sema::ConversionToOptionalID id) :
+			 _kind(Kind::CONVERSION_TO_OPTIONAL), value{.conversion_to_optional = id} {};
 		explicit Expr(OptionalNullCheckID id)  : _kind(Kind::OPTIONAL_NULL_CHECK),  value{.optional_null_check = id} {};
 		explicit Expr(DerefID id)              : _kind(Kind::DEREF),                value{.deref = id}               {};
 		explicit Expr(UnwrapID id)             : _kind(Kind::UNWRAP),               value{.unwrap = id}              {};
@@ -126,6 +126,10 @@ namespace pcit::panther::sema{
 		explicit Expr(MakeInterfacePtrID id)   : _kind(Kind::MAKE_INTERFACE_PTR),   value{.make_interface_ptr = id}  {};
 		explicit Expr(InterfaceCallID id)      : _kind(Kind::INTERFACE_CALL),       value{.interface_call = id}      {};
 		explicit Expr(IndexerID id)            : _kind(Kind::INDEXER),              value{.indexer = id}             {};
+		explicit Expr(DefaultInitPrimitiveID id)
+			: _kind(Kind::DEFAULT_INIT_PRIMITIVE), value{.default_init_primitive = id} {};
+		explicit Expr(DefaultTriviallyInitStructID id)
+			: _kind(Kind::DEFAULT_TRIVIALLY_INIT_STRUCT), value{.default_trivially_init_struct = id} {};
 		explicit Expr(DefaultInitArrayRefID id)
 			: _kind(Kind::DEFAULT_INIT_ARRAY_REF), value{.default_init_array_ref = id} {};
 		explicit Expr(InitArrayRefID id)       : _kind(Kind::INIT_ARRAY_REF),       value{.init_array_ref = id}      {};
@@ -200,8 +204,8 @@ namespace pcit::panther::sema{
 		}
 		EVO_NODISCARD auto templatedIntrinsicInstantiationID() const -> TemplateIntrinsicFuncInstantiationID {
 			evo::debugAssert(
-				this->kind() == Kind::IMPLICIT_CONVERSION_TO_OPTIONAL,
-				"not an IMPLICIT_CONVERSION_TO_OPTIONAL"
+				this->kind() == Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION,
+				"not an TEMPLATED_INTRINSIC_FUNC_INSTANTIATION"
 			);
 			return this->value.templated_intrinsic_func_instantiation;
 		}
@@ -226,11 +230,9 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::ADDR_OF, "not an addr of");
 			return this->value.addr_of;
 		}
-		EVO_NODISCARD auto implicitConversionToOptionalID() const -> ImplicitConversionToOptionalID {
-			evo::debugAssert(
-				this->kind() == Kind::IMPLICIT_CONVERSION_TO_OPTIONAL, "not an implicit conversion to optional"
-			);
-			return this->value.inmplicit_conversion_to_optional;
+		EVO_NODISCARD auto conversionToOptionalID() const -> ConversionToOptionalID {
+			evo::debugAssert(this->kind() == Kind::CONVERSION_TO_OPTIONAL, "not an conversion to optional");
+			return this->value.conversion_to_optional;
 		}
 		EVO_NODISCARD auto optionalNullCheckID() const -> OptionalNullCheckID {
 			evo::debugAssert(this->kind() == Kind::OPTIONAL_NULL_CHECK, "not an optional null check");
@@ -283,6 +285,16 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto indexerID() const -> IndexerID {
 			evo::debugAssert(this->kind() == Kind::INDEXER, "not an indexer");
 			return this->value.indexer;
+		}
+		EVO_NODISCARD auto defaultInitPrimitiveID() const -> DefaultInitPrimitiveID {
+			evo::debugAssert(this->kind() == Kind::DEFAULT_INIT_PRIMITIVE, "not a default init primitive");
+			return this->value.default_init_primitive;
+		}
+		EVO_NODISCARD auto defaultTriviallyInitStructID() const -> DefaultTriviallyInitStructID {
+			evo::debugAssert(
+				this->kind() == Kind::DEFAULT_TRIVIALLY_INIT_STRUCT, "not a default trivially init struct"
+			);
+			return this->value.default_trivially_init_struct;
 		}
 		EVO_NODISCARD auto defaultInitArrayRefID() const -> DefaultInitArrayRefID {
 			evo::debugAssert(this->kind() == Kind::DEFAULT_INIT_ARRAY_REF, "not a default init array ref");
@@ -380,7 +392,7 @@ namespace pcit::panther::sema{
 				ForwardID forward;
 				FuncCallID func_call;
 				AddrOfID addr_of;
-				ImplicitConversionToOptionalID inmplicit_conversion_to_optional;
+				ConversionToOptionalID conversion_to_optional;
 				OptionalNullCheckID optional_null_check;
 				DerefID deref;
 				UnwrapID unwrap;
@@ -394,6 +406,8 @@ namespace pcit::panther::sema{
 				MakeInterfacePtrID make_interface_ptr;
 				InterfaceCallID interface_call;
 				IndexerID indexer;
+				DefaultInitPrimitiveID default_init_primitive;
+				DefaultTriviallyInitStructID default_trivially_init_struct;
 				DefaultInitArrayRefID default_init_array_ref;
 				InitArrayRefID init_array_ref;
 				ArrayRefIndexerID array_ref_indexer;
