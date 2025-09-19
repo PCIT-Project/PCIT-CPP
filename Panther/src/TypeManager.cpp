@@ -1721,12 +1721,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
-
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isTriviallyDeletable(member_var.typeID) == false){ return false; }
-				}
-
-				return true;
+				return struct_info.deleteOverload.load().has_value() == false;
 			} break;
 
 			case BaseType::Kind::UNION: {

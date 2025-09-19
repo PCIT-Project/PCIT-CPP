@@ -165,17 +165,17 @@ namespace pcit::panther{
 		const Token::ID name = this->reader.next();
 
 		switch(this->reader[name].kind()){
-			case Token::Kind::IDENT:              case Token::Kind::KEYWORD_COPY:    case Token::Kind::KEYWORD_MOVE:
-			case Token::Kind::KEYWORD_NEW:        case Token::Kind::KEYWORD_AS:      case Token::Kind::PLUS:
-			case Token::Kind::ADD_WRAP:           case Token::Kind::ADD_SAT:         case Token::Kind::MINUS:
-			case Token::Kind::SUB_WRAP:           case Token::Kind::SUB_SAT:         case Token::Kind::ASTERISK:
-			case Token::Kind::MUL_WRAP:           case Token::Kind::MUL_SAT:         case Token::Kind::FORWARD_SLASH:
-			case Token::Kind::MOD:                case Token::Kind::EQUAL:           case Token::Kind::NOT_EQUAL:
-			case Token::Kind::LESS_THAN:          case Token::Kind::LESS_THAN_EQUAL: case Token::Kind::GREATER_THAN:
-			case Token::Kind::GREATER_THAN_EQUAL: case Token::Kind::NOT:             case Token::Kind::AND:
-			case Token::Kind::OR:                 case Token::Kind::SHIFT_LEFT:      case Token::Kind::SHIFT_LEFT_SAT:
-			case Token::Kind::SHIFT_RIGHT:        case Token::Kind::BITWISE_AND:     case Token::Kind::BITWISE_OR:
-			case Token::Kind::BITWISE_XOR:        case Token::Kind::BITWISE_NOT: {
+			case Token::Kind::IDENT:          case Token::Kind::KEYWORD_COPY:       case Token::Kind::KEYWORD_MOVE:
+			case Token::Kind::KEYWORD_NEW:    case Token::Kind::KEYWORD_DELETE:     case Token::Kind::KEYWORD_AS:
+			case Token::Kind::PLUS:           case Token::Kind::ADD_WRAP:           case Token::Kind::ADD_SAT:
+			case Token::Kind::MINUS:          case Token::Kind::SUB_WRAP:           case Token::Kind::SUB_SAT:
+			case Token::Kind::ASTERISK:       case Token::Kind::MUL_WRAP:           case Token::Kind::MUL_SAT:
+			case Token::Kind::FORWARD_SLASH:  case Token::Kind::MOD:                case Token::Kind::EQUAL:
+			case Token::Kind::NOT_EQUAL:      case Token::Kind::LESS_THAN:          case Token::Kind::LESS_THAN_EQUAL:
+			case Token::Kind::GREATER_THAN:   case Token::Kind::GREATER_THAN_EQUAL: case Token::Kind::NOT:
+			case Token::Kind::AND:            case Token::Kind::OR:                 case Token::Kind::SHIFT_LEFT:
+			case Token::Kind::SHIFT_LEFT_SAT: case Token::Kind::SHIFT_RIGHT:        case Token::Kind::BITWISE_AND:
+			case Token::Kind::BITWISE_OR:     case Token::Kind::BITWISE_XOR:        case Token::Kind::BITWISE_NOT: {
 				break;
 			}
 

@@ -221,6 +221,7 @@ namespace pcit::panther{
 		{"copy",        Token::Kind::KEYWORD_COPY},
 		{"forward",     Token::Kind::KEYWORD_FORWARD},
 		{"new",         Token::Kind::KEYWORD_NEW},
+		{"delete",      Token::Kind::KEYWORD_DELETE},
 		{"as",          Token::Kind::KEYWORD_AS},
 
 		{"if",          Token::Kind::KEYWORD_IF},

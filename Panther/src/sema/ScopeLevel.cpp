@@ -325,17 +325,6 @@ namespace pcit::panther::sema{
 
 
 
-	auto ScopeLevel::add_ident_default_impl(std::string_view ident, auto id) -> AddIdentResult {
-		const auto lock = std::scoped_lock(this->idents_lock);
-
-		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
-		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
-			return evo::Unexpected(true);
-		}
-		
-		return &this->ids.emplace(ident, id).first->second;
-	}
-
 
 
 	auto ScopeLevel::addIdentValueState(ValueStateID value_state_id, ValueState state) -> void {
@@ -418,6 +407,19 @@ namespace pcit::panther::sema{
 		return evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::iterator>(
 			this->value_states.begin(), this->value_states.end()
 		);
+	}
+
+
+
+	auto ScopeLevel::add_ident_default_impl(std::string_view ident, auto id) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
+		
+		return &this->ids.emplace(ident, id).first->second;
 	}
 
 

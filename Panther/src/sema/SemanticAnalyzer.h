@@ -362,6 +362,17 @@ namespace pcit::panther{
 			template<PopScopeLevelKind POP_SCOPE_LEVEL_KIND = PopScopeLevelKind::NORMAL>
 			EVO_NODISCARD auto pop_scope_level() -> evo::Result<>;
 
+			enum class AutoDeleteMode{
+				NORMAL,
+				RETURN,
+				ERROR,
+			};
+			template<AutoDeleteMode AUTO_DELETE_MODE>
+			auto add_auto_delete_calls() -> void;
+
+			auto create_delete_stmt(TypeInfo::ID type_info_id, sema::Expr expr) -> sema::Stmt;
+
+
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;
 
 

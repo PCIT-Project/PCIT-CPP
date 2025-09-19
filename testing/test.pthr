@@ -3,7 +3,7 @@
 // def test = @importCPP("test.h");
 
 
-type Vec = struct {
+type Vec2 = struct {
 	// func new = (x: F32, y: F32) -> (output: Vec) {
 	// 	output.x = copy x;
 	// 	output.y = copy y;
@@ -15,27 +15,19 @@ type Vec = struct {
 	// 	this.y = copy y;
 	// }
 
+	func delete = (this mut) -> Void {
+		this.x = 0.0;
+		this.y = 0.0;
+	}
 
-	var x: F32;
+
+	var x: F32 = 12.0;
 	var y: F32;
-	var z: F32*?;
 }
-
-
-
-func get_default_vec_x = () -> F32 {
-	const vec = new Vec();
-	return copy vec.x;
-}
-
 
 
 func entry = () #entry -> UI8 {
-	const num = new UI8();
+	var vec: Vec2? = new Vec2();
 
-	var foo: Vec = new Vec();
-
-	def ASDF: F32 = get_default_vec_x();
-
-	return ASDF as UI8;
+	return 0;
 }

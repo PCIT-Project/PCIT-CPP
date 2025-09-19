@@ -440,6 +440,8 @@ namespace pcit::panther{
 			evo::SmallVector<sema::FuncID> newReassignOverloads{};
 			mutable core::SpinLock newReassignOverloadsLock{}; // only needed before def completed
 
+			std::atomic<std::optional<sema::FuncID>> deleteOverload{};
+
 			std::unordered_map<TypeInfoID, sema::FuncID> operatorAsOverloads{};
 			mutable core::SpinLock operatorAsOverloadsLock{}; // only needed before def completed
 

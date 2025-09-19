@@ -118,6 +118,7 @@ namespace pcit::panther{
 				KEYWORD_MOVE,
 				KEYWORD_FORWARD,
 				KEYWORD_NEW,
+				KEYWORD_DELETE,
 				KEYWORD_AS,
 
 				KEYWORD_IF,
@@ -492,6 +493,7 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_MOVE:             return "move";
 					break; case Kind::KEYWORD_FORWARD:          return "forward";
 					break; case Kind::KEYWORD_NEW:              return "new";
+					break; case Kind::KEYWORD_DELETE:           return "delete";
 					break; case Kind::KEYWORD_AS:               return "as";
 
 					break; case Kind::KEYWORD_IF:               return "if";

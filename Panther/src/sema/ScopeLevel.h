@@ -249,6 +249,10 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto lookupDisallowedIdentForShadowing(std::string_view ident) const -> const IdentID*;
 
 
+			EVO_NODISCARD auto getIdents() const 
+				-> evo::IterRange<std::unordered_map<std::string_view, IdentID>::const_iterator>;
+
+
 			auto addIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
 			auto setIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
 			auto setIdentValueStateFromSubScope(ValueStateID value_state_id, ValueState state)

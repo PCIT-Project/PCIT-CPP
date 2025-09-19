@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.160.0"></a>
+## v0.0.160.0
+
+### Panther
+- Added overloading operator `delete`
+- Added compiler created default operator `new` using default values
+
+
+<!---------------------------------->
 <a name="v0.0.159.0"></a>
 ## v0.0.159.0
 
