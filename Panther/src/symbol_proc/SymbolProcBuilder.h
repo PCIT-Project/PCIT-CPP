@@ -79,6 +79,7 @@ namespace pcit::panther{
 			auto analyze_unreachable(Token::ID unreachable_token) -> evo::Result<>;
 			auto analyze_break(const AST::Break& break_stmt) -> evo::Result<>;
 			auto analyze_continue(const AST::Continue& continue_stmt) -> evo::Result<>;
+			auto analyze_delete(const AST::Delete& delete_stmt) -> evo::Result<>;
 			auto analyze_conditional(const AST::Conditional& conditional_stmt) -> evo::Result<>;
 			auto analyze_when_cond(const AST::WhenConditional& when_stmt) -> evo::Result<>;
 			auto analyze_while(const AST::While& while_stmt) -> evo::Result<>;

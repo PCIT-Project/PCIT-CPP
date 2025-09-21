@@ -454,6 +454,7 @@ namespace pcit::panther{
 		for(const evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> pir_id : func_info.pir_ids){
 			pir::Function& func = this->module.getFunction(pir_id.as<pir::Function::ID>());
 
+
 			this->current_func_info = &this->data.get_func(func_id);
 			EVO_DEFER([&](){ this->current_func_info = nullptr; });
 
@@ -469,6 +470,8 @@ namespace pcit::panther{
 
 			if(sema_func.isTerminated == false){
 				if(this->current_func_type->returnsVoid()){
+					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					
 					if(this->current_func_type->hasErrorReturn()){
 						this->agent.createRet(this->agent.createBoolean(true));
 					}else{

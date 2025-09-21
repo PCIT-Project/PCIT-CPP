@@ -29,6 +29,12 @@ namespace pcit::panther::sema{
 
 		EVO_NODISCARD auto operator==(const ReturnParamAccessorValueStateID&) const -> bool = default;
 	};
+
+	struct OpDeleteThisAccessorValueStateID{ // this.[MEMBER] in overload operator [delete]
+		uint32_t index;
+
+		EVO_NODISCARD auto operator==(const OpDeleteThisAccessorValueStateID&) const -> bool = default;
+	};
 }
 
 
@@ -41,7 +47,16 @@ namespace std{
 			);
 		};
 	};
+
+	template<>
+	struct hash<pcit::panther::sema::OpDeleteThisAccessorValueStateID>{
+		auto operator()(pcit::panther::sema::OpDeleteThisAccessorValueStateID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.index);
+		};
+	};
 }
+
+
 
 namespace pcit::panther::sema{
 
@@ -129,7 +144,8 @@ namespace pcit::panther::sema{
 				sema::ErrorReturnParamID,
 				sema::BlockExprOutputID,
 				sema::ExceptParamID,
-				ReturnParamAccessorValueStateID
+				ReturnParamAccessorValueStateID,
+				OpDeleteThisAccessorValueStateID
 			>;
 			enum class ValueState{
 				UNINIT,
@@ -151,6 +167,7 @@ namespace pcit::panther::sema{
 
 				ValueState state;
 				evo::Variant<DeclInfo, ModifyInfo> info;
+				size_t creation_index;
 			};
 
 		public:

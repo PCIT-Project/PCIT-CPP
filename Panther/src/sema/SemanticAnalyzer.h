@@ -118,6 +118,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_unreachable(const Instruction::Unreachable& instr) -> Result;
 			EVO_NODISCARD auto instr_break(const Instruction::Break& instr) -> Result;
 			EVO_NODISCARD auto instr_continue(const Instruction::Continue& instr) -> Result;
+			EVO_NODISCARD auto instr_delete(const Instruction::Delete& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_cond(const Instruction::BeginCond& instr) -> Result;
 			EVO_NODISCARD auto instr_cond_no_else() -> Result;
 			EVO_NODISCARD auto instr_cond_else() -> Result;
@@ -374,6 +375,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;
+			EVO_NODISCARD auto get_current_func() const -> const sema::Func&;
 
 
 			auto end_sub_scopes(Diagnostic::Location&& location) -> evo::Result<>;
@@ -944,6 +946,9 @@ namespace pcit::panther{
 
 					}else if constexpr(std::is_same<IDType, sema::ReturnParamAccessorValueStateID>()){
 						return this->get_location(id.id);
+
+					}else if constexpr(std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()){
+						return this->get_location(this->get_current_func().params[0].ident.as<Token::ID>());
 
 					}else{
 						static_assert(false, "Unknown value state ID");

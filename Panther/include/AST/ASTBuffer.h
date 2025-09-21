@@ -210,6 +210,16 @@ namespace pcit::panther{
 				return this->continues[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createDelete(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->deletes.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::DELETE, node_index);
+			}
+			EVO_NODISCARD auto getDelete(const AST::Node& node) const -> const AST::Delete& {
+				evo::debugAssert(node.kind() == AST::Kind::DELETE, "Node is not a Delete");
+				return this->deletes[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createConditional(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->conditionals.emplace_back(std::forward<decltype(args)>(args)...);
@@ -458,6 +468,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::Error, uint32_t> errors{};
 			core::LinearStepAlloc<AST::Break, uint32_t> breaks{};
 			core::LinearStepAlloc<AST::Continue, uint32_t> continues{};
+			core::LinearStepAlloc<AST::Delete, uint32_t> deletes{};
 			core::LinearStepAlloc<AST::Conditional, uint32_t> conditionals{};
 			core::LinearStepAlloc<AST::WhenConditional, uint32_t> when_conditionals{};
 			core::LinearStepAlloc<AST::While, uint32_t> whiles{};

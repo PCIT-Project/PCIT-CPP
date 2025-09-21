@@ -48,6 +48,7 @@ namespace pcit::panther{
 			case AST::Kind::ERROR:             return Location::get(ast_buffer.getError(node), src);
 			case AST::Kind::BREAK:             return Location::get(ast_buffer.getBreak(node), src);
 			case AST::Kind::CONTINUE:          return Location::get(ast_buffer.getContinue(node), src);
+			case AST::Kind::DELETE:            return Location::get(ast_buffer.getDelete(node), src);
 			case AST::Kind::CONDITIONAL:       return Location::get(ast_buffer.getConditional(node), src);
 			case AST::Kind::WHEN_CONDITIONAL:  return Location::get(ast_buffer.getWhenConditional(node), src);
 			case AST::Kind::WHILE:             return Location::get(ast_buffer.getWhile(node), src);
@@ -146,8 +147,12 @@ namespace pcit::panther{
 		return Location::get(continue_stmt.keyword, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::Conditional& conditional, const Source& src) -> Location {
-		return Location::get(conditional.keyword, src);
+	auto Diagnostic::Location::get(const AST::Delete& delete_stmt, const Source& src) -> Location {
+		return Location::get(delete_stmt.keyword, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::Conditional& conditional_stmt, const Source& src) -> Location {
+		return Location::get(conditional_stmt.keyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::WhenConditional& when_cond, const Source& src) -> Location {

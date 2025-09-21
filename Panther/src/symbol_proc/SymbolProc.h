@@ -448,6 +448,11 @@ namespace pcit::panther{
 			const AST::Continue& continue_stmt;
 		};
 
+		struct Delete{
+			const AST::Delete& delete_stmt;
+			SymbolProcTermInfoID delete_expr;
+		};
+
 
 		struct BeginCond{
 			const AST::Conditional& conditional;
@@ -907,6 +912,7 @@ namespace pcit::panther{
 			UNREACHABLE,
 			BREAK,
 			CONTINUE,
+			DELETE,
 			BEGIN_COND,
 			COND_NO_ELSE,
 			COND_ELSE,

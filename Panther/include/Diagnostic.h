@@ -145,6 +145,8 @@ namespace pcit::panther{
 			SEMA_ADDR_OF_ARG_NOT_CONCRETE,
 			SEMA_DEREF_ARG_NOT_PTR,
 			SEMA_UNWRAP_ARG_NOT_OPTIONAL,
+			SEMA_DELETE_ARG_INVALID,
+
 
 			// type checking
 			SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
@@ -396,6 +398,7 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::Error& error_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Break& break_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Continue& continue_stmt, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::Delete& delete_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Conditional& conditional, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::WhenConditional& when_cond, const class Source& src)
 					-> Location;
@@ -672,6 +675,8 @@ namespace pcit::panther{
 				case Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE:
 				case Code::SEMA_ADDR_OF_ARG_NOT_CONCRETE:
 				case Code::SEMA_DEREF_ARG_NOT_PTR:
+				case Code::SEMA_UNWRAP_ARG_NOT_OPTIONAL:
+				case Code::SEMA_DELETE_ARG_INVALID:
 				case Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE:
 				case Code::SEMA_CANNOT_CONVERT_FLUID_VALUE:
 				case Code::SEMA_TYPE_MISMATCH:

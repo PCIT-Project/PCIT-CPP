@@ -294,6 +294,10 @@ namespace pthr{
 						this->print_continue(this->ast_buffer.getContinue(stmt));
 					} break;
 
+					case panther::AST::Kind::DELETE: {
+						this->print_delete(this->ast_buffer.getDelete(stmt));
+					} break;
+
 					case panther::AST::Kind::CONDITIONAL: {
 						this->print_conditional(this->ast_buffer.getConditional(stmt));
 					} break;
@@ -951,6 +955,25 @@ namespace pthr{
 			}
 
 
+			auto print_delete(const panther::AST::Delete& delete_stmt) -> void {
+				this->indenter.print();
+				this->print_major_header("Delete");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_end();
+					this->print_minor_header("Value");
+					this->printer.println();
+					this->indenter.push();
+					this->print_expr(delete_stmt.value);
+					this->indenter.pop();
+
+					this->indenter.pop();
+				}
+			}
+
+
 			auto print_conditional(const panther::AST::Conditional& conditional) -> void {
 				this->print_conditional_impl<false>(conditional.cond, conditional.thenBlock, conditional.elseBlock);
 			}
@@ -1412,12 +1435,13 @@ namespace pthr{
 					case panther::AST::Kind::INTERFACE_IMPL:      case panther::AST::Kind::RETURN:
 					case panther::AST::Kind::ERROR:               case panther::AST::Kind::UNREACHABLE:
 					case panther::AST::Kind::BREAK:               case panther::AST::Kind::CONTINUE:
-					case panther::AST::Kind::CONDITIONAL:         case panther::AST::Kind::WHEN_CONDITIONAL:
-					case panther::AST::Kind::WHILE:               case panther::AST::Kind::DEFER:
-					case panther::AST::Kind::TEMPLATE_PACK:       case panther::AST::Kind::MULTI_ASSIGN:
-					case panther::AST::Kind::ARRAY_TYPE:          case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK:     case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::TYPE_DEDUCER:        case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::DELETE:              case panther::AST::Kind::CONDITIONAL:
+					case panther::AST::Kind::WHEN_CONDITIONAL:    case panther::AST::Kind::WHILE:
+					case panther::AST::Kind::DEFER:               case panther::AST::Kind::TEMPLATE_PACK:
+					case panther::AST::Kind::MULTI_ASSIGN:        case panther::AST::Kind::ARRAY_TYPE:
+					case panther::AST::Kind::TYPEID_CONVERTER:    case panther::AST::Kind::ATTRIBUTE_BLOCK:
+					case panther::AST::Kind::ATTRIBUTE:           case panther::AST::Kind::TYPE_DEDUCER:
+					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

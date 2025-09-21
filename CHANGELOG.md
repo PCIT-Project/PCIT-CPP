@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.161.0"></a>
+## v0.0.161.0
+
+### Panther
+- Added `delete` statement
+- Fixed missing automatic deletion of members in operator `delete`
+- Fixed trivially-default-initable detection not taking default member values into account
+- Fixed lowering of `defer` and `deleters` in functions that return `Void` that have an implicit `return`
+- Fixed automatic deleters sometimes being run in the wrong order
+
+
+<!---------------------------------->
 <a name="v0.0.160.0"></a>
 ## v0.0.160.0
 

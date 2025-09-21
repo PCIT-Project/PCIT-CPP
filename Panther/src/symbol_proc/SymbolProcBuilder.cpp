@@ -366,18 +366,18 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:           case AST::Kind::ERROR:               case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:         case AST::Kind::CONDITIONAL:         case AST::Kind::WHILE:
-			case AST::Kind::DEFER:            case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:
-			case AST::Kind::FUNC_CALL:        case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:
-			case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:              case AST::Kind::INFIX:
-			case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:
-			case AST::Kind::ARRAY_INIT_NEW:   case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:
-			case AST::Kind::TYPE_DEDUCER:     case AST::Kind::ARRAY_TYPE:          case AST::Kind::TYPE:
-			case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:     case AST::Kind::ATTRIBUTE:
-			case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:               case AST::Kind::INTRINSIC:
-			case AST::Kind::LITERAL:          case AST::Kind::UNINIT:              case AST::Kind::ZEROINIT:
-			case AST::Kind::THIS:             case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:        case AST::Kind::ERROR:            case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:      case AST::Kind::DELETE:           case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:         case AST::Kind::DEFER:            case AST::Kind::UNREACHABLE:
+			case AST::Kind::BLOCK:         case AST::Kind::FUNC_CALL:        case AST::Kind::INDEXER:
+			case AST::Kind::TEMPLATE_PACK: case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:
+			case AST::Kind::INFIX:         case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:
+			case AST::Kind::NEW:           case AST::Kind::ARRAY_INIT_NEW:   case AST::Kind::DESIGNATED_INIT_NEW:
+			case AST::Kind::TRY_ELSE:      case AST::Kind::TYPE_DEDUCER:     case AST::Kind::ARRAY_TYPE:
+			case AST::Kind::TYPE:          case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
+			case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
+			case AST::Kind::INTRINSIC:     case AST::Kind::LITERAL:          case AST::Kind::UNINIT:
+			case AST::Kind::ZEROINIT:      case AST::Kind::THIS:             case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -1348,6 +1348,7 @@ namespace pcit::panther{
 			case AST::Kind::UNREACHABLE:      return this->analyze_unreachable(ast_buffer.getUnreachable(stmt));
 			case AST::Kind::BREAK:            return this->analyze_break(ast_buffer.getBreak(stmt));
 			case AST::Kind::CONTINUE:         return this->analyze_continue(ast_buffer.getContinue(stmt));
+			case AST::Kind::DELETE:           return this->analyze_delete(ast_buffer.getDelete(stmt));
 			case AST::Kind::CONDITIONAL:      return this->analyze_conditional(ast_buffer.getConditional(stmt));
 			case AST::Kind::WHEN_CONDITIONAL: return this->analyze_when_cond(ast_buffer.getWhenConditional(stmt));
 			case AST::Kind::WHILE:            return this->analyze_while(ast_buffer.getWhile(stmt));
@@ -1574,6 +1575,14 @@ namespace pcit::panther{
 
 	auto SymbolProcBuilder::analyze_continue(const AST::Continue& continue_stmt) -> evo::Result<> {
 		this->add_instruction(this->context.symbol_proc_manager.createContinue(continue_stmt));
+		return evo::Result<>();
+	}
+
+	auto SymbolProcBuilder::analyze_delete(const AST::Delete& delete_stmt) -> evo::Result<> {
+		const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<false>(delete_stmt.value);
+		if(expr.isError()){ return evo::resultError; }
+
+		this->add_instruction(this->context.symbol_proc_manager.createDelete(delete_stmt, expr.value()));
 		return evo::Result<>();
 	}
 

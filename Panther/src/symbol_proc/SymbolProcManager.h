@@ -727,6 +727,23 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// Delete
+
+			EVO_NODISCARD auto createDelete(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::DELETE,
+					this->deletes.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getDelete(Instruction instr) const -> const Instruction::Delete& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::DELETE, "Not a Delete");
+				return this->deletes[instr._index];
+			}
+
+
+
+			//////////////////
 			// BeginCond
 
 			EVO_NODISCARD auto createBeginCond(auto&&... args) -> Instruction {
@@ -2485,6 +2502,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Unreachable, uint64_t> unreachables{};
 			core::SyncLinearStepAlloc<Instruction::Break, uint64_t> breaks{};
 			core::SyncLinearStepAlloc<Instruction::Continue, uint64_t> continues{};
+			core::SyncLinearStepAlloc<Instruction::Delete, uint64_t> deletes{};
 			core::SyncLinearStepAlloc<Instruction::BeginCond, uint64_t> begin_conds{};
 			core::SyncLinearStepAlloc<Instruction::EndCondSet, uint64_t> end_cond_sets{};
 			core::SyncLinearStepAlloc<Instruction::BeginLocalWhenCond, uint64_t> begin_local_when_conds{};

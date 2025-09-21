@@ -43,6 +43,7 @@ namespace pcit::panther::AST{
 		DEFER,
 		BREAK,
 		CONTINUE,
+		DELETE,
 
 		BLOCK,
 		FUNC_CALL,
@@ -264,6 +265,11 @@ namespace pcit::panther::AST{
 	struct Continue{
 		Token::ID keyword;
 		std::optional<Token::ID> label;
+	};
+
+	struct Delete{
+		Token::ID keyword;
+		Node value;
 	};
 
 	struct Conditional{
