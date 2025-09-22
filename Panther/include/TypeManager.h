@@ -411,10 +411,15 @@ namespace pcit::panther{
 			using ID = StructID;
 
 			struct MemberVar{
+				struct DefaultValue{
+					sema::Expr value;
+					bool isConstexpr;
+				};
+
 				AST::VarDecl::Kind kind;
 				evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 				TypeInfoID typeID;
-				std::optional<sema::Expr> defaultValue;
+				std::optional<DefaultValue> defaultValue;
 			};
 
 			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;

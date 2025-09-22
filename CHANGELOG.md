@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.161.1"></a>
+## v0.0.161.1
+
+### Panther
+- Fixed race condition for compiler-constructed constexpr default operator [new]
+
+
+<!---------------------------------->
 <a name="v0.0.161.0"></a>
 ## v0.0.161.0
 

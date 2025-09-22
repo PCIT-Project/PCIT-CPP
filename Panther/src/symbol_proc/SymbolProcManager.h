@@ -229,6 +229,14 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// StructCreatedSpecialMembersPIRIfNeeded
+
+			EVO_NODISCARD auto createStructCreatedSpecialMembersPIRIfNeeded() -> Instruction {
+				return Instruction(Instruction::Kind::STRUCT_CREATED_SPECIAL_MEMBERS_PIR_IF_NEEDED, 0);
+			}
+
+
 
 			//////////////////
 			// TemplateStruct

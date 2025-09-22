@@ -1880,7 +1880,7 @@ namespace pcit::panther{
 					AST::VarDecl::Kind::VAR,
 					builtin_module.createString("methodCallOnNonMethod"),
 					TypeManager::getTypeBool(),
-					sema::Expr(this->sema_buffer.createBoolValue(true))
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
 			};
 

@@ -880,6 +880,7 @@ namespace pcit::panther{
 			STRUCT_DECL_INSTANTIATION,
 			STRUCT_DECL,
 			STRUCT_DEF,
+			STRUCT_CREATED_SPECIAL_MEMBERS_PIR_IF_NEEDED,
 			TEMPLATE_STRUCT,
 			UNION_DECL,
 			UNION_ADD_FIELDS,
@@ -1296,6 +1297,15 @@ namespace pcit::panther{
 
 			evo::SmallVector<ID> pir_def_waited_on_by{};
 			mutable core::SpinLock pir_def_waited_on_lock{};
+
+
+			struct StructSpecialMemberFuncs{
+				std::optional<sema::Func::ID> init{};
+			};
+
+			using DataStackItem = evo::Variant<StructSpecialMemberFuncs>;
+			std::stack<DataStackItem, evo::StepVector<DataStackItem>> data_stack{};
+
 
 
 			struct NonLocalVarInfo{

@@ -128,6 +128,7 @@ namespace pcit::panther{
 			)
 		);
 		this->add_instruction(this->context.symbol_proc_manager.createStructDef());
+		this->add_instruction(this->context.symbol_proc_manager.createStructCreatedSpecialMembersPIRIfNeeded());
 
 		SymbolProc::StructInfo& struct_info = this->get_current_symbol().symbol_proc.extra_info
 			.emplace<SymbolProc::StructInfo>(&instantiation);
@@ -387,7 +388,7 @@ namespace pcit::panther{
 			};
 		}
 
-		evo::unreachable();
+		evo::debugFatalBreak("Unknown AST::Kind");
 	}
 
 
@@ -844,6 +845,7 @@ namespace pcit::panther{
 				)
 			);
 			this->add_instruction(this->context.symbol_proc_manager.createStructDef());
+			this->add_instruction(this->context.symbol_proc_manager.createStructCreatedSpecialMembersPIRIfNeeded());
 
 			SymbolProc::StructInfo& struct_info =
 				current_symbol->symbol_proc.extra_info.emplace<SymbolProc::StructInfo>();

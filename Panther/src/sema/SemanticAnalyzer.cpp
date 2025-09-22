@@ -179,6 +179,9 @@ namespace pcit::panther{
 			case Instruction::Kind::STRUCT_DEF:
 				return this->instr_struct_def();
 
+			case Instruction::Kind::STRUCT_CREATED_SPECIAL_MEMBERS_PIR_IF_NEEDED:
+				return this->instr_struct_created_sepcial_members_pir_if_needed();
+
 			case Instruction::Kind::TEMPLATE_STRUCT:
 				return this->instr_template_struct(this->context.symbol_proc_manager.getTemplateStruct(instr));
 
@@ -878,8 +881,12 @@ namespace pcit::panther{
 				this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
 			);
 
+			const TermInfo& default_term = this->get_term_info(*instr.value_id);
+
 			const auto lock = std::scoped_lock(current_struct.memberVarsLock);
-			current_struct.memberVars[member_index].defaultValue = this->get_term_info(*instr.value_id).getExpr();
+			current_struct.memberVars[member_index].defaultValue = BaseType::Struct::MemberVar::DefaultValue(
+				default_term.getExpr(), default_term.value_stage == TermInfo::ValueStage::CONSTEXPR
+			);
 		}
 		
 
@@ -1129,7 +1136,12 @@ namespace pcit::panther{
 			{
 				const auto lock = std::scoped_lock(current_struct.memberVarsLock);
 				current_struct.memberVars.emplace_back(
-					instr.var_decl.kind, instr.var_decl.ident, *type_id, value_term_info.getExpr()
+					instr.var_decl.kind,
+					instr.var_decl.ident,
+					*type_id,
+					BaseType::Struct::MemberVar::DefaultValue(
+						value_term_info.getExpr(), value_term_info.value_stage == TermInfo::ValueStage::CONSTEXPR
+					)
 				);
 			}
 
@@ -1478,6 +1490,11 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// default construction
 
+		this->symbol_proc.data_stack.push(SymbolProc::StructSpecialMemberFuncs());
+
+		auto funcs_to_wait_on = evo::SmallVector<sema::Func::ID>();
+
+
 		if(created_struct.newInitOverloads.empty()){
 			created_struct.isDefaultInitializable = true;
 			created_struct.isTriviallyDefaultInitializable = true;
@@ -1488,7 +1505,10 @@ namespace pcit::panther{
 				if(this->context.getTypeManager().isDefaultInitializable(member_var.typeID) == false){
 					if(member_var.defaultValue.has_value()){
 						created_struct.isTriviallyDefaultInitializable = false;
-						created_struct.isConstexprDefaultInitializable = false;
+
+						if(member_var.defaultValue->isConstexpr == false){
+							created_struct.isConstexprDefaultInitializable = false;
+						}
 						
 					}else{
 						created_struct.isDefaultInitializable = false;
@@ -1507,21 +1527,22 @@ namespace pcit::panther{
 					break;
 				}
 
-				if(
-					created_struct.isConstexprDefaultInitializable
-					&& this->context.getTypeManager().isConstexprDefaultInitializable(member_var.typeID) == false
-				){
-					created_struct.isConstexprDefaultInitializable = false;
+				if(created_struct.isConstexprDefaultInitializable){
+					if(
+						(member_var.defaultValue.has_value() && member_var.defaultValue->isConstexpr == false)
+						|| this->context.getTypeManager().isConstexprDefaultInitializable(member_var.typeID) == false
+					){
+						created_struct.isConstexprDefaultInitializable = false;
+					}
 				}
 
-				if(
-					created_struct.isTriviallyDefaultInitializable &&
-					(
+				if(created_struct.isTriviallyDefaultInitializable){
+					if(	
 						member_var.defaultValue.has_value()
 						|| this->context.getTypeManager().isTriviallyDefaultInitializable(member_var.typeID) == false
-					)
-				){
-					created_struct.isTriviallyDefaultInitializable = false;
+					){
+						created_struct.isTriviallyDefaultInitializable = false;
+					}
 				}
 			}
 
@@ -1586,7 +1607,7 @@ namespace pcit::panther{
 
 					if(member_var.defaultValue.has_value()){
 						created_default_init_new.stmtBlock.emplace_back(
-							this->context.sema_buffer.createAssign(member_var_expr, *member_var.defaultValue)
+							this->context.sema_buffer.createAssign(member_var_expr, member_var.defaultValue->value)
 						);
 						continue;
 					}
@@ -1624,6 +1645,8 @@ namespace pcit::panther{
 								this->context.getTypeManager().getStruct(member_type.baseTypeID().structID());
 
 							for(sema::Func::ID new_init_overload_id : member_struct_type.newInitOverloads){
+								funcs_to_wait_on.emplace_back(new_init_overload_id);
+
 								const sema::Func& new_init_overload =
 									this->context.getSemaBuffer().getFunc(new_init_overload_id);
 
@@ -1661,43 +1684,8 @@ namespace pcit::panther{
 				created_struct.newInitOverloads.emplace_back(created_default_init_new_id);
 
 				if(created_struct.isConstexprDefaultInitializable){
-					created_default_init_new.constexprJITFunc = 
-						sema_to_pir.lowerFuncDeclConstexpr(created_default_init_new_id);
-
-					sema_to_pir.lowerFuncDef(created_default_init_new_id);
-
-					created_default_init_new.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-						created_default_init_new_id, *created_default_init_new.constexprJITFunc
-					);
-
-
-					auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>{
-						*created_default_init_new.constexprJITFunc,
-						*created_default_init_new.constexprJITInterfaceFunc
-					};
-
-					const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-						this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-							this->context.constexpr_pir_module,
-							pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
-						);
-
-					if(add_module_subset_result.has_value() == false){
-						auto infos = evo::SmallVector<Diagnostic::Info>();
-						for(const std::string& error : add_module_subset_result.error()){
-							infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-						}
-
-						this->emit_fatal(
-							Diagnostic::Code::MISC_LLVM_ERROR,
-							created_struct_id,
-							Diagnostic::createFatalMessage(
-								"Failed to setup PIR JIT interface generated default operator [new]"
-							),
-							std::move(infos)
-						);
-						return Result::ERROR;
-					}
+					this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().init = 
+						created_default_init_new_id;
 				}
 			}
 
@@ -1723,6 +1711,89 @@ namespace pcit::panther{
 			}
 		}
 
+
+		///////////////////////////////////
+		// wait on funcs
+
+		bool waiting_on_any = false;
+		for(const sema::Func::ID func_to_wait_on_id : funcs_to_wait_on){
+			const sema::Func& func_to_wait_on = this->context.getSemaBuffer().getFunc(func_to_wait_on_id);
+			if(func_to_wait_on.symbolProcID.has_value() == false){ continue; }
+
+			SymbolProc& wait_on_func = this->context.symbol_proc_manager.getSymbolProc(*func_to_wait_on.symbolProcID);
+
+			switch(wait_on_func.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, *func_to_wait_on.symbolProcID)){
+				break; case SymbolProc::WaitOnResult::NOT_NEEDED:                 // do nothing
+				break; case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true;
+				break; case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+				break; case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
+				break; case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+			}
+		}
+
+		if(waiting_on_any){
+			return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+		}else{
+			return Result::SUCCESS;
+		}
+	}
+
+
+
+	auto SemanticAnalyzer::instr_struct_created_sepcial_members_pir_if_needed() -> Result {
+		auto sema_to_pir = SemaToPIR(
+			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+		);
+
+
+		const SymbolProc::StructSpecialMemberFuncs& struct_special_member_funcs = 
+			this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>();
+
+		if(struct_special_member_funcs.init.has_value()){
+			const sema::Func::ID init_func_id = *struct_special_member_funcs.init;
+			sema::Func& init_func = this->context.sema_buffer.funcs[init_func_id];
+
+
+			init_func.constexprJITFunc = sema_to_pir.lowerFuncDeclConstexpr(init_func_id);
+
+			sema_to_pir.lowerFuncDef(init_func_id);
+
+			init_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+				init_func_id, *init_func.constexprJITFunc
+			);
+
+
+			auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>{
+				*init_func.constexprJITFunc, *init_func.constexprJITInterfaceFunc
+			};
+
+			const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+				this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
+					this->context.constexpr_pir_module,
+					pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
+				);
+
+			if(add_module_subset_result.has_value() == false){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				for(const std::string& error : add_module_subset_result.error()){
+					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				}
+
+				this->emit_fatal(
+					Diagnostic::Code::MISC_LLVM_ERROR,
+					this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id,
+					Diagnostic::createFatalMessage(
+						"Failed to setup PIR JIT interface generated default operator [new]"
+					),
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+
+		this->symbol_proc.data_stack.pop();
 
 
 		///////////////////////////////////
@@ -5789,8 +5860,12 @@ namespace pcit::panther{
 				);
 			}
 		}
+
+		bool all_args_are_constexpr = true;
 		for(const SymbolProc::TermInfoID& arg : instr.args){
-			sema_args.emplace_back(this->get_term_info(arg).getExpr());
+			const TermInfo& arg_info = this->get_term_info(arg);
+			sema_args.emplace_back(arg_info.getExpr());
+			if(arg_info.value_stage != TermInfo::ValueStage::CONSTEXPR){ all_args_are_constexpr = false; }
 		}
 
 
@@ -5950,6 +6025,10 @@ namespace pcit::panther{
 			if constexpr(IS_CONSTEXPR){
 				return TermInfo::ValueStage::CONSTEXPR;
 			}else{
+				if(all_args_are_constexpr && func_call_impl_res.value().selected_func->isConstexpr){
+					return TermInfo::ValueStage::CONSTEXPR;
+				}
+
 				if(this->get_current_func().isConstexpr){
 					return TermInfo::ValueStage::COMPTIME;
 				}else{
@@ -8662,7 +8741,7 @@ namespace pcit::panther{
 
 			if(member_init_i >= instr.designated_init_new.memberInits.size()){
 				if(member_var->defaultValue.has_value()){
-					values.emplace_back(*member_var->defaultValue);
+					values.emplace_back(member_var->defaultValue->value);
 					continue;
 				}
 
@@ -8695,7 +8774,7 @@ namespace pcit::panther{
 
 				if(member_var_ident != member_init_ident){
 					if(member_var->defaultValue.has_value()){
-						values.emplace_back(*member_var->defaultValue);
+						values.emplace_back(member_var->defaultValue->value);
 						continue;
 					}
 

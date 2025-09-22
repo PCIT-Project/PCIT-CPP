@@ -73,6 +73,7 @@ namespace pcit::panther{
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_struct_decl(const Instruction::StructDecl<IS_INSTANTIATION>& instr) -> Result;
 			EVO_NODISCARD auto instr_struct_def() -> Result;
+			EVO_NODISCARD auto instr_struct_created_sepcial_members_pir_if_needed() -> Result;
 			EVO_NODISCARD auto instr_template_struct(const Instruction::TemplateStruct& instr) -> Result;
 			EVO_NODISCARD auto instr_union_decl(const Instruction::UnionDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_union_add_fields(const Instruction::UnionAddFields& instr) -> Result;
