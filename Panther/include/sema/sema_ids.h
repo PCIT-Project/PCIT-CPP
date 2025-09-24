@@ -202,6 +202,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, ContinueID>::UniqueID;
 	};
 
+	struct BlockScopeID : public core::UniqueID<uint32_t, struct BlockScopeID> {
+		using core::UniqueID<uint32_t, BlockScopeID>::UniqueID;
+	};
+
 	struct ConditionalID : public core::UniqueID<uint32_t, struct ConditionalID> {
 		using core::UniqueID<uint32_t, ConditionalID>::UniqueID;
 	};
@@ -617,12 +621,12 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ConditionalID>{
-		static constexpr auto init(panther::sema::ConditionalID* id) -> void {
+	struct core::OptionalInterface<panther::sema::BlockScopeID>{
+		static constexpr auto init(panther::sema::BlockScopeID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const panther::sema::ConditionalID& id) -> bool {
+		static constexpr auto has_value(const panther::sema::BlockScopeID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1372,6 +1376,21 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::sema::ContinueID>::operator=;
 	};
 
+
+
+	template<>
+	struct hash<pcit::panther::sema::BlockScopeID>{
+		auto operator()(pcit::panther::sema::BlockScopeID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::BlockScopeID> : public pcit::core::Optional<pcit::panther::sema::BlockScopeID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::BlockScopeID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::BlockScopeID>::operator=;
+	};
+	
 
 
 	template<>

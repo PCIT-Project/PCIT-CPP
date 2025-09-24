@@ -372,7 +372,9 @@ namespace pcit::panther{
 			template<AutoDeleteMode AUTO_DELETE_MODE>
 			auto add_auto_delete_calls() -> void;
 
-			auto create_delete_stmt(TypeInfo::ID type_info_id, sema::Expr expr) -> sema::Stmt;
+			auto create_delete_stmt(
+				TypeInfo::ID type_info_id, sema::Expr expr, std::unordered_set<sema::Func::ID>& dependent_funcs
+			) -> sema::Stmt;
 
 
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;

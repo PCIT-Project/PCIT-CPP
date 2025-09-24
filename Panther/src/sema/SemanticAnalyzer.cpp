@@ -1492,7 +1492,7 @@ namespace pcit::panther{
 
 		this->symbol_proc.data_stack.push(SymbolProc::StructSpecialMemberFuncs());
 
-		auto funcs_to_wait_on = evo::SmallVector<sema::Func::ID>();
+		auto funcs_to_wait_on = std::unordered_set<sema::Func::ID>();
 
 
 		if(created_struct.newInitOverloads.empty()){
@@ -1547,11 +1547,6 @@ namespace pcit::panther{
 			}
 
 			if(created_struct.isDefaultInitializable && created_struct.isTriviallyDefaultInitializable == false){
-				auto error_return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
-				if(created_struct.isNoErrorDefaultInitializable == false){
-					error_return_params.emplace_back(std::nullopt, TypeInfo::VoidableID::Void());
-				}
-
 				const TypeInfo::ID created_struct_type_id = 
 					this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(created_struct_id)));
 
@@ -1561,7 +1556,7 @@ namespace pcit::panther{
 						evo::SmallVector<BaseType::Function::ReturnParam>{
 							BaseType::Function::ReturnParam(created_struct.name.as<Token::ID>(), created_struct_type_id)
 						},
-						std::move(error_return_params)
+						evo::SmallVector<BaseType::Function::ReturnParam>()
 					)
 				);
 
@@ -1645,7 +1640,7 @@ namespace pcit::panther{
 								this->context.getTypeManager().getStruct(member_type.baseTypeID().structID());
 
 							for(sema::Func::ID new_init_overload_id : member_struct_type.newInitOverloads){
-								funcs_to_wait_on.emplace_back(new_init_overload_id);
+								funcs_to_wait_on.emplace(new_init_overload_id);
 
 								const sema::Func& new_init_overload =
 									this->context.getSemaBuffer().getFunc(new_init_overload_id);
@@ -1710,6 +1705,105 @@ namespace pcit::panther{
 				break;
 			}
 		}
+
+
+
+		///////////////////////////////////
+		// default deleting
+
+		if(created_struct.deleteOverload.load().has_value() == false){
+			bool is_trivially_deletable = true;
+			bool is_constexpr_deletable = true;
+
+
+			for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+				if(this->context.getTypeManager().isTriviallyDeletable(member_var.typeID) == false){
+					is_trivially_deletable = false;
+					is_constexpr_deletable = false;
+					break;
+				}
+
+				if(this->context.getTypeManager().isConstexprDeletable(
+					member_var.typeID, this->context.getSemaBuffer()
+				) == false){
+					is_constexpr_deletable = false;
+				}
+			}
+
+
+			if(is_trivially_deletable == false){
+				const TypeInfo::ID created_struct_type_id = 
+					this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(created_struct_id)));
+
+				const BaseType::ID default_delete_func_type = this->context.type_manager.getOrCreateFunction(
+					BaseType::Function(
+						evo::SmallVector<BaseType::Function::Param>{
+							BaseType::Function::Param(created_struct_type_id, AST::FuncDecl::Param::Kind::MUT, false),
+						},
+						evo::SmallVector<BaseType::Function::ReturnParam>{
+							BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+						},
+						evo::SmallVector<BaseType::Function::ReturnParam>()
+					)
+				);
+
+				const sema::Func::ID created_default_delete_id = this->context.sema_buffer.createFunc(
+					this->source.getID(),
+					sema::Func::CompilerCreatedOpOverload(
+						created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_DELETE
+					),
+					std::string(),
+					default_delete_func_type.funcID(),
+					evo::SmallVector<sema::Func::Param>{
+						sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
+					},
+					std::nullopt,
+					1,
+					false,
+					is_constexpr_deletable,
+					false,
+					false
+				);
+
+
+				sema::Func& created_default_delete = this->context.sema_buffer.funcs[created_default_delete_id];
+
+				const sema::Expr this_param = sema::Expr(this->context.sema_buffer.createParam(0, 0));
+
+				for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+					if(this->context.getTypeManager().isTriviallyDeletable(member_var.typeID)){ continue; }
+
+					const sema::Expr member_var_expr = [&](){
+						for(
+							uint32_t j = 0;
+							const BaseType::Struct::MemberVar* member_var_abi : created_struct.memberVarsABI
+						){
+							if(member_var_abi == &member_var){
+								return sema::Expr(this->context.sema_buffer.createAccessor(
+									this_param, created_struct_type_id, j
+								));
+							}
+
+							j += 1;
+						}
+						evo::debugFatalBreak("Didn't find ABI member");
+					}();
+
+
+					created_default_delete.stmtBlock.emplace_back(
+						this->create_delete_stmt(member_var.typeID, member_var_expr, funcs_to_wait_on)
+					);
+				}
+
+				created_default_delete.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
+
+				created_default_delete.isTerminated = true;
+				created_default_delete.status = sema::Func::Status::DEF_DONE;
+
+				created_struct.deleteOverload = created_default_delete_id;
+			}
+		}
+
 
 
 		///////////////////////////////////
@@ -4140,7 +4234,7 @@ namespace pcit::panther{
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Incorrect return statement kind for a function named return parameters",
-					Diagnostic::Info("Initialize/set all return values and use \"return...;\" instead")
+					Diagnostic::Info("Initialize/set all return parameters, and use \"return...;\" instead")
 				);
 				return Result::ERROR;
 			}
@@ -4162,7 +4256,7 @@ namespace pcit::panther{
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Incorrect return statement kind for a function with named return parameters",
-					Diagnostic::Info("Initialize/set all return values and use \"return...;\" instead")
+					Diagnostic::Info("Initialize/set all return parameters, and use \"return...;\" instead")
 				);
 				return Result::ERROR;
 			}
@@ -4291,7 +4385,11 @@ namespace pcit::panther{
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
 					"Incorrect return statement kind for an expression block with named outputs",
-					Diagnostic::Info("Initialize/set all return values and use \"return...;\" instead")
+					Diagnostic::Info(
+						std::format(
+							"Initialize/set all return parameters, and use \"return->{} ...;\" instead", return_label
+						)
+					)
 				);
 				return Result::ERROR;
 			}
@@ -4528,6 +4626,7 @@ namespace pcit::panther{
 			}
 		}
 
+		this->add_auto_delete_calls<AutoDeleteMode::NORMAL>();
 		const sema::Break::ID new_break_id = this->context.sema_buffer.createBreak(instr.break_stmt.label);
 		this->get_current_scope_level().stmtBlock().emplace_back(new_break_id);
 		this->get_current_scope_level().setTerminated();
@@ -4598,6 +4697,7 @@ namespace pcit::panther{
 			}
 		}
 
+		this->add_auto_delete_calls<AutoDeleteMode::NORMAL>();
 		const sema::Continue::ID new_continue_id = this->context.sema_buffer.createContinue(instr.continue_stmt.label);
 		this->get_current_scope_level().stmtBlock().emplace_back(new_continue_id);
 		this->get_current_scope_level().setTerminated();
@@ -4619,7 +4719,11 @@ namespace pcit::panther{
 		}
 
 		this->get_current_scope_level().stmtBlock().emplace_back(
-			this->create_delete_stmt(target.type_id.as<TypeInfo::ID>(), target.getExpr())
+			this->create_delete_stmt(
+				target.type_id.as<TypeInfo::ID>(),
+				target.getExpr(),
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
+			)
 		);
 
 		this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::UNINIT);
@@ -4828,7 +4932,12 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.stmt_block).isError()){ return Result::ERROR; }
 
-		this->push_scope_level(&this->get_current_scope_level().stmtBlock());
+		const sema::BlockScope::ID block_scope_id = this->context.sema_buffer.createBlockScope();
+		this->get_current_scope_level().stmtBlock().emplace_back(block_scope_id);
+
+		sema::BlockScope& block_scope = this->context.sema_buffer.block_scopes[block_scope_id];
+
+		this->push_scope_level(&block_scope.block);
 		return Result::SUCCESS;
 	}
 
@@ -4843,7 +4952,6 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.func_call).isError()){ return Result::ERROR; }
-
 
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
@@ -13642,6 +13750,8 @@ namespace pcit::panther{
 					this->context.sema_buffer.scope_manager.getLevel(*std::next(this->scope.begin()));
 
 				for(const auto& [value_state_id, value_state_info] : current_scope_level.getValueStateInfos()){
+					if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::DeclInfo>()){ continue; }
+
 					const evo::Expected<void, sema::ScopeLevel::ValueStateID> set_value_state_res =
 						parent_scope_level.setIdentValueStateFromSubScope(value_state_id, value_state_info.state);
 
@@ -13825,14 +13935,20 @@ namespace pcit::panther{
 			sema::Defer& defer_stmt = this->context.sema_buffer.defers[defer_id];
 
 			defer_stmt.block.emplace_back(
-				this->create_delete_stmt(value_state_data.type_info_id, value_state_data.expr)
+				this->create_delete_stmt(
+					value_state_data.type_info_id,
+					value_state_data.expr,
+					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
+				)
 			);
 		}
 	}
 
 
 
-	auto SemanticAnalyzer::create_delete_stmt(TypeInfo::ID type_info_id, sema::Expr expr) -> sema::Stmt {
+	auto SemanticAnalyzer::create_delete_stmt(
+		TypeInfo::ID type_info_id, sema::Expr expr, std::unordered_set<sema::Func::ID>& dependent_funcs
+	) -> sema::Stmt {
 		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_info_id);
 
 		if(type_info.isOptionalNotPointer()){
@@ -13850,7 +13966,8 @@ namespace pcit::panther{
 							sema::Expr(this->context.sema_buffer.createUnwrap(expr, type_info_id)),
 							type_info_id
 						)
-					)
+					),
+					dependent_funcs
 				)
 			);
 
@@ -13872,14 +13989,14 @@ namespace pcit::panther{
 				const BaseType::Alias& alias =
 					this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
 
-				return this->create_delete_stmt(*alias.aliasedType.load(), expr);
+				return this->create_delete_stmt(*alias.aliasedType.load(), expr, dependent_funcs);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias =
 					this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
 
-				return this->create_delete_stmt(*distinct_alias.underlyingType.load(), expr);
+				return this->create_delete_stmt(*distinct_alias.underlyingType.load(), expr, dependent_funcs);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -13888,7 +14005,7 @@ namespace pcit::panther{
 
 				const sema::Func::ID delete_overload = *type_info_struct.deleteOverload.load();
 
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(delete_overload);
+				dependent_funcs.emplace(delete_overload);
 
 				return sema::Stmt(
 					this->context.sema_buffer.createFuncCall(delete_overload, evo::SmallVector<sema::Expr>{expr})
@@ -14654,6 +14771,7 @@ namespace pcit::panther{
 						"Cannot determine value state from sub-scopes",
 						Diagnostic::Info("Sub-scopes end here:", std::move(location))
 					);
+					evo::breakpoint();
 					return evo::resultError;
 				}
 
@@ -14677,6 +14795,7 @@ namespace pcit::panther{
 						"Cannot determine value state from sub-scopes",
 						Diagnostic::Info("Sub-scopes end here:", std::move(location))
 					);
+					evo::breakpoint();
 					return evo::resultError;
 				}
 

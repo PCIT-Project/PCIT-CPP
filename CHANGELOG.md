@@ -1,11 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.162.0"></a>
+## v0.0.162.0
+
+### Panther
+- Added automatic creation of operator `delete`
+- Added checking that block expressions declare their return parameters
+	- Fixes crashing if they aren't declared
+- Fixed automatic calling of deleters not happening at `break` and `continue` statements
+- Fixed defers and automatic calling of deleters not happening at the right time in block scopes
+- Fixed value state tracking hoisting declarations into parent scopes
+- Fixed crashing when lowering a discarding assignment of a fluid value
+
+
+<!---------------------------------->
 <a name="v0.0.161.1"></a>
 ## v0.0.161.1
 
 ### Panther
-- Fixed race condition for compiler-constructed constexpr default operator [new]
+- Fixed race condition for compiler-constructed constexpr default operator `new`
 
 
 <!---------------------------------->
@@ -34,10 +48,10 @@
 ## v0.0.159.0
 
 ### Panther
-- Added compiler default generated operator [new]
-- Added operator [new] for primitives
+- Added compiler default generated operator `new`
+- Added operator `new` for primitives
 - Fixed missing checks that arguments to operator `new` for optional and array reference are ephemeral
-- Fixed comptime calling of operator [new]
+- Fixed comptime calling of operator `new`
 
 
 <!---------------------------------->
@@ -45,8 +59,8 @@
 ## v0.0.158.0
 
 ### Panther
-- Added operator [new] of optionals
-- Added operator [new] of array references
+- Added operator `new` of optionals
+- Added operator `new` of array references
 - Added checking of operator `as` to array reference if it not being read-only is valid
 - Fixed crashing and/or incorrect behavior when instantiating template functions that are defined in a different file
 - Fixed assert firing in debug mode when dynamically importing files

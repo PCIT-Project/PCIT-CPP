@@ -40,6 +40,7 @@ namespace pcit::panther::sema{
 			UNREACHABLE,
 			BREAK,
 			CONTINUE,
+			BLOCK_SCOPE,
 			CONDITIONAL,
 			WHILE,
 			DEFER,
@@ -56,6 +57,8 @@ namespace pcit::panther::sema{
 		explicit Stmt(ErrorID error_id)          : _kind(Kind::ERROR),       value{.error_id = error_id}           {}
 		explicit Stmt(BreakID break_id)          : _kind(Kind::BREAK),       value{.break_id = break_id}           {}
 		explicit Stmt(ContinueID continue_id)    : _kind(Kind::CONTINUE),    value{.continue_id = continue_id}     {}
+		explicit Stmt(BlockScopeID block_scope_id)
+			: _kind(Kind::BLOCK_SCOPE), value{.block_scope_id = block_scope_id} {}
 		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::CONDITIONAL), value{.cond_id = cond_id}             {}
 		explicit Stmt(WhileID while_id)          : _kind(Kind::WHILE),       value{.while_id = while_id}           {}
 		explicit Stmt(DeferID defer_id)          : _kind(Kind::DEFER),       value{.defer_id = defer_id}           {}
@@ -115,6 +118,11 @@ namespace pcit::panther::sema{
 			return this->value.continue_id;
 		}
 
+		EVO_NODISCARD auto blockScopeID() const -> BlockScopeID {
+			evo::debugAssert(this->kind() == Kind::BLOCK_SCOPE, "not a block scope");
+			return this->value.block_scope_id;
+		}
+
 		EVO_NODISCARD auto conditionalID() const -> ConditionalID {
 			evo::debugAssert(this->kind() == Kind::CONDITIONAL, "not an conditional");
 			return this->value.cond_id;
@@ -148,6 +156,7 @@ namespace pcit::panther::sema{
 				ErrorID error_id;
 				BreakID break_id;
 				ContinueID continue_id;
+				BlockScopeID block_scope_id;
 				ConditionalID cond_id;
 				WhileID while_id;
 				DeferID defer_id;

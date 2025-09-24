@@ -22,12 +22,12 @@ type Vec2 = struct {
 	// 	this.y = copy y;
 	// }
 
-	func delete = (this mut) #rt -> Void {
-		this.x = 0.0;
-		this.y = 0.0;
+	// func delete = (this mut) #rt -> Void {
+	// 	this.x = 0.0;
+	// 	this.y = 0.0;
 
-		delete this.non_trivial;
-	}
+	// 	delete this.non_trivial;
+	// }
 
 
 	var x: F32 = 12.0;
@@ -37,8 +37,15 @@ type Vec2 = struct {
 }
 
 
-// func entry = () #entry -> UI8 {
-// 	// var vec: Vec2 = new Vec2();
+func entry = () #entry -> UI8 {
+	{
+		var vec: Vec2 = new Vec2();
+	}
 
-// 	return 0;
-// }
+	{
+		var vec: Vec2 = new Vec2();
+	}
+
+
+	return 0;
+}

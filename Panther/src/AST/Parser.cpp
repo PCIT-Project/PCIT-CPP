@@ -1060,6 +1060,15 @@ namespace pcit::panther{
 					outputs.emplace_back(std::nullopt,type_result.value());
 				}
 
+			}else if(label_requirement == BlockLabelRequirement::REQUIRED){
+				this->expected_but_got(
+					"[:] after label in block expression",
+					this->reader.peek(),
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("Note: block expressions must declare the return parameters")
+				}
+				);
+				return Result::Code::ERROR;
 			}
 
 		}else if(label_requirement == BlockLabelRequirement::REQUIRED){

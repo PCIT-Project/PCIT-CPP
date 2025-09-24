@@ -815,6 +815,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyDeletable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyDeletable(BaseType::ID id) const -> bool;
 
+			EVO_NODISCARD auto isConstexprDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isConstexprDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
 			EVO_NODISCARD auto isCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isCopyable(BaseType::ID id) const -> bool;
 

@@ -1746,6 +1746,81 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
+	// isConstexprDeletable
+
+	auto TypeManager::isConstexprDeletable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
+		return this->isConstexprDeletable(type_info.baseTypeID(), sema_buffer);
+	}
+
+	auto TypeManager::isConstexprDeletable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isConstexprDeletable(array.elementTypeID, sema_buffer);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isConstexprDeletable(*alias.aliasedType.load(), sema_buffer);
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isConstexprDeletable(*alias.underlyingType.load(), sema_buffer);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				const std::optional<sema::Func::ID> delete_overload = struct_info.deleteOverload.load();
+				if(delete_overload.has_value() == false){ return true; }
+				return sema_buffer.getFunc(*delete_overload).isConstexpr;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				if(union_info.isUntagged){ return true; }
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isConstexprDeletable(field.typeID.asTypeID(), sema_buffer) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+	///////////////////////////////////
 	// isCopyable
 
 	auto TypeManager::isCopyable(TypeInfo::ID id) const -> bool {

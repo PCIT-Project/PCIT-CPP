@@ -382,6 +382,12 @@ namespace pcit::panther::sema{
 		std::optional<Token::ID> label;
 	};
 
+	struct BlockScope{
+		using ID = BlockScopeID;
+		
+		StmtBlock block{};
+	};
+
 	struct Conditional{
 		using ID = ConditionalID;
 

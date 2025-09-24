@@ -1142,6 +1142,22 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Stmt::Kind::BLOCK_SCOPE: {
+				const sema::BlockScope& block_scope = this->context.getSemaBuffer().getBlockScope(stmt.blockScopeID());
+
+				this->push_scope_level();
+
+				for(const sema::Stmt& block_stmt : block_scope.block){
+					this->lower_stmt(block_stmt);
+				}
+
+				if(block_scope.block.isTerminated() == false){
+					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+				}
+
+				this->pop_scope_level();
+			} break;
+
 			case sema::Stmt::Kind::CONDITIONAL: {
 				const sema::Conditional& conditional_stmt = 
 					this->context.getSemaBuffer().getConditional(stmt.conditionalID());
@@ -1454,48 +1470,52 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::INT_VALUE: {
-				const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
-				const pir::Type value_type = this->get_type<false>(*int_value.typeID);
-				const pir::Expr number = this->agent.createNumber(value_type, int_value.value);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return number;
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
-					this->agent.createStore(alloca, number);
-					return alloca;
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(store_locations[0], number);
+				if constexpr(MODE == GetExprMode::DISCARD){
 					return std::nullopt;
 
 				}else{
-					return std::nullopt;
+					const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
+					const pir::Type value_type = this->get_type<false>(*int_value.typeID);
+					const pir::Expr number = this->agent.createNumber(value_type, int_value.value);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return number;
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr alloca = this->agent.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
+						this->agent.createStore(alloca, number);
+						return alloca;
+
+					}else{
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+						this->agent.createStore(store_locations[0], number);
+						return std::nullopt;
+					}
 				}
 			} break;
 
 			case sema::Expr::Kind::FLOAT_VALUE: {
-				const sema::FloatValue& float_value = this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
-				const pir::Type value_type = this->get_type<false>(*float_value.typeID);
-				const pir::Expr number = this->agent.createNumber(value_type, float_value.value);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return number;
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->agent.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
-					this->agent.createStore(alloca, number);
-					return alloca;
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->agent.createStore(store_locations[0], number);
+				if constexpr(MODE == GetExprMode::DISCARD){
 					return std::nullopt;
 
 				}else{
-					return std::nullopt;
+					const sema::FloatValue& float_value = this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
+					const pir::Type value_type = this->get_type<false>(*float_value.typeID);
+					const pir::Expr number = this->agent.createNumber(value_type, float_value.value);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return number;
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr alloca = this->agent.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
+						this->agent.createStore(alloca, number);
+						return alloca;
+
+					}else{
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+						this->agent.createStore(store_locations[0], number);
+						return std::nullopt;
+					}
 				}
 			} break;
 

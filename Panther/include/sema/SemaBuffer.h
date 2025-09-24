@@ -256,6 +256,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// block scopes
+
+			EVO_NODISCARD auto createBlockScope(auto&&... args) -> sema::BlockScope::ID {
+				return this->block_scopes.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getBlockScope(sema::BlockScope::ID id) const -> const sema::BlockScope& {
+				return this->block_scopes[id];
+			}
+
+
+			///////////////////////////////////
 			// conditionals
 
 			EVO_NODISCARD auto createConditional(auto&&... args) -> sema::Conditional::ID {
@@ -770,6 +782,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Error, sema::Error::ID> errors{};
 			core::SyncLinearStepAlloc<sema::Break, sema::Break::ID> breaks{};
 			core::SyncLinearStepAlloc<sema::Continue, sema::Continue::ID> continues{};
+			core::SyncLinearStepAlloc<sema::BlockScope, sema::BlockScope::ID> block_scopes{};
 			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
 			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
