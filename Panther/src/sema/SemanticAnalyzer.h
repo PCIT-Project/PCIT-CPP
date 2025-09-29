@@ -99,6 +99,7 @@ namespace pcit::panther{
 				const Instruction::TemplateFuncSetParamIsDeducer& instr
 			) -> Result;
 			EVO_NODISCARD auto instr_template_func_end(const Instruction::TemplateFuncEnd& instr) -> Result;
+			EVO_NODISCARD auto instr_deleted_special_method(const Instruction::DeletedSpecialMethod& instr) -> Result;
 
 			EVO_NODISCARD auto instr_interface_decl(const Instruction::InterfaceDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_interface_def() -> Result;
@@ -138,6 +139,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_func_call(const Instruction::FuncCall& instr) -> Result;
 			EVO_NODISCARD auto instr_assignment(const Instruction::Assignment& instr) -> Result;
 			EVO_NODISCARD auto instr_assignment_new(const Instruction::AssignmentNew& instr) -> Result;
+			EVO_NODISCARD auto instr_assignment_copy(const Instruction::AssignmentCopy& instr) -> Result;
+			EVO_NODISCARD auto instr_assignment_move(const Instruction::AssignmentMove& instr) -> Result;
+			EVO_NODISCARD auto instr_assignment_forward(const Instruction::AssignmentForward& instr) -> Result;
 			EVO_NODISCARD auto instr_multi_assign(const Instruction::MultiAssign& instr) -> Result;
 			EVO_NODISCARD auto instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result;
 
@@ -372,9 +376,16 @@ namespace pcit::panther{
 			template<AutoDeleteMode AUTO_DELETE_MODE>
 			auto add_auto_delete_calls() -> void;
 
-			auto create_delete_stmt(
-				TypeInfo::ID type_info_id, sema::Expr expr, std::unordered_set<sema::Func::ID>& dependent_funcs
-			) -> sema::Stmt;
+
+			enum class SpecialMemberKind{
+				DELETE,
+				COPY,
+				MOVE,
+			};
+			template<SpecialMemberKind SPECIAL_MEMBER_KIND>
+			EVO_NODISCARD auto get_special_member_stmt_dependents(
+				TypeInfo::ID type_info_id, std::unordered_set<sema::Func::ID>& dependent_funcs
+			) -> void;
 
 
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;

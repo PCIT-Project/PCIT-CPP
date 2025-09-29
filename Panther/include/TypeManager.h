@@ -422,6 +422,15 @@ namespace pcit::panther{
 				std::optional<DefaultValue> defaultValue;
 			};
 
+			struct DeletableOverload{
+				std::optional<sema::FuncID> funcID;
+				bool wasDeleted;
+
+				DeletableOverload() : funcID(std::nullopt), wasDeleted(false) {}
+				DeletableOverload(std::optional<sema::FuncID> func_id, bool was_deleted)
+					: funcID(func_id), wasDeleted(was_deleted) {}
+			};
+
 			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
 			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<StructTemplateID> templateID = std::nullopt; // nullopt if not instantiated
@@ -442,10 +451,14 @@ namespace pcit::panther{
 			evo::SmallVector<sema::FuncID> newInitOverloads{};
 			mutable core::SpinLock newInitOverloadsLock{}; // only needed before def completed
 
-			evo::SmallVector<sema::FuncID> newReassignOverloads{};
-			mutable core::SpinLock newReassignOverloadsLock{}; // only needed before def completed
+			evo::SmallVector<sema::FuncID> newAssignOverloads{};
+			mutable core::SpinLock newAssignOverloadsLock{}; // only needed before def completed
 
 			std::atomic<std::optional<sema::FuncID>> deleteOverload{};
+			std::atomic<DeletableOverload> copyInitOverload{};
+			std::atomic<std::optional<sema::FuncID>> copyAssignOverload{}; // note: is nullopt if default from init
+			std::atomic<DeletableOverload> moveInitOverload{};
+			std::atomic<std::optional<sema::FuncID>> moveAssignOverload{}; // note: is nullopt if default from init
 
 			std::unordered_map<TypeInfoID, sema::FuncID> operatorAsOverloads{};
 			mutable core::SpinLock operatorAsOverloadsLock{}; // only needed before def completed
@@ -470,6 +483,8 @@ namespace pcit::panther{
 					&& this->instantiation == rhs.instantiation;
 			}
 		};
+
+		static_assert(sizeof(Struct::DeletableOverload) <= 8, "Expected atomic of DeletableOverload to be lock free");
 
 
 		struct StructTemplate{
@@ -824,11 +839,17 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyCopyable(BaseType::ID id) const -> bool;
 
+			EVO_NODISCARD auto isConstexprCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isConstexprCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
 			EVO_NODISCARD auto isMovable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isMovable(BaseType::ID id) const -> bool;
 
 			EVO_NODISCARD auto isTriviallyMovable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyMovable(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isConstexprMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isConstexprMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
 
 			//////////////////

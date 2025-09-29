@@ -256,6 +256,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// deletes
+
+			EVO_NODISCARD auto createDelete(auto&&... args) -> sema::Delete::ID {
+				return this->deletes.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getDelete(sema::Delete::ID id) const -> const sema::Delete& {
+				return this->deletes[id];
+			}
+
+
+			///////////////////////////////////
 			// block scopes
 
 			EVO_NODISCARD auto createBlockScope(auto&&... args) -> sema::BlockScope::ID {
@@ -782,6 +794,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Error, sema::Error::ID> errors{};
 			core::SyncLinearStepAlloc<sema::Break, sema::Break::ID> breaks{};
 			core::SyncLinearStepAlloc<sema::Continue, sema::Continue::ID> continues{};
+			core::SyncLinearStepAlloc<sema::Delete, sema::Delete::ID> deletes{};
 			core::SyncLinearStepAlloc<sema::BlockScope, sema::BlockScope::ID> block_scopes{};
 			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};

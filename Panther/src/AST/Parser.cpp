@@ -28,7 +28,7 @@ namespace pcit::panther{
 				case Result::Code::WRONG_TYPE: {
 					this->context.emitError(
 						Diagnostic::Code::PARSER_UNKNOWN_STMT_START,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"Unknown start to statement"
 					);
 					return evo::resultError;
@@ -137,7 +137,7 @@ namespace pcit::panther{
 		){
 			this->context.emitError(
 				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-				this->source.getTokenBuffer().getSourceLocation(this->reader.peek(-1), this->source.getID()),
+				Diagnostic::Location::get(this->reader.peek(-1), this->source),
 				"Attributes for variable declaration in the wrong place",
 				evo::SmallVector<Diagnostic::Info>{
 					Diagnostic::Info("If the variable is explicitly-typed, the attributes go after the type")
@@ -192,7 +192,7 @@ namespace pcit::panther{
 			if(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
 				this->context.emitError(
 					Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-					this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+					Diagnostic::Location::get(this->reader.peek(), this->source),
 					"Attributes for function declaration in the wrong place",
 					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info("Attributes should be after the parameters block")
@@ -201,6 +201,38 @@ namespace pcit::panther{
 			}
 			return Result::Code::ERROR;
 		}
+
+
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_DELETE){
+			this->reader.skip();
+
+			const Token::Kind member_token_kind = this->reader[name].kind();
+
+			if(member_token_kind != Token::Kind::KEYWORD_COPY && member_token_kind != Token::Kind::KEYWORD_MOVE){
+				if(member_token_kind == Token::Kind::IDENT){
+					this->context.emitError(
+						Diagnostic::Code::PARSER_INVALID_DELETED_SPECIAL_METHOD,
+						Diagnostic::Location::get(name, this->source),
+						"Invalid deleted special method (not a special method)",
+						evo::SmallVector<Diagnostic::Info>{Diagnostic::Info("Deleted overloads require parameters")}
+					);
+				}else{
+					this->context.emitError(
+						Diagnostic::Code::PARSER_INVALID_DELETED_SPECIAL_METHOD,
+						Diagnostic::Location::get(name, this->source),
+						"Invalid deleted special method"
+					);
+				}
+				return Result::Code::ERROR;
+			}
+
+			if(this->expect_token_fail(Token::lookupKind(";"), "at end of deleted special method")){
+				return Result::Code::ERROR;
+			}
+
+			return this->source.ast_buffer.createDeletedSpecialMethod(name);
+		}
+
 
 		auto template_pack_node = std::optional<AST::Node>();
 		const Result template_pack_result = this->parse_template_pack();
@@ -219,6 +251,15 @@ namespace pcit::panther{
 
 
 		if(this->expect_token_fail(Token::lookupKind("->"), "in function declaration")){ return Result::Code::ERROR; }
+
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_DELETE){
+			this->context.emitError(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				Diagnostic::Location::get(this->reader.peek(), this->source),
+				"Deleted overloads are currently unimplemented"
+			);
+			return Result::Code::ERROR;
+		}
 
 		evo::Result<evo::SmallVector<AST::FuncDecl::Return>> returns = this->parse_func_returns();
 		if(returns.isError()){ return Result::Code::ERROR; }
@@ -350,9 +391,9 @@ namespace pcit::panther{
 		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
 			this->context.emitError(
 				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-				this->source.getTokenBuffer().getSourceLocation(
+				Diagnostic::Location::get(
 					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
-					this->source.getID()
+					this->source
 				),
 				"Attributes for struct declaration in the wrong place",
 				evo::SmallVector<Diagnostic::Info>{
@@ -392,9 +433,9 @@ namespace pcit::panther{
 		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
 			this->context.emitError(
 				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-				this->source.getTokenBuffer().getSourceLocation(
+				Diagnostic::Location::get(
 					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
-					this->source.getID()
+					this->source
 				),
 				"Attributes for union declaration in the wrong place",
 				evo::SmallVector<Diagnostic::Info>{
@@ -903,7 +944,7 @@ namespace pcit::panther{
 				if(assignments.empty()){
 					this->context.emitError(
 						Diagnostic::Code::PARSER_EMPTY_MULTI_ASSIGN,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(-1), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(-1), this->source),
 						"Multiple-assignment statements cannot assign to 0 values"
 					);
 				}
@@ -986,7 +1027,7 @@ namespace pcit::panther{
 				if(label_requirement == BlockLabelRequirement::OPTIONAL){
 					this->context.emitError(
 						Diagnostic::Code::PARSER_INCORRECT_STMT_CONTINUATION,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"This labeled block is not allowed to have outputs",
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Note: Only expression blocks may have outputs")
@@ -1134,7 +1175,7 @@ namespace pcit::panther{
 				if(this->reader[this->reader.peek(1)].kind() == Token::lookupKind("(")){
 					this->context.emitError(
 						Diagnostic::Code::PARSER_TYPE_CONVERTER_LOWER_CASE,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(1), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(1), this->source),
 						"Unexpected [(] after `Type`",
 						Diagnostic::Info("Did you mean `type`?")
 					);
@@ -1176,7 +1217,7 @@ namespace pcit::panther{
 
 					this->context.emitError(
 						Diagnostic::Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"A dereference operator ([.*]) should not follow a type",
 						evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 					);
@@ -1195,7 +1236,7 @@ namespace pcit::panther{
 
 					this->context.emitError(
 						Diagnostic::Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"A unwrap operator ([.?]) should not follow a type",
 						evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 					);
@@ -1208,7 +1249,7 @@ namespace pcit::panther{
 				if constexpr(KIND != TypeKind::EXPLICIT_MAYBE_DEDUCER){
 					this->context.emitError(
 						Diagnostic::Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"Type deducers are not allowed here"
 					);
 					return Result(Result::Code::ERROR);
@@ -1268,15 +1309,15 @@ namespace pcit::panther{
 							if(last_ptr_dimension.has_value() && is_read_only_arr_ref){
 								this->context.emitError(
 									Diagnostic::Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH,
-									this->source.getTokenBuffer().getSourceLocation(
-										this->reader.peek(), this->source.getID()
+									Diagnostic::Location::get(
+										this->reader.peek(), this->source
 									),
 									"All pointer dimensions in an array reference must match mutability",
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Last pointer dimension was here:",
-											this->source.getTokenBuffer().getSourceLocation(
-												*last_ptr_dimension, this->source.getID()
+											Diagnostic::Location::get(
+												*last_ptr_dimension, this->source
 											)
 										)
 									}
@@ -1553,7 +1594,7 @@ namespace pcit::panther{
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(".*")){
 					this->context.emitError(
 						Diagnostic::Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"A dereference operator ([.*]) should not follow a type",
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Did you mean to put parentheses around the preceding [as] operation?")
@@ -1564,7 +1605,7 @@ namespace pcit::panther{
 				}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind(".?")){
 					this->context.emitError(
 						Diagnostic::Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE,
-						this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"A dereference operator ([.?]) should not follow a type",
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("Did you mean to put parentheses around the preceding [as] operation?")
@@ -1795,7 +1836,7 @@ namespace pcit::panther{
 
 						this->context.emitError(
 							Diagnostic::Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE,
-							this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+							Diagnostic::Location::get(this->reader.peek(), this->source),
 							"A dereference operator ([.*]) should not follow a type",
 							evo::SmallVector<Diagnostic::Info>{std::move(diagnostics_info)}
 						);
@@ -1824,7 +1865,7 @@ namespace pcit::panther{
 
 						this->context.emitError(
 							Diagnostic::Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE,
-							this->source.getTokenBuffer().getSourceLocation(this->reader.peek(), this->source.getID()),
+							Diagnostic::Location::get(this->reader.peek(), this->source),
 							"An unwrap operator ([.?]) should not follow a type",
 							evo::SmallVector<Diagnostic::Info>{diagnostics_info}
 						);
@@ -1977,13 +2018,12 @@ namespace pcit::panther{
 		if(inner_expr.code() != Result::Code::SUCCESS){ return inner_expr; }
 
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind(")")){
-			const Source::Location open_location = 
-				this->source.getTokenBuffer().getSourceLocation(open_token_id, this->source.getID());
-
 			this->expected_but_got(
 				"either closing [)] around expression or continuation of sub-expression",
 				this->reader.peek(),
-				evo::SmallVector<Diagnostic::Info>{ Diagnostic::Info("parenthesis opened here", open_location), }
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("parenthesis opened here", Diagnostic::Location::get(open_token_id, this->source)),
+				}
 			);
 
 			return Result::Code::ERROR;
@@ -2249,8 +2289,8 @@ namespace pcit::panther{
 					case Token::Kind::KEYWORD_IN: {
 						this->context.emitError(
 							Diagnostic::Code::PARSER_INVALID_KIND_FOR_A_THIS_PARAM,
-							this->source.getTokenBuffer().getSourceLocation(
-								this->reader.peek(), this->source.getID()
+							Diagnostic::Location::get(
+								this->reader.peek(), this->source
 							),
 							"[this] parameters cannot have the kind [in]",
 							evo::SmallVector<Diagnostic::Info>{
@@ -2425,7 +2465,7 @@ namespace pcit::panther{
 		if(returns.empty()){
 			this->context.emitError(
 				Diagnostic::Code::PARSER_EMPTY_FUNC_RETURN_BLOCK,
-				this->source.getTokenBuffer().getSourceLocation(start_location, this->source.getID()),
+				Diagnostic::Location::get(start_location, this->source),
 				"Function return blocks must have at least one type",
 				evo::SmallVector<Diagnostic::Info>{
 					Diagnostic::Info(
@@ -2673,7 +2713,7 @@ namespace pcit::panther{
 	) -> void {
 		this->context.emitError(
 			Diagnostic::Code::PARSER_INCORRECT_STMT_CONTINUATION,
-			this->source.getTokenBuffer().getSourceLocation(token_id, this->source.getID()),
+			Diagnostic::Location::get(token_id, this->source),
 			std::format("Expected {}, got [{}] instead", location_str, this->reader[token_id].kind()), 
 			std::move(infos)
 		);
@@ -2708,7 +2748,7 @@ namespace pcit::panther{
 
 			this->context.emitFatal(
 				Diagnostic::Code::PARSER_ASSUMED_TOKEN_NOT_PRESET,
-				this->source.getTokenBuffer().getSourceLocation(next_token_id, this->source.getID()),
+				Diagnostic::Location::get(next_token_id, this->source),
 				Diagnostic::createFatalMessage(
 					std::format("Expected [{}], got [{}] instead", kind, this->reader[next_token_id].kind())
 				)

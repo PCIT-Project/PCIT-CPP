@@ -340,7 +340,7 @@ namespace pcit::panther{
 		}();
 
 
-		auto pir_funcs = evo::SmallVector<evo::Variant<pir::Function::ID, pir::ExternalFunction::ID>>();
+		auto pir_funcs = evo::SmallVector<evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>>();
 
 
 		const pir::CallingConvention calling_conv = [&](){
@@ -395,7 +395,30 @@ namespace pcit::panther{
 			const size_t num_instantiations = 1ull << size_t(in_param_index);
 			pir_funcs.reserve(num_instantiations);
 
+			size_t non_copyable_bitmap = 0;
+			size_t non_movable_bitmap = 0;
+
+			for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
+				if(this->context.getTypeManager().isCopyable(param.typeID) == false){
+					non_copyable_bitmap |= size_t(1) << i;
+				}
+
+				if(this->context.getTypeManager().isMovable(param.typeID) == false){
+					non_movable_bitmap |= size_t(1) << i;
+				}
+
+
+				i += 1;
+			}
+
+
+
 			for(size_t i = 0; i < num_instantiations; i+=1){
+				if(((i & non_copyable_bitmap) != 0) || ((~i & non_movable_bitmap) != 0)){
+					pir_funcs.emplace_back(std::monostate());
+					continue;
+				}
+
 				std::string name = this->mangle_name(func_id);
 
 				if(this->data.getConfig().useReadableNames){
@@ -421,7 +444,13 @@ namespace pcit::panther{
 		}
 
 
-		const pir::Function::ID new_func_id = pir_funcs.back().as<pir::Function::ID>();
+		const pir::Function::ID new_func_id = [&](){
+			using PIRFuncID = evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>;
+			for(const PIRFuncID& pir_func : pir_funcs | std::views::reverse){
+				if(pir_func.is<pir::Function::ID>()){ return pir_func.as<pir::Function::ID>(); }
+			}
+			evo::unreachable();
+		}();
 
 		this->data.create_func(
 			func_id,
@@ -451,9 +480,13 @@ namespace pcit::panther{
 		const SemaToPIRData::FuncInfo& func_info = this->data.get_func(func_id);
 
 		this->in_param_bitmap = 0;
-		for(const evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> pir_id : func_info.pir_ids){
-			pir::Function& func = this->module.getFunction(pir_id.as<pir::Function::ID>());
+		using PIRFuncID = evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>;
+		for(const PIRFuncID pir_id : func_info.pir_ids){
+			EVO_DEFER([&](){ this->in_param_bitmap += 1; });
 
+			if(pir_id.is<std::monostate>()){ continue; }
+
+			pir::Function& func = this->module.getFunction(pir_id.as<pir::Function::ID>());
 
 			this->current_func_info = &this->data.get_func(func_id);
 			EVO_DEFER([&](){ this->current_func_info = nullptr; });
@@ -486,8 +519,6 @@ namespace pcit::panther{
 			this->pop_scope_level();
 
 			this->local_func_exprs.clear();
-
-			this->in_param_bitmap += 1;
 		}
 
 		this->current_func_type = nullptr;
@@ -839,20 +870,36 @@ namespace pcit::panther{
 
 				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
 
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
+					this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID
+				);
+
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : func_call.args){
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
+
+					}else if(target_type.params[i].kind == AST::FuncDecl::Param::Kind::IN){
+						if(arg.kind() == sema::Expr::Kind::COPY){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
+							);
+
+						}else if(arg.kind() == sema::Expr::Kind::MOVE){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
+							);
+							
+						}else{
+							args.emplace_back(this->get_expr_pointer(arg));
+						}
+
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
 					}
 
 					i += 1;
 				}
-
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
-					this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID
-				);
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
@@ -1140,6 +1187,11 @@ namespace pcit::panther{
 						}
 					}
 				}
+			} break;
+
+			case sema::Stmt::Kind::DELETE: {
+				const sema::Delete& delete_stmt = this->context.getSemaBuffer().getDelete(stmt.deleteID());
+				this->delete_expr(delete_stmt.expr, delete_stmt.exprTypeID);
 			} break;
 
 			case sema::Stmt::Kind::BLOCK_SCOPE: {
@@ -1690,12 +1742,12 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::COPY: {
 				const sema::Copy& copy_expr = this->context.getSemaBuffer().getCopy(expr.copyID());
-				return this->expr_copy<MODE>(copy_expr.expr, copy_expr.exprTypeID, store_locations);
+				return this->expr_copy<MODE>(copy_expr.expr, copy_expr.exprTypeID, true, store_locations);
 			} break;
 
 			case sema::Expr::Kind::MOVE: {
 				const sema::Move& move_expr = this->context.getSemaBuffer().getMove(expr.moveID());
-				return this->expr_move<MODE>(move_expr.expr, move_expr.exprTypeID, store_locations);
+				return this->expr_move<MODE>(move_expr.expr, move_expr.exprTypeID, true, store_locations);
 			} break;
 
 			case sema::Expr::Kind::FORWARD: {
@@ -1708,9 +1760,13 @@ namespace pcit::panther{
 					const bool param_is_copy = bool((this->in_param_bitmap >> in_param_index) & 1);
 
 					if(param_is_copy){
-						return this->expr_copy<MODE>(forward_expr.expr, forward_expr.exprTypeID, store_locations);
+						return this->expr_copy<MODE>(
+							forward_expr.expr, forward_expr.exprTypeID, forward_expr.isInitialization, store_locations
+						);
 					}else{
-						return this->expr_move<MODE>(forward_expr.expr, forward_expr.exprTypeID, store_locations);
+						return this->expr_move<MODE>(
+							forward_expr.expr, forward_expr.exprTypeID, forward_expr.isInitialization, store_locations
+						);
 					}
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -1733,21 +1789,37 @@ namespace pcit::panther{
 
 				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
 
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
+					this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID
+				);
+
+
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : func_call.args){
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
+
+					}else if(target_type.params[i].kind == AST::FuncDecl::Param::Kind::IN){
+						if(arg.kind() == sema::Expr::Kind::COPY){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
+							);
+
+						}else if(arg.kind() == sema::Expr::Kind::MOVE){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
+							);
+							
+						}else{
+							args.emplace_back(this->get_expr_pointer(arg));
+						}
+
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
 					}
 
 					i += 1;
 				}
-
-
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
-					this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID
-				);
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
@@ -3245,20 +3317,37 @@ namespace pcit::panther{
 					attempt_func_call.target.as<sema::Func::ID>()
 				);
 
+
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
+					this->context.getSemaBuffer().getFunc(attempt_func_call.target.as<sema::Func::ID>()).typeID
+				);
+
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : attempt_func_call.args){
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
+
+					}else if(target_type.params[i].kind == AST::FuncDecl::Param::Kind::IN){
+						if(arg.kind() == sema::Expr::Kind::COPY){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
+							);
+
+						}else if(arg.kind() == sema::Expr::Kind::MOVE){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
+							);
+							
+						}else{
+							args.emplace_back(this->get_expr_pointer(arg));
+						}
+
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
 					}
 
 					i += 1;
 				}
-
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
-					this->context.getSemaBuffer().getFunc(attempt_func_call.target.as<sema::Func::ID>()).typeID
-				);
 
 				const pir::Expr return_address = [&](){
 					if constexpr(MODE == GetExprMode::STORE){
@@ -3606,89 +3695,840 @@ namespace pcit::panther{
 
 
 
-	template<SemaToPIR::GetExprMode MODE>
-	auto SemaToPIR::expr_copy(
-		const sema::Expr& expr, TypeInfo::ID expr_type_id, evo::ArrayProxy<pir::Expr> store_locations
-	) -> std::optional<pir::Expr> {
-		if(this->context.getTypeManager().isTriviallyCopyable(expr_type_id)){
-			if constexpr(MODE == GetExprMode::REGISTER){
-				return this->get_expr_register(expr);
+	auto SemaToPIR::delete_expr(const sema::Expr& expr, TypeInfo::ID expr_type_id) -> void {
+		if(this->context.getTypeManager().isTriviallyDeletable(expr_type_id)){ return; }
 
-			}else if constexpr(MODE == GetExprMode::POINTER){
-				return this->get_expr_pointer(expr);
-				
-			}else if constexpr(MODE == GetExprMode::STORE){
-				this->get_expr_store(expr, store_locations[0]);
-				return std::nullopt;
-
-			}else{
-				return std::nullopt;
-			}
-		}else{
-			evo::unimplemented("Non-trivially-copyable copy");
-		}
+		this->delete_expr(this->get_expr_pointer(expr), expr_type_id);
 	}
 
 
-	template<SemaToPIR::GetExprMode MODE>
-	auto SemaToPIR::expr_move(
-		const sema::Expr& expr, TypeInfo::ID expr_type_id, evo::ArrayProxy<pir::Expr> store_locations
-	) -> std::optional<pir::Expr> {
-		if(this->context.getTypeManager().isTriviallyCopyable(expr_type_id)){
-			if constexpr(MODE == GetExprMode::REGISTER){
-				return this->get_expr_register(expr);
-
-			}else if constexpr(MODE == GetExprMode::POINTER){
-				return this->get_expr_pointer(expr);
-				
-			}else if constexpr(MODE == GetExprMode::STORE){
-				this->get_expr_store(expr, store_locations[0]);
-				return std::nullopt;
-
-			}else{
-				return std::nullopt;
-			}
-		}else{
-			evo::unimplemented("Non-trivially-movable move");
-		}
-	}
-
-
-
-
-	auto SemaToPIR::deinit_expr(pir::Expr expr, TypeInfo::ID expr_type_id) -> void {
-		evo::debugAssert(this->agent.getExprType(expr).kind() == pir::Type::Kind::PTR, "expr must be a pointer");
+	auto SemaToPIR::delete_expr(pir::Expr expr, TypeInfo::ID expr_type_id) -> void {
+		evo::debugAssert(this->agent.getExprType(expr).kind() == pir::Type::Kind::PTR, "Expr must be a pointer");
 
 		if(this->context.getTypeManager().isTriviallyDeletable(expr_type_id)){ return; }
 
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
-		if(expr_type.isOptionalNotPointer()){
-			if(this->context.getTypeManager().isTriviallyDeletable(expr_type_id) == false){
-				auto held_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
-					expr_type.qualifiers().begin(), std::prev(expr_type.qualifiers().end())
-				);
-				const TypeInfo::ID held_type = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(expr_type.baseTypeID(), std::move(held_qualifiers))
-				);
-
-				const pir::Expr held_data = this->agent.createCalcPtr(
-					expr, this->get_type<false>(expr_type_id), evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-				);
-
-				this->deinit_expr(held_data, held_type);
-
-				// const pir::Expr opt_flag = this->agent.createCalcPtr(
-				// 	expr, this->get_type<false>(expr_type_id), evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-				// );
-				// this->agent.createStore(opt_flag, this->agent.createBoolean(false));
+		if(expr_type.qualifiers().size() > 0){
+			if(expr_type.qualifiers().back().isOptional == false || expr_type.qualifiers().back().isPtr == false){
+				return;
 			}
+
+			const pir::Type target_type = this->get_type<false>(expr_type_id);
+			const pir::Expr flag_ptr = this->agent.createCalcPtr(
+				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+			);
+			const pir::Expr flag = this->agent.createLoad(flag_ptr, this->module.createBoolType());
+
+			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
+
+			const pir::BasicBlock::ID delete_block = this->agent.createBasicBlock();
+			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock();
+
+			this->agent.createBranch(flag_is_true, delete_block, end_block);
+
+			this->agent.setTargetBasicBlock(delete_block);
+
+			const pir::Expr held_ptr = this->agent.createCalcPtr(
+				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+			);
+			this->delete_expr(
+				held_ptr, this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier())
+			);
+
+			this->agent.createJump(end_block);
+
+			this->agent.setTargetBasicBlock(end_block);
 
 			return;
 		}
 
-		evo::unimplemented("non-trivially destruct");
+		switch(expr_type.baseTypeID().kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Not a valid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				evo::debugFatalBreak("Not non-trivially-deletable");
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				evo::debugFatalBreak("Not non-trivially-deletable");
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type =
+					this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
+
+				const uint64_t num_elems = [&](){
+					uint64_t output_num_elems = 1;
+
+					for(uint64_t dimension : array_type.dimensions){
+						output_num_elems *= dimension;
+					}
+
+					if(array_type.terminator.has_value()){ output_num_elems += 1; }
+
+					return output_num_elems;
+				}();
+
+				const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+
+				const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".DELETE_ARR.i.alloca"));
+				this->agent.createStore(
+					pir_i,
+					this->agent.createNumber(
+						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
+					)
+				);
+
+				const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("DELETE_ARR.cond"));
+				const pir::BasicBlock::ID then_block = this->agent.createBasicBlock(this->name("DELETE_ARR.then"));
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("DELETE_ARR.end"));
+
+				this->agent.createJump(cond_block);
+
+
+				//////////////////
+				// cond
+
+				this->agent.setTargetBasicBlock(cond_block);
+
+				const pir::Expr array_size = this->agent.createNumber(
+					usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
+				);
+
+				const pir::Expr pir_i_load = this->agent.createLoad(
+					pir_i, usize_type, false, pir::AtomicOrdering::NONE, this->name("DELETE_ARR.i")
+				);
+				const pir::Expr cond = 
+					this->agent.createULT(pir_i_load, array_size, this->name("DELETE_ARR.LOOP_COND"));
+
+				this->agent.createBranch(cond, then_block, end_block);
+
+
+				//////////////////
+				// then
+
+				this->agent.setTargetBasicBlock(then_block);
+
+				const pir::Expr target_elem = this->agent.createCalcPtr(
+					expr, this->get_type<false>(expr_type_id), evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
+				);
+
+				this->delete_expr(target_elem, array_type.elementTypeID);
+
+
+				const pir::Expr i_increment = this->agent.createAdd(
+					pir_i_load,
+					this->agent.createNumber(
+						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
+					),
+					false,
+					true
+				);
+				this->agent.createStore(pir_i, i_increment);
+
+				this->agent.createJump(cond_block);
+
+
+				//////////////////
+				// end
+
+				this->agent.setTargetBasicBlock(end_block);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				evo::debugFatalBreak("Not non-trivially-deletable");
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias =
+					this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
+
+				this->delete_expr(expr, *alias.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias =
+					this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
+
+				this->delete_expr(expr, *distinct_alias.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_type =
+					this->context.getTypeManager().getStruct(expr_type.baseTypeID().structID());
+
+				evo::debugAssert(struct_type.deleteOverload.load().has_value(), "Not non-trivially-deletable");
+
+				const Data::FuncInfo& target_func_info = this->data.get_func(*struct_type.deleteOverload.load());
+				const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
+
+				this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr});
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: {
+				evo::debugFatalBreak("Not deletable");
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_type =
+					this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
+
+				evo::debugAssert(union_type.isUntagged == false, "untagged union types aren't non-trivially-deletable");
+
+				evo::unimplemented("delete union");
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				evo::debugFatalBreak("Not deletable");
+			} break;
+
+			case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Not deletable");
+			} break;
+		}
 	}
+
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::expr_copy(
+		const sema::Expr& expr,
+		TypeInfo::ID expr_type_id,
+		bool is_initialization,
+		evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		if(this->context.getTypeManager().isTriviallyCopyable(expr_type_id)){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->get_expr_register(expr);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->get_expr_pointer(expr);
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->get_expr_store(expr, store_locations[0]);
+				return std::nullopt;
+
+			}else{
+				return std::nullopt;
+			}
+		}
+
+		return this->expr_copy<MODE>(this->get_expr_pointer(expr), expr_type_id, is_initialization, store_locations);
+	}
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::expr_copy(
+		pir::Expr expr,
+		TypeInfo::ID expr_type_id,
+		bool is_initialization,
+		evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		evo::debugAssert(this->agent.getExprType(expr).kind() == pir::Type::Kind::PTR, "Expr must be a pointer");
+
+		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
+
+		const pir::Type target_type = this->get_type<false>(expr_type_id);
+
+
+		if(this->context.getTypeManager().isTriviallyCopyable(expr_type_id)){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->agent.createLoad(expr, target_type);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return expr;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->agent.createMemcpy(expr, store_locations[0], target_type);
+				return std::nullopt;
+
+			}else{
+				return std::nullopt;
+			}
+		}
+
+
+		const pir::Expr target = [&](){
+			if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::DISCARD){
+				return this->agent.createAlloca(target_type, this->name(".COPY"));
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->agent.createAlloca(target_type, this->name("COPY"));
+
+			}else if constexpr(MODE == GetExprMode::STORE){
+				return store_locations[0];
+			}
+		}();
+
+
+		if(expr_type.qualifiers().size() > 0){
+			evo::debugAssert(expr_type.isOptionalNotPointer(), "Not non-trivially-copyable");
+
+			const pir::Expr flag_ptr = this->agent.createCalcPtr(
+				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+			);
+			const pir::Expr flag = this->agent.createLoad(flag_ptr, this->module.createBoolType());
+
+			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
+
+			const pir::BasicBlock::ID true_copy_block = this->agent.createBasicBlock();
+			const pir::BasicBlock::ID false_copy_block = this->agent.createBasicBlock();
+			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock();
+
+			this->agent.createBranch(flag_is_true, true_copy_block, false_copy_block);
+
+
+			//////////////////
+			// has value
+
+			this->agent.setTargetBasicBlock(true_copy_block);
+
+			{
+				const pir::Expr src_held_ptr = this->agent.createCalcPtr(
+					expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+				);
+				const pir::Expr target_held_ptr = this->agent.createCalcPtr(
+					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+				);
+				this->expr_copy<GetExprMode::STORE>(
+					src_held_ptr,
+					this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier()),
+					is_initialization,
+					target_held_ptr
+				);
+
+				const pir::Expr target_flag = this->agent.createCalcPtr(
+					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+				);
+				this->agent.createStore(target_flag, this->agent.createBoolean(true));
+
+				this->agent.createJump(end_block);
+			}
+
+
+
+			//////////////////
+			// doesn't have value
+
+			this->agent.setTargetBasicBlock(false_copy_block);
+
+			{
+				const pir::Expr target_flag = this->agent.createCalcPtr(
+					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+				);
+				this->agent.createStore(target_flag, this->agent.createBoolean(false));
+
+				this->agent.createJump(end_block);
+			}
+
+			//////////////////
+			// end
+
+			this->agent.setTargetBasicBlock(end_block);
+
+		}else{
+			switch(expr_type.baseTypeID().kind()){
+				case BaseType::Kind::DUMMY: {
+					evo::debugFatalBreak("Not a valid type");
+				} break;
+
+				case BaseType::Kind::PRIMITIVE: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
+				} break;
+
+				case BaseType::Kind::FUNCTION: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
+				} break;
+
+				case BaseType::Kind::ARRAY: {
+					const BaseType::Array& array_type =
+						this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
+
+					const uint64_t num_elems = [&](){
+						uint64_t output_num_elems = 1;
+
+						for(uint64_t dimension : array_type.dimensions){
+							output_num_elems *= dimension;
+						}
+
+						if(array_type.terminator.has_value()){ output_num_elems += 1; }
+
+						return output_num_elems;
+					}();
+
+					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+
+					const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".COPY_ARR.i.alloca"));
+					this->agent.createStore(
+						pir_i,
+						this->agent.createNumber(
+							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
+						)
+					);
+
+					const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("COPY_ARR.cond"));
+					const pir::BasicBlock::ID then_block = this->agent.createBasicBlock(this->name("COPY_ARR.then"));
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("COPY_ARR.end"));
+
+					this->agent.createJump(cond_block);
+
+
+					//////////////////
+					// cond
+
+					this->agent.setTargetBasicBlock(cond_block);
+
+					const pir::Expr array_size = this->agent.createNumber(
+						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
+					);
+
+					const pir::Expr pir_i_load = this->agent.createLoad(
+						pir_i, usize_type, false, pir::AtomicOrdering::NONE, this->name("COPY_ARR.i")
+					);
+					const pir::Expr cond = 
+						this->agent.createULT(pir_i_load, array_size, this->name("COPY_ARR.LOOP_COND"));
+
+					this->agent.createBranch(cond, then_block, end_block);
+
+
+					//////////////////
+					// then
+
+					this->agent.setTargetBasicBlock(then_block);
+
+					const pir::Expr src_elem = this->agent.createCalcPtr(
+						expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
+					);
+
+					const pir::Expr target_elem = this->agent.createCalcPtr(
+						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
+					);
+
+					this->expr_copy<GetExprMode::STORE>(
+						src_elem, array_type.elementTypeID, is_initialization, target_elem
+					);
+
+
+					const pir::Expr i_increment = this->agent.createAdd(
+						pir_i_load,
+						this->agent.createNumber(
+							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
+						),
+						false,
+						true
+					);
+					this->agent.createStore(pir_i, i_increment);
+
+					this->agent.createJump(cond_block);
+
+
+					//////////////////
+					// end
+
+					this->agent.setTargetBasicBlock(end_block);
+				} break;
+
+				case BaseType::Kind::ARRAY_REF: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
+				} break;
+
+				case BaseType::Kind::ALIAS: {
+					const BaseType::Alias& alias =
+						this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
+
+					this->delete_expr(expr, *alias.aliasedType.load());
+				} break;
+
+				case BaseType::Kind::DISTINCT_ALIAS: {
+					const BaseType::DistinctAlias& distinct_alias =
+						this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
+
+					this->delete_expr(expr, *distinct_alias.underlyingType.load());
+				} break;
+
+				case BaseType::Kind::STRUCT: {
+					const BaseType::Struct& struct_type =
+						this->context.getTypeManager().getStruct(expr_type.baseTypeID().structID());
+
+
+					const sema::Func::ID target_func_id = [&](){
+						if(is_initialization){
+							return *struct_type.copyInitOverload.load().funcID;
+						}else{
+							const std::optional<sema::Func::ID> copy_assign_overload = 
+								struct_type.copyAssignOverload.load();
+
+							if(copy_assign_overload.has_value()){
+								return *copy_assign_overload;
+							}else{
+								return *struct_type.copyInitOverload.load().funcID;
+							}
+						}
+					}();	
+
+					const pir::Function::ID pir_id = 
+						this->data.get_func(target_func_id).pir_ids[0].as<pir::Function::ID>();
+
+					this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr, target});
+				} break;
+
+				case BaseType::Kind::STRUCT_TEMPLATE: {
+					evo::debugFatalBreak("Not copyable");
+				} break;
+
+				case BaseType::Kind::UNION: {
+					const BaseType::Union& union_type =
+						this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
+
+					evo::debugAssert(
+						union_type.isUntagged == false, "untagged union types aren't non-trivially-copyable"
+					);
+
+					evo::unimplemented("copy union");
+				} break;
+
+				case BaseType::Kind::TYPE_DEDUCER: {
+					evo::debugFatalBreak("Not copyable");
+				} break;
+
+				case BaseType::Kind::INTERFACE: {
+					evo::debugFatalBreak("Not copyable");
+				} break;
+			}
+		}
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->agent.createLoad(target, target_type, false, pir::AtomicOrdering::NONE, this->name("COPY"));
+			
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return target;
+			
+		}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+		}
+	}
+
+
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::expr_move(
+		const sema::Expr& expr,
+		TypeInfo::ID expr_type_id,
+		bool is_initialization,
+		evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		if(this->context.getTypeManager().isTriviallyCopyable(expr_type_id)){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->get_expr_register(expr);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->get_expr_pointer(expr);
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->get_expr_store(expr, store_locations[0]);
+				return std::nullopt;
+
+			}else{
+				return std::nullopt;
+			}
+		}
+
+		return this->expr_move<MODE>(this->get_expr_pointer(expr), expr_type_id, is_initialization, store_locations);
+	}
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::expr_move(
+		pir::Expr expr,
+		TypeInfo::ID expr_type_id,
+		bool is_initialization,
+		evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		evo::debugAssert(this->agent.getExprType(expr).kind() == pir::Type::Kind::PTR, "Expr must be a pointer");
+
+		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
+
+		const pir::Type target_type = this->get_type<false>(expr_type_id);
+
+
+		if(this->context.getTypeManager().isTriviallyCopyable(expr_type_id)){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->agent.createLoad(expr, target_type);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return expr;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->agent.createMemcpy(expr, store_locations[0], target_type);
+				return std::nullopt;
+
+			}else{
+				return std::nullopt;
+			}
+		}
+
+		const pir::Expr target = [&](){
+			if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::DISCARD){
+				return this->agent.createAlloca(target_type, this->name(".COPY"));
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->agent.createAlloca(target_type, this->name("COPY"));
+
+			}else if constexpr(MODE == GetExprMode::STORE){
+				return store_locations[0];
+			}
+		}();
+
+
+		if(expr_type.qualifiers().size() > 0){
+			evo::debugAssert(expr_type.isOptionalNotPointer(), "Not non-trivially-movable");
+
+			const pir::Expr flag_ptr = this->agent.createCalcPtr(
+				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+			);
+			const pir::Expr flag = this->agent.createLoad(flag_ptr, this->module.createBoolType());
+
+			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
+
+			const pir::BasicBlock::ID true_move_block = this->agent.createBasicBlock();
+			const pir::BasicBlock::ID false_move_block = this->agent.createBasicBlock();
+			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock();
+
+			this->agent.createBranch(flag_is_true, true_move_block, false_move_block);
+
+
+			//////////////////
+			// has value
+
+			this->agent.setTargetBasicBlock(true_move_block);
+
+			{
+				const pir::Expr src_held_ptr = this->agent.createCalcPtr(
+					expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+				);
+				const pir::Expr target_held_ptr = this->agent.createCalcPtr(
+					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+				);
+				this->expr_move<GetExprMode::STORE>(
+					src_held_ptr,
+					this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier()),
+					is_initialization,
+					target_held_ptr
+				);
+
+				const pir::Expr target_flag = this->agent.createCalcPtr(
+					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+				);
+				this->agent.createStore(target_flag, this->agent.createBoolean(true));
+
+				this->agent.createJump(end_block);
+			}
+
+
+			//////////////////
+			// doesn't have value
+
+			this->agent.setTargetBasicBlock(false_move_block);
+
+			{
+				const pir::Expr target_flag = this->agent.createCalcPtr(
+					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+				);
+				this->agent.createStore(target_flag, this->agent.createBoolean(false));
+
+				this->agent.createJump(end_block);
+			}
+
+			//////////////////
+			// end
+
+			this->agent.setTargetBasicBlock(end_block);
+
+		}else{
+			switch(expr_type.baseTypeID().kind()){
+				case BaseType::Kind::DUMMY: {
+					evo::debugFatalBreak("Not a valid type");
+				} break;
+
+				case BaseType::Kind::PRIMITIVE: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
+				} break;
+
+				case BaseType::Kind::FUNCTION: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
+				} break;
+
+				case BaseType::Kind::ARRAY: {
+					const BaseType::Array& array_type =
+						this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
+
+					const uint64_t num_elems = [&](){
+						uint64_t output_num_elems = 1;
+
+						for(uint64_t dimension : array_type.dimensions){
+							output_num_elems *= dimension;
+						}
+
+						if(array_type.terminator.has_value()){ output_num_elems += 1; }
+
+						return output_num_elems;
+					}();
+
+					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+
+					const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".MOVE_ARR.i.alloca"));
+					this->agent.createStore(
+						pir_i,
+						this->agent.createNumber(
+							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
+						)
+					);
+
+					const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("MOVE_ARR.cond"));
+					const pir::BasicBlock::ID then_block = this->agent.createBasicBlock(this->name("MOVE_ARR.then"));
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("MOVE_ARR.end"));
+
+					this->agent.createJump(cond_block);
+
+
+					//////////////////
+					// cond
+
+					this->agent.setTargetBasicBlock(cond_block);
+
+					const pir::Expr array_size = this->agent.createNumber(
+						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
+					);
+
+					const pir::Expr pir_i_load = this->agent.createLoad(
+						pir_i, usize_type, false, pir::AtomicOrdering::NONE, this->name("MOVE_ARR.i")
+					);
+					const pir::Expr cond = 
+						this->agent.createULT(pir_i_load, array_size, this->name("MOVE_ARR.LOOP_COND"));
+
+					this->agent.createBranch(cond, then_block, end_block);
+
+
+					//////////////////
+					// then
+
+					this->agent.setTargetBasicBlock(then_block);
+
+					const pir::Expr src_elem = this->agent.createCalcPtr(
+						expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
+					);
+
+					const pir::Expr target_elem = this->agent.createCalcPtr(
+						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
+					);
+
+					this->expr_copy<GetExprMode::STORE>(
+						src_elem, array_type.elementTypeID, is_initialization, target_elem
+					);
+
+
+					const pir::Expr i_increment = this->agent.createAdd(
+						pir_i_load,
+						this->agent.createNumber(
+							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
+						),
+						false,
+						true
+					);
+					this->agent.createStore(pir_i, i_increment);
+
+					this->agent.createJump(cond_block);
+
+
+					//////////////////
+					// end
+
+					this->agent.setTargetBasicBlock(end_block);
+				} break;
+
+				case BaseType::Kind::ARRAY_REF: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
+				} break;
+
+				case BaseType::Kind::ALIAS: {
+					const BaseType::Alias& alias =
+						this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
+
+					this->delete_expr(expr, *alias.aliasedType.load());
+				} break;
+
+				case BaseType::Kind::DISTINCT_ALIAS: {
+					const BaseType::DistinctAlias& distinct_alias =
+						this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
+
+					this->delete_expr(expr, *distinct_alias.underlyingType.load());
+				} break;
+
+				case BaseType::Kind::STRUCT: {
+					const BaseType::Struct& struct_type =
+						this->context.getTypeManager().getStruct(expr_type.baseTypeID().structID());
+
+					const sema::Func::ID target_func_id = [&](){
+						if(is_initialization){
+							return *struct_type.moveInitOverload.load().funcID;
+						}else{
+							const std::optional<sema::Func::ID> move_assign_overload = 
+								struct_type.moveAssignOverload.load();
+
+							if(move_assign_overload.has_value()){
+								return *move_assign_overload;
+							}else{
+								return *struct_type.moveInitOverload.load().funcID;
+							}
+						}
+					}();	
+
+					const pir::Function::ID pir_id = 
+						this->data.get_func(target_func_id).pir_ids[0].as<pir::Function::ID>();
+
+					this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr, target});
+				} break;
+
+				case BaseType::Kind::STRUCT_TEMPLATE: {
+					evo::debugFatalBreak("Not copyable");
+				} break;
+
+				case BaseType::Kind::UNION: {
+					const BaseType::Union& union_type =
+						this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
+
+					evo::debugAssert(
+						union_type.isUntagged == false, "untagged union types aren't non-trivially-copyable"
+					);
+
+					evo::unimplemented("copy union");
+				} break;
+
+				case BaseType::Kind::TYPE_DEDUCER: {
+					evo::debugFatalBreak("Not copyable");
+				} break;
+
+				case BaseType::Kind::INTERFACE: {
+					evo::debugFatalBreak("Not copyable");
+				} break;
+			}
+		}
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->agent.createLoad(target, target_type, false, pir::AtomicOrdering::NONE, this->name("COPY"));
+			
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return target;
+			
+		}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+		}
+	}
+
 
 
 
@@ -3730,23 +4570,26 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::create_call(
-		evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id,
+		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
 		evo::SmallVector<pir::Expr>&& args,
 		std::string&& name
 	) -> pir::Expr {
 		if(func_id.is<pir::Function::ID>()){
 			return this->agent.createCall(func_id.as<pir::Function::ID>(), std::move(args), std::move(name));
 		}else{
+			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
 			return this->agent.createCall(func_id.as<pir::ExternalFunction::ID>(), std::move(args), std::move(name));
 		}
 	}
 
 	auto SemaToPIR::create_call_void(
-		evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id, evo::SmallVector<pir::Expr>&& args
+		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
+		evo::SmallVector<pir::Expr>&& args
 	) -> void {
 		if(func_id.is<pir::Function::ID>()){
 			this->agent.createCallVoid(func_id.as<pir::Function::ID>(), std::move(args));
 		}else{
+			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
 			this->agent.createCallVoid(func_id.as<pir::ExternalFunction::ID>(), std::move(args));
 		}
 	}

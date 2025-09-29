@@ -43,6 +43,9 @@ namespace pcit::panther{
 			break; case AST::Kind::FUNC_DECL:
 				if(this->build_func_decl(stmt).isError()){ return evo::resultError; }
 
+			break; case AST::Kind::DELETED_SPECIAL_METHOD:
+				if(this->build_deleted_special_method(stmt).isError()){ return evo::resultError; }
+
 			break; case AST::Kind::ALIAS_DECL:
 				if(this->build_alias_decl(stmt).isError()){ return evo::resultError; }
 
@@ -337,6 +340,10 @@ namespace pcit::panther{
 				}else{
 					return std::string_view();
 				}
+			} break;
+
+			case AST::Kind::DELETED_SPECIAL_METHOD: {
+				return std::string_view();
 			} break;
 
 			case AST::Kind::ALIAS_DECL: {
@@ -759,6 +766,35 @@ namespace pcit::panther{
 		if(this->symbol_namespaces.back() != nullptr){
 			this->symbol_namespaces.back()->emplace(
 				current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
+			);
+		}
+
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::build_deleted_special_method(const AST::Node& stmt) -> evo::Result<> {
+		this->add_instruction(
+			this->context.symbol_proc_manager.createDeletedSpecialMethod(
+				this->source.getASTBuffer().getDeletedSpecialMethod(stmt)
+			)
+		);
+
+
+		SymbolProcInfo& current_symbol = this->get_current_symbol();
+
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
+			current_symbol.symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id
 			);
 		}
 
@@ -1336,48 +1372,61 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		switch(stmt.kind()){
-			case AST::Kind::NONE:             evo::debugFatalBreak("Not a valid AST node");
-			case AST::Kind::VAR_DECL:         return this->analyze_local_var(ast_buffer.getVarDecl(stmt));
-			case AST::Kind::FUNC_DECL:        return this->analyze_local_func(stmt);
-			case AST::Kind::ALIAS_DECL:       return this->analyze_local_alias(ast_buffer.getAliasDecl(stmt));
-			case AST::Kind::DISTINCT_ALIAS_DECL:     evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DECL");
-			case AST::Kind::STRUCT_DECL:      return this->analyze_local_struct(stmt);
-			case AST::Kind::UNION_DECL:       return this->analyze_local_union(stmt);
-			case AST::Kind::INTERFACE_DECL:   return this->analyze_local_interface(stmt);
-			case AST::Kind::INTERFACE_IMPL:   evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::RETURN:           return this->analyze_return(ast_buffer.getReturn(stmt));
-			case AST::Kind::ERROR:            return this->analyze_error(ast_buffer.getError(stmt));
-			case AST::Kind::UNREACHABLE:      return this->analyze_unreachable(ast_buffer.getUnreachable(stmt));
-			case AST::Kind::BREAK:            return this->analyze_break(ast_buffer.getBreak(stmt));
-			case AST::Kind::CONTINUE:         return this->analyze_continue(ast_buffer.getContinue(stmt));
-			case AST::Kind::DELETE:           return this->analyze_delete(ast_buffer.getDelete(stmt));
-			case AST::Kind::CONDITIONAL:      return this->analyze_conditional(ast_buffer.getConditional(stmt));
-			case AST::Kind::WHEN_CONDITIONAL: return this->analyze_when_cond(ast_buffer.getWhenConditional(stmt));
-			case AST::Kind::WHILE:            return this->analyze_while(ast_buffer.getWhile(stmt));
-			case AST::Kind::DEFER:            return this->analyze_defer(ast_buffer.getDefer(stmt));
-			case AST::Kind::BLOCK:            return this->analyze_stmt_block(ast_buffer.getBlock(stmt));
-			case AST::Kind::FUNC_CALL:        return this->analyze_func_call(ast_buffer.getFuncCall(stmt));
-			case AST::Kind::INDEXER:          evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::TEMPLATE_PACK:    evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::TEMPLATED_EXPR:   evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::PREFIX:           evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::INFIX:            return this->analyze_assignment(ast_buffer.getInfix(stmt));
-			case AST::Kind::POSTFIX:          evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::MULTI_ASSIGN:     return this->analyze_multi_assign(ast_buffer.getMultiAssign(stmt));
-			case AST::Kind::NEW:              evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::ARRAY_INIT_NEW:   evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::DESIGNATED_INIT_NEW:  evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::TRY_ELSE:         evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::TYPE_DEDUCER:     evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::ARRAY_TYPE:       evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::TYPE:             evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::TYPEID_CONVERTER: evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::ATTRIBUTE_BLOCK:  evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::ATTRIBUTE:        evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::PRIMITIVE_TYPE:   evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::UNINIT:           evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::ZEROINIT:         evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::DISCARD:          evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::NONE:                   evo::debugFatalBreak("Not a valid AST node");
+			case AST::Kind::VAR_DECL:               return this->analyze_local_var(ast_buffer.getVarDecl(stmt));
+			case AST::Kind::FUNC_DECL:              return this->analyze_local_func(stmt);
+
+			case AST::Kind::DELETED_SPECIAL_METHOD: {
+				this->emit_error(
+					Diagnostic::Code::SYMBOL_PROC_INVALID_STMT,
+					stmt,
+					"Invalid local statement",
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("Deleted special methods are only allowed in structs")
+					}
+				);
+				return evo::resultError;
+			} break;
+
+			case AST::Kind::ALIAS_DECL:             return this->analyze_local_alias(ast_buffer.getAliasDecl(stmt));
+			case AST::Kind::DISTINCT_ALIAS_DECL:    evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DECL");
+			case AST::Kind::STRUCT_DECL:            return this->analyze_local_struct(stmt);
+			case AST::Kind::UNION_DECL:             return this->analyze_local_union(stmt);
+			case AST::Kind::INTERFACE_DECL:         return this->analyze_local_interface(stmt);
+			case AST::Kind::INTERFACE_IMPL:         evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::RETURN:                 return this->analyze_return(ast_buffer.getReturn(stmt));
+			case AST::Kind::ERROR:                  return this->analyze_error(ast_buffer.getError(stmt));
+			case AST::Kind::UNREACHABLE:            return this->analyze_unreachable(ast_buffer.getUnreachable(stmt));
+			case AST::Kind::BREAK:                  return this->analyze_break(ast_buffer.getBreak(stmt));
+			case AST::Kind::CONTINUE:               return this->analyze_continue(ast_buffer.getContinue(stmt));
+			case AST::Kind::DELETE:                 return this->analyze_delete(ast_buffer.getDelete(stmt));
+			case AST::Kind::CONDITIONAL:            return this->analyze_conditional(ast_buffer.getConditional(stmt));
+			case AST::Kind::WHEN_CONDITIONAL:       return this->analyze_when_cond(ast_buffer.getWhenConditional(stmt));
+			case AST::Kind::WHILE:                  return this->analyze_while(ast_buffer.getWhile(stmt));
+			case AST::Kind::DEFER:                  return this->analyze_defer(ast_buffer.getDefer(stmt));
+			case AST::Kind::BLOCK:                  return this->analyze_stmt_block(ast_buffer.getBlock(stmt));
+			case AST::Kind::FUNC_CALL:              return this->analyze_func_call(ast_buffer.getFuncCall(stmt));
+			case AST::Kind::INDEXER:                evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::TEMPLATE_PACK:          evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::TEMPLATED_EXPR:         evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::PREFIX:                 evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::INFIX:                  return this->analyze_assignment(ast_buffer.getInfix(stmt));
+			case AST::Kind::POSTFIX:                evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::MULTI_ASSIGN:           return this->analyze_multi_assign(ast_buffer.getMultiAssign(stmt));
+			case AST::Kind::NEW:                    evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::ARRAY_INIT_NEW:         evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::DESIGNATED_INIT_NEW:    evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::TRY_ELSE:               evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::TYPE_DEDUCER:           evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::ARRAY_TYPE:             evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::TYPE:                   evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::TYPEID_CONVERTER:       evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::ATTRIBUTE_BLOCK:        evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::ATTRIBUTE:              evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::PRIMITIVE_TYPE:         evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::UNINIT:                 evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::ZEROINIT:               evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::DISCARD:                evo::debugFatalBreak("Invalid statment");
 
 			case AST::Kind::IDENT:
 			case AST::Kind::INTRINSIC:
@@ -1801,31 +1850,75 @@ namespace pcit::panther{
 			return evo::Result<>();
 		}
 
-		if(infix.rhs.kind() == AST::Kind::NEW){
-			const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
-			if(lhs.isError()){ return evo::resultError; }
 
-			const AST::New& ast_new = this->source.getASTBuffer().getNew(infix.rhs);
+		switch(infix.rhs.kind()){
+			case AST::Kind::NEW: {
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
+				if(lhs.isError()){ return evo::resultError; }
 
-			const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
-				this->source.getASTBuffer().getType(ast_new.type)
-			);
-			if(type_id.isError()){ return evo::resultError; }
+				const AST::New& ast_new = this->source.getASTBuffer().getNew(infix.rhs);
 
-			auto args = evo::SmallVector<SymbolProc::TermInfoID>();
-			args.reserve(ast_new.args.size());
-			for(const AST::FuncCall::Arg& arg : ast_new.args){
-				const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<false>(arg.value);
-				if(value_expr.isError()){ return evo::resultError; }
+				const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
+					this->source.getASTBuffer().getType(ast_new.type)
+				);
+				if(type_id.isError()){ return evo::resultError; }
 
-				args.emplace_back(value_expr.value());
-			}
+				auto args = evo::SmallVector<SymbolProc::TermInfoID>();
+				args.reserve(ast_new.args.size());
+				for(const AST::FuncCall::Arg& arg : ast_new.args){
+					const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<false>(arg.value);
+					if(value_expr.isError()){ return evo::resultError; }
+
+					args.emplace_back(value_expr.value());
+				}
 
 
-			this->add_instruction(this->context.symbol_proc_manager.createAssignmentNew(
-				infix, lhs.value(), type_id.value(), std::move(args))
-			);
-			return evo::Result<>();
+				this->add_instruction(this->context.symbol_proc_manager.createAssignmentNew(
+					infix, lhs.value(), type_id.value(), std::move(args))
+				);
+				return evo::Result<>();
+			} break;
+
+			case AST::Kind::PREFIX: {
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
+				if(lhs.isError()){ return evo::resultError; }
+
+				const AST::Prefix& ast_prefix = this->source.getASTBuffer().getPrefix(infix.rhs);
+				const Token& prefix_token = this->source.getTokenBuffer()[ast_prefix.opTokenID];
+
+				if(prefix_token.kind() == Token::Kind::KEYWORD_COPY){
+					const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
+					if(target.isError()){ return evo::resultError; }
+
+					this->add_instruction(
+						this->context.symbol_proc_manager.createAssignmentCopy(infix, lhs.value(), target.value())
+					);
+					return evo::Result<>();
+
+				}else if(prefix_token.kind() == Token::Kind::KEYWORD_MOVE){
+					const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
+					if(target.isError()){ return evo::resultError; }
+
+					this->add_instruction(
+						this->context.symbol_proc_manager.createAssignmentMove(infix, lhs.value(), target.value())
+					);
+					return evo::Result<>();
+
+				}else if(prefix_token.kind() == Token::Kind::KEYWORD_FORWARD){
+					const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
+					if(target.isError()){ return evo::resultError; }
+
+					this->add_instruction(
+						this->context.symbol_proc_manager.createAssignmentForward(infix, lhs.value(), target.value())
+					);
+					return evo::Result<>();
+
+				}else{
+					break;
+				}
+			} break;
+
+			default: break;
 		}
 
 		const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
@@ -1834,7 +1927,9 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<false>(infix.rhs);
 		if(rhs.isError()){ return evo::resultError; }
 
-		this->add_instruction(this->context.symbol_proc_manager.createAssignment(infix, lhs.value(), rhs.value()));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createAssignment(infix, lhs.value(), rhs.value())
+		);
 		return evo::Result<>();
 	}
 
@@ -2041,14 +2136,14 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case AST::Kind::VAR_DECL:            case AST::Kind::FUNC_DECL:       case AST::Kind::ALIAS_DECL:
-				case AST::Kind::DISTINCT_ALIAS_DECL: case AST::Kind::STRUCT_DECL:     case AST::Kind::UNION_DECL:
-				case AST::Kind::INTERFACE_DECL:      case AST::Kind::INTERFACE_IMPL:  case AST::Kind::RETURN:
-				case AST::Kind::ERROR:               case AST::Kind::UNREACHABLE:     case AST::Kind::BREAK:
-				case AST::Kind::CONTINUE:            case AST::Kind::CONDITIONAL:     case AST::Kind::WHEN_CONDITIONAL:
-				case AST::Kind::WHILE:               case AST::Kind::DEFER:           case AST::Kind::TEMPLATE_PACK:
-				case AST::Kind::MULTI_ASSIGN:        case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
-				case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::DISCARD: {
+				case AST::Kind::VAR_DECL:         case AST::Kind::FUNC_DECL: case AST::Kind::DELETED_SPECIAL_METHOD:
+				case AST::Kind::ALIAS_DECL:       case AST::Kind::DISTINCT_ALIAS_DECL: case AST::Kind::STRUCT_DECL:
+				case AST::Kind::UNION_DECL:       case AST::Kind::INTERFACE_DECL:      case AST::Kind::INTERFACE_IMPL:
+				case AST::Kind::RETURN:           case AST::Kind::ERROR:               case AST::Kind::UNREACHABLE:
+				case AST::Kind::BREAK:            case AST::Kind::CONTINUE:            case AST::Kind::CONDITIONAL:
+				case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:               case AST::Kind::DEFER:
+				case AST::Kind::TEMPLATE_PACK:    case AST::Kind::MULTI_ASSIGN:        case AST::Kind::ATTRIBUTE_BLOCK:
+				case AST::Kind::ATTRIBUTE:        case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::DISCARD: {
 					// TODO(FUTURE): better messaging (specify what kind)
 					this->emit_fatal(
 						Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,

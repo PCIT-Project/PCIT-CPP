@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.163.0"></a>
+## v0.0.163.0
+
+### Panther
+- Added operator overloading `copy` and `move`
+- Added checking that all members of the output of operator `new` are initialized
+- Added missing deletion of the LHS of assignment
+- Fixed not deleting in default `new` assignment operator
+
+
+<!---------------------------------->
 <a name="v0.0.162.0"></a>
 ## v0.0.162.0
 

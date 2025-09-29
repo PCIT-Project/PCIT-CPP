@@ -78,7 +78,6 @@ namespace pcit::panther::sema{
 		evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>> templateArgs;
 	};
 
-
 	struct Copy{
 		using ID = CopyID;
 
@@ -98,6 +97,7 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID exprTypeID;
+		bool isInitialization;
 	};
 
 	namespace AddrOf{
@@ -380,6 +380,13 @@ namespace pcit::panther::sema{
 		using ID = ContinueID;
 
 		std::optional<Token::ID> label;
+	};
+
+	struct Delete{
+		using ID = DeleteID;
+
+		Expr expr;
+		TypeInfo::ID exprTypeID;
 	};
 
 	struct BlockScope{

@@ -40,6 +40,7 @@ namespace pcit::panther::sema{
 			UNREACHABLE,
 			BREAK,
 			CONTINUE,
+			DELETE,
 			BLOCK_SCOPE,
 			CONDITIONAL,
 			WHILE,
@@ -57,6 +58,7 @@ namespace pcit::panther::sema{
 		explicit Stmt(ErrorID error_id)          : _kind(Kind::ERROR),       value{.error_id = error_id}           {}
 		explicit Stmt(BreakID break_id)          : _kind(Kind::BREAK),       value{.break_id = break_id}           {}
 		explicit Stmt(ContinueID continue_id)    : _kind(Kind::CONTINUE),    value{.continue_id = continue_id}     {}
+		explicit Stmt(DeleteID delete_id)        : _kind(Kind::DELETE),      value{.delete_id = delete_id}         {}
 		explicit Stmt(BlockScopeID block_scope_id)
 			: _kind(Kind::BLOCK_SCOPE), value{.block_scope_id = block_scope_id} {}
 		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::CONDITIONAL), value{.cond_id = cond_id}             {}
@@ -118,6 +120,11 @@ namespace pcit::panther::sema{
 			return this->value.continue_id;
 		}
 
+		EVO_NODISCARD auto deleteID() const -> DeleteID {
+			evo::debugAssert(this->kind() == Kind::DELETE, "not an delete");
+			return this->value.delete_id;
+		}
+
 		EVO_NODISCARD auto blockScopeID() const -> BlockScopeID {
 			evo::debugAssert(this->kind() == Kind::BLOCK_SCOPE, "not a block scope");
 			return this->value.block_scope_id;
@@ -156,6 +163,7 @@ namespace pcit::panther::sema{
 				ErrorID error_id;
 				BreakID break_id;
 				ContinueID continue_id;
+				DeleteID delete_id;
 				BlockScopeID block_scope_id;
 				ConditionalID cond_id;
 				WhileID while_id;

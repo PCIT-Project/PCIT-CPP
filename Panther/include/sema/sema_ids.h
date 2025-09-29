@@ -65,6 +65,7 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, TemplateIntrinsicFuncInstantiationID>::UniqueID;
 	};
 
+
 	struct CopyID : public core::UniqueID<uint32_t, struct CopyID> {
 		using core::UniqueID<uint32_t, CopyID>::UniqueID;
 	};
@@ -200,6 +201,10 @@ namespace pcit::panther::sema{
 
 	struct ContinueID : public core::UniqueID<uint32_t, struct ContinueID> {
 		using core::UniqueID<uint32_t, ContinueID>::UniqueID;
+	};
+
+	struct DeleteID : public core::UniqueID<uint32_t, struct DeleteID> {
+		using core::UniqueID<uint32_t, DeleteID>::UniqueID;
 	};
 
 	struct BlockScopeID : public core::UniqueID<uint32_t, struct BlockScopeID> {
@@ -621,6 +626,17 @@ namespace pcit::core{
 	};
 
 	template<>
+	struct core::OptionalInterface<panther::sema::DeleteID>{
+		static constexpr auto init(panther::sema::DeleteID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::DeleteID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
 	struct core::OptionalInterface<panther::sema::BlockScopeID>{
 		static constexpr auto init(panther::sema::BlockScopeID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
@@ -1014,6 +1030,7 @@ namespace std{
 
 
 
+
 	template<>
 	struct hash<pcit::panther::sema::CopyID>{
 		auto operator()(pcit::panther::sema::CopyID id) const noexcept -> size_t {
@@ -1374,6 +1391,22 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::ContinueID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::ContinueID>::operator=;
+	};
+
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::DeleteID>{
+		auto operator()(pcit::panther::sema::DeleteID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::DeleteID> : public pcit::core::Optional<pcit::panther::sema::DeleteID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::DeleteID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::DeleteID>::operator=;
 	};
 
 

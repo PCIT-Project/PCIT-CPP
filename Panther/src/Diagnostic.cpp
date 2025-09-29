@@ -38,6 +38,7 @@ namespace pcit::panther{
 			case AST::Kind::NONE:              evo::debugFatalBreak("Cannot get location of AST::Kind::None");
 			case AST::Kind::VAR_DECL:          return Location::get(ast_buffer.getVarDecl(node), src);
 			case AST::Kind::FUNC_DECL:         return Location::get(ast_buffer.getFuncDecl(node), src);
+			case AST::Kind::DELETED_SPECIAL_METHOD: return Location::get(ast_buffer.getDeletedSpecialMethod(node), src);
 			case AST::Kind::ALIAS_DECL:        return Location::get(ast_buffer.getAliasDecl(node), src);
 			case AST::Kind::DISTINCT_ALIAS_DECL: return Location::get(ast_buffer.getDistinctAliasDecl(node), src);
 			case AST::Kind::STRUCT_DECL:       return Location::get(ast_buffer.getStructDecl(node), src);
@@ -105,6 +106,12 @@ namespace pcit::panther{
 		}else{
 			return Location::get(ret.type, src);
 		}
+	}
+
+	auto Diagnostic::Location::get(
+		const AST::DeletedSpecialMethod& deleted_special_method, const Source& src
+	) -> Location {
+		return Location::get(deleted_special_method.memberToken, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::AliasDecl& alias_decl, const Source& src) -> Location {

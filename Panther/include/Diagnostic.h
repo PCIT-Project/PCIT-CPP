@@ -72,6 +72,7 @@ namespace pcit::panther{
 			PARSER_TOO_MANY_ATTRIBUTE_ARGS,
 			PARSER_EMPTY_ERROR_RETURN_PARAMS,
 			PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY,
+			PARSER_INVALID_DELETED_SPECIAL_METHOD,
 			PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
 			PARSER_TYPE_CONVERTER_LOWER_CASE,
 			PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK,
@@ -137,10 +138,12 @@ namespace pcit::panther{
 			SEMA_EXPR_WRONG_STATE,
 			SEMA_COPY_ARG_NOT_CONCRETE,
 			SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
+			SEMA_COMPTIME_COPY_ARG_TYPE_NOT_CONSTEXPR_COPYABLE,
 			SEMA_MOVE_ARG_IS_IN_PARAM,
 			SEMA_MOVE_ARG_NOT_CONCRETE,
 			SEMA_MOVE_ARG_NOT_MUTABLE,
 			SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
+			SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_CONSTEXPR_MOVABLE,
 			SEMA_COPY_TARGET_NOT_MOVABLE,
 			SEMA_ADDR_OF_ARG_NOT_CONCRETE,
 			SEMA_DEREF_ARG_NOT_PTR,
@@ -182,6 +185,7 @@ namespace pcit::panther{
 			// functions
 			SEMA_PARAM_TYPE_VOID,
 			SEMA_PARAM_TYPE_UNINIT_PTR,
+			SEMA_IN_PARAM_NOT_COPYABLE_OR_MOVABLE,
 			SEMA_THIS_PARAM_NOT_FIRST,
 			SEMA_INVALID_SCOPE_FOR_THIS_PARAM,
 			SEMA_NAMED_VOID_RETURN,
@@ -193,6 +197,9 @@ namespace pcit::panther{
 			SEMA_INVALID_OPERATOR_AS_OVERLOAD,
 			SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
 			SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
+			SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
+			SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
+			SEMA_NOT_ALL_MEMBERS_OF_OVERLOAD_OUTPUT_ARE_INIT,
 
 			// function calls
 			SEMA_CANNOT_CALL_LIKE_FUNCTION,
@@ -384,6 +391,9 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::FuncDecl& func_decl, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::FuncDecl::Param& param, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::FuncDecl::Return& ret, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(
+					const AST::DeletedSpecialMethod& deleted_special_method, const class Source& src
+				) -> Location;
 				EVO_NODISCARD static auto get(const AST::AliasDecl& alias_decl, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(
 					const AST::DistinctAliasDecl& distinct_alias_decl, const class Source& src
@@ -617,12 +627,13 @@ namespace pcit::panther{
 				case Code::PARSER_TOO_MANY_ATTRIBUTE_ARGS:              return "P12";
 				case Code::PARSER_EMPTY_ERROR_RETURN_PARAMS:            return "P13";
 				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY:       return "P14";
-				case Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT: return "P15";
-				case Code::PARSER_TYPE_CONVERTER_LOWER_CASE:            return "P16";
-				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P17";
-				case Code::PARSER_ENUM_WITH_NO_FIELDS:                  return "P18";
-				case Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH:    return "P19";
-				case Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR:        return "P20";
+				case Code::PARSER_INVALID_DELETED_SPECIAL_METHOD:       return "P15";
+				case Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT: return "P16";
+				case Code::PARSER_TYPE_CONVERTER_LOWER_CASE:            return "P17";
+				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P18";
+				case Code::PARSER_ENUM_WITH_NO_FIELDS:                  return "P19";
+				case Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH:    return "P20";
+				case Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR:        return "P21";
 
 				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_STMT:
@@ -669,10 +680,12 @@ namespace pcit::panther{
 				case Code::SEMA_EXPR_WRONG_STATE:
 				case Code::SEMA_COPY_ARG_NOT_CONCRETE:
 				case Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE:
+				case Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_CONSTEXPR_COPYABLE:
 				case Code::SEMA_MOVE_ARG_IS_IN_PARAM:
 				case Code::SEMA_MOVE_ARG_NOT_CONCRETE:
 				case Code::SEMA_MOVE_ARG_NOT_MUTABLE:
 				case Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE:
+				case Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_CONSTEXPR_MOVABLE:
 				case Code::SEMA_ADDR_OF_ARG_NOT_CONCRETE:
 				case Code::SEMA_DEREF_ARG_NOT_PTR:
 				case Code::SEMA_UNWRAP_ARG_NOT_OPTIONAL:
@@ -702,6 +715,7 @@ namespace pcit::panther{
 				case Code::SEMA_TEMPLATE_INVALID_ARG:
 				case Code::SEMA_PARAM_TYPE_VOID:
 				case Code::SEMA_PARAM_TYPE_UNINIT_PTR:
+				case Code::SEMA_IN_PARAM_NOT_COPYABLE_OR_MOVABLE:
 				case Code::SEMA_THIS_PARAM_NOT_FIRST:
 				case Code::SEMA_INVALID_SCOPE_FOR_THIS_PARAM:
 				case Code::SEMA_NAMED_VOID_RETURN:
@@ -713,6 +727,9 @@ namespace pcit::panther{
 				case Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD:
 				case Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD:
 				case Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD:
+				case Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD:
+				case Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD:
+				case Code::SEMA_NOT_ALL_MEMBERS_OF_OVERLOAD_OUTPUT_ARE_INIT:
 				case Code::SEMA_CANNOT_CALL_LIKE_FUNCTION:
 				case Code::SEMA_MULTIPLE_MATCHING_FUNCTION_OVERLOADS:
 				case Code::SEMA_NO_MATCHING_FUNCTION:

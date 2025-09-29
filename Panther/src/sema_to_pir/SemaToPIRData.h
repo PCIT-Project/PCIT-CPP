@@ -72,7 +72,7 @@ namespace pcit::panther{
 					EVO_NODISCARD auto is_copy() const -> bool { return this->reference_type.has_value() == false; }
 				};
 
-				evo::SmallVector<evo::Variant<pir::Function::ID, pir::ExternalFunction::ID>> pir_ids;
+				evo::SmallVector<evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>> pir_ids;
 				pir::Type return_type;
 				evo::SmallVector<Param> params;
 				evo::SmallVector<pir::Expr> return_params; // only used if they are out params

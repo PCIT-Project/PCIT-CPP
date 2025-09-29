@@ -5,47 +5,79 @@
 
 
 type NonTrivial = struct {
-	func new = () #rt -> (output: NonTrivial) { return...; }
-	func delete = (this) #rt -> Void {}
+	func delete = (this) -> Void {}
+	func copy = (this) -> (output: This) { return...; }
+	func move = (this) -> (output: This) { return...; }
 }
 
+var num_vec2_copies: USize = 0;
 
 type Vec2 = struct {
-	// func new = (x: F32, y: F32) -> (output: Vec) {
-	// 	output.x = copy x;
-	// 	output.y = copy y;
-	// 	return...;
-	// }
+	func new = (x: F32, y: F32) -> (output: This) {
+		output.x = copy x;
+		output.y = copy y;
+		// output.nt = new NonTrivial();
+		return...;
+	}
 
 	// func new = (this mut, x: F32, y: F32) -> Void {
 	// 	this.x = copy x;
 	// 	this.y = copy y;
 	// }
 
-	// func delete = (this mut) #rt -> Void {
-	// 	this.x = 0.0;
-	// 	this.y = 0.0;
+	func delete = (this mut) -> Void {}
 
-	// 	delete this.non_trivial;
+	func copy = (this) #rt -> (output: This) {
+		output.x = copy this.x;
+		output.y = copy this.y;
+		// output.nt = copy this.nt;
+
+		num_vec2_copies = num_vec2_copies + 1;
+		return...;
+	}
+
+
+	// func copy = (this, output: This mut) -> Void {
+	// 	output.x = copy this.x;
+	// 	output.y = copy this.y;
+	// 	output.nt = new NonTrivial();
+	// }
+
+	// func move = (this mut) -> (output: This) {
+	// 	output.x = move this.x;
+	// 	output.y = move this.y;
+	// 	output.nt = move this.nt;
+	// 	return...;
 	// }
 
 
-	var x: F32 = 12.0;
+
+
+	var x: F32;
 	var y: F32;
 
-	var non_trivial: NonTrivial;
+	// var nt: NonTrivial;
 }
 
 
+
+// func test_in = (vec: Vec2 in) -> Void {
+// 	var vec_in: Vec2 = new Vec2(0.0, 0.0);
+// 	vec_in = forward vec;
+// }
+
+
+
+
 func entry = () #entry -> UI8 {
-	{
-		var vec: Vec2 = new Vec2();
-	}
+	// var vec = new Vec2(12.0, 14.0);
 
-	{
-		var vec: Vec2 = new Vec2();
-	}
+	// test_in(move vec);
 
 
-	return 0;
+	const array = new [Vec2:3][new Vec2(12.0, 14.0), new Vec2(16.0, 18.0), new Vec2(20.0, 22.0)];
+	const array_copy: [Vec2:3] = copy array;
+
+	// return array_copy[2].x as UI8;
+	return num_vec2_copies as UI8;
 }

@@ -254,6 +254,10 @@ namespace pthr{
 						this->print_func_decl(this->ast_buffer.getFuncDecl(stmt));
 					} break;
 
+					case panther::AST::Kind::DELETED_SPECIAL_METHOD: {
+						this->print_deleted_special_method(this->ast_buffer.getDeletedSpecialMethod(stmt));
+					} break;
+
 					case panther::AST::Kind::ALIAS_DECL: {
 						this->print_alias_decl(this->ast_buffer.getAliasDecl(stmt));
 					} break;
@@ -574,6 +578,25 @@ namespace pthr{
 					this->indenter.pop();
 				}
 			}
+
+
+			auto print_deleted_special_method(const panther::AST::DeletedSpecialMethod& deleted_special_method)
+			-> void {
+				this->indenter.print();
+				this->print_major_header("Deleted Special Member");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_end();
+					this->printer.printMagenta(
+						"{}\n", this->source.getTokenBuffer()[deleted_special_method.memberToken].kind()
+					);
+
+					this->indenter.pop();
+				}
+			}
+
 
 
 			auto print_alias_decl(const panther::AST::AliasDecl& alias_decl) -> void {
@@ -1428,20 +1451,20 @@ namespace pthr{
 					} break;
 
 
-					case panther::AST::Kind::NONE:                case panther::AST::Kind::VAR_DECL:
-					case panther::AST::Kind::FUNC_DECL:           case panther::AST::Kind::ALIAS_DECL:
-					case panther::AST::Kind::DISTINCT_ALIAS_DECL: case panther::AST::Kind::STRUCT_DECL:
-					case panther::AST::Kind::UNION_DECL:          case panther::AST::Kind::INTERFACE_DECL:
-					case panther::AST::Kind::INTERFACE_IMPL:      case panther::AST::Kind::RETURN:
-					case panther::AST::Kind::ERROR:               case panther::AST::Kind::UNREACHABLE:
-					case panther::AST::Kind::BREAK:               case panther::AST::Kind::CONTINUE:
-					case panther::AST::Kind::DELETE:              case panther::AST::Kind::CONDITIONAL:
-					case panther::AST::Kind::WHEN_CONDITIONAL:    case panther::AST::Kind::WHILE:
-					case panther::AST::Kind::DEFER:               case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:        case panther::AST::Kind::ARRAY_TYPE:
-					case panther::AST::Kind::TYPEID_CONVERTER:    case panther::AST::Kind::ATTRIBUTE_BLOCK:
-					case panther::AST::Kind::ATTRIBUTE:           case panther::AST::Kind::TYPE_DEDUCER:
-					case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::NONE:            case panther::AST::Kind::VAR_DECL:
+					case panther::AST::Kind::FUNC_DECL:       case panther::AST::Kind::DELETED_SPECIAL_METHOD:
+					case panther::AST::Kind::ALIAS_DECL:      case panther::AST::Kind::DISTINCT_ALIAS_DECL:
+					case panther::AST::Kind::STRUCT_DECL:     case panther::AST::Kind::UNION_DECL:
+					case panther::AST::Kind::INTERFACE_DECL:  case panther::AST::Kind::INTERFACE_IMPL:
+					case panther::AST::Kind::RETURN:          case panther::AST::Kind::ERROR:
+					case panther::AST::Kind::UNREACHABLE:     case panther::AST::Kind::BREAK:
+					case panther::AST::Kind::CONTINUE:        case panther::AST::Kind::DELETE:
+					case panther::AST::Kind::CONDITIONAL:     case panther::AST::Kind::WHEN_CONDITIONAL:
+					case panther::AST::Kind::WHILE:           case panther::AST::Kind::DEFER:
+					case panther::AST::Kind::TEMPLATE_PACK:   case panther::AST::Kind::MULTI_ASSIGN:
+					case panther::AST::Kind::ARRAY_TYPE:      case panther::AST::Kind::TYPEID_CONVERTER:
+					case panther::AST::Kind::ATTRIBUTE_BLOCK: case panther::AST::Kind::ATTRIBUTE:
+					case panther::AST::Kind::TYPE_DEDUCER:    case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

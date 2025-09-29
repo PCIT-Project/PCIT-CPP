@@ -91,21 +91,45 @@ namespace pcit::panther{
 				-> std::optional<pir::Expr>;
 
 
+
+			auto delete_expr(const sema::Expr& expr, TypeInfo::ID expr_type_id) -> void;
+			auto delete_expr(pir::Expr expr, TypeInfo::ID expr_type_id) -> void; // expr must be pointer to value
+
+
 			template<GetExprMode MODE>
 			auto expr_copy(
-				const sema::Expr& expr, TypeInfo::ID expr_type_id, evo::ArrayProxy<pir::Expr> store_locations
+				const sema::Expr& expr,
+				TypeInfo::ID expr_type_id,
+				bool is_initialization,
+				evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			auto expr_copy(
+				pir::Expr expr,
+				TypeInfo::ID expr_type_id,
+				bool is_initialization,
+				evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+
+
+			template<GetExprMode MODE>
+			auto expr_move(
+				const sema::Expr& expr,
+				TypeInfo::ID expr_type_id,
+				bool is_initialization,
+				evo::ArrayProxy<pir::Expr> store_locations
 			) -> std::optional<pir::Expr>;
 
 			template<GetExprMode MODE>
 			auto expr_move(
-				const sema::Expr& expr, TypeInfo::ID expr_type_id, evo::ArrayProxy<pir::Expr> store_locations
+				pir::Expr expr,
+				TypeInfo::ID expr_type_id,
+				bool is_initialization,
+				evo::ArrayProxy<pir::Expr> store_locations
 			) -> std::optional<pir::Expr>;
 
-			// auto move_pir_optional(pir::Expr expr, TypeInfo::ID expr_type_id, pir::Expr store_location) -> void;
-
-
-			// expr must be a pointer
-			auto deinit_expr(pir::Expr expr, TypeInfo::ID expr_type_id) -> void;
 
 
 			EVO_NODISCARD auto calc_in_param_bitmap(
@@ -118,13 +142,14 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto create_call(
-				evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id,
+				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
 				evo::SmallVector<pir::Expr>&& args,
 				std::string&& name = ""
 			) -> pir::Expr;
 
 			auto create_call_void(
-				evo::Variant<pir::Function::ID, pir::ExternalFunction::ID> func_id, evo::SmallVector<pir::Expr>&& args
+				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
+				evo::SmallVector<pir::Expr>&& args
 			) -> void;
 
 

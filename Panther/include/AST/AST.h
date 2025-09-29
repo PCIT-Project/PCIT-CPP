@@ -27,6 +27,7 @@ namespace pcit::panther::AST{
 
 		VAR_DECL,
 		FUNC_DECL,
+		DELETED_SPECIAL_METHOD,
 		ALIAS_DECL,
 		DISTINCT_ALIAS_DECL,
 		STRUCT_DECL,
@@ -159,6 +160,7 @@ namespace pcit::panther::AST{
 			CONST,
 			DEF,
 		};
+
 		Kind kind;
 		Token::ID ident;
 		std::optional<Node> type;
@@ -193,6 +195,10 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Return> returns;
 		evo::SmallVector<Return> errorReturns;
 		std::optional<Node> block; // only nullopt if is an interface method with no default implementation
+	};
+
+	struct DeletedSpecialMethod{
+		Token::ID memberToken;
 	};
 
 	struct AliasDecl{

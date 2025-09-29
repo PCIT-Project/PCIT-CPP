@@ -1869,11 +1869,7 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isCopyable(member_var.typeID) == false){ return false; }
-				}
-
-				return true;
+				return !struct_info.copyInitOverload.load().wasDeleted;
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -1946,11 +1942,8 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isTriviallyCopyable(member_var.typeID) == false){ return false; }
-				}
-
-				return true;
+				const BaseType::Struct::DeletableOverload delete_overload = struct_info.copyInitOverload.load();
+				return delete_overload.wasDeleted == false && delete_overload.funcID.has_value() == false;
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -1961,6 +1954,82 @@ namespace pcit::panther{
 				for(const BaseType::Union::Field& field : union_info.fields){
 					if(field.typeID.isVoid()){ continue; }
 					if(this->isTriviallyCopyable(field.typeID.asTypeID()) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+	///////////////////////////////////
+	// isConstexprCopyable
+
+	auto TypeManager::isConstexprCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
+		return this->isConstexprCopyable(type_info.baseTypeID(), sema_buffer);
+	}
+
+	auto TypeManager::isConstexprCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isConstexprCopyable(array.elementTypeID, sema_buffer);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isConstexprCopyable(*alias.aliasedType.load(), sema_buffer);
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isConstexprCopyable(*alias.underlyingType.load(), sema_buffer);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				const BaseType::Struct::DeletableOverload copy_overload = struct_info.copyInitOverload.load();
+				if(copy_overload.wasDeleted){ return false; }
+				if(copy_overload.funcID.has_value() == false){ return true; }
+				return sema_buffer.getFunc(*copy_overload.funcID).isConstexpr;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				if(union_info.isUntagged){ return true; }
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isConstexprCopyable(field.typeID.asTypeID(), sema_buffer) == false){ return false; }
 				}
 
 				return true;
@@ -2023,11 +2092,7 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isMovable(member_var.typeID) == false){ return false; }
-				}
-
-				return true;
+				return !struct_info.moveInitOverload.load().wasDeleted;
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -2100,11 +2165,8 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& struct_info = this->getStruct(id.structID());
 
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					if(this->isTriviallyMovable(member_var.typeID) == false){ return false; }
-				}
-
-				return true;
+				const BaseType::Struct::DeletableOverload delete_overload = struct_info.moveInitOverload.load();
+				return delete_overload.wasDeleted == false && delete_overload.funcID.has_value() == false;
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -2115,6 +2177,82 @@ namespace pcit::panther{
 				for(const BaseType::Union::Field& field : union_info.fields){
 					if(field.typeID.isVoid()){ continue; }
 					if(this->isTriviallyMovable(field.typeID.asTypeID()) == false){ return false; }
+				}
+
+				return true;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+		}
+		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+	}
+
+
+	///////////////////////////////////
+	// isConstexprMovable
+
+	auto TypeManager::isConstexprMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+			if(qualifier.isPtr){ return true; }
+		}
+
+		return this->isConstexprMovable(type_info.baseTypeID(), sema_buffer);
+	}
+
+	auto TypeManager::isConstexprMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->isConstexprMovable(array.elementTypeID, sema_buffer);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->isConstexprMovable(*alias.aliasedType.load(), sema_buffer);
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->isConstexprMovable(*alias.underlyingType.load(), sema_buffer);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+
+				const BaseType::Struct::DeletableOverload move_overload = struct_info.moveInitOverload.load();
+				if(move_overload.wasDeleted){ return false; }
+				if(move_overload.funcID.has_value() == false){ return true; }
+				return sema_buffer.getFunc(*move_overload.funcID).isConstexpr;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				if(union_info.isUntagged){ return true; }
+
+				for(const BaseType::Union::Field& field : union_info.fields){
+					if(field.typeID.isVoid()){ continue; }
+					if(this->isConstexprMovable(field.typeID.asTypeID(), sema_buffer) == false){ return false; }
 				}
 
 				return true;

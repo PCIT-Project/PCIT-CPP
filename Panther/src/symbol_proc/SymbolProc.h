@@ -378,6 +378,12 @@ namespace pcit::panther{
 
 
 
+		struct DeletedSpecialMethod{
+			const AST::DeletedSpecialMethod& deleted_special_method;
+		};
+
+
+
 		struct InterfaceDecl{
 			const AST::InterfaceDecl& interface_decl;
 			evo::SmallVector<AttributeParams> attribute_params_info;
@@ -524,6 +530,24 @@ namespace pcit::panther{
 			SymbolProcTermInfoID lhs;
 			SymbolProcTypeID type_id;
 			evo::SmallVector<SymbolProcTermInfoID> args;
+		};
+
+		struct AssignmentCopy{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
+			SymbolProcTermInfoID target;
+		};
+
+		struct AssignmentMove{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
+			SymbolProcTermInfoID target;
+		};
+
+		struct AssignmentForward{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
+			SymbolProcTermInfoID target;
 		};
 
 		struct MultiAssign{
@@ -896,6 +920,7 @@ namespace pcit::panther{
 			TEMPLATE_FUNC_CHECK_PARAM_IS_INTERFACE,
 			TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER,
 			TEMPLATE_FUNC_END,
+			DELETED_SPECIAL_METHOD,
 			INTERFACE_DECL,
 			INTERFACE_DEF,
 			INTERFACE_FUNC_DEF,
@@ -931,6 +956,9 @@ namespace pcit::panther{
 			FUNC_CALL,
 			ASSIGNMENT,
 			ASSIGNMENT_NEW,
+			ASSIGNMENT_COPY,
+			ASSIGNMENT_MOVE,
+			ASSIGNMENT_FORWARD,
 			MULTI_ASSIGN,
 			DISCARDING_ASSIGNMENT,
 
@@ -1300,7 +1328,10 @@ namespace pcit::panther{
 
 
 			struct StructSpecialMemberFuncs{
-				std::optional<sema::Func::ID> init{};
+				std::optional<sema::Func::ID> init_func{};
+				std::optional<sema::Func::ID> delete_func{};
+				std::optional<sema::Func::ID> copy_func{};
+				std::optional<sema::Func::ID> move_func{};
 			};
 
 			using DataStackItem = evo::Variant<StructSpecialMemberFuncs>;

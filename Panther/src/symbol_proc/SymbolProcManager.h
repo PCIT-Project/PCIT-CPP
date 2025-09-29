@@ -490,6 +490,24 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// DeletedSpecialMethod
+
+			EVO_NODISCARD auto createDeletedSpecialMethod(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::DELETED_SPECIAL_METHOD,
+					this->deleted_special_methods.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getDeletedSpecialMethod(Instruction instr) const
+			-> const Instruction::DeletedSpecialMethod& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::DELETED_SPECIAL_METHOD, "Not a DeletedSpecialMethod"
+				);
+				return this->deleted_special_methods[instr._index];
+			}
+
 
 			//////////////////
 			// InterfaceDecl
@@ -995,6 +1013,54 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getAssignmentNew(Instruction instr) const -> const Instruction::AssignmentNew& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::ASSIGNMENT_NEW, "Not a AssignmentNew");
 				return this->assignment_news[instr._index];
+			}
+
+
+			//////////////////
+			// AssignmentCopy
+
+			EVO_NODISCARD auto createAssignmentCopy(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ASSIGNMENT_COPY,
+					this->assignment_copies.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getAssignmentCopy(Instruction instr) const -> const Instruction::AssignmentCopy& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ASSIGNMENT_COPY, "Not a AssignmentCopy");
+				return this->assignment_copies[instr._index];
+			}
+
+
+			//////////////////
+			// AssignmentMove
+
+			EVO_NODISCARD auto createAssignmentMove(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ASSIGNMENT_MOVE,
+					this->assignment_moves.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getAssignmentMove(Instruction instr) const -> const Instruction::AssignmentMove& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ASSIGNMENT_MOVE, "Not a AssignmentMove");
+				return this->assignment_moves[instr._index];
+			}
+
+
+			//////////////////
+			// AssignmentForward
+
+			EVO_NODISCARD auto createAssignmentForward(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ASSIGNMENT_FORWARD,
+					this->assignment_forwards.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getAssignmentForward(Instruction instr) const -> const Instruction::AssignmentForward& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ASSIGNMENT_FORWARD, "Not a AssignmentForward");
+				return this->assignment_forwards[instr._index];
 			}
 
 
@@ -2497,6 +2563,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncSetParamIsDeducer, uint64_t>
 				template_func_set_param_is_deducers{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncEnd, uint64_t> template_func_ends{};
+			core::SyncLinearStepAlloc<Instruction::DeletedSpecialMethod, uint64_t> deleted_special_methods{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceDecl, uint64_t> interface_decls{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceFuncDef, uint64_t> interface_func_defs{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplDecl, uint64_t> interface_impl_decls{};
@@ -2524,6 +2591,9 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::FuncCall, uint64_t> func_calls{};
 			core::SyncLinearStepAlloc<Instruction::Assignment, uint64_t> assignments{};
 			core::SyncLinearStepAlloc<Instruction::AssignmentNew, uint64_t> assignment_news{};
+			core::SyncLinearStepAlloc<Instruction::AssignmentCopy, uint64_t> assignment_copies{};
+			core::SyncLinearStepAlloc<Instruction::AssignmentMove, uint64_t> assignment_moves{};
+			core::SyncLinearStepAlloc<Instruction::AssignmentForward, uint64_t> assignment_forwards{};
 			core::SyncLinearStepAlloc<Instruction::MultiAssign, uint64_t> multi_assigns{};
 			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint64_t> discarding_assignments{};
 			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint64_t> type_to_terms{};
