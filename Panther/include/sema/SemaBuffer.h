@@ -391,6 +391,20 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// optional extract
+
+			EVO_NODISCARD auto createOptionalExtract(auto&&... args) -> sema::OptionalExtract::ID {
+				return this->optional_extracts.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getOptionalExtract(sema::OptionalExtract::ID id) const
+			-> const sema::OptionalExtract& {
+				return this->optional_extracts[id];
+			}
+
+
+
+			///////////////////////////////////
 			// dereferences
 
 			EVO_NODISCARD auto createDeref(auto&&... args) -> sema::Deref::ID {
@@ -809,6 +823,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::ConversionToOptional, sema::ConversionToOptional::ID> 
 				conversion_to_optionals{};
 			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
+			core::SyncLinearStepAlloc<sema::OptionalExtract, sema::OptionalExtract::ID> optional_extracts{};
 			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
 			core::SyncLinearStepAlloc<sema::UnionAccessor, sema::UnionAccessor::ID> union_accessors{};
 			core::SyncLinearStepAlloc<sema::LogicalAnd, sema::LogicalAnd::ID> logical_ands{};

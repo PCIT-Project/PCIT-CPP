@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.164.0"></a>
+## v0.0.164.0
+
+### Panther
+- Added optional `.extract()`
+- Fixed lowering of operators `copy` and `move` sometimes being incorrect for trivial types
+
+
+<!---------------------------------->
 <a name="v0.0.163.0"></a>
 ## v0.0.163.0
 

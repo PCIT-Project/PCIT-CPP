@@ -136,6 +136,13 @@ namespace pcit::panther::sema{
 		bool equal;
 	};
 
+	struct OptionalExtract{
+		using ID = OptionalExtractID;
+		
+		Expr expr;
+		TypeInfo::ID targetTypeID;
+	};
+
 
 	struct Deref{
 		using ID = DerefID;

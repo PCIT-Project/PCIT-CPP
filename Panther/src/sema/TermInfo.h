@@ -72,12 +72,11 @@ namespace pcit::panther{
 
 		struct BuiltinTypeMethod{
 			enum class Kind{
+				OPT_EXTRACT,
 				ARRAY_SIZE,
 				ARRAY_DIMENSIONS,
 				ARRAY_REF_SIZE,
-				ARRAY_REF_SIZE_PTR,
 				ARRAY_REF_DIMENSIONS,
-				ARRAY_REF_DIMENSIONS_PTR,
 			};
 
 			TypeInfo::ID typeID;

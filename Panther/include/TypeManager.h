@@ -688,15 +688,28 @@ namespace pcit::panther{
 			}
 
 
+			// TODO(PERF): better allocation of qualifiers vector
 			EVO_NODISCARD auto copyWithPushedQualifier(AST::Type::Qualifier qualifier) const -> TypeInfo {
 				TypeInfo copied_type = *this;
 				copied_type._qualifiers.emplace_back(qualifier);
 				return copied_type;
 			}
 
+			// TODO(PERF): better allocation of qualifiers vector
 			EVO_NODISCARD auto copyWithPoppedQualifier() const -> TypeInfo {
 				TypeInfo copied_type = *this;
 				copied_type._qualifiers.pop_back();
+				return copied_type;
+			}
+
+			// TODO(PERF): better allocation of qualifiers vector
+			EVO_NODISCARD auto copyWithPoppedQualifier(size_t ammount_to_pop) const -> TypeInfo {
+				evo::debugAssert(ammount_to_pop != 0, "Shouldn't be copying if popping 0");
+				evo::debugAssert(this->_qualifiers.size() >= ammount_to_pop, "Too many qualifiers to pop");
+				TypeInfo copied_type = *this;
+				for(size_t i = 0; i < ammount_to_pop; i+=1){
+					copied_type._qualifiers.pop_back();
+				}
 				return copied_type;
 			}
 	

@@ -90,6 +90,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, OptionalNullCheckID>::UniqueID;
 	};
 
+	struct OptionalExtractID : public core::UniqueID<uint32_t, struct OptionalExtractID> {
+		using core::UniqueID<uint32_t, OptionalExtractID>::UniqueID;
+	};
+
 	struct DerefID : public core::UniqueID<uint32_t, struct DerefID> {
 		using core::UniqueID<uint32_t, DerefID>::UniqueID;
 	};
@@ -434,6 +438,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::OptionalNullCheckID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::OptionalExtractID>{
+		static constexpr auto init(panther::sema::OptionalExtractID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::OptionalExtractID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1124,6 +1139,21 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::sema::OptionalNullCheckID>::operator=;
 	};
 
+
+	template<>
+	struct hash<pcit::panther::sema::OptionalExtractID>{
+		auto operator()(pcit::panther::sema::OptionalExtractID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::OptionalExtractID>
+		: public pcit::core::Optional<pcit::panther::sema::OptionalExtractID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::sema::OptionalExtractID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::OptionalExtractID>::operator=;
+	};
 
 
 	template<>

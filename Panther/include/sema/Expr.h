@@ -52,6 +52,7 @@ namespace pcit::panther::sema{
 			ADDR_OF,
 			CONVERSION_TO_OPTIONAL,
 			OPTIONAL_NULL_CHECK,
+			OPTIONAL_EXTRACT,
 			DEREF,
 			UNWRAP,
 			ACCESSOR,
@@ -114,6 +115,7 @@ namespace pcit::panther::sema{
 		explicit Expr(sema::ConversionToOptionalID id) :
 			 _kind(Kind::CONVERSION_TO_OPTIONAL), value{.conversion_to_optional = id} {};
 		explicit Expr(OptionalNullCheckID id)  : _kind(Kind::OPTIONAL_NULL_CHECK),  value{.optional_null_check = id} {};
+		explicit Expr(OptionalExtractID id)    : _kind(Kind::OPTIONAL_EXTRACT),     value{.optional_extract = id}    {};
 		explicit Expr(DerefID id)              : _kind(Kind::DEREF),                value{.deref = id}               {};
 		explicit Expr(UnwrapID id)             : _kind(Kind::UNWRAP),               value{.unwrap = id}              {};
 		explicit Expr(AccessorID id)           : _kind(Kind::ACCESSOR),             value{.accessor = id}            {};
@@ -237,6 +239,10 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto optionalNullCheckID() const -> OptionalNullCheckID {
 			evo::debugAssert(this->kind() == Kind::OPTIONAL_NULL_CHECK, "not an optional null check");
 			return this->value.optional_null_check;
+		}
+		EVO_NODISCARD auto optionalExtractID() const -> OptionalExtractID {
+			evo::debugAssert(this->kind() == Kind::OPTIONAL_EXTRACT, "not an optional extract");
+			return this->value.optional_extract;
 		}
 		EVO_NODISCARD auto derefID() const -> DerefID {
 			evo::debugAssert(this->kind() == Kind::DEREF, "not a deref");
@@ -394,6 +400,7 @@ namespace pcit::panther::sema{
 				AddrOfID addr_of;
 				ConversionToOptionalID conversion_to_optional;
 				OptionalNullCheckID optional_null_check;
+				OptionalExtractID optional_extract;
 				DerefID deref;
 				UnwrapID unwrap;
 				AccessorID accessor;

@@ -4,80 +4,36 @@
 
 
 
-type NonTrivial = struct {
-	func delete = (this) -> Void {}
-	func copy = (this) -> (output: This) { return...; }
-	func move = (this) -> (output: This) { return...; }
-}
-
-var num_vec2_copies: USize = 0;
-
-type Vec2 = struct {
-	func new = (x: F32, y: F32) -> (output: This) {
-		output.x = copy x;
-		output.y = copy y;
-		// output.nt = new NonTrivial();
-		return...;
-	}
-
-	// func new = (this mut, x: F32, y: F32) -> Void {
-	// 	this.x = copy x;
-	// 	this.y = copy y;
-	// }
-
-	func delete = (this mut) -> Void {}
-
-	func copy = (this) #rt -> (output: This) {
-		output.x = copy this.x;
-		output.y = copy this.y;
-		// output.nt = copy this.nt;
-
-		num_vec2_copies = num_vec2_copies + 1;
-		return...;
-	}
-
-
-	// func copy = (this, output: This mut) -> Void {
-	// 	output.x = copy this.x;
-	// 	output.y = copy this.y;
-	// 	output.nt = new NonTrivial();
-	// }
-
-	// func move = (this mut) -> (output: This) {
-	// 	output.x = move this.x;
-	// 	output.y = move this.y;
-	// 	output.nt = move this.nt;
-	// 	return...;
-	// }
-
-
-
-
-	var x: F32;
-	var y: F32;
-
-	// var nt: NonTrivial;
-}
-
-
-
-// func test_in = (vec: Vec2 in) -> Void {
-// 	var vec_in: Vec2 = new Vec2(0.0, 0.0);
-// 	vec_in = forward vec;
+// type NonTrivial = struct {
+// 	func delete = (this) -> Void {}
+// 	func copy = (this) -> (output: This) { return...; }
+// 	func move = (this) -> (output: This) { return...; }
 // }
+
+
+
+func extract_test = () -> Bool {
+	def OPT_HELD_VALUE: Int = 12;
+
+	var nt_opt: Int? = OPT_HELD_VALUE;
+	const nt_opt_extracted: Int = nt_opt.extract();
+
+	return nt_opt == null && nt_opt_extracted == OPT_HELD_VALUE;
+}
+
+
+func array_ref_test = () -> Bool {
+	def ARR_SIZE: USize = 3;
+
+	const arr = new [Int:ARR_SIZE][1, 2, 3];
+	const arr_ref: [Int:*|] = arr as [Int:*|];
+
+	return (&arr_ref).dimensions()[0].* == ARR_SIZE;
+}
 
 
 
 
 func entry = () #entry -> UI8 {
-	// var vec = new Vec2(12.0, 14.0);
-
-	// test_in(move vec);
-
-
-	const array = new [Vec2:3][new Vec2(12.0, 14.0), new Vec2(16.0, 18.0), new Vec2(20.0, 22.0)];
-	const array_copy: [Vec2:3] = copy array;
-
-	// return array_copy[2].x as UI8;
-	return num_vec2_copies as UI8;
+	return (extract_test() && array_ref_test()) as UI8;
 }

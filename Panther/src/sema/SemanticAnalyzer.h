@@ -310,6 +310,17 @@ namespace pcit::panther{
 
 
 			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto optional_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs,
+				TypeInfo::ID actual_lhs_type_id,
+				const TypeInfo& actual_lhs_type,
+				bool is_pointer
+			) -> Result;
+
+
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto struct_accessor(
 				const Instruction::Accessor<NEEDS_DEF>& instr,
 				std::string_view rhs_ident_str,
