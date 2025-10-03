@@ -240,6 +240,7 @@ namespace pcit::panther{
 
 		}
 
+		bool is_implicit_rvo = false;
 		auto return_params = evo::SmallVector<pir::Expr>();
 		if(func_type.hasNamedReturns()){
 			for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams){
@@ -292,6 +293,36 @@ namespace pcit::panther{
 					std::format(".{}", params.size()), this->module.createPtrType(), std::move(attributes)
 				);
 			}
+
+		}else if(func.isClangFunc() == false && func_type.returnParams[0].typeID.isVoid() == false){
+			const TypeInfo::ID ret_type_id = func_type.returnParams[0].typeID.asTypeID();
+
+			if(
+				this->context.getTypeManager().isTriviallySized(ret_type_id) == false
+				|| this->context.getTypeManager().isTriviallyCopyable(ret_type_id) == false
+				|| this->context.getTypeManager().isTriviallyCopyable(ret_type_id) == false
+			){
+				is_implicit_rvo = true;
+
+				return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
+
+				auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
+					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
+					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNonNull()),
+					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrDereferencable(
+						this->context.getTypeManager().numBytes(ret_type_id)
+					)),
+					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrWritable()),
+				};
+
+				if(this->data.getConfig().useReadableNames){
+					params.emplace_back("RET_RVO", this->module.createPtrType(), std::move(attributes));
+				}else{
+					params.emplace_back(
+						std::format(".{}", params.size()), this->module.createPtrType(), std::move(attributes)
+					);
+				}
+			}
 		}
 
 		auto error_return_param = std::optional<pir::Expr>();
@@ -331,7 +362,7 @@ namespace pcit::panther{
 			if(func_type.hasErrorReturn()){
 				return this->module.createBoolType();
 
-			}else if(func_type.hasNamedReturns()){
+			}else if(func_type.hasNamedReturns() || is_implicit_rvo){
 				return this->module.createVoidType();
 
 			}else{
@@ -369,6 +400,7 @@ namespace pcit::panther{
 						func_id,
 						std::move(pir_funcs), // first arg of FuncInfo construction
 						return_type,
+						is_implicit_rvo,
 						std::move(param_infos),
 						std::move(return_params),
 						error_return_param,
@@ -456,6 +488,7 @@ namespace pcit::panther{
 			func_id,
 			std::move(pir_funcs), // first arg of FuncInfo construction
 			return_type,
+			is_implicit_rvo,
 			std::move(param_infos),
 			std::move(return_params),
 			error_return_param,
@@ -749,7 +782,7 @@ namespace pcit::panther{
 			param_i += 1;
 		}
 
-		if(func_type.hasNamedReturns()){
+		if(func_type.hasNamedReturns() || this->data.get_func(func_id).isImplicitRVO){
 			for(const BaseType::Function::ReturnParam& ret_param : func_type.returnParams){
 				std::ignore = ret_param;
 
@@ -1083,13 +1116,26 @@ namespace pcit::panther{
 
 					}else{
 						if(return_stmt.value.has_value()){
-							const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);
+							if(this->current_func_info->isImplicitRVO){
+								this->get_expr_store(
+									*return_stmt.value, this->current_func_info->return_params.front()
+								);
 
-							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-								this->output_defers_for_scope_level<false>(scope_level);
+								for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+									this->output_defers_for_scope_level<false>(scope_level);
+								}
+
+								this->agent.createRet();
+
+							}else{
+								const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);
+
+								for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+									this->output_defers_for_scope_level<false>(scope_level);
+								}
+
+								this->agent.createRet(ret_value);
 							}
-
-							this->agent.createRet(ret_value);
 
 						}else{
 							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
@@ -1823,7 +1869,7 @@ namespace pcit::panther{
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
-				if(target_type.hasNamedReturns()){
+				if(target_type.hasNamedReturns() || target_func_info.isImplicitRVO){
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Type return_type =
 							this->get_type<false>(target_type.returnParams[0].typeID.asTypeID());

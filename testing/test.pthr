@@ -4,36 +4,49 @@
 
 
 
-// type NonTrivial = struct {
-// 	func delete = (this) -> Void {}
-// 	func copy = (this) -> (output: This) { return...; }
-// 	func move = (this) -> (output: This) { return...; }
-// }
 
+type Struct = struct {
+	func new = () -> (output: This) {
+		output.ptr = &output;
+		output.num = 0;
+		return...;
+	}
 
+	func copy = (this) -> (output: This) {
+		output.ptr = &output;
+		output.num = copy this.num;
+		return...;
+	}
 
-func extract_test = () -> Bool {
-	def OPT_HELD_VALUE: Int = 12;
+	func move = (this mut) -> (output: This) {
+		output.ptr = &output;
+		output.num = move this.num;
+		return...;
+	}
 
-	var nt_opt: Int? = OPT_HELD_VALUE;
-	const nt_opt_extracted: Int = nt_opt.extract();
-
-	return nt_opt == null && nt_opt_extracted == OPT_HELD_VALUE;
+	const ptr: Struct*|; 
+	var num: Int;
 }
 
 
-func array_ref_test = () -> Bool {
-	def ARR_SIZE: USize = 3;
 
-	const arr = new [Int:ARR_SIZE][1, 2, 3];
-	const arr_ref: [Int:*|] = arr as [Int:*|];
 
-	return (&arr_ref).dimensions()[0].* == ARR_SIZE;
+
+func test = () -> Struct {
+	var s = new Struct();
+	return move s;
 }
-
-
 
 
 func entry = () #entry -> UI8 {
-	return (extract_test() && array_ref_test()) as UI8;
+	const struct_value: Struct = test();
+
+	return (struct_value.ptr == &struct_value) as UI8;
 }
+
+
+
+
+
+
+

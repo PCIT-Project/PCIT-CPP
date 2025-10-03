@@ -74,6 +74,7 @@ namespace pcit::panther{
 
 				evo::SmallVector<evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>> pir_ids;
 				pir::Type return_type;
+				bool isImplicitRVO;
 				evo::SmallVector<Param> params;
 				evo::SmallVector<pir::Expr> return_params; // only used if they are out params
 				std::optional<pir::Expr> error_return_param;
