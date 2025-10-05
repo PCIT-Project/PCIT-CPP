@@ -5,46 +5,31 @@
 
 
 
-type Struct = struct {
-	func new = () -> (output: This) {
-		output.ptr = &output;
-		output.num = 0;
-		return...;
-	}
+func test = () -> (output: Int) <err_code: Int> {
+	// output = 12;
+	// return...;
 
-	func copy = (this) -> (output: This) {
-		output.ptr = &output;
-		output.num = copy this.num;
-		return...;
-	}
-
-	func move = (this mut) -> (output: This) {
-		output.ptr = &output;
-		output.num = move this.num;
-		return...;
-	}
-
-	const ptr: Struct*|; 
-	var num: Int;
+	err_code = 12;
+	error...;
 }
 
-
-
-
-
-func test = () -> Struct {
-	var s = new Struct();
-	return move s;
-}
 
 
 func entry = () #entry -> UI8 {
-	const struct_value: Struct = test();
+	const num: Int = try test() else<err_code> {->be:(ret: Int)
+		ret = copy err_code;
+		return->be...;
+	};
 
-	return (struct_value.ptr == &struct_value) as UI8;
+	if(true){
+		
+	}
+
+	const foo: Int = 12;
+	delete foo;
+	
+	return num as UI8;
 }
-
-
 
 
 

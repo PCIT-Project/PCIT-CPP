@@ -309,7 +309,7 @@ namespace pcit::panther{
 			return clang_source.getDeclInfo(alias_decl.name.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
-			return Location::NONE;
+			return Location::BUILTIN;
 		}
 	}
 
@@ -326,7 +326,7 @@ namespace pcit::panther{
 			return clang_source.getDeclInfo(struct_decl.name.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
-			return Location::NONE;
+			return Location::BUILTIN;
 		}
 	}
 

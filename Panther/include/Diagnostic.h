@@ -260,8 +260,10 @@ namespace pcit::panther{
 			SEMA_RETURN_LABEL_NOT_FOUND,
 			SEMA_CANNOT_RETURN_TO_THIS_LABEL,
 			SEMA_UNLABELED_RETURN_IN_DEFER,
+			SEMA_RETURN_NOT_ALL_RET_PARAMS_ARE_INIT,
 			SEMA_ERROR_IN_DEFER,
 			SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC,
+			SEMA_ERROR_NOT_ALL_RET_PARAMS_ARE_INIT,
 			SEMA_BREAK_LABEL_NOT_FOUND,
 			SEMA_CANNOT_BREAK_TO_THIS_LABEL,
 			SEMA_NO_LOOP_TO_BREAK_TO,
@@ -317,6 +319,9 @@ namespace pcit::panther{
 			// sema warn
 
 			SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+			SEMA_WARN_DELETE_MOVED_FROM_EXPR,
+			SEMA_WARN_DELETE_TRIVIALLY_DELETABLE_TYPE,
+			SEMA_WARN_CONSTEXPR_IF_COND,
 
 
 			//////////////////
@@ -354,11 +359,15 @@ namespace pcit::panther{
 		class Location{
 			public:
 				using None = std::monostate;
-				static constexpr None NONE = std::monostate();
+				static constexpr None NONE = std::monostate{};
+
+				struct Builtin{};
+				static constexpr Builtin BUILTIN = Builtin{};
 
 			public:
 				Location() : variant() {}
 				Location(None) : variant() {}
+				Location(Builtin builtin) : variant(builtin) {}
 				Location(SourceLocation src_location) : variant(src_location) {}
 				Location(ClangSourceLocation clang_location) : variant(clang_location) {}
 
@@ -468,7 +477,7 @@ namespace pcit::panther{
 					-> Location;
 		
 			private:
-				evo::Variant<None, SourceLocation, ClangSourceLocation> variant;
+				evo::Variant<None, Builtin, SourceLocation, ClangSourceLocation> variant;
 		};
 
 		
@@ -779,8 +788,10 @@ namespace pcit::panther{
 				case Code::SEMA_RETURN_LABEL_NOT_FOUND:
 				case Code::SEMA_CANNOT_RETURN_TO_THIS_LABEL:
 				case Code::SEMA_UNLABELED_RETURN_IN_DEFER:
+				case Code::SEMA_RETURN_NOT_ALL_RET_PARAMS_ARE_INIT:
 				case Code::SEMA_ERROR_IN_DEFER:
 				case Code::SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC:
+				case Code::SEMA_ERROR_NOT_ALL_RET_PARAMS_ARE_INIT:
 				case Code::SEMA_BREAK_LABEL_NOT_FOUND:
 				case Code::SEMA_CANNOT_BREAK_TO_THIS_LABEL:
 				case Code::SEMA_NO_LOOP_TO_BREAK_TO:
@@ -819,6 +830,9 @@ namespace pcit::panther{
 					return "Sxx";
 
 				case Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD:
+				case Code::SEMA_WARN_DELETE_MOVED_FROM_EXPR:
+				case Code::SEMA_WARN_DELETE_TRIVIALLY_DELETABLE_TYPE:
+				case Code::SEMA_WARN_CONSTEXPR_IF_COND:
 					return "SWx";
 
 				case Code::MISC_UNIMPLEMENTED_FEATURE: return "M0";

@@ -3912,7 +3912,9 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				this->set_ident_value_state(created_error_return_param_id, sema::ScopeLevel::ValueState::UNINIT);
+				this->get_current_scope_level().addIdentValueState(
+					created_error_return_param_id, sema::ScopeLevel::ValueState::UNINIT
+				);
 			}
 		}
 
@@ -5149,6 +5151,26 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}
+
+			// check that all named returns are initialized
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			for(const auto [value_state_id, value_state_info] : this->get_current_scope_level().getValueStateInfos()){
+				if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::ModifyInfo>()){ continue; }
+				if(value_state_info.state == sema::ScopeLevel::ValueState::INIT){ continue; }
+				if(value_state_id.is<sema::ReturnParam::ID>() == false){ continue; }
+
+				infos.emplace_back("This one:", this->get_location(value_state_id.as<sema::ReturnParam::ID>()));
+			}
+
+			if(infos.empty() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_RETURN_NOT_ALL_RET_PARAMS_ARE_INIT,
+					instr.return_stmt,
+					"Not all return parameters are initialized",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
 		}
 
 		this->add_auto_delete_calls<AutoDeleteMode::RETURN>();
@@ -5274,6 +5296,27 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}
+
+
+			// check that all named returns are initialized
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			for(const auto [value_state_id, value_state_info] : this->get_current_scope_level().getValueStateInfos()){
+				if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::ModifyInfo>()){ continue; }
+				if(value_state_info.state == sema::ScopeLevel::ValueState::INIT){ continue; }
+				if(value_state_id.is<sema::BlockExprOutput::ID>() == false){ continue; }
+
+				infos.emplace_back("This one:", this->get_location(value_state_id.as<sema::BlockExprOutput::ID>()));
+			}
+
+			if(infos.empty() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_RETURN_NOT_ALL_RET_PARAMS_ARE_INIT,
+					instr.return_stmt,
+					"Not all block expression return parameters are initialized",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
 		}
 
 
@@ -5382,6 +5425,26 @@ namespace pcit::panther{
 					instr.error_stmt,
 					"Incorrect error return statement kind for single unnamed error return parameters",
 					Diagnostic::Info("Use \"error {EXPRESSION};\" instead")
+				);
+				return Result::ERROR;
+			}
+
+			// check that all named returns are initialized
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			for(const auto [value_state_id, value_state_info] : this->get_current_scope_level().getValueStateInfos()){
+				if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::ModifyInfo>()){ continue; }
+				if(value_state_info.state == sema::ScopeLevel::ValueState::INIT){ continue; }
+				if(value_state_id.is<sema::ErrorReturnParam::ID>() == false){ continue; }
+
+				infos.emplace_back("This one:", this->get_location(value_state_id.as<sema::ErrorReturnParam::ID>()));
+			}
+
+			if(infos.empty() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_ERROR_NOT_ALL_RET_PARAMS_ARE_INIT,
+					instr.error_stmt,
+					"Not all error return parameters are initialized",
+					std::move(infos)
 				);
 				return Result::ERROR;
 			}
@@ -5553,13 +5616,59 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_delete(const Instruction::Delete& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.delete_expr);
 
-		if(target.value_state != TermInfo::ValueState::INIT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_DELETE_ARG_INVALID,
+		switch(target.value_state){
+			case TermInfo::ValueState::NOT_APPLICABLE: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_DELETE_ARG_INVALID,
+					instr.delete_stmt.value,
+					"Argument of [delete] statement is invalid"
+				);
+				return Result::ERROR;
+			} break;
+
+			case TermInfo::ValueState::INIT: {
+				// do nothing, correct
+			} break;
+
+			case TermInfo::ValueState::INITIALIZING: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_DELETE_ARG_INVALID,
+					instr.delete_stmt.value,
+					"Argument of [delete] statement is invalid as it isn't fully initialized"
+				);
+				return Result::ERROR;
+			} break;
+
+			case TermInfo::ValueState::UNINIT: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_DELETE_ARG_INVALID,
+					instr.delete_stmt.value,
+					"Argument of [delete] statement is invalid as it is uninitialized"
+				);
+				return Result::ERROR;
+			} break;
+
+			case TermInfo::ValueState::MOVED_FROM: {
+				if(this->get_project_config().warn.deleteMovedFromExpr){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_DELETE_MOVED_FROM_EXPR,
+						instr.delete_stmt.value,
+						"Argument of [delete] statement was moved-from"
+					);
+				}
+			} break;
+		}
+
+
+		if(
+			this->get_project_config().warn.deleteTriviallyDeletableType
+			&& this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>())
+		){
+			this->emit_warning(
+				Diagnostic::Code::SEMA_WARN_DELETE_TRIVIALLY_DELETABLE_TYPE,
 				instr.delete_stmt.value,
-				"Argument of [delete] statement is invalid"
+				"Argument of [delete] statement is a trivially deletable type"
 			);
-			return Result::ERROR;
 		}
 
 
@@ -5592,6 +5701,15 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(), cond, "Condition in [if] condtional", instr.conditional.cond
 		).ok == false){
 			return Result::ERROR;
+		}
+
+		if(this->get_project_config().warn.constexprIfCond && cond.value_stage == TermInfo::ValueStage::CONSTEXPR){
+			this->emit_warning(
+				Diagnostic::Code::SEMA_WARN_CONSTEXPR_IF_COND,
+				instr.conditional.cond,
+				"Condition in [if] condition is constexpr",
+				Diagnostic::Info("Consider converting it to a [when] condition")
+			);
 		}
 
 
@@ -6028,7 +6146,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
 				instr.infix.rhs,
-				"RHS of assignment must be ephemeral or value [null]"
+				"RHS of assignment must be ephemeral or (if applicable) value [null]"
 			);
 			return Result::ERROR;
 		}
@@ -10580,6 +10698,8 @@ namespace pcit::panther{
 			if(this->add_ident_to_scope(except_param_ident_str, instr.except_params[i], except_param_id).isError()){
 				return Result::ERROR;
 			}
+
+			this->get_current_scope_level().addIdentValueState(except_param_id, sema::ScopeLevel::ValueState::INIT);
 		}
 
 		this->return_term_info(instr.output_except_params,
@@ -10745,6 +10865,10 @@ namespace pcit::panther{
 				if(this->add_ident_to_scope(ident_str, *instr.block.outputs[i].ident, block_expr_output).isError()){
 					return Result::ERROR;
 				}
+
+				this->get_current_scope_level().addIdentValueState(
+					block_expr_output, sema::ScopeLevel::ValueState::UNINIT
+				);
 			}
 
 			i += 1;

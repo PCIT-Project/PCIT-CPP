@@ -1882,6 +1882,24 @@ namespace pcit::panther{
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
+				BaseType::Struct::MemberVar(
+					AST::VarDecl::Kind::VAR,
+					builtin_module.createString("deleteMovedFromExpr"),
+					TypeManager::getTypeBool(),
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDecl::Kind::VAR,
+					builtin_module.createString("deleteTriviallyDeletableType"),
+					TypeManager::getTypeBool(),
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDecl::Kind::VAR,
+					builtin_module.createString("constexprIfCond"),
+					TypeManager::getTypeBool(),
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+				),
 			};
 
 

@@ -3,12 +3,15 @@ def build_exp = @import("std_exp/build.pthr");
 
 
 func entry = () #entry -> UI8 {
-	@buildSetOutput(build.Output.RUN);
+	@buildSetOutput(build.Output.PIR);
 	@buildSetNumThreads(12);
 	@buildSetUseStdLib(false);
 
 	const project = new build_exp.Project(new @pthr.ProjectWarningSettings{
-		methodCallOnNonMethod = true,
+		methodCallOnNonMethod        = true,
+		deleteMovedFromExpr          = true,
+		deleteTriviallyDeletableType = true,
+		constexprIfCond              = true,
 	});
 
 	project.addSourceFile("test.pthr".* as [Char:*|]);

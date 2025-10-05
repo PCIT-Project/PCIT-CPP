@@ -39,16 +39,11 @@ namespace pcit::panther{
 				std::filesystem::path basePath;
 
 				struct Warns{
-					bool methodCallOnNonMethod = true;
+					bool methodCallOnNonMethod        = true;
+					bool deleteMovedFromExpr          = true;
+					bool deleteTriviallyDeletableType = true;
+					bool constexprIfCond              = true;
 				} warn;
-
-				auto enableAllWarns() -> void {
-					this->warn.methodCallOnNonMethod = true;
-				}
-
-				auto defaultWarns() -> void {
-					this->warn.methodCallOnNonMethod = true;
-				}
 			};
 
 		public:

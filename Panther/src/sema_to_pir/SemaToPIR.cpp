@@ -798,6 +798,18 @@ namespace pcit::panther{
 			}
 		}
 
+		if(func_type.hasErrorReturnParams()){
+			const pir::Expr param_calc_ptr = this->agent.createCalcPtr(
+				this->agent.createParamExpr(0),
+				this->module.createPtrType(),
+				evo::SmallVector<pir::CalcPtr::Index>{int64_t(param_i)}
+			);
+
+			args.emplace_back(this->agent.createLoad(param_calc_ptr, this->module.createPtrType()));
+
+			param_i += 1;
+		}
+
 		if(target_pir_func.getReturnType().kind() == pir::Type::Kind::VOID){
 			this->agent.createCallVoid(pir_func_id, std::move(args));
 		}else{

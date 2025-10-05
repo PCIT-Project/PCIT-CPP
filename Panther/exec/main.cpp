@@ -133,7 +133,10 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		panther::Source::ProjectConfig{
 			.basePath = cmd_args_config.workingDirectory,
 			.warn = panther::Source::ProjectConfig::Warns{
-				.methodCallOnNonMethod = true,
+				.methodCallOnNonMethod        = true,
+				.deleteMovedFromExpr          = true,
+				.deleteTriviallyDeletableType = true,
+				.constexprIfCond              = true,
 			},
 		}
 	);

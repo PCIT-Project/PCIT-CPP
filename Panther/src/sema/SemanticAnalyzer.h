@@ -885,23 +885,45 @@ namespace pcit::panther{
 				evo::unimplemented();
 			}
 
-			EVO_NODISCARD auto get_location(const sema::ReturnParamID& return_param) const -> Diagnostic::Location {
-				// TODO(FUTURE): 
-				std::ignore = return_param;
-				evo::unimplemented();
+			EVO_NODISCARD auto get_location(sema::ReturnParam::ID return_param_id) const -> Diagnostic::Location {
+				const sema::ReturnParam& return_param = this->context.getSemaBuffer().getReturnParam(return_param_id);
+
+				const BaseType::Function& current_func_type = 
+					this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+
+				return this->get_location(*current_func_type.returnParams[return_param.index].ident);
 			}
 
-			EVO_NODISCARD auto get_location(const sema::ErrorReturnParamID& error_param) const -> Diagnostic::Location {
-				// TODO(FUTURE): 
-				std::ignore = error_param;
-				evo::unimplemented();
+			EVO_NODISCARD auto get_location(sema::ErrorReturnParam::ID error_param_id) const -> Diagnostic::Location {
+				const sema::ErrorReturnParam& error_param =
+					this->context.getSemaBuffer().getErrorReturnParam(error_param_id);
+
+				const BaseType::Function& current_func_type = 
+					this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+
+				return this->get_location(*current_func_type.errorParams[error_param.index].ident);
 			}
 
-			EVO_NODISCARD auto get_location(const sema::BlockExprOutputID& block_expr_output) const
+			EVO_NODISCARD auto get_location(sema::BlockExprOutput::ID block_expr_output_id) const
 			-> Diagnostic::Location {
-				// TODO(FUTURE): 
-				std::ignore = block_expr_output;
-				evo::unimplemented();
+				const sema::BlockExprOutput& block_expr_output =
+					this->context.getSemaBuffer().getBlockExprOutput(block_expr_output_id);
+
+				for(const sema::ScopeLevel::ID target_scope_level_id : this->scope){
+					const sema::ScopeLevel& target_scope_level = 
+						this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+
+					if(target_scope_level.hasLabel() == false){ continue; }
+					if(target_scope_level.getLabelNode().is<sema::BlockExpr::ID>() == false){ continue; }
+
+					const sema::BlockExpr& block_expr = this->context.getSemaBuffer().getBlockExpr(
+						target_scope_level.getLabelNode().as<sema::BlockExpr::ID>()
+					);
+
+					return this->get_location(*block_expr.outputs[block_expr_output.index].ident);
+				}
+
+				evo::debugFatalBreak("Didn't find a scope that is a block expression");
 			}
 
 			EVO_NODISCARD auto get_location(const sema::ExceptParamID& except_param) const -> Diagnostic::Location {

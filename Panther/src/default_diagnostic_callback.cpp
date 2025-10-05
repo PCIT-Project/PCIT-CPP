@@ -238,7 +238,13 @@ namespace pcit::panther{
 		printer.printCyan(std::format("<Info> {}\n", info.message));
 
 		if(context != nullptr){
-			if(info.location.is<Source::Location>()){
+			if(info.location.is<Diagnostic::Location::Builtin>()){
+				for(size_t i = 0; i < depth + 1; i+=1){
+					printer.print("\t");
+				}
+				printer.printlnGray("[BUILTIN]");
+
+			}else if(info.location.is<Source::Location>()){
 				const Source& source = context->getSourceManager()[info.location.as<Source::Location>().sourceID];
 				print_location(
 					printer,
@@ -287,7 +293,11 @@ namespace pcit::panther{
 				break; case Diagnostic::Level::WARNING: printer.printWarning(diagnostic_message);
 			}
 
-			if(diagnostic.location.is<Source::Location>()){
+
+			if(diagnostic.location.is<Diagnostic::Location::Builtin>()){
+				printer.printlnGray("\t[BUILTIN]");
+
+			}else if(diagnostic.location.is<Source::Location>()){
 				const Source::Location& location = diagnostic.location.as<Source::Location>();
 				const Source& source = context.getSourceManager()[location.sourceID];
 

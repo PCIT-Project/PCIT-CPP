@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.166.0"></a>
+## v0.0.166.0
+
+### Panther
+- Added checking that all return parameters are initialialized at a `return` statement
+	- same with error returns
+- Added warning for `delete` statement of moved-from expression
+- Added warning for `delete` statement of a trivially-deletable type
+- Improved diagnostic message for why an argument of a `delete` statement is invalid
+- Fixed diagnostic locations for builtin symbols
+- Fixed initialization checks is some cases for:
+	- return parameters
+	- error exception parameters
+	- block expression return parameters
+- Fixed constexpr lowering of functions with error return values
+
+
+<!---------------------------------->
 <a name="v0.0.165.0"></a>
 ## v0.0.165.0
 
