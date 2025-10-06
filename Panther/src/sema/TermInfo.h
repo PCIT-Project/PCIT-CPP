@@ -96,7 +96,7 @@ namespace pcit::panther{
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
 			ClangSourceID,                  // CLANG_MODULE
-			BuiltinModuleID,                  // BUILTIN_MODULE
+			BuiltinModuleID,                // BUILTIN_MODULE
 			TypeInfo::VoidableID,           // TYPE
 			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE
 			TemplateIntrinsicFunc::Kind     // TEMPLATE_INTRINSIC_FUNC

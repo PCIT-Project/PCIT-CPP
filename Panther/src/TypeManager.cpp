@@ -238,324 +238,7 @@ namespace pcit::panther{
 	auto TypeManager::printType(TypeInfo::ID type_info_id, const SourceManager& source_manager) const -> std::string {
 		const TypeInfo& type_info = this->getTypeInfo(type_info_id);
 
-		auto get_base_str = [&]() -> std::string {
-			switch(type_info.baseTypeID().kind()){
-				case BaseType::Kind::PRIMITIVE: {
-					const BaseType::Primitive::ID primitive_id = type_info.baseTypeID().primitiveID();
-					const BaseType::Primitive& primitive = this->getPrimitive(primitive_id);
-
-					if(primitive.kind() == Token::Kind::TYPE_I_N){
-						return std::format("I{}", primitive.bitWidth());
-
-					}else if(primitive.kind() == Token::Kind::TYPE_UI_N){
-						return std::format("UI{}", primitive.bitWidth());
-
-					}else{
-						return std::string(Token::printKind(primitive.kind()));
-					}
-				} break;
-
-				case BaseType::Kind::FUNCTION: {
-					// TODO(FEATURE): fix this
-					return "{FUNCTION}";
-				} break;
-
-				case BaseType::Kind::ARRAY: {
-					const BaseType::Array& array = this->getArray(type_info.baseTypeID().arrayID());
-
-					auto builder = std::string();
-					builder += '[';
-
-					builder += this->printType(array.elementTypeID, source_manager);
-
-					builder += ':';
-
-					for(size_t i = 0; uint64_t dimension : array.dimensions){
-						builder += std::to_string(dimension);
-
-						if(i + 1 < array.dimensions.size()){ builder += ","; }
-
-						i += 1;
-					}
-
-					if(array.terminator.has_value()){
-						if(this->isUnsignedIntegral(array.elementTypeID)){
-							builder += ';';
-							builder += 
-								array.terminator->getInt(unsigned(this->numBits(array.elementTypeID))).toString(false);
-
-						}else if(this->isSignedIntegral(array.elementTypeID)){
-							builder += ';';
-							builder += 
-								array.terminator->getInt(unsigned(this->numBits(array.elementTypeID))).toString(true);
-
-						}else if(this->isFloatingPoint(array.elementTypeID)){
-							const BaseType::Primitive& primitive = this->getPrimitive(
-								this->getTypeInfo(array.elementTypeID).baseTypeID().primitiveID()
-							);
-
-							builder += ';';
-
-							switch(primitive.kind()){
-								break; case Token::Kind::TYPE_F16:  builder += array.terminator->getF16().toString();
-								break; case Token::Kind::TYPE_BF16: builder += array.terminator->getBF16().toString();
-								break; case Token::Kind::TYPE_F32:  builder += array.terminator->getF32().toString();
-								break; case Token::Kind::TYPE_F64:  builder += array.terminator->getF64().toString();
-								break; case Token::Kind::TYPE_F80:  builder += array.terminator->getF80().toString();
-								break; case Token::Kind::TYPE_F128: builder += array.terminator->getF128().toString();
-								break; default: evo::debugFatalBreak("Unknown float type");
-							}
-
-						}else if(array.elementTypeID == TypeManager::getTypeBool()){
-							builder += ';';
-							builder += evo::boolStr(array.terminator->getBool());
-
-						}else if(array.elementTypeID == TypeManager::getTypeChar()){
-							builder += std::format(";'{}'", evo::printCharName(array.terminator->getChar()));
-							
-						}else{
-							builder += ";<TERMINATOR>";
-						}
-					}
-
-					builder += ']';
-
-					return builder;
-				} break;
-
-				case BaseType::Kind::ARRAY_REF: {
-					const BaseType::ArrayRef& array_ref = this->getArrayRef(type_info.baseTypeID().arrayRefID());
-
-					auto builder = std::string();
-					builder += '[';
-
-					builder += this->printType(array_ref.elementTypeID, source_manager);
-
-					builder += ':';
-
-
-					for(size_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
-						if(dimension.isPtr()){
-							if(array_ref.isReadOnly){
-								builder += "*|";
-							}else{
-								builder += "*";
-							}
-						}else{
-							builder += std::to_string(dimension.length());
-						}
-
-
-						if(i + 1 < array_ref.dimensions.size()){
-							builder += ",";
-						}
-
-						i += 1;
-					}
-
-					if(array_ref.terminator.has_value()){
-						if(this->isUnsignedIntegral(array_ref.elementTypeID)){
-							builder += ';';
-							builder += array_ref.terminator->getInt(
-								unsigned(this->numBits(array_ref.elementTypeID))
-							).toString(false);
-
-						}else if(this->isSignedIntegral(array_ref.elementTypeID)){
-							builder += ';';
-							builder += array_ref.terminator->getInt(
-								unsigned(this->numBits(array_ref.elementTypeID))
-							).toString(true);
-
-						}else if(this->isFloatingPoint(array_ref.elementTypeID)){
-							const BaseType::Primitive& primitive = this->getPrimitive(
-								this->getTypeInfo(array_ref.elementTypeID).baseTypeID().primitiveID()
-							);
-
-							builder += ';';
-
-							switch(primitive.kind()){
-								break; case Token::Kind::TYPE_F16:
-									builder += array_ref.terminator->getF16().toString();
-
-								break; case Token::Kind::TYPE_BF16:
-									builder += array_ref.terminator->getBF16().toString();
-
-								break; case Token::Kind::TYPE_F32:
-									builder += array_ref.terminator->getF32().toString();
-
-								break; case Token::Kind::TYPE_F64:
-									builder += array_ref.terminator->getF64().toString();
-
-								break; case Token::Kind::TYPE_F80:
-									builder += array_ref.terminator->getF80().toString();
-
-								break; case Token::Kind::TYPE_F128:
-									builder += array_ref.terminator->getF128().toString();
-
-								break; default: evo::debugFatalBreak("Unknown float type");
-							}
-
-						}else if(array_ref.elementTypeID == TypeManager::getTypeBool()){
-							builder += ';';
-							builder += evo::boolStr(array_ref.terminator->getBool());
-
-						}else if(array_ref.elementTypeID == TypeManager::getTypeChar()){
-							builder += std::format(";'{}'", evo::printCharName(array_ref.terminator->getChar()));
-							
-						}else{
-							builder += ";<TERMINATOR>";
-						}
-					}
-
-					builder += ']';
-
-					return builder;
-				} break;
-
-				case BaseType::Kind::ALIAS: {
-					const BaseType::Alias::ID alias_id = type_info.baseTypeID().aliasID();
-					const BaseType::Alias& alias = this->getAlias(alias_id);
-
-					return std::string(alias.getName(source_manager));
-				} break;
-
-				case BaseType::Kind::DISTINCT_ALIAS: {
-					const BaseType::DistinctAlias::ID distinct_alias_id = type_info.baseTypeID().distinctAliasID();
-					const BaseType::DistinctAlias& distinct_alias_info = this->getDistinctAlias(distinct_alias_id);
-
-					return std::string(
-						source_manager[distinct_alias_info.sourceID]
-							.getTokenBuffer()[distinct_alias_info.identTokenID]
-							.getString()
-					);
-				} break;
-
-				case BaseType::Kind::STRUCT: {
-					const BaseType::Struct::ID struct_id = type_info.baseTypeID().structID();
-					const BaseType::Struct& struct_info = this->getStruct(struct_id);
-
-					const std::string_view struct_name = struct_info.getName(source_manager);
-
-					if(struct_info.templateID.has_value() == false){
-						return std::string(struct_name);
-					}
-
-					const BaseType::StructTemplate& struct_template = this->getStructTemplate(*struct_info.templateID);
-
-					auto builder = std::string();
-					builder += struct_name;
-
-					builder += "<{";
-
-					const evo::SmallVector<BaseType::StructTemplate::Arg> template_args =
-						struct_template.getInstantiationArgs(struct_info.instantiation);
-
-
-					// TODO(PERF): 
-					for(size_t i = 0; const BaseType::StructTemplate::Arg& template_arg : template_args){
-						if(template_arg.is<TypeInfo::VoidableID>()){
-							builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), source_manager);
-
-						}else if(*struct_template.params[i].typeID == TypeManager::getTypeBool()){
-							builder += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
-
-						}else if(*struct_template.params[i].typeID == TypeManager::getTypeChar()){
-							builder += "'";
-							builder += template_arg.as<core::GenericValue>().getChar();
-							builder += "'";
-
-						}else if(this->isUnsignedIntegral(*struct_template.params[i].typeID)){
-							builder += template_arg.as<core::GenericValue>().getInt(
-								unsigned(this->numBits(*struct_template.params[i].typeID))
-							).toString(false);
-
-						}else if(this->isIntegral(*struct_template.params[i].typeID)){
-							builder += template_arg.as<core::GenericValue>().getInt(
-								unsigned(this->numBits(*struct_template.params[i].typeID))
-							).toString(true);
-
-						}else if(this->isFloatingPoint(*struct_template.params[i].typeID)){
-							const BaseType::Primitive& primitive = this->getPrimitive(
-								this->getTypeInfo(*struct_template.params[i].typeID).baseTypeID().primitiveID()
-							);
-
-							const core::GenericValue& generic_value = template_arg.as<core::GenericValue>();
-
-							switch(primitive.kind()){
-								break; case Token::Kind::TYPE_F16:  builder += generic_value.getF16().toString();
-								break; case Token::Kind::TYPE_BF16: builder += generic_value.getBF16().toString();
-								break; case Token::Kind::TYPE_F32:  builder += generic_value.getF32().toString();
-								break; case Token::Kind::TYPE_F64:  builder += generic_value.getF64().toString();
-								break; case Token::Kind::TYPE_F80:  builder += generic_value.getF80().toString();
-								break; case Token::Kind::TYPE_F128: builder += generic_value.getF128().toString();
-								break; default: evo::debugFatalBreak("Unknown float type");
-							}
-							
-						}else{
-							builder += "<EXPR>";
-						}
-
-
-						if(i + 1 < template_args.size()){
-							builder += ", ";
-						}
-					
-						i += 1;
-					}
-
-					builder += "}>";
-
-					return builder;
-				} break;
-
-				case BaseType::Kind::STRUCT_TEMPLATE: {
-					const BaseType::StructTemplate::ID struct_template_id = type_info.baseTypeID().structTemplateID();
-					const BaseType::StructTemplate& struct_template_info = this->getStructTemplate(struct_template_id);
-
-					const TokenBuffer& token_buffer = source_manager[struct_template_info.sourceID].getTokenBuffer();
-					return std::string(token_buffer[struct_template_info.identTokenID].getString());
-				} break;
-
-				case BaseType::Kind::UNION: {
-					const BaseType::Union::ID union_id = type_info.baseTypeID().unionID();
-					const BaseType::Union& union_info = this->getUnion(union_id);
-
-					return std::string(union_info.getName(source_manager));
-				} break;
-
-				case BaseType::Kind::TYPE_DEDUCER: {
-					const BaseType::TypeDeducer::ID type_deducer_id = type_info.baseTypeID().typeDeducerID();
-					const BaseType::TypeDeducer& type_deducer = this->getTypeDeducer(type_deducer_id);
-
-					const Token& token =
-						source_manager[type_deducer.sourceID].getTokenBuffer()[type_deducer.identTokenID];
-
-					if(token.kind() == Token::Kind::TYPE_DEDUCER){
-						return std::format("${}", token.getString());
-					}else{
-						evo::debugAssert(
-							token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER, "Unknown type deducer kind"
-						);
-						return "$$";
-					}
-				} break;
-
-				case BaseType::Kind::INTERFACE: {
-					const BaseType::Interface::ID interface_id = type_info.baseTypeID().interfaceID();
-					const BaseType::Interface& interface_info = this->getInterface(interface_id);
-
-					const TokenBuffer& token_buffer = source_manager[interface_info.sourceID].getTokenBuffer();
-					return std::string(token_buffer[interface_info.identTokenID].getString());
-				} break;
-
-				case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
-			}
-
-			evo::debugFatalBreak("Unknown or unsuport base-type kind");
-		};
-
-
-		std::string type_str = get_base_str();
+		std::string type_str = this->printType(type_info.baseTypeID(), source_manager);
 
 		bool is_first_qualifer = type_str.back() != '*'
 			&& type_str.back() != '|'
@@ -578,6 +261,334 @@ namespace pcit::panther{
 		}
 
 		return type_str;
+	}
+
+
+	auto TypeManager::printType(BaseType::ID base_type_id, const SourceManager& source_manager) const -> std::string {
+		switch(base_type_id.kind()){
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
+
+			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive::ID primitive_id = base_type_id.primitiveID();
+				const BaseType::Primitive& primitive = this->getPrimitive(primitive_id);
+
+				if(primitive.kind() == Token::Kind::TYPE_I_N){
+					return std::format("I{}", primitive.bitWidth());
+
+				}else if(primitive.kind() == Token::Kind::TYPE_UI_N){
+					return std::format("UI{}", primitive.bitWidth());
+
+				}else{
+					return std::string(Token::printKind(primitive.kind()));
+				}
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				// TODO(FEATURE): fix this
+				return "{FUNCTION}";
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(base_type_id.arrayID());
+
+				auto builder = std::string();
+				builder += '[';
+
+				builder += this->printType(array.elementTypeID, source_manager);
+
+				builder += ':';
+
+				for(size_t i = 0; uint64_t dimension : array.dimensions){
+					builder += std::to_string(dimension);
+
+					if(i + 1 < array.dimensions.size()){ builder += ","; }
+
+					i += 1;
+				}
+
+				if(array.terminator.has_value()){
+					if(this->isUnsignedIntegral(array.elementTypeID)){
+						builder += ';';
+						builder += 
+							array.terminator->getInt(unsigned(this->numBits(array.elementTypeID))).toString(false);
+
+					}else if(this->isSignedIntegral(array.elementTypeID)){
+						builder += ';';
+						builder += 
+							array.terminator->getInt(unsigned(this->numBits(array.elementTypeID))).toString(true);
+
+					}else if(this->isFloatingPoint(array.elementTypeID)){
+						const BaseType::Primitive& primitive = this->getPrimitive(
+							this->getTypeInfo(array.elementTypeID).baseTypeID().primitiveID()
+						);
+
+						builder += ';';
+
+						switch(primitive.kind()){
+							break; case Token::Kind::TYPE_F16:  builder += array.terminator->getF16().toString();
+							break; case Token::Kind::TYPE_BF16: builder += array.terminator->getBF16().toString();
+							break; case Token::Kind::TYPE_F32:  builder += array.terminator->getF32().toString();
+							break; case Token::Kind::TYPE_F64:  builder += array.terminator->getF64().toString();
+							break; case Token::Kind::TYPE_F80:  builder += array.terminator->getF80().toString();
+							break; case Token::Kind::TYPE_F128: builder += array.terminator->getF128().toString();
+							break; default: evo::debugFatalBreak("Unknown float type");
+						}
+
+					}else if(array.elementTypeID == TypeManager::getTypeBool()){
+						builder += ';';
+						builder += evo::boolStr(array.terminator->getBool());
+
+					}else if(array.elementTypeID == TypeManager::getTypeChar()){
+						builder += std::format(";'{}'", evo::printCharName(array.terminator->getChar()));
+						
+					}else{
+						builder += ";<TERMINATOR>";
+					}
+				}
+
+				builder += ']';
+
+				return builder;
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				const BaseType::ArrayRef& array_ref = this->getArrayRef(base_type_id.arrayRefID());
+
+				auto builder = std::string();
+				builder += '[';
+
+				builder += this->printType(array_ref.elementTypeID, source_manager);
+
+				builder += ':';
+
+
+				for(size_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
+					if(dimension.isPtr()){
+						if(array_ref.isReadOnly){
+							builder += "*|";
+						}else{
+							builder += "*";
+						}
+					}else{
+						builder += std::to_string(dimension.length());
+					}
+
+
+					if(i + 1 < array_ref.dimensions.size()){
+						builder += ",";
+					}
+
+					i += 1;
+				}
+
+				if(array_ref.terminator.has_value()){
+					if(this->isUnsignedIntegral(array_ref.elementTypeID)){
+						builder += ';';
+						builder += array_ref.terminator->getInt(
+							unsigned(this->numBits(array_ref.elementTypeID))
+						).toString(false);
+
+					}else if(this->isSignedIntegral(array_ref.elementTypeID)){
+						builder += ';';
+						builder += array_ref.terminator->getInt(
+							unsigned(this->numBits(array_ref.elementTypeID))
+						).toString(true);
+
+					}else if(this->isFloatingPoint(array_ref.elementTypeID)){
+						const BaseType::Primitive& primitive = this->getPrimitive(
+							this->getTypeInfo(array_ref.elementTypeID).baseTypeID().primitiveID()
+						);
+
+						builder += ';';
+
+						switch(primitive.kind()){
+							break; case Token::Kind::TYPE_F16:
+								builder += array_ref.terminator->getF16().toString();
+
+							break; case Token::Kind::TYPE_BF16:
+								builder += array_ref.terminator->getBF16().toString();
+
+							break; case Token::Kind::TYPE_F32:
+								builder += array_ref.terminator->getF32().toString();
+
+							break; case Token::Kind::TYPE_F64:
+								builder += array_ref.terminator->getF64().toString();
+
+							break; case Token::Kind::TYPE_F80:
+								builder += array_ref.terminator->getF80().toString();
+
+							break; case Token::Kind::TYPE_F128:
+								builder += array_ref.terminator->getF128().toString();
+
+							break; default: evo::debugFatalBreak("Unknown float type");
+						}
+
+					}else if(array_ref.elementTypeID == TypeManager::getTypeBool()){
+						builder += ';';
+						builder += evo::boolStr(array_ref.terminator->getBool());
+
+					}else if(array_ref.elementTypeID == TypeManager::getTypeChar()){
+						builder += std::format(";'{}'", evo::printCharName(array_ref.terminator->getChar()));
+						
+					}else{
+						builder += ";<TERMINATOR>";
+					}
+				}
+
+				builder += ']';
+
+				return builder;
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias::ID alias_id = base_type_id.aliasID();
+				const BaseType::Alias& alias = this->getAlias(alias_id);
+
+				return std::string(alias.getName(source_manager));
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias::ID distinct_alias_id = base_type_id.distinctAliasID();
+				const BaseType::DistinctAlias& distinct_alias_info = this->getDistinctAlias(distinct_alias_id);
+
+				return std::string(
+					source_manager[distinct_alias_info.sourceID]
+						.getTokenBuffer()[distinct_alias_info.identTokenID]
+						.getString()
+				);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct::ID struct_id = base_type_id.structID();
+				const BaseType::Struct& struct_info = this->getStruct(struct_id);
+
+				const std::string_view struct_name = struct_info.getName(source_manager);
+
+				if(struct_info.templateID.has_value() == false){
+					return std::string(struct_name);
+				}
+
+				const BaseType::StructTemplate& struct_template = this->getStructTemplate(*struct_info.templateID);
+
+				auto builder = std::string();
+				builder += struct_name;
+
+				builder += "<{";
+
+				const evo::SmallVector<BaseType::StructTemplate::Arg> template_args =
+					struct_template.getInstantiationArgs(struct_info.instantiation);
+
+
+				// TODO(PERF): 
+				for(size_t i = 0; const BaseType::StructTemplate::Arg& template_arg : template_args){
+					if(template_arg.is<TypeInfo::VoidableID>()){
+						builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), source_manager);
+
+					}else if(*struct_template.params[i].typeID == TypeManager::getTypeBool()){
+						builder += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
+
+					}else if(*struct_template.params[i].typeID == TypeManager::getTypeChar()){
+						builder += "'";
+						builder += template_arg.as<core::GenericValue>().getChar();
+						builder += "'";
+
+					}else if(this->isUnsignedIntegral(*struct_template.params[i].typeID)){
+						builder += template_arg.as<core::GenericValue>().getInt(
+							unsigned(this->numBits(*struct_template.params[i].typeID))
+						).toString(false);
+
+					}else if(this->isIntegral(*struct_template.params[i].typeID)){
+						builder += template_arg.as<core::GenericValue>().getInt(
+							unsigned(this->numBits(*struct_template.params[i].typeID))
+						).toString(true);
+
+					}else if(this->isFloatingPoint(*struct_template.params[i].typeID)){
+						const BaseType::Primitive& primitive = this->getPrimitive(
+							this->getTypeInfo(*struct_template.params[i].typeID).baseTypeID().primitiveID()
+						);
+
+						const core::GenericValue& generic_value = template_arg.as<core::GenericValue>();
+
+						switch(primitive.kind()){
+							break; case Token::Kind::TYPE_F16:  builder += generic_value.getF16().toString();
+							break; case Token::Kind::TYPE_BF16: builder += generic_value.getBF16().toString();
+							break; case Token::Kind::TYPE_F32:  builder += generic_value.getF32().toString();
+							break; case Token::Kind::TYPE_F64:  builder += generic_value.getF64().toString();
+							break; case Token::Kind::TYPE_F80:  builder += generic_value.getF80().toString();
+							break; case Token::Kind::TYPE_F128: builder += generic_value.getF128().toString();
+							break; default: evo::debugFatalBreak("Unknown float type");
+						}
+						
+					}else{
+						builder += "<EXPR>";
+					}
+
+
+					if(i + 1 < template_args.size()){
+						builder += ", ";
+					}
+				
+					i += 1;
+				}
+
+				builder += "}>";
+
+				return builder;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: {
+				const BaseType::StructTemplate::ID struct_template_id = base_type_id.structTemplateID();
+				const BaseType::StructTemplate& struct_template_info = this->getStructTemplate(struct_template_id);
+
+				const TokenBuffer& token_buffer = source_manager[struct_template_info.sourceID].getTokenBuffer();
+				return std::string(token_buffer[struct_template_info.identTokenID].getString());
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union::ID union_id = base_type_id.unionID();
+				const BaseType::Union& union_info = this->getUnion(union_id);
+
+				return std::string(union_info.getName(source_manager));
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				const BaseType::TypeDeducer::ID type_deducer_id = base_type_id.typeDeducerID();
+				const BaseType::TypeDeducer& type_deducer = this->getTypeDeducer(type_deducer_id);
+
+				const Token& token =
+					source_manager[type_deducer.sourceID].getTokenBuffer()[type_deducer.identTokenID];
+
+				if(token.kind() == Token::Kind::TYPE_DEDUCER){
+					return std::format("${}", token.getString());
+				}else{
+					evo::debugAssert(
+						token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER, "Unknown type deducer kind"
+					);
+					return "$$";
+				}
+			} break;
+
+			case BaseType::Kind::INTERFACE: {
+				const BaseType::Interface::ID interface_id = base_type_id.interfaceID();
+				const BaseType::Interface& interface_info = this->getInterface(interface_id);
+
+				const TokenBuffer& token_buffer = source_manager[interface_info.sourceID].getTokenBuffer();
+				return std::string(token_buffer[interface_info.identTokenID].getString());
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(base_type_id.interfaceImplInstantiationID());
+				
+				return std::format(
+					"{}({})",
+					this->printType(BaseType::ID(interface_impl_instantiation_info.interfacedID), source_manager),
+					this->printType(interface_impl_instantiation_info.implInstantiationTypeID, source_manager)
+				);
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown or unsuport base-type kind");
 	}
 
 
@@ -937,6 +948,33 @@ namespace pcit::panther{
 
 
 
+	//////////////////////////////////////////////////////////////////////
+	// interface impl instantiation
+
+	auto TypeManager::getInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation::ID id) const
+	-> const BaseType::InterfaceImplInstantiation& {
+		const auto lock = std::scoped_lock(this->interface_impl_instantiations_lock);
+		return this->interface_impl_instantiations[id];
+	}
+
+
+	auto TypeManager::getOrCreateInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation&& lookup_type)
+	-> BaseType::ID {
+		const auto lock = std::scoped_lock(this->interface_impl_instantiations_lock);
+
+		for(uint32_t i = 0; i < this->interface_impl_instantiations.size(); i+=1){
+			if(this->interface_impl_instantiations[BaseType::InterfaceImplInstantiation::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::INTERFACE_IMPL_INSTANTIATION, i);
+			}
+		}
+
+		const BaseType::InterfaceImplInstantiation::ID new_instantiation = 
+			this->interface_impl_instantiations.emplace_back(std::move(lookup_type));
+		return BaseType::ID(BaseType::Kind::INTERFACE_IMPL_INSTANTIATION, new_instantiation.get());
+	}
+
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// misc
@@ -1012,6 +1050,8 @@ namespace pcit::panther{
 
 	auto TypeManager::numBytes(BaseType::ID id, bool include_padding) const -> uint64_t {
 		switch(id.kind()){
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
+
 			case BaseType::Kind::PRIMITIVE: {
 				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 
@@ -1166,7 +1206,12 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Cannot get size of type deducer");
 			} break;
 
-			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				
+				return this->numBytes(interface_impl_instantiation_info.implInstantiationTypeID, true);
+			} break;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported base-type kind");
@@ -1211,6 +1256,8 @@ namespace pcit::panther{
 
 	auto TypeManager::numBits(BaseType::ID id, bool include_padding) const -> uint64_t {
 		switch(id.kind()){
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
+
 			case BaseType::Kind::PRIMITIVE: {
 				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 
@@ -1337,7 +1384,12 @@ namespace pcit::panther{
 				evo::debugAssert("Cannot get size of type deducer");
 			} break;
 
-			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				
+				return this->numBits(interface_impl_instantiation_info.implInstantiationTypeID, include_padding);
+			} break;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported base-type kind");
@@ -1435,6 +1487,12 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isDefaultInitializable(interface_impl_instantiation_info.implInstantiationTypeID);
+			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
 	}
@@ -1512,6 +1570,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isNoErrorDefaultInitializable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
@@ -1593,6 +1657,12 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isConstexprDefaultInitializable(interface_impl_instantiation_info.implInstantiationTypeID);
+			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
 	}
@@ -1668,6 +1738,12 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isTriviallyDefaultInitializable(interface_impl_instantiation_info.implInstantiationTypeID);
+			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
 	}
@@ -1739,6 +1815,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isTriviallyDeletable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
@@ -1815,6 +1897,15 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+
+				return this->isConstexprDeletable(
+					interface_impl_instantiation_info.implInstantiationTypeID, sema_buffer
+				);
+			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
 	}
@@ -1887,6 +1978,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isCopyable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
@@ -1961,6 +2058,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isTriviallyCopyable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
@@ -2038,6 +2141,15 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+
+				return this->isConstexprCopyable(
+					interface_impl_instantiation_info.implInstantiationTypeID, sema_buffer
+				);
+			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
 	}
@@ -2110,6 +2222,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isMovable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
@@ -2184,6 +2302,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->isTriviallyMovable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
@@ -2260,6 +2384,13 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+
+				return this->isConstexprMovable(interface_impl_instantiation_info.implInstantiationTypeID, sema_buffer);
 			} break;
 		}
 		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
@@ -2553,6 +2684,12 @@ namespace pcit::panther{
 			case BaseType::Kind::UNION:           return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::TYPE_DEDUCER:    evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::INTERFACE:       evo::debugFatalBreak("Cannot get underlying type of this kind");
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
+				return this->getUnderlyingType(interface_impl_instantiation_info.implInstantiationTypeID);
+			} break;
 		}
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());

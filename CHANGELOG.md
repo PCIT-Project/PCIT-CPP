@@ -2,6 +2,14 @@
 
 <!---------------------------------->
 <a name="v0.0.166.0"></a>
+## v0.0.166.1
+
+### Panther
+- Fixed template instantiation on interfaces only working properly if the method has the same name
+
+
+<!---------------------------------->
+<a name="v0.0.166.0"></a>
 ## v0.0.166.0
 
 ### Panther

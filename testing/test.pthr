@@ -4,34 +4,42 @@
 
 
 
-
-func test = () -> (output: Int) <err_code: Int> {
-	// output = 12;
-	// return...;
-
-	err_code = 12;
-	error...;
+interface Shape = {
+	func get_sides = () -> UInt;
 }
 
+
+type Rectangle = struct {
+	var width: UInt;
+	var height: UInt;
+
+	func get_sides_impl = () -> UInt { return 4; }
+
+	impl Shape {
+		get_sides = get_sides_impl,
+	}
+}
+
+type Circle = struct {
+	var radius: UInt;
+
+	func get_sides_impl = () -> UInt { return 0; }
+
+	impl Shape {
+		get_sides = get_sides_impl,
+	}
+}
+
+
+
+func get_num_sides = (shape: Shape) -> UInt {
+	return shape.get_sides();
+}
 
 
 func entry = () #entry -> UI8 {
-	const num: Int = try test() else<err_code> {->be:(ret: Int)
-		ret = copy err_code;
-		return->be...;
-	};
-
-	if(true){
-		
-	}
-
-	const foo: Int = 12;
-	delete foo;
+	var rect = new Rectangle{width = 0, height = 0};
+	var circle = new Circle{radius = 0};
 	
-	return num as UI8;
+	return (get_num_sides(rect) + get_num_sides(circle)) as UI8;
 }
-
-
-
-
-

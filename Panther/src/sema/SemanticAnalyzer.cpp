@@ -2739,10 +2739,27 @@ namespace pcit::panther{
 					has_in_param = true;
 				}
 
-				if(param_type_is_interface || param_type_is_deducer){
+				if(param_type_is_interface){
+					const TypeInfo::ID arg_type = *func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
+
+					const BaseType::ID interface_impl_instantiation_id = 
+						this->context.type_manager.getOrCreateInterfaceImplInstantiation(
+							BaseType::InterfaceImplInstantiation(
+								param_type_info.baseTypeID().interfaceID(), arg_type
+							)
+						);
+
+					const TypeInfo::ID impl_arg_type = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(interface_impl_instantiation_id)
+					);
+
+					params.emplace_back(impl_arg_type, param.kind, false);
+
+				}else if(param_type_is_deducer){
 					params.emplace_back(
 						*func_info.instantiation_param_arg_types[i - size_t(has_this_param)], param.kind, false
 					);
+
 				}else{
 					params.emplace_back(param_type_id.asTypeID(), param.kind, false);
 				}
@@ -3764,7 +3781,8 @@ namespace pcit::panther{
 
 			if(
 				func_type.returnParams[0].typeID.isVoid() ||
-				this->get_actual_type<false>(func_type.returnParams[0].typeID.asTypeID()) != TypeManager::getTypeUI8()
+				this->get_actual_type<false, false>(func_type.returnParams[0].typeID.asTypeID())
+					!= TypeManager::getTypeUI8()
 			){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(func_type.returnParams[0].typeID.asTypeID(), infos, "Returned type: ");
@@ -4296,7 +4314,7 @@ namespace pcit::panther{
 		if(type_id.isVoid()){ return Result::SUCCESS; }
 
 		const TypeInfo& ident_type = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true>(type_id.asTypeID())
+			this->get_actual_type<true, true>(type_id.asTypeID())
 		);
 
 		if(ident_type.qualifiers().empty() == false){ return Result::SUCCESS; }
@@ -6229,7 +6247,7 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true>(target_type_id.asTypeID())
+			this->get_actual_type<true, true>(target_type_id.asTypeID())
 		);
 
 
@@ -9831,7 +9849,7 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true>(target_type_id.asTypeID())
+			this->get_actual_type<true, true>(target_type_id.asTypeID())
 		);
 
 
@@ -10233,7 +10251,7 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true>(target_type_id.asTypeID())
+			this->get_actual_type<true, true>(target_type_id.asTypeID())
 		);
 
 		if(
@@ -10345,7 +10363,7 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true>(target_type_id.asTypeID())
+			this->get_actual_type<true, true>(target_type_id.asTypeID())
 		);
 		if(target_type_info.qualifiers().empty() == false){
 			this->emit_error(
@@ -10555,7 +10573,8 @@ namespace pcit::panther{
 
 
 		if(member_init_i < instr.designated_init_new.memberInits.size()){
-			const AST::DesignatedInitNew::MemberInit& member_init = instr.designated_init_new.memberInits[member_init_i];
+			const AST::DesignatedInitNew::MemberInit& member_init =
+				instr.designated_init_new.memberInits[member_init_i];
 
 			const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
 
@@ -10948,7 +10967,7 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo& actual_target_type = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true>(target.type_id.as<TypeInfo::ID>())
+			this->get_actual_type<true, true>(target.type_id.as<TypeInfo::ID>())
 		);
 
 
@@ -12767,7 +12786,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>());
+		const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<true, true>(lhs.type_id.as<TypeInfo::ID>());
 		const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
 
 		if(lhs_actual_type.isOptional() == false){
@@ -12842,8 +12861,12 @@ namespace pcit::panther{
 
 		if(lhs.type_id.is<TypeInfo::ID>()){
 			if(rhs.type_id.is<TypeInfo::ID>()){ // neither lhs nor rhs fluid
-				const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false>(lhs.type_id.as<TypeInfo::ID>());
-				const TypeInfo::ID rhs_actual_type_id = this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+				const TypeInfo::ID lhs_actual_type_id =
+					this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
+
+				const TypeInfo::ID rhs_actual_type_id =
+					this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
+
 
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
 					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
@@ -12973,7 +12996,8 @@ namespace pcit::panther{
 
 
 			}else{ // rhs fluid
-				const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false>(lhs.type_id.as<TypeInfo::ID>());
+				const TypeInfo::ID lhs_actual_type_id =
+					this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
 
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
 					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
@@ -13049,7 +13073,7 @@ namespace pcit::panther{
 			}
 
 		}else if(rhs.type_id.is<TypeInfo::ID>()){ // lhs fluid
-			const TypeInfo::ID rhs_actual_type_id = this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+			const TypeInfo::ID rhs_actual_type_id = this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 			if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
 				if(this->context.getTypeManager().isUnsignedIntegral(rhs_actual_type_id) == false){
@@ -13179,7 +13203,7 @@ namespace pcit::panther{
 						this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
 						lhs.getExpr(),
 						rhs.getExpr(),
-						this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>())
+						this->get_actual_type<true, true>(lhs.type_id.as<TypeInfo::ID>())
 					)
 				);
 			}
@@ -13188,7 +13212,7 @@ namespace pcit::panther{
 		}else{
 			auto resultant_type = std::optional<TypeInfo::ID>();
 
-			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false>(lhs.type_id.as<TypeInfo::ID>());
+			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
 
 			const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
 
@@ -13299,7 +13323,7 @@ namespace pcit::panther{
 
 					case Token::lookupKind("<<"): {
 						const TypeInfo::ID rhs_actual_type_id = 
-							this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
@@ -13313,7 +13337,7 @@ namespace pcit::panther{
 
 					case Token::lookupKind("<<|"): {
 						const TypeInfo::ID rhs_actual_type_id = 
-							this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
@@ -13327,7 +13351,7 @@ namespace pcit::panther{
 
 					case Token::lookupKind(">>"): {
 						const TypeInfo::ID rhs_actual_type_id = 
-							this->get_actual_type<false>(rhs.type_id.as<TypeInfo::ID>());
+							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
@@ -13551,7 +13575,7 @@ namespace pcit::panther{
 		}
 
 
-		const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true>(lhs.type_id.as<TypeInfo::ID>());
+		const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true, false>(lhs.type_id.as<TypeInfo::ID>());
 		const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
 
 		bool is_pointer = false;
@@ -13595,7 +13619,9 @@ namespace pcit::panther{
 
 
 		if(actual_lhs_type.isInterfacePointer()){
-			return this->interface_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
+			return this->interface_accessor<NEEDS_DEF>(
+				instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, true
+			);
 		}
 
 		switch(actual_lhs_type.baseTypeID().kind()){
@@ -13620,6 +13646,12 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY_REF: {
 				return this->array_ref_accessor<NEEDS_DEF>(
 					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+				);
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				return this->interface_accessor<NEEDS_DEF>(
+					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, false
 				);
 			} break;
 
@@ -14459,7 +14491,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true>(
+		const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true, true>(
 			lhs.type_id.as<TypeInfo::VoidableID>().asTypeID()
 		);
 		const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
@@ -14643,11 +14675,31 @@ namespace pcit::panther{
 
 	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::interface_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
+		const Instruction::Accessor<NEEDS_DEF>& instr,
+		std::string_view rhs_ident_str,
+		const TermInfo& lhs,
+		TypeInfo::ID actual_lhs_type_id,
+		const TypeInfo& actual_lhs_type,
+		bool is_pointer
 	) -> Result {
-		const TypeInfo& lhs_type = this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>());
-		const BaseType::Interface& target_interface =
-			this->context.getTypeManager().getInterface(lhs_type.baseTypeID().interfaceID());
+		auto impl_instantiation_type_id = std::optional<TypeInfo::ID>();
+
+		const BaseType::Interface& target_interface = [&]() -> const BaseType::Interface& {
+			if(is_pointer){
+				return this->context.getTypeManager().getInterface(actual_lhs_type.baseTypeID().interfaceID());
+
+			}else{
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation = 
+					this->context.getTypeManager().getInterfaceImplInstantiation(
+						actual_lhs_type.baseTypeID().interfaceImplInstantiationID()
+					);
+
+				impl_instantiation_type_id = interface_impl_instantiation.implInstantiationTypeID;
+
+				return this->context.getTypeManager().getInterface(interface_impl_instantiation.interfacedID);
+			}
+		}();
+
 
 		// make sure def of target interface completed
 		if(target_interface.defCompleted.load() == false){
@@ -14659,52 +14711,97 @@ namespace pcit::panther{
 			);
 				
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
-				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Should be impossible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     return Result::ERROR;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Should be impossible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
 			}
 		}
 
 
-		auto methods = TermInfo::FuncOverloadList();
-		for(const sema::Func::ID method_id : target_interface.methods){
-			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-			const std::string_view method_name = method.getName(this->context.getSourceManager());
+		if(is_pointer){
+			auto methods = TermInfo::FuncOverloadList();
+			for(const sema::Func::ID method_id : target_interface.methods){
+				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+				const std::string_view method_name = method.getName(this->context.getSourceManager());
 
-			if(method_name == rhs_ident_str){
-				methods.emplace_back(method_id);
+				if(method_name == rhs_ident_str){
+					methods.emplace_back(method_id);
+				}
 			}
-		}
 
-		if(methods.empty()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_NO_METHOD_WITH_THAT_NAME,
-				instr.infix.rhs,
-				"This interface has no method with that name"
+			if(methods.empty()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INTERFACE_NO_METHOD_WITH_THAT_NAME,
+					instr.infix.rhs,
+					"This interface has no method with that name"
+				);
+				return Result::ERROR;
+			}
+
+
+			const sema::FakeTermInfo::ID created_fake_term_info = this->context.sema_buffer.createFakeTermInfo(
+				TermInfo::convertValueCategory(lhs.value_category),
+				TermInfo::convertValueStage(lhs.value_stage),
+				TermInfo::convertValueState(lhs.value_state),
+				lhs.type_id.as<TypeInfo::ID>(),
+				lhs.getExpr()
 			);
-			return Result::ERROR;
+
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::INTERFACE_CALL,
+				lhs.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				std::move(methods),
+				sema::Expr(created_fake_term_info)
+			);
+			return Result::SUCCESS;
+
+		}else{
+			const BaseType::Interface::Impl& interface_impl = target_interface.impls.at(
+				this->context.getTypeManager().getTypeInfo(*impl_instantiation_type_id).baseTypeID()
+			);
+
+			auto func_overload_list = TermInfo::FuncOverloadList();
+			for(size_t i = 0; const sema::Func::ID method_id : target_interface.methods){
+				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+				const std::string_view method_name = method.getName(this->context.getSourceManager());
+
+				if(method_name == rhs_ident_str){
+					func_overload_list.emplace_back(interface_impl.methods[i]);
+				}
+
+				i += 1;
+			}
+
+			if(func_overload_list.empty()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INTERFACE_NO_METHOD_WITH_THAT_NAME,
+					instr.infix.rhs,
+					"This interface has no method with that name"
+				);
+				return Result::ERROR;
+			}
+
+			const sema::FakeTermInfo::ID method_this = this->context.sema_buffer.createFakeTermInfo(
+				TermInfo::convertValueCategory(lhs.value_category),
+				TermInfo::convertValueStage(lhs.value_stage),
+				TermInfo::convertValueState(lhs.value_state),
+				actual_lhs_type_id,
+				lhs.getExpr()
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::METHOD_CALL,
+				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				std::move(func_overload_list),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
 		}
-
-
-		const sema::FakeTermInfo::ID created_fake_term_info = this->context.sema_buffer.createFakeTermInfo(
-			TermInfo::convertValueCategory(lhs.value_category),
-			TermInfo::convertValueStage(lhs.value_stage),
-			TermInfo::convertValueState(lhs.value_state),
-			lhs.type_id.as<TypeInfo::ID>(),
-			lhs.getExpr()
-		);
-
-
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::INTERFACE_CALL,
-			lhs.value_stage,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			std::move(methods),
-			sema::Expr(created_fake_term_info)
-		);
-		return Result::SUCCESS;
 	}
 
 
@@ -16863,7 +16960,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool LOOK_THROUGH_DISTINCT_ALIAS>
+	template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION>
 	auto SemanticAnalyzer::get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID {
 		const TypeManager& type_manager = this->context.getTypeManager();
 
@@ -16891,6 +16988,19 @@ namespace pcit::panther{
 
 				}else{
 					return type_id;	
+				}
+
+			}else if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE_IMPL_INSTANTIATION){
+				if constexpr(LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION){
+					const BaseType::InterfaceImplInstantiation& interface_impl_instantiation = 
+						type_manager.getInterfaceImplInstantiation(
+							type_info.baseTypeID().interfaceImplInstantiationID()
+						);
+
+					type_id = interface_impl_instantiation.implInstantiationTypeID;
+
+				}else{
+					return type_id;
 				}
 
 			}else{
@@ -17014,7 +17124,10 @@ namespace pcit::panther{
 				// check type mismatch
 
 				const TypeCheckInfo& type_check_info = this->type_check<false, false>(
-					func_info.func_type.params[arg_i].typeID, arg_info.term_info, "", arg_info.ast_node
+					this->get_actual_type<false, true>(func_info.func_type.params[arg_i].typeID),
+					arg_info.term_info,
+					"",
+					arg_info.ast_node
 				);
 
 				if(type_check_info.ok == false){
@@ -17459,7 +17572,7 @@ namespace pcit::panther{
 			// implicitly convert all the required args
 			if(!this->context.getTypeManager().getTypeInfo(selected_func.func_type.params[i].typeID).isInterface()){
 				if(this->type_check<true, true>(
-					selected_func.func_type.params[i].typeID,
+					this->get_actual_type<false, true>(selected_func.func_type.params[i].typeID),
 					arg_info.term_info,
 					"Function call argument",
 					arg_info.ast_node
@@ -18520,7 +18633,7 @@ namespace pcit::panther{
 		auto base_type_id = std::optional<BaseType::ID>();
 		switch(type.base.kind()){
 			case AST::Kind::PRIMITIVE_TYPE: {
-				evo::unimplemented();
+				evo::unimplemented("Resolve Type (PRIMITIVE_TYPE)");
 			} break;
 
 			case AST::Kind::IDENT: {
@@ -18548,22 +18661,22 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::TYPE_DEDUCER: {
-				evo::unimplemented();
+				evo::unimplemented("Resolve Type (TYPE_DEDUCER)");
 			} break;
 
 			case AST::Kind::TEMPLATED_EXPR: {
-				evo::unimplemented();
+				evo::unimplemented("Resolve Type (TEMPLATED_EXPR)");
 			} break;
 
 			case AST::Kind::INFIX: {
-				evo::unimplemented();
+				evo::unimplemented("Resolve Type (INFIX)");
 			} break;
 
 			case AST::Kind::TYPEID_CONVERTER: {
-				evo::unimplemented();
+				evo::unimplemented("Resolve Type (TYPEID_CONVERTER)");
 			} break;
 
-			default: evo::debugFatalBreak("Should not ever fail");
+			default: evo::debugFatalBreak("Should not ever be invalid type");
 		}
 
 
@@ -18793,6 +18906,20 @@ namespace pcit::panther{
 
 			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Function cannot return an interface");
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->context.getTypeManager().getInterfaceImplInstantiation(
+						target_type.baseTypeID().interfaceImplInstantiationID()
+					);
+
+				return this->generic_value_to_sema_expr(
+					value,
+					this->context.getTypeManager().getTypeInfo(
+						interface_impl_instantiation_info.implInstantiationTypeID
+					)
+				);
 			} break;
 		}
 
@@ -20155,7 +20282,7 @@ namespace pcit::panther{
 
 		const TypeManager& type_manager = this->context.getTypeManager();
 
-		const TypeInfo::ID actual_expected_type_id = this->get_actual_type<false>(expected_type_id);
+		const TypeInfo::ID actual_expected_type_id = this->get_actual_type<false, false>(expected_type_id);
 
 		switch(got_expr.value_category){
 			case TermInfo::ValueCategory::EPHEMERAL:
@@ -20173,12 +20300,12 @@ namespace pcit::panther{
 						return TypeCheckInfo::fail();
 					}
 
-					actual_got_type_id = this->get_actual_type<false>(
+					actual_got_type_id = this->get_actual_type<false, false>(
 						got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index]
 					);
 
 				}else{
-					actual_got_type_id = this->get_actual_type<false>(got_expr.type_id.as<TypeInfo::ID>());
+					actual_got_type_id = this->get_actual_type<false, false>(got_expr.type_id.as<TypeInfo::ID>());
 				}
 
 
@@ -20518,12 +20645,19 @@ namespace pcit::panther{
 
 						const core::GenericFloat target_min = [&](){
 							switch(expected_type_primitive.kind()){
-								break; case Token::Kind::TYPE_F16:  return type_manager.getMin(expected_type_info.baseTypeID()).getF16();
-								break; case Token::Kind::TYPE_BF16: return type_manager.getMin(expected_type_info.baseTypeID()).getBF16();
-								break; case Token::Kind::TYPE_F32:  return type_manager.getMin(expected_type_info.baseTypeID()).getF32();
-								break; case Token::Kind::TYPE_F64:  return type_manager.getMin(expected_type_info.baseTypeID()).getF64();
-								break; case Token::Kind::TYPE_F80:  return type_manager.getMin(expected_type_info.baseTypeID()).getF80();
-								break; case Token::Kind::TYPE_F128: return type_manager.getMin(expected_type_info.baseTypeID()).getF128();
+								break; case Token::Kind::TYPE_F16:
+									return type_manager.getMin(expected_type_info.baseTypeID()).getF16();
+								break; case Token::Kind::TYPE_BF16:
+									return type_manager.getMin(expected_type_info.baseTypeID()).getBF16();
+								break; case Token::Kind::TYPE_F32:
+									return type_manager.getMin(expected_type_info.baseTypeID()).getF32();
+								break; case Token::Kind::TYPE_F64:
+									return type_manager.getMin(expected_type_info.baseTypeID()).getF64();
+								break; case Token::Kind::TYPE_F80:
+									return type_manager.getMin(expected_type_info.baseTypeID()).getF80();
+								break; case Token::Kind::TYPE_F128:
+									return type_manager.getMin(expected_type_info.baseTypeID()).getF128();
+
 								break; case Token::Kind::TYPE_C_LONG_DOUBLE: {
 									if(type_manager.numBytes(expected_type_info.baseTypeID()) == 8){
 										return type_manager.getMin(expected_type_info.baseTypeID()).getF64();
@@ -20538,12 +20672,19 @@ namespace pcit::panther{
 
 						const core::GenericFloat target_max = [&](){
 							switch(expected_type_primitive.kind()){
-								break; case Token::Kind::TYPE_F16:  return type_manager.getMax(expected_type_info.baseTypeID()).getF16();
-								break; case Token::Kind::TYPE_BF16: return type_manager.getMax(expected_type_info.baseTypeID()).getBF16();
-								break; case Token::Kind::TYPE_F32:  return type_manager.getMax(expected_type_info.baseTypeID()).getF32();
-								break; case Token::Kind::TYPE_F64:  return type_manager.getMax(expected_type_info.baseTypeID()).getF64();
-								break; case Token::Kind::TYPE_F80:  return type_manager.getMax(expected_type_info.baseTypeID()).getF80();
-								break; case Token::Kind::TYPE_F128: return type_manager.getMax(expected_type_info.baseTypeID()).getF128();
+								break; case Token::Kind::TYPE_F16:
+									return type_manager.getMax(expected_type_info.baseTypeID()).getF16();
+								break; case Token::Kind::TYPE_BF16:
+									return type_manager.getMax(expected_type_info.baseTypeID()).getBF16();
+								break; case Token::Kind::TYPE_F32:
+									return type_manager.getMax(expected_type_info.baseTypeID()).getF32();
+								break; case Token::Kind::TYPE_F64:
+									return type_manager.getMax(expected_type_info.baseTypeID()).getF64();
+								break; case Token::Kind::TYPE_F80:
+									return type_manager.getMax(expected_type_info.baseTypeID()).getF80();
+								break; case Token::Kind::TYPE_F128:
+									return type_manager.getMax(expected_type_info.baseTypeID()).getF128();
+
 								break; case Token::Kind::TYPE_C_LONG_DOUBLE: {
 									if(type_manager.numBytes(expected_type_info.baseTypeID()) == 8){
 										return type_manager.getMax(expected_type_info.baseTypeID()).getF64();

@@ -583,7 +583,7 @@ namespace pcit::panther{
 				case BaseType::Kind::DUMMY:           case BaseType::Kind::FUNCTION:
 				case BaseType::Kind::ARRAY_REF:       case BaseType::Kind::ALIAS:
 				case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::INTERFACE: {
+				case BaseType::Kind::INTERFACE:       case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 					evo::debugFatalBreak("Not valid base type for VTable");
 				} break;
 			}
@@ -1933,7 +1933,7 @@ namespace pcit::panther{
 					const pir::Expr call_return  = this->create_call(
 						target_func_info.pir_ids[target_in_param_bitmap],
 						std::move(args),
-						this->name("{}.CALL", this->mangle_name<true>(func_call.target.as<sema::Func::ID>()))
+						this->name("CALL.{}", this->mangle_name<true>(func_call.target.as<sema::Func::ID>()))
 					);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -4027,6 +4027,14 @@ namespace pcit::panther{
 			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Not deletable");
 			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->context.getTypeManager().getInterfaceImplInstantiation(
+						expr_type.baseTypeID().interfaceImplInstantiationID()
+					);
+				return this->delete_expr(expr, interface_impl_instantiation_info.implInstantiationTypeID);
+			} break;
 		}
 	}
 
@@ -4340,6 +4348,20 @@ namespace pcit::panther{
 				case BaseType::Kind::INTERFACE: {
 					evo::debugFatalBreak("Not copyable");
 				} break;
+
+				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+					const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+						this->context.getTypeManager().getInterfaceImplInstantiation(
+							expr_type.baseTypeID().interfaceImplInstantiationID()
+						);
+
+					return this->expr_copy<MODE>(
+						expr,
+						interface_impl_instantiation_info.implInstantiationTypeID,
+						is_initialization,
+						store_locations
+					);
+				} break;
 			}
 		}
 
@@ -4422,10 +4444,10 @@ namespace pcit::panther{
 
 		const pir::Expr target = [&](){
 			if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::DISCARD){
-				return this->agent.createAlloca(target_type, this->name(".COPY"));
+				return this->agent.createAlloca(target_type, this->name(".MOVE"));
 
 			}else if constexpr(MODE == GetExprMode::POINTER){
-				return this->agent.createAlloca(target_type, this->name("COPY"));
+				return this->agent.createAlloca(target_type, this->name("MOVE"));
 
 			}else if constexpr(MODE == GetExprMode::STORE){
 				return store_locations[0];
@@ -4504,11 +4526,11 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::PRIMITIVE: {
-					evo::debugFatalBreak("Not non-trivially-copyable");
+					evo::debugFatalBreak("Not non-trivially-movable");
 				} break;
 
 				case BaseType::Kind::FUNCTION: {
-					evo::debugFatalBreak("Not non-trivially-copyable");
+					evo::debugFatalBreak("Not non-trivially-movable");
 				} break;
 
 				case BaseType::Kind::ARRAY: {
@@ -4600,7 +4622,7 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::ARRAY_REF: {
-					evo::debugFatalBreak("Not non-trivially-copyable");
+					evo::debugFatalBreak("Not non-trivially-movable");
 				} break;
 
 				case BaseType::Kind::ALIAS: {
@@ -4643,7 +4665,7 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::STRUCT_TEMPLATE: {
-					evo::debugFatalBreak("Not copyable");
+					evo::debugFatalBreak("Not movable");
 				} break;
 
 				case BaseType::Kind::UNION: {
@@ -4651,25 +4673,38 @@ namespace pcit::panther{
 						this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
 
 					evo::debugAssert(
-						union_type.isUntagged == false, "untagged union types aren't non-trivially-copyable"
+						union_type.isUntagged == false, "untagged union types aren't non-trivially-movable"
 					);
 
 					evo::unimplemented("copy union");
 				} break;
 
 				case BaseType::Kind::TYPE_DEDUCER: {
-					evo::debugFatalBreak("Not copyable");
+					evo::debugFatalBreak("Not movable");
 				} break;
 
 				case BaseType::Kind::INTERFACE: {
-					evo::debugFatalBreak("Not copyable");
+					evo::debugFatalBreak("Not movable");
+				} break;
+
+				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+					const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+						this->context.getTypeManager().getInterfaceImplInstantiation(
+							expr_type.baseTypeID().interfaceImplInstantiationID()
+						);
+					return this->expr_move<MODE>(
+						expr,
+						interface_impl_instantiation_info.implInstantiationTypeID,
+						is_initialization,
+						store_locations
+					);
 				} break;
 			}
 		}
 
 
 		if constexpr(MODE == GetExprMode::REGISTER){
-			return this->agent.createLoad(target, target_type, false, pir::AtomicOrdering::NONE, this->name("COPY"));
+			return this->agent.createLoad(target, target_type, false, pir::AtomicOrdering::NONE, this->name("MOVE"));
 			
 		}else if constexpr(MODE == GetExprMode::POINTER){
 			return target;
@@ -6461,9 +6496,22 @@ namespace pcit::panther{
 			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Cannot get type of interface");
 			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
+					this->context.getTypeManager().getInterfaceImplInstantiation(
+						base_type_id.interfaceImplInstantiationID()
+					);
+
+				return this->get_type<MAY_LOWER_DEPENDENCY>(
+					this->context.getTypeManager().getTypeInfo(
+						interface_impl_instantiation_info.implInstantiationTypeID
+					).baseTypeID()
+				);
+			} break;
 		}
 
-		return this->module.createIntegerType(12);
+		evo::debugFatalBreak("Unknown base type");
 	}
 
 

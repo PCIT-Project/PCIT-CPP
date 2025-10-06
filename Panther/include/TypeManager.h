@@ -50,6 +50,7 @@ namespace pcit::panther{
 			UNION,
 			TYPE_DEDUCER,
 			INTERFACE,
+			INTERFACE_IMPL_INSTANTIATION,
 		};
 
 
@@ -111,6 +112,13 @@ namespace pcit::panther{
 				return InterfaceID(this->_id);
 			}
 
+			EVO_NODISCARD auto interfaceImplInstantiationID() const -> InterfaceImplInstantiationID {
+				evo::debugAssert(
+					this->kind() == Kind::INTERFACE_IMPL_INSTANTIATION, "not an interface impl instantiation"
+				);
+				return InterfaceImplInstantiationID(this->_id);
+			}
+
 
 			EVO_NODISCARD auto operator==(const ID&) const -> bool = default;
 
@@ -120,17 +128,18 @@ namespace pcit::panther{
 			}
 
 
-			explicit ID(PrimitiveID id)      : _kind(Kind::PRIMITIVE),       _id(id.get()) {}
-			explicit ID(FunctionID id)       : _kind(Kind::FUNCTION),        _id(id.get()) {}
-			explicit ID(ArrayID id)          : _kind(Kind::ARRAY),           _id(id.get()) {}
-			explicit ID(ArrayRefID id)       : _kind(Kind::ARRAY_REF),       _id(id.get()) {}
-			explicit ID(AliasID id)          : _kind(Kind::ALIAS),           _id(id.get()) {}
-			explicit ID(DistinctAliasID id)  : _kind(Kind::DISTINCT_ALIAS),  _id(id.get()) {}
-			explicit ID(StructID id)         : _kind(Kind::STRUCT),          _id(id.get()) {}
-			explicit ID(StructTemplateID id) : _kind(Kind::STRUCT_TEMPLATE), _id(id.get()) {}
-			explicit ID(UnionID id)          : _kind(Kind::UNION),           _id(id.get()) {}
-			explicit ID(TypeDeducerID id)    : _kind(Kind::TYPE_DEDUCER),    _id(id.get()) {}
-			explicit ID(InterfaceID id)      : _kind(Kind::INTERFACE),       _id(id.get()) {}
+			explicit ID(PrimitiveID id)                  : _kind(Kind::PRIMITIVE),                    _id(id.get()) {}
+			explicit ID(FunctionID id)                   : _kind(Kind::FUNCTION),                     _id(id.get()) {}
+			explicit ID(ArrayID id)                      : _kind(Kind::ARRAY),                        _id(id.get()) {}
+			explicit ID(ArrayRefID id)                   : _kind(Kind::ARRAY_REF),                    _id(id.get()) {}
+			explicit ID(AliasID id)                      : _kind(Kind::ALIAS),                        _id(id.get()) {}
+			explicit ID(DistinctAliasID id)              : _kind(Kind::DISTINCT_ALIAS),               _id(id.get()) {}
+			explicit ID(StructID id)                     : _kind(Kind::STRUCT),                       _id(id.get()) {}
+			explicit ID(StructTemplateID id)             : _kind(Kind::STRUCT_TEMPLATE),              _id(id.get()) {}
+			explicit ID(UnionID id)                      : _kind(Kind::UNION),                        _id(id.get()) {}
+			explicit ID(TypeDeducerID id)                : _kind(Kind::TYPE_DEDUCER),                 _id(id.get()) {}
+			explicit ID(InterfaceID id)                  : _kind(Kind::INTERFACE),                    _id(id.get()) {}
+			explicit ID(InterfaceImplInstantiationID id) : _kind(Kind::INTERFACE_IMPL_INSTANTIATION), _id(id.get()) {}
 
 
 
@@ -533,7 +542,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getInstantiationArgs(uint32_t instantiation_id) const -> evo::SmallVector<Arg>;
 
 
-			auto operator==(const StructTemplate& rhs) const -> bool {
+			EVO_NODISCARD auto operator==(const StructTemplate& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID 
 					&& this->identTokenID == rhs.identTokenID
 					&& this->params == rhs.params;
@@ -586,7 +595,7 @@ namespace pcit::panther{
 				const Field& field, const class panther::SourceManager& source_manager
 			) const -> std::string_view;
 
-			auto operator==(const Union& rhs) const -> bool {
+			EVO_NODISCARD auto operator==(const Union& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->location == rhs.location;
 			}
 		};
@@ -601,7 +610,7 @@ namespace pcit::panther{
 			Token::ID identTokenID;
 			SourceID sourceID;
 
-			auto operator==(const TypeDeducer& rhs) const -> bool {
+			EVO_NODISCARD auto operator==(const TypeDeducer& rhs) const -> bool {
 				return this->identTokenID == rhs.identTokenID && this->sourceID == rhs.sourceID;
 			}
 		};
@@ -627,9 +636,19 @@ namespace pcit::panther{
 
 			std::atomic<bool> defCompleted = false;
 
-			auto operator==(const Interface& rhs) const -> bool {
+			EVO_NODISCARD auto operator==(const Interface& rhs) const -> bool {
 				return this->identTokenID == rhs.identTokenID && this->sourceID == rhs.sourceID;
 			}
+		};
+
+
+		struct InterfaceImplInstantiation{
+			using ID = InterfaceImplInstantiationID;
+			
+			InterfaceID interfacedID;
+			TypeInfoID implInstantiationTypeID;
+
+			EVO_NODISCARD auto operator==(const InterfaceImplInstantiation&) const -> bool = default;
 		};
 
 	};
@@ -740,6 +759,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto printType(
 				TypeInfo::ID type_info_id, const class SourceManager& source_manager
 			) const -> std::string;
+			EVO_NODISCARD auto printType(
+				BaseType::ID base_type_id, const class SourceManager& source_manager
+			) const -> std::string;
 
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id) const -> const BaseType::Function&;
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id)       ->       BaseType::Function&;
@@ -786,6 +808,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateInterface(BaseType::Interface&& lookup_type) -> BaseType::ID;
 			EVO_NODISCARD auto getNumInterfaces() const -> size_t; // I don't love this design
 			EVO_NODISCARD auto createInterfaceImpl() -> BaseType::Interface::Impl&;
+
+			EVO_NODISCARD auto getInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation::ID id) const
+				-> const BaseType::InterfaceImplInstantiation&;
+			EVO_NODISCARD auto getOrCreateInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation&& lookup_type)
+				-> BaseType::ID;
 			
 			
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0);  }
@@ -947,6 +974,10 @@ namespace pcit::panther{
 			core::LinearStepAlloc<BaseType::Interface, BaseType::Interface::ID> interfaces{};
 			mutable core::SpinLock interfaces_lock{};
 			core::SyncLinearStepAlloc<BaseType::Interface::Impl, uint64_t> interface_impls{};
+
+			core::LinearStepAlloc<BaseType::InterfaceImplInstantiation, BaseType::InterfaceImplInstantiation::ID>
+				interface_impl_instantiations{};
+			mutable core::SpinLock interface_impl_instantiations_lock{};
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable core::SpinLock types_lock{};

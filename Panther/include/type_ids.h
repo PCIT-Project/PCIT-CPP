@@ -186,6 +186,9 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, InterfaceID>::UniqueID; 
 	};
 
+	struct InterfaceImplInstantiationID : public core::UniqueID<uint32_t, struct InterfaceImplInstantiationID> {
+		using core::UniqueID<uint32_t, InterfaceImplInstantiationID>::UniqueID; 
+	};
 
 }
 
@@ -262,6 +265,13 @@ namespace std{
 	template<>
 	struct hash<pcit::panther::BaseType::InterfaceID>{
 		auto operator()(const pcit::panther::BaseType::InterfaceID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::BaseType::InterfaceImplInstantiationID>{
+		auto operator()(const pcit::panther::BaseType::InterfaceImplInstantiationID& id) const noexcept -> size_t {
 			return hash<uint32_t>{}(id.get());
 		};
 	};
