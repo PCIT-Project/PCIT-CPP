@@ -24,8 +24,8 @@ namespace pcit::core{
 	constexpr auto version = Version{
 		.major   = 0,
 		.release = 0,
-		.minor   = 166,
-		.patch   = 1,
+		.minor   = 167,
+		.patch   = 0,
 	};
 
 }
@@ -39,4 +39,4 @@ struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
         	ctx
         );
     }
-};
+}; 

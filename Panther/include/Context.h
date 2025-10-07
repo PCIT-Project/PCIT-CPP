@@ -225,18 +225,18 @@ namespace pcit::panther{
 			// adding sources
 
 			EVO_NODISCARD auto addSourceFile(
-				const std::filesystem::path& path, Source::ProjectConfig::ID project_config
+				const std::filesystem::path& path, Source::ProjectConfig::ID project_config_id
 			) -> AddSourceResult;
 
 			EVO_NODISCARD auto addSourceDirectory(
-				const std::filesystem::path& path, Source::ProjectConfig::ID project_config
+				const std::filesystem::path& path, Source::ProjectConfig::ID project_config_id
 			) -> AddSourceResult;
 
 			EVO_NODISCARD auto addSourceDirectoryRecursive(
-				const std::filesystem::path& path, Source::ProjectConfig::ID project_config
+				const std::filesystem::path& path, Source::ProjectConfig::ID project_config_id
 			) -> AddSourceResult;
 
-			EVO_NODISCARD auto addStdLib(const std::filesystem::path& directory) -> AddSourceResult;
+			EVO_NODISCARD auto addStdLib(Source::ProjectConfig::ID project_config_id) -> void;
 
 			EVO_NODISCARD auto addCHeaderFile(const std::filesystem::path& path, bool add_includes_to_pub_api)
 				-> AddSourceResult;

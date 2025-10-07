@@ -134,6 +134,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, MakeInterfacePtrID>::UniqueID;
 	};
 
+	struct InterfacePtrExtractThisID : public core::UniqueID<uint32_t, struct InterfacePtrExtractThisID> {
+		using core::UniqueID<uint32_t, InterfacePtrExtractThisID>::UniqueID;
+	};
+
 	struct InterfaceCallID : public core::UniqueID<uint32_t, struct InterfaceCallID> {
 		using core::UniqueID<uint32_t, InterfaceCallID>::UniqueID;
 	};
@@ -548,6 +552,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::MakeInterfacePtrID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct core::OptionalInterface<panther::sema::InterfacePtrExtractThisID>{
+		static constexpr auto init(panther::sema::InterfacePtrExtractThisID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::InterfacePtrExtractThisID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1298,6 +1313,22 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::MakeInterfacePtrID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::MakeInterfacePtrID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::InterfacePtrExtractThisID>{
+		auto operator()(pcit::panther::sema::InterfacePtrExtractThisID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::InterfacePtrExtractThisID>
+		: public pcit::core::Optional<pcit::panther::sema::InterfacePtrExtractThisID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::InterfacePtrExtractThisID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::InterfacePtrExtractThisID>::operator=;
 	};
 
 

@@ -1,7 +1,20 @@
 # Change Log
 
 <!---------------------------------->
-<a name="v0.0.166.0"></a>
+<a name="v0.0.167.0"></a>
+## v0.0.167.0
+
+### Panther
+- Added support for interface methods with `this` parameters
+- Fixed interfaces not being considered type scope in semantic analysis
+
+### pthr
+- Improved messaging of invalid paths for files/projects 
+- Fixed project ids being incorrect for compilation source files when adding the Panther standard library
+
+
+<!---------------------------------->
+<a name="v0.0.166.1"></a>
 ## v0.0.166.1
 
 ### Panther
@@ -13,7 +26,7 @@
 ## v0.0.166.0
 
 ### Panther
-- Added checking that all return parameters are initialialized at a `return` statement
+- Added checking that all return parameters are initialized at a `return` statement
 	- same with error returns
 - Added warning for `delete` statement of moved-from expression
 - Added warning for `delete` statement of a trivially-deletable type

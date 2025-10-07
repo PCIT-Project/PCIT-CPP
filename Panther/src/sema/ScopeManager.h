@@ -123,7 +123,11 @@ namespace pcit::panther::sema{
 
 					EVO_NODISCARD auto getCurrentTypeScopeIfExists() const -> std::optional<ObjectScope> {
 						for(auto iter = this->object_scopes.rbegin(); iter != this->object_scopes.rend(); ++iter){
-							if(iter->obj_scope.is<BaseType::Struct::ID>() || iter->obj_scope.is<BaseType::Union::ID>()){
+							if(
+								iter->obj_scope.is<BaseType::Struct::ID>()
+								|| iter->obj_scope.is<BaseType::Union::ID>()
+								|| iter->obj_scope.is<BaseType::Interface::ID>()
+							){
 								return iter->obj_scope;
 							}
 						}

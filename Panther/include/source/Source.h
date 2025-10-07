@@ -43,6 +43,8 @@ namespace pcit::panther{
 					bool deleteMovedFromExpr          = true;
 					bool deleteTriviallyDeletableType = true;
 					bool constexprIfCond              = true;
+
+					static auto all() -> Warns { return Warns(); };
 				} warn;
 			};
 

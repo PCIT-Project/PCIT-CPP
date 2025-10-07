@@ -526,6 +526,19 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// interface ptr extract this
+
+			EVO_NODISCARD auto createInterfacePtrExtractThis(auto&&... args) -> sema::InterfacePtrExtractThis::ID {
+				return this->interface_ptr_extract_thises.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getInterfacePtrExtractThis(sema::InterfacePtrExtractThis::ID id) const
+			-> const sema::InterfacePtrExtractThis& {
+				return this->interface_ptr_extract_thises[id];
+			}
+
+
+			///////////////////////////////////
 			// interface call
 
 			EVO_NODISCARD auto createInterfaceCall(auto&&... args) -> sema::InterfaceCall::ID {
@@ -832,6 +845,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};
 			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};
+			core::SyncLinearStepAlloc<sema::InterfacePtrExtractThis, sema::InterfacePtrExtractThis::ID>
+				interface_ptr_extract_thises{};
 			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
 			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
 			core::SyncLinearStepAlloc<sema::DefaultInitPrimitive, sema::DefaultInitPrimitive::ID>

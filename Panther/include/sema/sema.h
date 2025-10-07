@@ -256,6 +256,12 @@ namespace pcit::panther::sema{
 		BaseType::ID implTypeID;
 	};
 
+	struct InterfacePtrExtractThis{
+		using ID = InterfacePtrExtractThisID;
+
+		Expr expr;
+	};
+
 
 	struct InterfaceCall{
 		using ID = InterfaceCallID;

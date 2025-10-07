@@ -1,45 +1,48 @@
-// def std_exp = @import("std_exp/std_exp.pthr");
-
-// def test = @importCPP("test.h");
-
+def std = @import("std");
 
 
 interface Shape = {
-	func get_sides = () -> UInt;
+	func num_sides = () -> F32;
+	func area = (this) -> F32;
 }
 
 
 type Rectangle = struct {
-	var width: UInt;
-	var height: UInt;
+	var width: F32;
+	var height: F32;
 
-	func get_sides_impl = () -> UInt { return 4; }
+	func num_sides_impl = () -> F32 { return 4.0; }
+
+	func area = (this) -> F32 { return this.width * this.height; }
 
 	impl Shape {
-		get_sides = get_sides_impl,
+		num_sides = num_sides_impl,
+		area = area,
 	}
 }
 
 type Circle = struct {
-	var radius: UInt;
+	var radius: F32;
 
-	func get_sides_impl = () -> UInt { return 0; }
+	func num_sides_impl = () -> F32 { return 0.0; }
+	func area = (this) -> F32 { return this.radius * this.radius * 3.14; }
 
 	impl Shape {
-		get_sides = get_sides_impl,
+		num_sides = num_sides_impl,
+		area = area,
 	}
 }
 
 
 
-func get_num_sides = (shape: Shape) -> UInt {
-	return shape.get_sides();
+func get_area = (shape: Shape*) -> F32 {
+	return shape.area();
 }
 
 
 func entry = () #entry -> UI8 {
-	var rect = new Rectangle{width = 0, height = 0};
-	var circle = new Circle{radius = 0};
+	var rect = new Rectangle{width = 2.0, height = 3.0};
+	var circle = new Circle{radius = 5.0};
 	
-	return (get_num_sides(rect) + get_num_sides(circle)) as UI8;
+	return get_area(&circle as Shape*) as UI8;
 }

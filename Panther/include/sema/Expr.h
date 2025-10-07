@@ -63,6 +63,7 @@ namespace pcit::panther::sema{
 			BLOCK_EXPR,
 			FAKE_TERM_INFO,
 			MAKE_INTERFACE_PTR,
+			INTERFACE_PTR_EXTRACT_THIS,
 			INTERFACE_CALL,
 			INDEXER,
 			DEFAULT_INIT_PRIMITIVE,
@@ -126,6 +127,8 @@ namespace pcit::panther::sema{
 		explicit Expr(BlockExprID id)          : _kind(Kind::BLOCK_EXPR),           value{.block_expr = id}          {};
 		explicit Expr(FakeTermInfoID id)       : _kind(Kind::FAKE_TERM_INFO),       value{.fake_term_info = id}      {};
 		explicit Expr(MakeInterfacePtrID id)   : _kind(Kind::MAKE_INTERFACE_PTR),   value{.make_interface_ptr = id}  {};
+		explicit Expr(InterfacePtrExtractThisID id)
+			: _kind(Kind::INTERFACE_PTR_EXTRACT_THIS), value{.interface_ptr_extract_this = id} {};
 		explicit Expr(InterfaceCallID id)      : _kind(Kind::INTERFACE_CALL),       value{.interface_call = id}      {};
 		explicit Expr(IndexerID id)            : _kind(Kind::INDEXER),              value{.indexer = id}             {};
 		explicit Expr(DefaultInitPrimitiveID id)
@@ -284,6 +287,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::MAKE_INTERFACE_PTR, "not a make interface ptr");
 			return this->value.make_interface_ptr;
 		}
+		EVO_NODISCARD auto interfacePtrExtractThisID() const -> InterfacePtrExtractThisID {
+			evo::debugAssert(this->kind() == Kind::INTERFACE_PTR_EXTRACT_THIS, "not a interface ptr extract this");
+			return this->value.interface_ptr_extract_this;
+		}
 		EVO_NODISCARD auto interfaceCallID() const -> InterfaceCallID {
 			evo::debugAssert(this->kind() == Kind::INTERFACE_CALL, "not an interface call");
 			return this->value.interface_call;
@@ -411,6 +418,7 @@ namespace pcit::panther::sema{
 				BlockExprID block_expr;
 				FakeTermInfoID fake_term_info;
 				MakeInterfacePtrID make_interface_ptr;
+				InterfacePtrExtractThisID interface_ptr_extract_this;
 				InterfaceCallID interface_call;
 				IndexerID indexer;
 				DefaultInitPrimitiveID default_init_primitive;

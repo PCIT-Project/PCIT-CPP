@@ -22,6 +22,7 @@ namespace plnk = pcit::plnk;
 
 namespace pthr{
 
+
 	struct CmdArgsConfig{
 		enum class Verbosity{
 			NONE = 0,
@@ -67,14 +68,25 @@ namespace pthr{
 
 
 
+using CreatePantherProjectResult =
+	evo::Expected<panther::Source::ProjectConfig::ID, panther::SourceManager::CreateSourceProjectConfigFailReason>;
 
-static auto error_failed_to_add_std_lib(panther::Context::AddSourceResult add_std_lib_res, core::Printer& printer)
--> void {
+static auto error_failed_to_add_std_lib(
+	panther::SourceManager::CreateSourceProjectConfigFailReason fail_reason, core::Printer& printer
+) -> void {
 	auto infos = evo::SmallVector<panther::Diagnostic::Info>();
-	if(add_std_lib_res == panther::Context::AddSourceResult::DOESNT_EXIST){
-		infos.emplace_back("Path doesn't exist");
-	}else{
-		infos.emplace_back("Path is not a directory");
+	switch(fail_reason){
+		case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_NOT_ABSOLUTE: {
+			infos.emplace_back("Path isn't absolute");
+		} break;
+
+		case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_DOESNT_EXIST: {
+			infos.emplace_back("Path doesn't exist");
+		} break;
+
+		case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_NOT_DIRECTORY: {
+			infos.emplace_back("Path isn't directory");
+		} break;
 	}
 
 	panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
@@ -87,14 +99,20 @@ static auto error_failed_to_add_std_lib(panther::Context::AddSourceResult add_st
 }
 
 
-static auto print_num_context_errors(const panther::Context& context, core::Printer& printer) -> void {
-	const unsigned num_errors = context.getNumErrors();
+static auto print_num_errors(unsigned num_errors, core::Printer& printer) -> void {
+	evo::debugAssert(num_errors > 0, "Should only call this if no errors occured");
+
 	if(num_errors == 1){
 		printer.printlnError("Failed with 1 error");
 	}else{
-		printer.printlnError("Failed with {} errors", context.getNumErrors());
+		printer.printlnError("Failed with {} errors", num_errors);
 	}
 }
+
+static auto print_num_context_errors(const panther::Context& context, core::Printer& printer) -> void {
+	print_num_errors(context.getNumErrors(), printer);
+}
+
 
 
 static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::Printer& printer)
@@ -119,17 +137,23 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 
 
 	if(cmd_args_config.use_std_lib){
-		const panther::Context::AddSourceResult add_std_lib_res = 
-			context.addStdLib(cmd_args_config.workingDirectory / "../extern/Panther-std/std");
+		const CreatePantherProjectResult std_project_id = context.getSourceManager().createSourceProjectConfig(
+			panther::Source::ProjectConfig{
+				.basePath = cmd_args_config.workingDirectory / "../extern/Panther-std/std",
+				.warn     = panther::Source::ProjectConfig::Warns::all(),
+			}
+		);
 
-		if(add_std_lib_res != panther::Context::AddSourceResult::SUCCESS){
-			error_failed_to_add_std_lib(add_std_lib_res, printer);
+		if(std_project_id.has_value() == false){
+			error_failed_to_add_std_lib(std_project_id.error(), printer);
 			return evo::resultError;
 		}
+
+		context.addStdLib(*std_project_id);
 	}
 
 
-	const panther::Source::ProjectConfig::ID proj_config = context.getSourceManager().createSourceProjectConfig(
+	const CreatePantherProjectResult proj_config_id = context.getSourceManager().createSourceProjectConfig(
 		panther::Source::ProjectConfig{
 			.basePath = cmd_args_config.workingDirectory,
 			.warn = panther::Source::ProjectConfig::Warns{
@@ -141,7 +165,11 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		}
 	);
 
-	std::ignore = context.addSourceFile("build.pthr", proj_config);
+	if(proj_config_id.has_value() == false){
+		// TODO(FUTURE): handle fail
+	}
+
+	std::ignore = context.addSourceFile("build.pthr", *proj_config_id);
 
 
 	if(context.analyzeSemantics().isError()){
@@ -210,26 +238,71 @@ EVO_NODISCARD static auto run_compile(
 
 	using BuildSystemConfig = panther::Context::BuildSystemConfig;
 
+	unsigned num_errors = 0;
+
+	for(const panther::Source::ProjectConfig& project_config : config.projectConfigs){
+		const fs::path project_path = project_config.basePath;
+
+		const CreatePantherProjectResult res = 
+			context.getSourceManager().createSourceProjectConfig(std::move(project_config));
+
+		if(res.has_value() == false){
+			auto infos = evo::SmallVector<panther::Diagnostic::Info>();
+			infos.reserve(2);
+			infos.emplace_back(std::format("Path: \"{}\"", project_path.string()));
+
+			switch(res.error()){
+				case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_NOT_ABSOLUTE: {
+					infos.emplace_back("Path isn't absolute");
+				} break;
+
+				case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_DOESNT_EXIST: {
+					infos.emplace_back("Path doesn't exist");
+				} break;
+
+				case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_NOT_DIRECTORY: {
+					infos.emplace_back("Path isn't directory");
+				} break;
+			}
+
+			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+				panther::Diagnostic::Level::ERROR,
+				panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
+				panther::Diagnostic::Location::NONE,
+				"Invalid path for project",
+				std::move(infos)
+			));
+
+			num_errors += 1;
+		}
+	}
+
 
 	if(
 		config.useStdLib 
 		&& config.output != BuildSystemConfig::Output::TOKENS
 		&& config.output != BuildSystemConfig::Output::AST
 	){
-		const panther::Context::AddSourceResult add_std_lib_res = 
-			context.addStdLib(cmd_args_config.workingDirectory / "../extern/Panther-std/std");
+		const CreatePantherProjectResult std_project_id = context.getSourceManager().createSourceProjectConfig(
+			panther::Source::ProjectConfig{
+				.basePath = cmd_args_config.workingDirectory / "../extern/Panther-std/std",
+				.warn     = panther::Source::ProjectConfig::Warns::all(),
+			}
+		);
 
-		if(add_std_lib_res != panther::Context::AddSourceResult::SUCCESS){
-			error_failed_to_add_std_lib(add_std_lib_res, printer);
-			return evo::resultError;
+		if(std_project_id.has_value() == false){
+			error_failed_to_add_std_lib(std_project_id.error(), printer);
+			num_errors += 1;
 		}
+
+		context.addStdLib(*std_project_id);
 	}
 
-
-
-	for(const panther::Source::ProjectConfig& project_config : config.projectConfigs){
-		std::ignore = context.getSourceManager().createSourceProjectConfig(std::move(project_config));
+	if(num_errors > 0){
+		print_num_errors(num_errors, printer);
+		return evo::resultError;
 	}
+
 
 	for(const panther::Context::BuildSystemConfig::PantherFile& source_file : config.sourceFiles){
 		const panther::Context::AddSourceResult result = context.addSourceFile(source_file.path, source_file.projectID);
@@ -247,6 +320,8 @@ EVO_NODISCARD static auto run_compile(
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_file.path))
 					}
 				));
+
+				num_errors += 1;
 			} break;
 
 			case panther::Context::AddSourceResult::NOT_DIRECTORY: {
@@ -278,12 +353,19 @@ EVO_NODISCARD static auto run_compile(
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", c_lang_header_file.path))
 					}
 				));
+				num_errors += 1;
 			} break;
 
 			case panther::Context::AddSourceResult::NOT_DIRECTORY: {
 				evo::debugFatalBreak("Shouldn't be possible to get this code");
 			} break;
 		}
+	}
+
+
+	if(num_errors > 0){
+		print_num_errors(num_errors, printer);
+		return evo::resultError;
 	}
 
 

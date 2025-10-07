@@ -24,19 +24,48 @@ namespace pcit::panther{
 
 	class SourceManager{
 		public:
+			enum class CreateSourceProjectConfigFailReason{
+				PATH_NOT_ABSOLUTE,
+				PATH_DOESNT_EXIST,
+				PATH_NOT_DIRECTORY,
+			};
+
+		public:
 			SourceManager() = default;
 			~SourceManager() = default;
 
 
 			EVO_NODISCARD auto createSourceProjectConfig(Source::ProjectConfig&& src_comp_config)
-			-> Source::ProjectConfig::ID {
-				evo::debugAssert(src_comp_config.basePath.is_absolute(), "Base path must be absolute");
+			-> evo::Expected<Source::ProjectConfig::ID, CreateSourceProjectConfigFailReason> {
+				if(src_comp_config.basePath.is_absolute() == false){
+					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_NOT_ABSOLUTE);
+				}
+
+				if(path_exitsts(src_comp_config.basePath) == false){
+					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_DOESNT_EXIST);
+				}
+
+				if(path_exitsts(src_comp_config.basePath) == false){
+					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_NOT_DIRECTORY);
+				}
+
 				return this->priv.source_project_configs.emplace_back(std::move(src_comp_config));
 			}
 
 			EVO_NODISCARD auto createSourceProjectConfig(const Source::ProjectConfig& src_comp_config)
-			-> Source::ProjectConfig::ID {
-				evo::debugAssert(src_comp_config.basePath.is_absolute(), "Base path must be absolute");
+			-> evo::Expected<Source::ProjectConfig::ID, CreateSourceProjectConfigFailReason> {
+				if(src_comp_config.basePath.is_absolute() == false){
+					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_NOT_ABSOLUTE);
+				}
+
+				if(path_exitsts(src_comp_config.basePath) == false){
+					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_DOESNT_EXIST);
+				}
+
+				if(path_exitsts(src_comp_config.basePath) == false){
+					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_NOT_DIRECTORY);
+				}
+
 				return this->priv.source_project_configs.emplace_back(src_comp_config);
 			}
 
@@ -142,6 +171,12 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto emplace_source_project_config(auto&&... args) -> Source::ProjectConfig::ID {
 				return this->priv.source_project_configs.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+
+			EVO_NODISCARD static auto path_exitsts(const std::filesystem::path& path) -> bool {
+				auto ec = std::error_code();
+				return std::filesystem::exists(path, ec) && (ec.value() == 0);
 			}
 	
 		private:
