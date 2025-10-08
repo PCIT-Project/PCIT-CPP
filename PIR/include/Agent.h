@@ -229,6 +229,14 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// switches
+
+			auto createSwitch(Expr cond, evo::SmallVector<Switch::Case>&& cases, BasicBlock::ID default_block) const
+				-> Expr;
+			EVO_NODISCARD auto getSwitch(const Expr& expr) const -> Switch;
+
+
+			///////////////////////////////////
 			// alloca
 
 			EVO_NODISCARD auto createAlloca(const Type& type, std::string&& name = "") const -> Expr;

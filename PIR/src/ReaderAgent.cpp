@@ -21,7 +21,7 @@ namespace pcit::pir{
 		evo::debugAssert(expr.isValue(), "Expr must be a value in order to get the type");
 
 		switch(expr.kind()){
-			case Expr::Kind::NONE:             evo::unreachable();
+			case Expr::Kind::NONE:             evo::debugAssert("Not a valid value");
 			case Expr::Kind::GLOBAL_VALUE:     return this->module.createPtrType();
 			case Expr::Kind::FUNCTION_POINTER: return this->module.createPtrType();
 			case Expr::Kind::NUMBER:           return this->getNumber(expr).type;
@@ -59,20 +59,21 @@ namespace pcit::pir{
 					}
 				});
 			} break;
-			case Expr::Kind::CALL_VOID:         evo::unreachable();
-			case Expr::Kind::ABORT:             evo::unreachable();
-			case Expr::Kind::BREAKPOINT:        evo::unreachable();
-			case Expr::Kind::RET:               evo::unreachable();
-			case Expr::Kind::JUMP:              evo::unreachable();
-			case Expr::Kind::BRANCH:            evo::unreachable();
-			case Expr::Kind::UNREACHABLE:       evo::unreachable();
+			case Expr::Kind::CALL_VOID:         evo::debugFatalBreak("Not a value");
+			case Expr::Kind::ABORT:             evo::debugFatalBreak("Not a value");
+			case Expr::Kind::BREAKPOINT:        evo::debugFatalBreak("Not a value");
+			case Expr::Kind::RET:               evo::debugFatalBreak("Not a value");
+			case Expr::Kind::JUMP:              evo::debugFatalBreak("Not a value");
+			case Expr::Kind::BRANCH:            evo::debugFatalBreak("Not a value");
+			case Expr::Kind::UNREACHABLE:       evo::debugFatalBreak("Not a value");
 			case Expr::Kind::PHI:               return this->getExprType(this->getPhi(expr).predecessors[0].value);
+			case Expr::Kind::SWITCH:            evo::debugFatalBreak("Not a value");
 			case Expr::Kind::ALLOCA:            return this->module.createPtrType();
 			case Expr::Kind::LOAD:              return this->getLoad(expr).type;
-			case Expr::Kind::STORE:             evo::unreachable();
+			case Expr::Kind::STORE:             evo::debugFatalBreak("Not a value");
 			case Expr::Kind::CALC_PTR:          return this->module.createPtrType();
-			case Expr::Kind::MEMCPY:            evo::unreachable();
-			case Expr::Kind::MEMSET:            evo::unreachable();
+			case Expr::Kind::MEMCPY:            evo::debugFatalBreak("Not a value");
+			case Expr::Kind::MEMSET:            evo::debugFatalBreak("Not a value");
 			case Expr::Kind::BIT_CAST:          return this->getBitCast(expr).toType;
 			case Expr::Kind::TRUNC:             return this->getTrunc(expr).toType;
 			case Expr::Kind::FTRUNC:            return this->getFTrunc(expr).toType;
@@ -84,30 +85,30 @@ namespace pcit::pir{
 			case Expr::Kind::FTOI:              return this->getFToI(expr).toType;
 			case Expr::Kind::FTOUI:             return this->getFToUI(expr).toType;
 			case Expr::Kind::ADD:               return this->getExprType(this->getAdd(expr).lhs);
-			case Expr::Kind::SADD_WRAP:         evo::unreachable();
+			case Expr::Kind::SADD_WRAP:         evo::debugFatalBreak("Not a value");
 			case Expr::Kind::SADD_WRAP_RESULT:  return this->getExprType(this->getSAddWrap(expr).lhs);
 			case Expr::Kind::SADD_WRAP_WRAPPED: return this->module.createBoolType();
-			case Expr::Kind::UADD_WRAP:         evo::unreachable();
+			case Expr::Kind::UADD_WRAP:         evo::debugFatalBreak("Not a value");
 			case Expr::Kind::UADD_WRAP_RESULT:  return this->getExprType(this->getUAddWrap(expr).lhs);
 			case Expr::Kind::UADD_WRAP_WRAPPED: return this->module.createBoolType();
 			case Expr::Kind::SADD_SAT:          return this->getExprType(this->getSAddSat(expr).lhs);
 			case Expr::Kind::UADD_SAT:          return this->getExprType(this->getUAddSat(expr).lhs);
 			case Expr::Kind::FADD:              return this->getExprType(this->getFAdd(expr).lhs);
 			case Expr::Kind::SUB:               return this->getExprType(this->getSub(expr).lhs);
-			case Expr::Kind::SSUB_WRAP:         evo::unreachable();
+			case Expr::Kind::SSUB_WRAP:         evo::debugFatalBreak("Not a value");
 			case Expr::Kind::SSUB_WRAP_RESULT:  return this->getExprType(this->getSSubWrap(expr).lhs);
 			case Expr::Kind::SSUB_WRAP_WRAPPED: return this->module.createBoolType();
-			case Expr::Kind::USUB_WRAP:         evo::unreachable();
+			case Expr::Kind::USUB_WRAP:         evo::debugFatalBreak("Not a value");
 			case Expr::Kind::USUB_WRAP_RESULT:  return this->getExprType(this->getUSubWrap(expr).lhs);
 			case Expr::Kind::USUB_WRAP_WRAPPED: return this->module.createBoolType();
 			case Expr::Kind::SSUB_SAT:          return this->getExprType(this->getSSubSat(expr).lhs);
 			case Expr::Kind::USUB_SAT:          return this->getExprType(this->getUSubSat(expr).lhs);
 			case Expr::Kind::FSUB:              return this->getExprType(this->getFSub(expr).lhs);
 			case Expr::Kind::MUL:               return this->getExprType(this->getMul(expr).lhs);
-			case Expr::Kind::SMUL_WRAP:         evo::unreachable();
+			case Expr::Kind::SMUL_WRAP:         evo::debugFatalBreak("Not a value");
 			case Expr::Kind::SMUL_WRAP_RESULT:  return this->getExprType(this->getSMulWrap(expr).lhs);
 			case Expr::Kind::SMUL_WRAP_WRAPPED: return this->module.createBoolType();
-			case Expr::Kind::UMUL_WRAP:         evo::unreachable();
+			case Expr::Kind::UMUL_WRAP:         evo::debugFatalBreak("Not a value");
 			case Expr::Kind::UMUL_WRAP_RESULT:  return this->getExprType(this->getUMulWrap(expr).lhs);
 			case Expr::Kind::UMUL_WRAP_WRAPPED: return this->module.createBoolType();
 			case Expr::Kind::SMUL_SAT:          return this->getExprType(this->getSMulSat(expr).lhs);
@@ -151,7 +152,7 @@ namespace pcit::pir{
 			case Expr::Kind::CTTZ:              return this->getExprType(this->getCTTZ(expr).arg);
 		}
 
-		evo::unreachable();
+		evo::debugFatalBreak("Unknown or unsupported expr");
 	}
 
 	
@@ -234,6 +235,14 @@ namespace pcit::pir{
 		evo::debugAssert(expr.kind() == Expr::Kind::PHI, "Not a phi");
 
 		return this->module.phis[expr.index];
+	}
+
+
+	auto ReaderAgent::getSwitch(const Expr& expr) const -> const Switch& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::SWITCH, "Not a switch");
+
+		return this->module.switches[expr.index];
 	}
 
 

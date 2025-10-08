@@ -477,6 +477,8 @@ namespace pcit::pir{
 				this->printer.print("${}", phi.name);
 			} break;
 
+			case Expr::Kind::SWITCH: evo::debugFatalBreak("Expr::Kind::SWITCH is not a valid expression");
+
 			case Expr::Kind::ALLOCA: {
 				const Alloca& alloca = this->reader.getAlloca(expr);
 				this->printer.print("${}", alloca.name);
@@ -956,6 +958,26 @@ namespace pcit::pir{
 				}
 
 				this->printer.println();
+			} break;
+
+			case Expr::Kind::SWITCH: {
+				const Switch& switch_stmt = this->reader.getSwitch(stmt);
+
+				this->printer.printRed("{}@switch ", tabs(2));
+
+				this->print_expr(switch_stmt.cond);
+				this->printer.print(" ");
+
+				for(const Switch::Case& switch_case : switch_stmt.cases){
+					this->printer.print("[");
+					this->print_expr(switch_case.value);
+					this->printer.printRed(" -> ");
+					this->printer.print("${}], ", reader.getBasicBlock(switch_case.block).getName());
+				}
+
+				this->printer.print("[");
+				this->printer.printRed("default -> ");
+				this->printer.println("${}]", reader.getBasicBlock(switch_stmt.defaultBlock).getName());
 			} break;
 
 			case Expr::Kind::ALLOCA: evo::debugFatalBreak("Expr::Kind::Alloca should not be printed through this func");

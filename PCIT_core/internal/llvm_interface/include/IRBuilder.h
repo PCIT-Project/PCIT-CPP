@@ -84,6 +84,12 @@ namespace pcit::llvmint{
 			};
 			auto createPhi(const Type& type, evo::ArrayProxy<Incoming> incoming, evo::CStrProxy name = '\0') -> Value;
 
+			struct Case{
+				ConstantInt value;
+				BasicBlock block;
+			};
+			auto createSwitch(const Value& cond, BasicBlock default_block, evo::ArrayProxy<Case> cases) -> void;
+
 
 			auto createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0') 
 				-> CallInst;

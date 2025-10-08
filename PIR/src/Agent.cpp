@@ -200,7 +200,17 @@ namespace pcit::pir{
 						}
 					} break;
 
-					case Expr::Kind::ALLOCA:      continue;
+					case Expr::Kind::SWITCH: {
+						Switch& switch_stmt = this->module.switches[stmt.index];
+
+						if(switch_stmt.cond == original){ switch_stmt.cond = replacement; }
+
+						for(Switch::Case& switch_case : switch_stmt.cases){
+							if(switch_case.value == original){ switch_case.value = replacement; }
+						}
+					} break;
+
+					case Expr::Kind::ALLOCA: continue;
 
 					case Expr::Kind::LOAD: {
 						Load& load = this->module.loads[stmt.index];
@@ -1190,6 +1200,39 @@ namespace pcit::pir{
 
 	auto Agent::getPhi(const Expr& expr) const -> Phi {
 		return ReaderAgent(this->module, this->getTargetFunction()).getPhi(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// switches
+
+	auto Agent::createSwitch(Expr cond, evo::SmallVector<Switch::Case>&& cases, BasicBlock::ID default_block) const
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(cases.empty() == false, "Switch statement must have at least 1 case");
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			const pir::Type cond_type = this->getExprType(cond);
+
+			evo::debugAssert(cond_type.kind() == pir::Type::Kind::INTEGER, "Cond type must be integral");
+
+			for(const Switch::Case& target_case : cases){
+				evo::debugAssert(
+					this->getExprType(target_case.value) == cond_type,
+					"All switch cases have the same type as the condition"
+				);
+			}
+		#endif
+
+		const auto new_expr = Expr(
+			Expr::Kind::SWITCH, this->module.switches.emplace_back(cond, std::move(cases), default_block)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getSwitch(const Expr& expr) const -> Switch {
+		return ReaderAgent(this->module, this->getTargetFunction()).getSwitch(expr);
 	}
 
 
@@ -2970,8 +3013,9 @@ namespace pcit::pir{
 			break; case Expr::Kind::RET:               this->module.rets.erase(expr.index);
 			break; case Expr::Kind::JUMP:              return;
 			break; case Expr::Kind::BRANCH:            this->module.branches.erase(expr.index);
-			break; case Expr::Kind::PHI:               this->module.phis.erase(expr.index);
 			break; case Expr::Kind::UNREACHABLE:       return;
+			break; case Expr::Kind::PHI:               this->module.phis.erase(expr.index);
+			break; case Expr::Kind::SWITCH:            return;
 			break; case Expr::Kind::ALLOCA:            this->target_func->allocas.erase(expr.index);
 			break; case Expr::Kind::LOAD:              this->module.loads.erase(expr.index);
 			break; case Expr::Kind::STORE:             this->module.stores.erase(expr.index);
@@ -3096,6 +3140,7 @@ namespace pcit::pir{
 					case Expr::Kind::BRANCH:           continue;
 					case Expr::Kind::UNREACHABLE:      continue;
 					case Expr::Kind::PHI:              if(this->getPhi(stmt).name == name){ return true; } continue;
+					case Expr::Kind::SWITCH:           continue;
 					case Expr::Kind::ALLOCA:           if(this->getAlloca(stmt).name == name){ return true; } continue;
 					case Expr::Kind::LOAD:             if(this->getLoad(stmt).name == name){ return true; } continue;
 					case Expr::Kind::STORE:            continue;

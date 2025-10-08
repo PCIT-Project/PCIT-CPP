@@ -341,6 +341,15 @@ namespace pcit::panther::sema{
 		uint32_t fieldIndex;
 	};
 
+	struct UnionTagCmp{
+		using ID = UnionTagCmpID;
+
+		Expr value;
+		BaseType::Union::ID unionTypeID;
+		uint32_t fieldIndex;
+		bool isEqual;
+	};
+
 
 
 	//////////////////////////////////////////////////////////////////////

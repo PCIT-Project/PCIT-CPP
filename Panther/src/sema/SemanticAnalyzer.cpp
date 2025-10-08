@@ -2374,15 +2374,6 @@ namespace pcit::panther{
 		if(union_attrs.isError()){ return Result::ERROR; }
 
 
-		if(union_attrs.value().is_untagged == false){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.union_decl,
-				"Tagged unions (unions without attribute #untagged) are unimplemented"
-			);
-			return Result::ERROR;
-		}
-
 
 		///////////////////////////////////
 		// create
@@ -2494,7 +2485,7 @@ namespace pcit::panther{
 
 			
 
-			union_type.fields.emplace_back(ast_field.ident, field_type_id.asTypeID());
+			union_type.fields.emplace_back(ast_field.ident, field_type_id);
 
 			const std::string_view ident_str = this->source.getTokenBuffer()[ast_field.ident].getString();
 			if(this->add_ident_to_scope(
@@ -3865,25 +3856,34 @@ namespace pcit::panther{
 
 				switch(this->source.getTokenBuffer()[current_func.name.as<Token::ID>()].kind()){
 					case Token::Kind::KEYWORD_NEW: case Token::Kind::KEYWORD_COPY: case Token::Kind::KEYWORD_MOVE: {
-						this->get_current_scope_level().addIdentValueState(
-							created_return_param_id, sema::ScopeLevel::ValueState::INITIALIZING
-						);
-
-
 						const TypeInfo& return_type = 
 							this->context.getTypeManager().getTypeInfo(func_type.returnParams[i].typeID.asTypeID());
 						const BaseType::Struct& return_struct_type =
 							this->context.getTypeManager().getStruct(return_type.baseTypeID().structID());
 
-						for(uint32_t j = 0; j < return_struct_type.memberVars.size(); j+=1){
+						if(return_struct_type.memberVars.empty()) [[unlikely]] {
+							// mark the output param already initialized if has no members
 							this->get_current_scope_level().addIdentValueState(
-								sema::ReturnParamAccessorValueStateID(created_return_param_id, j),
-								sema::ScopeLevel::ValueState::UNINIT
+								created_return_param_id, sema::ScopeLevel::ValueState::INIT
 							);
+							
+						}else{
+							this->get_current_scope_level().addIdentValueState(
+								created_return_param_id, sema::ScopeLevel::ValueState::INITIALIZING
+							);
+
+							for(uint32_t j = 0; j < return_struct_type.memberVars.size(); j+=1){
+								this->get_current_scope_level().addIdentValueState(
+									sema::ReturnParamAccessorValueStateID(created_return_param_id, j),
+									sema::ScopeLevel::ValueState::UNINIT
+								);
+							}
+
+							SymbolProc::FuncInfo& func_info_mut =
+								this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+							func_info_mut.num_members_of_initializing_are_uninit = return_struct_type.memberVars.size();
 						}
 
-						SymbolProc::FuncInfo& func_info_mut = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-						func_info_mut.num_members_of_initializing_are_uninit = return_struct_type.memberVars.size();
 					} break;
 
 					default: {
@@ -3946,30 +3946,6 @@ namespace pcit::panther{
 		sema::Func& current_func = this->get_current_func();
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
-		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-
-		if(func_info.num_members_of_initializing_are_uninit != 0){
-			if(func_info.num_members_of_initializing_are_uninit == 1){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NOT_ALL_MEMBERS_OF_OVERLOAD_OUTPUT_ARE_INIT,
-					instr.func_decl,
-					"Not all members of the output are initialized",
-					Diagnostic::Info("Missing 1 member")
-				);
-
-			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_NOT_ALL_MEMBERS_OF_OVERLOAD_OUTPUT_ARE_INIT,
-					instr.func_decl,
-					"Not all members of the output are initialized",
-					Diagnostic::Info(
-						std::format("Missing {} members", func_info.num_members_of_initializing_are_uninit)
-					)
-				);	
-			}
-			return Result::ERROR;
-		}
-
 
 		if(this->get_current_scope_level().isTerminated()){
 			current_func.isTerminated = true;
@@ -4011,6 +3987,7 @@ namespace pcit::panther{
 
 		if(current_func.isConstexpr){
 			bool any_waiting = false;
+			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 			for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
 				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
 
@@ -4614,7 +4591,7 @@ namespace pcit::panther{
 				this->wait_on_symbol_proc_emit_error(
 					wait_on_symbol_proc_result,
 					instr.method_name,
-					std::format("Struct has no method named \"{}\"", target_ident_str)
+					std::format("Interface has no method named \"{}\"", target_ident_str)
 				);
 				return Result::ERROR;
 			} break;
@@ -5187,6 +5164,29 @@ namespace pcit::panther{
 					"Incorrect return statement kind for single unnamed return parameters",
 					Diagnostic::Info("Use \"return {EXPRESSION};\" instead")
 				);
+				return Result::ERROR;
+			}
+
+			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+			if(func_info.num_members_of_initializing_are_uninit != 0){
+				if(func_info.num_members_of_initializing_are_uninit == 1){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NOT_ALL_MEMBERS_OF_OVERLOAD_OUTPUT_ARE_INIT,
+						instr.return_stmt,
+						"Not all members of the output are initialized",
+						Diagnostic::Info("Missing 1 member")
+					);
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_NOT_ALL_MEMBERS_OF_OVERLOAD_OUTPUT_ARE_INIT,
+						instr.return_stmt,
+						"Not all members of the output are initialized",
+						Diagnostic::Info(
+							std::format("Missing {} members", func_info.num_members_of_initializing_are_uninit)
+						)
+					);	
+				}
 				return Result::ERROR;
 			}
 
@@ -12866,10 +12866,33 @@ namespace pcit::panther{
 		}
 
 		if(rhs.isSingleNormalValue() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS, instr.infix.rhs, "Invalid RHS of math infix operator"
-			);
-			return Result::ERROR;
+			if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::COMPARATIVE){
+				const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
+
+				if(op_kind == Token::lookupKind("==") || op_kind == Token::lookupKind("!=")){
+					if(rhs.value_category != TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR){
+						this->emit_error(
+							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
+							instr.infix.rhs,
+							"Invalid RHS of math infix operator"
+						);
+						return Result::ERROR;
+					}
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
+						instr.infix.rhs,
+						"Invalid RHS of math infix operator"
+					);
+					return Result::ERROR;
+				}
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS, instr.infix.rhs, "Invalid RHS of math infix operator"
+				);
+				return Result::ERROR;
+			}
 		}
 
 
@@ -13073,6 +13096,63 @@ namespace pcit::panther{
 
 
 				}else{
+					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::COMPARATIVE){
+						const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
+
+						if(op_kind == Token::lookupKind("==") || op_kind == Token::lookupKind("!=")){
+							if(rhs.value_category == TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR){
+								const TypeInfo& lhs_actual_type = 
+									this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+
+								const TermInfo::TaggedUnionFieldAccessor& tagged_union_field_accessor = 
+									rhs.type_id.as<TermInfo::TaggedUnionFieldAccessor>();
+
+								if(
+									lhs_actual_type.qualifiers().empty() == false
+									|| lhs_actual_type.baseTypeID().kind() != BaseType::Kind::UNION
+									|| lhs_actual_type.baseTypeID().unionID() != tagged_union_field_accessor.union_id
+								){
+									this->error_type_mismatch(
+										this->context.type_manager.getOrCreateTypeInfo(
+											TypeInfo(BaseType::ID(tagged_union_field_accessor.union_id))
+										),
+										lhs,
+										"RHS of union tag comparison",
+										instr.infix.lhs
+									);
+									return Result::ERROR;
+								}
+								
+								if constexpr(IS_CONSTEXPR){
+									this->emit_error(
+										Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+										instr.infix,
+										"Constexpr comparison of union tag is unimplemented"
+									);
+									return Result::ERROR;
+								}else{
+									this->return_term_info(instr.output,
+										TermInfo::ValueCategory::EPHEMERAL,
+										lhs.value_stage,
+										TermInfo::ValueState::NOT_APPLICABLE,
+										TypeManager::getTypeBool(),
+										sema::Expr(
+											this->context.sema_buffer.createUnionTagCmp(
+												lhs.getExpr(),
+												lhs_actual_type.baseTypeID().unionID(),
+												tagged_union_field_accessor.field_index,
+												op_kind == Token::lookupKind("==")
+											)
+										)
+									);
+									return Result::SUCCESS;
+								}
+							}
+						}
+					}
+
+
+
 					if(this->type_check<true, true>(
 						lhs_actual_type_id, rhs, "RHS of infix math operator", instr.infix.rhs
 					).ok == false){
@@ -14582,6 +14662,29 @@ namespace pcit::panther{
 					actual_lhs_type.baseTypeID().unionID()
 				);
 
+				for(uint32_t i = 0; const BaseType::Union::Field& field : lhs_union.fields){
+					if(lhs_union.getFieldName(field, this->context.getSourceManager()) == rhs_ident_str){
+						if(lhs_union.isUntagged){
+							this->emit_error(
+								Diagnostic::Code::SEMA_UNION_UNTAGGED_TYPE_FIELD_ACCESS,
+								instr.infix.lhs,
+								"Cannot type access a field of an untagged union"
+							);
+							return Result::SUCCESS;
+						}
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR,
+							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::TaggedUnionFieldAccessor(actual_lhs_type.baseTypeID().unionID(), i),
+							std::nullopt
+						);
+						return Result::SUCCESS;
+					}
+
+					i += 1;
+				}
+
 				namespaced_members = lhs_union.namespacedMembers;
 				scope_level = lhs_union.scopeLevel;
 
@@ -14611,7 +14714,7 @@ namespace pcit::panther{
 				this->wait_on_symbol_proc_emit_error(
 					wait_on_symbol_proc_result,
 					instr.infix.rhs,
-					std::format("Struct has no member named \"{}\"", rhs_ident_str)
+					std::format("Type has no member named \"{}\"", rhs_ident_str)
 				);
 				return Result::ERROR;
 			} break;
@@ -15269,7 +15372,7 @@ namespace pcit::panther{
 				this->wait_on_symbol_proc_emit_error(
 					wait_on_symbol_proc_result,
 					instr.infix.rhs,
-					std::format("Struct has no member named \"{}\"", rhs_ident_str)
+					std::format("Union has no member named \"{}\"", rhs_ident_str)
 				);
 				return Result::ERROR;
 			} break;
@@ -16847,7 +16950,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::INT_VALUE:              case sema::Expr::Kind::FLOAT_VALUE:
 			case sema::Expr::Kind::BOOL_VALUE:             case sema::Expr::Kind::STRING_VALUE:
 			case sema::Expr::Kind::AGGREGATE_VALUE:        case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::INTRINSIC_FUNC:         case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
 			case sema::Expr::Kind::COPY:                   case sema::Expr::Kind::MOVE:
 			case sema::Expr::Kind::FORWARD:                case sema::Expr::Kind::FUNC_CALL:
 			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
@@ -16861,7 +16964,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF: case sema::Expr::Kind::INIT_ARRAY_REF:
 			case sema::Expr::Kind::ARRAY_REF_INDEXER:      case sema::Expr::Kind::ARRAY_REF_SIZE:
 			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:   case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::GLOBAL_VAR:             case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::UNION_TAG_CMP:          case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}
@@ -19601,25 +19705,28 @@ namespace pcit::panther{
 
 			if(used_field_name != field_name){ continue; }
 
-			if(field.typeID.isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_UNION_VALUE_TO_VOID_FIELD,
-					instr.designated_init_new.memberInits[0].expr,
-					"Can't assign a value to a `Void` union field"
-				);
-				return Result::ERROR;
-			}
-
 
 			TermInfo& init_value = this->get_term_info(instr.member_init_exprs[0]);
 
-			if(this->type_check<true, true>(
-				field.typeID.asTypeID(),
-				init_value,
-				"Union field initializer",
-				instr.designated_init_new.memberInits[0].ident
-			).ok == false){
-				return Result::ERROR;
+			if(field.typeID.isVoid()){
+				if(init_value.value_category != TermInfo::ValueCategory::NULL_VALUE){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NEW_UNION_VALUE_TO_VOID_FIELD,
+						instr.designated_init_new.memberInits[0].expr,
+						"Initialization of a `Void` union field must be value [null]"
+					);
+					return Result::ERROR;
+				}
+				
+			}else{
+				if(this->type_check<true, true>(
+					field.typeID.asTypeID(),
+					init_value,
+					"Union field initializer",
+					instr.designated_init_new.memberInits[0].ident
+				).ok == false){
+					return Result::ERROR;
+				}
 			}
 
 
@@ -19643,13 +19750,23 @@ namespace pcit::panther{
 
 
 			if constexpr(IS_CONSTEXPR){
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					value_stage,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					target_type_info_id,
-					init_value.getExpr()
-				);
+				if(union_info.isUntagged){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type_info_id,
+						init_value.getExpr()
+					);
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+						instr.designated_init_new,
+						"Constexpr tagged union designated init `new` is unimplemented"
+					);
+					return Result::ERROR;
+				}
 
 			}else{
 				this->return_term_info(instr.output,
@@ -20853,6 +20970,9 @@ namespace pcit::panther{
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE:
 				evo::debugFatalBreak("TEMPLATE_TYPE should not be compared with this function");
+
+			case TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR:
+				evo::debugFatalBreak("TAGGED_UNION_FIELD_ACCESSOR should not be compared with this function");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported value category");
@@ -21263,6 +21383,10 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::ExceptParamPack>()){
 				return "{EXCEPT_PARAM_PACK}";
+
+			}else if constexpr(std::is_same<TypeID, TermInfo::TaggedUnionFieldAccessor>()){
+				// TODO(FEATURE): actual name?
+				return "{TAGGED_UNION_FIELD_ACCESSOR}";
 
 			}else{
 				static_assert(false, "Unsupported type id kind");

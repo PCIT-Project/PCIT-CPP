@@ -1,48 +1,50 @@
-def std = @import("std");
 
 
-interface Shape = {
-	func num_sides = () -> F32;
-	func area = (this) -> F32;
-}
-
-
-type Rectangle = struct {
-	var width: F32;
-	var height: F32;
-
-	func num_sides_impl = () -> F32 { return 4.0; }
-
-	func area = (this) -> F32 { return this.width * this.height; }
-
-	impl Shape {
-		num_sides = num_sides_impl,
-		area = area,
+type NonTrivial = struct {
+	func new = () #rt -> (output: This) {
+		num_nt = num_nt + 1;
+		return...;
 	}
-}
 
-type Circle = struct {
-	var radius: F32;
-
-	func num_sides_impl = () -> F32 { return 0.0; }
-	func area = (this) -> F32 { return this.radius * this.radius * 3.14; }
-
-	impl Shape {
-		num_sides = num_sides_impl,
-		area = area,
+	func delete = (this) #rt -> Void {
+		num_nt = num_nt - 1;
 	}
+
+	func copy = (this) #rt -> (output: This) {
+		num_nt = num_nt + 1;
+		return...;
+	}
+
+	func move = (this) #rt -> (output: This) {
+		return...;
+	}
+
+
+	var num_nt: USize #global = 0;
+}
+
+
+type Variant = union {
+	float : F32,
+	none  : Void,
+	int   : Int,
+	nt    : NonTrivial,
+	nt2   : NonTrivial,
+	nt3   : NonTrivial,
 }
 
 
 
-func get_area = (shape: Shape*) -> F32 {
-	return shape.area();
-}
 
+func test = () #rt -> Bool {
+	var foo = new Variant{none = null};
+	// var bar = new Variant{nt2 = new NonTrivial()};
+	// var bar: Variant = move foo;
+
+	return foo == Variant.none;
+}
 
 func entry = () #entry -> UI8 {
-	var rect = new Rectangle{width = 2.0, height = 3.0};
-	var circle = new Circle{radius = 5.0};
-	
-	return get_area(&circle as Shape*) as UI8;
+	return (test() && NonTrivial.num_nt == 0) as UI8;
 }
+

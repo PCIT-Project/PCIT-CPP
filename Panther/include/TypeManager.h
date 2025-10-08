@@ -443,7 +443,7 @@ namespace pcit::panther{
 			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
 			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<StructTemplateID> templateID = std::nullopt; // nullopt if not instantiated
-			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uin32_t max if not instantiation
+			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uint32_t max if not instantiation
 			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock) when not defComplete
 			evo::SmallVector<MemberVar*> memberVarsABI; // this is the order that members are for ABI
 			SymbolProcNamespace* namespacedMembers; // nullptr if not pthr src type

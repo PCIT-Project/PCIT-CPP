@@ -872,12 +872,22 @@ namespace pcit::panther{
 		const BaseType::Union& union_info = this->context.getTypeManager().getUnion(union_id);
 
 		const pir::Type new_type = [&](){
+			const pir::Type data_type = this->module.createArrayType(
+				this->module.createIntegerType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
+			);
+
+
 			if(union_info.isUntagged){
-				return this->module.createArrayType(
-					this->module.createIntegerType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
-				);
+				return data_type;
+
 			}else{
-				evo::unimplemented();
+				return this->module.createStructType(
+					this->mangle_name(union_id),
+					evo::SmallVector<pir::Type>{
+						data_type, this->module.createIntegerType(unsigned(std::bit_ceil(union_info.fields.size())))
+					},
+					true
+				);
 			}
 		}();
 
@@ -2449,42 +2459,57 @@ namespace pcit::panther{
 				const sema::UnionAccessor& union_accessor = 
 					this->context.getSemaBuffer().getUnionAccessor(expr.unionAccessorID());
 
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const TypeInfo& target_type = 
-						this->context.getTypeManager().getTypeInfo(union_accessor.targetTypeID);
-					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
-						target_type.baseTypeID().unionID()
-					);
-
-					return this->agent.createLoad(
-						this->get_expr_pointer(union_accessor.target),
-						this->get_type<false>(target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()),
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name("UNION_ACCESSOR")
-					);
-					
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->get_expr_pointer(union_accessor.target);
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					const TypeInfo& target_type = 
-						this->context.getTypeManager().getTypeInfo(union_accessor.targetTypeID);
-					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
-						target_type.baseTypeID().unionID()
-					);
-
-					return this->agent.createMemcpy(
-						store_locations[0],
-						this->get_expr_pointer(union_accessor.target),
-						this->get_type<false>(target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID())
-					);
-					
-				}else{
+				if constexpr(MODE == GetExprMode::DISCARD){
 					this->get_expr_discard(union_accessor.target);
 					return std::nullopt;
+
+				}else{
+					const TypeInfo& target_type = 
+						this->context.getTypeManager().getTypeInfo(union_accessor.targetTypeID);
+
+					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
+						target_type.baseTypeID().unionID()
+					);
+
+
+					const pir::Expr data_ptr = [&](){
+						if(target_union_type.isUntagged){
+							return this->get_expr_pointer(union_accessor.target);
+
+						}else{
+							return this->agent.createCalcPtr(
+								this->get_expr_pointer(union_accessor.target),
+								this->get_type<false>(target_type.baseTypeID()),
+								evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+								this->name(".UNION_DATA")
+							);
+						}
+					}();
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(
+							data_ptr,
+							this->get_type<false>(
+								target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
+							),
+							false,
+							pir::AtomicOrdering::NONE,
+							this->name("UNION_ACCESSOR")
+						);
+						
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return data_ptr;
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						return this->agent.createMemcpy(
+							store_locations[0],
+							data_ptr,
+							this->get_type<false>(
+								target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
+							)
+						);
+					}
 				}
-				
 			} break;
 
 			case sema::Expr::Kind::BLOCK_EXPR: {
@@ -3490,7 +3515,123 @@ namespace pcit::panther{
 					}
 
 				}else{
-					evo::unimplemented("Tagged union designated init new");
+					if constexpr(MODE == GetExprMode::DISCARD){
+						this->get_expr_discard(union_designated_init_new.value);
+						return std::nullopt;
+
+					}else{
+						const pir::Type union_pir_type =
+							this->get_type<false>(BaseType::ID(union_designated_init_new.unionTypeID));
+
+						const pir::Expr target = [&](){
+							if constexpr(MODE == GetExprMode::REGISTER){
+								return this->agent.createAlloca(
+									union_pir_type, this->name(".UNION_DESIGNATED_INIT_NEW")
+								);
+
+							}else if constexpr(MODE == GetExprMode::POINTER){
+								return this->agent.createAlloca(
+									union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW")
+								);
+
+							}else{
+								return store_locations[0];
+							}
+						}();
+
+						if(union_designated_init_new.value.kind() != sema::Expr::Kind::NULL_VALUE){
+							const pir::Expr data_ptr = this->agent.createCalcPtr(
+								target,
+								union_pir_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+								this->name(".UNION_DESIGNATED_INIT_NEW.data")
+							);
+
+							const pir::Expr tag_ptr = this->agent.createCalcPtr(
+								target,
+								union_pir_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+								this->name(".UNION_DESIGNATED_INIT_NEW.tag")
+							);
+
+
+							this->get_expr_store(union_designated_init_new.value, data_ptr);
+
+							const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
+							const pir::Expr tag_value = this->agent.createNumber(
+								tag_type,
+								core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
+							);
+							this->agent.createStore(tag_ptr, tag_value);
+
+						}else{
+							const pir::Expr tag_ptr = this->agent.createCalcPtr(
+								target,
+								union_pir_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+								this->name(".UNION_DESIGNATED_INIT_NEW.tag")
+							);
+
+
+							const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
+							const pir::Expr tag_value = this->agent.createNumber(
+								tag_type,
+								core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
+							);
+							this->agent.createStore(tag_ptr, tag_value);
+						}
+					}
+				}
+			} break;
+
+			case sema::Expr::Kind::UNION_TAG_CMP: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+				}else{
+					const sema::UnionTagCmp& union_tag_cmp =
+						this->context.getSemaBuffer().getUnionTagCmp(expr.unionTagCmpID());
+					
+					const pir::Type union_pir_type = this->get_type<false>(BaseType::ID(union_tag_cmp.unionTypeID));
+					const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
+
+					const pir::Expr tag_ptr = this->agent.createCalcPtr(
+						this->get_expr_pointer(union_tag_cmp.value),
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(".UNION_TAG_CMP.tag_ptr")
+					);
+
+					const pir::Expr tag = this->agent.createLoad(
+						tag_ptr, tag_type, false, pir::AtomicOrdering::NONE, this->name(".UNION_TAG_CMP.tag")
+					);
+
+					const pir::Expr tag_cmp_value = this->agent.createNumber(
+						tag_type, core::GenericInt(unsigned(tag_type.getWidth()), union_tag_cmp.fieldIndex)
+					);
+
+					const pir::Expr cmp_result = [&](){
+						if(union_tag_cmp.isEqual){
+							return this->agent.createIEq(tag, tag_cmp_value);
+						}else{
+							return this->agent.createINeq(tag, tag_cmp_value);
+						}
+					}();
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return cmp_result;
+						
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr cmp_result_alloca =
+							this->agent.createAlloca(tag_type, this->name("UNION_TAG_CMP"));
+
+						this->agent.createStore(cmp_result_alloca, cmp_result);
+
+						return cmp_result_alloca;
+
+					}else{
+						this->agent.createStore(store_locations[0], cmp_result);
+						return std::nullopt;
+					}
 				}
 			} break;
 
@@ -4063,9 +4204,64 @@ namespace pcit::panther{
 				const BaseType::Union& union_type =
 					this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
 
+				const pir::Type union_pir_type = this->get_type<false>(expr_type.baseTypeID());
+				const pir::StructType union_struct_type = this->module.getStructType(union_pir_type);
+
 				evo::debugAssert(union_type.isUntagged == false, "untagged union types aren't non-trivially-deletable");
 
-				evo::unimplemented("delete union");
+				const pir::BasicBlock::ID current_block = this->agent.getTargetBasicBlock().getID();
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("UNION_DELETE.end"));
+
+				const pir::Expr data_ptr = this->agent.createCalcPtr(
+					expr,
+					union_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".UNION_DELETE.data")
+				);
+
+				auto cases = evo::SmallVector<pir::Switch::Case>();
+
+				for(size_t i = 0; const BaseType::Union::Field& field : union_type.fields){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(field.typeID.isVoid()){ continue; }
+					if(this->context.getTypeManager().isTriviallyDeletable(field.typeID.asTypeID())){ continue; }
+
+					const pir::BasicBlock::ID field_delete_block =
+						this->agent.createBasicBlockInline(this->name("UNION_DELETE.field_{}", i));
+
+					cases.emplace_back(
+						this->agent.createNumber(
+							union_struct_type.members[1],
+							core::GenericInt(union_struct_type.members[1].getWidth(), i)
+						),
+						field_delete_block
+					);
+
+					this->agent.setTargetBasicBlock(field_delete_block);
+
+					this->delete_expr(data_ptr, field.typeID.asTypeID());
+
+					this->agent.createJump(end_block);
+				}
+
+				this->agent.setTargetBasicBlock(current_block);
+				const pir::Expr tag_ptr = this->agent.createCalcPtr(
+					expr,
+					union_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".UNION_DELETE.tag_ptr")
+				);
+				const pir::Expr tag = this->agent.createLoad(
+					tag_ptr,
+					union_struct_type.members[1],
+					false,
+					pir::AtomicOrdering::NONE,
+					this->name(".UNION_DELETE.tag")
+				);
+				this->agent.createSwitch(tag, std::move(cases), end_block);
+
+				this->agent.setTargetBasicBlock(end_block);
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -4382,11 +4578,109 @@ namespace pcit::panther{
 					const BaseType::Union& union_type =
 						this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
 
+					const pir::Type union_pir_type = this->get_type<false>(expr_type.baseTypeID());
+					const pir::StructType union_struct_type = this->module.getStructType(union_pir_type);
+
 					evo::debugAssert(
 						union_type.isUntagged == false, "untagged union types aren't non-trivially-copyable"
 					);
 
-					evo::unimplemented("copy union");
+					const pir::BasicBlock::ID current_block = this->agent.getTargetBasicBlock().getID();
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("UNION_COPY.end"));
+
+					const pir::Expr src_data_ptr = this->agent.createCalcPtr(
+						expr,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(".UNION_COPY.src_data")
+					);
+
+					const pir::Expr src_tag_ptr = this->agent.createCalcPtr(
+						expr,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(".UNION_COPY.src_tag_ptr")
+					);
+					const pir::Expr src_tag = this->agent.createLoad(
+						src_tag_ptr,
+						union_struct_type.members[1],
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(".UNION_COPY.src_tag")
+					);
+
+					const pir::Expr dst = [&](){
+						if constexpr(MODE == GetExprMode::REGISTER){
+							return this->agent.createAlloca(union_pir_type, this->name(".UNION_COPY.alloca"));
+							
+						}else if constexpr(MODE == GetExprMode::POINTER){
+							return this->agent.createAlloca(union_pir_type, this->name("UNION_COPY"));
+							
+						}else if constexpr(MODE == GetExprMode::STORE){
+							return store_locations[0];
+
+						}else{
+							return this->agent.createAlloca(union_pir_type, this->name(".UNION_COPY_DISCARD.alloca"));
+						}
+					}();
+
+					const pir::Expr dst_data_ptr = this->agent.createCalcPtr(
+						dst,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(".UNION_COPY.dst_data")
+					);
+
+					const pir::Expr dst_tag_ptr = this->agent.createCalcPtr(
+						dst,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(".UNION_COPY.dst_tag_ptr")
+					);
+
+					auto cases = evo::SmallVector<pir::Switch::Case>();
+					cases.reserve(union_type.fields.size());
+
+					for(size_t i = 0; const BaseType::Union::Field& field : union_type.fields){
+						EVO_DEFER([&](){ i += 1; });
+
+						const pir::BasicBlock::ID field_delete_block =
+							this->agent.createBasicBlockInline(this->name("UNION_COPY.field_{}", i));
+
+						const pir::Expr case_number = this->agent.createNumber(
+							union_struct_type.members[1], core::GenericInt(union_struct_type.members[1].getWidth(), i)
+						);
+
+						cases.emplace_back(case_number, field_delete_block);
+
+						this->agent.setTargetBasicBlock(field_delete_block);
+
+						if(field.typeID.isVoid() == false){
+							this->expr_copy<GetExprMode::STORE>(
+								src_data_ptr, field.typeID.asTypeID(), is_initialization, dst_data_ptr
+							);
+						}
+						this->agent.createStore(dst_tag_ptr, case_number);
+
+						this->agent.createJump(end_block);
+					}
+
+					this->agent.setTargetBasicBlock(current_block);
+					this->agent.createSwitch(src_tag, std::move(cases), end_block);
+
+					this->agent.setTargetBasicBlock(end_block);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(
+							dst, union_pir_type, false, pir::AtomicOrdering::NONE, this->name("UNION_COPY")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return dst;
+
+					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+						return std::nullopt;
+					}
 				} break;
 
 				case BaseType::Kind::TYPE_DEDUCER: {
@@ -4720,11 +5014,109 @@ namespace pcit::panther{
 					const BaseType::Union& union_type =
 						this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
 
+					const pir::Type union_pir_type = this->get_type<false>(expr_type.baseTypeID());
+					const pir::StructType union_struct_type = this->module.getStructType(union_pir_type);
+
 					evo::debugAssert(
 						union_type.isUntagged == false, "untagged union types aren't non-trivially-movable"
 					);
 
-					evo::unimplemented("copy union");
+					const pir::BasicBlock::ID current_block = this->agent.getTargetBasicBlock().getID();
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("UNION_MOVE.end"));
+
+					const pir::Expr src_data_ptr = this->agent.createCalcPtr(
+						expr,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(".UNION_MOVE.src_data")
+					);
+
+					const pir::Expr src_flag_ptr = this->agent.createCalcPtr(
+						expr,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(".UNION_MOVE.src_flag_ptr")
+					);
+					const pir::Expr src_flag = this->agent.createLoad(
+						src_flag_ptr,
+						union_struct_type.members[1],
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(".UNION_MOVE.src_flag")
+					);
+
+					const pir::Expr dst = [&](){
+						if constexpr(MODE == GetExprMode::REGISTER){
+							return this->agent.createAlloca(union_pir_type, this->name(".UNION_MOVE.alloca"));
+							
+						}else if constexpr(MODE == GetExprMode::POINTER){
+							return this->agent.createAlloca(union_pir_type, this->name("UNION_MOVE"));
+							
+						}else if constexpr(MODE == GetExprMode::STORE){
+							return store_locations[0];
+
+						}else{
+							return this->agent.createAlloca(union_pir_type, this->name(".UNION_MOVE_DISCARD.alloca"));
+						}
+					}();
+
+					const pir::Expr dst_data_ptr = this->agent.createCalcPtr(
+						dst,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(".UNION_MOVE.dst_data")
+					);
+
+					const pir::Expr dst_flag_ptr = this->agent.createCalcPtr(
+						dst,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(".UNION_MOVE.dst_flag_ptr")
+					);
+
+					auto cases = evo::SmallVector<pir::Switch::Case>();
+					cases.reserve(union_type.fields.size());
+
+					for(size_t i = 0; const BaseType::Union::Field& field : union_type.fields){
+						EVO_DEFER([&](){ i += 1; });
+
+						const pir::BasicBlock::ID field_delete_block =
+							this->agent.createBasicBlockInline(this->name("UNION_MOVE.field_{}", i));
+
+						const pir::Expr case_number = this->agent.createNumber(
+							union_struct_type.members[1], core::GenericInt(union_struct_type.members[1].getWidth(), i)
+						);
+
+						cases.emplace_back(case_number, field_delete_block);
+
+						this->agent.setTargetBasicBlock(field_delete_block);
+
+						if(field.typeID.isVoid() == false){
+							this->expr_move<GetExprMode::STORE>(
+								src_data_ptr, field.typeID.asTypeID(), is_initialization, dst_data_ptr
+							);
+						}
+						this->agent.createStore(dst_flag_ptr, case_number);
+
+						this->agent.createJump(end_block);
+					}
+
+					this->agent.setTargetBasicBlock(current_block);
+					this->agent.createSwitch(src_flag, std::move(cases), end_block);
+
+					this->agent.setTargetBasicBlock(end_block);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(
+							dst, union_pir_type, false, pir::AtomicOrdering::NONE, this->name("UNION_MOVE")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return dst;
+
+					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+						return std::nullopt;
+					}
 				} break;
 
 				case BaseType::Kind::TYPE_DEDUCER: {
@@ -6358,11 +6750,11 @@ namespace pcit::panther{
 			case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT: case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:
 			case sema::Expr::Kind::INIT_ARRAY_REF:                case sema::Expr::Kind::ARRAY_REF_INDEXER:
 			case sema::Expr::Kind::ARRAY_REF_SIZE:                case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:     case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:                  case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:             case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::VAR:                           case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:     case sema::Expr::Kind::UNION_TAG_CMP:
+			case sema::Expr::Kind::PARAM:                         case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM:            case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:                  case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:                    case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

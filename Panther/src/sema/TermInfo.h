@@ -45,6 +45,7 @@ namespace pcit::panther{
 			TYPE,
 			TEMPLATE_DECL_INSTANTIATION_TYPE,
 			EXCEPT_PARAM_PACK,
+			TAGGED_UNION_FIELD_ACCESSOR,
 		};
 
 		enum class ValueStage{
@@ -83,6 +84,11 @@ namespace pcit::panther{
 			Kind kind;
 		};
 
+		struct TaggedUnionFieldAccessor{
+			BaseType::Union::ID union_id;
+			uint32_t field_index;
+		};
+
 
 		using TypeID = evo::Variant<
 			InitializerType,                // INITIALIZER
@@ -99,7 +105,8 @@ namespace pcit::panther{
 			BuiltinModuleID,                // BUILTIN_MODULE
 			TypeInfo::VoidableID,           // TYPE
 			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE
-			TemplateIntrinsicFunc::Kind     // TEMPLATE_INTRINSIC_FUNC
+			TemplateIntrinsicFunc::Kind,    // TEMPLATE_INTRINSIC_FUNC
+			TaggedUnionFieldAccessor        // TAGGED_UNION_FIELD_ACCESSOR
 		>;
 
 		ValueCategory value_category;
@@ -284,6 +291,8 @@ namespace pcit::panther{
 					break; case ValueCategory::EXCEPT_PARAM_PACK:
 						evo::debugFatalBreak("Incorrect TermInfo creation");
 
+					break; case ValueCategory::TAGGED_UNION_FIELD_ACCESSOR:
+						evo::debugFatalBreak("Incorrect TermInfo creation");
 				}
 			}
 
@@ -298,6 +307,7 @@ namespace pcit::panther{
 					|| this->value_category == ValueCategory::FUNCTION
 					|| this->value_category == ValueCategory::TEMPLATE_INTRINSIC_FUNC
 					|| this->value_category == ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE
+					|| this->value_category == ValueCategory::TAGGED_UNION_FIELD_ACCESSOR
 				);
 
 				evo::debugAssert(this->value_stage == ValueStage::CONSTEXPR);

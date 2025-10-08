@@ -655,12 +655,25 @@ namespace pcit::panther{
 			// union designated init new
 
 			EVO_NODISCARD auto createUnionDesignatedInitNew(auto&&... args) -> sema::UnionDesignatedInitNew::ID {
-				return this->union_designated_init_new.emplace_back(std::forward<decltype(args)>(args)...);
+				return this->union_designated_init_news.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
 			EVO_NODISCARD auto getUnionDesignatedInitNew(sema::UnionDesignatedInitNew::ID id) const
 			-> const sema::UnionDesignatedInitNew& {
-				return this->union_designated_init_new[id];
+				return this->union_designated_init_news[id];
+			}
+
+
+			///////////////////////////////////
+			// union tag cmp
+
+			EVO_NODISCARD auto createUnionTagCmp(auto&&... args) -> sema::UnionTagCmp::ID {
+				return this->union_tag_cmps.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getUnionTagCmp(sema::UnionTagCmp::ID id) const
+			-> const sema::UnionTagCmp& {
+				return this->union_tag_cmps[id];
 			}
 
 
@@ -860,7 +873,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::ArrayRefSize, sema::ArrayRefSize::ID> array_ref_size{};
 			core::SyncLinearStepAlloc<sema::ArrayRefDimensions, sema::ArrayRefDimensions::ID> array_ref_dimensions{};
 			core::SyncLinearStepAlloc<sema::UnionDesignatedInitNew, sema::UnionDesignatedInitNew::ID>
-				union_designated_init_new{};
+				union_designated_init_news{};
+			core::SyncLinearStepAlloc<sema::UnionTagCmp, sema::UnionTagCmp::ID> union_tag_cmps{};
 
 			core::SyncLinearStepAlloc<
 				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID

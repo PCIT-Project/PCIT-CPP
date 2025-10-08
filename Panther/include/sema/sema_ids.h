@@ -178,6 +178,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, UnionDesignatedInitNewID>::UniqueID;
 	};
 
+	struct UnionTagCmpID : public core::UniqueID<uint32_t, struct UnionTagCmpID> {
+		using core::UniqueID<uint32_t, UnionTagCmpID>::UniqueID;
+	};
+
 
 	//////////////////////////////////////////////////////////////////////
 	// statements
@@ -909,6 +913,16 @@ namespace pcit::core{
 		}
 	};
 
+	template<>
+	struct core::OptionalInterface<panther::sema::UnionTagCmpID>{
+		static constexpr auto init(panther::sema::UnionTagCmpID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::UnionTagCmpID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
 
 }
 
@@ -1845,6 +1859,23 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::UnionDesignatedInitNewID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::UnionDesignatedInitNewID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::UnionTagCmpID>{
+		auto operator()(pcit::panther::sema::UnionTagCmpID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::UnionTagCmpID>
+		: public pcit::core::Optional<pcit::panther::sema::UnionTagCmpID>{
+			
+		public:
+			using pcit::core::Optional<pcit::panther::sema::UnionTagCmpID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::UnionTagCmpID>::operator=;
 	};
 
 }

@@ -74,6 +74,7 @@ namespace pcit::panther::sema{
 			ARRAY_REF_SIZE,
 			ARRAY_REF_DIMENSIONS,
 			UNION_DESIGNATED_INIT_NEW,
+			UNION_TAG_CMP,
 				
 			PARAM,
 			RETURN_PARAM,
@@ -143,6 +144,8 @@ namespace pcit::panther::sema{
 		explicit Expr(ArrayRefDimensionsID id) : _kind(Kind::ARRAY_REF_DIMENSIONS), value{.array_ref_dimensions = id}{};
 		explicit Expr(UnionDesignatedInitNewID id)
 			: _kind(Kind::UNION_DESIGNATED_INIT_NEW), value{.union_designated_init_new = id} {};
+		explicit Expr(UnionTagCmpID id)        : _kind(Kind::UNION_TAG_CMP),        value{.union_tag_cmp = id}       {};
+
 
 		explicit Expr(ParamID id)              : _kind(Kind::PARAM),                value{.param = id}               {};
 		explicit Expr(ReturnParamID id)        : _kind(Kind::RETURN_PARAM),         value{.return_param = id}        {};
@@ -333,6 +336,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::UNION_DESIGNATED_INIT_NEW, "not a union designated init new");
 			return this->value.union_designated_init_new;
 		}
+		EVO_NODISCARD auto unionTagCmpID() const -> UnionTagCmpID {
+			evo::debugAssert(this->kind() == Kind::UNION_TAG_CMP, "not a union tag cmp");
+			return this->value.union_tag_cmp;
+		}
 
 
 		EVO_NODISCARD auto paramID() const -> ParamID {
@@ -429,6 +436,7 @@ namespace pcit::panther::sema{
 				ArrayRefSizeID array_ref_size;
 				ArrayRefDimensionsID array_ref_dimensions;
 				UnionDesignatedInitNewID union_designated_init_new;
+				UnionTagCmpID union_tag_cmp;
 
 				ExceptParamID except_param;
 				ParamID param;

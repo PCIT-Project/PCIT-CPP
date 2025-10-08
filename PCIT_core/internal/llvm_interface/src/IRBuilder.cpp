@@ -109,6 +109,16 @@ namespace pcit::llvmint{
 		return Value(created_phi_node);
 	}
 
+	auto IRBuilder::createSwitch(const Value& cond, BasicBlock default_block, evo::ArrayProxy<Case> cases) -> void {
+		llvm::SwitchInst* created_switch_inst = this->builder->CreateSwitch(
+			cond.native(), default_block.native(), unsigned(cases.size())
+		);
+
+		for(const Case& switch_case : cases){
+			created_switch_inst->addCase(switch_case.value.native(), switch_case.block.native());	
+		}
+	}
+
 
 	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
 		return this->builder->CreateCall(func.native(), createArrayRef<llvm::Value>(params), name.c_str());

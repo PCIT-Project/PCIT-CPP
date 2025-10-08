@@ -458,6 +458,28 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, created_phi);
 					} break;
 
+					case Expr::Kind::SWITCH: {
+						const Switch& switch_stmt = this->reader.getSwitch(stmt);
+
+						auto cases = evo::SmallVector<llvmint::IRBuilder::Case>();
+						cases.reserve(switch_stmt.cases.size());
+
+						for(const Switch::Case& switch_case : switch_stmt.cases){
+							const Number& number = this->reader.getNumber(switch_case.value);
+
+							cases.emplace_back(
+								this->builder.getValueI_N(number.type.getWidth(), false, number.getInt()),
+								basic_block_map.at(switch_case.block)
+							);
+						}
+
+						this->builder.createSwitch(
+							this->get_value<ADD_WEAK_DEPS>(switch_stmt.cond),
+							basic_block_map.at(switch_stmt.defaultBlock),
+							std::move(cases)
+						);
+					} break;
+
 					case Expr::Kind::ALLOCA: evo::debugFatalBreak("Not a valid stmt");
 
 					case Expr::Kind::LOAD: {
