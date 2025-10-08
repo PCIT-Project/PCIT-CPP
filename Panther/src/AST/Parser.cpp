@@ -82,25 +82,25 @@ namespace pcit::panther{
 	template<AST::VarDecl::Kind VAR_DECL_KIND>
 	auto Parser::parse_var_decl() -> Result {
 		if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::VAR){
-			if(this->assert_token_fail(Token::Kind::KEYWORD_VAR)){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::Kind::KEYWORD_VAR).isError()){ return Result::Code::ERROR; }
 
 		}else if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::CONST){
-			if(this->assert_token_fail(Token::Kind::KEYWORD_CONST)){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::Kind::KEYWORD_CONST).isError()){ return Result::Code::ERROR; }
 			
 		}else{
-			if(this->assert_token_fail(Token::Kind::KEYWORD_DEF)){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::Kind::KEYWORD_DEF).isError()){ return Result::Code::ERROR; }
 		}
 
 		const Result ident = this->parse_ident();
-		if(this->check_result_fail(ident, "identifier in variable declaration")){ return Result::Code::ERROR; }
+		if(this->check_result(ident, "identifier in variable declaration").isError()){ return Result::Code::ERROR; }
 
 
 		auto type = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(":")){
-			if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::lookupKind(":")).isError()){ return Result::Code::ERROR; }
 
 			const Result type_result = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
-			if(this->check_result_fail(type_result, "type after [:] in variable declaration")){
+			if(this->check_result(type_result, "type after [:] in variable declaration").isError()){
 				return Result::Code::ERROR;
 			}
 
@@ -114,11 +114,11 @@ namespace pcit::panther{
 
 		auto value = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
-			if(this->assert_token_fail(Token::lookupKind("="))){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::lookupKind("=")).isError()){ return Result::Code::ERROR; }
 				
 			const Result value_result = this->parse_expr();
 			// TODO(FUTURE): better messaging around block exprs missing a label
-			if(this->check_result_fail(value_result, "expression after [=] in variable declaration")){
+			if(this->check_result(value_result, "expression after [=] in variable declaration").isError()){
 				return Result::Code::ERROR;
 			}
 
@@ -127,7 +127,7 @@ namespace pcit::panther{
 
 
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
-			if(this->assert_token_fail(Token::lookupKind(";"))){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::lookupKind(";")).isError()){ return Result::Code::ERROR; }
 
 		}else if( // check for attributes in wrong place
 			type.has_value() == false
@@ -161,7 +161,7 @@ namespace pcit::panther{
 	// TODO(FUTURE): check EOF
 	template<bool MUST_HAVE_BODY>
 	auto Parser::parse_func_decl() -> Result {
-		if(this->assert_token_fail(Token::Kind::KEYWORD_FUNC)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_FUNC).isError()){ return Result::Code::ERROR; }
 
 		const Token::ID name = this->reader.next();
 
@@ -188,7 +188,7 @@ namespace pcit::panther{
 			}
 		}
 
-		if(this->expect_token_fail(Token::lookupKind("="), "after identifier in function declaration")){
+		if(this->expect_token(Token::lookupKind("="), "after identifier in function declaration").isError()){
 			if(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
 				this->context.emitError(
 					Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
@@ -226,7 +226,7 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
-			if(this->expect_token_fail(Token::lookupKind(";"), "at end of deleted special method")){
+			if(this->expect_token(Token::lookupKind(";"), "at end of deleted special method").isError()){
 				return Result::Code::ERROR;
 			}
 
@@ -250,7 +250,9 @@ namespace pcit::panther{
 		if(attribute_block.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 
-		if(this->expect_token_fail(Token::lookupKind("->"), "in function declaration")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind("->"), "in function declaration").isError()){
+			return Result::Code::ERROR;
+		}
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_DELETE){
 			this->context.emitError(
@@ -271,7 +273,7 @@ namespace pcit::panther{
 
 		if constexpr(MUST_HAVE_BODY){
 			// TODO(FUTURE): better messaging 
-			if(this->check_result_fail(block, "statement block in function declaration")){
+			if(this->check_result(block, "statement block in function declaration").isError()){
 				return Result::Code::ERROR;
 			}
 
@@ -300,9 +302,9 @@ namespace pcit::panther{
 				} break;
 
 				case Result::Code::WRONG_TYPE: {
-					if(this->expect_token_fail(
-						Token::lookupKind(";"), "or function block at end of function declaration")
-					){
+					if(this->expect_token(
+						Token::lookupKind(";"), "or function block at end of function declaration"
+					).isError()){
 						return Result::Code::ERROR;
 					}
 
@@ -330,20 +332,22 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_alias_decl() -> Result {
-		if(this->assert_token_fail(Token::Kind::KEYWORD_ALIAS)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_ALIAS).isError()){ return Result::Code::ERROR; }
 
 		const Result ident = this->parse_ident();
-		if(this->check_result_fail(ident, "identifier in alias declaration")){ return Result::Code::ERROR; }
+		if(this->check_result(ident, "identifier in alias declaration").isError()){ return Result::Code::ERROR; }
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind("="), "in alias declaration")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind("="), "in alias declaration").isError()){ return Result::Code::ERROR; }
 
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result_fail(type, "type in alias declaration")){ return Result::Code::ERROR; }
+		if(this->check_result(type, "type in alias declaration").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at end of alias declaration")){ return Result::Code::ERROR;}
+		if(this->expect_token(Token::lookupKind(";"), "at end of alias declaration").isError()){
+			return Result::Code::ERROR;
+		}
 
 		return this->source.ast_buffer.createAliasDecl(
 			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
@@ -352,19 +356,19 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_type_decl() -> Result {
-		if(this->assert_token_fail(Token::Kind::KEYWORD_TYPE)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_TYPE).isError()){ return Result::Code::ERROR; }
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ALIAS){
 			return this->parse_alias_decl();
 		}
 
 		const Result ident = this->parse_ident();
-		if(this->check_result_fail(ident, "identifier in type declaration")){ return Result::Code::ERROR; }
+		if(this->check_result(ident, "identifier in type declaration").isError()){ return Result::Code::ERROR; }
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind("="), "in type declaration")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind("="), "in type declaration").isError()){ return Result::Code::ERROR; }
 
 		switch(this->reader[this->reader.peek()].kind()){
 			case Token::Kind::KEYWORD_STRUCT: return this->parse_struct_decl(ident.value(), attributes.value());
@@ -372,9 +376,9 @@ namespace pcit::panther{
 		}
 
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result_fail(type, "type in distinct alias declaration")){ return Result::Code::ERROR; }
+		if(this->check_result(type, "type in distinct alias declaration").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at end of distinct alias declaration")){
+		if(this->expect_token(Token::lookupKind(";"), "at end of distinct alias declaration").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -386,7 +390,7 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
-		if(this->assert_token_fail(Token::Kind::KEYWORD_STRUCT)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_STRUCT).isError()){ return Result::Code::ERROR; }
 
 		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
 			this->context.emitError(
@@ -416,7 +420,7 @@ namespace pcit::panther{
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
-		if(this->check_result_fail(block, "statement block in struct declaration")){ // TODO(FUTURE): better messaging 
+		if(this->check_result(block, "statement block in struct declaration").isError()){// TODO(FUTURE): better message
 			return Result::Code::ERROR;
 		}
 
@@ -428,7 +432,7 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_union_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
-		if(this->assert_token_fail(Token::Kind::KEYWORD_UNION)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_UNION).isError()){ return Result::Code::ERROR; }
 
 		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
 			this->context.emitError(
@@ -448,7 +452,7 @@ namespace pcit::panther{
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind("{"), "to begin union block")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind("{"), "to begin union block").isError()){ return Result::Code::ERROR; }
 
 		auto fields = evo::SmallVector<AST::UnionDecl::Field>();
 		auto statements = evo::SmallVector<AST::Node>();
@@ -466,16 +470,16 @@ namespace pcit::panther{
 
 
 			if(field_ident.code() == Result::Code::SUCCESS){ // is field
-				if(this->expect_token_fail(Token::lookupKind(":"), "after identifier in union field")){
+				if(this->expect_token(Token::lookupKind(":"), "after identifier in union field").isError()){
 					return Result::Code::ERROR;
 				}
 
 				const Result type = this->parse_type<TypeKind::EXPLICIT>();
-				if(this->check_result_fail(type, "type after [:] in union definition")){
+				if(this->check_result(type, "type after [:] in union definition").isError()){
 					return Result::Code::ERROR;
 				}
 
-				if(this->expect_token_fail(Token::lookupKind(","), "after type in union field")){
+				if(this->expect_token(Token::lookupKind(","), "after type in union field").isError()){
 					return Result::Code::ERROR;
 				}
 
@@ -483,9 +487,9 @@ namespace pcit::panther{
 				
 			}else{ // is statement
 				const Result stmt = this->parse_stmt();
-				if(this->check_result_fail(
+				if(this->check_result(
 					stmt, "field or statement in union definition, or [}] at end of union definition block"
-				)){
+				).isError()){
 					return Result::Code::ERROR;
 				}
 
@@ -513,19 +517,19 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_interface_decl() -> Result {
-		if(this->assert_token_fail(Token::Kind::KEYWORD_INTERFACE)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_INTERFACE).isError()){ return Result::Code::ERROR; }
 
 		const Result ident = this->parse_ident();
-		if(this->check_result_fail(ident, "identifier in interface declaration")){ return Result::Code::ERROR; }
+		if(this->check_result(ident, "identifier in interface declaration").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind("="), "after identifier in interface declaration")){
+		if(this->expect_token(Token::lookupKind("="), "after identifier in interface declaration").isError()){
 			return Result::Code::ERROR;
 		}
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind("{"), "after [=] in interface declaration")){
+		if(this->expect_token(Token::lookupKind("{"), "after [=] in interface declaration").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -541,14 +545,14 @@ namespace pcit::panther{
 			}
 
 			const Result method = this->parse_func_decl<false>();
-			if(this->check_result_fail(method, "interface method declaration or end of interface declaration")){
+			if(this->check_result(method, "interface method declaration or end of interface declaration").isError()){
 				return Result::Code::ERROR;
 			}
 
 			methods.emplace_back(method.value());
 		}
 
-		if(this->expect_token_fail(Token::lookupKind("}"), "at end of interface declaration")){
+		if(this->expect_token(Token::lookupKind("}"), "at end of interface declaration").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -560,12 +564,12 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_interface_impl() -> Result {
-		if(this->assert_token_fail(Token::Kind::KEYWORD_IMPL)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_IMPL).isError()){ return Result::Code::ERROR; }
 
 		const Result target = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result_fail(target, "interface impl target")){ return Result::Code::ERROR; }
+		if(this->check_result(target, "interface impl target").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind("{"), "after target interface in interface impl")){
+		if(this->expect_token(Token::lookupKind("{"), "after target interface in interface impl").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -574,21 +578,23 @@ namespace pcit::panther{
 
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
-				if(this->assert_token_fail(Token::lookupKind("}"))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("}")).isError()){ return Result::Code::ERROR; }
 				break;
 			}
 
 			const Result method_ident = this->parse_ident();
-			if(this->check_result_fail(method_ident, "method identifier in interface impl")){
+			if(this->check_result(method_ident, "method identifier in interface impl").isError()){
 				return Result::Code::ERROR;
 			}
 
-			if(this->expect_token_fail(Token::lookupKind("="), "after method identifier in interface impl")){
+			if(this->expect_token(Token::lookupKind("="), "after method identifier in interface impl").isError()){
 				return Result::Code::ERROR;
 			}
 
 			const Result method_value = this->parse_ident();
-			if(this->check_result_fail(method_value, "method value in interface impl")){ return Result::Code::ERROR; }
+			if(this->check_result(method_value, "method value in interface impl").isError()){
+				return Result::Code::ERROR;
+			}
 
 
 			methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), ASTBuffer::getIdent(method_value.value()));
@@ -618,16 +624,18 @@ namespace pcit::panther{
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_return() -> Result {
 		const Token::ID start_location = this->reader.peek();
-		if(this->assert_token_fail(Token::Kind::KEYWORD_RETURN)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_RETURN).isError()){ return Result::Code::ERROR; }
 
 		auto label = std::optional<AST::Node>();
 		auto expr = evo::Variant<std::monostate, AST::Node, Token::ID>();
 
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
-			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::lookupKind("->")).isError()){ return Result::Code::ERROR; }
 
 			const Result label_result = this->parse_ident();
-			if(this->check_result_fail(label_result, "identifier in return block label")){ return Result::Code::ERROR; }
+			if(this->check_result(label_result, "identifier in return block label").isError()){
+				return Result::Code::ERROR;
+			}
 			label = label_result.value();
 		}
 
@@ -642,7 +650,7 @@ namespace pcit::panther{
 			}
 		}
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [return] statement")){
+		if(this->expect_token(Token::lookupKind(";"), "at the end of a [return] statement").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -652,7 +660,7 @@ namespace pcit::panther{
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_error() -> Result {
 		const Token::ID start_location = this->reader.peek();
-		if(this->assert_token_fail(Token::Kind::KEYWORD_ERROR)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_ERROR).isError()){ return Result::Code::ERROR; }
 
 		auto expr = evo::Variant<std::monostate, AST::Node, Token::ID>();
 
@@ -667,7 +675,7 @@ namespace pcit::panther{
 			}
 		}
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [error] statement")){
+		if(this->expect_token(Token::lookupKind(";"), "at the end of a [error] statement").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -678,9 +686,9 @@ namespace pcit::panther{
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_unreachable() -> Result {
 		const Token::ID start_location = this->reader.peek();
-		if(this->assert_token_fail(Token::Kind::KEYWORD_UNREACHABLE)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_UNREACHABLE).isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [unreachable] statement")){
+		if(this->expect_token(Token::lookupKind(";"), "at the end of a [unreachable] statement").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -691,21 +699,21 @@ namespace pcit::panther{
 
 	auto Parser::parse_break() -> Result {
 		const Token::ID keyword_token_id = this->reader.peek();
-		if(this->assert_token_fail(Token::Kind::KEYWORD_BREAK)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_BREAK).isError()){ return Result::Code::ERROR; }
 
 		auto label = std::optional<Token::ID>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
-			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::lookupKind("->")).isError()){ return Result::Code::ERROR; }
 
 			const Result label_result = this->parse_ident();
-			if(this->check_result_fail(label_result, "label after [->] in break statement")){
+			if(this->check_result(label_result, "label after [->] in break statement").isError()){
 				return Result::Code::ERROR;
 			}
 
 			label = ASTBuffer::getIdent(label_result.value());
 		}
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [break] statement")){
+		if(this->expect_token(Token::lookupKind(";"), "at the end of a [break] statement").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -715,21 +723,21 @@ namespace pcit::panther{
 
 	auto Parser::parse_continue() -> Result {
 		const Token::ID keyword_token_id = this->reader.peek();
-		if(this->assert_token_fail(Token::Kind::KEYWORD_CONTINUE)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_CONTINUE).isError()){ return Result::Code::ERROR; }
 
 		auto label = std::optional<Token::ID>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
-			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::lookupKind("->")).isError()){ return Result::Code::ERROR; }
 
 			const Result label_result = this->parse_ident();
-			if(this->check_result_fail(label_result, "label after [->] in break statement")){
+			if(this->check_result(label_result, "label after [->] in break statement").isError()){
 				return Result::Code::ERROR;
 			}
 
 			label = ASTBuffer::getIdent(label_result.value());
 		}
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [break] statement")){
+		if(this->expect_token(Token::lookupKind(";"), "at the end of a [break] statement").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -740,12 +748,12 @@ namespace pcit::panther{
 
 	auto Parser::parse_delete() -> Result {
 		const Token::ID keyword_token_id = this->reader.peek();
-		if(this->assert_token_fail(Token::Kind::KEYWORD_DELETE)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_DELETE).isError()){ return Result::Code::ERROR; }
 
 		const Result expr = this->parse_expr();
-		if(this->check_result_fail(expr, "expression in [delete] statement")){ return Result::Code::ERROR; }
+		if(this->check_result(expr, "expression in [delete] statement").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at the end of a [delete] statement")){
+		if(this->expect_token(Token::lookupKind(";"), "at the end of a [delete] statement").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -760,29 +768,33 @@ namespace pcit::panther{
 		const Token::ID keyword_token_id = this->reader.peek();
 
 		static constexpr Token::Kind COND_TOKEN_KIND = IS_WHEN ? Token::Kind::KEYWORD_WHEN : Token::Kind::KEYWORD_IF;
-		if(this->assert_token_fail(COND_TOKEN_KIND)){ return Result::Code::ERROR; }
+		if(this->assert_token(COND_TOKEN_KIND).isError()){ return Result::Code::ERROR; }
 
 
-		if(this->expect_token_fail(Token::lookupKind("("), "in conditional statement")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind("("), "in conditional statement").isError()){
+			return Result::Code::ERROR;
+		}
 
 		const Result cond = this->parse_expr();
 
-		if(this->expect_token_fail(Token::lookupKind(")"), "in conditional statement")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind(")"), "in conditional statement").isError()){
+			return Result::Code::ERROR;
+		}
 
 		const Result then_block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
-		if(this->check_result_fail(then_block, "statement block in conditional statement")){
+		if(this->check_result(then_block, "statement block in conditional statement").isError()){
 			return Result::Code::ERROR;
 		}
 
 		auto else_block = std::optional<AST::Node>();
 		if(this->reader.at_end() == false && this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
-			if(this->assert_token_fail(Token::Kind::KEYWORD_ELSE)){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::Kind::KEYWORD_ELSE).isError()){ return Result::Code::ERROR; }
 
 			const Token::Kind else_if_kind = this->reader[this->reader.peek()].kind();
 
 			if(else_if_kind == Token::lookupKind("{")){
 				const Result else_block_result = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
-				if(this->check_result_fail(else_block_result, "statement block in conditional statement")){
+				if(this->check_result(else_block_result, "statement block in conditional statement").isError()){
 					return Result::Code::ERROR;
 				}
 
@@ -818,7 +830,7 @@ namespace pcit::panther{
 
 			}else{
 				const Result else_block_result = this->parse_conditional<IS_WHEN>();
-				if(this->check_result_fail(else_block_result, "statement block in conditional statement")){
+				if(this->check_result(else_block_result, "statement block in conditional statement").isError()){
 					return Result::Code::ERROR;
 				}
 
@@ -842,17 +854,17 @@ namespace pcit::panther{
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_while() -> Result {
 		const Token::ID start_location = this->reader.peek();
-		if(this->assert_token_fail(Token::Kind::KEYWORD_WHILE)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_WHILE).isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind("("), "in while loop")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind("("), "in while loop").isError()){ return Result::Code::ERROR; }
 
 		const Result cond = this->parse_expr();
-		if(this->check_result_fail(cond, "condition in while loop")){ return Result::Code::ERROR; }
+		if(this->check_result(cond, "condition in while loop").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind(")"), "in while loop")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind(")"), "in while loop").isError()){ return Result::Code::ERROR; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::OPTIONAL);
-		if(this->check_result_fail(block, "statement block in while loop")){ return Result::Code::ERROR; }
+		if(this->check_result(block, "statement block in while loop").isError()){ return Result::Code::ERROR; }
 
 		return this->source.ast_buffer.createWhile(start_location, cond.value(), block.value());
 	}
@@ -864,13 +876,13 @@ namespace pcit::panther{
 		const Token::ID start_location = this->reader.peek();
 
 		if constexpr(IS_ERROR_DEFER){
-			if(this->assert_token_fail(Token::Kind::KEYWORD_ERROR_DEFER)){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::Kind::KEYWORD_ERROR_DEFER).isError()){ return Result::Code::ERROR; }
 		}else{
-			if(this->assert_token_fail(Token::Kind::KEYWORD_DEFER)){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::Kind::KEYWORD_DEFER).isError()){ return Result::Code::ERROR; }
 		}
 
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
-		if(this->check_result_fail(block, "block in defer")){ return Result::Code::ERROR; }
+		if(this->check_result(block, "block in defer").isError()){ return Result::Code::ERROR; }
 
 		return this->source.ast_buffer.createDefer(start_location, block.value());
 	}
@@ -887,16 +899,16 @@ namespace pcit::panther{
 				const Token::ID discard_token_id = this->reader.next();
 				
 				const Token::ID op_token_id = this->reader.peek();
-				if(this->expect_token_fail(Token::lookupKind("="), "in discard assignment")){
+				if(this->expect_token(Token::lookupKind("="), "in discard assignment").isError()){
 					return Result::Code::ERROR;
 				}
 
 				const Result value = this->parse_expr();
-				if(this->check_result_fail(value, "expression value in discard assignment")){
+				if(this->check_result(value, "expression value in discard assignment").isError()){
 					return Result::Code::ERROR;
 				}
 
-				if(this->expect_token_fail(Token::lookupKind(";"), "at end of discard assignment")){
+				if(this->expect_token(Token::lookupKind(";"), "at end of discard assignment").isError()){
 					return Result::Code::ERROR;
 				}
 
@@ -905,12 +917,12 @@ namespace pcit::panther{
 				);
 
 			}else if(peeked_kind == Token::lookupKind("[")){ // multi assign
-				if(this->assert_token_fail(Token::lookupKind("["))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("[")).isError()){ return Result::Code::ERROR; }
 
 				auto assignments = evo::SmallVector<AST::Node>();
 				while(true){
 					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("]")){
-						if(this->assert_token_fail(Token::lookupKind("]"))){ return Result::Code::ERROR; }
+						if(this->assert_token(Token::lookupKind("]")).isError()){ return Result::Code::ERROR; }
 						break;
 					}
 
@@ -949,16 +961,16 @@ namespace pcit::panther{
 					);
 				}
 
-				if(this->expect_token_fail(Token::lookupKind("="), "in multiple-assignment")){
+				if(this->expect_token(Token::lookupKind("="), "in multiple-assignment").isError()){
 					return Result::Code::ERROR;
 				}
 
 				const Result value = this->parse_expr();
-				if(this->check_result_fail(value, "expression value in multiple-assignment")){
+				if(this->check_result(value, "expression value in multiple-assignment").isError()){
 					return Result::Code::ERROR;
 				}
 
-				if(this->expect_token_fail(Token::lookupKind(";"), "at end of multiple-assignment")){
+				if(this->expect_token(Token::lookupKind(";"), "at end of multiple-assignment").isError()){
 					return Result::Code::ERROR;
 				}
 
@@ -989,9 +1001,9 @@ namespace pcit::panther{
 		}
 
 		const Result rhs = this->parse_expr();
-		if(this->check_result_fail(rhs, "expression value in assignment")){ return Result::Code::ERROR; }
+		if(this->check_result(rhs, "expression value in assignment").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "at end of assignment")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind(";"), "at end of assignment").isError()){ return Result::Code::ERROR; }
 
 		return this->source.ast_buffer.createInfix(lhs.value(), op_token_id, rhs.value());
 	}
@@ -1004,7 +1016,7 @@ namespace pcit::panther{
 		const Token::ID start_location = this->reader.peek();
 
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("{")){ return Result::Code::WRONG_TYPE; }
-		if(this->assert_token_fail(Token::lookupKind("{"))){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::lookupKind("{")).isError()){ return Result::Code::ERROR; }
 
 		auto label = std::optional<Token::ID>();
 		auto outputs = evo::SmallVector<AST::Block::Output>();
@@ -1015,10 +1027,10 @@ namespace pcit::panther{
 				return Result::Code::WRONG_TYPE;
 			}
 
-			if(this->assert_token_fail(Token::lookupKind("->"))){ return Result::Code::ERROR; }
+			if(this->assert_token(Token::lookupKind("->")).isError()){ return Result::Code::ERROR; }
 
 			const Result label_result = this->parse_ident();
-			if(this->check_result_fail(label_result, "identifier in block label declaration")){
+			if(this->check_result(label_result, "identifier in block label declaration").isError()){
 				return Result::Code::ERROR;
 			}
 			label = ASTBuffer::getIdent(label_result.value());
@@ -1036,32 +1048,32 @@ namespace pcit::panther{
 					return Result::Code::ERROR;
 				}
 
-				if(this->assert_token_fail(Token::lookupKind(":"))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind(":")).isError()){ return Result::Code::ERROR; }
 
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 					const Token::ID open_paren_loc = this->reader.peek();
-					if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::ERROR; }
+					if(this->assert_token(Token::lookupKind("(")).isError()){ return Result::Code::ERROR; }
 
 					while(true){
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
-							if(this->assert_token_fail(Token::lookupKind(")"))){ return Result::Code::ERROR; }
+							if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
 							break;
 						}
 
 						const Result ident = this->parse_ident();
-						if(this->check_result_fail(ident, "identifier in expression block output parameter")){
+						if(this->check_result(ident, "identifier in expression block output parameter").isError()){
 							return Result::Code::ERROR;
 						}
 
-						if(this->expect_token_fail(
+						if(this->expect_token(
 							Token::lookupKind(":"), "after identifier in expression block output parameter"
-						)){
+						).isError()){
 							return Result::Code::ERROR;
 						}
 
 
 						const Result type = this->parse_type<TypeKind::EXPLICIT>();
-						if(this->check_result_fail(type, "type in expression block output parameter")){
+						if(this->check_result(type, "type in expression block output parameter").isError()){
 							return Result::Code::ERROR;
 						}
 
@@ -1094,7 +1106,7 @@ namespace pcit::panther{
 					
 				}else{
 					const Result type_result = this->parse_type<TypeKind::EXPLICIT>();
-					if(this->check_result_fail(type_result, "type in explicitly-typed labeled expression block")){
+					if(this->check_result(type_result, "type in explicitly-typed labeled expression block").isError()){
 						return Result::Code::ERROR;
 					}
 
@@ -1128,7 +1140,7 @@ namespace pcit::panther{
 			}
 
 			const Result stmt = this->parse_stmt();
-			if(this->check_result_fail(stmt, "statement in statement block")){ return Result::Code::ERROR; }
+			if(this->check_result(stmt, "statement in statement block").isError()){ return Result::Code::ERROR; }
 
 			statements.emplace_back(stmt.value());
 		}
@@ -1258,15 +1270,15 @@ namespace pcit::panther{
 				}
 
 			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_TYPE){
-				if(this->assert_token_fail(Token::Kind::KEYWORD_TYPE)){ return Result(Result::Code::ERROR); }
-				if(this->assert_token_fail(Token::lookupKind("("))){ return Result(Result::Code::ERROR); }
+				if(this->assert_token(Token::Kind::KEYWORD_TYPE).isError()){ return Result(Result::Code::ERROR); }
+				if(this->assert_token(Token::lookupKind("(")).isError()){ return Result(Result::Code::ERROR); }
 
 				const Result type_id_expr = this->parse_expr();
-				if(this->check_result_fail(type_id_expr, "expression in TypeID converter")){
+				if(this->check_result(type_id_expr, "expression in TypeID converter").isError()){
 					return Result(Result::Code::ERROR);
 				}
 
-				if(this->expect_token_fail(Token::lookupKind(")"), "after expression in TypeID converter")){
+				if(this->expect_token(Token::lookupKind(")"), "after expression in TypeID converter").isError()){
 					return Result(Result::Code::ERROR);
 				}
 
@@ -1282,11 +1294,11 @@ namespace pcit::panther{
 						return this->parse_type<TypeKind::EXPLICIT>();
 					}
 				}();
-				if(this->check_result_fail(elem_type, "element type in array type")){
+				if(this->check_result(elem_type, "element type in array type").isError()){
 					return Result(Result::Code::ERROR);
 				}
 
-				if(this->expect_token_fail(Token::lookupKind(":"), "after element type in array type")){
+				if(this->expect_token(Token::lookupKind(":"), "after element type in array type").isError()){
 					return Result(Result::Code::ERROR);
 				}
 
@@ -1335,7 +1347,7 @@ namespace pcit::panther{
 
 					}else{
 						const Result length = this->parse_expr();
-						if(this->check_result_fail(length, "length(s) in array type")){
+						if(this->check_result(length, "length(s) in array type").isError()){
 							return Result(Result::Code::ERROR);
 						}
 
@@ -1352,10 +1364,10 @@ namespace pcit::panther{
 
 				auto terminator = std::optional<AST::Node>();
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
-					if(this->assert_token_fail(Token::lookupKind(";"))){ return Result(Result::Code::ERROR); }
+					if(this->assert_token(Token::lookupKind(";")).isError()){ return Result(Result::Code::ERROR); }
 					
 					const Result terminator_result = this->parse_expr();
-					if(this->check_result_fail(terminator_result, "array terminator expression after [;]")){
+					if(this->check_result(terminator_result, "array terminator expression after [;]").isError()){
 						return Result(Result::Code::ERROR);
 					}
 
@@ -1372,7 +1384,7 @@ namespace pcit::panther{
 				}
 
 
-				if(this->expect_token_fail(Token::lookupKind("]"), "at end of array type")){
+				if(this->expect_token(Token::lookupKind("]"), "at end of array type").isError()){
 					return Result(Result::Code::ERROR);
 				}
 
@@ -1431,17 +1443,17 @@ namespace pcit::panther{
 				continue_looking_for_qualifiers = true;
 				is_ptr = true;
 				potential_backup_location = this->reader.peek();
-				if(this->assert_token_fail(Token::lookupKind("*"))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("*")).isError()){ return Result::Code::ERROR; }
 				
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("|")){
 					is_read_only = true;
 					potential_backup_location = this->reader.peek();
-					if(this->assert_token_fail(Token::lookupKind("|"))){ return Result::Code::ERROR; }
+					if(this->assert_token(Token::lookupKind("|")).isError()){ return Result::Code::ERROR; }
 
 				}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("!")){
 					is_uninit = true;
 					potential_backup_location = this->reader.peek();
-					if(this->assert_token_fail(Token::lookupKind("!"))){ return Result::Code::ERROR; }
+					if(this->assert_token(Token::lookupKind("!")).isError()){ return Result::Code::ERROR; }
 				}
 
 			}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*|")){
@@ -1449,13 +1461,13 @@ namespace pcit::panther{
 				is_ptr = true;
 				is_read_only = true;
 				potential_backup_location = this->reader.peek();
-				if(this->assert_token_fail(Token::lookupKind("*|"))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("*|")).isError()){ return Result::Code::ERROR; }
 			}
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("?")){
 				continue_looking_for_qualifiers = true;
 				is_optional = true;
-				if(this->assert_token_fail(Token::lookupKind("?"))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("?")).isError()){ return Result::Code::ERROR; }
 			}
 
 			if(continue_looking_for_qualifiers){
@@ -1582,12 +1594,12 @@ namespace pcit::panther{
 		// 		<= to prevent `a + b + c` from being parsed as `a + (b + c)`
 		if(next_op_prec <= prec_level){ return lhs; }
 
-		if(this->assert_token_fail(peeked_op_kind)){ return Result::Code::ERROR; }
+		if(this->assert_token(peeked_op_kind).isError()){ return Result::Code::ERROR; }
 
 		const Result rhs_result = [&](){
 			if(peeked_op_kind == Token::Kind::KEYWORD_AS){
 				const Result type_result = this->parse_type<TypeKind::EXPR>();
-				if(this->check_result_fail(type_result, "type after [as] operator")){
+				if(this->check_result(type_result, "type after [as] operator").isError()){
 					return Result(Result::Code::ERROR);
 				}
 
@@ -1659,12 +1671,12 @@ namespace pcit::panther{
 				return this->parse_term<TermKind::EXPR>();
 		}
 
-		if(this->assert_token_fail(op_token_kind)){ return Result::Code::ERROR; }
+		if(this->assert_token(op_token_kind).isError()){ return Result::Code::ERROR; }
 
 		const Result rhs = this->parse_term<TermKind::EXPR>();
-		if(this->check_result_fail(
+		if(this->check_result(
 			rhs, std::format("valid sub-expression on right-hand side of prefix [{}] operator", op_token_kind)
-		)){
+		).isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -1674,10 +1686,10 @@ namespace pcit::panther{
 
 	auto Parser::parse_new_expr() -> Result {
 		const Token::ID keyword_new = this->reader.peek();
-		if(this->assert_token_fail(Token::Kind::KEYWORD_NEW)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_NEW).isError()){ return Result::Code::ERROR; }
 			
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result_fail(type, "type in new expression")){ return Result::Code::ERROR; }
+		if(this->check_result(type, "type in new expression").isError()){ return Result::Code::ERROR; }
 
 		switch(this->reader[this->reader.peek()].kind()){
 			case Token::lookupKind("("): {
@@ -1716,10 +1728,10 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_try_expr() -> Result {
-		if(this->assert_token_fail(Token::Kind::KEYWORD_TRY)){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::Kind::KEYWORD_TRY).isError()){ return Result::Code::ERROR; }
 			
 		const Result attempt_expr = this->parse_term<TermKind::EXPR>();
-		if(this->check_result_fail(attempt_expr, "attempt expression in try/else expression")){
+		if(this->check_result(attempt_expr, "attempt expression in try/else expression").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -1729,11 +1741,11 @@ namespace pcit::panther{
 			auto except_params = evo::SmallVector<Token::ID>();
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
-				if(this->assert_token_fail(Token::lookupKind("<"))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
 
 				while(true){
 					if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
-						if(this->assert_token_fail(Token::lookupKind(">"))){ return Result::Code::ERROR; }
+						if(this->assert_token(Token::lookupKind(">")).isError()){ return Result::Code::ERROR; }
 						break;
 					}
 
@@ -1743,7 +1755,7 @@ namespace pcit::panther{
 
 					}else{
 						const Result ident = this->parse_ident();
-						if(this->check_result_fail(ident, "identifier in except parameter block")){
+						if(this->check_result(ident, "identifier in except parameter block").isError()){
 							return Result::Code::ERROR;
 						}
 
@@ -1767,7 +1779,7 @@ namespace pcit::panther{
 			}
 
 			const Result except_expr = this->parse_expr();
-			if(this->check_result_fail(except_expr, "except expression in try/else expression")){
+			if(this->check_result(except_expr, "except expression in try/else expression").isError()){
 				return Result::Code::ERROR;
 			}
 
@@ -1812,7 +1824,7 @@ namespace pcit::panther{
 
 					}else if(rhs_result.code() == Result::Code::WRONG_TYPE){
 						rhs_result = this->parse_intrinsic();
-						if(this->check_result_fail(rhs_result, "identifier or intrinsic after [.] accessor")){
+						if(this->check_result(rhs_result, "identifier or intrinsic after [.] accessor").isError()){
 							return Result::Code::ERROR;
 						}
 					}
@@ -1882,7 +1894,7 @@ namespace pcit::panther{
 
 
 				case Token::lookupKind("<{"): {
-					if(this->assert_token_fail(Token::lookupKind("<{"))){ return Result::Code::ERROR; }
+					if(this->assert_token(Token::lookupKind("<{")).isError()){ return Result::Code::ERROR; }
 					
 					auto args = evo::SmallVector<AST::Node>();
 
@@ -1890,7 +1902,7 @@ namespace pcit::panther{
 
 					while(true){
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}>")){
-							if(this->assert_token_fail(Token::lookupKind("}>"))){ return Result::Code::ERROR; }
+							if(this->assert_token(Token::lookupKind("}>")).isError()){ return Result::Code::ERROR; }
 							break;
 						}
 						
@@ -1900,7 +1912,7 @@ namespace pcit::panther{
 
 						}else if(arg.code() == Result::Code::WRONG_TYPE){
 							arg = this->parse_expr();
-							if(this->check_result_fail(arg, "argument inside template pack")){
+							if(this->check_result(arg, "argument inside template pack").isError()){
 								return Result::Code::ERROR;
 							}
 						}
@@ -1946,19 +1958,19 @@ namespace pcit::panther{
 						break;
 
 					}else{
-						if(this->assert_token_fail(Token::lookupKind("["))){ return Result::Code::ERROR; }
+						if(this->assert_token(Token::lookupKind("[")).isError()){ return Result::Code::ERROR; }
 
 
 						auto indices = evo::SmallVector<AST::Node>();
 						while(true){
 							if(this->reader[this->reader.peek()].kind() == Token::lookupKind("]")){
-								if(this->assert_token_fail(Token::lookupKind("]"))){ return Result::Code::ERROR; }
+								if(this->assert_token(Token::lookupKind("]")).isError()){ return Result::Code::ERROR; }
 								break;
 							}
 
 
 							const Result index = this->parse_expr();
-							if(this->check_result_fail(index, "index inside indexer")){
+							if(this->check_result(index, "index inside indexer").isError()){
 								return Result::Code::ERROR;
 							}
 
@@ -1997,7 +2009,7 @@ namespace pcit::panther{
 		const Result term = this->parse_term<TermKind::EXPR>();
 		if(term.code() != Result::Code::SUCCESS){ return term; }
 
-		if(this->expect_token_fail(Token::lookupKind(";"), "after term statement")){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind(";"), "after term statement").isError()){ return Result::Code::ERROR; }
 
 		return term;
 	}
@@ -2029,7 +2041,7 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-		if(this->assert_token_fail(Token::lookupKind(")"))){ return Result::Code::ERROR; }
+		if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
 
 		return inner_expr;
 	}
@@ -2060,25 +2072,25 @@ namespace pcit::panther{
 			auto arguments = evo::StaticVector<AST::Node, 2>();
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
-				if(this->assert_token_fail(Token::lookupKind("("))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("(")).isError()){ return Result::Code::ERROR; }
 
 				const Result argument_result = this->parse_expr();
-				if(this->check_result_fail(argument_result, "argument in attribute after [(]")){
+				if(this->check_result(argument_result, "argument in attribute after [(]").isError()){
 					return Result::Code::ERROR;
 				}
 				arguments.emplace_back(argument_result.value());
 
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(",")){
-					if(this->assert_token_fail(Token::lookupKind(","))){ return Result::Code::ERROR; }
+					if(this->assert_token(Token::lookupKind(",")).isError()){ return Result::Code::ERROR; }
 
 					const Result argument2_result = this->parse_expr();
-					if(this->check_result_fail(argument2_result, "argument in attribute after [,]")){
+					if(this->check_result(argument2_result, "argument in attribute after [,]").isError()){
 						return Result::Code::ERROR;
 					}
 					arguments.emplace_back(argument2_result.value());
 				}
 
-				if(this->expect_token_fail(Token::lookupKind(")"), "after attribute argument")){
+				if(this->expect_token(Token::lookupKind(")"), "after attribute argument").isError()){
 					return Result::Code::ERROR;
 				}
 
@@ -2164,7 +2176,7 @@ namespace pcit::panther{
 		bool param_has_default_value = false;
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}>")){
-				if(this->assert_token_fail(Token::lookupKind("}>"))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("}>")).isError()){ return Result::Code::ERROR; }
 				break;
 			}
 
@@ -2176,19 +2188,19 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
-			if(this->expect_token_fail(Token::lookupKind(":"), "after template parameter identifier")){
+			if(this->expect_token(Token::lookupKind(":"), "after template parameter identifier").isError()){
 				return Result::Code::ERROR;
 			}
 			
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result_fail(type, "type in template parameter declaration")){
+			if(this->check_result(type, "type in template parameter declaration").isError()){
 				return Result::Code::ERROR;
 			}
 
 
 			auto default_value = std::optional<AST::Node>();
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
-				if(this->assert_token_fail(Token::lookupKind("="))){ return Result::Code::ERROR; }
+				if(this->assert_token(Token::lookupKind("=")).isError()){ return Result::Code::ERROR; }
 
 				Result default_value_res = this->parse_type<TypeKind::TEMPLATE_ARG>();
 				if(default_value_res.code() == Result::Code::ERROR){
@@ -2196,7 +2208,7 @@ namespace pcit::panther{
 
 				}else if(default_value_res.code() == Result::Code::WRONG_TYPE){
 					default_value_res = this->parse_expr();
-					if(this->check_result_fail(default_value_res, "default value of template parameter")){
+					if(this->check_result(default_value_res, "default value of template parameter").isError()){
 						return Result::Code::ERROR;
 					}
 
@@ -2254,14 +2266,14 @@ namespace pcit::panther{
 
 	auto Parser::parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>> {
 		auto params = evo::SmallVector<AST::FuncDecl::Param>();
-		if(this->expect_token_fail(Token::lookupKind("("), "to open parameter block in function declaration")){
+		if(this->expect_token(Token::lookupKind("("), "to open parameter block in function declaration").isError()){
 			return evo::resultError;
 		}
 
 		bool param_has_default_value = false;
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
-				if(this->assert_token_fail(Token::lookupKind(")"))){ return evo::resultError; }
+				if(this->assert_token(Token::lookupKind(")")).isError()){ return evo::resultError; }
 				break;
 			}
 
@@ -2307,17 +2319,17 @@ namespace pcit::panther{
 
 			}else{
 				const Result param_ident_result = this->parse_ident();
-				if(this->check_result_fail(param_ident_result, "identifier or [this] in function parameter")){
+				if(this->check_result(param_ident_result, "identifier or [this] in function parameter").isError()){
 					return evo::resultError;
 				}
 				param_ident = param_ident_result.value();
 
-				if(this->expect_token_fail(Token::lookupKind(":"), "after function parameter identifier")){
+				if(this->expect_token(Token::lookupKind(":"), "after function parameter identifier").isError()){
 					return evo::resultError;
 				}
 
 				const Result type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
-				if(this->check_result_fail(type, "type after [:] in function parameter declaration")){
+				if(this->check_result(type, "type after [:] in function parameter declaration").isError()){
 					return evo::resultError;
 				}
 				param_type = type.value();
@@ -2349,10 +2361,10 @@ namespace pcit::panther{
 
 			auto default_value = std::optional<AST::Node>();
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
-				if(this->assert_token_fail(Token::lookupKind("="))){ return evo::resultError; }
+				if(this->assert_token(Token::lookupKind("=")).isError()){ return evo::resultError; }
 
 				const Result default_value_res = this->parse_expr();
-				if(this->check_result_fail(default_value_res, "function parameter default value")){
+				if(this->check_result(default_value_res, "function parameter default value").isError()){
 					return evo::resultError;
 				}
 
@@ -2397,7 +2409,7 @@ namespace pcit::panther{
 
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("(")){
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result_fail(type, "Return type in function declaration")){ return evo::resultError; }	
+			if(this->check_result(type, "Return type in function declaration").isError()){ return evo::resultError; }	
 
 			returns.emplace_back(std::nullopt, type.value());
 
@@ -2406,11 +2418,11 @@ namespace pcit::panther{
 
 
 		const Token::ID start_location = this->reader.peek();
-		if(this->assert_token_fail(Token::lookupKind("("))){ return evo::resultError; }
+		if(this->assert_token(Token::lookupKind("(")).isError()){ return evo::resultError; }
 
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
-				if(this->assert_token_fail(Token::lookupKind(")"))){ return evo::resultError; }
+				if(this->assert_token(Token::lookupKind(")")).isError()){ return evo::resultError; }
 				break;
 			}
 
@@ -2434,12 +2446,12 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			if(this->expect_token_fail(Token::lookupKind(":"), "after function return parameter identifier")){
+			if(this->expect_token(Token::lookupKind(":"), "after function return parameter identifier").isError()){
 				return evo::resultError;
 			}
 			
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result_fail(type, "type in function return parameter declaration")){
+			if(this->check_result(type, "type in function return parameter declaration").isError()){
 				return evo::resultError;
 			}
 
@@ -2488,7 +2500,7 @@ namespace pcit::panther{
 			return error_returns;
 		}
 
-		if(this->assert_token_fail(Token::lookupKind("<"))){ return evo::resultError; }
+		if(this->assert_token(Token::lookupKind("<")).isError()){ return evo::resultError; }
 
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
 			this->context.emitError(
@@ -2514,35 +2526,37 @@ namespace pcit::panther{
 
 		if(this->reader[this->reader.peek(1)].kind() != Token::lookupKind(":")){
 			const Result single_type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result_fail(single_type, "single type in function error return parameter block")){
+			if(this->check_result(single_type, "single type in function error return parameter block").isError()){
 				evo::resultError;
 			}
 			error_returns.emplace_back(std::nullopt, single_type.value());
 
-			if(this->expect_token_fail(
+			if(this->expect_token(
 				Token::lookupKind(">"), "at end of single type in function error return parameter block"
-			)){ return evo::resultError; }
+			).isError()){ return evo::resultError; }
 
 			return error_returns;
 		}
 
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
-				if(this->assert_token_fail(Token::lookupKind(">"))){ return evo::resultError; }
+				if(this->assert_token(Token::lookupKind(">")).isError()){ return evo::resultError; }
 				break;
 			}
 
 			const Result ident = this->parse_ident();
-			if(this->check_result_fail(ident, "identifier in function error return parameter")){
+			if(this->check_result(ident, "identifier in function error return parameter").isError()){
 				return evo::resultError;
 			}
 
-			if(this->expect_token_fail(Token::lookupKind(":"), "after function error return parameter identifier")){
+			if(this->expect_token(
+				Token::lookupKind(":"), "after function error return parameter identifier"
+			).isError()){
 				return evo::resultError;
 			}
 			
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result_fail(type, "type in function error return parameter declaration")){
+			if(this->check_result(type, "type in function error return parameter declaration").isError()){
 				return evo::resultError;
 			}
 
@@ -2571,13 +2585,13 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_func_call_args() -> evo::Result<evo::SmallVector<AST::FuncCall::Arg>> {
-		if(this->assert_token_fail(Token::lookupKind("("))){ return evo::resultError; }
+		if(this->assert_token(Token::lookupKind("(")).isError()){ return evo::resultError; }
 		
 		auto args = evo::SmallVector<AST::FuncCall::Arg>();
 
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
-				if(this->assert_token_fail(Token::lookupKind(")"))){ return evo::resultError; }
+				if(this->assert_token(Token::lookupKind(")")).isError()){ return evo::resultError; }
 				break;
 			}
 
@@ -2588,11 +2602,11 @@ namespace pcit::panther{
 				this->reader[this->reader.peek(1)].kind() == Token::lookupKind(":")
 			){
 				arg_ident = this->reader.next();
-				if(this->assert_token_fail(Token::lookupKind(":"))){ return evo::resultError; }
+				if(this->assert_token(Token::lookupKind(":")).isError()){ return evo::resultError; }
 			}
 
 			const Result expr_result = this->parse_expr();
-			if(this->check_result_fail(expr_result, "expression argument inside function call")){
+			if(this->check_result(expr_result, "expression argument inside function call").isError()){
 				return evo::resultError;
 			}
 
@@ -2618,18 +2632,18 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_array_init() -> evo::Result<evo::SmallVector<AST::Node>> {
-		if(this->assert_token_fail(Token::lookupKind("["))){ return evo::resultError; }
+		if(this->assert_token(Token::lookupKind("[")).isError()){ return evo::resultError; }
 		
 		auto init_values = evo::SmallVector<AST::Node>();
 
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("]")){
-				if(this->assert_token_fail(Token::lookupKind("]"))){ return evo::resultError; }
+				if(this->assert_token(Token::lookupKind("]")).isError()){ return evo::resultError; }
 				break;
 			}
 
 			const Result expr = this->parse_expr();
-			if(this->check_result_fail(expr, "expression in array initializer value")){
+			if(this->check_result(expr, "expression in array initializer value").isError()){
 				return evo::resultError;
 			}
 
@@ -2655,26 +2669,28 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_designated_init() -> evo::Result<evo::SmallVector<AST::DesignatedInitNew::MemberInit>> {
-		if(this->assert_token_fail(Token::lookupKind("{"))){ return evo::resultError; }
+		if(this->assert_token(Token::lookupKind("{")).isError()){ return evo::resultError; }
 		
 		auto init_values = evo::SmallVector<AST::DesignatedInitNew::MemberInit>();
 
 		while(true){
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
-				if(this->assert_token_fail(Token::lookupKind("}"))){ return evo::resultError; }
+				if(this->assert_token(Token::lookupKind("}")).isError()){ return evo::resultError; }
 				break;
 			}
 
 
 			const Result ident = this->parse_ident();
-			if(this->check_result_fail(ident, "identifier in struct initializer value")){ return evo::resultError; }
+			if(this->check_result(ident, "identifier in struct initializer value").isError()){
+				return evo::resultError;
+			}
 			
-			if(this->expect_token_fail(Token::lookupKind("="), "after identifier in struct initializer value")){
+			if(this->expect_token(Token::lookupKind("="), "after identifier in struct initializer value").isError()){
 				return evo::resultError;
 			}
 
 			const Result expr = this->parse_expr();
-			if(this->check_result_fail(expr, "expression after [=] in struct initializer value")){
+			if(this->check_result(expr, "expression after [=] in struct initializer value").isError()){
 				return evo::resultError;
 			}
 
@@ -2720,19 +2736,19 @@ namespace pcit::panther{
 	}
 
 
-	auto Parser::check_result_fail(const Result& result, std::string_view location_str) -> bool {
+	auto Parser::check_result(const Result& result, std::string_view location_str) -> evo::Result<> {
 		switch(result.code()){
 			case Result::Code::SUCCESS: {
-				return false;
+				return evo::Result<>();
 			} break;
 
 			case Result::Code::WRONG_TYPE: {
 				this->expected_but_got(location_str, this->reader.peek());
-				return true;
+				return evo::resultError;
 			} break;
 
 			case Result::Code::ERROR: {
-				return true;
+				return evo::resultError;
 			} break;
 		}
 
@@ -2740,11 +2756,11 @@ namespace pcit::panther{
 	}
 
 
-	auto Parser::assert_token_fail(Token::Kind kind) -> bool {
+	auto Parser::assert_token(Token::Kind kind) -> evo::Result<> {
 		#if defined(PCIT_CONFIG_DEBUG)
 			const Token::ID next_token_id = this->reader.next();
 
-			if(this->reader[next_token_id].kind() == kind){ return false; }
+			if(this->reader[next_token_id].kind() == kind){ return evo::Result<>(); }
 
 			this->context.emitFatal(
 				Diagnostic::Code::PARSER_ASSUMED_TOKEN_NOT_PRESET,
@@ -2754,20 +2770,20 @@ namespace pcit::panther{
 				)
 			);
 
-			return true;
+			return evo::resultError;
 
 		#else
 			this->reader.skip();
-			return false;
+			return evo::Result<>();
 		#endif
 	}
 
-	auto Parser::expect_token_fail(Token::Kind kind, std::string_view location_str) -> bool {
+	auto Parser::expect_token(Token::Kind kind, std::string_view location_str) -> evo::Result<> {
 		const Token::ID next_token_id = this->reader.next();
-		if(this->reader[next_token_id].kind() == kind){ return false; }
+		if(this->reader[next_token_id].kind() == kind){ return evo::Result<>(); }
 
 		this->expected_but_got(std::format("[{}] {}", kind, location_str), next_token_id);
-		return true;
+		return evo::resultError;
 	}
 
 

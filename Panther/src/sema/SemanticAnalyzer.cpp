@@ -7448,7 +7448,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result {
 		this->return_term_info(instr.to,
-			TermInfo::ValueCategory::TYPE, TermInfo::ValueStage::CONSTEXPR, this->get_type(instr.from), std::nullopt
+			TermInfo::ValueCategory::TYPE, this->get_type(instr.from)
 		);
 		return Result::SUCCESS;
 	}
@@ -8176,14 +8176,7 @@ namespace pcit::panther{
 				this->context.lookupSourceID(lookup_path, this->source);
 
 			if(import_lookup.has_value()){
-				this->return_term_info(instr.output, 
-					TermInfo(
-						TermInfo::ValueCategory::MODULE,
-						TermInfo::ValueStage::CONSTEXPR,
-						import_lookup.value(),
-						std::nullopt
-					)
-				);
+				this->return_term_info(instr.output, TermInfo(TermInfo::ValueCategory::MODULE, import_lookup.value()));
 				return Result::SUCCESS;
 			}
 			
@@ -8195,12 +8188,7 @@ namespace pcit::panther{
 
 			if(import_lookup.has_value()){
 				this->return_term_info(instr.output, 
-					TermInfo(
-						TermInfo::ValueCategory::CLANG_MODULE,
-						TermInfo::ValueStage::CONSTEXPR,
-						import_lookup.value(),
-						std::nullopt
-					)
+					TermInfo(TermInfo::ValueCategory::CLANG_MODULE, import_lookup.value())
 				);
 				return Result::SUCCESS;
 			}
@@ -11733,10 +11721,7 @@ namespace pcit::panther{
 		}
 
 		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::TYPE,
-			TermInfo::ValueStage::CONSTEXPR,
-			TypeInfo::VoidableID(target_type_id),
-			std::nullopt
+			TermInfo::ValueCategory::TYPE, TypeInfo::VoidableID(target_type_id)
 		);
 
 		return Result::SUCCESS;
@@ -14015,9 +14000,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::TYPE,
-			TermInfo::ValueStage::CONSTEXPR,
-			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_type))),
-			std::nullopt
+			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_type)))
 		);
 		return Result::SUCCESS;
 	}
@@ -14127,9 +14110,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::TYPE,
-			TermInfo::ValueStage::CONSTEXPR,
-			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_ref_type))),
-			std::nullopt
+			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_ref_type)))
 		);
 		return Result::SUCCESS;
 	}
@@ -14151,9 +14132,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::TYPE,
-			TermInfo::ValueStage::CONSTEXPR,
-			TypeInfo::VoidableID(target_type_id),
-			std::nullopt
+			TypeInfo::VoidableID(target_type_id)
 		);
 		return Result::SUCCESS;
 	}
@@ -14260,10 +14239,7 @@ namespace pcit::panther{
 			TemplateIntrinsicFunc::lookupKind(intrinsic_name);
 		if(template_intrinsic_kind.has_value()){
 			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC,
-				TermInfo::ValueStage::CONSTEXPR,
-				*template_intrinsic_kind,
-				std::nullopt
+				TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC, *template_intrinsic_kind
 			);
 			return Result::SUCCESS;
 		}
@@ -14271,10 +14247,7 @@ namespace pcit::panther{
 
 		if(intrinsic_name == "pthr"){
 			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::BUILTIN_MODULE,
-				TermInfo::ValueStage::CONSTEXPR,
-				BuiltinModule::ID::PTHR,
-				std::nullopt
+				TermInfo::ValueCategory::BUILTIN_MODULE, BuiltinModule::ID::PTHR
 			);
 			return Result::SUCCESS;
 			
@@ -14456,9 +14429,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::TYPE,
-			TermInfo::ValueStage::CONSTEXPR,
-			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(new_type_deducer))),
-			std::nullopt
+			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(new_type_deducer)))
 		);
 		return Result::SUCCESS;
 	}
@@ -14561,17 +14532,12 @@ namespace pcit::panther{
 			if constexpr(std::is_same<SymbolType, BaseType::ID>()){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::TYPE,
-					TermInfo::ValueStage::CONSTEXPR,
-					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(symbol))),
-					std::nullopt
+					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(symbol)))
 				);
 
 			}else if constexpr(std::is_same<SymbolType, sema::Func::ID>()){
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::FUNCTION,
-					TermInfo::ValueStage::CONSTEXPR,
-					TermInfo::FuncOverloadList{symbol},
-					std::nullopt
+					TermInfo::ValueCategory::FUNCTION, TermInfo::FuncOverloadList{symbol}
 				);
 
 			}else if constexpr(std::is_same<SymbolType, sema::GlobalVar::ID>()){
@@ -14675,9 +14641,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR,
-							TermInfo::ValueStage::CONSTEXPR,
-							TermInfo::TaggedUnionFieldAccessor(actual_lhs_type.baseTypeID().unionID(), i),
-							std::nullopt
+							TermInfo::TaggedUnionFieldAccessor(actual_lhs_type.baseTypeID().unionID(), i)
 						);
 						return Result::SUCCESS;
 					}
@@ -14788,17 +14752,12 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::TYPE,
-					TermInfo::ValueStage::CONSTEXPR,
-					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(symbol))),
-					std::nullopt
+					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(symbol)))
 				);
 
 			}else if constexpr(std::is_same<SymbolType, sema::Func::ID>()){
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::FUNCTION,
-					TermInfo::ValueStage::CONSTEXPR,
-					TermInfo::FuncOverloadList{symbol},
-					std::nullopt
+					TermInfo::ValueCategory::FUNCTION, TermInfo::FuncOverloadList{symbol}
 				);
 
 			}else if constexpr(std::is_same<SymbolType, sema::GlobalVar::ID>()){
@@ -16139,18 +16098,10 @@ namespace pcit::panther{
 			this->scope.lookupTemplateDeclInstantiationType(ident_str);
 		if(template_decl_instantiation.isSuccess()){
 			if(template_decl_instantiation.value().has_value()){
-				return TermInfo(
-					TermInfo::ValueCategory::TYPE,
-					TermInfo::ValueStage::CONSTEXPR,
-					template_decl_instantiation.value().value(),
-					std::nullopt
-				);
+				return TermInfo(TermInfo::ValueCategory::TYPE, template_decl_instantiation.value().value());
 			}else{
 				return TermInfo(
-					TermInfo::ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE,
-					TermInfo::ValueStage::CONSTEXPR,
-					TermInfo::TemplateDeclInstantiationType(),
-					std::nullopt
+					TermInfo::ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE, TermInfo::TemplateDeclInstantiationType()
 				);
 			}
 		}
@@ -16195,9 +16146,7 @@ namespace pcit::panther{
 
 
 			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
-				return ReturnType(
-					TermInfo(TermInfo::ValueCategory::FUNCTION, TermInfo::ValueStage::CONSTEXPR, ident_id, std::nullopt)
-				);
+				return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Var::ID>()){
 				if(!variables_in_scope){
@@ -16576,11 +16525,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TYPE,
-						TermInfo::ValueStage::CONSTEXPR,
 						TypeInfo::VoidableID(
 							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
-						),
-						std::nullopt
+						)
 					)
 				);
 
@@ -16621,11 +16568,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TYPE,
-						TermInfo::ValueStage::CONSTEXPR,
 						TypeInfo::VoidableID(
 							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
-						),
-						std::nullopt
+						)
 					)
 				);
 
@@ -16658,11 +16603,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TYPE,
-						TermInfo::ValueStage::CONSTEXPR,
 						TypeInfo::VoidableID(
 							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
-						),
-						std::nullopt
+						)
 					)
 				);
 
@@ -16695,27 +16638,17 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TYPE,
-						TermInfo::ValueStage::CONSTEXPR,
 						TypeInfo::VoidableID(
 							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
-						),
-						std::nullopt
+						)
 					)
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::TemplatedStruct::ID>()){
-				return ReturnType(
-					TermInfo(
-						TermInfo::ValueCategory::TEMPLATE_TYPE, TermInfo::ValueStage::CONSTEXPR, ident_id, std::nullopt
-					)
-				);
+				return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE, ident_id));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateTypeParam>()){
-				return ReturnType(
-					TermInfo(
-						TermInfo::ValueCategory::TYPE, TermInfo::ValueStage::CONSTEXPR, ident_id.typeID, std::nullopt
-					)
-				);
+				return ReturnType(TermInfo(TermInfo::ValueCategory::TYPE, ident_id.typeID));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateExprParam>()){
 				return ReturnType(
@@ -16729,11 +16662,7 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::DeducedType>()){
-				return ReturnType(
-					TermInfo(
-						TermInfo::ValueCategory::TYPE, TermInfo::ValueStage::CONSTEXPR, ident_id.typeID, std::nullopt
-					)
-				);
+				return ReturnType(TermInfo(TermInfo::ValueCategory::TYPE, ident_id.typeID));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::MemberVar>()){
 				auto infos = evo::SmallVector<Diagnostic::Info>();

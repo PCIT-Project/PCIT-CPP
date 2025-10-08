@@ -170,10 +170,10 @@ namespace pcit::panther{
 				std::string_view expected_str, Token::ID got_token, evo::SmallVector<Diagnostic::Info>&& infos = {}
 			) -> void;
 
-			EVO_NODISCARD auto check_result_fail(const Result& result, std::string_view location_str) -> bool;
+			EVO_NODISCARD auto check_result(const Result& result, std::string_view location_str) -> evo::Result<>;
 
-			EVO_NODISCARD auto assert_token_fail(Token::Kind kind) -> bool;
-			EVO_NODISCARD auto expect_token_fail(Token::Kind kind, std::string_view location_str) -> bool;
+			EVO_NODISCARD auto assert_token(Token::Kind kind) -> evo::Result<>;
+			EVO_NODISCARD auto expect_token(Token::Kind kind, std::string_view location_str) -> evo::Result<>;
 
 
 		private:

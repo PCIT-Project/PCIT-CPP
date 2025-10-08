@@ -49,6 +49,7 @@ namespace pcit::panther{
 		};
 
 		enum class ValueStage{
+			NOT_APPLICABLE,
 			CONSTEXPR,
 			COMPTIME,
 			RUNTIME,
@@ -165,9 +166,9 @@ namespace pcit::panther{
 		}
 
 
-		TermInfo(ValueCategory cat, ValueStage stage, auto&& _type_id, std::nullopt_t) :
+		TermInfo(ValueCategory cat, auto&& _type_id) :
 			value_category(cat),
-			value_stage(stage),
+			value_stage(ValueStage::NOT_APPLICABLE),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(std::forward<decltype(_type_id)>(_type_id)),
 			exprs()
@@ -178,9 +179,9 @@ namespace pcit::panther{
 		}
 
 
-		TermInfo(ValueCategory cat, ValueStage stage, const auto& _type_id, std::nullopt_t) :
+		TermInfo(ValueCategory cat, const auto& _type_id) :
 			value_category(cat),
-			value_stage(stage),
+			value_stage(ValueStage::NOT_APPLICABLE),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(InitializerType()),
 			exprs()
@@ -310,8 +311,6 @@ namespace pcit::panther{
 					|| this->value_category == ValueCategory::TAGGED_UNION_FIELD_ACCESSOR
 				);
 
-				evo::debugAssert(this->value_stage == ValueStage::CONSTEXPR);
-
 				if(this->value_category == ValueCategory::TYPE){
 					evo::debugAssert(
 						this->type_id.is<TypeInfo::VoidableID>(),
@@ -388,9 +387,10 @@ namespace pcit::panther{
 
 		EVO_NODISCARD static auto convertValueStage(ValueStage value_stage) -> sema::FakeTermInfo::ValueStage {
 			switch(value_stage){
-				case TermInfo::ValueStage::CONSTEXPR: return sema::FakeTermInfo::ValueStage::CONSTEXPR;
-				case TermInfo::ValueStage::COMPTIME:  return sema::FakeTermInfo::ValueStage::COMPTIME;
-				case TermInfo::ValueStage::RUNTIME:   return sema::FakeTermInfo::ValueStage::RUNTIME;
+				case TermInfo::ValueStage::NOT_APPLICABLE: evo::debugFatalBreak("Invalid value stage to convert");
+				case TermInfo::ValueStage::CONSTEXPR:      return sema::FakeTermInfo::ValueStage::CONSTEXPR;
+				case TermInfo::ValueStage::COMPTIME:       return sema::FakeTermInfo::ValueStage::COMPTIME;
+				case TermInfo::ValueStage::RUNTIME:        return sema::FakeTermInfo::ValueStage::RUNTIME;
 			}
 			evo::unreachable();
 		}

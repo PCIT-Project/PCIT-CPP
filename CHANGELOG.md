@@ -1,11 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.168.1"></a>
+## v0.0.168.1
+
+### Panther
+- Minor code refactors
+
+<!---------------------------------->
 <a name="v0.0.168.0"></a>
 ## v0.0.168.0
 
 ### Panther
 - Added tagged unions
+	- Added comparason of the tag
 - Fixed ouptut parameter of constructors of types with no members not counting as initialized
 
 ### PIR
