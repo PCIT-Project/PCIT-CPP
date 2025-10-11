@@ -169,18 +169,18 @@ namespace pcit::panther{
 		// stmts valid in global scope
 
 		struct NonLocalVarDecl{
-			const AST::VarDecl& var_decl;
+			const AST::VarDef& var_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			SymbolProcTypeID type_id;
 		};
 
 		struct NonLocalVarDef{
-			const AST::VarDecl& var_decl;
+			const AST::VarDef& var_def;
 			std::optional<SymbolProcTermInfoID> value_id;
 		};
 
 		struct NonLocalVarDeclDef{
-			const AST::VarDecl& var_decl;
+			const AST::VarDef& var_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			std::optional<SymbolProcTypeID> type_id;
 			SymbolProcTermInfoID value_id;
@@ -194,34 +194,34 @@ namespace pcit::panther{
 
 
 		struct AliasDecl{
-			const AST::AliasDecl& alias_decl;
+			const AST::AliasDef& alias_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 		};
 
 		struct AliasDef{
-			const AST::AliasDecl& alias_decl;
+			const AST::AliasDef& alias_def;
 			SymbolProcTypeID aliased_type;
 		};
 
 
 		template<bool IS_INSTANTIATION>
 		struct StructDecl{
-			const AST::StructDecl& struct_decl;
+			const AST::StructDef& struct_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			std::optional<BaseType::StructTemplate::ID> struct_template_id{};
 			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
 
 			StructDecl(
-				const AST::StructDecl& _struct_decl, evo::SmallVector<AttributeParams>&& _attribute_params_info
-			) requires(!IS_INSTANTIATION) : struct_decl(_struct_decl), attribute_params_info(_attribute_params_info) {}
+				const AST::StructDef& _struct_def, evo::SmallVector<AttributeParams>&& _attribute_params_info
+			) requires(!IS_INSTANTIATION) : struct_def(_struct_def), attribute_params_info(_attribute_params_info) {}
 
 			StructDecl(
-				const AST::StructDecl& _struct_decl,
+				const AST::StructDef& _struct_def,
 				evo::SmallVector<AttributeParams>&& _attribute_params_info,
 				BaseType::StructTemplate::ID _struct_template_id,
 				uint32_t _instantiation_id
 			) requires(IS_INSTANTIATION) :
-				struct_decl(_struct_decl),
+				struct_def(_struct_def),
 				attribute_params_info(_attribute_params_info),
 				struct_template_id(_struct_template_id),
 				instantiation_id(_instantiation_id)
@@ -230,19 +230,31 @@ namespace pcit::panther{
 
 
 		struct TemplateStruct{
-			const AST::StructDecl& struct_decl;
+			const AST::StructDef& struct_def;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
 
 
 		struct UnionDecl{
-			const AST::UnionDecl& union_decl;
+			const AST::UnionDef& union_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 		};
 
 		struct UnionAddFields{
-			const AST::UnionDecl& union_decl;
+			const AST::UnionDef& union_def;
 			evo::SmallVector<SymbolProcTypeID> field_types;
+		};
+
+
+		struct EnumDecl{
+			const AST::EnumDef& enum_def;
+			std::optional<SymbolProcTypeID> underlying_type;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+		};
+
+		struct EnumAddEnumerators{
+			const AST::EnumDef& enum_def;
+			evo::SmallVector<std::optional<SymbolProcTermInfoID>> enumerator_values;
 		};
 
 
@@ -255,7 +267,7 @@ namespace pcit::panther{
 
 		template<bool IS_INSTANTIATION>
 		struct FuncDecl{
-			const AST::FuncDecl& func_decl;
+			const AST::FuncDef& func_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			evo::SmallVector<std::optional<SymbolProcTermInfoID>> default_param_values;
 			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
@@ -263,45 +275,45 @@ namespace pcit::panther{
 			// param type is nullopt if the param is `this`
 			EVO_NODISCARD auto params() const -> evo::ArrayProxy<std::optional<SymbolProcTypeID>> {
 				return evo::ArrayProxy<std::optional<SymbolProcTypeID>>(
-					this->types.data(), this->func_decl.params.size()
+					this->types.data(), this->func_def.params.size()
 				);
 			}
 
 			EVO_NODISCARD auto returns() const -> evo::ArrayProxy<SymbolProcTypeID> {
 				return evo::ArrayProxy<SymbolProcTypeID>(
-					(SymbolProcTypeID*)&this->types[this->func_decl.params.size()],
-					this->func_decl.returns.size()
+					(SymbolProcTypeID*)&this->types[this->func_def.params.size()],
+					this->func_def.returns.size()
 				);
 			}
 
 			EVO_NODISCARD auto errorReturns() const -> evo::ArrayProxy<SymbolProcTypeID> {
-				if(this->func_decl.errorReturns.empty()){
+				if(this->func_def.errorReturns.empty()){
 					return evo::ArrayProxy<SymbolProcTypeID>();
 					
 				}else{
 					return evo::ArrayProxy<SymbolProcTypeID>(
-						(SymbolProcTypeID*)&this->types[this->func_decl.params.size() + this->func_decl.returns.size()],
-						this->func_decl.errorReturns.size()
+						(SymbolProcTypeID*)&this->types[this->func_def.params.size() + this->func_def.returns.size()],
+						this->func_def.errorReturns.size()
 					);
 				}
 			}
 
 
 			FuncDecl(
-				const AST::FuncDecl& _func_decl,
+				const AST::FuncDef& _func_def,
 				evo::SmallVector<AttributeParams>&& _attribute_params_info,
 				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types
 			) requires(!IS_INSTANTIATION) : 
-				func_decl(_func_decl),
+				func_def(_func_def),
 				attribute_params_info(_attribute_params_info),
 				default_param_values(_default_param_values),
 				types(_types)
 			{
 				#if defined(PCIT_CONFIG_DEBUG)
-					const size_t correct_num_types = this->func_decl.params.size() 
-						+ this->func_decl.returns.size() 
-						+ this->func_decl.errorReturns.size();
+					const size_t correct_num_types = this->func_def.params.size() 
+						+ this->func_def.returns.size() 
+						+ this->func_def.errorReturns.size();
 
 					evo::debugAssert(this->types.size() == correct_num_types, "Recieved the incorrect number of types");
 				#endif
@@ -309,22 +321,22 @@ namespace pcit::panther{
 
 
 			FuncDecl(
-				const AST::FuncDecl& _func_decl,
+				const AST::FuncDef& _func_def,
 				evo::SmallVector<AttributeParams>&& _attribute_params_info,
 				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types,
 				uint32_t _instantiation_id
 			) requires(IS_INSTANTIATION) : 
-				func_decl(_func_decl),
+				func_def(_func_def),
 				attribute_params_info(_attribute_params_info),
 				default_param_values(_default_param_values),
 				types(_types),
 				instantiation_id(_instantiation_id)
 			{
 				#if defined(PCIT_CONFIG_DEBUG)
-					const size_t correct_num_types = this->func_decl.params.size() 
-						+ this->func_decl.returns.size() 
-						+ this->func_decl.errorReturns.size();
+					const size_t correct_num_types = this->func_def.params.size() 
+						+ this->func_def.returns.size() 
+						+ this->func_def.errorReturns.size();
 
 					evo::debugAssert(this->types.size() == correct_num_types, "Recieved the incorrect number of types");
 				#endif
@@ -343,23 +355,23 @@ namespace pcit::panther{
 
 		// Stuff that needs to happen after the decl but before body. This is separate so type definitions can be gotten
 		struct FuncPreBody{ 
-			const AST::FuncDecl& func_decl;
+			const AST::FuncDef& func_def;
 		};
 
 		struct FuncDef{
-			const AST::FuncDecl& func_decl;
+			const AST::FuncDef& func_def;
 		};
 
 
 
 		struct FuncPrepareConstexprPIRIfNeeded{
-			const AST::FuncDecl& func_decl;
+			const AST::FuncDef& func_def;
 		};
 
 
 
 		struct TemplateFuncBegin{
-			const AST::FuncDecl& func_decl;
+			const AST::FuncDef& func_def;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
 		
@@ -373,7 +385,7 @@ namespace pcit::panther{
 		};
 
 		struct TemplateFuncEnd{
-			const AST::FuncDecl& func_decl;
+			const AST::FuncDef& func_def;
 		};
 
 
@@ -385,13 +397,13 @@ namespace pcit::panther{
 
 
 		struct InterfaceDecl{
-			const AST::InterfaceDecl& interface_decl;
+			const AST::InterfaceDef& interface_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 		};
 
 
 		struct InterfaceFuncDef{
-			const AST::FuncDecl& func_decl;
+			const AST::FuncDef& func_def;
 		};
 
 
@@ -415,14 +427,14 @@ namespace pcit::panther{
 		// stmt
 
 		struct LocalVar{
-			const AST::VarDecl& var_decl;
+			const AST::VarDef& var_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			std::optional<SymbolProcTypeID> type_id;
 			SymbolProcTermInfoID value;
 		};
 
 		struct LocalAlias{
-			const AST::AliasDecl& alias_decl;
+			const AST::AliasDef& alias_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			SymbolProcTypeID aliased_type;
 		};
@@ -909,6 +921,9 @@ namespace pcit::panther{
 			UNION_DECL,
 			UNION_ADD_FIELDS,
 			UNION_DEF,
+			ENUM_DECL,
+			ENUM_ADD_ENUMERATORS,
+			ENUM_DEF,
 			FUNC_DECL_EXTRACT_DEDUCERS_IF_NEEDED,
 			FUNC_DECL_INSTANTIATION,
 			FUNC_DECL,
@@ -1368,6 +1383,12 @@ namespace pcit::panther{
 				BaseType::Union::ID union_id = BaseType::Union::ID::dummy();
 			};
 
+			struct EnumInfo{
+				evo::SmallVector<SymbolProcID> stmts{};
+				Namespace member_symbols{};
+				BaseType::Enum::ID enum_id = BaseType::Enum::ID::dummy();
+			};
+
 			struct FuncInfo{
 				std::stack<sema::Stmt> subscopes{};
 
@@ -1402,6 +1423,7 @@ namespace pcit::panther{
 				AliasInfo,
 				StructInfo,
 				UnionInfo,
+				EnumInfo,
 				FuncInfo,
 				TemplateFuncInfo,
 				InterfaceImplInfo

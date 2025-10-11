@@ -48,12 +48,12 @@ namespace pcit::panther{
 		const Token& peeked_token = this->reader[this->reader.peek()];
 		
 		switch(peeked_token.kind()){
-			case Token::Kind::KEYWORD_VAR:         return this->parse_var_decl<AST::VarDecl::Kind::VAR>();
-			case Token::Kind::KEYWORD_CONST:       return this->parse_var_decl<AST::VarDecl::Kind::CONST>();
-			case Token::Kind::KEYWORD_DEF:         return this->parse_var_decl<AST::VarDecl::Kind::DEF>();
-			case Token::Kind::KEYWORD_FUNC:        return this->parse_func_decl<true>();
-			case Token::Kind::KEYWORD_TYPE:        return this->parse_type_decl();
-			case Token::Kind::KEYWORD_INTERFACE:   return this->parse_interface_decl();
+			case Token::Kind::KEYWORD_VAR:         return this->parse_var_def<AST::VarDef::Kind::VAR>();
+			case Token::Kind::KEYWORD_CONST:       return this->parse_var_def<AST::VarDef::Kind::CONST>();
+			case Token::Kind::KEYWORD_DEF:         return this->parse_var_def<AST::VarDef::Kind::DEF>();
+			case Token::Kind::KEYWORD_FUNC:        return this->parse_func_def<true>();
+			case Token::Kind::KEYWORD_TYPE:        return this->parse_type_def();
+			case Token::Kind::KEYWORD_INTERFACE:   return this->parse_interface_def();
 			case Token::Kind::KEYWORD_IMPL:        return this->parse_interface_impl();
 			case Token::Kind::KEYWORD_RETURN:      return this->parse_return();
 			case Token::Kind::KEYWORD_ERROR:       return this->parse_error();
@@ -79,12 +79,12 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
-	template<AST::VarDecl::Kind VAR_DECL_KIND>
-	auto Parser::parse_var_decl() -> Result {
-		if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::VAR){
+	template<AST::VarDef::Kind VAR_DEF_KIND>
+	auto Parser::parse_var_def() -> Result {
+		if constexpr(VAR_DEF_KIND == AST::VarDef::Kind::VAR){
 			if(this->assert_token(Token::Kind::KEYWORD_VAR).isError()){ return Result::Code::ERROR; }
 
-		}else if constexpr(VAR_DECL_KIND == AST::VarDecl::Kind::CONST){
+		}else if constexpr(VAR_DEF_KIND == AST::VarDef::Kind::CONST){
 			if(this->assert_token(Token::Kind::KEYWORD_CONST).isError()){ return Result::Code::ERROR; }
 			
 		}else{
@@ -92,7 +92,7 @@ namespace pcit::panther{
 		}
 
 		const Result ident = this->parse_ident();
-		if(this->check_result(ident, "identifier in variable declaration").isError()){ return Result::Code::ERROR; }
+		if(this->check_result(ident, "identifier in variable definition").isError()){ return Result::Code::ERROR; }
 
 
 		auto type = std::optional<AST::Node>();
@@ -100,7 +100,7 @@ namespace pcit::panther{
 			if(this->assert_token(Token::lookupKind(":")).isError()){ return Result::Code::ERROR; }
 
 			const Result type_result = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
-			if(this->check_result(type_result, "type after [:] in variable declaration").isError()){
+			if(this->check_result(type_result, "type after [:] in variable definition").isError()){
 				return Result::Code::ERROR;
 			}
 
@@ -118,7 +118,7 @@ namespace pcit::panther{
 				
 			const Result value_result = this->parse_expr();
 			// TODO(FUTURE): better messaging around block exprs missing a label
-			if(this->check_result(value_result, "expression after [=] in variable declaration").isError()){
+			if(this->check_result(value_result, "expression after [=] in variable definition").isError()){
 				return Result::Code::ERROR;
 			}
 
@@ -138,7 +138,7 @@ namespace pcit::panther{
 			this->context.emitError(
 				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
 				Diagnostic::Location::get(this->reader.peek(-1), this->source),
-				"Attributes for variable declaration in the wrong place",
+				"Attributes for variable definition in the wrong place",
 				evo::SmallVector<Diagnostic::Info>{
 					Diagnostic::Info("If the variable is explicitly-typed, the attributes go after the type")
 				}
@@ -146,21 +146,21 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 
 		}else{
-			this->expected_but_got("[;] at end of variable declaration", this->reader.peek());
+			this->expected_but_got("[;] at end of variable definition", this->reader.peek());
 			return Result::Code::ERROR;
 		}
 
 
 
-		return this->source.ast_buffer.createVarDecl(
-			VAR_DECL_KIND, ASTBuffer::getIdent(ident.value()), type, attributes.value(), value
+		return this->source.ast_buffer.createVarDef(
+			VAR_DEF_KIND, ASTBuffer::getIdent(ident.value()), type, attributes.value(), value
 		);
 	}
 
 
 	// TODO(FUTURE): check EOF
 	template<bool MUST_HAVE_BODY>
-	auto Parser::parse_func_decl() -> Result {
+	auto Parser::parse_func_def() -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_FUNC).isError()){ return Result::Code::ERROR; }
 
 		const Token::ID name = this->reader.next();
@@ -182,18 +182,18 @@ namespace pcit::panther{
 
 			default: {
 				this->expected_but_got(
-					"identifier or overloadable operator after [func] in function declaration", this->reader.peek(-1)
+					"identifier or overloadable operator after [func] in function definition", this->reader.peek(-1)
 				);
 				return Result::Code::ERROR;
 			}
 		}
 
-		if(this->expect_token(Token::lookupKind("="), "after identifier in function declaration").isError()){
+		if(this->expect_token(Token::lookupKind("="), "after identifier in function definition").isError()){
 			if(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
 				this->context.emitError(
 					Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
 					Diagnostic::Location::get(this->reader.peek(), this->source),
-					"Attributes for function declaration in the wrong place",
+					"Attributes for function definition in the wrong place",
 					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info("Attributes should be after the parameters block")
 					}
@@ -242,7 +242,7 @@ namespace pcit::panther{
 			case Result::Code::ERROR:     return Result::Code::ERROR;	
 		}
 
-		evo::Result<evo::SmallVector<AST::FuncDecl::Param>> params = this->parse_func_params();
+		evo::Result<evo::SmallVector<AST::FuncDef::Param>> params = this->parse_func_params();
 		if(params.isError()){ return Result::Code::ERROR; }
 
 
@@ -250,7 +250,7 @@ namespace pcit::panther{
 		if(attribute_block.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 
-		if(this->expect_token(Token::lookupKind("->"), "in function declaration").isError()){
+		if(this->expect_token(Token::lookupKind("->"), "in function definition").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -263,21 +263,21 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-		evo::Result<evo::SmallVector<AST::FuncDecl::Return>> returns = this->parse_func_returns();
+		evo::Result<evo::SmallVector<AST::FuncDef::Return>> returns = this->parse_func_returns();
 		if(returns.isError()){ return Result::Code::ERROR; }
 
-		evo::Result<evo::SmallVector<AST::FuncDecl::Return>> error_returns = this->parse_func_error_returns();
+		evo::Result<evo::SmallVector<AST::FuncDef::Return>> error_returns = this->parse_func_error_returns();
 		if(error_returns.isError()){ return Result::Code::ERROR; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
 
 		if constexpr(MUST_HAVE_BODY){
 			// TODO(FUTURE): better messaging 
-			if(this->check_result(block, "statement block in function declaration").isError()){
+			if(this->check_result(block, "statement block in function definition").isError()){
 				return Result::Code::ERROR;
 			}
 
-			return this->source.ast_buffer.createFuncDecl(
+			return this->source.ast_buffer.createFuncDef(
 				name,
 				template_pack_node,
 				std::move(params.value()),
@@ -290,7 +290,7 @@ namespace pcit::panther{
 		}else{
 			switch(block.code()){
 				case Result::Code::SUCCESS: {
-					return this->source.ast_buffer.createFuncDecl(
+					return this->source.ast_buffer.createFuncDef(
 						name,
 						template_pack_node,
 						std::move(params.value()),
@@ -303,12 +303,12 @@ namespace pcit::panther{
 
 				case Result::Code::WRONG_TYPE: {
 					if(this->expect_token(
-						Token::lookupKind(";"), "or function block at end of function declaration"
+						Token::lookupKind(";"), "or function block at end of function definition"
 					).isError()){
 						return Result::Code::ERROR;
 					}
 
-					return this->source.ast_buffer.createFuncDecl(
+					return this->source.ast_buffer.createFuncDef(
 						name,
 						template_pack_node,
 						std::move(params.value()),
@@ -331,65 +331,66 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_alias_decl() -> Result {
+	auto Parser::parse_alias_def() -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_ALIAS).isError()){ return Result::Code::ERROR; }
 
 		const Result ident = this->parse_ident();
-		if(this->check_result(ident, "identifier in alias declaration").isError()){ return Result::Code::ERROR; }
+		if(this->check_result(ident, "identifier in alias definition").isError()){ return Result::Code::ERROR; }
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-		if(this->expect_token(Token::lookupKind("="), "in alias declaration").isError()){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind("="), "in alias definition").isError()){ return Result::Code::ERROR; }
 
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result(type, "type in alias declaration").isError()){ return Result::Code::ERROR; }
+		if(this->check_result(type, "type in alias definition").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token(Token::lookupKind(";"), "at end of alias declaration").isError()){
+		if(this->expect_token(Token::lookupKind(";"), "at end of alias definition").isError()){
 			return Result::Code::ERROR;
 		}
 
-		return this->source.ast_buffer.createAliasDecl(
+		return this->source.ast_buffer.createAliasDef(
 			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
 		);
 	}
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_type_decl() -> Result {
+	auto Parser::parse_type_def() -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_TYPE).isError()){ return Result::Code::ERROR; }
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ALIAS){
-			return this->parse_alias_decl();
+			return this->parse_alias_def();
 		}
 
 		const Result ident = this->parse_ident();
-		if(this->check_result(ident, "identifier in type declaration").isError()){ return Result::Code::ERROR; }
+		if(this->check_result(ident, "identifier in type definition").isError()){ return Result::Code::ERROR; }
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-		if(this->expect_token(Token::lookupKind("="), "in type declaration").isError()){ return Result::Code::ERROR; }
+		if(this->expect_token(Token::lookupKind("="), "in type definition").isError()){ return Result::Code::ERROR; }
 
 		switch(this->reader[this->reader.peek()].kind()){
-			case Token::Kind::KEYWORD_STRUCT: return this->parse_struct_decl(ident.value(), attributes.value());
-			case Token::Kind::KEYWORD_UNION:  return this->parse_union_decl(ident.value(), attributes.value());
+			case Token::Kind::KEYWORD_STRUCT: return this->parse_struct_def(ident.value(), attributes.value());
+			case Token::Kind::KEYWORD_UNION:  return this->parse_union_def(ident.value(), attributes.value());
+			case Token::Kind::KEYWORD_ENUM:   return this->parse_enum_def(ident.value(), attributes.value());
 		}
 
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result(type, "type in distinct alias declaration").isError()){ return Result::Code::ERROR; }
+		if(this->check_result(type, "type in distinct alias definition").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token(Token::lookupKind(";"), "at end of distinct alias declaration").isError()){
+		if(this->expect_token(Token::lookupKind(";"), "at end of distinct alias definition").isError()){
 			return Result::Code::ERROR;
 		}
 
-		return this->source.ast_buffer.createDistinctAliasDecl(
+		return this->source.ast_buffer.createDistinctAliasDef(
 			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
 		);
 	}
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+	auto Parser::parse_struct_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_STRUCT).isError()){ return Result::Code::ERROR; }
 
 		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
@@ -399,7 +400,7 @@ namespace pcit::panther{
 					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
 					this->source
 				),
-				"Attributes for struct declaration in the wrong place",
+				"Attributes for struct definition in the wrong place",
 				evo::SmallVector<Diagnostic::Info>{
 					Diagnostic::Info("Attributes should be after the [struct] keyword"
 						" and after the template parameter block (if there is one)")
@@ -420,18 +421,18 @@ namespace pcit::panther{
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
-		if(this->check_result(block, "statement block in struct declaration").isError()){// TODO(FUTURE): better message
+		if(this->check_result(block, "statement block in struct definition").isError()){// TODO(FUTURE): better message
 			return Result::Code::ERROR;
 		}
 
-		return this->source.ast_buffer.createStructDecl(
+		return this->source.ast_buffer.createStructDef(
 			ASTBuffer::getIdent(ident), template_pack_node, std::move(attributes.value()), block.value()
 		);
 	}
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_union_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+	auto Parser::parse_union_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_UNION).isError()){ return Result::Code::ERROR; }
 
 		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
@@ -441,7 +442,7 @@ namespace pcit::panther{
 					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
 					this->source
 				),
-				"Attributes for union declaration in the wrong place",
+				"Attributes for union definition in the wrong place",
 				evo::SmallVector<Diagnostic::Info>{
 					Diagnostic::Info("Attributes should be after the [union] keyword")
 				}
@@ -454,7 +455,7 @@ namespace pcit::panther{
 
 		if(this->expect_token(Token::lookupKind("{"), "to begin union block").isError()){ return Result::Code::ERROR; }
 
-		auto fields = evo::SmallVector<AST::UnionDecl::Field>();
+		auto fields = evo::SmallVector<AST::UnionDef::Field>();
 		auto statements = evo::SmallVector<AST::Node>();
 
 		while(true){
@@ -500,7 +501,7 @@ namespace pcit::panther{
 
 		if(fields.empty()){
 			this->context.emitError(
-				Diagnostic::Code::PARSER_ENUM_WITH_NO_FIELDS,
+				Diagnostic::Code::PARSER_UNION_WITH_NO_FIELDS,
 				Diagnostic::Location::get(ASTBuffer::getIdent(ident), this->source),
 				"Enum must be defined with at least one field"
 			);
@@ -508,28 +509,136 @@ namespace pcit::panther{
 		}
 
 
-		return this->source.ast_buffer.createUnionDecl(
+		return this->source.ast_buffer.createUnionDef(
 			ASTBuffer::getIdent(ident), attributes.value(), std::move(fields), std::move(statements)
+		);
+	}
+
+
+	// TODO(FUTURE): check EOF
+	auto Parser::parse_enum_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+		if(this->assert_token(Token::Kind::KEYWORD_ENUM).isError()){ return Result::Code::ERROR; }
+
+		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
+				Diagnostic::Location::get(
+					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
+					this->source
+				),
+				"Attributes for enum definition in the wrong place",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("Attributes should be after the [enum] keyword")
+				}
+			);
+			return Result::Code::ERROR;
+		}
+
+		auto underlying_type = std::optional<AST::Node>();
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+			if(this->assert_token(Token::lookupKind("(")).isError()){ return Result::Code::ERROR; }
+
+			const Result underlying_type_result = this->parse_type<TypeKind::EXPLICIT>();
+			if(this->check_result(underlying_type_result, "enum underlying type").isError()){
+				return Result::Code::ERROR;
+			}
+
+			underlying_type = underlying_type_result.value();
+
+			if(this->expect_token(Token::lookupKind(")"), "after enum underlying type").isError()){
+				return Result::Code::ERROR;
+			}
+		}
+
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+		if(this->expect_token(Token::lookupKind("{"), "to begin enum block").isError()){ return Result::Code::ERROR; }
+
+		auto enumerators = evo::SmallVector<AST::EnumDef::Enumerator>();
+		auto statements = evo::SmallVector<AST::Node>();
+
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
+				this->reader.skip();
+				break;
+			}
+
+
+			const Result enumerator_ident = this->parse_ident();
+			// TODO(PERF): remove? parse_ident can't error
+			if(enumerator_ident.code() == Result::Code::ERROR){ return Result::Code::ERROR; } 
+
+
+			if(enumerator_ident.code() == Result::Code::SUCCESS){ // is field
+				auto enumerator_value = std::optional<AST::Node>();
+
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
+					this->reader.skip();
+
+					const Result enumerator_value_result = this->parse_expr();
+					if(this->check_result(enumerator_value_result, "enumerator value").isError()){
+						return Result::Code::ERROR;
+					}
+
+					enumerator_value = enumerator_value_result.value();
+				}
+
+				if(this->expect_token(Token::lookupKind(","), "after type in enum enumerator").isError()){
+					return Result::Code::ERROR;
+				}
+
+				enumerators.emplace_back(ASTBuffer::getIdent(enumerator_ident.value()), enumerator_value);
+
+			}else{ // is statement
+				const Result stmt = this->parse_stmt();
+				if(this->check_result(
+					stmt, "field or statement in enum definition, or [}] at end of enum definition block"
+				).isError()){
+					return Result::Code::ERROR;
+				}
+
+				statements.emplace_back(stmt.value());
+			}
+		}
+
+
+		if(enumerators.empty()){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_ENUM_WITH_NO_ENUMERATORS,
+				Diagnostic::Location::get(ASTBuffer::getIdent(ident), this->source),
+				"Enum must be defined with at least one enumerator"
+			);
+			return Result::Code::ERROR;
+		}
+
+
+		return this->source.ast_buffer.createEnumDef(
+			ASTBuffer::getIdent(ident),
+			underlying_type,
+			attributes.value(),
+			std::move(enumerators),
+			std::move(statements)
 		);
 	}
 
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_interface_decl() -> Result {
+	auto Parser::parse_interface_def() -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_INTERFACE).isError()){ return Result::Code::ERROR; }
 
 		const Result ident = this->parse_ident();
-		if(this->check_result(ident, "identifier in interface declaration").isError()){ return Result::Code::ERROR; }
+		if(this->check_result(ident, "identifier in interface definition").isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token(Token::lookupKind("="), "after identifier in interface declaration").isError()){
+		if(this->expect_token(Token::lookupKind("="), "after identifier in interface definition").isError()){
 			return Result::Code::ERROR;
 		}
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-		if(this->expect_token(Token::lookupKind("{"), "after [=] in interface declaration").isError()){
+		if(this->expect_token(Token::lookupKind("{"), "after [=] in interface definition").isError()){
 			return Result::Code::ERROR;
 		}
 
@@ -539,24 +648,24 @@ namespace pcit::panther{
 		while(this->reader[this->reader.peek()].kind() != Token::lookupKind("}")){
 			if(this->reader[this->reader.peek()].kind() != Token::Kind::KEYWORD_FUNC){
 				this->expected_but_got(
-					"interface method declaration or end of interface declaration", this->reader.peek()
+					"interface method definition or end of interface definition", this->reader.peek()
 				);
 				return Result::Code::ERROR;
 			}
 
-			const Result method = this->parse_func_decl<false>();
-			if(this->check_result(method, "interface method declaration or end of interface declaration").isError()){
+			const Result method = this->parse_func_def<false>();
+			if(this->check_result(method, "interface method definition or end of interface definition").isError()){
 				return Result::Code::ERROR;
 			}
 
 			methods.emplace_back(method.value());
 		}
 
-		if(this->expect_token(Token::lookupKind("}"), "at end of interface declaration").isError()){
+		if(this->expect_token(Token::lookupKind("}"), "at end of interface definition").isError()){
 			return Result::Code::ERROR;
 		}
 
-		return this->source.ast_buffer.createInterfaceDecl(
+		return this->source.ast_buffer.createInterfaceDef(
 			ASTBuffer::getIdent(ident.value()), attributes.value(), std::move(methods)
 		);
 	}
@@ -1030,7 +1139,7 @@ namespace pcit::panther{
 			if(this->assert_token(Token::lookupKind("->")).isError()){ return Result::Code::ERROR; }
 
 			const Result label_result = this->parse_ident();
-			if(this->check_result(label_result, "identifier in block label declaration").isError()){
+			if(this->check_result(label_result, "identifier in block label definition").isError()){
 				return Result::Code::ERROR;
 			}
 			label = ASTBuffer::getIdent(label_result.value());
@@ -2193,7 +2302,7 @@ namespace pcit::panther{
 			}
 			
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result(type, "type in template parameter declaration").isError()){
+			if(this->check_result(type, "type in template parameter definition").isError()){
 				return Result::Code::ERROR;
 			}
 
@@ -2264,9 +2373,9 @@ namespace pcit::panther{
 	}
 
 
-	auto Parser::parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>> {
-		auto params = evo::SmallVector<AST::FuncDecl::Param>();
-		if(this->expect_token(Token::lookupKind("("), "to open parameter block in function declaration").isError()){
+	auto Parser::parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDef::Param>> {
+		auto params = evo::SmallVector<AST::FuncDef::Param>();
+		if(this->expect_token(Token::lookupKind("("), "to open parameter block in function definition").isError()){
 			return evo::resultError;
 		}
 
@@ -2280,7 +2389,7 @@ namespace pcit::panther{
 			
 			auto param_ident = std::optional<AST::Node>();
 			auto param_type = std::optional<AST::Node>();
-			using ParamKind = AST::FuncDecl::Param::Kind;
+			using ParamKind = AST::FuncDef::Param::Kind;
 			auto param_kind = std::optional<ParamKind>();
 
 			if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_THIS){
@@ -2329,7 +2438,7 @@ namespace pcit::panther{
 				}
 
 				const Result type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
-				if(this->check_result(type, "type after [:] in function parameter declaration").isError()){
+				if(this->check_result(type, "type after [:] in function parameter definition").isError()){
 					return evo::resultError;
 				}
 				param_type = type.value();
@@ -2404,12 +2513,12 @@ namespace pcit::panther{
 	}
 
 
-	auto Parser::parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>> {
-		auto returns = evo::SmallVector<AST::FuncDecl::Return>();
+	auto Parser::parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>> {
+		auto returns = evo::SmallVector<AST::FuncDef::Return>();
 
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("(")){
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result(type, "Return type in function declaration").isError()){ return evo::resultError; }	
+			if(this->check_result(type, "Return type in function definition").isError()){ return evo::resultError; }	
 
 			returns.emplace_back(std::nullopt, type.value());
 
@@ -2451,7 +2560,7 @@ namespace pcit::panther{
 			}
 			
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result(type, "type in function return parameter declaration").isError()){
+			if(this->check_result(type, "type in function return parameter definition").isError()){
 				return evo::resultError;
 			}
 
@@ -2493,8 +2602,8 @@ namespace pcit::panther{
 	}
 
 
-	auto Parser::parse_func_error_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>> {
-		auto error_returns = evo::SmallVector<AST::FuncDecl::Return>();
+	auto Parser::parse_func_error_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>> {
+		auto error_returns = evo::SmallVector<AST::FuncDef::Return>();
 
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("<")){
 			return error_returns;
@@ -2556,7 +2665,7 @@ namespace pcit::panther{
 			}
 			
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
-			if(this->check_result(type, "type in function error return parameter declaration").isError()){
+			if(this->check_result(type, "type in function error return parameter definition").isError()){
 				return evo::resultError;
 			}
 

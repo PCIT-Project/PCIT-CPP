@@ -98,6 +98,7 @@ namespace pcit::panther{
 				KEYWORD_INTERFACE,
 				KEYWORD_IMPL,
 				KEYWORD_UNION,
+				KEYWORD_ENUM,
 
 				KEYWORD_RETURN,
 				KEYWORD_ERROR,
@@ -473,6 +474,7 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_INTERFACE:        return "interface";
 					break; case Kind::KEYWORD_IMPL:             return "impl";
 					break; case Kind::KEYWORD_UNION:            return "union";
+					break; case Kind::KEYWORD_ENUM:             return "enum";
 
 					break; case Kind::KEYWORD_RETURN:           return "return";
 					break; case Kind::KEYWORD_ERROR:            return "error";

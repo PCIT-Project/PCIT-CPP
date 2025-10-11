@@ -484,7 +484,7 @@ namespace pcit::panther::sema{
 	struct Var{
 		using ID = VarID;
 
-		AST::VarDecl::Kind kind;
+		AST::VarDef::Kind kind;
 		Token::ID ident;
 		Expr expr;
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
@@ -495,7 +495,7 @@ namespace pcit::panther::sema{
 	struct GlobalVar{
 		using ID = GlobalVarID;
 
-		AST::VarDecl::Kind kind;
+		AST::VarDef::Kind kind;
 		evo::Variant<SourceID, ClangSourceID> sourceID;
 		evo::Variant<Token::ID, ClangSourceDeclInfoID> ident;
 		std::string clangMangledName; // empty if not clang type

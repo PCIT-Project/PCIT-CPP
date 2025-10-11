@@ -1,3 +1,5 @@
+def build = @import("build");
+
 
 type Project = struct #pub {
 	func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*|] = ("".* as [Char:*|])) #rt
@@ -19,4 +21,9 @@ type Project = struct #pub {
 	
 
 	const _project_id: @pthr.ProjectID;
+}
+
+
+func setOutput = (output: build.Output) #pub #rt -> Void {
+	@buildSetOutput(output as UI32);
 }

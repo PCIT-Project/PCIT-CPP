@@ -80,17 +80,18 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto parse_stmt() -> Result;
 
-			template<AST::VarDecl::Kind VAR_DECL_KIND>
-			EVO_NODISCARD auto parse_var_decl() -> Result;
+			template<AST::VarDef::Kind VAR_DEF_KIND>
+			EVO_NODISCARD auto parse_var_def() -> Result;
 
 			template<bool MUST_HAVE_BODY>
-			EVO_NODISCARD auto parse_func_decl() -> Result;
+			EVO_NODISCARD auto parse_func_def() -> Result;
 
-			EVO_NODISCARD auto parse_alias_decl() -> Result;
-			EVO_NODISCARD auto parse_type_decl() -> Result;
-			EVO_NODISCARD auto parse_struct_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
-			EVO_NODISCARD auto parse_union_decl(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
-			EVO_NODISCARD auto parse_interface_decl() -> Result;
+			EVO_NODISCARD auto parse_alias_def() -> Result;
+			EVO_NODISCARD auto parse_type_def() -> Result;
+			EVO_NODISCARD auto parse_struct_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
+			EVO_NODISCARD auto parse_union_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
+			EVO_NODISCARD auto parse_enum_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
+			EVO_NODISCARD auto parse_interface_def() -> Result;
 			EVO_NODISCARD auto parse_interface_impl() -> Result;
 			EVO_NODISCARD auto parse_return() -> Result;
 			EVO_NODISCARD auto parse_error() -> Result;
@@ -154,9 +155,9 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto parse_template_pack() -> Result;
 
-			EVO_NODISCARD auto parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDecl::Param>>;
-			EVO_NODISCARD auto parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;
-			EVO_NODISCARD auto parse_func_error_returns() -> evo::Result<evo::SmallVector<AST::FuncDecl::Return>>;
+			EVO_NODISCARD auto parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDef::Param>>;
+			EVO_NODISCARD auto parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>>;
+			EVO_NODISCARD auto parse_func_error_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>>;
 			EVO_NODISCARD auto parse_func_call_args() -> evo::Result<evo::SmallVector<AST::FuncCall::Arg>>;
 			EVO_NODISCARD auto parse_array_init() -> evo::Result<evo::SmallVector<AST::Node>>;
 			EVO_NODISCARD auto parse_designated_init()

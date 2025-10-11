@@ -70,15 +70,14 @@ namespace pcit::panther{
 				enum class Output : uint32_t {
 					TOKENS              = 0,
 					AST                 = 1,
-					BUILD_SYMBOL_PROCS  = 2,
-					SEMANTIC_ANALYSIS   = 3,
-					PIR                 = 4,
-					LLVMIR              = 5,
-					ASSEMBLY            = 6,
-					OBJECT              = 7,
-					RUN                 = 8,
-					CONSOLE_EXECUTABLE  = 9,
-					WINDOWED_EXECUTABLE = 10,
+					SEMANTIC_ANALYSIS   = 2,
+					PIR                 = 3,
+					LLVMIR              = 4,
+					ASSEMBLY            = 5,
+					OBJECT              = 6,
+					RUN                 = 7,
+					CONSOLE_EXECUTABLE  = 8,
+					WINDOWED_EXECUTABLE = 9,
 				};
 
 				struct PantherFile{
@@ -397,7 +396,7 @@ namespace pcit::panther{
 
 			struct TemplateIntrinsicFuncInfo{
 				struct Param{
-					AST::FuncDecl::Param::Kind kind;
+					AST::FuncDef::Param::Kind kind;
 					evo::Variant<TypeInfo::ID, uint32_t> type; // uint32_t is the index of the templateParam
 				};
 

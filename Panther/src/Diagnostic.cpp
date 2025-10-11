@@ -36,14 +36,15 @@ namespace pcit::panther{
 
 		switch(node.kind()){
 			case AST::Kind::NONE:              evo::debugFatalBreak("Cannot get location of AST::Kind::None");
-			case AST::Kind::VAR_DECL:          return Location::get(ast_buffer.getVarDecl(node), src);
-			case AST::Kind::FUNC_DECL:         return Location::get(ast_buffer.getFuncDecl(node), src);
+			case AST::Kind::VAR_DEF:           return Location::get(ast_buffer.getVarDef(node), src);
+			case AST::Kind::FUNC_DEF:          return Location::get(ast_buffer.getFuncDef(node), src);
 			case AST::Kind::DELETED_SPECIAL_METHOD: return Location::get(ast_buffer.getDeletedSpecialMethod(node), src);
-			case AST::Kind::ALIAS_DECL:        return Location::get(ast_buffer.getAliasDecl(node), src);
-			case AST::Kind::DISTINCT_ALIAS_DECL: return Location::get(ast_buffer.getDistinctAliasDecl(node), src);
-			case AST::Kind::STRUCT_DECL:       return Location::get(ast_buffer.getStructDecl(node), src);
-			case AST::Kind::UNION_DECL :       return Location::get(ast_buffer.getUnionDecl(node), src);
-			case AST::Kind::INTERFACE_DECL:    return Location::get(ast_buffer.getInterfaceDecl(node), src);
+			case AST::Kind::ALIAS_DEF:         return Location::get(ast_buffer.getAliasDef(node), src);
+			case AST::Kind::DISTINCT_ALIAS_DEF: return Location::get(ast_buffer.getDistinctAliasDef(node), src);
+			case AST::Kind::STRUCT_DEF:        return Location::get(ast_buffer.getStructDef(node), src);
+			case AST::Kind::UNION_DEF:         return Location::get(ast_buffer.getUnionDef(node), src);
+			case AST::Kind::ENUM_DEF:          return Location::get(ast_buffer.getEnumDef(node), src);
+			case AST::Kind::INTERFACE_DEF:     return Location::get(ast_buffer.getInterfaceDef(node), src);
 			case AST::Kind::INTERFACE_IMPL:    return Location::get(ast_buffer.getInterfaceImpl(node), src);
 			case AST::Kind::RETURN:            return Location::get(ast_buffer.getReturn(node), src); 
 			case AST::Kind::ERROR:             return Location::get(ast_buffer.getError(node), src);
@@ -88,19 +89,19 @@ namespace pcit::panther{
 	}
 
 
-	auto Diagnostic::Location::get(const AST::VarDecl& var_decl, const Source& src) -> Location {
-		return Location::get(var_decl.ident, src);
+	auto Diagnostic::Location::get(const AST::VarDef& var_def, const Source& src) -> Location {
+		return Location::get(var_def.ident, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::FuncDecl& func_decl, const Source& src) -> Location {
-		return Location::get(func_decl.name, src);
+	auto Diagnostic::Location::get(const AST::FuncDef& func_def, const Source& src) -> Location {
+		return Location::get(func_def.name, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::FuncDecl::Param& param, const Source& src) -> Location {
+	auto Diagnostic::Location::get(const AST::FuncDef::Param& param, const Source& src) -> Location {
 		return Location::get(param.name, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::FuncDecl::Return& ret, const Source& src) -> Location {
+	auto Diagnostic::Location::get(const AST::FuncDef::Return& ret, const Source& src) -> Location {
 		if(ret.ident.has_value()){
 			return Location::get(*ret.ident, src);
 		}else{
@@ -114,24 +115,28 @@ namespace pcit::panther{
 		return Location::get(deleted_special_method.memberToken, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::AliasDecl& alias_decl, const Source& src) -> Location {
-		return Location::get(alias_decl.ident, src);
+	auto Diagnostic::Location::get(const AST::AliasDef& alias_def, const Source& src) -> Location {
+		return Location::get(alias_def.ident, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::DistinctAliasDecl& distinct_alias_decl, const Source& src) -> Location {
-		return Location::get(distinct_alias_decl.ident, src);
+	auto Diagnostic::Location::get(const AST::DistinctAliasDef& distinct_alias_def, const Source& src) -> Location {
+		return Location::get(distinct_alias_def.ident, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::StructDecl& struct_decl, const Source& src) -> Location {
-		return Location::get(struct_decl.ident, src);
+	auto Diagnostic::Location::get(const AST::StructDef& struct_def, const Source& src) -> Location {
+		return Location::get(struct_def.ident, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::UnionDecl& union_decl, const Source& src) -> Location {
-		return Location::get(union_decl.ident, src);
+	auto Diagnostic::Location::get(const AST::UnionDef& union_def, const Source& src) -> Location {
+		return Location::get(union_def.ident, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::InterfaceDecl& interface_decl, const Source& src) -> Location {
-		return Location::get(interface_decl.ident, src);
+	auto Diagnostic::Location::get(const AST::EnumDef& enum_def, const Source& src) -> Location {
+		return Location::get(enum_def.ident, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::InterfaceDef& interface_def, const Source& src) -> Location {
+		return Location::get(interface_def.ident, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::InterfaceImpl& interface_impl, const Source& src) -> Location {
@@ -298,15 +303,15 @@ namespace pcit::panther{
 
 
 	auto Diagnostic::Location::get(BaseType::Alias::ID alias_id, const Context& context) -> Location {
-		const BaseType::Alias& alias_decl = context.getTypeManager().getAlias(alias_id);
+		const BaseType::Alias& alias_def = context.getTypeManager().getAlias(alias_id);
 
-		if(alias_decl.isPTHRSourceType()){
+		if(alias_def.isPTHRSourceType()){
 			return Location::get(
-				alias_decl.name.as<Token::ID>(), context.getSourceManager()[alias_decl.sourceID.as<Source::ID>()]
+				alias_def.name.as<Token::ID>(), context.getSourceManager()[alias_def.sourceID.as<Source::ID>()]
 			);
-		}else if(alias_decl.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[alias_decl.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(alias_decl.name.as<ClangSource::DeclInfoID>()).location;
+		}else if(alias_def.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[alias_def.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(alias_def.name.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::BUILTIN;
@@ -315,15 +320,15 @@ namespace pcit::panther{
 
 
 	auto Diagnostic::Location::get(BaseType::Struct::ID struct_id, const Context& context) -> Location {
-		const BaseType::Struct& struct_decl = context.getTypeManager().getStruct(struct_id);
+		const BaseType::Struct& struct_def = context.getTypeManager().getStruct(struct_id);
 
-		if(struct_decl.isPTHRSourceType()){
+		if(struct_def.isPTHRSourceType()){
 			return Location::get(
-				struct_decl.name.as<Token::ID>(), context.getSourceManager()[struct_decl.sourceID.as<Source::ID>()]
+				struct_def.name.as<Token::ID>(), context.getSourceManager()[struct_def.sourceID.as<Source::ID>()]
 			);
-		}else if(struct_decl.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[struct_decl.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(struct_decl.name.as<ClangSource::DeclInfoID>()).location;
+		}else if(struct_def.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[struct_def.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(struct_def.name.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::BUILTIN;
@@ -331,22 +336,36 @@ namespace pcit::panther{
 	}
 
 	auto Diagnostic::Location::get(BaseType::Union::ID union_id, const Context& context) -> Location {
-		const BaseType::Union& union_decl = context.getTypeManager().getUnion(union_id);
+		const BaseType::Union& union_def = context.getTypeManager().getUnion(union_id);
 
-		if(union_decl.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[union_decl.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(union_decl.location.as<ClangSource::DeclInfoID>()).location;
+		if(union_def.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[union_def.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(union_def.location.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::get(
-				union_decl.location.as<Token::ID>(), context.getSourceManager()[union_decl.sourceID.as<Source::ID>()]
+				union_def.location.as<Token::ID>(), context.getSourceManager()[union_def.sourceID.as<Source::ID>()]
+			);
+		}
+	}
+
+	auto Diagnostic::Location::get(BaseType::Enum::ID enum_id, const Context& context) -> Location {
+		const BaseType::Enum& enum_def = context.getTypeManager().getEnum(enum_id);
+
+		if(enum_def.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[enum_def.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(enum_def.location.as<ClangSource::DeclInfoID>()).location;
+			
+		}else{
+			return Location::get(
+				enum_def.location.as<Token::ID>(), context.getSourceManager()[enum_def.sourceID.as<Source::ID>()]
 			);
 		}
 	}
 
 	auto Diagnostic::Location::get(BaseType::Interface::ID interface_id, const Context& context) -> Location {
-		const BaseType::Interface& interface_decl = context.getTypeManager().getInterface(interface_id);
-		return Location::get(interface_decl.identTokenID, context.getSourceManager()[interface_decl.sourceID]);
+		const BaseType::Interface& interface_def = context.getTypeManager().getInterface(interface_id);
+		return Location::get(interface_def.identTokenID, context.getSourceManager()[interface_def.sourceID]);
 	}
 
 

@@ -78,6 +78,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_union_decl(const Instruction::UnionDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_union_add_fields(const Instruction::UnionAddFields& instr) -> Result;
 			EVO_NODISCARD auto instr_union_def() -> Result;
+			EVO_NODISCARD auto instr_enum_decl(const Instruction::EnumDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_enum_add_enumerators(const Instruction::EnumAddEnumerators& instr) -> Result;
+			EVO_NODISCARD auto instr_enum_def() -> Result;
 
 			EVO_NODISCARD auto instr_func_decl_extract_deducers_if_needed(
 				const Instruction::FuncDeclExtractDeducersIfNeeded& instr
@@ -344,6 +347,16 @@ namespace pcit::panther{
 			) -> Result;
 
 			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto enum_accessor(
+				const Instruction::Accessor<NEEDS_DEF>& instr,
+				std::string_view rhs_ident_str,
+				const TermInfo& lhs,
+				TypeInfo::ID actual_lhs_type_id,
+				const TypeInfo& actual_lhs_type,
+				bool is_pointer
+			) -> Result;
+
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto array_accessor(
 				const Instruction::Accessor<NEEDS_DEF>& instr,
 				std::string_view rhs_ident_str,
@@ -401,6 +414,8 @@ namespace pcit::panther{
 				TypeInfo::ID type_info_id, std::unordered_set<sema::Func::ID>& dependent_funcs
 			) -> void;
 
+
+			EVO_NODISCARD auto currently_in_func() const -> bool;
 
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;
 			EVO_NODISCARD auto get_current_func() const -> const sema::Func&;
@@ -594,7 +609,7 @@ namespace pcit::panther{
 				bool is_global;
 			};
 			EVO_NODISCARD auto analyze_global_var_attrs(
-				const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+				const AST::VarDef& var_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<GlobalVarAttrs>;
 
 
@@ -602,7 +617,7 @@ namespace pcit::panther{
 				bool is_global;
 			};
 			EVO_NODISCARD auto analyze_var_attrs(
-				const AST::VarDecl& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+				const AST::VarDef& var_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<VarAttrs>;
 
 
@@ -612,7 +627,7 @@ namespace pcit::panther{
 				bool is_packed;
 			};
 			EVO_NODISCARD auto analyze_struct_attrs(
-				const AST::StructDecl& struct_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+				const AST::StructDef& struct_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<StructAttrs>;
 
 
@@ -621,9 +636,18 @@ namespace pcit::panther{
 				bool is_untagged;
 			};
 			EVO_NODISCARD auto analyze_union_attrs(
-				const AST::UnionDecl& union_decl,
+				const AST::UnionDef& union_def,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<UnionAttrs>;
+
+
+			struct EnumAttrs{
+				bool is_pub;
+			};
+			EVO_NODISCARD auto analyze_enum_attrs(
+				const AST::EnumDef& enum_def,
+				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<EnumAttrs>;
 
 
 			struct FuncAttrs{
@@ -633,7 +657,7 @@ namespace pcit::panther{
 				bool is_entry;
 			};
 			EVO_NODISCARD auto analyze_func_attrs(
-				const AST::FuncDecl& func_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+				const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<FuncAttrs>;
 
 
@@ -642,7 +666,7 @@ namespace pcit::panther{
 				bool is_pub;
 			};
 			EVO_NODISCARD auto analyze_interface_attrs(
-				const AST::InterfaceDecl& interface_decl,
+				const AST::InterfaceDef& interface_def,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<InterfaceAttrs>;
 
@@ -953,6 +977,10 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_location(BaseType::Union::ID union_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(union_id, this->context);
+			}
+
+			EVO_NODISCARD auto get_location(BaseType::Enum::ID enum_id) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(enum_id, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(BaseType::Interface::ID interface_id) const -> Diagnostic::Location {

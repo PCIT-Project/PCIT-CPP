@@ -76,7 +76,8 @@ namespace pcit::panther{
 			PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
 			PARSER_TYPE_CONVERTER_LOWER_CASE,
 			PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK,
-			PARSER_ENUM_WITH_NO_FIELDS,
+			PARSER_UNION_WITH_NO_FIELDS,
+			PARSER_ENUM_WITH_NO_ENUMERATORS,
 			PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH,
 			PARSER_MULTI_DIM_ARR_WITH_TERMINATOR,
 
@@ -136,6 +137,7 @@ namespace pcit::panther{
 			SEMA_EXPR_NOT_CONSTEXPR,
 			SEMA_EXPR_NOT_COMPTIME,
 			SEMA_EXPR_WRONG_STATE,
+			SEMA_EXPR_INVALID_OBJECT_SCOPE,
 			SEMA_COPY_ARG_NOT_CONCRETE,
 			SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
 			SEMA_COMPTIME_COPY_ARG_TYPE_NOT_CONSTEXPR_COPYABLE,
@@ -305,6 +307,10 @@ namespace pcit::panther{
 			SEMA_UNION_UNTAGGED_TYPE_FIELD_ACCESS,
 
 
+			// enum
+			SEMA_ENUM_INVALID_UNDERLYING_TYPE,
+
+
 			// misc
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
 			SEMA_BLOCK_EXPR_NOT_TERMINATED,
@@ -397,20 +403,21 @@ namespace pcit::panther{
 
 				// AST
 				EVO_NODISCARD static auto get(const AST::Node& node, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::VarDecl& var_decl, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::FuncDecl& func_decl, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::FuncDecl::Param& param, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::FuncDecl::Return& ret, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::VarDef& var_def, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::FuncDef& func_def, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::FuncDef::Param& param, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::FuncDef::Return& ret, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(
 					const AST::DeletedSpecialMethod& deleted_special_method, const class Source& src
 				) -> Location;
-				EVO_NODISCARD static auto get(const AST::AliasDecl& alias_decl, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::AliasDef& alias_def, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(
-					const AST::DistinctAliasDecl& distinct_alias_decl, const class Source& src
+					const AST::DistinctAliasDef& distinct_alias_def, const class Source& src
 				) -> Location;
-				EVO_NODISCARD static auto get(const AST::StructDecl& struct_decl, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::UnionDecl& union_decl, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::InterfaceDecl& interface_decl, const class Source& src)
+				EVO_NODISCARD static auto get(const AST::StructDef& struct_def, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::UnionDef& union_def, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::EnumDef& enum_def, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::InterfaceDef& interface_def, const class Source& src)
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::InterfaceImpl& interface_impl, const class Source& src)
 					-> Location;
@@ -472,6 +479,9 @@ namespace pcit::panther{
 					-> Location;
 
 				EVO_NODISCARD static auto get(BaseType::Union::ID union_id, const class Context& context)
+					-> Location;
+
+				EVO_NODISCARD static auto get(BaseType::Enum::ID enum_id, const class Context& context)
 					-> Location;
 
 				EVO_NODISCARD static auto get(BaseType::Interface::ID interface_id, const class Context& context)
@@ -641,9 +651,10 @@ namespace pcit::panther{
 				case Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT: return "P16";
 				case Code::PARSER_TYPE_CONVERTER_LOWER_CASE:            return "P17";
 				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P18";
-				case Code::PARSER_ENUM_WITH_NO_FIELDS:                  return "P19";
-				case Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH:    return "P20";
-				case Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR:        return "P21";
+				case Code::PARSER_UNION_WITH_NO_FIELDS:                 return "P19";
+				case Code::PARSER_ENUM_WITH_NO_ENUMERATORS:             return "P20";
+				case Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH:    return "P21";
+				case Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR:        return "P22";
 
 				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_STMT:
@@ -688,6 +699,7 @@ namespace pcit::panther{
 				case Code::SEMA_EXPR_NOT_CONSTEXPR:
 				case Code::SEMA_EXPR_NOT_COMPTIME:
 				case Code::SEMA_EXPR_WRONG_STATE:
+				case Code::SEMA_EXPR_INVALID_OBJECT_SCOPE:
 				case Code::SEMA_COPY_ARG_NOT_CONCRETE:
 				case Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE:
 				case Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_CONSTEXPR_COPYABLE:
@@ -821,6 +833,7 @@ namespace pcit::panther{
 				case Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_MOVABLE_FIELD:
 				case Code::SEMA_UNION_ACCESSOR_IS_VOID:
 				case Code::SEMA_UNION_UNTAGGED_TYPE_FIELD_ACCESS:
+				case Code::SEMA_ENUM_INVALID_UNDERLYING_TYPE:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:
 				case Code::SEMA_FUNC_HAS_NO_THIS_PARAM:

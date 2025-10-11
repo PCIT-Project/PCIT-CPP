@@ -318,14 +318,29 @@ namespace pcit::core{
 			}
 
 
+			EVO_NODISCARD auto hash() const -> size_t {
+				size_t hash_value = std::hash<unsigned>{}(this->getBitWidth());
+
+				for(uint64_t word : this->data_array_proxy()){
+					hash_value = evo::hashCombine(hash_value, std::hash<uint64_t>{}(word));
+				}
+
+				return hash_value;
+			}
+
+
 		private:
 			GenericInt(llvmint::APInt&& _ap_int) : ap_int(std::move(_ap_int)) {}
 
-
+			// for use in GenericFloat
 			EVO_NODISCARD auto data_span() -> std::span<uint64_t> {
 				return std::span<uint64_t>(
 					const_cast<uint64_t*>(this->ap_int.getRawData()), size_t(this->ap_int.getNumWords())
 				);
+			}
+
+			EVO_NODISCARD auto data_array_proxy() const -> evo::ArrayProxy<uint64_t> {
+				return evo::ArrayProxy<uint64_t>(this->ap_int.getRawData(), size_t(this->ap_int.getNumWords()));
 			}
 
 			
@@ -350,5 +365,13 @@ namespace std{
 	        return format_to(ctx.out(), "{}", generic_int.toString(false));
 	    }
 	};
+
+	template<>
+	struct hash<pcit::core::GenericInt>{
+		auto operator()(const pcit::core::GenericInt& generic_int) const noexcept -> size_t {
+			return generic_int.hash();
+		};
+	};
+
 	
 }

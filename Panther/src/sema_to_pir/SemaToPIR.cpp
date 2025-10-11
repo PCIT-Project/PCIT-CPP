@@ -97,14 +97,14 @@ namespace pcit::panther{
 	auto SemaToPIR::lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID> {
 		const sema::GlobalVar& sema_global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 
-		if(sema_global_var.kind == AST::VarDecl::Kind::DEF){ return std::nullopt; }
+		if(sema_global_var.kind == AST::VarDef::Kind::DEF){ return std::nullopt; }
 
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
 			this->get_type<false>(*sema_global_var.typeID),
 			this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
 			pir::GlobalVar::NoValue{},
-			sema_global_var.kind == AST::VarDecl::Kind::CONST
+			sema_global_var.kind == AST::VarDef::Kind::CONST
 		);
 
 		this->data.create_global_var(global_var_id, new_global_var);
@@ -116,7 +116,7 @@ namespace pcit::panther{
 	auto SemaToPIR::lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void {
 		const sema::GlobalVar& sema_global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 
-		if(sema_global_var.kind == AST::VarDecl::Kind::DEF){ return; }
+		if(sema_global_var.kind == AST::VarDef::Kind::DEF){ return; }
 
 		const pir::GlobalVar::ID pir_var_id = this->data.get_global_var(global_var_id);
 		this->module.getGlobalVar(pir_var_id).value = this->get_global_var_value(*sema_global_var.expr.load());
@@ -208,7 +208,7 @@ namespace pcit::panther{
 
 				params.emplace_back(std::move(param_name), param_type, std::move(attributes));
 
-				if(param.kind == AST::FuncDecl::Param::Kind::IN){
+				if(param.kind == AST::FuncDef::Param::Kind::IN){
 					param_infos.emplace_back(std::nullopt, in_param_index);
 					in_param_index += 1;
 				}else{
@@ -221,7 +221,7 @@ namespace pcit::panther{
 					pir::Parameter::Attribute::PtrDereferencable(this->context.getTypeManager().numBytes(param.typeID))
 				);
 
-				if(param.kind == AST::FuncDecl::Param::Kind::READ){
+				if(param.kind == AST::FuncDef::Param::Kind::READ){
 					attributes.emplace_back(pir::Parameter::Attribute::PtrReadOnly());
 				}else{
 					attributes.emplace_back(pir::Parameter::Attribute::PtrWritable());
@@ -230,7 +230,7 @@ namespace pcit::panther{
 
 				params.emplace_back(std::move(param_name), this->module.createPtrType(), std::move(attributes));
 
-				if(param.kind == AST::FuncDecl::Param::Kind::IN){
+				if(param.kind == AST::FuncDef::Param::Kind::IN){
 					param_infos.emplace_back(this->get_type<false>(param.typeID), in_param_index);
 					in_param_index += 1;
 				}else{
@@ -583,7 +583,8 @@ namespace pcit::panther{
 				case BaseType::Kind::DUMMY:           case BaseType::Kind::FUNCTION:
 				case BaseType::Kind::ARRAY_REF:       case BaseType::Kind::ALIAS:
 				case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::INTERFACE:       case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				case BaseType::Kind::ENUM:            case BaseType::Kind::INTERFACE:
+				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 					evo::debugFatalBreak("Not valid base type for VTable");
 				} break;
 			}
@@ -903,7 +904,7 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::VAR: {
 				const sema::Var& var = this->context.getSemaBuffer().getVar(stmt.varID());
 
-				if(var.kind == AST::VarDecl::Kind::DEF){ return; }
+				if(var.kind == AST::VarDef::Kind::DEF){ return; }
 
 				const pir::Expr var_alloca = this->agent.createAlloca(
 					this->get_type<false>(*var.typeID),
@@ -934,7 +935,7 @@ namespace pcit::panther{
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
-					}else if(target_type.params[i].kind == AST::FuncDecl::Param::Kind::IN){
+					}else if(target_type.params[i].kind == AST::FuncDef::Param::Kind::IN){
 						if(arg.kind() == sema::Expr::Kind::COPY){
 							args.emplace_back(
 								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
@@ -1867,7 +1868,7 @@ namespace pcit::panther{
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
-					}else if(target_type.params[i].kind == AST::FuncDecl::Param::Kind::IN){
+					}else if(target_type.params[i].kind == AST::FuncDef::Param::Kind::IN){
 						if(arg.kind() == sema::Expr::Kind::COPY){
 							args.emplace_back(
 								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
@@ -3655,7 +3656,7 @@ namespace pcit::panther{
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
-					}else if(target_type.params[i].kind == AST::FuncDecl::Param::Kind::IN){
+					}else if(target_type.params[i].kind == AST::FuncDef::Param::Kind::IN){
 						if(arg.kind() == sema::Expr::Kind::COPY){
 							args.emplace_back(
 								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
@@ -4264,6 +4265,10 @@ namespace pcit::panther{
 				this->agent.setTargetBasicBlock(end_block);
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				evo::debugFatalBreak("Not non-trivially-deletable");
+			} break;
+
 			case BaseType::Kind::TYPE_DEDUCER: {
 				evo::debugFatalBreak("Not deletable");
 			} break;
@@ -4681,6 +4686,10 @@ namespace pcit::panther{
 					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
 						return std::nullopt;
 					}
+				} break;
+
+				case BaseType::Kind::ENUM: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
 				} break;
 
 				case BaseType::Kind::TYPE_DEDUCER: {
@@ -5119,6 +5128,10 @@ namespace pcit::panther{
 					}
 				} break;
 
+				case BaseType::Kind::ENUM: {
+					evo::debugFatalBreak("Not non-trivially-movable");
+				} break;
+
 				case BaseType::Kind::TYPE_DEDUCER: {
 					evo::debugFatalBreak("Not movable");
 				} break;
@@ -5168,7 +5181,7 @@ namespace pcit::panther{
 		for(size_t i = 0; const sema::Expr& arg : args){
 			EVO_DEFER([&](){ i += 1; });
 
-			if(target_func_type.params[i].kind != AST::FuncDecl::Param::Kind::IN){ continue; }
+			if(target_func_type.params[i].kind != AST::FuncDef::Param::Kind::IN){ continue; }
 
 			if(arg.kind() == sema::Expr::Kind::COPY){
 				output_in_param_bitmap |= 1 << num_in_params;
@@ -6867,7 +6880,7 @@ namespace pcit::panther{
 			
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->context.getTypeManager().getArray(base_type_id.arrayID());
-				const pir::Type elem_type = this->get_type<false>(array.elementTypeID);
+				const pir::Type elem_type = this->get_type<MAY_LOWER_DEPENDENCY>(array.elementTypeID);
 
 
 				pir::Type array_type = this->module.createArrayType(elem_type, array.dimensions.back());
@@ -6896,13 +6909,13 @@ namespace pcit::panther{
 			
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(base_type_id.aliasID());
-				return this->get_type<false>(*alias.aliasedType.load());
+				return this->get_type<MAY_LOWER_DEPENDENCY>(*alias.aliasedType.load());
 			} break;
 			
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias_type = 
 					this->context.getTypeManager().getDistinctAlias(base_type_id.distinctAliasID());
-				return this->get_type<false>(*distinct_alias_type.underlyingType.load());
+				return this->get_type<MAY_LOWER_DEPENDENCY>(*distinct_alias_type.underlyingType.load());
 			} break;
 			
 			case BaseType::Kind::STRUCT: {
@@ -6924,6 +6937,11 @@ namespace pcit::panther{
 				}
 
 				return this->data.get_union(base_type_id.unionID());
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(base_type_id.enumID());
+				return this->get_type<MAY_LOWER_DEPENDENCY>(BaseType::ID(enum_type.underlyingTypeID));
 			} break;
 			
 			case BaseType::Kind::STRUCT_TEMPLATE: {

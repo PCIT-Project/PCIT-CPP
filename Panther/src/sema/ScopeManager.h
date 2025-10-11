@@ -29,7 +29,11 @@ namespace pcit::panther::sema{
 					};
 
 					using ObjectScope = evo::Variant<
-						sema::Func::ID, BaseType::Struct::ID, BaseType::Union::ID, BaseType::Interface::ID
+						sema::Func::ID,
+						BaseType::Struct::ID,
+						BaseType::Union::ID,
+						BaseType::Enum::ID,
+						BaseType::Interface::ID
 					>;
 
 				public:
@@ -126,6 +130,7 @@ namespace pcit::panther::sema{
 							if(
 								iter->obj_scope.is<BaseType::Struct::ID>()
 								|| iter->obj_scope.is<BaseType::Union::ID>()
+								|| iter->obj_scope.is<BaseType::Enum::ID>()
 								|| iter->obj_scope.is<BaseType::Interface::ID>()
 							){
 								return iter->obj_scope;

@@ -105,7 +105,7 @@ namespace pcit::panther::sema{
 
 	auto TemplatedFunc::isMethod(const Context& context) const -> bool {
 		const Source& source = context.getSourceManager()[this->symbolProc.getSourceID()];
-		const AST::FuncDecl& ast_func = source.getASTBuffer().getFuncDecl(this->symbolProc.getASTNode());
+		const AST::FuncDef& ast_func = source.getASTBuffer().getFuncDef(this->symbolProc.getASTNode());
 
 		if(ast_func.params.empty()){ return false; }
 		return ast_func.params[0].name.kind() == AST::Kind::THIS;

@@ -202,6 +202,7 @@ namespace pcit::panther{
 		{"interface",   Token::Kind::KEYWORD_INTERFACE},
 		{"impl",        Token::Kind::KEYWORD_IMPL},
 		{"union",       Token::Kind::KEYWORD_UNION},
+		{"enum",        Token::Kind::KEYWORD_ENUM},
 
 		{"return",      Token::Kind::KEYWORD_RETURN},
 		{"error",       Token::Kind::KEYWORD_ERROR},

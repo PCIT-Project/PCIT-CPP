@@ -1,11 +1,28 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.169.0"></a>
+## v0.0.169.0
+
+### Panther
+- Added enums
+- Added checking if expression is in function scope (also fixes crashing when doing so):
+	- operator `copy`
+	- operator `move`
+	- operator `forward`
+	- `this`
+- Fixed printing of AST for Union member statements
+- Fixed error diagnostic for when a fluid integer is negative is the target type is unsigned
+- Fixed crashing when using global `const` variable outside of function scope
+
+
+<!---------------------------------->
 <a name="v0.0.168.1"></a>
 ## v0.0.168.1
 
 ### Panther
 - Minor code refactors
+
 
 <!---------------------------------->
 <a name="v0.0.168.0"></a>

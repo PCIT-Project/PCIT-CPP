@@ -87,24 +87,24 @@ namespace pcit::panther{
 
 
 
-			EVO_NODISCARD auto createVarDecl(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createVarDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->var_decls.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::VAR_DECL, node_index);
+				const uint32_t node_index = this->var_defs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::VAR_DEF, node_index);
 			}
-			EVO_NODISCARD auto getVarDecl(const AST::Node& node) const -> const AST::VarDecl& {
-				evo::debugAssert(node.kind() == AST::Kind::VAR_DECL, "Node is not a VarDecl");
-				return this->var_decls[node._value.node_index];
+			EVO_NODISCARD auto getVarDef(const AST::Node& node) const -> const AST::VarDef& {
+				evo::debugAssert(node.kind() == AST::Kind::VAR_DEF, "Node is not a VarDef");
+				return this->var_defs[node._value.node_index];
 			}
 
-			EVO_NODISCARD auto createFuncDecl(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createFuncDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->func_decls.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::FUNC_DECL, node_index);
+				const uint32_t node_index = this->func_defs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::FUNC_DEF, node_index);
 			}
-			EVO_NODISCARD auto getFuncDecl(const AST::Node& node) const -> const AST::FuncDecl& {
-				evo::debugAssert(node.kind() == AST::Kind::FUNC_DECL, "Node is not a FuncDecl");
-				return this->func_decls[node._value.node_index];
+			EVO_NODISCARD auto getFuncDef(const AST::Node& node) const -> const AST::FuncDef& {
+				evo::debugAssert(node.kind() == AST::Kind::FUNC_DEF, "Node is not a FuncDef");
+				return this->func_defs[node._value.node_index];
 			}
 
 			EVO_NODISCARD auto createDeletedSpecialMethod(auto&&... args) -> AST::Node {
@@ -121,56 +121,66 @@ namespace pcit::panther{
 				return this->deleted_sepcial_methods[node._value.node_index];
 			}
 
-			EVO_NODISCARD auto createAliasDecl(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createAliasDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->alias_decls.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::ALIAS_DECL, node_index);
+				const uint32_t node_index = this->alias_defs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::ALIAS_DEF, node_index);
 			}
-			EVO_NODISCARD auto getAliasDecl(const AST::Node& node) const -> const AST::AliasDecl& {
-				evo::debugAssert(node.kind() == AST::Kind::ALIAS_DECL, "Node is not a AliasDecl");
-				return this->alias_decls[node._value.node_index];
+			EVO_NODISCARD auto getAliasDef(const AST::Node& node) const -> const AST::AliasDef& {
+				evo::debugAssert(node.kind() == AST::Kind::ALIAS_DEF, "Node is not a AliasDef");
+				return this->alias_defs[node._value.node_index];
 			}
 
 
-			EVO_NODISCARD auto createDistinctAliasDecl(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createDistinctAliasDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->distinct_aliases.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::DISTINCT_ALIAS_DECL, node_index);
+				return AST::Node(AST::Kind::DISTINCT_ALIAS_DEF, node_index);
 			}
-			EVO_NODISCARD auto getDistinctAliasDecl(const AST::Node& node) const -> const AST::DistinctAliasDecl& {
-				evo::debugAssert(node.kind() == AST::Kind::DISTINCT_ALIAS_DECL, "Node is not a DistinctAliasDecl");
+			EVO_NODISCARD auto getDistinctAliasDef(const AST::Node& node) const -> const AST::DistinctAliasDef& {
+				evo::debugAssert(node.kind() == AST::Kind::DISTINCT_ALIAS_DEF, "Node is not a DistinctAliasDef");
 				return this->distinct_aliases[node._value.node_index];
 			}
 
 
-			EVO_NODISCARD auto createStructDecl(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createStructDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->struct_decls.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::STRUCT_DECL, node_index);
+				const uint32_t node_index = this->struct_defs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::STRUCT_DEF, node_index);
 			}
-			EVO_NODISCARD auto getStructDecl(const AST::Node& node) const -> const AST::StructDecl& {
-				evo::debugAssert(node.kind() == AST::Kind::STRUCT_DECL, "Node is not a StructDecl");
-				return this->struct_decls[node._value.node_index];
+			EVO_NODISCARD auto getStructDef(const AST::Node& node) const -> const AST::StructDef& {
+				evo::debugAssert(node.kind() == AST::Kind::STRUCT_DEF, "Node is not a StructDef");
+				return this->struct_defs[node._value.node_index];
 			}
 
-			EVO_NODISCARD auto createUnionDecl(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createUnionDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->union_decls.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::UNION_DECL, node_index);
+				const uint32_t node_index = this->union_defs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::UNION_DEF, node_index);
 			}
-			EVO_NODISCARD auto getUnionDecl(const AST::Node& node) const -> const AST::UnionDecl& {
-				evo::debugAssert(node.kind() == AST::Kind::UNION_DECL, "Node is not an Union");
-				return this->union_decls[node._value.node_index];
+			EVO_NODISCARD auto getUnionDef(const AST::Node& node) const -> const AST::UnionDef& {
+				evo::debugAssert(node.kind() == AST::Kind::UNION_DEF, "Node is not an Union");
+				return this->union_defs[node._value.node_index];
 			}
 
-			EVO_NODISCARD auto createInterfaceDecl(auto&&... args) -> AST::Node {
+			EVO_NODISCARD auto createEnumDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->interface_decls.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::INTERFACE_DECL, node_index);
+				const uint32_t node_index = this->enum_defs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::ENUM_DEF, node_index);
 			}
-			EVO_NODISCARD auto getInterfaceDecl(const AST::Node& node) const -> const AST::InterfaceDecl& {
-				evo::debugAssert(node.kind() == AST::Kind::INTERFACE_DECL, "Node is not an InterfaceDecl");
-				return this->interface_decls[node._value.node_index];
+			EVO_NODISCARD auto getEnumDef(const AST::Node& node) const -> const AST::EnumDef& {
+				evo::debugAssert(node.kind() == AST::Kind::ENUM_DEF, "Node is not an Enum");
+				return this->enum_defs[node._value.node_index];
+			}
+
+			EVO_NODISCARD auto createInterfaceDef(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->interface_defs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::INTERFACE_DEF, node_index);
+			}
+			EVO_NODISCARD auto getInterfaceDef(const AST::Node& node) const -> const AST::InterfaceDef& {
+				evo::debugAssert(node.kind() == AST::Kind::INTERFACE_DEF, "Node is not an InterfaceDef");
+				return this->interface_defs[node._value.node_index];
 			}
 
 			EVO_NODISCARD auto createInterfaceImpl(auto&&... args) -> AST::Node {
@@ -469,14 +479,15 @@ namespace pcit::panther{
 		private:
 			evo::SmallVector<AST::Node> global_stmts{};
 
-			core::LinearStepAlloc<AST::VarDecl, uint32_t> var_decls{};
-			core::LinearStepAlloc<AST::FuncDecl, uint32_t> func_decls{};
+			core::LinearStepAlloc<AST::VarDef, uint32_t> var_defs{};
+			core::LinearStepAlloc<AST::FuncDef, uint32_t> func_defs{};
 			core::LinearStepAlloc<AST::DeletedSpecialMethod, uint32_t> deleted_sepcial_methods{};
-			core::LinearStepAlloc<AST::AliasDecl, uint32_t> alias_decls{};
-			core::LinearStepAlloc<AST::DistinctAliasDecl, uint32_t> distinct_aliases{};
-			core::LinearStepAlloc<AST::StructDecl, uint32_t> struct_decls{};
-			core::LinearStepAlloc<AST::UnionDecl, uint32_t> union_decls{};
-			core::LinearStepAlloc<AST::InterfaceDecl, uint32_t> interface_decls{};
+			core::LinearStepAlloc<AST::AliasDef, uint32_t> alias_defs{};
+			core::LinearStepAlloc<AST::DistinctAliasDef, uint32_t> distinct_aliases{};
+			core::LinearStepAlloc<AST::StructDef, uint32_t> struct_defs{};
+			core::LinearStepAlloc<AST::UnionDef, uint32_t> union_defs{};
+			core::LinearStepAlloc<AST::EnumDef, uint32_t> enum_defs{};
+			core::LinearStepAlloc<AST::InterfaceDef, uint32_t> interface_defs{};
 			core::LinearStepAlloc<AST::InterfaceImpl, uint32_t> interface_impls{};
 
 			core::LinearStepAlloc<AST::Return, uint32_t> returns{};

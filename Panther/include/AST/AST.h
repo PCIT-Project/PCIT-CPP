@@ -25,15 +25,16 @@ namespace pcit::panther::AST{
 	enum class Kind : uint32_t {
 		NONE, // don't use! only here to allow optimization of std::optional<Node>
 
-		VAR_DECL,
-		FUNC_DECL,
+		VAR_DEF,
+		FUNC_DEF,
 		DELETED_SPECIAL_METHOD,
-		ALIAS_DECL,
-		DISTINCT_ALIAS_DECL,
-		STRUCT_DECL,
-		INTERFACE_DECL,
+		ALIAS_DEF,
+		DISTINCT_ALIAS_DEF,
+		STRUCT_DEF,
+		INTERFACE_DEF,
 		INTERFACE_IMPL,
-		UNION_DECL,
+		UNION_DEF,
+		ENUM_DEF,
 
 		RETURN,
 		ERROR,
@@ -154,7 +155,7 @@ namespace std{
 
 namespace pcit::panther::AST{
 	
-	struct VarDecl{
+	struct VarDef{
 		enum class Kind : uint8_t {
 			VAR,
 			CONST,
@@ -168,7 +169,7 @@ namespace pcit::panther::AST{
 		std::optional<Node> value;
 	};
 
-	struct FuncDecl{
+	struct FuncDef{
 		struct Param{
 			enum class Kind : uint8_t {
 				READ,
@@ -201,27 +202,27 @@ namespace pcit::panther::AST{
 		Token::ID memberToken;
 	};
 
-	struct AliasDecl{
+	struct AliasDef{
 		Token::ID ident;
 		Node attributeBlock;
 		Node type;
 	};
 
-	struct DistinctAliasDecl{
+	struct DistinctAliasDef{
 		Token::ID ident;
 		Node attributeBlock;
 		Node type;
 	};
 
 
-	struct StructDecl{
+	struct StructDef{
 		Token::ID ident;
 		std::optional<Node> templatePack;
 		Node attributeBlock;
 		Node block;
 	};
 
-	struct UnionDecl{
+	struct UnionDef{
 		struct Field{
 			Token::ID ident;
 			Node type;
@@ -233,11 +234,24 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Node> statements;
 	};
 
+	struct EnumDef{
+		struct Enumerator{
+			Token::ID ident;
+			std::optional<Node> value;
+		};
 
-	struct InterfaceDecl{
+		Token::ID ident;
+		std::optional<Node> underlyingType;
+		Node attributeBlock;
+		evo::SmallVector<Enumerator> enumerators;
+		evo::SmallVector<Node> statements;
+	};
+
+
+	struct InterfaceDef{
 		Token::ID ident;
 		Node attributeBlock;
-		evo::SmallVector<Node> methods; // Nodes are all FuncDecl
+		evo::SmallVector<Node> methods; // Nodes are all FuncDef
 	};
 
 

@@ -246,36 +246,40 @@ namespace pthr{
 		private:
 			auto print_stmt(const panther::AST::Node& stmt) -> void {
 				switch(stmt.kind()){
-					case panther::AST::Kind::VAR_DECL: {
-						this->print_var_decl(this->ast_buffer.getVarDecl(stmt));
+					case panther::AST::Kind::VAR_DEF: {
+						this->print_var_def(this->ast_buffer.getVarDef(stmt));
 					} break;
 
-					case panther::AST::Kind::FUNC_DECL: {
-						this->print_func_decl(this->ast_buffer.getFuncDecl(stmt));
+					case panther::AST::Kind::FUNC_DEF: {
+						this->print_func_def(this->ast_buffer.getFuncDef(stmt));
 					} break;
 
 					case panther::AST::Kind::DELETED_SPECIAL_METHOD: {
 						this->print_deleted_special_method(this->ast_buffer.getDeletedSpecialMethod(stmt));
 					} break;
 
-					case panther::AST::Kind::ALIAS_DECL: {
-						this->print_alias_decl(this->ast_buffer.getAliasDecl(stmt));
+					case panther::AST::Kind::ALIAS_DEF: {
+						this->print_alias_def(this->ast_buffer.getAliasDef(stmt));
 					} break;
 
-					case panther::AST::Kind::DISTINCT_ALIAS_DECL: {
-						this->print_distinct_alias(this->ast_buffer.getDistinctAliasDecl(stmt));
+					case panther::AST::Kind::DISTINCT_ALIAS_DEF: {
+						this->print_distinct_alias(this->ast_buffer.getDistinctAliasDef(stmt));
 					} break;
 
-					case panther::AST::Kind::STRUCT_DECL: {
-						this->print_struct_decl(this->ast_buffer.getStructDecl(stmt));
+					case panther::AST::Kind::STRUCT_DEF: {
+						this->print_struct_def(this->ast_buffer.getStructDef(stmt));
 					} break;
 
-					case panther::AST::Kind::UNION_DECL: {
-						this->print_union_decl(this->ast_buffer.getUnionDecl(stmt));
+					case panther::AST::Kind::UNION_DEF: {
+						this->print_union_def(this->ast_buffer.getUnionDef(stmt));
 					} break;
 
-					case panther::AST::Kind::INTERFACE_DECL: {
-						this->print_interface_decl(this->ast_buffer.getInterfaceDecl(stmt));
+					case panther::AST::Kind::ENUM_DEF: {
+						this->print_enum_def(this->ast_buffer.getEnumDef(stmt));
+					} break;
+
+					case panther::AST::Kind::INTERFACE_DEF: {
+						this->print_interface_def(this->ast_buffer.getInterfaceDef(stmt));
 					} break;
 
 					case panther::AST::Kind::INTERFACE_IMPL: {
@@ -345,45 +349,45 @@ namespace pthr{
 				}
 			}
 
-			auto print_var_decl(const panther::AST::VarDecl& var_decl) -> void {
+			auto print_var_def(const panther::AST::VarDef& var_def) -> void {
 				this->indenter.print();
-				this->print_major_header("Variable Declaration");
+				this->print_major_header("Variable Definition");
 
 				{
 					this->indenter.push();
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Kind");
-					switch(var_decl.kind){
-						break; case panther::AST::VarDecl::Kind::VAR:   this->printer.printMagenta(" var\n");
-						break; case panther::AST::VarDecl::Kind::CONST: this->printer.printMagenta(" const\n");
-						break; case panther::AST::VarDecl::Kind::DEF:   this->printer.printMagenta(" def\n");
+					switch(var_def.kind){
+						break; case panther::AST::VarDef::Kind::VAR:   this->printer.printMagenta(" var\n");
+						break; case panther::AST::VarDef::Kind::CONST: this->printer.printMagenta(" const\n");
+						break; case panther::AST::VarDef::Kind::DEF:   this->printer.printMagenta(" def\n");
 					}
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					this->print_ident(var_decl.ident);
+					this->print_ident(var_def.ident);
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Type");
-					if(var_decl.type.has_value()){
+					if(var_def.type.has_value()){
 						this->printer.print(" ");
-						this->print_type(this->ast_buffer.getType(*var_decl.type));
+						this->print_type(this->ast_buffer.getType(*var_def.type));
 						this->printer.println();
 					}else{
 						this->printer.printGray(" {INFERRED}\n");
 					}
 
 					this->indenter.set_arrow();
-					this->print_attribute_block(this->ast_buffer.getAttributeBlock(var_decl.attributeBlock));
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(var_def.attributeBlock));
 
 					this->indenter.print_end();
 					this->print_minor_header("Value");
-					if(var_decl.value.has_value()){
+					if(var_def.value.has_value()){
 						this->printer.println();
 						this->indenter.push();
-						this->print_expr(*var_decl.value);
+						this->print_expr(*var_def.value);
 						this->indenter.pop();
 					}else{
 						this->printer.printGray(" {NONE}\n");
@@ -394,9 +398,9 @@ namespace pthr{
 			}
 
 
-			auto print_func_decl(const panther::AST::FuncDecl& func_decl) -> void {
+			auto print_func_def(const panther::AST::FuncDef& func_def) -> void {
 				this->indenter.print();
-				this->print_major_header("Function Declaration");
+				this->print_major_header("Function Definition");
 
 				{
 					this->indenter.push();
@@ -404,24 +408,24 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					const panther::Token::Kind name_kind = this->source.getTokenBuffer()[func_decl.name].kind();
+					const panther::Token::Kind name_kind = this->source.getTokenBuffer()[func_def.name].kind();
 					if(name_kind == panther::Token::Kind::IDENT){
-						this->print_ident(func_decl.name);
+						this->print_ident(func_def.name);
 					}else{
 						this->printer.printMagenta("{}\n", name_kind);
 					}
 
-					this->print_template_pack(func_decl.templatePack);
+					this->print_template_pack(func_def.templatePack);
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Parameters");
-					if(func_decl.params.empty()){
+					if(func_def.params.empty()){
 						this->printer.printGray(" {NONE}\n");
 					}else{
 						this->printer.println();
 						this->indenter.push();
-						for(size_t i = 0; const panther::AST::FuncDecl::Param& param : func_decl.params){
-							if(i + 1 < func_decl.params.size()){
+						for(size_t i = 0; const panther::AST::FuncDef::Param& param : func_def.params){
+							if(i + 1 < func_def.params.size()){
 								this->indenter.print_arrow();
 							}else{
 								this->indenter.print_end();
@@ -452,7 +456,7 @@ namespace pthr{
 
 								this->indenter.print_arrow();
 								this->print_minor_header("Kind");
-								using ParamKind = panther::AST::FuncDecl::Param::Kind;
+								using ParamKind = panther::AST::FuncDef::Param::Kind;
 								switch(param.kind){
 									break; case ParamKind::READ: this->printer.printMagenta(" {read}\n");
 									break; case ParamKind::MUT: this->printer.printMagenta(" {mut}\n");
@@ -482,15 +486,15 @@ namespace pthr{
 					}
 
 					this->indenter.set_arrow();
-					this->print_attribute_block(this->ast_buffer.getAttributeBlock(func_decl.attributeBlock));
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(func_def.attributeBlock));
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Returns");
 					this->printer.println();
 					{
 						this->indenter.push();
-						for(size_t i = 0; const panther::AST::FuncDecl::Return& return_param : func_decl.returns){
-							if(i + 1 < func_decl.returns.size()){
+						for(size_t i = 0; const panther::AST::FuncDef::Return& return_param : func_def.returns){
+							if(i + 1 < func_def.returns.size()){
 								this->indenter.print_arrow();
 							}else{
 								this->indenter.print_end();
@@ -526,13 +530,13 @@ namespace pthr{
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Error Returns");
-					if(func_decl.errorReturns.empty()){
+					if(func_def.errorReturns.empty()){
 						this->printer.printGray(" {NONE}\n");
 					}else{
 						this->printer.println();
 						this->indenter.push();
-						for(size_t i = 0; const panther::AST::FuncDecl::Return& error_return : func_decl.errorReturns){
-							if(i + 1 < func_decl.errorReturns.size()){
+						for(size_t i = 0; const panther::AST::FuncDef::Return& error_return : func_def.errorReturns){
+							if(i + 1 < func_def.errorReturns.size()){
 								this->indenter.print_arrow();
 							}else{
 								this->indenter.print_end();
@@ -569,8 +573,8 @@ namespace pthr{
 					this->indenter.print_end();
 					this->print_minor_header("Statement Block");
 
-					if(func_decl.block.has_value()){
-						this->print_block(this->ast_buffer.getBlock(*func_decl.block));
+					if(func_def.block.has_value()){
+						this->print_block(this->ast_buffer.getBlock(*func_def.block));
 					}else{
 						this->printer.printGray("{NONE}\n");
 					}
@@ -599,9 +603,9 @@ namespace pthr{
 
 
 
-			auto print_alias_decl(const panther::AST::AliasDecl& alias_decl) -> void {
+			auto print_alias_def(const panther::AST::AliasDef& alias_def) -> void {
 				this->indenter.print();
-				this->print_major_header("Alias Declaration");
+				this->print_major_header("Alias Definition");
 
 				{
 					this->indenter.push();
@@ -609,24 +613,24 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					this->print_ident(alias_decl.ident);
+					this->print_ident(alias_def.ident);
 
 					this->indenter.set_arrow();
-					this->print_attribute_block(this->ast_buffer.getAttributeBlock(alias_decl.attributeBlock));
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(alias_def.attributeBlock));
 
 					this->indenter.print_end();
 					this->print_minor_header("Type");
 					this->printer.print(" ");
-					this->print_type(this->ast_buffer.getType(alias_decl.type));
+					this->print_type(this->ast_buffer.getType(alias_def.type));
 					this->printer.println();
 
 					this->indenter.pop();
 				}
 			}
 
-			auto print_distinct_alias(const panther::AST::DistinctAliasDecl& distinct_alias) -> void {
+			auto print_distinct_alias(const panther::AST::DistinctAliasDef& distinct_alias) -> void {
 				this->indenter.print();
-				this->print_major_header("Type Declaration");
+				this->print_major_header("Type Definition");
 
 				{
 					this->indenter.push();
@@ -650,9 +654,9 @@ namespace pthr{
 			}
 
 
-			auto print_struct_decl(const panther::AST::StructDecl& struct_decl) -> void {
+			auto print_struct_def(const panther::AST::StructDef& struct_def) -> void {
 				this->indenter.print();
-				this->print_major_header("Struct Declaration");
+				this->print_major_header("Struct Definition");
 
 				{
 					this->indenter.push();
@@ -660,26 +664,26 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					this->print_ident(struct_decl.ident);
+					this->print_ident(struct_def.ident);
 
 					this->indenter.print_arrow();
-					this->print_template_pack(struct_decl.templatePack);
+					this->print_template_pack(struct_def.templatePack);
 
 					this->indenter.set_arrow();
-					this->print_attribute_block(this->ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(struct_def.attributeBlock));
 
 					this->indenter.print_end();
 					this->print_minor_header("Statement Block");
-					this->print_block(this->ast_buffer.getBlock(struct_decl.block));
+					this->print_block(this->ast_buffer.getBlock(struct_def.block));
 
 					this->indenter.pop();
 				}
 			}
 
 
-			auto print_union_decl(const panther::AST::UnionDecl& union_decl) -> void {
+			auto print_union_def(const panther::AST::UnionDef& union_def) -> void {
 				this->indenter.print();
-				this->print_major_header("Union Declaration");
+				this->print_major_header("Union Definition");
 
 				{
 					this->indenter.push();
@@ -687,17 +691,17 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					this->print_ident(union_decl.ident);
+					this->print_ident(union_def.ident);
 
 					this->indenter.set_arrow();
-					this->print_attribute_block(this->ast_buffer.getAttributeBlock(union_decl.attributeBlock));
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(union_def.attributeBlock));
 
 					this->indenter.print_arrow();
 					this->print_minor_header("Fields");
 					this->printer.println();
 					this->indenter.push();
-					for(size_t i = 0; const panther::AST::UnionDecl::Field& field : union_decl.fields){
-						if(i + 1 < union_decl.fields.size()){
+					for(size_t i = 0; const panther::AST::UnionDef::Field& field : union_def.fields){
+						if(i + 1 < union_def.fields.size()){
 							this->indenter.print_arrow();
 						}else{
 							this->indenter.print_end();
@@ -727,15 +731,15 @@ namespace pthr{
 
 					this->indenter.print_end();
 					this->print_minor_header("Statements");
-					if(union_decl.statements.empty()){
+					if(union_def.statements.empty()){
 						this->printer.printlnGray(" {NONE}");
 					}else{
 						this->printer.println();
 
 						this->indenter.push();
 
-						for(size_t i = 0; const panther::AST::Node& stmt : union_decl.statements){
-							if(i + 1 < union_decl.fields.size()){
+						for(size_t i = 0; const panther::AST::Node& stmt : union_def.statements){
+							if(i + 1 < union_def.statements.size()){
 								this->indenter.set_arrow();
 							}else{
 								this->indenter.set_end();
@@ -754,9 +758,9 @@ namespace pthr{
 			}
 
 
-			auto print_interface_decl(const panther::AST::InterfaceDecl& interface_decl) -> void {
+			auto print_enum_def(const panther::AST::EnumDef& enum_def) -> void {
 				this->indenter.print();
-				this->print_major_header("Interface Declaration");
+				this->print_major_header("Enum Definition");
 
 				{
 					this->indenter.push();
@@ -764,7 +768,101 @@ namespace pthr{
 					this->indenter.print_arrow();
 					this->print_minor_header("Identifier");
 					this->printer.print(" ");
-					this->print_ident(interface_decl.ident);
+					this->print_ident(enum_def.ident);
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Underlying Type");
+					this->printer.print(" ");
+					if(enum_def.underlyingType.has_value()){
+						this->print_type(this->ast_buffer.getType(*enum_def.underlyingType));
+						this->printer.println();
+					}else{
+						this->printer.printlnGray("{DEFAULT}");
+					}
+
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(enum_def.attributeBlock));
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Enumerators");
+					this->printer.println();
+					this->indenter.push();
+					for(size_t i = 0; const panther::AST::EnumDef::Enumerator& enumerator : enum_def.enumerators){
+						if(i + 1 < enum_def.enumerators.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
+						}
+
+						this->print_major_header(std::format("Enumerator {}", i));
+						{
+							this->indenter.push();
+
+							this->indenter.print_arrow();
+							this->print_minor_header("Identifier");
+							this->printer.print(" ");
+							this->print_ident(enumerator.ident);
+
+							this->indenter.print_end();
+							this->print_minor_header("Value");
+							if(enumerator.value.has_value()){
+								this->printer.println();
+								this->indenter.push();
+								this->print_expr(*enumerator.value);
+								this->indenter.pop();
+							}else{
+								this->printer.printlnGray(" {NONE}");
+							}
+
+
+							this->indenter.pop();
+						}
+					
+						i += 1;
+					}
+					this->indenter.pop();
+
+					this->indenter.print_end();
+					this->print_minor_header("Statements");
+					if(enum_def.statements.empty()){
+						this->printer.printlnGray(" {NONE}");
+					}else{
+						this->printer.println();
+
+						this->indenter.push();
+
+						for(size_t i = 0; const panther::AST::Node& stmt : enum_def.statements){
+							if(i + 1 < enum_def.statements.size()){
+								this->indenter.set_arrow();
+							}else{
+								this->indenter.set_end();
+							}
+
+							this->print_stmt(stmt);
+						
+							i += 1;
+						}
+
+						this->indenter.pop();
+					}
+
+					this->indenter.pop();
+				}
+			}
+
+
+
+			auto print_interface_def(const panther::AST::InterfaceDef& interface_def) -> void {
+				this->indenter.print();
+				this->print_major_header("Interface Definition");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.print(" ");
+					this->print_ident(interface_def.ident);
 
 
 					this->indenter.print_end();
@@ -774,14 +872,14 @@ namespace pthr{
 
 						this->printer.println();
 
-						for(size_t i = 0; const panther::AST::Node& func : interface_decl.methods){
-							if(i + 1 < interface_decl.methods.size()){
+						for(size_t i = 0; const panther::AST::Node& func : interface_def.methods){
+							if(i + 1 < interface_def.methods.size()){
 								this->indenter.set_arrow();
 							}else{
 								this->indenter.set_end();
 							}
 
-							this->print_func_decl(this->ast_buffer.getFuncDecl(func));
+							this->print_func_def(this->ast_buffer.getFuncDef(func));
 
 							i += 1;
 						}
@@ -1451,20 +1549,21 @@ namespace pthr{
 					} break;
 
 
-					case panther::AST::Kind::NONE:            case panther::AST::Kind::VAR_DECL:
-					case panther::AST::Kind::FUNC_DECL:       case panther::AST::Kind::DELETED_SPECIAL_METHOD:
-					case panther::AST::Kind::ALIAS_DECL:      case panther::AST::Kind::DISTINCT_ALIAS_DECL:
-					case panther::AST::Kind::STRUCT_DECL:     case panther::AST::Kind::UNION_DECL:
-					case panther::AST::Kind::INTERFACE_DECL:  case panther::AST::Kind::INTERFACE_IMPL:
-					case panther::AST::Kind::RETURN:          case panther::AST::Kind::ERROR:
-					case panther::AST::Kind::UNREACHABLE:     case panther::AST::Kind::BREAK:
-					case panther::AST::Kind::CONTINUE:        case panther::AST::Kind::DELETE:
-					case panther::AST::Kind::CONDITIONAL:     case panther::AST::Kind::WHEN_CONDITIONAL:
-					case panther::AST::Kind::WHILE:           case panther::AST::Kind::DEFER:
-					case panther::AST::Kind::TEMPLATE_PACK:   case panther::AST::Kind::MULTI_ASSIGN:
-					case panther::AST::Kind::ARRAY_TYPE:      case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK: case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::TYPE_DEDUCER:    case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::NONE:             case panther::AST::Kind::VAR_DEF:
+					case panther::AST::Kind::FUNC_DEF:         case panther::AST::Kind::DELETED_SPECIAL_METHOD:
+					case panther::AST::Kind::ALIAS_DEF:        case panther::AST::Kind::DISTINCT_ALIAS_DEF:
+					case panther::AST::Kind::STRUCT_DEF:       case panther::AST::Kind::UNION_DEF:
+					case panther::AST::Kind::ENUM_DEF:         case panther::AST::Kind::INTERFACE_DEF:
+					case panther::AST::Kind::INTERFACE_IMPL:   case panther::AST::Kind::RETURN:
+					case panther::AST::Kind::ERROR:            case panther::AST::Kind::UNREACHABLE:
+					case panther::AST::Kind::BREAK:            case panther::AST::Kind::CONTINUE:
+					case panther::AST::Kind::DELETE:           case panther::AST::Kind::CONDITIONAL:
+					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
+					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
+					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::ARRAY_TYPE:
+					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
+					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::TYPE_DEDUCER:
+					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

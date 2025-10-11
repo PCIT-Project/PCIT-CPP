@@ -37,29 +37,32 @@ namespace pcit::panther{
 		this->symbol_proc_infos.emplace_back(symbol_proc_id, symbol_proc);
 		
 		switch(stmt.kind()){
-			break; case AST::Kind::VAR_DECL:
-				if(this->build_var_decl(stmt).isError()){ return evo::resultError; }
+			break; case AST::Kind::VAR_DEF:
+				if(this->build_var_def(stmt).isError()){ return evo::resultError; }
 
-			break; case AST::Kind::FUNC_DECL:
-				if(this->build_func_decl(stmt).isError()){ return evo::resultError; }
+			break; case AST::Kind::FUNC_DEF:
+				if(this->build_func_def(stmt).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::DELETED_SPECIAL_METHOD:
 				if(this->build_deleted_special_method(stmt).isError()){ return evo::resultError; }
 
-			break; case AST::Kind::ALIAS_DECL:
-				if(this->build_alias_decl(stmt).isError()){ return evo::resultError; }
+			break; case AST::Kind::ALIAS_DEF:
+				if(this->build_alias_def(stmt).isError()){ return evo::resultError; }
 
-			break; case AST::Kind::DISTINCT_ALIAS_DECL:
-				if(this->build_distinct_alias_decl(stmt).isError()){ return evo::resultError; }
+			break; case AST::Kind::DISTINCT_ALIAS_DEF:
+				if(this->build_distinct_alias_def(stmt).isError()){ return evo::resultError; }
 
-			break; case AST::Kind::STRUCT_DECL:
-				if(this->build_struct_decl(stmt).isError()){ return evo::resultError; }
+			break; case AST::Kind::STRUCT_DEF:
+				if(this->build_struct_def(stmt).isError()){ return evo::resultError; }
 
-			break; case AST::Kind::UNION_DECL:
-				if(this->build_union_decl(stmt).isError()){ return evo::resultError; }
+			break; case AST::Kind::UNION_DEF:
+				if(this->build_union_def(stmt).isError()){ return evo::resultError; }
 
-			break; case AST::Kind::INTERFACE_DECL:
-				if(this->build_interface_decl(stmt).isError()){ return evo::resultError; }
+			break; case AST::Kind::ENUM_DEF:
+				if(this->build_enum_def(stmt).isError()){ return evo::resultError; }
+
+			break; case AST::Kind::INTERFACE_DEF:
+				if(this->build_interface_def(stmt).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::INTERFACE_IMPL:
 				if(this->build_interface_impl(stmt).isError()){ return evo::resultError; }
@@ -103,7 +106,7 @@ namespace pcit::panther{
 		uint32_t instantiation_id
 	) -> evo::Result<SymbolProc::ID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::StructDecl& struct_decl = ast_buffer.getStructDecl(template_symbol_proc.ast_node);
+		const AST::StructDef& struct_def = ast_buffer.getStructDef(template_symbol_proc.ast_node);
 
 		SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			template_symbol_proc.ast_node,
@@ -119,15 +122,15 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// build struct decl
+		// build struct def
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
-			this->analyze_attributes(ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
+			this->analyze_attributes(ast_buffer.getAttributeBlock(struct_def.attributeBlock));
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createStructDeclInstatiation(
-				struct_decl, std::move(attribute_params_info.value()), struct_template_id, instantiation_id
+				struct_def, std::move(attribute_params_info.value()), struct_template_id, instantiation_id
 			)
 		);
 		this->add_instruction(this->context.symbol_proc_manager.createStructDef());
@@ -138,7 +141,7 @@ namespace pcit::panther{
 
 		this->symbol_scopes.emplace_back(&struct_info.stmts);
 		this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
-		for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).statements){
+		for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_def.block).statements){
 			if(this->build(struct_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
@@ -168,7 +171,7 @@ namespace pcit::panther{
 		evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types
 	) -> evo::Result<SymbolProc::ID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::FuncDecl& func_decl = ast_buffer.getFuncDecl(template_symbol_proc.ast_node);
+		const AST::FuncDef& func_def = ast_buffer.getFuncDef(template_symbol_proc.ast_node);
 
 		SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			template_symbol_proc.ast_node,
@@ -188,19 +191,19 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// build func decl
+		// build func def
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
-			this->analyze_attributes(ast_buffer.getAttributeBlock(func_decl.attributeBlock));
+			this->analyze_attributes(ast_buffer.getAttributeBlock(func_def.attributeBlock));
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 
 		auto types = evo::SmallVector<std::optional<SymbolProcTypeID>>();
-		types.reserve(func_decl.params.size() + func_decl.returns.size() + func_decl.errorReturns.size());
+		types.reserve(func_def.params.size() + func_def.returns.size() + func_def.errorReturns.size());
 
 		auto default_param_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
-		default_param_values.reserve(func_decl.params.size());
-		for(size_t i = 0; const AST::FuncDecl::Param& param : func_decl.params){
+		default_param_values.reserve(func_def.params.size());
+		for(size_t i = 0; const AST::FuncDef::Param& param : func_def.params){
 			if(param.type.has_value() == false){ // skip `this` param
 				types.emplace_back();
 				default_param_values.emplace_back();
@@ -232,7 +235,7 @@ namespace pcit::panther{
 			}
 		}
 
-		for(const AST::FuncDecl::Return& return_param : func_decl.returns){
+		for(const AST::FuncDef::Return& return_param : func_def.returns){
 			const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<false>(
 				ast_buffer.getType(return_param.type)
 			);
@@ -240,7 +243,7 @@ namespace pcit::panther{
 			types.emplace_back(param_type.value());
 		}
 
-		for(const AST::FuncDecl::Return& error_return_param : func_decl.errorReturns){
+		for(const AST::FuncDef::Return& error_return_param : func_def.errorReturns){
 			const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<false>(
 				ast_buffer.getType(error_return_param.type)
 			);
@@ -250,7 +253,7 @@ namespace pcit::panther{
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createFuncDeclInstantiation(
-				func_decl,
+				func_def,
 				std::move(attribute_params_info.value()),
 				std::move(default_param_values),
 				std::move(types),
@@ -263,7 +266,7 @@ namespace pcit::panther{
 
 		// make sure definitions are ready for body of function
 		// TODO(PERF): better way of doing this
-		for(const AST::FuncDecl::Param& param : func_decl.params){
+		for(const AST::FuncDef::Param& param : func_def.params){
 			if(param.type.has_value()){
 				const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
 					ast_buffer.getType(*param.type)
@@ -273,13 +276,13 @@ namespace pcit::panther{
 				this->add_instruction(this->context.symbol_proc_manager.createRequireThisDef());
 			}
 		}
-		for(const AST::FuncDecl::Return& return_param : func_decl.returns){
+		for(const AST::FuncDef::Return& return_param : func_def.returns){
 			const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
 				ast_buffer.getType(return_param.type)
 			);
 			evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 		}
-		for(const AST::FuncDecl::Return& error_return_param : func_decl.errorReturns){
+		for(const AST::FuncDef::Return& error_return_param : func_def.errorReturns){
 			const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
 				ast_buffer.getType(error_return_param.type)
 			);
@@ -287,18 +290,18 @@ namespace pcit::panther{
 		}
 
 
-		this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_decl));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_def));
 
 		this->symbol_scopes.emplace_back(nullptr);
 		this->symbol_namespaces.emplace_back(nullptr);
-		for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_decl.block).statements){
+		for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.block).statements){
 			if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
 		this->symbol_scopes.pop_back();
 
-		this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_decl));
-		this->add_instruction(this->context.symbol_proc_manager.createFuncPrepareConstexprPIRIfNeeded(func_decl));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncPrepareConstexprPIRIfNeeded(func_def));
 		this->add_instruction(this->context.symbol_proc_manager.createFuncConstexprPIRReadyIfNeeded());
 
 
@@ -327,13 +330,13 @@ namespace pcit::panther{
 		switch(stmt.kind()){
 			case AST::Kind::NONE: evo::debugFatalBreak("Not a valid AST node");
 
-			case AST::Kind::VAR_DECL: {
-				return token_buffer[ast_buffer.getVarDecl(stmt).ident].getString();
+			case AST::Kind::VAR_DEF: {
+				return token_buffer[ast_buffer.getVarDef(stmt).ident].getString();
 			} break;
 
-			case AST::Kind::FUNC_DECL: {
-				const AST::FuncDecl& func_decl = ast_buffer.getFuncDecl(stmt);
-				const Token& name_token = token_buffer[func_decl.name];
+			case AST::Kind::FUNC_DEF: {
+				const AST::FuncDef& func_def = ast_buffer.getFuncDef(stmt);
+				const Token& name_token = token_buffer[func_def.name];
 
 				if(name_token.kind() == Token::Kind::IDENT){
 					return name_token.getString();
@@ -346,24 +349,28 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::ALIAS_DECL: {
-				return token_buffer[ast_buffer.getAliasDecl(stmt).ident].getString();
+			case AST::Kind::ALIAS_DEF: {
+				return token_buffer[ast_buffer.getAliasDef(stmt).ident].getString();
 			} break;
 
-			case AST::Kind::DISTINCT_ALIAS_DECL: {
-				return token_buffer[ast_buffer.getDistinctAliasDecl(stmt).ident].getString();
+			case AST::Kind::DISTINCT_ALIAS_DEF: {
+				return token_buffer[ast_buffer.getDistinctAliasDef(stmt).ident].getString();
 			} break;
 
-			case AST::Kind::STRUCT_DECL: {
-				return token_buffer[ast_buffer.getStructDecl(stmt).ident].getString();
+			case AST::Kind::STRUCT_DEF: {
+				return token_buffer[ast_buffer.getStructDef(stmt).ident].getString();
 			} break;
 
-			case AST::Kind::UNION_DECL: {
-				return token_buffer[ast_buffer.getUnionDecl(stmt).ident].getString();
+			case AST::Kind::UNION_DEF: {
+				return token_buffer[ast_buffer.getUnionDef(stmt).ident].getString();
 			} break;
 
-			case AST::Kind::INTERFACE_DECL: {
-				return token_buffer[ast_buffer.getInterfaceDecl(stmt).ident].getString();
+			case AST::Kind::ENUM_DEF: {
+				return token_buffer[ast_buffer.getEnumDef(stmt).ident].getString();
+			} break;
+
+			case AST::Kind::INTERFACE_DEF: {
+				return token_buffer[ast_buffer.getInterfaceDef(stmt).ident].getString();
 			} break;
 
 			case AST::Kind::INTERFACE_IMPL: {
@@ -400,29 +407,29 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::build_var_decl(const AST::Node& stmt) -> evo::Result<> {
-		const AST::VarDecl& var_decl = this->source.getASTBuffer().getVarDecl(stmt);
+	auto SymbolProcBuilder::build_var_def(const AST::Node& stmt) -> evo::Result<> {
+		const AST::VarDef& var_def = this->source.getASTBuffer().getVarDef(stmt);
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
-			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock)
+			this->source.getASTBuffer().getAttributeBlock(var_def.attributeBlock)
 		);
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 
 		auto decl_def_type_id = std::optional<SymbolProc::TypeID>();
-		if(var_decl.type.has_value()){
+		if(var_def.type.has_value()){
 			const evo::Result<SymbolProc::TypeID> type_id_res = 
-				this->analyze_type<true>(this->source.getASTBuffer().getType(*var_decl.type));
+				this->analyze_type<true>(this->source.getASTBuffer().getType(*var_def.type));
 			if(type_id_res.isError()){ return evo::resultError; }
 
 
-			if(this->source.getASTBuffer().getType(*var_decl.type).base.kind() == AST::Kind::TYPE_DEDUCER){
+			if(this->source.getASTBuffer().getType(*var_def.type).base.kind() == AST::Kind::TYPE_DEDUCER){
 				decl_def_type_id = type_id_res.value();
 
-			}else if(var_decl.kind != AST::VarDecl::Kind::DEF){
+			}else if(var_def.kind != AST::VarDef::Kind::DEF){
 				this->add_instruction(
 					this->context.symbol_proc_manager.createNonLocalVarDecl(
-						var_decl, std::move(attribute_params_info.value()), type_id_res.value()
+						var_def, std::move(attribute_params_info.value()), type_id_res.value()
 					)
 				);
 			}else{
@@ -433,26 +440,26 @@ namespace pcit::panther{
 
 
 		auto value_id = std::optional<SymbolProc::TermInfoID>();
-		if(var_decl.value.has_value()){
-			const evo::Result<SymbolProc::TermInfoID> value_id_res = this->analyze_expr<true>(*var_decl.value);
+		if(var_def.value.has_value()){
+			const evo::Result<SymbolProc::TermInfoID> value_id_res = this->analyze_expr<true>(*var_def.value);
 			if(value_id_res.isError()){ return evo::resultError; }
 
 			value_id = value_id_res.value();
 			
 		}else{
-			if(var_decl.kind == AST::VarDecl::Kind::DEF){
+			if(var_def.kind == AST::VarDef::Kind::DEF){
 				this->emit_error(
 					Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
-					var_decl,
+					var_def,
 					"All [def] variables need to be defined with a value"
 				);
 				return evo::resultError;
 			}
 
-			if(var_decl.type.has_value() == false){
+			if(var_def.type.has_value() == false){
 				this->emit_error(
 					Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
-					var_decl,
+					var_def,
 					"Variables must be defined with a type and/or a value"
 				);
 				return evo::resultError;
@@ -462,16 +469,16 @@ namespace pcit::panther{
 	
 
 		if(
-			var_decl.type.has_value()
-			&& var_decl.kind != AST::VarDecl::Kind::DEF
+			var_def.type.has_value()
+			&& var_def.kind != AST::VarDef::Kind::DEF
 			&& decl_def_type_id.has_value() == false
 		){
-			this->add_instruction(this->context.symbol_proc_manager.createNonLocalVarDef(var_decl, value_id));
+			this->add_instruction(this->context.symbol_proc_manager.createNonLocalVarDef(var_def, value_id));
 
 		}else{
 			this->add_instruction(
 				this->context.symbol_proc_manager.createNonLocalVarDeclDef(
-					var_decl, std::move(attribute_params_info.value()), decl_def_type_id, *value_id
+					var_def, std::move(attribute_params_info.value()), decl_def_type_id, *value_id
 				)
 			);
 		}
@@ -497,9 +504,9 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_func_decl(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_func_def(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::FuncDecl& func_decl = ast_buffer.getFuncDecl(stmt);
+		const AST::FuncDef& func_def = ast_buffer.getFuncDef(stmt);
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 
@@ -507,10 +514,10 @@ namespace pcit::panther{
 
 
 		auto template_param_infos = evo::SmallVector<Instruction::TemplateParamInfo>();
-		if(func_decl.templatePack.has_value()){
+		if(func_def.templatePack.has_value()){
 			current_symbol->is_template = true;
 			evo::Result<evo::SmallVector<Instruction::TemplateParamInfo>> template_param_infos_res =
-				this->analyze_template_param_pack(ast_buffer.getTemplatePack(*func_decl.templatePack));
+				this->analyze_template_param_pack(ast_buffer.getTemplatePack(*func_def.templatePack));
 
 			if(template_param_infos_res.isError()){ return evo::resultError; }
 			template_param_infos = std::move(template_param_infos_res.value());
@@ -519,7 +526,7 @@ namespace pcit::panther{
 
 
 		const bool has_type_deducer_param = [&](){
-			for(const AST::FuncDecl::Param& param : func_decl.params){
+			for(const AST::FuncDef::Param& param : func_def.params){
 				if(param.type.has_value() && this->is_type_deducer(ast_buffer.getType(*param.type))){ 
 					return true;
 				}
@@ -532,16 +539,16 @@ namespace pcit::panther{
 
 		if(template_param_infos.empty() && has_type_deducer_param == false){
 			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
-				this->analyze_attributes(ast_buffer.getAttributeBlock(func_decl.attributeBlock));
+				this->analyze_attributes(ast_buffer.getAttributeBlock(func_def.attributeBlock));
 			if(attribute_params_info.isError()){ return evo::resultError; }
 
 
 			auto types = evo::SmallVector<std::optional<SymbolProcTypeID>>();
-			types.reserve(func_decl.params.size() + func_decl.returns.size() + func_decl.errorReturns.size());
+			types.reserve(func_def.params.size() + func_def.returns.size() + func_def.errorReturns.size());
 
 			auto default_param_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
-			default_param_values.reserve(func_decl.params.size());
-			for(const AST::FuncDecl::Param& param : func_decl.params){
+			default_param_values.reserve(func_def.params.size());
+			for(const AST::FuncDef::Param& param : func_def.params){
 				if(param.type.has_value() == false){
 					types.emplace_back();
 					default_param_values.emplace_back();
@@ -564,7 +571,7 @@ namespace pcit::panther{
 				}
 			}
 
-			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
+			for(const AST::FuncDef::Return& return_param : func_def.returns){
 				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<false>(
 					ast_buffer.getType(return_param.type)
 				);
@@ -572,7 +579,7 @@ namespace pcit::panther{
 				types.emplace_back(param_type.value());
 			}
 
-			for(const AST::FuncDecl::Return& error_return_param : func_decl.errorReturns){
+			for(const AST::FuncDef::Return& error_return_param : func_def.errorReturns){
 				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<false>(
 					ast_buffer.getType(error_return_param.type)
 				);
@@ -582,7 +589,7 @@ namespace pcit::panther{
 
 			this->add_instruction(
 				this->context.symbol_proc_manager.createFuncDecl(
-					func_decl,
+					func_def,
 					std::move(attribute_params_info.value()),
 					std::move(default_param_values),
 					std::move(types)
@@ -592,7 +599,7 @@ namespace pcit::panther{
 
 			// make sure definitions are ready for body of function
 			// TODO(PERF): better way of doing this
-			for(const AST::FuncDecl::Param& param : func_decl.params){
+			for(const AST::FuncDef::Param& param : func_def.params){
 				if(param.type.has_value()){
 					const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
 						ast_buffer.getType(*param.type)
@@ -602,13 +609,13 @@ namespace pcit::panther{
 					this->add_instruction(this->context.symbol_proc_manager.createRequireThisDef());
 				}
 			}
-			for(const AST::FuncDecl::Return& return_param : func_decl.returns){
+			for(const AST::FuncDef::Return& return_param : func_def.returns){
 				const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
 					ast_buffer.getType(return_param.type)
 				);
 				evo::debugAssert(res.isSuccess(), "Func param type def getting should never fail");
 			}
-			for(const AST::FuncDecl::Return& error_return_param : func_decl.errorReturns){
+			for(const AST::FuncDef::Return& error_return_param : func_def.errorReturns){
 				const evo::Result<SymbolProc::TypeID> res = this->analyze_type<true>(
 					ast_buffer.getType(error_return_param.type)
 				);
@@ -616,25 +623,25 @@ namespace pcit::panther{
 			}
 
 
-			if(func_decl.block.has_value()){
-				this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_decl));
+			if(func_def.block.has_value()){
+				this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_def));
 
 				this->symbol_scopes.emplace_back(nullptr);
 				this->symbol_namespaces.emplace_back(nullptr);
-				for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_decl.block).statements){
+				for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.block).statements){
 					if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 				}
 				this->symbol_namespaces.pop_back();
 				this->symbol_scopes.pop_back();
 
-				this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_decl));
+				this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
 				this->add_instruction(
-					this->context.symbol_proc_manager.createFuncPrepareConstexprPIRIfNeeded(func_decl)
+					this->context.symbol_proc_manager.createFuncPrepareConstexprPIRIfNeeded(func_def)
 				);
 				this->add_instruction(this->context.symbol_proc_manager.createFuncConstexprPIRReadyIfNeeded());
 
 			}else{
-				this->add_instruction(this->context.symbol_proc_manager.createInterfaceFuncDef(func_decl));
+				this->add_instruction(this->context.symbol_proc_manager.createInterfaceFuncDef(func_def));
 			}
 
 
@@ -642,10 +649,10 @@ namespace pcit::panther{
 			current_symbol = &this->get_current_symbol();
 
 		}else{
-			if(func_decl.block.has_value() == false){
+			if(func_def.block.has_value() == false){
 				this->emit_error(
 					Diagnostic::Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
-					func_decl,
+					func_def,
 					"Interface methods cannot be templates"
 				);
 				return evo::resultError;
@@ -654,10 +661,10 @@ namespace pcit::panther{
 
 			auto template_names = std::unordered_set<std::string_view>();
 
-			if(func_decl.templatePack.has_value()){
+			if(func_def.templatePack.has_value()){
 				for(
 					const AST::TemplatePack::Param& template_param
-					: ast_buffer.getTemplatePack(*func_decl.templatePack).params
+					: ast_buffer.getTemplatePack(*func_def.templatePack).params
 				){
 					template_names.emplace(this->source.getTokenBuffer()[template_param.ident].getString());
 				}
@@ -665,10 +672,10 @@ namespace pcit::panther{
 
 
 			this->add_instruction(
-				this->context.symbol_proc_manager.createTemplateFuncBegin(func_decl, std::move(template_param_infos))
+				this->context.symbol_proc_manager.createTemplateFuncBegin(func_def, std::move(template_param_infos))
 			);
 
-			for(size_t i = 0; const AST::FuncDecl::Param& param : func_decl.params){
+			for(size_t i = 0; const AST::FuncDef::Param& param : func_def.params){
 				EVO_DEFER([&](){ i += 1; });
 
 				if(param.defaultValue.has_value()){
@@ -750,7 +757,7 @@ namespace pcit::panther{
 				}
 			}
 
-			this->add_instruction(this->context.symbol_proc_manager.createTemplateFuncEnd(func_decl));
+			this->add_instruction(this->context.symbol_proc_manager.createTemplateFuncEnd(func_def));
 		}
 
 
@@ -802,25 +809,25 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_alias_decl(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_alias_def(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::AliasDecl& alias_decl = ast_buffer.getAliasDecl(stmt);
+		const AST::AliasDef& alias_def = ast_buffer.getAliasDef(stmt);
 
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
-			ast_buffer.getAttributeBlock(alias_decl.attributeBlock)
+			ast_buffer.getAttributeBlock(alias_def.attributeBlock)
 		);
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createAliasDecl(alias_decl, std::move(attribute_params_info.value()))
+			this->context.symbol_proc_manager.createAliasDecl(alias_def, std::move(attribute_params_info.value()))
 		);
 		
 		const evo::Result<SymbolProc::TypeID> aliased_type =
-			this->analyze_type<false>(ast_buffer.getType(alias_decl.type));
+			this->analyze_type<false>(ast_buffer.getType(alias_def.type));
 		if(aliased_type.isError()){ return evo::resultError; }
 
-		this->add_instruction(this->context.symbol_proc_manager.createAliasDef(alias_decl, aliased_type.value()));
+		this->add_instruction(this->context.symbol_proc_manager.createAliasDef(alias_def, aliased_type.value()));
 
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
@@ -844,8 +851,8 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_distinct_alias_decl(const AST::Node& stmt) -> evo::Result<> {
-		// const AST::DistinctAliasDecl& distinct_alias_decl = this->source.getASTBuffer().getDistinctAliasDecl(stmt);
+	auto SymbolProcBuilder::build_distinct_alias_def(const AST::Node& stmt) -> evo::Result<> {
+		// const AST::DistinctAliasDef& distinct_alias_def = this->source.getASTBuffer().getDistinctAliasDef(stmt);
 		this->emit_error(
 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			stmt,
@@ -854,17 +861,17 @@ namespace pcit::panther{
 		return evo::resultError;
 	}
 
-	auto SymbolProcBuilder::build_struct_decl(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_struct_def(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::StructDecl& struct_decl = ast_buffer.getStructDecl(stmt);
+		const AST::StructDef& struct_def = ast_buffer.getStructDef(stmt);
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 
 		auto template_param_infos = evo::SmallVector<Instruction::TemplateParamInfo>();
-		if(struct_decl.templatePack.has_value()){
+		if(struct_def.templatePack.has_value()){
 			current_symbol->is_template = true;
 			evo::Result<evo::SmallVector<Instruction::TemplateParamInfo>> template_param_infos_res =
-				this->analyze_template_param_pack(ast_buffer.getTemplatePack(*struct_decl.templatePack));
+				this->analyze_template_param_pack(ast_buffer.getTemplatePack(*struct_def.templatePack));
 
 			if(template_param_infos_res.isError()){ return evo::resultError; }
 			template_param_infos = std::move(template_param_infos_res.value());
@@ -872,12 +879,12 @@ namespace pcit::panther{
 
 		if(template_param_infos.empty()){
 			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
-				this->analyze_attributes(ast_buffer.getAttributeBlock(struct_decl.attributeBlock));
+				this->analyze_attributes(ast_buffer.getAttributeBlock(struct_def.attributeBlock));
 			if(attribute_params_info.isError()){ return evo::resultError; }
 
 			this->add_instruction(
 				this->context.symbol_proc_manager.createStructDecl(
-					struct_decl, std::move(attribute_params_info.value())
+					struct_def, std::move(attribute_params_info.value())
 				)
 			);
 			this->add_instruction(this->context.symbol_proc_manager.createStructDef());
@@ -889,7 +896,7 @@ namespace pcit::panther{
 
 			this->symbol_scopes.emplace_back(&struct_info.stmts);
 			this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
-			for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_decl.block).statements){
+			for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_def.block).statements){
 				if(this->build(struct_stmt).isError()){ return evo::resultError; }
 			}
 			this->symbol_namespaces.pop_back();
@@ -900,7 +907,7 @@ namespace pcit::panther{
 
 		}else{
 			this->add_instruction(
-				this->context.symbol_proc_manager.createTemplateStruct(struct_decl, std::move(template_param_infos))
+				this->context.symbol_proc_manager.createTemplateStruct(struct_def, std::move(template_param_infos))
 			);
 		}
 
@@ -924,23 +931,23 @@ namespace pcit::panther{
 	}
 	
 
-	auto SymbolProcBuilder::build_union_decl(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_union_def(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::UnionDecl& union_decl = ast_buffer.getUnionDecl(stmt);
+		const AST::UnionDef& union_def = ast_buffer.getUnionDef(stmt);
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
-			this->analyze_attributes(ast_buffer.getAttributeBlock(union_decl.attributeBlock));
+			this->analyze_attributes(ast_buffer.getAttributeBlock(union_def.attributeBlock));
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createUnionDecl(union_decl, std::move(attribute_params_info.value()))
+			this->context.symbol_proc_manager.createUnionDecl(union_def, std::move(attribute_params_info.value()))
 		);
 
 		auto field_types = evo::SmallVector<SymbolProc::TypeID>();
-		for(const AST::UnionDecl::Field& field : union_decl.fields){
+		for(const AST::UnionDef::Field& field : union_def.fields){
 			const evo::Result<SymbolProc::TypeID> field_type = this->analyze_type<true>(ast_buffer.getType(field.type));
 			if(field_type.isError()){ return evo::resultError; }
 
@@ -948,7 +955,7 @@ namespace pcit::panther{
 		}
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createUnionAddFields(union_decl, std::move(field_types))
+			this->context.symbol_proc_manager.createUnionAddFields(union_def, std::move(field_types))
 		);
 
 		this->add_instruction(this->context.symbol_proc_manager.createUnionDef());
@@ -958,7 +965,7 @@ namespace pcit::panther{
 
 		this->symbol_scopes.emplace_back(&union_info.stmts);
 		this->symbol_namespaces.emplace_back(&union_info.member_symbols);
-		for(const AST::Node& union_stmt : union_decl.statements){
+		for(const AST::Node& union_stmt : union_def.statements){
 			if(this->build(union_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
@@ -984,23 +991,100 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_interface_decl(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_enum_def(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::InterfaceDecl& interface_decl = ast_buffer.getInterfaceDecl(stmt);
+		const AST::EnumDef& enum_def = ast_buffer.getEnumDef(stmt);
+
+		SymbolProcInfo* current_symbol = &this->get_current_symbol();
+
+		auto underlying_type = std::optional<SymbolProc::TypeID>();
+		if(enum_def.underlyingType.has_value()){
+			const evo::Result<SymbolProc::TypeID> underlying_type_result =
+				this->analyze_type<true>(ast_buffer.getType(*enum_def.underlyingType));
+			if(underlying_type_result.isError()){ return evo::resultError; }
+			
+			underlying_type = underlying_type_result.value();
+		}
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
-			this->analyze_attributes(ast_buffer.getAttributeBlock(interface_decl.attributeBlock));
+			this->analyze_attributes(ast_buffer.getAttributeBlock(enum_def.attributeBlock));
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createEnumDecl(
+				enum_def, underlying_type, std::move(attribute_params_info.value())
+			)
+		);
+
+		auto enumerator_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
+		for(const AST::EnumDef::Enumerator& enumerator : enum_def.enumerators){
+			if(enumerator.value.has_value()){
+				const evo::Result<SymbolProc::TermInfoID> enumerator_value =
+					this->analyze_expr<true>(*enumerator.value);
+				if(enumerator_value.isError()){ return evo::resultError; }
+
+				enumerator_values.emplace_back(enumerator_value.value());
+			}else{
+				enumerator_values.emplace_back();
+			}
+		}
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createEnumAddEnumerators(enum_def, std::move(enumerator_values))
+		);
+
+		this->add_instruction(this->context.symbol_proc_manager.createEnumDef());
+
+		SymbolProc::EnumInfo& enum_info =
+			current_symbol->symbol_proc.extra_info.emplace<SymbolProc::EnumInfo>();
+
+		this->symbol_scopes.emplace_back(&enum_info.stmts);
+		this->symbol_namespaces.emplace_back(&enum_info.member_symbols);
+		for(const AST::Node& enum_stmt : enum_def.statements){
+			if(this->build(enum_stmt).isError()){ return evo::resultError; }
+		}
+		this->symbol_namespaces.pop_back();
+		this->symbol_scopes.pop_back();
+
+
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
+			current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
+			);
+		}
+
+		return evo::Result<>();
+	}
+
+
+
+	auto SymbolProcBuilder::build_interface_def(const AST::Node& stmt) -> evo::Result<> {
+		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::InterfaceDef& interface_def = ast_buffer.getInterfaceDef(stmt);
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(ast_buffer.getAttributeBlock(interface_def.attributeBlock));
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createInterfaceDecl(
-				interface_decl, std::move(attribute_params_info.value())
+				interface_def, std::move(attribute_params_info.value())
 			)
 		);
 
 		this->symbol_scopes.emplace_back(nullptr);
 		this->symbol_namespaces.emplace_back(nullptr);
-		for(const AST::Node& method : interface_decl.methods){
+		for(const AST::Node& method : interface_def.methods){
 			if(this->analyze_local_func(method).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
@@ -1373,8 +1457,8 @@ namespace pcit::panther{
 
 		switch(stmt.kind()){
 			case AST::Kind::NONE:                   evo::debugFatalBreak("Not a valid AST node");
-			case AST::Kind::VAR_DECL:               return this->analyze_local_var(ast_buffer.getVarDecl(stmt));
-			case AST::Kind::FUNC_DECL:              return this->analyze_local_func(stmt);
+			case AST::Kind::VAR_DEF:               return this->analyze_local_var(ast_buffer.getVarDef(stmt));
+			case AST::Kind::FUNC_DEF:              return this->analyze_local_func(stmt);
 
 			case AST::Kind::DELETED_SPECIAL_METHOD: {
 				this->emit_error(
@@ -1388,11 +1472,12 @@ namespace pcit::panther{
 				return evo::resultError;
 			} break;
 
-			case AST::Kind::ALIAS_DECL:             return this->analyze_local_alias(ast_buffer.getAliasDecl(stmt));
-			case AST::Kind::DISTINCT_ALIAS_DECL:    evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DECL");
-			case AST::Kind::STRUCT_DECL:            return this->analyze_local_struct(stmt);
-			case AST::Kind::UNION_DECL:             return this->analyze_local_union(stmt);
-			case AST::Kind::INTERFACE_DECL:         return this->analyze_local_interface(stmt);
+			case AST::Kind::ALIAS_DEF:             return this->analyze_local_alias(ast_buffer.getAliasDef(stmt));
+			case AST::Kind::DISTINCT_ALIAS_DEF:    evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DEF");
+			case AST::Kind::STRUCT_DEF:            return this->analyze_local_struct(stmt);
+			case AST::Kind::UNION_DEF:             return this->analyze_local_union(stmt);
+			case AST::Kind::ENUM_DEF:              return this->analyze_local_enum(stmt);
+			case AST::Kind::INTERFACE_DEF:         return this->analyze_local_interface(stmt);
 			case AST::Kind::INTERFACE_IMPL:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::RETURN:                 return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:                  return this->analyze_error(ast_buffer.getError(stmt));
@@ -1442,41 +1527,41 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::analyze_local_var(const AST::VarDecl& var_decl) -> evo::Result<> {
+	auto SymbolProcBuilder::analyze_local_var(const AST::VarDef& var_def) -> evo::Result<> {
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
-			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock)
+			this->source.getASTBuffer().getAttributeBlock(var_def.attributeBlock)
 		);
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		auto type_id = std::optional<SymbolProc::TypeID>();
-		if(var_decl.type.has_value()){
+		if(var_def.type.has_value()){
 			const evo::Result<SymbolProc::TypeID> type_id_res = this->analyze_type<true>(
-				this->source.getASTBuffer().getType(*var_decl.type)
+				this->source.getASTBuffer().getType(*var_def.type)
 			);
 			if(type_id_res.isError()){ return evo::resultError; }
 			type_id = type_id_res.value();
 		}
 
-		if(var_decl.value.has_value() == false){
+		if(var_def.value.has_value() == false){
 			this->emit_error(
 				Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
-				var_decl,
+				var_def,
 				"Local variables need to be defined with a value"
 			);
 			return evo::resultError;
 		}
 		const evo::Result<SymbolProc::TermInfoID> value = [&](){
-			if(var_decl.kind == AST::VarDecl::Kind::DEF){
-				return this->analyze_expr<true>(*var_decl.value);
+			if(var_def.kind == AST::VarDef::Kind::DEF){
+				return this->analyze_expr<true>(*var_def.value);
 			}else{
-				return this->analyze_expr<false>(*var_decl.value);
+				return this->analyze_expr<false>(*var_def.value);
 			}
 		}();
 		if(value.isError()){ return evo::resultError; }
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createLocalVar(
-				var_decl, std::move(attribute_params_info.value()), type_id, value.value()
+				var_def, std::move(attribute_params_info.value()), type_id, value.value()
 			)
 		);
 		return evo::Result<>();
@@ -1484,7 +1569,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_local_func(const AST::Node& stmt) -> evo::Result<> {
-		evo::debugAssert(stmt.kind() == AST::Kind::FUNC_DECL, "Not a func decl");
+		evo::debugAssert(stmt.kind() == AST::Kind::FUNC_DEF, "Not a func decl");
 
 		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
@@ -1499,20 +1584,20 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::analyze_local_alias(const AST::AliasDecl& alias_decl) -> evo::Result<> {
+	auto SymbolProcBuilder::analyze_local_alias(const AST::AliasDef& alias_def) -> evo::Result<> {
 		const evo::Result<SymbolProc::TypeID> aliased_type =
-			this->analyze_type<true>(this->source.getASTBuffer().getType(alias_decl.type));
+			this->analyze_type<true>(this->source.getASTBuffer().getType(alias_def.type));
 		if(aliased_type.isError()){ return evo::resultError; }
 
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
-			this->source.getASTBuffer().getAttributeBlock(alias_decl.attributeBlock)
+			this->source.getASTBuffer().getAttributeBlock(alias_def.attributeBlock)
 		);
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createLocalAlias(
-				alias_decl, std::move(attribute_params_info.value()), aliased_type.value()
+				alias_def, std::move(attribute_params_info.value()), aliased_type.value()
 			)
 		);
 		return evo::Result<>();
@@ -1520,7 +1605,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_local_struct(const AST::Node& stmt) -> evo::Result<> {
-		evo::debugAssert(stmt.kind() == AST::Kind::STRUCT_DECL, "Not a struct decl");
+		evo::debugAssert(stmt.kind() == AST::Kind::STRUCT_DEF, "Not a struct decl");
 
 		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
@@ -1535,7 +1620,21 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_local_union(const AST::Node& stmt) -> evo::Result<> {
-		evo::debugAssert(stmt.kind() == AST::Kind::UNION_DECL, "Not a union decl");
+		evo::debugAssert(stmt.kind() == AST::Kind::UNION_DEF, "Not a union decl");
+
+		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		if(func_symbol_proc_id.isError()){ return evo::resultError; }
+
+		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_sub_symbol = true;
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+		);
+		return evo::Result<>();
+	}
+
+	auto SymbolProcBuilder::analyze_local_enum(const AST::Node& stmt) -> evo::Result<> {
+		evo::debugAssert(stmt.kind() == AST::Kind::ENUM_DEF, "Not a enum decl");
 
 		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
@@ -1550,7 +1649,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_local_interface(const AST::Node& stmt) -> evo::Result<> {
-		evo::debugAssert(stmt.kind() == AST::Kind::INTERFACE_DECL, "Not an interface decl");
+		evo::debugAssert(stmt.kind() == AST::Kind::INTERFACE_DEF, "Not an interface decl");
 
 		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
@@ -2136,14 +2235,15 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case AST::Kind::VAR_DECL:         case AST::Kind::FUNC_DECL: case AST::Kind::DELETED_SPECIAL_METHOD:
-				case AST::Kind::ALIAS_DECL:       case AST::Kind::DISTINCT_ALIAS_DECL: case AST::Kind::STRUCT_DECL:
-				case AST::Kind::UNION_DECL:       case AST::Kind::INTERFACE_DECL:      case AST::Kind::INTERFACE_IMPL:
-				case AST::Kind::RETURN:           case AST::Kind::ERROR:               case AST::Kind::UNREACHABLE:
-				case AST::Kind::BREAK:            case AST::Kind::CONTINUE:            case AST::Kind::CONDITIONAL:
-				case AST::Kind::WHEN_CONDITIONAL: case AST::Kind::WHILE:               case AST::Kind::DEFER:
-				case AST::Kind::TEMPLATE_PACK:    case AST::Kind::MULTI_ASSIGN:        case AST::Kind::ATTRIBUTE_BLOCK:
-				case AST::Kind::ATTRIBUTE:        case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::DISCARD: {
+				case AST::Kind::VAR_DEF:         case AST::Kind::FUNC_DEF: case AST::Kind::DELETED_SPECIAL_METHOD:
+				case AST::Kind::ALIAS_DEF:       case AST::Kind::DISTINCT_ALIAS_DEF: case AST::Kind::STRUCT_DEF:
+				case AST::Kind::UNION_DEF:       case AST::Kind::ENUM_DEF:           case AST::Kind::INTERFACE_DEF:
+				case AST::Kind::INTERFACE_IMPL:  case AST::Kind::RETURN:             case AST::Kind::ERROR:
+				case AST::Kind::UNREACHABLE:     case AST::Kind::BREAK:              case AST::Kind::CONTINUE:
+				case AST::Kind::CONDITIONAL:     case AST::Kind::WHEN_CONDITIONAL:   case AST::Kind::WHILE:
+				case AST::Kind::DEFER:           case AST::Kind::TEMPLATE_PACK:      case AST::Kind::MULTI_ASSIGN:
+				case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:          case AST::Kind::PRIMITIVE_TYPE:
+				case AST::Kind::DISCARD: {
 					// TODO(FUTURE): better messaging (specify what kind)
 					this->emit_fatal(
 						Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,

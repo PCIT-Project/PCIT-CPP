@@ -3,9 +3,9 @@ def build_exp = @import("std_exp/build.pthr");
 
 
 func entry = () #entry -> UI8 {
-	@buildSetOutput(build.Output.RUN);
+	build_exp.setOutput(build.Output.PIR);
 	@buildSetNumThreads(12);
-	@buildSetUseStdLib(false);
+	@buildSetUseStdLib(true);
 
 	const project = new build_exp.Project(new @pthr.ProjectWarningSettings{
 		methodCallOnNonMethod        = true,

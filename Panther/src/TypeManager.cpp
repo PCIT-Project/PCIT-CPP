@@ -132,6 +132,30 @@ namespace pcit::panther{
 
 
 
+	auto BaseType::Enum::getName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
+		}
+	}
+
+
+	auto BaseType::Enum::getEnumeratorName(const Enumerator& enumerator, const SourceManager& source_manager) const
+	-> std::string_view {
+		if(this->isClangType()){
+			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(enumerator.location.as<ClangSource::DeclInfoID>()).name;
+		}else{
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[enumerator.location.as<Token::ID>()].getString();
+		}
+	}
+
+
+
 
 
 
@@ -551,6 +575,13 @@ namespace pcit::panther{
 				return std::string(union_info.getName(source_manager));
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				const BaseType::Enum::ID enum_id = base_type_id.enumID();
+				const BaseType::Enum& enum_info = this->getEnum(enum_id);
+
+				return std::string(enum_info.getName(source_manager));
+			} break;
+
 			case BaseType::Kind::TYPE_DEDUCER: {
 				const BaseType::TypeDeducer::ID type_deducer_id = base_type_id.typeDeducerID();
 				const BaseType::TypeDeducer& type_deducer = this->getTypeDeducer(type_deducer_id);
@@ -836,6 +867,7 @@ namespace pcit::panther{
 		return BaseType::ID(BaseType::Kind::STRUCT_TEMPLATE, new_struct.get());
 	}
 
+
 	//////////////////////////////////////////////////////////////////////
 	// union
 
@@ -875,6 +907,42 @@ namespace pcit::panther{
 	auto TypeManager::getNumUnions() const -> size_t {
 		const auto lock = std::scoped_lock(this->unions_lock);
 		return this->unions.size();
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// enum
+
+	auto TypeManager::getEnum(BaseType::Enum::ID id) const -> const BaseType::Enum& {
+		const auto lock = std::scoped_lock(this->enums_lock);
+		return this->enums[id];
+	}
+
+	auto TypeManager::getEnum(BaseType::Enum::ID id) -> BaseType::Enum& {
+		const auto lock = std::scoped_lock(this->enums_lock);
+		return this->enums[id];
+	}
+
+
+	auto TypeManager::getOrCreateEnum(BaseType::Enum&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->enums_lock);
+
+		for(uint32_t i = 0; i < this->enums.size(); i+=1){
+			if(this->enums[BaseType::Enum::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::UNION, i);
+			}
+		}
+
+		const BaseType::Enum::ID new_enum = this->enums.emplace_back(
+			lookup_type.sourceID,
+			lookup_type.location,
+			std::move(lookup_type.enumerators),
+			lookup_type.underlyingTypeID,
+			lookup_type.namespacedMembers,
+			lookup_type.scopeLevel,
+			lookup_type.isPub
+		);
+		return BaseType::ID(BaseType::Kind::ENUM, new_enum.get());
 	}
 
 
@@ -1196,6 +1264,11 @@ namespace pcit::panther{
 				return add_padding_bytes_if_needed(std::max(largest_size, size_t(1)), include_padding);
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				const BaseType::Enum& enum_info = this->getEnum(id.enumID());
+				return this->numBytes(BaseType::ID(enum_info.underlyingTypeID), include_padding);
+			} break;
+
 			case BaseType::Kind::TYPE_DEDUCER: {
 				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of type deducer");
@@ -1374,6 +1447,11 @@ namespace pcit::panther{
 				return std::max(largest_size, size_t(1));
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				const BaseType::Enum& enum_info = this->getEnum(id.enumID());
+				return this->numBits(BaseType::ID(enum_info.underlyingTypeID), include_padding);
+			} break;
+
 			case BaseType::Kind::TYPE_DEDUCER: {
 				// TODO(FUTURE): handle this better?
 				evo::debugAssert("Cannot get size of type deducer");
@@ -1484,6 +1562,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				return false;
+			} break;
+
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
@@ -1566,6 +1648,10 @@ namespace pcit::panther{
 				}
 
 				return true;
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				return false;
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
@@ -1654,6 +1740,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				return false;
+			} break;
+
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
@@ -1735,6 +1825,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				return false;
+			} break;
+
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
@@ -1810,6 +1904,10 @@ namespace pcit::panther{
 					if(this->isTriviallyDeletable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
+				return true;
+			} break;
+
+			case BaseType::Kind::ENUM: {
 				return true;
 			} break;
 
@@ -1891,6 +1989,10 @@ namespace pcit::panther{
 					if(this->isConstexprDeletable(field.typeID.asTypeID(), sema_buffer) == false){ return false; }
 				}
 
+				return true;
+			} break;
+
+			case BaseType::Kind::ENUM: {
 				return true;
 			} break;
 
@@ -1976,6 +2078,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				return true;
+			} break;
+
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
@@ -2053,6 +2159,10 @@ namespace pcit::panther{
 					if(this->isTriviallyCopyable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
+				return true;
+			} break;
+
+			case BaseType::Kind::ENUM: {
 				return true;
 			} break;
 
@@ -2138,6 +2248,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				return true;
+			} break;
+
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
@@ -2217,6 +2331,10 @@ namespace pcit::panther{
 					if(this->isMovable(field.typeID.asTypeID()) == false){ return false; }
 				}
 
+				return true;
+			} break;
+
+			case BaseType::Kind::ENUM: {
 				return true;
 			} break;
 
@@ -2300,6 +2418,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::ENUM: {
+				return true;
+			} break;
+
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
@@ -2379,6 +2501,10 @@ namespace pcit::panther{
 					if(this->isConstexprMovable(field.typeID.asTypeID(), sema_buffer) == false){ return false; }
 				}
 
+				return true;
+			} break;
+
+			case BaseType::Kind::ENUM: {
 				return true;
 			} break;
 
@@ -2682,6 +2808,10 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT:          return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::STRUCT_TEMPLATE: evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::UNION:           return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ENUM: {
+				const BaseType::Enum& enum_type = this->getEnum(id.enumID());
+				return this->getUnderlyingType(BaseType::ID(enum_type.underlyingTypeID));
+			} break;
 			case BaseType::Kind::TYPE_DEDUCER:    evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::INTERFACE:       evo::debugFatalBreak("Cannot get underlying type of this kind");
 

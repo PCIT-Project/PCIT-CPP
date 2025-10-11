@@ -297,6 +297,51 @@ namespace pcit::panther{
 			}
 
 
+
+			//////////////////
+			// EnumDecl
+
+			EVO_NODISCARD auto createEnumDecl(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ENUM_DECL,
+					this->enum_decls.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getEnumDecl(Instruction instr) const -> const Instruction::EnumDecl& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ENUM_DECL, "Not a EnumDecl");
+				return this->enum_decls[instr._index];
+			}
+
+
+
+			//////////////////
+			// EnumAddEnumerators
+
+			EVO_NODISCARD auto createEnumAddEnumerators(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ENUM_ADD_ENUMERATORS,
+					this->enum_add_enumeratorss.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getEnumAddEnumerators(Instruction instr) const
+			-> const Instruction::EnumAddEnumerators& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ENUM_ADD_ENUMERATORS, "Not a EnumAddEnumerators");
+				return this->enum_add_enumeratorss[instr._index];
+			}
+
+
+
+			//////////////////
+			// EnumDef
+
+			EVO_NODISCARD auto createEnumDef(auto&&... args) -> Instruction {
+				return Instruction(Instruction::Kind::ENUM_DEF, 0);
+			}
+
+
+
 			//////////////////
 			// FuncDeclExtractDeducersIfNeeded
 
@@ -2549,6 +2594,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::TemplateStruct, uint64_t> template_structs{};
 			core::SyncLinearStepAlloc<Instruction::UnionDecl, uint64_t> union_decls{};
 			core::SyncLinearStepAlloc<Instruction::UnionAddFields, uint64_t> union_add_fieldss{};
+			core::SyncLinearStepAlloc<Instruction::EnumDecl, uint64_t> enum_decls{};
+			core::SyncLinearStepAlloc<Instruction::EnumAddEnumerators, uint64_t> enum_add_enumeratorss{};
 			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducersIfNeeded, uint64_t>
 				func_decl_extract_deducers_if_neededs{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<true>, uint64_t> func_decl_instantiations{};

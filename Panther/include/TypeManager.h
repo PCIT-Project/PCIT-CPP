@@ -48,6 +48,7 @@ namespace pcit::panther{
 			STRUCT,
 			STRUCT_TEMPLATE,
 			UNION,
+			ENUM,
 			TYPE_DEDUCER,
 			INTERFACE,
 			INTERFACE_IMPL_INSTANTIATION,
@@ -102,6 +103,11 @@ namespace pcit::panther{
 				return UnionID(this->_id);
 			}
 
+			EVO_NODISCARD auto enumID() const -> EnumID {
+				evo::debugAssert(this->kind() == Kind::ENUM, "not a Enum");
+				return EnumID(this->_id);
+			}
+
 			EVO_NODISCARD auto typeDeducerID() const -> TypeDeducerID {
 				evo::debugAssert(this->kind() == Kind::TYPE_DEDUCER, "not a type deducer");
 				return TypeDeducerID(this->_id);
@@ -137,6 +143,7 @@ namespace pcit::panther{
 			explicit ID(StructID id)                     : _kind(Kind::STRUCT),                       _id(id.get()) {}
 			explicit ID(StructTemplateID id)             : _kind(Kind::STRUCT_TEMPLATE),              _id(id.get()) {}
 			explicit ID(UnionID id)                      : _kind(Kind::UNION),                        _id(id.get()) {}
+			explicit ID(EnumID id)                       : _kind(Kind::ENUM),                         _id(id.get()) {}
 			explicit ID(TypeDeducerID id)                : _kind(Kind::TYPE_DEDUCER),                 _id(id.get()) {}
 			explicit ID(InterfaceID id)                  : _kind(Kind::INTERFACE),                    _id(id.get()) {}
 			explicit ID(InterfaceImplInstantiationID id) : _kind(Kind::INTERFACE_IMPL_INSTANTIATION), _id(id.get()) {}
@@ -255,7 +262,7 @@ namespace pcit::panther{
 
 			struct Param{
 				TypeInfoID typeID;
-				AST::FuncDecl::Param::Kind kind;
+				AST::FuncDef::Param::Kind kind;
 				bool shouldCopy;
 
 				EVO_NODISCARD auto operator==(const Param&) const -> bool = default;
@@ -425,7 +432,7 @@ namespace pcit::panther{
 					bool isConstexpr;
 				};
 
-				AST::VarDecl::Kind kind;
+				AST::VarDef::Kind kind;
 				evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 				TypeInfoID typeID;
 				std::optional<DefaultValue> defaultValue;
@@ -596,6 +603,38 @@ namespace pcit::panther{
 			) const -> std::string_view;
 
 			EVO_NODISCARD auto operator==(const Union& rhs) const -> bool {
+				return this->sourceID == rhs.sourceID && this->location == rhs.location;
+			}
+		};
+
+
+		struct Enum{
+			using ID = EnumID;
+
+			struct Enumerator{
+				evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+				core::GenericInt value;
+			};
+			
+			evo::Variant<SourceID, ClangSourceID> sourceID;
+			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+			evo::SmallVector<Enumerator> enumerators;
+			BaseType::Primitive::ID underlyingTypeID;
+			SymbolProcNamespace* namespacedMembers; // nullptr if is clang type
+			sema::ScopeLevel* scopeLevel; // nullopt if is clang type (although temporarily nullopt during creation)
+			bool isPub; // meaningless if clang type
+
+			std::atomic<bool> defCompleted = false;
+
+
+			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+
+			EVO_NODISCARD auto getEnumeratorName(
+				const Enumerator& enumerator, const class panther::SourceManager& source_manager
+			) const -> std::string_view;
+
+			EVO_NODISCARD auto operator==(const Enum& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->location == rhs.location;
 			}
 		};
@@ -800,6 +839,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateUnion(BaseType::Union&& lookup_type) -> BaseType::ID;
 			EVO_NODISCARD auto getNumUnions() const -> size_t; // I don't love this design
 
+			EVO_NODISCARD auto getEnum(BaseType::Enum::ID id) const -> const BaseType::Enum&;
+			EVO_NODISCARD auto getEnum(BaseType::Enum::ID id)       ->       BaseType::Enum&;
+			EVO_NODISCARD auto getOrCreateEnum(BaseType::Enum&& lookup_type) -> BaseType::ID;
+
 			EVO_NODISCARD auto getTypeDeducer(BaseType::TypeDeducer::ID id) const -> const BaseType::TypeDeducer&;
 			EVO_NODISCARD auto getOrCreateTypeDeducer(BaseType::TypeDeducer&& lookup_type) -> BaseType::ID;
 
@@ -970,6 +1013,9 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::Union, BaseType::Union::ID> unions{};
 			mutable core::SpinLock unions_lock{};
+
+			core::LinearStepAlloc<BaseType::Enum, BaseType::Enum::ID> enums{};
+			mutable core::SpinLock enums_lock{};
 
 			core::LinearStepAlloc<BaseType::Interface, BaseType::Interface::ID> interfaces{};
 			mutable core::SpinLock interfaces_lock{};

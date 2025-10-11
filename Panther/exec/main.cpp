@@ -396,15 +396,6 @@ EVO_NODISCARD static auto run_compile(
 			return evo::Result<>();
 		} break;
 
-		case BuildSystemConfig::Output::BUILD_SYMBOL_PROCS: {
-			if(context.buildSymbolProcs().isError()){
-				print_num_context_errors(context, printer);
-				return evo::resultError;
-			}
-
-			return evo::Result<>();
-		} break;
-
 		case BuildSystemConfig::Output::SEMANTIC_ANALYSIS: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);

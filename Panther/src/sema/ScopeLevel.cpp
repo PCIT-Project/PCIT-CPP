@@ -210,6 +210,10 @@ namespace pcit::panther::sema{
 		return this->add_ident_default_impl(ident, id);
 	}
 
+	auto ScopeLevel::addIdent(std::string_view ident, BaseType::EnumID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
 	auto ScopeLevel::addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}

@@ -1,50 +1,21 @@
 
 
-type NonTrivial = struct {
-	func new = () #rt -> (output: This) {
-		num_nt = num_nt + 1;
-		return...;
+type Color = enum {
+	RED,
+	GREEN,
+	BLUE,
+
+	func isRed = (this) -> Bool {
+		return this == Color.RED;
 	}
-
-	func delete = (this) #rt -> Void {
-		num_nt = num_nt - 1;
-	}
-
-	func copy = (this) #rt -> (output: This) {
-		num_nt = num_nt + 1;
-		return...;
-	}
-
-	func move = (this) #rt -> (output: This) {
-		return...;
-	}
-
-
-	var num_nt: USize #global = 0;
 }
 
 
-type Variant = union {
-	float : F32,
-	none  : Void,
-	int   : Int,
-	nt    : NonTrivial,
-	nt2   : NonTrivial,
-	nt3   : NonTrivial,
-}
-
-
-
-
-func test = () #rt -> Bool {
-	var foo = new Variant{none = null};
-	// var bar = new Variant{nt2 = new NonTrivial()};
-	// var bar: Variant = move foo;
-
-	return foo == Variant.none;
-}
 
 func entry = () #entry -> UI8 {
-	return (test() && NonTrivial.num_nt == 0) as UI8;
+	var color: Color = Color.BLUE;
+	
+	return (color.isRed() == false) as UI8;
 }
+
 
