@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.169.1"></a>
+## v0.0.169.1
+
+### Panther
+- Fixed calculation of numBits and numBytes of primitive types without padding
+	- By extension fixes any issues caused by it, such as checking if a fluid integral would need to be truncated
+
+
+<!---------------------------------->
 <a name="v0.0.169.0"></a>
 ## v0.0.169.0
 

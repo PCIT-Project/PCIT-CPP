@@ -333,13 +333,15 @@ namespace pcit::panther{
 				if(array.terminator.has_value()){
 					if(this->isUnsignedIntegral(array.elementTypeID)){
 						builder += ';';
-						builder += 
-							array.terminator->getInt(unsigned(this->numBits(array.elementTypeID))).toString(false);
+						builder += array.terminator->getInt(
+							unsigned(this->numBits(array.elementTypeID))
+						).toString(false);
 
 					}else if(this->isSignedIntegral(array.elementTypeID)){
 						builder += ';';
-						builder += 
-							array.terminator->getInt(unsigned(this->numBits(array.elementTypeID))).toString(true);
+						builder += array.terminator->getInt(
+							unsigned(this->numBits(array.elementTypeID))
+						).toString(true);
 
 					}else if(this->isFloatingPoint(array.elementTypeID)){
 						const BaseType::Primitive& primitive = this->getPrimitive(
@@ -1098,7 +1100,7 @@ namespace pcit::panther{
 
 	auto TypeManager::numBytes(TypeInfo::ID id, bool include_padding) const -> size_t {
 		const TypeInfo& type_info = this->getTypeInfo(id);
-		if(type_info.qualifiers().empty()){ return this->numBytes(type_info.baseTypeID()); }
+		if(type_info.qualifiers().empty()){ return this->numBytes(type_info.baseTypeID(), include_padding); }
 
 
 		if(type_info.qualifiers().back().isOptional){
@@ -1308,7 +1310,7 @@ namespace pcit::panther{
 
 	auto TypeManager::numBits(TypeInfo::ID id, bool include_padding) const -> size_t {
 		const TypeInfo& type_info = this->getTypeInfo(id);
-		if(type_info.qualifiers().empty()){ return this->numBits(type_info.baseTypeID()); }
+		if(type_info.qualifiers().empty()){ return this->numBits(type_info.baseTypeID(), include_padding); }
 
 		if(type_info.qualifiers().back().isOptional){
 			if(type_info.qualifiers().back().isPtr){

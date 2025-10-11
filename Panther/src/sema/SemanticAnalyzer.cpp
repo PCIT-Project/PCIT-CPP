@@ -21176,7 +21176,8 @@ namespace pcit::panther{
 						const sema::IntValue::ID int_value_id = got_expr.getExpr().intValueID();
 						sema::IntValue& int_value = this->context.sema_buffer.int_values[int_value_id];
 
-						const unsigned bit_width = unsigned(this->context.getTypeManager().numBits(expected_type_id));
+						const unsigned bit_width =
+							unsigned(this->context.getTypeManager().numBits(actual_expected_type_id, false));
 
 						core::GenericInt target_min =
 							type_manager.getMin(expected_type_info.baseTypeID()).getInt(bit_width);

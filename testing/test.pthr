@@ -1,21 +1,7 @@
 
 
-type Color = enum {
-	RED,
-	GREEN,
-	BLUE,
-
-	func isRed = (this) -> Bool {
-		return this == Color.RED;
-	}
-}
-
-
-
 func entry = () #entry -> UI8 {
-	var color: Color = Color.BLUE;
+	const foo: I4 = -8;
 	
-	return (color.isRed() == false) as UI8;
+	return 0;
 }
-
-
