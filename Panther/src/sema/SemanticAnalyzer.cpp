@@ -1762,7 +1762,9 @@ namespace pcit::panther{
 				const BaseType::ID default_delete_func_type = this->context.type_manager.getOrCreateFunction(
 					BaseType::Function(
 						evo::SmallVector<BaseType::Function::Param>{
-							BaseType::Function::Param(created_struct_type_id, AST::FuncDef::Param::Kind::MUT, false),
+							BaseType::Function::Param(
+								created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
+							),
 						},
 						evo::SmallVector<BaseType::Function::ReturnParam>{
 							BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
@@ -1905,7 +1907,7 @@ namespace pcit::panther{
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>{
 								BaseType::Function::Param(
-									created_struct_type_id, AST::FuncDef::Param::Kind::MUT, false
+									created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
 								),
 							},
 							evo::SmallVector<BaseType::Function::ReturnParam>{
@@ -2053,7 +2055,7 @@ namespace pcit::panther{
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>{
 								BaseType::Function::Param(
-									created_struct_type_id, AST::FuncDef::Param::Kind::MUT, false
+									created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
 								),
 							},
 							evo::SmallVector<BaseType::Function::ReturnParam>{
@@ -2814,6 +2816,16 @@ namespace pcit::panther{
 			);
 
 
+			const BaseType::Function::Param::Kind type_param_kind = [&](){
+				switch(param.kind){
+					case AST::FuncDef::Param::Kind::READ: return BaseType::Function::Param::Kind::READ;
+					case AST::FuncDef::Param::Kind::MUT:  return BaseType::Function::Param::Kind::MUT;
+					case AST::FuncDef::Param::Kind::IN:   return BaseType::Function::Param::Kind::IN;
+				}
+				evo::debugFatalBreak("Unknown ast param kind");
+			}();
+
+
 			if(symbol_proc_param_type_id.has_value()){ // regular param
 				const TypeInfo::VoidableID param_type_id = this->get_type(*symbol_proc_param_type_id);
 
@@ -2914,6 +2926,7 @@ namespace pcit::panther{
 					has_in_param = true;
 				}
 
+
 				if(param_type_is_interface){
 					const TypeInfo::ID arg_type = *func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
 
@@ -2928,15 +2941,15 @@ namespace pcit::panther{
 						TypeInfo(interface_impl_instantiation_id)
 					);
 
-					params.emplace_back(impl_arg_type, param.kind, false);
+					params.emplace_back(impl_arg_type, type_param_kind, false);
 
 				}else if(param_type_is_deducer){
 					params.emplace_back(
-						*func_info.instantiation_param_arg_types[i - size_t(has_this_param)], param.kind, false
+						*func_info.instantiation_param_arg_types[i - size_t(has_this_param)], type_param_kind, false
 					);
 
 				}else{
-					params.emplace_back(param_type_id.asTypeID(), param.kind, false);
+					params.emplace_back(param_type_id.asTypeID(), type_param_kind, false);
 				}
 
 				if(instr.default_param_values[i - size_t(has_this_param)].has_value()){
@@ -3002,7 +3015,7 @@ namespace pcit::panther{
 						const TypeInfo::ID this_type = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(BaseType::ID(type_scope))
 						);
-						params.emplace_back(this_type, param.kind, false);
+						params.emplace_back(this_type, type_param_kind, false);
 					}else{
 						evo::debugFatalBreak("Invalid type object scope");
 					}
@@ -3900,7 +3913,7 @@ namespace pcit::panther{
 
 		for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
 			if(
-				param.kind == AST::FuncDef::Param::Kind::IN
+				param.kind == BaseType::Function::Param::Kind::IN
 				&& this->context.getTypeManager().isCopyable(param.typeID) == false
 				&& this->context.getTypeManager().isMovable(param.typeID) == false
 			){
@@ -14652,9 +14665,10 @@ namespace pcit::panther{
 
 		const TermInfo::ValueCategory value_category = [&](){
 			switch(param.kind){
-				case AST::FuncDef::Param::Kind::READ: return TermInfo::ValueCategory::CONCRETE_CONST;
-				case AST::FuncDef::Param::Kind::MUT:  return TermInfo::ValueCategory::CONCRETE_MUT;
-				case AST::FuncDef::Param::Kind::IN:   evo::debugFatalBreak("Cannot have an in [this] parameter");
+				case BaseType::Function::Param::Kind::READ:  return TermInfo::ValueCategory::CONCRETE_CONST;
+				case BaseType::Function::Param::Kind::MUT:   return TermInfo::ValueCategory::CONCRETE_MUT;
+				case BaseType::Function::Param::Kind::IN:    evo::debugFatalBreak("Cannot have an in [this] parameter");
+				case BaseType::Function::Param::Kind::C:     evo::debugFatalBreak("Cannot have a c [this] parameter");
 			}
 
 			evo::unreachable();
@@ -16760,9 +16774,9 @@ namespace pcit::panther{
 
 				const TermInfo::ValueCategory value_category = [&](){
 					switch(param.kind){
-						case AST::FuncDef::Param::Kind::READ: return TermInfo::ValueCategory::CONCRETE_CONST;
-						case AST::FuncDef::Param::Kind::MUT:  return TermInfo::ValueCategory::CONCRETE_MUT;
-						case AST::FuncDef::Param::Kind::IN:   return TermInfo::ValueCategory::FORWARDABLE;
+						case BaseType::Function::Param::Kind::READ: return TermInfo::ValueCategory::CONCRETE_CONST;
+						case BaseType::Function::Param::Kind::MUT:  return TermInfo::ValueCategory::CONCRETE_MUT;
+						case BaseType::Function::Param::Kind::IN:   return TermInfo::ValueCategory::FORWARDABLE;
 					}
 
 					evo::unreachable();
@@ -17682,11 +17696,11 @@ namespace pcit::panther{
 				// value kind
 
 				switch(func_info.func_type.params[arg_i].kind){
-					case AST::FuncDef::Param::Kind::READ: {
+					case BaseType::Function::Param::Kind::READ: {
 						// accepts any value kind
 					} break;
 
-					case AST::FuncDef::Param::Kind::MUT: {
+					case BaseType::Function::Param::Kind::MUT: {
 						if(arg_info.term_info.is_const()){
 							scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
 							arg_checking_failed = true;
@@ -17732,7 +17746,7 @@ namespace pcit::panther{
 						current_score += 1; // add 1 to prefer mut over read
 					} break;
 
-					case AST::FuncDef::Param::Kind::IN: {
+					case BaseType::Function::Param::Kind::IN: {
 						if(arg_info.term_info.is_ephemeral() == false){
 							scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
 							arg_checking_failed = true;
@@ -17746,6 +17760,14 @@ namespace pcit::panther{
 								arg_checking_failed = true;
 								break;
 							}
+						}
+					} break;
+
+					case BaseType::Function::Param::Kind::C: {
+						if(arg_info.term_info.is_ephemeral() == false){
+							scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
+							arg_checking_failed = true;
+							break;
 						}
 					} break;
 				}
@@ -17969,17 +17991,17 @@ namespace pcit::panther{
 							);
 
 							switch(func_infos[i].func_type.params[reason.arg_index].kind){
-								case AST::FuncDef::Param::Kind::READ: {
+								case BaseType::Function::Param::Kind::READ: {
 									evo::debugFatalBreak("Read parameters should never fail to accept value kind");
 								} break;
 
-								case AST::FuncDef::Param::Kind::MUT: {
+								case BaseType::Function::Param::Kind::MUT: {
 									sub_infos.emplace_back(
 										"[mut] parameters can only accept values that are concrete and mutable"
 									);
 								} break;
 
-								case AST::FuncDef::Param::Kind::IN: {
+								case BaseType::Function::Param::Kind::IN: {
 									sub_infos.emplace_back("[in] parameters can only accept ephemeral values");
 								} break;
 							}

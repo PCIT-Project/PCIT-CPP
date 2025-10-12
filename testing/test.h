@@ -20,7 +20,7 @@
 // #include <stddef.h>
 #include <stdint.h>
 // #include <stdio.h>
-// #include <stdlib.h>
+#include <stdlib.h>
 // // #include <stdmchar.h>
 // // #include <stdnoreturn.h> // breaks windows.h
 // #include <string.h>
@@ -38,8 +38,8 @@
 
 // int asdf = 12;
 
-auto get_num() -> uint8_t {
-	return 12;
+uint8_t get_num(size_t foo){
+	return foo;
 }
 
 

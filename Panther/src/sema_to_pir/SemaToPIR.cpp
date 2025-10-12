@@ -208,7 +208,7 @@ namespace pcit::panther{
 
 				params.emplace_back(std::move(param_name), param_type, std::move(attributes));
 
-				if(param.kind == AST::FuncDef::Param::Kind::IN){
+				if(param.kind == BaseType::Function::Param::Kind::IN){
 					param_infos.emplace_back(std::nullopt, in_param_index);
 					in_param_index += 1;
 				}else{
@@ -221,7 +221,7 @@ namespace pcit::panther{
 					pir::Parameter::Attribute::PtrDereferencable(this->context.getTypeManager().numBytes(param.typeID))
 				);
 
-				if(param.kind == AST::FuncDef::Param::Kind::READ){
+				if(param.kind == BaseType::Function::Param::Kind::READ){
 					attributes.emplace_back(pir::Parameter::Attribute::PtrReadOnly());
 				}else{
 					attributes.emplace_back(pir::Parameter::Attribute::PtrWritable());
@@ -230,7 +230,7 @@ namespace pcit::panther{
 
 				params.emplace_back(std::move(param_name), this->module.createPtrType(), std::move(attributes));
 
-				if(param.kind == AST::FuncDef::Param::Kind::IN){
+				if(param.kind == BaseType::Function::Param::Kind::IN){
 					param_infos.emplace_back(this->get_type<false>(param.typeID), in_param_index);
 					in_param_index += 1;
 				}else{
@@ -935,7 +935,7 @@ namespace pcit::panther{
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
-					}else if(target_type.params[i].kind == AST::FuncDef::Param::Kind::IN){
+					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
 						if(arg.kind() == sema::Expr::Kind::COPY){
 							args.emplace_back(
 								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
@@ -1868,7 +1868,7 @@ namespace pcit::panther{
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
-					}else if(target_type.params[i].kind == AST::FuncDef::Param::Kind::IN){
+					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
 						if(arg.kind() == sema::Expr::Kind::COPY){
 							args.emplace_back(
 								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
@@ -3656,7 +3656,7 @@ namespace pcit::panther{
 					if(target_func_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
-					}else if(target_type.params[i].kind == AST::FuncDef::Param::Kind::IN){
+					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
 						if(arg.kind() == sema::Expr::Kind::COPY){
 							args.emplace_back(
 								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
@@ -5181,7 +5181,7 @@ namespace pcit::panther{
 		for(size_t i = 0; const sema::Expr& arg : args){
 			EVO_DEFER([&](){ i += 1; });
 
-			if(target_func_type.params[i].kind != AST::FuncDef::Param::Kind::IN){ continue; }
+			if(target_func_type.params[i].kind != BaseType::Function::Param::Kind::IN){ continue; }
 
 			if(arg.kind() == sema::Expr::Kind::COPY){
 				output_in_param_bitmap |= 1 << num_in_params;

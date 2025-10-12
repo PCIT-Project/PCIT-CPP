@@ -634,6 +634,7 @@ namespace pcit::clangint{
 			file_name.c_str(),
 			"-Wall", "-Wextra", // TODO(FUTURE): figure out why these don't seem to do anything
 			"-D__GNUC__",
+			"-DNO_OLDNAMES",
 		};
 
 		opts.visit([&](const auto& opts) -> void {

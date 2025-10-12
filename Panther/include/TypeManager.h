@@ -261,8 +261,15 @@ namespace pcit::panther{
 			using ID = FunctionID;
 
 			struct Param{
+				enum class Kind{
+					READ,
+					MUT,
+					IN,
+					C,
+				};
+
 				TypeInfoID typeID;
-				AST::FuncDef::Param::Kind kind;
+				Kind kind;
 				bool shouldCopy;
 
 				EVO_NODISCARD auto operator==(const Param&) const -> bool = default;

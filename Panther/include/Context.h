@@ -396,7 +396,7 @@ namespace pcit::panther{
 
 			struct TemplateIntrinsicFuncInfo{
 				struct Param{
-					AST::FuncDef::Param::Kind kind;
+					BaseType::Function::Param::Kind kind;
 					evo::Variant<TypeInfo::ID, uint32_t> type; // uint32_t is the index of the templateParam
 				};
 

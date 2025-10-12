@@ -1,7 +1,10 @@
+def c_test = @importC("test.h");
+
 
 
 func entry = () #entry -> UI8 {
-	const foo: I4 = -8;
-	
-	return 0;
+	const ptr: RawPtr = c_test.malloc(4 as CULongLong);
+	c_test.free(copy ptr);
+
+	return @bitCast<{RawPtr, USize}>(ptr) as UI8;
 }

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.169.2"></a>
+## v0.0.169.2
+
+### Panther
+- Fixed lowering of function calls to C/C++ functions with arguments
+- Fixed compilation errors when compiling some lib-C headers
+- Fixed crashing when compiling some lib-C headers
+
+
+<!---------------------------------->
 <a name="v0.0.169.1"></a>
 ## v0.0.169.1
 
