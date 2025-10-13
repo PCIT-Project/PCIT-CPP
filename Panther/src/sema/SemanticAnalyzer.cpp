@@ -6839,7 +6839,7 @@ namespace pcit::panther{
 
 
 		const evo::Result<size_t> selected_overload = this->select_func_overload(
-			overloads, args, ast_new, !should_run_initialization
+			overloads, args, ast_new, !should_run_initialization, evo::SmallVector<Diagnostic::Info>()
 		);
 		if(selected_overload.isError()){ return Result::ERROR; }
 
@@ -10446,7 +10446,8 @@ namespace pcit::panther{
 			i += 1;
 		}
 
-		const evo::Result<size_t> selected_overload = this->select_func_overload(overloads, args, instr.ast_new, false);
+		const evo::Result<size_t> selected_overload =
+			this->select_func_overload(overloads, args, instr.ast_new, false, evo::SmallVector<Diagnostic::Info>());
 		if(selected_overload.isError()){ return Result::ERROR; }
 
 		const sema::Func::ID selected_func_id = overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
@@ -15558,7 +15559,6 @@ namespace pcit::panther{
 			lhs_type_struct.namespacedMembers, rhs_ident_str
 		);
 
-
 		switch(wait_on_symbol_proc_result){
 			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
 				this->wait_on_symbol_proc_emit_error(
@@ -17729,7 +17729,8 @@ namespace pcit::panther{
 		evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
 		evo::SmallVector<SelectFuncOverloadArgInfo>& arg_infos,
 		const auto& call_node,
-		bool is_member_call
+		bool is_member_call,
+		evo::SmallVector<Diagnostic::Info>&& instantiation_error_infos
 	) -> evo::Result<size_t> {
 		evo::debugAssert(func_infos.empty() == false, "need at least 1 function");
 
@@ -18223,6 +18224,10 @@ namespace pcit::panther{
 				});
 			}
 
+			for(Diagnostic::Info& instantiation_error_info : instantiation_error_infos){
+				infos.emplace_back(std::move(instantiation_error_info));
+			}
+
 			this->emit_error(
 				Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
 				call_node,
@@ -18354,6 +18359,7 @@ namespace pcit::panther{
 
 			case TermInfo::ValueCategory::METHOD_CALL: {
 				using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>;
+
 				for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
 					if(func_overload.is<sema::Func::ID>()){
 						const sema::Func& sema_func =
@@ -18454,10 +18460,11 @@ namespace pcit::panther{
 		}
 
 
+		auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
+
 		if(instantiation_infos.empty()){
 			if(func_infos.empty()){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
-
 
 				const TermInfo::FuncOverloadList& func_overload_list =
 					target_term_info.type_id.as<TermInfo::FuncOverloadList>();
@@ -18652,123 +18659,127 @@ namespace pcit::panther{
 				);
 			}
 
+			for(size_t i = 0; const ErroredReason& instantiation_error : instantiation_errors){
+				const auto get_func_location = [&]() -> Diagnostic::Location {
+					const SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+						*instantiation_infos[i].instantiation.symbolProcID.load()
+					);
+
+					return Diagnostic::Location::get(
+						symbol_proc.ast_node, this->context.getSourceManager()[symbol_proc.source_id]
+					);
+				};
+
+
+				instantiation_error.visit([&](const auto& reason) -> void {
+					using ReasonT = std::decay_t<decltype(reason)>;
+
+					using Instantiation = sema::TemplatedFunc::Instantiation;
+
+					if constexpr(std::is_same<ReasonT, std::monostate>()){
+						evo::debugAssert("Template instantiation didn't error");
+
+					}else if constexpr(
+						std::is_same<ReasonT, Instantiation::ErroredReasonParamDeductionFailed>()
+					){
+						instantiation_error_infos.emplace_back(
+							std::format(
+								"Failed to match: failed to deduce type of parameter (index: {}) ", reason.arg_index
+							),
+							get_func_location(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+								),
+								Diagnostic::Info(
+									std::format(
+										"Argument type: {}",
+										this->print_term_type(this->get_term_info(args[reason.arg_index]))
+									)
+								)
+							}
+						);
+
+
+					}else if constexpr(
+						std::is_same<ReasonT, Instantiation::ErroredReasonArgTypeMismatch>()
+					){
+						instantiation_error_infos.emplace_back(
+							std::format("Failed to match: argument (index: {}) type mismatch", reason.arg_index),
+							get_func_location(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+								),
+								Diagnostic::Info(
+									std::format(
+										"Argument type:  {}",
+										this->context.getTypeManager().printType(
+											reason.got_type_id, this->context.getSourceManager()
+										)
+									)
+								),
+								Diagnostic::Info(
+									std::format(
+										"Parameter type: {}",
+										this->context.getTypeManager().printType(
+											reason.expected_type_id, this->context.getSourceManager()
+										)
+									)
+								),
+							}
+						);
+
+					}else if constexpr(
+						std::is_same<ReasonT, Instantiation::ErroredReasonTypeDoesntImplInterface>()
+					){
+						instantiation_error_infos.emplace_back(
+							std::format(
+								"Failed to match: type of argument (index: {}) doesn't implement the interface",
+								reason.arg_index
+							),
+							get_func_location(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+								),
+								Diagnostic::Info(
+									std::format(
+										"Argument type:  {}",
+										this->context.getTypeManager().printType(
+											reason.got_type_id, this->context.getSourceManager()
+										)
+									)
+								),
+								Diagnostic::Info(
+									std::format(
+										"Interface type: {}",
+										this->context.getTypeManager().printType(
+											reason.interface_type_id, this->context.getSourceManager()
+										)
+									)
+								),
+							}
+						);
+					}else if constexpr(
+						std::is_same<ReasonT, Instantiation::ErroredReasonErroredAfterDecl>()
+					){
+						evo::debugAssert("Errored after decl, shouldn't get here");
+
+					}else{
+						static_assert(false, "Unkonwn errored reason");
+					}
+				});
+
+				i += 1;
+			}
+
 			if(func_infos.empty()){ // if all instantiations errored
-				auto infos = evo::SmallVector<Diagnostic::Info>();
-
-				for(size_t i = 0; const ErroredReason& instantiation_error : instantiation_errors){
-					const auto get_func_location = [&]() -> Diagnostic::Location {
-						const SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
-							*instantiation_infos[i].instantiation.symbolProcID.load()
-						);
-
-						return Diagnostic::Location::get(
-							symbol_proc.ast_node, this->context.getSourceManager()[symbol_proc.source_id]
-						);
-					};
-
-
-					instantiation_error.visit([&](const auto& reason) -> void {
-						using ReasonT = std::decay_t<decltype(reason)>;
-
-						using Instantiation = sema::TemplatedFunc::Instantiation;
-
-						if constexpr(std::is_same<ReasonT, std::monostate>()){
-							evo::debugAssert("Template instantiation didn't error");
-
-						}else if constexpr(
-							std::is_same<ReasonT, Instantiation::ErroredReasonParamDeductionFailed>()
-						){
-							infos.emplace_back(
-								std::format(
-									"Failed to match: failed to deduce type of parameter (index: {}) ", reason.arg_index
-								),
-								get_func_location(),
-								evo::SmallVector<Diagnostic::Info>{
-									Diagnostic::Info(
-										"This argument:", this->get_location(func_call.args[reason.arg_index].value)
-									),
-								}
-							);
-
-
-						}else if constexpr(
-							std::is_same<ReasonT, Instantiation::ErroredReasonArgTypeMismatch>()
-						){
-							infos.emplace_back(
-								std::format("Failed to match: argument (index: {}) type mismatch", reason.arg_index),
-								get_func_location(),
-								evo::SmallVector<Diagnostic::Info>{
-									Diagnostic::Info(
-										"This argument:", this->get_location(func_call.args[reason.arg_index].value)
-									),
-									Diagnostic::Info(
-										std::format(
-											"Argument type:  {}",
-											this->context.getTypeManager().printType(
-												reason.got_type_id, this->context.getSourceManager()
-											)
-										)
-									),
-									Diagnostic::Info(
-										std::format(
-											"Parameter type: {}",
-											this->context.getTypeManager().printType(
-												reason.expected_type_id, this->context.getSourceManager()
-											)
-										)
-									),
-								}
-							);
-
-						}else if constexpr(
-							std::is_same<ReasonT, Instantiation::ErroredReasonTypeDoesntImplInterface>()
-						){
-							infos.emplace_back(
-								std::format(
-									"Failed to match: type of argument (index: {}) doesn't implement the interface",
-									reason.arg_index
-								),
-								get_func_location(),
-								evo::SmallVector<Diagnostic::Info>{
-									Diagnostic::Info(
-										"This argument:", this->get_location(func_call.args[reason.arg_index].value)
-									),
-									Diagnostic::Info(
-										std::format(
-											"Argument type:  {}",
-											this->context.getTypeManager().printType(
-												reason.got_type_id, this->context.getSourceManager()
-											)
-										)
-									),
-									Diagnostic::Info(
-										std::format(
-											"Interface type: {}",
-											this->context.getTypeManager().printType(
-												reason.interface_type_id, this->context.getSourceManager()
-											)
-										)
-									),
-								}
-							);
-						}else if constexpr(
-							std::is_same<ReasonT, Instantiation::ErroredReasonErroredAfterDecl>()
-						){
-							evo::debugAssert("Errored after decl, shouldn't get here");
-
-						}else{
-							static_assert(false, "Unkonwn errored reason");
-						}
-					});
-
-					i += 1;
-				}
-
 				this->emit_error(
 					Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
 					func_call.target,
 					"No function overload found",
-					std::move(infos)
+					std::move(instantiation_error_infos)
 				);
 				return evo::Unexpected(true);
 			}
@@ -18831,7 +18842,11 @@ namespace pcit::panther{
 
 
 		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
-			func_infos, arg_infos, func_call.target, method_this_term_info.has_value()
+			func_infos,
+			arg_infos,
+			func_call.target,
+			method_this_term_info.has_value(),
+			std::move(instantiation_error_infos)
 		);
 		if(selected_func_overload_index.isError()){ return evo::Unexpected(true); }
 

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.170.1"></a>
+## v0.0.170.1
+
+### Panther
+- Fixed diagnostic error for "no function overload found" not showing all overloads when both template and non-template functions are part of the overload set
+
+
+<!---------------------------------->
 <a name="v0.0.170.0"></a>
 ## v0.0.170.0
 

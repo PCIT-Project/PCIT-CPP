@@ -516,7 +516,8 @@ namespace pcit::panther{
 				evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
 				evo::SmallVector<SelectFuncOverloadArgInfo>& arg_infos,
 				const auto& call_node,
-				bool is_member_call
+				bool is_member_call,
+				evo::SmallVector<Diagnostic::Info>&& instantiation_error_infos
 			) -> evo::Result<size_t>; // returns index of selected overload
 
 

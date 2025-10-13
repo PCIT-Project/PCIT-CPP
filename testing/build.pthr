@@ -15,8 +15,8 @@ func entry = () #entry -> UI8 {
 	});
 
 	project.addSourceFile("test.pthr");
-	// project.addSourceFile("std_exp/std_exp.pthr".* as [Char:*|]);
-	// @buildAddCHeaderFile("test.h".* as [Char:*|], true);
+	// project.addSourceFile("std_exp/std_exp.pthr");
+	// @buildAddCHeaderFile("test.h", true);
 	
 	return 0;
 }
