@@ -223,8 +223,11 @@ namespace pcit::panther::sema{
 		return this->add_ident_default_impl(ident, id);
 	}
 
+
+
+
 	auto ScopeLevel::addIdent(
-		std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, TemplateTypeParamFlag
+		std::string_view ident, TemplateTypeParamFlag, TypeInfoVoidableID typeID, Token::ID location
 	) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
 
@@ -236,8 +239,10 @@ namespace pcit::panther::sema{
 		return &this->ids.emplace(ident, TemplateTypeParam(typeID, location)).first->second;
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, TypeInfoID typeID, sema::Expr value, Token::ID location)
-	-> AddIdentResult {
+
+	auto ScopeLevel::addIdent(
+		std::string_view ident, TemplateExprParamFlag, TypeInfoID typeID, sema::Expr value, Token::ID location
+	) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
@@ -249,7 +254,7 @@ namespace pcit::panther::sema{
 	}
 
 	auto ScopeLevel::addIdent(
-		std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, DeducedTypeFlag
+		std::string_view ident, DeducedTypeFlag, TypeInfoVoidableID typeID, Token::ID location
 	) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
 
@@ -261,7 +266,20 @@ namespace pcit::panther::sema{
 		return &this->ids.emplace(ident, DeducedType(typeID, location)).first->second;
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, Token::ID location, MemberVarFlag) -> AddIdentResult {
+	auto ScopeLevel::addIdent(
+		std::string_view ident, DeducedExprFlag, TypeInfoID typeID, sema::Expr value, Token::ID location
+	) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
+		
+		return &this->ids.emplace(ident, DeducedExpr(typeID, value, location)).first->second;
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, MemberVarFlag, Token::ID location) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
@@ -272,7 +290,8 @@ namespace pcit::panther::sema{
 		return &this->ids.emplace(ident, MemberVar(location)).first->second;
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, Token::ID location, uint32_t field_index, UnionFieldFlag)
+
+	auto ScopeLevel::addIdent(std::string_view ident, UnionFieldFlag, Token::ID location, uint32_t field_index)
 	-> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
 

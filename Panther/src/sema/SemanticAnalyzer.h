@@ -269,6 +269,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_zeroinit(const Instruction::Zeroinit& instr) -> Result;
 			EVO_NODISCARD auto instr_this(const Instruction::This& instr) -> Result;
 			EVO_NODISCARD auto instr_type_deducer(const Instruction::TypeDeducer& instr) -> Result;
+			EVO_NODISCARD auto instr_expr_deducer(const Instruction::ExprDeducer& instr) -> Result;
 
 
 
@@ -579,13 +580,20 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_project_config() const -> const Source::ProjectConfig&;
 
 
-			struct DeducedType{
-				TypeInfo::VoidableID typeID;
+			struct DeducedTerm{
+				struct Expr{
+					TypeInfo::ID type_id;
+					sema::Expr expr;
+				};
+
+				evo::Variant<TypeInfo::VoidableID, Expr> value;
 				Token::ID tokenID;
 			};
 
-			EVO_NODISCARD auto extract_type_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
-				-> evo::Result<evo::SmallVector<DeducedType>>;
+			EVO_NODISCARD auto extract_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
+				-> evo::Result<evo::SmallVector<DeducedTerm>>;
+
+			EVO_NODISCARD auto add_deduced_terms_to_scope(evo::ArrayProxy<DeducedTerm> deduced_terms) -> evo::Result<>;
 
 
 
@@ -709,7 +717,7 @@ namespace pcit::panther{
 				bool ok;
 				bool requires_implicit_conversion; // value is undefined if .ok == false
 
-				evo::SmallVector<DeducedType> deduced_types;
+				evo::SmallVector<DeducedTerm> deduced_terms;
 
 				public:
 					EVO_NODISCARD static auto fail() -> TypeCheckInfo { return TypeCheckInfo(false, false, {}); }
@@ -717,14 +725,14 @@ namespace pcit::panther{
 						return TypeCheckInfo(true, requires_implicit_conversion, {});
 					}
 					EVO_NODISCARD static auto success(
-						bool requires_implicit_conversion, evo::SmallVector<DeducedType>&& deduced_types
+						bool requires_implicit_conversion, evo::SmallVector<DeducedTerm>&& deduced_terms
 					) -> TypeCheckInfo {
-						return TypeCheckInfo(true, requires_implicit_conversion, std::move(deduced_types));
+						return TypeCheckInfo(true, requires_implicit_conversion, std::move(deduced_terms));
 					}
 
 				private:
-					TypeCheckInfo(bool _ok, bool ric, evo::SmallVector<DeducedType>&& _deduced_types)
-						: ok(_ok), requires_implicit_conversion(ric), deduced_types(std::move(_deduced_types)) {}
+					TypeCheckInfo(bool _ok, bool ric, evo::SmallVector<DeducedTerm>&& _deduced_terms)
+						: ok(_ok), requires_implicit_conversion(ric), deduced_terms(std::move(_deduced_terms)) {}
 			};
 
 			template<bool MAY_IMPLICITLY_CONVERT, bool MAY_EMIT_ERROR>
@@ -874,6 +882,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_location(const sema::ScopeLevel::DeducedType& deduced_type) const
 			-> Diagnostic::Location {
 				return this->get_location(deduced_type.location);
+			}
+
+			EVO_NODISCARD auto get_location(const sema::ScopeLevel::DeducedExpr& deduced_expr) const
+			-> Diagnostic::Location {
+				return this->get_location(deduced_expr.location);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::ScopeLevel::MemberVar& member_var) const

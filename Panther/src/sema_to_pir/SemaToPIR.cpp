@@ -294,34 +294,26 @@ namespace pcit::panther{
 				);
 			}
 
-		}else if(func.isClangFunc() == false && func_type.returnParams[0].typeID.isVoid() == false){
-			const TypeInfo::ID ret_type_id = func_type.returnParams[0].typeID.asTypeID();
+		}else if(func.isClangFunc() == false && func_type.isImplicitRVO(this->context.getTypeManager())){
+			is_implicit_rvo = true;
 
-			if(
-				this->context.getTypeManager().isTriviallySized(ret_type_id) == false
-				|| this->context.getTypeManager().isTriviallyCopyable(ret_type_id) == false
-				|| this->context.getTypeManager().isTriviallyCopyable(ret_type_id) == false
-			){
-				is_implicit_rvo = true;
+			return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
 
-				return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
+			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
+				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
+				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNonNull()),
+				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrDereferencable(
+					this->context.getTypeManager().numBytes(func_type.returnParams[0].typeID.asTypeID())
+				)),
+				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrWritable()),
+			};
 
-				auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
-					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
-					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNonNull()),
-					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrDereferencable(
-						this->context.getTypeManager().numBytes(ret_type_id)
-					)),
-					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrWritable()),
-				};
-
-				if(this->data.getConfig().useReadableNames){
-					params.emplace_back("RET_RVO", this->module.createPtrType(), std::move(attributes));
-				}else{
-					params.emplace_back(
-						std::format(".{}", params.size()), this->module.createPtrType(), std::move(attributes)
-					);
-				}
+			if(this->data.getConfig().useReadableNames){
+				params.emplace_back("RET_RVO", this->module.createPtrType(), std::move(attributes));
+			}else{
+				params.emplace_back(
+					std::format(".{}", params.size()), this->module.createPtrType(), std::move(attributes)
+				);
 			}
 		}
 
@@ -580,11 +572,11 @@ namespace pcit::panther{
 				case BaseType::Kind::UNION:
 					return std::format("PTHR.vtable.i{}.u{}", interface_id.get(), type.unionID().get());
 
-				case BaseType::Kind::DUMMY:           case BaseType::Kind::FUNCTION:
-				case BaseType::Kind::ARRAY_REF:       case BaseType::Kind::ALIAS:
-				case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::ENUM:            case BaseType::Kind::INTERFACE:
-				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				case BaseType::Kind::DUMMY:         case BaseType::Kind::FUNCTION:
+				case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::ARRAY_REF:
+				case BaseType::Kind::ALIAS:         case BaseType::Kind::STRUCT_TEMPLATE:
+				case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::ENUM:
+				case BaseType::Kind::INTERFACE:     case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 					evo::debugFatalBreak("Not valid base type for VTable");
 				} break;
 			}
@@ -1620,7 +1612,8 @@ namespace pcit::panther{
 					return std::nullopt;
 
 				}else{
-					const sema::FloatValue& float_value = this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
+					const sema::FloatValue& float_value =
+						this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
 					const pir::Type value_type = this->get_type<false>(*float_value.typeID);
 					const pir::Expr number = this->agent.createNumber(value_type, float_value.value);
 
@@ -4167,6 +4160,11 @@ namespace pcit::panther{
 				this->agent.setTargetBasicBlock(end_block);
 			} break;
 
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				evo::debugFatalBreak("Not deletable");
+			} break;
+
+
 			case BaseType::Kind::ARRAY_REF: {
 				evo::debugFatalBreak("Not non-trivially-deletable");
 			} break;
@@ -4529,6 +4527,10 @@ namespace pcit::panther{
 					// end
 
 					this->agent.setTargetBasicBlock(end_block);
+				} break;
+
+				case BaseType::Kind::ARRAY_DEDUCER: {
+					evo::debugFatalBreak("Not copyable");
 				} break;
 
 				case BaseType::Kind::ARRAY_REF: {
@@ -4970,6 +4972,10 @@ namespace pcit::panther{
 					// end
 
 					this->agent.setTargetBasicBlock(end_block);
+				} break;
+
+				case BaseType::Kind::ARRAY_DEDUCER: {
+					evo::debugFatalBreak("Not movable");
 				} break;
 
 				case BaseType::Kind::ARRAY_REF: {
@@ -6882,16 +6888,27 @@ namespace pcit::panther{
 				const BaseType::Array& array = this->context.getTypeManager().getArray(base_type_id.arrayID());
 				const pir::Type elem_type = this->get_type<MAY_LOWER_DEPENDENCY>(array.elementTypeID);
 
+				if(array.dimensions.size() == 1){
+					return this->module.createArrayType(
+						elem_type, array.dimensions.back() + uint64_t(array.terminator.has_value())
+					);
+					
+				}else{
+					pir::Type array_type = this->module.createArrayType(elem_type, array.dimensions.back());
 
-				pir::Type array_type = this->module.createArrayType(elem_type, array.dimensions.back());
-
-				if(array.dimensions.size() > 1){
-					for(ptrdiff_t i = array.dimensions.size() - 2; i >= 0; i-=1){
-						array_type = this->module.createArrayType(array_type, array.dimensions[i]);
+					if(array.dimensions.size() > 1){
+						for(ptrdiff_t i = array.dimensions.size() - 2; i >= 0; i-=1){
+							array_type = this->module.createArrayType(array_type, array.dimensions[i]);
+						}
 					}
+
+					return array_type;
 				}
 
-				return array_type;
+			} break;
+
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				evo::debugFatalBreak("Cannot get type of array deducer");
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {

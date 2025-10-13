@@ -69,7 +69,7 @@ namespace pcit::panther{
 			case AST::Kind::ARRAY_INIT_NEW:    return Location::get(ast_buffer.getArrayInitNew(node), src);
 			case AST::Kind::DESIGNATED_INIT_NEW: return Location::get(ast_buffer.getDesignatedInitNew(node), src);
 			case AST::Kind::TRY_ELSE:          return Location::get(ast_buffer.getTryElse(node), src);
-			case AST::Kind::TYPE_DEDUCER:      return Location::get(ast_buffer.getTypeDeducer(node), src);
+			case AST::Kind::DEDUCER:           return Location::get(ast_buffer.getDeducer(node), src);
 			case AST::Kind::ARRAY_TYPE:        return Location::get(ast_buffer.getArrayType(node), src);
 			case AST::Kind::TYPE:              return Location::get(ast_buffer.getType(node), src);
 			case AST::Kind::TYPEID_CONVERTER:  return Location::get(ast_buffer.getTypeIDConverter(node), src);

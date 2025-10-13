@@ -1308,7 +1308,7 @@ namespace pcit::panther{
 				is_primitive = false;
 			} break;
 
-			case Token::Kind::TYPE_DEDUCER: case Token::Kind::ANONYMOUS_TYPE_DEDUCER: {
+			case Token::Kind::DEDUCER: case Token::Kind::ANONYMOUS_DEDUCER: {
 				is_primitive = false;
 				is_type_deducer = true;
 			} break;
@@ -1369,13 +1369,13 @@ namespace pcit::panther{
 			}else if(is_type_deducer){
 				if constexpr(KIND != TypeKind::EXPLICIT_MAYBE_DEDUCER){
 					this->context.emitError(
-						Diagnostic::Code::PARSER_TYPE_DEDUCER_INVALID_IN_THIS_CONTEXT,
+						Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
 						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"Type deducers are not allowed here"
 					);
 					return Result(Result::Code::ERROR);
 				}else{
-					return Result(AST::Node(AST::Kind::TYPE_DEDUCER, this->reader.next()));
+					return Result(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
 				}
 
 			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_TYPE){
@@ -1419,50 +1419,68 @@ namespace pcit::panther{
 				auto dimensions = evo::SmallVector<std::optional<AST::Node>>();
 
 				while(true){
-					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
-						is_ref = true;
-						dimensions.emplace_back(std::nullopt);
+					switch(this->reader[this->reader.peek()].kind()){
+						case Token::lookupKind("*"): {
+							is_ref = true;
+							dimensions.emplace_back(std::nullopt);
 
-						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("|")){
-							is_read_only_arr_ref = true;
-							last_ptr_dimension = this->reader.next();
-						}else{
-							if(last_ptr_dimension.has_value() && is_read_only_arr_ref){
-								this->context.emitError(
-									Diagnostic::Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH,
-									Diagnostic::Location::get(
-										this->reader.peek(), this->source
-									),
-									"All pointer dimensions in an array reference must match mutability",
-									evo::SmallVector<Diagnostic::Info>{
-										Diagnostic::Info(
-											"Last pointer dimension was here:",
-											Diagnostic::Location::get(
-												*last_ptr_dimension, this->source
+							if(this->reader[this->reader.peek()].kind() == Token::lookupKind("|")){
+								is_read_only_arr_ref = true;
+								last_ptr_dimension = this->reader.next();
+							}else{
+								if(last_ptr_dimension.has_value() && is_read_only_arr_ref){
+									this->context.emitError(
+										Diagnostic::Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH,
+										Diagnostic::Location::get(
+											this->reader.peek(), this->source
+										),
+										"All pointer dimensions in an array reference must match mutability",
+										evo::SmallVector<Diagnostic::Info>{
+											Diagnostic::Info(
+												"Last pointer dimension was here:",
+												Diagnostic::Location::get(
+													*last_ptr_dimension, this->source
+												)
 											)
-										)
-									}
+										}
+									);
+									return Result(Result::Code::ERROR);
+								}
+								last_ptr_dimension = this->reader.next();
+							}
+						} break;
+
+						case Token::lookupKind("*|"): {
+							is_ref = true;
+							last_ptr_dimension = this->reader.next();
+							dimensions.emplace_back(std::nullopt);
+							is_read_only_arr_ref = true;
+						} break;
+
+						case Token::Kind::DEDUCER: case Token::Kind::ANONYMOUS_DEDUCER: {
+							if constexpr(KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
+								dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+							}else{
+								this->context.emitError(
+									Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
+									Diagnostic::Location::get(this->reader.peek(), this->source),
+									"Type deducers are not allowed here"
 								);
 								return Result(Result::Code::ERROR);
 							}
-							last_ptr_dimension = this->reader.next();
-						}
+						} break;
 
-					}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*|")){
-						is_ref = true;
-						last_ptr_dimension = this->reader.next();
-						dimensions.emplace_back(std::nullopt);
-						is_read_only_arr_ref = true;
+						default: {
+							const Result length = this->parse_expr();
+							if(this->check_result(length, "length(s) in array type").isError()){
+								return Result(Result::Code::ERROR);
+							}
 
-					}else{
-						const Result length = this->parse_expr();
-						if(this->check_result(length, "length(s) in array type").isError()){
-							return Result(Result::Code::ERROR);
-						}
-
-						dimensions.emplace_back(length.value());
+							dimensions.emplace_back(length.value());
+						} break;
 					}
-					
+
+
 					if(this->reader[this->reader.peek()].kind() != Token::lookupKind(",")){
 						break;
 					}else{
@@ -1470,26 +1488,34 @@ namespace pcit::panther{
 					}
 				}
 
-
+				
 				auto terminator = std::optional<AST::Node>();
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
 					if(this->assert_token(Token::lookupKind(";")).isError()){ return Result(Result::Code::ERROR); }
-					
-					const Result terminator_result = this->parse_expr();
-					if(this->check_result(terminator_result, "array terminator expression after [;]").isError()){
-						return Result(Result::Code::ERROR);
-					}
 
-					if(dimensions.size() > 1){
-						this->context.emitError(
-							Diagnostic::Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR,
-							Diagnostic::Location::get(terminator_result.value(), this->source),
-							"Multi-dimentional array type cannot have a terminator"
-						);
-						return Result(Result::Code::ERROR);
-					}
+					if(
+						this->reader[this->reader.peek()].kind() == Token::Kind::DEDUCER
+						|| this->reader[this->reader.peek()].kind() == Token::Kind::ANONYMOUS_DEDUCER
+					){
+						terminator = AST::Node(AST::Kind::DEDUCER, this->reader.next());
 
-					terminator = terminator_result.value();
+					}else{
+						const Result terminator_result = this->parse_expr();
+						if(this->check_result(terminator_result, "array terminator expression after [;]").isError()){
+							return Result(Result::Code::ERROR);
+						}
+
+						if(dimensions.size() > 1){
+							this->context.emitError(
+								Diagnostic::Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR,
+								Diagnostic::Location::get(terminator_result.value(), this->source),
+								"Multi-dimentional array type cannot have a terminator"
+							);
+							return Result(Result::Code::ERROR);
+						}
+
+						terminator = terminator_result.value();
+					}
 				}
 
 

@@ -2544,6 +2544,23 @@ namespace pcit::panther{
 
 
 
+			//////////////////
+			// ExprDeducer
+
+			EVO_NODISCARD auto createExprDeducer(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::EXPR_DEDUCER,
+					this->expr_deducers.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getExprDeducer(Instruction instr) const -> const Instruction::ExprDeducer& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::EXPR_DEDUCER, "Not a ExprDeducer");
+				return this->expr_deducers[instr._index];
+			}
+
+
+
 
 
 		private:
@@ -2755,6 +2772,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Zeroinit, uint64_t> zeroinits{};
 			core::SyncLinearStepAlloc<Instruction::This, uint64_t> thiss{};
 			core::SyncLinearStepAlloc<Instruction::TypeDeducer, uint64_t> type_deducers{};
+			core::SyncLinearStepAlloc<Instruction::ExprDeducer, uint64_t> expr_deducers{};
 
 
 			friend class SymbolProcBuilder;

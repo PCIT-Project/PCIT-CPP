@@ -60,6 +60,7 @@ namespace pcit::panther::sema{
 
 
 
+
 	struct TemplateIntrinsicFuncInstantiationID
 		: public core::UniqueID<uint32_t, struct TemplateIntrinsicFuncInstantiationID> {
 		using core::UniqueID<uint32_t, TemplateIntrinsicFuncInstantiationID>::UniqueID;
@@ -284,9 +285,20 @@ namespace pcit::panther::sema{
 
 
 namespace pcit::core{
+
+	template<>
+	struct OptionalInterface<panther::sema::NullID>{
+		static constexpr auto init(panther::sema::NullID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::NullID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
 		
 	template<>
-	struct core::OptionalInterface<panther::sema::UninitID>{
+	struct OptionalInterface<panther::sema::UninitID>{
 		static constexpr auto init(panther::sema::UninitID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -297,7 +309,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ZeroinitID>{
+	struct OptionalInterface<panther::sema::ZeroinitID>{
 		static constexpr auto init(panther::sema::ZeroinitID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -308,7 +320,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::IntValueID>{
+	struct OptionalInterface<panther::sema::IntValueID>{
 		static constexpr auto init(panther::sema::IntValueID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -319,7 +331,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::FloatValueID>{
+	struct OptionalInterface<panther::sema::FloatValueID>{
 		static constexpr auto init(panther::sema::FloatValueID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -330,7 +342,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::BoolValueID>{
+	struct OptionalInterface<panther::sema::BoolValueID>{
 		static constexpr auto init(panther::sema::BoolValueID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -341,7 +353,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::StringValueID>{
+	struct OptionalInterface<panther::sema::StringValueID>{
 		static constexpr auto init(panther::sema::StringValueID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -352,7 +364,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::AggregateValueID>{
+	struct OptionalInterface<panther::sema::AggregateValueID>{
 		static constexpr auto init(panther::sema::AggregateValueID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -363,7 +375,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::CharValueID>{
+	struct OptionalInterface<panther::sema::CharValueID>{
 		static constexpr auto init(panther::sema::CharValueID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -374,7 +386,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::TemplateIntrinsicFuncInstantiationID>{
+	struct OptionalInterface<panther::sema::TemplateIntrinsicFuncInstantiationID>{
 		static constexpr auto init(panther::sema::TemplateIntrinsicFuncInstantiationID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -385,7 +397,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::CopyID>{
+	struct OptionalInterface<panther::sema::CopyID>{
 		static constexpr auto init(panther::sema::CopyID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -396,7 +408,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::MoveID>{
+	struct OptionalInterface<panther::sema::MoveID>{
 		static constexpr auto init(panther::sema::MoveID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -407,7 +419,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ForwardID>{
+	struct OptionalInterface<panther::sema::ForwardID>{
 		static constexpr auto init(panther::sema::ForwardID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -418,7 +430,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::AddrOfID>{
+	struct OptionalInterface<panther::sema::AddrOfID>{
 		static constexpr auto init(panther::sema::AddrOfID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -429,7 +441,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ConversionToOptionalID>{
+	struct OptionalInterface<panther::sema::ConversionToOptionalID>{
 		static constexpr auto init(panther::sema::ConversionToOptionalID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -440,7 +452,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::OptionalNullCheckID>{
+	struct OptionalInterface<panther::sema::OptionalNullCheckID>{
 		static constexpr auto init(panther::sema::OptionalNullCheckID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -451,7 +463,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::OptionalExtractID>{
+	struct OptionalInterface<panther::sema::OptionalExtractID>{
 		static constexpr auto init(panther::sema::OptionalExtractID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -462,7 +474,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::DerefID>{
+	struct OptionalInterface<panther::sema::DerefID>{
 		static constexpr auto init(panther::sema::DerefID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -473,7 +485,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::AccessorID>{
+	struct OptionalInterface<panther::sema::AccessorID>{
 		static constexpr auto init(panther::sema::AccessorID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -484,7 +496,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::UnionAccessorID>{
+	struct OptionalInterface<panther::sema::UnionAccessorID>{
 		static constexpr auto init(panther::sema::UnionAccessorID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -495,7 +507,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::LogicalAndID>{
+	struct OptionalInterface<panther::sema::LogicalAndID>{
 		static constexpr auto init(panther::sema::LogicalAndID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -506,7 +518,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::LogicalOrID>{
+	struct OptionalInterface<panther::sema::LogicalOrID>{
 		static constexpr auto init(panther::sema::LogicalOrID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -517,7 +529,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::TryElseID>{
+	struct OptionalInterface<panther::sema::TryElseID>{
 		static constexpr auto init(panther::sema::TryElseID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -528,7 +540,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::BlockExprID>{
+	struct OptionalInterface<panther::sema::BlockExprID>{
 		static constexpr auto init(panther::sema::BlockExprID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -539,7 +551,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::FakeTermInfoID>{
+	struct OptionalInterface<panther::sema::FakeTermInfoID>{
 		static constexpr auto init(panther::sema::FakeTermInfoID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -550,7 +562,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::MakeInterfacePtrID>{
+	struct OptionalInterface<panther::sema::MakeInterfacePtrID>{
 		static constexpr auto init(panther::sema::MakeInterfacePtrID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -561,7 +573,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::InterfacePtrExtractThisID>{
+	struct OptionalInterface<panther::sema::InterfacePtrExtractThisID>{
 		static constexpr auto init(panther::sema::InterfacePtrExtractThisID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -572,7 +584,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::InterfaceCallID>{
+	struct OptionalInterface<panther::sema::InterfaceCallID>{
 		static constexpr auto init(panther::sema::InterfaceCallID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -583,7 +595,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::FuncCallID>{
+	struct OptionalInterface<panther::sema::FuncCallID>{
 		static constexpr auto init(panther::sema::FuncCallID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -594,7 +606,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::AssignID>{
+	struct OptionalInterface<panther::sema::AssignID>{
 		static constexpr auto init(panther::sema::AssignID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -605,7 +617,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::MultiAssignID>{
+	struct OptionalInterface<panther::sema::MultiAssignID>{
 		static constexpr auto init(panther::sema::MultiAssignID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -616,7 +628,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ReturnID>{
+	struct OptionalInterface<panther::sema::ReturnID>{
 		static constexpr auto init(panther::sema::ReturnID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -627,7 +639,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ErrorID>{
+	struct OptionalInterface<panther::sema::ErrorID>{
 		static constexpr auto init(panther::sema::ErrorID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -638,7 +650,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::BreakID>{
+	struct OptionalInterface<panther::sema::BreakID>{
 		static constexpr auto init(panther::sema::BreakID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -649,7 +661,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ContinueID>{
+	struct OptionalInterface<panther::sema::ContinueID>{
 		static constexpr auto init(panther::sema::ContinueID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -660,7 +672,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::DeleteID>{
+	struct OptionalInterface<panther::sema::DeleteID>{
 		static constexpr auto init(panther::sema::DeleteID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -671,7 +683,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::BlockScopeID>{
+	struct OptionalInterface<panther::sema::BlockScopeID>{
 		static constexpr auto init(panther::sema::BlockScopeID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -682,7 +694,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::WhileID>{
+	struct OptionalInterface<panther::sema::WhileID>{
 		static constexpr auto init(panther::sema::WhileID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -693,7 +705,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::DeferID>{
+	struct OptionalInterface<panther::sema::DeferID>{
 		static constexpr auto init(panther::sema::DeferID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -704,7 +716,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::FuncID>{
+	struct OptionalInterface<panther::sema::FuncID>{
 		static constexpr auto init(panther::sema::FuncID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -715,7 +727,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::TemplatedFuncID>{
+	struct OptionalInterface<panther::sema::TemplatedFuncID>{
 		static constexpr auto init(panther::sema::TemplatedFuncID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -726,7 +738,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::TemplatedStructID>{
+	struct OptionalInterface<panther::sema::TemplatedStructID>{
 		static constexpr auto init(panther::sema::TemplatedStructID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -737,7 +749,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::VarID>{
+	struct OptionalInterface<panther::sema::VarID>{
 		static constexpr auto init(panther::sema::VarID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -748,7 +760,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::GlobalVarID>{
+	struct OptionalInterface<panther::sema::GlobalVarID>{
 		static constexpr auto init(panther::sema::GlobalVarID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -759,7 +771,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ParamID>{
+	struct OptionalInterface<panther::sema::ParamID>{
 		static constexpr auto init(panther::sema::ParamID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -770,7 +782,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ReturnParamID>{
+	struct OptionalInterface<panther::sema::ReturnParamID>{
 		static constexpr auto init(panther::sema::ReturnParamID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -781,7 +793,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ErrorReturnParamID>{
+	struct OptionalInterface<panther::sema::ErrorReturnParamID>{
 		static constexpr auto init(panther::sema::ErrorReturnParamID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -792,7 +804,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::BlockExprOutputID>{
+	struct OptionalInterface<panther::sema::BlockExprOutputID>{
 		static constexpr auto init(panther::sema::BlockExprOutputID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -803,7 +815,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ExceptParamID>{
+	struct OptionalInterface<panther::sema::ExceptParamID>{
 		static constexpr auto init(panther::sema::ExceptParamID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -814,7 +826,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::IndexerID>{
+	struct OptionalInterface<panther::sema::IndexerID>{
 		static constexpr auto init(panther::sema::IndexerID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -826,7 +838,7 @@ namespace pcit::core{
 
 
 	template<>
-	struct core::OptionalInterface<panther::sema::DefaultInitPrimitiveID>{
+	struct OptionalInterface<panther::sema::DefaultInitPrimitiveID>{
 		static constexpr auto init(panther::sema::DefaultInitPrimitiveID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -837,7 +849,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::DefaultTriviallyInitStructID>{
+	struct OptionalInterface<panther::sema::DefaultTriviallyInitStructID>{
 		static constexpr auto init(panther::sema::DefaultTriviallyInitStructID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -848,7 +860,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::DefaultInitArrayRefID>{
+	struct OptionalInterface<panther::sema::DefaultInitArrayRefID>{
 		static constexpr auto init(panther::sema::DefaultInitArrayRefID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -859,7 +871,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::InitArrayRefID>{
+	struct OptionalInterface<panther::sema::InitArrayRefID>{
 		static constexpr auto init(panther::sema::InitArrayRefID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -870,7 +882,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ArrayRefIndexerID>{
+	struct OptionalInterface<panther::sema::ArrayRefIndexerID>{
 		static constexpr auto init(panther::sema::ArrayRefIndexerID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -881,7 +893,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ArrayRefSizeID>{
+	struct OptionalInterface<panther::sema::ArrayRefSizeID>{
 		static constexpr auto init(panther::sema::ArrayRefSizeID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -892,7 +904,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::ArrayRefDimensionsID>{
+	struct OptionalInterface<panther::sema::ArrayRefDimensionsID>{
 		static constexpr auto init(panther::sema::ArrayRefDimensionsID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -903,7 +915,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::UnionDesignatedInitNewID>{
+	struct OptionalInterface<panther::sema::UnionDesignatedInitNewID>{
 		static constexpr auto init(panther::sema::UnionDesignatedInitNewID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -914,7 +926,7 @@ namespace pcit::core{
 	};
 
 	template<>
-	struct core::OptionalInterface<panther::sema::UnionTagCmpID>{
+	struct OptionalInterface<panther::sema::UnionTagCmpID>{
 		static constexpr auto init(panther::sema::UnionTagCmpID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
@@ -934,6 +946,21 @@ namespace pcit::core{
 
 
 namespace std{
+
+
+	template<>
+	struct hash<pcit::panther::sema::NullID>{
+		auto operator()(pcit::panther::sema::NullID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::NullID> : public pcit::core::Optional<pcit::panther::sema::NullID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::NullID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::NullID>::operator=;
+	};
+
 	
 	
 	template<>

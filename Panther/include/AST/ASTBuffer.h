@@ -55,8 +55,8 @@ namespace pcit::panther{
 				return node._value.token_id;
 			}
 
-			EVO_NODISCARD static auto getTypeDeducer(const AST::Node& node) -> Token::ID {
-				evo::debugAssert(node.kind() == AST::Kind::TYPE_DEDUCER, "Node is not a TypeDeducer");
+			EVO_NODISCARD static auto getDeducer(const AST::Node& node) -> Token::ID {
+				evo::debugAssert(node.kind() == AST::Kind::DEDUCER, "Node is not a Deducer");
 				return node._value.token_id;
 			}
 

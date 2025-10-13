@@ -23,38 +23,16 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// base type
 
+	auto BaseType::Function::isImplicitRVO(const TypeManager& type_manager) const -> bool {
+		if(this->returnsVoid()){ return false; }
+		if(this->hasNamedReturns()){ return false; }
 
-	auto BaseType::StructTemplate::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
-		const auto lock = std::scoped_lock(this->instantiation_lock);
+		const TypeInfo::ID ret_type_id = this->returnParams[0].typeID.asTypeID();
 
-		auto find = this->instantiation_map.find(args);
-		if(find == this->instantiation_map.end()){
-			const uint32_t instantiation_id = uint32_t(this->instantiations.size());
-			Instantiation& new_instantiation = this->instantiations[this->instantiations.emplace_back()];
-			this->instantiation_map.emplace(std::move(args), new_instantiation);
-			return InstantiationInfo(new_instantiation, instantiation_id);
-
-		}else{
-			return InstantiationInfo(find->second, std::nullopt);
-		}
+		return type_manager.isTriviallySized(ret_type_id) == false
+			|| type_manager.isTriviallyCopyable(ret_type_id) == false
+			|| type_manager.isTriviallyMovable(ret_type_id) == false;
 	}
-
-
-
-	auto BaseType::StructTemplate::getInstantiationArgs(uint32_t instantiation_id) const -> evo::SmallVector<Arg> {
-		const auto lock = std::scoped_lock(this->instantiation_lock);
-
-		const Instantiation* instantiation_ptr = &this->instantiations[instantiation_id];
-
-		for(const auto& instantiation_map_item : this->instantiation_map){
-			if(&instantiation_map_item.second == instantiation_ptr){
-				return instantiation_map_item.first;
-			}
-		}
-
-		evo::debugFatalBreak("Didn't find instantiation: {}", instantiation_id);
-	}
-
 
 
 
@@ -104,6 +82,39 @@ namespace pcit::panther{
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
 			return builtin_module.getString(member.name.as<BuiltinModule::StringID>());
 		}
+	}
+
+
+
+	auto BaseType::StructTemplate::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
+		const auto lock = std::scoped_lock(this->instantiation_lock);
+
+		auto find = this->instantiation_map.find(args);
+		if(find == this->instantiation_map.end()){
+			const uint32_t instantiation_id = uint32_t(this->instantiations.size());
+			Instantiation& new_instantiation = this->instantiations[this->instantiations.emplace_back()];
+			this->instantiation_map.emplace(std::move(args), new_instantiation);
+			return InstantiationInfo(new_instantiation, instantiation_id);
+
+		}else{
+			return InstantiationInfo(find->second, std::nullopt);
+		}
+	}
+
+
+
+	auto BaseType::StructTemplate::getInstantiationArgs(uint32_t instantiation_id) const -> evo::SmallVector<Arg> {
+		const auto lock = std::scoped_lock(this->instantiation_lock);
+
+		const Instantiation* instantiation_ptr = &this->instantiations[instantiation_id];
+
+		for(const auto& instantiation_map_item : this->instantiation_map){
+			if(&instantiation_map_item.second == instantiation_ptr){
+				return instantiation_map_item.first;
+			}
+		}
+
+		evo::debugFatalBreak("Didn't find instantiation: {}", instantiation_id);
 	}
 
 
@@ -377,6 +388,113 @@ namespace pcit::panther{
 				return builder;
 			} break;
 
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				const BaseType::ArrayDeducer& array_deducer = this->getArrayDeducer(base_type_id.arrayDeducerID());
+
+				auto builder = std::string();
+				builder += '[';
+
+				builder += this->printType(array_deducer.elementTypeID, source_manager);
+
+				builder += ':';
+
+				for(size_t i = 0; const BaseType::ArrayDeducer::Dimension& dimension : array_deducer.dimensions){
+					if(dimension.is<uint64_t>()){
+						builder += std::to_string(dimension.as<uint64_t>());
+						
+					}else{
+						const Token& token =
+							source_manager[array_deducer.sourceID].getTokenBuffer()[dimension.as<Token::ID>()];
+
+						if(token.kind() == Token::Kind::DEDUCER){
+							return std::format("${}", token.getString());
+						}else{
+							evo::debugAssert(
+								token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown type deducer kind"
+							);
+							return "$$";
+						}
+					}
+
+					if(i + 1 < array_deducer.dimensions.size()){ builder += ","; }
+
+					i += 1;
+				}
+
+				if(array_deducer.terminator.is<core::GenericValue>()){
+					if(this->isUnsignedIntegral(array_deducer.elementTypeID)){
+						builder += ';';
+						builder += array_deducer.terminator.as<core::GenericValue>().getInt(
+							unsigned(this->numBits(array_deducer.elementTypeID))
+						).toString(false);
+
+					}else if(this->isSignedIntegral(array_deducer.elementTypeID)){
+						builder += ';';
+						builder += array_deducer.terminator.as<core::GenericValue>().getInt(
+							unsigned(this->numBits(array_deducer.elementTypeID))
+						).toString(true);
+
+					}else if(this->isFloatingPoint(array_deducer.elementTypeID)){
+						const BaseType::Primitive& primitive = this->getPrimitive(
+							this->getTypeInfo(array_deducer.elementTypeID).baseTypeID().primitiveID()
+						);
+
+						builder += ';';
+
+						switch(primitive.kind()){
+							break; case Token::Kind::TYPE_F16:
+								builder += array_deducer.terminator.as<core::GenericValue>().getF16().toString();
+
+							break; case Token::Kind::TYPE_BF16:
+								builder += array_deducer.terminator.as<core::GenericValue>().getBF16().toString();
+
+							break; case Token::Kind::TYPE_F32:
+								builder += array_deducer.terminator.as<core::GenericValue>().getF32().toString();
+
+							break; case Token::Kind::TYPE_F64:
+								builder += array_deducer.terminator.as<core::GenericValue>().getF64().toString();
+
+							break; case Token::Kind::TYPE_F80:
+								builder += array_deducer.terminator.as<core::GenericValue>().getF80().toString();
+
+							break; case Token::Kind::TYPE_F128:
+								builder += array_deducer.terminator.as<core::GenericValue>().getF128().toString();
+
+							break; default: evo::debugFatalBreak("Unknown float type");
+						}
+
+					}else if(array_deducer.elementTypeID == TypeManager::getTypeBool()){
+						builder += ';';
+						builder += evo::boolStr(array_deducer.terminator.as<core::GenericValue>().getBool());
+
+					}else if(array_deducer.elementTypeID == TypeManager::getTypeChar()){
+						builder += std::format(
+							";'{}'", evo::printCharName(array_deducer.terminator.as<core::GenericValue>().getChar())
+						);
+						
+					}else{
+						builder += ";<TERMINATOR>";
+					}
+
+				}else if(array_deducer.terminator.is<Token::ID>()){
+					const Token& token = source_manager[array_deducer.sourceID]
+						.getTokenBuffer()[array_deducer.terminator.as<Token::ID>()];
+
+					if(token.kind() == Token::Kind::DEDUCER){
+						return std::format("${}", token.getString());
+					}else{
+						evo::debugAssert(
+							token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown type deducer kind"
+						);
+						return "$$";
+					}
+				}
+
+				builder += ']';
+
+				return builder;
+			} break;
+
 			case BaseType::Kind::ARRAY_REF: {
 				const BaseType::ArrayRef& array_ref = this->getArrayRef(base_type_id.arrayRefID());
 
@@ -591,11 +709,11 @@ namespace pcit::panther{
 				const Token& token =
 					source_manager[type_deducer.sourceID].getTokenBuffer()[type_deducer.identTokenID];
 
-				if(token.kind() == Token::Kind::TYPE_DEDUCER){
+				if(token.kind() == Token::Kind::DEDUCER){
 					return std::format("${}", token.getString());
 				}else{
 					evo::debugAssert(
-						token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER, "Unknown type deducer kind"
+						token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown type deducer kind"
 					);
 					return "$$";
 				}
@@ -672,6 +790,28 @@ namespace pcit::panther{
 
 		const BaseType::Array::ID new_array = this->arrays.emplace_back(lookup_func);
 		return BaseType::ID(BaseType::Kind::ARRAY, new_array.get());
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// array deducer
+
+	auto TypeManager::getArrayDeducer(BaseType::ArrayDeducer::ID id) const -> const BaseType::ArrayDeducer& {
+		const auto lock = std::scoped_lock(this->array_deducers_lock);
+		return this->array_deducers[id];
+	}
+
+	auto TypeManager::getOrCreateArrayDeducer(BaseType::ArrayDeducer&& lookup_func) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->array_deducers_lock);
+
+		for(uint32_t i = 0; i < this->array_deducers.size(); i+=1){
+			if(this->array_deducers[BaseType::ArrayDeducer::ID(i)] == lookup_func){
+				return BaseType::ID(BaseType::Kind::ARRAY_DEDUCER, i);
+			}
+		}
+
+		const BaseType::ArrayDeducer::ID new_array_deducer = this->array_deducers.emplace_back(lookup_func);
+		return BaseType::ID(BaseType::Kind::ARRAY_DEDUCER, new_array_deducer.get());
 	}
 
 
@@ -1058,6 +1198,10 @@ namespace pcit::panther{
 				return this->isTypeDeducer(array_type.elementTypeID);
 			} break;
 
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				return true;
+			} break;
+
 			case BaseType::Kind::ARRAY_REF: {
 				const BaseType::ArrayRef& array_ref_type = this->getArrayRef(type_info.baseTypeID().arrayRefID());
 				return this->isTypeDeducer(array_ref_type.elementTypeID);
@@ -1194,13 +1338,18 @@ namespace pcit::panther{
 				const BaseType::Array& array = this->getArray(id.arrayID());
 				const uint64_t elem_size = this->numBytes(array.elementTypeID);
 
-				if(array.terminator.has_value()){ return elem_size * array.dimensions.back() + 1; }
+				if(array.terminator.has_value()){ return elem_size * (array.dimensions.back() + 1); }
 
 				uint64_t output = elem_size;
 				for(uint64_t dimension : array.dimensions){
 					output *= dimension;
 				}
 				return add_padding_bytes_if_needed(output, include_padding);
+			} break;
+
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of array deducer");
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
@@ -1394,6 +1543,11 @@ namespace pcit::panther{
 				return this->numBytes(id) * 8;
 			} break;
 
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of array deducer");
+			} break;
+
 			case BaseType::Kind::ARRAY_REF: {
 				const BaseType::ArrayRef& arr_ref = this->getArrayRef(id.arrayRefID());
 
@@ -1568,7 +1722,8 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1656,7 +1811,8 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1746,7 +1902,8 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1831,7 +1988,8 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1913,7 +2071,8 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1998,7 +2157,8 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2084,7 +2244,8 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2168,7 +2329,8 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2254,7 +2416,8 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2340,7 +2503,8 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2424,7 +2588,8 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2510,7 +2675,8 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::TYPE_DEDUCER: case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2789,11 +2955,12 @@ namespace pcit::panther{
 	// TODO(PERF): optimize this function
 	auto TypeManager::getUnderlyingType(BaseType::ID id) -> TypeInfo::ID {
 		switch(id.kind()){
-			case BaseType::Kind::DUMMY:     evo::debugFatalBreak("Dummy type should not be used");
-			case BaseType::Kind::PRIMITIVE: break;
-			case BaseType::Kind::FUNCTION:  return this->getOrCreateTypeInfo(TypeInfo(id));
-			case BaseType::Kind::ARRAY:     return this->getOrCreateTypeInfo(TypeInfo(id));
-			case BaseType::Kind::ARRAY_REF: return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::DUMMY:         evo::debugFatalBreak("Dummy type should not be used");
+			case BaseType::Kind::PRIMITIVE:     break;
+			case BaseType::Kind::FUNCTION:      return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ARRAY:         return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ARRAY_DEDUCER: evo::debugFatalBreak("Cannot get underlying type of this kind");
+			case BaseType::Kind::ARRAY_REF:      return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");

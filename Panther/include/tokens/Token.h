@@ -30,8 +30,8 @@ namespace pcit::panther{
 				IDENT,
 				INTRINSIC,
 				ATTRIBUTE,
-				TYPE_DEDUCER,
-				ANONYMOUS_TYPE_DEDUCER,
+				DEDUCER,
+				ANONYMOUS_DEDUCER,
 
 				
 				///////////////////////////////////
@@ -289,7 +289,7 @@ namespace pcit::panther{
 					|| this->_kind == Kind::IDENT 
 					|| this->_kind == Kind::INTRINSIC
 					|| this->_kind == Kind::ATTRIBUTE
-					|| this->_kind == Kind::TYPE_DEDUCER,
+					|| this->_kind == Kind::DEDUCER,
 					"Token does not have a string value"
 				);
 
@@ -319,7 +319,7 @@ namespace pcit::panther{
 
 
 				// length 2
-				if(op_str == "$$"){ return Kind::ANONYMOUS_TYPE_DEDUCER; }
+				if(op_str == "$$"){ return Kind::ANONYMOUS_DEDUCER; }
 				if(op_str == "->"){ return Kind::RIGHT_ARROW; }
 				if(op_str == "&|"){ return Kind::READ_ONLY_ADDRESS_OF; }
 
@@ -400,204 +400,204 @@ namespace pcit::panther{
 
 			EVO_NODISCARD static auto printKind(Kind kind) -> std::string_view {
 				switch(kind){
-					break; case Kind::NONE:                     return "{{NONE}}";
+					break; case Kind::NONE:                  return "{{NONE}}";
 
-					break; case Kind::IDENT:                    return "IDENT";
-					break; case Kind::INTRINSIC:                return "INTRINSIC";
-					break; case Kind::ATTRIBUTE:                return "ATTRIBUTE";
-					break; case Kind::TYPE_DEDUCER:             return "TYPE_DEDUCER";
-					break; case Kind::ANONYMOUS_TYPE_DEDUCER:   return "$$";
+					break; case Kind::IDENT:                 return "IDENT";
+					break; case Kind::INTRINSIC:             return "INTRINSIC";
+					break; case Kind::ATTRIBUTE:             return "ATTRIBUTE";
+					break; case Kind::DEDUCER:               return "DEDUCER";
+					break; case Kind::ANONYMOUS_DEDUCER:     return "$$";
 
 
 					///////////////////////////////////
 					// literals
 
-					break; case Kind::LITERAL_INT:              return "LITERAL_INT";
-					break; case Kind::LITERAL_FLOAT:            return "LITERAL_FLOAT";
-					break; case Kind::LITERAL_BOOL:             return "LITERAL_BOOL";
-					break; case Kind::LITERAL_STRING:           return "LITERAL_STRING";
-					break; case Kind::LITERAL_CHAR:             return "LITERAL_CHAR";
+					break; case Kind::LITERAL_INT:           return "LITERAL_INT";
+					break; case Kind::LITERAL_FLOAT:         return "LITERAL_FLOAT";
+					break; case Kind::LITERAL_BOOL:          return "LITERAL_BOOL";
+					break; case Kind::LITERAL_STRING:        return "LITERAL_STRING";
+					break; case Kind::LITERAL_CHAR:          return "LITERAL_CHAR";
 
 
 
 					///////////////////////////////////
 					// types
 
-					break; case Kind::TYPE_VOID:                return "Void";
-					break; case Kind::TYPE_TYPE:                return "Type";
-					break; case Kind::TYPE_THIS:                return "This";
+					break; case Kind::TYPE_VOID:             return "Void";
+					break; case Kind::TYPE_TYPE:             return "Type";
+					break; case Kind::TYPE_THIS:             return "This";
 
-					break; case Kind::TYPE_INT:                 return "Int";
-					break; case Kind::TYPE_ISIZE:               return "ISize";
-					break; case Kind::TYPE_I_N:                 return "I{n}";
+					break; case Kind::TYPE_INT:              return "Int";
+					break; case Kind::TYPE_ISIZE:            return "ISize";
+					break; case Kind::TYPE_I_N:              return "I{n}";
 
-					break; case Kind::TYPE_UINT:                return "UInt";
-					break; case Kind::TYPE_USIZE:               return "USize";
-					break; case Kind::TYPE_UI_N:                return "UI{n}";
+					break; case Kind::TYPE_UINT:             return "UInt";
+					break; case Kind::TYPE_USIZE:            return "USize";
+					break; case Kind::TYPE_UI_N:             return "UI{n}";
 
-					break; case Kind::TYPE_F16:                 return "F16";
-					break; case Kind::TYPE_BF16:                return "BF16";
-					break; case Kind::TYPE_F32:                 return "F32";
-					break; case Kind::TYPE_F64:                 return "F64";
-					break; case Kind::TYPE_F80:                 return "F80";
-					break; case Kind::TYPE_F128:                return "F128";
+					break; case Kind::TYPE_F16:              return "F16";
+					break; case Kind::TYPE_BF16:             return "BF16";
+					break; case Kind::TYPE_F32:              return "F32";
+					break; case Kind::TYPE_F64:              return "F64";
+					break; case Kind::TYPE_F80:              return "F80";
+					break; case Kind::TYPE_F128:             return "F128";
 
-					break; case Kind::TYPE_BYTE:                return "Byte";
-					break; case Kind::TYPE_BOOL:                return "Bool";
-					break; case Kind::TYPE_CHAR:                return "Char";
-					break; case Kind::TYPE_RAWPTR:              return "RawPtr";
-					break; case Kind::TYPE_TYPEID:              return "TypeID";
+					break; case Kind::TYPE_BYTE:             return "Byte";
+					break; case Kind::TYPE_BOOL:             return "Bool";
+					break; case Kind::TYPE_CHAR:             return "Char";
+					break; case Kind::TYPE_RAWPTR:           return "RawPtr";
+					break; case Kind::TYPE_TYPEID:           return "TypeID";
 
 					// C compatibility
-					break; case Kind::TYPE_C_WCHAR:             return "CWChar";
-					break; case Kind::TYPE_C_SHORT:             return "CShort";
-					break; case Kind::TYPE_C_USHORT:            return "CUShort";
-					break; case Kind::TYPE_C_INT:               return "CInt";
-					break; case Kind::TYPE_C_UINT:              return "CUInt";
-					break; case Kind::TYPE_C_LONG:              return "CLong";
-					break; case Kind::TYPE_C_ULONG:             return "CULong";
-					break; case Kind::TYPE_C_LONG_LONG:         return "CLongLong";
-					break; case Kind::TYPE_C_ULONG_LONG:        return "CULongLong";
-					break; case Kind::TYPE_C_LONG_DOUBLE:       return "CLongDouble";
+					break; case Kind::TYPE_C_WCHAR:          return "CWChar";
+					break; case Kind::TYPE_C_SHORT:          return "CShort";
+					break; case Kind::TYPE_C_USHORT:         return "CUShort";
+					break; case Kind::TYPE_C_INT:            return "CInt";
+					break; case Kind::TYPE_C_UINT:           return "CUInt";
+					break; case Kind::TYPE_C_LONG:           return "CLong";
+					break; case Kind::TYPE_C_ULONG:          return "CULong";
+					break; case Kind::TYPE_C_LONG_LONG:      return "CLongLong";
+					break; case Kind::TYPE_C_ULONG_LONG:     return "CULongLong";
+					break; case Kind::TYPE_C_LONG_DOUBLE:    return "CLongDouble";
 
 
 					///////////////////////////////////
 					// keywords
 
-					break; case Kind::KEYWORD_VAR:              return "var";
-					break; case Kind::KEYWORD_CONST:            return "const";
-					break; case Kind::KEYWORD_DEF:              return "def";
-					break; case Kind::KEYWORD_FUNC:             return "func";
-					break; case Kind::KEYWORD_ALIAS:            return "alias";
-					break; case Kind::KEYWORD_TYPE:             return "type";
-					break; case Kind::KEYWORD_STRUCT:           return "struct";
-					break; case Kind::KEYWORD_INTERFACE:        return "interface";
-					break; case Kind::KEYWORD_IMPL:             return "impl";
-					break; case Kind::KEYWORD_UNION:            return "union";
-					break; case Kind::KEYWORD_ENUM:             return "enum";
+					break; case Kind::KEYWORD_VAR:           return "var";
+					break; case Kind::KEYWORD_CONST:         return "const";
+					break; case Kind::KEYWORD_DEF:           return "def";
+					break; case Kind::KEYWORD_FUNC:          return "func";
+					break; case Kind::KEYWORD_ALIAS:         return "alias";
+					break; case Kind::KEYWORD_TYPE:          return "type";
+					break; case Kind::KEYWORD_STRUCT:        return "struct";
+					break; case Kind::KEYWORD_INTERFACE:     return "interface";
+					break; case Kind::KEYWORD_IMPL:          return "impl";
+					break; case Kind::KEYWORD_UNION:         return "union";
+					break; case Kind::KEYWORD_ENUM:          return "enum";
 
-					break; case Kind::KEYWORD_RETURN:           return "return";
-					break; case Kind::KEYWORD_ERROR:            return "error";
-					break; case Kind::KEYWORD_UNREACHABLE:      return "unreachable";
-					break; case Kind::KEYWORD_BREAK:            return "break";
-					break; case Kind::KEYWORD_CONTINUE:         return "continue";
+					break; case Kind::KEYWORD_RETURN:        return "return";
+					break; case Kind::KEYWORD_ERROR:         return "error";
+					break; case Kind::KEYWORD_UNREACHABLE:   return "unreachable";
+					break; case Kind::KEYWORD_BREAK:         return "break";
+					break; case Kind::KEYWORD_CONTINUE:      return "continue";
 
-					break; case Kind::KEYWORD_NULL:             return "null";
-					break; case Kind::KEYWORD_UNINIT:           return "uninit";
-					break; case Kind::KEYWORD_ZEROINIT:         return "zeroinit";
-					break; case Kind::KEYWORD_THIS:             return "this";
+					break; case Kind::KEYWORD_NULL:          return "null";
+					break; case Kind::KEYWORD_UNINIT:        return "uninit";
+					break; case Kind::KEYWORD_ZEROINIT:      return "zeroinit";
+					break; case Kind::KEYWORD_THIS:          return "this";
 
-					break; case Kind::KEYWORD_READ:             return "read";
-					break; case Kind::KEYWORD_MUT:              return "mut";
-					break; case Kind::KEYWORD_IN:               return "in";
+					break; case Kind::KEYWORD_READ:          return "read";
+					break; case Kind::KEYWORD_MUT:           return "mut";
+					break; case Kind::KEYWORD_IN:            return "in";
 
-					break; case Kind::KEYWORD_COPY:             return "copy";
-					break; case Kind::KEYWORD_MOVE:             return "move";
-					break; case Kind::KEYWORD_FORWARD:          return "forward";
-					break; case Kind::KEYWORD_NEW:              return "new";
-					break; case Kind::KEYWORD_DELETE:           return "delete";
-					break; case Kind::KEYWORD_AS:               return "as";
+					break; case Kind::KEYWORD_COPY:          return "copy";
+					break; case Kind::KEYWORD_MOVE:          return "move";
+					break; case Kind::KEYWORD_FORWARD:       return "forward";
+					break; case Kind::KEYWORD_NEW:           return "new";
+					break; case Kind::KEYWORD_DELETE:        return "delete";
+					break; case Kind::KEYWORD_AS:            return "as";
 
-					break; case Kind::KEYWORD_IF:               return "if";
-					break; case Kind::KEYWORD_ELSE:             return "else";
-					break; case Kind::KEYWORD_WHEN:             return "when";
-					break; case Kind::KEYWORD_WHILE:            return "while";
-					break; case Kind::KEYWORD_DEFER:            return "defer";
-					break; case Kind::KEYWORD_ERROR_DEFER:      return "errorDefer";
+					break; case Kind::KEYWORD_IF:            return "if";
+					break; case Kind::KEYWORD_ELSE:          return "else";
+					break; case Kind::KEYWORD_WHEN:          return "when";
+					break; case Kind::KEYWORD_WHILE:         return "while";
+					break; case Kind::KEYWORD_DEFER:         return "defer";
+					break; case Kind::KEYWORD_ERROR_DEFER:   return "errorDefer";
 
-					break; case Kind::KEYWORD_TRY:              return "try";
+					break; case Kind::KEYWORD_TRY:           return "try";
 
 
 
 					///////////////////////////////////
 					// operators
 
-					break; case Kind::RIGHT_ARROW:              return "->";
-					break; case Kind::UNDERSCORE:               return "_";
-					break; case Kind::ELLIPSIS:                 return "...";
-					break; case Kind::READ_ONLY_ADDRESS_OF:     return "&|";
+					break; case Kind::RIGHT_ARROW:           return "->";
+					break; case Kind::UNDERSCORE:            return "_";
+					break; case Kind::ELLIPSIS:              return "...";
+					break; case Kind::READ_ONLY_ADDRESS_OF:  return "&|";
 
 
 					// assignment
-					break; case Kind::ASSIGN:                   return "=";
-					break; case Kind::ASSIGN_ADD:               return "+=";
-					break; case Kind::ASSIGN_ADD_WRAP:          return "+%=";
-					break; case Kind::ASSIGN_ADD_SAT:           return "+|=";
-					break; case Kind::ASSIGN_SUB:               return "-=";
-					break; case Kind::ASSIGN_SUB_WRAP:          return "-%=";
-					break; case Kind::ASSIGN_SUB_SAT:           return "-|=";
-					break; case Kind::ASSIGN_MUL:               return "*=";
-					break; case Kind::ASSIGN_MUL_WRAP:          return "*%=";
-					break; case Kind::ASSIGN_MUL_SAT:           return "*|=";
-					break; case Kind::ASSIGN_DIV:               return "/=";
-					break; case Kind::ASSIGN_MOD:               return "%=";
-					break; case Kind::ASSIGN_SHIFT_LEFT:        return "<<=";
-					break; case Kind::ASSIGN_SHIFT_LEFT_SAT:    return "<<|=";
-					break; case Kind::ASSIGN_SHIFT_RIGHT:       return ">>=";
-					break; case Kind::ASSIGN_BITWISE_AND:       return "&=";
-					break; case Kind::ASSIGN_BITWISE_OR:        return "|=";
-					break; case Kind::ASSIGN_BITWISE_XOR:       return "^=";
+					break; case Kind::ASSIGN:                return "=";
+					break; case Kind::ASSIGN_ADD:            return "+=";
+					break; case Kind::ASSIGN_ADD_WRAP:       return "+%=";
+					break; case Kind::ASSIGN_ADD_SAT:        return "+|=";
+					break; case Kind::ASSIGN_SUB:            return "-=";
+					break; case Kind::ASSIGN_SUB_WRAP:       return "-%=";
+					break; case Kind::ASSIGN_SUB_SAT:        return "-|=";
+					break; case Kind::ASSIGN_MUL:            return "*=";
+					break; case Kind::ASSIGN_MUL_WRAP:       return "*%=";
+					break; case Kind::ASSIGN_MUL_SAT:        return "*|=";
+					break; case Kind::ASSIGN_DIV:            return "/=";
+					break; case Kind::ASSIGN_MOD:            return "%=";
+					break; case Kind::ASSIGN_SHIFT_LEFT:     return "<<=";
+					break; case Kind::ASSIGN_SHIFT_LEFT_SAT: return "<<|=";
+					break; case Kind::ASSIGN_SHIFT_RIGHT:    return ">>=";
+					break; case Kind::ASSIGN_BITWISE_AND:    return "&=";
+					break; case Kind::ASSIGN_BITWISE_OR:     return "|=";
+					break; case Kind::ASSIGN_BITWISE_XOR:    return "^=";
 
 					// arithmetic
-					break; case Kind::PLUS:                     return "+";
-					break; case Kind::ADD_WRAP:                 return "+%";
-					break; case Kind::ADD_SAT:                  return "+|";
-					break; case Kind::MINUS:                    return "-";
-					break; case Kind::SUB_WRAP:                 return "-%";
-					break; case Kind::SUB_SAT:                  return "-|";
-					break; case Kind::ASTERISK:                 return "*";
-					break; case Kind::MUL_WRAP:                 return "*%";
-					break; case Kind::MUL_SAT:                  return "*|";
-					break; case Kind::FORWARD_SLASH:            return "/";
-					break; case Kind::MOD:                      return "%";
+					break; case Kind::PLUS:                  return "+";
+					break; case Kind::ADD_WRAP:              return "+%";
+					break; case Kind::ADD_SAT:               return "+|";
+					break; case Kind::MINUS:                 return "-";
+					break; case Kind::SUB_WRAP:              return "-%";
+					break; case Kind::SUB_SAT:               return "-|";
+					break; case Kind::ASTERISK:              return "*";
+					break; case Kind::MUL_WRAP:              return "*%";
+					break; case Kind::MUL_SAT:               return "*|";
+					break; case Kind::FORWARD_SLASH:         return "/";
+					break; case Kind::MOD:                   return "%";
 
 					// logical
-					break; case Kind::EQUAL:                    return "==";
-					break; case Kind::NOT_EQUAL:                return "!=";
-					break; case Kind::LESS_THAN:                return "<";
-					break; case Kind::LESS_THAN_EQUAL:          return "<=";
-					break; case Kind::GREATER_THAN:             return ">";
-					break; case Kind::GREATER_THAN_EQUAL:       return ">=";
+					break; case Kind::EQUAL:                 return "==";
+					break; case Kind::NOT_EQUAL:             return "!=";
+					break; case Kind::LESS_THAN:             return "<";
+					break; case Kind::LESS_THAN_EQUAL:       return "<=";
+					break; case Kind::GREATER_THAN:          return ">";
+					break; case Kind::GREATER_THAN_EQUAL:    return ">=";
 
 					// logical
-					break; case Kind::NOT:                      return "!";
-					break; case Kind::AND:                      return "&&";
-					break; case Kind::OR:                       return "||";
+					break; case Kind::NOT:                   return "!";
+					break; case Kind::AND:                   return "&&";
+					break; case Kind::OR:                    return "||";
 					
 					// bitwise
-					break; case Kind::SHIFT_LEFT:               return "<<";
-					break; case Kind::SHIFT_LEFT_SAT:           return "<<|";
-					break; case Kind::SHIFT_RIGHT:              return ">>";
-					break; case Kind::BITWISE_AND:              return "&";
-					break; case Kind::BITWISE_OR:               return "|";
-					break; case Kind::BITWISE_XOR:              return "^";
-					break; case Kind::BITWISE_NOT:              return "~";
+					break; case Kind::SHIFT_LEFT:            return "<<";
+					break; case Kind::SHIFT_LEFT_SAT:        return "<<|";
+					break; case Kind::SHIFT_RIGHT:           return ">>";
+					break; case Kind::BITWISE_AND:           return "&";
+					break; case Kind::BITWISE_OR:            return "|";
+					break; case Kind::BITWISE_XOR:           return "^";
+					break; case Kind::BITWISE_NOT:           return "~";
 
 					// Accessors
-					break; case Kind::ACCESSOR:                 return ".";
-					break; case Kind::DEREFERENCE:              return ".*";
-					break; case Kind::UNWRAP:                   return ".?";
+					break; case Kind::ACCESSOR:              return ".";
+					break; case Kind::DEREFERENCE:           return ".*";
+					break; case Kind::UNWRAP:                return ".?";
 
 					// templates
-					break; case Kind::OPEN_TEMPLATE:            return "<{";
-					break; case Kind::CLOSE_TEMPLATE:           return "}>";
+					break; case Kind::OPEN_TEMPLATE:         return "<{";
+					break; case Kind::CLOSE_TEMPLATE:        return "}>";
 
 
 
 					///////////////////////////////////
 					// punctuation
 
-					break; case Kind::OPEN_PAREN:               return "(";
-					break; case Kind::CLOSE_PAREN:              return ")";
-					break; case Kind::OPEN_BRACKET:             return "[";
-					break; case Kind::CLOSE_BRACKET:            return "]";
-					break; case Kind::OPEN_BRACE:               return "{";
-					break; case Kind::CLOSE_BRACE:              return "}";
-					break; case Kind::COMMA:                    return ",";
-					break; case Kind::SEMICOLON:                return ";";
-					break; case Kind::COLON:                    return ":";
-					break; case Kind::QUESTION_MARK:            return "?";
-					break; case Kind::DOUBLE_FORWARD_SLASH:     return "//";
+					break; case Kind::OPEN_PAREN:            return "(";
+					break; case Kind::CLOSE_PAREN:           return ")";
+					break; case Kind::OPEN_BRACKET:          return "[";
+					break; case Kind::CLOSE_BRACKET:         return "]";
+					break; case Kind::OPEN_BRACE:            return "{";
+					break; case Kind::CLOSE_BRACE:           return "}";
+					break; case Kind::COMMA:                 return ",";
+					break; case Kind::SEMICOLON:             return ";";
+					break; case Kind::COLON:                 return ":";
+					break; case Kind::QUESTION_MARK:         return "?";
+					break; case Kind::DOUBLE_FORWARD_SLASH:  return "//";
 				}
 
 				evo::debugFatalBreak("Unknown or unsupported token kind ({})", evo::to_underlying(kind));

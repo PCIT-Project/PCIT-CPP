@@ -388,7 +388,7 @@ namespace pcit::panther{
 			case AST::Kind::TEMPLATE_PACK: case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:
 			case AST::Kind::INFIX:         case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:
 			case AST::Kind::NEW:           case AST::Kind::ARRAY_INIT_NEW:   case AST::Kind::DESIGNATED_INIT_NEW:
-			case AST::Kind::TRY_ELSE:      case AST::Kind::TYPE_DEDUCER:     case AST::Kind::ARRAY_TYPE:
+			case AST::Kind::TRY_ELSE:      case AST::Kind::DEDUCER:          case AST::Kind::ARRAY_TYPE:
 			case AST::Kind::TYPE:          case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
 			case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
 			case AST::Kind::INTRINSIC:     case AST::Kind::LITERAL:          case AST::Kind::UNINIT:
@@ -423,7 +423,7 @@ namespace pcit::panther{
 			if(type_id_res.isError()){ return evo::resultError; }
 
 
-			if(this->source.getASTBuffer().getType(*var_def.type).base.kind() == AST::Kind::TYPE_DEDUCER){
+			if(this->source.getASTBuffer().getType(*var_def.type).base.kind() == AST::Kind::DEDUCER){
 				decl_def_type_id = type_id_res.value();
 
 			}else if(var_def.kind != AST::VarDef::Kind::DEF){
@@ -727,13 +727,13 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case AST::Kind::TYPE_DEDUCER: {
+					case AST::Kind::DEDUCER: {
 						this->add_instruction(this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i));
 
-						const Token::ID deducer_token_id = this->source.getASTBuffer().getTypeDeducer(param_type.base);
+						const Token::ID deducer_token_id = this->source.getASTBuffer().getDeducer(param_type.base);
 						const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
 
-						if(deducer_token.kind() == Token::Kind::TYPE_DEDUCER){
+						if(deducer_token.kind() == Token::Kind::DEDUCER){
 							template_names.emplace(deducer_token.getString());
 						}
 					} break;
@@ -1316,20 +1316,42 @@ namespace pcit::panther{
 					auto dimensions = evo::SmallVector<SymbolProc::TermInfoID>();
 					dimensions.reserve(array_type.dimensions.size());
 					for(const std::optional<AST::Node>& dimension : array_type.dimensions){
-						const evo::Result<SymbolProc::TermInfoID> dimension_term_info =
-							this->analyze_expr<true>(*dimension);
+						if(dimension->kind() == AST::Kind::DEDUCER){
+							const SymbolProc::TermInfoID created_deducer = this->create_term_info();
+							this->add_instruction(
+								this->context.symbol_proc_manager.createExprDeducer(
+									this->source.getASTBuffer().getDeducer(*dimension), created_deducer
+								)
+							);
+							dimensions.emplace_back(created_deducer);
 
-						if(dimension_term_info.isError()){ return evo::resultError; }
-						dimensions.emplace_back(dimension_term_info.value());
+						}else{
+							const evo::Result<SymbolProc::TermInfoID> dimension_term_info =
+								this->analyze_expr<true>(*dimension);
+
+							if(dimension_term_info.isError()){ return evo::resultError; }
+							dimensions.emplace_back(dimension_term_info.value());
+						}
 					}
 
 					auto terminator = std::optional<SymbolProc::TermInfoID>();
 					if(array_type.terminator.has_value()){
-						const evo::Result<SymbolProc::TermInfoID> terminator_info = 
-							this->analyze_expr<true>(*array_type.terminator);
-						if(terminator_info.isError()){ return evo::resultError; }
+						if(array_type.terminator->kind() == AST::Kind::DEDUCER){
+							const SymbolProc::TermInfoID created_deducer = this->create_term_info();
+							this->add_instruction(
+								this->context.symbol_proc_manager.createExprDeducer(
+									this->source.getASTBuffer().getDeducer(*array_type.terminator), created_deducer
+								)
+							);
+							terminator = created_deducer;
 
-						terminator = terminator_info.value();
+						}else{
+							const evo::Result<SymbolProc::TermInfoID> terminator_info = 
+								this->analyze_expr<true>(*array_type.terminator);
+							if(terminator_info.isError()){ return evo::resultError; }
+
+							terminator = terminator_info.value();
+						}
 					}
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
@@ -1342,11 +1364,11 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case AST::Kind::TYPE_DEDUCER: {
+			case AST::Kind::DEDUCER: {
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 				this->add_instruction(
 					this->context.symbol_proc_manager.createTypeDeducer(
-						ast_buffer.getTypeDeducer(ast_type_base), new_term_info_id
+						ast_buffer.getDeducer(ast_type_base), new_term_info_id
 					)
 				);
 				return new_term_info_id;
@@ -1502,7 +1524,7 @@ namespace pcit::panther{
 			case AST::Kind::ARRAY_INIT_NEW:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::DESIGNATED_INIT_NEW:    evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TRY_ELSE:               evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::TYPE_DEDUCER:           evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::DEDUCER:                evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_TYPE:             evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE:                   evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPEID_CONVERTER:       evo::debugFatalBreak("Invalid statment");
@@ -2114,7 +2136,7 @@ namespace pcit::panther{
 				case AST::Kind::ZEROINIT:            return this->analyze_expr_zeroinit(ast_buffer.getZeroinit(expr));
 				case AST::Kind::THIS:                return this->analyze_expr_this(ast_buffer.getThis(expr));
 
-				case AST::Kind::TYPE_DEDUCER: {
+				case AST::Kind::DEDUCER: {
 					evo::debugFatalBreak("Type deducer should not be allowed in this context");
 				} break;
 
@@ -3345,13 +3367,21 @@ namespace pcit::panther{
 
 	auto SymbolProcBuilder::is_type_deducer(const AST::Type& type) const -> bool {
 		switch(type.base.kind()){
-			case AST::Kind::TYPE_DEDUCER: {
+			case AST::Kind::DEDUCER: {
 				return true;
 			} break;
 
 			case AST::Kind::ARRAY_TYPE: {
 				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(type.base);
-				return this->is_type_deducer(this->source.getASTBuffer().getType(array_type.elemType));
+
+				if(this->is_type_deducer(this->source.getASTBuffer().getType(array_type.elemType))){ return true; }
+
+				for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+					if(dimension.has_value() == false){ continue; }
+					if(dimension->kind() == AST::Kind::DEDUCER){ return true; }
+				}
+
+				return false;
 			} break;
 
 			default: {
@@ -3366,11 +3396,11 @@ namespace pcit::panther{
 		auto output = evo::SmallVector<std::string_view>();
 
 		switch(type.base.kind()){
-			case AST::Kind::TYPE_DEDUCER: {
-				const Token::ID deducer_token_id = this->source.getASTBuffer().getTypeDeducer(type.base);
+			case AST::Kind::DEDUCER: {
+				const Token::ID deducer_token_id = this->source.getASTBuffer().getDeducer(type.base);
 				const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
 
-				if(deducer_token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER){
+				if(deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER){
 					output.emplace_back(deducer_token.getString());
 				}
 			} break;

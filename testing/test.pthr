@@ -1,10 +1,14 @@
-def c_test = @importC("test.h");
+
+
+func get_array = () -> [Int:3;0] {
+	const arr: [Int:$$;$$] = new [Int:3;0][12, 14, 17];
+	return copy arr;
+}
+
 
 
 
 func entry = () #entry -> UI8 {
-	const ptr: RawPtr = c_test.malloc(4 as CULongLong);
-	c_test.free(copy ptr);
-
-	return @bitCast<{RawPtr, USize}>(ptr) as UI8;
+	def arr: [Int:$SIZE;$TERMINATOR] = get_array();
+	return TERMINATOR as UI8;
 }

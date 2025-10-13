@@ -32,6 +32,7 @@ namespace pcit::panther{
 
 			INITIALIZER, // uninit / zeroinit
 			NULL_VALUE,
+			EXPR_DEDUCER,
 			MODULE,
 			CLANG_MODULE,
 			BUILTIN_MODULE,
@@ -65,6 +66,7 @@ namespace pcit::panther{
 
 		struct InitializerType{};
 		struct NullType{};
+		struct ExprDeducerType{ Token::ID deducer_token_id; };
 		struct FluidType{};
 		struct TemplateDeclInstantiationType{};
 		struct ExceptParamPack{};
@@ -94,6 +96,7 @@ namespace pcit::panther{
 		using TypeID = evo::Variant<
 			InitializerType,                // INITIALIZER
 			NullType,                       // NULL_VALUE
+			ExprDeducerType,                // EXPR_DEDUCER
 			FluidType,                      // EPHEMERAL_FLUID
 			TemplateDeclInstantiationType,  // TEMPLATE_DECL_INSTANTIATION_TYPE
 			ExceptParamPack,                // EXCEPT_PARAM_PACK
@@ -250,6 +253,9 @@ namespace pcit::panther{
 					break; case ValueCategory::NULL_VALUE:
 						evo::debugAssert(this->type_id.is<NullType>(), "Incorrect TermInfo creation");
 
+					break; case ValueCategory::EXPR_DEDUCER:
+						evo::debugAssert(this->type_id.is<ExprDeducerType>(), "Incorrect TermInfo creation");
+
 					break; case ValueCategory::MODULE:
 						evo::debugAssert(this->type_id.is<SourceID>(), "Incorrect TermInfo creation");
 
@@ -300,7 +306,8 @@ namespace pcit::panther{
 
 			auto check_no_expr_construction() -> void {
 				evo::debugAssert(
-					this->value_category == ValueCategory::MODULE
+					this->value_category == ValueCategory::EXPR_DEDUCER
+					|| this->value_category == ValueCategory::MODULE
 					|| this->value_category == ValueCategory::CLANG_MODULE
 					|| this->value_category == ValueCategory::BUILTIN_MODULE
 					|| this->value_category == ValueCategory::TEMPLATE_TYPE

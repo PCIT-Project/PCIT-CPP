@@ -8,15 +8,19 @@ type Project = struct #pub {
 		return...;
 	}
 
-	// func create = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*] = ("".* as [Char:*])) #rt -> This {
-	// 	return new Project{
-	// 		_project_id = @buildCreateProject(path, forward warning_settings),
-	// 	};
+	// func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:$$;'\0']*|) #rt -> (output: This) {
+	// 	output = new Project(forward warning_settings, path.* as [Char:*|]);
+	// 	return...;
 	// }
+
 
 
 	func addSourceFile = (this, path: [Char:*|]) #rt -> Void {
 		@buildAddSourceFile(path, this._project_id);
+	}
+
+	func addSourceFile = (this, path: [Char:$$;'\0']*|) #rt -> Void {
+		this.addSourceFile(path.* as [Char:*|]);
 	}
 	
 

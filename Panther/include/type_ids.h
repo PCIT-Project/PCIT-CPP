@@ -154,6 +154,10 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, ArrayID>::UniqueID; 
 	};
 
+	struct ArrayDeducerID : public core::UniqueID<uint32_t, struct ArrayDeducerID> {
+		using core::UniqueID<uint32_t, ArrayDeducerID>::UniqueID; 
+	};
+
 	struct ArrayRefID : public core::UniqueID<uint32_t, struct ArrayRefID> {
 		using core::UniqueID<uint32_t, ArrayRefID>::UniqueID; 
 	};
@@ -197,6 +201,196 @@ namespace pcit::panther::BaseType{
 }
 
 
+namespace pcit::core{
+	
+
+	template<>
+	struct OptionalInterface<panther::BaseType::PrimitiveID>{
+		static constexpr auto init(panther::BaseType::PrimitiveID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::PrimitiveID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::FunctionID>{
+		static constexpr auto init(panther::BaseType::FunctionID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::FunctionID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::ArrayID>{
+		static constexpr auto init(panther::BaseType::ArrayID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::ArrayID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::ArrayDeducerID>{
+		static constexpr auto init(panther::BaseType::ArrayDeducerID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::ArrayDeducerID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::ArrayRefID>{
+		static constexpr auto init(panther::BaseType::ArrayRefID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::ArrayRefID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::AliasID>{
+		static constexpr auto init(panther::BaseType::AliasID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::AliasID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::DistinctAliasID>{
+		static constexpr auto init(panther::BaseType::DistinctAliasID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::DistinctAliasID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::StructID>{
+		static constexpr auto init(panther::BaseType::StructID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::StructID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::StructTemplateID>{
+		static constexpr auto init(panther::BaseType::StructTemplateID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::StructTemplateID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::UnionID>{
+		static constexpr auto init(panther::BaseType::UnionID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::UnionID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::EnumID>{
+		static constexpr auto init(panther::BaseType::EnumID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::EnumID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::TypeDeducerID>{
+		static constexpr auto init(panther::BaseType::TypeDeducerID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::TypeDeducerID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::InterfaceID>{
+		static constexpr auto init(panther::BaseType::InterfaceID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::InterfaceID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::InterfaceImplInstantiationID>{
+		static constexpr auto init(panther::BaseType::InterfaceImplInstantiationID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::InterfaceImplInstantiationID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+
+
+}
+
+
 
 
 
@@ -209,6 +403,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::PrimitiveID>
+		: public pcit::core::Optional<pcit::panther::BaseType::PrimitiveID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::PrimitiveID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::PrimitiveID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::FunctionID>{
@@ -216,6 +420,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::FunctionID>
+		: public pcit::core::Optional<pcit::panther::BaseType::FunctionID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::FunctionID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::FunctionID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::ArrayID>{
@@ -223,6 +437,50 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::ArrayID>
+		: public pcit::core::Optional<pcit::panther::BaseType::ArrayID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::ArrayID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::ArrayID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::BaseType::ArrayDeducerID>{
+		auto operator()(const pcit::panther::BaseType::ArrayDeducerID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::BaseType::ArrayDeducerID>
+		: public pcit::core::Optional<pcit::panther::BaseType::ArrayDeducerID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::ArrayDeducerID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::ArrayDeducerID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::BaseType::ArrayRefID>{
+		auto operator()(const pcit::panther::BaseType::ArrayRefID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::BaseType::ArrayRefID>
+		: public pcit::core::Optional<pcit::panther::BaseType::ArrayRefID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::ArrayRefID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::ArrayRefID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::AliasID>{
@@ -230,6 +488,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::AliasID>
+		: public pcit::core::Optional<pcit::panther::BaseType::AliasID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::AliasID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::AliasID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::DistinctAliasID>{
@@ -237,6 +505,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::DistinctAliasID>
+		: public pcit::core::Optional<pcit::panther::BaseType::DistinctAliasID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::DistinctAliasID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::DistinctAliasID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::StructID>{
@@ -244,6 +522,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::StructID>
+		: public pcit::core::Optional<pcit::panther::BaseType::StructID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::StructID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::StructID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::StructTemplateID>{
@@ -251,6 +539,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::StructTemplateID>
+		: public pcit::core::Optional<pcit::panther::BaseType::StructTemplateID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::StructTemplateID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::StructTemplateID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::UnionID>{
@@ -258,6 +556,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::UnionID>
+		: public pcit::core::Optional<pcit::panther::BaseType::UnionID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::UnionID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::UnionID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::EnumID>{
@@ -265,6 +573,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::EnumID>
+		: public pcit::core::Optional<pcit::panther::BaseType::EnumID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::EnumID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::EnumID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::TypeDeducerID>{
@@ -272,6 +590,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::TypeDeducerID>
+		: public pcit::core::Optional<pcit::panther::BaseType::TypeDeducerID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::TypeDeducerID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::TypeDeducerID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::InterfaceID>{
@@ -279,6 +607,16 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::InterfaceID>
+		: public pcit::core::Optional<pcit::panther::BaseType::InterfaceID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::InterfaceID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::InterfaceID>::operator=;
+	};
+
+
 
 	template<>
 	struct hash<pcit::panther::BaseType::InterfaceImplInstantiationID>{
@@ -286,5 +624,15 @@ namespace std{
 			return hash<uint32_t>{}(id.get());
 		};
 	};
+	template<>
+	class optional<pcit::panther::BaseType::InterfaceImplInstantiationID>
+		: public pcit::core::Optional<pcit::panther::BaseType::InterfaceImplInstantiationID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::InterfaceImplInstantiationID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::InterfaceImplInstantiationID>::operator=;
+	};
+
+
 	
 }

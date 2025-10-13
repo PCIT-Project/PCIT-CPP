@@ -183,7 +183,7 @@ namespace pthr{
 					break; case panther::Token::Kind::IDENT:          return std::format(" {}", token.getString());
 					break; case panther::Token::Kind::INTRINSIC:      return std::format(" @{}", token.getString());
 					break; case panther::Token::Kind::ATTRIBUTE:      return std::format(" #{}", token.getString());
-					break; case panther::Token::Kind::TYPE_DEDUCER:   return std::format(" ${}", token.getString());
+					break; case panther::Token::Kind::DEDUCER:        return std::format(" ${}", token.getString());
 
 					break; case panther::Token::Kind::LITERAL_BOOL:   return std::format(" {}", token.getBool());
 					break; case panther::Token::Kind::LITERAL_INT:    return std::format(" {}", token.getInt());
@@ -1308,16 +1308,16 @@ namespace pthr{
 						this->printer.printMagenta("@{}", this->source.getTokenBuffer()[type_token_id].getString());
 					} break;
 
-					case panther::AST::Kind::TYPE_DEDUCER: {
-						const panther::Token::ID type_token_id = this->ast_buffer.getTypeDeducer(base_type);
+					case panther::AST::Kind::DEDUCER: {
+						const panther::Token::ID type_token_id = this->ast_buffer.getDeducer(base_type);
 						const panther::Token& type_token = this->source.getTokenBuffer()[type_token_id];
 
-						if(type_token.kind() == panther::Token::Kind::TYPE_DEDUCER){
+						if(type_token.kind() == panther::Token::Kind::DEDUCER){
 							this->printer.printMagenta("${}", type_token.getString());
 							
 						}else{
 							evo::debugAssert(
-								type_token.kind() == panther::Token::Kind::ANONYMOUS_TYPE_DEDUCER,
+								type_token.kind() == panther::Token::Kind::ANONYMOUS_DEDUCER,
 								"Unknown type deducer kind"
 							);
 							this->printer.printMagenta("$$");
@@ -1562,7 +1562,7 @@ namespace pthr{
 					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
 					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::ARRAY_TYPE:
 					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
-					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::TYPE_DEDUCER:
+					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
 					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;

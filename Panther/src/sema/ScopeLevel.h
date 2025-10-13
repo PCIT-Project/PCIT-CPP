@@ -79,34 +79,42 @@ namespace pcit::panther::sema{
 				bool isPub;
 			};
 
+			struct TemplateTypeParamFlag{};
 			struct TemplateTypeParam{
 				TypeInfoVoidableID typeID;
 				Token::ID location;
 			};
-			struct TemplateTypeParamFlag{}; // to differentiate which overload of addIdent
 
+			struct TemplateExprParamFlag{};
 			struct TemplateExprParam{
 				TypeInfoID typeID;
 				sema::Expr value;
 				Token::ID location;	
 			};
 
+			struct DeducedTypeFlag{};
 			struct DeducedType{
 				TypeInfoVoidableID typeID;
 				Token::ID location;
 			};
-			struct DeducedTypeFlag{}; // to differentiate which overload of addIdent
 
+			struct DeducedExprFlag{};
+			struct DeducedExpr{
+				TypeInfoID typeID;
+				sema::Expr value;
+				Token::ID location;
+			};
+
+			struct MemberVarFlag{};
 			struct MemberVar{
 				Token::ID location;
 			};
-			struct MemberVarFlag{};
 
+			struct UnionFieldFlag{};
 			struct UnionField{
 				Token::ID location;
 				uint32_t field_index;
 			};
-			struct UnionFieldFlag{};
 
 			using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
 
@@ -131,6 +139,7 @@ namespace pcit::panther::sema{
 				TemplateTypeParam,
 				TemplateExprParam,
 				DeducedType,
+				DeducedExpr,
 				MemberVar,
 				UnionField
 			>;
@@ -245,17 +254,31 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::EnumID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult;
+
+
+			//////////////////
+			// addIdent overloads that require selector flags
+
 			EVO_NODISCARD auto addIdent(
-				std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, TemplateTypeParamFlag
+				std::string_view ident, TemplateTypeParamFlag, TypeInfoVoidableID typeID, Token::ID location
 			) -> AddIdentResult;
-			EVO_NODISCARD auto addIdent(std::string_view ident, TypeInfoID typeID, sema::Expr value, Token::ID location)
-				-> AddIdentResult;
+
 			EVO_NODISCARD auto addIdent(
-				std::string_view ident, TypeInfoVoidableID typeID, Token::ID location, DeducedTypeFlag
+				std::string_view ident, TemplateExprParamFlag, TypeInfoID typeID, sema::Expr value, Token::ID location
 			) -> AddIdentResult;
-			EVO_NODISCARD auto addIdent(std::string_view ident, Token::ID location, MemberVarFlag) -> AddIdentResult;
+
 			EVO_NODISCARD auto addIdent(
-				std::string_view ident, Token::ID location, uint32_t field_index, UnionFieldFlag
+				std::string_view ident, DeducedTypeFlag, TypeInfoVoidableID typeID, Token::ID location
+			) -> AddIdentResult;
+
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident, DeducedExprFlag, TypeInfoID typeID, sema::Expr value, Token::ID location
+			) -> AddIdentResult;
+
+			EVO_NODISCARD auto addIdent(std::string_view ident, MemberVarFlag, Token::ID location) -> AddIdentResult;
+
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident, UnionFieldFlag, Token::ID location, uint32_t field_index
 			) -> AddIdentResult;
 
 

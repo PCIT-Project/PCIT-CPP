@@ -42,6 +42,7 @@ namespace pcit::panther{
 			PRIMITIVE,
 			FUNCTION,
 			ARRAY,
+			ARRAY_DEDUCER,
 			ARRAY_REF,
 			ALIAS,
 			DISTINCT_ALIAS,
@@ -69,12 +70,17 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto arrayID() const -> ArrayID {
-				evo::debugAssert(this->kind() == Kind::ARRAY, "not a Array");
+				evo::debugAssert(this->kind() == Kind::ARRAY, "not an Array");
 				return ArrayID(this->_id);
 			}
 
+			EVO_NODISCARD auto arrayDeducerID() const -> ArrayDeducerID {
+				evo::debugAssert(this->kind() == Kind::ARRAY_DEDUCER, "not an ArrayDeducer");
+				return ArrayDeducerID(this->_id);
+			}
+
 			EVO_NODISCARD auto arrayRefID() const -> ArrayRefID {
-				evo::debugAssert(this->kind() == Kind::ARRAY_REF, "not a ArrayRef");
+				evo::debugAssert(this->kind() == Kind::ARRAY_REF, "not an ArrayRef");
 				return ArrayRefID(this->_id);
 			}
 
@@ -137,6 +143,7 @@ namespace pcit::panther{
 			explicit ID(PrimitiveID id)                  : _kind(Kind::PRIMITIVE),                    _id(id.get()) {}
 			explicit ID(FunctionID id)                   : _kind(Kind::FUNCTION),                     _id(id.get()) {}
 			explicit ID(ArrayID id)                      : _kind(Kind::ARRAY),                        _id(id.get()) {}
+			explicit ID(ArrayDeducerID id)               : _kind(Kind::ARRAY_DEDUCER),                _id(id.get()) {}
 			explicit ID(ArrayRefID id)                   : _kind(Kind::ARRAY_REF),                    _id(id.get()) {}
 			explicit ID(AliasID id)                      : _kind(Kind::ALIAS),                        _id(id.get()) {}
 			explicit ID(DistinctAliasID id)              : _kind(Kind::DISTINCT_ALIAS),               _id(id.get()) {}
@@ -300,6 +307,8 @@ namespace pcit::panther{
 				return this->hasErrorReturnParams() && this->errorParams[0].ident.has_value();
 			}
 
+			EVO_NODISCARD auto isImplicitRVO(const class TypeManager& type_manager) const -> bool; // only if Panther
+
 			EVO_NODISCARD auto operator==(const Function&) const -> bool = default;
 		};
 
@@ -309,7 +318,7 @@ namespace pcit::panther{
 			
 			TypeInfoID elementTypeID;
 			evo::SmallVector<uint64_t> dimensions;
-			std::optional<core::GenericValue> terminator;
+			std::optional<core::GenericValue> terminator; // core::GenericValue not sema::Expr so its comparable
 
 			Array(
 				TypeInfoID elem_type_id,
@@ -323,6 +332,43 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto operator==(const Array&) const -> bool = default;
+		};
+
+
+		// Array type with deducer dimensions and/or terminator
+		struct ArrayDeducer{
+			using ID = ArrayDeducerID;
+
+			using Dimension = evo::Variant<uint64_t, Token::ID>; // Token::ID if it is a deducer
+
+			SourceID sourceID;
+			TypeInfoID elementTypeID;
+			evo::SmallVector<Dimension> dimensions;
+			evo::Variant<std::monostate, core::GenericValue, Token::ID> terminator; // Token::ID if it is a dedcuer
+
+			ArrayDeducer(
+				SourceID source_id,
+				TypeInfoID elem_type_id,
+				evo::SmallVector<Dimension>&& _dimensions,
+				evo::Variant<std::monostate, core::GenericValue, Token::ID>&& _terminator
+			) : 
+				sourceID(source_id),
+				elementTypeID(elem_type_id),
+				dimensions(std::move(_dimensions)),
+				terminator(std::move(_terminator))
+			{
+				evo::debugAssert(
+					!(this->dimensions.size() > 1 && this->terminator.is<std::monostate>() == false),
+					"multi-dimensional arrays cannot be terminated"
+				);
+			}
+
+			EVO_NODISCARD auto operator==(const ArrayDeducer& rhs) const -> bool { // IDK why default doesn't compile
+				return this->sourceID == rhs.sourceID
+					&& this->elementTypeID == rhs.elementTypeID
+					&& this->dimensions == rhs.dimensions
+					&& this->terminator == rhs.terminator;
+			}
 		};
 
 
@@ -816,6 +862,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getArray(BaseType::Array::ID id) const -> const BaseType::Array&;
 			EVO_NODISCARD auto getOrCreateArray(BaseType::Array&& lookup_type) -> BaseType::ID;
 
+			EVO_NODISCARD auto getArrayDeducer(BaseType::ArrayDeducer::ID id) const -> const BaseType::ArrayDeducer&;
+			EVO_NODISCARD auto getOrCreateArrayDeducer(BaseType::ArrayDeducer&& lookup_type) -> BaseType::ID;
+
 			EVO_NODISCARD auto getArrayRef(BaseType::ArrayRef::ID id) const -> const BaseType::ArrayRef&;
 			EVO_NODISCARD auto getOrCreateArrayRef(BaseType::ArrayRef&& lookup_type) -> BaseType::ID;
 
@@ -999,6 +1048,9 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::Array, BaseType::Array::ID> arrays{};
 			mutable core::SpinLock arrays_lock{};
+
+			core::LinearStepAlloc<BaseType::ArrayDeducer, BaseType::ArrayDeducer::ID> array_deducers{};
+			mutable core::SpinLock array_deducers_lock{};
 
 			core::LinearStepAlloc<BaseType::ArrayRef, BaseType::ArrayRef::ID> array_refs{};
 			mutable core::SpinLock array_refs_lock{};

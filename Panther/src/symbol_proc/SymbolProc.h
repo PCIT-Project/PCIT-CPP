@@ -899,6 +899,11 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct ExprDeducer{
+			Token::ID expr_deducer_token;
+			SymbolProcTermInfoID output;
+		};
+
 
 
 
@@ -1061,6 +1066,7 @@ namespace pcit::panther{
 			ZEROINIT,
 			THIS,
 			TYPE_DEDUCER,
+			EXPR_DEDUCER,
 		};
 
 

@@ -14,9 +14,9 @@ func entry = () #entry -> UI8 {
 		constexprIfCond              = true,
 	});
 
-	project.addSourceFile("test.pthr".* as [Char:*|]);
+	project.addSourceFile("test.pthr");
 	// project.addSourceFile("std_exp/std_exp.pthr".* as [Char:*|]);
-	@buildAddCHeaderFile("test.h".* as [Char:*|], true);
+	// @buildAddCHeaderFile("test.h".* as [Char:*|], true);
 	
 	return 0;
 }

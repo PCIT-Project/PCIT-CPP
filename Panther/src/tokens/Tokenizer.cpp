@@ -261,7 +261,7 @@ namespace pcit::panther{
 				this->char_stream.skip(1);
 
 			}else if(this->char_stream.peek() == '$'){
-				kind = Token::Kind::TYPE_DEDUCER;
+				kind = Token::Kind::DEDUCER;
 				this->char_stream.skip(1);
 
 			}else{

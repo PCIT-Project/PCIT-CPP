@@ -671,6 +671,9 @@ namespace pcit::panther{
 
 			case Instruction::Kind::TYPE_DEDUCER:
 				return this->instr_type_deducer(this->context.symbol_proc_manager.getTypeDeducer(instr));
+
+			case Instruction::Kind::EXPR_DEDUCER:
+				return this->instr_expr_deducer(this->context.symbol_proc_manager.getExprDeducer(instr));
 		}
 
 		evo::debugFatalBreak("Unknown SymbolProc::Instruction");
@@ -767,7 +770,7 @@ namespace pcit::panther{
 			}();
 
 			if(this->add_ident_to_scope(
-				var_ident, instr.var_def.ident, instr.var_def.ident, sema::ScopeLevel::MemberVarFlag{}
+				var_ident, instr.var_def.ident, sema::ScopeLevel::MemberVarFlag{}, instr.var_def.ident
 			).isError()){
 				return Result::ERROR;
 			}
@@ -1043,29 +1046,17 @@ namespace pcit::panther{
 
 			if(type_check_info.ok == false){ return Result::ERROR; }
 
-			if(type_check_info.deduced_types.empty() == false){
+			if(type_check_info.deduced_terms.empty() == false){
 				if(this->scope.isGlobalScope()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_TYPE_DEDUCER_IN_GLOBAL_VAR,
+						Diagnostic::Code::SEMA_DEDUCER_IN_GLOBAL_VAR,
 						*instr.var_def.type,
-						"Global variables cannot have type deducers"
+						"Global variables cannot have deducers"
 					);
 					return Result::ERROR;
 				}
 
-				for(const DeducedType& deduced_type : type_check_info.deduced_types){
-					if(
-						this->add_ident_to_scope(
-							this->source.getTokenBuffer()[deduced_type.tokenID].getString(),
-							deduced_type.tokenID,
-							deduced_type.typeID,
-							deduced_type.tokenID,
-							sema::ScopeLevel::DeducedTypeFlag{}
-						).isError()
-					){
-						return Result::ERROR;
-					}
-				}
+				if(this->add_deduced_terms_to_scope(type_check_info.deduced_terms).isError()){ return Result::ERROR; }
 			}
 
 		}
@@ -1169,7 +1160,7 @@ namespace pcit::panther{
 			}
 
 			if(this->add_ident_to_scope(
-				var_ident, instr.var_def.ident, instr.var_def.ident, sema::ScopeLevel::MemberVarFlag{}
+				var_ident, instr.var_def.ident, sema::ScopeLevel::MemberVarFlag{}, instr.var_def.ident
 			).isError()){
 				return Result::ERROR;
 			}
@@ -2500,7 +2491,7 @@ namespace pcit::panther{
 
 			const std::string_view ident_str = this->source.getTokenBuffer()[ast_field.ident].getString();
 			if(this->add_ident_to_scope(
-				ident_str, ast_field.ident, ast_field.ident, uint32_t(i), sema::ScopeLevel::UnionFieldFlag{}
+				ident_str, ast_field.ident, sema::ScopeLevel::UnionFieldFlag{}, ast_field.ident, uint32_t(i)
 			).isError()){
 				return Result::ERROR;
 			}
@@ -2741,12 +2732,12 @@ namespace pcit::panther{
 		const TypeInfo& param_type_info = this->context.getTypeManager().getTypeInfo(param_type.asTypeID());
 		if(param_type_info.isInterface()){ return Result::SUCCESS; }
 
-		const evo::Result<evo::SmallVector<DeducedType>> deduced_types = this->extract_type_deducers(
+		const evo::Result<evo::SmallVector<DeducedTerm>> deducers = this->extract_deducers(
 			param_type.asTypeID(),
 			*this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[instr.param_index]
 		);
 		
-		if(deduced_types.isError()){
+		if(deducers.isError()){
 			SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
 			func_info.instantiation->errored_reason = 
@@ -2756,20 +2747,7 @@ namespace pcit::panther{
 			return Result::FINISHED_EARLY;
 		}
 
-		for(const DeducedType& deduced_type : deduced_types.value()){
-			if(
-				this->add_ident_to_scope(
-					this->source.getTokenBuffer()[deduced_type.tokenID].getString(),
-					deduced_type.tokenID,
-					deduced_type.typeID,
-					deduced_type.tokenID,
-					sema::ScopeLevel::DeducedTypeFlag{}
-				).isError()
-			){
-				return Result::ERROR;
-			}
-		}
-
+		if(this->add_deduced_terms_to_scope(deducers.value()).isError()){ return Result::ERROR; }
 
 		return Result::SUCCESS;
 	}
@@ -4382,12 +4360,22 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_template_func_begin(const Instruction::TemplateFuncBegin& instr) -> Result {
 		if(this->source.getTokenBuffer()[instr.func_def.name].kind() != Token::Kind::IDENT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
-				instr.func_def.name,
-				"Operator overload cannot be a template"
-			);
-			return Result::ERROR;
+			if(instr.func_def.templatePack.has_value()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
+					instr.func_def.name,
+					"Operator overload cannot have a template parameter pack"
+				);
+				return Result::ERROR;
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.func_def.name,
+					"Operator overload that is templated without a template paramter pack is unimplemented"
+				);
+				return Result::ERROR;
+			}
 		}
 		
 
@@ -5150,18 +5138,7 @@ namespace pcit::panther{
 
 				if(type_check_info.ok == false){ return Result::ERROR; }
 
-				for(const DeducedType& deduced_type : type_check_info.deduced_types){
-					const std::string_view deduced_type_ident_str = 
-						this->source.getTokenBuffer()[deduced_type.tokenID].getString();
-
-					if(this->add_ident_to_scope(
-						deduced_type_ident_str,
-						deduced_type.tokenID,
-						deduced_type.typeID,
-						deduced_type.tokenID,
-						sema::ScopeLevel::DeducedTypeFlag{}
-					).isError()){ return Result::ERROR; }
-				}
+				if(this->add_deduced_terms_to_scope(type_check_info.deduced_terms).isError()){ return Result::ERROR; }
 			}
 
 		}else if(
@@ -8304,7 +8281,10 @@ namespace pcit::panther{
 			i += 1;
 		}
 
-		if(target_func_type.hasNamedReturns()){
+		const bool uses_rvo = target_func_type.hasNamedReturns() 
+			|| target_func_type.isImplicitRVO(this->context.getTypeManager());
+
+		if(uses_rvo){
 			jit_args.emplace_back(
 				core::GenericValue::createUninit(
 					this->context.getTypeManager().numBytes(target_func_type.returnParams[0].typeID.asTypeID())
@@ -8347,7 +8327,7 @@ namespace pcit::panther{
 			);
 
 
-			if(target_func_type.hasNamedReturns()){
+			if(uses_rvo){
 				run_result = std::move(jit_args.back());
 			}
 
@@ -10568,7 +10548,7 @@ namespace pcit::panther{
 
 
 		auto values = evo::SmallVector<sema::Expr>();
-		values.reserve(instr.values.size());
+		values.reserve(instr.values.size() + size_t(target_type.terminator.has_value()));
 
 		for(size_t i = 0; const SymbolProc::TermInfoID value_id : instr.values){
 			TermInfo& value = this->get_term_info(value_id);
@@ -10591,6 +10571,14 @@ namespace pcit::panther{
 			values.emplace_back(value.getExpr());
 
 			i += 1;
+		}
+
+		if(target_type.terminator.has_value()){
+			values.emplace_back(
+				this->generic_value_to_sema_expr(
+					*target_type.terminator, this->context.getTypeManager().getTypeInfo(target_type.elementTypeID)
+				)
+			);
 		}
 
 		const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
@@ -11818,9 +11806,9 @@ namespace pcit::panther{
 							instantiation_sema_scope,
 							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
+							sema::ScopeLevel::TemplateTypeParamFlag{},
 							arg.as<TypeInfo::VoidableID>(),
-							ast_template_pack.params[i].ident,
-							sema::ScopeLevel::TemplateTypeParamFlag{}
+							ast_template_pack.params[i].ident
 						);
 
 					}else{
@@ -11854,6 +11842,7 @@ namespace pcit::panther{
 							instantiation_sema_scope,
 							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
+							sema::ScopeLevel::TemplateExprParamFlag{},
 							expr_type_id,
 							arg.as<sema::Expr>(),
 							ast_template_pack.params[i].ident	
@@ -14168,94 +14157,239 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		auto dimensions = evo::SmallVector<uint64_t>();
-		dimensions.reserve(instr.dimensions.size());
-		for(size_t i = 0; const SymbolProc::TermInfoID& length_term_info_id : instr.dimensions){
-			TermInfo& length_term_info = this->get_term_info(length_term_info_id);
-
-			if(this->type_check<true, true>(
-				TypeManager::getTypeUSize(), length_term_info, "Array dimension", *instr.array_type.dimensions[i]
-			).ok == false){
-				return Result::ERROR;
+		const bool is_deducer = [&](){
+			for(const SymbolProc::TermInfoID& length_term_info_id : instr.dimensions){
+				if(this->get_term_info(length_term_info_id).value_category == TermInfo::ValueCategory::EXPR_DEDUCER){
+					return true;
+				}
 			}
 
-			dimensions.emplace_back(
-				static_cast<uint64_t>(
-					this->context.getSemaBuffer().getIntValue(length_term_info.getExpr().intValueID()).value
+			if(instr.terminator.has_value() == false){ return false; }
+			return this->get_term_info(*instr.terminator).value_category == TermInfo::ValueCategory::EXPR_DEDUCER;
+		}();
+
+
+		if(is_deducer){
+			auto dimensions = evo::SmallVector<BaseType::ArrayDeducer::Dimension>();
+			dimensions.reserve(instr.dimensions.size());
+
+			for(size_t i = 0; const SymbolProc::TermInfoID& length_term_info_id : instr.dimensions){
+				TermInfo& length_term_info = this->get_term_info(length_term_info_id);
+
+				if(length_term_info.value_category == TermInfo::ValueCategory::EXPR_DEDUCER){
+					dimensions.emplace_back(length_term_info.type_id.as<TermInfo::ExprDeducerType>().deducer_token_id);
+
+				}else{
+					if(this->type_check<true, true>(
+						TypeManager::getTypeUSize(),
+						length_term_info,
+						"Array dimension",
+						*instr.array_type.dimensions[i]
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					dimensions.emplace_back(
+						static_cast<uint64_t>(
+							this->context.getSemaBuffer().getIntValue(length_term_info.getExpr().intValueID()).value
+						)
+					);
+
+				}
+
+				i += 1;
+			}
+
+
+			auto terminator = evo::Variant<std::monostate, core::GenericValue, Token::ID>();
+			if(instr.terminator.has_value()){
+				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
+
+				if(terminator_term_info.value_category == TermInfo::ValueCategory::EXPR_DEDUCER){
+					terminator = terminator_term_info.type_id.as<TermInfo::ExprDeducerType>().deducer_token_id;
+					
+				}else{
+					if(this->type_check<true, true>(
+						elem_type.asTypeID(), terminator_term_info, "Array terminator", *instr.array_type.terminator
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					switch(terminator_term_info.getExpr().kind()){
+						case sema::Expr::Kind::INT_VALUE: {
+							terminator.emplace<core::GenericValue>(
+								evo::copy(
+									this->context.getSemaBuffer().getIntValue(
+										terminator_term_info.getExpr().intValueID()
+									).value
+								)
+							);
+						} break;
+
+						case sema::Expr::Kind::FLOAT_VALUE: {
+							terminator.emplace<core::GenericValue>(
+								evo::copy(
+									this->context.getSemaBuffer().getFloatValue(
+										terminator_term_info.getExpr().floatValueID()
+									).value
+								)
+							);
+						} break;
+
+						case sema::Expr::Kind::BOOL_VALUE: {
+							terminator.emplace<core::GenericValue>(
+								this->context.getSemaBuffer().getBoolValue(
+									terminator_term_info.getExpr().boolValueID()
+								).value
+							);
+						} break;
+
+						case sema::Expr::Kind::STRING_VALUE: {
+							terminator.emplace<core::GenericValue>(
+								this->context.getSemaBuffer().getStringValue(
+									terminator_term_info.getExpr().stringValueID()
+								).value
+							);
+						} break;
+
+						case sema::Expr::Kind::AGGREGATE_VALUE: {
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								*instr.array_type.terminator,
+								"Array terminators of aggregate types are unimplemented"
+							);
+							return Result::ERROR;
+						} break;
+
+						case sema::Expr::Kind::CHAR_VALUE: {
+							terminator.emplace<core::GenericValue>(
+								this->context.getSemaBuffer().getCharValue(
+									terminator_term_info.getExpr().charValueID()
+								).value
+							);
+						} break;
+
+						default: evo::debugAssert("Invalid terminator kind");
+					}
+				}
+			}
+
+
+			const BaseType::ID array_deducer_type = this->context.type_manager.getOrCreateArrayDeducer(
+				BaseType::ArrayDeducer(
+					this->source.getID(), elem_type.asTypeID(), std::move(dimensions), std::move(terminator)
 				)
 			);
 
-			i += 1;
-		}
 
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::TYPE,
+				TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_deducer_type)))
+			);
+			return Result::SUCCESS;
+			
+		}else{
+			auto dimensions = evo::SmallVector<uint64_t>();
+			dimensions.reserve(instr.dimensions.size());
+			for(size_t i = 0; const SymbolProc::TermInfoID& length_term_info_id : instr.dimensions){
+				TermInfo& length_term_info = this->get_term_info(length_term_info_id);
 
-		auto terminator = std::optional<core::GenericValue>();
-		if(instr.terminator.has_value()){
-			const TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
-
-			switch(terminator_term_info.getExpr().kind()){
-				case sema::Expr::Kind::INT_VALUE: {
-					terminator.emplace(
-						evo::copy(
-							this->context.getSemaBuffer().getIntValue(terminator_term_info.getExpr().intValueID()).value
-						)
-					);
-				} break;
-
-				case sema::Expr::Kind::FLOAT_VALUE: {
-					terminator.emplace(
-						evo::copy(
-							this->context.getSemaBuffer().getFloatValue(
-								terminator_term_info.getExpr().floatValueID()
-							).value
-						)
-					);
-				} break;
-
-				case sema::Expr::Kind::BOOL_VALUE: {
-					terminator.emplace(
-						this->context.getSemaBuffer().getBoolValue(terminator_term_info.getExpr().boolValueID()).value
-					);
-				} break;
-
-				case sema::Expr::Kind::STRING_VALUE: {
-					terminator.emplace(
-						this->context.getSemaBuffer().getStringValue(
-							terminator_term_info.getExpr().stringValueID()
-						).value
-					);
-				} break;
-
-				case sema::Expr::Kind::AGGREGATE_VALUE: {
-					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						*instr.array_type.terminator,
-						"Array terminators of aggregate types are unimplemented"
-					);
+				if(this->type_check<true, true>(
+					TypeManager::getTypeUSize(), length_term_info, "Array dimension", *instr.array_type.dimensions[i]
+				).ok == false){
 					return Result::ERROR;
-				} break;
+				}
 
-				case sema::Expr::Kind::CHAR_VALUE: {
-					terminator.emplace(
-						this->context.getSemaBuffer().getCharValue(terminator_term_info.getExpr().charValueID()).value
-					);
-				} break;
+				dimensions.emplace_back(
+					static_cast<uint64_t>(
+						this->context.getSemaBuffer().getIntValue(length_term_info.getExpr().intValueID()).value
+					)
+				);
 
-				default: evo::debugAssert("Invalid terminator kind");
+				i += 1;
 			}
+
+
+			auto terminator = std::optional<core::GenericValue>();
+			if(instr.terminator.has_value()){
+				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
+
+				if(this->type_check<true, true>(
+					elem_type.asTypeID(), terminator_term_info, "Array terminator", *instr.array_type.terminator
+				).ok == false){
+					return Result::ERROR;
+				}
+
+				switch(terminator_term_info.getExpr().kind()){
+					case sema::Expr::Kind::INT_VALUE: {
+						terminator.emplace(
+							evo::copy(
+								this->context.getSemaBuffer().getIntValue(
+									terminator_term_info.getExpr().intValueID()
+								).value
+							)
+						);
+					} break;
+
+					case sema::Expr::Kind::FLOAT_VALUE: {
+						terminator.emplace(
+							evo::copy(
+								this->context.getSemaBuffer().getFloatValue(
+									terminator_term_info.getExpr().floatValueID()
+								).value
+							)
+						);
+					} break;
+
+					case sema::Expr::Kind::BOOL_VALUE: {
+						terminator.emplace(
+							this->context.getSemaBuffer().getBoolValue(
+								terminator_term_info.getExpr().boolValueID()
+							).value
+						);
+					} break;
+
+					case sema::Expr::Kind::STRING_VALUE: {
+						terminator.emplace(
+							this->context.getSemaBuffer().getStringValue(
+								terminator_term_info.getExpr().stringValueID()
+							).value
+						);
+					} break;
+
+					case sema::Expr::Kind::AGGREGATE_VALUE: {
+						this->emit_error(
+							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							*instr.array_type.terminator,
+							"Array terminators of aggregate types are unimplemented"
+						);
+						return Result::ERROR;
+					} break;
+
+					case sema::Expr::Kind::CHAR_VALUE: {
+						terminator.emplace(
+							this->context.getSemaBuffer().getCharValue(
+								terminator_term_info.getExpr().charValueID()
+							).value
+						);
+					} break;
+
+					default: evo::debugAssert("Invalid terminator kind");
+				}
+			}
+
+
+			const BaseType::ID array_type = this->context.type_manager.getOrCreateArray(
+				BaseType::Array(elem_type.asTypeID(), std::move(dimensions), std::move(terminator))
+			);
+
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::TYPE,
+				TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_type)))
+			);
+			return Result::SUCCESS;
 		}
-
-
-		const BaseType::ID array_type = this->context.type_manager.getOrCreateArray(
-			BaseType::Array(elem_type.asTypeID(), std::move(dimensions), std::move(terminator))
-		);
-
-
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::TYPE,
-			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(array_type)))
-		);
-		return Result::SUCCESS;
 	}
 
 
@@ -14299,7 +14433,13 @@ namespace pcit::panther{
 
 		auto terminator = std::optional<core::GenericValue>();
 		if(instr.terminator.has_value()){
-			const TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
+			TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);	
+
+			if(this->type_check<true, true>(
+				elem_type.asTypeID(), terminator_term_info, "Array reference terminator", *instr.array_type.terminator
+			).ok == false){
+				return Result::ERROR;
+			}
 
 			switch(terminator_term_info.getExpr().kind()){
 				case sema::Expr::Kind::INT_VALUE: {
@@ -14693,6 +14833,14 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::TYPE,
 			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(new_type_deducer)))
+		);
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_expr_deducer(const Instruction::ExprDeducer& instr) -> Result {
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EXPR_DEDUCER,
+			TermInfo::ExprDeducerType{instr.expr_deducer_token}
 		);
 		return Result::SUCCESS;
 	}
@@ -17137,6 +17285,17 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::DeducedType>()){
 				return ReturnType(TermInfo(TermInfo::ValueCategory::TYPE, ident_id.typeID));
 
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::DeducedExpr>()){
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						ident_id.typeID,
+						ident_id.value
+					)
+				);
+
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::MemberVar>()){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 
@@ -17347,26 +17506,26 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:           case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:                 case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:              case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:             case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:        case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::INTRINSIC_FUNC:         case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                   case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
-			case sema::Expr::Kind::OPTIONAL_EXTRACT:       case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::UNION_ACCESSOR:         case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:             case sema::Expr::Kind::TRY_ELSE:
-			case sema::Expr::Kind::BLOCK_EXPR:             case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:     case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
-			case sema::Expr::Kind::INTERFACE_CALL:         case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE: case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:
-			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF: case sema::Expr::Kind::INIT_ARRAY_REF:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:      case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:   case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::UNION_TAG_CMP:          case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::MODULE_IDENT:          case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:             case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:            case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:       case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::INTRINSIC_FUNC:        case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::COPY:                  case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:               case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::OPTIONAL_EXTRACT:      case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::UNION_ACCESSOR:        case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:            case sema::Expr::Kind::TRY_ELSE:
+			case sema::Expr::Kind::BLOCK_EXPR:            case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:    case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+			case sema::Expr::Kind::INTERFACE_CALL:        case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:
+			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:     case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:  case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::UNION_TAG_CMP:         case sema::Expr::Kind::GLOBAL_VAR:
 			case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
@@ -19118,9 +19277,9 @@ namespace pcit::panther{
 							instantiation_sema_scope,
 							template_source.getTokenBuffer()[template_param_names[i]].getString(),
 							template_param_names[i],
+							sema::ScopeLevel::TemplateTypeParamFlag{},
 							instantiation_arg.as<TypeInfo::VoidableID>(),
-							template_param_names[i],
-							sema::ScopeLevel::TemplateTypeParamFlag{}
+							template_param_names[i]
 						);
 					}else{
 						const AST::TemplatePack& ast_template_pack =
@@ -19148,6 +19307,7 @@ namespace pcit::panther{
 							instantiation_sema_scope,
 							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
+							sema::ScopeLevel::TemplateExprParamFlag{},
 							expr_type_id,
 							instantiation_arg.as<sema::Expr>(),
 							ast_template_pack.params[i].ident	
@@ -19231,8 +19391,8 @@ namespace pcit::panther{
 				base_type_id = this->context.getTypeManager().getTypeInfo(looked_up_ident.asTypeID()).baseTypeID();
 			} break;
 
-			case AST::Kind::TYPE_DEDUCER: {
-				evo::unimplemented("Resolve Type (TYPE_DEDUCER)");
+			case AST::Kind::DEDUCER: {
+				evo::unimplemented("Resolve Type (DEDUCER)");
 			} break;
 
 			case AST::Kind::TEMPLATED_EXPR: {
@@ -19387,8 +19547,12 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				evo::debugFatalBreak("Function cannot return an array deducer");
+			} break;
+
 			case BaseType::Kind::ARRAY_REF: {
-				evo::unimplemented("BaseType::Kind::ARRAY_REF");
+				evo::unimplemented("BaseType::Kind::ARRAY_REF"); // TODO(FUTURE): handling underlying data???
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -19598,11 +19762,11 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::extract_type_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
-	-> evo::Result<evo::SmallVector<DeducedType>> {
+	auto SemanticAnalyzer::extract_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
+	-> evo::Result<evo::SmallVector<DeducedTerm>> {
 		const TypeManager& type_manager = this->context.getTypeManager();
 
-		auto output = evo::SmallVector<DeducedType>();
+		auto output = evo::SmallVector<DeducedTerm>();
 
 		const TypeInfo& deducer  = type_manager.getTypeInfo(deducer_id);
 		const TypeInfo& got_type = type_manager.getTypeInfo(got_type_id);
@@ -19629,7 +19793,7 @@ namespace pcit::panther{
 
 				const Token& type_deducer_token = this->source.getTokenBuffer()[type_deducer.identTokenID];
 
-				if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_TYPE_DEDUCER){
+				if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER){
 					return output;
 				}
 
@@ -19663,14 +19827,14 @@ namespace pcit::panther{
 				if(deducer_array_type.dimensions != got_array_type.dimensions){ return evo::resultError; }
 				if(deducer_array_type.terminator != got_array_type.terminator){ return evo::resultError; }
 
-				const evo::Result<evo::SmallVector<DeducedType>> arr_deduced_types = this->extract_type_deducers(
+				const evo::Result<evo::SmallVector<DeducedTerm>> arr_deduced = this->extract_deducers(
 					deducer_array_type.elementTypeID, got_array_type.elementTypeID
 				);
-				if(arr_deduced_types.isError()){ return evo::resultError; }
+				if(arr_deduced.isError()){ return evo::resultError; }
 
-				output.reserve(output.size() + arr_deduced_types.value().size());
-				for(const DeducedType& arr_deduced_type : arr_deduced_types.value()){
-					output.emplace_back(arr_deduced_type);
+				output.reserve(output.size() + arr_deduced.value().size());
+				for(const DeducedTerm& arr_deduced_term : arr_deduced.value()){
+					output.emplace_back(arr_deduced_term);
 				}
 			} break;
 
@@ -19686,21 +19850,148 @@ namespace pcit::panther{
 				if(deducer_array_ref_type.isReadOnly != got_array_ref_type.isReadOnly){ return evo::resultError; }
 				if(deducer_array_ref_type.terminator != got_array_ref_type.terminator){ return evo::resultError; }
 
-				const evo::Result<evo::SmallVector<DeducedType>> arr_deduced_types = this->extract_type_deducers(
+				const evo::Result<evo::SmallVector<DeducedTerm>> arr_deduced = this->extract_deducers(
 					deducer_array_ref_type.elementTypeID, got_array_ref_type.elementTypeID
 				);
-				if(arr_deduced_types.isError()){ return evo::resultError; }
+				if(arr_deduced.isError()){ return evo::resultError; }
 
-				output.reserve(output.size() + arr_deduced_types.value().size());
-				for(const DeducedType& arr_deduced_type : arr_deduced_types.value()){
-					output.emplace_back(arr_deduced_type);
+				output.reserve(output.size() + arr_deduced.value().size());
+				for(const DeducedTerm& arr_deduced_term : arr_deduced.value()){
+					output.emplace_back(arr_deduced_term);
 				}
 			} break;
 
-			default: break;
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				if(got_type.baseTypeID().kind() != BaseType::Kind::ARRAY){ return evo::resultError; }
+
+				const BaseType::ArrayDeducer& deducer_array_deducer_type = 
+					this->context.getTypeManager().getArrayDeducer(deducer.baseTypeID().arrayDeducerID());
+
+				const BaseType::Array& got_array_type = 
+					this->context.getTypeManager().getArray(got_type.baseTypeID().arrayID());
+
+				const evo::Result<evo::SmallVector<DeducedTerm>> arr_deduced = this->extract_deducers(
+					deducer_array_deducer_type.elementTypeID, got_array_type.elementTypeID
+				);
+				if(arr_deduced.isError()){ return evo::resultError; }
+
+				output.reserve(output.size() + arr_deduced.value().size());
+				for(const DeducedTerm& arr_deduced_term : arr_deduced.value()){
+					output.emplace_back(arr_deduced_term);
+				}
+
+
+				if(deducer_array_deducer_type.dimensions.size() != got_array_type.dimensions.size()){
+					return evo::resultError;
+				}
+
+				for(size_t i = 0; i < deducer_array_deducer_type.dimensions.size(); i+=1){
+					if(deducer_array_deducer_type.dimensions[i].is<uint64_t>()){
+						if(deducer_array_deducer_type.dimensions[i].as<uint64_t>() != got_array_type.dimensions[i]){
+							return evo::resultError;
+						}
+
+					}else{
+						const Token& deducer_token = 
+							this->source.getTokenBuffer()[deducer_array_deducer_type.dimensions[i].as<Token::ID>()];
+
+						if(deducer_token.kind() == Token::Kind::DEDUCER){
+							const sema::Expr created_int_value = sema::Expr(
+								this->context.sema_buffer.createIntValue(
+									core::GenericInt(
+										unsigned(this->context.getTypeManager().numBitsOfPtr()),
+										got_array_type.dimensions[i]
+									),
+									this->context.getTypeManager().getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+								)
+							);
+
+							output.emplace_back(
+								DeducedTerm::Expr(TypeManager::getTypeUSize(), created_int_value),
+								deducer_array_deducer_type.dimensions[i].as<Token::ID>()
+							);
+
+						}else{
+							evo::debugAssert(
+								deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown deducer kind"
+							);
+						}
+					}
+				}
+
+				if(deducer_array_deducer_type.terminator.is<std::monostate>()){
+					if(got_array_type.terminator.has_value()){ return evo::resultError; }
+
+				}else if(deducer_array_deducer_type.terminator.is<core::GenericValue>()){
+					if(deducer_array_deducer_type.terminator.as<core::GenericValue>() != *got_array_type.terminator){
+						return evo::resultError;
+					}
+
+				}else{
+					const Token& deducer_token = 
+						this->source.getTokenBuffer()[deducer_array_deducer_type.terminator.as<Token::ID>()];
+
+					if(deducer_token.kind() == Token::Kind::DEDUCER){
+						output.emplace_back(
+							DeducedTerm::Expr(
+								got_array_type.elementTypeID,
+								this->generic_value_to_sema_expr(
+									*got_array_type.terminator,
+									this->context.getTypeManager().getTypeInfo(got_array_type.elementTypeID)
+								)
+							),
+							deducer_array_deducer_type.terminator.as<Token::ID>()
+						);
+
+					}else{
+						evo::debugAssert(
+							deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown deducer kind"
+						);
+					}
+				}
+			} break;
+
+			default: {
+				if(deducer.baseTypeID() != got_type.baseTypeID()){ return evo::resultError; }
+			} break;
 		}
 
 		return output;
+	}
+
+
+	auto SemanticAnalyzer::add_deduced_terms_to_scope(evo::ArrayProxy<DeducedTerm> deduced_terms) -> evo::Result<> {
+		for(const DeducedTerm& deduced_term : deduced_terms){
+			if(deduced_term.value.is<TypeInfo::VoidableID>()){
+				if(
+					this->add_ident_to_scope(
+						this->source.getTokenBuffer()[deduced_term.tokenID].getString(),
+						deduced_term.tokenID,
+						sema::ScopeLevel::DeducedTypeFlag{},
+						deduced_term.value.as<TypeInfo::VoidableID>(),
+						deduced_term.tokenID
+					).isError()
+				){
+					return evo::resultError;
+				}
+
+			}else{
+				if(
+					this->add_ident_to_scope(
+						this->source.getTokenBuffer()[deduced_term.tokenID].getString(),
+						deduced_term.tokenID,
+						sema::ScopeLevel::DeducedExprFlag{},
+						deduced_term.value.as<DeducedTerm::Expr>().type_id,
+						deduced_term.value.as<DeducedTerm::Expr>().expr,
+						deduced_term.tokenID
+					).isError()
+				){
+					return evo::resultError;
+				}
+			}
+		}
+
+		return evo::Result<>();
 	}
 
 
@@ -20970,10 +21261,10 @@ namespace pcit::panther{
 
 
 					if(type_manager.isTypeDeducer(actual_expected_type_id)){
-						evo::Result<evo::SmallVector<DeducedType>> extracted_type_deducers
-							= this->extract_type_deducers(actual_expected_type_id, actual_got_type_id);
+						evo::Result<evo::SmallVector<DeducedTerm>> extracted_deducers
+							= this->extract_deducers(actual_expected_type_id, actual_got_type_id);
 
-						if(extracted_type_deducers.isError()){
+						if(extracted_deducers.isError()){
 							if constexpr(MAY_EMIT_ERROR){
 								// TODO(FUTURE): better messaging
 								this->emit_error(
@@ -20993,7 +21284,7 @@ namespace pcit::panther{
 							return TypeCheckInfo::fail();
 						}
 
-						return TypeCheckInfo::success(false, std::move(extracted_type_deducers.value()));
+						return TypeCheckInfo::success(false, std::move(extracted_deducers.value()));
 					}
 
 
@@ -21254,6 +21545,8 @@ namespace pcit::panther{
 								}
 							}
 
+							int_value.value = int_value.value.trunc(bit_width);
+
 						}else{
 							int_value.value = int_value.value.ext(target_min.getBitWidth(), is_unsigned);
 
@@ -21428,6 +21721,8 @@ namespace pcit::panther{
 				return TypeCheckInfo::success(true);
 			} break;
 
+			case TermInfo::ValueCategory::EXPR_DEDUCER:
+				evo::debugFatalBreak("EXPR_DEDUCER should not be compared with this function");
 
 			case TermInfo::ValueCategory::INITIALIZER:
 				evo::debugFatalBreak("INITIALIZER should not be compared with this function");
@@ -21804,6 +22099,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::NullType>()){	
 				return "{NULL}";
+
+			}else if constexpr(std::is_same<TypeID, TermInfo::ExprDeducerType>()){	
+				return "{EXPR DEDUCER}";
 				
 			}else if constexpr(std::is_same<TypeID, TermInfo::FluidType>()){
 				if(term_info.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
@@ -21819,7 +22117,7 @@ namespace pcit::panther{
 				return this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::BuiltinTypeMethod>()){
-				return "{BUILTIN_TYPE_METHOD}";
+				return "{BUILTIN TYPE METHOD}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::FuncOverloadList>()){
 				// TODO(FEATURE): actual name
@@ -21839,30 +22137,30 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<TypeID, ClangSource::ID>()){
 				// TODO(FEATURE): actual name?
-				return "{CLANG_MODULE}";
+				return "{CLANG MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, BuiltinModule::ID>()){
 				// TODO(FEATURE): actual name?
-				return "{BUILTIN_MODULE}";
+				return "{BUILTIN MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, sema::TemplatedStruct::ID>()){
 				// TODO(FEATURE): actual name
-				return "{TEMPLATED_STRUCT}";
+				return "{TEMPLATED STRUCT}";
 
 			}else if constexpr(std::is_same<TypeID, TemplateIntrinsicFunc::Kind>()){
 				// TODO(FEATURE): actual name
-				return "{TEMPLATE_INTRINSIC_FUNC}";
+				return "{TEMPLATE INTRINSIC FUNC}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::TemplateDeclInstantiationType>()){
 				// TODO(FEATURE): actual name?
-				return "{TEMPLATE_DECL_INSTANTIATION_TYPE}";
+				return "{TEMPLATE DECL INSTANTIATION TYPE}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::ExceptParamPack>()){
-				return "{EXCEPT_PARAM_PACK}";
+				return "{EXCEPT PARAM PACK}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::TaggedUnionFieldAccessor>()){
 				// TODO(FEATURE): actual name?
-				return "{TAGGED_UNION_FIELD_ACCESSOR}";
+				return "{TAGGED UNION FIELD ACCESSOR}";
 
 			}else{
 				static_assert(false, "Unsupported type id kind");

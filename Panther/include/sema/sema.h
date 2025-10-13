@@ -69,6 +69,7 @@ namespace pcit::panther::sema{
 
 		char value;
 	};
+	
 
 
 	struct TemplateIntrinsicFuncInstantiation{

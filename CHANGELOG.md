@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.170.0"></a>
+## v0.0.170.0
+
+### Panther
+- Added expression deducers
+- Added type checking of array terminators / array reference terminators
+- Fixed constexpr function call if it is implicit RVO
+- Fixed implicit RVO checking not taking into account if a type is trivially movable
+- Fixed lowering of arrays with terminators
+- Fixed getting size of arrays with terminators where the size of the element is 1 byte
+
+
+<!---------------------------------->
 <a name="v0.0.169.2"></a>
 ## v0.0.169.2
 
