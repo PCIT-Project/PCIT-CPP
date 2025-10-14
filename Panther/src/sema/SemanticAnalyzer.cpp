@@ -1655,22 +1655,27 @@ namespace pcit::panther{
 								this->context.getTypeManager().getStruct(member_type.baseTypeID().structID());
 
 							for(sema::Func::ID new_init_overload_id : member_struct_type.newInitOverloads){
-								funcs_to_wait_on.emplace(new_init_overload_id);
-
 								const sema::Func& new_init_overload =
 									this->context.getSemaBuffer().getFunc(new_init_overload_id);
 
-								if(new_init_overload.minNumArgs == 0){
-									created_default_init_new.stmtBlock.emplace_back(
-										this->context.sema_buffer.createAssign(
-											member_var_expr,
-											sema::Expr(this->context.sema_buffer.createFuncCall(
-												new_init_overload_id, evo::SmallVector<sema::Expr>()
-											))
-										)
-									);
-									break;
+								if(new_init_overload.minNumArgs != 0){ continue; }
+
+								funcs_to_wait_on.emplace(new_init_overload_id);
+
+								auto args = evo::SmallVector<sema::Expr>();
+								for(size_t j = new_init_overload.minNumArgs; j < new_init_overload.params.size(); j+=1){
+									args.emplace_back(*new_init_overload.params[j].defaultValue);
 								}
+
+								created_default_init_new.stmtBlock.emplace_back(
+									this->context.sema_buffer.createAssign(
+										member_var_expr,
+										sema::Expr(this->context.sema_buffer.createFuncCall(
+											new_init_overload_id, std::move(args)
+										))
+									)
+								);
+								break;
 							}
 						} break;
 
@@ -4360,22 +4365,26 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_template_func_begin(const Instruction::TemplateFuncBegin& instr) -> Result {
-		if(this->source.getTokenBuffer()[instr.func_def.name].kind() != Token::Kind::IDENT){
-			if(instr.func_def.templatePack.has_value()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
-					instr.func_def.name,
-					"Operator overload cannot have a template parameter pack"
-				);
-				return Result::ERROR;
+		{
+			const Token::Kind name_token_kind = this->source.getTokenBuffer()[instr.func_def.name].kind();
 
-			}else{
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.func_def.name,
-					"Operator overload that is templated without a template paramter pack is unimplemented"
-				);
-				return Result::ERROR;
+			if(name_token_kind != Token::Kind::IDENT){
+				if(instr.func_def.templatePack.has_value()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
+						instr.func_def.name,
+						"Operator overload cannot have a template parameter pack"
+					);
+					return Result::ERROR;
+
+				}else if(name_token_kind != Token::Kind::KEYWORD_NEW){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
+						instr.func_def.name,
+						"This operator overload cannot be template"
+					);
+					return Result::ERROR;
+				}
 			}
 		}
 		
@@ -4505,17 +4514,32 @@ namespace pcit::panther{
 
 	
 	auto SemanticAnalyzer::instr_template_func_end(const Instruction::TemplateFuncEnd& instr) -> Result {
-		const std::string_view name = this->source.getTokenBuffer()[instr.func_def.name].getString();
-		const sema::TemplatedFunc::ID templated_func_id =
-			this->symbol_proc.extra_info.as<SymbolProc::TemplateFuncInfo>().templated_func_id;
+		const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
 
-		if(this->add_ident_to_scope(name, instr.func_def, templated_func_id).isError()){
+		if(name_token.kind() == Token::Kind::IDENT){
+			const std::string_view name = name_token.getString();
+			const sema::TemplatedFunc::ID templated_func_id =
+				this->symbol_proc.extra_info.as<SymbolProc::TemplateFuncInfo>().templated_func_id;
+
+			if(this->add_ident_to_scope(name, instr.func_def, templated_func_id).isError()){
+				return Result::ERROR;
+			}
+
+			this->propagate_finished_decl_def();
+
+			return Result::SUCCESS;
+
+		}else{
+			evo::debugAssert(name_token.kind() == Token::Kind::KEYWORD_NEW);
+			
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				instr.func_def.name,
+				"This operator overload being a template is unimplemented"
+			);
 			return Result::ERROR;
 		}
 
-		this->propagate_finished_decl_def();
-
-		return Result::SUCCESS;
 	}
 
 

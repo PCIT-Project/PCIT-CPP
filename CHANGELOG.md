@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.170.4"></a>
+## v0.0.170.4
+
+### Panther
+- Fixed automatic creation of operator `new` if the default initialization required default arguments
+
+
+<!---------------------------------->
 <a name="v0.0.170.3"></a>
 ## v0.0.170.3
 
