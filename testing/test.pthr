@@ -10,5 +10,5 @@ func get_array = () -> [Int:3;0] {
 
 func entry = () #entry -> UI8 {
 	def arr: [Int:$SIZE;$TERMINATOR] = get_array();
-	return TERMINATOR as UI8;
+	return arr[0].* as UI8;
 }

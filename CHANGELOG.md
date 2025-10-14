@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.170.3"></a>
+## v0.0.170.3
+
+### Panther
+- Fixed arrays with terminator returned from constexpr function calls not including the terminator
+
+
+<!---------------------------------->
 <a name="v0.0.170.2"></a>
 ## v0.0.170.2
 

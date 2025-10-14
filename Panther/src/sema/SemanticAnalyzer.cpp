@@ -19566,6 +19566,9 @@ namespace pcit::panther{
 					for(uint64_t dimension : array_type.dimensions){
 						total_num_elems *= dimension;
 					}
+					if(array_type.terminator.has_value()){
+						total_num_elems += 1;
+					}
 					return total_num_elems;
 				}();
 
@@ -19583,7 +19586,6 @@ namespace pcit::panther{
 						this->generic_value_to_sema_expr(core::GenericValue::fromData(elem_range), elem_type_info)
 					);
 				}
-
 
 				return sema::Expr(
 					this->context.sema_buffer.createAggregateValue(std::move(member_vals), target_type.baseTypeID())
