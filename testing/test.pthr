@@ -1,28 +1,30 @@
 
 
-type Vec2 = struct {
-	func new = (x: F32 = 0.0, y: F32 = 0.0) -> (output: This) {
-		output.x = copy x;
-		output.y = copy y;
-		return...;
+type Array = struct <{T: Type, SIZE: USize}>  {
+
+	func at = (this, index: USize) -> T*| {
+		return this._data[index];
 	}
 
-	var x: F32;
-	var y: F32;
+	func at = (this mut, index: USize) -> T* {
+		return this._data[index];
+	}
+
+
+	var _data: [T:SIZE];
 }
 
 
-
-type Thing = struct {
-	
-
-	var location: Vec2;
+func get_index_1 = (arr: Array<{Int, 3}>) -> Int {
+	return copy arr.at(1).*;
 }
 
 
 
 func entry = () #entry -> UI8 {
-	var thing = new Thing();
+	var arr = new Array<{Int, 3}>();
+
+	arr.at(1).* = 12;
 	
-	return 0;
+	return get_index_1(arr) as UI8;
 }

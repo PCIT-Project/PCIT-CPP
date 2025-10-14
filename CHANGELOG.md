@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.170.5"></a>
+## v0.0.170.5
+
+### Panther
+- Fixed crashing when getting declaration of template
+
+
+<!---------------------------------->
 <a name="v0.0.170.4"></a>
 ## v0.0.170.4
 

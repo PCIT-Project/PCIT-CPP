@@ -1487,7 +1487,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto createTemplatedTermWaitForDecl(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::TEMPLATED_TERM_WAIT_FOR_DEF,
+					Instruction::Kind::TEMPLATED_TERM_WAIT_FOR_DECL,
 					this->templated_term_wait_for_decls.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
@@ -1495,7 +1495,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getTemplatedTermWaitForDecl(Instruction instr) const
 			-> const Instruction::TemplatedTermWait<false>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::TEMPLATED_TERM_WAIT_FOR_DEF, "Not a TemplatedTermWait<false>"
+					instr.kind() == Instruction::Kind::TEMPLATED_TERM_WAIT_FOR_DECL, "Not a TemplatedTermWait<false>"
 				);
 				return this->templated_term_wait_for_decls[instr._index];
 			}
@@ -2600,179 +2600,179 @@ namespace pcit::panther{
 			std::atomic<size_t> num_procs_suspended = 0;
 
 
-			core::SyncLinearStepAlloc<Instruction::NonLocalVarDecl, uint64_t> non_local_var_decls{};
-			core::SyncLinearStepAlloc<Instruction::NonLocalVarDef, uint64_t> non_local_var_defs{};
-			core::SyncLinearStepAlloc<Instruction::NonLocalVarDeclDef, uint64_t> non_local_var_decl_defs{};
-			core::SyncLinearStepAlloc<Instruction::WhenCond, uint64_t> when_conds{};
-			core::SyncLinearStepAlloc<Instruction::AliasDecl, uint64_t> alias_decls{};
-			core::SyncLinearStepAlloc<Instruction::AliasDef, uint64_t> alias_defs{};
-			core::SyncLinearStepAlloc<Instruction::StructDecl<true>, uint64_t> struct_decl_instantiations{};
-			core::SyncLinearStepAlloc<Instruction::StructDecl<false>, uint64_t> struct_decls{};
-			core::SyncLinearStepAlloc<Instruction::TemplateStruct, uint64_t> template_structs{};
-			core::SyncLinearStepAlloc<Instruction::UnionDecl, uint64_t> union_decls{};
-			core::SyncLinearStepAlloc<Instruction::UnionAddFields, uint64_t> union_add_fieldss{};
-			core::SyncLinearStepAlloc<Instruction::EnumDecl, uint64_t> enum_decls{};
-			core::SyncLinearStepAlloc<Instruction::EnumAddEnumerators, uint64_t> enum_add_enumeratorss{};
-			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducersIfNeeded, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::NonLocalVarDecl, uint32_t> non_local_var_decls{};
+			core::SyncLinearStepAlloc<Instruction::NonLocalVarDef, uint32_t> non_local_var_defs{};
+			core::SyncLinearStepAlloc<Instruction::NonLocalVarDeclDef, uint32_t> non_local_var_decl_defs{};
+			core::SyncLinearStepAlloc<Instruction::WhenCond, uint32_t> when_conds{};
+			core::SyncLinearStepAlloc<Instruction::AliasDecl, uint32_t> alias_decls{};
+			core::SyncLinearStepAlloc<Instruction::AliasDef, uint32_t> alias_defs{};
+			core::SyncLinearStepAlloc<Instruction::StructDecl<true>, uint32_t> struct_decl_instantiations{};
+			core::SyncLinearStepAlloc<Instruction::StructDecl<false>, uint32_t> struct_decls{};
+			core::SyncLinearStepAlloc<Instruction::TemplateStruct, uint32_t> template_structs{};
+			core::SyncLinearStepAlloc<Instruction::UnionDecl, uint32_t> union_decls{};
+			core::SyncLinearStepAlloc<Instruction::UnionAddFields, uint32_t> union_add_fieldss{};
+			core::SyncLinearStepAlloc<Instruction::EnumDecl, uint32_t> enum_decls{};
+			core::SyncLinearStepAlloc<Instruction::EnumAddEnumerators, uint32_t> enum_add_enumeratorss{};
+			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducersIfNeeded, uint32_t>
 				func_decl_extract_deducers_if_neededs{};
-			core::SyncLinearStepAlloc<Instruction::FuncDecl<true>, uint64_t> func_decl_instantiations{};
-			core::SyncLinearStepAlloc<Instruction::FuncDecl<false>, uint64_t> func_decls{};
-			core::SyncLinearStepAlloc<Instruction::FuncPreBody, uint64_t> func_pre_bodys{};
-			core::SyncLinearStepAlloc<Instruction::FuncDef, uint64_t> func_defs{};
-			core::SyncLinearStepAlloc<Instruction::FuncPrepareConstexprPIRIfNeeded, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::FuncDecl<true>, uint32_t> func_decl_instantiations{};
+			core::SyncLinearStepAlloc<Instruction::FuncDecl<false>, uint32_t> func_decls{};
+			core::SyncLinearStepAlloc<Instruction::FuncPreBody, uint32_t> func_pre_bodys{};
+			core::SyncLinearStepAlloc<Instruction::FuncDef, uint32_t> func_defs{};
+			core::SyncLinearStepAlloc<Instruction::FuncPrepareConstexprPIRIfNeeded, uint32_t>
 				func_prepare_constexpr_pir_if_neededs{};
-			core::SyncLinearStepAlloc<Instruction::TemplateFuncBegin, uint64_t> template_func_begins{};
-			core::SyncLinearStepAlloc<Instruction::TemplateFuncCheckParamIsInterface, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::TemplateFuncBegin, uint32_t> template_func_begins{};
+			core::SyncLinearStepAlloc<Instruction::TemplateFuncCheckParamIsInterface, uint32_t>
 				template_func_check_param_is_interfaces{};
-			core::SyncLinearStepAlloc<Instruction::TemplateFuncSetParamIsDeducer, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::TemplateFuncSetParamIsDeducer, uint32_t>
 				template_func_set_param_is_deducers{};
-			core::SyncLinearStepAlloc<Instruction::TemplateFuncEnd, uint64_t> template_func_ends{};
-			core::SyncLinearStepAlloc<Instruction::DeletedSpecialMethod, uint64_t> deleted_special_methods{};
-			core::SyncLinearStepAlloc<Instruction::InterfaceDecl, uint64_t> interface_decls{};
-			core::SyncLinearStepAlloc<Instruction::InterfaceFuncDef, uint64_t> interface_func_defs{};
-			core::SyncLinearStepAlloc<Instruction::InterfaceImplDecl, uint64_t> interface_impl_decls{};
-			core::SyncLinearStepAlloc<Instruction::InterfaceImplMethodLookup, uint64_t> interface_impl_method_lookups{};
-			core::SyncLinearStepAlloc<Instruction::InterfaceImplDef, uint64_t> interface_impl_defs{};
-			core::SyncLinearStepAlloc<Instruction::LocalVar, uint64_t> local_vars{};
-			core::SyncLinearStepAlloc<Instruction::LocalAlias, uint64_t> local_aliass{};
-			core::SyncLinearStepAlloc<Instruction::Return, uint64_t> returns{};
-			core::SyncLinearStepAlloc<Instruction::LabeledReturn, uint64_t> labeled_returns{};
-			core::SyncLinearStepAlloc<Instruction::Error, uint64_t> errors{};
-			core::SyncLinearStepAlloc<Instruction::Unreachable, uint64_t> unreachables{};
-			core::SyncLinearStepAlloc<Instruction::Break, uint64_t> breaks{};
-			core::SyncLinearStepAlloc<Instruction::Continue, uint64_t> continues{};
-			core::SyncLinearStepAlloc<Instruction::Delete, uint64_t> deletes{};
-			core::SyncLinearStepAlloc<Instruction::BeginCond, uint64_t> begin_conds{};
-			core::SyncLinearStepAlloc<Instruction::EndCondSet, uint64_t> end_cond_sets{};
-			core::SyncLinearStepAlloc<Instruction::BeginLocalWhenCond, uint64_t> begin_local_when_conds{};
-			core::SyncLinearStepAlloc<Instruction::EndLocalWhenCond, uint64_t> end_local_when_conds{};
-			core::SyncLinearStepAlloc<Instruction::BeginWhile, uint64_t> begin_whiles{};
-			core::SyncLinearStepAlloc<Instruction::EndWhile, uint64_t> end_whiles{};
-			core::SyncLinearStepAlloc<Instruction::BeginDefer, uint64_t> begin_defers{};
-			core::SyncLinearStepAlloc<Instruction::EndDefer, uint64_t> end_defers{};
-			core::SyncLinearStepAlloc<Instruction::BeginStmtBlock, uint64_t> begin_stmt_blocks{};
-			core::SyncLinearStepAlloc<Instruction::EndStmtBlock, uint64_t> end_stmt_blocks{};
-			core::SyncLinearStepAlloc<Instruction::FuncCall, uint64_t> func_calls{};
-			core::SyncLinearStepAlloc<Instruction::Assignment, uint64_t> assignments{};
-			core::SyncLinearStepAlloc<Instruction::AssignmentNew, uint64_t> assignment_news{};
-			core::SyncLinearStepAlloc<Instruction::AssignmentCopy, uint64_t> assignment_copies{};
-			core::SyncLinearStepAlloc<Instruction::AssignmentMove, uint64_t> assignment_moves{};
-			core::SyncLinearStepAlloc<Instruction::AssignmentForward, uint64_t> assignment_forwards{};
-			core::SyncLinearStepAlloc<Instruction::MultiAssign, uint64_t> multi_assigns{};
-			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint64_t> discarding_assignments{};
-			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint64_t> type_to_terms{};
-			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDef, uint64_t> wait_on_sub_symbol_proc_defs{};
+			core::SyncLinearStepAlloc<Instruction::TemplateFuncEnd, uint32_t> template_func_ends{};
+			core::SyncLinearStepAlloc<Instruction::DeletedSpecialMethod, uint32_t> deleted_special_methods{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceDecl, uint32_t> interface_decls{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceFuncDef, uint32_t> interface_func_defs{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceImplDecl, uint32_t> interface_impl_decls{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceImplMethodLookup, uint32_t> interface_impl_method_lookups{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceImplDef, uint32_t> interface_impl_defs{};
+			core::SyncLinearStepAlloc<Instruction::LocalVar, uint32_t> local_vars{};
+			core::SyncLinearStepAlloc<Instruction::LocalAlias, uint32_t> local_aliass{};
+			core::SyncLinearStepAlloc<Instruction::Return, uint32_t> returns{};
+			core::SyncLinearStepAlloc<Instruction::LabeledReturn, uint32_t> labeled_returns{};
+			core::SyncLinearStepAlloc<Instruction::Error, uint32_t> errors{};
+			core::SyncLinearStepAlloc<Instruction::Unreachable, uint32_t> unreachables{};
+			core::SyncLinearStepAlloc<Instruction::Break, uint32_t> breaks{};
+			core::SyncLinearStepAlloc<Instruction::Continue, uint32_t> continues{};
+			core::SyncLinearStepAlloc<Instruction::Delete, uint32_t> deletes{};
+			core::SyncLinearStepAlloc<Instruction::BeginCond, uint32_t> begin_conds{};
+			core::SyncLinearStepAlloc<Instruction::EndCondSet, uint32_t> end_cond_sets{};
+			core::SyncLinearStepAlloc<Instruction::BeginLocalWhenCond, uint32_t> begin_local_when_conds{};
+			core::SyncLinearStepAlloc<Instruction::EndLocalWhenCond, uint32_t> end_local_when_conds{};
+			core::SyncLinearStepAlloc<Instruction::BeginWhile, uint32_t> begin_whiles{};
+			core::SyncLinearStepAlloc<Instruction::EndWhile, uint32_t> end_whiles{};
+			core::SyncLinearStepAlloc<Instruction::BeginDefer, uint32_t> begin_defers{};
+			core::SyncLinearStepAlloc<Instruction::EndDefer, uint32_t> end_defers{};
+			core::SyncLinearStepAlloc<Instruction::BeginStmtBlock, uint32_t> begin_stmt_blocks{};
+			core::SyncLinearStepAlloc<Instruction::EndStmtBlock, uint32_t> end_stmt_blocks{};
+			core::SyncLinearStepAlloc<Instruction::FuncCall, uint32_t> func_calls{};
+			core::SyncLinearStepAlloc<Instruction::Assignment, uint32_t> assignments{};
+			core::SyncLinearStepAlloc<Instruction::AssignmentNew, uint32_t> assignment_news{};
+			core::SyncLinearStepAlloc<Instruction::AssignmentCopy, uint32_t> assignment_copies{};
+			core::SyncLinearStepAlloc<Instruction::AssignmentMove, uint32_t> assignment_moves{};
+			core::SyncLinearStepAlloc<Instruction::AssignmentForward, uint32_t> assignment_forwards{};
+			core::SyncLinearStepAlloc<Instruction::MultiAssign, uint32_t> multi_assigns{};
+			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint32_t> discarding_assignments{};
+			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint32_t> type_to_terms{};
+			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDef, uint32_t> wait_on_sub_symbol_proc_defs{};
 
-			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, true>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, true>, uint32_t>
 				func_call_expr_constexpr_errorss{};
 
-			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, false>, uint64_t> func_call_expr_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<false, true>, uint64_t> func_call_expr_errorss{};
-			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<false, false>, uint64_t> func_call_exprs{};
-			core::SyncLinearStepAlloc<Instruction::ConstexprFuncCallRun, uint64_t> constexpr_func_call_runs{};
-			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::PANTHER>, uint64_t> import_panthers{};
-			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::C>, uint64_t> import_cs{};
-			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::CPP>, uint64_t> import_cpps{};
-			core::SyncLinearStepAlloc<Instruction::IsMacroDefined, uint64_t> is_macro_defineds{};
+			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, false>, uint32_t> func_call_expr_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<false, true>, uint32_t> func_call_expr_errorss{};
+			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<false, false>, uint32_t> func_call_exprs{};
+			core::SyncLinearStepAlloc<Instruction::ConstexprFuncCallRun, uint32_t> constexpr_func_call_runs{};
+			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::PANTHER>, uint32_t> import_panthers{};
+			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::C>, uint32_t> import_cs{};
+			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::CPP>, uint32_t> import_cpps{};
+			core::SyncLinearStepAlloc<Instruction::IsMacroDefined, uint32_t> is_macro_defineds{};
 
-			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<true>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<true>, uint32_t>
 				template_intrinsic_func_call_constexprs{};
 
-			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<false>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<false>, uint32_t>
 				template_intrinsic_func_calls{};
 
-			core::SyncLinearStepAlloc<Instruction::Indexer<true>, uint64_t> indexer_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::Indexer<false>, uint64_t> indexers{};
-			core::SyncLinearStepAlloc<Instruction::TemplatedTerm, uint64_t> templated_terms{};
-			core::SyncLinearStepAlloc<Instruction::TemplatedTermWait<true>, uint64_t> templated_term_wait_for_defs{};
-			core::SyncLinearStepAlloc<Instruction::TemplatedTermWait<false>, uint64_t> templated_term_wait_for_decls{};
+			core::SyncLinearStepAlloc<Instruction::Indexer<true>, uint32_t> indexer_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::Indexer<false>, uint32_t> indexers{};
+			core::SyncLinearStepAlloc<Instruction::TemplatedTerm, uint32_t> templated_terms{};
+			core::SyncLinearStepAlloc<Instruction::TemplatedTermWait<true>, uint32_t> templated_term_wait_for_defs{};
+			core::SyncLinearStepAlloc<Instruction::TemplatedTermWait<false>, uint32_t> templated_term_wait_for_decls{};
 
-			core::SyncLinearStepAlloc<Instruction::AddTemplateDeclInstantiationType, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::AddTemplateDeclInstantiationType, uint32_t>
 				add_template_decl_instantiation_types{};
 
-			core::SyncLinearStepAlloc<Instruction::Copy, uint64_t> copys{};
-			core::SyncLinearStepAlloc<Instruction::Move, uint64_t> moves{};
-			core::SyncLinearStepAlloc<Instruction::Forward, uint64_t> forwards{};
-			core::SyncLinearStepAlloc<Instruction::AddrOf<true>, uint64_t> addr_of_read_onlys{};
-			core::SyncLinearStepAlloc<Instruction::AddrOf<false>, uint64_t> addr_ofs{};
-			core::SyncLinearStepAlloc<Instruction::PrefixNegate<true>, uint64_t> prefix_negate_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::PrefixNegate<false>, uint64_t> prefix_negates{};
-			core::SyncLinearStepAlloc<Instruction::PrefixNot<true>, uint64_t> prefix_not_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::PrefixNot<false>, uint64_t> prefix_nots{};
-			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<true>, uint64_t> prefix_bitwise_not_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<false>, uint64_t> prefix_bitwise_nots{};
-			core::SyncLinearStepAlloc<Instruction::Deref, uint64_t> derefs{};
-			core::SyncLinearStepAlloc<Instruction::Unwrap, uint64_t> unwraps{};
-			core::SyncLinearStepAlloc<Instruction::New<true>, uint64_t> new_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::New<false>, uint64_t> news{};
-			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint64_t> array_init_new_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint64_t> array_init_news{};
-			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint64_t> designated_init_new_constexprs{};
-			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<false>, uint64_t> designated_init_news{};
-			core::SyncLinearStepAlloc<Instruction::PrepareTryHandler, uint64_t> prepare_try_handlers{};
-			core::SyncLinearStepAlloc<Instruction::TryElse, uint64_t> try_elses{};
-			core::SyncLinearStepAlloc<Instruction::BeginExprBlock, uint64_t> begin_expr_blocks{};
-			core::SyncLinearStepAlloc<Instruction::EndExprBlock, uint64_t> end_expr_blocks{};
-			core::SyncLinearStepAlloc<Instruction::As<true>, uint64_t> as_contexprs{};
-			core::SyncLinearStepAlloc<Instruction::As<false>, uint64_t> ass{};
-			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck, uint64_t> optional_null_checks{};
+			core::SyncLinearStepAlloc<Instruction::Copy, uint32_t> copys{};
+			core::SyncLinearStepAlloc<Instruction::Move, uint32_t> moves{};
+			core::SyncLinearStepAlloc<Instruction::Forward, uint32_t> forwards{};
+			core::SyncLinearStepAlloc<Instruction::AddrOf<true>, uint32_t> addr_of_read_onlys{};
+			core::SyncLinearStepAlloc<Instruction::AddrOf<false>, uint32_t> addr_ofs{};
+			core::SyncLinearStepAlloc<Instruction::PrefixNegate<true>, uint32_t> prefix_negate_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::PrefixNegate<false>, uint32_t> prefix_negates{};
+			core::SyncLinearStepAlloc<Instruction::PrefixNot<true>, uint32_t> prefix_not_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::PrefixNot<false>, uint32_t> prefix_nots{};
+			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<true>, uint32_t> prefix_bitwise_not_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<false>, uint32_t> prefix_bitwise_nots{};
+			core::SyncLinearStepAlloc<Instruction::Deref, uint32_t> derefs{};
+			core::SyncLinearStepAlloc<Instruction::Unwrap, uint32_t> unwraps{};
+			core::SyncLinearStepAlloc<Instruction::New<true>, uint32_t> new_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::New<false>, uint32_t> news{};
+			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint32_t> array_init_new_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint32_t> array_init_news{};
+			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint32_t> designated_init_new_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<false>, uint32_t> designated_init_news{};
+			core::SyncLinearStepAlloc<Instruction::PrepareTryHandler, uint32_t> prepare_try_handlers{};
+			core::SyncLinearStepAlloc<Instruction::TryElse, uint32_t> try_elses{};
+			core::SyncLinearStepAlloc<Instruction::BeginExprBlock, uint32_t> begin_expr_blocks{};
+			core::SyncLinearStepAlloc<Instruction::EndExprBlock, uint32_t> end_expr_blocks{};
+			core::SyncLinearStepAlloc<Instruction::As<true>, uint32_t> as_contexprs{};
+			core::SyncLinearStepAlloc<Instruction::As<false>, uint32_t> ass{};
+			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck, uint32_t> optional_null_checks{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>, uint32_t>
 				math_infix_constexpr_comparatives{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::MATH>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::MATH>, uint32_t>
 				math_infix_constexpr_maths{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>, uint32_t>
 				math_infix_constexpr_integral_maths{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::LOGICAL>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::LOGICAL>, uint32_t>
 				math_infix_constexpr_logicals{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<
-				true, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint64_t
+				true, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint32_t
 			> math_infix_constexpr_bitwise_logicals{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::SHIFT>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::SHIFT>, uint32_t>
 				math_infix_constexpr_shifts{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::COMPARATIVE>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::COMPARATIVE>, uint32_t>
 				math_infix_comparatives{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::MATH>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::MATH>, uint32_t>
 				math_infix_maths{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<
-				false, Instruction::MathInfixKind::INTEGRAL_MATH>, uint64_t
+				false, Instruction::MathInfixKind::INTEGRAL_MATH>, uint32_t
 			> math_infix_integral_maths{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::LOGICAL>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::LOGICAL>, uint32_t>
 				math_infix_logicals{};
 
 			core::SyncLinearStepAlloc<
-				Instruction::MathInfix<false, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint64_t
+				Instruction::MathInfix<false, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint32_t
 			> math_infix_bitwise_logicals{};
 
-			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::SHIFT>, uint64_t>
+			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::SHIFT>, uint32_t>
 				math_infix_shifts{};
 
-			core::SyncLinearStepAlloc<Instruction::Accessor<true>, uint64_t> accessor_needs_defs{};
-			core::SyncLinearStepAlloc<Instruction::Accessor<false>, uint64_t> accessors{};
-			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint64_t> primitive_types{};
-			core::SyncLinearStepAlloc<Instruction::ArrayType, uint64_t> array_types{};
-			core::SyncLinearStepAlloc<Instruction::ArrayRef, uint64_t> array_refs{};
-			core::SyncLinearStepAlloc<Instruction::TypeIDConverter, uint64_t> type_id_converters{};
-			core::SyncLinearStepAlloc<Instruction::UserType, uint64_t> user_types{};
-			core::SyncLinearStepAlloc<Instruction::BaseTypeIdent, uint64_t> base_type_idents{};
-			core::SyncLinearStepAlloc<Instruction::Ident<true>, uint64_t> ident_needs_defs{};
-			core::SyncLinearStepAlloc<Instruction::Ident<false>, uint64_t> idents{};
-			core::SyncLinearStepAlloc<Instruction::Intrinsic, uint64_t> intrinsics{};
-			core::SyncLinearStepAlloc<Instruction::Literal, uint64_t> literals{};
-			core::SyncLinearStepAlloc<Instruction::Uninit, uint64_t> uninits{};
-			core::SyncLinearStepAlloc<Instruction::Zeroinit, uint64_t> zeroinits{};
-			core::SyncLinearStepAlloc<Instruction::This, uint64_t> thiss{};
-			core::SyncLinearStepAlloc<Instruction::TypeDeducer, uint64_t> type_deducers{};
-			core::SyncLinearStepAlloc<Instruction::ExprDeducer, uint64_t> expr_deducers{};
+			core::SyncLinearStepAlloc<Instruction::Accessor<true>, uint32_t> accessor_needs_defs{};
+			core::SyncLinearStepAlloc<Instruction::Accessor<false>, uint32_t> accessors{};
+			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint32_t> primitive_types{};
+			core::SyncLinearStepAlloc<Instruction::ArrayType, uint32_t> array_types{};
+			core::SyncLinearStepAlloc<Instruction::ArrayRef, uint32_t> array_refs{};
+			core::SyncLinearStepAlloc<Instruction::TypeIDConverter, uint32_t> type_id_converters{};
+			core::SyncLinearStepAlloc<Instruction::UserType, uint32_t> user_types{};
+			core::SyncLinearStepAlloc<Instruction::BaseTypeIdent, uint32_t> base_type_idents{};
+			core::SyncLinearStepAlloc<Instruction::Ident<true>, uint32_t> ident_needs_defs{};
+			core::SyncLinearStepAlloc<Instruction::Ident<false>, uint32_t> idents{};
+			core::SyncLinearStepAlloc<Instruction::Intrinsic, uint32_t> intrinsics{};
+			core::SyncLinearStepAlloc<Instruction::Literal, uint32_t> literals{};
+			core::SyncLinearStepAlloc<Instruction::Uninit, uint32_t> uninits{};
+			core::SyncLinearStepAlloc<Instruction::Zeroinit, uint32_t> zeroinits{};
+			core::SyncLinearStepAlloc<Instruction::This, uint32_t> thiss{};
+			core::SyncLinearStepAlloc<Instruction::TypeDeducer, uint32_t> type_deducers{};
+			core::SyncLinearStepAlloc<Instruction::ExprDeducer, uint32_t> expr_deducers{};
 
 
 			friend class SymbolProcBuilder;

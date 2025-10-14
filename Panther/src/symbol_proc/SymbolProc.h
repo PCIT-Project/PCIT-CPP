@@ -1070,7 +1070,7 @@ namespace pcit::panther{
 		};
 
 
-		SymbolProcInstruction(Kind instr_kind, uint64_t index) : _kind(instr_kind), _index(index) {}
+		SymbolProcInstruction(Kind instr_kind, uint32_t index) : _kind(instr_kind), _index(index) {}
 
 
 
@@ -1080,7 +1080,7 @@ namespace pcit::panther{
 
 		private:
 			Kind _kind;
-			uint64_t _index;
+			uint32_t _index;
 
 			friend class SymbolProcManager;
 			friend class SymbolProcBuilder;
