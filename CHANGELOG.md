@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.170.2"></a>
+## v0.0.170.2
+
+### Panther 
+- Fixed passing fluid value to parameter that's template
+- Fixed diagnostic error for "no function overload found" not showing template overloads if declaration creation failed when both template and non-template functions are part of the overload set
+- Fixed various overload failing diagnostic messages giving incorrect or not enough information
+- Fixed stall being detected incorrectly when template declarations are instantiations but not the definition
+
+
+<!---------------------------------->
 <a name="v0.0.170.1"></a>
 ## v0.0.170.1
 

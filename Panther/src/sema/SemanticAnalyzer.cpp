@@ -67,6 +67,7 @@ namespace pcit::panther{
 					this->symbol_proc.setInstructionIndex(
 						SymbolProc::InstructionIndex(uint32_t(this->symbol_proc.instructions.size()))
 					);
+					this->context.symbol_proc_manager.symbol_proc_done();
 				} break;
 
 
@@ -18074,8 +18075,27 @@ namespace pcit::panther{
 						const TypeInfo::ID expected_type_id = func_infos[i].func_type.params[reason.arg_index].typeID;
 						const TermInfo& got_arg = arg_infos[reason.arg_index].term_info;
 
+						const bool func_is_method = [&](){
+							if(func_infos[i].func_id.is<sema::Func::ID>()){
+								return this->context.getSemaBuffer()
+									.getFunc(func_infos[i].func_id.as<sema::Func::ID>())
+									.isMethod(this->context);
+							}else if(func_infos[i].func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
+								return this->context.getSemaBuffer()
+									.getFunc(
+										*func_infos[i].func_id.as<sema::TemplatedFunc::InstantiationInfo>()
+											.instantiation.funcID
+									).isMethod(this->context);
+							}else{
+								return false;
+							}
+						}();
+
 						infos.emplace_back(
-							std::format("Failed to match: argument (index: {}) type mismatch", reason.arg_index),
+							std::format(
+								"Failed to match: argument (index: {}) type mismatch",
+								reason.arg_index - size_t(func_is_method)
+							),
 							get_func_location(),
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info(
@@ -18094,34 +18114,18 @@ namespace pcit::panther{
 						);
 
 					}else if constexpr(std::is_same<ReasonT, OverloadScore::ValueKindMismatch>()){
-						// const bool is_method_this_param = [&](){
-						// 	if(reason.arg_index != 0){ return false; }
-						// 	if(
-						// 		func_infos[i].func_id.is<sema::Func::ID>() == false
-						// 		&& func_infos[i].func_id.is<sema::TemplatedFunc::InstantiationInfo>() == false
-						// 	){ break; }
-							
-						// 	const sema::Func& target_func =
-						// 		this->context.getSemaBuffer().getFunc(*func_infos[i].func_id);
-						// 	return target_func.isMethod(this->context);
-						// }();
-
 						// This is done this way beause the IILE version causes an internal compiler error in MSVC
 						// 	I didn't report because I didn't want to spend the time figuring out more info
 						// TODO(FUTURE): Is this still a problem?
 						bool is_method_this_param = false;
 						do{
 							if(reason.arg_index != 0){ break; }
-							if(
-								func_infos[i].func_id.is<sema::Func::ID>() == false
-								&& func_infos[i].func_id.is<sema::TemplatedFunc::InstantiationInfo>() == false
-							){ break; }
 
 							if(func_infos[i].func_id.is<sema::Func::ID>()){
 								is_method_this_param = this->context.getSemaBuffer()
 									.getFunc(func_infos[i].func_id.as<sema::Func::ID>())
 									.isMethod(this->context);
-							}else{
+							}else if(func_infos[i].func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
 								is_method_this_param = this->context.getSemaBuffer()
 									.getFunc(
 										*func_infos[i].func_id.as<sema::TemplatedFunc::InstantiationInfo>()
@@ -18463,9 +18467,7 @@ namespace pcit::panther{
 		auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
 
 		if(instantiation_infos.empty()){
-			if(func_infos.empty()){
-				auto infos = evo::SmallVector<Diagnostic::Info>();
-
+			if(template_overload_match_infos.empty() == false){
 				const TermInfo::FuncOverloadList& func_overload_list =
 					target_term_info.type_id.as<TermInfo::FuncOverloadList>();
 
@@ -18490,7 +18492,7 @@ namespace pcit::panther{
 
 						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewTemplateArgs>()){
 							if(reason.accepts_different_nums){
-								infos.emplace_back(
+								instantiation_error_infos.emplace_back(
 									std::format(
 										"Failed to match: too few template arguments (requires at least {}, got {})",
 										reason.min_num,
@@ -18500,7 +18502,7 @@ namespace pcit::panther{
 								);
 								
 							}else{
-								infos.emplace_back(
+								instantiation_error_infos.emplace_back(
 									std::format(
 										"Failed to match: too few template arguments (requires {}, got {})",
 										reason.min_num,
@@ -18512,7 +18514,7 @@ namespace pcit::panther{
 
 						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyTemplateArgs>()){
 							if(reason.accepts_different_nums){
-								infos.emplace_back(
+								instantiation_error_infos.emplace_back(
 									std::format(
 										"Failed to match: too many template arguments (requires at most {}, got {})",
 										reason.max_num,
@@ -18522,7 +18524,7 @@ namespace pcit::panther{
 								);
 								
 							}else{
-								infos.emplace_back(
+								instantiation_error_infos.emplace_back(
 									std::format(
 										"Failed to match: too many template arguments (requires {}, got {})",
 										reason.max_num,
@@ -18533,28 +18535,41 @@ namespace pcit::panther{
 							}
 
 						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateArgWrongKind>()){
+							const AST::TemplatedExpr& templated_expr =
+								this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+
 							if(reason.supposed_to_be_expr){
-								infos.emplace_back(
+								instantiation_error_infos.emplace_back(
 									std::format(
 										"Failed to match: template parameter (index: {}) expects an expression, "
 											"got a type",
 										reason.arg_index
 									),
-									get_func_location()
+									get_func_location(),
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+										),
+									}
 								);
 							}else{
-								infos.emplace_back(
+								instantiation_error_infos.emplace_back(
 									std::format(
 										"Failed to match: template parameter (index: {}) expects a type, "
 											"got an expression",
 										reason.arg_index
 									),
-									get_func_location()
+									get_func_location(),
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+										),
+									}
 								);
 							}
 
 						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::WrongNumArgs>()){
-							infos.emplace_back(
+							instantiation_error_infos.emplace_back(
 								std::format(
 									"Failed to match: wrong number of arguments (requires {}, got {})",
 									reason.expected_num,
@@ -18564,12 +18579,23 @@ namespace pcit::panther{
 							);
 
 						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceArgType>()){
-							infos.emplace_back(
+							instantiation_error_infos.emplace_back(
 								std::format(
 									"Failed to match: can't deduce type from argument (index: {})",
 									reason.arg_index
 								),
-								get_func_location()
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+									),
+									Diagnostic::Info(
+										std::format(
+											"Argument type: {}",
+											this->print_term_type(this->get_term_info(args[reason.arg_index]))
+										)
+									)
+								}
 							);
 							
 						}else{
@@ -18578,13 +18604,15 @@ namespace pcit::panther{
 					});
 				}
 
-				this->emit_error(
-					Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
-					func_call.target,
-					"No matching function overload found",
-					std::move(infos)
-				);
-				return evo::Unexpected(true);
+				if(func_infos.empty()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
+						func_call.target,
+						"No matching function overload found",
+						std::move(instantiation_error_infos)
+					);
+					return evo::Unexpected(true);
+				}
 			}
 
 		}else{
@@ -19193,9 +19221,9 @@ namespace pcit::panther{
 		}
 
 
-		{
-			const bool is_method = templated_func.isMethod(this->context);
+		const bool is_method = templated_func.isMethod(this->context);
 
+		{
 			const size_t expected_num_args = ast_func.params.size() - size_t(is_member_call && is_method);
 			const size_t got_num_args = args.size();
 
@@ -19208,7 +19236,7 @@ namespace pcit::panther{
 
 		auto arg_types = evo::SmallVector<std::optional<TypeInfo::ID>>();
 		arg_types.reserve(args.size());
-		for(size_t i = 0; const SymbolProc::TermInfoID arg_id : args){
+		for(size_t i = size_t(is_method); const SymbolProc::TermInfoID arg_id : args){
 			const TermInfo& arg = this->get_term_info(arg_id);
 			if(arg.type_id.is<TypeInfo::ID>()){
 				arg_types.emplace_back(arg.type_id.as<TypeInfo::ID>());
@@ -19220,7 +19248,7 @@ namespace pcit::panther{
 			}else{
 				if(templated_func.paramIsTemplate[i]){
 					return evo::Unexpected<TemplateOverloadMatchFail>(
-						TemplateOverloadMatchFail(TemplateOverloadMatchFail::CantDeduceArgType(i))
+						TemplateOverloadMatchFail(TemplateOverloadMatchFail::CantDeduceArgType(i - size_t(is_method)))
 					);
 				}
 				arg_types.emplace_back(std::nullopt);

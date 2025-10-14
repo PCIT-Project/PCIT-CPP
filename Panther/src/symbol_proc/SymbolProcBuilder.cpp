@@ -691,15 +691,39 @@ namespace pcit::panther{
  
 				const AST::Type& param_type = this->source.getASTBuffer().getType(*param.type);
 
-				switch(param_type.base.kind()){
-					case AST::Kind::IDENT: {
-						if(param_type.qualifiers.empty() == false){ continue; }
 
-						const std::string_view ident_name = this->source.getTokenBuffer()[
-							this->source.getASTBuffer().getIdent(param_type.base)
-						].getString();
+				auto terms_to_check_for_templates = std::stack<AST::Node, evo::SmallVector<AST::Node, 8>>();
+				terms_to_check_for_templates.emplace(param_type.base);
 
-						if(template_names.contains(ident_name) == false){
+				while(terms_to_check_for_templates.empty() == false){
+					const AST::Node target_term = terms_to_check_for_templates.top();
+					terms_to_check_for_templates.pop();
+
+					switch(target_term.kind()){
+						case AST::Kind::IDENT: {
+							if(param_type.qualifiers.empty() == false){ continue; }
+
+							const std::string_view ident_name = this->source.getTokenBuffer()[
+								this->source.getASTBuffer().getIdent(target_term)
+							].getString();
+
+							if(template_names.contains(ident_name) == false){
+								const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
+									this->analyze_type<false>(param_type);
+								if(symbol_proc_type_id.isError()){ return evo::resultError; }
+
+								this->add_instruction(
+									this->context.symbol_proc_manager.createTemplateFuncCheckParamIsInterface(
+										symbol_proc_type_id.value(), i
+									)
+								);
+							}
+
+						} break;
+
+						case AST::Kind::INFIX: {
+							if(param_type.qualifiers.empty() == false){ continue; }
+
 							const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
 								this->analyze_type<false>(param_type);
 							if(symbol_proc_type_id.isError()){ return evo::resultError; }
@@ -709,51 +733,53 @@ namespace pcit::panther{
 									symbol_proc_type_id.value(), i
 								)
 							);
-						}
+						} break;
 
-					} break;
-
-					case AST::Kind::INFIX: {
-						if(param_type.qualifiers.empty() == false){ continue; }
-
-						const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
-							this->analyze_type<false>(param_type);
-						if(symbol_proc_type_id.isError()){ return evo::resultError; }
-
-						this->add_instruction(
-							this->context.symbol_proc_manager.createTemplateFuncCheckParamIsInterface(
-								symbol_proc_type_id.value(), i
-							)
-						);
-					} break;
-
-					case AST::Kind::DEDUCER: {
-						this->add_instruction(this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i));
-
-						const Token::ID deducer_token_id = this->source.getASTBuffer().getDeducer(param_type.base);
-						const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
-
-						if(deducer_token.kind() == Token::Kind::DEDUCER){
-							template_names.emplace(deducer_token.getString());
-						}
-					} break;
-
-					case AST::Kind::TEMPLATED_EXPR: {
-						const evo::SmallVector<std::string_view> type_deducer_names =
-							this->extract_type_deducer_names(param_type);
-
-						if(type_deducer_names.size() > 0){
+						case AST::Kind::DEDUCER: {
 							this->add_instruction(
 								this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i)
 							);
-							
-							for(const std::string_view& type_deducer_name : type_deducer_names){
-								template_names.emplace(type_deducer_name);
-							}
-						}
-					} break;
 
-					default: break;
+							const Token::ID deducer_token_id = this->source.getASTBuffer().getDeducer(target_term);
+							const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
+
+							if(deducer_token.kind() == Token::Kind::DEDUCER){
+								template_names.emplace(deducer_token.getString());
+							}
+						} break;
+
+						case AST::Kind::TEMPLATED_EXPR: {
+							const evo::SmallVector<std::string_view> type_deducer_names =
+								this->extract_type_deducer_names(param_type);
+
+							if(type_deducer_names.size() > 0){
+								this->add_instruction(
+									this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i)
+								);
+								
+								for(const std::string_view& type_deducer_name : type_deducer_names){
+									template_names.emplace(type_deducer_name);
+								}
+							}
+						} break;
+
+						case AST::Kind::ARRAY_TYPE: {
+							const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(target_term);
+
+							terms_to_check_for_templates.emplace(array_type.elemType);
+
+							for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+								if(dimension.has_value() == false){ continue; }
+								terms_to_check_for_templates.emplace(*dimension);
+							}
+
+							if(array_type.terminator.has_value()){
+								terms_to_check_for_templates.emplace(*array_type.terminator);
+							}
+						} break;
+
+						default: break;
+					}
 				}
 			}
 
