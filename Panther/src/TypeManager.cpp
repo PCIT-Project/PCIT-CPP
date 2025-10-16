@@ -86,7 +86,7 @@ namespace pcit::panther{
 
 
 
-	auto BaseType::StructTemplate::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
+	auto BaseType::StructTemplate::createOrLookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
 		const auto lock = std::scoped_lock(this->instantiation_lock);
 
 		auto find = this->instantiation_map.find(args);
@@ -688,6 +688,79 @@ namespace pcit::panther{
 				return std::string(token_buffer[struct_template_info.identTokenID].getString());
 			} break;
 
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				const BaseType::StructTemplateDeducer& struct_template_deduce_info = this->getStructTemplateDeducer(
+					base_type_id.structTemplateDeducerID()
+				);
+
+				const BaseType::StructTemplate& struct_template = this->getStructTemplate(
+					struct_template_deduce_info.structTemplateID
+				);
+
+
+				std::string builder =
+					this->printType(BaseType::ID(struct_template_deduce_info.structTemplateID), source_manager);
+
+				builder += "<{";
+
+
+				// TODO(PERF): 
+				for(size_t i = 0; const BaseType::StructTemplate::Arg& template_arg : struct_template_deduce_info.args){
+					if(template_arg.is<TypeInfo::VoidableID>()){
+						builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), source_manager);
+
+					}else if(*struct_template.params[i].typeID == TypeManager::getTypeBool()){
+						builder += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
+
+					}else if(*struct_template.params[i].typeID == TypeManager::getTypeChar()){
+						builder += "'";
+						builder += template_arg.as<core::GenericValue>().getChar();
+						builder += "'";
+
+					}else if(this->isUnsignedIntegral(*struct_template.params[i].typeID)){
+						builder += template_arg.as<core::GenericValue>().getInt(
+							unsigned(this->numBits(*struct_template.params[i].typeID))
+						).toString(false);
+
+					}else if(this->isIntegral(*struct_template.params[i].typeID)){
+						builder += template_arg.as<core::GenericValue>().getInt(
+							unsigned(this->numBits(*struct_template.params[i].typeID))
+						).toString(true);
+
+					}else if(this->isFloatingPoint(*struct_template.params[i].typeID)){
+						const BaseType::Primitive& primitive = this->getPrimitive(
+							this->getTypeInfo(*struct_template.params[i].typeID).baseTypeID().primitiveID()
+						);
+
+						const core::GenericValue& generic_value = template_arg.as<core::GenericValue>();
+
+						switch(primitive.kind()){
+							break; case Token::Kind::TYPE_F16:  builder += generic_value.getF16().toString();
+							break; case Token::Kind::TYPE_BF16: builder += generic_value.getBF16().toString();
+							break; case Token::Kind::TYPE_F32:  builder += generic_value.getF32().toString();
+							break; case Token::Kind::TYPE_F64:  builder += generic_value.getF64().toString();
+							break; case Token::Kind::TYPE_F80:  builder += generic_value.getF80().toString();
+							break; case Token::Kind::TYPE_F128: builder += generic_value.getF128().toString();
+							break; default: evo::debugFatalBreak("Unknown float type");
+						}
+						
+					}else{
+						builder += "<EXPR>";
+					}
+
+
+					if(i + 1 < struct_template_deduce_info.args.size()){
+						builder += ", ";
+					}
+				
+					i += 1;
+				}
+
+				builder += "}>";
+
+				return builder;
+			} break;
+
 			case BaseType::Kind::UNION: {
 				const BaseType::Union::ID union_id = base_type_id.unionID();
 				const BaseType::Union& union_info = this->getUnion(union_id);
@@ -1011,6 +1084,26 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// struct template deducers
+
+	auto TypeManager::getStructTemplateDeducer(BaseType::StructTemplateDeducer::ID id) const
+	-> const BaseType::StructTemplateDeducer& {
+		const auto lock = std::scoped_lock(this->struct_template_deducers_lock);
+		return this->struct_template_deducers[id];
+	}
+
+
+	auto TypeManager::createStructTemplateDeducer(BaseType::StructTemplateDeducer&& new_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->struct_template_deducers_lock);
+
+		const BaseType::StructTemplateDeducer::ID new_struct =
+			this->struct_template_deducers.emplace_back(std::move(new_type));
+		return BaseType::ID(BaseType::Kind::STRUCT_TEMPLATE_DEDUCER, new_struct.get());
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// union
 
 	auto TypeManager::getUnion(BaseType::Union::ID id) const -> const BaseType::Union& {
@@ -1189,6 +1282,12 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// misc
 
+	auto TypeManager::isTypeDeducer(TypeInfo::VoidableID id) const -> bool {
+		if(id.isVoid()){ return false; }
+		return this->isTypeDeducer(id.asTypeID());
+	}
+
+
 	auto TypeManager::isTypeDeducer(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
@@ -1205,6 +1304,30 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY_REF: {
 				const BaseType::ArrayRef& array_ref_type = this->getArrayRef(type_info.baseTypeID().arrayRefID());
 				return this->isTypeDeducer(array_ref_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_type = this->getStruct(type_info.baseTypeID().structID());
+
+				if(struct_type.templateID.has_value() == false){ return false; }
+
+				const BaseType::StructTemplate& struct_template =
+					this->getStructTemplate(*struct_type.templateID);
+
+				const evo::SmallVector<BaseType::StructTemplate::Arg> template_args =
+					struct_template.getInstantiationArgs(struct_type.instantiation);
+
+				for(const BaseType::StructTemplate::Arg& template_arg : template_args){
+					if(template_arg.is<TypeInfo::VoidableID>() == false){ continue; }
+					if(template_arg.as<TypeInfo::VoidableID>().isVoid()){ continue; }
+					if(this->isTypeDeducer(template_arg.as<TypeInfo::VoidableID>().asTypeID()) == false){ continue; }
+				}
+
+				return false;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				return true;
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -1392,6 +1515,11 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE: {
 				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of Struct Template");
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of Struct Template Deducer");
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -1582,6 +1710,11 @@ namespace pcit::panther{
 				evo::debugAssert("Cannot get size of Struct Template");
 			} break;
 
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugAssert("Cannot get size of Struct Template Deducer");
+			} break;
+
 			case BaseType::Kind::UNION: {
 				const BaseType::Union& union_info = this->getUnion(id.unionID());
 
@@ -1722,8 +1855,9 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1811,8 +1945,9 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1902,8 +2037,9 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1988,8 +2124,9 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2071,8 +2208,9 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2157,8 +2295,9 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2244,8 +2383,9 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2329,8 +2469,9 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2416,8 +2557,9 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2503,8 +2645,9 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2588,8 +2731,9 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2675,8 +2819,9 @@ namespace pcit::panther{
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -2976,6 +3121,8 @@ namespace pcit::panther{
 			} break;
 			case BaseType::Kind::STRUCT:          return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::STRUCT_TEMPLATE: evo::debugFatalBreak("Cannot get underlying type of this kind");
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+				evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::UNION:           return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ENUM: {
 				const BaseType::Enum& enum_type = this->getEnum(id.enumID());

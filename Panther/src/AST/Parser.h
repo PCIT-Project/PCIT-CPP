@@ -118,8 +118,9 @@ namespace pcit::panther{
 			enum class TypeKind{
 				EXPLICIT,
 				EXPLICIT_MAYBE_DEDUCER,
-				EXPR, // For use with `as`
+				AS_TYPE,
 				TEMPLATE_ARG,
+				TEMPLATE_ARG_MAYBE_DEDUCER,
 			};
 			template<TypeKind KIND>
 			EVO_NODISCARD auto parse_type() -> Result;
@@ -134,9 +135,11 @@ namespace pcit::panther{
 
 			enum class TermKind{
 				EXPLICIT_TYPE,
+				EXPLICIT_TYPE_MAYBE_DEDUCER,
 				AS_TYPE,
 				EXPR,
 				TEMPLATE_ARG,
+				TEMPLATE_ARG_MAYBE_DEDUCER,
 			};
 			template<TermKind TERM_KIND>
 			EVO_NODISCARD auto parse_term() -> Result; 

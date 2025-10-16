@@ -11522,6 +11522,9 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// get instantiation args
 
+		bool is_deducer = false;
+
+
 		this->scope.pushTemplateDeclInstantiationTypesScope();
 		EVO_DEFER([&](){ this->scope.popTemplateDeclInstantiationTypesScope(); });
 
@@ -11548,6 +11551,14 @@ namespace pcit::panther{
 				}
 
 				if(arg_term_info.value_category == TermInfo::ValueCategory::TYPE){
+					const TypeInfo::VoidableID arg_type_voidable_id = arg_term_info.type_id.as<TypeInfo::VoidableID>();
+
+					if(this->context.getTypeManager().isTypeDeducer(arg_type_voidable_id)){
+						instantiation_lookup_args.emplace_back(arg_type_voidable_id);
+						is_deducer = true;
+						continue;
+					}
+
 					if(struct_template.params[i].isExpr()){
 						const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 						const AST::StructDef& ast_struct =
@@ -11566,8 +11577,9 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					instantiation_lookup_args.emplace_back(arg_term_info.type_id.as<TypeInfo::VoidableID>());
-					instantiation_args.emplace_back(arg_term_info.type_id.as<TypeInfo::VoidableID>());
+
+					instantiation_lookup_args.emplace_back(arg_type_voidable_id);
+					instantiation_args.emplace_back(arg_type_voidable_id);
 					continue;
 				}
 
@@ -11685,6 +11697,14 @@ namespace pcit::panther{
 				const AST::StructDef& ast_struct = ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 				const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
+				const TypeInfo::VoidableID type_id = this->get_type(arg.as<SymbolProc::TypeID>());
+
+				if(this->context.getTypeManager().isTypeDeducer(type_id)){
+					instantiation_lookup_args.emplace_back(type_id);
+					is_deducer = true;
+					continue;
+				}
+
 				if(struct_template.params[i].isExpr()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
@@ -11696,7 +11716,6 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}
-				const TypeInfo::VoidableID type_id = this->get_type(arg.as<SymbolProc::TypeID>());
 				instantiation_lookup_args.emplace_back(type_id);
 				instantiation_args.emplace_back(type_id);
 
@@ -11780,8 +11799,22 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// lookup / create instantiation
 
+		if(is_deducer){
+			const BaseType::ID created_struct_template_deducer = this->context.type_manager.createStructTemplateDeducer(
+				BaseType::StructTemplateDeducer(
+					this->source.getID(), sema_templated_struct.templateID, std::move(instantiation_lookup_args)
+				)
+			);
+
+			this->return_struct_instantiation(
+				instr.instantiation, created_struct_template_deducer.structTemplateDeducerID()
+			);
+			return Result::SUCCESS;
+		}
+
+
 		const BaseType::StructTemplate::InstantiationInfo instantiation_info =
-			struct_template.lookupInstantiation(std::move(instantiation_lookup_args));
+			struct_template.createOrLookupInstantiation(std::move(instantiation_lookup_args));
 
 		if(instantiation_info.needsToBeCompiled()){
 			auto symbol_proc_builder = SymbolProcBuilder(
@@ -11955,38 +11988,62 @@ namespace pcit::panther{
 	template<bool WAIT_FOR_DEF>
 	auto SemanticAnalyzer::instr_templated_term_wait(const Instruction::TemplatedTermWait<WAIT_FOR_DEF>& instr)
 	-> Result {
-		const BaseType::StructTemplate::Instantiation& instantiation =
-			this->get_struct_instantiation(instr.instantiation);
+		using Instantiation =
+			evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID>;
 
-		if(instantiation.errored.load()){ return Result::ERROR; }
-		evo::debugAssert(instantiation.structID.has_value(), "Should already be completed");
+		const Instantiation instantiation = this->get_struct_instantiation(instr.instantiation);
 
-		const TypeInfo::ID target_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(BaseType::ID(*instantiation.structID))
-		);
 
-		if constexpr(WAIT_FOR_DEF){
-			const SymbolProc::ID target_symbol_proc_id =
-				*this->context.symbol_proc_manager.getTypeSymbolProc(target_type_id);
+		if(instantiation.is<const BaseType::StructTemplate::Instantiation*>()){
+			const BaseType::StructTemplate::Instantiation& actual_instantiation = 
+				*instantiation.as<const BaseType::StructTemplate::Instantiation*>();
 
-			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
-				.getSymbolProc(target_symbol_proc_id)
-				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, target_symbol_proc_id);
+			if(actual_instantiation.errored.load()){ return Result::ERROR; }
+			evo::debugAssert(actual_instantiation.structID.has_value(), "Should already be completed");
 
-			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
-				case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+			const TypeInfo::ID target_type_id = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(BaseType::ID(*actual_instantiation.structID))
+			);
+
+			if constexpr(WAIT_FOR_DEF){
+				const SymbolProc::ID target_symbol_proc_id =
+					*this->context.symbol_proc_manager.getTypeSymbolProc(target_type_id);
+
+				const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+					.getSymbolProc(target_symbol_proc_id)
+					.waitOnDefIfNeeded(this->symbol_proc_id, this->context, target_symbol_proc_id);
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+					case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				}
 			}
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::TYPE, TypeInfo::VoidableID(target_type_id)
+			);
+
+			return Result::SUCCESS;
+
+		}else{
+			evo::debugAssert(
+				instantiation.is<BaseType::StructTemplateDeducer::ID>(), "Unknown struct instantiation kind"
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::TYPE,
+				TypeInfo::VoidableID(
+					this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(BaseType::ID(instantiation.as<BaseType::StructTemplateDeducer::ID>()))
+					)
+				)
+			);
+
+			return Result::SUCCESS;
 		}
-
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::TYPE, TypeInfo::VoidableID(target_type_id)
-		);
-
-		return Result::SUCCESS;
 	}
 
 
@@ -19283,7 +19340,7 @@ namespace pcit::panther{
 
 
 		const sema::TemplatedFunc::InstantiationInfo instantiation_info = 
-			templated_func.lookupInstantiation(std::move(instantiation_lookup_args));
+			templated_func.createOrLookupInstantiation(std::move(instantiation_lookup_args));
 
 		if(instantiation_info.needsToBeCompiled()){
 			auto symbol_proc_builder = SymbolProcBuilder(
@@ -19677,6 +19734,10 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Function cannot return a struct template");
 			} break;
 
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				evo::debugFatalBreak("Function cannot return a struct template deducer");
+			} break;
+
 			case BaseType::Kind::UNION: {
 				// const BaseType::Union& union_type = this->context.getTypeManager().getUnion(
 				// 	target_type.baseTypeID().unionID()
@@ -19831,6 +19892,25 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::extract_deducers(TypeInfo::VoidableID deducer_id, TypeInfo::VoidableID got_type_id)
+	-> evo::Result<evo::SmallVector<DeducedTerm>> {
+		if(deducer_id.isVoid()){
+			if(got_type_id.isVoid()){
+				return evo::SmallVector<DeducedTerm>();
+			}else{
+				return evo::resultError;
+			}
+
+		}else{
+			if(got_type_id.isVoid()){
+				return evo::resultError;
+			}else{
+				return this->extract_deducers(deducer_id.asTypeID(), got_type_id.asTypeID());
+			}
+		}
+	}
+
+
 	auto SemanticAnalyzer::extract_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
 	-> evo::Result<evo::SmallVector<DeducedTerm>> {
 		const TypeManager& type_manager = this->context.getTypeManager();
@@ -19944,7 +20024,7 @@ namespace pcit::panther{
 				);
 				if(arr_deduced.isError()){ return evo::resultError; }
 
-				output.reserve(output.size() + arr_deduced.value().size());
+				output.reserve(std::bit_ceil(output.size() + arr_deduced.value().size()));
 				for(const DeducedTerm& arr_deduced_term : arr_deduced.value()){
 					output.emplace_back(arr_deduced_term);
 				}
@@ -20016,6 +20096,80 @@ namespace pcit::panther{
 						evo::debugAssert(
 							deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown deducer kind"
 						);
+					}
+				}
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				if(got_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return evo::resultError; }
+
+				const BaseType::StructTemplateDeducer& struct_template_deducer =
+					this->context.getTypeManager().getStructTemplateDeducer(
+						deducer.baseTypeID().structTemplateDeducerID()
+					);
+
+				const BaseType::Struct& got_struct_type = 
+					this->context.getTypeManager().getStruct(got_type.baseTypeID().structID());
+
+				if(got_struct_type.templateID.has_value() == false){ return evo::resultError; }
+				if(struct_template_deducer.structTemplateID != *got_struct_type.templateID){ return evo::resultError; }
+
+
+				const BaseType::StructTemplate& got_struct_template =
+					this->context.getTypeManager().getStructTemplate(*got_struct_type.templateID);
+
+
+				const evo::SmallVector<BaseType::StructTemplate::Arg> got_template_args =
+					got_struct_template.getInstantiationArgs(got_struct_type.instantiation);
+
+
+				for(size_t i = 0; i < struct_template_deducer.args.size(); i+=1){
+					const BaseType::StructTemplate::Arg& deducer_arg = struct_template_deducer.args[i];
+					const BaseType::StructTemplate::Arg& got_arg = got_template_args[i];
+
+					if(got_arg.is<TypeInfo::VoidableID>()){
+						const evo::Result<evo::SmallVector<DeducedTerm>> struct_deduced = this->extract_deducers(
+							deducer_arg.as<TypeInfo::VoidableID>(), got_arg.as<TypeInfo::VoidableID>()
+						);
+						if(struct_deduced.isError()){ return evo::resultError; }
+
+						output.reserve(std::bit_ceil(output.size() + struct_deduced.value().size()));
+						for(const DeducedTerm& struct_deduced_term : struct_deduced.value()){
+							output.emplace_back(struct_deduced_term);
+						}
+
+					}else if(deducer_arg.is<TypeInfo::VoidableID>()){ // arg is deducer
+						const TypeInfo& deducer_arg_deducer_type_info = this->context.getTypeManager().getTypeInfo(
+							deducer_arg.as<TypeInfo::VoidableID>().asTypeID()
+						);
+
+						const BaseType::TypeDeducer& deducer_arg_deducer = 
+							this->context.getTypeManager().getTypeDeducer(
+								deducer_arg_deducer_type_info.baseTypeID().typeDeducerID()
+							);
+
+
+						const Token& deducer_token = this->source.getTokenBuffer()[deducer_arg_deducer.identTokenID];
+
+						if(deducer_token.kind() == Token::Kind::DEDUCER){
+							const TypeInfo::ID arg_type_id = *got_struct_template.params[i].typeID;
+
+							output.emplace_back(
+								DeducedTerm::Expr(
+									arg_type_id,
+									this->generic_value_to_sema_expr(
+										got_arg.as<core::GenericValue>(),
+										this->context.getTypeManager().getTypeInfo(arg_type_id)
+									)
+								),
+								deducer_arg_deducer.identTokenID
+							);
+						}
+
+					}else{
+						if(deducer_arg.as<core::GenericValue>() != got_arg.as<core::GenericValue>()){
+							return evo::resultError;
+						}
 					}
 				}
 			} break;
@@ -21250,12 +21404,16 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::get_struct_instantiation(SymbolProc::StructInstantiationID instantiation_id)
-	-> const BaseType::StructTemplate::Instantiation& {
+	-> evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID> {
+		const auto& output = this->symbol_proc.struct_instantiations[instantiation_id.get()];
+
 		evo::debugAssert(
-			this->symbol_proc.struct_instantiations[instantiation_id.get()] != nullptr,
+			output.is<BaseType::StructTemplateDeducer::ID>()
+			|| output.as<const BaseType::StructTemplate::Instantiation*>() != nullptr,
 			"Symbol proc struct instantiation wasn't set"
 		);
-		return *this->symbol_proc.struct_instantiations[instantiation_id.get()];
+
+		return output;
 	}
 
 	auto SemanticAnalyzer::return_struct_instantiation(
@@ -21263,6 +21421,12 @@ namespace pcit::panther{
 		const BaseType::StructTemplate::Instantiation& instantiation
 	) -> void {
 		this->symbol_proc.struct_instantiations[instantiation_id.get()] = &instantiation;
+	}
+
+	auto SemanticAnalyzer::return_struct_instantiation(
+		SymbolProc::StructInstantiationID instantiation_id, BaseType::StructTemplateDeducer::ID deducer_id
+	) -> void {
+		this->symbol_proc.struct_instantiations[instantiation_id.get()] = deducer_id;
 	}
 
 

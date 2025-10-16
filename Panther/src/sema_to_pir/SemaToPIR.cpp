@@ -572,11 +572,12 @@ namespace pcit::panther{
 				case BaseType::Kind::UNION:
 					return std::format("PTHR.vtable.i{}.u{}", interface_id.get(), type.unionID().get());
 
-				case BaseType::Kind::DUMMY:         case BaseType::Kind::FUNCTION:
-				case BaseType::Kind::ARRAY_DEDUCER: case BaseType::Kind::ARRAY_REF:
-				case BaseType::Kind::ALIAS:         case BaseType::Kind::STRUCT_TEMPLATE:
-				case BaseType::Kind::TYPE_DEDUCER:  case BaseType::Kind::ENUM:
-				case BaseType::Kind::INTERFACE:     case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				case BaseType::Kind::DUMMY:                   case BaseType::Kind::FUNCTION:
+				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::ARRAY_REF:
+				case BaseType::Kind::ALIAS:                   case BaseType::Kind::STRUCT_TEMPLATE:
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+				case BaseType::Kind::ENUM:                    case BaseType::Kind::INTERFACE:
+				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 					evo::debugFatalBreak("Not valid base type for VTable");
 				} break;
 			}
@@ -4199,6 +4200,10 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Not deletable");
 			} break;
 
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				evo::debugFatalBreak("Not deletable");
+			} break;
+
 			case BaseType::Kind::UNION: {
 				const BaseType::Union& union_type =
 					this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
@@ -4578,6 +4583,10 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::STRUCT_TEMPLATE: {
+					evo::debugFatalBreak("Not copyable");
+				} break;
+
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
 					evo::debugFatalBreak("Not copyable");
 				} break;
 
@@ -5022,6 +5031,10 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::STRUCT_TEMPLATE: {
+					evo::debugFatalBreak("Not movable");
+				} break;
+
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
 					evo::debugFatalBreak("Not movable");
 				} break;
 
@@ -6963,6 +6976,10 @@ namespace pcit::panther{
 			
 			case BaseType::Kind::STRUCT_TEMPLATE: {
 				evo::debugFatalBreak("Cannot get type of struct template");
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				evo::debugFatalBreak("Cannot get type of struct template deducer");
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {

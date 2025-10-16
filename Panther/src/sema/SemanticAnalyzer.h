@@ -591,6 +591,9 @@ namespace pcit::panther{
 				Token::ID tokenID;
 			};
 
+			EVO_NODISCARD auto extract_deducers(TypeInfo::VoidableID deducer_id, TypeInfo::VoidableID got_type_id)
+				-> evo::Result<evo::SmallVector<DeducedTerm>>;
+
 			EVO_NODISCARD auto extract_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
 				-> evo::Result<evo::SmallVector<DeducedTerm>>;
 
@@ -703,10 +706,13 @@ namespace pcit::panther{
 			auto return_term_info(SymbolProc::TermInfoID symbol_proc_term_info_id, auto&&... args) -> void;
 
 			auto get_struct_instantiation(SymbolProc::StructInstantiationID instantiation_id)
-				-> const BaseType::StructTemplate::Instantiation&;
+				-> evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID>;
 			auto return_struct_instantiation(
 				SymbolProc::StructInstantiationID instantiation_id,
 				const BaseType::StructTemplate::Instantiation& instantiation
+			) -> void;
+			auto return_struct_instantiation(
+				SymbolProc::StructInstantiationID instantiation_id, BaseType::StructTemplateDeducer::ID deducer_id
 			) -> void;
 
 

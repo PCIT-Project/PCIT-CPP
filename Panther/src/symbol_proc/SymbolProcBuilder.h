@@ -160,9 +160,9 @@ namespace pcit::panther{
 				-> evo::Result<evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>>;
 
 
-			EVO_NODISCARD auto is_type_deducer(const AST::Type& type) const -> bool;
+			EVO_NODISCARD auto is_deducer(const AST::Node& node) const -> bool;
 
-			EVO_NODISCARD auto extract_type_deducer_names(const AST::Type& type) const 
+			EVO_NODISCARD auto extract_deducer_names(const AST::Node& node) const 
 				-> evo::SmallVector<std::string_view>;
 
 

@@ -1138,19 +1138,6 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto getTermInfo(SymbolProc::TermInfoID id) -> const std::optional<TermInfo>& {
-				return this->term_infos[id.get()];
-			}
-
-			EVO_NODISCARD auto getTypeID(SymbolProc::TypeID id) -> const std::optional<TypeInfo::VoidableID>& {
-				return this->type_ids[id.get()];
-			}
-
-			EVO_NODISCARD auto getStructInstantiationID(SymbolProc::StructInstantiationID id)
-			-> const BaseType::StructTemplate::Instantiation& {
-				return *this->struct_instantiations[id.get()];
-			}
-
 
 			EVO_NODISCARD auto isDeclDone() const -> bool {
 				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
@@ -1328,7 +1315,9 @@ namespace pcit::panther{
 			// TODO(PERF): optimize the memory usage here?
 			evo::SmallVector<std::optional<TermInfo>> term_infos{};
 			evo::SmallVector<std::optional<TypeInfo::VoidableID>> type_ids{};
-			evo::SmallVector<const BaseType::StructTemplate::Instantiation*> struct_instantiations{};
+			evo::SmallVector<
+				evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID>
+			> struct_instantiations{};
 
 
 

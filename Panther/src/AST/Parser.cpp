@@ -1327,7 +1327,11 @@ namespace pcit::panther{
 				const Token& peeked_token = this->reader[this->reader.peek()];
 				if(peeked_token.kind() == Token::lookupKind(".*")){
 					const Diagnostic::Info diagnostics_info = [](){
-						if constexpr(KIND == TypeKind::EXPR || KIND == TypeKind::TEMPLATE_ARG){
+						if constexpr(
+							KIND == TypeKind::AS_TYPE
+							|| KIND == TypeKind::TEMPLATE_ARG
+							|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+						){
 							return Diagnostic::Info(
 								"Did you mean to put parentheses around the preceding [as] operation?"
 							);
@@ -1346,7 +1350,11 @@ namespace pcit::panther{
 
 				}else if(peeked_token.kind() == Token::lookupKind(".?")){
 					const Diagnostic::Info diagnostics_info = [](){
-						if constexpr(KIND == TypeKind::EXPR || KIND == TypeKind::TEMPLATE_ARG){
+						if constexpr(
+							KIND == TypeKind::AS_TYPE
+							|| KIND == TypeKind::TEMPLATE_ARG
+							|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+						){
 							return Diagnostic::Info(
 								"Did you mean to put parentheses around the preceding [as] operation?"
 							);
@@ -1367,7 +1375,7 @@ namespace pcit::panther{
 				return Result(AST::Node(AST::Kind::PRIMITIVE_TYPE, base_type_token_id));
 
 			}else if(is_type_deducer){
-				if constexpr(KIND != TypeKind::EXPLICIT_MAYBE_DEDUCER){
+				if constexpr(KIND != TypeKind::EXPLICIT_MAYBE_DEDUCER && KIND != TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER){
 					this->context.emitError(
 						Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
 						Diagnostic::Location::get(this->reader.peek(), this->source),
@@ -1458,7 +1466,9 @@ namespace pcit::panther{
 						} break;
 
 						case Token::Kind::DEDUCER: case Token::Kind::ANONYMOUS_DEDUCER: {
-							if constexpr(KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
+							if constexpr(
+								KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER && KIND != TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+							){
 								dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
 							}else{
 								this->context.emitError(
@@ -1539,14 +1549,20 @@ namespace pcit::panther{
 				}
 
 			}else{
-				if constexpr(KIND == TypeKind::EXPLICIT || KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
+				if constexpr(KIND == TypeKind::EXPLICIT){
 					return this->parse_term<TermKind::EXPLICIT_TYPE>();
 
-				}else if constexpr(KIND == TypeKind::EXPR){
+				}else if constexpr(KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
+					return this->parse_term<TermKind::EXPLICIT_TYPE_MAYBE_DEDUCER>();
+
+				}else if constexpr(KIND == TypeKind::AS_TYPE){
 					return this->parse_term<TermKind::AS_TYPE>();
 
 				}else if constexpr(KIND == TypeKind::TEMPLATE_ARG){
 					return this->parse_term<TermKind::TEMPLATE_ARG>();
+
+				}else if constexpr(KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER){
+					return this->parse_term<TermKind::TEMPLATE_ARG_MAYBE_DEDUCER>();
 
 				}else{
 					static_assert(false, "Unknown TypeKind");
@@ -1611,7 +1627,7 @@ namespace pcit::panther{
 		}
 
 
-		if constexpr(KIND == TypeKind::EXPR || KIND == TypeKind::TEMPLATE_ARG){
+		if constexpr(KIND == TypeKind::AS_TYPE || KIND == TypeKind::TEMPLATE_ARG){
 			// make sure exprs like `a as Int * b` gets parsed like `(a as Int) * b`
 			if(qualifiers.empty() == false && qualifiers.back().isOptional == false){
 				switch(this->reader[this->reader.peek()].kind()){
@@ -1733,7 +1749,7 @@ namespace pcit::panther{
 
 		const Result rhs_result = [&](){
 			if(peeked_op_kind == Token::Kind::KEYWORD_AS){
-				const Result type_result = this->parse_type<TypeKind::EXPR>();
+				const Result type_result = this->parse_type<TypeKind::AS_TYPE>();
 				if(this->check_result(type_result, "type after [as] operator").isError()){
 					return Result(Result::Code::ERROR);
 				}
@@ -1989,7 +2005,9 @@ namespace pcit::panther{
 						);
 						return Result::Code::ERROR;
 
-					}else if constexpr(TERM_KIND == TermKind::TEMPLATE_ARG){
+					}else if constexpr(
+						TERM_KIND == TermKind::TEMPLATE_ARG || TERM_KIND == TermKind::TEMPLATE_ARG_MAYBE_DEDUCER
+					){
 						return Result::Code::WRONG_TYPE;
 
 					}else{
@@ -2018,7 +2036,9 @@ namespace pcit::panther{
 						);
 						return Result::Code::ERROR;
 
-					}else if constexpr(TERM_KIND == TermKind::TEMPLATE_ARG){
+					}else if constexpr(
+						TERM_KIND == TermKind::TEMPLATE_ARG || TERM_KIND == TermKind::TEMPLATE_ARG_MAYBE_DEDUCER
+					){
 						return Result::Code::WRONG_TYPE;
 
 					}else{
@@ -2041,7 +2061,18 @@ namespace pcit::panther{
 							break;
 						}
 						
-						Result arg = this->parse_type<TypeKind::TEMPLATE_ARG>();
+						Result arg = [&](){
+							if constexpr(
+								TERM_KIND == TermKind::EXPLICIT_TYPE_MAYBE_DEDUCER
+								|| TERM_KIND == TermKind::TEMPLATE_ARG_MAYBE_DEDUCER
+							){
+								return this->parse_type<TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER>();
+							}else{
+								return this->parse_type<TypeKind::TEMPLATE_ARG>();
+							}
+						}();
+
+
 						if(arg.code() == Result::Code::ERROR){
 							return Result::Code::ERROR;
 

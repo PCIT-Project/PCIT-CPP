@@ -527,7 +527,7 @@ namespace pcit::panther{
 
 		const bool has_type_deducer_param = [&](){
 			for(const AST::FuncDef::Param& param : func_def.params){
-				if(param.type.has_value() && this->is_type_deducer(ast_buffer.getType(*param.type))){ 
+				if(param.type.has_value() && this->is_deducer(ast_buffer.getType(*param.type).base)){ 
 					return true;
 				}
 			}
@@ -750,7 +750,7 @@ namespace pcit::panther{
 
 						case AST::Kind::TEMPLATED_EXPR: {
 							const evo::SmallVector<std::string_view> type_deducer_names =
-								this->extract_type_deducer_names(param_type);
+								this->extract_deducer_names(param_type.base);
 
 							if(type_deducer_names.size() > 0){
 								this->add_instruction(
@@ -3391,20 +3391,35 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::is_type_deducer(const AST::Type& type) const -> bool {
-		switch(type.base.kind()){
+	auto SymbolProcBuilder::is_deducer(const AST::Node& node) const -> bool {
+		switch(node.kind()){
+			case AST::Kind::TYPE: {
+				const AST::Type& type = this->source.getASTBuffer().getType(node);
+				return this->is_deducer(type.base);
+			} break;
+
 			case AST::Kind::DEDUCER: {
 				return true;
 			} break;
 
 			case AST::Kind::ARRAY_TYPE: {
-				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(type.base);
+				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(node);
 
-				if(this->is_type_deducer(this->source.getASTBuffer().getType(array_type.elemType))){ return true; }
+				if(this->is_deducer(this->source.getASTBuffer().getType(array_type.elemType).base)){ return true; }
 
 				for(const std::optional<AST::Node>& dimension : array_type.dimensions){
 					if(dimension.has_value() == false){ continue; }
 					if(dimension->kind() == AST::Kind::DEDUCER){ return true; }
+				}
+
+				return array_type.terminator.has_value() && array_type.terminator->kind() == AST::Kind::DEDUCER;
+			} break;
+
+			case AST::Kind::TEMPLATED_EXPR: {
+				const AST::TemplatedExpr& templated_expr = this->source.getASTBuffer().getTemplatedExpr(node);
+
+				for(const AST::Node& arg : templated_expr.args){
+					if(this->is_deducer(arg)){ return true; }
 				}
 
 				return false;
@@ -3417,29 +3432,62 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::extract_type_deducer_names(const AST::Type& type) const 
-	-> evo::SmallVector<std::string_view> {
+	auto SymbolProcBuilder::extract_deducer_names(const AST::Node& node) const -> evo::SmallVector<std::string_view> {
 		auto output = evo::SmallVector<std::string_view>();
 
-		switch(type.base.kind()){
+		switch(node.kind()){
+			case AST::Kind::TYPE: {
+				return this->extract_deducer_names(this->source.getASTBuffer().getType(node).base);
+			} break;
+
 			case AST::Kind::DEDUCER: {
-				const Token::ID deducer_token_id = this->source.getASTBuffer().getDeducer(type.base);
+				const Token::ID deducer_token_id = this->source.getASTBuffer().getDeducer(node);
 				const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
 
-				if(deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER){
+				if(deducer_token.kind() == Token::Kind::DEDUCER){
 					output.emplace_back(deducer_token.getString());
 				}
 			} break;
 
 			case AST::Kind::ARRAY_TYPE: {
-				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(type.base);
-				const evo::SmallVector<std::string_view> extracted = this->extract_type_deducer_names(
-					this->source.getASTBuffer().getType(array_type.elemType)
+				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(node);
+				evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(
+					this->source.getASTBuffer().getType(array_type.elemType).base
 				);
 
-				output.reserve(output.size() + extracted.size());
+				output.reserve(std::bit_ceil(output.size() + extracted.size()));
 				for(const std::string_view& extracted_str : extracted){
 					output.emplace_back(extracted_str);
+				}
+
+				for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+					if(dimension.has_value() == false){ continue; }
+
+					extracted = this->extract_deducer_names(*dimension);
+					output.reserve(std::bit_ceil(output.size() + extracted.size()));
+					for(const std::string_view& extracted_str : extracted){
+						output.emplace_back(extracted_str);
+					}
+				}
+
+				if(array_type.terminator.has_value()){
+					extracted = this->extract_deducer_names(*array_type.terminator);
+					output.reserve(std::bit_ceil(output.size() + extracted.size()));
+					for(const std::string_view& extracted_str : extracted){
+						output.emplace_back(extracted_str);
+					}
+				}
+			} break;
+
+			case AST::Kind::TEMPLATED_EXPR: {
+				const AST::TemplatedExpr& templated_expr = this->source.getASTBuffer().getTemplatedExpr(node);
+
+				for(const AST::Node& arg : templated_expr.args){
+					const evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(arg);
+					output.reserve(std::bit_ceil(output.size() + extracted.size()));
+					for(const std::string_view& extracted_str : extracted){
+						output.emplace_back(extracted_str);
+					}
 				}
 			} break;
 

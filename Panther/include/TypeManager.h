@@ -48,6 +48,7 @@ namespace pcit::panther{
 			DISTINCT_ALIAS,
 			STRUCT,
 			STRUCT_TEMPLATE,
+			STRUCT_TEMPLATE_DEDUCER,
 			UNION,
 			ENUM,
 			TYPE_DEDUCER,
@@ -104,6 +105,11 @@ namespace pcit::panther{
 				return StructTemplateID(this->_id);
 			}
 
+			EVO_NODISCARD auto structTemplateDeducerID() const -> StructTemplateDeducerID {
+				evo::debugAssert(this->kind() == Kind::STRUCT_TEMPLATE_DEDUCER, "not a StructTemplateDeducer");
+				return StructTemplateDeducerID(this->_id);
+			}
+
 			EVO_NODISCARD auto unionID() const -> UnionID {
 				evo::debugAssert(this->kind() == Kind::UNION, "not a Union");
 				return UnionID(this->_id);
@@ -149,6 +155,7 @@ namespace pcit::panther{
 			explicit ID(DistinctAliasID id)              : _kind(Kind::DISTINCT_ALIAS),               _id(id.get()) {}
 			explicit ID(StructID id)                     : _kind(Kind::STRUCT),                       _id(id.get()) {}
 			explicit ID(StructTemplateID id)             : _kind(Kind::STRUCT_TEMPLATE),              _id(id.get()) {}
+			explicit ID(StructTemplateDeducerID id)      : _kind(Kind::STRUCT_TEMPLATE_DEDUCER),      _id(id.get()) {}
 			explicit ID(UnionID id)                      : _kind(Kind::UNION),                        _id(id.get()) {}
 			explicit ID(EnumID id)                       : _kind(Kind::ENUM),                         _id(id.get()) {}
 			explicit ID(TypeDeducerID id)                : _kind(Kind::TYPE_DEDUCER),                 _id(id.get()) {}
@@ -581,7 +588,7 @@ namespace pcit::panther{
 			};
 
 
-			SourceID& sourceID;
+			SourceID sourceID;
 			Token::ID identTokenID;
 			evo::SmallVector<Param> params;
 			size_t minNumTemplateArgs; // TODO(PERF): make sure this optimization actually improves perf
@@ -592,7 +599,7 @@ namespace pcit::panther{
 
 				EVO_NODISCARD auto needsToBeCompiled() const -> bool { return this->instantiationID.has_value(); }
 			};
-			EVO_NODISCARD auto lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
+			EVO_NODISCARD auto createOrLookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
 
 			EVO_NODISCARD auto hasAnyDefaultParams() const -> bool {
 				return this->minNumTemplateArgs != this->params.size();
@@ -625,6 +632,16 @@ namespace pcit::panther{
 				core::LinearStepAlloc<Instantiation, size_t> instantiations{};
 				std::unordered_map<evo::SmallVector<Arg>, Instantiation&> instantiation_map{};
 				mutable core::SpinLock instantiation_lock{};
+		};
+
+
+
+		struct StructTemplateDeducer{
+			using ID = StructTemplateDeducerID;
+
+			SourceID instantiationSourceID;
+			StructTemplate::ID structTemplateID;
+			evo::SmallVector<StructTemplate::Arg> args;
 		};
 
 
@@ -890,6 +907,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) -> BaseType::StructTemplate&;
 			EVO_NODISCARD auto getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID;
 
+			EVO_NODISCARD auto getStructTemplateDeducer(BaseType::StructTemplateDeducer::ID id) const
+				-> const BaseType::StructTemplateDeducer&;
+			EVO_NODISCARD auto createStructTemplateDeducer(BaseType::StructTemplateDeducer&& new_type)
+				-> BaseType::ID;
+
+
 			EVO_NODISCARD auto getUnion(BaseType::Union::ID id) const -> const BaseType::Union&;
 			EVO_NODISCARD auto getUnion(BaseType::Union::ID id)       ->       BaseType::Union&;
 			EVO_NODISCARD auto getOrCreateUnion(BaseType::Union&& lookup_type) -> BaseType::ID;
@@ -928,6 +951,7 @@ namespace pcit::panther{
 			EVO_NODISCARD static auto getTypeByte()   -> TypeInfo::ID { return TypeInfo::ID(11); } 
 
 
+			EVO_NODISCARD auto isTypeDeducer(TypeInfo::VoidableID id) const -> bool;
 			EVO_NODISCARD auto isTypeDeducer(TypeInfo::ID id) const -> bool;
 
 
@@ -1066,6 +1090,10 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::StructTemplate, BaseType::StructTemplate::ID> struct_templates{};
 			mutable core::SpinLock struct_templates_lock{};
+
+			core::LinearStepAlloc<BaseType::StructTemplateDeducer, BaseType::StructTemplateDeducer::ID>
+				struct_template_deducers{};
+			mutable core::SpinLock struct_template_deducers_lock{};
 
 			core::LinearStepAlloc<BaseType::TypeDeducer, BaseType::TypeDeducer::ID> type_deducers{};
 			mutable core::SpinLock type_deducers_lock{};

@@ -627,7 +627,7 @@ namespace pcit::panther::sema{
 
 			EVO_NODISCARD auto needsToBeCompiled() const -> bool { return this->instantiationID.has_value(); }
 		};
-		EVO_NODISCARD auto lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
+		EVO_NODISCARD auto createOrLookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
 
 		EVO_NODISCARD auto hasAnyDefaultParams() const -> bool {
 			return this->minNumTemplateArgs != this->templateParams.size();

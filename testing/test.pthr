@@ -15,8 +15,8 @@ type Array = struct <{T: Type, SIZE: USize}>  {
 }
 
 
-func get_index_1 = (arr: Array<{Int, 3}>) -> Int {
-	return copy arr.at(1).*;
+func get_last = (arr: Array<{$$, $SIZE}>) -> Int {
+	return copy arr.at(SIZE - 1).*;
 }
 
 
@@ -24,7 +24,7 @@ func get_index_1 = (arr: Array<{Int, 3}>) -> Int {
 func entry = () #entry -> UI8 {
 	var arr = new Array<{Int, 3}>();
 
-	arr.at(1).* = 12;
+	arr.at(2).* = 12;
 	
-	return get_index_1(arr) as UI8;
+	return get_last(arr) as UI8;
 }

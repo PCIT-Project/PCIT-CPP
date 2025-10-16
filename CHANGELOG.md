@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.171.0"></a>
+## v0.0.171.0
+
+### Panther
+- Added deducers to templates
+- Fixed template parameters based on deducers in an array type or array reference type not working properly
+
+
+<!---------------------------------->
 <a name="v0.0.170.5"></a>
 ## v0.0.170.5
 

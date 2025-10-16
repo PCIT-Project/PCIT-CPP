@@ -87,7 +87,7 @@ namespace pcit::panther::sema{
 
 
 
-	auto TemplatedFunc::lookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
+	auto TemplatedFunc::createOrLookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
 		const auto lock = std::scoped_lock(this->instantiation_lock);
 
 		auto find = this->instantiation_map.find(args);
