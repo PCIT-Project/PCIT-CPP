@@ -67,7 +67,6 @@ namespace pcit::panther{
 					this->symbol_proc.setInstructionIndex(
 						SymbolProc::InstructionIndex(uint32_t(this->symbol_proc.instructions.size()))
 					);
-					this->context.symbol_proc_manager.symbol_proc_done();
 				} break;
 
 
@@ -140,6 +139,7 @@ namespace pcit::panther{
 			}
 		}
 
+		this->context.symbol_proc_manager.symbol_proc_done();
 		this->symbol_proc.setStatusDone();
 	}
 
@@ -1234,7 +1234,6 @@ namespace pcit::panther{
 
 			{
 				const auto lock = std::scoped_lock(passed_symbol.decl_waited_on_lock, passed_symbol.def_waited_on_lock);
-				this->context.symbol_proc_manager.symbol_proc_done();
 
 				for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
 					this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
@@ -2767,6 +2766,40 @@ namespace pcit::panther{
 
 		SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
+		switch(this->source.getTokenBuffer()[instr.func_def.name].kind()){
+			case Token::lookupKind("+"):    case Token::lookupKind("+%"):     case Token::lookupKind("+|"):
+			case Token::lookupKind("-"):    case Token::lookupKind("-%"):     case Token::lookupKind("-|"):
+			case Token::lookupKind("*"):    case Token::lookupKind("*%"):     case Token::lookupKind("*|"):
+			case Token::lookupKind("/"):    case Token::lookupKind("%"):      case Token::lookupKind("=="):
+			case Token::lookupKind("!="):   case Token::lookupKind("<"):      case Token::lookupKind("<="):
+			case Token::lookupKind(">"):    case Token::lookupKind(">="):     case Token::lookupKind("!"):
+			case Token::lookupKind("&&"):   case Token::lookupKind("||"):     case Token::lookupKind("<<"):
+			case Token::lookupKind("<<|"):  case Token::lookupKind(">>"):     case Token::lookupKind("&"):
+			case Token::lookupKind("|"):    case Token::lookupKind("^"):      case Token::lookupKind("~"): {
+				// do nothing...
+			} break;
+
+			default: {
+				if(func_attrs.value().is_commutative){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
+						instr.func_def,
+						"This function cannot have attribute #commutative"
+					);
+					return Result::ERROR;
+				}
+
+				if(func_attrs.value().is_swapped){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
+						instr.func_def,
+						"This function cannot have attribute #swapped"
+					);
+					return Result::ERROR;
+				}
+			} break;
+		}
+
 
 		///////////////////////////////////
 		// create func type
@@ -3859,6 +3892,320 @@ namespace pcit::panther{
 					}
 				} break;
 
+				case Token::lookupKind("+"):    case Token::lookupKind("+%"):  case Token::lookupKind("+|"):
+				case Token::lookupKind("-"):    case Token::lookupKind("-%"):  case Token::lookupKind("-|"):
+				case Token::lookupKind("*"):    case Token::lookupKind("*%"):  case Token::lookupKind("*|"):
+				case Token::lookupKind("/"):    case Token::lookupKind("%"):   case Token::lookupKind("=="):
+				case Token::lookupKind("!="):   case Token::lookupKind("<"):   case Token::lookupKind("<="):
+				case Token::lookupKind(">"):    case Token::lookupKind(">="):  case Token::lookupKind("&&"):
+				case Token::lookupKind("||"):   case Token::lookupKind("<<"):  case Token::lookupKind("<<|"):
+				case Token::lookupKind(">>"):   case Token::lookupKind("&"):   case Token::lookupKind("|"):
+				case Token::lookupKind("^"):    case Token::lookupKind("~"):
+
+				case Token::lookupKind("+="):   case Token::lookupKind("+%="): case Token::lookupKind("+|="):
+				case Token::lookupKind("-="):   case Token::lookupKind("-%="): case Token::lookupKind("-|="):
+				case Token::lookupKind("*="):   case Token::lookupKind("*%="): case Token::lookupKind("*|="):
+				case Token::lookupKind("/="):   case Token::lookupKind("%="):  case Token::lookupKind("<<="):
+				case Token::lookupKind("<<|="): case Token::lookupKind(">>="): case Token::lookupKind("&="):
+				case Token::lookupKind("|="):   case Token::lookupKind("^="):  case Token::lookupKind("~="): {
+					if(this->scope.inObjectScope() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_def,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_def,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+					const BaseType::Function& created_func_type =
+						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+
+					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+					);
+
+
+					const TypeInfo::ID struct_type_info_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+					);
+
+
+					if(created_func_type.params.size() != 2){
+						if(created_func_type.params.size() == 0){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+								instr.func_def,
+								"Infix operator overload doesn't have enough parameters"
+							);
+							return Result::ERROR;
+
+						}else if(created_func_type.params.size() == 1){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+								instr.func_def.params[0],
+								"Infix operator overload doesn't have enough parameters"
+							);
+							return Result::ERROR;
+							
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+								instr.func_def.params[2],
+								"Infix operator overload has too many parameters"
+							);
+							return Result::ERROR;
+						}
+					}
+
+					if(
+						this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
+						!= Token::Kind::KEYWORD_THIS
+					){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+							instr.func_def.params[0],
+							"Infix operator overload must have a [this] parameter"
+						);
+						return Result::ERROR;
+					}
+
+
+					if(created_func_type.returnParams.size() > 1){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+							instr.func_def.returns[1],
+							"Infix operator overload cannot have multiple return values"
+						);
+						return Result::ERROR;
+					}
+
+
+					switch(name_token.kind()){
+						case Token::lookupKind("+"):    case Token::lookupKind("+%"):   case Token::lookupKind("+|"):
+						case Token::lookupKind("-"):    case Token::lookupKind("-%"):   case Token::lookupKind("-|"):
+						case Token::lookupKind("*"):    case Token::lookupKind("*%"):   case Token::lookupKind("*|"):
+						case Token::lookupKind("/"):    case Token::lookupKind("%"):    case Token::lookupKind("<<"):
+						case Token::lookupKind("<<|"):  case Token::lookupKind(">>"):   case Token::lookupKind("&"):
+						case Token::lookupKind("|"):    case Token::lookupKind("^"):    case Token::lookupKind("~"): {
+							if(created_func_type.returnsVoid()){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+									instr.func_def.returns[0].type,
+									std::format(
+										"Infix [{}] overload must return a value", Token::printKind(name_token.kind())
+									)
+								);
+								return Result::ERROR;
+							}
+						} break;
+
+						case Token::lookupKind("=="): case Token::lookupKind("!="): case Token::lookupKind("<"):
+						case Token::lookupKind("<="): case Token::lookupKind(">"):  case Token::lookupKind(">="):
+						case Token::lookupKind("&&"): case Token::lookupKind("||"): {
+							if(created_func_type.returnParams[0].typeID != TypeManager::getTypeBool()){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+									instr.func_def.returns[0].type,
+									std::format(
+										"Infix [{}] overload must return a `Bool`", Token::printKind(name_token.kind())
+									)
+								);
+								return Result::ERROR;
+							}
+						} break;
+
+						case Token::lookupKind("+="):   case Token::lookupKind("+%="): case Token::lookupKind("+|="):
+						case Token::lookupKind("-="):   case Token::lookupKind("-%="): case Token::lookupKind("-|="):
+						case Token::lookupKind("*="):   case Token::lookupKind("*%="): case Token::lookupKind("*|="):
+						case Token::lookupKind("/="):   case Token::lookupKind("%="):  case Token::lookupKind("<<="):
+						case Token::lookupKind("<<|="): case Token::lookupKind(">>="): case Token::lookupKind("&="):
+						case Token::lookupKind("|="):   case Token::lookupKind("^="):  case Token::lookupKind("~="): {
+							if(created_func_type.returnsVoid() == false){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+									instr.func_def.returns[0].type,
+									std::format(
+										"Infix [{}] overload cannot return a value", Token::printKind(name_token.kind())
+									)
+								);
+								return Result::ERROR;
+							}
+						}
+					}
+
+
+					if(created_func_type.hasErrorReturn()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+							instr.func_def.errorReturns[0],
+							"Infix operator overload that error are unimplemented"
+						);
+						return Result::ERROR;
+					}
+
+
+
+					const auto add_overload = [&](BaseType::Struct& target_struct, bool swapped) -> evo::Result<> {
+						const auto lock = std::scoped_lock(target_struct.infixOverloadsLock);
+
+						const auto [begin_overloads_range, end_overloads_range] = 
+							target_struct.infixOverloads.equal_range(name_token.kind());
+
+
+						const sema::Func::ID overload_func_id_to_add = [&](){
+							if(swapped){
+								const BaseType::ID swapped_type_id = this->context.type_manager.getOrCreateFunction(
+									BaseType::Function(
+										evo::SmallVector<BaseType::Function::Param>{
+											created_func_type.params[1], created_func_type.params[0]
+										},
+										created_func_type.returnParams,
+										created_func_type.errorParams
+									)
+								);
+
+								const sema::Func::ID created_swapped_func_id = this->context.sema_buffer.createFunc(
+									this->source.getID(),
+									created_func.name,
+									std::string(),
+									swapped_type_id.funcID(),
+									evo::SmallVector<sema::Func::Param>{created_func.params[1], created_func.params[0]},
+									this->symbol_proc_id,
+									2,
+									false,
+									created_func.isConstexpr,
+									false,
+									created_func.hasInParam
+								);
+
+								sema::Func& created_swapped_func =
+									this->context.sema_buffer.funcs[created_swapped_func_id];
+
+								created_swapped_func.stmtBlock.emplace_back(
+									this->context.sema_buffer.createReturn(
+										sema::Expr(
+											this->context.sema_buffer.createFuncCall(
+												created_func_id,
+												evo::SmallVector<sema::Expr>{
+													sema::Expr(this->context.sema_buffer.createParam(1, 1)),
+													sema::Expr(this->context.sema_buffer.createParam(0, 0))
+												}
+											)
+										),
+										std::nullopt
+									)
+								);
+
+								created_swapped_func.isTerminated = true;
+								created_swapped_func.status = sema::Func::Status::DEF_DONE;
+
+								func_info.flipped_version = created_swapped_func_id;
+
+								return created_swapped_func_id;
+								
+							}else{
+								return created_func_id;
+							}
+						}();
+
+
+						const sema::Func& overload_func_to_add =
+							this->context.getSemaBuffer().getFunc(overload_func_id_to_add);
+
+
+						const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+						for(const auto& [_, existing_func_id] : overloads_range){
+							const sema::Func& existing_func =
+								this->context.getSemaBuffer().getFunc(existing_func_id);
+							
+							if(overload_func_to_add.isEquivalentOverload(existing_func, this->context)){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+									instr.func_def,
+									"This operator overload was already defined",
+									Diagnostic::Info(
+										"Previously defined here:", this->get_location(existing_func_id)
+									)
+								);
+								return evo::resultError;
+							}
+						}
+
+						target_struct.infixOverloads.emplace(name_token.kind(), overload_func_id_to_add);
+						return evo::Result<>();
+					};
+
+
+
+					if(func_attrs.value().is_commutative){
+						if(struct_type_info_id == created_func_type.params[1].typeID){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+								instr.func_def,
+								"Infix operator overload where the LHS and RHS are the same type "
+									"cannot have attribute #commutative"
+							);
+							return Result::ERROR;
+						}
+
+
+						// normal
+						if(add_overload(current_struct, false).isError()){ return Result::ERROR; }
+
+						// swapped
+						if(struct_type_info_id != created_func_type.params[1].typeID){
+							const TypeInfo& other_type = 
+								this->context.getTypeManager().getTypeInfo(created_func_type.params[1].typeID);
+
+							if(other_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+								BaseType::Struct& other_struct =
+									this->context.type_manager.getStruct(other_type.baseTypeID().structID());
+
+								if(add_overload(other_struct, true).isError()){ return Result::ERROR; }
+
+							}else{
+								if(add_overload(current_struct, true).isError()){ return Result::ERROR; }
+							}
+						}
+
+					}else if(func_attrs.value().is_swapped){
+						if(struct_type_info_id == created_func_type.params[1].typeID){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+								instr.func_def,
+								"Infix operator overload where the LHS and RHS are the same type "
+									"cannot have attribute #swapped"
+							);
+							return Result::ERROR;
+						}
+
+						const TypeInfo& other_type = 
+							this->context.getTypeManager().getTypeInfo(created_func_type.params[1].typeID);
+
+						if(other_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+							BaseType::Struct& other_struct =
+								this->context.type_manager.getStruct(other_type.baseTypeID().structID());
+
+							if(add_overload(other_struct, true).isError()){ return Result::ERROR; }
+
+						}else{
+							if(add_overload(current_struct, true).isError()){ return Result::ERROR; }
+						}
+						
+					}else{
+						if(add_overload(current_struct, false).isError()){ return Result::ERROR; }
+					}
+				} break;
+
 				default: {
 					this->emit_error(
 						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
@@ -3930,6 +4277,16 @@ namespace pcit::panther{
 		}
 
 
+		if(func_info.flipped_version.has_value()){
+			const sema::Func& flipped_version = this->context.getSemaBuffer().getFunc(*func_info.flipped_version);
+			BaseType::Function& flipped_version_type = this->context.type_manager.getFunction(flipped_version.typeID);
+
+			for(size_t i = 0; i < func_type.params.size(); i+=1){
+				flipped_version_type.params[func_type.params.size()-i-1].shouldCopy = func_type.params[i].shouldCopy;
+			}
+		}
+
+
 
 		//////////////////
 		// check entry has valid signature
@@ -3989,6 +4346,13 @@ namespace pcit::panther{
 			);
 
 			current_func.constexprJITFunc = sema_to_pir.lowerFuncDeclConstexpr(current_func_id);
+
+
+			if(func_info.flipped_version.has_value()){
+				sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
+
+				flipped_version.constexprJITFunc = sema_to_pir.lowerFuncDeclConstexpr(*func_info.flipped_version);
+			}
 
 			this->propagate_finished_pir_decl();
 		}
@@ -4235,8 +4599,11 @@ namespace pcit::panther{
 				sema_to_pir.lowerFuncDef(sema_func_id);
 
 
-				auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>();
+				const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+				auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 4>();
 				module_subset_funcs.emplace_back(*sema_func.constexprJITFunc);
+
 
 				// create jit interface if needed
 				if(func_type.returnsVoid() == false && func_type.returnParams.size() == 1){
@@ -4244,6 +4611,19 @@ namespace pcit::panther{
 						sema_func_id, *sema_func.constexprJITFunc
 					);
 					module_subset_funcs.emplace_back(*sema_func.constexprJITInterfaceFunc);
+
+
+					if(func_info.flipped_version.has_value()){
+						sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
+
+						sema_to_pir.lowerFuncDef(*func_info.flipped_version);
+						module_subset_funcs.emplace_back(*flipped_version.constexprJITFunc);
+
+						flipped_version.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+							*func_info.flipped_version, *flipped_version.constexprJITFunc
+						);
+						module_subset_funcs.emplace_back(*flipped_version.constexprJITInterfaceFunc);
+					}
 				}
 
 
@@ -6350,7 +6730,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_assignment(const Instruction::Assignment& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
 
-		const TermInfo& lhs = this->get_term_info(instr.lhs);
+		TermInfo& lhs = this->get_term_info(instr.lhs);
 		TermInfo& rhs = this->get_term_info(instr.rhs);
 
 		if(lhs.is_concrete() == false){
@@ -6380,43 +6760,75 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(rhs.is_ephemeral() == false && rhs.value_category != TermInfo::ValueCategory::NULL_VALUE){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
-				instr.infix.rhs,
-				"RHS of assignment must be ephemeral or (if applicable) value [null]"
+
+
+		const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
+
+		if(op_kind == Token::lookupKind("=")){
+			if(rhs.is_ephemeral() == false && rhs.value_category != TermInfo::ValueCategory::NULL_VALUE){
+				this->emit_error(
+					Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
+					instr.infix.rhs,
+					"RHS of assignment must be ephemeral or (if applicable) value [null]"
+				);
+				return Result::ERROR;
+			}
+
+			if(this->type_check<true, true>(
+				lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of assignment", instr.infix.rhs
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			if(lhs.value_state == TermInfo::ValueState::UNINIT){
+				this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+
+			}else{
+				if(this->context.getTypeManager().isTriviallyDeletable(lhs.type_id.as<TypeInfo::ID>()) == false){
+					this->get_special_member_stmt_dependents<SpecialMemberKind::DELETE>(
+						lhs.type_id.as<TypeInfo::ID>(),
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
+					);
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
+					);
+				}
+			}
+
+			this->get_current_scope_level().stmtBlock().emplace_back(
+				this->context.sema_buffer.createAssign(lhs.getExpr(), rhs.getExpr())
 			);
-			return Result::ERROR;
-		}
 
 
-		if(this->type_check<true, true>(
-			lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of assignment", instr.infix.rhs
-		).ok == false){
-			return Result::ERROR;
-		}
-
-		if(lhs.value_state == TermInfo::ValueState::UNINIT){
-			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+			return Result::SUCCESS;
 
 		}else{
-			if(this->context.getTypeManager().isTriviallyDeletable(lhs.type_id.as<TypeInfo::ID>()) == false){
-				this->get_special_member_stmt_dependents<SpecialMemberKind::DELETE>(
-					lhs.type_id.as<TypeInfo::ID>(),
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
+			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false, true>(lhs.type_id.as<TypeInfo::ID>());
+			const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+
+			if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+				const BaseType::Struct& lhs_struct =
+					this->context.getTypeManager().getStruct(lhs_actual_type.baseTypeID().structID());
+
+				const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
+					this->infix_overload_impl(lhs_struct.infixOverloads, lhs, rhs, instr.infix);
+
+				if(infix_overload_result.has_value() == false){
+					return infix_overload_result.error();
+				}
+
+				this->get_current_scope_level().stmtBlock().emplace_back(infix_overload_result.value());
+				return Result::SUCCESS;
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.infix,
+					"Composite assignment of these types are unimplemented (or potentially invalid)"
 				);
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
-				);
+				return Result::ERROR;
 			}
 		}
-
-		this->get_current_scope_level().stmtBlock().emplace_back(
-			this->context.sema_buffer.createAssign(lhs.getExpr(), rhs.getExpr())
-		);
-
-
-		return Result::SUCCESS;
 	}
 
 
@@ -8422,7 +8834,7 @@ namespace pcit::panther{
 			lookup_error = import_lookup.error();
 
 		}else{
-			static_assert(false, "Unkonwn language");
+			static_assert(false, "Unknown language");
 		}
 
 
@@ -13234,6 +13646,74 @@ namespace pcit::panther{
 					this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 
+				const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+				const TypeInfo& rhs_actual_type = this->context.getTypeManager().getTypeInfo(rhs_actual_type_id);
+
+
+				if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+					const BaseType::Struct& lhs_struct =
+						this->context.getTypeManager().getStruct(lhs_actual_type.baseTypeID().structID());
+
+					const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
+						this->infix_overload_impl(lhs_struct.infixOverloads, lhs, rhs, instr.infix);
+
+					if(infix_overload_result.has_value() == false){
+						return infix_overload_result.error();
+					}
+
+
+					const sema::FuncCall& created_func_call =
+						this->context.getSemaBuffer().getFuncCall(infix_overload_result.value());
+
+					const sema::Func& target_func =
+						this->context.getSemaBuffer().getFunc(created_func_call.target.as<sema::Func::ID>());
+
+					const BaseType::Function& target_func_type =
+						this->context.getTypeManager().getFunction(target_func.typeID);
+
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						lhs.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_func_type.returnParams[0].typeID.asTypeID(),
+						sema::Expr(infix_overload_result.value())
+					);
+					return Result::SUCCESS;
+
+				}else if(rhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+					const BaseType::Struct& rhs_struct =
+						this->context.getTypeManager().getStruct(rhs_actual_type.baseTypeID().structID());
+
+					const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
+						this->infix_overload_impl(rhs_struct.infixOverloads, lhs, rhs, instr.infix);
+
+					if(infix_overload_result.has_value() == false){
+						return infix_overload_result.error();
+					}
+
+
+					const sema::FuncCall& created_func_call =
+						this->context.getSemaBuffer().getFuncCall(infix_overload_result.value());
+
+					const sema::Func& target_func =
+						this->context.getSemaBuffer().getFunc(created_func_call.target.as<sema::Func::ID>());
+
+					const BaseType::Function& target_func_type =
+						this->context.getTypeManager().getFunction(target_func.typeID);
+
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						rhs.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_func_type.returnParams[0].typeID.asTypeID(),
+						sema::Expr(infix_overload_result.value())
+					);
+					return Result::SUCCESS;
+				}
+
+
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
 					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -13321,9 +13801,6 @@ namespace pcit::panther{
 						MATH_INFIX_KIND == Instruction::MathInfixKind::LOGICAL
 						|| MATH_INFIX_KIND == Instruction::MathInfixKind::BITWISE_LOGICAL
 					){
-						const TypeInfo& lhs_actual_type =
-							this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
-
 						if(
 							lhs_actual_type.qualifiers().empty() == false
 							|| lhs_actual_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
@@ -13365,6 +13842,41 @@ namespace pcit::panther{
 				const TypeInfo::ID lhs_actual_type_id =
 					this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
 
+				const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+
+				if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+					const BaseType::Struct& lhs_struct =
+						this->context.getTypeManager().getStruct(lhs_actual_type.baseTypeID().structID());
+
+					const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
+						this->infix_overload_impl(lhs_struct.infixOverloads, lhs, rhs, instr.infix);
+
+					if(infix_overload_result.has_value() == false){
+						return infix_overload_result.error();
+					}
+
+
+					const sema::FuncCall& created_func_call =
+						this->context.getSemaBuffer().getFuncCall(infix_overload_result.value());
+
+					const sema::Func& target_func =
+						this->context.getSemaBuffer().getFunc(created_func_call.target.as<sema::Func::ID>());
+
+					const BaseType::Function& target_func_type =
+						this->context.getTypeManager().getFunction(target_func.typeID);
+
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						lhs.value_stage,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_func_type.returnParams[0].typeID.asTypeID(),
+						sema::Expr(infix_overload_result.value())
+					);
+					return Result::SUCCESS;
+				}
+
+
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
 					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -13405,9 +13917,6 @@ namespace pcit::panther{
 
 						if(op_kind == Token::lookupKind("==") || op_kind == Token::lookupKind("!=")){
 							if(rhs.value_category == TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR){
-								const TypeInfo& lhs_actual_type = 
-									this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
-
 								const TermInfo::TaggedUnionFieldAccessor& tagged_union_field_accessor = 
 									rhs.type_id.as<TermInfo::TaggedUnionFieldAccessor>();
 
@@ -13497,6 +14006,40 @@ namespace pcit::panther{
 
 		}else if(rhs.type_id.is<TypeInfo::ID>()){ // lhs fluid
 			const TypeInfo::ID rhs_actual_type_id = this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
+
+			const TypeInfo& rhs_actual_type = this->context.getTypeManager().getTypeInfo(rhs_actual_type_id);
+
+			if(rhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+				const BaseType::Struct& rhs_struct =
+					this->context.getTypeManager().getStruct(rhs_actual_type.baseTypeID().structID());
+
+				const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
+					this->infix_overload_impl(rhs_struct.infixOverloads, lhs, rhs, instr.infix);
+
+				if(infix_overload_result.has_value() == false){
+					return infix_overload_result.error();
+				}
+
+
+				const sema::FuncCall& created_func_call =
+					this->context.getSemaBuffer().getFuncCall(infix_overload_result.value());
+
+				const sema::Func& target_func =
+					this->context.getSemaBuffer().getFunc(created_func_call.target.as<sema::Func::ID>());
+
+				const BaseType::Function& target_func_type =
+					this->context.getTypeManager().getFunction(target_func.typeID);
+
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					rhs.value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_func_type.returnParams[0].typeID.asTypeID(),
+					sema::Expr(infix_overload_result.value())
+				);
+				return Result::SUCCESS;
+			}
 
 			if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
 				if(this->context.getTypeManager().isUnsignedIntegral(rhs_actual_type_id) == false){
@@ -17007,6 +17550,7 @@ namespace pcit::panther{
 						case BaseType::Function::Param::Kind::READ: return TermInfo::ValueCategory::CONCRETE_CONST;
 						case BaseType::Function::Param::Kind::MUT:  return TermInfo::ValueCategory::CONCRETE_MUT;
 						case BaseType::Function::Param::Kind::IN:   return TermInfo::ValueCategory::FORWARDABLE;
+						case BaseType::Function::Param::Kind::C:    evo::debugFatalBreak("invalid here");
 					}
 
 					evo::unreachable();
@@ -18157,6 +18701,8 @@ namespace pcit::panther{
 						const TermInfo& got_arg = arg_infos[reason.arg_index].term_info;
 
 						const bool func_is_method = [&](){
+							if(is_member_call == false){ return false; }
+
 							if(func_infos[i].func_id.is<sema::Func::ID>()){
 								return this->context.getSemaBuffer()
 									.getFunc(func_infos[i].func_id.as<sema::Func::ID>())
@@ -18248,6 +18794,10 @@ namespace pcit::panther{
 
 								case BaseType::Function::Param::Kind::IN: {
 									sub_infos.emplace_back("[in] parameters can only accept ephemeral values");
+								} break;
+
+								case BaseType::Function::Param::Kind::C: {
+									sub_infos.emplace_back("[c] parameters can only accept ephemeral values");
 								} break;
 							}
 
@@ -18876,7 +19426,7 @@ namespace pcit::panther{
 						evo::debugAssert("Errored after decl, shouldn't get here");
 
 					}else{
-						static_assert(false, "Unkonwn errored reason");
+						static_assert(false, "Unknown errored reason");
 					}
 				});
 
@@ -20219,6 +20769,80 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::infix_overload_impl(
+		const std::unordered_multimap<Token::Kind, sema::Func::ID>& infix_overloads,
+		TermInfo& lhs,
+		TermInfo& rhs,
+		const AST::Infix& ast_infix
+	) -> evo::Expected<sema::FuncCall::ID, Result> {
+		const Token::Kind op_kind = this->source.getTokenBuffer()[ast_infix.opTokenID].kind();
+
+		const auto [begin_overloads_range, end_overloads_range] = infix_overloads.equal_range(op_kind);
+		const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+		if(overloads_range.empty()){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Infix LHS type: ");
+			this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Infix RHS type: ");
+			this->emit_error(
+				Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+				ast_infix,
+				"No matching operation for these arguments",
+				std::move(infos)
+			);
+			return evo::Unexpected(Result::ERROR);
+		}
+
+		auto overloads_list = evo::SmallVector<SelectFuncOverloadFuncInfo, 4>();
+		overloads_list.reserve(overloads_range.size());
+		for(const auto& [_, overload_id] : overloads_range){
+			const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
+			overloads_list.emplace_back(
+				overload_id, this->context.getTypeManager().getFunction(overload.typeID)
+			);
+		}
+
+		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>{
+			SelectFuncOverloadArgInfo(lhs, ast_infix.lhs, std::nullopt),
+			SelectFuncOverloadArgInfo(rhs, ast_infix.rhs, std::nullopt)
+		};
+
+		const evo::Result<size_t> selected_overload_index = this->select_func_overload(
+			overloads_list, arg_infos, ast_infix, false, evo::SmallVector<Diagnostic::Info>()
+		);
+
+		if(selected_overload_index.isError()){ return evo::Unexpected(Result::ERROR); }
+
+		const sema::Func::ID selected_overload_id =
+			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
+
+		if(this->get_current_func().isConstexpr){
+			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
+			if(infix_op_sema_func.isConstexpr == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					ast_infix.opTokenID,
+					"Cannot call a non-constexpr operator overload within a constexpr function",
+					Diagnostic::Info(
+						"Called operator overload was defined here:", this->get_location(selected_overload_id)
+					)
+				);
+				return evo::Unexpected(Result::ERROR);
+			}
+
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
+				.dependent_funcs.emplace(selected_overload_id);
+		}
+
+		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_overload_id);
+
+		return this->context.sema_buffer.createFuncCall(
+			selected_overload_id, evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()}
+		);
+	}
+
+
+
 	auto SemanticAnalyzer::constexpr_infix_math(
 		Token::Kind op, sema::Expr lhs, sema::Expr rhs, std::optional<TypeInfo::ID> lhs_type
 	) -> TermInfo {
@@ -21093,6 +21717,11 @@ namespace pcit::panther{
 		auto attr_export = Attribute(*this, "export");
 		auto attr_entry = Attribute(*this, "entry");
 
+		auto attr_commutative = Attribute(*this, "commutative");
+		auto attr_swapped = Attribute(*this, "swapped");
+
+
+
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
 
@@ -21199,7 +21828,7 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				if(attr_entry.is_set()){
+				if(attr_export.is_set()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
 						attribute.attribute,
@@ -21210,6 +21839,48 @@ namespace pcit::panther{
 
 				if(attr_entry.set(attribute.attribute).isError()){ return evo::resultError; }
 				attr_rt.implicitly_set(attribute.attribute, true);
+
+			}else if(attribute_str == "commutative"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #commutative does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_swapped.is_set()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
+						attribute.attribute,
+						"A function cannot have both attribute #commutative and #swapped"
+					);
+					return evo::resultError;
+				}
+				
+				if(attr_commutative.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else if(attribute_str == "swapped"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #swapped does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_commutative.is_set()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
+						attribute.attribute,
+						"A function cannot have both attribute #swapped and #commutative"
+					);
+					return evo::resultError;
+				}
+				
+				if(attr_swapped.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else{
 				this->emit_error(
@@ -21222,10 +21893,12 @@ namespace pcit::panther{
 		}
 
 		return FuncAttrs{
-			.is_pub     = attr_pub.is_set(),
-			.is_runtime = attr_rt.is_set(),
-			.is_export  = attr_export.is_set(),
-			.is_entry   = attr_entry.is_set()
+			.is_pub         = attr_pub.is_set(),
+			.is_runtime     = attr_rt.is_set(),
+			.is_export      = attr_export.is_set(),
+			.is_entry       = attr_entry.is_set(),
+			.is_commutative = attr_commutative.is_set(),
+			.is_swapped     = attr_swapped.is_set(),
 		};
 	}
 
@@ -21336,8 +22009,6 @@ namespace pcit::panther{
 
 		this->symbol_proc.def_done = true;
 		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by);
-
-		this->context.symbol_proc_manager.symbol_proc_done();
 	}
 
 
@@ -21350,8 +22021,6 @@ namespace pcit::panther{
 
 		this->propagate_finished_impl(this->symbol_proc.decl_waited_on_by);
 		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by);
-
-		this->context.symbol_proc_manager.symbol_proc_done();
 	}
 
 
@@ -21841,7 +22510,7 @@ namespace pcit::panther{
 										return type_manager.getMin(expected_type_info.baseTypeID()).getF128();
 									}
 								}
-								break; default: evo::debugFatalBreak("Unkonwn float type");
+								break; default: evo::debugFatalBreak("Unknown float type");
 							}
 						}().asF128();
 
@@ -21868,7 +22537,7 @@ namespace pcit::panther{
 										return type_manager.getMax(expected_type_info.baseTypeID()).getF128();
 									}
 								}
-								break; default: evo::debugFatalBreak("Unkonwn float type");
+								break; default: evo::debugFatalBreak("Unknown float type");
 							}
 						}().asF128();
 

@@ -3756,8 +3756,10 @@ namespace pcit::panther{
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Function& current_func =
 							this->module.getFunction(this->current_func_info->pir_ids[0].as<pir::Function::ID>());
+
 						const pir::Expr alloca = this->agent.createAlloca(
-							current_func.getParameters()[sema_param.index].getType()
+							current_func.getParameters()[sema_param.index].getType(),
+							this->name("PARAM_MAKE_ADDRESS")
 						);
 						this->agent.createStore(alloca, output);
 						return alloca;
@@ -6801,14 +6803,14 @@ namespace pcit::panther{
 
 
 	template<bool MAY_LOWER_DEPENDENCY>
-	auto SemaToPIR::get_type(const TypeInfo::VoidableID voidable_type_id) -> pir::Type {
+	auto SemaToPIR::get_type(TypeInfo::VoidableID voidable_type_id) -> pir::Type {
 		if(voidable_type_id.isVoid()){ return this->module.createVoidType(); }
 		return this->get_type<MAY_LOWER_DEPENDENCY>(voidable_type_id.asTypeID());
 	}
 
 
 	template<bool MAY_LOWER_DEPENDENCY>
-	auto SemaToPIR::get_type(const TypeInfo::ID type_id) -> pir::Type {
+	auto SemaToPIR::get_type(TypeInfo::ID type_id) -> pir::Type {
 		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
 
 		if(type_info.isInterfacePointer()){ return this->data.getInterfacePtrType(this->module); }
@@ -6849,7 +6851,7 @@ namespace pcit::panther{
 
 
 	template<bool MAY_LOWER_DEPENDENCY>
-	auto SemaToPIR::get_type(const BaseType::ID base_type_id) -> pir::Type {
+	auto SemaToPIR::get_type(BaseType::ID base_type_id) -> pir::Type {
 		switch(base_type_id.kind()){
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Not a valid base type");
 			
@@ -7012,7 +7014,7 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// name mangling
 
-	auto SemaToPIR::mangle_name(const BaseType::Struct::ID struct_id) const -> std::string {
+	auto SemaToPIR::mangle_name(BaseType::Struct::ID struct_id) const -> std::string {
 		if(this->data.getConfig().useReadableNames){
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
@@ -7031,7 +7033,7 @@ namespace pcit::panther{
 	}
 
 	template<bool PIR_STMT_NAME_SAFE>
-	auto SemaToPIR::mangle_name(const sema::GlobalVar::ID global_var_id) const -> std::string {
+	auto SemaToPIR::mangle_name(sema::GlobalVar::ID global_var_id) const -> std::string {
 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 
 		if(global_var.isClangVar()){
@@ -7058,7 +7060,7 @@ namespace pcit::panther{
 
 
 	template<bool PIR_STMT_NAME_SAFE>
-	auto SemaToPIR::mangle_name(const sema::Func::ID func_id) const -> std::string {
+	auto SemaToPIR::mangle_name(sema::Func::ID func_id) const -> std::string {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
 		if(func.isExport || func.isClangFunc()){
@@ -7081,22 +7083,97 @@ namespace pcit::panther{
 					}
 
 				}else{
-					// TODO(FUTURE): better naming of overloads
-					return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(name_token.kind()));
+					return this->mangle_name<PIR_STMT_NAME_SAFE>(func_id, name_token.kind());
 				}
 			}else{
-				// TODO(FUTURE): better naming of overloads
-				return std::format(
-					"PTHR.f{}.OP.{}",
-					func_id.get(),
-					Token::printKind(func.name.as<sema::Func::CompilerCreatedOpOverload>().overloadKind)
+				return this->mangle_name<PIR_STMT_NAME_SAFE>(
+					func_id, func.name.as<sema::Func::CompilerCreatedOpOverload>().overloadKind
 				);
 			}
 		}
 	}
 
 
-	auto SemaToPIR::mangle_name(const BaseType::Union::ID union_id) const -> std::string {
+	template<bool PIR_STMT_NAME_SAFE>
+	auto SemaToPIR::mangle_name(sema::Func::ID func_id, Token::Kind op_kind) const -> std::string {
+		if constexpr(PIR_STMT_NAME_SAFE){
+			switch(op_kind){
+				// prefix keywords
+				case Token::Kind::KEYWORD_COPY:   return std::format("PTHR.f{}.OP.copy", func_id.get());
+				case Token::Kind::KEYWORD_MOVE:   return std::format("PTHR.f{}.OP.move", func_id.get());
+				case Token::Kind::KEYWORD_NEW:    return std::format("PTHR.f{}.OP.new", func_id.get());
+				case Token::Kind::KEYWORD_DELETE: return std::format("PTHR.f{}.OP.delete", func_id.get());
+				case Token::Kind::KEYWORD_AS:     return std::format("PTHR.f{}.OP.as", func_id.get());
+
+				// assignment
+				case Token::lookupKind("+="):   return std::format("PTHR.f{}.OP.ASSIGN_ADD", func_id.get());
+				case Token::lookupKind("+%="):  return std::format("PTHR.f{}.OP.ASSIGN_ADD_WRAP", func_id.get());
+				case Token::lookupKind("+|="):  return std::format("PTHR.f{}.OP.ASSIGN_ADD_SAT", func_id.get());
+				case Token::lookupKind("-="):   return std::format("PTHR.f{}.OP.ASSIGN_SUB", func_id.get());
+				case Token::lookupKind("-%="):  return std::format("PTHR.f{}.OP.ASSIGN_SUB_WRAP", func_id.get());
+				case Token::lookupKind("-|="):  return std::format("PTHR.f{}.OP.ASSIGN_SUB_SAT", func_id.get());
+				case Token::lookupKind("*="):   return std::format("PTHR.f{}.OP.ASSIGN_MUL", func_id.get());
+				case Token::lookupKind("*%="):  return std::format("PTHR.f{}.OP.ASSIGN_MUL_WRAP", func_id.get());
+				case Token::lookupKind("*|="):  return std::format("PTHR.f{}.OP.ASSIGN_MUL_SAT", func_id.get());
+				case Token::lookupKind("/="):   return std::format("PTHR.f{}.OP.ASSIGN_DIV", func_id.get());
+				case Token::lookupKind("%="):   return std::format("PTHR.f{}.OP.ASSIGN_MOD", func_id.get());
+				case Token::lookupKind("<<="):  return std::format("PTHR.f{}.OP.ASSIGN_SHIFT_LEFT", func_id.get());
+				case Token::lookupKind("<<|="): return std::format("PTHR.f{}.OP.ASSIGN_SHIFT_LEFT_SAT", func_id.get());
+				case Token::lookupKind(">>="):  return std::format("PTHR.f{}.OP.ASSIGN_SHIFT_RIGHT", func_id.get());
+				case Token::lookupKind("&="):   return std::format("PTHR.f{}.OP.ASSIGN_BITWISE_AND", func_id.get());
+				case Token::lookupKind("|="):   return std::format("PTHR.f{}.OP.ASSIGN_BITWISE_OR", func_id.get());
+				case Token::lookupKind("^="):   return std::format("PTHR.f{}.OP.ASSIGN_BITWISE_XOR", func_id.get());
+
+				// arithmetic
+				case Token::lookupKind("+"):  return std::format("PTHR.f{}.OP.PLUS", func_id.get());
+				case Token::lookupKind("+%"): return std::format("PTHR.f{}.OP.ADD_WRAP", func_id.get());
+				case Token::lookupKind("+|"): return std::format("PTHR.f{}.OP.ADD_SAT", func_id.get());
+				case Token::lookupKind("-"):  return std::format("PTHR.f{}.OP.MINUS", func_id.get());
+				case Token::lookupKind("-%"): return std::format("PTHR.f{}.OP.SUB_WRAP", func_id.get());
+				case Token::lookupKind("-|"): return std::format("PTHR.f{}.OP.SUB_SAT", func_id.get());
+				case Token::lookupKind("*"):  return std::format("PTHR.f{}.OP.ASTERISK", func_id.get());
+				case Token::lookupKind("*%"): return std::format("PTHR.f{}.OP.MUL_WRAP", func_id.get());
+				case Token::lookupKind("*|"): return std::format("PTHR.f{}.OP.MUL_SAT", func_id.get());
+				case Token::lookupKind("/"):  return std::format("PTHR.f{}.OP.FORWARD_SLASH", func_id.get());
+				case Token::lookupKind("%"):  return std::format("PTHR.f{}.OP.MOD", func_id.get());
+
+				// comparative
+				case Token::lookupKind("=="): return std::format("PTHR.f{}.OP.EQUAL", func_id.get());
+				case Token::lookupKind("!="): return std::format("PTHR.f{}.OP.NOT_EQUAL", func_id.get());
+				case Token::lookupKind("<"):  return std::format("PTHR.f{}.OP.LESS_THAN", func_id.get());
+				case Token::lookupKind("<="): return std::format("PTHR.f{}.OP.LESS_THAN_EQUAL", func_id.get());
+				case Token::lookupKind(">"):  return std::format("PTHR.f{}.OP.GREATER_THAN", func_id.get());
+				case Token::lookupKind(">="): return std::format("PTHR.f{}.OP.GREATER_THAN_EQUAL", func_id.get());
+
+				// logical
+				case Token::lookupKind("!"):  return std::format("PTHR.f{}.OP.NOT", func_id.get());
+				case Token::lookupKind("&&"): return std::format("PTHR.f{}.OP.AND", func_id.get());
+				case Token::lookupKind("||"): return std::format("PTHR.f{}.OP.OR", func_id.get());
+
+				// bitwise
+				case Token::lookupKind("<<"):  return std::format("PTHR.f{}.OP.SHIFT_LEFT", func_id.get());
+				case Token::lookupKind("<<|"): return std::format("PTHR.f{}.OP.SHIFT_LEFT_SAT", func_id.get());
+				case Token::lookupKind(">>"):  return std::format("PTHR.f{}.OP.SHIFT_RIGHT", func_id.get());
+				case Token::lookupKind("&"):   return std::format("PTHR.f{}.OP.BITWISE_AND", func_id.get());
+				case Token::lookupKind("|"):   return std::format("PTHR.f{}.OP.BITWISE_OR", func_id.get());
+				case Token::lookupKind("^"):   return std::format("PTHR.f{}.OP.BITWISE_XOR", func_id.get());
+				case Token::lookupKind("~"):   return std::format("PTHR.f{}.OP.BITWISE_NOT", func_id.get());
+
+				default: {
+					evo::debugFatalBreak("Unknown overload op ({})", Token::printKind(op_kind));
+				};
+			}
+
+		}else{
+			return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(op_kind));
+		}
+	}
+
+
+
+
+
+	auto SemaToPIR::mangle_name(BaseType::Union::ID union_id) const -> std::string {
 		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
 
 

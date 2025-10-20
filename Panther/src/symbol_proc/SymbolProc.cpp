@@ -22,7 +22,7 @@
 namespace pcit::panther{
 
 	// TODO(PERF): Is there a faster way of doing this than just locking the whole thing?
-	static core::SpinLock wait_on_if_needed_lock{};
+	static evo::SpinLock wait_on_if_needed_lock{};
 	
 
 	auto SymbolProc::waitOnDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {

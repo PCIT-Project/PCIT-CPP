@@ -282,15 +282,23 @@ namespace pcit::panther{
 	}
 
 	auto Diagnostic::Location::get(const sema::Func& func, const Context& context) -> Location {
-		if(func.isClangFunc()){
-			const ClangSource& clang_source = context.getSourceManager()[func.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(func.name.as<ClangSource::DeclInfoID>()).location;
-			
-		}else{
-			return Location::get(
-				func.name.as<Token::ID>(), context.getSourceManager()[func.sourceID.as<Source::ID>()]
-			);
-		}
+		return func.name.visit([&](const auto& name) -> Location {
+			using NameType = std::decay_t<decltype(name)>;
+
+			if constexpr(std::is_same<NameType, Token::ID>()){
+				return Location::get(name, context.getSourceManager()[func.sourceID.as<Source::ID>()]);
+
+			}else if constexpr(std::is_same<NameType, ClangSource::DeclInfoID>()){
+				const ClangSource& clang_source = context.getSourceManager()[func.sourceID.as<ClangSource::ID>()];
+				return clang_source.getDeclInfo(name).location;
+
+			}else if constexpr(std::is_same<NameType, sema::Func::CompilerCreatedOpOverload>()){
+				return Location::get(name.parentName, context.getSourceManager()[func.sourceID.as<Source::ID>()]);
+
+			}else{
+				static_assert(false, "Unknown name kind");
+			}
+		});
 	}
 
 	auto Diagnostic::Location::get(const sema::TemplatedFunc::ID& func_id, const Source& src, const Context& context)

@@ -217,8 +217,8 @@ namespace pcit::core{
 					evo::UnmovableVector<Worker, false> workers{};
 
 					std::deque<TASK> tasks{};
-					mutable core::SpinLock tasks_lock{};
-					// mutable core::SpinLock add_tasks_lock{};
+					mutable evo::SpinLock tasks_lock{};
+					// mutable evo::SpinLock add_tasks_lock{};
 
 					std::atomic<uint32_t> num_workers_running = 0;
 					bool task_failed = false;

@@ -14,7 +14,6 @@
 #include <Evo.h>
 
 #include "./LinearStepAlloc.h"
-#include "./SpinLock.h"
 
 
 namespace pcit::core{
@@ -114,13 +113,13 @@ namespace pcit::core{
 			EVO_NODISCARD auto crend() const -> ConstIter { return this->linear_step_alloc.crend(); }
 
 
-			EVO_NODISCARD auto getSpinLock() const -> core::SpinLock& {
+			EVO_NODISCARD auto getSpinLock() const -> evo::SpinLock& {
 				return this->spin_lock;
 			}
 	
 		private:
 			LinearStepAlloc<T, ID, STARTING_POW_OF_2> linear_step_alloc{};
-			mutable core::SpinLock spin_lock{};
+			mutable evo::SpinLock spin_lock{};
 	};
 
 

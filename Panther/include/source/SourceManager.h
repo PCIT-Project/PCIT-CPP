@@ -184,10 +184,10 @@ namespace pcit::panther{
 			struct /* priv */ {
 				private:
 					core::LinearStepAlloc<Source, Source::ID, 0> sources{};
-					mutable core::SpinLock sources_lock{};
+					mutable evo::SpinLock sources_lock{};
 
 					core::LinearStepAlloc<ClangSource, ClangSource::ID, 0> clang_sources{};
-					mutable core::SpinLock clang_sources_lock{};
+					mutable evo::SpinLock clang_sources_lock{};
 
 					std::array<BuiltinModule, 2> builtin_modules{};
 

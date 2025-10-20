@@ -223,35 +223,35 @@ namespace pcit::panther{
 
 
 			std::optional<pir::Type> interface_ptr_type = std::nullopt;
-			mutable core::SpinLock interface_ptr_type_lock{};	
+			mutable evo::SpinLock interface_ptr_type_lock{};	
 
 			evo::SmallVector<std::optional<pir::Type>> array_ref_type{};
-			mutable core::SpinLock array_ref_type_lock{};	
+			mutable evo::SpinLock array_ref_type_lock{};	
 
 
 			std::unordered_map<BaseType::Struct::ID, pir::Type> structs{};
-			mutable core::SpinLock structs_lock{};
+			mutable evo::SpinLock structs_lock{};
 
 			std::unordered_map<BaseType::Union::ID, pir::Type> unions{};
-			mutable core::SpinLock unions_lock{};
+			mutable evo::SpinLock unions_lock{};
 
 			std::unordered_map<sema::GlobalVar::ID, pir::GlobalVar::ID> global_vars{};
-			mutable core::SpinLock global_vars_lock{};
+			mutable evo::SpinLock global_vars_lock{};
 
 			evo::StepVector<FuncInfo> funcs_info_alloc{};
 			std::unordered_map<sema::Func::ID, FuncInfo*> funcs{};
-			mutable core::SpinLock funcs_lock{};
+			mutable evo::SpinLock funcs_lock{};
 
 			std::unordered_set<std::string> extern_funcs{};
-			mutable core::SpinLock extern_funcs_lock{};
+			mutable evo::SpinLock extern_funcs_lock{};
 
 			JITBuildFuncs jit_build_funcs{};
 
 			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};
-			mutable core::SpinLock vtables_lock{};
+			mutable evo::SpinLock vtables_lock{};
 
 			std::unordered_map<const TypeInfo*, pir::Type> optional_types{};
-			mutable core::SpinLock optional_types_lock{};
+			mutable evo::SpinLock optional_types_lock{};
 
 			std::atomic<uint64_t> num_string_literals = 0;
 

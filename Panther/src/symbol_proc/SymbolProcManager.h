@@ -2594,7 +2594,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<SymbolProc, SymbolProc::ID> symbol_procs{};
 
 			std::unordered_map<TypeInfo::ID, SymbolProc::ID> type_symbol_procs{};
-			mutable core::SpinLock type_symbol_procs_lock{};
+			mutable evo::SpinLock type_symbol_procs_lock{};
 
 			std::atomic<size_t> num_procs_not_done = 0;
 			std::atomic<size_t> num_procs_suspended = 0;

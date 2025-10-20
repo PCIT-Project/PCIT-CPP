@@ -460,7 +460,7 @@ namespace pcit::panther{
 			BuildSystemConfig build_system_config{};
 
 			DiagnosticCallback _diagnostic_callback;
-			mutable core::SpinLock diagnostic_callback_mutex{};
+			mutable evo::SpinLock diagnostic_callback_mutex{};
 
 			std::atomic<unsigned> num_errors = 0;
 			std::atomic<bool> encountered_fatal = false;
@@ -472,7 +472,7 @@ namespace pcit::panther{
 			std::vector<CPPHeaderToLoad> cpp_headers_to_load{};
 
 			std::unordered_set<std::filesystem::path> current_dynamic_file_load{};
-			mutable core::SpinLock current_dynamic_file_load_lock{};
+			mutable evo::SpinLock current_dynamic_file_load_lock{};
 
 
 

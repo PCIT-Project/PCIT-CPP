@@ -168,20 +168,23 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
 
 			template<bool MAY_LOWER_DEPENDENCY>
-			EVO_NODISCARD auto get_type(const TypeInfo::VoidableID voidable_type_id) -> pir::Type;
+			EVO_NODISCARD auto get_type(TypeInfo::VoidableID voidable_type_id) -> pir::Type;
 			template<bool MAY_LOWER_DEPENDENCY>
-			EVO_NODISCARD auto get_type(const TypeInfo::ID type_id) -> pir::Type;
+			EVO_NODISCARD auto get_type(TypeInfo::ID type_id) -> pir::Type;
 			template<bool MAY_LOWER_DEPENDENCY>
-			EVO_NODISCARD auto get_type(const BaseType::ID base_type_id) -> pir::Type;
+			EVO_NODISCARD auto get_type(BaseType::ID base_type_id) -> pir::Type;
 
-			EVO_NODISCARD auto mangle_name(const BaseType::Struct::ID struct_id) const -> std::string;
-			EVO_NODISCARD auto mangle_name(const BaseType::Union::ID union_id) const -> std::string;
+			EVO_NODISCARD auto mangle_name(BaseType::Struct::ID struct_id) const -> std::string;
+			EVO_NODISCARD auto mangle_name(BaseType::Union::ID union_id) const -> std::string;
 
 			template<bool PIR_STMT_NAME_SAFE = false>
-			EVO_NODISCARD auto mangle_name(const sema::GlobalVar::ID global_var_id) const -> std::string;
+			EVO_NODISCARD auto mangle_name(sema::GlobalVar::ID global_var_id) const -> std::string;
 
 			template<bool PIR_STMT_NAME_SAFE = false>
-			EVO_NODISCARD auto mangle_name(const sema::Func::ID func_id) const -> std::string;
+			EVO_NODISCARD auto mangle_name(sema::Func::ID func_id) const -> std::string;
+
+			template<bool PIR_STMT_NAME_SAFE = false>
+			EVO_NODISCARD auto mangle_name(sema::Func::ID func_id, Token::Kind op_kind) const -> std::string;
 
 
 			// Note on naming: use a '.' prefix if the operation is an intermediate (not returned by some sema expr)

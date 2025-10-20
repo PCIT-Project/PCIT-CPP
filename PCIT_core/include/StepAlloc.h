@@ -315,7 +315,7 @@ namespace pcit::core{
 		private:
 			LinearStepAlloc<std::optional<T>, ID, STARTING_POW_OF_2> linear_step_alloc{};
 			std::stack<ID> erased_elems{};
-			mutable core::SpinLock mutex{};
+			mutable evo::SpinLock mutex{};
 	};
 
 }

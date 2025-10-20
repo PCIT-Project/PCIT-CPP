@@ -1,30 +1,82 @@
 
 
-type Array = struct <{T: Type, SIZE: USize}>  {
+type Vec2 = struct {
+	var x: F32;
+	var y: F32;
 
-	func at = (this, index: USize) -> T*| {
-		return this._data[index];
+
+	func == = (this, rhs: This) -> Bool {
+		return this.x == rhs.x && this.y == rhs.y;
 	}
 
-	func at = (this mut, index: USize) -> T* {
-		return this._data[index];
+
+
+	func += = (this mut, rhs: This) -> Void {
+		this.x = this.x + rhs.x;
+		this.y = this.y + rhs.y;
+	}
+
+	func + = (this, rhs: This) -> (output: This) {
+		output = copy this;
+		output += rhs;
+		return...;
 	}
 
 
-	var _data: [T:SIZE];
+	func + = (this, rhs: F32) #commutative -> This {
+		return new This{
+			x = this.x + rhs,
+			y = this.y + rhs,
+		};
+	}
+
+	func += = (this mut, rhs: F32) -> Void {
+		this.x = this.x + rhs;
+		this.y = this.y + rhs;
+	}
+
 }
 
 
-func get_last = (arr: Array<{$$, $SIZE}>) -> Int {
-	return copy arr.at(SIZE - 1).*;
+
+
+
+func test_1 = () -> Bool {
+	const vec = new Vec2{x=1.0, y=2.0};
+	const vec2 = new Vec2{x=3.0, y=4.0};
+	
+	const sum: Vec2 = vec + vec2;
+
+	return sum == new Vec2{x=4.0, y=6.0};
+}
+
+
+func test_2 = () -> Bool {
+	var vec = new Vec2{x=1.0, y=2.0};
+	const vec2 = new Vec2{x=3.0, y=4.0};
+
+	vec += vec2;
+
+	return vec == new Vec2{x=4.0, y=6.0};
+}
+
+
+func test_3 = () -> Bool {
+	var vec = new Vec2{x=1.0, y=2.0};
+
+	vec = vec + 10.0;
+	vec += 4.0;
+	vec = 8.5 + vec;
+
+	return vec == new Vec2{x = 23.5, y = 24.5};
 }
 
 
 
 func entry = () #entry -> UI8 {
-	var arr = new Array<{Int, 3}>();
-
-	arr.at(2).* = 12;
-	
-	return get_last(arr) as UI8;
+	// return (test_1() && test_2() && test_3()) as UI8;
+	when(test_1() == false){ return 1; }
+	when(test_2() == false){ return 2; }
+	when(test_3() == false){ return 3; }
+	return 0;
 }

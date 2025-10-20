@@ -1867,7 +1867,7 @@ namespace pcit::panther{
 				return this->isDefaultInitializable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -1957,7 +1957,7 @@ namespace pcit::panther{
 				return this->isNoErrorDefaultInitializable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2049,7 +2049,7 @@ namespace pcit::panther{
 				return this->isConstexprDefaultInitializable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2136,7 +2136,7 @@ namespace pcit::panther{
 				return this->isTriviallyDefaultInitializable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2220,7 +2220,7 @@ namespace pcit::panther{
 				return this->isTriviallyDeletable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2310,7 +2310,7 @@ namespace pcit::panther{
 				);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2395,7 +2395,7 @@ namespace pcit::panther{
 				return this->isCopyable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2481,7 +2481,7 @@ namespace pcit::panther{
 				return this->isTriviallyCopyable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2572,7 +2572,7 @@ namespace pcit::panther{
 				);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2657,7 +2657,7 @@ namespace pcit::panther{
 				return this->isMovable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2743,7 +2743,7 @@ namespace pcit::panther{
 				return this->isTriviallyMovable(interface_impl_instantiation_info.implInstantiationTypeID);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 
@@ -2832,7 +2832,7 @@ namespace pcit::panther{
 				return this->isConstexprMovable(interface_impl_instantiation_info.implInstantiationTypeID, sema_buffer);
 			} break;
 		}
-		evo::debugFatalBreak("Unkonwn or unsupported BaseType");
+		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
 

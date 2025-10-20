@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.172.0"></a>
+## v0.0.172.0
+
+### Panther
+- Added infix operator overloading
+- Added composite assignment operator overloading
+- Fixed race condition sometimes causing crashing when errors in semantic analysis occured
+
+### PCIT_core
+- `SpinLock` moved into Evo
+
+
+<!---------------------------------->
 <a name="v0.0.171.0"></a>
 ## v0.0.171.0
 

@@ -190,7 +190,7 @@ namespace pcit::panther{
 			evo::StepVector<std::string> names{};
 			std::unordered_map<std::string_view, SymbolInfo> imported_symbols{};
 			std::unordered_map<std::string_view, Symbol> source_symbols{};
-			mutable core::SpinLock source_symbols_lock{};
+			mutable evo::SpinLock source_symbols_lock{};
 
 			std::unordered_map<std::string_view, std::optional<DeclInfoID>> defines{};
 

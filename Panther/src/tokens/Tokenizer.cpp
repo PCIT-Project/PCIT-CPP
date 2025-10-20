@@ -774,9 +774,15 @@ namespace pcit::panther{
 			} break;
 
 			case '~': {
-				this->char_stream.skip(evo::stringSize("~"));
-				this->create_token(Token::lookupKind("~"));
-				return true;
+				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("~="));
+					this->create_token(Token::lookupKind("~="));
+					return true;
+				}else{
+					this->char_stream.skip(evo::stringSize("~"));
+					this->create_token(Token::lookupKind("~"));
+					return true;
+				}
 			} break;
 
 			case '}': {

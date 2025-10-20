@@ -160,6 +160,7 @@ namespace pcit::panther{
 				ASSIGN_BITWISE_AND,    // &=
 				ASSIGN_BITWISE_OR,     // |=
 				ASSIGN_BITWISE_XOR,    // ^=
+				ASSIGN_BITWISE_NOT,    // ~=
 
 
 				// arithmetic
@@ -331,6 +332,7 @@ namespace pcit::panther{
 				if(op_str == "&="){ return Kind::ASSIGN_BITWISE_AND; }
 				if(op_str == "|="){ return Kind::ASSIGN_BITWISE_OR; }
 				if(op_str == "^="){ return Kind::ASSIGN_BITWISE_XOR; }
+				if(op_str == "~="){ return Kind::ASSIGN_BITWISE_NOT; }
 
 				if(op_str == "+%"){ return Kind::ADD_WRAP; }
 				if(op_str == "+|"){ return Kind::ADD_SAT; }
@@ -537,6 +539,7 @@ namespace pcit::panther{
 					break; case Kind::ASSIGN_BITWISE_AND:    return "&=";
 					break; case Kind::ASSIGN_BITWISE_OR:     return "|=";
 					break; case Kind::ASSIGN_BITWISE_XOR:    return "^=";
+					break; case Kind::ASSIGN_BITWISE_NOT:    return "~=";
 
 					// arithmetic
 					break; case Kind::PLUS:                  return "+";

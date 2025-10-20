@@ -522,13 +522,13 @@ namespace pcit::panther{
 
 			std::atomic<bool> defCompleted = false; // includes PIR lowering
 
-			mutable core::SpinLock memberVarsLock{}; // only needed before definition is completed
+			mutable evo::SpinLock memberVarsLock{}; // only needed before definition is completed
 
 			evo::SmallVector<sema::FuncID> newInitOverloads{};
-			mutable core::SpinLock newInitOverloadsLock{}; // only needed before def completed
+			mutable evo::SpinLock newInitOverloadsLock{}; // only needed before def completed
 
 			evo::SmallVector<sema::FuncID> newAssignOverloads{};
-			mutable core::SpinLock newAssignOverloadsLock{}; // only needed before def completed
+			mutable evo::SpinLock newAssignOverloadsLock{}; // only needed before def completed
 
 			std::atomic<std::optional<sema::FuncID>> deleteOverload{};
 			std::atomic<DeletableOverload> copyInitOverload{};
@@ -537,7 +537,11 @@ namespace pcit::panther{
 			std::atomic<std::optional<sema::FuncID>> moveAssignOverload{}; // note: is nullopt if default from init
 
 			std::unordered_map<TypeInfoID, sema::FuncID> operatorAsOverloads{};
-			mutable core::SpinLock operatorAsOverloadsLock{}; // only needed before def completed
+			mutable evo::SpinLock operatorAsOverloadsLock{}; // only needed before def completed
+
+			std::unordered_multimap<Token::Kind, sema::FuncID> infixOverloads{};
+			mutable evo::SpinLock infixOverloadsLock{}; // only needed before def completed
+
 
 			bool isDefaultInitializable = false;
 			bool isTriviallyDefaultInitializable = false;
@@ -631,7 +635,7 @@ namespace pcit::panther{
 			private:
 				core::LinearStepAlloc<Instantiation, size_t> instantiations{};
 				std::unordered_map<evo::SmallVector<Arg>, Instantiation&> instantiation_map{};
-				mutable core::SpinLock instantiation_lock{};
+				mutable evo::SpinLock instantiation_lock{};
 		};
 
 
@@ -741,7 +745,7 @@ namespace pcit::panther{
 			evo::SmallVector<sema::FuncID> methods{};
 
 			std::unordered_map<BaseType::ID, const Impl&> impls{};
-			mutable core::SpinLock implsLock{};
+			mutable evo::SpinLock implsLock{};
 
 			std::atomic<bool> defCompleted = false;
 
@@ -912,7 +916,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto createStructTemplateDeducer(BaseType::StructTemplateDeducer&& new_type)
 				-> BaseType::ID;
 
-
 			EVO_NODISCARD auto getUnion(BaseType::Union::ID id) const -> const BaseType::Union&;
 			EVO_NODISCARD auto getUnion(BaseType::Union::ID id)       ->       BaseType::Union&;
 			EVO_NODISCARD auto getOrCreateUnion(BaseType::Union&& lookup_type) -> BaseType::ID;
@@ -935,6 +938,7 @@ namespace pcit::panther{
 				-> const BaseType::InterfaceImplInstantiation&;
 			EVO_NODISCARD auto getOrCreateInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation&& lookup_type)
 				-> BaseType::ID;
+
 			
 			
 			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0);  }
@@ -1065,55 +1069,55 @@ namespace pcit::panther{
 
 			// TODO(PERF): improve lookup times
 			core::LinearStepAlloc<BaseType::Primitive, BaseType::Primitive::ID> primitives{};
-			mutable core::SpinLock primitives_lock{};
+			mutable evo::SpinLock primitives_lock{};
 
 			core::LinearStepAlloc<BaseType::Function, BaseType::Function::ID> functions{};
-			mutable core::SpinLock functions_lock{};
+			mutable evo::SpinLock functions_lock{};
 
 			core::LinearStepAlloc<BaseType::Array, BaseType::Array::ID> arrays{};
-			mutable core::SpinLock arrays_lock{};
+			mutable evo::SpinLock arrays_lock{};
 
 			core::LinearStepAlloc<BaseType::ArrayDeducer, BaseType::ArrayDeducer::ID> array_deducers{};
-			mutable core::SpinLock array_deducers_lock{};
+			mutable evo::SpinLock array_deducers_lock{};
 
 			core::LinearStepAlloc<BaseType::ArrayRef, BaseType::ArrayRef::ID> array_refs{};
-			mutable core::SpinLock array_refs_lock{};
+			mutable evo::SpinLock array_refs_lock{};
 
 			core::LinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
-			mutable core::SpinLock aliases_lock{};
+			mutable evo::SpinLock aliases_lock{};
 
 			core::LinearStepAlloc<BaseType::DistinctAlias, BaseType::DistinctAlias::ID> distinct_aliases{};
-			mutable core::SpinLock distinct_aliases_lock{};
+			mutable evo::SpinLock distinct_aliases_lock{};
 
 			core::LinearStepAlloc<BaseType::Struct, BaseType::Struct::ID> structs{};
-			mutable core::SpinLock structs_lock{};
+			mutable evo::SpinLock structs_lock{};
 
 			core::LinearStepAlloc<BaseType::StructTemplate, BaseType::StructTemplate::ID> struct_templates{};
-			mutable core::SpinLock struct_templates_lock{};
+			mutable evo::SpinLock struct_templates_lock{};
 
 			core::LinearStepAlloc<BaseType::StructTemplateDeducer, BaseType::StructTemplateDeducer::ID>
 				struct_template_deducers{};
-			mutable core::SpinLock struct_template_deducers_lock{};
+			mutable evo::SpinLock struct_template_deducers_lock{};
 
 			core::LinearStepAlloc<BaseType::TypeDeducer, BaseType::TypeDeducer::ID> type_deducers{};
-			mutable core::SpinLock type_deducers_lock{};
+			mutable evo::SpinLock type_deducers_lock{};
 
 			core::LinearStepAlloc<BaseType::Union, BaseType::Union::ID> unions{};
-			mutable core::SpinLock unions_lock{};
+			mutable evo::SpinLock unions_lock{};
 
 			core::LinearStepAlloc<BaseType::Enum, BaseType::Enum::ID> enums{};
-			mutable core::SpinLock enums_lock{};
+			mutable evo::SpinLock enums_lock{};
 
 			core::LinearStepAlloc<BaseType::Interface, BaseType::Interface::ID> interfaces{};
-			mutable core::SpinLock interfaces_lock{};
+			mutable evo::SpinLock interfaces_lock{};
 			core::SyncLinearStepAlloc<BaseType::Interface::Impl, uint64_t> interface_impls{};
 
 			core::LinearStepAlloc<BaseType::InterfaceImplInstantiation, BaseType::InterfaceImplInstantiation::ID>
 				interface_impl_instantiations{};
-			mutable core::SpinLock interface_impl_instantiations_lock{};
+			mutable evo::SpinLock interface_impl_instantiations_lock{};
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
-			mutable core::SpinLock types_lock{};
+			mutable evo::SpinLock types_lock{};
 	};
 
 }

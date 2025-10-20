@@ -1322,19 +1322,19 @@ namespace pcit::panther{
 
 
 			evo::SmallVector<ID> waiting_for{};
-			mutable core::SpinLock waiting_for_lock{};
+			mutable evo::SpinLock waiting_for_lock{};
 
 			evo::SmallVector<ID> decl_waited_on_by{};
-			mutable core::SpinLock decl_waited_on_lock{};
+			mutable evo::SpinLock decl_waited_on_lock{};
 
 			evo::SmallVector<ID> pir_decl_waited_on_by{};
-			mutable core::SpinLock pir_decl_waited_on_lock{};
+			mutable evo::SpinLock pir_decl_waited_on_lock{};
 
 			evo::SmallVector<ID> def_waited_on_by{};
-			mutable core::SpinLock def_waited_on_lock{};
+			mutable evo::SpinLock def_waited_on_lock{};
 
 			evo::SmallVector<ID> pir_def_waited_on_by{};
-			mutable core::SpinLock pir_def_waited_on_lock{};
+			mutable evo::SpinLock pir_def_waited_on_lock{};
 
 
 			struct StructSpecialMemberFuncs{
@@ -1393,6 +1393,8 @@ namespace pcit::panther{
 
 				sema::TemplatedFunc::Instantiation* instantiation = nullptr;
 				evo::SmallVector<std::optional<TypeInfo::ID>> instantiation_param_arg_types{};
+
+				std::optional<sema::Func::ID> flipped_version{};
 
 				std::unordered_set<sema::Func::ID> dependent_funcs{}; // Only needed if the func is comptime
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{}; // Only needed if the func is comptime

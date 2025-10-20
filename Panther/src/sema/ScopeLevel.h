@@ -315,7 +315,7 @@ namespace pcit::panther::sema{
 		private:
 			std::unordered_map<std::string_view, IdentID> ids{};
 			std::unordered_map<std::string_view, const IdentID*> disallowed_idents_for_shadowing{};
-			mutable core::SpinLock idents_lock{};
+			mutable evo::SpinLock idents_lock{};
 
 			sema::StmtBlock* _stmt_block;
 			std::optional<Token::ID> _label;
@@ -326,11 +326,11 @@ namespace pcit::panther::sema{
 
 			unsigned num_sub_scopes = false;
 			unsigned num_sub_scopes_terminated = 0;
-			mutable core::SpinLock sub_scopes_and_stmt_block_lock{};
+			mutable evo::SpinLock sub_scopes_and_stmt_block_lock{};
 
 
 			std::unordered_map<ValueStateID, ValueStateInfo> value_states{};
-			mutable core::SpinLock value_states_lock{};
+			mutable evo::SpinLock value_states_lock{};
 
 	};
 

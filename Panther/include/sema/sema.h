@@ -651,7 +651,7 @@ namespace pcit::panther::sema{
 		private:
 			core::LinearStepAlloc<Instantiation, size_t> instantiations{};
 			std::unordered_map<evo::SmallVector<Arg>, Instantiation&> instantiation_map{};
-			mutable core::SpinLock instantiation_lock{};
+			mutable evo::SpinLock instantiation_lock{};
 	};
 
 

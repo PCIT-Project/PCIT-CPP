@@ -254,7 +254,7 @@ namespace pcit::core{
 					const size_t id;
 					std::jthread thread;
 
-					core::SpinLock work_lock{}; 
+					evo::SpinLock work_lock{}; 
 					size_t start_index = 0;
 					size_t end_index = 0;
 			};

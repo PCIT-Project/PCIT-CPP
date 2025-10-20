@@ -14,7 +14,6 @@
 #include "./generic_values/GenericValue.h"
 
 #include "./LinearStepAlloc.h"
-#include "./SpinLock.h"
 #include "./SyncLinearStepAlloc.h"
 #include "./Optional.h"
 #include "./Printer.h"

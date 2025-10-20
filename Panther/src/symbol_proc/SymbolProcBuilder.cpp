@@ -1997,76 +1997,80 @@ namespace pcit::panther{
 			return evo::Result<>();
 		}
 
+		if(this->source.getTokenBuffer()[infix.opTokenID].kind() == Token::lookupKind("==")){
+			switch(infix.rhs.kind()){
+				case AST::Kind::NEW: {
+					const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
+					if(lhs.isError()){ return evo::resultError; }
 
-		switch(infix.rhs.kind()){
-			case AST::Kind::NEW: {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
-				if(lhs.isError()){ return evo::resultError; }
+					const AST::New& ast_new = this->source.getASTBuffer().getNew(infix.rhs);
 
-				const AST::New& ast_new = this->source.getASTBuffer().getNew(infix.rhs);
+					const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
+						this->source.getASTBuffer().getType(ast_new.type)
+					);
+					if(type_id.isError()){ return evo::resultError; }
 
-				const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
-					this->source.getASTBuffer().getType(ast_new.type)
-				);
-				if(type_id.isError()){ return evo::resultError; }
+					auto args = evo::SmallVector<SymbolProc::TermInfoID>();
+					args.reserve(ast_new.args.size());
+					for(const AST::FuncCall::Arg& arg : ast_new.args){
+						const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<false>(arg.value);
+						if(value_expr.isError()){ return evo::resultError; }
 
-				auto args = evo::SmallVector<SymbolProc::TermInfoID>();
-				args.reserve(ast_new.args.size());
-				for(const AST::FuncCall::Arg& arg : ast_new.args){
-					const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<false>(arg.value);
-					if(value_expr.isError()){ return evo::resultError; }
-
-					args.emplace_back(value_expr.value());
-				}
+						args.emplace_back(value_expr.value());
+					}
 
 
-				this->add_instruction(this->context.symbol_proc_manager.createAssignmentNew(
-					infix, lhs.value(), type_id.value(), std::move(args))
-				);
-				return evo::Result<>();
-			} break;
-
-			case AST::Kind::PREFIX: {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
-				if(lhs.isError()){ return evo::resultError; }
-
-				const AST::Prefix& ast_prefix = this->source.getASTBuffer().getPrefix(infix.rhs);
-				const Token& prefix_token = this->source.getTokenBuffer()[ast_prefix.opTokenID];
-
-				if(prefix_token.kind() == Token::Kind::KEYWORD_COPY){
-					const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
-					if(target.isError()){ return evo::resultError; }
-
-					this->add_instruction(
-						this->context.symbol_proc_manager.createAssignmentCopy(infix, lhs.value(), target.value())
+					this->add_instruction(this->context.symbol_proc_manager.createAssignmentNew(
+						infix, lhs.value(), type_id.value(), std::move(args))
 					);
 					return evo::Result<>();
+				} break;
 
-				}else if(prefix_token.kind() == Token::Kind::KEYWORD_MOVE){
-					const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
-					if(target.isError()){ return evo::resultError; }
+				case AST::Kind::PREFIX: {
+					const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
+					if(lhs.isError()){ return evo::resultError; }
 
-					this->add_instruction(
-						this->context.symbol_proc_manager.createAssignmentMove(infix, lhs.value(), target.value())
-					);
-					return evo::Result<>();
+					const AST::Prefix& ast_prefix = this->source.getASTBuffer().getPrefix(infix.rhs);
+					const Token& prefix_token = this->source.getTokenBuffer()[ast_prefix.opTokenID];
 
-				}else if(prefix_token.kind() == Token::Kind::KEYWORD_FORWARD){
-					const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
-					if(target.isError()){ return evo::resultError; }
+					if(prefix_token.kind() == Token::Kind::KEYWORD_COPY){
+						const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
+						if(target.isError()){ return evo::resultError; }
 
-					this->add_instruction(
-						this->context.symbol_proc_manager.createAssignmentForward(infix, lhs.value(), target.value())
-					);
-					return evo::Result<>();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createAssignmentCopy(infix, lhs.value(), target.value())
+						);
+						return evo::Result<>();
 
-				}else{
-					break;
-				}
-			} break;
+					}else if(prefix_token.kind() == Token::Kind::KEYWORD_MOVE){
+						const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
+						if(target.isError()){ return evo::resultError; }
 
-			default: break;
+						this->add_instruction(
+							this->context.symbol_proc_manager.createAssignmentMove(infix, lhs.value(), target.value())
+						);
+						return evo::Result<>();
+
+					}else if(prefix_token.kind() == Token::Kind::KEYWORD_FORWARD){
+						const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<false>(ast_prefix.rhs);
+						if(target.isError()){ return evo::resultError; }
+
+						this->add_instruction(
+							this->context.symbol_proc_manager.createAssignmentForward(
+								infix, lhs.value(), target.value()
+							)
+						);
+						return evo::Result<>();
+
+					}else{
+						break;
+					}
+				} break;
+
+				default: break;
+			}
 		}
+
 
 		const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
 		if(lhs.isError()){ return evo::resultError; }

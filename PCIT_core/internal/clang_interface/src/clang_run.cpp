@@ -667,7 +667,7 @@ namespace pcit::clangint{
 				}
 				
 			}else{
-				static_assert(false, "Unkonwn language opts");
+				static_assert(false, "Unknown language opts");
 			}
 		});
 
