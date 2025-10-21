@@ -1,82 +1,47 @@
+func and_test = () #rt -> Bool {
+	var i: USize = 0;
+	while(i < (1 << 4)){
+		defer{ i = i + 1; }
+		
+		const a: Bool = (i >> 3) as Bool;
+		const b: Bool = ((i >> 2) & 1) as Bool;
+		const c: Bool = ((i >> 1) & 1) as Bool;
+		const d: Bool = (i & 1) as Bool;
 
+		const logical: Bool = a && b && c && d;
+		const bitwise: Bool = a & b & c & d;
 
-type Vec2 = struct {
-	var x: F32;
-	var y: F32;
-
-
-	func == = (this, rhs: This) -> Bool {
-		return this.x == rhs.x && this.y == rhs.y;
+		if(logical != bitwise){ return false; }
 	}
 
-
-
-	func += = (this mut, rhs: This) -> Void {
-		this.x = this.x + rhs.x;
-		this.y = this.y + rhs.y;
-	}
-
-	func + = (this, rhs: This) -> (output: This) {
-		output = copy this;
-		output += rhs;
-		return...;
-	}
-
-
-	func + = (this, rhs: F32) #commutative -> This {
-		return new This{
-			x = this.x + rhs,
-			y = this.y + rhs,
-		};
-	}
-
-	func += = (this mut, rhs: F32) -> Void {
-		this.x = this.x + rhs;
-		this.y = this.y + rhs;
-	}
-
+	return true;
 }
 
 
+func or_test = () #rt -> Bool {
+	var i: USize = 0;
+	while(i < (1 << 4)){
+		defer{ i = i + 1; }
+		
+		const a: Bool = (i >> 3) as Bool;
+		const b: Bool = ((i >> 2) & 1) as Bool;
+		const c: Bool = ((i >> 1) & 1) as Bool;
+		const d: Bool = (i & 1) as Bool;
 
+		const logical: Bool = a || b || c || d;
+		const bitwise: Bool = a | b | c | d;
 
+		if(logical != bitwise){ return false; }
+	}
 
-func test_1 = () -> Bool {
-	const vec = new Vec2{x=1.0, y=2.0};
-	const vec2 = new Vec2{x=3.0, y=4.0};
-	
-	const sum: Vec2 = vec + vec2;
-
-	return sum == new Vec2{x=4.0, y=6.0};
+	return true;
 }
 
-
-func test_2 = () -> Bool {
-	var vec = new Vec2{x=1.0, y=2.0};
-	const vec2 = new Vec2{x=3.0, y=4.0};
-
-	vec += vec2;
-
-	return vec == new Vec2{x=4.0, y=6.0};
-}
-
-
-func test_3 = () -> Bool {
-	var vec = new Vec2{x=1.0, y=2.0};
-
-	vec = vec + 10.0;
-	vec += 4.0;
-	vec = 8.5 + vec;
-
-	return vec == new Vec2{x = 23.5, y = 24.5};
-}
 
 
 
 func entry = () #entry -> UI8 {
-	// return (test_1() && test_2() && test_3()) as UI8;
-	when(test_1() == false){ return 1; }
-	when(test_2() == false){ return 2; }
-	when(test_3() == false){ return 3; }
+	if(and_test() == false){ return 1; }
+	if(or_test() == false){ return 2; }
 	return 0;
 }

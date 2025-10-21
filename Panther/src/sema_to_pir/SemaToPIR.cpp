@@ -2356,18 +2356,22 @@ namespace pcit::panther{
 					const sema::LogicalAnd& logical_and =
 						this->context.getSemaBuffer().getLogicalAnd(expr.logicalAndID());
 
-					const pir::BasicBlock::ID current_block = this->agent.getTargetBasicBlock().getID();
 
-					const pir::BasicBlock::ID rhs_block = this->agent.createBasicBlock("LOGICAL_AND.RHS");
-					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock("LOGICAL_AND.END");
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlockInline("LOGICAL_AND.END");
+					const pir::BasicBlock::ID rhs_block = this->agent.createBasicBlockInline("LOGICAL_AND.RHS");
 
-					this->agent.createBranch(this->get_expr_register(logical_and.lhs), rhs_block, end_block);
+					const pir::Expr lhs_expr = this->get_expr_register(logical_and.lhs);
+					const pir::BasicBlock::ID lhs_end_block = this->agent.getTargetBasicBlock().getID();
+					this->agent.createBranch(lhs_expr, rhs_block, end_block);
 
 					this->agent.setTargetBasicBlock(rhs_block);
 					const pir::Expr rhs_expr = this->get_expr_register(logical_and.rhs);
+					const pir::BasicBlock::ID rhs_end_block = this->agent.getTargetBasicBlock().getID();
 					this->agent.createJump(end_block);
 
 					this->agent.setTargetBasicBlock(end_block);
+
+
 					std::string output_expr_name = [&](){
 						if constexpr(MODE == GetExprMode::STORE){
 							return this->name(".LOGICAL_AND");
@@ -2377,8 +2381,8 @@ namespace pcit::panther{
 					}();
 					const pir::Expr output_expr = this->agent.createPhi(
 						evo::SmallVector<pir::Phi::Predecessor>{
-							pir::Phi::Predecessor(current_block, this->agent.createBoolean(false)),
-							pir::Phi::Predecessor(rhs_block, rhs_expr)
+							pir::Phi::Predecessor(lhs_end_block, this->agent.createBoolean(false)),
+							pir::Phi::Predecessor(rhs_end_block, rhs_expr)
 						},
 						std::move(output_expr_name)
 					);
@@ -2407,16 +2411,19 @@ namespace pcit::panther{
 					const sema::LogicalOr& logical_or =
 						this->context.getSemaBuffer().getLogicalOr(expr.logicalOrID());
 
-					const pir::BasicBlock::ID current_block = this->agent.getTargetBasicBlock().getID();
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlockInline("LOGICAL_OR.END");
+					const pir::BasicBlock::ID rhs_block = this->agent.createBasicBlockInline("LOGICAL_OR.RHS");
 
-					const pir::BasicBlock::ID rhs_block = this->agent.createBasicBlock("LOGICAL_OR.RHS");
-					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock("LOGICAL_OR.END");
-
-					this->agent.createBranch(this->get_expr_register(logical_or.lhs), end_block, rhs_block);
+					const pir::Expr lhs_expr = this->get_expr_register(logical_or.lhs);
+					const pir::BasicBlock::ID lhs_end_block = this->agent.getTargetBasicBlock().getID();
+					this->agent.createBranch(lhs_expr, end_block, rhs_block);
 
 					this->agent.setTargetBasicBlock(rhs_block);
 					const pir::Expr rhs_expr = this->get_expr_register(logical_or.rhs);
+					const pir::BasicBlock::ID rhs_end_block = this->agent.getTargetBasicBlock().getID();
 					this->agent.createJump(end_block);
+
+					this->agent.setTargetBasicBlock(end_block);
 
 					this->agent.setTargetBasicBlock(end_block);
 					std::string output_expr_name = [&](){
@@ -2428,8 +2435,8 @@ namespace pcit::panther{
 					}();
 					const pir::Expr output_expr = this->agent.createPhi(
 						evo::SmallVector<pir::Phi::Predecessor>{
-							pir::Phi::Predecessor(current_block, this->agent.createBoolean(true)),
-							pir::Phi::Predecessor(rhs_block, rhs_expr)
+							pir::Phi::Predecessor(lhs_end_block, this->agent.createBoolean(true)),
+							pir::Phi::Predecessor(rhs_end_block, rhs_expr)
 						},
 						std::move(output_expr_name)
 					);

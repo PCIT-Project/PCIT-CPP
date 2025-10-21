@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.172.1"></a>
+## v0.0.172.1
+
+### Panther
+- Fixed lowering of chained logical and / logical or operations
+
+
+<!---------------------------------->
 <a name="v0.0.172.0"></a>
 ## v0.0.172.0
 
