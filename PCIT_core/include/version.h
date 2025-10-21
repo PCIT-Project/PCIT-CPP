@@ -25,7 +25,7 @@ namespace pcit::core{
 		.major   = 0,
 		.release = 0,
 		.minor   = 172,
-		.patch   = 1,
+		.patch   = 2,
 	};
 
 }
@@ -39,4 +39,4 @@ struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
         	ctx
         );
     }
-}; 
+};

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.172.2"></a>
+## v0.0.172.2
+
+### Panther
+- Fixed lowering of shift-right expressions having `#exact` being inverted
+
+
+<!---------------------------------->
 <a name="v0.0.172.1"></a>
 ## v0.0.172.1
 

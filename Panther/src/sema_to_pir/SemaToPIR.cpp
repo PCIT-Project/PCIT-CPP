@@ -6351,7 +6351,7 @@ namespace pcit::panther{
 				const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
-				const bool is_exact = instantiation.templateArgs[2].as<core::GenericValue>().getBool();
+				const bool is_exact = !instantiation.templateArgs[2].as<core::GenericValue>().getBool();
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->agent.createZExt(
@@ -6359,7 +6359,7 @@ namespace pcit::panther{
 				);
 
 				const pir::Expr register_value = this->agent.createSHL(
-					lhs, rhs, !is_unsigned & !is_exact, is_unsigned & !is_exact, this->name("SHL")
+					lhs, rhs, !is_unsigned & is_exact, is_unsigned & is_exact, this->name("SHL")
 				);
 
 				if constexpr(MODE == GetExprMode::REGISTER){
@@ -6424,7 +6424,7 @@ namespace pcit::panther{
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
 				const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
-				const bool is_exact = instantiation.templateArgs[2].as<core::GenericValue>().getBool();
+				const bool is_exact = !instantiation.templateArgs[2].as<core::GenericValue>().getBool();
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 

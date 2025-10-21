@@ -43,5 +43,8 @@ func or_test = () #rt -> Bool {
 func entry = () #entry -> UI8 {
 	if(and_test() == false){ return 1; }
 	if(or_test() == false){ return 2; }
+
+	var shl_test: Int = 12 as Int << 2;
+
 	return 0;
 }
