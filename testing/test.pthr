@@ -1,50 +1,9 @@
-func and_test = () #rt -> Bool {
-	var i: USize = 0;
-	while(i < (1 << 4)){
-		defer{ i = i + 1; }
-		
-		const a: Bool = (i >> 3) as Bool;
-		const b: Bool = ((i >> 2) & 1) as Bool;
-		const c: Bool = ((i >> 1) & 1) as Bool;
-		const d: Bool = (i & 1) as Bool;
-
-		const logical: Bool = a && b && c && d;
-		const bitwise: Bool = a & b & c & d;
-
-		if(logical != bitwise){ return false; }
-	}
-
-	return true;
-}
-
-
-func or_test = () #rt -> Bool {
-	var i: USize = 0;
-	while(i < (1 << 4)){
-		defer{ i = i + 1; }
-		
-		const a: Bool = (i >> 3) as Bool;
-		const b: Bool = ((i >> 2) & 1) as Bool;
-		const c: Bool = ((i >> 1) & 1) as Bool;
-		const d: Bool = (i & 1) as Bool;
-
-		const logical: Bool = a || b || c || d;
-		const bitwise: Bool = a | b | c | d;
-
-		if(logical != bitwise){ return false; }
-	}
-
-	return true;
-}
-
-
 
 
 func entry = () #entry -> UI8 {
-	if(and_test() == false){ return 1; }
-	if(or_test() == false){ return 2; }
+	var foo: UI8 = 0;
 
-	var shl_test: Int = 12 as Int << 2;
-
-	return 0;
+	foo += 1;
+	
+	return copy foo;
 }

@@ -535,6 +535,7 @@ namespace pcit::panther{
 			const AST::Infix& infix;
 			SymbolProcTermInfoID lhs;
 			SymbolProcTermInfoID rhs;
+			SymbolProcTermInfoID builtin_composite_expr_term_info_id;
 		};
 
 		struct AssignmentNew{

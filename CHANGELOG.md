@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.173.0"></a>
+## v0.0.173.0
+
+### Panther
+- Added composite assignment for builtin types
+
+
+<!---------------------------------->
 <a name="v0.0.172.2"></a>
 ## v0.0.172.2
 

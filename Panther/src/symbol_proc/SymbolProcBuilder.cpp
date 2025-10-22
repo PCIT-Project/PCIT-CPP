@@ -2078,8 +2078,14 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<false>(infix.rhs);
 		if(rhs.isError()){ return evo::resultError; }
 
+
+		// TODO(PERF): make optional less memory?
+		const SymbolProc::TermInfoID builtin_composite_expr_term_info_id = this->create_term_info();
+
 		this->add_instruction(
-			this->context.symbol_proc_manager.createAssignment(infix, lhs.value(), rhs.value())
+			this->context.symbol_proc_manager.createAssignment(
+				infix, lhs.value(), rhs.value(), builtin_composite_expr_term_info_id
+			)
 		);
 		return evo::Result<>();
 	}

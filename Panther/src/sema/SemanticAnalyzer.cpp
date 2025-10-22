@@ -3907,7 +3907,7 @@ namespace pcit::panther{
 				case Token::lookupKind("*="):   case Token::lookupKind("*%="): case Token::lookupKind("*|="):
 				case Token::lookupKind("/="):   case Token::lookupKind("%="):  case Token::lookupKind("<<="):
 				case Token::lookupKind("<<|="): case Token::lookupKind(">>="): case Token::lookupKind("&="):
-				case Token::lookupKind("|="):   case Token::lookupKind("^="):  case Token::lookupKind("~="): {
+				case Token::lookupKind("|="):   case Token::lookupKind("^="): {
 					if(this->scope.inObjectScope() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
@@ -4028,7 +4028,7 @@ namespace pcit::panther{
 						case Token::lookupKind("*="):   case Token::lookupKind("*%="): case Token::lookupKind("*|="):
 						case Token::lookupKind("/="):   case Token::lookupKind("%="):  case Token::lookupKind("<<="):
 						case Token::lookupKind("<<|="): case Token::lookupKind(">>="): case Token::lookupKind("&="):
-						case Token::lookupKind("|="):   case Token::lookupKind("^="):  case Token::lookupKind("~="): {
+						case Token::lookupKind("|="):   case Token::lookupKind("^="): {
 							if(created_func_type.returnsVoid() == false){
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
@@ -6775,7 +6775,7 @@ namespace pcit::panther{
 			}
 
 			if(this->type_check<true, true>(
-				lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of assignment", instr.infix.rhs
+				lhs.type_id.as<TypeInfo::ID>(), rhs, std::format("RHS of [{}]", op_kind), instr.infix.rhs
 			).ok == false){
 				return Result::ERROR;
 			}
@@ -6821,12 +6821,60 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.infix,
-					"Composite assignment of these types are unimplemented (or potentially invalid)"
+				using MathInfixKind = Instruction::MathInfixKind;
+
+				switch(op_kind){
+					case Token::lookupKind("+="): case Token::lookupKind("-="): case Token::lookupKind("*="):
+					case Token::lookupKind("/="): case Token::lookupKind("%="): {
+						const auto math_infix = Instruction::MathInfix<false, MathInfixKind::MATH>(
+							instr.infix, instr.lhs, instr.rhs, instr.builtin_composite_expr_term_info_id
+						);
+
+						const Result result = this->instr_expr_math_infix(math_infix);
+						if(result != Result::SUCCESS){ return result; }
+					} break;
+
+
+					case Token::lookupKind("+%="): case Token::lookupKind("+|="): case Token::lookupKind("-%="):
+					case Token::lookupKind("-|="): case Token::lookupKind("*%="): case Token::lookupKind("*|="): {
+						const auto math_infix = Instruction::MathInfix<false, MathInfixKind::INTEGRAL_MATH>(
+							instr.infix, instr.lhs, instr.rhs, instr.builtin_composite_expr_term_info_id
+						);
+
+						const Result result = this->instr_expr_math_infix(math_infix);
+						if(result != Result::SUCCESS){ return result; }
+					} break;
+
+					case Token::lookupKind("<<="): case Token::lookupKind("<<|="): case Token::lookupKind(">>="): {
+						const auto math_infix = Instruction::MathInfix<false, MathInfixKind::SHIFT>(
+							instr.infix, instr.lhs, instr.rhs, instr.builtin_composite_expr_term_info_id
+						);
+
+						const Result result = this->instr_expr_math_infix(math_infix);
+						if(result != Result::SUCCESS){ return result; }
+					} break;
+					
+					case Token::lookupKind("&="): case Token::lookupKind("|="): case Token::lookupKind("^="): {
+						const auto math_infix = Instruction::MathInfix<false, MathInfixKind::BITWISE_LOGICAL>(
+							instr.infix, instr.lhs, instr.rhs, instr.builtin_composite_expr_term_info_id
+						);
+
+						const Result result = this->instr_expr_math_infix(math_infix);
+						if(result != Result::SUCCESS){ return result; }
+					} break;
+					
+					default: {
+						evo::debugFatalBreak("Unknown or unsupported composite assignment");
+					} break;
+				}
+
+				this->get_current_scope_level().stmtBlock().emplace_back(
+					this->context.sema_buffer.createAssign(
+						lhs.getExpr(), this->get_term_info(instr.builtin_composite_expr_term_info_id).getExpr()
+					)
 				);
-				return Result::ERROR;
+
+				return Result::SUCCESS;
 			}
 		}
 	}
@@ -13721,7 +13769,10 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS,
 							instr.infix.lhs,
-							"LHS of bitshift operator must be integral",
+							std::format(
+								"LHS of [{}] operator must be integral",
+								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+							),
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -13733,7 +13784,10 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
 							instr.infix.lhs,
-							"RHS of bitshift operator must be unsigned integral",
+							std::format(
+								"RHS of [{}] operator must be unsigned integral",
+								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+							),
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -13755,7 +13809,10 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
 							instr.infix.rhs,
-							"RHS of bitshift operator is incorrect bit-width for this LHS",
+							std::format(
+								"RHS of [{}] operator is incorrect bit-width for this LHS",
+								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+							),
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -13763,7 +13820,12 @@ namespace pcit::panther{
 
 				}else{
 					if(this->type_check<true, true>(
-						lhs.type_id.as<TypeInfo::ID>(), rhs, "RHS of infix math operator", instr.infix
+						lhs.type_id.as<TypeInfo::ID>(),
+						rhs,
+						std::format(
+							"RHS of infix [{}] operator", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+						),
+						instr.infix
 					).ok == false){
 						return Result::ERROR;
 					}
@@ -13884,7 +13946,10 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS,
 							instr.infix.lhs,
-							"LHS of bitshift operator must be integral",
+							std::format(
+								"LHS of [{}] operator must be integral",
+								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+							),
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -13905,7 +13970,12 @@ namespace pcit::panther{
 					);
 
 					if(this->type_check<true, true>(
-						expected_rhs_type, rhs, "RHS of this bitshift operator", instr.infix.rhs
+						expected_rhs_type,
+						rhs,
+						std::format(
+							"RHS of [{}] operator", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+						),
+						instr.infix.rhs
 					).ok == false){
 						return Result::ERROR;
 					}
@@ -13967,7 +14037,12 @@ namespace pcit::panther{
 
 
 					if(this->type_check<true, true>(
-						lhs_actual_type_id, rhs, "RHS of infix math operator", instr.infix.rhs
+						lhs_actual_type_id,
+						rhs,
+						std::format(
+							"RHS of [{}] operator", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+						),
+						instr.infix.rhs
 					).ok == false){
 						return Result::ERROR;
 					}
@@ -14048,7 +14123,10 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
 						instr.infix.rhs,
-						"RHS of bitshift operator must be unsigned integral",
+						std::format(
+							"RHS of [{}] operator must be unsigned integral",
+							this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+						),
 						std::move(infos)
 					);
 					return Result::ERROR;
@@ -14069,7 +14147,13 @@ namespace pcit::panther{
 				);
 
 				if(this->type_check<true, true>(
-					expected_lhs_type, lhs, "LHS of this bitshift operator", instr.infix
+					expected_lhs_type,
+					lhs,
+					std::format(
+						"LHS of [{}] operator",
+						this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+					),
+					instr.infix
 				).ok == false){
 					return Result::ERROR;
 				}
@@ -14077,7 +14161,13 @@ namespace pcit::panther{
 
 			}else{
 				if(this->type_check<true, true>(
-					rhs_actual_type_id, lhs, "LHS of infix math operator", instr.infix
+					rhs_actual_type_id,
+					lhs,
+					std::format(
+						"LHS of [{}] operator",
+						this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+					),
+					instr.infix
 				).ok == false){
 					return Result::ERROR;
 				}
@@ -14118,7 +14208,10 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
 					instr.infix,
-					"LHS and RHS of infix math must match fluid kind"
+					std::format(
+						"LHS and RHS of [{}] operator must match fluid kind",
+						this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+					)
 				);
 				return Result::ERROR;
 			}
@@ -14260,7 +14353,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("&"): {
+					case Token::lookupKind("&"): case Token::lookupKind("&="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14269,7 +14362,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("|"): {
+					case Token::lookupKind("|"): case Token::lookupKind("|="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14278,7 +14371,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("^"): {
+					case Token::lookupKind("^"): case Token::lookupKind("^="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14287,7 +14380,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("<<"): {
+					case Token::lookupKind("<<"): case Token::lookupKind("<<="): {
 						const TypeInfo::ID rhs_actual_type_id = 
 							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
@@ -14301,7 +14394,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("<<|"): {
+					case Token::lookupKind("<<|"): case Token::lookupKind("<<|="): {
 						const TypeInfo::ID rhs_actual_type_id = 
 							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
@@ -14315,7 +14408,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind(">>"): {
+					case Token::lookupKind(">>"): case Token::lookupKind(">>="): {
 						const TypeInfo::ID rhs_actual_type_id = 
 							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
@@ -14329,7 +14422,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("+"): {
+					case Token::lookupKind("+"): case Token::lookupKind("+="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
@@ -14349,7 +14442,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Token::lookupKind("+%"): {
+					case Token::lookupKind("+%"): case Token::lookupKind("+%="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14360,7 +14453,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("+|"): {
+					case Token::lookupKind("+|"): case Token::lookupKind("+|="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14369,7 +14462,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("-"): {
+					case Token::lookupKind("-"): case Token::lookupKind("-="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
@@ -14389,7 +14482,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Token::lookupKind("-%"): {
+					case Token::lookupKind("-%"): case Token::lookupKind("-%="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14400,7 +14493,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("-|"): {
+					case Token::lookupKind("-|"): case Token::lookupKind("-|="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14409,7 +14502,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("*"): {
+					case Token::lookupKind("*"): case Token::lookupKind("*="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
@@ -14429,7 +14522,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Token::lookupKind("*%"): {
+					case Token::lookupKind("*%"): case Token::lookupKind("*%="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14440,7 +14533,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("*|"): {
+					case Token::lookupKind("*|"): case Token::lookupKind("*|="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -14449,7 +14542,7 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::lookupKind("/"): {
+					case Token::lookupKind("/"): case Token::lookupKind("/="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
@@ -14469,7 +14562,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Token::lookupKind("%"): {
+					case Token::lookupKind("%"): case Token::lookupKind("%="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
