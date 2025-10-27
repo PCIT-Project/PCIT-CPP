@@ -1,9 +1,31 @@
 
 
-func entry = () #entry -> UI8 {
-	var foo: UI8 = 0;
+type Thing = struct {
+	// func new = (num: Int) -> (output: Thing) {
+	// 	output.num = copy num;
+	// 	return...;
+	// }
 
-	foo += 1;
+	func copy = delete;
+
+	func copy = (this) -> (output: Thing) {
+		output.num = this.num;
+		return...;
+	}
+
+
+	func == = (this, rhs: Thing) -> Bool {
+		return this.num == rhs.num;
+	}
+
+
+	var num: Int;
+}
+
+
+func entry = () #entry -> UI8 {
+	var foo = new Thing{num = 12};
+	var bar = new Thing{num = 14};
 	
-	return copy foo;
+	return (foo == bar) as UI8;
 }

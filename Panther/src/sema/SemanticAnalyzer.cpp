@@ -3632,15 +3632,25 @@ namespace pcit::panther{
 							if(current_struct.copyInitOverload.compare_exchange_strong(
 								expected, BaseType::Struct::DeletableOverload(created_func_id, false)
 							) == false){
-								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def,
-									"Operator [copy] initialization was already defined for this type",
-									Diagnostic::Info(
-										"First defined here:",
-										this->get_location(*current_struct.copyInitOverload.load().funcID)
-									)
-								);
+								if(expected.wasDeleted){
+									this->emit_error(
+										Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
+										instr.func_def,
+										"Operator [copy] can not be defined for this type as it was explicitly deleted"
+									);
+
+								}else{
+									this->emit_error(
+										Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
+										instr.func_def,
+										"Operator [copy] initialization was already defined for this type",
+										Diagnostic::Info(
+											"First defined here:",
+											this->get_location(*current_struct.copyInitOverload.load().funcID)
+										)
+									);
+								}
+
 								return Result::ERROR;
 							}
 						} break;
@@ -3698,6 +3708,15 @@ namespace pcit::panther{
 										"First defined here:",
 										this->get_location(*current_struct.copyAssignOverload.load())
 									)
+								);
+								return Result::ERROR;
+							}
+
+							if(current_struct.copyInitOverload.load().wasDeleted){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
+									instr.func_def,
+									"Operator [copy] can not be defined for this type as it was explicitly deleted"
 								);
 								return Result::ERROR;
 							}
@@ -3810,15 +3829,25 @@ namespace pcit::panther{
 							if(current_struct.moveInitOverload.compare_exchange_strong(
 								expected, BaseType::Struct::DeletableOverload(created_func_id, false)
 							) == false){
-								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def,
-									"Operator [move] initialization was already defined for this type",
-									Diagnostic::Info(
-										"First defined here:",
-										this->get_location(*current_struct.moveInitOverload.load().funcID)
-									)
-								);
+								if(expected.wasDeleted){
+									this->emit_error(
+										Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
+										instr.func_def,
+										"Operator [move] can not be defined for this type as it was explicitly deleted"
+									);
+
+								}else{
+									this->emit_error(
+										Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
+										instr.func_def,
+										"Operator [move] initialization was already defined for this type",
+										Diagnostic::Info(
+											"First defined here:",
+											this->get_location(*current_struct.moveInitOverload.load().funcID)
+										)
+									);
+								}
+
 								return Result::ERROR;
 							}
 						} break;
@@ -3876,6 +3905,15 @@ namespace pcit::panther{
 										"First defined here:",
 										this->get_location(*current_struct.moveAssignOverload.load())
 									)
+								);
+								return Result::ERROR;
+							}
+
+							if(current_struct.moveInitOverload.load().wasDeleted){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
+									instr.func_def,
+									"Operator [move] can not be defined for this type as it was explicitly deleted"
 								);
 								return Result::ERROR;
 							}
@@ -4950,65 +4988,72 @@ namespace pcit::panther{
 		const Token::Kind deleted_kind = this->source.getTokenBuffer()[instr.deleted_special_method.memberToken].kind();
 
 
-		if(deleted_kind == Token::Kind::KEYWORD_COPY){
-			auto init_expected = BaseType::Struct::DeletableOverload();
-			if(current_struct.copyInitOverload.compare_exchange_strong(
-				init_expected, BaseType::Struct::DeletableOverload(std::nullopt, true)
-			) == false){
-				if(init_expected.wasDeleted){
+		switch(deleted_kind){
+			case Token::Kind::KEYWORD_COPY: {
+				auto init_expected = BaseType::Struct::DeletableOverload();
+				if(current_struct.copyInitOverload.compare_exchange_strong(
+					init_expected, BaseType::Struct::DeletableOverload(std::nullopt, true)
+				) == false){
+					if(init_expected.wasDeleted){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
+							instr.deleted_special_method,
+							"Operator overload [copy] was already deleted"
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
+							*init_expected.funcID,
+							"Operator overload [copy] was already deleted"
+						);
+					}
+					return Result::ERROR;
+				}
+
+				if(current_struct.copyAssignOverload.load().has_value()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-						instr.deleted_special_method,
+						*current_struct.copyAssignOverload.load(),
 						"Operator overload [copy] was already deleted"
 					);
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-						*init_expected.funcID,
-						"Operator overload [copy] was already deleted"
-					);
+					return Result::ERROR;
 				}
-				return Result::ERROR;
-			}
+			} break;
 
-			if(current_struct.copyAssignOverload.load().has_value()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-					*current_struct.copyAssignOverload.load(),
-					"Operator overload [copy] was already deleted"
-				);
-				return Result::ERROR;
-			}
+			case Token::Kind::KEYWORD_MOVE: {
+				auto init_expected = BaseType::Struct::DeletableOverload();
+				if(current_struct.moveInitOverload.compare_exchange_strong(
+					init_expected, BaseType::Struct::DeletableOverload(std::nullopt, true)
+				) == false){
+					if(init_expected.wasDeleted){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
+							instr.deleted_special_method,
+							"Operator overload [move] was already deleted"
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
+							*init_expected.funcID,
+							"Operator overload [move] was already deleted"
+						);
+					}
+					return Result::ERROR;
+				}
 
-		}else{
-			auto init_expected = BaseType::Struct::DeletableOverload();
-			if(current_struct.moveInitOverload.compare_exchange_strong(
-				init_expected, BaseType::Struct::DeletableOverload(std::nullopt, true)
-			) == false){
-				if(init_expected.wasDeleted){
+				if(current_struct.moveAssignOverload.load().has_value()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-						instr.deleted_special_method,
+						*current_struct.moveAssignOverload.load(),
 						"Operator overload [move] was already deleted"
 					);
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-						*init_expected.funcID,
-						"Operator overload [move] was already deleted"
-					);
+					return Result::ERROR;
 				}
-				return Result::ERROR;
-			}
+			} break;
 
-			if(current_struct.moveAssignOverload.load().has_value()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-					*current_struct.moveAssignOverload.load(),
-					"Operator overload [move] was already deleted"
-				);
-				return Result::ERROR;
-			}
+			default: {
+				evo::debugFatalBreak("Unknown or unsupported deletable overload");
+			} break;
 		}
 
 
@@ -7810,7 +7855,8 @@ namespace pcit::panther{
 					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs,
 					"This type is not movable as its operator [move] was deleted"
 				);
-				return Result::ERROR;			}
+				return Result::ERROR;
+			}
 
 
 			if(move_init_overload.funcID.has_value() == false){
@@ -20859,6 +20905,7 @@ namespace pcit::panther{
 
 		return evo::Result<>();
 	}
+
 
 
 

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.173.1"></a>
+## v0.0.173.1
+
+### Panther
+- Fixed not checking for defining `copy`and `move` for where it was explicitly deleted
+
+
+<!---------------------------------->
 <a name="v0.0.173.0"></a>
 ## v0.0.173.0
 
