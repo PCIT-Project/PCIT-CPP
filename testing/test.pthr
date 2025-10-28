@@ -6,14 +6,6 @@ type Thing = struct {
 	// 	return...;
 	// }
 
-	func copy = delete;
-
-	func copy = (this) -> (output: Thing) {
-		output.num = this.num;
-		return...;
-	}
-
-
 	func == = (this, rhs: Thing) -> Bool {
 		return this.num == rhs.num;
 	}
@@ -23,9 +15,12 @@ type Thing = struct {
 }
 
 
+
+
+
 func entry = () #entry -> UI8 {
-	var foo = new Thing{num = 12};
-	var bar = new Thing{num = 14};
+	var foo: Thing? = new Thing{num = 12};
+	var bar: Thing? = new Thing{num = 14};
 	
 	return (foo == bar) as UI8;
 }

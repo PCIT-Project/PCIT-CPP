@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.173.2"></a>
+## v0.0.173.2
+
+### Panther
+- Fixed crashing when doing an unimplemented comparative infix operator
+- Fixed crashing when calling a function with aggregate template parameters
+
+
+<!---------------------------------->
 <a name="v0.0.173.1"></a>
 ## v0.0.173.1
 

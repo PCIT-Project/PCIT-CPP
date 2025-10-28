@@ -9152,7 +9152,13 @@ namespace pcit::panther{
 						);
 					} break;
 					case sema::Expr::Kind::AGGREGATE_VALUE: {
-						evo::unimplemented("Aggregate values");
+						this->emit_error(
+							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							instr.func_call.target,
+							"Func calls with aggregate template parameters are unimplemented"
+						);
+						return Result::ERROR;
+
 						// template_args.emplace_back(
 						// 	core::GenericValue(
 						// 		this->context.sema_buffer.getStringValue(value_expr.stringValueID()).value
@@ -13744,7 +13750,10 @@ namespace pcit::panther{
 				const TypeInfo& rhs_actual_type = this->context.getTypeManager().getTypeInfo(rhs_actual_type_id);
 
 
-				if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+				if(
+					lhs_actual_type.qualifiers().empty()
+					&& lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT
+				){
 					const BaseType::Struct& lhs_struct =
 						this->context.getTypeManager().getStruct(lhs_actual_type.baseTypeID().structID());
 
@@ -13775,7 +13784,10 @@ namespace pcit::panther{
 					);
 					return Result::SUCCESS;
 
-				}else if(rhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+				}else if(
+					rhs_actual_type.qualifiers().empty()
+					&& rhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT
+				){
 					const BaseType::Struct& rhs_struct =
 						this->context.getTypeManager().getStruct(rhs_actual_type.baseTypeID().structID());
 
@@ -13808,7 +13820,134 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
+
+				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::COMPARATIVE){
+					if(this->type_check<true, true>(
+						lhs.type_id.as<TypeInfo::ID>(),
+						rhs,
+						std::format(
+							"RHS of infix [{}] operator",
+							this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+						),
+						instr.infix
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					if(lhs_actual_type.qualifiers().empty() == false){
+						if(lhs_actual_type.qualifiers().back().isPtr){
+							if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+								auto infos = evo::SmallVector<Diagnostic::Info>();
+								this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
+								this->emit_error(
+									Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS,
+									instr.infix.lhs,
+									std::format(
+										"Interface pointers are not comparable",
+										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+									),
+									std::move(infos)
+								);
+								return Result::ERROR;
+							}
+
+						}else{
+							evo::debugAssert(lhs_actual_type.qualifiers().back().isOptional, "Unknown type qualifiers");
+
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								instr.infix,
+								std::format(
+									"Infix [{}] operator of optional is unimplemented",
+									this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+								)
+							);
+							return Result::ERROR;
+						}
+
+					}else{
+						switch(lhs_actual_type.baseTypeID().kind()){
+							case BaseType::Kind::PRIMITIVE: {
+								// do nothing...
+							} break;
+
+							case BaseType::Kind::FUNCTION: {
+								this->emit_error(
+									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+									instr.infix,
+									std::format(
+										"Infix [{}] operator of functions is unimplemented",
+										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+									)
+								);
+								return Result::ERROR;
+							} break;
+
+							case BaseType::Kind::ARRAY: {
+								this->emit_error(
+									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+									instr.infix,
+									std::format(
+										"Infix [{}] operator of arrays is unimplemented",
+										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+									)
+								);
+								return Result::ERROR;
+							} break;
+
+
+							case BaseType::Kind::ARRAY_REF: {
+								this->emit_error(
+									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+									instr.infix,
+									std::format(
+										"Infix [{}] operator of array reference is unimplemented",
+										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+									)
+								);
+								return Result::ERROR;
+							} break;
+							
+							case BaseType::Kind::UNION: {
+								this->emit_error(
+									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+									instr.infix,
+									std::format(
+										"Infix [{}] operator of unions is unimplemented",
+										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+									)
+								);
+								return Result::ERROR;
+							} break;
+
+							case BaseType::Kind::ENUM: {
+								// do nothing...
+							} break;
+
+							case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
+
+							case BaseType::Kind::ARRAY_DEDUCER:
+							case BaseType::Kind::STRUCT_TEMPLATE:
+							case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+							case BaseType::Kind::TYPE_DEDUCER:
+							case BaseType::Kind::INTERFACE:
+							case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+								evo::debugFatalBreak("Invalid type to be compared");
+							} break;
+
+
+							case BaseType::Kind::ALIAS: case BaseType::Kind::DISTINCT_ALIAS: {
+								evo::debugFatalBreak("Should have been skipped by getting actual type");
+							} break;
+
+							case BaseType::Kind::STRUCT: {
+								evo::debugFatalBreak("Should have already been checked");
+							} break;
+						}
+					}
+
+
+				}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
 					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");

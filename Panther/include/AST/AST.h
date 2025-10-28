@@ -429,7 +429,11 @@ namespace pcit::panther::AST{
 			bool isOptional: 1;
 
 			Qualifier(bool is_ptr, bool is_read_only, bool is_uninit, bool is_optional)
-				: isPtr(is_ptr), isReadOnly(is_read_only), isUninit(is_uninit), isOptional(is_optional) {}
+				: isPtr(is_ptr), isReadOnly(is_read_only), isUninit(is_uninit), isOptional(is_optional) {
+				evo::debugAssert(is_ptr || is_optional, "must be pointer or optional");
+				evo::debugAssert(is_read_only == false || is_ptr, "read-only must be a pointer");
+				evo::debugAssert(is_uninit == false || is_ptr, "uninit must be a pointer");
+			}
 
 			EVO_NODISCARD auto operator==(const Qualifier& rhs) const -> bool {
 				return (std::bit_cast<uint8_t>(*this) & 0b1111) == (std::bit_cast<uint8_t>(rhs) & 0b1111);
