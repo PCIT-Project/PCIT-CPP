@@ -249,13 +249,11 @@ namespace pcit::pir{
 			EVO_NODISCARD auto createLoad(
 				const Expr& source,
 				const Type& type,
+				std::string&& name = "",
 				bool is_volatile = false,
-				AtomicOrdering atomic_ordering = AtomicOrdering::NONE,
-				std::string&& name = ""
+				AtomicOrdering atomic_ordering = AtomicOrdering::NONE
 			) const -> Expr;
-
-			EVO_NODISCARD auto createLoad(const Expr&, const Type&, const char*) const -> Expr = delete;
-
+			
 			EVO_NODISCARD auto getLoad(const Expr& expr) const -> const Load&;
 
 

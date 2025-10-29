@@ -1256,7 +1256,7 @@ namespace pcit::pir{
 	// load
 
 	auto Agent::createLoad(
-		const Expr& source, const Type& type, bool is_volatile, AtomicOrdering atomic_ordering, std::string&& name
+		const Expr& source, const Type& type, std::string&& name, bool is_volatile, AtomicOrdering atomic_ordering
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(atomic_ordering.isValidForLoad(), "This atomic ordering is not valid for a load");

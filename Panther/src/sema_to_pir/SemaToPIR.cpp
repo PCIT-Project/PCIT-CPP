@@ -531,7 +531,7 @@ namespace pcit::panther{
 					this->output_defers_for_scope_level<false>(this->scope_levels.back());
 					
 					if(this->current_func_type->hasErrorReturn()){
-						this->agent.createRet(this->agent.createBoolean(true));
+						this->agent.createRet(this->agent.createBoolean(false));
 					}else{
 						this->agent.createRet();
 					}
@@ -792,6 +792,18 @@ namespace pcit::panther{
 			}
 		}
 
+		if(func_type.hasErrorReturn() && func_type.returnsVoid() == false){
+			const pir::Expr param_calc_ptr = this->agent.createCalcPtr(
+				this->agent.createParamExpr(0),
+				this->module.createPtrType(),
+				evo::SmallVector<pir::CalcPtr::Index>{int64_t(param_i)}
+			);
+
+			args.emplace_back(this->agent.createLoad(param_calc_ptr, this->module.createPtrType()));
+
+			param_i += 1;
+		}
+
 		if(func_type.hasErrorReturnParams()){
 			const pir::Expr param_calc_ptr = this->agent.createCalcPtr(
 				this->agent.createParamExpr(0),
@@ -803,6 +815,7 @@ namespace pcit::panther{
 
 			param_i += 1;
 		}
+
 
 		if(target_pir_func.getReturnType().kind() == pir::Type::Kind::VOID){
 			this->agent.createCallVoid(pir_func_id, std::move(args));
@@ -1011,11 +1024,7 @@ namespace pcit::panther{
 					this->name(".VTABLE.PTR")
 				);
 				const pir::Expr vtable = this->agent.createLoad(
-					vtable_ptr,
-					this->module.createPtrType(),
-					false,
-					pir::AtomicOrdering::NONE,
-					this->name(".VTABLE")
+					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
 				);
 
 				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
@@ -1025,11 +1034,7 @@ namespace pcit::panther{
 					this->name(".VTABLE.FUNC.PTR")
 				);
 				const pir::Expr target_func = this->agent.createLoad(
-					target_func_ptr,
-					this->module.createPtrType(),
-					false,
-					pir::AtomicOrdering::NONE,
-					this->name(".VTABLE.FUNC")
+					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
 				);
 
 
@@ -1128,7 +1133,7 @@ namespace pcit::panther{
 							this->agent.createStore(this->current_func_info->return_params.front(), ret_value);
 						}
 
-						this->agent.createRet(this->agent.createBoolean(true));
+						this->agent.createRet(this->agent.createBoolean(false));
 
 					}else{
 						if(return_stmt.value.has_value()){
@@ -1174,13 +1179,13 @@ namespace pcit::panther{
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<true>(scope_level);
 					}
-					this->agent.createRet(this->agent.createBoolean(false));
+					this->agent.createRet(this->agent.createBoolean(true));
 
 				}else{
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<true>(scope_level);
 					}
-					this->agent.createRet(this->agent.createBoolean(false));
+					this->agent.createRet(this->agent.createBoolean(true));
 				}
 				
 			} break;
@@ -1509,13 +1514,7 @@ namespace pcit::panther{
 						);
 						this->agent.createStore(calc_ptr, this->agent.createNullptr());
 
-						return this->agent.createLoad(
-							interface_ptr_alloca,
-							interface_ptr_type,
-							false,
-							pir::AtomicOrdering::NONE,
-							this->name("NULL")
-						);
+						return this->agent.createLoad(interface_ptr_alloca, interface_ptr_type, this->name("NULL"));
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Expr interface_ptr_alloca = this->agent.createAlloca(interface_ptr_type);
@@ -1549,13 +1548,7 @@ namespace pcit::panther{
 						);
 						this->agent.createStore(calc_ptr, this->agent.createBoolean(false));
 
-						return this->agent.createLoad(
-							optional_alloca,
-							optional_type,
-							false,
-							pir::AtomicOrdering::NONE,
-							this->name("NULL")
-						);
+						return this->agent.createLoad(optional_alloca, optional_type, this->name("NULL"));
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Expr optional_alloca = this->agent.createAlloca(optional_type);
@@ -2023,13 +2016,7 @@ namespace pcit::panther{
 				this->agent.createStore(flag_calc_ptr, this->agent.createBoolean(true));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->agent.createLoad(
-						target,
-						target_type,
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name("CONVERSION_TO_OPTIONAL")
-					);
+					return this->agent.createLoad(target, target_type, this->name("CONVERSION_TO_OPTIONAL"));
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					return target;
@@ -2207,11 +2194,7 @@ namespace pcit::panther{
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createLoad(
-						this->get_expr_register(deref.expr),
-						this->get_type<false>(deref.targetTypeID),
-						false,
-						pir::AtomicOrdering::NONE,
-						"DEREF"
+						this->get_expr_register(deref.expr), this->get_type<false>(deref.targetTypeID), "DEREF"
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -2494,8 +2477,6 @@ namespace pcit::panther{
 							this->get_type<false>(
 								target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
 							),
-							false,
-							pir::AtomicOrdering::NONE,
 							this->name("UNION_ACCESSOR")
 						);
 						
@@ -2551,11 +2532,7 @@ namespace pcit::panther{
 					const pir::Expr output = this->get_current_scope_level().label_output_locations[0];
 					this->pop_scope_level();
 					return this->agent.createLoad(
-						output,
-						this->agent.getAlloca(output).type,
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name("BLOCK_EXPR.OUTPUT")
+						output, this->agent.getAlloca(output).type, this->name("BLOCK_EXPR.OUTPUT")
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -2644,11 +2621,7 @@ namespace pcit::panther{
 						);
 
 						return this->agent.createLoad(
-							ptr,
-							this->module.createPtrType(),
-							false,
-							pir::AtomicOrdering::NONE,
-							this->name("INTERFACE_PTR.this")
+							ptr, this->module.createPtrType(), this->name("INTERFACE_PTR.this")
 						);
 						
 					}else if constexpr(MODE == GetExprMode::POINTER){
@@ -2725,11 +2698,7 @@ namespace pcit::panther{
 					this->name(".VTABLE.PTR")
 				);
 				const pir::Expr vtable = this->agent.createLoad(
-					vtable_ptr,
-					this->module.createPtrType(),
-					false,
-					pir::AtomicOrdering::NONE,
-					this->name(".VTABLE")
+					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
 				);
 
 				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
@@ -2739,11 +2708,7 @@ namespace pcit::panther{
 					this->name(".VTABLE.FUNC.PTR")
 				);
 				const pir::Expr target_func = this->agent.createLoad(
-					target_func_ptr,
-					this->module.createPtrType(),
-					false,
-					pir::AtomicOrdering::NONE,
-					this->name(".VTABLE.FUNC")
+					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
 				);
 
 
@@ -2773,13 +2738,7 @@ namespace pcit::panther{
 						args.emplace_back(return_alloc);
 						this->agent.createCallVoid(target_func, func_pir_type, std::move(args));
 
-						return this->agent.createLoad(
-							return_alloc,
-							actual_return_type,
-							false,
-							pir::AtomicOrdering::NONE,
-							this->name("INTERFACE_CALL")
-						);
+						return this->agent.createLoad(return_alloc, actual_return_type, this->name("INTERFACE_CALL"));
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Type actual_return_type =
@@ -2955,8 +2914,6 @@ namespace pcit::panther{
 						return this->agent.createLoad(
 							this->agent.createAlloca(struct_type, this->name(".DEFAULT_TRIVIALLY_INIT_STRUCT")),
 							struct_type,
-							false,
-							pir::AtomicOrdering::NONE,
 							this->name("DEFAULT_TRIVIALLY_INIT_STRUCT")
 						);
 						
@@ -2997,11 +2954,7 @@ namespace pcit::panther{
 						);
 
 						return this->agent.createLoad(
-							output_alloca,
-							pir_array_ref_type,
-							false,
-							pir::AtomicOrdering::NONE,
-							this->name("DEFAULT_INIT_ARRAY_REF")
+							output_alloca, pir_array_ref_type, this->name("DEFAULT_INIT_ARRAY_REF")
 						);
 						
 					}else if constexpr(MODE == GetExprMode::POINTER){
@@ -3090,9 +3043,7 @@ namespace pcit::panther{
 							i += 1;
 						}
 
-						return this->agent.createLoad(
-							array_ref_alloca, array_ref_type, false, pir::AtomicOrdering::NONE, this->name("ARRAY_REF")
-						);
+						return this->agent.createLoad(array_ref_alloca, array_ref_type, this->name("ARRAY_REF"));
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Expr array_ref_alloca =
@@ -3204,11 +3155,7 @@ namespace pcit::panther{
 				);
 
 				const pir::Expr target = this->agent.createLoad(
-					get_arr_calc_ptr,
-					this->module.createPtrType(),
-					false,
-					pir::AtomicOrdering::NONE,
-					this->name(".ARRAY_REF.PTR")
+					get_arr_calc_ptr, this->module.createPtrType(), this->name(".ARRAY_REF.PTR")
 				);
 
 				const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
@@ -3454,13 +3401,7 @@ namespace pcit::panther{
 					}
 
 					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->agent.createLoad(
-							output_memory,
-							return_type,
-							false,
-							pir::AtomicOrdering::NONE,
-							this->name("ARRAY_REF_DIMENSIONS")
-						);
+						return this->agent.createLoad(output_memory, return_type, this->name("ARRAY_REF_DIMENSIONS"));
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						return output_memory;
@@ -3489,11 +3430,7 @@ namespace pcit::panther{
 						this->get_expr_store(union_designated_init_new.value, storage_alloca);
 
 						return this->agent.createLoad(
-							storage_alloca,
-							union_pir_type,
-							false,
-							pir::AtomicOrdering::NONE,
-							this->name("UNION_DESIGNATED_INIT_NEW")
+							storage_alloca, union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW")
 						);
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
@@ -3603,9 +3540,7 @@ namespace pcit::panther{
 						this->name(".UNION_TAG_CMP.tag_ptr")
 					);
 
-					const pir::Expr tag = this->agent.createLoad(
-						tag_ptr, tag_type, false, pir::AtomicOrdering::NONE, this->name(".UNION_TAG_CMP.tag")
-					);
+					const pir::Expr tag = this->agent.createLoad(tag_ptr, tag_type, this->name(".UNION_TAG_CMP.tag"));
 
 					const pir::Expr tag_cmp_value = this->agent.createNumber(
 						tag_type, core::GenericInt(unsigned(tag_type.getWidth()), union_tag_cmp.fieldIndex)
@@ -3730,14 +3665,14 @@ namespace pcit::panther{
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, attempt_func_call.args);
 
-				const pir::Expr attempt = this->create_call(
+				const pir::Expr err_occurred = this->create_call(
 					target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
 				);
 
 				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
 				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("TRY.END"));
 
-				this->agent.createBranch(attempt, end_block, if_error_block);
+				this->agent.createBranch(err_occurred, if_error_block, end_block);
 
 				this->agent.setTargetBasicBlock(if_error_block);
 				this->get_expr_store(try_else.except, return_address);
@@ -3904,8 +3839,6 @@ namespace pcit::panther{
 						return this->agent.createLoad(
 							scope_level.label_output_locations[block_expr_output_param.index],
 							this->get_type<false>(block_expr_output_param.typeID),
-							false,
-							pir::AtomicOrdering::NONE,
 							"LOAD.BLOCK_EXPR_OUTPUT"
 						);
 
@@ -3970,11 +3903,7 @@ namespace pcit::panther{
 						alloca_name.remove_suffix(sizeof(".ALLOCA") - 1);
 
 						return this->agent.createLoad(
-							var_alloca,
-							this->agent.getAlloca(var_alloca).type,
-							false,
-							pir::AtomicOrdering::NONE,
-							std::string(alloca_name)
+							var_alloca, this->agent.getAlloca(var_alloca).type, std::string(alloca_name)
 						);
 
 					}else{
@@ -4004,8 +3933,6 @@ namespace pcit::panther{
 					return this->agent.createLoad(
 						this->agent.createGlobalValue(pir_var_id),
 						pir_var.type,
-						false,
-						pir::AtomicOrdering::NONE,
 						this->name("{}.LOAD", this->mangle_name<true>(expr.globalVarID()))
 					);
 
@@ -4139,9 +4066,7 @@ namespace pcit::panther{
 					usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
 				);
 
-				const pir::Expr pir_i_load = this->agent.createLoad(
-					pir_i, usize_type, false, pir::AtomicOrdering::NONE, this->name("DELETE_ARR.i")
-				);
+				const pir::Expr pir_i_load = this->agent.createLoad(pir_i, usize_type, this->name("DELETE_ARR.i"));
 				const pir::Expr cond = 
 					this->agent.createULT(pir_i_load, array_size, this->name("DELETE_ARR.LOOP_COND"));
 
@@ -4275,11 +4200,7 @@ namespace pcit::panther{
 					this->name(".UNION_DELETE.tag_ptr")
 				);
 				const pir::Expr tag = this->agent.createLoad(
-					tag_ptr,
-					union_struct_type.members[1],
-					false,
-					pir::AtomicOrdering::NONE,
-					this->name(".UNION_DELETE.tag")
+					tag_ptr, union_struct_type.members[1], this->name(".UNION_DELETE.tag")
 				);
 				this->agent.createSwitch(tag, std::move(cases), end_block);
 
@@ -4507,7 +4428,7 @@ namespace pcit::panther{
 					);
 
 					const pir::Expr pir_i_load = this->agent.createLoad(
-						pir_i, usize_type, false, pir::AtomicOrdering::NONE, this->name("COPY_ARR.i")
+						pir_i, usize_type, this->name("COPY_ARR.i")
 					);
 					const pir::Expr cond = 
 						this->agent.createULT(pir_i_load, array_size, this->name("COPY_ARR.LOOP_COND"));
@@ -4636,11 +4557,7 @@ namespace pcit::panther{
 						this->name(".UNION_COPY.src_tag_ptr")
 					);
 					const pir::Expr src_tag = this->agent.createLoad(
-						src_tag_ptr,
-						union_struct_type.members[1],
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name(".UNION_COPY.src_tag")
+						src_tag_ptr, union_struct_type.members[1], this->name(".UNION_COPY.src_tag")
 					);
 
 					const pir::Expr dst = [&](){
@@ -4705,9 +4622,7 @@ namespace pcit::panther{
 					this->agent.setTargetBasicBlock(end_block);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->agent.createLoad(
-							dst, union_pir_type, false, pir::AtomicOrdering::NONE, this->name("UNION_COPY")
-						);
+						return this->agent.createLoad(dst, union_pir_type, this->name("UNION_COPY"));
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						return dst;
@@ -4747,7 +4662,7 @@ namespace pcit::panther{
 
 
 		if constexpr(MODE == GetExprMode::REGISTER){
-			return this->agent.createLoad(target, target_type, false, pir::AtomicOrdering::NONE, this->name("COPY"));
+			return this->agent.createLoad(target, target_type, this->name("COPY"));
 			
 		}else if constexpr(MODE == GetExprMode::POINTER){
 			return target;
@@ -4955,9 +4870,7 @@ namespace pcit::panther{
 						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
 					);
 
-					const pir::Expr pir_i_load = this->agent.createLoad(
-						pir_i, usize_type, false, pir::AtomicOrdering::NONE, this->name("MOVE_ARR.i")
-					);
+					const pir::Expr pir_i_load = this->agent.createLoad(pir_i, usize_type, this->name("MOVE_ARR.i"));
 					const pir::Expr cond = 
 						this->agent.createULT(pir_i_load, array_size, this->name("MOVE_ARR.LOOP_COND"));
 
@@ -5084,11 +4997,7 @@ namespace pcit::panther{
 						this->name(".UNION_MOVE.src_flag_ptr")
 					);
 					const pir::Expr src_flag = this->agent.createLoad(
-						src_flag_ptr,
-						union_struct_type.members[1],
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name(".UNION_MOVE.src_flag")
+						src_flag_ptr, union_struct_type.members[1], this->name(".UNION_MOVE.src_flag")
 					);
 
 					const pir::Expr dst = [&](){
@@ -5153,9 +5062,7 @@ namespace pcit::panther{
 					this->agent.setTargetBasicBlock(end_block);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->agent.createLoad(
-							dst, union_pir_type, false, pir::AtomicOrdering::NONE, this->name("UNION_MOVE")
-						);
+						return this->agent.createLoad(dst, union_pir_type, this->name("UNION_MOVE"));
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						return dst;
@@ -5194,7 +5101,7 @@ namespace pcit::panther{
 
 
 		if constexpr(MODE == GetExprMode::REGISTER){
-			return this->agent.createLoad(target, target_type, false, pir::AtomicOrdering::NONE, this->name("MOVE"));
+			return this->agent.createLoad(target, target_type, this->name("MOVE"));
 			
 		}else if constexpr(MODE == GetExprMode::POINTER){
 			return target;
@@ -5357,8 +5264,6 @@ namespace pcit::panther{
 				const pir::Expr lhs_flag = this->agent.createLoad(
 					lhs_flag_ptr,
 					this->module.createBoolType(),
-					false,
-					pir::AtomicOrdering::NONE,
 					is_equal ? this->name(".EQ.OPT.LHS.FLAG") : this->name(".NEQ.OPT.LHS.FLAG")
 				);
 
@@ -5372,8 +5277,6 @@ namespace pcit::panther{
 				const pir::Expr rhs_flag = this->agent.createLoad(
 					rhs_flag_ptr,
 					this->module.createBoolType(),
-					false,
-					pir::AtomicOrdering::NONE,
 					is_equal ? this->name(".EQ.OPT.RHS.FLAG") : this->name(".NEQ.OPT.RHS.FLAG")
 				);
 
@@ -5483,19 +5386,11 @@ namespace pcit::panther{
 
 					}else{
 						const pir::Expr target_lhs = this->agent.createLoad(
-							lhs,
-							pir_type,
-							false,
-							pir::AtomicOrdering::NONE,
-							is_equal ? this->name(".EQ.LHS") : this->name(".NEQ.LHS")
+							lhs, pir_type, is_equal ? this->name(".EQ.LHS") : this->name(".NEQ.LHS")
 						);
 
 						const pir::Expr target_rhs = this->agent.createLoad(
-							rhs,
-							pir_type,
-							false,
-							pir::AtomicOrdering::NONE,
-							is_equal ? this->name(".EQ.RHS") : this->name(".NEQ.RHS")
+							rhs, pir_type, is_equal ? this->name(".EQ.RHS") : this->name(".NEQ.RHS")
 						);
 
 						if constexpr(MODE == GetExprMode::REGISTER){
@@ -5595,11 +5490,7 @@ namespace pcit::panther{
 					);
 
 					const pir::Expr pir_i_load = this->agent.createLoad(
-						pir_i,
-						usize_type,
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name(is_equal ? "EQ.arr.i" : "NEQ.arr.i")
+						pir_i, usize_type, this->name(is_equal ? "EQ.arr.i" : "NEQ.arr.i")
 					);
 					const pir::Expr cond = this->agent.createULT(
 						pir_i_load, array_size, this->name(is_equal ? "EQ.arr.LOOP_COND" : "NEQ.arr.LOOP_COND")
@@ -5724,16 +5615,12 @@ namespace pcit::panther{
 					const pir::Expr lhs_ref_ptrs = this->agent.createLoad(
 						lhs_ref_ptrs_ptr,
 						ref_ptrs_int_type,
-						false,
-						pir::AtomicOrdering::NONE,
 						this->name(is_equal ? ".EQ.ARR_REF.LHS_REF_PTRS" : ".NEQ.ARR_REF.LHS_REF_PTRS")
 					);
 
 					const pir::Expr rhs_ref_ptrs = this->agent.createLoad(
 						rhs_ref_ptrs_ptr,
 						ref_ptrs_int_type,
-						false,
-						pir::AtomicOrdering::NONE,
 						this->name(is_equal ? ".EQ.ARR_REF.RHS_REF_PTRS" : ".NEQ.ARR_REF.RHS_REF_PTRS")
 					);
 
@@ -5829,16 +5716,12 @@ namespace pcit::panther{
 					const pir::Expr lhs_data_ptr = this->agent.createLoad(
 						lhs_data_ptr_ptr,
 						this->module.createPtrType(),
-						false,
-						pir::AtomicOrdering::NONE,
 						this->name(is_equal ? ".EQ.ARR_REF.LHS_DATA_PTR" : ".NEQ.ARR_REF.LHS_DATA_PTR")
 					);
 
 					const pir::Expr rhs_data_ptr = this->agent.createLoad(
 						rhs_data_ptr_ptr,
 						this->module.createPtrType(),
-						false,
-						pir::AtomicOrdering::NONE,
 						this->name(is_equal ? ".EQ.ARR_REF.RHS_DATA_PTR" : ".NEQ.ARR_REF.RHS_DATA_PTR")
 					);
 
@@ -5875,11 +5758,7 @@ namespace pcit::panther{
 
 
 					const pir::Expr pir_i_load = this->agent.createLoad(
-						pir_i,
-						usize_type,
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name(is_equal ? "EQ.ARR_REF.i" : "NEQ.ARR_REF.i")
+						pir_i, usize_type, this->name(is_equal ? "EQ.ARR_REF.i" : "NEQ.ARR_REF.i")
 					);
 					const pir::Expr cond = this->agent.createULT(
 						pir_i_load, *size_expr, this->name(is_equal ? "EQ.ARR_REF.LOOP_COND" : "NEQ.ARR_REF.LOOP_COND")
@@ -6038,11 +5917,7 @@ namespace pcit::panther{
 							const pir::Expr target_lhs = [&](){
 								if(func_info.params[0].is_copy()){
 									return this->agent.createLoad(
-										lhs,
-										pir_type,
-										false,
-										pir::AtomicOrdering::NONE,
-										is_equal ? this->name(".EQ.LHS") : this->name(".NEQ.LHS")
+										lhs, pir_type, is_equal ? this->name(".EQ.LHS") : this->name(".NEQ.LHS")
 									);
 								}else{
 									return lhs;
@@ -6052,11 +5927,7 @@ namespace pcit::panther{
 							const pir::Expr target_rhs = [&](){
 								if(func_info.params[1].is_copy()){
 									return this->agent.createLoad(
-										rhs,
-										pir_type,
-										false,
-										pir::AtomicOrdering::NONE,
-										is_equal ? this->name(".EQ.RHS") : this->name(".NEQ.RHS")
+										rhs, pir_type, is_equal ? this->name(".EQ.RHS") : this->name(".NEQ.RHS")
 									);
 								}else{
 									return rhs;
@@ -6131,19 +6002,11 @@ namespace pcit::panther{
 					const pir::Type tag_type = this->module.getStructType(pir_type).members[1];
 
 					const pir::Expr lhs_tag = this->agent.createLoad(
-						lhs_tag_ptr,
-						tag_type,
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name(is_equal ? ".EQ.UNION.LHS_TAG" : ".NEQ.UNION.LHS_TAG")
+						lhs_tag_ptr, tag_type, this->name(is_equal ? ".EQ.UNION.LHS_TAG" : ".NEQ.UNION.LHS_TAG")
 					);
 
 					const pir::Expr rhs_tag = this->agent.createLoad(
-						rhs_tag_ptr,
-						tag_type,
-						false,
-						pir::AtomicOrdering::NONE,
-						this->name(is_equal ? ".EQ.UNION.RHS_TAG" : ".NEQ.UNION.RHS_TAG")
+						rhs_tag_ptr, tag_type, this->name(is_equal ? ".EQ.UNION.RHS_TAG" : ".NEQ.UNION.RHS_TAG")
 					);
 
 					

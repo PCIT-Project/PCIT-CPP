@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.174.1"></a>
+## v0.0.174.1
+
+### Panther
+- Fixed crashing when constexpr lowering of functions that error without error parameters and have non-named non-implicit-rvo returns
+
+
+<!---------------------------------->
 <a name="v0.0.174.0"></a>
 ## v0.0.174.0
 
