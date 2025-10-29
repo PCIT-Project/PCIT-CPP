@@ -548,6 +548,8 @@ namespace pcit::panther{
 			bool isConstexprDefaultInitializable = false;
 			bool isNoErrorDefaultInitializable = false;
 
+			bool isTriviallyComparable = false;
+
 			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
 			EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
@@ -994,11 +996,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyDefaultInitializable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyDefaultInitializable(BaseType::ID id) const -> bool;
 
+
 			EVO_NODISCARD auto isTriviallyDeletable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyDeletable(BaseType::ID id) const -> bool;
 
 			EVO_NODISCARD auto isConstexprDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			EVO_NODISCARD auto isConstexprDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
 
 			EVO_NODISCARD auto isCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isCopyable(BaseType::ID id) const -> bool;
@@ -1009,6 +1013,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isConstexprCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			EVO_NODISCARD auto isConstexprCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
+
 			EVO_NODISCARD auto isMovable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isMovable(BaseType::ID id) const -> bool;
 
@@ -1017,6 +1022,10 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto isConstexprMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			EVO_NODISCARD auto isConstexprMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
+
+			EVO_NODISCARD auto isTriviallyComparable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTriviallyComparable(BaseType::ID id) const -> bool;
 
 
 			//////////////////

@@ -611,6 +611,9 @@ namespace pcit::panther{
 				Token::Kind op, sema::Expr lhs, sema::Expr rhs, std::optional<TypeInfo::ID> lhs_type
 			) -> TermInfo;
 
+			EVO_NODISCARD auto type_is_comparable(TypeInfo::ID type_id) -> bool;
+			EVO_NODISCARD auto type_is_comparable(const TypeInfo& type_info) -> bool;
+
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto union_designated_init_new(

@@ -131,6 +131,25 @@ namespace pcit::panther{
 			) -> std::optional<pir::Expr>;
 
 
+			template<GetExprMode MODE>
+			auto expr_cmp(
+				TypeInfo::ID expr_type_id,
+				const sema::Expr& lhs,
+				const sema::Expr& rhs,
+				bool is_equal,
+				evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			auto expr_cmp(
+				TypeInfo::ID expr_type_id,
+				pir::Expr lhs,
+				pir::Expr rhs,
+				bool is_equal,
+				evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+
 
 			EVO_NODISCARD auto calc_in_param_bitmap(
 				const BaseType::Function& target_func, evo::ArrayProxy<sema::Expr> args

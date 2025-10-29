@@ -2838,6 +2838,73 @@ namespace pcit::panther{
 
 
 
+	///////////////////////////////////
+	// isTriviallyComparable
+
+
+	auto TypeManager::isTriviallyComparable(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+		if(type_info.qualifiers().empty() == false){ return type_info.qualifiers().back().isPtr; }
+
+		return this->isTriviallyComparable(type_info.baseTypeID());
+	}
+
+
+	auto TypeManager::isTriviallyComparable(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
+
+			case BaseType::Kind::PRIMITIVE: {
+				return !this->isFloatingPoint(id);
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type = this->getArray(id.arrayID());
+				if(this->isTriviallyComparable(array_type.elementTypeID) == false){ return false; }
+				return this->numBits(array_type.elementTypeID, true) == this->numBits(array_type.elementTypeID, false);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
+				return this->isTriviallyComparable(*alias_type.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(id.distinctAliasID());
+				return this->isTriviallyComparable(*distinct_alias_type.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_type = this->getStruct(id.structID());
+				return struct_type.isTriviallyComparable;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				return true;
+			} break;
+
+			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE:               case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				evo::debugFatalBreak("Invalid type to compare");
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown base type kind");
+	}
+
 
 	///////////////////////////////////
 	// isPrimitive

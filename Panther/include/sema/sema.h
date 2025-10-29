@@ -352,6 +352,16 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct SameTypeCmp{
+		using ID = SameTypeCmpID;
+
+		TypeInfo::ID typeID;
+		Expr lhs;
+		Expr rhs;
+		bool isEqual;
+	};
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// statements

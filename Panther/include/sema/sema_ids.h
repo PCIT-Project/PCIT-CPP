@@ -183,6 +183,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, UnionTagCmpID>::UniqueID;
 	};
 
+	struct SameTypeCmpID : public core::UniqueID<uint32_t, struct SameTypeCmpID> {
+		using core::UniqueID<uint32_t, SameTypeCmpID>::UniqueID;
+	};
+
 
 	//////////////////////////////////////////////////////////////////////
 	// statements
@@ -935,6 +939,18 @@ namespace pcit::core{
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
+
+	template<>
+	struct OptionalInterface<panther::sema::SameTypeCmpID>{
+		static constexpr auto init(panther::sema::SameTypeCmpID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::SameTypeCmpID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
 
 }
 
@@ -1903,6 +1919,22 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::UnionTagCmpID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::UnionTagCmpID>::operator=;
+	};
+
+
+	template<>
+	struct hash<pcit::panther::sema::SameTypeCmpID>{
+		auto operator()(pcit::panther::sema::SameTypeCmpID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::SameTypeCmpID>
+		: public pcit::core::Optional<pcit::panther::sema::SameTypeCmpID>{
+			
+		public:
+			using pcit::core::Optional<pcit::panther::sema::SameTypeCmpID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::SameTypeCmpID>::operator=;
 	};
 
 }

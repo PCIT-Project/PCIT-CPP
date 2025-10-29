@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.174.0"></a>
+## v0.0.174.0
+
+### Panther
+- Added `==` and `!=` for optional, array, array reference, and union
+- Fixed implicit conversion checking for fluid integrals to optional of integrals incorrectly saying some values required truncation
+- Fixed incorrectly erroring for `<`, `<=`, `>`, and `>=` of primitive types
+
+
+<!---------------------------------->
 <a name="v0.0.173.2"></a>
 ## v0.0.173.2
 

@@ -671,9 +671,20 @@ namespace pcit::panther{
 				return this->union_tag_cmps.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
-			EVO_NODISCARD auto getUnionTagCmp(sema::UnionTagCmp::ID id) const
-			-> const sema::UnionTagCmp& {
+			EVO_NODISCARD auto getUnionTagCmp(sema::UnionTagCmp::ID id) const -> const sema::UnionTagCmp& {
 				return this->union_tag_cmps[id];
+			}
+
+
+			///////////////////////////////////
+			// same type cmp
+
+			EVO_NODISCARD auto createSameTypeCmp(auto&&... args) -> sema::SameTypeCmp::ID {
+				return this->same_type_cmps.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getSameTypeCmp(sema::SameTypeCmp::ID id) const -> const sema::SameTypeCmp& {
+				return this->same_type_cmps[id];
 			}
 
 
@@ -877,6 +888,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::UnionDesignatedInitNew, sema::UnionDesignatedInitNew::ID>
 				union_designated_init_news{};
 			core::SyncLinearStepAlloc<sema::UnionTagCmp, sema::UnionTagCmp::ID> union_tag_cmps{};
+			core::SyncLinearStepAlloc<sema::SameTypeCmp, sema::SameTypeCmp::ID> same_type_cmps{};
 
 			core::SyncLinearStepAlloc<
 				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID

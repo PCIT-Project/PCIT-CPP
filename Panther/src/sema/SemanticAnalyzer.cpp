@@ -13822,6 +13822,8 @@ namespace pcit::panther{
 
 
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::COMPARATIVE){
+					const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
+
 					if(this->type_check<true, true>(
 						lhs.type_id.as<TypeInfo::ID>(),
 						rhs,
@@ -13834,118 +13836,166 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(lhs_actual_type.qualifiers().empty() == false){
-						if(lhs_actual_type.qualifiers().back().isPtr){
-							if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::INTERFACE){
-								auto infos = evo::SmallVector<Diagnostic::Info>();
-								this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
-								this->emit_error(
-									Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS,
-									instr.infix.lhs,
-									std::format(
-										"Interface pointers are not comparable",
-										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-									),
-									std::move(infos)
+					if(op_kind == Token::lookupKind("==") || op_kind == Token::lookupKind("!=")){
+						if(lhs_actual_type.qualifiers().empty() == false){
+							if(lhs_actual_type.qualifiers().back().isPtr){
+								if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+									auto infos = evo::SmallVector<Diagnostic::Info>();
+									this->diagnostic_print_type_info(
+										lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: "
+									);
+									this->emit_error(
+										Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+										instr.infix.lhs,
+										std::format(
+											"Infix [{}] of interface pointers is invalid",
+											this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+										),
+										std::move(infos)
+									);
+									return Result::ERROR;
+								}
+
+							}else{
+								evo::debugAssert(
+									lhs_actual_type.qualifiers().back().isOptional, "Unknown type qualifiers"
 								);
-								return Result::ERROR;
+
+								if(this->type_is_comparable(lhs_actual_type) == false){
+									auto infos = evo::SmallVector<Diagnostic::Info>();
+									this->diagnostic_print_type_info(
+										lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
+									);
+									this->emit_error(
+										Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+										instr.infix.lhs,
+										std::format(
+											"Infix [{}] of this type is invalid",
+											this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+										),
+										std::move(infos)
+									);
+									return Result::ERROR;
+								}
+
+								const sema::SameTypeCmp::ID same_type_cmp = this->context.sema_buffer.createSameTypeCmp(
+									lhs_actual_type_id, lhs.getExpr(), rhs.getExpr(), op_kind == Token::lookupKind("==")
+								);
+
+								this->return_term_info(instr.output,
+									TermInfo::ValueCategory::EPHEMERAL,
+									lhs.value_stage,
+									TermInfo::ValueState::NOT_APPLICABLE,
+									TypeManager::getTypeBool(),
+									sema::Expr(same_type_cmp)
+								);
+								return Result::SUCCESS;
 							}
 
 						}else{
-							evo::debugAssert(lhs_actual_type.qualifiers().back().isOptional, "Unknown type qualifiers");
+							switch(lhs_actual_type.baseTypeID().kind()){
+								case BaseType::Kind::PRIMITIVE: {
+									// do nothing...
+								} break;
 
+								case BaseType::Kind::FUNCTION: {
+									this->emit_error(
+										Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+										instr.infix,
+										std::format(
+											"Infix [{}] operator of functions is unimplemented",
+											this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+										)
+									);
+									return Result::ERROR;
+								} break;
+
+								case BaseType::Kind::ARRAY: case BaseType::Kind::ARRAY_REF: case BaseType::Kind::UNION:{
+									if(this->type_is_comparable(lhs_actual_type) == false){
+										auto infos = evo::SmallVector<Diagnostic::Info>();
+										this->diagnostic_print_type_info(
+											lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
+										);
+										this->emit_error(
+											Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+											instr.infix.lhs,
+											std::format(
+												"Infix [{}] of this type is invalid",
+												this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
+											),
+											std::move(infos)
+										);
+										return Result::ERROR;
+									}
+
+									const sema::SameTypeCmp::ID same_type_cmp = 
+										this->context.sema_buffer.createSameTypeCmp(
+											lhs_actual_type_id,
+											lhs.getExpr(),
+											rhs.getExpr(),
+											op_kind == Token::lookupKind("==")
+										);
+
+									this->return_term_info(instr.output,
+										TermInfo::ValueCategory::EPHEMERAL,
+										lhs.value_stage,
+										TermInfo::ValueState::NOT_APPLICABLE,
+										TypeManager::getTypeBool(),
+										sema::Expr(same_type_cmp)
+									);
+									return Result::SUCCESS;
+								} break;
+								
+								case BaseType::Kind::ENUM: {
+									// do nothing...
+								} break;
+
+								case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
+
+								case BaseType::Kind::ARRAY_DEDUCER:
+								case BaseType::Kind::STRUCT_TEMPLATE:
+								case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+								case BaseType::Kind::TYPE_DEDUCER:
+								case BaseType::Kind::INTERFACE:
+								case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+									evo::debugFatalBreak("Invalid type to be compared");
+								} break;
+
+
+								case BaseType::Kind::ALIAS: case BaseType::Kind::DISTINCT_ALIAS: {
+									evo::debugFatalBreak("Should have been skipped by getting actual type");
+								} break;
+
+								case BaseType::Kind::STRUCT: {
+									evo::debugFatalBreak("Should have already been checked");
+								} break;
+							}
+						}
+
+					}else{ // <, <=, >, >=
+						if(
+							lhs_actual_type.qualifiers().empty() == false
+							|| lhs_actual_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
+							|| this->context.getTypeManager().getPrimitive(
+									lhs_actual_type.baseTypeID().primitiveID()
+								).kind() == Token::Kind::TYPE_TYPEID
+						){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(
+								lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
+							);
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								instr.infix,
+								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+								instr.infix.lhs,
 								std::format(
-									"Infix [{}] operator of optional is unimplemented",
+									"Infix [{}] of this type is invalid :(",
 									this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-								)
+								),
+								std::move(infos)
 							);
 							return Result::ERROR;
 						}
-
-					}else{
-						switch(lhs_actual_type.baseTypeID().kind()){
-							case BaseType::Kind::PRIMITIVE: {
-								// do nothing...
-							} break;
-
-							case BaseType::Kind::FUNCTION: {
-								this->emit_error(
-									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-									instr.infix,
-									std::format(
-										"Infix [{}] operator of functions is unimplemented",
-										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-									)
-								);
-								return Result::ERROR;
-							} break;
-
-							case BaseType::Kind::ARRAY: {
-								this->emit_error(
-									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-									instr.infix,
-									std::format(
-										"Infix [{}] operator of arrays is unimplemented",
-										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-									)
-								);
-								return Result::ERROR;
-							} break;
-
-
-							case BaseType::Kind::ARRAY_REF: {
-								this->emit_error(
-									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-									instr.infix,
-									std::format(
-										"Infix [{}] operator of array reference is unimplemented",
-										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-									)
-								);
-								return Result::ERROR;
-							} break;
-							
-							case BaseType::Kind::UNION: {
-								this->emit_error(
-									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-									instr.infix,
-									std::format(
-										"Infix [{}] operator of unions is unimplemented",
-										this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-									)
-								);
-								return Result::ERROR;
-							} break;
-
-							case BaseType::Kind::ENUM: {
-								// do nothing...
-							} break;
-
-							case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
-
-							case BaseType::Kind::ARRAY_DEDUCER:
-							case BaseType::Kind::STRUCT_TEMPLATE:
-							case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
-							case BaseType::Kind::TYPE_DEDUCER:
-							case BaseType::Kind::INTERFACE:
-							case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-								evo::debugFatalBreak("Invalid type to be compared");
-							} break;
-
-
-							case BaseType::Kind::ALIAS: case BaseType::Kind::DISTINCT_ALIAS: {
-								evo::debugFatalBreak("Should have been skipped by getting actual type");
-							} break;
-
-							case BaseType::Kind::STRUCT: {
-								evo::debugFatalBreak("Should have already been checked");
-							} break;
-						}
 					}
-
 
 				}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
 					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
@@ -18429,8 +18479,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:case sema::Expr::Kind::INIT_ARRAY_REF:
 			case sema::Expr::Kind::ARRAY_REF_INDEXER:     case sema::Expr::Kind::ARRAY_REF_SIZE:
 			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:  case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::UNION_TAG_CMP:         case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::UNION_TAG_CMP:         case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::GLOBAL_VAR:            case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}
@@ -21499,6 +21549,111 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::type_is_comparable(TypeInfo::ID type_id) -> bool {
+		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
+		return this->type_is_comparable(type_info);
+	}
+
+	auto SemanticAnalyzer::type_is_comparable(const TypeInfo& type_info) -> bool {
+		if(type_info.qualifiers().empty() == false){
+			if(type_info.qualifiers().back().isOptional){
+				return this->type_is_comparable(type_info.copyWithPoppedQualifier());
+			}else{
+				evo::debugAssert(type_info.qualifiers().back().isPtr, "unknown type qualifier");
+				return true;
+			}
+
+		}else{
+			switch(type_info.baseTypeID().kind()){
+				case BaseType::Kind::DUMMY: {
+					evo::debugFatalBreak("Invalid type");
+				} break;
+
+				case BaseType::Kind::PRIMITIVE: {
+					return true;
+				} break;
+
+				case BaseType::Kind::FUNCTION: {
+					return true; // TODO(FUTURE): is this correct?
+				} break;
+
+				case BaseType::Kind::ARRAY: {
+					const BaseType::Array& array_type =
+						this->context.getTypeManager().getArray(type_info.baseTypeID().arrayID());
+
+					return this->type_is_comparable(array_type.elementTypeID);
+				} break;
+
+				case BaseType::Kind::ARRAY_REF: {
+					const BaseType::ArrayRef& array_ref_type =
+						this->context.getTypeManager().getArrayRef(type_info.baseTypeID().arrayRefID());
+						
+					return this->type_is_comparable(array_ref_type.elementTypeID);
+				} break;
+
+				case BaseType::Kind::ALIAS: {
+					const BaseType::Alias& alias_type =
+						this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
+						
+					return this->type_is_comparable(*alias_type.aliasedType.load());
+				} break;
+
+				case BaseType::Kind::DISTINCT_ALIAS: {
+					const BaseType::DistinctAlias& distinct_alias_type =
+						this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
+						
+					return this->type_is_comparable(*distinct_alias_type.underlyingType.load());
+				} break;
+
+				case BaseType::Kind::STRUCT: {
+					const BaseType::Struct& struct_type =
+						this->context.getTypeManager().getStruct(type_info.baseTypeID().structID());
+
+					const auto [begin_overloads_range, end_overloads_range] = 
+						struct_type.infixOverloads.equal_range(Token::lookupKind("=="));
+
+					const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+					for(const auto& [_, sema_func_id] : overloads_range){
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(sema_func_id);
+						const BaseType::Function& func_type =
+							this->context.getTypeManager().getFunction(sema_func.typeID);
+
+						if(func_type.params[0].typeID == func_type.params[1].typeID){ return true; }
+					}
+
+					return false;
+				} break;
+
+				case BaseType::Kind::UNION: {
+					const BaseType::Union& union_type =
+						this->context.getTypeManager().getUnion(type_info.baseTypeID().unionID());
+						
+					if(union_type.isUntagged){ return false; }
+
+					for(const BaseType::Union::Field& field : union_type.fields){
+						if(field.typeID.isVoid()){ continue; }
+						if(this->type_is_comparable(field.typeID.asTypeID()) == false){ return false; }
+					}
+
+					return true;
+				} break;
+
+				case BaseType::Kind::ENUM: {
+					return true;
+				} break;
+
+				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+				case BaseType::Kind::INTERFACE:               case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+					evo::debugFatalBreak("Invalid type to check if comparing is possible");
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown BaseType");
+		}
+	}
+
 
 	template<bool IS_CONSTEXPR>
 	EVO_NODISCARD auto SemanticAnalyzer::union_designated_init_new(
@@ -22671,7 +22826,7 @@ namespace pcit::panther{
 						sema::IntValue& int_value = this->context.sema_buffer.int_values[int_value_id];
 
 						const unsigned bit_width =
-							unsigned(this->context.getTypeManager().numBits(actual_expected_type_id, false));
+							unsigned(this->context.getTypeManager().numBits(expected_type_info.baseTypeID(), false));
 
 						core::GenericInt target_min =
 							type_manager.getMin(expected_type_info.baseTypeID()).getInt(bit_width);

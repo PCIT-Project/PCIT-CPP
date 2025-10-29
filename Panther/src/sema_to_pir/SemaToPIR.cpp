@@ -502,7 +502,7 @@ namespace pcit::panther{
 
 		this->current_func_type = &this->context.getTypeManager().getFunction(sema_func.typeID);
 
-		const SemaToPIRData::FuncInfo& func_info = this->data.get_func(func_id);
+		const Data::FuncInfo& func_info = this->data.get_func(func_id);
 
 		this->in_param_bitmap = 0;
 		using PIRFuncID = evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>;
@@ -602,7 +602,7 @@ namespace pcit::panther{
 			true
 		);
 
-		this->data.create_vtable(SemaToPIRData::VTableID(interface_id, type), vtable);
+		this->data.create_vtable(Data::VTableID(interface_id, type), vtable);
 	}
 
 
@@ -2584,7 +2584,7 @@ namespace pcit::panther{
 					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
 
 					const pir::GlobalVar::ID vtable = this->data.get_vtable(
-						SemaToPIRData::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
+						Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
 					);
 
 
@@ -3635,6 +3635,15 @@ namespace pcit::panther{
 						return std::nullopt;
 					}
 				}
+			} break;
+
+			case sema::Expr::Kind::SAME_TYPE_CMP: {
+				const sema::SameTypeCmp& same_type_cmp =
+					this->context.getSemaBuffer().getSameTypeCmp(expr.sameTypeCmpID());
+				
+				return this->expr_cmp<MODE>(
+					same_type_cmp.typeID, same_type_cmp.lhs, same_type_cmp.rhs, same_type_cmp.isEqual, store_locations
+				);
 			} break;
 
 			case sema::Expr::Kind::TRY_ELSE: {
@@ -5194,6 +5203,1079 @@ namespace pcit::panther{
 			return std::nullopt;
 		}
 	}
+
+
+
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::expr_cmp(
+		TypeInfo::ID expr_type_id,
+		const sema::Expr& lhs,
+		const sema::Expr& rhs,
+		bool is_equal,
+		evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		if(this->context.getTypeManager().isTriviallyComparable(expr_type_id)){
+			auto lhs_register = std::optional<pir::Expr>();
+			auto rhs_register = std::optional<pir::Expr>();
+
+			const pir::Type pir_type = this->get_type<false>(expr_type_id);
+
+			switch(pir_type.kind()){
+				case pir::Type::Kind::INTEGER: case pir::Type::Kind::BOOL: case pir::Type::Kind::PTR: {
+					lhs_register = this->get_expr_register(lhs);
+					rhs_register = this->get_expr_register(rhs);
+				} break;
+
+				default: {
+					const uint32_t expr_type_num_bits =
+						uint32_t(this->context.getTypeManager().numBits(expr_type_id, false));
+					const pir::Type target_pir_type = this->module.createIntegerType(expr_type_num_bits);
+
+					lhs_register = this->agent.createLoad(this->get_expr_pointer(lhs), target_pir_type);
+					rhs_register = this->agent.createLoad(this->get_expr_pointer(rhs), target_pir_type);
+				} break;
+			}
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				if(is_equal){
+					return this->agent.createIEq(*lhs_register, *rhs_register, this->name("EQ"));
+				}else{
+					return this->agent.createINeq(*lhs_register, *rhs_register, this->name("NEQ"));
+				}
+				
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr output_alloca = this->agent.createAlloca(pir_type, this->name(is_equal ? "EQ" : "NEQ"));
+
+				const pir::Expr output_value = [&](){
+					if(is_equal){
+						return this->agent.createIEq(*lhs_register, *rhs_register, this->name(".EQ"));
+					}else{
+						return this->agent.createINeq(*lhs_register, *rhs_register, this->name(".NEQ"));
+					}
+				}();
+
+				this->agent.createStore(output_alloca, output_value);
+				return output_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				const pir::Expr output_value = [&](){
+					if(is_equal){
+						return this->agent.createIEq(*lhs_register, *rhs_register, this->name(".EQ"));
+					}else{
+						return this->agent.createINeq(*lhs_register, *rhs_register, this->name(".NEQ"));
+					}
+				}();
+
+				this->agent.createStore(store_locations[0], output_value);
+				return std::nullopt;
+				
+			}else{
+				return std::nullopt;
+			}
+
+		}else{
+			return this->expr_cmp<MODE>(
+				expr_type_id, this->get_expr_pointer(lhs), this->get_expr_pointer(rhs), is_equal, store_locations
+			);
+		}
+	}
+
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::expr_cmp(
+		TypeInfo::ID expr_type_id,
+		pir::Expr lhs,
+		pir::Expr rhs,
+		bool is_equal,
+		evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
+		const pir::Type pir_type = this->get_type<false>(expr_type_id);
+
+		if(this->context.getTypeManager().isTriviallyComparable(expr_type_id)){
+			const uint32_t expr_type_num_bits =
+				uint32_t(this->context.getTypeManager().numBits(expr_type_id, false));
+			const pir::Type target_pir_type = this->module.createIntegerType(expr_type_num_bits);
+
+			const pir::Expr lhs_register = this->agent.createLoad(lhs, target_pir_type);
+			const pir::Expr rhs_register = this->agent.createLoad(rhs, target_pir_type);
+
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				if(is_equal){
+					return this->agent.createIEq(lhs_register, rhs_register, this->name("EQ"));
+				}else{
+					return this->agent.createINeq(lhs_register, rhs_register, this->name("NEQ"));
+				}
+				
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr output_alloca = this->agent.createAlloca(pir_type, this->name(is_equal ? "EQ" : "NEQ"));
+
+				const pir::Expr output_value = [&](){
+					if(is_equal){
+						return this->agent.createIEq(lhs_register, rhs_register, this->name(".EQ"));
+					}else{
+						return this->agent.createINeq(lhs_register, rhs_register, this->name(".NEQ"));
+					}
+				}();
+
+				this->agent.createStore(output_alloca, output_value);
+				return output_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				const pir::Expr output_value = [&](){
+					if(is_equal){
+						return this->agent.createIEq(lhs_register, rhs_register, this->name(".EQ"));
+					}else{
+						return this->agent.createINeq(lhs_register, rhs_register, this->name(".NEQ"));
+					}
+				}();
+
+				this->agent.createStore(store_locations[0], output_value);
+				return std::nullopt;
+				
+			}else{
+				return std::nullopt;
+			}
+
+		}else{
+			if(expr_type.qualifiers().empty() == false){
+				evo::debugAssert(
+					expr_type.isOptionalNotPointer(), "Unknown type with qualifiers that isn't trivially comparable"
+				);
+				
+				const pir::Expr lhs_flag_ptr = this->agent.createCalcPtr(
+					lhs,
+					pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					is_equal ? this->name(".EQ.OPT.LHS.FLAG_PTR") : this->name(".NEQ.OPT.LHS.FLAG_PTR")
+				);
+
+				const pir::Expr lhs_flag = this->agent.createLoad(
+					lhs_flag_ptr,
+					this->module.createBoolType(),
+					false,
+					pir::AtomicOrdering::NONE,
+					is_equal ? this->name(".EQ.OPT.LHS.FLAG") : this->name(".NEQ.OPT.LHS.FLAG")
+				);
+
+				const pir::Expr rhs_flag_ptr = this->agent.createCalcPtr(
+					rhs,
+					pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					is_equal ? this->name(".EQ.OPT.RHS.FLAG_PTR") : this->name(".NEQ.OPT.RHS.FLAG_PTR")
+				);
+
+				const pir::Expr rhs_flag = this->agent.createLoad(
+					rhs_flag_ptr,
+					this->module.createBoolType(),
+					false,
+					pir::AtomicOrdering::NONE,
+					is_equal ? this->name(".EQ.OPT.RHS.FLAG") : this->name(".NEQ.OPT.RHS.FLAG")
+				);
+
+				const pir::BasicBlock::ID start_basic_block = this->agent.getTargetBasicBlock().getID();
+
+				const pir::BasicBlock::ID has_flag_basic_block = this->agent.createBasicBlock(
+					is_equal ? this->name(".EQ.OPT.HAS_FLAG") : this->name(".NEQ.OPT.HAS_FLAG")
+				);
+
+				this->agent.setTargetBasicBlock(has_flag_basic_block);
+
+				const pir::Expr lhs_data_ptr = this->agent.createCalcPtr(
+					lhs,
+					pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					is_equal ? this->name(".EQ.OPT.LHS.DATA_PTR") : this->name(".NEQ.OPT.LHS.DATA_PTR")
+				);
+
+				const pir::Expr rhs_data_ptr = this->agent.createCalcPtr(
+					rhs,
+					pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					is_equal ? this->name(".EQ.OPT.RHS.DATA_PTR") : this->name(".NEQ.OPT.RHS.DATA_PTR")
+				);
+
+
+				const pir::Expr has_flag_result = *this->expr_cmp<GetExprMode::REGISTER>(
+					this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier()),
+					lhs_data_ptr,
+					rhs_data_ptr,
+					is_equal,
+					nullptr
+				);
+
+				const pir::BasicBlock::ID has_flag_result_end_block = this->agent.getTargetBasicBlock().getID();
+
+				const pir::BasicBlock::ID end_basic_block = this->agent.createBasicBlock(
+					is_equal ? this->name(".EQ.OPT.END") : this->name(".NEQ.OPT.END")
+				);
+
+				this->agent.createJump(end_basic_block);
+
+				this->agent.setTargetBasicBlock(start_basic_block);
+				const pir::Expr has_flag_check = this->agent.createAnd(
+					lhs_flag, rhs_flag, is_equal ? this->name(".EQ.OPT.HAS_FLAG") : this->name(".NEQ.OPT.HAS_FLAG")
+				);
+				this->agent.createBranch(has_flag_check, has_flag_basic_block, end_basic_block);
+
+				this->agent.setTargetBasicBlock(end_basic_block);
+
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createPhi(
+						evo::SmallVector<pir::Phi::Predecessor>{
+							pir::Phi::Predecessor(start_basic_block, this->agent.createBoolean(!is_equal)),
+							pir::Phi::Predecessor(has_flag_result_end_block, has_flag_result),
+						},
+						this->name(is_equal ? "EQ.OPT" : "NEQ.OPT")
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr output_value = this->agent.createPhi(
+						evo::SmallVector<pir::Phi::Predecessor>{
+							pir::Phi::Predecessor(start_basic_block, this->agent.createBoolean(!is_equal)),
+							pir::Phi::Predecessor(has_flag_result_end_block, has_flag_result),
+						},
+						this->name(is_equal ? ".EQ.OPT" : ".NEQ.OPT")
+					);
+
+					const pir::Expr output_alloca = this->agent.createAlloca(
+						this->module.createBoolType(), this->name(is_equal ? "EQ.OPT" : "NEQ.OPT")
+					);
+					this->agent.createStore(output_alloca, output_value);
+
+					return output_alloca;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					const pir::Expr output_value = this->agent.createPhi(
+						evo::SmallVector<pir::Phi::Predecessor>{
+							pir::Phi::Predecessor(start_basic_block, this->agent.createBoolean(!is_equal)),
+							pir::Phi::Predecessor(has_flag_result_end_block, has_flag_result),
+						},
+						this->name(is_equal ? ".EQ.OPT" : ".NEQ.OPT")
+					);
+
+					this->agent.createStore(store_locations[0], output_value);
+
+					return std::nullopt;
+					
+				}else{
+					return std::nullopt;
+				}
+			}
+
+
+			switch(expr_type.baseTypeID().kind()){
+				case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
+
+				case BaseType::Kind::PRIMITIVE: {
+					evo::debugAssert(
+						this->context.getTypeManager().isFloatingPoint(expr_type.baseTypeID()),
+						"This primitive is trivially comparable"
+					);
+
+					if constexpr(MODE == GetExprMode::DISCARD){
+						return std::nullopt;
+
+					}else{
+						const pir::Expr target_lhs = this->agent.createLoad(
+							lhs,
+							pir_type,
+							false,
+							pir::AtomicOrdering::NONE,
+							is_equal ? this->name(".EQ.LHS") : this->name(".NEQ.LHS")
+						);
+
+						const pir::Expr target_rhs = this->agent.createLoad(
+							rhs,
+							pir_type,
+							false,
+							pir::AtomicOrdering::NONE,
+							is_equal ? this->name(".EQ.RHS") : this->name(".NEQ.RHS")
+						);
+
+						if constexpr(MODE == GetExprMode::REGISTER){
+							if(is_equal){
+								return this->agent.createFEq(target_lhs, target_rhs, this->name("EQ"));
+							}else{
+								return this->agent.createFNeq(target_lhs, target_rhs, this->name("NEQ"));
+							}
+
+						}else if constexpr(MODE == GetExprMode::POINTER){
+							if(is_equal){
+								const pir::Expr output_alloca =
+									this->agent.createAlloca(this->module.createBoolType(), this->name("EQ"));
+
+								const pir::Expr output_value =
+									this->agent.createFEq(target_lhs, target_rhs, this->name(".EQ"));
+								this->agent.createStore(output_alloca, output_value);
+								return output_alloca;
+							}else{
+								const pir::Expr output_alloca =
+									this->agent.createAlloca(this->module.createBoolType(), this->name("NEQ"));
+
+								const pir::Expr output_value =
+									this->agent.createFNeq(target_lhs, target_rhs, this->name(".NEQ"));
+								this->agent.createStore(output_alloca, output_value);
+								return output_alloca;
+							}
+							
+						}else if constexpr(MODE == GetExprMode::STORE){
+							const pir::Expr output_value = [&](){
+								if(is_equal){
+									return this->agent.createFEq(target_lhs, target_rhs, this->name(".EQ"));
+								}else{
+									return this->agent.createFNeq(target_lhs, target_rhs, this->name(".NEQ"));
+								}
+							}();
+
+							this->agent.createStore(store_locations[0], output_value);
+							return std::nullopt;
+						}
+					}
+				} break;
+
+				case BaseType::Kind::FUNCTION: {
+					evo::debugFatalBreak("function is trivially comparable");
+				} break;
+
+				case BaseType::Kind::ARRAY: {
+					// const BaseType::Array& array_type = this->getArray(expr_type.baseTypeID().arrayID());
+					const BaseType::Array& array_type =
+						this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
+
+					const uint64_t num_elems = [&](){
+						uint64_t output_num_elems = 1;
+
+						for(uint64_t dimension : array_type.dimensions){
+							output_num_elems *= dimension;
+						}
+
+						if(array_type.terminator.has_value()){ output_num_elems += 1; }
+
+						return output_num_elems;
+					}();
+
+					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+
+					const pir::Expr pir_i = this->agent.createAlloca(
+						usize_type, this->name(is_equal ? ".EQ.arr.i.alloca" : ".NEQ.arr.i.alloca")
+					);
+					this->agent.createStore(
+						pir_i,
+						this->agent.createNumber(
+							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
+						)
+					);
+
+					const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.arr.cond" : "NEQ.arr.cond")
+					);
+					const pir::BasicBlock::ID then_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.arr.then" : "NEQ.arr.then")
+					);
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.arr.end" : "NEQ.arr.end")
+					);
+
+					this->agent.createJump(cond_block);
+
+
+					//////////////////
+					// cond
+
+					this->agent.setTargetBasicBlock(cond_block);
+
+					const pir::Expr array_size = this->agent.createNumber(
+						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
+					);
+
+					const pir::Expr pir_i_load = this->agent.createLoad(
+						pir_i,
+						usize_type,
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(is_equal ? "EQ.arr.i" : "NEQ.arr.i")
+					);
+					const pir::Expr cond = this->agent.createULT(
+						pir_i_load, array_size, this->name(is_equal ? "EQ.arr.LOOP_COND" : "NEQ.arr.LOOP_COND")
+					);
+
+					this->agent.createBranch(cond, then_block, end_block);
+
+
+					//////////////////
+					// then
+
+					this->agent.setTargetBasicBlock(then_block);
+
+					const pir::Expr lhs_elem = this->agent.createCalcPtr(
+						lhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load},
+						this->name(is_equal ? ".EQ.ARR.LHS_PTR" : ".NEQ.ARR.LHS_PTR")
+					);
+
+					const pir::Expr rhs_elem = this->agent.createCalcPtr(
+						rhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load},
+						this->name(is_equal ? ".EQ.ARR.RHS_PTR" : ".NEQ.ARR.RHS_PTR")
+					);
+
+					const pir::Expr cmp_value = *this->expr_cmp<GetExprMode::REGISTER>(
+						array_type.elementTypeID, lhs_elem, rhs_elem, is_equal, nullptr
+					);
+
+
+					const pir::Expr i_increment = this->agent.createAdd(
+						pir_i_load,
+						this->agent.createNumber(
+							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
+						),
+						false,
+						true
+					);
+					this->agent.createStore(pir_i, i_increment);
+
+					if(is_equal){
+						this->agent.createBranch(cmp_value, cond_block, end_block);
+					}else{
+						this->agent.createBranch(cmp_value, end_block, cond_block);
+					}
+
+
+					//////////////////
+					// end
+
+					this->agent.setTargetBasicBlock(end_block);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createPhi(
+							evo::SmallVector<pir::Phi::Predecessor>{
+								pir::Phi::Predecessor(then_block, this->agent.createBoolean(!is_equal)),
+								pir::Phi::Predecessor(cond_block, this->agent.createBoolean(is_equal)),
+							},
+							is_equal ? this->name("EQ.ARR") : this->name("NEQ.ARR")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr output_value = this->agent.createPhi(
+							evo::SmallVector<pir::Phi::Predecessor>{
+								pir::Phi::Predecessor(then_block, this->agent.createBoolean(!is_equal)),
+								pir::Phi::Predecessor(cond_block, this->agent.createBoolean(is_equal)),
+							},
+							is_equal ? this->name(".EQ.ARR") : this->name(".NEQ.ARR")
+						);
+
+						const pir::Expr output_alloca = this->agent.createAlloca(
+							this->module.createBoolType(), is_equal ? this->name("EQ.ARR") : this->name("NEQ.ARR")
+						);
+						this->agent.createStore(output_alloca, output_value);
+
+						return output_alloca;
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						const pir::Expr output_value = this->agent.createPhi(
+							evo::SmallVector<pir::Phi::Predecessor>{
+								pir::Phi::Predecessor(then_block, this->agent.createBoolean(!is_equal)),
+								pir::Phi::Predecessor(cond_block, this->agent.createBoolean(is_equal)),
+							},
+							is_equal ? this->name(".EQ.ARR") : this->name(".NEQ.ARR")
+						);
+
+						this->agent.createStore(store_locations[0], output_value);
+
+						return std::nullopt;
+						
+					}else{
+						return std::nullopt;
+					}
+
+				} break;
+
+				case BaseType::Kind::ARRAY_REF: {
+					const BaseType::ArrayRef& array_ref_type =
+						this->context.getTypeManager().getArrayRef(expr_type.baseTypeID().arrayRefID());
+
+
+					const pir::Expr lhs_ref_ptrs_ptr = this->agent.createCalcPtr(
+						lhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(is_equal ? ".EQ.ARR_REF.LHS_REF_PTRS_PTR" : ".NEQ.ARR_REF.LHS_REF_PTRS_PTR")
+					);
+
+					const pir::Expr rhs_ref_ptrs_ptr = this->agent.createCalcPtr(
+						rhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(is_equal ? ".EQ.ARR_REF.RHS_REF_PTRS_PTR" : ".NEQ.ARR_REF.RHS_REF_PTRS_PTR")
+					);
+
+					const pir::Type ref_ptrs_int_type = this->module.createIntegerType(
+						unsigned(array_ref_type.getNumRefPtrs() * this->context.getTypeManager().numBitsOfPtr())
+					);
+
+					const pir::Expr lhs_ref_ptrs = this->agent.createLoad(
+						lhs_ref_ptrs_ptr,
+						ref_ptrs_int_type,
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(is_equal ? ".EQ.ARR_REF.LHS_REF_PTRS" : ".NEQ.ARR_REF.LHS_REF_PTRS")
+					);
+
+					const pir::Expr rhs_ref_ptrs = this->agent.createLoad(
+						rhs_ref_ptrs_ptr,
+						ref_ptrs_int_type,
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(is_equal ? ".EQ.ARR_REF.RHS_REF_PTRS" : ".NEQ.ARR_REF.RHS_REF_PTRS")
+					);
+
+					const pir::Expr ref_ptrs_cmp = [&](){
+						if(is_equal){
+							return this->agent.createIEq(
+								lhs_ref_ptrs,
+								rhs_ref_ptrs,
+								this->name(is_equal ? ".EQ.ARR_REF.REF_PTRS_CMP" : ".NEQ.ARR_REF.REF_PTRS_CMP")
+							);
+						}else{
+							return this->agent.createINeq(
+								lhs_ref_ptrs,
+								rhs_ref_ptrs,
+								this->name(is_equal ? ".EQ.ARR_REF.REF_PTRS_CMP" : ".NEQ.ARR_REF.REF_PTRS_CMP")
+							);
+						}
+					}();
+
+
+					const pir::BasicBlock::ID start_basic_block = this->agent.getTargetBasicBlock().getID();
+
+					const pir::BasicBlock::ID element_check_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.ARR_REF.elem_check" : "NEQ.ARR_REF.elem_check")
+					);
+
+					this->agent.setTargetBasicBlock(element_check_block);
+
+
+					///////////////////////////////////
+					// element check
+
+					//////////////////
+					// calc size
+
+					const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+
+
+					uint32_t ref_length_index = 0;
+					auto size_expr = std::optional<pir::Expr>();
+
+					for(const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
+						const pir::Expr length_num = [&](){
+							if(dimension.isPtr()){
+								const pir::Expr length_load = this->agent.createLoad(
+									this->agent.createCalcPtr(
+										lhs,
+										pir_type,
+										evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index + 1}
+									),
+									type_usize
+								);
+
+								ref_length_index += 1;
+
+								return length_load;
+
+							}else{
+								return this->agent.createNumber(
+									type_usize,
+									core::GenericInt(
+										unsigned(this->context.getTypeManager().numBitsOfPtr()), dimension.length()
+									)
+								);
+							}
+						}();
+
+						if(size_expr.has_value()){
+							*size_expr = this->agent.createMul(*size_expr, length_num, true, false);
+						}else{
+							size_expr = length_num;
+						}
+					}
+
+
+					//////////////////
+					// data ptrs
+
+					const pir::Expr lhs_data_ptr_ptr = this->agent.createCalcPtr(
+						lhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(is_equal ? ".EQ.ARR_REF.LHS_DATA_PTR_PTR" : ".NEQ.ARR_REF.LHS_DATA_PTR_PTR")
+					);
+
+					const pir::Expr rhs_data_ptr_ptr = this->agent.createCalcPtr(
+						rhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(is_equal ? ".EQ.ARR_REF.RHS_DATA_PTR_PTR" : ".NEQ.ARR_REF.RHS_DATA_PTR_PTR")
+					);
+
+					const pir::Expr lhs_data_ptr = this->agent.createLoad(
+						lhs_data_ptr_ptr,
+						this->module.createPtrType(),
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(is_equal ? ".EQ.ARR_REF.LHS_DATA_PTR" : ".NEQ.ARR_REF.LHS_DATA_PTR")
+					);
+
+					const pir::Expr rhs_data_ptr = this->agent.createLoad(
+						rhs_data_ptr_ptr,
+						this->module.createPtrType(),
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(is_equal ? ".EQ.ARR_REF.RHS_DATA_PTR" : ".NEQ.ARR_REF.RHS_DATA_PTR")
+					);
+
+
+					//////////////////
+					// elem check
+
+					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+
+					const pir::Expr pir_i = this->agent.createAlloca(
+						usize_type, this->name(is_equal ? ".EQ.ARR_REF.i.alloca" : ".NEQ.ARR_REF.i.alloca")
+					);
+					this->agent.createStore(
+						pir_i,
+						this->agent.createNumber(
+							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
+						)
+					);
+
+					const pir::BasicBlock::ID elem_check_cond_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.ARR_REF.elem_check_cond" : "NEQ.ARR_REF.elem_check_cond")
+					);
+					const pir::BasicBlock::ID elem_check_then_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.ARR_REF.elem_check_then" : "NEQ.ARR_REF.elem_check_then")
+					);
+
+					this->agent.createJump(elem_check_cond_block);
+
+
+					//////////////////
+					// elem check cond
+
+					this->agent.setTargetBasicBlock(elem_check_cond_block);
+
+
+					const pir::Expr pir_i_load = this->agent.createLoad(
+						pir_i,
+						usize_type,
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(is_equal ? "EQ.ARR_REF.i" : "NEQ.ARR_REF.i")
+					);
+					const pir::Expr cond = this->agent.createULT(
+						pir_i_load, *size_expr, this->name(is_equal ? "EQ.ARR_REF.LOOP_COND" : "NEQ.ARR_REF.LOOP_COND")
+					);
+
+
+					//////////////////
+					// elem check then
+
+					this->agent.setTargetBasicBlock(elem_check_then_block);
+
+
+					const pir::Type elem_type = this->get_type<false>(array_ref_type.elementTypeID);
+
+					const pir::Expr lhs_elem = this->agent.createCalcPtr(
+						lhs_data_ptr,
+						elem_type,
+						evo::SmallVector<pir::CalcPtr::Index>{pir_i_load},
+						this->name(is_equal ? ".EQ.ARR.LHS_PTR" : ".NEQ.ARR.LHS_PTR")
+					);
+
+					const pir::Expr rhs_elem = this->agent.createCalcPtr(
+						rhs_data_ptr,
+						elem_type,
+						evo::SmallVector<pir::CalcPtr::Index>{pir_i_load},
+						this->name(is_equal ? ".EQ.ARR.RHS_PTR" : ".NEQ.ARR.RHS_PTR")
+					);
+
+					const pir::Expr cmp_value = *this->expr_cmp<GetExprMode::REGISTER>(
+						array_ref_type.elementTypeID, lhs_elem, rhs_elem, is_equal, nullptr
+					);
+
+					const pir::Expr i_increment = this->agent.createAdd(
+						pir_i_load,
+						this->agent.createNumber(
+							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
+						),
+						false,
+						true
+					);
+					this->agent.createStore(pir_i, i_increment);
+
+
+					///////////////////////////////////
+					// end
+
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.ARR_REF.end" : "NEQ.ARR_REF.end")
+					);
+
+
+					this->agent.setTargetBasicBlock(start_basic_block);
+
+					if(is_equal){
+						this->agent.createBranch(ref_ptrs_cmp, element_check_block, end_block);
+					}else{
+						this->agent.createBranch(ref_ptrs_cmp, end_block, element_check_block);
+					}
+
+
+					this->agent.setTargetBasicBlock(elem_check_cond_block);
+					this->agent.createBranch(cond, elem_check_then_block, end_block);
+
+					this->agent.setTargetBasicBlock(elem_check_then_block);
+					if(is_equal){
+						this->agent.createBranch(cmp_value, elem_check_cond_block, end_block);
+					}else{
+						this->agent.createBranch(cmp_value, end_block, elem_check_cond_block);
+					}
+
+
+					this->agent.setTargetBasicBlock(end_block);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createPhi(
+							evo::SmallVector<pir::Phi::Predecessor>{
+								pir::Phi::Predecessor(start_basic_block, this->agent.createBoolean(!is_equal)),
+								pir::Phi::Predecessor(elem_check_cond_block, this->agent.createBoolean(is_equal)),
+								pir::Phi::Predecessor(elem_check_then_block, this->agent.createBoolean(!is_equal)),
+							},
+							is_equal ? this->name("EQ.ARR_REF") : this->name("NEQ.ARR_REF")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr output_value = this->agent.createPhi(
+							evo::SmallVector<pir::Phi::Predecessor>{
+								pir::Phi::Predecessor(start_basic_block, this->agent.createBoolean(!is_equal)),
+								pir::Phi::Predecessor(elem_check_cond_block, this->agent.createBoolean(is_equal)),
+								pir::Phi::Predecessor(elem_check_then_block, this->agent.createBoolean(!is_equal)),
+							},
+							is_equal ? this->name(".EQ.ARR_REF") : this->name(".NEQ.ARR_REF")
+						);
+
+						const pir::Expr output_alloca = this->agent.createAlloca(
+							this->module.createBoolType(), is_equal ? this->name("EQ.ARR") : this->name("NEQ.ARR")
+						);
+						this->agent.createStore(output_alloca, output_value);
+
+						return output_alloca;
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						const pir::Expr output_value = this->agent.createPhi(
+							evo::SmallVector<pir::Phi::Predecessor>{
+								pir::Phi::Predecessor(start_basic_block, this->agent.createBoolean(!is_equal)),
+								pir::Phi::Predecessor(elem_check_cond_block, this->agent.createBoolean(is_equal)),
+								pir::Phi::Predecessor(elem_check_then_block, this->agent.createBoolean(!is_equal)),
+							},
+							is_equal ? this->name(".EQ.ARR_REF") : this->name(".NEQ.ARR_REF")
+						);
+
+						this->agent.createStore(store_locations[0], output_value);
+
+						return std::nullopt;
+						
+					}else{
+						return std::nullopt;
+					}
+				} break;
+
+				case BaseType::Kind::ALIAS: {
+					const BaseType::Alias& alias_type =
+						this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
+
+					return this->expr_cmp<MODE>(
+						*alias_type.aliasedType.load(), lhs, rhs, is_equal, store_locations
+					);
+				} break;
+
+				case BaseType::Kind::DISTINCT_ALIAS: {
+					const BaseType::DistinctAlias& distinct_alias_type =
+						this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
+
+					return this->expr_cmp<MODE>(
+						*distinct_alias_type.underlyingType.load(), lhs, rhs, is_equal, store_locations
+					);
+				} break;
+
+				case BaseType::Kind::STRUCT: {
+					const BaseType::Struct& struct_type =
+						this->context.getTypeManager().getStruct(expr_type.baseTypeID().structID());
+
+					const auto [begin_overloads_range, end_overloads_range] = struct_type.infixOverloads.equal_range(
+						is_equal ? Token::lookupKind("==") : Token::lookupKind("!=")
+					);
+
+					const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+					for(const auto& [_, sema_func_id] : overloads_range){
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(sema_func_id);
+						const BaseType::Function& func_type =
+							this->context.getTypeManager().getFunction(sema_func.typeID);
+
+						if(func_type.params[0].typeID == func_type.params[1].typeID){
+							const Data::FuncInfo& func_info = this->data.get_func(sema_func_id);
+
+							const pir::Expr target_lhs = [&](){
+								if(func_info.params[0].is_copy()){
+									return this->agent.createLoad(
+										lhs,
+										pir_type,
+										false,
+										pir::AtomicOrdering::NONE,
+										is_equal ? this->name(".EQ.LHS") : this->name(".NEQ.LHS")
+									);
+								}else{
+									return lhs;
+								}
+							}();
+
+							const pir::Expr target_rhs = [&](){
+								if(func_info.params[1].is_copy()){
+									return this->agent.createLoad(
+										rhs,
+										pir_type,
+										false,
+										pir::AtomicOrdering::NONE,
+										is_equal ? this->name(".EQ.RHS") : this->name(".NEQ.RHS")
+									);
+								}else{
+									return rhs;
+								}
+							}();
+
+							if constexpr(MODE == GetExprMode::REGISTER){
+								return this->agent.createCall(
+									func_info.pir_ids[0].as<pir::Function::ID>(),
+									evo::SmallVector<pir::Expr>{target_lhs, target_rhs},
+									is_equal ? this->name("EQ") : this->name("NEQ")
+								);
+
+							}else if constexpr(MODE == GetExprMode::POINTER){
+								const pir::Expr call = this->agent.createCall(
+									func_info.pir_ids[0].as<pir::Function::ID>(),
+									evo::SmallVector<pir::Expr>{target_lhs, target_rhs},
+									is_equal ? this->name(".EQ") : this->name(".NEQ")
+								);
+
+								const pir::Expr output_param = this->agent.createAlloca(
+									this->module.createBoolType(), is_equal ? this->name("EQ") : this->name("NEQ")
+								);
+								this->agent.createStore(output_param, call);
+
+								return output_param;
+								
+							}else if constexpr(MODE == GetExprMode::STORE){
+								const pir::Expr call = this->agent.createCall(
+									func_info.pir_ids[0].as<pir::Function::ID>(),
+									evo::SmallVector<pir::Expr>{target_lhs, target_rhs},
+									is_equal ? this->name(".EQ") : this->name(".NEQ")
+								);
+
+								this->agent.createStore(store_locations[0], call);
+								return std::nullopt;
+								
+							}else{
+								const pir::Expr call = this->agent.createCall(
+									func_info.pir_ids[0].as<pir::Function::ID>(),
+									evo::SmallVector<pir::Expr>{target_lhs, target_rhs},
+									is_equal ? this->name(".EQ.discard") : this->name(".NEQ.discard")
+								);
+
+								return std::nullopt;
+							}
+						}
+					}
+				} break;
+
+				case BaseType::Kind::UNION: {
+					const BaseType::Union& union_type =
+						this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
+
+					evo::debugAssert(union_type.isUntagged == false, "untagged union is not comparable");
+
+
+					const pir::Expr lhs_tag_ptr = this->agent.createCalcPtr(
+						lhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(is_equal ? ".EQ.UNION.LHS_TAG_PTR" : ".NEQ.UNION.LHS_TAG_PTR")
+					);
+
+					const pir::Expr rhs_tag_ptr = this->agent.createCalcPtr(
+						rhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(is_equal ? ".EQ.UNION.RHS_TAG_PTR" : ".NEQ.UNION.RHS_TAG_PTR")
+					);
+
+					const pir::Type tag_type = this->module.getStructType(pir_type).members[1];
+
+					const pir::Expr lhs_tag = this->agent.createLoad(
+						lhs_tag_ptr,
+						tag_type,
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(is_equal ? ".EQ.UNION.LHS_TAG" : ".NEQ.UNION.LHS_TAG")
+					);
+
+					const pir::Expr rhs_tag = this->agent.createLoad(
+						rhs_tag_ptr,
+						tag_type,
+						false,
+						pir::AtomicOrdering::NONE,
+						this->name(is_equal ? ".EQ.UNION.RHS_TAG" : ".NEQ.UNION.RHS_TAG")
+					);
+
+					
+					const pir::Expr tag_cmp = [&](){
+						if(is_equal){
+							return this->agent.createIEq(lhs_tag, rhs_tag, this->name(".EQ.UNION.TAG_CMP"));
+						}else{
+							return this->agent.createINeq(lhs_tag, rhs_tag, this->name(".NEQ.UNION.TAG_CMP"));
+						}
+					}();
+
+
+					const pir::BasicBlock::ID start_block = this->agent.getTargetBasicBlock().getID();
+
+					const pir::BasicBlock::ID value_cmp_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.UNION.value_cmp" : "NEQ.UNION.value_cmp")
+					);
+
+					this->agent.setTargetBasicBlock(value_cmp_block);
+
+					const pir::Expr lhs_data_ptr = this->agent.createCalcPtr(
+						lhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(is_equal ? ".EQ.UNION.LHS_DATA_PTR" : ".NEQ.UNION.LHS_DATA_PTR")
+					);
+
+					const pir::Expr rhs_data_ptr = this->agent.createCalcPtr(
+						rhs,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(is_equal ? ".EQ.UNION.RHS_DATA_PTR" : ".NEQ.UNION.RHS_DATA_PTR")
+					);
+
+
+
+					auto field_cmp_cases = evo::SmallVector<pir::Switch::Case>();
+					auto phi_predecesors = evo::SmallVector<pir::Phi::Predecessor>{
+						pir::Phi::Predecessor(start_block, this->agent.createBoolean(!is_equal)),
+						pir::Phi::Predecessor(value_cmp_block, this->agent.createBoolean(is_equal))
+					};
+
+					for(size_t i = 0; const BaseType::Union::Field& field : union_type.fields){
+						EVO_DEFER([&](){ i += 1; });
+
+						if(field.typeID.isVoid()){ continue; }
+						
+						const pir::BasicBlock::ID field_cmp_block = this->agent.createBasicBlock(
+							is_equal
+							? this->name("EQ.UNION.field_{}", i)
+							: this->name("NEQ.UNION.field_{}", i)
+						);
+
+						field_cmp_cases.emplace_back(
+							this->agent.createNumber(tag_type, core::GenericInt(tag_type.getWidth(), i)),
+							field_cmp_block
+						);
+
+						this->agent.setTargetBasicBlock(field_cmp_block);
+
+						const pir::Expr value_cmp = *this->expr_cmp<GetExprMode::REGISTER>(
+							field.typeID.asTypeID(), lhs_data_ptr, rhs_data_ptr, is_equal, nullptr
+						);
+
+						phi_predecesors.emplace_back(field_cmp_block, value_cmp);
+					}
+
+
+					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(
+						this->name(is_equal ? "EQ.UNION.end" : "NEQ.UNION.end")
+					);
+
+					for(const pir::Switch::Case& field_cmp_case : field_cmp_cases){
+						this->agent.setTargetBasicBlock(field_cmp_case.block);
+						this->agent.createJump(end_block);
+					}
+
+					this->agent.setTargetBasicBlock(start_block);
+					this->agent.createBranch(tag_cmp, value_cmp_block, end_block);
+
+					this->agent.setTargetBasicBlock(value_cmp_block);
+					this->agent.createSwitch(lhs_tag, std::move(field_cmp_cases), end_block);
+
+					this->agent.setTargetBasicBlock(end_block);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createPhi(
+							std::move(phi_predecesors), this->name(is_equal ? "EQ.UNION" : "NEQ.UNION")
+						);
+						
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr output_value = this->agent.createPhi(
+							std::move(phi_predecesors), this->name(is_equal ? ".EQ.UNION" : ".NEQ.UNION")
+						);
+
+						const pir::Expr output_alloca = this->agent.createAlloca(
+							this->module.createBoolType(), this->name(is_equal ? "EQ.UNION" : "NEQ.UNION")
+						);
+
+						this->agent.createStore(output_alloca, output_value);
+
+						return output_alloca;
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						const pir::Expr output_value = this->agent.createPhi(
+							std::move(phi_predecesors), this->name(is_equal ? ".EQ.UNION" : ".NEQ.UNION")
+						);
+
+						this->agent.createStore(store_locations[0], output_value);
+
+						return std::nullopt;
+						
+					}else{
+						return std::nullopt;
+					}
+				} break;
+
+				case BaseType::Kind::ENUM: {
+					evo::debugFatalBreak("enum is trivially comparable");
+				} break;
+
+				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+				case BaseType::Kind::INTERFACE:               case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+					evo::debugFatalBreak("Invalid type to compare");
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown BaseType kind");
+		}
+	}
+
 
 
 
@@ -6792,10 +7874,11 @@ namespace pcit::panther{
 			case sema::Expr::Kind::INIT_ARRAY_REF:                case sema::Expr::Kind::ARRAY_REF_INDEXER:
 			case sema::Expr::Kind::ARRAY_REF_SIZE:                case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
 			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:     case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::PARAM:                         case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:            case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:                  case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::GLOBAL_VAR:                    case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::SAME_TYPE_CMP:                 case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:                  case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:             case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::VAR:                           case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

@@ -1,17 +1,40 @@
 
+// type Thing = struct {
+// 	// func new = (num: Int) -> (output: Thing) {
+// 	// 	output.num = copy num;
+// 	// 	return...;
+// 	// }
 
-type Thing = struct {
-	// func new = (num: Int) -> (output: Thing) {
-	// 	output.num = copy num;
-	// 	return...;
-	// }
-
-	func == = (this, rhs: Thing) -> Bool {
-		return this.num == rhs.num;
-	}
+// 	func == = (this, rhs: Thing) -> Bool {
+// 		return this.num == rhs.num;
+// 	}
 
 
-	var num: Int;
+// 	var num: Int;
+// }
+
+
+
+// func check_arr_ref_equal = (lhs: [I17:*|], rhs: [I17:*|]) -> Bool {
+// 	return lhs == rhs;
+
+// 	// if(lhs.size() != rhs.size()){ return false; }
+
+// 	// var i: USize = 0;
+// 	// while(i < lhs.size()){
+// 	// 	defer{ i += 1; }
+		
+// 	// 	if(lhs[i].* != rhs[i].*){ return false; }	
+// 	// }
+
+// 	// return true;
+// }
+
+
+type Union = union {
+	int: Int,
+	float: F64,
+	void: Void,
 }
 
 
@@ -19,8 +42,22 @@ type Thing = struct {
 
 
 func entry = () #entry -> UI8 {
-	var foo: Thing? = new Thing{num = 12};
-	var bar: Thing? = new Thing{num = 14};
-	
+	// const foo: Thing? = new Thing{num = 12};
+	// const bar: Thing? = null;
+
+	// const foo: F32? = 12.0;
+	// const bar: F32? = 12.0;
+
+
+	// const foo_data = new [I17:3][1, 2, 3];
+	// const bar_data = new [I17:3][1, 2, 3];
+
+	// const foo: [I17:*|] = foo_data as [I17:*|];
+	// const bar: [I17:*|] = bar_data as [I17:*|];
+
+
+	const foo: Union? = new Union{float = 0.0};
+	const bar: Union? = new Union{int = 0};
+
 	return (foo == bar) as UI8;
 }
