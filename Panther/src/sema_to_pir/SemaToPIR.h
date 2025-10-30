@@ -50,6 +50,9 @@ namespace pcit::panther{
 			auto lowerInterfaceVTable(
 				BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
 			) -> void;
+			auto lowerInterfaceVTableConstexpr(
+				BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+			) -> void;
 			
 
 			auto createJITEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
@@ -70,6 +73,11 @@ namespace pcit::panther{
 
 			// see definition for explanation
 			auto lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID>;
+
+			template<bool IS_CONSTEXPR>
+			auto lower_interface_vtable_impl(
+				BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+			) -> void;
 
 			auto lower_stmt(const sema::Stmt& stmt) -> void;
 

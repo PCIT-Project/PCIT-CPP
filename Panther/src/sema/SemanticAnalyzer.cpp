@@ -5439,6 +5439,8 @@ namespace pcit::panther{
 		for(const sema::Func::ID method_id : info.interface_impl.methods){
 			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
 
+			if(method.isConstexpr == false){ continue; }
+
 			SymbolProc& method_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*method.symbolProcID);
 
 			const SymbolProc::WaitOnResult wait_on_result = method_symbol_proc.waitOnPIRDeclIfNeeded(
@@ -5483,7 +5485,9 @@ namespace pcit::panther{
 			return info.target_interface.impls.at(current_type_base_type_id);
 		}();
 
-		sema_to_pir.lowerInterfaceVTable(info.target_interface_id, current_type_base_type_id, interface_impl.methods);
+		sema_to_pir.lowerInterfaceVTableConstexpr(
+			info.target_interface_id, current_type_base_type_id, interface_impl.methods
+		);
 
 		this->propagate_finished_pir_def();
 

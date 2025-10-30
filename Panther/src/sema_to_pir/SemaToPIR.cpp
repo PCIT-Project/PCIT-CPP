@@ -555,57 +555,14 @@ namespace pcit::panther{
 	auto SemaToPIR::lowerInterfaceVTable(
 		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
-		std::string vtable_name = [&](){
-			switch(type.kind()){
-				case BaseType::Kind::PRIMITIVE:
-					return std::format("PTHR.vtable.i{}.p{}", interface_id.get(), type.primitiveID().get());
-
-				case BaseType::Kind::ARRAY:
-					return std::format("PTHR.vtable.i{}.a{}", interface_id.get(), type.arrayID().get());
-
-				case BaseType::Kind::DISTINCT_ALIAS:
-					return std::format("PTHR.vtable.i{}.t{}", interface_id.get(), type.distinctAliasID().get());
-
-				case BaseType::Kind::STRUCT:
-					return std::format("PTHR.vtable.i{}.s{}", interface_id.get(), type.structID().get());
-
-				case BaseType::Kind::UNION:
-					return std::format("PTHR.vtable.i{}.u{}", interface_id.get(), type.unionID().get());
-
-				case BaseType::Kind::DUMMY:                   case BaseType::Kind::FUNCTION:
-				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::ARRAY_REF:
-				case BaseType::Kind::ALIAS:                   case BaseType::Kind::STRUCT_TEMPLATE:
-				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::ENUM:                    case BaseType::Kind::INTERFACE:
-				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-					evo::debugFatalBreak("Not valid base type for VTable");
-				} break;
-			}
-
-			evo::unreachable();
-		}();
-
-
-		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
-		vtable_values.reserve(funcs.size());
-		for(sema::Func::ID func_id : funcs){
-			vtable_values.emplace_back(
-				this->agent.createFunctionPointer(this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>())
-			);
-		}
-
-		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
-			std::move(vtable_name),
-			this->module.createArrayType(this->module.createPtrType(), uint64_t(funcs.size())),
-			pir::Linkage::EXTERNAL,
-			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values)),
-			true
-		);
-
-		this->data.create_vtable(Data::VTableID(interface_id, type), vtable);
+		return this->lower_interface_vtable_impl<false>(interface_id, type, funcs);
 	}
 
-
+	auto SemaToPIR::lowerInterfaceVTableConstexpr(
+		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+	) -> void {
+		return this->lower_interface_vtable_impl<true>(interface_id, type, funcs);
+	}
 
 
 	auto SemaToPIR::createJITEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
@@ -901,6 +858,76 @@ namespace pcit::panther{
 		this->data.create_union(union_id, new_type);
 
 		return new_type;
+	}
+
+
+	template<bool IS_CONSTEXPR>
+	auto SemaToPIR::lower_interface_vtable_impl(
+		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+	) -> void {
+		std::string vtable_name = [&](){
+			switch(type.kind()){
+				case BaseType::Kind::PRIMITIVE:
+					return std::format("PTHR.vtable.i{}.p{}", interface_id.get(), type.primitiveID().get());
+
+				case BaseType::Kind::ARRAY:
+					return std::format("PTHR.vtable.i{}.a{}", interface_id.get(), type.arrayID().get());
+
+				case BaseType::Kind::DISTINCT_ALIAS:
+					return std::format("PTHR.vtable.i{}.t{}", interface_id.get(), type.distinctAliasID().get());
+
+				case BaseType::Kind::STRUCT:
+					return std::format("PTHR.vtable.i{}.s{}", interface_id.get(), type.structID().get());
+
+				case BaseType::Kind::UNION:
+					return std::format("PTHR.vtable.i{}.u{}", interface_id.get(), type.unionID().get());
+
+				case BaseType::Kind::DUMMY:                   case BaseType::Kind::FUNCTION:
+				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::ARRAY_REF:
+				case BaseType::Kind::ALIAS:                   case BaseType::Kind::STRUCT_TEMPLATE:
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+				case BaseType::Kind::ENUM:                    case BaseType::Kind::INTERFACE:
+				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+					evo::debugFatalBreak("Not valid base type for VTable");
+				} break;
+			}
+
+			evo::unreachable();
+		}();
+
+
+		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
+		vtable_values.reserve(funcs.size());
+		for(sema::Func::ID func_id : funcs){
+			if constexpr(IS_CONSTEXPR){
+				const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+
+				if(func.isConstexpr){
+					vtable_values.emplace_back(
+						this->agent.createFunctionPointer(
+							this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>()
+						)
+					);
+				}else{
+					vtable_values.emplace_back(this->agent.createNullptr());
+				}
+
+			}else{
+				vtable_values.emplace_back(
+					this->agent.createFunctionPointer(this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>())
+				);
+			}
+		}
+
+		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
+			std::move(vtable_name),
+			this->module.createArrayType(this->module.createPtrType(), uint64_t(funcs.size())),
+			pir::Linkage::EXTERNAL,
+			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values)),
+			true
+		);
+
+		this->data.create_vtable(Data::VTableID(interface_id, type), vtable);
 	}
 
 

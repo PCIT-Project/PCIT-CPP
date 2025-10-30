@@ -1,19 +1,19 @@
 
 
 interface Inter = {
-	func err_test = (this) #rt -> Void <Void>;
+	func err_test = () #rt -> Void;
 }
 
 
 
 type Thing = struct {
-	func err_test = (this) #rt -> Void <Void> {
+	func err_test_impl = () #rt -> Void {
 		
 	}
 
 
 	impl Inter {
-		err_test = err_test,
+		err_test = err_test_impl,
 	}
 }
 
@@ -21,14 +21,14 @@ type Thing = struct {
 
 
 
-func entry = () #entry -> UI8 {
-	var thing = new Thing();
+// func entry = () #entry -> UI8 {
+// 	var thing = new Thing();
 
-	var inter: Inter*| = &thing as Inter*|;
+// 	var inter: Inter*| = &thing as Inter*|;
 
-	try inter.err_test() else {
+// 	try inter.err_test() else {
 
-	};
+// 	};
 	
-	return 0;
-}
+// 	return 0;
+// }

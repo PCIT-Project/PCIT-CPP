@@ -3,7 +3,7 @@ def build_exp = @import("std_exp/build.pthr");
 
 
 func entry = () #entry -> UI8 {
-	build_exp.setOutput(build.Output.AST);
+	build_exp.setOutput(build.Output.PIR);
 	// @buildSetNumThreads(12);
 	@buildSetUseStdLib(false);
 

@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.175.2"></a>
+## v0.0.175.2
+
+### Panther
+- Fixed stalling when has interface impl that has a runtime function
+- Fixed constexpr lowering of interface impl when a function isn't constexpr
+
+### PIR
+- Fixed nullptr not counting as a constant
+
+
+<!---------------------------------->
 <a name="v0.0.175.1"></a>
 ## v0.0.175.1
 
