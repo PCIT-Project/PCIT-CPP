@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.175.1"></a>
+## v0.0.175.1
+
+### Panther
+- Fixed crashing when printing of AST of try/else statements
+
+
+<!---------------------------------->
 <a name="v0.0.175.0"></a>
 ## v0.0.175.0
 

@@ -335,6 +335,11 @@ namespace pthr{
 						this->print_func_call(this->ast_buffer.getFuncCall(stmt));
 					} break;
 
+					case panther::AST::Kind::TRY_ELSE: {
+						this->indenter.print();
+						this->print_try_else(this->ast_buffer.getTryElse(stmt));
+					} break;
+
 					case panther::AST::Kind::BLOCK: {
 						this->indenter.print();
 						this->print_major_header("Statement Block");

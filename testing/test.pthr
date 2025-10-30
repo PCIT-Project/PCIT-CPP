@@ -1,16 +1,34 @@
 
 
-func err_test = () -> Void <UI8> {
-	error 12;
+interface Inter = {
+	func err_test = (this) #rt -> Void <Void>;
 }
 
 
-func entry = () #entry -> UI8 {
-	var err_code: UI8 = 0;
 
-	try err_test() else<code> {
-		err_code = copy code;
+type Thing = struct {
+	func err_test = (this) #rt -> Void <Void> {
+		
+	}
+
+
+	impl Inter {
+		err_test = err_test,
+	}
+}
+
+
+
+
+
+func entry = () #entry -> UI8 {
+	var thing = new Thing();
+
+	var inter: Inter*| = &thing as Inter*|;
+
+	try inter.err_test() else {
+
 	};
 	
-	return move err_code;
+	return 0;
 }
