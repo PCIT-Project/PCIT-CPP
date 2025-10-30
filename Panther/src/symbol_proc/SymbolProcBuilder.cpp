@@ -1549,7 +1549,7 @@ namespace pcit::panther{
 			case AST::Kind::NEW:                    evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_INIT_NEW:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::DESIGNATED_INIT_NEW:    evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::TRY_ELSE:               evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::TRY_ELSE:               return this->analyze_try_else(ast_buffer.getTryElse(stmt));
 			case AST::Kind::DEDUCER:                evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_TYPE:             evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE:                   evo::debugFatalBreak("Invalid statment");
@@ -1940,12 +1940,9 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): deduplicate with `analyze_expr_func_call`?
 	auto SymbolProcBuilder::analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<> {
-		bool is_target_template = false;
 		auto template_args = evo::SmallVector<SymbolProc::TermInfoID>();
 		const auto target = [&]() -> evo::Result<SymbolProc::TermInfoID> {
 			if(func_call.target.kind() == AST::Kind::TEMPLATED_EXPR){
-				is_target_template = true;
-
 				const AST::TemplatedExpr& target_templated_expr = 
 					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
 
@@ -1973,10 +1970,6 @@ namespace pcit::panther{
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-
-		// if(is_target_template){
-		// 	// TEMPLATE INTRINSIC GOES HERE
-		// }
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createFuncCall(
@@ -2111,6 +2104,55 @@ namespace pcit::panther{
 		this->add_instruction(
 			this->context.symbol_proc_manager.createMultiAssign(multi_assign, std::move(targets), value.value())
 		);
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_try_else(const AST::TryElse& try_else) -> evo::Result<> {
+		const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(try_else.attemptExpr);
+
+		auto template_args = evo::SmallVector<SymbolProc::TermInfoID>();
+		const auto target = [&]() -> evo::Result<SymbolProc::TermInfoID> {
+			if(func_call.target.kind() == AST::Kind::TEMPLATED_EXPR){
+				const AST::TemplatedExpr& target_templated_expr = 
+					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+
+				template_args.reserve(target_templated_expr.args.size());
+				for(const AST::Node& arg : target_templated_expr.args){
+					const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_term<true>(arg);
+					if(arg_value.isError()){ return evo::resultError; }
+					template_args.emplace_back(arg_value.value());
+				}
+
+				return this->analyze_expr<false>(target_templated_expr.base);
+
+			}else{
+				return this->analyze_expr<false>(func_call.target);
+			}
+		}();
+		if(target.isError()){ return evo::resultError; }
+
+		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
+		args.reserve(func_call.args.size());
+		for(const AST::FuncCall::Arg& arg : func_call.args){
+			const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_expr<false>(arg.value);
+			if(arg_value.isError()){ return evo::resultError; }
+			args.emplace_back(arg_value.value());
+		}
+
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createTryElseBegin(
+				try_else, target.value(), std::move(template_args), std::move(args)
+			)
+		);
+
+		for(const AST::Node& stmt : this->source.getASTBuffer().getBlock(try_else.exceptExpr).statements){
+			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		}
+
+		this->add_instruction(this->context.symbol_proc_manager.createTryElseEnd());
+
 		return evo::Result<>();
 	}
 
@@ -3278,7 +3320,7 @@ namespace pcit::panther{
 		
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			this->context.symbol_proc_manager.createTryElse(
+			this->context.symbol_proc_manager.createTryElseExpr(
 				try_else, attempt_expr.value(), except_params_term_info_id, except_expr.value(), new_term_info_id
 			)
 		);

@@ -972,6 +972,110 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Stmt::Kind::TRY_ELSE: {
+				const sema::TryElse& try_else = this->context.getSemaBuffer().getTryElse(stmt.tryElseID());
+
+
+				const Data::FuncInfo& target_func_info = this->data.get_func(try_else.target.as<sema::Func::ID>());
+
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
+					this->context.getSemaBuffer().getFunc(try_else.target.as<sema::Func::ID>()).typeID
+				);
+
+				auto args = evo::SmallVector<pir::Expr>();
+				for(size_t i = 0; const sema::Expr& arg : try_else.args){
+					if(target_func_info.params[i].is_copy()){
+						args.emplace_back(this->get_expr_register(arg));
+
+					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
+						if(arg.kind() == sema::Expr::Kind::COPY){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
+							);
+
+						}else if(arg.kind() == sema::Expr::Kind::MOVE){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
+							);
+							
+						}else{
+							args.emplace_back(this->get_expr_pointer(arg));
+						}
+
+					}else{
+						args.emplace_back(this->get_expr_pointer(arg));
+					}
+
+					i += 1;
+				}
+
+
+				if(target_type.errorParams[0].typeID.isVoid() == false){
+					const pir::Expr error_value = this->agent.createAlloca(
+						*target_func_info.error_return_type, this->name("ERR.ALLOCA")
+					);
+
+					for(const sema::ExceptParam::ID except_param_id : try_else.exceptParams){
+						const sema::ExceptParam& except_param =
+							this->context.getSemaBuffer().getExceptParam(except_param_id);
+
+						const pir::Expr except_param_pir_expr = this->agent.createCalcPtr(
+							error_value,
+							*target_func_info.error_return_type,
+							evo::SmallVector<pir::CalcPtr::Index>{
+								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+							},
+							this->name(
+								"EXCEPT_PARAM.{}",
+								this->current_source->getTokenBuffer()[
+									this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+								].getString()
+							)
+						);
+						this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+					}
+
+					args.emplace_back(error_value);
+				}
+
+				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, try_else.args);
+
+				const pir::Expr err_occurred = this->create_call(
+					target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
+				);
+
+				const pir::BasicBlock::ID start_block = this->agent.getTargetBasicBlock().getID();
+
+				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
+
+				this->agent.setTargetBasicBlock(if_error_block);
+
+				this->push_scope_level();
+
+				for(const sema::Stmt& else_block_stmt : try_else.elseBlock){
+					this->lower_stmt(else_block_stmt);
+				}
+
+				if(try_else.elseBlock.isTerminated() == false){
+					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+				}
+
+				this->pop_scope_level();
+
+				const pir::BasicBlock::ID if_error_block_end = this->agent.getTargetBasicBlock().getID();
+
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("TRY.END"));
+
+
+				this->agent.setTargetBasicBlock(start_block);
+				this->agent.createBranch(err_occurred, if_error_block, end_block);
+
+				this->agent.setTargetBasicBlock(if_error_block_end);
+				this->agent.createJump(end_block);
+
+				this->agent.setTargetBasicBlock(end_block);
+			} break;
+
 			case sema::Stmt::Kind::INTERFACE_CALL: {
 				const sema::InterfaceCall& interface_call =
 					this->context.getSemaBuffer().getInterfaceCall(stmt.interfaceCallID());
@@ -3581,11 +3685,12 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::TRY_ELSE: {
-				const sema::TryElse& try_else = this->context.getSemaBuffer().getTryElse(expr.tryElseID());
+			case sema::Expr::Kind::TRY_ELSE_EXPR: {
+				const sema::TryElseExpr& try_else_expr =
+					this->context.getSemaBuffer().getTryElseExpr(expr.tryElseExprID());
 				
 				const sema::FuncCall& attempt_func_call =
-					this->context.getSemaBuffer().getFuncCall(try_else.attempt.funcCallID());
+					this->context.getSemaBuffer().getFuncCall(try_else_expr.attempt.funcCallID());
 
 				const Data::FuncInfo& target_func_info = this->data.get_func(
 					attempt_func_call.target.as<sema::Func::ID>()
@@ -3640,7 +3745,7 @@ namespace pcit::panther{
 						*target_func_info.error_return_type, this->name("ERR.ALLOCA")
 					);
 
-					for(const sema::ExceptParam::ID except_param_id : try_else.exceptParams){
+					for(const sema::ExceptParam::ID except_param_id : try_else_expr.exceptParams){
 						const sema::ExceptParam& except_param =
 							this->context.getSemaBuffer().getExceptParam(except_param_id);
 
@@ -3675,7 +3780,7 @@ namespace pcit::panther{
 				this->agent.createBranch(err_occurred, if_error_block, end_block);
 
 				this->agent.setTargetBasicBlock(if_error_block);
-				this->get_expr_store(try_else.except, return_address);
+				this->get_expr_store(try_else_expr.except, return_address);
 				this->agent.createJump(end_block);
 
 				this->agent.setTargetBasicBlock(end_block);
@@ -7729,7 +7834,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::DEREF:                         case sema::Expr::Kind::UNWRAP:
 			case sema::Expr::Kind::ACCESSOR:                      case sema::Expr::Kind::UNION_ACCESSOR:
 			case sema::Expr::Kind::LOGICAL_AND:                   case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE:                      case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::TRY_ELSE_EXPR:                 case sema::Expr::Kind::BLOCK_EXPR:
 			case sema::Expr::Kind::FAKE_TERM_INFO:                case sema::Expr::Kind::MAKE_INTERFACE_PTR:
 			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:    case sema::Expr::Kind::INTERFACE_CALL:
 			case sema::Expr::Kind::INDEXER:                       case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:

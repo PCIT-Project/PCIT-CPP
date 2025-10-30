@@ -59,7 +59,7 @@ namespace pcit::panther::sema{
 			UNION_ACCESSOR,
 			LOGICAL_AND,
 			LOGICAL_OR,
-			TRY_ELSE,
+			TRY_ELSE_EXPR,
 			BLOCK_EXPR,
 			FAKE_TERM_INFO,
 			MAKE_INTERFACE_PTR,
@@ -125,7 +125,7 @@ namespace pcit::panther::sema{
 		explicit Expr(UnionAccessorID id)      : _kind(Kind::UNION_ACCESSOR),       value{.union_accessor = id}      {};
 		explicit Expr(LogicalAndID id)         : _kind(Kind::LOGICAL_AND),          value{.logical_and = id}         {};
 		explicit Expr(LogicalOrID id)          : _kind(Kind::LOGICAL_OR),           value{.logical_or = id}          {};
-		explicit Expr(TryElseID id)            : _kind(Kind::TRY_ELSE),             value{.try_else = id}            {};
+		explicit Expr(TryElseExprID id)        : _kind(Kind::TRY_ELSE_EXPR),        value{.try_else_expr = id}       {};
 		explicit Expr(BlockExprID id)          : _kind(Kind::BLOCK_EXPR),           value{.block_expr = id}          {};
 		explicit Expr(FakeTermInfoID id)       : _kind(Kind::FAKE_TERM_INFO),       value{.fake_term_info = id}      {};
 		explicit Expr(MakeInterfacePtrID id)   : _kind(Kind::MAKE_INTERFACE_PTR),   value{.make_interface_ptr = id}  {};
@@ -276,9 +276,9 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::LOGICAL_OR, "not a logical or");
 			return this->value.logical_or;
 		}
-		EVO_NODISCARD auto tryElseID() const -> TryElseID {
-			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not a try/else");
-			return this->value.try_else;
+		EVO_NODISCARD auto tryElseExprID() const -> TryElseExprID {
+			evo::debugAssert(this->kind() == Kind::TRY_ELSE_EXPR, "not a try/else expr");
+			return this->value.try_else_expr;
 		}
 		EVO_NODISCARD auto blockExprID() const -> BlockExprID {
 			evo::debugAssert(this->kind() == Kind::BLOCK_EXPR, "not a block expr");
@@ -427,7 +427,7 @@ namespace pcit::panther::sema{
 				UnionAccessorID union_accessor;
 				LogicalAndID logical_and;
 				LogicalOrID logical_or;
-				TryElseID try_else;
+				TryElseExprID try_else_expr;
 				BlockExprID block_expr;
 				FakeTermInfoID fake_term_info;
 				MakeInterfacePtrID make_interface_ptr;

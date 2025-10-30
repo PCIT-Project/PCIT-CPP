@@ -370,6 +370,12 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getDiscardingAssignment(instr)
 				);
 
+			case Instruction::Kind::TRY_ELSE_BEGIN:
+				return this->instr_try_else_begin(this->context.symbol_proc_manager.getTryElseBegin(instr));
+
+			case Instruction::Kind::TRY_ELSE_END:
+				return this->instr_try_else_end();
+
 			case Instruction::Kind::TYPE_TO_TERM:
 				return this->instr_type_to_term(this->context.symbol_proc_manager.getTypeToTerm(instr));
 
@@ -542,8 +548,8 @@ namespace pcit::panther{
 			case Instruction::Kind::PREPARE_TRY_HANDLER:
 				return this->instr_prepare_try_handler(this->context.symbol_proc_manager.getPrepareTryHandler(instr));
 
-			case Instruction::Kind::TRY_ELSE:
-				return this->instr_try_else(this->context.symbol_proc_manager.getTryElse(instr));
+			case Instruction::Kind::TRY_ELSE_EXPR:
+				return this->instr_try_else_expr(this->context.symbol_proc_manager.getTryElseExpr(instr));
 
 			case Instruction::Kind::BEGIN_EXPR_BLOCK:
 				return this->instr_begin_expr_block(this->context.symbol_proc_manager.getBeginExprBlock(instr));
@@ -8150,6 +8156,152 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::instr_try_else_begin(const Instruction::TryElseBegin& instr) -> Result {
+		const AST::FuncCall& ast_func_call = this->source.getASTBuffer().getFuncCall(instr.try_else.attemptExpr);
+
+		const TermInfo& target_term_info = this->get_term_info(instr.func_call_target);
+
+		const evo::Expected<FuncCallImplData, bool> func_call_impl_res = this->func_call_impl<false, true>(
+			ast_func_call, target_term_info, instr.func_call_args, instr.func_call_template_args
+		);
+		if(func_call_impl_res.has_value() == false){
+			if(func_call_impl_res.error()){
+				return Result::ERROR;
+			}else{
+				return Result::NEED_TO_WAIT;
+			}
+		}
+
+
+		auto sema_args = evo::SmallVector<sema::Expr>();
+		if(target_term_info.value_category == TermInfo::ValueCategory::METHOD_CALL){
+			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+				target_term_info.getExpr().fakeTermInfoID()
+			);
+
+			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+				sema_args.emplace_back(fake_term_info.expr);
+
+			}else if( // TODO(FUTURE): make this warn on non-template params
+				this->get_project_config().warn.methodCallOnNonMethod
+				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
+			){
+				this->emit_warning(
+					Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+					ast_func_call,
+					"Making a method call to a function that is not a method",
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("Call the function through the type instead"), // TODO(FUTURE): better message
+						Diagnostic::Info(
+							"Function declared here:", this->get_location(*func_call_impl_res.value().selected_func_id)
+						),
+					}
+				);
+			}
+
+		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
+			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+				target_term_info.getExpr().fakeTermInfoID()
+			);
+
+			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+				const sema::Expr extract_this = sema::Expr(
+					this->context.sema_buffer.createInterfacePtrExtractThis(fake_term_info.expr)
+				);
+
+				sema_args.emplace_back(
+					sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
+				);
+			}
+		}
+
+
+		for(const SymbolProc::TermInfoID& arg : instr.func_call_args){
+			const TermInfo& arg_info = this->get_term_info(arg);
+			sema_args.emplace_back(arg_info.getExpr());
+		}
+
+
+		// default values
+		for(size_t i = sema_args.size(); i < func_call_impl_res.value().selected_func->params.size(); i+=1){
+			sema_args.emplace_back(*func_call_impl_res.value().selected_func->params[i].defaultValue);
+		}
+
+
+		const BaseType::Function& selected_func_type = func_call_impl_res.value().selected_func_type;
+
+		if(
+			instr.try_else.exceptParams.size() != selected_func_type.errorParams.size()
+			&& selected_func_type.errorParams[0].typeID.isVoid() == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TRY_EXCEPT_PARAMS_WRONG_NUM,
+				instr.try_else.elseTokenID,
+				"Number of except parameters does not match attempt function call",
+				Diagnostic::Info(
+					std::format(
+						"Expected {}, got {}", selected_func_type.errorParams.size(), instr.try_else.exceptParams.size()
+					)
+				)
+			);
+			return Result::ERROR;
+		}
+
+
+		auto except_params = evo::SmallVector<sema::ExceptParam::ID>();
+		except_params.reserve(instr.try_else.exceptParams.size());
+		for(size_t i = 0; const Token::ID except_param_token_id : instr.try_else.exceptParams){
+			EVO_DEFER([&](){ i += 1; });
+
+			const Token& except_param_token = this->source.getTokenBuffer()[except_param_token_id];
+			
+			if(except_param_token.kind() == Token::lookupKind("_")){ continue; }
+
+			const std::string_view except_param_ident_str = except_param_token.getString();
+
+			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
+				instr.try_else.exceptParams[i], uint32_t(i), selected_func_type.errorParams[i].typeID.asTypeID()
+			);
+			except_params.emplace_back(except_param_id);
+
+			if(this->add_ident_to_scope(
+				except_param_ident_str, instr.try_else.exceptParams[i], except_param_id
+			).isError()){
+				return Result::ERROR;
+			}
+
+			this->get_current_scope_level().addIdentValueState(except_param_id, sema::ScopeLevel::ValueState::INIT);
+		}
+
+
+
+		const sema::TryElse::ID sema_try_else_id = this->context.sema_buffer.createTryElse(
+			*func_call_impl_res.value().selected_func_id, std::move(sema_args), std::move(except_params)
+		);
+
+		this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_id);
+
+
+		sema::TryElse& sema_try_else = this->context.sema_buffer.try_elses[sema_try_else_id];
+
+
+
+		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
+			*func_call_impl_res.value().selected_func_id
+		);
+
+
+		this->push_scope_level(&sema_try_else.elseBlock);
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_try_else_end() -> Result {
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		return Result::SUCCESS;
+	}
+
 
 
 	auto SemanticAnalyzer::instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result {
@@ -11531,7 +11683,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_try_else(const Instruction::TryElse& instr) -> Result {
+	auto SemanticAnalyzer::instr_try_else_expr(const Instruction::TryElseExpr& instr) -> Result {
 		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
 		TermInfo& except_expr = this->get_term_info(instr.except_expr);
 
@@ -11613,7 +11765,7 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			attempt_expr.type_id,
 			sema::Expr(
-				this->context.sema_buffer.createTryElse(
+				this->context.sema_buffer.createTryElseExpr(
 					attempt_expr.getExpr(), except_expr.getExpr(), std::move(except_params)
 				)
 			)
@@ -18471,7 +18623,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
 			case sema::Expr::Kind::OPTIONAL_EXTRACT:      case sema::Expr::Kind::UNWRAP:
 			case sema::Expr::Kind::UNION_ACCESSOR:        case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:            case sema::Expr::Kind::TRY_ELSE:
+			case sema::Expr::Kind::LOGICAL_OR:            case sema::Expr::Kind::TRY_ELSE_EXPR:
 			case sema::Expr::Kind::BLOCK_EXPR:            case sema::Expr::Kind::FAKE_TERM_INFO:
 			case sema::Expr::Kind::MAKE_INTERFACE_PTR:    case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
 			case sema::Expr::Kind::INTERFACE_CALL:        case sema::Expr::Kind::INDEXER:

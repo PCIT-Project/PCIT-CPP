@@ -32,6 +32,7 @@ namespace pcit::panther::sema{
 		enum class Kind : uint32_t {
 			VAR,
 			FUNC_CALL,
+			TRY_ELSE,
 			INTERFACE_CALL,
 			ASSIGN,
 			MULTI_ASSIGN,
@@ -49,6 +50,7 @@ namespace pcit::panther::sema{
 
 		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),         value{.var_id = var_id}               {}
 		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FUNC_CALL),   value{.func_call_id = func_call_id}   {}
+		explicit Stmt(TryElseID try_else_id)     : _kind(Kind::TRY_ELSE),    value{.try_else_id = try_else_id}     {}
 		explicit Stmt(InterfaceCallID interface_call_id) 
 			: _kind(Kind::INTERFACE_CALL), value{.interface_call_id = interface_call_id} {}
 		explicit Stmt(AssignID assign_id)        : _kind(Kind::ASSIGN),      value{.assign_id = assign_id}         {}
@@ -78,6 +80,11 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto funcCallID() const -> FuncCallID {
 			evo::debugAssert(this->kind() == Kind::FUNC_CALL, "not a func call");
 			return this->value.func_call_id;
+		}
+
+		EVO_NODISCARD auto tryElseID() const -> TryElseID {
+			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not a try else");
+			return this->value.try_else_id;
 		}
 
 		EVO_NODISCARD auto interfaceCallID() const -> InterfaceCallID {
@@ -156,6 +163,7 @@ namespace pcit::panther::sema{
 				Token::ID token_id;
 				VarID var_id;
 				FuncCallID func_call_id;
+				TryElseID try_else_id;
 				InterfaceCallID interface_call_id;
 				AssignID assign_id;
 				MultiAssignID multi_assign_id;

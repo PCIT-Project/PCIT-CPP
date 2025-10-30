@@ -91,6 +91,7 @@ namespace pcit::panther{
 			auto analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<>;
 			auto analyze_assignment(const AST::Infix& infix) -> evo::Result<>;
 			auto analyze_multi_assign(const AST::MultiAssign& multi_assign) -> evo::Result<>;
+			auto analyze_try_else(const AST::TryElse& try_else) -> evo::Result<>;
 
 
 			template<bool IS_CONSTEXPR>

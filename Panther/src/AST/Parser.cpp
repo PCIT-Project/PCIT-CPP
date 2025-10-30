@@ -66,6 +66,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_WHILE:       return this->parse_while();
 			case Token::Kind::KEYWORD_DEFER:       return this->parse_defer<false>();
 			case Token::Kind::KEYWORD_ERROR_DEFER: return this->parse_defer<true>();
+			case Token::Kind::KEYWORD_TRY:         return this->parse_try_stmt();
 		}
 
 		Result result = this->parse_assignment();
@@ -1003,6 +1004,83 @@ namespace pcit::panther{
 
 		return this->source.ast_buffer.createDefer(start_location, block.value());
 	}
+
+
+	auto Parser::parse_try_stmt() -> Result {
+		if(this->assert_token(Token::Kind::KEYWORD_TRY).isError()){ return Result::Code::ERROR; }
+			
+		const Result attempt_expr = this->parse_term<TermKind::EXPR>();
+		if(this->check_result(attempt_expr, "attempt expression in try/else statement").isError()){
+			return Result::Code::ERROR;
+		}
+
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
+			const Token::ID else_token_id = this->reader.next();
+
+			auto except_params = evo::SmallVector<Token::ID>();
+
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
+				if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
+
+				while(true){
+					if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
+						if(this->assert_token(Token::lookupKind(">")).isError()){ return Result::Code::ERROR; }
+						break;
+					}
+
+
+					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
+						except_params.emplace_back(this->reader.next());
+
+					}else{
+						const Result ident = this->parse_ident();
+						if(this->check_result(ident, "identifier in except parameter block").isError()){
+							return Result::Code::ERROR;
+						}
+
+						except_params.emplace_back(ASTBuffer::getIdent(ident.value()));
+					}
+
+					// check if ending or should continue
+					const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+					if(after_arg_next_token_kind != Token::lookupKind(",")){
+						if(after_arg_next_token_kind != Token::lookupKind(">")){
+							this->expected_but_got(
+								"[,] at end of except parameter or [>] at end of except parameter block",
+								this->reader.peek(-1)
+							);
+							return Result::Code::ERROR;
+						}
+
+						break;
+					}
+				}
+			}
+
+			const Result except_block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+			if(this->check_result(except_block, "except block in try/else statement").isError()){
+				return Result::Code::ERROR;
+			}
+
+
+			if(this->expect_token(Token::lookupKind(";"), "at end of try/else statement").isError()){
+				return Result::Code::ERROR;
+			}
+
+
+			return this->source.ast_buffer.createTryElse(
+				attempt_expr.value(), except_block.value(), std::move(except_params), else_token_id
+			);
+		}
+
+		this->context.emitError(
+			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+			Diagnostic::Location::get(attempt_expr.value(), this->source),
+			"[try] statements without [else] are currently unsupported"
+		);
+		return Result::Code::ERROR;
+	}
+
 
 
 	// TODO(FUTURE): check EOF
@@ -1950,7 +2028,7 @@ namespace pcit::panther{
 		this->context.emitError(
 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			Diagnostic::Location::get(attempt_expr.value(), this->source),
-			"[try] expressions are currently unsupported"
+			"[try] expressions without [else] are currently unsupported"
 		);
 		return Result::Code::ERROR;
 	}

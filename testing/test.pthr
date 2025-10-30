@@ -1,12 +1,16 @@
 
 
-func test = () -> Int <Void> {
-	return 12;
+func err_test = () -> Void <UI8> {
+	error 12;
 }
 
 
 func entry = () #entry -> UI8 {
-	const val: Int = try test() else 13;
+	var err_code: UI8 = 0;
+
+	try err_test() else<code> {
+		err_code = copy code;
+	};
 	
-	return val as UI8;
+	return move err_code;
 }

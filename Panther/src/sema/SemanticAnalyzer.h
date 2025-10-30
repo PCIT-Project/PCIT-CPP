@@ -147,6 +147,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_assignment_forward(const Instruction::AssignmentForward& instr) -> Result;
 			EVO_NODISCARD auto instr_multi_assign(const Instruction::MultiAssign& instr) -> Result;
 			EVO_NODISCARD auto instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result;
+			EVO_NODISCARD auto instr_try_else_begin(const Instruction::TryElseBegin& instr) -> Result;
+			EVO_NODISCARD auto instr_try_else_end() -> Result;
 
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
@@ -226,7 +228,7 @@ namespace pcit::panther{
 				-> Result;
 
 			EVO_NODISCARD auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
-			EVO_NODISCARD auto instr_try_else(const Instruction::TryElse& instr) -> Result;
+			EVO_NODISCARD auto instr_try_else_expr(const Instruction::TryElseExpr& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;
 			EVO_NODISCARD auto instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result;
 

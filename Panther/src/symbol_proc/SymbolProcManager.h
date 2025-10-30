@@ -1146,6 +1146,32 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// TryElseBegin
+
+			EVO_NODISCARD auto createTryElseBegin(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::TRY_ELSE_BEGIN,
+					this->try_else_begins.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getTryElseBegin(Instruction instr) const
+			-> const Instruction::TryElseBegin& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::TRY_ELSE_BEGIN, "Not a TryElseBegin");
+				return this->try_else_begins[instr._index];
+			}
+
+
+			//////////////////
+			// TryElseEnd
+
+			EVO_NODISCARD auto createTryElseEnd(auto&&... args) -> Instruction {
+				return Instruction(Instruction::Kind::TRY_ELSE_END, 0);
+			}
+
+
+
 
 			//////////////////
 			// TypeToTerm
@@ -1900,18 +1926,18 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// TryElse
+			// TryElseExpr
 
-			EVO_NODISCARD auto createTryElse(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createTryElseExpr(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::TRY_ELSE,
-					this->try_elses.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::TRY_ELSE_EXPR,
+					this->try_else_exprs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getTryElse(Instruction instr) const -> const Instruction::TryElse& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::TRY_ELSE, "Not a TryElse");
-				return this->try_elses[instr._index];
+			EVO_NODISCARD auto getTryElseExpr(Instruction instr) const -> const Instruction::TryElseExpr& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::TRY_ELSE_EXPR, "Not a TryElseExpr");
+				return this->try_else_exprs[instr._index];
 			}
 
 
@@ -2660,6 +2686,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::AssignmentForward, uint32_t> assignment_forwards{};
 			core::SyncLinearStepAlloc<Instruction::MultiAssign, uint32_t> multi_assigns{};
 			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint32_t> discarding_assignments{};
+			core::SyncLinearStepAlloc<Instruction::TryElseBegin, uint32_t> try_else_begins{};
 			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint32_t> type_to_terms{};
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDef, uint32_t> wait_on_sub_symbol_proc_defs{};
 
@@ -2710,7 +2737,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint32_t> designated_init_new_constexprs{};
 			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<false>, uint32_t> designated_init_news{};
 			core::SyncLinearStepAlloc<Instruction::PrepareTryHandler, uint32_t> prepare_try_handlers{};
-			core::SyncLinearStepAlloc<Instruction::TryElse, uint32_t> try_elses{};
+			core::SyncLinearStepAlloc<Instruction::TryElseExpr, uint32_t> try_else_exprs{};
 			core::SyncLinearStepAlloc<Instruction::BeginExprBlock, uint32_t> begin_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::EndExprBlock, uint32_t> end_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::As<true>, uint32_t> as_contexprs{};

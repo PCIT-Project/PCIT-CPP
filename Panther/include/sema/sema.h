@@ -193,8 +193,8 @@ namespace pcit::panther::sema{
 	};
 
 
-	struct TryElse{
-		using ID = TryElseID;
+	struct TryElseExpr{
+		using ID = TryElseExprID;
 
 		Expr attempt;
 		Expr except;
@@ -373,6 +373,16 @@ namespace pcit::panther::sema{
 		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID> target;
 		evo::SmallVector<Expr> args;
 		// SourceLocation location;
+	};
+
+
+	struct TryElse{
+		using ID = TryElseID;
+
+		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID> target;
+		evo::SmallVector<Expr> args;
+		evo::SmallVector<ExceptParamID> exceptParams;
+		StmtBlock elseBlock{};
 	};
 
 

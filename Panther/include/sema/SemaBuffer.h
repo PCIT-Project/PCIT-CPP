@@ -184,6 +184,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// try else
+
+			EVO_NODISCARD auto createTryElse(auto&&... args) -> sema::TryElse::ID {
+				return this->try_elses.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getTryElse(sema::TryElse::ID id) const -> const sema::TryElse& {
+				return this->try_elses[id];
+			}
+
+
+			///////////////////////////////////
 			// assignments
 
 			EVO_NODISCARD auto createAssign(auto&&... args) -> sema::Assign::ID {
@@ -479,12 +491,12 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// try/else
 
-			EVO_NODISCARD auto createTryElse(auto&&... args) -> sema::TryElse::ID {
-				return this->try_elses.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto createTryElseExpr(auto&&... args) -> sema::TryElseExpr::ID {
+				return this->try_else_exprs.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
-			EVO_NODISCARD auto getTryElse(sema::TryElse::ID id) const -> const sema::TryElse& {
-				return this->try_elses[id];
+			EVO_NODISCARD auto getTryElseExpr(sema::TryElseExpr::ID id) const -> const sema::TryElseExpr& {
+				return this->try_else_exprs[id];
 			}
 
 
@@ -841,6 +853,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::ExceptParam, sema::ExceptParam::ID> except_params{};
 
 			core::SyncLinearStepAlloc<sema::FuncCall, sema::FuncCall::ID> func_calls{};
+			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
 			core::SyncLinearStepAlloc<sema::Assign, sema::Assign::ID> assigns{};
 			core::SyncLinearStepAlloc<sema::MultiAssign, sema::MultiAssign::ID> multi_assigns{};
 			core::SyncLinearStepAlloc<sema::Return, sema::Return::ID> returns{};
@@ -867,7 +880,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::UnionAccessor, sema::UnionAccessor::ID> union_accessors{};
 			core::SyncLinearStepAlloc<sema::LogicalAnd, sema::LogicalAnd::ID> logical_ands{};
 			core::SyncLinearStepAlloc<sema::LogicalOr, sema::LogicalOr::ID> logical_ors{};
-			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
+			core::SyncLinearStepAlloc<sema::TryElseExpr, sema::TryElseExpr::ID> try_else_exprs{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};
 			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};

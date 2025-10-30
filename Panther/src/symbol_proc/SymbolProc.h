@@ -575,6 +575,14 @@ namespace pcit::panther{
 		};
 
 
+		struct TryElseBegin{
+			const AST::TryElse& try_else;
+			SymbolProcTermInfoID func_call_target;
+			evo::SmallVector<SymbolProcTermInfoID> func_call_template_args;
+			evo::SmallVector<SymbolProcTermInfoID> func_call_args;
+		};
+
+
 
 
 		//////////////////
@@ -754,7 +762,7 @@ namespace pcit::panther{
 			Token::ID handler_kind_token_id;
 		};
 
-		struct TryElse{
+		struct TryElseExpr{
 			const AST::TryElse& try_else;
 			SymbolProcTermInfoID attempt_expr;
 			SymbolProcTermInfoID except_params;
@@ -982,6 +990,8 @@ namespace pcit::panther{
 			ASSIGNMENT_FORWARD,
 			MULTI_ASSIGN,
 			DISCARDING_ASSIGNMENT,
+			TRY_ELSE_BEGIN,
+			TRY_ELSE_END,
 
 			// misc expr
 			TYPE_TO_TERM,
@@ -1026,7 +1036,7 @@ namespace pcit::panther{
 			DESIGNATED_INIT_NEW_CONSTEXPR,
 			DESIGNATED_INIT_NEW,
 			PREPARE_TRY_HANDLER,
-			TRY_ELSE,
+			TRY_ELSE_EXPR,
 			BEGIN_EXPR_BLOCK,
 			END_EXPR_BLOCK,
 			AS_CONTEXPR,
