@@ -56,8 +56,9 @@ namespace pcit::panther{
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
 			const auto interface_id = BaseType::Interface::ID(i);
 
-			const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
+			this->lowerInterface(interface_id);
 
+			const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
 			for(const auto& [target_type_id, impl] : interface.impls){
 				this->lowerInterfaceVTable(interface_id, target_type_id, impl.methods);
 			}
@@ -551,6 +552,39 @@ namespace pcit::panther{
 
 
 
+	auto SemaToPIR::lowerInterface(BaseType::Interface::ID interface_id) -> void {
+		const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
+
+		auto error_return_types = evo::SmallVector<std::optional<pir::Type>>();
+		error_return_types.reserve(interface.methods.size());
+		for(size_t i = 0; const sema::Func::ID method_id : interface.methods){
+			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+			const BaseType::Function method_type = this->context.getTypeManager().getFunction(method.typeID);
+
+			if(method_type.hasErrorReturnParams()){
+				auto error_return_param_types = evo::SmallVector<pir::Type>();
+				for(const BaseType::Function::ReturnParam& error_param : method_type.errorParams){
+					error_return_param_types.emplace_back(this->get_type<false>(error_param.typeID));
+				}
+
+				error_return_types.emplace_back(
+					this->module.createStructType(
+						std::format("{}.method_{}.ERR", this->mangle_name(interface_id), i),
+						std::move(error_return_param_types),
+						true
+					)
+				);
+
+			}else{
+				error_return_types.emplace_back(std::nullopt);
+			}
+
+			i += 1;
+		}
+
+		this->data.create_interface(interface_id, std::move(error_return_types));
+	}
+
 
 	auto SemaToPIR::lowerInterfaceVTable(
 		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
@@ -1003,10 +1037,10 @@ namespace pcit::panther{
 				const sema::TryElse& try_else = this->context.getSemaBuffer().getTryElse(stmt.tryElseID());
 
 
-				const Data::FuncInfo& target_func_info = this->data.get_func(try_else.target.as<sema::Func::ID>());
+				const Data::FuncInfo& target_func_info = this->data.get_func(try_else.target);
 
 				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
-					this->context.getSemaBuffer().getFunc(try_else.target.as<sema::Func::ID>()).typeID
+					this->context.getSemaBuffer().getFunc(try_else.target).typeID
 				);
 
 				auto args = evo::SmallVector<pir::Expr>();
@@ -1103,6 +1137,147 @@ namespace pcit::panther{
 				this->agent.setTargetBasicBlock(end_block);
 			} break;
 
+			case sema::Stmt::Kind::TRY_ELSE_INTERFACE: {
+				const sema::TryElseInterface& try_else_interface = 
+					this->context.getSemaBuffer().getTryElseInterface(stmt.tryElseInterfaceID());
+
+
+				///////////////////////////////////
+				// create target func type
+
+				const BaseType::Function& target_func_type =
+					this->context.getTypeManager().getFunction(try_else_interface.funcTypeID);
+
+
+				auto param_types = evo::SmallVector<pir::Type>();
+				for(const BaseType::Function::Param& param : target_func_type.params){
+					if(param.shouldCopy){
+						param_types.emplace_back(this->get_type<false>(param.typeID));
+					}else{
+						param_types.emplace_back(this->module.createPtrType());
+					}
+				}
+
+				if(target_func_type.errorParams[0].typeID.isVoid() == false){
+					param_types.emplace_back(this->module.createPtrType());
+				}
+
+
+				const pir::Type func_pir_type = this->module.createFunctionType(
+					std::move(param_types),
+					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
+					this->module.createBoolType()
+				);
+
+
+				///////////////////////////////////
+				// get func pointer
+
+				const pir::Expr target_interface_ptr = this->get_expr_pointer(try_else_interface.value);
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+
+				const pir::Expr vtable_ptr = this->agent.createCalcPtr(
+					target_interface_ptr,
+					interface_ptr_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".VTABLE.PTR")
+				);
+				const pir::Expr vtable = this->agent.createLoad(
+					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
+				);
+
+				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
+					vtable,
+					this->module.createPtrType(),
+					evo::SmallVector<pir::CalcPtr::Index>{try_else_interface.vtableFuncIndex},
+					this->name(".VTABLE.FUNC.PTR")
+				);
+				const pir::Expr target_func = this->agent.createLoad(
+					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
+				);
+
+
+				///////////////////////////////////
+				// make call
+
+				auto args = evo::SmallVector<pir::Expr>();
+				for(size_t i = 0; const sema::Expr& arg : try_else_interface.args){
+					if(target_func_type.params[i].shouldCopy){
+						args.emplace_back(this->get_expr_register(arg));
+					}else{
+						args.emplace_back(this->get_expr_pointer(arg));
+					}
+
+					i += 1;
+				}
+
+				if(target_func_type.errorParams[0].typeID.isVoid() == false){
+					const Data::InterfaceInfo& interface_info =
+						this->data.get_interface(try_else_interface.interfaceID);
+
+					const pir::Type error_return_type =
+						*interface_info.error_return_types[try_else_interface.vtableFuncIndex];
+
+					const pir::Expr error_value = this->agent.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+
+					for(const sema::ExceptParam::ID except_param_id : try_else_interface.exceptParams){
+						const sema::ExceptParam& except_param =
+							this->context.getSemaBuffer().getExceptParam(except_param_id);
+
+						const pir::Expr except_param_pir_expr = this->agent.createCalcPtr(
+							error_value,
+							error_return_type,
+							evo::SmallVector<pir::CalcPtr::Index>{
+								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+							},
+							this->name(
+								"EXCEPT_PARAM.{}",
+								this->current_source->getTokenBuffer()[
+									this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+								].getString()
+							)
+						);
+						this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+					}
+
+					args.emplace_back(error_value);
+				}
+
+
+				const pir::Expr err_occurred = this->agent.createCall(target_func, func_pir_type, std::move(args));
+
+				const pir::BasicBlock::ID start_block = this->agent.getTargetBasicBlock().getID();
+
+				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
+
+				this->agent.setTargetBasicBlock(if_error_block);
+
+				this->push_scope_level();
+
+				for(const sema::Stmt& else_block_stmt : try_else_interface.elseBlock){
+					this->lower_stmt(else_block_stmt);
+				}
+
+				if(try_else_interface.elseBlock.isTerminated() == false){
+					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+				}
+
+				this->pop_scope_level();
+
+				const pir::BasicBlock::ID if_error_block_end = this->agent.getTargetBasicBlock().getID();
+
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("TRY.END"));
+
+
+				this->agent.setTargetBasicBlock(start_block);
+				this->agent.createBranch(err_occurred, if_error_block, end_block);
+
+				this->agent.setTargetBasicBlock(if_error_block_end);
+				this->agent.createJump(end_block);
+
+				this->agent.setTargetBasicBlock(end_block);
+			} break;
+
 			case sema::Stmt::Kind::INTERFACE_CALL: {
 				const sema::InterfaceCall& interface_call =
 					this->context.getSemaBuffer().getInterfaceCall(stmt.interfaceCallID());
@@ -1161,7 +1336,7 @@ namespace pcit::panther{
 				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
 					vtable,
 					this->module.createPtrType(),
-					evo::SmallVector<pir::CalcPtr::Index>{interface_call.index},
+					evo::SmallVector<pir::CalcPtr::Index>{interface_call.vtableFuncIndex},
 					this->name(".VTABLE.FUNC.PTR")
 				);
 				const pir::Expr target_func = this->agent.createLoad(
@@ -2835,7 +3010,7 @@ namespace pcit::panther{
 				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
 					vtable,
 					this->module.createPtrType(),
-					evo::SmallVector<pir::CalcPtr::Index>{interface_call.index},
+					evo::SmallVector<pir::CalcPtr::Index>{interface_call.vtableFuncIndex},
 					this->name(".VTABLE.FUNC.PTR")
 				);
 				const pir::Expr target_func = this->agent.createLoad(
@@ -8117,6 +8292,38 @@ namespace pcit::panther{
 		}
 	}
 
+	auto SemaToPIR::mangle_name(BaseType::Union::ID union_id) const -> std::string {
+		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
+
+
+		if(union_type.isClangType()){
+			return std::format("union.{}", union_type.getName(this->context.getSourceManager()));
+			
+		}else if(this->data.getConfig().useReadableNames){
+			return std::format("PTHR.u{}.{}", union_id.get(), union_type.getName(this->context.getSourceManager()));
+			
+		}else{
+			return std::format("PTHR.u{}", union_id.get());
+		}
+	}
+
+
+	auto SemaToPIR::mangle_name(BaseType::Interface::ID interface_id) const -> std::string {
+		if(this->data.getConfig().useReadableNames){
+			const BaseType::Interface& interface_type = this->context.getTypeManager().getInterface(interface_id);
+			const Source& source = this->context.getSourceManager()[interface_type.sourceID];
+
+			return std::format(
+				"PTHR.i{}.{}", interface_id.get(), source.getTokenBuffer()[interface_type.identTokenID].getString()
+			);
+
+		}else{
+			return std::format("PTHR.i{}", interface_id.get());
+		}
+	}
+
+
+
 	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::mangle_name(sema::GlobalVar::ID global_var_id) const -> std::string {
 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
@@ -8255,23 +8462,6 @@ namespace pcit::panther{
 	}
 
 
-
-
-
-	auto SemaToPIR::mangle_name(BaseType::Union::ID union_id) const -> std::string {
-		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
-
-
-		if(union_type.isClangType()){
-			return std::format("union.{}", union_type.getName(this->context.getSourceManager()));
-			
-		}else if(this->data.getConfig().useReadableNames){
-			return std::format("PTHR.u{}.{}", union_id.get(), union_type.getName(this->context.getSourceManager()));
-			
-		}else{
-			return std::format("PTHR.u{}", union_id.get());
-		}
-	}
 
 
 

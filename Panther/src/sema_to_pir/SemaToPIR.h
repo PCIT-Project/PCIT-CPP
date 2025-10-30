@@ -47,6 +47,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto lowerFuncDeclConstexpr(sema::Func::ID func_id) -> pir::Function::ID;
 			auto lowerFuncDecl(sema::Func::ID func_id) -> void;
 			auto lowerFuncDef(sema::Func::ID func_id) -> void;
+
+			auto lowerInterface(BaseType::Interface::ID interface_id) -> void;
+
 			auto lowerInterfaceVTable(
 				BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
 			) -> void;
@@ -203,6 +206,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto mangle_name(BaseType::Struct::ID struct_id) const -> std::string;
 			EVO_NODISCARD auto mangle_name(BaseType::Union::ID union_id) const -> std::string;
+			EVO_NODISCARD auto mangle_name(BaseType::Interface::ID interface_id) const -> std::string;
 
 			template<bool PIR_STMT_NAME_SAFE = false>
 			EVO_NODISCARD auto mangle_name(sema::GlobalVar::ID global_var_id) const -> std::string;

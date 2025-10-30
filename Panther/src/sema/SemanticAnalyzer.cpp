@@ -5109,13 +5109,20 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_interface_def() -> Result {
-		BaseType::Interface& current_interface = this->context.type_manager.getInterface(
-			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
-		);
+		BaseType::Interface::ID current_interface_id =
+			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+
+		BaseType::Interface& current_interface = this->context.type_manager.getInterface(current_interface_id);
 
 		current_interface.defCompleted = true;
 
 		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
+
+		auto sema_to_pir = SemaToPIR(
+			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+		);
+		sema_to_pir.lowerInterface(current_interface_id);
+
 		this->propagate_finished_def();
 
 		return Result::SUCCESS;
@@ -8279,23 +8286,55 @@ namespace pcit::panther{
 
 
 
-		const sema::TryElse::ID sema_try_else_id = this->context.sema_buffer.createTryElse(
-			*func_call_impl_res.value().selected_func_id, std::move(sema_args), std::move(except_params)
-		);
+		if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
+			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+				target_term_info.getExpr().fakeTermInfoID()
+			);
 
-		this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_id);
+			const TypeInfo& expr_type_info = this->context.getTypeManager().getTypeInfo(fake_term_info.typeID);
+			const BaseType::Interface& target_interface =
+				this->context.getTypeManager().getInterface(expr_type_info.baseTypeID().interfaceID());
 
+			const sema::Func& selected_func =
+				this->context.getSemaBuffer().getFunc(*func_call_impl_res.value().selected_func_id);
 
-		sema::TryElse& sema_try_else = this->context.sema_buffer.try_elses[sema_try_else_id];
+			for(size_t i = 0; const sema::Func::ID method : target_interface.methods){
+				if(method == *func_call_impl_res.value().selected_func_id){
+					const sema::TryElseInterface::ID sema_try_else_interface_id = 
+						this->context.sema_buffer.createTryElseInterface(
+							fake_term_info.expr,
+							selected_func.typeID,
+							expr_type_info.baseTypeID().interfaceID(),
+							uint32_t(i),
+							std::move(sema_args),
+							std::move(except_params)
+						);
 
+					this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_interface_id);
 
+					sema::TryElseInterface& sema_try_else_interface =
+						this->context.sema_buffer.try_else_interfaces[sema_try_else_interface_id];
+					this->push_scope_level(&sema_try_else_interface.elseBlock);
+				}
 
-		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
-			*func_call_impl_res.value().selected_func_id
-		);
+				i += 1;
+			}
 
+		}else{
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
+				*func_call_impl_res.value().selected_func_id
+			);
 
-		this->push_scope_level(&sema_try_else.elseBlock);
+			const sema::TryElse::ID sema_try_else_id = this->context.sema_buffer.createTryElse(
+				*func_call_impl_res.value().selected_func_id, std::move(sema_args), std::move(except_params)
+			);
+
+			this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_id);
+
+			sema::TryElse& sema_try_else = this->context.sema_buffer.try_elses[sema_try_else_id];
+			this->push_scope_level(&sema_try_else.elseBlock);
+		}
+
 
 		return Result::SUCCESS;
 	}

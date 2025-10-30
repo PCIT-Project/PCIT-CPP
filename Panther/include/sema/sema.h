@@ -269,7 +269,7 @@ namespace pcit::panther::sema{
 
 		Expr value;
 		BaseType::Function::ID funcTypeID;
-		uint32_t index;
+		uint32_t vtableFuncIndex;
 		evo::SmallVector<Expr> args;
 	};
 
@@ -379,11 +379,23 @@ namespace pcit::panther::sema{
 	struct TryElse{
 		using ID = TryElseID;
 
-		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID> target;
+		FuncID target;
 		evo::SmallVector<Expr> args;
 		evo::SmallVector<ExceptParamID> exceptParams;
 		StmtBlock elseBlock{};
 	};
+
+	struct TryElseInterface{
+		using ID = TryElseInterfaceID;
+
+		Expr value;
+		BaseType::Function::ID funcTypeID;
+		BaseType::Interface::ID interfaceID;
+		uint32_t vtableFuncIndex;
+		evo::SmallVector<Expr> args;
+		evo::SmallVector<ExceptParamID> exceptParams;
+		StmtBlock elseBlock{};
+	};	
 
 
 	struct Assign{

@@ -33,6 +33,7 @@ namespace pcit::panther::sema{
 			VAR,
 			FUNC_CALL,
 			TRY_ELSE,
+			TRY_ELSE_INTERFACE,
 			INTERFACE_CALL,
 			ASSIGN,
 			MULTI_ASSIGN,
@@ -51,6 +52,8 @@ namespace pcit::panther::sema{
 		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),         value{.var_id = var_id}               {}
 		explicit Stmt(FuncCallID func_call_id)   : _kind(Kind::FUNC_CALL),   value{.func_call_id = func_call_id}   {}
 		explicit Stmt(TryElseID try_else_id)     : _kind(Kind::TRY_ELSE),    value{.try_else_id = try_else_id}     {}
+		explicit Stmt(TryElseInterfaceID try_else_interface_id)
+			: _kind(Kind::TRY_ELSE_INTERFACE), value{.try_else_interface_id = try_else_interface_id} {}
 		explicit Stmt(InterfaceCallID interface_call_id) 
 			: _kind(Kind::INTERFACE_CALL), value{.interface_call_id = interface_call_id} {}
 		explicit Stmt(AssignID assign_id)        : _kind(Kind::ASSIGN),      value{.assign_id = assign_id}         {}
@@ -85,6 +88,11 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto tryElseID() const -> TryElseID {
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE, "not a try else");
 			return this->value.try_else_id;
+		}
+
+		EVO_NODISCARD auto tryElseInterfaceID() const -> TryElseInterfaceID {
+			evo::debugAssert(this->kind() == Kind::TRY_ELSE_INTERFACE, "not a try else interface");
+			return this->value.try_else_interface_id;
 		}
 
 		EVO_NODISCARD auto interfaceCallID() const -> InterfaceCallID {
@@ -164,6 +172,7 @@ namespace pcit::panther::sema{
 				VarID var_id;
 				FuncCallID func_call_id;
 				TryElseID try_else_id;
+				TryElseInterfaceID try_else_interface_id;
 				InterfaceCallID interface_call_id;
 				AssignID assign_id;
 				MultiAssignID multi_assign_id;

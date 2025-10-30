@@ -94,6 +94,11 @@ namespace pcit::panther{
 
 			using VTableID = SemaToPIRDataVTableID;
 
+
+			struct InterfaceInfo{
+				evo::SmallVector<std::optional<pir::Type>> error_return_types;
+			};
+
 		public:
 			SemaToPIRData(Config&& _config) : config(_config) {}
 			~SemaToPIRData() = default;
@@ -169,6 +174,18 @@ namespace pcit::panther{
 			}
 
 
+			auto create_interface(BaseType::Interface::ID interface_id, auto&&... interface_info_args) -> void {
+				const auto lock = std::scoped_lock(this->interfaces_lock);
+				const auto emplace_result = this->interfaces.emplace(
+					interface_id,
+					&this->interfaces_info_alloc.emplace_back(
+						std::forward<decltype(interface_info_args)>(interface_info_args)...
+					)
+				);
+				evo::debugAssert(emplace_result.second, "This interface id was already added to PIR lower");
+			}
+
+
 
 			EVO_NODISCARD auto get_struct(BaseType::Struct::ID struct_id) -> pir::Type {
 				const auto lock = std::scoped_lock(this->structs_lock);
@@ -198,6 +215,12 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(this->vtables_lock);
 				evo::debugAssert(this->vtables.contains(vtable_id), "Doesn't have this vtable");
 				return this->vtables.at(vtable_id);
+			}
+
+			EVO_NODISCARD auto get_interface(BaseType::Interface::ID interface_id) -> InterfaceInfo& {
+				const auto lock = std::scoped_lock(this->interfaces_lock);
+				evo::debugAssert(this->interfaces.contains(interface_id), "Doesn't have this interface");
+				return *this->interfaces.at(interface_id);
 			}
 
 
@@ -249,6 +272,10 @@ namespace pcit::panther{
 
 			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};
 			mutable evo::SpinLock vtables_lock{};
+
+			evo::StepVector<InterfaceInfo> interfaces_info_alloc{};
+			std::unordered_map<BaseType::Interface::ID, InterfaceInfo*> interfaces{};
+			mutable evo::SpinLock interfaces_lock{};
 
 			std::unordered_map<const TypeInfo*, pir::Type> optional_types{};
 			mutable evo::SpinLock optional_types_lock{};

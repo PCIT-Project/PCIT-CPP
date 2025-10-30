@@ -196,6 +196,19 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// try else interface
+
+			EVO_NODISCARD auto createTryElseInterface(auto&&... args) -> sema::TryElseInterface::ID {
+				return this->try_else_interfaces.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getTryElseInterface(sema::TryElseInterface::ID id) const
+			-> const sema::TryElseInterface& {
+				return this->try_else_interfaces[id];
+			}
+
+
+			///////////////////////////////////
 			// assignments
 
 			EVO_NODISCARD auto createAssign(auto&&... args) -> sema::Assign::ID {
@@ -854,6 +867,7 @@ namespace pcit::panther{
 
 			core::SyncLinearStepAlloc<sema::FuncCall, sema::FuncCall::ID> func_calls{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
+			core::SyncLinearStepAlloc<sema::TryElseInterface, sema::TryElseInterface::ID> try_else_interfaces{};
 			core::SyncLinearStepAlloc<sema::Assign, sema::Assign::ID> assigns{};
 			core::SyncLinearStepAlloc<sema::MultiAssign, sema::MultiAssign::ID> multi_assigns{};
 			core::SyncLinearStepAlloc<sema::Return, sema::Return::ID> returns{};
