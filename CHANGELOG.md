@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.177.0"></a>
+## v0.0.177.0
+
+### Panther
+- Added try/else expressions for interface calls
+
+
+<!---------------------------------->
 <a name="v0.0.176.0"></a>
 ## v0.0.176.0
 

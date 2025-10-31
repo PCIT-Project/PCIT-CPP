@@ -123,6 +123,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, TryElseExprID>::UniqueID;
 	};
 
+	struct TryElseInterfaceExprID : public core::UniqueID<uint32_t, struct TryElseInterfaceExprID> {
+		using core::UniqueID<uint32_t, TryElseInterfaceExprID>::UniqueID;
+	};
+
 	struct BlockExprID : public core::UniqueID<uint32_t, struct BlockExprID> {
 		using core::UniqueID<uint32_t, BlockExprID>::UniqueID;
 	};
@@ -547,6 +551,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::TryElseExprID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::TryElseInterfaceExprID>{
+		static constexpr auto init(panther::sema::TryElseInterfaceExprID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::TryElseInterfaceExprID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1355,6 +1370,23 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::TryElseExprID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::TryElseExprID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::TryElseInterfaceExprID>{
+		auto operator()(pcit::panther::sema::TryElseInterfaceExprID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::TryElseInterfaceExprID>
+		: public pcit::core::Optional<pcit::panther::sema::TryElseInterfaceExprID>{
+			
+		public:
+			using pcit::core::Optional<pcit::panther::sema::TryElseInterfaceExprID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::TryElseInterfaceExprID>::operator=;
 	};
 
 

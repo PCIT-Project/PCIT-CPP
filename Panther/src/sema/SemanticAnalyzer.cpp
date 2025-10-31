@@ -6764,6 +6764,7 @@ namespace pcit::panther{
 						const sema::InterfaceCall::ID interface_call_id = this->context.sema_buffer.createInterfaceCall(
 							fake_term_info.expr,
 							func_call_impl_res.value().selected_func->typeID,
+							expr_type_info.baseTypeID().interfaceID(),
 							uint32_t(i),
 							std::move(sema_args)
 						);
@@ -8943,7 +8944,11 @@ namespace pcit::panther{
 		for(size_t i = 0; const sema::Func::ID method : target_interface.methods){
 			if(method == selected_func_call_id){
 				const sema::InterfaceCall::ID interface_call_id = this->context.sema_buffer.createInterfaceCall(
-					fake_term_info.expr, selected_func.typeID, uint32_t(i), std::move(args)
+					fake_term_info.expr,
+					selected_func.typeID,
+					expr_type_info.baseTypeID().interfaceID(),
+					uint32_t(i),
+					std::move(args)
 				);
 
 				if(selected_func_type.returnParams.size() == 1){ // single return
@@ -11625,58 +11630,60 @@ namespace pcit::panther{
 
 		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
 
-		if(attempt_expr.getExpr().kind() == sema::Expr::Kind::INTERFACE_CALL){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.handler_kind_token_id,
-				"Erroring interface calls are currently unimplemented"
-			);
-			return Result::ERROR;
-		}
+		
+		const BaseType::Function& attempt_func_type = [&]() -> const BaseType::Function& {
+			if(attempt_expr.getExpr().kind() == sema::Expr::Kind::INTERFACE_CALL){
+				const sema::InterfaceCall& interface_call = 
+					this->context.getSemaBuffer().getInterfaceCall(attempt_expr.getExpr().interfaceCallID());
 
-		const sema::FuncCall& attempt_func_call = sema_buffer.getFuncCall(attempt_expr.getExpr().funcCallID());
-		const BaseType::Function& attempt_func_type = attempt_func_call.target.visit(
-			[&](const auto& target) -> const BaseType::Function& {
-			using Target = std::decay_t<decltype(target)>;
+				return this->context.getTypeManager().getFunction(interface_call.funcTypeID);
 
-			if constexpr(std::is_same<Target, sema::Func::ID>()){
-				return this->context.getTypeManager().getFunction(sema_buffer.getFunc(target).typeID);
-				
-			}else if constexpr(std::is_same<Target, IntrinsicFunc::Kind>()){
-				const TypeInfo::ID type_info_id = this->context.getIntrinsicFuncInfo(target).typeID;
-				const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_info_id);
-				return this->context.getTypeManager().getFunction(type_info.baseTypeID().funcID());
-				
-			}else if constexpr(std::is_same<Target, sema::TemplateIntrinsicFuncInstantiation::ID>()){
-				const sema::TemplateIntrinsicFuncInstantiation& instantiation =
-					this->context.getSemaBuffer().getTemplateIntrinsicFuncInstantiation(target);
-
-				const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
-					this->context.getTemplateIntrinsicFuncInfo(instantiation.kind);
-
-				auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
-				instantiation_args.reserve(instantiation.templateArgs.size());
-				using TemplateArg = evo::Variant<TypeInfo::VoidableID, core::GenericValue>;
-				for(const TemplateArg& template_arg : instantiation.templateArgs){
-					if(template_arg.is<TypeInfo::VoidableID>()){
-						instantiation_args.emplace_back(template_arg.as<TypeInfo::VoidableID>());
-					}else{
-						instantiation_args.emplace_back();
-					}
-				}
-
-				return this->context.getTypeManager().getFunction(
-					this->context.type_manager.getOrCreateFunction(
-						template_intrinsic_func_info.getTypeInstantiation(instantiation_args)
-					).funcID()
-				);
-				
 			}else{
-				static_assert(false, "Unsupported func call target");
+				const sema::FuncCall& attempt_func_call = sema_buffer.getFuncCall(attempt_expr.getExpr().funcCallID());
+
+				return *attempt_func_call.target.visit([&](const auto& target) -> const BaseType::Function* {
+					using Target = std::decay_t<decltype(target)>;
+
+					if constexpr(std::is_same<Target, sema::Func::ID>()){
+						return &this->context.getTypeManager().getFunction(sema_buffer.getFunc(target).typeID);
+						
+					}else if constexpr(std::is_same<Target, IntrinsicFunc::Kind>()){
+						const TypeInfo::ID type_info_id = this->context.getIntrinsicFuncInfo(target).typeID;
+						const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_info_id);
+						return &this->context.getTypeManager().getFunction(type_info.baseTypeID().funcID());
+						
+					}else if constexpr(std::is_same<Target, sema::TemplateIntrinsicFuncInstantiation::ID>()){
+						const sema::TemplateIntrinsicFuncInstantiation& instantiation =
+							this->context.getSemaBuffer().getTemplateIntrinsicFuncInstantiation(target);
+
+						const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
+							this->context.getTemplateIntrinsicFuncInfo(instantiation.kind);
+
+						auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
+						instantiation_args.reserve(instantiation.templateArgs.size());
+						using TemplateArg = evo::Variant<TypeInfo::VoidableID, core::GenericValue>;
+						for(const TemplateArg& template_arg : instantiation.templateArgs){
+							if(template_arg.is<TypeInfo::VoidableID>()){
+								instantiation_args.emplace_back(template_arg.as<TypeInfo::VoidableID>());
+							}else{
+								instantiation_args.emplace_back();
+							}
+						}
+
+						return &this->context.getTypeManager().getFunction(
+							this->context.type_manager.getOrCreateFunction(
+								template_intrinsic_func_info.getTypeInstantiation(instantiation_args)
+							).funcID()
+						);
+						
+					}else{
+						static_assert(false, "Unsupported func call target");
+					}
+				});
 			}
-		});
+		}();
 
-
+		
 		if(
 			attempt_func_type.errorParams.size() != instr.except_params.size()
 			&& attempt_func_type.errorParams[0].typeID.isVoid() == false
@@ -11739,7 +11746,10 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(attempt_expr.getExpr().kind() != sema::Expr::Kind::FUNC_CALL){
+		if(
+			attempt_expr.getExpr().kind() != sema::Expr::Kind::FUNC_CALL
+			&& attempt_expr.getExpr().kind() != sema::Expr::Kind::INTERFACE_CALL
+		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL,
 				instr.try_else.attemptExpr,
@@ -11802,16 +11812,29 @@ namespace pcit::panther{
 		this->add_auto_delete_calls<AutoDeleteMode::NORMAL>();
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 
+
+		const sema::Expr try_else_expr = [&](){
+			if(attempt_expr.getExpr().kind() == sema::Expr::Kind::FUNC_CALL){
+				return sema::Expr(
+					this->context.sema_buffer.createTryElseExpr(
+						attempt_expr.getExpr(), except_expr.getExpr(), std::move(except_params)
+					)
+				);
+			}else{
+				return sema::Expr(
+					this->context.sema_buffer.createTryElseInterfaceExpr(
+						attempt_expr.getExpr(), except_expr.getExpr(), std::move(except_params)
+					)
+				);
+			}
+		}();
+
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			value_stage,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			attempt_expr.type_id,
-			sema::Expr(
-				this->context.sema_buffer.createTryElseExpr(
-					attempt_expr.getExpr(), except_expr.getExpr(), std::move(except_params)
-				)
-			)
+			try_else_expr
 		);
 		return Result::SUCCESS;
 	}
@@ -18655,27 +18678,28 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:          case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:                case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:             case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:            case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:       case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::INTRINSIC_FUNC:        case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                  case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:               case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
-			case sema::Expr::Kind::OPTIONAL_EXTRACT:      case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::UNION_ACCESSOR:        case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:            case sema::Expr::Kind::TRY_ELSE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:            case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:    case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
-			case sema::Expr::Kind::INTERFACE_CALL:        case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:
-			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:case sema::Expr::Kind::INIT_ARRAY_REF:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:     case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:  case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::UNION_TAG_CMP:         case sema::Expr::Kind::SAME_TYPE_CMP:
-			case sema::Expr::Kind::GLOBAL_VAR:            case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::MODULE_IDENT:                  case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                        case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:                     case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:                    case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:               case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::COPY:                          case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                       case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:        case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::OPTIONAL_EXTRACT:              case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::UNION_ACCESSOR:                case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:                    case sema::Expr::Kind::TRY_ELSE_EXPR:
+			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:       case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:                case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:    case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                       case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:
+			case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT: case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:
+			case sema::Expr::Kind::INIT_ARRAY_REF:                case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:                case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:     case sema::Expr::Kind::UNION_TAG_CMP:
+			case sema::Expr::Kind::SAME_TYPE_CMP:                 case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}

@@ -4002,6 +4002,157 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR: {
+				const sema::TryElseInterfaceExpr& try_else_interface_expr =
+					this->context.getSemaBuffer().getTryElseInterfaceExpr(expr.tryElseInterfaceExprID());
+				
+				const sema::InterfaceCall& attempt_func_interface_call =
+					this->context.getSemaBuffer().getInterfaceCall(try_else_interface_expr.attempt.interfaceCallID());
+
+
+				///////////////////////////////////
+				// create target func type
+
+				const BaseType::Function& target_func_type =
+					this->context.getTypeManager().getFunction(attempt_func_interface_call.funcTypeID);
+
+				auto param_types = evo::SmallVector<pir::Type>();
+				for(const BaseType::Function::Param& param : target_func_type.params){
+					if(param.shouldCopy){
+						param_types.emplace_back(this->get_type<false>(param.typeID));
+					}else{
+						param_types.emplace_back(this->module.createPtrType());
+					}
+				}
+				for(size_t i = 0; i < target_func_type.returnParams.size(); i+=1){
+					param_types.emplace_back(this->module.createPtrType());
+				}
+				if(target_func_type.hasErrorReturnParams()){
+					param_types.emplace_back(this->module.createPtrType());
+				}
+
+
+				const pir::Type func_pir_type = this->module.createFunctionType(
+					std::move(param_types),
+					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
+					this->module.createBoolType()
+				);
+
+
+				///////////////////////////////////
+				// get func pointer
+
+				const pir::Expr target_interface_ptr = this->get_expr_pointer(attempt_func_interface_call.value);
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+
+				const pir::Expr vtable_ptr = this->agent.createCalcPtr(
+					target_interface_ptr,
+					interface_ptr_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".VTABLE.PTR")
+				);
+				const pir::Expr vtable = this->agent.createLoad(
+					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
+				);
+
+				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
+					vtable,
+					this->module.createPtrType(),
+					evo::SmallVector<pir::CalcPtr::Index>{attempt_func_interface_call.vtableFuncIndex},
+					this->name(".VTABLE.FUNC.PTR")
+				);
+				const pir::Expr target_func = this->agent.createLoad(
+					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
+				);
+
+
+				///////////////////////////////////
+				// make call
+
+				auto args = evo::SmallVector<pir::Expr>();
+				for(size_t i = 0; const sema::Expr& arg : attempt_func_interface_call.args){
+					if(target_func_type.params[i].shouldCopy){
+						args.emplace_back(this->get_expr_register(arg));
+					}else{
+						args.emplace_back(this->get_expr_pointer(arg));
+					}
+
+					i += 1;
+				}
+
+				const pir::Expr return_address = [&](){
+					if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+						return store_locations[0];
+					}else{
+						return this->agent.createAlloca(this->get_type<false>(target_func_type.returnParams[0].typeID));
+					}
+				}();
+
+				args.emplace_back(return_address);
+
+
+				if(target_func_type.errorParams[0].typeID.isVoid() == false){
+					const Data::InterfaceInfo& interface_info =
+						this->data.get_interface(attempt_func_interface_call.interfaceID);
+
+					const pir::Type error_return_type =
+						*interface_info.error_return_types[attempt_func_interface_call.vtableFuncIndex];
+
+					const pir::Expr error_value = this->agent.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+
+					for(const sema::ExceptParam::ID except_param_id : try_else_interface_expr.exceptParams){
+						const sema::ExceptParam& except_param =
+							this->context.getSemaBuffer().getExceptParam(except_param_id);
+
+						const pir::Expr except_param_pir_expr = this->agent.createCalcPtr(
+							error_value,
+							error_return_type,
+							evo::SmallVector<pir::CalcPtr::Index>{
+								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+							},
+							this->name(
+								"EXCEPT_PARAM.{}",
+								this->current_source->getTokenBuffer()[
+									this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+								].getString()
+							)
+						);
+						this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+					}
+
+					args.emplace_back(error_value);
+				}
+
+
+				const pir::Expr err_occurred = this->agent.createCall(target_func, func_pir_type, std::move(args));
+
+				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("TRY.END"));
+
+				this->agent.createBranch(err_occurred, if_error_block, end_block);
+
+				this->agent.setTargetBasicBlock(if_error_block);
+				this->get_expr_store(try_else_interface_expr.except, return_address);
+				this->agent.createJump(end_block);
+
+				this->agent.setTargetBasicBlock(end_block);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					const pir::Type return_type = this->get_type<false>(target_func_type.returnParams[0].typeID);
+					return this->agent.createLoad(return_address, return_type);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return return_address;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
+			} break;
+
 			case sema::Expr::Kind::PARAM: {
 				const sema::Param& sema_param = this->context.getSemaBuffer().getParam(expr.paramID());
 
@@ -8027,28 +8178,28 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:                  case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:           case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                          case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                       case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:                       case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:           case sema::Expr::Kind::OPTIONAL_EXTRACT:
-			case sema::Expr::Kind::DEREF:                         case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:                      case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:                   case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE_EXPR:                 case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::FAKE_TERM_INFO:                case sema::Expr::Kind::MAKE_INTERFACE_PTR:
-			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:    case sema::Expr::Kind::INTERFACE_CALL:
-			case sema::Expr::Kind::INDEXER:                       case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:
-			case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT: case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:
-			case sema::Expr::Kind::INIT_ARRAY_REF:                case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_SIZE:                case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:     case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:                 case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:                  case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:             case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::VAR:                           case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                   case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:                case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:    case sema::Expr::Kind::OPTIONAL_EXTRACT:
+			case sema::Expr::Kind::DEREF:                  case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::ACCESSOR:               case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:            case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE_EXPR:          case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
+			case sema::Expr::Kind::BLOCK_EXPR:             case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:     case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+			case sema::Expr::Kind::INTERFACE_CALL:         case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE: case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:
+			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF: case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:      case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:   case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::UNION_TAG_CMP:          case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::PARAM:                  case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM:     case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:           case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:             case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

@@ -201,6 +201,15 @@ namespace pcit::panther::sema{
 		evo::SmallVector<ExceptParamID> exceptParams;
 	};
 
+	struct TryElseInterfaceExpr{
+		using ID = TryElseInterfaceExprID;
+
+		Expr attempt;
+		Expr except;
+		evo::SmallVector<ExceptParamID> exceptParams;
+	};
+
+
 	struct BlockExpr{
 		using ID = BlockExprID;
 
@@ -269,6 +278,7 @@ namespace pcit::panther::sema{
 
 		Expr value;
 		BaseType::Function::ID funcTypeID;
+		BaseType::Interface::ID interfaceID;
 		uint32_t vtableFuncIndex;
 		evo::SmallVector<Expr> args;
 	};

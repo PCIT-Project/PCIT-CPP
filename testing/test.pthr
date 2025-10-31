@@ -1,13 +1,13 @@
 
 
 interface Inter = {
-	func err_test = () -> Void <UI8>;
+	func err_test = () -> Int <UI8>;
 }
 
 
 
 type Thing = struct {
-	func err_test_impl = () -> Void <UI8> {
+	func err_test_impl = () -> Int <UI8> {
 		error 12;
 	}
 
@@ -28,8 +28,9 @@ func entry = () #entry -> UI8 {
 
 	var inter: Inter*| = &thing as Inter*|;
 
-	try inter.err_test() else<code> {
+	_ = try inter.err_test() else<code> {->handle:Int
 		err_code = move code;
+		return->handle 0;
 	};
 	
 	return move err_code;

@@ -60,6 +60,7 @@ namespace pcit::panther::sema{
 			LOGICAL_AND,
 			LOGICAL_OR,
 			TRY_ELSE_EXPR,
+			TRY_ELSE_INTERFACE_EXPR,
 			BLOCK_EXPR,
 			FAKE_TERM_INFO,
 			MAKE_INTERFACE_PTR,
@@ -126,6 +127,8 @@ namespace pcit::panther::sema{
 		explicit Expr(LogicalAndID id)         : _kind(Kind::LOGICAL_AND),          value{.logical_and = id}         {};
 		explicit Expr(LogicalOrID id)          : _kind(Kind::LOGICAL_OR),           value{.logical_or = id}          {};
 		explicit Expr(TryElseExprID id)        : _kind(Kind::TRY_ELSE_EXPR),        value{.try_else_expr = id}       {};
+		explicit Expr(TryElseInterfaceExprID id)
+			: _kind(Kind::TRY_ELSE_INTERFACE_EXPR), value{.try_else_interface_expr = id} {};
 		explicit Expr(BlockExprID id)          : _kind(Kind::BLOCK_EXPR),           value{.block_expr = id}          {};
 		explicit Expr(FakeTermInfoID id)       : _kind(Kind::FAKE_TERM_INFO),       value{.fake_term_info = id}      {};
 		explicit Expr(MakeInterfacePtrID id)   : _kind(Kind::MAKE_INTERFACE_PTR),   value{.make_interface_ptr = id}  {};
@@ -280,6 +283,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::TRY_ELSE_EXPR, "not a try/else expr");
 			return this->value.try_else_expr;
 		}
+		EVO_NODISCARD auto tryElseInterfaceExprID() const -> TryElseInterfaceExprID {
+			evo::debugAssert(this->kind() == Kind::TRY_ELSE_INTERFACE_EXPR, "not a try/else interface expr");
+			return this->value.try_else_interface_expr;
+		}
 		EVO_NODISCARD auto blockExprID() const -> BlockExprID {
 			evo::debugAssert(this->kind() == Kind::BLOCK_EXPR, "not a block expr");
 			return this->value.block_expr;
@@ -428,6 +435,7 @@ namespace pcit::panther::sema{
 				LogicalAndID logical_and;
 				LogicalOrID logical_or;
 				TryElseExprID try_else_expr;
+				TryElseInterfaceExprID try_else_interface_expr;
 				BlockExprID block_expr;
 				FakeTermInfoID fake_term_info;
 				MakeInterfacePtrID make_interface_ptr;

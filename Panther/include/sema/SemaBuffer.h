@@ -502,7 +502,7 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// try/else
+			// try/else expr
 
 			EVO_NODISCARD auto createTryElseExpr(auto&&... args) -> sema::TryElseExpr::ID {
 				return this->try_else_exprs.emplace_back(std::forward<decltype(args)>(args)...);
@@ -510,6 +510,19 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getTryElseExpr(sema::TryElseExpr::ID id) const -> const sema::TryElseExpr& {
 				return this->try_else_exprs[id];
+			}
+
+
+			///////////////////////////////////
+			// try/else interface expr
+
+			EVO_NODISCARD auto createTryElseInterfaceExpr(auto&&... args) -> sema::TryElseInterfaceExpr::ID {
+				return this->try_else_interface_exprs.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getTryElseInterfaceExpr(sema::TryElseInterfaceExpr::ID id) const
+			-> const sema::TryElseInterfaceExpr& {
+				return this->try_else_interface_exprs[id];
 			}
 
 
@@ -895,6 +908,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::LogicalAnd, sema::LogicalAnd::ID> logical_ands{};
 			core::SyncLinearStepAlloc<sema::LogicalOr, sema::LogicalOr::ID> logical_ors{};
 			core::SyncLinearStepAlloc<sema::TryElseExpr, sema::TryElseExpr::ID> try_else_exprs{};
+			core::SyncLinearStepAlloc<sema::TryElseInterfaceExpr, sema::TryElseInterfaceExpr::ID>
+				try_else_interface_exprs{};
 			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
 			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};
 			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};
