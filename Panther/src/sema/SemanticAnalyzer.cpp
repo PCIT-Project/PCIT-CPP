@@ -3944,7 +3944,7 @@ namespace pcit::panther{
 				case Token::lookupKind(">"):    case Token::lookupKind(">="):  case Token::lookupKind("&&"):
 				case Token::lookupKind("||"):   case Token::lookupKind("<<"):  case Token::lookupKind("<<|"):
 				case Token::lookupKind(">>"):   case Token::lookupKind("&"):   case Token::lookupKind("|"):
-				case Token::lookupKind("^"):    case Token::lookupKind("~"):
+				case Token::lookupKind("^"):
 
 				case Token::lookupKind("+="):   case Token::lookupKind("+%="): case Token::lookupKind("+|="):
 				case Token::lookupKind("-="):   case Token::lookupKind("-%="): case Token::lookupKind("-|="):
@@ -3993,12 +3993,29 @@ namespace pcit::panther{
 							return Result::ERROR;
 
 						}else if(created_func_type.params.size() == 1){
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-								instr.func_def.params[0],
-								"Infix operator overload doesn't have enough parameters"
-							);
-							return Result::ERROR;
+							if(name_token.kind() == Token::lookupKind("-")){
+								if(this->create_prefix_overload(
+									created_func_type,
+									current_struct,
+									instr.func_def,
+									created_func_id,
+									created_func,
+									func_attrs.value().is_commutative,
+									func_attrs.value().is_swapped,
+									name_token
+								).isError()){
+									return Result::ERROR;
+								}
+
+								break;
+							}else{
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
+									instr.func_def.params[0],
+									"Infix operator overload doesn't have enough parameters"
+								);
+								return Result::ERROR;
+							}
 							
 						}else{
 							this->emit_error(
@@ -4039,7 +4056,7 @@ namespace pcit::panther{
 						case Token::lookupKind("*"):    case Token::lookupKind("*%"):   case Token::lookupKind("*|"):
 						case Token::lookupKind("/"):    case Token::lookupKind("%"):    case Token::lookupKind("<<"):
 						case Token::lookupKind("<<|"):  case Token::lookupKind(">>"):   case Token::lookupKind("&"):
-						case Token::lookupKind("|"):    case Token::lookupKind("^"):    case Token::lookupKind("~"): {
+						case Token::lookupKind("|"):    case Token::lookupKind("^"): {
 							if(created_func_type.returnsVoid()){
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
@@ -4103,7 +4120,6 @@ namespace pcit::panther{
 
 						const auto [begin_overloads_range, end_overloads_range] = 
 							target_struct.infixOverloads.equal_range(name_token.kind());
-
 
 						const sema::Func::ID overload_func_id_to_add = [&](){
 							if(swapped){
@@ -4250,13 +4266,45 @@ namespace pcit::panther{
 					}
 				} break;
 
-				default: {
-					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						instr.func_def.name,
-						"This operator overload is currently unimplemented"
+				case Token::lookupKind("!"): case Token::lookupKind("~"): {
+					if(this->scope.inObjectScope() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_def,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_def,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+					const BaseType::Function& created_func_type =
+						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+
+					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
 					);
-					return Result::ERROR;
+
+
+					if(this->create_prefix_overload(
+						created_func_type,
+						current_struct,
+						instr.func_def,
+						created_func_id,
+						created_func,
+						func_attrs.value().is_commutative,
+						func_attrs.value().is_swapped,
+						name_token
+					).isError()){
+						return Result::ERROR;
+					}
 				} break;
 			}
 
@@ -10445,7 +10493,24 @@ namespace pcit::panther{
 				}
 
 			}else{
-				if(this->context.getTypeManager().isIntegral(expr.type_id.as<TypeInfo::ID>())){
+				if(expr.type_id.is<TypeInfo::ID>()){
+					const TypeInfo& expr_type_info =
+						this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>());
+
+					if(
+						expr_type_info.qualifiers().empty()
+						&& expr_type_info.baseTypeID().kind() == BaseType::Kind::STRUCT
+					){
+						const BaseType::Struct& target_struct_type =
+							this->context.getTypeManager().getStruct(expr_type_info.baseTypeID().structID());
+
+						return this->prefix_overload_impl(
+							target_struct_type.prefixOverloads, expr, instr.prefix, instr.output
+						);
+					}
+				}
+
+				if(this->context.getTypeManager().isSignedIntegral(expr.type_id.as<TypeInfo::ID>())){
 					using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
 					const InstantiationID instantiation_id =
 						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
@@ -10501,7 +10566,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NEGATE_ARG_INVALID_TYPE,
 						instr.prefix.rhs,
-						"Operator prefix [-] can only accept integrals and floats"
+						"Operator prefix [-] can only accept signed integrals and floats"
 					);
 					return Result::ERROR;
 				}
@@ -10513,6 +10578,22 @@ namespace pcit::panther{
 	template<bool IS_CONSTEXPR>
 	auto SemanticAnalyzer::instr_prefix_not(const Instruction::PrefixNot<IS_CONSTEXPR>& instr) -> Result {
 		TermInfo& expr = this->get_term_info(instr.expr);
+
+		if(expr.type_id.is<TypeInfo::ID>()){
+			const TypeInfo& expr_type_info =
+				this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>());
+
+			if(
+				expr_type_info.qualifiers().empty()
+				&& expr_type_info.baseTypeID().kind() == BaseType::Kind::STRUCT
+			){
+				const BaseType::Struct& target_struct_type =
+					this->context.getTypeManager().getStruct(expr_type_info.baseTypeID().structID());
+
+				return this->prefix_overload_impl(target_struct_type.prefixOverloads, expr, instr.prefix, instr.output);
+			}
+		}
+
 
 		if(this->type_check<true, true>(
 			TypeManager::getTypeBool(), expr, "RHS of operator [!]", instr.prefix.rhs
@@ -10605,6 +10686,20 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(expr.type_id.is<TypeInfo::ID>()){
+			const TypeInfo& expr_type_info =
+				this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>());
+
+			if(
+				expr_type_info.qualifiers().empty()
+				&& expr_type_info.baseTypeID().kind() == BaseType::Kind::STRUCT
+			){
+				const BaseType::Struct& target_struct_type =
+					this->context.getTypeManager().getStruct(expr_type_info.baseTypeID().structID());
+
+				return this->prefix_overload_impl(target_struct_type.prefixOverloads, expr, instr.prefix, instr.output);
+			}
+		}
 			
 		if(this->context.getTypeManager().isIntegral(expr.type_id.as<TypeInfo::ID>()) == false){
 			this->emit_error(
@@ -21315,6 +21410,134 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::create_prefix_overload(
+		const BaseType::Function& created_func_type,
+		BaseType::Struct& current_struct,
+		const AST::FuncDef& ast_func_def,
+		sema::Func::ID created_func_id,
+		sema::Func& created_func,
+		bool is_commutative,
+		bool is_swapped,
+		const Token& name_token
+	) -> evo::Result<> {
+
+		//////////////////
+		// params
+
+		if(created_func_type.params.size() != 1){
+			if(created_func_type.params.empty()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+					ast_func_def,
+					"Prefix operator overload must have a [this] parameter"
+				);
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+					ast_func_def.params[1],
+					"Prefix operator overload must only have a [this] parameter"
+				);
+			}
+			return evo::resultError;
+		}
+
+		if(
+			this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
+			!= Token::Kind::KEYWORD_THIS
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+				ast_func_def.params[0],
+				"Prefix operator overload must have a [this] parameter"
+			);
+			return evo::resultError;
+		}
+
+
+		//////////////////
+		// attributes
+
+		if(is_commutative){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+				ast_func_def,
+				"Prefix operator overload cannot have attribute #commutative"
+			);
+			return evo::resultError;
+
+		}
+
+		if(is_swapped){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+				ast_func_def,
+				"Prefix operator overload cannot have attribute #swapped"
+			);
+			return evo::resultError;
+		}
+
+
+		//////////////////
+		// returns
+
+		if(created_func_type.returnParams.size() > 1){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+				ast_func_def.returns[1],
+				"Prefix operator overload cannot have multiple return values"
+			);
+			return evo::resultError;
+		}
+
+		if(created_func_type.returnParams[0].typeID.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+				ast_func_def.returns[1],
+				"Prefix operator overload must return a value"
+			);
+			return evo::resultError;
+		}
+
+		if(created_func_type.hasErrorReturn()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+				ast_func_def.errorReturns[0],
+				"Prefix operator overload that error are unimplemented"
+			);
+			return evo::resultError;
+		}
+
+
+		//////////////////
+		// create
+
+		const auto lock = std::scoped_lock(current_struct.prefixOverloadsLock);
+
+		const auto [begin_overloads_range, end_overloads_range] = 
+			current_struct.prefixOverloads.equal_range(name_token.kind());
+
+		const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+		for(const auto& [_, existing_func_id] : overloads_range){
+			const sema::Func& existing_func =
+				this->context.getSemaBuffer().getFunc(existing_func_id);
+			
+			if(created_func.isEquivalentOverload(existing_func, this->context)){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
+					ast_func_def,
+					"This operator overload was already defined",
+					Diagnostic::Info(
+						"Previously defined here:", this->get_location(existing_func_id)
+					)
+				);
+				return evo::resultError;
+			}
+		}
+
+		current_struct.prefixOverloads.emplace(name_token.kind(), created_func_id);
+
+		return evo::Result<>();
+	}
 
 
 	auto SemanticAnalyzer::infix_overload_impl(
@@ -21378,16 +21601,96 @@ namespace pcit::panther{
 				return evo::Unexpected(Result::ERROR);
 			}
 
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-				.dependent_funcs.emplace(selected_overload_id);
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_overload_id);
 		}
-
-		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_overload_id);
 
 		return this->context.sema_buffer.createFuncCall(
 			selected_overload_id, evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()}
 		);
 	}
+
+
+	auto SemanticAnalyzer::prefix_overload_impl(
+		const std::unordered_multimap<Token::Kind, sema::Func::ID>& prefix_overloads,
+		TermInfo& expr,
+		const AST::Prefix& ast_prefix,
+		SymbolProc::TermInfoID output
+	) -> Result {
+		const Token::Kind op_kind = this->source.getTokenBuffer()[ast_prefix.opTokenID].kind();
+
+		const auto [begin_overloads_range, end_overloads_range] = prefix_overloads.equal_range(op_kind);
+		const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+		if(overloads_range.empty()){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Prefix argument type: ");
+			this->emit_error(
+				Diagnostic::Code::SEMA_PREFIX_NO_MATCHING_OP,
+				ast_prefix,
+				"No matching operation for this prefix argument",
+				std::move(infos)
+			);
+			return Result::ERROR;
+		}
+
+		auto overloads_list = evo::SmallVector<SelectFuncOverloadFuncInfo, 2>();
+		overloads_list.reserve(overloads_range.size());
+		for(const auto& [_, overload_id] : overloads_range){
+			const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
+			overloads_list.emplace_back(
+				overload_id, this->context.getTypeManager().getFunction(overload.typeID)
+			);
+		}
+
+		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>{
+			SelectFuncOverloadArgInfo(expr, ast_prefix.rhs, std::nullopt)
+		};
+
+		const evo::Result<size_t> selected_overload_index = this->select_func_overload(
+			overloads_list, arg_infos, ast_prefix, false, evo::SmallVector<Diagnostic::Info>()
+		);
+
+		if(selected_overload_index.isError()){ return Result::ERROR; }
+
+		const sema::Func::ID selected_overload_id =
+			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
+
+		if(this->get_current_func().isConstexpr){
+			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
+			if(infix_op_sema_func.isConstexpr == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					ast_prefix.opTokenID,
+					"Cannot call a non-constexpr operator overload within a constexpr function",
+					Diagnostic::Info(
+						"Called operator overload was defined here:", this->get_location(selected_overload_id)
+					)
+				);
+				return Result::ERROR;
+			}
+
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_overload_id);
+		}
+
+
+		const sema::Func& selected_overload = this->context.getSemaBuffer().getFunc(selected_overload_id);
+		const BaseType::Function& selected_overload_type =
+			this->context.getTypeManager().getFunction(selected_overload.typeID);
+
+		this->return_term_info(output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			expr.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			selected_overload_type.returnParams[0].typeID.asTypeID(),
+			sema::Expr(
+				this->context.sema_buffer.createFuncCall(
+					selected_overload_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+				)
+			)
+		);
+		return Result::SUCCESS;
+	}
+
 
 
 

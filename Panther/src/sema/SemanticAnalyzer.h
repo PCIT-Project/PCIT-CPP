@@ -602,12 +602,30 @@ namespace pcit::panther{
 			EVO_NODISCARD auto add_deduced_terms_to_scope(evo::ArrayProxy<DeducedTerm> deduced_terms) -> evo::Result<>;
 
 
+			EVO_NODISCARD auto create_prefix_overload(
+				const BaseType::Function& created_func_type,
+				BaseType::Struct& current_struct,
+				const AST::FuncDef& ast_func_def,
+				sema::Func::ID created_func_id,
+				sema::Func& created_func,
+				bool is_commutative,
+				bool is_swapped,
+				const Token& name_token
+			) -> evo::Result<>;
+
 			EVO_NODISCARD auto infix_overload_impl(
 				const std::unordered_multimap<Token::Kind, sema::Func::ID>& infix_overloads,
 				TermInfo& lhs,
 				TermInfo& rhs,
-				const AST::Infix& infix
+				const AST::Infix& ast_infix
 			) -> evo::Expected<sema::FuncCall::ID, Result>;
+
+			EVO_NODISCARD auto prefix_overload_impl(
+				const std::unordered_multimap<Token::Kind, sema::Func::ID>& prefix_overloads,
+				TermInfo& expr,
+				const AST::Prefix& ast_prefix,
+				SymbolProc::TermInfoID output
+			) -> Result;
 
 			EVO_NODISCARD auto constexpr_infix_math(
 				Token::Kind op, sema::Expr lhs, sema::Expr rhs, std::optional<TypeInfo::ID> lhs_type

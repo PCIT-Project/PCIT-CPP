@@ -175,10 +175,10 @@ namespace pcit::panther{
 			case Token::lookupKind("*"):    case Token::lookupKind("*%"):     case Token::lookupKind("*|"):
 			case Token::lookupKind("/"):    case Token::lookupKind("%"):      case Token::lookupKind("=="):
 			case Token::lookupKind("!="):   case Token::lookupKind("<"):      case Token::lookupKind("<="):
-			case Token::lookupKind(">"):    case Token::lookupKind(">="):     case Token::lookupKind("&&"):
-			case Token::lookupKind("||"):   case Token::lookupKind("<<"):     case Token::lookupKind("<<|"):
-			case Token::lookupKind(">>"):   case Token::lookupKind("&"):      case Token::lookupKind("|"):
-			case Token::lookupKind("^"):    case Token::lookupKind("~"):
+			case Token::lookupKind(">"):    case Token::lookupKind(">="):     case Token::lookupKind("!"):
+			case Token::lookupKind("&&"):   case Token::lookupKind("||"):     case Token::lookupKind("<<"):
+			case Token::lookupKind("<<|"):  case Token::lookupKind(">>"):     case Token::lookupKind("&"):
+			case Token::lookupKind("|"):    case Token::lookupKind("^"):      case Token::lookupKind("~"):
 
 			case Token::lookupKind("+="):   case Token::lookupKind("+%="):    case Token::lookupKind("+|="):
 			case Token::lookupKind("-="):   case Token::lookupKind("-%="):    case Token::lookupKind("-|="):
