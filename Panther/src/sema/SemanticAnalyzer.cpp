@@ -4306,6 +4306,108 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 				} break;
+
+				case Token::lookupKind("["): {
+					if(this->scope.inObjectScope() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_def,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
+							instr.func_def,
+							"Operator overload cannot be a free function"
+						);
+						return Result::ERROR;
+					}
+
+					const BaseType::Function& created_func_type =
+						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+
+					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+					);
+
+					if(created_func_type.params.size() < 2){
+						if(created_func_type.params.empty()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
+								instr.func_def,
+								"Operator indexer overload must have a `this` parameter"
+							);
+							return Result::ERROR;
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
+								instr.func_def,
+								"Operator indexer overload must have at least 1 index parameter"
+							);
+							return Result::ERROR;
+						}
+					}
+
+					if(
+						this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
+						!= Token::Kind::KEYWORD_THIS
+					){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
+							instr.func_def.params[0],
+							"Indexer operator overload must have a [this] parameter"
+						);
+						return Result::ERROR;
+					}
+
+
+					if(created_func_type.returnsVoid()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
+							instr.func_def.returns[0].type,
+							"Indexer operator overload must return a value"
+						);
+						return Result::ERROR;
+					}
+
+
+					if(created_func_type.hasErrorReturn()){
+						this->emit_error(
+							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							instr.func_def,
+							"erroring indexer overload is unimplemented"
+						);
+						return Result::ERROR;
+					}
+
+
+					//////////////////
+					// create
+
+					const auto lock = std::scoped_lock(current_struct.indexerOverloadsLock);
+
+					for(const sema::Func::ID existing_func_id : current_struct.indexerOverloads){
+						const sema::Func& existing_func =
+							this->context.getSemaBuffer().getFunc(existing_func_id);
+						
+						if(created_func.isEquivalentOverload(existing_func, this->context)){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
+								instr.func_def,
+								"This operator overload was already defined",
+								Diagnostic::Info(
+									"Previously defined here:", this->get_location(existing_func_id)
+								)
+							);
+							return Result::ERROR;
+						}
+					}
+
+					current_struct.indexerOverloads.emplace_back(created_func_id);
+				} break;
 			}
 
 		}
@@ -12056,7 +12158,7 @@ namespace pcit::panther{
 
 	template<bool IS_CONSTEXPR>
 	auto SemanticAnalyzer::instr_indexer(const Instruction::Indexer<IS_CONSTEXPR>& instr) -> Result {
-		const TermInfo& target = this->get_term_info(instr.target);
+		TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
@@ -12093,53 +12195,54 @@ namespace pcit::panther{
 
 		const TypeInfo* element_type = nullptr;
 
-		if(actual_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY_REF){
-			is_arr_ref = true;
 
-			if(actual_target_type.qualifiers().empty() == false){
-				if(actual_target_type.isOptional()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-						instr.indexer,
-						"Invalid target for indexer",
-						Diagnostic::Info("Optional values need to be unwrapped")
-					);
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-						instr.indexer,
-						"Invalid target for indexer"
-					);
-				}
-				return Result::ERROR;
-			}
-
-			const BaseType::ArrayRef& target_array_ref_type =
-				this->context.getTypeManager().getArrayRef(actual_target_type.baseTypeID().arrayRefID());
-
-			is_read_only_arr_ref = target_array_ref_type.isReadOnly;
-
-			if(target_array_ref_type.dimensions.size() != instr.indices.size()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
-					instr.indexer.indices[std::min(instr.indices.size() - 1, target_array_ref_type.dimensions.size())],
-					"Incorrect number of indices in indexer for the target array reference type",
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info(std::format("Expected: {}", target_array_ref_type.dimensions.size())),
-						Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
+		switch(actual_target_type.baseTypeID().kind()){
+			case BaseType::Kind::ARRAY: {
+				if(actual_target_type.qualifiers().empty() == false){
+					if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isNormalPointer()){
+						is_ptr = true;
+					}else{
+						if(actual_target_type.isOptional()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+								instr.indexer,
+								"Invalid target for indexer",
+								Diagnostic::Info("Optional values need to be unwrapped")
+							);
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+								instr.indexer,
+								"Invalid target for indexer"
+							);
+						}
+						return Result::ERROR;
 					}
-				);
-				return Result::ERROR;
-			}
+				}
 
-			element_type = &this->context.type_manager.getTypeInfo(target_array_ref_type.elementTypeID);
+				const BaseType::Array& target_array_type =
+					this->context.getTypeManager().getArray(actual_target_type.baseTypeID().arrayID());
 
+				if(target_array_type.dimensions.size() != instr.indices.size()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
+						instr.indexer.indices[std::min(instr.indices.size() - 1, target_array_type.dimensions.size())],
+						"Incorrect number of indices in indexer for the target array type",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info(std::format("Expected: {}", target_array_type.dimensions.size())),
+							Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
+						}
+					);
+					return Result::ERROR;
+				}
 
-		}else if(actual_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY){
-			if(actual_target_type.qualifiers().empty() == false){
-				if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isNormalPointer()){
-					is_ptr = true;
-				}else{
+				element_type = &this->context.type_manager.getTypeInfo(target_array_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				is_arr_ref = true;
+
+				if(actual_target_type.qualifiers().empty() == false){
 					if(actual_target_type.isOptional()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
@@ -12156,33 +12259,112 @@ namespace pcit::panther{
 					}
 					return Result::ERROR;
 				}
-			}
 
-			const BaseType::Array& target_array_type =
-				this->context.getTypeManager().getArray(actual_target_type.baseTypeID().arrayID());
+				const BaseType::ArrayRef& target_array_ref_type =
+					this->context.getTypeManager().getArrayRef(actual_target_type.baseTypeID().arrayRefID());
 
-			if(target_array_type.dimensions.size() != instr.indices.size()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
-					instr.indexer.indices[std::min(instr.indices.size() - 1, target_array_type.dimensions.size())],
-					"Incorrect number of indices in indexer for the target array type",
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info(std::format("Expected: {}", target_array_type.dimensions.size())),
-						Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
+				is_read_only_arr_ref = target_array_ref_type.isReadOnly;
+
+				if(target_array_ref_type.dimensions.size() != instr.indices.size()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
+						instr.indexer.indices[
+							std::min(instr.indices.size() - 1, target_array_ref_type.dimensions.size())
+						],
+						"Incorrect number of indices in indexer for the target array reference type",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info(std::format("Expected: {}", target_array_ref_type.dimensions.size())),
+							Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
+						}
+					);
+					return Result::ERROR;
+				}
+
+				element_type = &this->context.type_manager.getTypeInfo(target_array_ref_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& target_struct_type = 
+					this->context.getTypeManager().getStruct(actual_target_type.baseTypeID().structID());
+
+				auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo, 4>();
+				func_infos.reserve(target_struct_type.indexerOverloads.size());
+				for(const sema::Func::ID indexer_overload_id : target_struct_type.indexerOverloads){
+					const sema::Func& indexer_overload = this->context.getSemaBuffer().getFunc(indexer_overload_id);
+					const BaseType::Function& indexer_overload_type =
+						this->context.getTypeManager().getFunction(indexer_overload.typeID);
+
+					func_infos.emplace_back(indexer_overload_id, indexer_overload_type);
+				}
+
+				auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo, 4>();
+				arg_infos.reserve(instr.indices.size());
+				arg_infos.emplace_back(target, instr.indexer.target, std::nullopt);
+				for(size_t i = 0; const SymbolProc::TermInfoID index_id : instr.indices){
+					TermInfo& index = this->get_term_info(index_id);
+					
+					arg_infos.emplace_back(index, instr.indexer.indices[i], std::nullopt);
+
+					i += 1;
+				}
+
+				const evo::Result<size_t> selected_overload_index = this->select_func_overload(
+					func_infos, arg_infos, instr.indexer, true, evo::SmallVector<Diagnostic::Info>{}
+				);
+				if(selected_overload_index.isError()){ return Result::ERROR; }
+
+				const SelectFuncOverloadFuncInfo& selected_overload_info = func_infos[selected_overload_index.value()];
+				const sema::Func::ID selected_overload_id = selected_overload_info.func_id.as<sema::Func::ID>();
+
+
+				if(this->get_current_func().isConstexpr){
+					const sema::Func& selected_overload = this->context.getSemaBuffer().getFunc(selected_overload_id);
+
+					if(selected_overload.isConstexpr == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+							instr.indexer,
+							"Cannot call a non-constexpr operator overload within a constexpr function",
+							Diagnostic::Info(
+								"Called operator overload was defined here:", this->get_location(selected_overload_id)
+							)
+						);
+						return Result::ERROR;
 					}
+
+					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
+						.dependent_funcs.emplace(selected_overload_id);
+				}
+
+
+				auto sema_args = evo::SmallVector<sema::Expr>();
+				sema_args.reserve(arg_infos.size());
+				for(const SelectFuncOverloadArgInfo& arg_info : arg_infos){
+					sema_args.emplace_back(arg_info.term_info.getExpr());
+				}
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					target.value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					selected_overload_info.func_type.returnParams[0].typeID.asTypeID(),
+					sema::Expr(
+						this->context.sema_buffer.createFuncCall(
+							selected_overload_info.func_id.as<sema::Func::ID>(), std::move(sema_args)
+						)
+					)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			default: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+					instr.indexer,
+					"Invalid target for indexer"
 				);
 				return Result::ERROR;
-			}
-
-			element_type = &this->context.type_manager.getTypeInfo(target_array_type.elementTypeID);
-
-		}else{
-			this->emit_error(
-				Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-				instr.indexer,
-				"Invalid target for indexer"
-			);
-			return Result::ERROR;
+			} break;
 		}
 
 
@@ -18995,7 +19177,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::select_func_overload(
 		evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
-		evo::SmallVector<SelectFuncOverloadArgInfo>& arg_infos,
+		std::span<SelectFuncOverloadArgInfo> arg_infos,
 		const auto& call_node,
 		bool is_member_call,
 		evo::SmallVector<Diagnostic::Info>&& instantiation_error_infos
@@ -19289,8 +19471,8 @@ namespace pcit::panther{
 							infos.emplace_back(
 								std::format(
 									"Failed to match: too few arguments (requires at least {}, got {})",
-									reason.min_num,
-									reason.got_num
+									is_member_call ? reason.min_num - 1 : reason.min_num,
+									is_member_call ? reason.got_num - 1 : reason.got_num
 								),
 								get_func_location()
 							);
@@ -19299,8 +19481,8 @@ namespace pcit::panther{
 							infos.emplace_back(
 								std::format(
 									"Failed to match: too few arguments (requires {}, got {})",
-									reason.min_num,
-									reason.got_num
+									is_member_call ? reason.min_num - 1 : reason.min_num,
+									is_member_call ? reason.got_num - 1 : reason.got_num
 								),
 								get_func_location()
 							);
@@ -19311,8 +19493,8 @@ namespace pcit::panther{
 							infos.emplace_back(
 								std::format(
 									"Failed to match: too many arguments (requires at most {}, got {})",
-									reason.max_num,
-									reason.got_num
+									is_member_call ? reason.max_num - 1 : reason.max_num,
+									is_member_call ? reason.got_num - 1 : reason.got_num
 								),
 								get_func_location()
 							);
@@ -19321,8 +19503,8 @@ namespace pcit::panther{
 							infos.emplace_back(
 								std::format(
 									"Failed to match: too many arguments (requires {}, got {})",
-									reason.max_num,
-									reason.got_num
+									is_member_call ? reason.max_num - 1 : reason.max_num,
+									is_member_call ? reason.got_num - 1 : reason.got_num
 								),
 								get_func_location()
 							);

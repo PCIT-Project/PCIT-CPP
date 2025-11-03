@@ -189,6 +189,12 @@ namespace pcit::panther{
 				break;
 			}
 
+			case Token::lookupKind("["): {
+				if(this->expect_token(Token::lookupKind("]"), "[]] at end of indexer overload name").isError()){
+					return Result::Code::ERROR;
+				}
+			} break;
+
 			default: {
 				this->expected_but_got(
 					"identifier or overloadable operator after [func] in function definition", this->reader.peek(-1)

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.179.0"></a>
+## v0.0.179.0
+
+### Panther
+- Added overloading of indexer
+- Fixed function overload resolution error diagnostic for incorrect number of arguments being off by 1 if call is a method
+
+
+<!---------------------------------->
 <a name="v0.0.178.0"></a>
 ## v0.0.178.0
 

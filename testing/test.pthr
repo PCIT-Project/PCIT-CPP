@@ -1,17 +1,27 @@
 
 
 type Thing = struct {
-	func - = (this) -> Thing {
-		return new Thing{val = -this.val};
+	func new = (data: [Int:3] in) -> (output: This) {
+		output._data = forward data;
+		return...;
 	}
 
-	var val: I8;
+	func [] = (this, index: USize) -> Int*| {
+		return this._data[index];
+	}
+
+	func [] = (this mut, index: USize) -> Int* {
+		return this._data[index];
+	}
+
+
+	var _data: [Int:3];
 }
 
 
 
 func entry = () #entry -> UI8 {
-	const thing = new Thing{val = 4};
+	const thing = new Thing(new [Int:3][12, 14, 17]);
 	
-	return (-thing).val as UI8;
+	return thing[1].* as UI8;
 }

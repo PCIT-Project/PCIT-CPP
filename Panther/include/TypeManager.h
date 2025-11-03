@@ -545,6 +545,9 @@ namespace pcit::panther{
 			std::unordered_multimap<Token::Kind, sema::FuncID> prefixOverloads{};
 			mutable evo::SpinLock prefixOverloadsLock{}; // only needed before def completed
 
+			evo::SmallVector<sema::FuncID> indexerOverloads{};
+			mutable evo::SpinLock indexerOverloadsLock{}; // only needed before def completed
+
 
 			bool isDefaultInitializable = false;
 			bool isTriviallyDefaultInitializable = false;

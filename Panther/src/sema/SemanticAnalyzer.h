@@ -516,7 +516,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto select_func_overload(
 				evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
-				evo::SmallVector<SelectFuncOverloadArgInfo>& arg_infos,
+				std::span<SelectFuncOverloadArgInfo> arg_infos,
 				const auto& call_node,
 				bool is_member_call,
 				evo::SmallVector<Diagnostic::Info>&& instantiation_error_infos

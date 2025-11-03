@@ -8602,6 +8602,8 @@ namespace pcit::panther{
 				case Token::lookupKind("^"):   return std::format("PTHR.f{}.OP.BITWISE_XOR", func_id.get());
 				case Token::lookupKind("~"):   return std::format("PTHR.f{}.OP.BITWISE_NOT", func_id.get());
 
+				case Token::lookupKind("["): return std::format("PTHR.f{}.OP.INDEXER", func_id.get());
+
 				default: {
 					evo::debugFatalBreak("Unknown overload op ({})", Token::printKind(op_kind));
 				};
