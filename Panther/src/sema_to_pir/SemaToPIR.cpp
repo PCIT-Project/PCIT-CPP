@@ -8539,6 +8539,10 @@ namespace pcit::panther{
 
 	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::mangle_name(sema::Func::ID func_id, Token::Kind op_kind) const -> std::string {
+		if(this->data.getConfig().useReadableNames == false){
+			return std::format("PTHR.f{}", func_id.get());
+		}
+
 		if constexpr(PIR_STMT_NAME_SAFE){
 			switch(op_kind){
 				// prefix keywords
@@ -8610,7 +8614,11 @@ namespace pcit::panther{
 			}
 
 		}else{
-			return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(op_kind));
+			if(op_kind == Token::lookupKind("[")){
+				return std::format("PTHR.f{}.OP.[]", func_id.get());
+			}else{
+				return std::format("PTHR.f{}.OP.{}", func_id.get(), Token::printKind(op_kind));
+			}
 		}
 	}
 

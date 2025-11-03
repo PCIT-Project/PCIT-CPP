@@ -1,6 +1,46 @@
 
 
-type Thing = struct {
+interface Iterator = {
+	func next = (this mut) #rt -> Void;
+	func get = (this mut) #rt  -> RawPtr;
+	func atEnd = (this) #rt  -> Bool;
+}
+
+
+
+
+type Array = struct {
+	type ArrIter = struct {
+		func new = (arr: Array*) #rt -> (output: ArrIter) {
+			output.arr = copy arr;
+			output.index = 0;
+			return...;
+		}
+
+		func next = (this mut) #rt -> Void {
+			this.index += 1;
+		}
+
+		func get = (this mut) #rt -> RawPtr {
+			return this.arr[this.index] as RawPtr;
+		}
+
+		func atEnd = (this) #rt -> Bool {
+			return this.index >= 3;
+		}
+
+		impl Iterator{
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
+
+
+		var arr: Array*;
+		var index: USize;
+	}
+
+
 	func new = (data: [Int:3] in) -> (output: This) {
 		output._data = forward data;
 		return...;
@@ -15,13 +55,32 @@ type Thing = struct {
 	}
 
 
+	func iter = (this mut) #rt -> ArrIter {
+		return new ArrIter(&this);
+	}
+
+
 	var _data: [Int:3];
 }
 
 
 
-func entry = () #entry -> UI8 {
-	const thing = new Thing(new [Int:3][12, 14, 17]);
+
+
+
+// func entry = () #entry -> UI8 {
+// 	var array = new Array(new [Int:3][1, 2, 3]);
+
+// 	var arr_iter: Array.ArrIter = array.iter();
+// 	var count: Int = 0;
+
+// 	var iter: Iterator* = &arr_iter as Iterator*;
+
+// 	while(iter.atEnd() == false){
+// 		defer{ iter.next(); }
+// 		count += (iter.get() as Int*).*;
+// 	}
+
 	
-	return thing[1].* as UI8;
-}
+// 	return count as UI8;
+// }

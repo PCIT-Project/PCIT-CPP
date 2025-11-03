@@ -11410,6 +11410,23 @@ namespace pcit::panther{
 			return Result::ERROR;
 
 		}else{
+			if(this->get_current_func().isConstexpr){
+				if(selected_func.isConstexpr == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+						instr.ast_new,
+						"Cannot call a non-constexpr operator [new] within a constexpr function",
+						Diagnostic::Info(
+							"Called operator [new] was defined here:", this->get_location(selected_func_id)
+						)
+					);
+					return Result::ERROR;
+				}
+
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
+			}
+
+
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 				selected_func_id, std::move(output_args)
 			);
@@ -12287,6 +12304,38 @@ namespace pcit::panther{
 				const BaseType::Struct& target_struct_type = 
 					this->context.getTypeManager().getStruct(actual_target_type.baseTypeID().structID());
 
+				if(actual_target_type.qualifiers().empty() == false){
+					if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isNormalPointer()){
+						is_ptr = true;
+					}else{
+						if(actual_target_type.isOptional()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+								instr.indexer,
+								"Invalid target for indexer",
+								Diagnostic::Info("Optional values need to be unwrapped")
+							);
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+								instr.indexer,
+								"Invalid target for indexer"
+							);
+						}
+						return Result::ERROR;
+					}
+				}
+
+				if(target_struct_type.indexerOverloads.empty()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+						instr.indexer,
+						"Invalid target for indexer",
+						Diagnostic::Info("This struct type has no indexer overload")
+					);
+					return Result::ERROR;
+				}
+
 				auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo, 4>();
 				func_infos.reserve(target_struct_type.indexerOverloads.size());
 				for(const sema::Func::ID indexer_overload_id : target_struct_type.indexerOverloads){
@@ -12299,6 +12348,17 @@ namespace pcit::panther{
 
 				auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo, 4>();
 				arg_infos.reserve(instr.indices.size());
+				if(is_ptr){
+					const TypeInfo::ID target_deref_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						actual_target_type.copyWithPoppedQualifier()
+					);
+
+					target.type_id = target_deref_type_id;
+
+					target.getExpr() = sema::Expr(
+						this->context.sema_buffer.createDeref(target.getExpr(), target_deref_type_id)
+					);
+				}
 				arg_infos.emplace_back(target, instr.indexer.target, std::nullopt);
 				for(size_t i = 0; const SymbolProc::TermInfoID index_id : instr.indices){
 					TermInfo& index = this->get_term_info(index_id);

@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.179.1"></a>
+## v0.0.179.1
+
+### Panther
+- Fixed crashing when calling an indexer on a struct that has no indexer overload
+- Fixed qualifiers on a struct indexer call not being checked
+- Fixed operator `new` in a constexpr function not being checked if it is constexpr
+- Fixed readable name mangling of indexer overloads
+
+
+<!---------------------------------->
 <a name="v0.0.179.0"></a>
 ## v0.0.179.0
 
