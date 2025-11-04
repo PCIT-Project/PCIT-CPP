@@ -449,11 +449,16 @@ namespace pcit::panther{
 
 		EVO_NODISCARD constexpr auto is_const() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST 
-				|| this->value_category == ValueCategory::FORWARDABLE
 				|| this->value_category == ValueCategory::FUNCTION
 				|| this->value_category == ValueCategory::METHOD_CALL
 				|| this->value_category == ValueCategory::BUILTIN_TYPE_METHOD
 				|| this->value_category == ValueCategory::INTERFACE_CALL;
+		}
+
+
+		EVO_NODISCARD constexpr auto is_mutable() const -> bool {
+			return this->value_category == ValueCategory::CONCRETE_MUT
+				|| this->value_category == ValueCategory::FORWARDABLE;
 		}
 
 

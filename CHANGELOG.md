@@ -1,21 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.180.1"></a>
+## v0.0.180.1
+
+### Panther
+- Fixed `in` parameters being considered as const
+
+
+<!---------------------------------->
 <a name="v0.0.180.0"></a>
 ## v0.0.180.0
 
 ### Panther
 - Added polymorphic/non-polymorphic interfaces
+- Fixed crashing when calling an interface method statement
 - Fixed crashing or incorrect lowering when lowering use of return parameters
 - Fixed interface pointer accessors not computing mutablility properly
-
-
-<!---------------------------------->
-<a name="v0.0.179.2"></a>
-## v0.0.179.2
-
-### Panther
-- Fixed crashing when calling an interface method statement
 
 
 <!---------------------------------->

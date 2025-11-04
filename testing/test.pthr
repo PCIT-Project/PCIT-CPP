@@ -70,7 +70,7 @@ type Array = struct {
 
 
 
-func sum_arr = (iter: Iterator mut) #rt -> (count: Int) {
+func sum_arr = (iter: Iterator in) #rt -> (count: Int) {
 	count = 0;
 
 	while(iter.atEnd() == false){
@@ -87,7 +87,5 @@ func sum_arr = (iter: Iterator mut) #rt -> (count: Int) {
 func entry = () #entry -> UI8 {
 	var array = new Array(new [Int:3][1, 2, 3]);
 
-	var arr_iter: Array.ArrIter = array.iter();
-
-	return sum_arr(arr_iter) as UI8;
+	return sum_arr(array.iter()) as UI8;
 }
