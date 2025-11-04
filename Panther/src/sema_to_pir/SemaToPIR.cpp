@@ -8247,7 +8247,7 @@ namespace pcit::panther{
 			if(find != this->data.optional_types.end()){ return find->second; }
 
 
-			auto target_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+			auto target_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 			target_qualifiers.reserve(type_info.qualifiers().size() - 1);
 			for(size_t i = 0; i < type_info.qualifiers().size() - 1; i+=1){
 				target_qualifiers.emplace_back(type_info.qualifiers()[i]);

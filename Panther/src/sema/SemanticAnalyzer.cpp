@@ -479,9 +479,6 @@ namespace pcit::panther{
 			case Instruction::Kind::FORWARD:
 				return this->instr_forward(this->context.symbol_proc_manager.getForward(instr));
 
-			case Instruction::Kind::ADDR_OF_CONSTEXPR:
-				return this->instr_addr_of(this->context.symbol_proc_manager.getAddrOfReadOnly(instr));
-
 			case Instruction::Kind::ADDR_OF:
 				return this->instr_addr_of(this->context.symbol_proc_manager.getAddrOf(instr));
 
@@ -7295,7 +7292,7 @@ namespace pcit::panther{
 						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(
 								actual_target_type_info.baseTypeID(),
-								evo::SmallVector<AST::Type::Qualifier>(
+								evo::SmallVector<TypeInfo::Qualifier>(
 									actual_target_type_info.qualifiers().begin(),
 									std::prev(actual_target_type_info.qualifiers().end())
 								)
@@ -7467,7 +7464,7 @@ namespace pcit::panther{
 
 				const TypeInfo::ID array_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
 					this->context.getTypeManager().getTypeInfo(array_ref.elementTypeID)
-						.copyWithPushedQualifier(AST::Type::Qualifier(true, array_ref.isReadOnly, false, false))
+						.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref.isMut, false, false))
 				);
 
 				if(this->type_check<true, true>(
@@ -10605,8 +10602,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_READ_ONLY>
-	auto SemanticAnalyzer::instr_addr_of(const Instruction::AddrOf<IS_READ_ONLY>& instr) -> Result {
+	auto SemanticAnalyzer::instr_addr_of(const Instruction::AddrOf& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.is_concrete() == false){
@@ -10627,24 +10623,19 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const bool is_read_only = [&](){
-			if constexpr(IS_READ_ONLY){
-				return true;
-			}else{
-				return target.value_category == TermInfo::ValueCategory::CONCRETE_CONST;
-			}
-		}();
-
 
 		const TypeInfo& target_type = this->context.type_manager.getTypeInfo(target.type_id.as<TypeInfo::ID>());
 
-		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		auto resultant_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 		resultant_qualifiers.reserve(target_type.qualifiers().size() + 1);
-		for(const AST::Type::Qualifier& qualifier : target_type.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : target_type.qualifiers()){
 			resultant_qualifiers.emplace_back(qualifier);
 		}
 		resultant_qualifiers.emplace_back(
-			true, is_read_only, target.value_state == TermInfo::ValueState::UNINIT, false
+			true,
+			target.is_mutable(),
+			target.value_state == TermInfo::ValueState::UNINIT,
+			false
 		);
 
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
@@ -11050,7 +11041,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		auto resultant_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 		if(resultant_qualifiers.empty() == false){
 			resultant_qualifiers.reserve(target_type.qualifiers().size() - 1);
 			for(size_t i = 0; i < target_type.qualifiers().size() - 1; i+=1){
@@ -11084,7 +11075,7 @@ namespace pcit::panther{
 		using ValueCategory = TermInfo::ValueCategory;
 
 		this->return_term_info(instr.output,
-			target_type.qualifiers().back().isReadOnly ? ValueCategory::CONCRETE_CONST : ValueCategory::CONCRETE_MUT,
+			target_type.qualifiers().back().isMut ? ValueCategory::CONCRETE_MUT : ValueCategory::CONCRETE_CONST,
 			target.value_stage,
 			target_type.qualifiers().back().isUninit
 				? TermInfo::ValueState::UNINIT
@@ -11133,13 +11124,13 @@ namespace pcit::panther{
 		}
 
 
-		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>(
+		auto resultant_qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
 			target_type.qualifiers().begin(), target_type.qualifiers().end()
 		);
 		resultant_qualifiers.back().isOptional = false;
 		if(target_type.isPointer() == false){
 			resultant_qualifiers.back().isPtr = true;
-			resultant_qualifiers.back().isReadOnly = target.is_const();
+			resultant_qualifiers.back().isMut = target.is_mutable();
 		}
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
 			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
@@ -11221,7 +11212,7 @@ namespace pcit::panther{
 						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(
 								actual_target_type_info.baseTypeID(),
-								evo::SmallVector<AST::Type::Qualifier>(
+								evo::SmallVector<TypeInfo::Qualifier>(
 									actual_target_type_info.qualifiers().begin(),
 									std::prev(actual_target_type_info.qualifiers().end())
 								)
@@ -11375,7 +11366,7 @@ namespace pcit::panther{
 
 				const TypeInfo::ID array_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
 					this->context.getTypeManager().getTypeInfo(array_ref.elementTypeID)
-						.copyWithPushedQualifier(AST::Type::Qualifier(true, array_ref.isReadOnly, false, false))
+						.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref.isMut, false, false))
 				);
 
 				if(this->type_check<true, true>(
@@ -12335,7 +12326,7 @@ namespace pcit::panther{
 
 
 		bool is_arr_ref = false;
-		bool is_read_only_arr_ref = false;
+		bool is_mut_arr_ref = false;
 		bool is_ptr = false;
 
 		auto elem_type = std::optional<TypeInfo::ID>();
@@ -12410,7 +12401,7 @@ namespace pcit::panther{
 				const BaseType::ArrayRef& target_array_ref_type =
 					this->context.getTypeManager().getArrayRef(actual_target_type.baseTypeID().arrayRefID());
 
-				is_read_only_arr_ref = target_array_ref_type.isReadOnly;
+				is_mut_arr_ref = target_array_ref_type.isMut;
 
 				if(target_array_ref_type.dimensions.size() != instr.indices.size()){
 					this->emit_error(
@@ -12575,14 +12566,14 @@ namespace pcit::panther{
 		}
 
 
-		auto resultant_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		auto resultant_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 		resultant_qualifiers.reserve(element_type->qualifiers().size() + 1);
-		for(const AST::Type::Qualifier& qualifier : element_type->qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : element_type->qualifiers()){
 			resultant_qualifiers.emplace_back(qualifier);
 		}
 		resultant_qualifiers.emplace_back(
 			true,
-			target.is_const() || (is_ptr && actual_target_type.qualifiers().back().isReadOnly) || is_read_only_arr_ref,
+			target.is_mutable() || (is_ptr && actual_target_type.qualifiers().back().isMut) || is_mut_arr_ref,
 			false,
 			false
 		);
@@ -12600,7 +12591,7 @@ namespace pcit::panther{
 				));
 
 			}else if(is_ptr){
-				auto derefed_qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+				auto derefed_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 				derefed_qualifiers.reserve(actual_target_type.qualifiers().size() - 1);
 				for(size_t i = 0; i < actual_target_type.qualifiers().size() - 1; i+=1){
 					derefed_qualifiers.emplace_back(actual_target_type.qualifiers()[i]);
@@ -13505,7 +13496,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(to_array_ref.isReadOnly == false && expr.is_const()){
+			if(to_array_ref.isMut && expr.is_const()){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
@@ -15770,14 +15761,18 @@ namespace pcit::panther{
 
 		evo::debugAssert(base_type.has_value(), "Base type was not set");
 
-		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
+		qualifiers.reserve(instr.ast_type.qualifiers.size());
+		for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
+			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+		}
+
+		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
 
 		this->return_type(
 			instr.output,
 			TypeInfo::VoidableID(
-				this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(*base_type, evo::copy(instr.ast_type.qualifiers))
-				)
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(*base_type, std::move(qualifiers)))
 			)
 		);
 		return Result::SUCCESS;
@@ -16135,7 +16130,7 @@ namespace pcit::panther{
 
 		const BaseType::ID array_ref_type = this->context.type_manager.getOrCreateArrayRef(
 			BaseType::ArrayRef(
-				elem_type.asTypeID(), std::move(dimensions), std::move(terminator), *instr.array_type.refIsReadOnly
+				elem_type.asTypeID(), std::move(dimensions), std::move(terminator), *instr.array_type.refIsMut
 			)
 		);
 
@@ -16202,8 +16197,13 @@ namespace pcit::panther{
 			default: evo::debugFatalBreak("Invalid user type base");
 		}
 
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
+		qualifiers.reserve(instr.ast_type.qualifiers.size());
+		for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
+			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+		}
 
-		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
 
 		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
 
@@ -16229,12 +16229,11 @@ namespace pcit::panther{
 			}
 		}
 
+
 		this->return_type(
 			instr.output,
 			TypeInfo::VoidableID(
-				this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(base_type.baseTypeID(), evo::copy(instr.ast_type.qualifiers))
-				)
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(base_type.baseTypeID(), std::move(qualifiers)))
 			)
 		);
 		return Result::SUCCESS;
@@ -16378,7 +16377,7 @@ namespace pcit::panther{
 									core::GenericValue('\0')
 								)
 							),
-							evo::SmallVector<AST::Type::Qualifier>{AST::Type::Qualifier(true, true, false, false)}
+							evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier(true, false, false, false)}
 						)
 					),
 					sema::Expr(this->context.sema_buffer.createStringValue(std::string(literal_token.getString())))
@@ -16957,10 +16956,10 @@ namespace pcit::panther{
 				const TypeInfo& lhs_type_info =
 					this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>());
 
-				if(lhs_type_info.qualifiers().back().isReadOnly){
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
-				}else{
+				if(lhs_type_info.qualifiers().back().isMut){
 					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
+				}else{
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
 				}
 			}();
 
@@ -21625,7 +21624,7 @@ namespace pcit::panther{
 				if(deducer.qualifiers().empty()){
 					output.emplace_back(got_type_id, type_deducer.identTokenID);
 				}else{
-					auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+					auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 
 					for(size_t i = 0; i < got_type.qualifiers().size() - deducer.qualifiers().size(); i+=1){
 						qualifiers.emplace_back(got_type.qualifiers()[i]);
@@ -21672,7 +21671,7 @@ namespace pcit::panther{
 				const BaseType::ArrayRef& got_array_ref_type = 
 					this->context.getTypeManager().getArrayRef(got_type.baseTypeID().arrayRefID());
 
-				if(deducer_array_ref_type.isReadOnly != got_array_ref_type.isReadOnly){ return evo::resultError; }
+				if(deducer_array_ref_type.isMut != got_array_ref_type.isMut){ return evo::resultError; }
 				if(deducer_array_ref_type.terminator != got_array_ref_type.terminator){ return evo::resultError; }
 
 				const evo::Result<evo::SmallVector<DeducedTerm>> arr_deduced = this->extract_deducers(
@@ -23662,7 +23661,7 @@ namespace pcit::panther{
 							type_manager.getArrayRef(got_type.baseTypeID().arrayRefID());
 
 
-						if(expected_array_ref.isReadOnly == false && got_array_ref.isReadOnly){
+						if(expected_array_ref.isMut && got_array_ref.isMut == false){
 							if constexpr(MAY_EMIT_ERROR){
 								this->error_type_mismatch(
 									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
@@ -23693,8 +23692,8 @@ namespace pcit::panther{
 
 					// check qualifiers
 					for(size_t i = 0; i < got_type.qualifiers().size(); i+=1){
-						const AST::Type::Qualifier& expected_qualifier = expected_type.qualifiers()[i];
-						const AST::Type::Qualifier& got_qualifier      = got_type.qualifiers()[i];
+						const TypeInfo::Qualifier& expected_qualifier = expected_type.qualifiers()[i];
+						const TypeInfo::Qualifier& got_qualifier      = got_type.qualifiers()[i];
 
 						if(expected_qualifier.isPtr != got_qualifier.isPtr){
 							if constexpr(MAY_EMIT_ERROR){
@@ -23704,7 +23703,7 @@ namespace pcit::panther{
 							}
 							return TypeCheckInfo::fail();
 						}
-						if(expected_qualifier.isReadOnly == false && got_qualifier.isReadOnly){
+						if(expected_qualifier.isMut && got_qualifier.isMut == false){
 							if constexpr(MAY_EMIT_ERROR){
 								this->error_type_mismatch(
 									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
@@ -24246,14 +24245,14 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::check_type_qualifiers(evo::ArrayProxy<AST::Type::Qualifier> qualifiers, const auto& location)
+	auto SemanticAnalyzer::check_type_qualifiers(evo::ArrayProxy<TypeInfo::Qualifier> qualifiers, const auto& location)
 	-> evo::Result<> {
 		bool found_read_only_ptr = false;
 		for(ptrdiff_t i = qualifiers.size() - 1; i >= 0; i-=1){
-			const AST::Type::Qualifier& qualifier = qualifiers[i];
+			const TypeInfo::Qualifier& qualifier = qualifiers[i];
 
 			if(found_read_only_ptr){
-				if(qualifier.isPtr && qualifier.isReadOnly == false){
+				if(qualifier.isPtr && qualifier.isMut){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_TYPE_QUALIFIERS,
 						location,
@@ -24266,7 +24265,7 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-			}else if(qualifier.isPtr && qualifier.isReadOnly){
+			}else if(qualifier.isPtr && qualifier.isMut == false){
 				found_read_only_ptr = true;
 			}
 		}

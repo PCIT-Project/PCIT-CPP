@@ -2,25 +2,25 @@ def build = @import("build");
 
 
 type Project = struct #pub {
-	func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*|] = ("".* as [Char:*|])) #rt
+	func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:*] = ("".* as [Char:*])) #rt
 	-> (output: This) {
 		output._project_id = @buildCreateProject(path, forward warning_settings);
 		return...;
 	}
 
-	// func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:$$;'\0']*|) #rt -> (output: This) {
-	// 	output = new Project(forward warning_settings, path.* as [Char:*|]);
+	// func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:$$;'\0']*) #rt -> (output: This) {
+	// 	output = new Project(forward warning_settings, path.* as [Char:*]);
 	// 	return...;
 	// }
 
 
 
-	func addSourceFile = (this, path: [Char:*|]) #rt -> Void {
+	func addSourceFile = (this, path: [Char:*]) #rt -> Void {
 		@buildAddSourceFile(path, this._project_id);
 	}
 
-	func addSourceFile = (this, path: [Char:$$;'\0']*|) #rt -> Void {
-		this.addSourceFile(path.* as [Char:*|]);
+	func addSourceFile = (this, path: [Char:$$;'\0']*) #rt -> Void {
+		this.addSourceFile(path.* as [Char:*]);
 	}
 	
 

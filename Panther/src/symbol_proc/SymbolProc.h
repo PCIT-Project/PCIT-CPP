@@ -691,7 +691,6 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		template<bool IS_READ_ONLY>
 		struct AddrOf{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID target;
@@ -1019,7 +1018,6 @@ namespace pcit::panther{
 			COPY,
 			MOVE,
 			FORWARD,
-			ADDR_OF_CONSTEXPR,
 			ADDR_OF,
 			PREFIX_NEGATE_CONSTEXPR,
 			PREFIX_NEGATE,

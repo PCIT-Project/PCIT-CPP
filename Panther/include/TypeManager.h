@@ -411,7 +411,7 @@ namespace pcit::panther{
 			TypeInfoID elementTypeID;
 			evo::SmallVector<Dimension> dimensions;
 			std::optional<core::GenericValue> terminator;
-			bool isReadOnly;
+			bool isMut;
 
 
 			EVO_NODISCARD auto getNumRefPtrs() const -> size_t {
@@ -427,12 +427,12 @@ namespace pcit::panther{
 				TypeInfoID elem_type_id,
 				evo::SmallVector<Dimension>&& _dimensions,
 				std::optional<core::GenericValue>&& _terminator,
-				bool is_read_only
+				bool is_mut
 			) : 
 				elementTypeID(elem_type_id),
 				dimensions(std::move(_dimensions)),
 				terminator(std::move(_terminator)),
-				isReadOnly(is_read_only) 
+				isMut(is_mut) 
 			{
 				evo::debugAssert(
 					!(this->dimensions.size() > 1 && this->terminator.has_value()),
@@ -780,18 +780,37 @@ namespace pcit::panther{
 		public:
 			using ID = TypeInfoID;
 			using VoidableID = TypeInfoVoidableID;
+
+			struct Qualifier{
+				bool isPtr: 1;
+				bool isMut: 1;
+				bool isUninit: 1;
+				bool isOptional: 1;
+
+				Qualifier(bool is_ptr, bool is_mut, bool is_uninit, bool is_optional)
+					: isPtr(is_ptr), isMut(is_mut), isUninit(is_uninit), isOptional(is_optional) {
+					evo::debugAssert(is_ptr || is_optional, "must be pointer xor optional");
+					evo::debugAssert(is_mut || is_ptr, "mut must be a pointer");
+					evo::debugAssert(is_uninit == false || is_ptr, "uninit must be a pointer");
+				}
+
+				EVO_NODISCARD auto operator==(const Qualifier& rhs) const -> bool {
+					return (std::bit_cast<uint8_t>(*this) & 0b1111) == (std::bit_cast<uint8_t>(rhs) & 0b1111);
+				}
+			};
+			static_assert(sizeof(Qualifier) == 1, "sizeof(TypeInfo::Qualifier) != 1");
 			
 		public:
 			explicit TypeInfo(const BaseType::ID& id) : base_type(id), _qualifiers() {};
-			TypeInfo(const BaseType::ID& id, const evo::SmallVector<AST::Type::Qualifier>& qualifiers_list)
+			TypeInfo(const BaseType::ID& id, const evo::SmallVector<Qualifier>& qualifiers_list)
 				: base_type(id), _qualifiers(qualifiers_list) {};
-			TypeInfo(const BaseType::ID& id, evo::SmallVector<AST::Type::Qualifier>&& qualifiers_list)
+			TypeInfo(const BaseType::ID& id, evo::SmallVector<Qualifier>&& qualifiers_list)
 				: base_type(id), _qualifiers(std::move(qualifiers_list)) {};
 			~TypeInfo() = default;
 
 
 			EVO_NODISCARD auto baseTypeID() const -> BaseType::ID { return this->base_type; }
-			EVO_NODISCARD auto qualifiers() const -> evo::ArrayProxy<AST::Type::Qualifier> { return this->_qualifiers; }
+			EVO_NODISCARD auto qualifiers() const -> evo::ArrayProxy<Qualifier> { return this->_qualifiers; }
 
 			EVO_NODISCARD auto operator==(const TypeInfo&) const -> bool = default;
 
@@ -830,7 +849,7 @@ namespace pcit::panther{
 
 
 			// TODO(PERF): better allocation of qualifiers vector
-			EVO_NODISCARD auto copyWithPushedQualifier(AST::Type::Qualifier qualifier) const -> TypeInfo {
+			EVO_NODISCARD auto copyWithPushedQualifier(Qualifier qualifier) const -> TypeInfo {
 				TypeInfo copied_type = *this;
 				copied_type._qualifiers.emplace_back(qualifier);
 				return copied_type;
@@ -856,7 +875,7 @@ namespace pcit::panther{
 	
 		private:
 			BaseType::ID base_type;
-			evo::SmallVector<AST::Type::Qualifier> _qualifiers;
+			evo::SmallVector<Qualifier> _qualifiers;
 	};
 
 	class TypeManager{

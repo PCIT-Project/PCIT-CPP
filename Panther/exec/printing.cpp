@@ -1373,8 +1373,8 @@ namespace pthr{
 							if(dimension.has_value()){
 								this->printer.printGray("...expr...");
 							}else{
-								if(*array_type.refIsReadOnly){
-									this->printer.printMagenta("*|");
+								if(*array_type.refIsMut){
+									this->printer.printMagenta("*mut");
 								}else{
 									this->printer.printMagenta("*");
 								}
@@ -1419,7 +1419,7 @@ namespace pthr{
 						}
 
 						if(qualifier.isPtr){ qualifier_str += '*'; }
-						if(qualifier.isReadOnly){ qualifier_str += '|'; }
+						if(qualifier.isMut){ qualifier_str += "mut"; }
 						if(qualifier.isUninit){ qualifier_str += '!'; }
 						if(qualifier.isOptional){ qualifier_str += '?'; }
 					}

@@ -1615,26 +1615,8 @@ namespace pcit::panther{
 			}
 
 
-
 			//////////////////
-			// AddrOf<true>
-
-			EVO_NODISCARD auto createAddrOfReadOnly(auto&&... args) -> Instruction {
-				return Instruction(
-					Instruction::Kind::ADDR_OF_CONSTEXPR,
-					this->addr_of_read_onlys.emplace_back(std::forward<decltype(args)>(args)...)
-				);
-			}
-
-			EVO_NODISCARD auto getAddrOfReadOnly(Instruction instr) const -> const Instruction::AddrOf<true>& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::ADDR_OF_CONSTEXPR, "Not a AddrOf<true>");
-				return this->addr_of_read_onlys[instr._index];
-			}
-
-
-
-			//////////////////
-			// AddrOf<false>
+			// AddrOf
 
 			EVO_NODISCARD auto createAddrOf(auto&&... args) -> Instruction {
 				return Instruction(
@@ -1643,8 +1625,8 @@ namespace pcit::panther{
 				);
 			}
 
-			EVO_NODISCARD auto getAddrOf(Instruction instr) const -> const Instruction::AddrOf<false>& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::ADDR_OF, "Not a AddrOf<false>");
+			EVO_NODISCARD auto getAddrOf(Instruction instr) const -> const Instruction::AddrOf& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ADDR_OF, "Not a AddrOf");
 				return this->addr_ofs[instr._index];
 			}
 
@@ -2720,8 +2702,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Copy, uint32_t> copys{};
 			core::SyncLinearStepAlloc<Instruction::Move, uint32_t> moves{};
 			core::SyncLinearStepAlloc<Instruction::Forward, uint32_t> forwards{};
-			core::SyncLinearStepAlloc<Instruction::AddrOf<true>, uint32_t> addr_of_read_onlys{};
-			core::SyncLinearStepAlloc<Instruction::AddrOf<false>, uint32_t> addr_ofs{};
+			core::SyncLinearStepAlloc<Instruction::AddrOf, uint32_t> addr_ofs{};
 			core::SyncLinearStepAlloc<Instruction::PrefixNegate<true>, uint32_t> prefix_negate_constexprs{};
 			core::SyncLinearStepAlloc<Instruction::PrefixNegate<false>, uint32_t> prefix_negates{};
 			core::SyncLinearStepAlloc<Instruction::PrefixNot<true>, uint32_t> prefix_not_constexprs{};

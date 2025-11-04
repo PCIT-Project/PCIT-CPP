@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.181.0"></a>
+## v0.0.181.0
+
+### Panther
+- Changed mutable pointer being `*` and read-only pointer being `*|` to `*mut` and `*` respectively
+- Removed read-only address of operator (prefix `&|`)
+
+
+<!---------------------------------->
 <a name="v0.0.180.2"></a>
 ## v0.0.180.2
 

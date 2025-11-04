@@ -201,8 +201,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_copy(const Instruction::Copy& instr) -> Result;
 			EVO_NODISCARD auto instr_move(const Instruction::Move& instr) -> Result;
 			EVO_NODISCARD auto instr_forward(const Instruction::Forward& instr) -> Result;
-			template<bool IS_READ_ONLY>
-			EVO_NODISCARD auto instr_addr_of(const Instruction::AddrOf<IS_READ_ONLY>& instr) -> Result;
+			EVO_NODISCARD auto instr_addr_of(const Instruction::AddrOf& instr) -> Result;
 
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_prefix_negate(const Instruction::PrefixNegate<IS_CONSTEXPR>& instr) -> Result;
@@ -815,7 +814,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto check_type_qualifiers(
-				evo::ArrayProxy<AST::Type::Qualifier> qualifiers, const auto& location
+				evo::ArrayProxy<TypeInfo::Qualifier> qualifiers, const auto& location
 			) -> evo::Result<>;
 
 
@@ -844,7 +843,7 @@ namespace pcit::panther{
 				std::string_view ident_str,
 				const sema::ScopeLevel::IdentID& first_defined_id,
 				sema::Func::ID attempted_decl_func_id,
-				[[maybe_unused]] auto&&... ident_id_info_args
+				[[maybe_unused]] auto&&... ident_id_info_args // TODO(FUTURE): this is seemingly unused?????
 			) -> void {
 				this->error_already_defined_impl<IS_SHADOWING>(
 					redef_id, ident_str, first_defined_id, attempted_decl_func_id
@@ -856,7 +855,7 @@ namespace pcit::panther{
 				const auto& redef_id,
 				std::string_view ident_str,
 				const sema::ScopeLevel::IdentID& first_defined_id,
-				[[maybe_unused]] auto&&... ident_id_info_args
+				[[maybe_unused]] auto&&... ident_id_info_args // TODO(FUTURE): this is seemingly unused?????
 			) -> void {
 				this->error_already_defined_impl<IS_SHADOWING>(redef_id, ident_str, first_defined_id, std::nullopt);
 			}

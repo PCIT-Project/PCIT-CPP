@@ -276,11 +276,11 @@ namespace pcit::panther{
 		std::string type_str = this->printType(type_info.baseTypeID(), source_manager);
 
 		bool is_first_qualifer = type_str.back() != '*'
-			&& type_str.back() != '|'
+			&& type_str.ends_with("*mut")
 			&& type_str.back() != '!'
 			&& type_str.back() != '?';
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(type_info.qualifiers().size() > 1){
 				if(is_first_qualifer){
 					is_first_qualifer = false;
@@ -290,7 +290,7 @@ namespace pcit::panther{
 			}
 
 			if(qualifier.isPtr){ type_str += '*'; }
-			if(qualifier.isReadOnly){ type_str += '|'; }
+			if(qualifier.isMut){ type_str += "mut"; }
 			if(qualifier.isUninit){ type_str += '!'; }
 			if(qualifier.isOptional){ type_str += '?'; }
 		}
@@ -508,8 +508,8 @@ namespace pcit::panther{
 
 				for(size_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
 					if(dimension.isPtr()){
-						if(array_ref.isReadOnly){
-							builder += "*|";
+						if(array_ref.isMut){
+							builder += "*mut";
 						}else{
 							builder += "*";
 						}
@@ -2147,7 +2147,7 @@ namespace pcit::panther{
 	auto TypeManager::isTriviallyDeletable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
@@ -2231,7 +2231,7 @@ namespace pcit::panther{
 	auto TypeManager::isConstexprDeletable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
@@ -2321,7 +2321,7 @@ namespace pcit::panther{
 	auto TypeManager::isCopyable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
@@ -2406,7 +2406,7 @@ namespace pcit::panther{
 	auto TypeManager::isTriviallyCopyable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
@@ -2492,7 +2492,7 @@ namespace pcit::panther{
 	auto TypeManager::isConstexprCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
@@ -2583,7 +2583,7 @@ namespace pcit::panther{
 	auto TypeManager::isMovable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
@@ -2668,7 +2668,7 @@ namespace pcit::panther{
 	auto TypeManager::isTriviallyMovable(TypeInfo::ID id) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 
@@ -2754,7 +2754,7 @@ namespace pcit::panther{
 	auto TypeManager::isConstexprMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 
-		for(const AST::Type::Qualifier& qualifier : type_info.qualifiers()){
+		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
 			if(qualifier.isPtr){ return true; }
 		}
 

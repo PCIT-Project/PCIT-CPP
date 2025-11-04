@@ -418,20 +418,20 @@ namespace pcit::panther::AST{
 		Node elemType;
 		evo::SmallVector<std::optional<Node>> dimensions; // element is nullopt if dimension is ptr
 		std::optional<Node> terminator;
-		std::optional<bool> refIsReadOnly; // only has value if is array ref
+		std::optional<bool> refIsMut; // only has value if is array ref
 	};
 
 	struct Type{
 		struct Qualifier{
 			bool isPtr: 1;
-			bool isReadOnly: 1;
+			bool isMut: 1;
 			bool isUninit: 1;
 			bool isOptional: 1;
 
-			Qualifier(bool is_ptr, bool is_read_only, bool is_uninit, bool is_optional)
-				: isPtr(is_ptr), isReadOnly(is_read_only), isUninit(is_uninit), isOptional(is_optional) {
-				evo::debugAssert(is_ptr || is_optional, "must be pointer or optional");
-				evo::debugAssert(is_read_only == false || is_ptr, "read-only must be a pointer");
+			Qualifier(bool is_ptr, bool is_mut, bool is_uninit, bool is_optional)
+				: isPtr(is_ptr), isMut(is_mut), isUninit(is_uninit), isOptional(is_optional) {
+				evo::debugAssert(is_ptr || is_optional, "must be pointer xor optional");
+				evo::debugAssert(is_mut || is_ptr, "mut must be a pointer");
 				evo::debugAssert(is_uninit == false || is_ptr, "uninit must be a pointer");
 			}
 

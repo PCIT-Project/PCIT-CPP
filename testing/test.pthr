@@ -2,15 +2,50 @@
 
 interface Iterator = {
 	func next = (this mut) #rt -> Void;
-	func get = (this mut) #rt -> $$*;
-	func get = (this) #rt -> $$*|;
+	func get = (this mut) #rt -> $$*mut;
+	func get = (this) #rt -> $$*;
+	func atEnd = (this) #rt -> Bool;
+}
+
+interface ConstIterator = {
+	func next = (this mut) #rt -> Void;
+	func get = (this) #rt -> $$*;
 	func atEnd = (this) #rt -> Bool;
 }
 
 
 type Array = struct {
+	func new = (data: [Int:3] in) -> (output: This) {
+		output._data = forward data;
+		return...;
+	}
+
+	func [] = (this, index: USize) -> Int* {
+		return this._data[index];
+	}
+
+	func [] = (this mut, index: USize) -> Int*mut {
+		return this._data[index];
+	}
+
+
+	func iter = (this mut) #rt -> ArrIter {
+		return new ArrIter(&this);
+	}
+
+	func iter = (this) #rt -> ConstArrIter {
+		return new ConstArrIter(&this);
+	}
+
+
+	var _data: [Int:3];
+
+
+	///////////////////////////////////
+	// iters
+
 	type ArrIter = struct {
-		func new = (arr: Array*) -> (output: ArrIter) {
+		func new = (arr: Array*mut) -> (output: ArrIter) {
 			output.arr = copy arr;
 			output.index = 0;
 			return...;
@@ -20,11 +55,11 @@ type Array = struct {
 			this.index += 1;
 		}
 
-		func get = (this mut) -> Int* {
+		func get = (this mut) -> Int*mut {
 			return this.arr[this.index];
 		}
 
-		func get = (this) -> Int*| {
+		func get = (this) -> Int* {
 			return this.arr[this.index];
 		}
 
@@ -40,35 +75,54 @@ type Array = struct {
 		}
 
 
-		var arr: Array*;
+		var arr: Array*mut;
 		var index: USize;
 	}
 
+	type ConstArrIter = struct {
+		func new = (arr: Array*) -> (output: ConstArrIter) {
+			output.arr = copy arr;
+			output.index = 0;
+			return...;
+		}
 
-	func new = (data: [Int:3] in) -> (output: This) {
-		output._data = forward data;
-		return...;
+		func next = (this mut) -> Void {
+			this.index += 1;
+		}
+
+		func get = (this) -> Int* {
+			return this.arr[this.index];
+		}
+
+		func atEnd = (this) -> Bool {
+			return this.index >= 3;
+		}
+
+		impl ConstIterator{
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
+
+
+		var arr: Array*;
+		var index: USize;
 	}
-
-	func [] = (this, index: USize) -> Int*| {
-		return this._data[index];
-	}
-
-	func [] = (this mut, index: USize) -> Int* {
-		return this._data[index];
-	}
-
-
-	func iter = (this mut) #rt -> ArrIter {
-		return new ArrIter(&this);
-	}
-
-
-	var _data: [Int:3];
 }
 
 
 
+
+func sum_arr = (iter: ConstIterator in) #rt -> (count: Int) {
+	count = 0;
+
+	while(iter.atEnd() == false){
+		defer{ iter.next(); }
+		count += iter.get().*;
+	}
+
+	return...;
+}
 
 func sum_arr = (iter: Iterator in) #rt -> (count: Int) {
 	count = 0;
@@ -84,34 +138,13 @@ func sum_arr = (iter: Iterator in) #rt -> (count: Int) {
 
 
 
+
 func entry = () #entry -> UI8 {
 	var array = new Array(new [Int:3][1, 2, 3]);
+
+	const arr_ptr: Array*? = &array;
 
 	return sum_arr(array.iter()) as UI8;
 }
 
-
-
-//////////////////////////////////////////////////////////////////////
-// contexpr special member check
-
-type NonTrivial = struct {
-	func copy = (this) #rt -> (output: This) {
-		return...;
-	}
-}
-
-
-func in_test = (nt: NonTrivial in) -> Void {
-	var foo: NonTrivial = forward nt;
-}
-
-func non_trivial_test = () -> Void {
-	var nt = new NonTrivial();
-	// var nt2 = new NonTrivial();
-
-	// nt = copy nt2;
-
-	in_test(move nt);
-}
 

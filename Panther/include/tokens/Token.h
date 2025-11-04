@@ -135,10 +135,10 @@ namespace pcit::panther{
 				///////////////////////////////////
 				// operators
 
-				RIGHT_ARROW,          // ->
-				UNDERSCORE,           // _
-				ELLIPSIS,             // ...
-				READ_ONLY_ADDRESS_OF, // &|
+				RIGHT_ARROW, // ->
+				UNDERSCORE,  // _
+				ELLIPSIS,    // ...
+				MUT_PTR,     // *mut
 
 
 				// assignment
@@ -303,6 +303,7 @@ namespace pcit::panther{
 			EVO_NODISCARD static consteval auto lookupKind(std::string_view op_str) -> Kind {
 				// length 4
 				if(op_str == "<<|="){ return Kind::ASSIGN_SHIFT_LEFT_SAT; }
+				if(op_str == "*mut"){ return Kind::MUT_PTR; }
 
 				// length 3
 				if(op_str == "..."){ return Kind::ELLIPSIS; }
@@ -321,7 +322,6 @@ namespace pcit::panther{
 				// length 2
 				if(op_str == "$$"){ return Kind::ANONYMOUS_DEDUCER; }
 				if(op_str == "->"){ return Kind::RIGHT_ARROW; }
-				if(op_str == "&|"){ return Kind::READ_ONLY_ADDRESS_OF; }
 
 				if(op_str == "+="){ return Kind::ASSIGN_ADD; }
 				if(op_str == "-="){ return Kind::ASSIGN_SUB; }
@@ -515,7 +515,7 @@ namespace pcit::panther{
 					break; case Kind::RIGHT_ARROW:           return "->";
 					break; case Kind::UNDERSCORE:            return "_";
 					break; case Kind::ELLIPSIS:              return "...";
-					break; case Kind::READ_ONLY_ADDRESS_OF:  return "&|";
+					break; case Kind::MUT_PTR:               return "*mut";
 
 
 					// assignment

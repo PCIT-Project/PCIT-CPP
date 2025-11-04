@@ -1305,7 +1305,7 @@ namespace pcit::panther{
 				if(elem_type.isError()){ return evo::resultError; }
 
 
-				if(array_type.refIsReadOnly.has_value()){ // array ref
+				if(array_type.refIsMut.has_value()){ // array ref
 					auto dimensions = evo::SmallVector<std::optional<SymbolProcTermInfoID>>();
 					dimensions.reserve(array_type.dimensions.size());
 					for(const std::optional<AST::Node>& dimension : array_type.dimensions){
@@ -2227,7 +2227,7 @@ namespace pcit::panther{
 					if(elem_type.isError()){ return evo::resultError; }
 
 
-					if(array_type.refIsReadOnly.has_value()){ // array ref
+					if(array_type.refIsMut.has_value()){ // array ref
 						auto dimensions = evo::SmallVector<std::optional<SymbolProcTermInfoID>>();
 						dimensions.reserve(array_type.dimensions.size());
 						for(const std::optional<AST::Node>& dimension : array_type.dimensions){
@@ -2766,19 +2766,6 @@ namespace pcit::panther{
 
 				this->add_instruction(
 					this->context.symbol_proc_manager.createAddrOf(prefix, target.value(), created_term_info_id)
-				);
-
-				return created_term_info_id;
-			} break;
-
-			case Token::lookupKind("&|"): {
-				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
-
-				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
-				if(target.isError()){ return evo::resultError; }
-
-				this->add_instruction(
-					this->context.symbol_proc_manager.createAddrOfReadOnly(prefix, target.value(), created_term_info_id)
 				);
 
 				return created_term_info_id;

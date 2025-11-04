@@ -330,21 +330,21 @@ namespace pcit::panther{
 		}
 
 
-		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 
 		for(const clangint::Type::Qualifier& qualifier : clang_type.qualifiers){
 			switch(qualifier){
 				break; case clangint::Type::Qualifier::POINTER:
-					qualifiers.emplace_back(true, clang_type.isConst, false, true);
+					qualifiers.emplace_back(true, !clang_type.isConst, false, true);
 
 				break; case clangint::Type::Qualifier::CONST_POINTER:
-					qualifiers.emplace_back(true, true, false, true);
+					qualifiers.emplace_back(true, false, false, true);
 
 				break; case clangint::Type::Qualifier::L_VALUE_REFERENCE:
-					qualifiers.emplace_back(true, clang_type.isConst, false, false);
+					qualifiers.emplace_back(true, !clang_type.isConst, false, false);
 
 				break; case clangint::Type::Qualifier::R_VALUE_REFERENCE:
-					qualifiers.emplace_back(true, clang_type.isConst, false, false);
+					qualifiers.emplace_back(true, !clang_type.isConst, false, false);
 			}
 		}
 
@@ -2069,7 +2069,7 @@ namespace pcit::panther{
 						TypeManager::getTypeChar(),
 						evo::SmallVector<BaseType::ArrayRef::Dimension>{BaseType::ArrayRef::Dimension::ptr()},
 						std::nullopt,
-						true
+						false
 					)
 				)
 			)
